@@ -1,0 +1,15 @@
+{
+  "_comment": "shortform-repurposing converts a long-form project into a full short-form content package.",
+  "id": "shortform-repurposing",
+  "description": "3 to 5 Shorts/Reels, per-platform captions, hashtag sets, Pinterest Pins, and a drop schedule from a long-form project.",
+  "steps": [
+    {"step": 1, "atom": "short-extract", "input_from": "user request + source_transcript or project_brief", "output_to": "step2", "repeat": "3 to 5 clips"},
+    {"step": 2, "atom": "caption-write", "input_from": "step1.clips", "output_to": "step3", "repeat": "per_platform"},
+    {"step": 3, "atom": "hashtag-set", "input_from": "user request + step1.clips", "output_to": "step4", "repeat": "per_platform"},
+    {"step": 4, "atom": "pin-write", "input_from": "user request + step1.clips", "output_to": "step5", "repeat": "1 to 3 pins"},
+    {"step": 5, "atom": "calendar-slot", "input_from": "step1.clips + publish_by_window", "output_to": "step6"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "assembled_short_form_package", "output_to": "final", "gates": ["integrity", "brand_alignment", "accuracy"]}
+  ],
+  "shortcut_atoms": ["short-extract", "caption-write", "hashtag-set", "pin-write", "calendar-slot"],
+  "note": "The ecosystem ratio is 1 long-form + 3 to 5 Shorts/Reels + 1 to 3 Pins per project. caption-write flags FTC disclosure when content is sponsored, gifted, or affiliate."
+}

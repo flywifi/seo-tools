@@ -1,0 +1,15 @@
+{
+  "_comment": "project-builder composes atoms into a complete DIY project brief. Shortcut atoms let Alex request just a materials list or just step sequence.",
+  "id": "project-builder",
+  "description": "Complete DIY home decor project brief: snapshot, materials, steps, safety, styling variants, and renter alternatives.",
+  "steps": [
+    {"step": 1, "atom": "project-snapshot", "input_from": "user request", "output_to": "step2"},
+    {"step": 2, "atom": "materials-list", "input_from": "step1.snapshot + user request", "output_to": "step3"},
+    {"step": 3, "atom": "step-sequence", "input_from": "step1.snapshot + step2.materials", "output_to": "step4"},
+    {"step": 4, "atom": "styling-variant", "input_from": "step1.snapshot + user request", "output_to": "step5", "repeat": "2 to 3 variants"},
+    {"step": 5, "atom": "renter-alt", "input_from": "step3.steps", "output_to": "step6", "condition": "renter_friendly requested or step has permanent modification", "repeat": "per_relevant_step"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "assembled_project_brief", "output_to": "final", "gates": ["integrity", "safety", "brand_alignment", "accuracy"]}
+  ],
+  "shortcut_atoms": ["project-snapshot", "materials-list", "step-sequence", "styling-variant", "renter-alt"],
+  "note": "The user can call any shortcut atom directly without running the full workflow. step-sequence always invokes the licensed-trade safety check per protocols/safety.md."
+}

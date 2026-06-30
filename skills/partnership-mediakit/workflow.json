@@ -1,0 +1,13 @@
+{
+  "_comment": "partnership-mediakit builds brand outreach materials: pitch paragraph, media kit sections, and rate card.",
+  "id": "partnership-mediakit",
+  "description": "Brand partnership outreach package: pitch paragraph, media kit sections, and rate card.",
+  "steps": [
+    {"step": 1, "atom": "pitch-paragraph", "input_from": "brand_name + brand_product_category + proposed_format + brand_fit_notes", "output_to": "step2"},
+    {"step": 2, "atom": "mediakit-section", "input_from": "channel_data + brand_name", "output_to": "step3", "repeat": "per_section"},
+    {"step": 3, "atom": "rate-card-fill", "input_from": "format_list + alex_actual_rates (if available)", "output_to": "step4"},
+    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_mediakit_package", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
+  ],
+  "shortcut_atoms": ["pitch-paragraph", "mediakit-section", "rate-card-fill"],
+  "note": "Benchmark rates are labeled as industry benchmarks, never as Alex's personal rates without explicit labeling. FTC disclosure note appears in pitch when content is sponsored."
+}

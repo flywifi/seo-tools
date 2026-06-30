@@ -1,0 +1,31 @@
+{
+  "skill_name": "deal-resourcing",
+  "evals": [
+    {
+      "id": "signed-deal-task-list",
+      "prompt": "Create a production plan for my signed West Elm deal, publishing October 15.",
+      "expect": [
+        "production-task returns a task list with pre-production, shoot, edit, caption, review, post categories",
+        "critical_path is not empty",
+        "due_date is relative to publish_date: 2026-10-15"
+      ]
+    },
+    {
+      "id": "brand-review-window",
+      "prompt": "The brand needs 5 business days to review before publish.",
+      "expect": [
+        "a 'brand review' task appears in the task list",
+        "the review window is reflected in due_date for that task",
+        "the critical_path includes the review task as a dependency"
+      ]
+    },
+    {
+      "id": "wrong-stage",
+      "prompt": "Resource the deal that is still in discussion.",
+      "expect": [
+        "gap-record returned when deal stage is not signed, in-production, or delivered",
+        "reason explains that the deal must be signed before resourcing"
+      ]
+    }
+  ]
+}

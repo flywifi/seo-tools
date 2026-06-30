@@ -1,0 +1,149 @@
+{
+  "skill": "creator-core",
+  "version": "0.1.0",
+  "steps": [
+    {
+      "id": "classify",
+      "action": "hub:classify",
+      "description": "Classify the request into one of the enumerated request_classification values and assign primary_lane (content, document, pipeline_crm). Set secondary_lane if the request spans two lanes. Populate persona_targets, adaptation_axes, open_questions, conflicts, minority_report, and confidence. Do not infer pipeline field values from prose; flag as unresolved. Do not assign a persona when none is evident.",
+      "classification_enum": [
+        "content_ideation",
+        "project_planning",
+        "video_script",
+        "repurposing",
+        "seo_research",
+        "analytics_review",
+        "audience_question",
+        "competitor_check",
+        "seasonal_planning",
+        "document_create",
+        "document_edit",
+        "account_create",
+        "account_update",
+        "deal_create",
+        "deal_update",
+        "deal_stage_move",
+        "production_plan",
+        "outreach_draft",
+        "media_kit",
+        "quality_check",
+        "unclear"
+      ],
+      "safe_defaults": {
+        "on_ambiguity": "unclear classification, lower confidence, emit clarifying question in open_questions",
+        "on_content_vs_document": "content lane when no explicit file output requested",
+        "on_adaptation_axis_unknown": "unspecified",
+        "on_pipeline_field_unknown": "null"
+      },
+      "output_to": "routing_object"
+    },
+    {
+      "id": "load_engines",
+      "action": "hub:load_engines",
+      "description": "Load only the engines the downstream spoke requires. Never pass an engine to a spoke that does not use it. Do not load pipeline-engine for Content or Document spokes unless that spoke explicitly uses deal or account data.",
+      "engine_map": {
+        "shared/brand-engine.md": "load for every content and document request",
+        "shared/audience-engine.md": "load when request involves audience targeting, persona mapping, or analytics interpretation",
+        "shared/platform-engine.md": "load for video, short-form, SEO, or analytics requests",
+        "shared/adaptation-engine.md": "load for any content or project output",
+        "shared/pipeline-engine.md": "load for every pipeline_crm request; source of truth for all pipeline data"
+      },
+      "input_from": ["routing_object.engines_required"],
+      "condition": "routing_object.engines_required.length > 0"
+    },
+    {
+      "id": "enforce_protocols",
+      "action": "hub:enforce_protocols",
+      "description": "Apply all five governance protocols. Every request must pass all five; no protocol may be skipped.",
+      "protocols": [
+        "protocols/quality-gates.md",
+        "protocols/no-fabrication.md",
+        "protocols/safety.md",
+        "protocols/research-citation.md",
+        "protocols/formatting-metadata.md"
+      ],
+      "input_from": ["routing_object.protocols_to_enforce"]
+    },
+    {
+      "id": "route",
+      "action": "hub:route",
+      "description": "Select the recommended_spoke from the downstream spoke list and confirm it exists. If secondary_lane is set, also note the secondary_spoke. Do not proceed to spoke execution; emit the routing object and stop unless the user explicitly asked for spoke output in the same turn.",
+      "downstream_spokes": [
+        "content-strategy",
+        "project-builder",
+        "video-development",
+        "shortform-repurposing",
+        "seo-keywords",
+        "analytics-insights",
+        "audience-research",
+        "competitor-analysis",
+        "seasonal-trends",
+        "document-studio",
+        "account-manager",
+        "deal-pipeline",
+        "deal-resourcing",
+        "partnership-mediakit",
+        "quality-review"
+      ],
+      "input_from": ["routing_object.recommended_spoke"],
+      "output_to": "dispatch_result"
+    },
+    {
+      "id": "emit",
+      "action": "hub:emit",
+      "description": "Return the human summary (plain language: lane, request type, recommended spoke and reason, engines and protocols loading, adaptation assumptions, open questions, minority report if present) followed by the fully populated JSON routing object. Both parts are required on every response.",
+      "output_format": {
+        "human_summary": {
+          "fields": [
+            "lane and request type",
+            "recommended spoke and reason",
+            "engines and protocols loading",
+            "adaptation assumptions made",
+            "open questions (one per line)",
+            "minority report if present"
+          ]
+        },
+        "routing_object_schema": {
+          "request_classification": "",
+          "primary_lane": "content | document | pipeline_crm",
+          "secondary_lane": null,
+          "persona_targets": [],
+          "adaptation_axes": {
+            "skill_level": "beginner | intermediate | unspecified",
+            "tenure": "renter | owner | unspecified",
+            "budget_tier": "budget | mid_range | premium | unspecified",
+            "platform_targets": []
+          },
+          "engines_required": [],
+          "protocols_to_enforce": [],
+          "recommended_spoke": "",
+          "secondary_spoke": null,
+          "pipeline_action": null,
+          "file_type_confirmed": false,
+          "open_questions": [],
+          "conflicts": [],
+          "minority_report": null,
+          "confidence": "high | medium | low"
+        }
+      },
+      "input_from": ["routing_object", "dispatch_result"]
+    }
+  ],
+  "shortcut_atoms": [],
+  "stop_conditions": [
+    "routing_object.recommended_spoke is null",
+    "dispatch_result.status == error",
+    "routing_object.request_classification == unclear and open_questions is not empty"
+  ],
+  "hard_rules": [
+    "Do not generate the final content or document in the same turn unless the user explicitly asks for it.",
+    "Do not infer pipeline field values from prose descriptions; require structured input or flag as unresolved.",
+    "Do not assign a persona when none is evident.",
+    "Do not skip the file-type confirmation step for Document lane requests.",
+    "Do not pass the pipeline-engine to a Content or Document spoke unless that spoke explicitly uses deal or account data.",
+    "Make uncertainty visible in the routing object, not hidden in hedged sentences.",
+    "No em dashes anywhere.",
+    "Never fabricate data, metrics, rates, brands, or sources."
+  ],
+  "notes": "Hub is a pure dispatcher. It classifies and routes; it does not generate deliverables. Proceed to the spoke only when the user asks for spoke output in the same turn."
+}

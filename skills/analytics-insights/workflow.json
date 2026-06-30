@@ -1,0 +1,14 @@
+{
+  "_comment": "analytics-insights reads analytics data, compares to benchmarks, and returns prioritized recommendations. Gap-record fires if no data is provided.",
+  "id": "analytics-insights",
+  "description": "Channel and post analytics report with benchmark comparisons and prioritized recommendations.",
+  "steps": [
+    {"step": 1, "atom": "ingest-route", "input_from": "analytics_source", "output_to": "step2", "condition": "analytics_source is not null"},
+    {"step": "1b", "atom": "gap-record", "input_from": "user request", "output_to": "final", "condition": "analytics_source is null", "note": "halt and return gap-record requesting analytics data"},
+    {"step": 2, "atom": "benchmark-compare", "input_from": "step1.extracted_metrics + platform + comparison_metrics", "output_to": "step3", "repeat": "per_metric"},
+    {"step": 3, "atom": "roi-metric", "input_from": "step1.extracted_metrics + deal data if present", "output_to": "step4", "condition": "deal-linked content is present"},
+    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_insights_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
+  ],
+  "shortcut_atoms": ["benchmark-compare", "roi-metric"],
+  "note": "Never fabricate analytics data. If analytics_source is null or ingestion_status is metadata_only, emit gap-record and halt."
+}

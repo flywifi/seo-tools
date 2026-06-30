@@ -1,0 +1,19 @@
+{
+  "_schema_version": "0.1.0",
+  "_note": "Source of truth for brand account records. Real data is gitignored (*.local.*). This is the blank schema only.",
+  "account_id": "",
+  "brand_name": "",
+  "primary_contact": { "name": "", "email": "", "role": "" },
+  "website": "",
+  "product_category": "",
+  "first_contact_date": null,
+  "last_contact_date": null,
+  "open_deals": [],
+  "closed_deals": [],
+  "notes": "",
+  "health_score": null,
+  "exclusivity_active": false,
+  "exclusivity_scope": null,
+  "exclusivity_expires": null,
+  "tags": []
+}

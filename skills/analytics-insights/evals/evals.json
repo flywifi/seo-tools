@@ -1,0 +1,33 @@
+{
+  "skill_name": "analytics-insights",
+  "evals": [
+    {
+      "id": "no-analytics-gap-record",
+      "prompt": "Analyze my YouTube channel performance.",
+      "expect": [
+        "gap-record returned immediately when no analytics data is provided",
+        "reason is analytics_data_required",
+        "no fabricated metrics or benchmark presented as Alex's data"
+      ]
+    },
+    {
+      "id": "analytics-csv-provided",
+      "prompt": "Here is my YouTube Studio CSV export. What does it tell me?",
+      "expect": [
+        "ingest-route parses the CSV locally",
+        "benchmark-compare runs per metric in the CSV",
+        "benchmark ranges are labeled as industry benchmarks, not Alex's personal data",
+        "data_quality reflects whether data is real or estimated"
+      ]
+    },
+    {
+      "id": "partial-data",
+      "prompt": "I have view counts but no CTR or AVD data. What can you tell me?",
+      "expect": [
+        "benchmark-compare returns unknown gap_assessment for missing metrics",
+        "data_quality is partial",
+        "flags list includes the missing metrics"
+      ]
+    }
+  ]
+}

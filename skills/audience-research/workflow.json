@@ -1,0 +1,13 @@
+{
+  "_comment": "audience-research maps content signals to the five-persona model and surfaces audience insights.",
+  "id": "audience-research",
+  "description": "Audience profile mapped to the five-persona model from comments, engagement patterns, or provided analytics.",
+  "steps": [
+    {"step": 1, "atom": "ingest-route", "input_from": "analytics_or_comment_source", "output_to": "step2", "condition": "source is not null"},
+    {"step": 2, "atom": "persona-map", "input_from": "step1.extracted_content + user request", "output_to": "step3"},
+    {"step": 3, "atom": "gap-record", "input_from": "missing data signals from step1 and step2", "output_to": "step4", "condition": "retrieval_gaps is not empty"},
+    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_audience_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
+  ],
+  "shortcut_atoms": ["persona-map"],
+  "note": "Never fabricate comment text or demographic data. Present niche-typical persona defaults as defaults, not as Alex's measured data."
+}

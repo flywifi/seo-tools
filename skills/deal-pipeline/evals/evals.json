@@ -1,0 +1,33 @@
+{
+  "skill_name": "deal-pipeline",
+  "evals": [
+    {
+      "id": "stage-advance-missing-evidence",
+      "prompt": "Move the IKEA deal from contract-negotiating to signed.",
+      "expect": [
+        "deal-stage-advance runs and checks for signed_contract_date in evidence",
+        "transition_allowed: false when signed_contract_date is absent",
+        "missing_evidence lists signed_contract_date",
+        "no stage change occurs without the required evidence"
+      ]
+    },
+    {
+      "id": "exclusivity-conflict-detection",
+      "prompt": "Mark the HomeGoods deal as signed.",
+      "expect": [
+        "account-health runs to check exclusivity conflicts",
+        "exclusivity_conflicts appears in the output if overlapping categories",
+        "FTC disclosure check fires for sponsored/gifted content"
+      ]
+    },
+    {
+      "id": "contract-review-trigger",
+      "prompt": "Move the IKEA deal to contract-negotiating.",
+      "expect": [
+        "contract review trigger fires at the contract-negotiating stage",
+        "usage-rights-check runs",
+        "output includes ftc_disclosure_required and recommend_counsel"
+      ]
+    }
+  ]
+}

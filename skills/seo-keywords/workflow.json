@@ -1,0 +1,14 @@
+{
+  "_comment": "seo-keywords builds a full SEO strategy: keyword cluster, search intent, competitive gap, and title skeleton.",
+  "id": "seo-keywords",
+  "description": "Full SEO strategy for a content topic: keyword cluster, intent, competitor gap, and title/description skeleton.",
+  "steps": [
+    {"step": 1, "atom": "keyword-cluster", "input_from": "user request + platform_targets", "output_to": "step2"},
+    {"step": 2, "atom": "search-intent", "input_from": "user request + platform_targets", "output_to": "step3"},
+    {"step": 3, "atom": "competitor-scan", "input_from": "step1.primary_keyword + platform_targets", "output_to": "step4", "repeat": "per_platform"},
+    {"step": 4, "atom": "title-generate", "input_from": "step1.keyword_cluster + step2.intent + step3.gap", "output_to": "step5"},
+    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_seo_strategy", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
+  ],
+  "shortcut_atoms": ["keyword-cluster", "search-intent", "competitor-scan", "title-generate"],
+  "note": "Volume estimates from keyword-cluster are always labeled [estimated, unverified]. Competitor data from competitor-scan carries [unverified] labels where not confirmed by retrieval."
+}

@@ -1,0 +1,15 @@
+{
+  "_comment": "seasonal-trends builds a seasonal content plan for a defined window.",
+  "id": "seasonal-trends",
+  "description": "Seasonal content strategy: pillar-mapped ideas, trend verification, keyword clusters, and a publish schedule.",
+  "steps": [
+    {"step": 1, "atom": "seasonal-map", "input_from": "user request + season_or_window", "output_to": "step2"},
+    {"step": 2, "atom": "idea-generate", "input_from": "step1.peak_topics + pillar_focus + user request", "output_to": "step3", "repeat": "per_pillar"},
+    {"step": 3, "atom": "trend-check", "input_from": "step2.ideas", "output_to": "step4", "repeat": "per_idea", "condition": "idea makes a trend or seasonal claim"},
+    {"step": 4, "atom": "keyword-cluster", "input_from": "step2.ideas + platform_targets", "output_to": "step5", "condition": "keyword strategy requested"},
+    {"step": 5, "atom": "calendar-slot", "input_from": "step2.ideas + step1.peak_window", "output_to": "step6", "repeat": "per_idea"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "assembled_seasonal_plan", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
+  ],
+  "shortcut_atoms": ["seasonal-map", "idea-generate", "trend-check", "keyword-cluster", "calendar-slot"],
+  "note": "seasonal-map uses static seasonal knowledge; trend-check is the live validation step. Stale trend data is marked, not dropped."
+}

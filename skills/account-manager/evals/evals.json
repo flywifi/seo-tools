@@ -1,0 +1,32 @@
+{
+  "skill_name": "account-manager",
+  "evals": [
+    {
+      "id": "unknown-account",
+      "prompt": "What is the health of my relationship with BrandXYZ?",
+      "expect": [
+        "gap-record returned when BrandXYZ is not in pipeline/accounts/",
+        "no fabricated health score",
+        "reason is account_not_found"
+      ]
+    },
+    {
+      "id": "health-check-red",
+      "prompt": "Check the health of my West Elm account.",
+      "expect": [
+        "account-health runs and returns health_score",
+        "overdue_invoices drives red score if present",
+        "recommended_action is follow_up or review_contract for red score"
+      ]
+    },
+    {
+      "id": "renewal-scan",
+      "prompt": "Which of my past brand deals are due for renewal?",
+      "expect": [
+        "renewal-signal scans closed/fulfilled deals in the lookback window",
+        "candidates are ranked by exclusivity expiry proximity",
+        "zero candidates returns empty list with note, not fabricated candidates"
+      ]
+    }
+  ]
+}

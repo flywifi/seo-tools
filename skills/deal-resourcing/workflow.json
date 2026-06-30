@@ -1,0 +1,13 @@
+{
+  "_comment": "deal-resourcing converts a signed deal into a production resource plan with task list and invoice schedule.",
+  "id": "deal-resourcing",
+  "description": "Production resource plan for a signed deal: task list, critical path, and invoice schedule.",
+  "steps": [
+    {"step": 1, "atom": "production-task", "input_from": "deal_id + deliverables + publish_date + special_requirements", "output_to": "step2"},
+    {"step": 2, "atom": "invoice-status", "input_from": "deal_id", "output_to": "step3"},
+    {"step": 3, "atom": "roi-metric", "input_from": "deal_id + production hours from step1 + deal_rate", "output_to": "step4", "condition": "roi analysis requested"},
+    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_resource_plan", "output_to": "final", "gates": ["integrity", "accuracy"]}
+  ],
+  "shortcut_atoms": ["production-task", "invoice-status", "roi-metric"],
+  "note": "Only operates on deals in the signed, in-production, or delivered stage. Invoice state is read-only; this spoke does not issue invoices."
+}

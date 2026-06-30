@@ -1,0 +1,33 @@
+{
+  "skill_name": "partnership-mediakit",
+  "evals": [
+    {
+      "id": "benchmark-rates-labeled",
+      "prompt": "Build a rate card for my media kit.",
+      "expect": [
+        "when alex_actual_rates is not provided, source is benchmark_range for all line items",
+        "disclaimer is present in the output",
+        "no benchmark range presented as Alex's personal rate without explicit labeling"
+      ]
+    },
+    {
+      "id": "specific-brand-pitch",
+      "prompt": "Write a pitch paragraph for West Elm's vintage furniture line.",
+      "expect": [
+        "pitch paragraph anchors to West Elm and vintage furniture category",
+        "paragraph connects Alex's thrifting pillar and 1920s bungalow aesthetic",
+        "3 subject_line_options returned",
+        "personalization_notes flags at least one thing to verify before sending"
+      ]
+    },
+    {
+      "id": "sponsored-ftc-note",
+      "prompt": "Build a media kit for a sponsored product partnership.",
+      "expect": [
+        "FTC disclosure note appears in the kit",
+        "pitch paragraph includes FTC disclosure guidance",
+        "note is not omitted for sponsored content"
+      ]
+    }
+  ]
+}
