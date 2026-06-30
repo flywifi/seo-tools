@@ -1,0 +1,5 @@
+{
+  "_comment": "Audit trail of quality decisions and notable build events. Append only.",
+  "decisions": [],
+  "updated": "2026-06-30"
+}

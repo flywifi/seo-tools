@@ -1,0 +1,19 @@
+{
+  "name": "creator-os-marketplace",
+  "owner": {
+    "name": "Creator OS"
+  },
+  "metadata": {
+    "description": "Creator OS plugin for a moody-vintage home decor and DIY YouTube creator.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "creator-os",
+      "source": "./",
+      "description": "The full Creator OS suite: a routing hub, a governance skill, Content, Document, and Pipeline/CRM spokes, and an atom library, sharing one governed core of engines and protocols.",
+      "version": "0.1.0",
+      "category": "content-creation"
+    }
+  ]
+}

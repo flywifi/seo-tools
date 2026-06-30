@@ -1,0 +1,10 @@
+# Prune non-code from static analysis; keep focus on executable Python in tools/ and scripts/.
+canonical-sources/
+docs/
+examples/
+implementation/
+ledger/
+pipeline/
+dist/
+*.md
+*.json

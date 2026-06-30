@@ -1,0 +1,21 @@
+{
+  "name": "creator-os",
+  "version": "0.1.0",
+  "autoUpdate": true,
+  "description": "Creator OS: a hub-and-spoke ecosystem of Claude Agent Skills for a YouTube creator in the moody-vintage home decor and DIY niche. A routing hub classifies each request into one of three lanes (Content, Document, Pipeline/CRM) and dispatches to governed capability spokes composed from single-operation atoms.",
+  "author": {
+    "name": "Creator OS"
+  },
+  "keywords": [
+    "content-creation",
+    "youtube",
+    "seo",
+    "short-form",
+    "home-decor",
+    "diy",
+    "brand-deals",
+    "crm",
+    "creator"
+  ],
+  "license": "SEE LICENSE"
+}

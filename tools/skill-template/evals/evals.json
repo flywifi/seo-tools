@@ -1,0 +1,13 @@
+{
+  "skill_name": "__SKILL_NAME__",
+  "evals": [
+    {
+      "id": "example-1",
+      "prompt": "a representative request that should invoke this skill",
+      "expect": [
+        "what a correct output must contain",
+        "what it must never contain"
+      ]
+    }
+  ]
+}

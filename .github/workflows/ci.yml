@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Drift guard
+        run: python3 tools/sync_check.py
+      - name: Version consistency
+        run: python3 tools/version.py --check
+      - name: Eval JSON validity
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          bad = 0
+          for p in pathlib.Path("skills").rglob("evals/evals.json"):
+              try:
+                  json.loads(p.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  print("invalid", p, exc)
+                  bad += 1
+          sys.exit(1 if bad else 0)
+          PY
+      - name: Packaging
+        run: python3 tools/package_skill.py --all

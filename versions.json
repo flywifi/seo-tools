@@ -1,0 +1,25 @@
+{
+  "ecosystem": "0.1.0",
+  "skills": {
+    "creator-core": "1.0.0",
+    "quality-review": "0.1.0"
+  },
+  "engines": {
+    "brand-engine": "1.0.0",
+    "audience-engine": "1.0.0",
+    "platform-engine": "1.0.0",
+    "adaptation-engine": "1.0.0",
+    "pipeline-engine": "0.1.0",
+    "web-intel-engine": "1.0.0",
+    "injection-guard-engine": "1.0.0",
+    "method": "0.1.0"
+  },
+  "protocols": {
+    "quality-gates": "1.0.0",
+    "safety": "1.0.0",
+    "no-fabrication": "1.0.0",
+    "research-citation": "1.0.0",
+    "formatting-metadata": "1.0.0"
+  },
+  "updated": "2026-06-30"
+}
