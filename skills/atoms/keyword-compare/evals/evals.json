@@ -1,0 +1,163 @@
+{
+  "skill": "keyword-compare",
+  "version": "1.0.0",
+  "description": "Regression evals for the keyword-compare atom. Each case maps to a failure mode or regression case in MAINTAINER_README.md.",
+  "cases": [
+    {
+      "id": "eval-001",
+      "label": "Single keyword, all platforms, no season or momentum",
+      "description": "Minimal input: one keyword, defaults to all four platforms, no season or trend check. All seasonal_relevance and momentum fields must be null.",
+      "input": {
+        "keywords": ["dark moody fall mantel"],
+        "check_trend_momentum": false
+      },
+      "expected": {
+        "keywords_analyzed_count": 1,
+        "platforms_analyzed": ["youtube", "pinterest", "tiktok", "google"],
+        "platform_profiles_count_per_keyword": 4,
+        "seasonal_relevance_all_null": true,
+        "momentum_all_null": true,
+        "cross_platform_verdict_present": true,
+        "strongest_platform_present": true,
+        "retrieval_gaps_empty": true
+      }
+    },
+    {
+      "id": "eval-002",
+      "label": "10 keywords, 2 platforms, fall season",
+      "description": "Full 10-keyword list against YouTube and Pinterest with season=fall. All cells must have seasonal_relevance populated. universal_keywords and platform_exclusive_opportunities must be non-null.",
+      "input": {
+        "keywords": [
+          "dark moody fall mantel",
+          "chalk paint armoire makeover",
+          "thrift store furniture flip",
+          "vintage bedroom decor ideas",
+          "moody maximalism home decor",
+          "how to style a mantel for fall",
+          "gothic halloween home decor",
+          "dark academic bedroom aesthetic",
+          "antique brass candlestick styling",
+          "DIY distressed furniture tutorial"
+        ],
+        "platforms": ["youtube", "pinterest"],
+        "season": "fall",
+        "check_trend_momentum": false
+      },
+      "expected": {
+        "keywords_analyzed_count": 10,
+        "platforms_analyzed": ["youtube", "pinterest"],
+        "total_cells": 20,
+        "seasonal_relevance_all_populated": true,
+        "seasonal_relevance_null_count": 0,
+        "season_context": "fall",
+        "universal_keywords_not_null": true,
+        "platform_exclusive_youtube_present": true,
+        "platform_exclusive_pinterest_present": true,
+        "retrieval_gaps_empty": true
+      }
+    },
+    {
+      "id": "eval-003",
+      "label": "Input truncation — 11 keywords supplied",
+      "description": "11 keywords provided. Only 10 should be analyzed. The 11th must appear in retrieval_gaps with a truncation note.",
+      "input": {
+        "keywords": [
+          "dark moody fall mantel",
+          "chalk paint armoire",
+          "thrift store furniture flip",
+          "vintage bedroom decor",
+          "moody maximalism",
+          "how to style a mantel",
+          "gothic halloween decor",
+          "dark academic bedroom",
+          "antique brass candlestick",
+          "DIY distressed furniture",
+          "small space organization ideas"
+        ],
+        "platforms": ["youtube", "pinterest"]
+      },
+      "expected": {
+        "keywords_analyzed_count": 10,
+        "retrieval_gaps_non_empty": true,
+        "retrieval_gaps_contains_truncation_note": true,
+        "truncated_keyword": "small space organization ideas"
+      }
+    },
+    {
+      "id": "eval-004",
+      "label": "Trend momentum enabled — 3 keywords x 3 platforms = 9 cells (under warning threshold)",
+      "description": "check_trend_momentum: true with 9 total cells. No warning should be emitted. Momentum must be populated (never null) on all cells.",
+      "input": {
+        "keywords": [
+          "dark moody fall mantel",
+          "chalk paint furniture makeover",
+          "thrift store home decor haul"
+        ],
+        "platforms": ["youtube", "pinterest", "tiktok"],
+        "check_trend_momentum": true
+      },
+      "expected": {
+        "total_cells": 9,
+        "momentum_null_count": 0,
+        "momentum_values_valid": ["rising", "flat", "declining", "unknown"],
+        "no_large_input_warning": true
+      }
+    },
+    {
+      "id": "eval-005",
+      "label": "Trend momentum enabled — 6 keywords x 4 platforms = 24 cells (above warning threshold)",
+      "description": "check_trend_momentum: true with 24 total cells. Warning must appear. Some momentum values may be unknown if retrieval times out.",
+      "input": {
+        "keywords": [
+          "dark moody fall mantel",
+          "chalk paint armoire",
+          "thrift store furniture flip",
+          "vintage bedroom decor",
+          "moody maximalism",
+          "gothic halloween home decor"
+        ],
+        "platforms": ["youtube", "pinterest", "tiktok", "google"],
+        "check_trend_momentum": true
+      },
+      "expected": {
+        "total_cells": 24,
+        "large_input_warning_emitted": true,
+        "momentum_values_valid": ["rising", "flat", "declining", "unknown"],
+        "unknown_momentum_permitted": true
+      }
+    },
+    {
+      "id": "eval-006",
+      "label": "All keywords produce platform_specific verdict — no universal keywords",
+      "description": "Highly platform-specific keywords (TikTok audio trend terms) where no keyword achieves strong fit on 3+ platforms. universal_keywords must be empty, not null.",
+      "input": {
+        "keywords": [
+          "pinterest aesthetic boards 2026",
+          "pinterest home board ideas fall"
+        ],
+        "platforms": ["youtube", "pinterest", "tiktok", "google"]
+      },
+      "expected": {
+        "universal_keywords_empty_list": true,
+        "platform_exclusive_pinterest_non_empty": true,
+        "note_recommends_keyword_cluster_or_long_tail": true
+      }
+    },
+    {
+      "id": "eval-007",
+      "label": "Navigational intent on TikTok — serp_feature not_applicable",
+      "description": "A brand-name keyword with navigational intent run against TikTok. The TikTok cell must have serp_feature: not_applicable and still provide an actionable recommendation.",
+      "input": {
+        "keywords": ["Rust-Oleum Chalked Paint"],
+        "platforms": ["tiktok", "youtube", "google"]
+      },
+      "expected": {
+        "tiktok_serp_feature": "not_applicable",
+        "tiktok_notes_explains_why": true,
+        "tiktok_recommendation_actionable": true,
+        "no_fabricated_tiktok_search_volume": true
+      }
+    }
+  ],
+  "eval_run_notes": "Run manually by invoking keyword-compare with each input and verifying all expected fields against output JSON. Momentum fields require live retrieval for eval-004 and eval-005 — run those in a session with web-intel-engine available."
+}

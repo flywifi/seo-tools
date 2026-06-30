@@ -13,6 +13,6 @@
     {"step": 8, "atom": "title-generate", "input_from": "step1.keyword_cluster + step3.intent + step4.gap + step7.cluster", "output_to": "step9"},
     {"step": 9, "atom": "govern-artifact", "input_from": "assembled_seo_strategy", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
   ],
-  "shortcut_atoms": ["keyword-cluster", "long-tail-expand", "search-intent", "competitor-scan", "entity-extract", "serp-feature-check", "topical-authority-map", "title-generate"],
+  "shortcut_atoms": ["keyword-cluster", "long-tail-expand", "search-intent", "keyword-compare", "competitor-scan", "entity-extract", "serp-feature-check", "topical-authority-map", "title-generate"],
   "note": "Steps 2, 5, and 6 are conditional and may be skipped if the caller has already supplied the relevant data or the condition is not met. Volume estimates are always labeled [estimated, unverified]. Competitor data carries [unverified] labels where not confirmed by retrieval."
 }
