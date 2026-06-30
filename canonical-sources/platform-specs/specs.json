@@ -1,0 +1,8 @@
+[
+  {"id": "spec-youtube-longform", "title": "YouTube long-form", "text": "16:9 1920x1080; thumbnail 1280x720; title 80 to 100 characters front-load the primary keyword; hook in the first 15 to 30 seconds; CTR good 4 to 10 percent", "category": "platform"},
+  {"id": "spec-youtube-shorts", "title": "YouTube Shorts", "text": "9:16 1080x1920; 15 to 60 seconds performs best; rewards replay rate, swipe-through, and completion", "category": "platform"},
+  {"id": "spec-instagram-reels", "title": "Instagram Reels", "text": "9:16 1080x1920; caption up to 2200 characters; rewards completion, saves, shares, sends; feed crops to 4:5", "category": "platform"},
+  {"id": "spec-instagram-carousel", "title": "Instagram carousel", "text": "up to 20 slides, 4:5 or 3:4; strong for step-by-step tutorials and before and after; drives dwell time and saves", "category": "platform"},
+  {"id": "spec-tiktok", "title": "TikTok", "text": "9:16 1080x1920; optimal 15 to 35 seconds; completion rate dominant; design audio-first", "category": "platform"},
+  {"id": "spec-pinterest", "title": "Pinterest", "text": "visual search engine; standard pin 2:3 at 1000x1500; keyword-rich titles, descriptions, board names, alt text; pins compound over months to years", "category": "platform"}
+]

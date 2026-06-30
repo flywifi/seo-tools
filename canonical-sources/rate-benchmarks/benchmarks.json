@@ -1,0 +1,4 @@
+[
+  {"id": "rate-dedicated-50-100k", "title": "Dedicated video, 50K to 100K subscribers", "text": "industry benchmark range 500 to 3000 USD for a dedicated video at 50K to 100K subscribers", "source": "Creator OS handoff market-analysis reference; verify against current data before quoting", "is_alex_data": false, "category": "benchmark"},
+  {"id": "rate-format-50-100k", "title": "By format, 50K to 100K subscribers", "text": "industry benchmark range 200 to 5000 USD at the same subscriber tier depending on format", "source": "Creator OS handoff market-analysis reference; verify against current data before quoting", "is_alex_data": false, "category": "benchmark"}
+]

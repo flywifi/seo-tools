@@ -2,10 +2,13 @@
 pipeline/**/*.local.json
 pipeline/**/*.local.*
 
-# Regenerable local caches (scoop L1/L2)
+# Regenerable local caches (scoop L1/L2) and any *.local.* working file
+*.local
 *.local.db
+*.local.json
 shared/cache/*.db
 shared/cache/*.local.db
+bucket.manifest.json
 
 # Build artifacts
 dist/
