@@ -149,10 +149,13 @@ Key output guarantees:
   (3 to 6 months).
 - `shared/web-intel-engine.md`: live keyword signal retrieval starting at Level 2 (public
   analytics endpoints) and falling through to Levels 3 and 4 if Level 2 returns thin results.
+- `shared/seo-intelligence-engine.md`: topical authority model, algorithm signal hierarchy,
+  entity SEO rules, long-tail expansion methodology, SERP feature map, seasonal lead times.
 
 ## References
 
 - `shared/platform-engine.md`
+- `shared/seo-intelligence-engine.md`
 - `protocols/research-citation.md` (platform spec freshness window: 3 to 6 months)
 - `protocols/no-fabrication.md`
 - `shared/web-intel-engine.md`

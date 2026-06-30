@@ -1,0 +1,104 @@
+{
+  "_comment": "Traversal and staleness check intervals for Creator OS source intelligence. Applies to both tools/traversal_engine.py and tools/source_currency.py. Edit freely — changes take effect immediately on the next tool run.",
+  "default_traversal_interval_days": 7,
+  "default_staleness_threshold_days": 7,
+  "default_traversal_depth": 2,
+  "per_category_overrides": {
+    "seo-authority": {
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "traversal_depth": 2,
+      "_note": "Google and YouTube algorithm signals move fast. Weekly is the right default."
+    },
+    "platform-spec": {
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "traversal_depth": 1,
+      "_note": "Platform specs change less often than algorithm signals. Bi-weekly is sufficient."
+    },
+    "api-changelog": {
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "traversal_depth": 1,
+      "_note": "API changes can break integrations quickly. Bi-weekly check keeps the system current."
+    },
+    "rate-benchmark": {
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "traversal_depth": 1,
+      "_note": "Rate reports are published annually or semi-annually. Quarterly check is sufficient."
+    },
+    "tool-mcp": {
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "traversal_depth": 1,
+      "_note": "MCP and tool updates can affect skill compatibility. Bi-weekly is prudent."
+    },
+    "partner-site": {
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "traversal_depth": 1,
+      "_note": "Partner site changes (new campaigns, removed pages) are operationally important. Weekly."
+    },
+    "niche-authority": {
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "traversal_depth": 2,
+      "_note": "Editorial sites update regularly but rarely break skills. Monthly traversal finds new reference content."
+    }
+  },
+  "traversal_max_depth": 2,
+  "_traversal_depth_note": "Never exceed depth 2 automatically. Depth 3+ requires explicit --depth=3 override and human review of all candidates before accept.",
+  "authority_domain_allowlist": [
+    "support.google.com",
+    "developers.google.com",
+    "blog.google",
+    "searchcentral.googleblog.com",
+    "support.youtube.com",
+    "youtube.com",
+    "blog.youtube",
+    "creatoracademy.youtube.com",
+    "business.pinterest.com",
+    "newsroom.pinterest.com",
+    "creators.tiktok.com",
+    "newsroom.tiktok.com",
+    "developers.tiktok.com",
+    "developers.facebook.com",
+    "business.instagram.com",
+    "help.instagram.com",
+    "anthropic.com",
+    "docs.anthropic.com",
+    "modelcontextprotocol.io",
+    "spec.modelcontextprotocol.io",
+    "developer.microsoft.com",
+    "learn.microsoft.com",
+    "ftc.gov",
+    "influencermarketinghub.com",
+    "later.com",
+    "linqia.com",
+    "creatoriq.com",
+    "searchengineland.com",
+    "searchenginejournal.com",
+    "seroundtable.com",
+    "moz.com",
+    "ahrefs.com",
+    "semrush.com",
+    "vidiq.com",
+    "tubebuddy.com",
+    "thespruce.com",
+    "hgtv.com",
+    "bhg.com",
+    "marthastewart.com",
+    "apartmenttherapy.com",
+    "sproutsocial.com",
+    "buffer.com",
+    "trends.google.com"
+  ],
+  "_allowlist_note": "Only outlinks from pages on this list are followed during traversal. To add a domain, append it here. Removing a domain does not prune existing registry entries.",
+  "niche_relevance_terms": [
+    "home decor", "diy", "vintage", "moody", "youtube", "creator", "algorithm",
+    "seo", "search", "platform", "thrift", "antique", "makeover", "interior",
+    "content", "keyword", "ranking", "influencer", "sponsored", "affiliate"
+  ],
+  "_note": "To change any interval, edit this file. Use tools/traversal_engine.py --set-interval --category=<cat> <days> as a convenience shortcut, or edit the JSON directly."
+}

@@ -1,0 +1,40 @@
+{
+  "atom": "entity-extract",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "ee-01",
+      "description": "Extract entities from competitor video titles",
+      "input": {
+        "content_samples": [
+          "Thrift Flip using Annie Sloan Chalk Paint | Dark Fall Makeover",
+          "I found a brass armoire at Goodwill and transformed it with Rust-Oleum Dark Walnut",
+          "Chinoiserie vases from HomeGoods styled on a moody dark academia shelf"
+        ],
+        "entity_types": ["brand", "technique", "aesthetic_label"]
+      },
+      "expect": {
+        "entity_map.length_min": 5,
+        "creator_already_covers_is_null_when_no_existing_provided": true,
+        "frequency_counts_exact": true,
+        "entity_gaps_only_includes_high_or_medium_niche_fit": true
+      }
+    },
+    {
+      "id": "ee-02",
+      "description": "Entity gap analysis when existing content is provided",
+      "input": {
+        "content_samples": [
+          "Using General Finishes Gel Stain on a thrifted Welsh dresser",
+          "Wainscoting DIY with board and batten in a small bathroom"
+        ],
+        "entity_types": ["brand", "technique", "product"],
+        "existing_content_keywords": ["chalk paint", "Goodwill", "fall mantel"]
+      },
+      "expect": {
+        "creator_already_covers_is_not_null": true,
+        "entity_gaps_excludes_existing_coverage": true
+      }
+    }
+  ]
+}

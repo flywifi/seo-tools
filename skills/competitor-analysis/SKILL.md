@@ -80,6 +80,8 @@ The following atoms are orchestrated in sequence. `trend-check` is conditional.
   credibility tiers, null-and-flag behavior when data is unavailable.
 - `shared/platform-engine.md` -- supplies platform-specific content norms, format constraints,
   and seasonal aesthetic signals used by competitor-scan and trend-check.
+- `shared/seo-intelligence-engine.md` -- entity SEO rules and entity keyword seed list;
+  topical authority model used to frame gap analysis in terms of cluster architecture.
 
 ## References
 
@@ -89,6 +91,7 @@ The following atoms are orchestrated in sequence. `trend-check` is conditional.
   Competitor content older than 18 months may be included for angle mapping but must be flagged
   as potentially stale.
 - `shared/web-intel-engine.md` -- retrieval and confidence rules.
+- `shared/seo-intelligence-engine.md` -- entity SEO and topical authority model.
 - `protocols/quality-gates.md` -- governs `quality_gate_result`; report is not releasable until
   govern-artifact returns pass.
 

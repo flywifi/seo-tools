@@ -1,0 +1,19 @@
+{
+  "_comment": "Schema-only file for competitor channel intelligence. Populated by competitor-scan atom during research runs. Never pre-seeded with guesses — all values null until a competitor-scan run retrieves and records them. Metrics must be labeled [unverified] unless pulled from a confirmed API response. Updated per-research, not on a schedule.",
+  "last_updated": null,
+  "channels": [],
+  "schema": {
+    "channel_name": "string — display name as it appears on the platform",
+    "platform": "youtube | pinterest | tiktok | instagram",
+    "url_if_found": "string or null — direct URL to the channel/account, null if not confirmed",
+    "scale_tier": "nano (under 10k) | micro (10k to 100k) | mid (100k to 500k) | macro (500k plus) — label [unverified] unless from platform API",
+    "primary_aesthetic": "string — one-sentence description of the channel's visual identity",
+    "content_pillars_overlap": ["string — pillars from Creator OS that this channel also covers"],
+    "differentiation_notes": "string — where this channel is different from the creator's positioning",
+    "overserved_topics": ["string — topics this channel covers heavily that the creator should treat as saturated"],
+    "underserved_topics": ["string — topics this channel does not cover that represent a gap opportunity"],
+    "top_performing_formats": ["string — formats (tutorial, haul, transformation, etc.) that perform well for this channel"],
+    "last_researched": "ISO date or null",
+    "source_artifact_id": "string or null — artifact ID from web-intel-engine retrieval that sourced this record"
+  }
+}

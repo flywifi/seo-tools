@@ -28,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT / "canonical-sources" / "source-registry.json"
+TRAVERSAL_CONFIG_PATH = ROOT / "canonical-sources" / "traversal-config.json"
 DEALS_DIR = ROOT / "pipeline" / "deals"
 
 ACTIVE_DEAL_STAGES = {
@@ -38,6 +39,31 @@ ACTIVE_DEAL_STAGES = {
     "delivered",
     "invoiced",
 }
+
+
+def load_traversal_config():
+    """Load traversal-config.json for interval defaults. Returns empty dict on missing file."""
+    if not TRAVERSAL_CONFIG_PATH.exists():
+        return {}
+    try:
+        return json.loads(TRAVERSAL_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def get_threshold_for_source(source, traversal_config):
+    """
+    Return staleness threshold in days for a source.
+    Priority: traversal-config per_category_overrides > source-registry field > config default > 30.
+    """
+    category = source.get("category", "")
+    overrides = traversal_config.get("per_category_overrides", {})
+    if category in overrides:
+        cat_override = overrides[category]
+        return cat_override.get("staleness_threshold_days", cat_override.get("check_interval_days", 30))
+    # Fall back to the source-registry entry's own field, then the config global default
+    global_default = traversal_config.get("default_staleness_threshold_days", 30)
+    return source.get("staleness_threshold_days", source.get("check_interval_days", global_default))
 
 
 def load_registry():
@@ -67,17 +93,19 @@ def days_since(date_str):
         return None
 
 
-def compute_staleness(sources, category=None):
+def compute_staleness(sources, category=None, traversal_config=None):
     stale = []
     never_checked = []
     up_to_date = []
+    if traversal_config is None:
+        traversal_config = {}
 
     for s in sources:
         if category and s.get("category") != category:
             continue
 
         last = s.get("last_checked")
-        threshold = s.get("staleness_threshold_days", s.get("check_interval_days", 30))
+        threshold = get_threshold_for_source(s, traversal_config)
 
         if not last:
             never_checked.append({
@@ -126,8 +154,8 @@ def build_recommended_actions(stale, never_checked):
     return actions
 
 
-def build_report(sources, category=None, include_refetch=False):
-    stale, never_checked, up_to_date = compute_staleness(sources, category)
+def build_report(sources, category=None, include_refetch=False, traversal_config=None):
+    stale, never_checked, up_to_date = compute_staleness(sources, category, traversal_config)
     actions = build_recommended_actions(stale, never_checked)
 
     report = {
@@ -169,19 +197,19 @@ def build_report(sources, category=None, include_refetch=False):
     return report
 
 
-def cmd_report(args, registry):
+def cmd_report(args, registry, traversal_config):
     category = getattr(args, "category", None)
-    report = build_report(registry["sources"], category=category)
+    report = build_report(registry["sources"], category=category, traversal_config=traversal_config)
     print(json.dumps(report, indent=2))
 
 
-def cmd_check(args, registry):
+def cmd_check(args, registry, traversal_config):
     category = getattr(args, "category", None)
-    report = build_report(registry["sources"], category=category, include_refetch=True)
+    report = build_report(registry["sources"], category=category, include_refetch=True, traversal_config=traversal_config)
     print(json.dumps(report, indent=2))
 
 
-def cmd_mark_checked(args, registry):
+def cmd_mark_checked(args, registry, traversal_config=None):
     source_id = args.id
     changed = getattr(args, "changed", False)
 
@@ -227,7 +255,7 @@ def cmd_mark_checked(args, registry):
     print(json.dumps(result, indent=2))
 
 
-def cmd_seed_partners(args, registry):
+def cmd_seed_partners(args, registry, traversal_config=None):
     if not DEALS_DIR.exists():
         print(json.dumps({
             "upserted": 0,
@@ -263,14 +291,17 @@ def cmd_seed_partners(args, registry):
                 existing[source_id]["url"] = url
                 updated.append(source_id)
         else:
+            partner_override = (traversal_config or {}).get("per_category_overrides", {}).get("partner-site", {})
+            check_days = partner_override.get("check_interval_days", 7)
+            stale_days = partner_override.get("staleness_threshold_days", check_days)
             entry = {
                 "id": source_id,
                 "name": f"{brand} website",
                 "url": url,
                 "category": "partner-site",
                 "tier": "T2",
-                "check_interval_days": 7,
-                "staleness_threshold_days": 14,
+                "check_interval_days": check_days,
+                "staleness_threshold_days": stale_days,
                 "last_checked": None,
                 "last_changed_detected": None,
                 "extraction_hint": (
@@ -322,15 +353,16 @@ def main():
         sys.exit(1)
 
     registry = load_registry()
+    traversal_config = load_traversal_config()
 
     if args.command == "report":
-        cmd_report(args, registry)
+        cmd_report(args, registry, traversal_config)
     elif args.command == "check":
-        cmd_check(args, registry)
+        cmd_check(args, registry, traversal_config)
     elif args.command == "mark-checked":
-        cmd_mark_checked(args, registry)
+        cmd_mark_checked(args, registry, traversal_config)
     elif args.command == "seed-partners":
-        cmd_seed_partners(args, registry)
+        cmd_seed_partners(args, registry, traversal_config)
 
 
 if __name__ == "__main__":

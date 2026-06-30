@@ -1,0 +1,36 @@
+{
+  "atom": "serp-feature-check",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "sfc-01",
+      "description": "Tutorial keyword on Google — expect video carousel",
+      "input": {
+        "keyword": "how to chalk paint furniture",
+        "platform": "google",
+        "check_live": false
+      },
+      "expect": {
+        "dominant_serp_feature": "video_carousel",
+        "recommended_content_format_includes": "YouTube",
+        "optimization_tactics.length_min": 2,
+        "live_check_performed": false,
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "sfc-02",
+      "description": "Inspirational keyword on Google — expect image pack",
+      "input": {
+        "keyword": "moody fall bedroom inspiration",
+        "platform": "google",
+        "check_live": false
+      },
+      "expect": {
+        "dominant_serp_feature": "image_pack",
+        "recommended_content_format_includes": "Pinterest",
+        "optimization_tactics.length_min": 2
+      }
+    }
+  ]
+}

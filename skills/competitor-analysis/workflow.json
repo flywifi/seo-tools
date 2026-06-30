@@ -1,14 +1,15 @@
 {
-  "_comment": "competitor-analysis researches competitors per platform and produces a gap report.",
+  "_comment": "competitor-analysis researches competitors per platform, extracts entity intelligence, and produces a gap report.",
   "id": "competitor-analysis",
-  "description": "Competitor research report: overserved topics, underserved angles, keyword gaps, and differentiation summary.",
+  "description": "Competitor research report: overserved topics, underserved angles, keyword gaps, entity gaps, and differentiation summary.",
   "steps": [
     {"step": 1, "atom": "competitor-scan", "input_from": "user request + platform_targets + competitor_count", "output_to": "step2", "repeat": "per_platform"},
-    {"step": 2, "atom": "keyword-cluster", "input_from": "user request + step1.gap_topics", "output_to": "step3"},
-    {"step": 3, "atom": "search-intent", "input_from": "user request + step2.primary_keywords", "output_to": "step4"},
-    {"step": 4, "atom": "trend-check", "input_from": "step3.top_topics", "output_to": "step5", "condition": "trend momentum is part of the request"},
-    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_competitive_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
+    {"step": 2, "atom": "entity-extract", "input_from": "step1.competitor_content_samples", "output_to": "step3", "condition": "competitor-scan returned content samples from at least one platform"},
+    {"step": 3, "atom": "keyword-cluster", "input_from": "user request + step1.gap_topics + step2.entity_gaps", "output_to": "step4"},
+    {"step": 4, "atom": "search-intent", "input_from": "user request + step3.primary_keywords", "output_to": "step5"},
+    {"step": 5, "atom": "trend-check", "input_from": "step4.top_topics", "output_to": "step6", "condition": "trend momentum is part of the request"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "assembled_competitive_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
   ],
-  "shortcut_atoms": ["competitor-scan", "keyword-cluster", "search-intent", "trend-check"],
-  "note": "All unverified competitor data carries [unverified] labels. Confidence reflects retrieval quality."
+  "shortcut_atoms": ["competitor-scan", "entity-extract", "keyword-cluster", "search-intent", "trend-check"],
+  "note": "Step 2 is conditional on competitor-scan returning usable content. All unverified competitor data carries [unverified] labels. Entity gap output from entity-extract feeds keyword-cluster in step 3 to ensure entity-rich keywords are considered."
 }
