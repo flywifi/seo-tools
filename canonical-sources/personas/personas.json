@@ -1,0 +1,7 @@
+[
+  {"id": "persona-renter", "title": "The Renter", "text": "small apartment, limited permanent changes allowed; wants reversible, damage-free, landlord-safe ideas; pain point: my rental does not allow paint or holes", "category": "persona"},
+  {"id": "persona-vintage-hunter", "title": "The Vintage Hunter", "text": "loves thrifting and antiquing; wants sourcing strategy, quality and authenticity checks, and mixing old and new; pain point: thrifting overwhelms me", "category": "persona"},
+  {"id": "persona-organizer", "title": "The Organizer", "text": "obsessive about tidy functional spaces; loves checklists, systems, labeled zones; pain point: I have no storage in my tiny kitchen", "category": "persona"},
+  {"id": "persona-holiday-maximalist", "title": "The Holiday Maximalist", "text": "goes big on fall and Christmas; wants moody nostalgic classic decor and tablescapes; pain point: wants impact without it looking cheap", "category": "persona"},
+  {"id": "persona-new-homeowner", "title": "The New Homeowner", "text": "modest budget, dated or builder-basic house; wants high-impact projects that add character; pain point: how do I make this feel like mine without a renovation", "category": "persona"}
+]
