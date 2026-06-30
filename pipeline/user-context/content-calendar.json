@@ -1,0 +1,7 @@
+{
+  "_comment": "Upcoming content calendar. Used by calendar-slot to check for conflicts and by deal-resourcing to align production tasks with publish targets.",
+  "_gitignore_note": "Real calendar data goes here (no PII). This file is committed.",
+  "entries": [],
+  "last_updated": null,
+  "notes": "Each entry: { title, pillar, publish_target_date (ISO 8601), stage (idea/scripted/filmed/edited/scheduled/published), platform_targets (array), linked_deal_id (null if organic) }"
+}

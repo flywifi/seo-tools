@@ -1,6 +1,8 @@
-# Real CRM data: never committed. Only schemas, templates, and blank structures live in git.
+# Real CRM data and user snapshots: never committed. Only schemas and blank structures live in git.
 pipeline/**/*.local.json
 pipeline/**/*.local.*
+# Real channel stats, credentials config, or dated voice snapshots go in *.local.json
+pipeline/user-context/*.local.json
 
 # Regenerable local caches (scoop L1/L2) and any *.local.* working file
 *.local

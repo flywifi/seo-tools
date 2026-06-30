@@ -8,9 +8,13 @@ load: on every output, and before producing any downloadable file
 # Formatting and Metadata Protocol
 
 ## Punctuation (hard rules)
-- Never use em dashes anywhere in any output. Use commas, parentheses, periods, or rephrasing.
-- Never use en dashes for ranges. Write ranges with "to" (for example, "1 to 3 hours,"
+- Never use em dashes in any user-facing output (scripts, captions, pitch paragraphs, pin titles,
+  media kit copy, any content Alex or her audience will read). Use commas, parentheses, periods, or
+  rephrasing instead. Internal documentation (SKILL.md files, engine docs, protocol files,
+  architecture docs) may use em dashes as standard prose punctuation.
+- Never use en dashes for ranges anywhere. Write ranges with "to" (for example, "1 to 3 hours,"
   "$50 to $150," "15 to 60 seconds").
+- See shared/voice-engine.md for the full anti-AI pattern list and voice guidance.
 
 ## File type
 Before producing a deliverable, confirm the output file type with the user (for example, plain text,

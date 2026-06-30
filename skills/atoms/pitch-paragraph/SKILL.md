@@ -7,7 +7,10 @@ description: >
   product category, and proposes a concrete content format. Outputs the pitch paragraph, three
   subject line options, and personalization notes for the sender to verify before use. Do NOT use
   to send emails, post to any external system, or produce final outreach copy without human review.
-load: on_demand
+load:
+  - shared/brand-engine.md
+  - shared/voice-engine.md
+  - shared/pipeline-engine.md
 ---
 
 # pitch-paragraph

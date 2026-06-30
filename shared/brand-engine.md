@@ -50,4 +50,5 @@ gift-wrap station, and it is totally doable in a weekend with basic tools."
 ## Pointers (do not duplicate here)
 - Audience profile and the five personas: shared/audience-engine.md
 - DIY safety boundary (structural, electrical, plumbing): protocols/safety.md
-- No-fabrication, formatting (no em dashes, "to" for ranges), and metadata: protocols/
+- No-fabrication, formatting (no em dashes in user-facing output, "to" for ranges), and metadata: protocols/
+- Full anti-AI pattern list, Alex's vocabulary seed, and the voice-profile.json hook: shared/voice-engine.md

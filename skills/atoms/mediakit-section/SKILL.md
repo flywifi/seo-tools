@@ -8,7 +8,10 @@ description: >
   to clearly labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json,
   or marks fields as placeholders when neither is available. Do NOT use for full media kit assembly
   (use a spoke that sequences this atom), email outreach copy, or any CRM record write.
-load: on_demand
+load:
+  - shared/brand-engine.md
+  - shared/voice-engine.md
+  - shared/pipeline-engine.md
 ---
 
 # mediakit-section

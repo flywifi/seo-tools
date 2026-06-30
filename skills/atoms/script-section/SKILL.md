@@ -2,7 +2,9 @@
 file: skills/atoms/script-section/SKILL.md
 name: script-section
 description: Write ONE named section of a YouTube video script for Alex Slason in planning-to-Alex voice (speaking notes, second person). Sections are hook, intro, body-step, broll-cue, transition, cta, and outro. Use when any scripting or video-development workflow needs a single section drafted. Do NOT use to write a full script in one call; call this atom once per section and use workflow.json repeat per_section to compose the full script.
-load: when a scripting workflow needs one section of a video script written for Alex
+load:
+  - shared/brand-engine.md
+  - shared/voice-engine.md
 ---
 
 # script-section

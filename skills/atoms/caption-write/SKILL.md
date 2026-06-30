@@ -5,6 +5,7 @@ description: write ONE platform-appropriate social media caption (hook line, bod
 load:
   - shared/brand-engine.md
   - shared/platform-engine.md
+  - shared/voice-engine.md
   - protocols/safety.md
 ---
 
