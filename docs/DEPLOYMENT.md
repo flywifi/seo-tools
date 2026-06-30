@@ -11,6 +11,9 @@ Creator OS ships in five deployment modes. Choose the one that matches your setu
 - pip install -r requirements-scraper.txt (HTML parsing: beautifulsoup4)
 - Optional: pip install -r requirements-render.txt (Playwright, for full competitor snapshots)
 - Optional (Claude Desktop only): pip install -r requirements-mcp.txt (MCP server: mcp)
+- **macOS (M2 / Apple Silicon):** See `docs/SETUP_MAC.md` for the full step-by-step walkthrough.
+  After installing `requirements-render.txt`, run once: `python3 -m playwright install chromium`
+  (downloads the arm64 Chromium binary, approximately 170 MB).
 
 ---
 
