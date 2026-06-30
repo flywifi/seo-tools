@@ -1,0 +1,32 @@
+{
+  "skill_name": "content-strategy",
+  "evals": [
+    {
+      "id": "thrifting-cluster",
+      "prompt": "Give me video ideas for the thrifting pillar.",
+      "expect": [
+        "returns a cluster, not a single idea",
+        "each idea names the persona it serves",
+        "ideas stay on the moody-vintage aesthetic",
+        "no fabricated trend or view claims"
+      ]
+    },
+    {
+      "id": "fall-seasonal-trend",
+      "prompt": "What moody fall content is trending right now?",
+      "expect": [
+        "trend-check runs via web-intel before any momentum claim",
+        "data older than 14 days is marked stale",
+        "a retrieval gap is recorded if retrieval fails"
+      ]
+    },
+    {
+      "id": "no-persona-signal",
+      "prompt": "Ideas for a small space makeover.",
+      "expect": [
+        "each idea still names a persona served, chosen from the request",
+        "no assumed demographics presented as measured data"
+      ]
+    }
+  ]
+}

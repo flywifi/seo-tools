@@ -1,0 +1,13 @@
+{
+  "_comment": "content-strategy composes atoms into a trend-verified, pillar-aligned idea cluster. The user can also call any shortcut atom directly for a one-off.",
+  "id": "content-strategy",
+  "description": "Idea clusters, pillar-aligned, persona-mapped, trend-verified, and gated.",
+  "steps": [
+    {"step": 1, "atom": "pillar-classify", "input_from": "user request", "output_to": "step2"},
+    {"step": 2, "atom": "idea-generate", "input_from": "step1.pillar + persona", "output_to": "step3", "repeat": "per_pillar"},
+    {"step": 3, "atom": "trend-check", "input_from": "step2.ideas", "output_to": "step4", "repeat": "per_idea", "condition": "idea makes a trend or seasonal claim"},
+    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_cluster", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
+  ],
+  "shortcut_atoms": ["idea-generate", "pillar-classify", "trend-check"],
+  "note": "The user can call any shortcut atom directly without running the full workflow."
+}
