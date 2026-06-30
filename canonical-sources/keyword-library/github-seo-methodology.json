@@ -1,0 +1,115 @@
+{
+  "_comment": "Curated OSS SEO and content marketing repositories from GitHub research (71 + 70 tool-use deep crawl, June 2026). These repos document methodologies and algorithms; they are reference material for how competitor-scan, topical-authority-map, long-tail-expand, and serp-feature-check should work. Not a list of tools to install — a knowledge base of proven techniques.",
+  "last_updated": "2026-06-30",
+  "methodology_references": [
+    {
+      "repo": "searchsolved/search-solved-public-seo",
+      "stars": 404,
+      "primary_contribution": "100+ Python SEO tools including Topical Map Generator (GPT-4o), SERP Clustering at Scale, Content Hub Classification, Content Gap Finder, PAA Scraper, Trends Forecasting",
+      "key_algorithm": "SERP-URL-overlap clustering — group keywords by which URLs co-appear in top-10 results rather than by semantic similarity. Reflects Google's actual intent-matching, not linguistic proximity.",
+      "relevance_to_creator_os": "Gold standard reference for topical-authority-map. The SERP overlap method should be the primary cluster detection technique when web-intel retrieval is available.",
+      "tier": "T2"
+    },
+    {
+      "repo": "Senuto/nodeshub-seo-skills",
+      "stars": 36,
+      "primary_contribution": "11 Claude Code skills + 2 agents: Weighted Jaccard + Louvain SERP clustering, PAA Miner, Featured Snippet Hunter, SERP-based intent classifier",
+      "key_algorithm": "Weighted Jaccard similarity + Louvain community detection for SERP-URL-overlap clustering. More technically rigorous than simple URL-overlap; groups keywords into distinct topical communities that reflect Google's clustering.",
+      "relevance_to_creator_os": "Implementation reference for competitor-analysis and serp-feature-check atoms. Louvain community detection is the most reliable algorithm for keyword cluster identification.",
+      "tier": "T2"
+    },
+    {
+      "repo": "adityaarsharma/youtube-marketing-skills",
+      "stars": 16,
+      "primary_contribution": "21-command Claude Code suite: Hub/Hero/Help model, DataForSEO live keyword integration, 4-agent competitor analysis, dual-ranking strategy, VideoObject schema companion posts",
+      "key_algorithm": "Dual-ranking strategy — YouTube video + VideoObject schema companion blog post = simultaneous YouTube Search + Google Search ranking. BrightEdge 2025 data: 53% improved Google ranking for blog posts with YouTube embeds.",
+      "relevance_to_creator_os": "Direct reference for the GEO/AEO section of seo-intelligence-engine.md and the geo-optimize atom. The companion blog post strategy is the highest-ROI single addition for new channels.",
+      "tier": "T2"
+    },
+    {
+      "repo": "AgriciDaniel/claude-youtube",
+      "primary_contribution": "14-skill Claude Code suite: 5 hook variant generators with drop-off risk ratings, seasonal CPM calendar, Shorts optimization",
+      "key_algorithm": "5 hook variant types: question, curiosity gap, bold claim, transformation preview, pattern interrupt. Each variant carries a drop-off risk rating based on retention curve analysis.",
+      "relevance_to_creator_os": "Reference for hook-write atom. The 5-variant taxonomy + drop-off risk rating is a more principled approach than the current atom's single hook generation.",
+      "tier": "T2"
+    },
+    {
+      "repo": "HasData/python-for-seo",
+      "primary_contribution": "7 tools: PAA Tree Builder, Trends Breakout Analyzer, SERP Similarity Matrix (Jaccard), AI Overview Monitor",
+      "key_algorithm": "PAA recursive expansion generates 324+ question-based variants from a single seed keyword at depth 4. Each question is a potential video title with documented search demand.",
+      "relevance_to_creator_os": "Reference for long-tail-expand atom's PAA tree traversal method. The 4-level depth limit and volume-per-level analysis should inform the atom's depth-2 traversal design.",
+      "tier": "T2"
+    },
+    {
+      "repo": "inhouseseo/superseo-skills",
+      "primary_contribution": "11 skills: semantic-gap-analysis (Koray Tugberk topical authority methodology), topic-cluster-planning, featured-snippet-optimizer, E-E-A-T audit",
+      "key_algorithm": "Koray Tugberk topical authority model: content depth + entity coverage + internal linking = topical authority score. Differs from hub-and-cluster by explicitly tracking entity coverage gaps.",
+      "relevance_to_creator_os": "Reference for the topical authority model in seo-intelligence-engine.md. The entity gap tracking is already reflected in the entity-extract atom design.",
+      "tier": "T2"
+    },
+    {
+      "repo": "GeneralMills/pytrends",
+      "stars": "1000+",
+      "primary_contribution": "Unofficial Google Trends API wrapper. gprop='youtube' parameter for YouTube-specific trend data. Seasonal pattern detection across 4 time windows.",
+      "key_algorithm": "Breakout keyword detection: a keyword showing >5000% growth (reported as 'Breakout') in the 7D or 3M window signals emerging search demand before it appears in autocomplete tools.",
+      "relevance_to_creator_os": "Reference for trend-check atom when estimating keyword momentum. Volume estimates via Trends should always be labeled [estimated, unverified] per no-fabrication.md.",
+      "note": "Unofficial API — usage may violate Google ToS. Use with caution and only for internal research, not for production data pipelines.",
+      "tier": "T3"
+    },
+    {
+      "repo": "chukhraiartur/seo-keyword-research-tool",
+      "primary_contribution": "PAA recursive expansion to depth 4. Generates 324+ questions from a single seed. pip-installable.",
+      "key_algorithm": "PAA tree: 5 first-level questions from seed → click each for 4 more → depth 2 = up to 25 questions → depth 4 = up to 325. Each question has a Google-verified search demand signal.",
+      "relevance_to_creator_os": "Quantifies the PAA expansion methodology currently described in seo-intelligence-engine.md. At depth 2 (the current atom limit), the expected output is 5 to 25 questions per seed keyword.",
+      "tier": "T3"
+    },
+    {
+      "repo": "krutzar/topic-cluster-creation",
+      "primary_contribution": "SERP-URL-overlap cluster detection. Reverse-engineers Google's topical groupings by analyzing which URLs appear together across a keyword set.",
+      "key_algorithm": "For each keyword in a set, fetch top-10 SERP URLs. Build a URL co-occurrence matrix. Cluster keywords by Jaccard similarity of their URL sets. Keywords sharing 3+ URLs belong to the same topical cluster.",
+      "relevance_to_creator_os": "Additional implementation reference for competitor-analysis. The 3-URL threshold is a useful heuristic for determining cluster membership.",
+      "tier": "T3"
+    },
+    {
+      "repo": "aaron-he-zhu/seo-geo-claude-skills",
+      "primary_contribution": "20 SEO+GEO skills + 18 influencer skills. CORE-EEAT 80-item benchmark. CITE 40-item benchmark. C-cubed influencer fit scoring (Congruence, Credibility, Conversion potential).",
+      "key_algorithm": "CITE benchmark for AI citation tracking: Clarity, Indexability, Trust signals, Entity coverage. The 4-dimension model predicts whether a piece of content will be cited by AI search systems.",
+      "relevance_to_creator_os": "Reference for the GEO/AEO section. The CITE framework aligns with the VideoObject + transcript + chapter marker strategy documented in seo-intelligence-engine.md.",
+      "tier": "T2"
+    }
+  ],
+  "key_algorithmic_findings": {
+    "serp_url_overlap_is_gold_standard": {
+      "finding": "SERP-URL-overlap clustering is confirmed as the gold standard for topical content boundary detection, independently implemented in 4+ repos. More reliable than semantic clustering because it reflects Google's actual intent-matching vs. linguistic similarity alone.",
+      "implication_for_creator_os": "The topical-authority-map atom should use SERP-URL-overlap when web-intel retrieval is available, falling back to semantic clustering when not."
+    },
+    "paa_depth_4_generates_324_plus_ideas": {
+      "finding": "PAA recursive expansion to depth 4 generates up to 324 question-based video ideas from one seed keyword. Each question is a real searcher intent with verified demand.",
+      "implication_for_creator_os": "The long-tail-expand atom at depth 2 generates 5 to 25 questions per seed. This is the right balance of coverage and manageable output volume."
+    },
+    "dual_ranking_strategy": {
+      "finding": "YouTube video + VideoObject schema companion blog post = simultaneous YouTube Search + Google Search ranking. BrightEdge 2025: 53% improved Google ranking for blog posts with YouTube embeds.",
+      "implication_for_creator_os": "The GEO/AEO section of seo-intelligence-engine.md describes this strategy. A geo-optimize atom should scaffold companion blog post content for each hub video."
+    },
+    "chapter_markers_enable_ai_citation": {
+      "finding": "Chapter markers in YouTube descriptions unlock YouTube Key Moments in Google Search AND enable AI citation of specific video segments by AI search systems.",
+      "implication_for_creator_os": "Every script-section output should include a recommended chapter title for timestamp placement. The video-development workflow should include chapter marker generation."
+    },
+    "shorts_freshness_decay_28_to_30_days": {
+      "finding": "YouTube Shorts have a documented freshness decay curve of 28 to 30 days (YouTube official, September 2025). Unlike long-form content, Shorts do not accumulate views over months.",
+      "implication_for_creator_os": "Shorts publishing cadence should be planned weekly or bi-weekly, not as one-time evergreen assets. The seasonal-map atom should treat Shorts as point-in-time content, not advance-scheduled like long-form."
+    },
+    "geo_aeo_emerging_channel": {
+      "finding": "GEO (Generative Engine Optimization) and AEO (AI Engine Optimization) have emerged as parallel SEO channels. Tools for tracking AI citations: Goodie AI, HubSpot AI Search Grader, Otterly AI.",
+      "implication_for_creator_os": "A geo-optimize atom should scaffold VideoObject schema annotations, chapter markers, and companion blog post outlines. These directly increase AI citation probability."
+    },
+    "hub_hero_help_model_distinct_from_5_pillars": {
+      "finding": "The Hub/Hero/Help content pillar model (used across multiple GitHub repos) is a content classification dimension distinct from the creator's 5 content pillars. Hub = comprehensive evergreen; Hero = high-reach aspirational; Help = tutorial and how-to.",
+      "implication_for_creator_os": "Consider adding Hub/Hero/Help as a secondary classification field in content-strategy and video-development workflows. This dimension informs promotion strategy (Hero gets paid push; Hub gets SEO investment; Help gets tutorial-format optimization)."
+    },
+    "polished_montages_low_probability": {
+      "finding": "Creator Breakout Kit data: polished lifestyle montages are a low-probability play for new channels. Tutorial, process, and before-and-after content formats have significantly higher click-through and retention than lifestyle aesthetic montages for channels under 10K subscribers.",
+      "implication_for_creator_os": "When video-development recommends format for a new channel, the atom should weight tutorial and transformation formats above aesthetic montage until the channel reaches 10K subscribers."
+    }
+  }
+}

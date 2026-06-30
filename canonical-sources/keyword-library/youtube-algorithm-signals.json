@@ -58,6 +58,133 @@
       "freshness_note": "Current as of mid-2026."
     }
   ],
+  "shorts_algorithm_signals": [
+    {
+      "signal": "session_contribution",
+      "impact_tier": "primary (2025 shift)",
+      "affects": ["shorts_feed", "home_feed"],
+      "current_best_practice": "Whether the Short keeps the viewer in the Shorts feed after it ends. A Short that holds a viewer for two or more subsequent Shorts earns outsized distribution. End the Short cleanly so the viewer does not leave the feed.",
+      "levers": ["clean_ending", "loop_design", "consistent_niche_positioning"],
+      "freshness_note": "Primary signal as of 2025. Replaced swipe-through-rate as the leading signal."
+    },
+    {
+      "signal": "average_view_duration_threshold",
+      "impact_tier": "primary — distribution gate",
+      "affects": ["shorts_feed_expansion"],
+      "avd_targets": {
+        "sub_30_seconds": "approximately 65% AVD to clear distribution gate",
+        "30_to_60_seconds": "approximately 50% AVD to clear distribution gate"
+      },
+      "current_best_practice": "Design Shorts to hit the AVD threshold for the length chosen. Sub-30-second Shorts with 65%+ AVD advance to Phase 2 distribution. Under-threshold Shorts are suppressed from broader distribution.",
+      "levers": ["hook_in_first_2_seconds", "pacing", "content_density"],
+      "freshness_note": "Threshold values confirmed from multiple independent channel analyses. Verify against youtube-creator-blog."
+    },
+    {
+      "signal": "loop_rate_and_replay",
+      "impact_tier": "primary",
+      "affects": ["shorts_feed", "shorts_shelf"],
+      "current_best_practice": "A rewatch within 2 seconds of video end is counted as a partial new view. Design Shorts with a loop point: the last frame flows naturally back to the first frame so a replay feels intentional. A reveal-based ending that makes the viewer want to watch again scores highest.",
+      "levers": ["loop_design", "cliffhanger_structure", "transformation_reveal_at_end"],
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "comments",
+      "impact_tier": "secondary — outranks likes (2025)",
+      "affects": ["shorts_feed"],
+      "current_best_practice": "As of 2025, comments carry more weight than raw likes as a Shorts ranking signal. A Short that prompts a reply or question outperforms one that collects passive likes. Prompt specific questions: 'What would you put on a dark fall mantel?' not 'Leave a comment below.'",
+      "levers": ["question_prompt_at_end", "open_loop_design"],
+      "freshness_note": "Signal shift confirmed mid-2025. Verify monthly."
+    },
+    {
+      "signal": "user_satisfaction_post_watch_behavior",
+      "impact_tier": "secondary (2025 shift)",
+      "affects": ["shorts_feed", "channel_authority"],
+      "current_best_practice": "What the viewer does after the Short ends is weighted over raw watch time. Subscribe, click to channel page, continue watching Shorts from the same creator — all positive. Leave YouTube — neutral. Verbal CTA to click through to the full video or subscribe can drive positive post-watch behavior.",
+      "levers": ["verbal_cta_near_end", "series_format_driving_repeat_viewing"],
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "shares",
+      "impact_tier": "secondary",
+      "affects": ["shorts_feed"],
+      "current_best_practice": "Content propagation signal. Weighted alongside replays. Shareable Shorts (funny, surprising, educational, or 'show this to someone' moments) compound faster.",
+      "levers": ["shareable_content_design", "explicit_share_prompt_in_video"],
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "original_audio_bonus",
+      "impact_tier": "secondary (March 2026, accounts under 50K subscribers)",
+      "affects": ["shorts_feed_distribution"],
+      "current_best_practice": "For accounts under 50,000 subscribers, Shorts with original voiceovers outperform Shorts using trending audio in recommendation distribution. Trending audio may still support discoverability via the audio page, but original voice wins for algorithmic recommendation.",
+      "levers": ["record_original_voiceover", "avoid_trending_audio_as_primary_strategy"],
+      "freshness_note": "Signal added March 2026. Check youtube-creator-blog for updates as channel grows past 50K."
+    },
+    {
+      "signal": "series_and_repeat_viewing",
+      "impact_tier": "secondary (2025)",
+      "affects": ["shorts_feed", "subscriber_growth"],
+      "current_best_practice": "A consistent series format earns algorithmic preference. A viewer who watches a second Short from the same creator in one session signals strong audience-fit and earns the channel continued distribution in the topic cluster. Name the series and use consistent visual branding.",
+      "levers": ["series_naming", "consistent_visual_template", "content_cadence"],
+      "freshness_note": "Signal preference for series confirmed 2025. Current as of mid-2026."
+    },
+    {
+      "signal": "swipe_away_rate_first_1_to_3_seconds",
+      "impact_tier": "secondary (was primary before 2025)",
+      "affects": ["shorts_feed"],
+      "current_best_practice": "Still important — first-frame design reduces swipe-away — but behavioral signals from viewers who stay now carry more weight. The critical hook window is 1 to 3 seconds but is no longer the dominant distribution signal.",
+      "levers": ["first_frame_design", "text_overlay", "strong_visual_hook"],
+      "freshness_note": "Demoted from primary to secondary in 2025. Session contribution is now primary."
+    },
+    {
+      "signal": "metadata_and_keywords",
+      "impact_tier": "low (lower weight than long-form)",
+      "affects": ["shorts_search", "discovery_via_search"],
+      "current_best_practice": "Shorts algorithm weights metadata far less than long-form YouTube. Title keywords still affect discoverability in YouTube Search and Google search, but behavioral signals are approximately 80% of the distribution decision. Use the same title keyword discipline as long-form, but do not expect keywords alone to drive distribution.",
+      "levers": ["keyword_in_title", "hashtag_Shorts_in_title", "descriptive_first_sentence"],
+      "freshness_note": "Current as of mid-2026."
+    }
+  ],
+  "shorts_monetization": {
+    "last_updated": "2026-06-30",
+    "ypp_shorts_path": {
+      "requirements": ["1,000 subscribers", "10 million valid Shorts views in prior 90 days"],
+      "note": "Separate from long-form YPP path (1,000 subscribers + 4,000 watch hours)"
+    },
+    "shorts_watch_hours": "Do NOT count toward the 4,000-hour long-form YPP threshold",
+    "revenue_share": {
+      "shorts": "45% to creator from Shorts ad revenue pool",
+      "long_form": "55% to creator from long-form ad revenue"
+    },
+    "source": "youtube-creator-blog (verify quarterly — monetization thresholds change)"
+  },
+  "shorts_distribution_model": {
+    "last_updated": "2026-06-30",
+    "phases": [
+      {
+        "phase": 1,
+        "name": "Cold seeding",
+        "description": "50 to 500 viewer test pool; approximately 70% non-subscribers. Short is evaluated against AVD and swipe-through thresholds. Shorts that clear the threshold advance to Phase 2.",
+        "gate": "AVD threshold (65% for sub-30s, 50% for 30 to 60s)"
+      },
+      {
+        "phase": 2,
+        "name": "Watch time gate",
+        "description": "Broader distribution within topic cluster. Comments, saves, and shares are measured here to determine the ceiling for Phase 3.",
+        "gate": "Engagement quality (comments > likes, shares, saves)"
+      },
+      {
+        "phase": 3,
+        "name": "Topic clustering",
+        "description": "Long-tail distribution to high-intent topic audiences. A top-performing Short can extend distribution for 3 to 6 weeks, unlike feed-based platforms that decay in 24 to 72 hours.",
+        "gate": "Session contribution — does the viewer continue watching Shorts after this one?"
+      }
+    ],
+    "freshness_decay": {
+      "typical_window_days": "28 to 30",
+      "source": "YouTube official documentation, September 2025",
+      "implication": "Unlike long-form evergreen content, Shorts have a decay window. Plan publishing cadence to sustain a constant presence rather than treating each Short as a permanent asset."
+    }
+  },
   "shorts_signals": [
     {
       "signal": "replay_rate_and_completion",

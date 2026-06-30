@@ -1,0 +1,140 @@
+{
+  "skill": "geo-optimize",
+  "version": "1.0.0",
+  "description": "Regression evals for the geo-optimize atom. Each case maps to a failure mode or regression case documented in MAINTAINER_README.md.",
+  "cases": [
+    {
+      "id": "eval-001",
+      "label": "Full inputs — all fields provided",
+      "description": "All optional fields supplied. Output should be fully populated with no retrieval gaps.",
+      "input": {
+        "video_title": "Dark Moody Fall Mantel Makeover Using Rust-Oleum Chalked Paint",
+        "video_description_draft": "Transform your boring mantel into a moody, collected fall display using Rust-Oleum Chalked Paint in Linen White and thrift store finds from Goodwill. This weekend makeover costs under $40. In this video I cover prepping the surface, painting technique, and how to layer candlesticks, dried botanicals, and vintage brass accessories for a dark fall aesthetic.",
+        "chapter_outline": [
+          { "timestamp_seconds": 0, "chapter_topic": "Intro and mantel before reveal" },
+          { "timestamp_seconds": 45, "chapter_topic": "Supplies list and where to find them" },
+          { "timestamp_seconds": 120, "chapter_topic": "Prepping and painting with chalk paint" },
+          { "timestamp_seconds": 240, "chapter_topic": "Styling layered candlesticks and botanicals" },
+          { "timestamp_seconds": 360, "chapter_topic": "Final reveal and styling tips" }
+        ],
+        "primary_keyword": "dark moody fall mantel",
+        "entity_list": ["Rust-Oleum Chalked Paint", "Linen White", "Goodwill"],
+        "platform_targets": ["youtube", "google"]
+      },
+      "expected": {
+        "chapter_timestamps_count": 5,
+        "all_chapters_suggested_false": true,
+        "first_chapter_timestamp": "00:00",
+        "retrieval_gaps_empty": true,
+        "geo_readiness_score_min": 4,
+        "primary_keyword_labeled_inferred": false,
+        "entity_density": "high"
+      }
+    },
+    {
+      "id": "eval-002",
+      "label": "No chapter outline provided",
+      "description": "chapter_outline absent. All generated timestamps must carry suggested: true. retrieval_gaps must note missing outline.",
+      "input": {
+        "video_title": "Thrift Store Furniture Flip: Vintage Armoire Makeover on a Budget",
+        "video_description_draft": "I found this beat-up armoire at Goodwill for $15 and turned it into a moody statement piece using Annie Sloan chalk paint and dark wax. Full tutorial showing prep, paint, wax finish, and hardware swap. Total cost under $35.",
+        "primary_keyword": "thrift store armoire makeover",
+        "entity_list": ["Annie Sloan", "Goodwill"]
+      },
+      "expected": {
+        "all_chapters_suggested_true": true,
+        "chapter_count_min": 3,
+        "retrieval_gaps_contains": "chapter_outline not provided",
+        "chapter_structure_not_high": true
+      }
+    },
+    {
+      "id": "eval-003",
+      "label": "No primary keyword or entity list",
+      "description": "Only video_title and description provided. primary_keyword must be inferred and labeled. No entity names fabricated.",
+      "input": {
+        "video_title": "Small Bedroom Organization: Under $50 Budget Makeover",
+        "video_description_draft": "Transforming my tiny bedroom with affordable organization bins, a new shelf system, and some thrift store styling finds. Everything in this video cost under $50 total."
+      },
+      "expected": {
+        "primary_keyword_labeled_inferred": true,
+        "entity_list_fabricated": false,
+        "retrieval_gaps_contains_primary_keyword": true,
+        "retrieval_gaps_contains_entity_list": true,
+        "no_invented_brand_names": true
+      }
+    },
+    {
+      "id": "eval-004",
+      "label": "Sparse description — under 100 characters",
+      "description": "Description is too short to infer chapter structure or keyword placement. chapter_timestamps must be empty or flagged.",
+      "input": {
+        "video_title": "Moody Fall Decor Ideas",
+        "video_description_draft": "Fall decor tips for a moody aesthetic."
+      },
+      "expected": {
+        "chapter_timestamps_empty_or_flagged": true,
+        "retrieval_gaps_non_empty": true,
+        "description_annotation_notes_insufficient_content": true
+      }
+    },
+    {
+      "id": "eval-005",
+      "label": "geo_readiness_score boundary: maximum score 6",
+      "description": "All three dimensions at maximum: entity_density=high, chapter_structure=high (outline provided), companion_post_exists=yes. Score must be exactly 6.",
+      "input": {
+        "video_title": "Rust-Oleum Chalk Paint Furniture Flip: Complete Moody Vintage Armoire Guide",
+        "video_description_draft": "Full walkthrough of my Rust-Oleum chalk paint armoire makeover from Habitat for Humanity ReStore. Covers prep, application, dark wax finish, and vintage brass hardware sourced from Etsy. Companion blog post at [link].",
+        "chapter_outline": [
+          { "timestamp_seconds": 0, "chapter_topic": "Intro and before reveal" },
+          { "timestamp_seconds": 60, "chapter_topic": "Supplies and sourcing" },
+          { "timestamp_seconds": 150, "chapter_topic": "Surface prep and sanding" },
+          { "timestamp_seconds": 250, "chapter_topic": "Chalk paint application" },
+          { "timestamp_seconds": 350, "chapter_topic": "Dark wax finish technique" },
+          { "timestamp_seconds": 430, "chapter_topic": "Hardware swap and final reveal" }
+        ],
+        "primary_keyword": "chalk paint armoire makeover",
+        "entity_list": ["Rust-Oleum", "Habitat for Humanity ReStore", "Etsy"],
+        "platform_targets": ["youtube", "google"],
+        "companion_post_planned": true
+      },
+      "expected": {
+        "geo_readiness_score": 6,
+        "entity_density": "high",
+        "chapter_structure": "high",
+        "companion_post_exists": "yes",
+        "output_labels_strong_ai_citation_candidate": true
+      }
+    },
+    {
+      "id": "eval-006",
+      "label": "Entity in title only, no entity_list supplied",
+      "description": "Title contains 'Rust-Oleum Chalked Paint' but entity_list is absent. Only that explicit entity should appear; no fabricated related products.",
+      "input": {
+        "video_title": "Rust-Oleum Chalked Paint Furniture Flip: DIY Nightstand Makeover",
+        "video_description_draft": "Painting an old nightstand with chalk paint for a moody, vintage look. Includes prep, two-coat technique, and distressing method.",
+        "primary_keyword": "chalk paint nightstand makeover"
+      },
+      "expected": {
+        "entity_rust_oleum_present": true,
+        "no_fabricated_entities": true,
+        "entity_density": "medium"
+      }
+    },
+    {
+      "id": "eval-007",
+      "label": "Description already keyword-rich — no redundant insertion",
+      "description": "The first 125 characters of the draft already contain the primary keyword. description_annotation must note no change needed, not insert a second occurrence.",
+      "input": {
+        "video_title": "Dark Moody Fall Mantel Ideas for a Vintage Home",
+        "video_description_draft": "Dark moody fall mantel styling from scratch using thrift store finds and items you already own. This video walks through every layer of the display from back to front.",
+        "primary_keyword": "dark moody fall mantel"
+      },
+      "expected": {
+        "changes_from_input_notes_keyword_already_present": true,
+        "keyword_not_duplicated_in_first_125": true
+      }
+    }
+  ],
+  "eval_run_notes": "Run manually by loading geo-optimize with each input and verifying all expected fields against output JSON. Automated harness TBD."
+}
