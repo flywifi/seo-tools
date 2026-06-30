@@ -228,30 +228,85 @@ python3 tools/competitor_snapshot.py --export-summary
 
 ---
 
-## Feature flags (`creator-os-config.json`)
+## First-time setup (after cloning)
 
-Edit `creator-os-config.json` at the repo root to enable capabilities as you complete each
-setup step. All flags default to `false`. Set a flag to `true` only after verifying the
-corresponding setup is complete.
+Run the setup script once after cloning. It creates your local data files from their schemas,
+builds the keyword cache, and verifies the drift guard:
+
+```bash
+python3 tools/setup.py
+```
+
+This creates the following gitignored local files (never committed, never overwritten by `git pull`):
+- `creator-os-config.local.json` — your capability flags (copy only the keys you want to override)
+- `pipeline/user-context/voice-profile.local.json` — your real phrases (grows over time)
+- `pipeline/user-context/content-calendar.local.json` — your upcoming content entries
+- `pipeline/user-context/channel-context.local.json` — your channel stats
+- `pipeline/user-context/setup-context.local.json` — your environment and installed tools
+
+---
+
+## Regular sync (pulling updates from main)
+
+Run this instead of bare `git pull`:
+
+```bash
+python3 tools/update.py
+```
+
+This pulls from `main`, runs the drift guard, and rebuilds the keyword cache automatically
+if canonical sources changed. Your local data files (`*.local.json`, competitor snapshots,
+SQLite caches) are never touched.
+
+If you prefer bare git:
+
+```bash
+git pull origin main
+python3 tools/sync_check.py
+python3 shared/cache/cache.py --build   # only if canonical-sources/ changed
+```
+
+---
+
+## Your local data — what goes where
+
+| What | File | git behaviour |
+|---|---|---|
+| Capability flags | `creator-os-config.local.json` | gitignored — never conflicts |
+| Your real voice phrases | `pipeline/user-context/voice-profile.local.json` | gitignored — never conflicts |
+| Your content calendar | `pipeline/user-context/content-calendar.local.json` | gitignored — never conflicts |
+| Your channel stats | `pipeline/user-context/channel-context.local.json` | gitignored — never conflicts |
+| API credentials | `pipeline/user-context/api-credentials.local.json` | gitignored — never conflicts |
+| Competitor snapshots | `pipeline/competitor-snapshots/` | gitignored — never conflicts |
+| Keyword cache | `shared/cache/index.local.db` | gitignored — rebuilt by update.py |
+
+The committed versions of these files are null-filled schemas. They define the shape of the data;
+your `.local.json` files hold the real values.
+
+---
+
+## Feature flags (`creator-os-config.json` and `creator-os-config.local.json`)
+
+The committed `creator-os-config.json` is the default (all capabilities off). To enable a
+capability without touching the committed file, edit `creator-os-config.local.json` (created
+by `tools/setup.py`). Local flags always win over the committed defaults.
+
+Example `creator-os-config.local.json` after setting up the keyword cache:
 
 ```json
 {
   "capabilities": {
-    "mcp_server": false,
-    "competitor_snapshots": false,
-    "keyword_cache": false,
-    "playwright": false,
-    "youtube_api": false,
-    "instagram_api": false,
-    "tiktok_api": false,
-    "voice_profile": false,
-    "channel_context": false
+    "keyword_cache": true,
+    "voice_profile": true
   }
 }
 ```
 
-The `get_capabilities` MCP tool reads this file and overlays live checks (for example, it
-confirms the SQLite index actually exists before reporting `keyword_cache: true`).
+You only need to include the capabilities you want to change. Omitted keys inherit from
+the committed defaults (all false).
+
+The `get_capabilities` MCP tool reads both files, merges them, and overlays live checks
+(for example, it confirms the SQLite index actually exists before reporting `keyword_cache: true`).
 
 ---
 

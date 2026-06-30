@@ -46,14 +46,28 @@ except ImportError:
 mcp = FastMCP("creator-os")
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
+CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
 
 
 def _load_config() -> dict:
-    """Load creator-os-config.json. Returns empty dict if missing."""
+    """Load creator-os-config.json, then deep-merge creator-os-config.local.json over it.
+
+    creator-os-config.local.json is gitignored and never touched by git pull.
+    Local capability flags always win over the committed defaults.
+    """
+    base: dict = {}
     try:
-        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        base = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {}
+        pass
+    if CONFIG_LOCAL_PATH.exists():
+        try:
+            local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
+            for key, val in local.get("capabilities", {}).items():
+                base.setdefault("capabilities", {})[key] = val
+        except (OSError, json.JSONDecodeError):
+            pass
+    return base
 
 
 def _run(cmd: list, input_text: str | None = None) -> tuple:

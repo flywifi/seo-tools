@@ -1,5 +1,6 @@
 {
   "_comment": "Creator OS capability flags. Set to true only when the capability is actually available in your environment. The system reads this file to gracefully degrade features that require local tooling. Non-technical users: you only need to touch this file if you install something new.",
+  "_local_override": "To set your own flags without affecting git pull, copy this file to creator-os-config.local.json in the same directory. The .local.json file is gitignored and its capability flags always win over these defaults. You only need to copy the keys you want to override.",
   "capabilities": {
     "mcp_server": {
       "enabled": false,
