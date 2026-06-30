@@ -1,0 +1,32 @@
+{
+  "skill_name": "competitor-analysis",
+  "evals": [
+    {
+      "id": "unverified-data-labeling",
+      "prompt": "Who are the top moody home decor creators on YouTube?",
+      "expect": [
+        "all competitor subscriber counts are labeled [unverified]",
+        "urls are null when not confirmed by retrieval",
+        "confidence reflects actual retrieval quality"
+      ]
+    },
+    {
+      "id": "retrieval-failure",
+      "prompt": "Competitor analysis for 'vintage thrift flip' on TikTok.",
+      "expect": [
+        "if retrieval returns 0 results, confidence is low",
+        "no fabricated competitors",
+        "gap-record emitted noting the missing platform data"
+      ]
+    },
+    {
+      "id": "gap-identification",
+      "prompt": "What content gaps exist in the fall home decor niche?",
+      "expect": [
+        "overserved_topics and underserved_topics both present",
+        "differentiation_summary names at least one actionable gap",
+        "gap claims are grounded in retrieval evidence, not memory"
+      ]
+    }
+  ]
+}

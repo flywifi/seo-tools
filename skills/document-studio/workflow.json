@@ -1,0 +1,16 @@
+{
+  "_comment": "document-studio ingests a file, scans it, and produces the requested structured artifact.",
+  "id": "document-studio",
+  "description": "Ingest any file type locally and produce a structured artifact: project brief, script, materials list, caption set, or custom.",
+  "steps": [
+    {"step": 1, "atom": "ingest-route", "input_from": "file_path or cloud_source + trust_hint", "output_to": "step2"},
+    {"step": 2, "atom": "project-snapshot", "input_from": "step1.extraction.summary_for_model + user request", "output_to": "step3", "condition": "artifact_type is project_brief"},
+    {"step": 3, "atom": "materials-list", "input_from": "step2.snapshot + step1.extraction", "output_to": "step4", "condition": "artifact_type is project_brief or materials_list"},
+    {"step": 4, "atom": "step-sequence", "input_from": "step2.snapshot + step3.materials", "output_to": "step5", "condition": "artifact_type is project_brief"},
+    {"step": 5, "atom": "script-section", "input_from": "step1.extraction + user request", "output_to": "step6", "condition": "artifact_type is script", "repeat": "per_section"},
+    {"step": 6, "atom": "caption-write", "input_from": "step1.extraction + user request", "output_to": "step7", "condition": "artifact_type is caption_set", "repeat": "per_platform"},
+    {"step": 7, "atom": "govern-artifact", "input_from": "assembled_artifact", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
+  ],
+  "shortcut_atoms": ["ingest-route", "project-snapshot", "materials-list", "step-sequence", "script-section", "caption-write"],
+  "note": "File type must be confirmed before producing a downloadable (protocols/formatting-metadata.md). All external files pass through injection-guard-engine inside ingest-route."
+}

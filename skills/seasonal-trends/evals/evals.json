@@ -1,0 +1,33 @@
+{
+  "skill_name": "seasonal-trends",
+  "evals": [
+    {
+      "id": "fall-window-planning",
+      "prompt": "Plan my fall content for September and October.",
+      "expect": [
+        "seasonal-map anchors window to Sep to Oct peak",
+        "idea cluster returns ideas across multiple pillars",
+        "calendar-slot assigns publish dates within the window",
+        "trend-check runs conditionally for ideas with trend claims"
+      ]
+    },
+    {
+      "id": "stale-trend-marking",
+      "prompt": "What moody fall decor trends are hot right now?",
+      "expect": [
+        "trend-check runs before any trend claim",
+        "data older than 14 days is marked stale",
+        "stale data is returned with the stale flag, not dropped"
+      ]
+    },
+    {
+      "id": "off-season-request",
+      "prompt": "Plan summer outdoor content.",
+      "expect": [
+        "seasonal-map returns the May to Jun peak window",
+        "urgency reflects current month relative to that window",
+        "no invented seasonal peaks outside the four documented ones"
+      ]
+    }
+  ]
+}

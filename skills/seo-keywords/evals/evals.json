@@ -1,0 +1,32 @@
+{
+  "skill_name": "seo-keywords",
+  "evals": [
+    {
+      "id": "volume-estimate-labeling",
+      "prompt": "Give me keywords for 'dark moody bedroom on a budget'.",
+      "expect": [
+        "all volume figures are ranges labeled [estimated, unverified]",
+        "output includes a note directing independent verification",
+        "keyword cluster has primary, secondary, and long-tail tiers"
+      ]
+    },
+    {
+      "id": "competitor-retrieval-failure",
+      "prompt": "SEO strategy for 'thrift flip DIY' including competitor analysis.",
+      "expect": [
+        "competitor-scan runs per platform",
+        "if retrieval fails, gap-record emitted with the missing platform noted",
+        "no fabricated competitor data"
+      ]
+    },
+    {
+      "id": "title-skeleton-output",
+      "prompt": "SEO keywords and title options for moody vintage living room reveal.",
+      "expect": [
+        "title skeleton is labeled as a draft for further polish",
+        "primary keyword appears in the first 60 characters of each title option",
+        "title_skeleton is not presented as a finished, ready-to-publish title"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "_comment": "deal-pipeline manages the full deal lifecycle with evidence-gated stage transitions.",
+  "id": "deal-pipeline",
+  "description": "Deal lifecycle management: stage transitions, usage rights checks, and exclusivity conflict detection.",
+  "steps": [
+    {"step": 1, "atom": "deal-stage-advance", "input_from": "deal_id + current_stage + target_stage + evidence", "output_to": "step2", "condition": "action is advance_stage"},
+    {"step": 2, "atom": "usage-rights-check", "input_from": "deal_id or contract_text", "output_to": "step3", "condition": "stage is contract-negotiating or signed or action includes rights_check"},
+    {"step": 3, "atom": "account-health", "input_from": "account_id from deal record", "output_to": "step4", "note": "checks exclusivity conflicts"},
+    {"step": 4, "atom": "gap-record", "input_from": "missing evidence from step1", "output_to": "step5", "condition": "transition_allowed is false"},
+    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_deal_report", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
+  ],
+  "shortcut_atoms": ["deal-stage-advance", "usage-rights-check", "account-health"],
+  "note": "Stage transitions require evidence per pipeline-engine.md rules. FTC disclosure check fires on every outreach-sent and signed transition. Contract review triggers at contract-negotiating per protocols/safety.md."
+}

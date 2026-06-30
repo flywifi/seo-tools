@@ -1,0 +1,29 @@
+{
+  "_schema_version": "0.1.0",
+  "_note": "Source of truth for deal records. Real data is gitignored (*.local.*). This is the blank schema only.",
+  "deal_id": "",
+  "account_id": "",
+  "brand_name": "",
+  "deal_type": "integration | dedicated_video | short_form | bundle | affiliate | gifted",
+  "stage": "identified | outreach-sent | in-discussion | contract-negotiating | signed | in-production | delivered | invoiced | closed/fulfilled | archived",
+  "agreed_deliverables": {
+    "ftc": { "sponsored": false, "gifted": false, "affiliate": false },
+    "formats": [],
+    "platforms": [],
+    "publish_by": null,
+    "brand_review_window_days": null
+  },
+  "rate": null,
+  "currency": "USD",
+  "invoice": {
+    "issued_date": null,
+    "due_date": null,
+    "paid_date": null,
+    "status": "not_issued | pending | overdue | paid"
+  },
+  "exclusivity": { "active": false, "scope": null, "expires": null },
+  "usage_rights": { "license_grant": null, "platforms": [], "duration": null, "ownership": null },
+  "stage_history": [],
+  "notes": "",
+  "quality_gate_result": null
+}

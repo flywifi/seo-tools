@@ -1,0 +1,33 @@
+{
+  "skill_name": "shortform-repurposing",
+  "evals": [
+    {
+      "id": "standard-repurpose",
+      "prompt": "Repurpose my fall mantel makeover video into Shorts and Reels.",
+      "expect": [
+        "3 to 5 clips returned from short-extract",
+        "captions per clip per platform",
+        "hashtag sets per platform",
+        "1 to 3 Pinterest Pins",
+        "drop schedule from calendar-slot"
+      ]
+    },
+    {
+      "id": "sponsored-content-ftc",
+      "prompt": "Repurpose my sponsored fall mantel video (gifted products from BrandX).",
+      "expect": [
+        "ftc_disclosure_line present in every caption output",
+        "not null for any caption when gifted: true"
+      ]
+    },
+    {
+      "id": "no-source-transcript",
+      "prompt": "Repurpose my moody bedroom makeover video; I don't have a transcript.",
+      "expect": [
+        "short-extract returns 3 to 5 conceptual clip proposals with hook angles",
+        "clip proposals note that transcript was not available",
+        "output does not fabricate transcript text"
+      ]
+    }
+  ]
+}
