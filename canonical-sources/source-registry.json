@@ -14,7 +14,14 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Look for algorithm update announcements, ranking signal changes, structured data spec updates, and Core Web Vitals threshold changes.",
-      "used_by": ["seo-keywords", "keyword-cluster", "search-intent", "trend-check", "serp-feature-check", "seo-intelligence-engine"],
+      "used_by": [
+        "seo-keywords",
+        "keyword-cluster",
+        "search-intent",
+        "trend-check",
+        "serp-feature-check",
+        "seo-intelligence-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -31,7 +38,13 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Look for algorithm changes affecting discovery, Shorts monetization updates, chapter and timestamps spec changes, and creator program policy updates.",
-      "used_by": ["seo-keywords", "platform-engine", "trend-check", "short-extract", "seo-intelligence-engine"],
+      "used_by": [
+        "seo-keywords",
+        "platform-engine",
+        "trend-check",
+        "short-extract",
+        "seo-intelligence-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -48,7 +61,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for active or recent incidents that could explain ranking flux. Flag to seo-keywords when an incident is active.",
-      "used_by": ["seo-keywords", "search-intent"],
+      "used_by": [
+        "seo-keywords",
+        "search-intent"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -65,7 +81,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Scan for algorithm update coverage, YouTube SEO guides, and home decor content strategy articles. Flag T3 confidence on any data cited from here.",
-      "used_by": ["trend-check", "competitor-scan", "seo-keywords"],
+      "used_by": [
+        "trend-check",
+        "competitor-scan",
+        "seo-keywords"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -82,7 +102,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Early signals on Google algorithm changes (often surfaces before official confirmation). Useful for trend-check when SEJ has nothing.",
-      "used_by": ["trend-check"],
+      "used_by": [
+        "trend-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -99,7 +121,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for changes to: accepted file formats, resolution limits, aspect ratio specs, upload size limits, Shorts length limits.",
-      "used_by": ["platform-engine", "short-extract", "script-section"],
+      "used_by": [
+        "platform-engine",
+        "short-extract",
+        "script-section"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -116,7 +142,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for changes to title char limits, description char limits, tag count and length limits, chapter timestamp rules.",
-      "used_by": ["title-generate", "keyword-cluster", "platform-engine"],
+      "used_by": [
+        "title-generate",
+        "keyword-cluster",
+        "platform-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -133,7 +163,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for caption character limit changes, Reel length limit changes, cover image specs, hashtag strategy updates.",
-      "used_by": ["caption-write", "platform-engine", "hashtag-set"],
+      "used_by": [
+        "caption-write",
+        "platform-engine",
+        "hashtag-set"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -150,7 +184,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for video length changes, caption char limit updates, algorithm guidance for home decor niche, monetization threshold changes.",
-      "used_by": ["short-extract", "caption-write", "platform-engine"],
+      "used_by": [
+        "short-extract",
+        "caption-write",
+        "platform-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -167,7 +205,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for title char limit changes, description char limit changes, idea pin format updates, alt text requirements.",
-      "used_by": ["pin-write", "platform-engine"],
+      "used_by": [
+        "pin-write",
+        "platform-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -184,7 +225,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Look for deprecated fields or endpoints (especially captions.list, videos.list, search.list), quota changes, and new scopes or parameters.",
-      "used_by": ["integrations-engine"],
+      "used_by": [
+        "integrations-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -201,7 +244,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for deprecated fields (e.g. impressions deprecated April 2025, replaced by views), new Instagram Login scope changes, Graph API version deprecations.",
-      "used_by": ["integrations-engine"],
+      "used_by": [
+        "integrations-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -218,7 +263,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for Display API endpoint changes, new fields in /v2/video/list/, access scope changes, quota limit updates.",
-      "used_by": ["integrations-engine"],
+      "used_by": [
+        "integrations-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -235,7 +282,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for /me/drive/ endpoint changes, OneDrive file access permission scope updates, deprecated fields or versions.",
-      "used_by": ["integrations-engine"],
+      "used_by": [
+        "integrations-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -252,7 +301,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for new model releases, MCP spec updates, tool use changes, context window changes, and deprecated API versions.",
-      "used_by": ["creator-core", "integrations-engine"],
+      "used_by": [
+        "creator-core",
+        "integrations-engine"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -269,7 +321,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: CPM rates by subscriber tier, rate ranges for sponsored YouTube videos and integrations, home decor niche premium factors. Note the report year.",
-      "used_by": ["rate-card-fill", "benchmark-compare"],
+      "used_by": [
+        "rate-card-fill",
+        "benchmark-compare"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -286,7 +341,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: Instagram Reel sponsored rate ranges by follower tier, engagement rate benchmarks by niche, brand deal structure trends.",
-      "used_by": ["rate-card-fill", "benchmark-compare"],
+      "used_by": [
+        "rate-card-fill",
+        "benchmark-compare"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -303,7 +361,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: content bundle deal structure trends, Pinterest rate benchmarks, negotiation norms, usage rights pricing.",
-      "used_by": ["rate-card-fill", "benchmark-compare"],
+      "used_by": [
+        "rate-card-fill",
+        "benchmark-compare"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -320,7 +381,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: engagement rate benchmarks by platform and niche, performance benchmarks for home decor category, brand spend trends.",
-      "used_by": ["benchmark-compare"],
+      "used_by": [
+        "benchmark-compare"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -337,7 +400,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for new slash commands, MCP server support changes, permission model updates, hook system changes.",
-      "used_by": ["creator-core"],
+      "used_by": [
+        "creator-core"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -354,7 +419,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for protocol version changes, new transport mechanisms, resource/tool/prompt type updates that affect skill plugin compatibility.",
-      "used_by": ["integrations-engine", "creator-core"],
+      "used_by": [
+        "integrations-engine",
+        "creator-core"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -371,7 +439,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for changes to available tool names, authentication flow changes, file access permission scope updates.",
-      "used_by": ["integrations-engine", "ingest-route"],
+      "used_by": [
+        "integrations-engine",
+        "ingest-route"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -388,7 +459,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: current recommendation signals, what YouTube says it rewards, what it says creators should focus on. This is the official source for algorithm signal claims.",
-      "used_by": ["seo-intelligence-engine", "seo-keywords", "trend-check"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "seo-keywords",
+        "trend-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -405,7 +480,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: metric definitions (CTR, AVD, impressions, watch time), how to read the traffic sources report, click-through benchmarks, audience retention curve interpretation.",
-      "used_by": ["analytics-insights", "seo-intelligence-engine", "benchmark-compare"],
+      "used_by": [
+        "analytics-insights",
+        "seo-intelligence-engine",
+        "benchmark-compare"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -422,7 +501,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Scan for new lessons on thumbnail strategy, title optimization, end screen and card best practices, Shorts growth guidance. Traversal depth 2 to capture linked studies.",
-      "used_by": ["seo-intelligence-engine", "title-generate", "thumbnail-concept"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "title-generate",
+        "thumbnail-concept"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -439,7 +522,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: title tag best practices, meta description guidance, structured data recommendations, mobile-first indexing requirements. Traversal finds linked technical documentation.",
-      "used_by": ["seo-intelligence-engine", "serp-feature-check", "keyword-cluster"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "serp-feature-check",
+        "keyword-cluster"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -456,7 +543,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: VideoObject schema requirements, video sitemap specs, thumbnail requirements for video rich results, key moments / chapter markup.",
-      "used_by": ["seo-intelligence-engine", "serp-feature-check"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "serp-feature-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -473,7 +563,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: required and recommended VideoObject properties, Clip and SeekToAction markup for chapter links, testing tool URL. Changes here affect how videos appear in Google Search.",
-      "used_by": ["seo-intelligence-engine", "serp-feature-check"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "serp-feature-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -490,7 +583,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: E-E-A-T signals (Experience, Expertise, Authoritativeness, Trustworthiness), helpful content criteria, what qualifies as low-quality or thin content. Crucial for content strategy quality gates.",
-      "used_by": ["seo-intelligence-engine", "quality-review", "govern-artifact"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "quality-review",
+        "govern-artifact"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -507,7 +604,12 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: current Pinterest search trends and predictions, keyword guidance for home decor category, algorithm changes to pin distribution. Annual Predicts report is high priority.",
-      "used_by": ["seo-intelligence-engine", "pin-write", "trend-check", "seasonal-trends"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "pin-write",
+        "trend-check",
+        "seasonal-trends"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -524,7 +626,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for algorithm changes, new ad format announcements, creator program updates. Early signal for platform spec changes before help center updates.",
-      "used_by": ["platform-engine", "trend-check"],
+      "used_by": [
+        "platform-engine",
+        "trend-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -541,7 +646,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: what TikTok says drives FYP distribution (completion rate, interactions, video info, device/account settings), content quality guidance, hashtag role.",
-      "used_by": ["seo-intelligence-engine", "platform-engine", "caption-write"],
+      "used_by": [
+        "seo-intelligence-engine",
+        "platform-engine",
+        "caption-write"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -558,7 +667,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for algorithm transparency updates, new creator monetization features, policy changes. Early signal before creator portal updates.",
-      "used_by": ["platform-engine", "trend-check"],
+      "used_by": [
+        "platform-engine",
+        "trend-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -575,7 +687,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: required disclosure language, placement requirements (beginning of description, verbal in video), what counts as a material connection. Changes here affect safety.md and deal contract templates.",
-      "used_by": ["safety", "deal-pipeline", "partnership-mediakit"],
+      "used_by": [
+        "safety",
+        "deal-pipeline",
+        "partnership-mediakit"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -592,7 +708,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Check for updates to the formal endorsement guides (16 CFR Part 255). Pay attention to social media platform-specific guidance and AI-generated content rules.",
-      "used_by": ["safety", "deal-pipeline"],
+      "used_by": [
+        "safety",
+        "deal-pipeline"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -609,7 +728,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Scan for video SEO tactical guides, CTR optimization studies, keyword research methodology articles. Flag T3 confidence. Traversal finds cited studies and data sources.",
-      "used_by": ["seo-keywords", "keyword-cluster", "serp-feature-check"],
+      "used_by": [
+        "seo-keywords",
+        "keyword-cluster",
+        "serp-feature-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -626,7 +749,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: video ranking factor studies, keyword research for YouTube, competitor video analysis methodology. Flag T3. Traversal finds linked research.",
-      "used_by": ["seo-keywords", "keyword-cluster", "long-tail-expand"],
+      "used_by": [
+        "seo-keywords",
+        "keyword-cluster",
+        "long-tail-expand"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -643,7 +770,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "YouTube-specific SEO tactics, keyword research methodology, Shorts optimization. Lower confidence than T1/T2 but useful for niche-specific YouTube tactics. Traversal finds trending keyword examples.",
-      "used_by": ["seo-keywords", "keyword-cluster", "trend-check"],
+      "used_by": [
+        "seo-keywords",
+        "keyword-cluster",
+        "trend-check"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -660,7 +791,12 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Scan for trending home decor topics, new style names (e.g. 'grandmillennial dark', 'castlecore'), DIY technique coverage. Extract: what is being written about, what angles are saturated, what is underserved. High editorial authority in the niche.",
-      "used_by": ["trend-check", "competitor-scan", "idea-generate", "topical-authority-map"],
+      "used_by": [
+        "trend-check",
+        "competitor-scan",
+        "idea-generate",
+        "topical-authority-map"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -677,7 +813,12 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Scan for renter-friendly DIY coverage, small-space organization, vintage and thrifting trend articles. Strong overlap with The Renter and Vintage Hunter personas. High editorial authority.",
-      "used_by": ["trend-check", "idea-generate", "topical-authority-map", "competitor-scan"],
+      "used_by": [
+        "trend-check",
+        "idea-generate",
+        "topical-authority-map",
+        "competitor-scan"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -694,7 +835,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: which room types and project types receive the most editorial coverage, which aesthetic terms appear in headlines, seasonal and trend features. Use for competitor-scan context.",
-      "used_by": ["competitor-scan", "trend-check", "idea-generate"],
+      "used_by": [
+        "competitor-scan",
+        "trend-check",
+        "idea-generate"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -711,7 +856,11 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: trending style names, DIY and makeover approaches being covered, seasonal content patterns. BHG is a mainstream authority whose coverage signals broad market awareness of a trend.",
-      "used_by": ["competitor-scan", "trend-check", "seasonal-map"],
+      "used_by": [
+        "competitor-scan",
+        "trend-check",
+        "seasonal-map"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -728,7 +877,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: engagement rate benchmarks by platform and industry (home/lifestyle niche), best posting times, reach benchmarks. Note report date and sample size if stated.",
-      "used_by": ["benchmark-compare", "analytics-insights"],
+      "used_by": [
+        "benchmark-compare",
+        "analytics-insights"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -745,7 +897,311 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "Extract: platform-level engagement benchmarks, creator posting frequency data, video vs. image performance comparisons. Annual report — note year.",
-      "used_by": ["benchmark-compare", "analytics-insights"],
+      "used_by": [
+        "benchmark-compare",
+        "analytics-insights"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "tiktok-content-posting-api",
+      "name": "TikTok Content Posting API",
+      "url": "https://developers.tiktok.com/products/content-posting-api/",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for changes to upload endpoint URLs, rate limit values, new required fields (especially is_aigc), scope name changes, and chunked upload protocol updates.",
+      "used_by": [
+        "integrations-engine",
+        "shortform-repurposing"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "tiktok-research-api",
+      "name": "TikTok Research API",
+      "url": "https://developers.tiktok.com/products/research-api/",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for new fields in video/comment queries (favorites_count added May 2026, display_name added May 2026), quota changes, and access tier requirement changes.",
+      "used_by": [
+        "integrations-engine",
+        "competitor-scan"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "tiktok-display-api",
+      "name": "TikTok Display API",
+      "url": "https://developers.tiktok.com/doc/overview",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for endpoint URL changes, rate limit updates, and new fields in /v2/video/list/ or /v2/user/info/.",
+      "used_by": [
+        "integrations-engine"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "tiktok-login-kit",
+      "name": "TikTok Login Kit",
+      "url": "https://developers.tiktok.com/products/login-kit/",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for OAuth flow changes, token lifetime changes (access token 24h, refresh 365d as of 2026), and new platform support.",
+      "used_by": [
+        "integrations-engine"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "tiktok-newsroom-algorithm",
+      "name": "TikTok Newsroom: How TikTok recommends videos",
+      "url": "https://newsroom.tiktok.com/en-us/how-tiktok-recommends-videos-for-you",
+      "category": "seo-authority",
+      "tier": "T1",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Extract: official FYP ranking signals (rewatch rate now #1, surpassing completion), what TikTok says are non-factors (follower count, prior video performance), signals that make content FYP-ineligible. This is the primary official source for algorithm transparency.",
+      "used_by": [
+        "seo-intelligence-engine",
+        "platform-engine",
+        "shortform-repurposing"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "instagram-graph-api-docs",
+      "name": "Meta Graph API: Instagram content publishing",
+      "url": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for: new media_type values, new post_info fields (trial_params added December 2025), metric deprecations (impressions deprecated April 2025, replaced by views), scope name changes (instagram_business_basic is current). Note API version.",
+      "used_by": [
+        "integrations-engine"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "meta-developer-changelog",
+      "name": "Meta for Developers: Platform changelog",
+      "url": "https://developers.facebook.com/docs/graph-api/changelog",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Track Graph API version releases and sunsets (v20.0 sunsets September 24, 2026), deprecated fields, new Reels metrics, and webhook changes. Note the date of each changelog entry.",
+      "used_by": [
+        "integrations-engine"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "instagram-help-algorithm",
+      "name": "Instagram: How Reels are ranked and recommended",
+      "url": "https://help.instagram.com/1906735726188036",
+      "category": "seo-authority",
+      "tier": "T1",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Extract: official ranking signals for Reels (sends per reach as unique primary signal, watch time, saves, originality gate at 10+ reposts), what Instagram says it penalizes (low-res, watermarked content, reposts), hashtag guidance updates.",
+      "used_by": [
+        "seo-intelligence-engine",
+        "platform-engine",
+        "caption-write"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "pinterest-api-v5-docs",
+      "name": "Pinterest API v5 Documentation",
+      "url": "https://developers.pinterest.com/docs/getting-started/introduction/",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for changes to: video pin upload flow (register → S3 upload → create pin), rate limit values (reads 1000/min, writes 100/min, analytics 200/min), scope name changes, and new analytics metrics.",
+      "used_by": [
+        "integrations-engine",
+        "pin-write"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "youtube-shorts-help",
+      "name": "YouTube Help: YouTube Shorts",
+      "url": "https://support.google.com/youtube/answer/10059070",
+      "category": "platform-spec",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Check for changes to: maximum Shorts length (3 minutes as of Oct 2024), YPP Shorts eligibility thresholds (1,000 subs + 10M views in 90 days), revenue share percentages, and any changes to how Shorts are identified.",
+      "used_by": [
+        "platform-engine",
+        "short-extract",
+        "seo-intelligence-engine"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "youtube-help-shorts-algorithm",
+      "name": "YouTube Creator Blog: How Shorts are distributed",
+      "url": "https://blog.youtube/news-and-events/youtube-shorts-creator-tips/",
+      "category": "seo-authority",
+      "tier": "T1",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Extract: current primary Shorts ranking signal (session contribution is now primary as of 2025, replacing swipe-through-rate), AVD thresholds for distribution, three-phase distribution model, freshness decay window (~28-30 days). Signal stack changes over time.",
+      "used_by": [
+        "seo-intelligence-engine",
+        "platform-engine",
+        "short-extract"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-trends",
+      "name": "Google Trends",
+      "url": "https://trends.google.com/trends/",
+      "category": "seo-authority",
+      "tier": "T2",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Use gprop='youtube' parameter for YouTube-specific trend data. Check home decor and DIY seasonal patterns. Breakout keywords (>5000% growth) signal emerging demand before it appears in autocomplete. All volume data labeled [estimated, unverified].",
+      "used_by": [
+        "trend-check",
+        "seasonal-map",
+        "long-tail-expand"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "sprout-social-insights",
+      "name": "Sprout Social: Social media industry benchmarks",
+      "url": "https://sproutsocial.com/insights/social-media-benchmarks/",
+      "category": "rate-benchmark",
+      "tier": "T2",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Extract: engagement rate benchmarks by platform and industry vertical (home/lifestyle), optimal posting frequency data, reach benchmarks for micro-creators. Note report date and methodology.",
+      "used_by": [
+        "benchmark-compare",
+        "analytics-insights"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "vidiq-shorts-guide",
+      "name": "vidIQ: YouTube Shorts optimization guide",
+      "url": "https://vidiq.com/blog/post/youtube-shorts/",
+      "category": "seo-authority",
+      "tier": "T3",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Scan for CTR benchmark data (vidIQ analyzed 5.08M channels: <3% poor, 3-5% good, 7%+ excellent), Shorts algorithm updates, hook format recommendations with retention data. Flag T3 confidence.",
+      "used_by": [
+        "seo-intelligence-engine",
+        "trend-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "tubebuddy-blog",
+      "name": "TubeBuddy: YouTube growth tips",
+      "url": "https://www.tubebuddy.com/blog",
+      "category": "seo-authority",
+      "tier": "T3",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Scan for: SEO optimization tactics, chapter marker best practices, end screen strategy, keyword research approaches for YouTube. Flag T3 confidence.",
+      "used_by": [
+        "seo-keywords",
+        "title-generate"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",

@@ -127,96 +127,221 @@ If `captions.list` returns no tracks, return `metadata_only` with
 
 ## Meta Graph API (Instagram)
 
-**Scope for Creator OS:** Instagram content only, using Instagram Login (not Facebook Login).
-Facebook Login is a separate OAuth flow and is required only for Facebook Page access; Creator
-OS does not use it for content work.
+**Current version:** v25.0 (released February 18, 2026)
+**Base URL:** `https://graph.instagram.com/`
 
-**Base URL:** `https://graph.instagram.com/` (v22.0 and later)
+**CRITICAL: Instagram Basic Display API was SHUT DOWN December 4, 2024.** Any existing
+integration using Basic Display API stopped working on that date. All integrations must use
+the Instagram Graph API via a Facebook App using Instagram Login.
 
-**Auth:** Instagram Login via OAuth 2.0. Minimum scope: `instagram_basic` for media list and
-profile. Add `instagram_manage_insights` for post-level insights (reach, views, saves, shares).
-Tokens are long-lived user tokens (60-day expiry); refresh before expiry.
+**Auth:** Instagram Login via OAuth 2.0 with a Facebook App.
+- Old scope names (deprecated January 27, 2025): `instagram_basic`, `instagram_content_publish`
+- **Current scope names:** `instagram_business_basic`, `instagram_business_content_publish`,
+  `instagram_business_manage_messages`, `instagram_business_manage_comments`
 
-### Key endpoints
+Minimum scope for read access: `instagram_business_basic`
+Add `instagram_business_content_publish` to publish Reels.
+Tokens expire per app settings; refresh before expiry. Long-lived tokens persist 60 days.
 
-**`/me`**
-- Fields: `username`, `account_type`, `media_count`, `followers_count`.
-- Requires `instagram_basic` scope.
+### Publishing a Reel (two-step flow)
 
-**`/me/media`**
-- Lists the authenticated creator's posts.
-- Fields: `id`, `caption`, `media_type` (IMAGE, VIDEO, CAROUSEL_ALBUM), `timestamp`,
-  `like_count`, `comments_count`, `permalink`.
-- Paginate with `after` cursor from `paging.cursors.after`.
+**Step 1 — Create media container:**
+```
+POST /{ig-user-id}/media
+  media_type=REELS
+  video_url={publicly_accessible_MP4_url}
+  caption={caption_text}
+  share_to_feed=true
+  trial_params.graduation_strategy=MANUAL   (optional: test with non-followers first)
+```
+Returns: `{ "id": "{container_id}" }`
 
-**`/{media-id}`**
-- Single post detail. Same fields as `/me/media` plus `thumbnail_url` (VIDEO only).
+**Step 2 — Publish:**
+```
+POST /{ig-user-id}/media_publish
+  creation_id={container_id}
+```
 
-**`/{media-id}/insights`**
-- Post-level performance data.
-- Fields available (as of v22.0): `reach`, `views`, `saved`, `shares`, `total_interactions`.
-- **Important:** The `impressions` field was deprecated in v22.0 (released April 2025). Use
-  `views` instead. Do not request `impressions`; it will return an error on v22.0 and later.
-- Requires `instagram_manage_insights` scope.
+**Poll processing status (before publish):**
+```
+GET /{container_id}?fields=status_code
+```
+Possible values: `IN_PROGRESS`, `FINISHED`, `ERROR`, `EXPIRED`
 
-**`/{media-id}/comments`**
-- Fetches comments on a post.
-- Fields: `id`, `text`, `username`, `timestamp`.
-- Paginate with `after` cursor.
+**Rate limits:** 100 posts per rolling 24-hour window.
+
+**Video specs:** MP4 or MOV, H.264 or HEVC, 9:16 for Reels tab, 5 to 90 seconds for Reels
+tab (up to 15 minutes via API), max 100 MB.
+
+**Trial Reels (December 2025):** `trial_params.graduation_strategy=MANUAL` tests the Reel
+with non-followers only before committing to full audience distribution. Useful for validating
+content quality before it reaches the full follower audience.
+
+### Key read endpoints
+
+**`/me`** — `username`, `account_type`, `media_count`, `followers_count`
+
+**`/me/media`** — paginate the creator's posts; fields: `id`, `caption`, `media_type`
+(IMAGE, VIDEO, CAROUSEL_ALBUM), `timestamp`, `like_count`, `comments_count`, `permalink`
+
+**`/{media-id}/insights`** — post-level performance data:
+- **Current fields (v25.0):** `views`, `reach`, `saved`, `shares`, `skip_rate`,
+  `avg_watch_time`, `repost_count`, `total_interactions`
+- **New (December 2025):** `skip_rate`, `repost_count`
+- **New (April 2026):** likes/unlike engagement actions
+- **DEPRECATED (April 21, 2025, v22.0+):** `impressions` (use `views`), `plays`,
+  `clips_replays_count`, `ig_reels_aggregated_all_plays_count`
+- **DEPRECATED (v25.0):** 15 Page Insights + 9 Post Insights + 15 Video Insights + 2 Story
+  Insights additional metrics — check meta-graph-api-changelog for full list
+- Requires `instagram_business_manage_comments` scope (or the insights-specific scope)
+
+**`/{media-id}/comments`** — `id`, `text`, `username`, `timestamp`; paginate with `after` cursor
+
+### Competitor monitoring (Business Discovery API)
+
+The only official endpoint for monitoring a competitor's public account without their OAuth:
+```
+GET /{your-ig-user-id}
+  ?fields=business_discovery.username({target_username}){biography,followers_count,media_count,media{comments_count,like_count,view_count}}
+```
+Target must be a Business or Creator account. Personal accounts are not accessible.
+
+### Hashtag research (Facebook Login only, 30 hashtags/7 days)
+
+```
+GET /ig_hashtag_search?user_id={id}&q={hashtag}    → returns hashtag node ID
+GET /{ig-hashtag-id}/top_media?user_id={id}         → most popular tagged content
+```
+Rate limit: 30 unique hashtags per rolling 7 days. Requires Facebook Login (not just Instagram
+Login). Note: hashtag follow was removed December 2024 — hashtags are classification signals
+for the algorithm, not traffic sources.
+
+### Webhook certificate change (March 31, 2026)
+
+Meta switched to a Meta-owned CA for webhook delivery. Webhook trust stores must be updated.
+Topics: `comments`, `mentions`, `messages`, `story_insights`, `message_reactions`.
+
+### Deprecation timeline
+
+| Item | Date | Status |
+|---|---|---|
+| Instagram Basic Display API | 2024-12-04 | **SHUTDOWN** |
+| Old scope names (instagram_basic, etc.) | 2025-01-27 | Deprecated — use new names |
+| `impressions` metric (v22.0+) | 2025-04-21 | Use `views` |
+| `plays` metric (v22.0+) | 2025-04-21 | No replacement; use `views` |
+| Graph API v20.0 | 2026-09-24 | Sunset — all v20.0 calls fail |
+| `metadata=1` query parameter | 2026-05-19 | Removed |
 
 ### Limitations and what is not available
 
-- Video captions (closed captions) are not accessible via the Graph API. There is no caption
-  or transcript field on any media object.
-- Stories insights have a 24-hour data window; stories expire from `/me/media` after they
-  disappear from the creator's profile.
+- Video captions (closed captions) are not accessible via the Graph API.
+- Stories insights have a 24-hour data window; stories expire from `/me/media` after archive.
 - Reels audio metadata is not exposed via the API.
-- Competitor or third-party account data is not accessible under Instagram Login scope.
+- Competitor private data is not accessible under any scope; Business Discovery is read-only
+  and limited to public Business/Creator accounts.
 
 ---
 
 ## TikTok APIs
 
-Creator OS uses two distinct TikTok API surfaces with different scopes and access models.
+Creator OS uses three distinct TikTok API surfaces. See
+`canonical-sources/keyword-library/tiktok-api-registry.json` for the full product catalog
+of all seven TikTok API products.
 
-### Display API (public content)
+### Content Posting API (primary publishing path)
 
-- Purpose: read public user profiles and public video metadata for competitive research.
-- No OAuth required for public data; some endpoints require a client key.
+**Access:** Standard developer account (free)
+**Auth:** OAuth 2.0 via Login Kit; scope `video.publish` (direct post) or `video.upload` (draft)
+**Rate limits:** 6 requests/minute per user token; 5 pending uploads per 24-hour window
+**Token lifecycle:** access token 24 hours, refresh token 365 days
+
+**AIGC disclosure requirement:** The `post_info.is_aigc` field is REQUIRED to be `true` for
+any video where AI-generated or AI-assisted content is used (script, voiceover, visuals). This
+is a TikTok platform requirement. FTC disclosure requirements also apply — verbal disclosure
+in the video and text disclosure in the caption per `protocols/safety.md`.
+
+**Publish a video — init:**
+```
+POST https://open.tiktokapis.com/v2/post/publish/video/init/
+{
+  "post_info": {
+    "title": "Caption text with keywords",
+    "privacy_level": "PUBLIC_TO_EVERYONE",
+    "is_aigc": true
+  },
+  "source_info": {
+    "source": "FILE_UPLOAD",
+    "video_size": {file_size_bytes},
+    "chunk_size": {chunk_size_bytes},
+    "total_chunk_count": {n}
+  }
+}
+```
+Returns: `{ "data": { "publish_id": "...", "upload_url": "..." } }`
+
+**Upload chunk:**
+```
+PUT {upload_url}   (on open-upload.tiktokapis.com)
+  Content-Range: bytes {start}-{end}/{total}
+  Content-Length: {chunk_size}
+  {chunk_data}
+```
+
+**Check publish status:**
+```
+POST https://open.tiktokapis.com/v2/post/publish/status/fetch/
+{ "publish_id": "{publish_id}" }
+```
+
+**Watermark warning:** Never repost TikTok-watermarked content to other platforms. TikTok
+detects competitor watermarks and suppresses FYP distribution of infringing content. Meta
+also detects TikTok watermarks and suppresses Reels distribution. Always use the source file
+without watermarks when cross-posting.
+
+### Display API (public content — competitive research)
+
+- Purpose: read public user profiles and public video metadata.
+- Rate limit: 600 requests/minute.
 - Relevant endpoints:
-  - `/v2/user/info/`: public profile info (display name, follower count, video count).
-  - `/v2/video/list/`: list of public videos for a user (id, title, duration, stats).
-  - `/v2/video/query/`: filter public videos by criteria.
-- Use case in Creator OS: lightweight competitive research on public TikTok video performance
-  in the home decor niche. Do not use for private or non-public content.
+  - `/v2/user/info/`: public profile info (display name, follower count, video count)
+  - `/v2/video/list/`: list of public videos for a user (id, title, duration, stats)
+  - `/v2/video/query/`: filter public videos by criteria
+- Use: competitive research on public TikTok video performance. Read-only.
 
-### Content Posting API (scheduled publishing)
+### Research API (academic and institutional access only)
 
-- Purpose: upload and publish TikTok videos programmatically on behalf of the creator.
-- Requires OAuth 2.0 via a registered TikTok developer app and user authorization.
-- Scopes: `video.upload`, `video.publish`.
-- Workflow: direct post (upload video binary) or pull from URL (TikTok fetches from a
-  hosted URL). Follow TikTok's chunked upload protocol for files above 64 MB.
+- Requires formal application to TikTok and approval. Not available via standard developer account.
+- Rate limits: 1,000 requests/day, 100,000 records/day.
+- Key fields added to video queries:
+  - May 2026: `favorites_count` (saves/favorites per video)
+  - May 2026: `display_name` on comment queries
+  - April 2025: `video_mention_list`, `hashtag_info_list`, `sticker_info_list`
+  - February 2026: all public videos now included, including FYP-ineligible content
 
-### Research API
+### TikTok algorithm signals (reference — full detail in seo-intelligence-engine.md)
 
-- Academic and large-scale research access to public content. Requires a formal application
-  to TikTok and approval. Not used in current Creator OS scope.
+Primary signals (2025 to 2026): rewatch rate (#1, surpasses completion), shares (2nd strongest),
+comments, video completion rate, watch time (15 to 20s AVD = 3x distribution multiplier), saves
+(favorites_count). Key 2025 change: micro-community clustering means small niche accounts get
+distributed to matching interest clusters even with low follower counts.
 
-### Engagement benchmarks (home decor niche, from platform research)
-
-- Optimal video length for peak engagement in the home decor niche on TikTok: 21 to 34
-  seconds. Longer videos (60 to 90 seconds) can work for tutorials if the hook is in the
-  first 3 seconds.
-- These are reference ranges, not guarantees. Always flag as `source: platform_research`
-  and not as the creator's personal data.
+Explicit non-factors: follower count, prior video performance (both officially confirmed).
 
 ### Transcript and caption limitations
 
-TikTok does not expose a transcript or caption API field in the Display API or Content
-Posting API. Auto-captions are burned into the video render or stored in a non-standardized
-metadata field that varies by client version. If caption text is needed, request it from the
-creator directly or use a third-party ASR tool on the video file.
+TikTok does not expose a transcript or caption API field in the Display API or Content Posting API.
+Auto-captions are burned into the video render or stored in a non-standardized metadata field that
+varies by client version. If caption text is needed, request it from the creator directly or use a
+third-party ASR tool on the video file.
+
+### Engagement benchmarks (home decor niche)
+
+- The algorithm now rewards rewatch rate over completion rate as the primary signal.
+- The 7-second pattern interrupt (visual or audio change within first 7 seconds) is a documented
+  retention signal — design the opening with a visible change or reveal at this point.
+- Captions as SEO: 84% of TikTok searches are exploration-phase; keywords in captions influence
+  both FYP placement and search visibility. Treat every caption as a keyword field.
+- These are reference ranges from platform research; always flag as `source: platform_research`.
 
 ---
 

@@ -1,0 +1,179 @@
+{
+  "_comment": "Instagram Reels algorithm signals and Meta Graph API v25.0 reference. Source: Adam Mosseri official statements January 2025, Meta Graph API changelog, adversarially verified against 5+ independent sources. Updated when meta-graph-api-changelog source fires a change event. Do not invent endpoints — null and flag instead.",
+  "last_updated": "2026-06-30",
+  "source_ids": ["meta-graph-api-changelog", "instagram-help-reels"],
+  "algorithm_signals": {
+    "_source": "Adam Mosseri (Instagram head) official statements January 2025 — verified",
+    "signals": [
+      {
+        "signal": "watch_time_and_completion",
+        "weight": "primary",
+        "notes": "A 15-second Reel watched 3 times outranks a 60-second Reel watched once. The 3-second mark is a critical gate — skip_rate metric added December 2025 tracks viewers who leave within 3 seconds.",
+        "lever": "hook quality in first 3 seconds; audio-on assumption design"
+      },
+      {
+        "signal": "sends_per_reach_dm_shares",
+        "weight": "primary — UNIQUE TO REELS (3 to 5x weight of likes)",
+        "notes": "Ratio of DM shares to total reach. 694,000 Reels shared per DM per minute (Meta 2025). This is Reels' differentiating primary signal vs. TikTok. Content designed to be sent to a specific person (before-and-after reveals, show-this-to-your-partner moments) outperforms content designed for general broadcasting.",
+        "lever": "format content as 'send this to someone' moments"
+      },
+      {
+        "signal": "likes_per_reach",
+        "weight": "secondary",
+        "notes": "Ratio to total views, not raw count. Higher weight for connected (follower) reach than non-follower reach.",
+        "lever": "content that provokes emotional response from existing audience"
+      },
+      {
+        "signal": "saves",
+        "weight": "secondary — heavy interaction",
+        "notes": "50 saves + 20 shares outperforms 200 likes + 0 shares for distribution. Saves signal reference value.",
+        "lever": "tutorial content, step-by-step guides, before-and-after reference images"
+      },
+      {
+        "signal": "two_way_conversation",
+        "weight": "secondary (added March 2026)",
+        "notes": "DMs, comment replies, and Story reactions between two accounts. Signals genuine relationship. Newer signal — weight TBD vs. saves.",
+        "lever": "reply to comments and DMs promptly; prompt specific conversational responses"
+      },
+      {
+        "signal": "originality",
+        "weight": "threshold gate",
+        "notes": "Accounts with 10+ reposts in a 30-day period are EXCLUDED from Recommendations entirely (December 31, 2025 Mosseri memo). Original content gets 40 to 60% more distribution than re-shared content. Never repost TikTok-watermarked content.",
+        "lever": "post original content only; if repurposing from TikTok, use the source file without watermark"
+      },
+      {
+        "signal": "topic_consistency",
+        "weight": "secondary",
+        "notes": "Last 9 to 12 posts determine account topic categorization. Off-topic posts reduce distribution to the home decor interest cluster.",
+        "lever": "maintain pillar consistency across the most recent 9 to 12 posts"
+      },
+      {
+        "signal": "audio_track",
+        "weight": "classification signal",
+        "notes": "Classified as a ranking signal for recommendation matching. Original audio preferred for recommendation; trending audio supports discoverability via audio page.",
+        "lever": "use original voiceover as primary audio; trending audio as secondary if used"
+      },
+      {
+        "signal": "captions",
+        "weight": "classification signal",
+        "notes": "Keyword-rich captions improve topic classification for recommendation matching.",
+        "lever": "first 125 characters of caption are most visible in feed; front-load niche keywords"
+      }
+    ],
+    "hashtag_mechanics_2025_2026": {
+      "hashtag_follow_removed": "December 2024 — hashtags are no longer followable topics",
+      "cap": "5 hashtags maximum (December 2025)",
+      "function": "Classification signals for Meta's recommendation system; no longer traffic sources",
+      "recommendation": "3 to 5 highly specific niche hashtags outperform 10+ generic hashtags",
+      "keywords_vs_hashtags": "Keywords in captions now drive discovery more strongly than hashtags"
+    }
+  },
+  "meta_graph_api_v25": {
+    "version": "25.0",
+    "released": "2026-02-18",
+    "publishing_endpoints": {
+      "create_container": {
+        "method": "POST",
+        "path": "/{ig-user-id}/media",
+        "required_params": ["media_type=REELS", "video_url"],
+        "optional_params": ["trial_params", "share_to_feed", "cover_url", "caption"]
+      },
+      "publish_container": {
+        "method": "POST",
+        "path": "/{ig-user-id}/media_publish",
+        "required_params": ["creation_id"]
+      },
+      "poll_status": {
+        "method": "GET",
+        "path": "/{ig-container-id}",
+        "query_fields": "status_code"
+      },
+      "rate_limits": {
+        "posts_per_rolling_24h": 100
+      }
+    },
+    "video_specs": {
+      "formats": ["MP4", "MOV"],
+      "codecs": ["H.264", "HEVC"],
+      "aspect_ratio": "9:16 for Reels tab",
+      "duration_reels_tab": "5 to 90 seconds",
+      "duration_api_max": "up to 15 minutes",
+      "max_file_size_mb": 100
+    },
+    "trial_reels": {
+      "added": "December 2025",
+      "graduation_strategies": ["MANUAL", "SS_PERFORMANCE"],
+      "behavior": "Shows Reel to non-followers only before committing to full audience distribution"
+    },
+    "insights_endpoints": {
+      "media_metrics": "GET /{ig-media-id}/insights?metric=views,reach,saved,shares,skip_rate,avg_watch_time",
+      "new_metrics_december_2025": ["skip_rate", "repost_count"],
+      "new_metrics_april_2026": ["likes_unlike_engagement_actions"],
+      "deprecated_april_2025_v22": ["clips_replays_count", "ig_reels_aggregated_all_plays_count", "impressions", "plays"],
+      "account_insights": "GET /{ig-user-id}/insights — interactions, likes, comments, saves, shares, views, reach, follows, unfollows"
+    },
+    "competitor_monitoring": {
+      "endpoint": "GET /{your-ig-user-id}?fields=business_discovery.username({target_username}){biography,followers_count,media_count,media{comments_count,like_count,view_count}}",
+      "note": "The ONLY official endpoint for competitor monitoring without requiring the competitor's OAuth."
+    },
+    "hashtag_search": {
+      "search_endpoint": "GET /ig_hashtag_search?user_id={id}&q={hashtag}",
+      "top_media_endpoint": "GET /{ig-hashtag-id}/top_media?user_id={id}",
+      "rate_limit": "30 unique hashtags per rolling 7 days",
+      "auth_required": "Facebook Login"
+    },
+    "webhooks": {
+      "topics": ["comments", "mentions", "messages", "story_insights", "message_reactions"],
+      "certificate_change": "March 31, 2026 — Meta switched to Meta-owned CA. Webhook trust stores must be updated to include the new certificate."
+    },
+    "critical_deprecations": [
+      {
+        "deprecation": "Instagram Basic Display API SHUTDOWN",
+        "date": "2024-12-04",
+        "impact": "Any integration using Basic Display API stopped working. Must migrate to Instagram Graph API via Facebook App.",
+        "verified": true
+      },
+      {
+        "deprecation": "Old Instagram Login scope names",
+        "date": "2025-01-27",
+        "impact": "New scope names: instagram_business_basic, instagram_business_content_publish, instagram_business_manage_messages, instagram_business_manage_comments",
+        "verified": true
+      },
+      {
+        "deprecation": "Graph API v20.0 full sunset",
+        "date": "2026-09-24",
+        "impact": "Any v20.0 API calls will fail after this date",
+        "verified": true
+      },
+      {
+        "deprecation": "v22.0 metrics: impressions, plays, multiple video metrics",
+        "date": "2025-04-21",
+        "impact": "Use 'views' instead of 'impressions'. See insights_endpoints.deprecated_april_2025_v22.",
+        "verified": true
+      }
+    ]
+  },
+  "pinterest_api_v5": {
+    "_source": "Pinterest Developer documentation",
+    "version": "v5",
+    "video_pin_flow": {
+      "step_1": "POST /v5/media — register video upload, receive upload_url",
+      "step_2": "PUT {upload_url} — upload file to AWS S3 directly",
+      "step_3": "POST /v5/pins — create pin with media_id from step 1"
+    },
+    "rate_limits": {
+      "reads_per_minute": 1000,
+      "writes_per_minute": 100,
+      "analytics_per_minute": 200
+    },
+    "scopes": ["pins:read", "pins:write", "boards:read", "boards:write"],
+    "algorithm_signals_2025_2026": {
+      "primary": "saves (repins) — compound over months to years",
+      "strong": ["close-ups (image tap to zoom)", "click-throughs to destination URL", "video watch time"],
+      "classification": "keyword relevance in title, description, board name; entity recognition (added 2026)",
+      "negative": "hides (strongest negative signal)",
+      "longevity": "Pins can rank and drive traffic for months to years — unlike TikTok/Instagram which decay in days",
+      "real_time_engagement_2026": "Interaction on one pin immediately surfaces similar content from that account in the same session"
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "_comment": "Canonical TikTok API product catalog. Source: developers.tiktok.com/doc/changelog (40 dated entries Feb 2023 to June 2026). Used by integrations-engine and shortform-repurposing. Updated when tiktok-api-changelog source fires a change event. Do not invent endpoints — null and flag instead.",
+  "last_updated": "2026-06-30",
+  "source_ids": ["tiktok-api-changelog", "tiktok-creator-portal", "tiktok-fyp-guide"],
+  "api_products": [
+    {
+      "product": "Content Posting API",
+      "url": "https://developers.tiktok.com/products/content-posting-api/",
+      "access_tier": "free — standard developer account",
+      "capabilities": ["video publishing", "photo carousel publishing", "captions", "hashtags", "privacy controls", "AIGC flag (is_aigc: boolean)"],
+      "key_endpoints": {
+        "init_video": "POST https://open.tiktokapis.com/v2/post/publish/video/init/",
+        "upload_chunk": "PUT {upload_url} on open-upload.tiktokapis.com",
+        "query_status": "POST https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+      },
+      "rate_limits": {
+        "requests_per_minute": 6,
+        "pending_uploads_per_24h": 5
+      },
+      "required_scopes": ["video.publish (direct post)", "video.upload (draft)"],
+      "aigc_note": "post_info.is_aigc boolean is REQUIRED disclosure for AI-generated or AI-assisted content. Must be set to true when Claude generates scripts used in the video.",
+      "freshness_note": "Current as of June 2026. Verify against tiktok-api-changelog on 14-day cycle."
+    },
+    {
+      "product": "Research API",
+      "url": "https://developers.tiktok.com/products/research-api/",
+      "access_tier": "non-profit and academic institutions only — approval required",
+      "capabilities": ["query public videos", "query users", "query comments", "query playlists"],
+      "rate_limits": {
+        "requests_per_day": 1000,
+        "records_per_day": 100000
+      },
+      "recent_changelog": [
+        {"date": "2026-05", "change": "favorites_count added to video query response"},
+        {"date": "2026-05", "change": "display_name added to comment query response"},
+        {"date": "2025-04", "change": "video_mention_list, hashtag_info_list, sticker_info_list added"},
+        {"date": "2026-02", "change": "All public videos now included, including FYP-ineligible content"}
+      ],
+      "freshness_note": "Current as of June 2026. Changes are documented in tiktok-api-changelog."
+    },
+    {
+      "product": "Display API",
+      "url": "https://developers.tiktok.com/doc/overview",
+      "access_tier": "standard developer account",
+      "capabilities": ["read user info", "list user videos"],
+      "rate_limits": {
+        "requests_per_minute": 600
+      },
+      "access_note": "Read-only. Does not include engagement metrics. For metrics, use Research API (requires institutional access).",
+      "freshness_note": "Current as of June 2026."
+    },
+    {
+      "product": "Login Kit",
+      "url": "https://developers.tiktok.com/products/login-kit/",
+      "access_tier": "standard developer account",
+      "capabilities": ["OAuth 2.0 authorization", "web, desktop, iOS, Android support"],
+      "token_lifecycle": {
+        "access_token_duration_hours": 24,
+        "refresh_token_duration_days": 365
+      },
+      "platforms_supported": ["web", "desktop", "iOS", "Android"],
+      "freshness_note": "Current as of June 2026."
+    },
+    {
+      "product": "Commercial Content API",
+      "url": "https://developers.tiktok.com/products/commercial-content-api",
+      "access_tier": "approved credentials only",
+      "capabilities": ["EU paid ads transparency data"],
+      "access_note": "Limited to EU region paid advertising transparency. Not relevant for organic creator content in the US market.",
+      "freshness_note": "Current as of June 2026."
+    },
+    {
+      "product": "Data Portability API",
+      "url": "https://developers.tiktok.com/products/data-portability-api/",
+      "access_tier": "EEA and UK users only — security review required",
+      "capabilities": ["export posts", "export activity", "export DMs"],
+      "access_note": "Geo-restricted. Not applicable for US-based creators without EEA/UK accounts.",
+      "freshness_note": "Current as of June 2026."
+    },
+    {
+      "product": "Creator Marketplace API",
+      "url": "https://business-api.tiktok.com/portal",
+      "access_tier": "partnered marketing companies only",
+      "capabilities": ["audience demographics", "campaign reporting"],
+      "access_note": "Available to brands and marketing agencies for influencer discovery. Not directly accessible to individual creators. Brands the creator partners with may use this to provide demographic data for media kit purposes.",
+      "freshness_note": "Current as of June 2026."
+    }
+  ],
+  "algorithm_signals_summary": {
+    "_source": "tiktok-newsroom official algorithm transparency + confirmed third-party analyses",
+    "primary_signals": ["rewatch_rate (NOW #1, surpasses completion rate)", "shares (DM + cross-platform)", "comments", "video_completion_rate"],
+    "strong_signals": ["watch_time_avg_15_to_20s_earns_3x_distribution", "saves_favorites", "longer_video_completion_bonus_2026"],
+    "medium_signals": ["tiktok_seo_caption_keywords", "micro_community_clustering_2025", "video_info_captions_hashtags_sounds"],
+    "low_signals": ["device_and_account_settings"],
+    "negative_signals": ["not_interested_tap", "skip_within_2_to_3_seconds"],
+    "explicit_non_factors": ["follower_count (every video starts from zero)", "prior_video_performance (one bad video does not suppress future)"],
+    "fyp_ineligible_content": ["hate speech", "misinformation", "fake engagement", "watermarked content from competitor platforms"]
+  },
+  "key_creator_guidance": {
+    "rewatch_design": "Design content with a re-watch hook — a reveal, a detail, or a transformation that rewards a second view. This is the highest-leverage single change for TikTok distribution.",
+    "caption_as_seo": "Treat captions as keyword fields. 84% of TikTok searches are exploration-phase. Keywords in captions influence both FYP placement and search visibility.",
+    "aigc_disclosure": "Set is_aigc: true on any video where AI-generated script or AI-generated visuals are used. FTC disclosure requirements also apply — verbal and text disclosure in the video.",
+    "watermark_warning": "Never repost a TikTok-watermarked video to Instagram or YouTube Shorts. Meta and YouTube detect watermarks and suppress distribution. Use the original file."
+  }
+}

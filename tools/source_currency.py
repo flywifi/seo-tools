@@ -12,12 +12,15 @@ Usage:
   python3 tools/source_currency.py check [--category=<cat>]
   python3 tools/source_currency.py mark-checked <id> [--changed]
   python3 tools/source_currency.py seed-partners
+  python3 tools/source_currency.py seed-sources <file.json>
 
 Modes:
   report        Read-only. Prints a staleness report as JSON.
   check         Like report but includes a refetch_queue for web-intel-engine.
   mark-checked  Updates last_checked for a source; --changed also flags content change.
   seed-partners Scans pipeline/deals/ for active deals and upserts partner sites.
+  seed-sources  Upserts depth-0 seed source entries from a JSON array file. Skips ids
+                that already exist. Used to add new canonical sources without hand-editing.
 """
 
 import argparse
@@ -255,6 +258,83 @@ def cmd_mark_checked(args, registry, traversal_config=None):
     print(json.dumps(result, indent=2))
 
 
+def cmd_seed_sources(args, registry, traversal_config=None):
+    """
+    Upsert depth-0 seed source entries from a JSON file.
+    Input file must be a JSON array of source objects conforming to the source-registry schema.
+    Required fields per entry: id, name, url, category, tier. All others optional (get defaults).
+    Only adds entries whose id does not already exist in the registry.
+    """
+    seeds_path = Path(args.file)
+    if not seeds_path.exists():
+        print(f"ERROR: seeds file not found: {seeds_path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        new_entries = json.loads(seeds_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"ERROR: could not parse seeds file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(new_entries, list):
+        print("ERROR: seeds file must be a JSON array of source objects.", file=sys.stderr)
+        sys.exit(1)
+
+    existing_ids = {s["id"] for s in registry["sources"]}
+    upserted = []
+    skipped = []
+
+    for entry in new_entries:
+        if not all(k in entry for k in ("id", "name", "url", "category", "tier")):
+            print(
+                f"WARNING: skipping entry missing required fields: {entry.get('id', '<no id>')}",
+                file=sys.stderr,
+            )
+            skipped.append(entry.get("id", "<no id>"))
+            continue
+
+        if entry["id"] in existing_ids:
+            skipped.append(entry["id"])
+            continue
+
+        category = entry["category"]
+        overrides = (traversal_config or {}).get("per_category_overrides", {}).get(category, {})
+        check_days = overrides.get("check_interval_days", entry.get("check_interval_days", 14))
+        stale_days = overrides.get("staleness_threshold_days", entry.get("staleness_threshold_days", check_days))
+
+        seeded = {
+            "id": entry["id"],
+            "name": entry["name"],
+            "url": entry["url"],
+            "category": category,
+            "tier": entry["tier"],
+            "check_interval_days": check_days,
+            "staleness_threshold_days": stale_days,
+            "last_checked": entry.get("last_checked", None),
+            "last_changed_detected": entry.get("last_changed_detected", None),
+            "extraction_hint": entry.get("extraction_hint", ""),
+            "used_by": entry.get("used_by", []),
+            "depth": entry.get("depth", 0),
+            "parent_source_id": entry.get("parent_source_id", None),
+            "traversal_status": entry.get("traversal_status", "pending"),
+            "child_source_ids": entry.get("child_source_ids", []),
+        }
+        registry["sources"].append(seeded)
+        existing_ids.add(entry["id"])
+        upserted.append(entry["id"])
+
+    if upserted:
+        registry["last_registry_update"] = today_str()
+        save_registry(registry)
+
+    print(json.dumps({
+        "upserted": len(upserted),
+        "skipped_already_exist": len(skipped),
+        "new_ids": upserted,
+        "skipped_ids": skipped,
+    }))
+
+
 def cmd_seed_partners(args, registry, traversal_config=None):
     if not DEALS_DIR.exists():
         print(json.dumps({
@@ -346,6 +426,9 @@ def main():
 
     sub.add_parser("seed-partners", help="Upsert partner sites from pipeline/deals/ active records")
 
+    p_seed = sub.add_parser("seed-sources", help="Upsert depth-0 seed sources from a JSON file")
+    p_seed.add_argument("file", help="Path to JSON file containing array of source objects")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -363,6 +446,8 @@ def main():
         cmd_mark_checked(args, registry, traversal_config)
     elif args.command == "seed-partners":
         cmd_seed_partners(args, registry, traversal_config)
+    elif args.command == "seed-sources":
+        cmd_seed_sources(args, registry, traversal_config)
 
 
 if __name__ == "__main__":

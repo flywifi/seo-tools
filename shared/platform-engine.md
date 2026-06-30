@@ -36,22 +36,47 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
 
 ## YouTube Shorts
 - Specs: 9:16, 1080x1920, MP4 H.264, 30 or 60 fps. Up to 3 minutes (since Oct 15, 2024), but 15 to
-  60 seconds performs best. Keep key content centered, away from UI. Optional custom thumbnail at
-  1280x720 for non-feed surfaces.
-- Algorithm rewards: replay rate, swipe-through ("how many chose to view"), completion or average
-  percentage viewed (70%+ healthy, above 100% means replays), like-to-view ratio, and shares.
-  Watch time matters far less than for long-form.
-- Use: discovery and repurposing. Pull the best moments from a long-form build; point viewers to the
-  full video.
-- Cadence: 3 to 5 per week.
+  60 seconds performs best for Phase 1 distribution. Keep key content centered, away from UI.
+  Optional custom thumbnail at 1280x720 for non-feed surfaces.
+- Algorithm rewards (2025 shift, ranked): session contribution (PRIMARY — does the Short keep the
+  viewer in the Shorts feed?), AVD threshold (~65% for sub-30s; ~50% for 30 to 60s), loop rate
+  (rewatches within 2 seconds of video end count as partial views), comments (outrank likes since
+  2025), user satisfaction / post-watch behavior, shares, original audio bonus for accounts under
+  50K subscribers (March 2026).
+- Swipe-through rate is now SECONDARY (was primary before 2025). Design the first frame for visual
+  impact but prioritize session contribution over first-impression hook.
+- Three-phase distribution model: cold seeding (50 to 500 viewers, ~70% non-subscribers) → watch
+  time gate (clears on AVD threshold) → topic clustering (3 to 6 week distribution window).
+  Freshness decay: ~28 to 30 days. Shorts are not evergreen — plan cadence to sustain presence.
+- No dedicated Shorts API endpoint in YouTube Data API v3. Identification is heuristic:
+  contentDetails.duration ≤ 60s + #Shorts in title/description + 9:16 aspect ratio.
+- YPP Shorts path: 1,000 subscribers + 10M valid Shorts views in 90 days. Revenue share: 45%
+  (vs. 55% for long-form). Shorts watch hours do NOT count toward 4,000-hour long-form threshold.
+- Use: discovery via behavioral distribution and niche clustering. Pull best moments from long-form;
+  point viewers to the full video. Original audio preferred over trending audio for recommendation.
+- Cadence: 3 to 5 per week. See `shared/seo-intelligence-engine.md` for the full Shorts algorithm
+  and `canonical-sources/keyword-library/youtube-algorithm-signals.json` for the signal registry.
 
 ## Instagram Reels
-- Specs: 9:16, 1080x1920, MP4 H.264 + AAC, 30 fps. Up to 3 minutes in-app. Caption up to 2,200
-  characters. The feed crops Reels to 4:5 and the profile grid previews at 3:4, so keep faces, text,
-  and the cover's focal point inside the central 1:1 to 4:5 safe area.
-- Algorithm rewards: completion, saves, shares, and sends. Saves and shares are strong distribution
-  signals for this niche.
-- Metrics: reach, plays, watch time, completion rate, saves, shares, follows from the post.
+- Specs: 9:16, 1080x1920, MP4 H.264 + AAC, 30 fps. 5 to 90 seconds for Reels tab; up to 15 minutes
+  via the Graph API. Caption up to 2,200 characters. The feed crops Reels to 4:5 and the profile
+  grid previews at 3:4, so keep faces, text, and the cover's focal point inside the central safe area.
+- Algorithm rewards (Mosseri official, January 2025): completion rate (15s watched 3x outranks 60s
+  watched once), sends per reach (DM shares — 3 to 5x weight of likes, UNIQUE PRIMARY SIGNAL for
+  Reels), saves ("heavy" interaction), likes per reach, originality (10+ reposts in 30 days =
+  excluded from Recommendations), topic consistency (last 9 to 12 posts determine category).
+- Critical threshold: the 3-second gate. `skip_rate` (added December 2025) measures viewers who
+  leave in the first 3 seconds. Design the opening for sound-on assumption; text overlay for
+  sound-off viewers.
+- Hashtags: 5-hashtag cap since December 2025. Hashtag follow was removed December 2024. Use 3
+  to 5 specific niche hashtags as classification signals, not as traffic drivers. Keywords in
+  captions now drive discovery more strongly than hashtags.
+- Do not repost TikTok-watermarked content — Meta detects watermarks and suppresses distribution.
+  Accounts with 10+ reposts in 30 days are excluded from Recommendations entirely.
+- Metrics: reach, views (note: "impressions" deprecated April 2025 — use "views"), avg_watch_time,
+  completion rate, saves, shares, skip_rate (new December 2025), follows from post.
+- Graph API: v25.0 (February 18, 2026). Basic Display API shut down December 4, 2024 — use Graph
+  API via Facebook App for all integrations. See `shared/integrations-engine.md`.
 
 ## Instagram feed and carousels
 - Feed image: 4:5 (1080x1350) is the engagement default; 3:4 (1080x1440) avoids grid cropping;
@@ -65,11 +90,28 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
 
 ## TikTok
 - Specs: 9:16, 1080x1920, MP4 or MOV, H.264 + AAC, 30 fps (60 for high motion). Length 3 seconds to
-  10 minutes (up to 60 via web upload). Optimal 15 to 35 seconds; the algorithm favors roughly 21 to
-  34 seconds; completion rate is the dominant signal. Design audio-first, since the large majority of
-  users watch with sound on. Safe zones: avoid the top bar, the right action column, and the bottom
-  caption block. Photo Mode carousel supports up to 35 images.
-- Metrics: completion rate, watch time, rewatches, shares, saves, and For You reach.
+  10 minutes (up to 60 via web upload). Optimal 15 to 60 seconds for completion rate; 1 to 3+ minutes
+  now rewarded with a long-form completion bonus (2026). Design audio-first. Safe zones: avoid the top
+  bar, the right action column, and the bottom caption block. Photo Mode carousel supports up to 35 images.
+  AIGC disclosure: set `is_aigc: true` on any Content Posting API upload that uses AI-generated script
+  or AI-generated visuals (required by TikTok; FTC disclosure also required verbally and in captions).
+- Algorithm rewards (2025 to 2026, ranked): rewatch rate (NOW #1 signal, surpasses completion rate),
+  shares (2nd strongest), comments, video completion rate, watch time (15 to 20s AVD = 3x distribution
+  multiplier), saves/favorites, micro-community clustering (2025 — niche cluster of 3+ users with
+  shared preferences receives relevant content from small accounts), TikTok SEO / search keywords in
+  captions (84% of TikTok searches are exploration-phase). Explicit non-factors: follower count and
+  prior video performance (every video starts from zero).
+- Rewatch design is the highest-leverage single change: design a reveal, detail, or transformation
+  that rewards a second viewing. The 7-second pattern interrupt (visual or audio change within first 7
+  seconds) is a documented retention signal across multiple creator analyses.
+- Captions as SEO: treat as keyword fields, not just context. TikTok search is now a primary
+  discovery surface alongside the FYP. Keywords in captions influence both FYP placement and search.
+- Do not watermark: never repost a TikTok-watermarked video to other platforms. TikTok detects
+  watermarked reposts from competitor platforms and suppresses FYP distribution.
+- Metrics: completion rate, rewatch count, shares, saves (favorites_count added to Research API May
+  2026), comments, For You reach.
+- Content Posting API: `POST https://open.tiktokapis.com/v2/post/publish/video/init/`. See
+  `shared/integrations-engine.md` and `canonical-sources/keyword-library/tiktok-api-registry.json`.
 
 ## Pinterest
 - Nature: a visual search engine, not a social feed. Pins compound and can drive traffic for months
