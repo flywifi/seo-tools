@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P11 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P12 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`. Ready for PR to main.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -10,6 +10,7 @@ P6 through P11 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - P9: deep competitive intelligence pipeline — offline HTML snapshots, ytInitialData extraction, SQLite index — shipped (commit 4c9bf0a).
 - P10: keyword-compare atom — cross-platform keyword comparison matrix — shipped (commit 45f9493).
 - P11: implementation packaging, MCP server, examples, and deployment docs — shipped.
+- P12: local sync workflow — `tools/setup.py`, `tools/update.py`, `.local.json` override pattern — shipped.
 
 ## Shipped
 
@@ -145,6 +146,20 @@ P6 through P11 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - `docs/DEPLOYMENT.md`: multi-platform deployment reference — 5 options (A through E),
   first-run checklist, competitor intelligence first-run, capability matrix, feature flags.
 
+### Local sync workflow (P12)
+- `tools/setup.py`: one-time first-run initializer — creates 5 local data files from schemas,
+  builds keyword cache, runs drift guard, prints next steps.
+- `tools/update.py`: regular pull script — `git pull origin main`, drift guard, cache rebuild
+  if canonical sources changed. Local data files never touched.
+- `.local.json` override pattern: `creator-os-config.local.json` deep-merges over the committed
+  defaults (local capability flags always win); `voice-profile.local.json` and
+  `content-calendar.local.json` hold real user data, never committed.
+- `tools/mcp_server.py`: `_load_config()` extended to merge `creator-os-config.local.json` over
+  the committed base config.
+- `shared/voice-engine.md`: updated to check `voice-profile.local.json` first, then fall back to
+  committed seed vocabulary.
+- `docs/DEPLOYMENT.md`: first-time setup section, regular sync section, local data table.
+
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was
   not provided this session. Supersede it if the original surfaces.
@@ -158,10 +173,12 @@ P6 through P11 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   ground rate-card-fill and benchmark-compare canonical data.
 
 ## Next
+- Open PR to merge `claude/repo-access-confirm-wxe50a` → `main`.
+- Fill in `pipeline/user-context/channel-context.local.json` when Alex provides channel stats.
+- Fill in `pipeline/user-context/voice-profile.local.json` as real content is produced.
+- Configure Claude Desktop MCP and set `mcp_server: true` in `creator-os-config.local.json`.
 - End-to-end slice: drive creator-core with a Content prompt and a CRM prompt; confirm routing
   object, atom composition, quality-review verdict, and formatting compliance.
-- Scoop verification: `python3 shared/cache/cache.py --build` then `--query`;
-  `python3 tools/sync_cache.py --manifest --write bucket.manifest.json`.
 - Competitor intelligence: populate competitor-channels.json with real channel entries via
   `python3 tools/competitor_snapshot.py --add-competitor <url> --platform youtube`.
 - Voice profile: fill `pipeline/user-context/voice-profile.json` with Alex's actual phrasing.

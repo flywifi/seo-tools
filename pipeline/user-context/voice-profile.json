@@ -1,6 +1,6 @@
 {
   "_comment": "the creator's real phrases and voice patterns. Grows over time as the creator uses the system. voice-engine.md checks this file and weights these examples above its seed list when non-empty.",
-  "_gitignore_note": "Add real phrases here freely — this file is committed (no PII). Real analytics stay out.",
+  "_gitignore_note": "Your real phrases go in voice-profile.local.json (gitignored, never overwritten by git pull). This committed file is the seed vocabulary only. voice-engine.md loads voice-profile.local.json first, then falls back to this file.",
   "actual_phrases": [],
   "opening_hooks": [],
   "cta_patterns": [],

@@ -132,13 +132,18 @@ the word "paid" or "sponsored" or "gifted").
 
 ## Voice-profile.json hook
 
-If `pipeline/user-context/voice-profile.json` exists and contains a non-empty `actual_phrases`
-list, weight those examples above the seed vocabulary above. Real phrases the creator has used always
-beat the seed list. Pull the most recent 5 to 10 entries when generating captions or scripts.
+Check `pipeline/user-context/voice-profile.local.json` first (gitignored — the creator's real phrases,
+never touched by git pull). If it exists and contains a non-empty `actual_phrases` list, weight those
+examples above the seed vocabulary above.
 
-If `phrases_to_avoid` is non-empty, treat those as additions to the anti-AI pattern list.
+Fall back to `pipeline/user-context/voice-profile.json` (committed seed vocabulary) when the local
+file is absent or empty.
 
-Path: `pipeline/user-context/voice-profile.json`
+Real phrases the creator has used always beat the seed list. Pull the most recent 5 to 10 entries
+when generating captions or scripts.
+
+If `phrases_to_avoid` is non-empty in either file, treat those as additions to the anti-AI pattern
+list (local file additions take precedence).
 
 ---
 
