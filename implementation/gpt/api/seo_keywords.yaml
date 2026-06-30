@@ -1,0 +1,50 @@
+name: seo_keywords
+description: >
+  Full SEO keyword strategy spoke. Given a topic or pillar, runs a 9-step pipeline:
+  keyword clustering, long-tail expansion, search intent classification, competitor
+  scanning, entity extraction, SERP feature mapping, topical authority mapping, title
+  generation, and quality governance. Returns a complete keyword strategy with titles,
+  cross-platform verdicts, topical authority hub-and-cluster plan, and a quality score.
+
+  Use when the creator needs a full SEO keyword deliverable ready to act on.
+  For quick cross-platform comparison only, use keyword_compare instead.
+parameters:
+  type: object
+  properties:
+    topic:
+      type: string
+      description: >
+        The topic or niche area to build a keyword strategy around.
+        Example: "dark moody fall mantel decor", "chalk paint furniture makeover".
+    platform_targets:
+      type: array
+      items:
+        type: string
+        enum: [youtube, pinterest, tiktok, google]
+      description: Target platforms. Defaults to YouTube and Pinterest if omitted.
+    season:
+      type: string
+      enum: [fall, holiday, spring, summer, evergreen]
+      description: >
+        Optional season context. If provided, seasonal lead times and peak windows
+        are included in the strategy. Seasonal timing summary is added to output.
+    include_competitor_scan:
+      type: boolean
+      default: true
+      description: >
+        Whether to run a competitor scan as part of the strategy. Adds competitor
+        keyword gap analysis and entity extraction. Defaults to true.
+    include_topical_authority_map:
+      type: boolean
+      default: true
+      description: >
+        Whether to include a hub-and-cluster content architecture plan mapping one
+        hub video to 3 to 5 satellite video angles. Defaults to true.
+  required:
+    - topic
+returns: >
+  JSON: keyword_cluster (primary + secondary + long_tail), search_intent per keyword,
+  platform_profiles per keyword-platform pair, topical_authority_map (hub + satellites),
+  competitor_gaps, title_suggestions (3 to 5 per top keyword), seasonal_timing_summary,
+  quality_review_score (composite + dimension breakdown + release_approved),
+  retrieval_gaps, fabrication_flags. All volume estimates labeled [estimated].

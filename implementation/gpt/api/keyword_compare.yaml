@@ -1,0 +1,52 @@
+name: keyword_compare
+description: >
+  Compares 1 to 10 keywords side-by-side across platforms (YouTube, Pinterest, TikTok,
+  Google). Returns a structured comparison matrix showing intent, SERP feature, format
+  fit, competition estimate, and seasonal relevance per keyword-platform pair, plus
+  three cross-platform verdicts: universal keywords (strong fit on 3+ platforms),
+  platform-exclusive opportunities, and niche long-tail candidates.
+
+  Use when the creator wants to decide which platform to prioritize for a keyword or
+  batch of keywords in a single query. Do NOT use for keyword research from scratch
+  (use keyword_cluster first) or full SEO strategy output (use seo_keywords).
+parameters:
+  type: object
+  properties:
+    keywords:
+      type: array
+      items:
+        type: string
+      minItems: 1
+      maxItems: 10
+      description: >
+        List of 1 to 10 keyword strings to compare. If more than 10 are provided,
+        the first 10 are analyzed and the overflow is reported in keywords_overflow.
+    platforms:
+      type: array
+      items:
+        type: string
+        enum: [youtube, pinterest, tiktok, google]
+      description: >
+        Platforms to include in the comparison. Defaults to all four if omitted.
+    season:
+      type: string
+      enum: [fall, holiday, spring, summer, evergreen]
+      description: >
+        Optional. If provided, each keyword is tagged with seasonal relevance
+        (peak / moderate / off_season / evergreen) for the specified season window.
+        If omitted, seasonal_relevance is null for all cells.
+    check_trend_momentum:
+      type: boolean
+      default: false
+      description: >
+        When true, adds a momentum signal (rising / flat / declining / unknown) to
+        each keyword-platform cell. Slower. Emits a warning if
+        len(keywords) x len(platforms) > 20. Defaults to false.
+  required:
+    - keywords
+returns: >
+  JSON: keywords_analyzed, keywords_overflow, platforms_analyzed, season_context,
+  comparison_matrix (keyword + cross_platform_verdict + strongest_platform +
+  platform_profiles per cell), universal_keywords, platform_exclusive_opportunities,
+  seasonal_timing_summary, retrieval_gaps, fabrication_flags.
+  competition_estimate is always labeled [estimated].

@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+"""Creator OS MCP Server — exposes Python tools to Claude Desktop as MCP tool calls.
+
+Six tools:
+  cache_query        Query the offline FTS5 keyword/entity cache.
+  competitor_scan    Return parsed metadata for a stored competitor snapshot.
+  source_staleness   Report which canonical sources are stale or never checked.
+  drift_check        Run sync_check.py and return the result.
+  quality_score      Score an artifact against the 9-dimension quality gates.
+  add_competitor     Add a competitor URL to the tracking registry.
+
+These are the capabilities above what vanilla Claude can do: live competitor
+tag extraction, offline FTS5 keyword lookups, source staleness detection, and
+deterministic quality scoring — none of which are available in a knowledge-only
+Claude Project or ChatGPT custom instructions setup.
+
+Usage:
+  python3 tools/mcp_server.py
+
+Configure in Claude Desktop claude_desktop_config.json:
+  See implementation/claude/desktop/claude_desktop_config_snippet.json
+
+Prerequisites:
+  pip install -r requirements-mcp.txt
+  python3 shared/cache/cache.py --build
+"""
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
+
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    print(
+        "ERROR: 'mcp' package not installed.\n"
+        "Run: pip install -r requirements-mcp.txt",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+mcp = FastMCP("creator-os")
+
+CONFIG_PATH = ROOT / "creator-os-config.json"
+
+
+def _load_config() -> dict:
+    """Load creator-os-config.json. Returns empty dict if missing."""
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _run(cmd: list, input_text: str | None = None) -> tuple:
+    """Run a subprocess, return (exit_code, stdout, stderr)."""
+    result = subprocess.run(
+        cmd,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        input=input_text,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Tool 1: cache_query
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def cache_query(query: str, limit: int = 5) -> str:
+    """Query the offline FTS5 keyword and entity cache built from canonical-sources/.
+
+    Returns ranked snippets with source file and record provenance. Requires the
+    cache index to be built first: python3 shared/cache/cache.py --build
+
+    Args:
+        query: Full-text search query (e.g. "moody fall mantel" or "entity armoire").
+        limit: Maximum number of results to return (default 5).
+    """
+    cache_script = ROOT / "shared" / "cache" / "cache.py"
+    if not (ROOT / "shared" / "cache" / "index.local.db").exists():
+        return json.dumps({
+            "error": "Cache index not found.",
+            "hint": "Run: python3 shared/cache/cache.py --build",
+        })
+    rc, out, err = _run([
+        sys.executable, str(cache_script),
+        "--query", query,
+        "--limit", str(limit),
+        "--json",
+    ])
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "cache query failed"})
+    return out.strip() or json.dumps([])
+
+
+# ---------------------------------------------------------------------------
+# Tool 2: competitor_scan
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def competitor_scan(competitor_id: str) -> str:
+    """Return parsed hidden metadata for a stored competitor snapshot (cached, no live fetch).
+
+    Returns the competitor's video tags, hashtags, chapter markers, category, and
+    other metadata extracted from ytInitialPlayerResponse or TikTok SIGI_STATE.
+    Use add_competitor + run --fetch externally first to populate the snapshot.
+
+    Args:
+        competitor_id: The source registry ID for the competitor (e.g. "yt-moody-decor-jane").
+    """
+    snapshot_script = ROOT / "tools" / "competitor_snapshot.py"
+    rc, out, err = _run([
+        sys.executable, str(snapshot_script),
+        "--parse",
+        "--id", competitor_id,
+    ])
+    if rc != 0:
+        return json.dumps({
+            "error": err.strip() or "parse failed",
+            "hint": "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch",
+        })
+    return out.strip() or json.dumps({"result": "no data found", "competitor_id": competitor_id})
+
+
+# ---------------------------------------------------------------------------
+# Tool 3: source_staleness
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def source_staleness(category: str = "") -> str:
+    """Report which canonical sources are stale or have never been checked.
+
+    Returns stale, never-checked, and up-to-date lists with days overdue and
+    the atoms/engines that depend on each source. Use this before running a
+    major SEO or competitor analysis to know which knowledge may be outdated.
+
+    Args:
+        category: Optional filter — one of: seo-authority, platform-spec,
+                  api-changelog, rate-benchmark, tool-mcp, partner-site,
+                  niche-authority, competitor-page. Leave empty for all.
+    """
+    currency_script = ROOT / "tools" / "source_currency.py"
+    cmd = [sys.executable, str(currency_script), "report"]
+    if category:
+        cmd += [f"--category={category}"]
+    rc, out, err = _run(cmd)
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "staleness report failed"})
+    return out.strip()
+
+
+# ---------------------------------------------------------------------------
+# Tool 4: drift_check
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def drift_check() -> str:
+    """Run the sync_check.py drift guard and return the result.
+
+    Verifies: canonical engine and protocol files exist, every SKILL.md has
+    valid frontmatter, all atom references in workflow.json resolve, no em dashes
+    in examples/, no forbidden tokens. Returns clean or a detailed drift report.
+    """
+    sync_script = ROOT / "tools" / "sync_check.py"
+    rc, out, err = _run([sys.executable, str(sync_script)])
+    return json.dumps({
+        "clean": rc == 0,
+        "exit_code": rc,
+        "output": (out + err).strip(),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Tool 5: quality_score
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def quality_score(scores: dict) -> str:
+    """Score an artifact against the 9-dimension Creator OS quality gates.
+
+    Applies the arithmetic from protocols/quality-gates.md: composite average,
+    no-dimension-below-3 floor, Integrity and Safety >= 4 gate, critical override.
+    Returns the verdict (release_approved: true/false) plus per-dimension breakdown.
+
+    Args:
+        scores: Dict mapping each of the 9 dimension names to an integer 0 to 5.
+                Dimensions: integrity, accuracy, brand_alignment, audience_fit,
+                governance, user_intent, accessibility, professional_quality, safety.
+
+    Example:
+        {"integrity": 5, "accuracy": 4, "brand_alignment": 5, "audience_fit": 4,
+         "governance": 4, "user_intent": 5, "accessibility": 4,
+         "professional_quality": 4, "safety": 5}
+    """
+    score_script = ROOT / "skills" / "quality-review" / "scripts" / "score.py"
+    rc, out, err = _run(
+        [sys.executable, str(score_script)],
+        input_text=json.dumps(scores),
+    )
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "scorer failed"})
+    return out.strip()
+
+
+# ---------------------------------------------------------------------------
+# Tool 6: add_competitor
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def add_competitor(url: str, platform: str) -> str:
+    """Add a competitor URL to the source registry for snapshot tracking.
+
+    Upserts the URL into canonical-sources/source-registry.json under the
+    competitor-page category. After adding, run the fetch externally:
+      python3 tools/competitor_snapshot.py --fetch
+    Then use competitor_scan to query the results.
+
+    Args:
+        url: Full URL of the competitor video or channel page.
+             e.g. "https://www.youtube.com/@SomeChannel" or
+             "https://www.youtube.com/watch?v=VIDEO_ID"
+        platform: One of: youtube, pinterest, tiktok, instagram.
+    """
+    snapshot_script = ROOT / "tools" / "competitor_snapshot.py"
+    rc, out, err = _run([
+        sys.executable, str(snapshot_script),
+        "--add-competitor", url,
+        "--platform", platform,
+    ])
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "add failed"})
+    return out.strip() or json.dumps({
+        "result": "added",
+        "url": url,
+        "platform": platform,
+        "next_step": "Run: python3 tools/competitor_snapshot.py --fetch",
+    })
+
+
+# ---------------------------------------------------------------------------
+# Tool 7: get_capabilities
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def get_capabilities() -> str:
+    """Return which Creator OS capabilities are enabled in this environment.
+
+    Reads creator-os-config.json and also performs live checks (does the SQLite
+    cache exist? does the competitor index exist?). Returns the full capability
+    map so you know which tools will work before attempting them.
+    """
+    config = _load_config()
+    caps = config.get("capabilities", {})
+
+    # Live checks that override the config flags
+    live = {
+        "keyword_cache": (ROOT / "shared" / "cache" / "index.local.db").exists(),
+        "competitor_snapshots": (
+            ROOT / "pipeline" / "competitor-snapshots" / "index.local.db"
+        ).exists(),
+    }
+
+    result = {}
+    for key, meta in caps.items():
+        enabled = meta.get("enabled", False)
+        if key in live:
+            enabled = live[key]
+        result[key] = {
+            "enabled": enabled,
+            "description": meta.get("description", ""),
+            "requires": meta.get("requires", "") if not enabled else "",
+        }
+
+    return json.dumps({
+        "capabilities": result,
+        "web_app_note": config.get("web_app_note", ""),
+        "degraded_behavior": config.get("degraded_behavior", {}),
+    }, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    mcp.run()

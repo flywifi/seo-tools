@@ -2,13 +2,14 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P10 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P11 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
 - P8: platform API signal enrichment (TikTok 15 signals, YouTube Shorts 10 signals, Reels) — shipped (commit efce070).
 - P9: deep competitive intelligence pipeline — offline HTML snapshots, ytInitialData extraction, SQLite index — shipped (commit 4c9bf0a).
 - P10: keyword-compare atom — cross-platform keyword comparison matrix — shipped (commit 45f9493).
+- P11: implementation packaging, MCP server, examples, and deployment docs — shipped.
 
 ## Shipped
 
@@ -110,6 +111,40 @@ P6 through P10 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   niche_long_tail); 7 eval cases.
 - `skills/seo-keywords/workflow.json`: keyword-compare added to shortcut_atoms.
 
+### Implementation packaging and delivery (P11)
+- `tools/mcp_server.py`: stdio MCP server (FastMCP) exposing 7 tools to Claude Desktop —
+  `cache_query`, `competitor_scan`, `source_staleness`, `drift_check`, `quality_score`,
+  `add_competitor`, `get_capabilities`. Each tool delegates via subprocess to existing Python scripts.
+- `requirements-mcp.txt`: `mcp` package dependency.
+- `creator-os-config.json`: 9-flag capability registry at repo root. All default to false; operator
+  sets flags to true after completing each setup step. `get_capabilities` MCP tool overlays live
+  checks (SQLite existence) on top of declared flags.
+- **Claude Desktop implementation** (`implementation/claude/desktop/`): technical setup README and
+  `claude_desktop_config_snippet.json` MCP block for macOS/Windows.
+- **Claude Projects implementation** (`implementation/claude/project/`): non-technical README,
+  `system-prompt.md` (Project Instructions paste), and 8 combined knowledge files for upload:
+  - `01-creator-core.md`: hub routing (creator-core SKILL.md)
+  - `02-brand-voice.md`: brand-engine + voice-engine
+  - `03-platform-seo.md`: platform-engine + seo-intelligence-engine
+  - `04-protocols.md`: all 5 protocols combined
+  - `05-content-spokes.md`: 8 content lane spoke SKILL.md files
+  - `06-document-spoke.md`: document-studio SKILL.md + knowledge-only mode note
+  - `07-pipeline-spokes.md`: 4 CRM spoke SKILL.md files
+  - `08-key-atoms.md`: 9 key atom SKILL.md files
+- **GPT API implementation** (`implementation/gpt/api/`): 5 YAML function schemas
+  (creator_core, keyword_compare, seo_keywords, competitor_analysis, video_development) + Python
+  integration example README.
+- **GPT Web implementation** (`implementation/gpt/web/`): ChatGPT two-box custom instructions
+  text + limitations README.
+- **Gemini implementation** (`implementation/gemini/`): condensed system-instruction.md for
+  Gemini Gems / API + setup README.
+- **Gold examples** (`examples/`): 3 cross-lane reference outputs (no em dashes):
+  - `content-lane/seo-keywords-dark-moody-fall-mantel.md`
+  - `document-lane/project-snapshot-chalk-paint-armoire.md`
+  - `pipeline-lane/deal-pipeline-home-decor-brand.md`
+- `docs/DEPLOYMENT.md`: multi-platform deployment reference — 5 options (A through E),
+  first-run checklist, competitor intelligence first-run, capability matrix, feature flags.
+
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was
   not provided this session. Supersede it if the original surfaces.
@@ -123,8 +158,6 @@ P6 through P10 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   ground rate-card-fill and benchmark-compare canonical data.
 
 ## Next
-- `docs/DEPLOYMENT.md` and `implementation/` (claude/, gpt/api+web/, gemini/).
-- `examples/` cross-skill gold outputs for end-to-end validation (required for em-dash check).
 - End-to-end slice: drive creator-core with a Content prompt and a CRM prompt; confirm routing
   object, atom composition, quality-review verdict, and formatting compliance.
 - Scoop verification: `python3 shared/cache/cache.py --build` then `--query`;
@@ -132,3 +165,7 @@ P6 through P10 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - Competitor intelligence: populate competitor-channels.json with real channel entries via
   `python3 tools/competitor_snapshot.py --add-competitor <url> --platform youtube`.
 - Voice profile: fill `pipeline/user-context/voice-profile.json` with Alex's actual phrasing.
+- MCP server smoke test: `echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py`
+  (requires `pip install mcp` first via `requirements-mcp.txt`).
+- Claude Projects: upload the 8 knowledge files from `implementation/claude/project/knowledge/`
+  and paste `implementation/claude/project/system-prompt.md` as Project Instructions.

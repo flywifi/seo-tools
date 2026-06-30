@@ -1,0 +1,14 @@
+{
+  "_comment": "Merge this block into your Claude Desktop config file.",
+  "_config_path_macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+  "_config_path_windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
+  "mcpServers": {
+    "creator-os": {
+      "command": "python3",
+      "args": ["REPLACE_WITH_ABSOLUTE_PATH/seo-tools/tools/mcp_server.py"],
+      "env": {
+        "CREATOR_OS_ROOT": "REPLACE_WITH_ABSOLUTE_PATH/seo-tools"
+      }
+    }
+  }
+}

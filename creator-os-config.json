@@ -1,0 +1,59 @@
+{
+  "_comment": "Creator OS capability flags. Set to true only when the capability is actually available in your environment. The system reads this file to gracefully degrade features that require local tooling. Non-technical users: you only need to touch this file if you install something new.",
+  "capabilities": {
+    "mcp_server": {
+      "enabled": false,
+      "description": "MCP server running (Claude Desktop only). Enables: cache queries, competitor scans, source staleness, quality scoring, drift check.",
+      "requires": "pip install -r requirements-mcp.txt + claude_desktop_config.json configured"
+    },
+    "competitor_snapshots": {
+      "enabled": false,
+      "description": "Local SQLite competitor index exists. Enables: competitor_scan MCP tool, deep-competitor-scan atom in cached mode.",
+      "requires": "python3 tools/competitor_snapshot.py --fetch && --parse"
+    },
+    "keyword_cache": {
+      "enabled": false,
+      "description": "FTS5 keyword cache built. Enables: cache_query MCP tool, fast offline keyword lookups.",
+      "requires": "python3 shared/cache/cache.py --build"
+    },
+    "playwright": {
+      "enabled": false,
+      "description": "Playwright installed. Enables: rendered HTML snapshots of competitor pages (Pinterest, Instagram).",
+      "requires": "pip install -r requirements-render.txt"
+    },
+    "youtube_api": {
+      "enabled": false,
+      "description": "YouTube Data API v3 credentials configured. Enables: creator's own analytics, caption download, live video metadata.",
+      "requires": "OAuth credentials in pipeline/user-context/api-credentials.local.json"
+    },
+    "instagram_api": {
+      "enabled": false,
+      "description": "Meta Graph API credentials configured. Enables: Reels insights, Business Discovery for competitor monitoring.",
+      "requires": "Meta app credentials in pipeline/user-context/api-credentials.local.json"
+    },
+    "tiktok_api": {
+      "enabled": false,
+      "description": "TikTok Content Posting API credentials configured. Enables: caption and hashtag publishing, display API lookups.",
+      "requires": "TikTok developer app credentials in pipeline/user-context/api-credentials.local.json"
+    },
+    "voice_profile": {
+      "enabled": false,
+      "description": "voice-profile.json populated with real phrases. Enables: personalized voice in scripts, captions, and pitch copy.",
+      "requires": "Edit pipeline/user-context/voice-profile.json with actual phrases"
+    },
+    "channel_context": {
+      "enabled": false,
+      "description": "channel-context.json populated with real channel stats. Enables: grounded rate recommendations and benchmark comparisons.",
+      "requires": "Edit pipeline/user-context/channel-context.json with subscriber count and avg views"
+    }
+  },
+  "degraded_behavior": {
+    "mcp_server_disabled": "All MCP tools (cache_query, competitor_scan, etc.) are unavailable. Use knowledge-only spokes. Competition estimates remain [estimated]. Source staleness cannot be checked automatically.",
+    "competitor_snapshots_disabled": "deep-competitor-scan falls back to live web-intel-engine mode. No ytInitialPlayerResponse tag extraction. Output labeled [web-mode: no snapshot saved].",
+    "keyword_cache_disabled": "keyword lookups use in-context knowledge from canonical-sources/ loaded into the system. Slower and token-intensive. Build the cache for faster results.",
+    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null — not provided]. Never fabricated.",
+    "voice_profile_disabled": "Scripts and captions use seed vocabulary from voice-engine.md. Personalized phrases from actual content are not available yet.",
+    "channel_context_disabled": "Rate recommendations use industry benchmark ranges from canonical-sources/rate-benchmarks. Not grounded in actual channel performance."
+  },
+  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
+}

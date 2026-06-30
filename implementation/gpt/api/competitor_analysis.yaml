@@ -1,0 +1,46 @@
+name: competitor_analysis
+description: >
+  Competitor research report spoke. Scans competitors per platform, extracts entity
+  intelligence from their content, clusters keyword gaps, classifies search intent,
+  optionally checks trend momentum, and produces a structured gap report covering
+  overserved topics, underserved angles, keyword gaps, entity gaps, and a
+  differentiation summary.
+
+  Use when the creator wants to understand the competitive landscape before planning
+  content. For a single competitor's hidden metadata (video tags, hashtags, chapters),
+  use deep_competitor_scan instead.
+parameters:
+  type: object
+  properties:
+    niche:
+      type: string
+      description: >
+        The content niche to research competitors in.
+        Example: "moody vintage home decor YouTube", "chalk paint furniture DIY".
+    platform_targets:
+      type: array
+      items:
+        type: string
+        enum: [youtube, pinterest, tiktok, google]
+      description: Platforms to scan. Defaults to YouTube and Pinterest.
+    competitor_count:
+      type: integer
+      minimum: 1
+      maximum: 5
+      default: 3
+      description: Number of competitors to analyze per platform. Defaults to 3.
+    check_trend_momentum:
+      type: boolean
+      default: false
+      description: >
+        Whether to include trend momentum signals for discovered gap topics.
+        Adds latency. Defaults to false.
+  required:
+    - niche
+returns: >
+  JSON: competitors_found per platform (name, url, scale_tier, primary_aesthetic,
+  content_pillars_overlap), entity_map (extracted named entities with frequency and
+  niche_fit), keyword_gaps (keywords competitors use that creator does not),
+  overserved_topics (high competition, avoid), underserved_angles (low competition,
+  pursue), differentiation_summary, retrieval_gaps, fabrication_flags.
+  All competitor data labeled [unverified] until confirmed via source.

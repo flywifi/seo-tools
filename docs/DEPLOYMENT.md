@@ -1,0 +1,267 @@
+# Deployment Guide
+
+Creator OS ships in five deployment modes. Choose the one that matches your setup.
+
+---
+
+## Prerequisites (all options)
+
+- Python 3.11 or later
+- pip install -r requirements-crawl.txt (fetch tooling: requests, charset-normalizer)
+- pip install -r requirements-scraper.txt (HTML parsing: beautifulsoup4)
+- Optional: pip install -r requirements-render.txt (Playwright, for full competitor snapshots)
+- Optional (Claude Desktop only): pip install -r requirements-mcp.txt (MCP server: mcp)
+
+---
+
+## Option A -- Claude Desktop with MCP (full capability)
+
+The most powerful deployment. Unlocks competitor tag extraction, offline keyword cache queries,
+source staleness detection, and deterministic quality scoring. Requires a local machine.
+
+**Steps:**
+
+1. Clone the repo and install dependencies:
+   ```bash
+   pip install -r requirements-crawl.txt -r requirements-scraper.txt -r requirements-mcp.txt
+   ```
+
+2. Build the keyword cache:
+   ```bash
+   python3 shared/cache/cache.py --build
+   ```
+
+3. Edit `creator-os-config.json` at the repo root to enable capabilities:
+   ```json
+   {
+     "capabilities": {
+       "mcp_server": true,
+       "keyword_cache": true
+     }
+   }
+   ```
+
+4. Find the Claude Desktop config file:
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+5. Merge the MCP block from `implementation/claude/desktop/claude_desktop_config_snippet.json`
+   into the config file. Replace `REPLACE_WITH_ABSOLUTE_PATH` with the actual repo path.
+
+6. Restart Claude Desktop.
+
+7. Verify: open Claude Desktop and confirm "creator-os" appears in the tool list.
+
+8. Test:
+   ```
+   Ask Claude: "run a drift check"
+   Expected response: "DRIFT GUARD: clean"
+   ```
+
+See `implementation/claude/desktop/README.md` for the full guide.
+
+---
+
+## Option B -- Claude Projects on claude.ai (knowledge-only, recommended for Alex)
+
+No terminal, no downloads. Works on the claude.ai web app and mobile. Knowledge-only mode --
+the system delivers the best possible output without MCP tools and tells you when a feature
+requires a local upgrade.
+
+**Steps (5 minutes):**
+
+1. Go to [claude.ai](https://claude.ai) and sign in.
+2. Click **Projects** in the left sidebar, then **New Project**.
+3. Name it: **Creator OS**.
+4. In the project, click **Set project instructions** (or the gear icon).
+5. Open `implementation/claude/project/system-prompt.md`, copy the full text, paste into the
+   Project Instructions field, and save.
+6. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`:
+   - `01-creator-core.md`
+   - `02-brand-voice.md`
+   - `03-platform-seo.md`
+   - `04-protocols.md`
+   - `05-content-spokes.md`
+   - `06-document-spoke.md`
+   - `07-pipeline-spokes.md`
+   - `08-key-atoms.md`
+7. Wait for all files to finish processing (the spinner stops).
+8. Start a new conversation inside the project and try:
+   > Plan a dark moody fall mantel makeover video.
+
+See `implementation/claude/project/README.md` for example requests and the capability table.
+
+---
+
+## Option C -- GPT-4 API with function calling (developer use)
+
+Exposes Creator OS spokes as OpenAI function schemas. Suitable for integrating into a Python
+application that already uses the OpenAI API.
+
+**Setup:**
+
+```python
+import openai, yaml
+from pathlib import Path
+
+functions = [
+    yaml.safe_load(f.read_text())
+    for f in Path("implementation/gpt/api").glob("*.yaml")
+]
+
+response = openai.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": your_request}],
+    tools=[{"type": "function", "function": fn} for fn in functions],
+)
+```
+
+Five function schemas are provided: `creator_core`, `keyword_compare`, `seo_keywords`,
+`competitor_analysis`, `video_development`.
+
+See `implementation/gpt/api/README.md` for the full example.
+
+---
+
+## Option D -- ChatGPT Web with custom instructions (no setup)
+
+Paste-and-go. No files to upload. Knowledge-only mode.
+
+**Steps:**
+
+1. Open ChatGPT and go to Settings > Personalization > Custom Instructions.
+2. Open `implementation/gpt/web/custom-instructions.md`.
+3. Copy the "What would you like ChatGPT to know about you?" section into the first box.
+4. Copy the "How would you like ChatGPT to respond?" section into the second box.
+5. Save.
+
+See `implementation/gpt/web/README.md` for limitations and the capability comparison.
+
+---
+
+## Option E -- Gemini (Gems or API)
+
+**Gemini Advanced (Gems):**
+
+1. Open Gemini Advanced > Gems > New Gem.
+2. Name it "Creator OS."
+3. Open `implementation/gemini/system-instruction.md`, copy the full text, paste into the
+   Instructions field, and save.
+
+**Gemini API:**
+
+```python
+import google.generativeai as genai
+from pathlib import Path
+
+genai.configure(api_key="YOUR_API_KEY")
+system_instruction = Path("implementation/gemini/system-instruction.md").read_text()
+model = genai.GenerativeModel(
+    model_name="gemini-2.0-flash",
+    system_instruction=system_instruction,
+)
+response = model.generate_content("Plan a dark moody fall mantel video")
+```
+
+See `implementation/gemini/README.md` for notes on Gemini-specific limitations.
+
+---
+
+## First-run checklist (all options)
+
+```bash
+# 1. Drift guard -- should exit 0
+python3 tools/sync_check.py
+
+# 2. Keyword cache -- build the FTS5 index
+python3 shared/cache/cache.py --build
+
+# 3. Version consistency check
+python3 tools/version.py --check
+
+# 4. Source currency report -- shows which sources need checking
+python3 tools/source_currency.py report
+
+# 5. (Claude Desktop only) MCP server self-test
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
+# Should return 7 tool definitions
+```
+
+---
+
+## First run: competitor intelligence (Claude Desktop only)
+
+```bash
+# Add a competitor channel
+python3 tools/competitor_snapshot.py --add-competitor https://www.youtube.com/@ChannelName --platform youtube
+
+# Fetch the snapshot (polite crawl, rate-governed)
+python3 tools/competitor_snapshot.py --fetch
+
+# Parse saved HTML for hidden video tags
+python3 tools/competitor_snapshot.py --parse
+
+# Export summary to canonical-sources (safe to commit, no raw HTML)
+python3 tools/competitor_snapshot.py --export-summary
+
+# Query the local SQLite cache from Claude via MCP
+# Ask Claude: "scan @ChannelName for competitor keywords"
+# Creator OS invokes competitor_scan MCP tool with mode: cached
+```
+
+---
+
+## Capability matrix
+
+| Capability | Claude Desktop | Claude Projects | GPT API | ChatGPT Web | Gemini |
+|---|---|---|---|---|---|
+| Full hub routing and all spokes | Yes | Yes | Partial | Partial | Partial |
+| SEO keyword strategy (knowledge-based) | Yes | Yes | Yes | Yes | Yes |
+| Video scripts, hooks, captions | Yes | Yes | Yes | Yes | Yes |
+| Competitor hidden video tags (ytInitialPlayerResponse) | Yes (MCP) | No | No | No | No |
+| Offline FTS5 keyword cache queries | Yes (MCP) | No | No | No | No |
+| Source staleness detection | Yes (MCP) | No | No | No | No |
+| Deterministic quality scoring | Yes (MCP) | No | No | No | No |
+| Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | Yes | No | No |
+| Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial | No | No |
+| Channel context from channel-context.json | Yes | Manual paste | Manual paste | No | No |
+
+---
+
+## Feature flags (`creator-os-config.json`)
+
+Edit `creator-os-config.json` at the repo root to enable capabilities as you complete each
+setup step. All flags default to `false`. Set a flag to `true` only after verifying the
+corresponding setup is complete.
+
+```json
+{
+  "capabilities": {
+    "mcp_server": false,
+    "competitor_snapshots": false,
+    "keyword_cache": false,
+    "playwright": false,
+    "youtube_api": false,
+    "instagram_api": false,
+    "tiktok_api": false,
+    "voice_profile": false,
+    "channel_context": false
+  }
+}
+```
+
+The `get_capabilities` MCP tool reads this file and overlays live checks (for example, it
+confirms the SQLite index actually exists before reporting `keyword_cache: true`).
+
+---
+
+## Updating the knowledge files (Claude Projects)
+
+If the system is updated (new atom, spoke, or engine), re-upload only the affected knowledge file:
+
+- New atom added: re-upload `08-key-atoms.md`
+- Engine updated: re-upload the file containing that engine (01 through 03)
+- New spoke added: re-upload the relevant spoke file (05, 06, or 07)
+- Protocol changed: re-upload `04-protocols.md`
+
+You do not need to re-upload all 8 files for a small change.

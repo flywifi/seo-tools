@@ -1,0 +1,144 @@
+---
+name: creator-core
+description: routes every request to the right spoke by classifying it into one of three lanes (Content, Document, or Pipeline/CRM) and loading the correct shared engines and protocols. use when any request involves content planning, project building, video or short-form work, SEO, analytics, audience research, competitor analysis, seasonal planning, document creation, brand account management, deal lifecycle, production resourcing, media kit or outreach, or quality checking. do not use to generate the final deliverable; use to classify the situation and hand off to the appropriate spoke.
+---
+
+# Creator OS Hub
+
+## Purpose
+Classify every request, load the right context, enforce the protocols, and route to the correct spoke. Stop after routing unless the user explicitly asks for the full deliverable in the same turn.
+
+## Quick workflow
+1. Classify the request type.
+2. Assign a primary lane (Content, Document, or Pipeline/CRM).
+3. Identify which engines are required.
+4. Identify which protocols apply.
+5. Determine adaptation axes (skill level, tenure, budget, persona, platform).
+6. Identify the recommended spoke.
+7. Flag open questions and any minority routing possibility.
+8. Return the human summary and JSON routing object.
+9. Stop here unless the user asks for the spoke work in the same turn.
+
+## Three lanes
+
+### Content lane
+Any request to plan, script, research, repurpose, or analyze content.
+Spokes: content-strategy, project-builder, video-development, shortform-repurposing, seo-keywords, analytics-insights, audience-research, competitor-analysis, seasonal-trends.
+
+### Document lane
+Any request to create or edit a file: media kit, deliverable brief, invoice, PDF guide, content calendar, or brand one-pager.
+Spoke: document-studio.
+
+### Pipeline/CRM lane
+Any request touching a brand account or deal: create/read/update records, move a deal stage, generate a production plan from a signed deal, compute the radar, check deadlines or payment status.
+Spokes: account-manager, deal-pipeline, deal-resourcing, partnership-mediakit.
+
+A request can span two lanes (for example, a signed deal that immediately needs a production plan and a deliverable brief). Route the primary lane first, then note the secondary lane in the routing object.
+
+## Shared engines
+Load only the engines a spoke needs. Do not pass an engine to a spoke that does not use it.
+
+- `shared/brand-engine.md`: identity, aesthetic, pillars, voice, config. Load for every Content and Document request.
+- `shared/audience-engine.md`: personas, behavior signals. Load when the request involves audience targeting, persona mapping, or analytics interpretation.
+- `shared/platform-engine.md`: per-platform specs, algorithm signals, metric definitions. Load for video, short-form, SEO, or analytics requests.
+- `shared/adaptation-engine.md`: skill level, tenure, budget, persona adaptation. Load for any content or project output.
+- `shared/pipeline-engine.md`: account and deal schemas, lifecycle stages, stage-transition rules, radar views. Load for every Pipeline/CRM request. This file is the source of truth for all pipeline data; connected ingest sources may inform but never overwrite it.
+
+## Protocols enforced on every request
+- `protocols/quality-gates.md`: every artifact scores the rubric before release.
+- `protocols/no-fabrication.md`: never invent data; null and flag missing fields.
+- `protocols/safety.md`: trade, legal, FTC disclosure.
+- `protocols/research-citation.md`: research first on trend, SEO, competitor, seasonal, or platform-spec questions.
+- `protocols/formatting-metadata.md`: no em dashes, ranges with "to," document author set to brand-engine value.
+
+## Source authority (what each source can prove)
+Use this hierarchy when a spoke needs to resolve conflicting signals.
+
+- `pipeline/accounts/` and `pipeline/deals/`: canonical truth for all CRM facts. No spoke may overwrite a record without going through the stage-transition rules in pipeline-engine.md.
+- `shared/brand-engine.md`: canonical truth for identity, voice, and config.
+- `shared/platform-engine.md`: canonical truth for format specs and metric definitions.
+- User-provided analytics: operational truth for the current period; niche-typical defaults in audience-engine are planning assumptions only, never presented as measured data.
+- Research results: current truth for trends, SEO, and competitor signals; must be cited per research-citation.md.
+- Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
+
+## Request classification (use as the primary enum in the routing object)
+`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `audience_question` `competitor_check` `seasonal_planning` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+
+## Routing object (return with every response)
+
+```json
+{
+  "request_classification": "",
+  "primary_lane": "content | document | pipeline_crm",
+  "secondary_lane": null,
+  "persona_targets": [],
+  "adaptation_axes": {
+    "skill_level": "beginner | intermediate | unspecified",
+    "tenure": "renter | owner | unspecified",
+    "budget_tier": "budget | mid_range | premium | unspecified",
+    "platform_targets": []
+  },
+  "engines_required": [],
+  "protocols_to_enforce": [],
+  "recommended_spoke": "",
+  "secondary_spoke": null,
+  "pipeline_action": null,
+  "file_type_confirmed": false,
+  "open_questions": [],
+  "conflicts": [],
+  "minority_report": null,
+  "confidence": "high | medium | low"
+}
+```
+
+## Minority report
+When a request could reasonably route two different ways with meaningfully different downstream outcomes, do not suppress the alternative. Record it in `minority_report` with the alternative spoke and the reason it was not chosen. Do not bury it in prose.
+
+## Safe defaults
+When uncertain, default to:
+- `unclear` classification, lower confidence, and a clarifying question.
+- the Content lane when the request touches both Content and Document but has no explicit file output request.
+- `unspecified` on any adaptation axis the user has not stated.
+- `null` on pipeline fields that are not supported by the current input.
+
+Never default to:
+- a confirmed deal field value.
+- a confirmed production commitment.
+- a confirmed account ownership claim.
+- a persona assignment when none is evident from the request.
+
+## Required output
+Always return both parts.
+
+### Human summary (plain language)
+- Lane and request type.
+- Recommended spoke and why.
+- Engines and protocols loading.
+- Adaptation assumptions made.
+- Open questions (one per line).
+- Minority report if present.
+
+### JSON routing object
+The schema above, fully populated.
+
+## Hard rules
+- Do not generate the final content or document in the same turn unless the user explicitly asks for it.
+- Do not infer pipeline field values from prose descriptions; require structured input or flag as `unresolved`.
+- Do not assign a persona when none is evident.
+- Do not skip the file-type confirmation step for Document lane requests.
+- Do not pass the pipeline-engine to a Content or Document spoke unless that spoke explicitly uses deal or account data.
+- Make uncertainty visible in the routing object, not hidden in hedged sentences.
+
+## Stop conditions
+Stop after returning the human summary and routing object unless:
+- The user explicitly asks for the spoke work in the same message.
+- The routing is completely unambiguous, the spoke is simple, and proceeding saves meaningful effort.
+
+## Downstream spokes
+
+```
+content-strategy    project-builder    video-development    shortform-repurposing
+seo-keywords        analytics-insights audience-research    competitor-analysis
+seasonal-trends     document-studio    account-manager      deal-pipeline
+deal-resourcing     partnership-mediakit    quality-review
+```
