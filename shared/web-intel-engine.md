@@ -186,3 +186,46 @@ Data retrieved beyond these thresholds should be recorded with `ingestion_status
 ## Ecosystem hardening
 
 This engine must remain useful without any external analytics API connections. If all Level 1 and Level 2 sources are unavailable, the engine still produces valid output at Levels 3 through 6. Spokes consuming this engine must handle partial or gap-only outputs without failing silently.
+
+## Currency check mode
+
+Triggered by `tools/source_currency.py check` output (the `refetch_queue` field). Use this mode
+to verify whether a registered source has changed content since it was last checked.
+
+**Input:** one entry from refetch_queue:
+```json
+{
+  "id": "source-id",
+  "url": "https://...",
+  "extraction_hint": "what to look for",
+  "used_by": ["atom-id-1", "atom-id-2"]
+}
+```
+
+**Process:**
+1. Fetch the URL using the lowest acquisition level that succeeds (prefer Level 1 for API changelogs,
+   Level 3 for blog posts and brand sites). Record the source_artifact as usual.
+2. Compare to the extraction_hint: has the relevant content changed? (Check last-modified header or
+   compare a content hash to the prior snapshot if available.)
+3. If changed: describe what changed in one to three sentences, focusing on what the extraction_hint
+   asked for.
+
+**Output per source:**
+```json
+{
+  "id": "source-id",
+  "url": "https://...",
+  "content_changed": true,
+  "change_summary": "string describing what changed",
+  "used_by": ["atom-id-1"],
+  "recommended_action": "Update canonical-sources/<relevant-file>.json or flag for human review"
+}
+```
+
+**After currency check:** call `python3 tools/source_currency.py mark-checked <id> [--changed]`
+to update the registry. Pass `--changed` only when `content_changed` is true.
+
+**Propagation rule:** a changed source does not automatically update canonical data. The operator
+reviews the change_summary and decides whether to update `canonical-sources/` files and re-run
+`python3 shared/cache/cache.py --build` to refresh the L1 index. API changelog changes that
+affect integration code are flagged for human review only -- never auto-update code.

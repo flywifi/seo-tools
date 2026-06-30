@@ -1,6 +1,9 @@
 ---
 name: hook-write
 description: write ONE hook for a video or short that lands the promise or problem in the first seconds. Use when video-development, shortform-repurposing, or script-writer needs a hook. Do NOT use to write the full script or outline.
+load:
+  - shared/brand-engine.md
+  - shared/voice-engine.md
 ---
 
 # hook-write

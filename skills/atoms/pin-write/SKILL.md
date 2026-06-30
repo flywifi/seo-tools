@@ -5,6 +5,7 @@ description: write one Pinterest Pin set (title max 100 chars, description max 5
 load:
   - shared/platform-engine.md
   - shared/brand-engine.md
+  - shared/voice-engine.md
   - protocols/no-fabrication.md
 ---
 

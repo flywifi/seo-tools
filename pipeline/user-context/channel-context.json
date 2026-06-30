@@ -1,0 +1,16 @@
+{
+  "_comment": "Alex Slason channel stats. Update when Alex provides real figures. All null until provided. Used by benchmark-compare and rate-card-fill to ground recommendations in actual channel size.",
+  "_gitignore_note": "Real snapshots go in channel-context.local.json (gitignored). This schema file stays null.",
+  "channel_name": null,
+  "channel_url": null,
+  "subscriber_count": null,
+  "avg_views_per_video_30d": null,
+  "avg_shorts_views_30d": null,
+  "avg_watch_time_minutes": null,
+  "top_performing_format": null,
+  "recent_best_performers": [],
+  "upload_cadence": null,
+  "monetization_enabled": null,
+  "last_updated": null,
+  "notes": null
+}

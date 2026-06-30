@@ -45,12 +45,17 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 `MAINTAINER_README.md`. Spokes carry a `workflow.json` that composes atoms.
 
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
-- No em dashes anywhere; write ranges with "to" (`protocols/formatting-metadata.md`).
+- No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).
+  Internal docs (SKILL.md, engine files, protocol files, architecture docs) may use em dashes freely.
+  The drift guard enforces this for `examples/` only. See `protocols/formatting-metadata.md`.
+- Write ranges with "to" everywhere, including internal docs (`protocols/formatting-metadata.md`).
 - Never fabricate data, metrics, rates, brands, or sources (`protocols/no-fabrication.md`). Null and
   flag instead.
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
+- `tools/source_currency.py` is the only tool that writes to `canonical-sources/source-registry.json`.
+  Do not edit source-registry.json by hand.
 
 ## Commit messages
 Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase

@@ -91,6 +91,10 @@ EM_DASH = "—"
 EN_DASH = "–"
 FORBIDDEN_TOKENS = ["TODO", "FIXME", "PLACEHOLDER", "<<<<<<<", "=======", ">>>>>>>"]
 CONTENT_DIRS = ["shared", "protocols", "skills", "docs", "examples", "canonical-sources"]
+# Em-dash check is scoped to user-facing output only (examples/).
+# Internal docs (SKILL.md, engine docs, protocol files, architecture docs) may use em dashes.
+# The en-dash and forbidden-token checks remain broad.
+EM_DASH_DIRS = ["examples"]
 
 
 def check_formatting():
@@ -101,8 +105,9 @@ def check_formatting():
         for md in sorted(base.rglob("*.md")):
             rel = md.relative_to(ROOT)
             text = md.read_text(encoding="utf-8")
-            if EM_DASH in text:
-                problem(f"{rel}: contains an em dash (forbidden by formatting-metadata.md)")
+            # Em-dash: user-facing output only
+            if name in EM_DASH_DIRS and EM_DASH in text:
+                problem(f"{rel}: contains an em dash (forbidden in user-facing output by formatting-metadata.md)")
             if EN_DASH in text:
                 problem(f"{rel}: contains an en dash (write ranges with 'to')")
             for tok in FORBIDDEN_TOKENS:
