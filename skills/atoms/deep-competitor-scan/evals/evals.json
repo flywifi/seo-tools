@@ -1,0 +1,143 @@
+[
+  {
+    "id": "dcs-001",
+    "description": "YouTube cached mode — competitor with existing SQLite row returns video_tags and chapter markers",
+    "input": {
+      "competitor_id": "competitor-youtube-moody-decor-example",
+      "mode": "cached"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "platform": "youtube",
+      "acquisition_method": "offline-snapshot",
+      "confidence": "high",
+      "video_tags": "non-null array with at least 1 string",
+      "fabrication_flags": "empty array — no invented fields"
+    },
+    "prohibit": [
+      "video_tags containing null entries",
+      "subscriber counts or view counts in output",
+      "any field value not derivable from HTML snapshot"
+    ]
+  },
+  {
+    "id": "dcs-002",
+    "description": "YouTube live mode — competitor_url triggers fetch + parse before returning results",
+    "input": {
+      "competitor_url": "https://www.youtube.com/watch?v=EXAMPLE_VIDEO_ID",
+      "mode": "live",
+      "platform": "youtube"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "platform": "youtube",
+      "acquisition_method": "live-fetch or web-intel-fallback",
+      "video_tags": "non-null array if ytInitialPlayerResponse found; null with retrieval_gap if not",
+      "retrieval_gaps": "empty if video_tags found; non-empty if player response absent"
+    },
+    "prohibit": [
+      "invented video tags (any tag not present in actual HTML)",
+      "confidence: high when video_tags is null"
+    ]
+  },
+  {
+    "id": "dcs-003",
+    "description": "TikTok cached mode — hashtags, sound_name, challenges extracted from SIGI_STATE snapshot",
+    "input": {
+      "competitor_id": "competitor-tiktok-moody-home-example",
+      "mode": "cached"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "platform": "tiktok",
+      "hashtags": "non-null array",
+      "sound_name": "non-null string",
+      "confidence": "high",
+      "video_tags": "null (TikTok does not have YouTube-style hidden tags)"
+    },
+    "prohibit": [
+      "sound_is_original invented without SIGI_STATE music.original field",
+      "hashtags invented from description text when textExtra is empty"
+    ]
+  },
+  {
+    "id": "dcs-004",
+    "description": "Pinterest without Playwright — confidence low, OG tags only, parse_notes explains limitation",
+    "input": {
+      "competitor_url": "https://www.pinterest.com/pin/EXAMPLE_PIN_ID/",
+      "mode": "live",
+      "platform": "pinterest"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "platform": "pinterest",
+      "confidence": "low",
+      "parse_notes": "contains 'Playwright' or 'OG tags only'",
+      "video_tags": "null",
+      "hashtags": "null or list if found in og:description"
+    },
+    "prohibit": [
+      "confidence: high or medium without Playwright",
+      "auto_alt_text or saves fields populated from raw HTML (requires Playwright)"
+    ]
+  },
+  {
+    "id": "dcs-005",
+    "description": "Unknown platform URL — graceful handling, platform=unknown, no crash",
+    "input": {
+      "competitor_url": "https://www.someunknownsite.com/video/12345",
+      "mode": "live"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "platform": "unknown",
+      "confidence": "low",
+      "retrieval_gaps": "non-empty — platform not recognized",
+      "video_tags": "null",
+      "hashtags": "null"
+    },
+    "prohibit": [
+      "exception or error propagated to caller without graceful output",
+      "platform guessed as youtube/tiktok/pinterest without URL match"
+    ]
+  },
+  {
+    "id": "dcs-006",
+    "description": "Cold start — no SQLite index and cached mode requested — falls back to retrieval_gap record",
+    "input": {
+      "competitor_id": "competitor-does-not-exist-yet",
+      "mode": "cached"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "acquisition_method": "none",
+      "confidence": "low",
+      "retrieval_gaps": "non-empty — index not found or competitor_id not present",
+      "video_tags": "null",
+      "fabrication_flags": "empty — null is correct; no invention"
+    },
+    "prohibit": [
+      "any non-null video_tags or hashtags when no snapshot exists",
+      "crash or unhandled exception"
+    ]
+  },
+  {
+    "id": "dcs-007",
+    "description": "Stale snapshot — snapshot_age_days > 7 — reports age and recommends refresh without blocking output",
+    "input": {
+      "competitor_id": "competitor-youtube-old-snapshot",
+      "mode": "cached"
+    },
+    "expect": {
+      "tool": "deep-competitor-scan",
+      "snapshot_age_days": "integer > 7",
+      "video_tags": "non-null (stale but present)",
+      "retrieval_gaps": "includes staleness note recommending --fetch refresh",
+      "confidence": "medium or high based on what was in the snapshot"
+    },
+    "prohibit": [
+      "blocking output because snapshot is stale — return what we have with a staleness warning",
+      "snapshot_age_days reported as 0 or null when snapshot_date is old"
+    ]
+  }
+]
