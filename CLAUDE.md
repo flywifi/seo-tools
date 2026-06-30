@@ -12,7 +12,8 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
 ## Layout
 - `shared/` flat engines (source of truth): `brand-engine.md`, `audience-engine.md`,
   `platform-engine.md`, `adaptation-engine.md`, `pipeline-engine.md`, `web-intel-engine.md`,
-  `injection-guard-engine.md`, `method.md`, plus `cache/` (the scoop tier).
+  `injection-guard-engine.md`, `method.md`, plus `cache/` (the scoop tier) and
+  `connectors/` (the connector registry and evidence-routing model).
 - `protocols/` the five governance protocols. `quality-gates.md` is authoritative.
 - `pipeline/` the CRM records store (`accounts/`, `deals/`). Source of truth for all CRM facts. Real
   data is gitignored; only schemas and blank structures are committed.
@@ -59,6 +60,10 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
   `traversal-visited.json`. Do not populate the registry by directly editing source-registry.json;
   use `--accept` in traversal_engine.py which calls source_currency.py for the registry write.
+- `shared/connectors/connectors.json` is the source of truth for the connector registry. The
+  resolver (`shared/connectors/connectors.py`) reads both this file and `creator-os-config.local.json`
+  to produce the active evidence plan. Per-deployment overrides go in `creator-os-connectors.local.json`
+  (gitignored); do not edit `connectors.json` for deployment-specific state changes.
 
 ## Commit messages
 Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase
