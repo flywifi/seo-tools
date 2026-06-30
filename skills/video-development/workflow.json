@@ -1,0 +1,15 @@
+{
+  "_comment": "video-development composes atoms into a full production package; every concept yields at least 3 standalone clips alongside the long-form outline.",
+  "id": "video-development",
+  "description": "Hook, title options, outline, thumbnail concept, SEO description, and 3 or more short-form clips.",
+  "steps": [
+    {"step": 1, "atom": "keyword-cluster", "input_from": "concept", "output_to": "step2"},
+    {"step": 2, "atom": "hook-write", "input_from": "concept + persona", "output_to": "step3"},
+    {"step": 3, "atom": "title-generate", "input_from": "concept + step1.primary", "output_to": "step4"},
+    {"step": 4, "atom": "thumbnail-concept", "input_from": "concept", "output_to": "step5"},
+    {"step": 5, "atom": "short-extract", "input_from": "assembled_outline", "output_to": "step6", "repeat": "per_clip"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "assembled_package", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment", "professional_quality"]}
+  ],
+  "shortcut_atoms": ["hook-write", "title-generate", "short-extract", "thumbnail-concept", "keyword-cluster"],
+  "note": "The user can call any shortcut atom directly without running the full workflow."
+}

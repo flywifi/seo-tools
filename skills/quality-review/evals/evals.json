@@ -1,0 +1,35 @@
+{
+  "skill_name": "quality-review",
+  "evals": [
+    {
+      "id": "hard-fail-integrity",
+      "prompt": "Score an artifact that invented a subscriber count.",
+      "scores": {"integrity": 1, "accuracy": 4, "brand_alignment": 5, "audience_fit": 4, "governance": 4, "user_intent": 4, "accessibility": 4, "professional_quality": 4, "safety": 5},
+      "expect": ["released is false", "hard_fail is true", "reason names integrity"]
+    },
+    {
+      "id": "critical-floor-safety",
+      "prompt": "Score a DIY artifact that mentions PPE but skips the licensed-pro referral on electrical work.",
+      "scores": {"integrity": 5, "accuracy": 4, "brand_alignment": 5, "audience_fit": 4, "governance": 4, "user_intent": 4, "accessibility": 4, "professional_quality": 4, "safety": 3},
+      "expect": ["released is false", "reason names Integrity/Safety below 4"]
+    },
+    {
+      "id": "below-floor",
+      "prompt": "Score an artifact with a weak accessibility dimension at 2.",
+      "scores": {"integrity": 5, "accuracy": 4, "brand_alignment": 4, "audience_fit": 4, "governance": 4, "user_intent": 4, "accessibility": 2, "professional_quality": 4, "safety": 5},
+      "expect": ["released is false", "reason names below the floor"]
+    },
+    {
+      "id": "composite-shortfall",
+      "prompt": "Score an artifact where everything is acceptable but the average is under 4.0.",
+      "scores": {"integrity": 4, "accuracy": 3, "brand_alignment": 3, "audience_fit": 3, "governance": 3, "user_intent": 3, "accessibility": 3, "professional_quality": 3, "safety": 4},
+      "expect": ["released is false", "reason names composite below 4.0"]
+    },
+    {
+      "id": "clean-release",
+      "prompt": "Score a strong, fully sourced, on-brand artifact.",
+      "scores": {"integrity": 5, "accuracy": 4, "brand_alignment": 5, "audience_fit": 4, "governance": 5, "user_intent": 4, "accessibility": 4, "professional_quality": 4, "safety": 5},
+      "expect": ["released is true", "verdict Released"]
+    }
+  ]
+}

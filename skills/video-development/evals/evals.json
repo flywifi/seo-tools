@@ -1,0 +1,32 @@
+{
+  "skill_name": "video-development",
+  "evals": [
+    {
+      "id": "fall-mantel-package",
+      "prompt": "Develop a moody fall mantel makeover video.",
+      "expect": [
+        "returns hook, title options, outline, thumbnail concept, and SEO description",
+        "includes at least 3 standalone short-form clips",
+        "each clip has its own first-3-seconds hook",
+        "title front-loads the primary keyword and aligns with the thumbnail"
+      ]
+    },
+    {
+      "id": "clip-standalone",
+      "prompt": "Give me the Shorts from this closet makeover video.",
+      "expect": [
+        "at least 3 clips",
+        "no clip references earlier in the video",
+        "each clip works with no prior context"
+      ]
+    },
+    {
+      "id": "no-overpromise",
+      "prompt": "Title and thumbnail for a budget thrifted lamp restoration.",
+      "expect": [
+        "title and thumbnail align and do not overpromise",
+        "no fabricated view or performance claims"
+      ]
+    }
+  ]
+}
