@@ -1,0 +1,21 @@
+# Real CRM data: never committed. Only schemas, templates, and blank structures live in git.
+pipeline/**/*.local.json
+pipeline/**/*.local.*
+
+# Regenerable local caches (scoop L1/L2)
+*.local.db
+shared/cache/*.db
+shared/cache/*.local.db
+
+# Build artifacts
+dist/
+
+# Secrets and credentials
+.env
+secrets.json
+*.secret
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

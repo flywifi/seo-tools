@@ -1,0 +1,20 @@
+{
+  "_comment": "Creator OS references canonical engines and protocols by repo-root path directly (for example, shared/brand-engine.md, protocols/quality-gates.md). Unlike the TOS sibling, there are no per-skill byte-identical synced copies; skills point at the source of truth. This manifest lists the canonical files the drift guard (tools/sync_check.py) treats as required.",
+  "engines": [
+    "shared/brand-engine.md",
+    "shared/audience-engine.md",
+    "shared/platform-engine.md",
+    "shared/adaptation-engine.md",
+    "shared/pipeline-engine.md",
+    "shared/web-intel-engine.md",
+    "shared/injection-guard-engine.md",
+    "shared/method.md"
+  ],
+  "protocols": [
+    "protocols/quality-gates.md",
+    "protocols/safety.md",
+    "protocols/no-fabrication.md",
+    "protocols/research-citation.md",
+    "protocols/formatting-metadata.md"
+  ]
+}
