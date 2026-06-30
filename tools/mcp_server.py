@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Creator OS MCP Server — exposes Python tools to Claude Desktop as MCP tool calls.
 
-Six tools:
+Eight tools:
   cache_query        Query the offline FTS5 keyword/entity cache.
   competitor_scan    Return parsed metadata for a stored competitor snapshot.
   source_staleness   Report which canonical sources are stale or never checked.
   drift_check        Run sync_check.py and return the result.
   quality_score      Score an artifact against the 9-dimension quality gates.
   add_competitor     Add a competitor URL to the tracking registry.
+  get_capabilities   Return which Creator OS capabilities are enabled.
+  get_connectors     Return the full connector evidence plan for this deployment.
 
 These are the capabilities above what vanilla Claude can do: live competitor
 tag extraction, offline FTS5 keyword lookups, source staleness detection, and
@@ -297,6 +299,38 @@ def get_capabilities() -> str:
         "web_app_note": config.get("web_app_note", ""),
         "degraded_behavior": config.get("degraded_behavior", {}),
     }, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Tool 8: get_connectors
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def get_connectors(flags_path: str = "") -> str:
+    """Return the full connector evidence plan for this deployment.
+
+    Resolves which connectors are active, the provider chain per evidence type
+    (primary -> fallbacks), and any evidence gaps — using shared/connectors/
+    connectors.py with the current creator-os-config.local.json. Reads both the
+    connector registry and the capability flags and merges them automatically.
+
+    Use this to understand what data sources are available before running
+    analytics atoms or competitor intelligence workflows.
+
+    Args:
+        flags_path: Optional path to a custom feature-flags JSON. Defaults to
+                    creator-os-config.local.json in the repo root.
+    """
+    connector_script = ROOT / "shared" / "connectors" / "connectors.py"
+    cmd = [sys.executable, str(connector_script), "--plan", "--json"]
+    if flags_path:
+        cmd += ["--flags", flags_path]
+    elif CONFIG_LOCAL_PATH.exists():
+        cmd += ["--flags", str(CONFIG_LOCAL_PATH)]
+    rc, out, err = _run(cmd)
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "connector resolver failed"})
+    return out.strip() or json.dumps({"error": "no output from connector resolver"})
 
 
 # ---------------------------------------------------------------------------

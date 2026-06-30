@@ -1,0 +1,194 @@
+{
+  "_comment": "Creator OS connector registry + feature-flag contract. Each connector declares the normalized EVIDENCE it can provide so an atom can use whatever is available and DEGRADE via alternates when one is off. Offline contract only — we build NO provider auth/API clients here. Live retrieval is realized by the host AI's native integration (Claude / OpenAI / Gemini) when the deployment has connected it, or via manual_paste / uploaded_file. A deployment may RESTRICT specific evidence even when a connector is active (see per-deployment 'restricted_evidence' + reason); atoms then take what they can get and look elsewhere. Prose: connectors.md. Per-deployment flags: feature-flags.example.json.",
+  "version": "0.1.0",
+  "updated": "2026-06-30",
+  "states": ["available", "disabled", "not_installed", "permission_blocked", "metadata_only", "unsupported", "unknown"],
+  "evidence_types": [
+    "analytics",
+    "keyword_data",
+    "competitor_data",
+    "trend_data",
+    "document_source",
+    "voice_profile",
+    "channel_stats",
+    "rate_benchmarks",
+    "content_calendar"
+  ],
+  "connectors": [
+    {
+      "id": "manual_paste",
+      "label": "Manual paste",
+      "vendor": "(none)",
+      "default_flag": "available",
+      "provides": ["analytics", "keyword_data", "competitor_data", "channel_stats", "rate_benchmarks", "content_calendar"],
+      "privacy_sensitivity": "depends_on_content",
+      "auth_note": "none — creator pastes data directly into the conversation",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects", "option_c_gpt_api", "option_d_chatgpt_web", "option_e_gemini"],
+      "status": "seed"
+    },
+    {
+      "id": "uploaded_file",
+      "label": "Uploaded file (read via shared/docintel/)",
+      "vendor": "(none)",
+      "default_flag": "available",
+      "provides": ["document_source", "voice_profile", "analytics", "rate_benchmarks"],
+      "privacy_sensitivity": "depends_on_content",
+      "auth_note": "none — creator uploads .pdf/.docx/.csv/.xlsx; read via docintel-engine and parse_text.py",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects", "option_c_gpt_api", "option_d_chatgpt_web", "option_e_gemini"],
+      "status": "seed"
+    },
+    {
+      "id": "local_json_files",
+      "label": "Local .local.json data files (voice-profile, channel-context, content-calendar)",
+      "vendor": "(none)",
+      "default_flag": "available",
+      "provides": ["channel_stats", "voice_profile", "content_calendar", "rate_benchmarks"],
+      "privacy_sensitivity": "low",
+      "auth_note": "none — reads pipeline/user-context/*.local.json; gitignored, never committed. Created by tools/setup.py.",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "youtube_data_api",
+      "label": "YouTube Data API v3",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": ["analytics", "keyword_data", "channel_stats", "competitor_data"],
+      "authoritative_for": ["channel_stats"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "OAuth 2.0 or API key via Google Cloud Console. Quota: 10,000 units/day default. Realized by host AI's native Google integration or via integrations-engine.md credential pattern. Enable by setting youtube_api: true in creator-os-config.local.json.",
+      "requires_capability": "youtube_api",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "status": "seed"
+    },
+    {
+      "id": "instagram_graph_api",
+      "label": "Instagram Graph API (Meta) v25.0",
+      "vendor": "Meta",
+      "default_flag": "not_installed",
+      "provides": ["analytics", "competitor_data"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Instagram Business or Creator account required. OAuth 2.0 via Meta app. Scopes: instagram_business_basic, instagram_business_content_publish, instagram_business_manage_insights. Enable by setting instagram_api: true in creator-os-config.local.json.",
+      "requires_capability": "instagram_api",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "status": "seed"
+    },
+    {
+      "id": "tiktok_api",
+      "label": "TikTok APIs (Content Posting, Research, Display)",
+      "vendor": "TikTok",
+      "default_flag": "not_installed",
+      "provides": ["analytics", "trend_data"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "TikTok developer account required. Login Kit for OAuth 2.0. Content Posting API: video.publish or video.upload scope. Research API: non-profit/academic only. Enable by setting tiktok_api: true in creator-os-config.local.json.",
+      "requires_capability": "tiktok_api",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "status": "seed"
+    },
+    {
+      "id": "pinterest_api",
+      "label": "Pinterest API v5",
+      "vendor": "Pinterest",
+      "default_flag": "not_installed",
+      "provides": ["analytics", "trend_data"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Pinterest Developer account required. OAuth 2.0. Scopes: pins:read, pins:write, boards:read. Rate limits: reads 1,000/min, writes 100/min. Enable via creator-os-config.local.json (no capability flag exists yet — add pinterest_api: true).",
+      "requires_capability": "pinterest_api",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "status": "seed"
+    },
+    {
+      "id": "google_drive",
+      "label": "Google Drive / Google Workspace",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": ["document_source"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Realized by host AI's native Google Drive integration when the deployment has connected it. Scopes: drive.readonly for reading files. No client built here.",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects", "option_c_gpt_api"],
+      "status": "seed"
+    },
+    {
+      "id": "sqlite_cache",
+      "label": "Offline SQLite caches (keyword FTS5 + competitor snapshots)",
+      "vendor": "(local)",
+      "default_flag": "not_installed",
+      "provides": ["keyword_data", "competitor_data"],
+      "privacy_sensitivity": "low",
+      "auth_note": "none — reads shared/cache/index.local.db (FTS5 keyword cache) and pipeline/competitor-snapshots/index.local.db (competitor metadata). Both gitignored. Built by tools/setup.py and tools/competitor_snapshot.py.",
+      "requires_capability": "keyword_cache",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "mcp_server",
+      "label": "Creator OS MCP server (stdio, Claude Desktop)",
+      "vendor": "(local)",
+      "default_flag": "not_installed",
+      "provides": ["keyword_data", "competitor_data", "analytics"],
+      "privacy_sensitivity": "low",
+      "auth_note": "none — stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes 8 tools: cache_query, competitor_scan, source_staleness, drift_check, quality_score, add_competitor, get_capabilities, get_connectors. Enable by setting mcp_server: true in creator-os-config.local.json.",
+      "requires_capability": "mcp_server",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "playwright_render",
+      "label": "Playwright Chromium (JS rendering for competitor snapshots)",
+      "vendor": "Microsoft",
+      "default_flag": "not_installed",
+      "provides": ["competitor_data"],
+      "privacy_sensitivity": "low",
+      "auth_note": "pip install -r requirements-render.txt + playwright install chromium. On macOS M2: auto-downloads arm64 binary. Enables ytInitialData extraction from YouTube pages that require JavaScript. Enable by setting playwright: true in creator-os-config.local.json.",
+      "requires_capability": "playwright",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "web_intel_crawl",
+      "label": "Web crawl (acquire.py + fetch_resilient.py, polite rate-governed)",
+      "vendor": "(local)",
+      "default_flag": "available",
+      "provides": ["keyword_data", "competitor_data", "trend_data"],
+      "privacy_sensitivity": "low",
+      "auth_note": "none — pip install -r requirements-crawl.txt + requirements-scraper.txt. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    }
+  ],
+  "deployment_modes": {
+    "option_a_claude_desktop_mcp": {
+      "label": "Claude Desktop with MCP (full capability)",
+      "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render"]
+    },
+    "option_b_claude_projects": {
+      "label": "Claude Projects on claude.ai (knowledge-only)",
+      "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
+      "connectors_requiring_setup": [],
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api"]
+    },
+    "option_c_gpt_api": {
+      "label": "GPT-4 API with function calling",
+      "connectors_available_by_default": ["manual_paste", "uploaded_file"],
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl"]
+    },
+    "option_d_chatgpt_web": {
+      "label": "ChatGPT Web with custom instructions",
+      "connectors_available_by_default": ["manual_paste", "uploaded_file"],
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive"]
+    },
+    "option_e_gemini": {
+      "label": "Gemini (Gems or API)",
+      "connectors_available_by_default": ["manual_paste", "uploaded_file"],
+      "connectors_requiring_setup": ["google_drive"],
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api"]
+    }
+  },
+  "extensible_stubs": ["pinterest_api", "snapchat_api", "spotify_podcasts"]
+}

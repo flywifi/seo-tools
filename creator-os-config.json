@@ -1,6 +1,7 @@
 {
   "_comment": "Creator OS capability flags. Set to true only when the capability is actually available in your environment. The system reads this file to gracefully degrade features that require local tooling. Non-technical users: you only need to touch this file if you install something new.",
   "_local_override": "To set your own flags without affecting git pull, copy this file to creator-os-config.local.json in the same directory. The .local.json file is gitignored and its capability flags always win over these defaults. You only need to copy the keys you want to override.",
+  "_connectors_note": "The connector registry at shared/connectors/ provides a richer evidence-routing model built on these flags. Run: python3 shared/connectors/connectors.py --plan to see which data sources (YouTube API, SQLite cache, etc.) are active and which evidence types each one provides. The get_connectors MCP tool exposes this via Claude Desktop.",
   "capabilities": {
     "mcp_server": {
       "enabled": false,
@@ -36,6 +37,11 @@
       "enabled": false,
       "description": "TikTok Content Posting API credentials configured. Enables: caption and hashtag publishing, display API lookups.",
       "requires": "TikTok developer app credentials in pipeline/user-context/api-credentials.local.json"
+    },
+    "pinterest_api": {
+      "enabled": false,
+      "description": "Pinterest API v5 credentials configured. Enables: pin analytics, board data, trend data queries.",
+      "requires": "Pinterest developer app credentials in pipeline/user-context/api-credentials.local.json"
     },
     "voice_profile": {
       "enabled": false,
