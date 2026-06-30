@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P12 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`. Ready for PR to main.
+P6 through P14 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`. Ready for PR to main.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -11,6 +11,8 @@ P6 through P12 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - P10: keyword-compare atom — cross-platform keyword comparison matrix — shipped (commit 45f9493).
 - P11: implementation packaging, MCP server, examples, and deployment docs — shipped.
 - P12: local sync workflow — `tools/setup.py`, `tools/update.py`, `.local.json` override pattern — shipped.
+- P13: macOS / Apple Silicon (M2) compatibility — shipped.
+- P14: account-based connector registry and evidence routing — shipped (commit 3ae970d).
 
 ## Shipped
 
@@ -113,9 +115,10 @@ P6 through P12 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - `skills/seo-keywords/workflow.json`: keyword-compare added to shortcut_atoms.
 
 ### Implementation packaging and delivery (P11)
-- `tools/mcp_server.py`: stdio MCP server (FastMCP) exposing 7 tools to Claude Desktop —
+- `tools/mcp_server.py`: stdio MCP server (FastMCP) exposing 8 tools to Claude Desktop —
   `cache_query`, `competitor_scan`, `source_staleness`, `drift_check`, `quality_score`,
-  `add_competitor`, `get_capabilities`. Each tool delegates via subprocess to existing Python scripts.
+  `add_competitor`, `get_capabilities`, `get_connectors`. Each tool delegates via subprocess to
+  existing Python scripts. (`get_connectors` added in P14.)
 - `requirements-mcp.txt`: `mcp` package dependency.
 - `creator-os-config.json`: 9-flag capability registry at repo root. All default to false; operator
   sets flags to true after completing each setup step. `get_capabilities` MCP tool overlays live
@@ -145,6 +148,36 @@ P6 through P12 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   - `pipeline-lane/deal-pipeline-home-decor-brand.md`
 - `docs/DEPLOYMENT.md`: multi-platform deployment reference — 5 options (A through E),
   first-run checklist, competitor intelligence first-run, capability matrix, feature flags.
+
+### macOS / Apple Silicon compatibility (P13)
+- `tools/acquire.py`: added `_mac_playwright_chrome()` glob helper and macOS arm64/x86_64 paths
+  to `CHROME_CANDIDATES`; Linux CI paths preserved at top of list.
+- `tools/setup.py`: `check_platform()` function detects macOS, prints arm64 vs Rosetta status,
+  and emits Homebrew install hints and `playwright install chromium` reminder.
+- `docs/SETUP_MAC.md`: standalone Mac setup guide — Option B quick start for Alex, full
+  Claude Desktop + MCP walkthrough for Matt, M2-specific notes and troubleshooting table.
+- `docs/DEPLOYMENT.md`: Mac note added to prerequisites (SETUP_MAC.md reference + `playwright
+  install chromium` one-time command).
+
+### Account-based connector registry and evidence routing (P14)
+- `shared/connectors/connectors.json`: 12-connector registry with state-based model
+  (`available/disabled/not_installed/permission_blocked/metadata_only`), evidence type
+  `provides` lists, authoritative_for markers, and deployment mode profiles for all 5 options.
+- `shared/connectors/connectors.md`: connector model documentation — states, evidence types,
+  degradation+convergence policy, restricted-evidence pattern, deployment matrix, capability
+  flag mapping table, usage instructions.
+- `shared/connectors/connectors.py`: offline resolver (stdlib only) — reads registry + optional
+  flag file, maps boolean `creator-os-config.json` capabilities to connector states via
+  `CAPABILITY_TO_CONNECTOR`, resolves per-evidence provider chains and gaps, emits restricted
+  connector notes. Modes: `--list`, `--plan`, `--json`.
+- `shared/connectors/feature-flags.example.json`: sample Option A (Claude Desktop + MCP)
+  deployment config demonstrating restricted-evidence pattern for youtube_data_api.
+- `tools/mcp_server.py`: added `get_connectors` as 8th MCP tool — calls connectors.py `--plan
+  --json` and returns the active evidence plan for the deployment.
+- `creator-os-config.json`: added `_connectors_note` key and missing `pinterest_api` capability.
+- `CLAUDE.md`: layout section updated with `connectors/` note; non-negotiable added for
+  connector registry write isolation (connectors.json is the source of truth;
+  per-deployment overrides go in gitignored `creator-os-connectors.local.json`).
 
 ### Local sync workflow (P12)
 - `tools/setup.py`: one-time first-run initializer — creates 5 local data files from schemas,
