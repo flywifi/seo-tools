@@ -13,7 +13,7 @@ project-builder is the Content lane spoke responsible for turning a topic or wor
 fully structured DIY home decor project brief. It composes six atoms in sequence, assembling a
 snapshot, materials list, step sequence, styling variants, and renter alternatives into a single
 `project_brief` object. It applies the safety protocol to flag any steps that cross into licensed
-trades (electrical, plumbing, structural), ensuring Alexandra never publishes guidance that requires
+trades (electrical, plumbing, structural), ensuring the creator never publishes guidance that requires
 a permit or a licensed contractor.
 
 ## Inputs

@@ -1,6 +1,6 @@
 ---
 id: project-snapshot
-maintainer: Matt Slason
+maintainer: the operator
 last_reviewed: 2026-06-30
 ---
 
@@ -36,7 +36,7 @@ expected classification.
 
 ## Updating
 
-If Alex's pillar definitions change, update shared/brand-engine.md (source of truth). This atom
+If the creator's pillar definitions change, update shared/brand-engine.md (source of truth). This atom
 reads pillar definitions from that engine at runtime; no update to this SKILL.md is needed unless
 the pillar list itself changes.
 

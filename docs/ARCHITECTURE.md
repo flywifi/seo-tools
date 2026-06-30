@@ -9,7 +9,7 @@ role: Authoritative design reference for Creator OS. Describes the hub-and-spoke
 
 ## Overview
 
-Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills built for Alexandra Slason, a
+Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills built for the creator, a
 YouTube creator in the moody-vintage home decor and DIY niche.
 
 **Hub-and-spoke.** A single routing hub (`creator-core`) sits at the center. It classifies every

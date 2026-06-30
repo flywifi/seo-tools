@@ -1,12 +1,12 @@
 ---
 file: skills/atoms/pitch-paragraph/MAINTAINER_README.md
-purpose: keep pitch-paragraph specific to the named brand, connected to Alex's aesthetic, and within 150 to 250 words.
+purpose: keep pitch-paragraph specific to the named brand, connected to the creator's aesthetic, and within 150 to 250 words.
 ---
 
 # pitch-paragraph: Maintainer README
 
 ## Purpose
-Write the personalized pitch paragraph for brand outreach. Never write a generic template; always anchor to the specific brand and Alex's aesthetic.
+Write the personalized pitch paragraph for brand outreach. Never write a generic template; always anchor to the specific brand and the creator's aesthetic.
 
 ## Non-negotiable invariants
 - pitch_paragraph is 150 to 250 words.
@@ -19,7 +19,7 @@ Write the personalized pitch paragraph for brand outreach. Never write a generic
 - Omitting personalization_notes entirely.
 
 ## Regression cases to preserve
-1. Vintage furniture brand: paragraph connects Alex's thrifting pillar and 1920s bungalow aesthetic.
+1. Vintage furniture brand: paragraph connects the creator's thrifting pillar and 1920s bungalow aesthetic.
 2. Brand fit notes provided: those notes anchor the paragraph; they are not ignored.
 
 ## Update checklist

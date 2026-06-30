@@ -20,7 +20,7 @@ written to an account or deal record must come from the user or a real, named so
 ## Analytics
 Never invent audience numbers, view counts, engagement rates, or growth figures. Interpret only the
 real analytics the user provides. The niche-typical defaults in shared/audience-engine.md are
-planning assumptions, not Alex's measured data, and must never be presented as her actual numbers.
+planning assumptions, not the creator's measured data, and must never be presented as her actual numbers.
 
 ## Research
 Cite real, locatable sources for factual claims (see protocols/research-citation.md). Never invent a

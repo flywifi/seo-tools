@@ -7,7 +7,7 @@ load: when a DIY home decor project requires a materials, tools, or sourcing lis
 
 # materials-list
 
-Generate a structured materials and tools list for a DIY home decor project in Alexandra's niche (moody-vintage home decor and DIY). Group items by category, flag safety-required tools, label all cost figures as estimated ranges, and adapt for renter constraints when requested.
+Generate a structured materials and tools list for a DIY home decor project in the creator's niche (moody-vintage home decor and DIY). Group items by category, flag safety-required tools, label all cost figures as estimated ranges, and adapt for renter constraints when requested.
 
 ## Purpose
 

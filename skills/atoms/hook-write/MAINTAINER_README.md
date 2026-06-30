@@ -15,7 +15,7 @@ Write one hook in the published voice that establishes the promise or problem fa
 
 ## Known failure modes
 - Burying the promise behind a long intro.
-- Writing in the planning-to-Alex voice instead of the audience voice.
+- Writing in the planning-to-the creator voice instead of the audience voice.
 
 ## Regression cases to preserve
 1. Shorts, 30 seconds: the first 3 seconds carry the hook with no setup.

@@ -1,5 +1,5 @@
 {
-  "_comment": "project-builder composes atoms into a complete DIY project brief. Shortcut atoms let Alex request just a materials list or just step sequence.",
+  "_comment": "project-builder composes atoms into a complete DIY project brief. Shortcut atoms let the creator request just a materials list or just step sequence.",
   "id": "project-builder",
   "description": "Complete DIY home decor project brief: snapshot, materials, steps, safety, styling variants, and renter alternatives.",
   "steps": [

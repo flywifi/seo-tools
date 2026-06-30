@@ -10,12 +10,12 @@ Analyze channel and post metrics against industry benchmarks and surface priorit
 
 ## Non-negotiable invariants
 - Never fabricates analytics data; gap-record fires when analytics_source is null.
-- All benchmark comparisons are labeled as industry benchmarks, not Alex's personal data.
+- All benchmark comparisons are labeled as industry benchmarks, not the creator's personal data.
 - data_quality is always set (real/estimated/partial) in the output.
 
 ## Known failure modes
 - Fabricating engagement rates when no analytics file is provided.
-- Presenting a benchmark as Alex's actual CTR.
+- Presenting a benchmark as the creator's actual CTR.
 - Missing the gap-record path when analytics_source is null.
 
 ## Regression cases to preserve

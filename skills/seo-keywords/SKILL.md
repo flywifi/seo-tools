@@ -14,7 +14,7 @@ description skeleton ready for the video-development spoke or direct use.
 ## Purpose
 
 seo-keywords answers the question: "What keywords should I rank for, who is already ranking, and
-what title structure gives Alexandra the best chance to surface in search and suggested video?" It
+what title structure gives the creator the best chance to surface in search and suggested video?" It
 is the authoritative SEO input for any Content lane artifact. It does not generate hooks, outlines,
 or production packages (use video-development for those). It does not write final copy (it produces
 a skeleton). It does not assert exact search volume figures as confirmed fact; all volume signals
@@ -45,7 +45,7 @@ and flagged for re-verification.
   thrift flip DIY").
 - `platform_targets`: defaults to all three platforms if omitted. YouTube is always included.
 - `persona`: if omitted, the spoke infers from the topic and states the inference explicitly in the
-  output so Alexandra can confirm or override.
+  output so the creator can confirm or override.
 - `competitor_count`: passed directly to competitor-scan; controls how many competitors are returned
   per platform call.
 
@@ -80,7 +80,7 @@ and flagged for re-verification.
     "youtube": {
       "overserved_angles": ["list of angles already covered by multiple competitors"],
       "underserved_angles": ["list of angles with thin or absent coverage"],
-      "gap_summary": "string -- most actionable differentiation opportunity for Alexandra on YouTube",
+      "gap_summary": "string -- most actionable differentiation opportunity for the creator on YouTube",
       "confidence": "high | medium | low"
     },
     "pinterest": {
@@ -122,7 +122,7 @@ and flagged for re-verification.
 Key output guarantees:
 
 - Volume figures are always ranges labeled "[estimated, unverified]". Exact numbers are never
-  asserted. The output block includes an explicit note directing Alexandra to verify with a live
+  asserted. The output block includes an explicit note directing the creator to verify with a live
   tool before acting.
 - Competitor names, URLs, and scale tiers from competitor-scan are passed through unchanged,
   including their [unverified] labels where present.
@@ -166,7 +166,7 @@ Key output guarantees:
   video-development or document-studio for finished copy.
 - Asserting exact search volume figures as verified fact. Volume output from this spoke is always
   an estimated range requiring independent verification.
-- Researching Alexandra's own channel analytics or video performance. Use the platform API
+- Researching the creator's own channel analytics or video performance. Use the platform API
   connection via web-intel-engine Level 1 directly.
 - Trend momentum research outside a specific keyword. Use trend-check for broad trend signals.
 - Brand partnership or sponsorship research. Use deal-tracker or account-manager spokes.

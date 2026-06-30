@@ -19,7 +19,7 @@ begins. This atom handles that single operation so that video-development and co
 hand off to it without duplicating scheduling logic. It respects already-taken slots and surfaces
 a rationale the creator can act on or override.
 
-The output is consistent with Alex's ecosystem ratio: one long-form anchor plus 3 to 5
+The output is consistent with the creator's ecosystem ratio: one long-form anchor plus 3 to 5
 short-form drops per project, spread across the window to sustain algorithmic momentum without
 clustering on the same day.
 
@@ -70,7 +70,7 @@ Output notes:
   3 to 7 days after, and 1 repurpose drop 10 to 14 days after for longtail reach.
 - `rationale` must reference the cadence, the window, and any seasonal urgency implied by the
   working title. Do not fabricate engagement data or historical performance claims.
-- `human_review_required` is always `true`. Alex confirms or overrides before the date is locked.
+- `human_review_required` is always `true`. the creator confirms or overrides before the date is locked.
 
 ## Do NOT use for
 

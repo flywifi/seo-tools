@@ -5,7 +5,7 @@ description: generate a small set of pillar-aligned content ideas for a given pi
 
 # idea-generate
 
-Generate a few content ideas (not a calendar) for one pillar, anchored to Alex's aesthetic and a
+Generate a few content ideas (not a calendar) for one pillar, anchored to the creator's aesthetic and a
 named persona.
 
 ## Input

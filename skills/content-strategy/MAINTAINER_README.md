@@ -21,7 +21,7 @@ downloadable files.
 - Recommending a trend from memory without trend-check.
 - Returning one idea instead of a cluster.
 - Drifting to bright farmhouse aesthetic.
-- Presenting niche-typical audience defaults as Alex's measured data.
+- Presenting niche-typical audience defaults as the creator's measured data.
 
 ## Fragile fallbacks that must not become defaults
 - Proceeding with stale trend data without the stale flag.

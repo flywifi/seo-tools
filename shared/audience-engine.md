@@ -9,9 +9,9 @@ load: when the request involves audience, personas, targeting, analytics interpr
 # Audience Engine
 
 ## How to use this file
-These are the niche-typical defaults for planning. They are NOT Alex's measured audience.
+These are the niche-typical defaults for planning. They are NOT the creator's measured audience.
 When real analytics are provided (YouTube Studio, Instagram/TikTok insights, Pinterest analytics),
-those override everything here. Never present these defaults as Alex's actual numbers, and never
+those override everything here. Never present these defaults as the creator's actual numbers, and never
 fabricate specific audience figures (see protocols/no-fabrication.md).
 
 ## Audience profile (niche-typical)

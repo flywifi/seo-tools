@@ -9,7 +9,7 @@ purpose: keep hashtag-set tiered (broad/niche/micro), honest about count instabi
 Return a three-tier hashtag set ready to paste. Never assert follower counts or reach figures as facts.
 
 ## Non-negotiable invariants
-- Output includes a note directing Alex to verify counts in-app before use.
+- Output includes a note directing the creator to verify counts in-app before use.
 - Tier structure: 3 to 5 broad, 5 to 8 niche, 3 to 5 micro.
 - Tags are relevant to moody/vintage home decor and DIY; never generic lifestyle tags unrelated to the niche.
 

@@ -6,7 +6,7 @@ purpose: keep persona-map scoped to the five canonical personas and honest about
 # persona-map: Maintainer README
 
 ## Purpose
-Map a topic to one or more of Alex Slason's five canonical personas. Never invent personas or present inferred demographics as measured data.
+Map a topic to one or more of the creator's five canonical personas. Never invent personas or present inferred demographics as measured data.
 
 ## Non-negotiable invariants
 - Only the five canonical personas are valid outputs: Renter, Vintage Hunter, Organizer, Holiday Maximalist, New Homeowner.
@@ -15,7 +15,7 @@ Map a topic to one or more of Alex Slason's five canonical personas. Never inven
 
 ## Known failure modes
 - Inventing a sixth persona not in the five-persona model.
-- Stating "most of Alex's audience is renters" as a fact without real analytics data.
+- Stating "most of the creator's audience is renters" as a fact without real analytics data.
 - Mapping all topics to "Renter" because it is the most common niche persona.
 
 ## Regression cases to preserve

@@ -9,5 +9,5 @@
     {"step": 4, "atom": "govern-artifact", "input_from": "assembled_mediakit_package", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
   ],
   "shortcut_atoms": ["pitch-paragraph", "mediakit-section", "rate-card-fill"],
-  "note": "Benchmark rates are labeled as industry benchmarks, never as Alex's personal rates without explicit labeling. FTC disclosure note appears in pitch when content is sponsored."
+  "note": "Benchmark rates are labeled as industry benchmarks, never as the creator's personal rates without explicit labeling. FTC disclosure note appears in pitch when content is sponsored."
 }

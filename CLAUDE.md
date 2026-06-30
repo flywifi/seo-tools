@@ -2,7 +2,7 @@
 Conventions for working in the Creator OS repository (the `seo-tools` repo).
 
 ## What this repo is
-Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills for Alexandra Slason, a YouTube
+Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills for the creator, a YouTube
 creator in the moody-vintage home decor and DIY niche. A routing hub (`creator-core`) classifies each
 request into one of three lanes (Content, Document, Pipeline/CRM), loads only the engines that lane
 needs, enforces the protocols, and dispatches to a capability spoke. Spokes are thin orchestrators

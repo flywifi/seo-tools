@@ -3,7 +3,7 @@ file: skills/atoms/pitch-paragraph/SKILL.md
 name: pitch-paragraph
 description: >
   Write the personalized pitch paragraph for a brand partnership outreach email or media kit.
-  Anchors to a specific brand, connects Alex's moody-vintage aesthetic and audience to the brand's
+  Anchors to a specific brand, connects the creator's moody-vintage aesthetic and audience to the brand's
   product category, and proposes a concrete content format. Outputs the pitch paragraph, three
   subject line options, and personalization notes for the sender to verify before use. Do NOT use
   to send emails, post to any external system, or produce final outreach copy without human review.
@@ -15,13 +15,13 @@ load:
 
 # pitch-paragraph
 
-Write Alex Slason's personalized pitch paragraph for a brand partnership inquiry.
+Write the creator's personalized pitch paragraph for a brand partnership inquiry.
 
 ## Purpose
 
 Produce one ready-to-refine pitch paragraph (150 to 250 words) that a spoke or human writer can
 drop into an outreach email or media kit. The paragraph must feel specific to the target brand, not
-templated. It names the brand, connects its product category to Alex's content aesthetic and audience
+templated. It names the brand, connects its product category to the creator's content aesthetic and audience
 in concrete terms, and proposes a single content format with enough detail that the brand contact
 understands what a collaboration would look like.
 
@@ -43,8 +43,8 @@ in the final email or content piece.
   "brand_name": "string -- exact brand name as it should appear in the pitch",
   "brand_product_category": "string -- the product category or product line being pitched (e.g., vintage-style cabinet hardware, linen throw blankets)",
   "proposed_format": "integration | dedicated | short-form -- the content format to propose",
-  "brand_fit_notes": "string or null -- optional: why this brand fits Alex's niche; provide any specific product detail, shared aesthetic, or audience overlap the writer knows",
-  "alex_pillar": "string or null -- optional: which of Alex's five content pillars this partnership fits (DIY and room makeovers | thrifting antiques and markets | home organization and systems | seasonal and holiday decor | backyard and outdoor living)"
+  "brand_fit_notes": "string or null -- optional: why this brand fits the creator's niche; provide any specific product detail, shared aesthetic, or audience overlap the writer knows",
+  "alex_pillar": "string or null -- optional: which of the creator's five content pillars this partnership fits (DIY and room makeovers | thrifting antiques and markets | home organization and systems | seasonal and holiday decor | backyard and outdoor living)"
 }
 ```
 
@@ -79,8 +79,8 @@ in the final email or content piece.
 
 The paragraph should:
 1. Open with a one-sentence connection that names the brand and its product category alongside a
-   specific element of Alex's aesthetic or audience (not a generic compliment).
-2. Describe in one to two sentences how the partnership serves Alex's audience -- what problem the
+   specific element of the creator's aesthetic or audience (not a generic compliment).
+2. Describe in one to two sentences how the partnership serves the creator's audience -- what problem the
    product solves or what mood it supports for the moody-vintage home decor viewer.
 3. Propose the specific content format with a concrete framing (for example: "a dedicated video
    walking through a dark-and-moody bedroom refresh anchored by [Brand]'s hardware line").
@@ -119,7 +119,7 @@ Add additional notes for any metric, claim, or product detail the sender should 
 - Producing final ready-to-send copy without human review. `personalization_notes` must be resolved
   by the sender before the email goes out.
 - Generating pitch paragraphs for product categories unrelated to moody-vintage home decor, DIY,
-  thrifting, seasonal decor, or outdoor living. Out-of-niche pitches misrepresent Alex's audience
+  thrifting, seasonal decor, or outdoor living. Out-of-niche pitches misrepresent the creator's audience
   and brand.
 - Inventing past campaign results, engagement metrics, subscriber counts, or brand endorsements.
   If real figures are not supplied, the atom omits them and flags the gap.

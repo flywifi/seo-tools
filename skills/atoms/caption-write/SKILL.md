@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/caption-write/SKILL.md
 name: caption-write
-description: write ONE platform-appropriate social media caption (hook line, body, CTA) in Alex's warm published-to-audience voice for an Instagram Reel, TikTok, YouTube Short, or Pinterest Pin. Use when shortform-repurposing, content-calendar, or any spoke needs a ready-to-post caption. Do NOT use to write a full video script, a long-form YouTube description, or a title card.
+description: write ONE platform-appropriate social media caption (hook line, body, CTA) in the creator's warm published-to-audience voice for an Instagram Reel, TikTok, YouTube Short, or Pinterest Pin. Use when shortform-repurposing, content-calendar, or any spoke needs a ready-to-post caption. Do NOT use to write a full video script, a long-form YouTube description, or a title card.
 load:
   - shared/brand-engine.md
   - shared/platform-engine.md

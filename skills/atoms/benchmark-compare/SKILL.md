@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/benchmark-compare/SKILL.md
 name: benchmark-compare
-description: "compares a provided channel or post metric against industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json; does NOT fabricate Alex's metrics or access live analytics."
+description: "compares a provided channel or post metric against industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json; does NOT fabricate the creator's metrics or access live analytics."
 load:
   - canonical-sources/rate-benchmarks/benchmarks.json
   - protocols/no-fabrication.md
@@ -10,16 +10,16 @@ load:
 
 # benchmark-compare
 
-Compare one channel or post metric against industry benchmark ranges for Alex's niche and platform.
+Compare one channel or post metric against industry benchmark ranges for the creator's niche and platform.
 
 ## Purpose
 
 This atom looks up the benchmark range for a named metric from
-`canonical-sources/rate-benchmarks/benchmarks.json` and, if a real value for Alex is supplied by
+`canonical-sources/rate-benchmarks/benchmarks.json` and, if a real value for the creator is supplied by
 the caller, computes how that value sits relative to the range. All benchmark ranges in that file
-are industry estimates for the home-decor-diy niche; they are not Alex's personal historical data.
+are industry estimates for the home-decor-diy niche; they are not the creator's personal historical data.
 
-Key constraint: this atom never fetches, infers, or fabricates Alex's actual analytics. If
+Key constraint: this atom never fetches, infers, or fabricates the creator's actual analytics. If
 `alex_value` is not passed in, `alex_value` is null and `gap_assessment` is "unknown". The caller
 is responsible for supplying a real number when a comparison is needed.
 
@@ -63,12 +63,12 @@ Field rules:
 
 - `benchmark_range`: pulled verbatim from `canonical-sources/rate-benchmarks/benchmarks.json`. If the metric or niche is not found, set to null and note the gap in `interpretation`.
 - `gap_assessment`: "above" if `alex_value` exceeds `benchmark_range.high`; "below" if it falls under `benchmark_range.low`; "within" if it sits between low and high (inclusive); "unknown" if `alex_value` is null or `benchmark_range` is null.
-- `data_source`: always the literal string `"industry-estimate-home-decor-diy"` to make clear these are estimates, not Alex's measured history.
+- `data_source`: always the literal string `"industry-estimate-home-decor-diy"` to make clear these are estimates, not the creator's measured history.
 - `recommendation`: omit fabricated targets. Recommendations must be directional and tied to the gap (for example, "test a tighter hook in the first 30 seconds to lift AVD toward the high end of the range"), never invented metric promises.
 
 ## Do NOT use for
 
-- Fabricating Alex's CTR, AVD, RPM, or any other personal analytics value when none is supplied.
+- Fabricating the creator's CTR, AVD, RPM, or any other personal analytics value when none is supplied.
 - Accessing live YouTube Studio, Instagram Insights, or any analytics API. This atom is offline and reads only from the local benchmarks file.
 - Producing final public-facing reports. Output is a draft signal for spokes to interpret and present.
 - Metrics not listed in `benchmarks.json`. If a caller requests an unsupported metric, return null for `benchmark_range` and flag it.
@@ -81,4 +81,4 @@ comes from `shared/platform-engine.md`. Fabrication rules are governed by
 `protocols/no-fabrication.md`: if any field would require inventing a number, set it to null and
 surface a flag instead. Benchmark ranges in the source file are expressed as low-to-high pairs
 with a unit label; always echo both ends of the range and the unit in output so downstream spokes
-can format them correctly for Alex.
+can format them correctly for the creator.

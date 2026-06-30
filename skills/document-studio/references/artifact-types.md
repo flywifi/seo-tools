@@ -12,7 +12,7 @@ The output of ingest-route for every file processed. Required elements: artifact
 A structured project brief derived from an ingested file (e.g., notes, a DOCX, or a PDF). Required elements: all elements of the project-builder project brief artifact, plus a source_file_type and ingestion_record reference.
 
 ## Script draft
-A section-by-section video script derived from an ingested file. Required elements: section sequence (hook, intro, body steps, transitions, CTA, outro), one section object per entry (section_type, script_text in planning-to-Alex voice, duration_estimate_seconds, broll_suggestion), and a source_file_type reference.
+A section-by-section video script derived from an ingested file. Required elements: section sequence (hook, intro, body steps, transitions, CTA, outro), one section object per entry (section_type, script_text in planning-to-the creator voice, duration_estimate_seconds, broll_suggestion), and a source_file_type reference.
 
 ## Caption set (from document)
 Captions derived from ingested content for one or more platforms. Required elements: one caption per platform, each within platform character limits, with hook line, body, CTA, FTC disclosure line (if required), character count, and a source_file_type reference.

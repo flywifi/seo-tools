@@ -6,7 +6,7 @@ purpose: keep production-task scoped to task list generation; it never schedules
 # production-task: Maintainer README
 
 ## Purpose
-Break a project into a task list with categories, due dates relative to publish date, and a critical path. The output is for Alex to copy into her own system.
+Break a project into a task list with categories, due dates relative to publish date, and a critical path. The output is for the creator to copy into her own system.
 
 ## Non-negotiable invariants
 - All due dates are relative to publish_date (e.g., "T-14 days" for pre-production), not absolute dates, unless publish_date is provided in ISO 8601.

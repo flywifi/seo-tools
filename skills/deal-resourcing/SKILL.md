@@ -9,7 +9,7 @@ load: always
 
 Pipeline/CRM lane spoke that converts a signed brand deal into a complete, actionable production
 resource plan. It reads the deal record from `pipeline/deals/`, validates the stage, and emits a
-task list, production timeline, invoice schedule, and go/no-go checklist that Alexandra Slason can
+task list, production timeline, invoice schedule, and go/no-go checklist that the creator can
 act on immediately.
 
 ## Purpose
@@ -72,7 +72,7 @@ fabricated rates are a hard-fail violation.
       "task_id": "string",
       "deliverable": "string -- the contractual deliverable this task belongs to",
       "step": "string -- the specific production action",
-      "owner": "Alex | brand | agency | TBD",
+      "owner": "the creator | brand | agency | TBD",
       "due_date": "ISO-8601 date or null",
       "due_date_note": "string or null -- explains null or a date flagged as estimated",
       "status": "not-started | in-progress | complete | blocked"
@@ -167,5 +167,5 @@ Key output guarantees:
 - Estimating rates, CPMs, or invoice amounts when none are present in the deal record. Record a gap
   and surface it for human resolution.
 - Account-level relationship management or outreach drafting. Use account-manager for those tasks.
-- Any deal not associated with Alexandra Slason's Creator OS pipeline. This spoke is calibrated to
+- Any deal not associated with the creator's Creator OS pipeline. This spoke is calibrated to
   the pipeline schema in `shared/pipeline-engine.md` and will misread records from other schemas.

@@ -21,7 +21,7 @@ Brand partnership deals move through a fixed nine-stage lifecycle. Skipping stag
 evidence, or misrecording transition dates corrupts the CRM history and undermines revenue tracking.
 This atom centralizes the transition logic so every spoke that needs to move a deal uses one shared,
 auditable check rather than duplicating rules. It returns either a ready-to-persist transition record
-or a precise list of what evidence is still missing, so the spoke can prompt Alexandra for only what
+or a precise list of what evidence is still missing, so the spoke can prompt the creator for only what
 is needed.
 
 ## Inputs
@@ -117,7 +117,7 @@ stage in `warnings`.
 - Fabricating or inferring any evidence field that the caller did not supply
   (`protocols/no-fabrication.md`). If evidence is missing, block and list it; never assume.
 - Making final release or payment decisions; the transition record must pass through govern-artifact
-  before surfacing to Alexandra.
+  before surfacing to the creator.
 - Archiving a deal that still has an unpaid invoice without adding a warning in `warnings` flagging
   the open invoice.
 

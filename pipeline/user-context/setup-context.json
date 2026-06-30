@@ -1,5 +1,5 @@
 {
-  "_comment": "Alex and Matt's environment and tool setup. Update when tools change. Used by source_currency.py to filter MCP update checks and by integrations-engine to know which connectors are active.",
+  "_comment": "the creator and Matt's environment and tool setup. Update when tools change. Used by source_currency.py to filter MCP update checks and by integrations-engine to know which connectors are active.",
   "_gitignore_note": "Real credentials config goes in setup-context.local.json (gitignored). This schema stays generic.",
   "os": null,
   "os_version": null,

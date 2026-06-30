@@ -7,7 +7,7 @@
       "expect": [
         "gap-record returned immediately when no analytics data is provided",
         "reason is analytics_data_required",
-        "no fabricated metrics or benchmark presented as Alex's data"
+        "no fabricated metrics or benchmark presented as the creator's data"
       ]
     },
     {
@@ -16,7 +16,7 @@
       "expect": [
         "ingest-route parses the CSV locally",
         "benchmark-compare runs per metric in the CSV",
-        "benchmark ranges are labeled as industry benchmarks, not Alex's personal data",
+        "benchmark ranges are labeled as industry benchmarks, not the creator's personal data",
         "data_quality reflects whether data is real or estimated"
       ]
     },

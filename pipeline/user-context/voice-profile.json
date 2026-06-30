@@ -1,5 +1,5 @@
 {
-  "_comment": "Alex Slason's real phrases and voice patterns. Grows over time as Alex uses the system. voice-engine.md checks this file and weights these examples above its seed list when non-empty.",
+  "_comment": "the creator's real phrases and voice patterns. Grows over time as the creator uses the system. voice-engine.md checks this file and weights these examples above its seed list when non-empty.",
   "_gitignore_note": "Add real phrases here freely — this file is committed (no PII). Real analytics stay out.",
   "actual_phrases": [],
   "opening_hooks": [],
@@ -7,5 +7,5 @@
   "signing_off_phrases": [],
   "phrases_to_avoid": [],
   "last_updated": null,
-  "notes": "Add phrases as Alex produces content. Pull from video descriptions, pinned comments, captions she has approved, and anything she writes in the first person. Even 5 to 10 real entries dramatically improve output authenticity."
+  "notes": "Add phrases as the creator produces content. Pull from video descriptions, pinned comments, captions she has approved, and anything she writes in the first person. Even 5 to 10 real entries dramatically improve output authenticity."
 }

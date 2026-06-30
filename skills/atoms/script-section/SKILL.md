@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/script-section/SKILL.md
 name: script-section
-description: Write ONE named section of a YouTube video script for Alex Slason in planning-to-Alex voice (speaking notes, second person). Sections are hook, intro, body-step, broll-cue, transition, cta, and outro. Use when any scripting or video-development workflow needs a single section drafted. Do NOT use to write a full script in one call; call this atom once per section and use workflow.json repeat per_section to compose the full script.
+description: Write ONE named section of a YouTube video script for the creator in planning-to-the creator voice (speaking notes, second person). Sections are hook, intro, body-step, broll-cue, transition, cta, and outro. Use when any scripting or video-development workflow needs a single section drafted. Do NOT use to write a full script in one call; call this atom once per section and use workflow.json repeat per_section to compose the full script.
 load:
   - shared/brand-engine.md
   - shared/voice-engine.md
@@ -9,15 +9,15 @@ load:
 
 # script-section
 
-Write one named section of a YouTube video script in planning-to-Alex voice (speaking notes, second
+Write one named section of a YouTube video script in planning-to-the creator voice (speaking notes, second
 person, "you'll say..."). Designed to be called once per section and composed into a full script via
 workflow.json `repeat: per_section`.
 
 ## Purpose
 
 Produce a single discrete script section that a spoke can assemble, in order, into a complete video
-script. Each call writes exactly one section. The output is planning language addressed to Alex, not
-published audience-facing copy. Tone is collaborative and practical (see "planning to Alex" mode in
+script. Each call writes exactly one section. The output is planning language addressed to the creator, not
+published audience-facing copy. Tone is collaborative and practical (see "planning to the creator" mode in
 `shared/brand-engine.md`).
 
 The seven supported section types are:
@@ -36,7 +36,7 @@ The seven supported section types are:
 - **cta** -- the call-to-action window. Prompts subscribe, like, comment, or click. Warm and
   conversational; never pushy. Matches platform norms.
 - **outro** -- closes the video. Teases the next video or playlist, thanks the viewer, signs off
-  in Alex's voice.
+  in the creator's voice.
 
 ## Inputs
 
@@ -68,16 +68,16 @@ Field notes:
 ```json
 {
   "section_type": "string -- mirrors the input section_type",
-  "script_text": "string -- the speaking notes for Alex, written in second person planning voice (e.g. 'You'll open by holding up the before photo and saying: ...'). broll-cue sections contain editor notes, not spoken copy.",
+  "script_text": "string -- the speaking notes for the creator, written in second person planning voice (e.g. 'You'll open by holding up the before photo and saying: ...'). broll-cue sections contain editor notes, not spoken copy.",
   "duration_estimate_seconds": "integer -- rough estimate of spoken delivery time; 0 for broll-cue",
-  "notes": "string or null -- timing or delivery tips for Alex (e.g. 'Pause here to let the before image land before moving on'). Null when no tips apply.",
+  "notes": "string or null -- timing or delivery tips for the creator (e.g. 'Pause here to let the before image land before moving on'). Null when no tips apply.",
   "broll_suggestion": "string or null -- a specific b-roll shot or sequence to capture at this point in the script. Always populated for broll-cue sections. Populated for other sections when a strong visual opportunity exists. Null otherwise."
 }
 ```
 
 Output rules:
 
-- `script_text` is always in planning-to-Alex voice. Use "you" to address Alex. Write as speaking
+- `script_text` is always in planning-to-the creator voice. Use "you" to address the creator. Write as speaking
   notes, not a verbatim teleprompter script: guide the delivery without locking every word. Example
   register: "You'll say something like: 'This corner was a disaster for two years, and I finally
   fixed it in one weekend.'"
@@ -108,7 +108,7 @@ Output rules:
 
 ## References
 
-- `shared/brand-engine.md` -- voice modes; use "planning to Alex" mode for all output from this atom.
+- `shared/brand-engine.md` -- voice modes; use "planning to the creator" mode for all output from this atom.
 - `shared/platform-engine.md` -- hook opening-window lengths, Short vs long-form timing rules, and
   CTA norms per platform.
 - `protocols/formatting-metadata.md` -- no em dashes; ranges use "to."

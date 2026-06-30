@@ -6,15 +6,15 @@ purpose: keep partnership-mediakit honest about rate data sources and triggering
 # partnership-mediakit: Maintainer README
 
 ## Purpose
-Build brand partnership outreach materials: pitch paragraph, media kit sections, and rate card. Uses labeled benchmark ranges when Alex's rates are not provided.
+Build brand partnership outreach materials: pitch paragraph, media kit sections, and rate card. Uses labeled benchmark ranges when the creator's rates are not provided.
 
 ## Non-negotiable invariants
 - rate-card-fill source is always set (personal_rate/benchmark_range) and accurate.
-- Benchmark rates are labeled as industry benchmarks, never as Alex's personal rates without explicit labeling.
+- Benchmark rates are labeled as industry benchmarks, never as the creator's personal rates without explicit labeling.
 - FTC disclosure note appears in pitch and media kit sections when content is sponsored.
 
 ## Known failure modes
-- Presenting a benchmark engagement rate as Alex's measured data in a media kit section.
+- Presenting a benchmark engagement rate as the creator's measured data in a media kit section.
 - Omitting the FTC disclosure note in a sponsored outreach kit.
 - A pitch paragraph that is generic and could apply to any creator.
 
