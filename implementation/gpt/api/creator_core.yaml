@@ -1,0 +1,47 @@
+name: creator_core_dispatch
+description: >
+  Routes a creator request through Creator OS. Classifies the request into one of
+  three lanes (Content, Document, Pipeline/CRM), identifies the required engines and
+  protocols, and dispatches to the appropriate spoke. Returns a routing object and the
+  spoke's deliverable output. Use this as the entry point for all Creator OS requests
+  when no specific spoke is known.
+parameters:
+  type: object
+  properties:
+    request:
+      type: string
+      description: >
+        The creator's raw request in natural language. Examples:
+        "plan a dark moody fall mantel video",
+        "write a hook for my chalk paint armoire reel",
+        "move the West Elm deal to in-production",
+        "what keywords should I use for a thrift haul video on YouTube vs Pinterest".
+    context:
+      type: object
+      description: Optional context that helps routing and adaptation.
+      properties:
+        current_season:
+          type: string
+          enum: [fall, holiday, spring, summer, evergreen]
+          description: Active publishing season if relevant.
+        platform_targets:
+          type: array
+          items:
+            type: string
+            enum: [youtube, pinterest, tiktok, google]
+          description: Platforms the creator is optimizing for.
+        budget_tier:
+          type: string
+          enum: [under_50, 50_to_200, 200_to_500, 500_plus]
+          description: Project budget tier for adaptation.
+        skill_level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+          description: Creator's DIY skill level for content adaptation.
+      additionalProperties: false
+  required:
+    - request
+returns: >
+  JSON routing object: request_classification, primary_lane, recommended_spoke,
+  engines_required, protocols_to_enforce, adaptation_axes, pipeline_action,
+  open_questions. Followed by the spoke's deliverable output.
