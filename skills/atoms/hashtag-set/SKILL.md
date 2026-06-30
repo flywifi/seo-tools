@@ -77,7 +77,7 @@ The `all_tags_combined` string must respect the total count appropriate to the p
 ## Do NOT use for
 
 - YouTube hashtag generation. YouTube hashtag behavior, placement rules, and volume limits differ significantly from short-form platforms. Use the appropriate YouTube-specific atom or spoke.
-- Non-home-decor or non-DIY content. This atom is tuned for Alex's niche; tag selection for other verticals (fitness, food, travel) will be off-target.
+- Non-home-decor or non-DIY content. This atom is tuned for the creator's niche; tag selection for other verticals (fitness, food, travel) will be off-target.
 - Batch generation across multiple posts in one call. Call once per post so tier selection stays scoped to the specific topic and platform.
 - Stating tag reach or follower counts as verified facts. Output the tags and the `note` only; never fabricate or invent usage statistics. See `protocols/no-fabrication.md`.
 - Replacing caption copy or keyword research. This atom outputs hashtags only. For caption copy use caption-write; for keyword clusters use keyword-cluster.

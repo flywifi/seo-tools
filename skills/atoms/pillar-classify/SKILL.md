@@ -1,6 +1,6 @@
 ---
 name: pillar-classify
-description: classify a single idea or piece into one of Alex's five content pillars with a confidence and rationale. Use when a spoke needs to tag content by pillar. Do NOT use to generate ideas (use idea-generate) or to map personas (use audience-engine directly).
+description: classify a single idea or piece into one of the creator's five content pillars with a confidence and rationale. Use when a spoke needs to tag content by pillar. Do NOT use to generate ideas (use idea-generate) or to map personas (use audience-engine directly).
 ---
 
 # pillar-classify

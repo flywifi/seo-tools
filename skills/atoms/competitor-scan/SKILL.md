@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/competitor-scan/SKILL.md
 name: competitor-scan
-description: research competitor creators or videos in the moody/vintage home decor and DIY niche on YouTube, Pinterest, or TikTok; surface content gaps, overserved topics, and differentiation angles for Alexandra. Use when content-strategy, seo-keywords, or video-development needs a competitive landscape read before recommending a topic. Do NOT use to assert subscriber counts, view counts, or engagement rates as fact; all scale estimates and metrics must be marked [unverified] if not retrieved from a live API response.
+description: research competitor creators or videos in the moody/vintage home decor and DIY niche on YouTube, Pinterest, or TikTok; surface content gaps, overserved topics, and differentiation angles for the creator. Use when content-strategy, seo-keywords, or video-development needs a competitive landscape read before recommending a topic. Do NOT use to assert subscriber counts, view counts, or engagement rates as fact; all scale estimates and metrics must be marked [unverified] if not retrieved from a live API response.
 load:
   - shared/web-intel-engine.md
   - protocols/no-fabrication.md
@@ -10,7 +10,7 @@ load:
 # competitor-scan
 
 Research the competitive landscape for a given topic or keyword in the moody/vintage home decor and
-DIY niche, surface what competitors are doing, what is overserved, and where Alexandra has room to
+DIY niche, surface what competitors are doing, what is overserved, and where the creator has room to
 differentiate.
 
 ## Purpose
@@ -50,12 +50,12 @@ names, video titles, subscriber counts, view counts, or specific metrics.
       "url_if_found": "string or null -- direct URL to channel/profile/board if retrieved; null if not found",
       "estimated_scale": "small | medium | large -- coarse size tier based on retrieval signals; always [unverified] unless sourced from a live API",
       "content_angle": "string -- how this creator covers the topic (style, format, tone, production level)",
-      "gap_or_differentiation": "string -- what this creator does NOT do, or where Alexandra's brand could stand apart from them"
+      "gap_or_differentiation": "string -- what this creator does NOT do, or where the creator's brand could stand apart from them"
     }
   ],
   "overserved_angles": ["list of sub-topics or formats that multiple competitors already cover heavily"],
   "underserved_angles": ["list of sub-topics, formats, or aesthetics with thin or no coverage found"],
-  "overall_gap_summary": "string -- one-paragraph synthesis of the most actionable differentiation opportunity for Alexandra in this topic on this platform",
+  "overall_gap_summary": "string -- one-paragraph synthesis of the most actionable differentiation opportunity for the creator in this topic on this platform",
   "confidence": "high | medium | low -- based on retrieval quality: high means multiple live sources returned; medium means partial retrieval or mixed freshness; low means retrieval largely failed or returned thin results",
   "retrieval_gaps": [],
   "source_artifacts": [],
@@ -76,7 +76,7 @@ unless the value was returned directly from a platform API with confirmed scope.
 - Asserting exact subscriber counts, view counts, watch time, save rates, or engagement rates as
   confirmed fact. Present all numeric signals as estimates marked [unverified] and recommend a
   manual platform check to confirm.
-- Researching Alexandra's own channel performance (use the platform API connection directly via
+- Researching the creator's own channel performance (use the platform API connection directly via
   `shared/web-intel-engine.md` Level 1 for owned analytics).
 - Generating content titles, hooks, or descriptions (use title-generate, hook-write, or the
   video-development spoke).
@@ -87,7 +87,7 @@ unless the value was returned directly from a platform API with confirmed scope.
 ## Pipeline note
 
 Calls `shared/web-intel-engine.md` starting at Level 2 (public analytics endpoints) for competitor
-accounts, since Level 1 (platform API) is reserved for Alexandra's own connected accounts. Falls
+accounts, since Level 1 (platform API) is reserved for the creator's own connected accounts. Falls
 through to Levels 3 and 4 (polite crawl and search index) for creators not surfaced at Level 2.
 All retrieved content passes through `shared/injection-guard-engine.md` before entering analysis.
 

@@ -9,7 +9,7 @@ load: always
 
 ## Purpose
 
-Delivers competitive intelligence to support content positioning for Alexandra Slason's moody-vintage
+Delivers competitive intelligence to support content positioning for the creator's moody-vintage
 home decor and DIY channel. The skill scans publicly visible content across specified platforms,
 clusters observed content angles, identifies overserved and underserved topics, and returns a
 structured gap report.
@@ -69,7 +69,7 @@ The following atoms are orchestrated in sequence. `trend-check` is conditional.
    to sharpen differentiation angles.
 4. **trend-check** (conditional) -- runs only when `topic` matches a seasonal or trending
    signal in shared/platform-engine.md; appends trend context to underserved topics.
-5. **gap-record** -- compares clusters against Alexandra's existing content footprint and outputs
+5. **gap-record** -- compares clusters against the creator's existing content footprint and outputs
    `overserved_topics`, `underserved_topics`, and `keyword_gaps`.
 6. **govern-artifact** -- validates the assembled report against protocols/quality-gates.md and
    sets `quality_gate_result`.

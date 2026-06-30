@@ -9,5 +9,5 @@
     {"step": 4, "atom": "govern-artifact", "input_from": "assembled_audience_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
   ],
   "shortcut_atoms": ["persona-map"],
-  "note": "Never fabricate comment text or demographic data. Present niche-typical persona defaults as defaults, not as Alex's measured data."
+  "note": "Never fabricate comment text or demographic data. Present niche-typical persona defaults as defaults, not as the creator's measured data."
 }

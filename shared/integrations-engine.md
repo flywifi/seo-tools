@@ -209,7 +209,7 @@ Creator OS uses two distinct TikTok API surfaces with different scopes and acces
   seconds. Longer videos (60 to 90 seconds) can work for tutorials if the hook is in the
   first 3 seconds.
 - These are reference ranges, not guarantees. Always flag as `source: platform_research`
-  and not as Alex's personal data.
+  and not as the creator's personal data.
 
 ### Transcript and caption limitations
 

@@ -1,14 +1,13 @@
 ---
 file: skills/partnership-mediakit/SKILL.md
 name: partnership-mediakit
-description: Pipeline/CRM spoke that builds brand partnership outreach materials for Alex Slason: pitch paragraph, media kit sections, and rate card. Uses real data when supplied; uses labeled benchmarks when not.
+description: Pipeline/CRM spoke that builds brand partnership outreach materials for the creator: pitch paragraph, media kit sections, and rate card. Uses real data when supplied; uses labeled benchmarks when not.
 load: always
 ---
 
 # partnership-mediakit
 
-Pipeline/CRM lane spoke that assembles a complete brand partnership outreach package for Alexandra
-Slason's moody-vintage home decor and DIY channel. On a single request it produces the pitch
+Pipeline/CRM lane spoke that assembles a complete brand partnership outreach package for the creator's moody-vintage home decor and DIY channel. On a single request it produces the pitch
 paragraph, the full set of media kit sections, and a rate card. It never guesses at figures or
 invents data: real channel data is used when the caller supplies it; labeled industry benchmark
 ranges from `canonical-sources/rate-benchmarks/benchmarks.json` are used when real data is absent;
@@ -17,7 +16,7 @@ fields that cannot be filled by either source are returned as explicit placehold
 ## Purpose
 
 Brand partnerships are the primary direct-revenue lane for this channel. partnership-mediakit
-exists so that every outreach package Alex sends is accurate, on-brand, legally compliant, and
+exists so that every outreach package the creator sends is accurate, on-brand, legally compliant, and
 ready for human review before it leaves the system. It orchestrates four atoms in sequence and
 gates the completed package through govern-artifact before surfacing it to the user.
 
@@ -29,7 +28,7 @@ write any copy that could not be defended line-by-line against `protocols/no-fab
 
 Key invariants:
 
-- Benchmark rates are always labeled as industry reference ranges, never as Alex's personal rates.
+- Benchmark rates are always labeled as industry reference ranges, never as the creator's personal rates.
   This rule is enforced at the atom level (rate-card-fill) and re-checked by govern-artifact.
 - Any sponsored content arrangement described in this package must carry an FTC disclosure note per
   `protocols/safety.md`. The spoke flags this in the pitch paragraph's `personalization_notes` and
@@ -53,7 +52,7 @@ assumed or invented.
   "brand_product_category": "string -- the product category or specific product line being pitched",
   "proposed_format": "integration | dedicated | short-form -- primary content format to propose",
   "brand_fit_notes": "string or null -- optional: specific aesthetic or audience overlap the caller knows; strengthens the pitch paragraph if provided",
-  "alex_pillar": "string or null -- optional: which of Alex's five content pillars this partnership fits",
+  "alex_pillar": "string or null -- optional: which of the creator's five content pillars this partnership fits",
   "channel_data": {
     "subscribers": "integer or null",
     "avg_views_per_video": "integer or null",
@@ -201,14 +200,14 @@ Output guarantees:
 - Producing final publishable materials without human review. `human_review_required` is always
   `true`; every `placeholders_to_fill` entry must be resolved and `compliance_notes` confirmed
   before the package goes out.
-- Presenting benchmark rate ranges as Alex's personal rates in any context. Benchmark figures are
+- Presenting benchmark rate ranges as the creator's personal rates in any context. Benchmark figures are
   always labeled as industry reference ranges. Presenting them otherwise violates
   `protocols/no-fabrication.md`.
 - Fabricating subscriber counts, engagement rates, audience demographics, case study outcomes, or
   brand endorsements. If real data is not supplied and no benchmark applies, the field is null and
   flagged, never filled with an invented figure.
 - Outreach for product categories outside moody-vintage home decor, DIY, thrifting, seasonal decor,
-  or outdoor living. Pitches for out-of-niche products misrepresent Alex's audience and brand.
+  or outdoor living. Pitches for out-of-niche products misrepresent the creator's audience and brand.
 - Creating or updating `pipeline/` CRM records. Read access to an existing account record is
   permitted when `crm_account_id` is supplied; write operations belong to deal-pipeline or
   account-manager.

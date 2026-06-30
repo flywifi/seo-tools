@@ -16,7 +16,7 @@ Calculate or estimate ROI metrics for a brand deal. Every estimated field is lab
 ## Known failure modes
 - Computing effective_hourly_rate when production_hours is null.
 - Omitting the data_quality field.
-- Presenting an estimated CPM as "Alex's CPM" without a data_quality label.
+- Presenting an estimated CPM as "the creator's CPM" without a data_quality label.
 
 ## Regression cases to preserve
 1. Only deal_rate provided, no views: estimated_cpm is null; data_quality is partial; flags includes "views unknown."

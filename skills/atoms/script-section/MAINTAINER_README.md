@@ -1,15 +1,15 @@
 ---
 file: skills/atoms/script-section/MAINTAINER_README.md
-purpose: keep script-section in planning-to-Alex voice, one section per call, with an honest duration estimate.
+purpose: keep script-section in planning-to-the creator voice, one section per call, with an honest duration estimate.
 ---
 
 # script-section: Maintainer README
 
 ## Purpose
-Write one script section (hook, intro, body-step, b-roll cue, transition, CTA, or outro) in the planning-to-Alex voice. One section per call; use workflow.json repeat: per_section for full scripts.
+Write one script section (hook, intro, body-step, b-roll cue, transition, CTA, or outro) in the planning-to-the creator voice. One section per call; use workflow.json repeat: per_section for full scripts.
 
 ## Non-negotiable invariants
-- Voice is always planning-to-Alex (second person "you'll say..."), never published-to-audience.
+- Voice is always planning-to-the creator (second person "you'll say..."), never published-to-audience.
 - One section per call; do not combine multiple section types in a single output.
 - duration_estimate_seconds reflects the section type and target_duration_seconds if provided.
 

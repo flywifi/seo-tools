@@ -1,5 +1,5 @@
 {
-  "_comment": "Alex Slason channel stats. Update when Alex provides real figures. All null until provided. Used by benchmark-compare and rate-card-fill to ground recommendations in actual channel size.",
+  "_comment": "the creator channel stats. Update when the creator provides real figures. All null until provided. Used by benchmark-compare and rate-card-fill to ground recommendations in actual channel size.",
   "_gitignore_note": "Real snapshots go in channel-context.local.json (gitignored). This schema file stays null.",
   "channel_name": null,
   "channel_url": null,

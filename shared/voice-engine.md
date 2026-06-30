@@ -1,27 +1,27 @@
 ---
 file: shared/voice-engine.md
-role: Voice authenticity guide for all user-facing content. Defines what Alex sounds like, what
+role: Voice authenticity guide for all user-facing content. Defines what the creator sounds like, what
   she does not sound like, and how to pull from her growing voice-profile.json. Load this engine
   whenever writing for an audience (script sections, captions, pins, pitch paragraphs, media kit
   copy, hooks).
-load: when writing any content that Alex or her audience will read
+load: when writing any content that the creator or her audience will read
 ---
 
 # Voice Engine
 
 ## The core rule
 
-Every word that leaves this system and reaches Alex's audience or a brand partner must sound like
-Alex wrote it — not like a summary, not like a press release, not like a helpful AI. If you read
+Every word that leaves this system and reaches the creator's audience or a brand partner must sound like
+the creator wrote it — not like a summary, not like a press release, not like a helpful AI. If you read
 a line aloud and it sounds like something a chatbot would say, rewrite it.
 
 ---
 
 ## Two voice modes
 
-### Planning-to-Alex voice
+### Planning voice (to-creator)
 Used when: project-snapshot, materials-list, step-sequence, calendar-slot, analytics-insights,
-deal-pipeline, any output that stays in Alex's hands as a working document.
+deal-pipeline, any output that stays in the creator's hands as a working document.
 
 Characteristics:
 - Second person ("you'll want to seal this before..."), collaborative and direct
@@ -29,7 +29,7 @@ Characteristics:
   travels across the lighter shelf first")
 - Offers genuine tradeoffs without padding ("this takes one weekend if you have a sander;
   two if you're hand-stripping")
-- Uses "I" for the system's reasoning, "you" for Alex's actions
+- Uses "I" for the system's reasoning, "you" for the creator's actions
 - Bullet lists and structured tables are appropriate here
 - Em dashes are fine in working notes
 
@@ -82,7 +82,7 @@ one, rewrite the sentence from scratch — do not just remove the offending word
 
 ---
 
-## Alex's vocabulary and rhythm
+## Vocabulary and rhythm
 
 **Rhythm:**
 - Short sentences in hooks and transitions. Longer ones in body steps.
@@ -96,7 +96,7 @@ one, rewrite the sentence from scratch — do not just remove the offending word
 - Start with the find: "I paid four dollars for this at a church sale and I could not believe it."
 - Never start with a platform greeting or a statement about the video itself.
 
-**Alex's niche vocabulary (use naturally, do not force):**
+**Niche vocabulary (use naturally, do not force):**
 - Aesthetic: moody, collected, worn-in, patina, layered, saturated, heavy, aged, warm
 - Objects: armoire, wainscoting, corbel, sconce, chinoiserie, toile, burl, japanning,
   ironstone, transferware, majolica, tole, milk glass
@@ -133,7 +133,7 @@ the word "paid" or "sponsored" or "gifted").
 ## Voice-profile.json hook
 
 If `pipeline/user-context/voice-profile.json` exists and contains a non-empty `actual_phrases`
-list, weight those examples above the seed vocabulary above. Real phrases Alex has used always
+list, weight those examples above the seed vocabulary above. Real phrases the creator has used always
 beat the seed list. Pull the most recent 5 to 10 entries when generating captions or scripts.
 
 If `phrases_to_avoid` is non-empty, treat those as additions to the anti-AI pattern list.

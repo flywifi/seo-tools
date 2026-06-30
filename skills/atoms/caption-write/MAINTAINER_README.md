@@ -9,7 +9,7 @@ purpose: keep caption-write in published-to-audience voice, within platform char
 Write one platform-appropriate caption in the published-to-audience voice. FTC disclosure is flagged in the output, never omitted.
 
 ## Non-negotiable invariants
-- Voice is always published-to-audience, never planning-to-Alex.
+- Voice is always published-to-audience, never planning-to-the creator.
 - If sponsored/gifted/affiliate is true, the output must include ftc_disclosure_line.
 - Character counts stay within platform limits: Instagram 2200, TikTok 2200, Pinterest 500, Shorts 100 visible.
 

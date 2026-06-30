@@ -1,14 +1,14 @@
 ---
 file: skills/audience-research/SKILL.md
 name: audience-research
-description: research and profile Alex Slason's target audience by mapping comments, engagement patterns, and platform signals to the five-persona model; surfaces audience insights to inform content strategy. Content lane spoke.
+description: research and profile the creator's target audience by mapping comments, engagement patterns, and platform signals to the five-persona model; surfaces audience insights to inform content strategy. Content lane spoke.
 load: always
 ---
 
 # audience-research
 
 Content lane spoke that transforms raw audience signals (comments, analytics exports, platform data)
-into a verified persona profile and actionable audience insights for Alexandra Slason's
+into a verified persona profile and actionable audience insights for the creator's
 moody-vintage home decor and DIY channel.
 
 ## Purpose
@@ -167,9 +167,9 @@ Key output guarantees:
 - Generating content ideas, hooks, titles, or scripts. Use content-strategy or video-development.
 - Fabricating or estimating comment sentiment, demographic breakdowns, or engagement figures when
   no source data is provided. Null and record a gap instead.
-- Competitor audience research. This spoke profiles Alex's own audience only. Use
+- Competitor audience research. This spoke profiles the creator's own audience only. Use
   competitor-analysis for competitor channel profiling.
 - Producing final editorial decisions. Outputs are research inputs requiring human review before
   any publishing action.
-- Any audience outside Alexandra Slason's moody-vintage home decor and DIY channel. These persona
+- Any audience outside the creator's moody-vintage home decor and DIY channel. These persona
   definitions and signal thresholds are calibrated for that specific niche and creator.

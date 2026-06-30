@@ -2,7 +2,7 @@
 file: skills/atoms/mediakit-section/SKILL.md
 name: mediakit-section
 description: >
-  Write one section of Alexandra Slason's brand partnership media kit in published-to-audience,
+  Write one section of the creator's brand partnership media kit in published-to-audience,
   brand-facing voice. Sections available: channel_overview, audience_demo, content_pillars,
   partnership_formats, case_study, rates_summary. Uses real channel data when supplied; falls back
   to clearly labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json,
@@ -16,7 +16,7 @@ load:
 
 # mediakit-section
 
-Write one section of Alex Slason's brand partnership media kit.
+Write one section of the creator's brand partnership media kit.
 
 ## Purpose
 
@@ -81,14 +81,14 @@ come from `shared/brand-engine.md`. No fabrication under any circumstance; see
 ### Section guidance
 
 **channel_overview**
-Introduce Alex, her channel, its aesthetic (moody, vintage, collected-over-time), and her primary
+Introduce the creator, her channel, its aesthetic (moody, vintage, collected-over-time), and her primary
 content niche (moody vintage home decor and DIY). Draw identity language from `shared/brand-engine.md`.
 Subscriber count and average views are real data only; emit null and flag if not supplied.
 
 **audience_demo**
 Describe the core audience. Pull any real demographic data from `channel_data.top_demographics`.
 Planning assumptions in `shared/audience-engine.md` may be referenced as niche-typical context only;
-they must be labeled as planning assumptions, never as Alex's measured data.
+they must be labeled as planning assumptions, never as the creator's measured data.
 
 **content_pillars**
 List the five content pillars from `shared/brand-engine.md` with brief descriptions contextualizing
@@ -127,7 +127,7 @@ Include a note that final rates are quoted individually based on deliverable sco
 
 - `shared/brand-engine.md` -- channel identity, aesthetic, content pillars, voice (published mode)
 - `shared/audience-engine.md` -- planning-assumption audience profile (label as niche-typical, not
-  Alex's measured data)
+  the creator's measured data)
 - `protocols/no-fabrication.md` -- hard rule; no invented figures under any circumstance
 - `canonical-sources/rate-benchmarks/benchmarks.json` -- industry benchmark ranges (benchmark tier
   only, always labeled)

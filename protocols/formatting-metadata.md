@@ -9,7 +9,7 @@ load: on every output, and before producing any downloadable file
 
 ## Punctuation (hard rules)
 - Never use em dashes in any user-facing output (scripts, captions, pitch paragraphs, pin titles,
-  media kit copy, any content Alex or her audience will read). Use commas, parentheses, periods, or
+  media kit copy, any content the creator or her audience will read). Use commas, parentheses, periods, or
   rephrasing instead. Internal documentation (SKILL.md files, engine docs, protocol files,
   architecture docs) may use em dashes as standard prose punctuation.
 - Never use en dashes for ranges anywhere. Write ranges with "to" (for example, "1 to 3 hours,"
@@ -25,11 +25,11 @@ file mechanics.
 
 ## Document metadata
 Set the document author or creator and the last-modified-by fields to the document_author value in
-shared/brand-engine.md (default Alexandra Slason). Never leave an application default such as
+shared/brand-engine.md (default the creator). Never leave an application default such as
 "Python," "Claude," "Un-named," "anonymous," or a tool's name.
 
 ## Voice and accessibility
-Use the correct voice mode from shared/brand-engine.md: the planning voice when talking to Alex, the
+Use the correct voice mode from shared/brand-engine.md: the planning voice when talking to the creator, the
 published voice when writing audience-facing copy. Keep language plain and explain any jargon or
 acronym briefly on first use, since the audience skews beginner to intermediate.
 

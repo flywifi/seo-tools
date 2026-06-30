@@ -15,7 +15,7 @@ CRM first stop for any brand relationship question. Health-checks accounts, scan
 
 ## Known failure modes
 - Attempting to advance a deal stage inside this spoke (that belongs to deal-pipeline).
-- Presenting renewal candidates as confirmed without noting they are flagged for Alex's review.
+- Presenting renewal candidates as confirmed without noting they are flagged for the creator's review.
 - Fabricating account data when the account is not found.
 
 ## Regression cases to preserve

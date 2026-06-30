@@ -1,17 +1,17 @@
 ---
 file: skills/atoms/rate-card-fill/MAINTAINER_README.md
-purpose: keep rate-card-fill honest about data source; benchmark ranges are labeled as benchmarks, never as Alex's personal rates.
+purpose: keep rate-card-fill honest about data source; benchmark ranges are labeled as benchmarks, never as the creator's personal rates.
 ---
 
 # rate-card-fill: Maintainer README
 
 ## Purpose
-Fill a rate card for a brand proposal. When Alex's rates are not provided, use labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json.
+Fill a rate card for a brand proposal. When the creator's rates are not provided, use labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json.
 
 ## Non-negotiable invariants
 - source field is always set (personal_rate/benchmark_range) and accurate.
 - disclaimer appears in the output whenever source is benchmark_range for any line item.
-- Never present a benchmark range as "Alex's rate" without explicit labeling.
+- Never present a benchmark range as "the creator's rate" without explicit labeling.
 
 ## Known failure modes
 - Setting source to personal_rate when only benchmark data is available.

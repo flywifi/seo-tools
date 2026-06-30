@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/rate-card-fill/SKILL.md
 name: rate-card-fill
-description: fill a rate card for a brand partnership proposal by populating each requested format with either Alex's actual rates (when provided) or clearly labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json. Use when a spoke is assembling a media kit, partnership proposal, or negotiation brief and needs structured per-format pricing. Do NOT use to invent, guess, or present benchmark ranges as Alex's personal rates.
+description: fill a rate card for a brand partnership proposal by populating each requested format with either the creator's actual rates (when provided) or clearly labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json. Use when a spoke is assembling a media kit, partnership proposal, or negotiation brief and needs structured per-format pricing. Do NOT use to invent, guess, or present benchmark ranges as the creator's personal rates.
 load:
   - canonical-sources/rate-benchmarks/benchmarks.json
   - protocols/no-fabrication.md
@@ -10,10 +10,10 @@ load:
 # rate-card-fill
 
 Populate a structured rate card for a brand partnership proposal. Each line item is sourced either
-from Alex's actual rates (if the caller supplies them) or from the industry benchmark ranges in
+from the creator's actual rates (if the caller supplies them) or from the industry benchmark ranges in
 `canonical-sources/rate-benchmarks/benchmarks.json`. The two sources are never mixed without
 explicit labeling. A benchmark range is always presented as an industry reference point, never as
-Alex's personal rate.
+the creator's personal rate.
 
 ## Purpose
 
@@ -23,13 +23,13 @@ kits, or negotiation briefs draws from the same source of truth and applies the 
 
 It handles two scenarios:
 
-1. Alex's actual rates are provided: each requested format is filled from `alex_actual_rates`. Source
+1. the creator's actual rates are provided: each requested format is filled from `alex_actual_rates`. Source
    is marked `personal_rate`. No benchmark data is surfaced unless a format is missing from the
    provided rates.
-2. Alex's rates are not provided (or a format is absent from them): the atom reads
+2. the creator's rates are not provided (or a format is absent from them): the atom reads
    `canonical-sources/rate-benchmarks/benchmarks.json` and returns the benchmark range for that
    format, labeled `benchmark_range`. A disclaimer is appended to the output stating that the figures
-   are industry reference ranges and not Alex's confirmed rates.
+   are industry reference ranges and not the creator's confirmed rates.
 
 The atom never fabricates a number. If neither source covers a requested format, that format is
 returned with `rate_or_range: null` and a `notes` value explaining the gap.
@@ -95,7 +95,7 @@ Field rules:
 - `source` is `no_data` only when neither `alex_actual_rates` nor `benchmarks.json` covers the
   format. In that case `rate_or_range` is null and `notes` names the gap explicitly.
 - `disclaimer` must read: "Rates marked benchmark_range are industry reference ranges sourced from
-  canonical-sources/rate-benchmarks/benchmarks.json. They are not Alex's confirmed personal rates.
+  canonical-sources/rate-benchmarks/benchmarks.json. They are not the creator's confirmed personal rates.
   Verify against current market data before quoting to a brand." Omit this field (null) only when
   every line item carries `source: personal_rate`.
 - `recommended_negotiation_floor` is derived solely from benchmark entries already present in
@@ -103,7 +103,7 @@ Field rules:
 
 ## Do NOT use for
 
-- Presenting benchmark ranges as Alex's personal rates, even informally or approximately. Source
+- Presenting benchmark ranges as the creator's personal rates, even informally or approximately. Source
   labeling is mandatory on every line item (`protocols/no-fabrication.md`).
 - Fabricating rates, inventing ranges, or extrapolating figures for formats not covered by
   `alex_actual_rates` or `benchmarks.json`. Return `no_data` and flag the gap instead.

@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/persona-map/SKILL.md
 name: persona-map
-description: Map a content topic or request to the most relevant audience persona(s) from Alex Slason's five-persona model, returning primary and secondary personas, fit rationale, adaptation notes, and a confidence score. Use when a spoke needs to target or adapt content by audience segment. Do NOT use to generate content, write hooks, or assign keywords.
+description: Map a content topic or request to the most relevant audience persona(s) from the creator's five-persona model, returning primary and secondary personas, fit rationale, adaptation notes, and a confidence score. Use when a spoke needs to target or adapt content by audience segment. Do NOT use to generate content, write hooks, or assign keywords.
 load:
   - shared/audience-engine.md
   - shared/brand-engine.md
@@ -11,7 +11,7 @@ load:
 
 # persona-map
 
-Given a content topic, this atom identifies which of Alex Slason's five audience personas the topic
+Given a content topic, this atom identifies which of the creator's five audience personas the topic
 serves most strongly, which personas are secondary fits, and what adaptation considerations apply
 per persona. No content is generated; mapping only.
 
@@ -83,7 +83,7 @@ relevant rather than omitting the key.
 - Producing audience analytics or engagement predictions; this atom uses static persona definitions
   only. If real analytics override the defaults, the calling spoke must apply them after this atom
   returns.
-- Any audience other than Alex Slason's moody-vintage home decor and DIY audience. Do not
+- Any audience other than the creator's moody-vintage home decor and DIY audience. Do not
   extrapolate these personas to a different creator or niche.
 
 ## Pipeline note

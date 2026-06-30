@@ -1,7 +1,7 @@
 ---
 file: skills/analytics-insights/SKILL.md
 name: analytics-insights
-description: "analyzes Alex Slason's channel and post metrics, compares them to industry benchmarks, and surfaces prioritized recommendations; does NOT fabricate data and returns a gap-record if no analytics data is provided."
+description: "analyzes the creator's channel and post metrics, compares them to industry benchmarks, and surfaces prioritized recommendations; does NOT fabricate data and returns a gap-record if no analytics data is provided."
 load: always
 ---
 
@@ -9,7 +9,7 @@ load: always
 
 ## Purpose
 
-Reads provided analytics data (exported CSV, screenshot, or structured object) for Alex Slason's YouTube, Instagram, TikTok, or Pinterest presence. Performs benchmark comparison against canonical rate benchmarks. Returns a prioritized insights report with data-quality flags.
+Reads provided analytics data (exported CSV, screenshot, or structured object) for the creator's YouTube, Instagram, TikTok, or Pinterest presence. Performs benchmark comparison against canonical rate benchmarks. Returns a prioritized insights report with data-quality flags.
 
 If no analytics data is provided or the data is insufficient for meaningful analysis, this skill invokes the `gap-record` atom and returns a structured gap record instead of fabricating or estimating values. No metrics, rates, or benchmarks are invented; all comparisons draw from `canonical-sources/rate-benchmarks/benchmarks.json`.
 

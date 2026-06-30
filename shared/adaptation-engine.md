@@ -47,7 +47,7 @@ one to three pins or carousels.
 
 ## Adaptation order
 1. Identify skill level, tenure, budget, and persona (ask or assume and state it).
-2. Generate the core project or content in Alex's voice and aesthetic.
+2. Generate the core project or content in the creator's voice and aesthetic.
 3. Produce the renter-friendly and budget alternatives where relevant.
 4. Adapt to each target surface per platform-engine.
 5. Hand to quality-review against the rubric.

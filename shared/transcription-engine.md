@@ -252,7 +252,7 @@ SEO-sensitive content.
 
 ### Niche vocabulary that trips auto-captions
 
-The following terms appear in Alex Slason's content and are commonly misrecognized by generic
+The following terms appear in the creator's content and are commonly misrecognized by generic
 ASR models including YouTube's auto-caption system. Flag these in post-editing review and
 consider adding them to a custom Whisper vocabulary prompt if faster-whisper's `initial_prompt`
 parameter is used.

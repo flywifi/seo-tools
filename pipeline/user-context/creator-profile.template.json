@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy this file to creator-profile.local.json and fill in real values. The .local.json is gitignored and never committed. This template shows the schema only.",
+  "_gitignore_note": "creator-profile.local.json is gitignored. Keep real identity details out of git.",
+  "creator_name": null,
+  "creator_display_name": null,
+  "channel_name": null,
+  "channel_url": null,
+  "document_author": null,
+  "location_city": null,
+  "location_state": null,
+  "location_country": null,
+  "timezone": null,
+  "contact_email": null,
+  "notes": "Fill in creator_name and document_author first — these are used in generated file metadata and planning-voice outputs."
+}

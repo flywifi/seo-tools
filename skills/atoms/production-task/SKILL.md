@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/production-task/SKILL.md
 name: production-task
-description: break a signed deal or content project into a discrete production task list with owners (Alex), due dates relative to publish date, dependencies, and a critical path. Use when a spoke needs to translate a deliverable set into an actionable pre-production to post checklist. Do NOT use to schedule tasks in an external system, generate content, or evaluate deal terms.
+description: break a signed deal or content project into a discrete production task list with owners (the creator), due dates relative to publish date, dependencies, and a critical path. Use when a spoke needs to translate a deliverable set into an actionable pre-production to post checklist. Do NOT use to schedule tasks in an external system, generate content, or evaluate deal terms.
 load:
   - shared/pipeline-engine.md
   - shared/brand-engine.md
@@ -18,7 +18,7 @@ dependencies, and a critical path that identifies must-not-slip tasks.
 Signed deals and content projects arrive as a deliverable list and a hard publish date. Translating
 those into an ordered, date-anchored task list is a single, repeatable operation that should not be
 re-invented inside each spoke. This atom handles that operation so that deal-activate, video-development,
-and similar spokes can call it once and receive a structured, dependency-aware schedule Alex can act on
+and similar spokes can call it once and receive a structured, dependency-aware schedule the creator can act on
 immediately.
 
 The output covers six production phases in sequence:
@@ -32,7 +32,7 @@ The output covers six production phases in sequence:
   any contractual deliverable submission
 
 All due dates are computed relative to the publish date so the list stays valid regardless of when
-the project is activated. Alex is owner of every task unless a special requirement names an external
+the project is activated. the creator is owner of every task unless a special requirement names an external
 party (e.g., a brand review window); in that case the task notes flag the dependency explicitly.
 
 ## Inputs
@@ -56,7 +56,7 @@ Field notes:
 - `publish_date` is required. All task due dates are anchored to this date using negative offsets
   (D-N means N days before publish). The atom does not validate whether the date is available on
   the calendar; call `calendar-slot` upstream if slot validation is needed.
-- `deliverables` is required and must be a list. Each entry names one output Alex must produce
+- `deliverables` is required and must be a list. Each entry names one output the creator must produce
   (e.g., "60-second integration in main video", "dedicated Instagram Reel", "affiliate link in
   description"). The task list is derived from this list; tasks are not invented beyond what the
   deliverables require.
@@ -80,7 +80,7 @@ Field notes:
       "category": "pre-production | shoot | edit | caption | review | post",
       "due_date": "YYYY-MM-DD",
       "offset_label": "string (e.g. 'D-21', 'D-7', 'D-0')",
-      "owner": "Alex",
+      "owner": "the creator",
       "depends_on": ["string (task_name of prior task this cannot start before)"],
       "notes": "string | null (flags external dependencies, brand review windows, or special handling)"
     }
@@ -104,15 +104,15 @@ Output notes:
 - `critical_path` names only the tasks where a slip propagates directly to a missed publish date.
   At minimum it includes: script-approval, shoot-day, rough-cut-delivery, brand-review-approval
   (when applicable), final-export, and upload-and-schedule. Omit tasks that have float.
-- `special_requirements_applied` echoes every entry from the input that was acted on, so Alex can
+- `special_requirements_applied` echoes every entry from the input that was acted on, so the creator can
   confirm requirements were not silently dropped.
-- `human_review_required` is always `true`. Alex confirms dates and task scope before treating
+- `human_review_required` is always `true`. the creator confirms dates and task scope before treating
   the list as locked.
 
 ## Do NOT use for
 
 - Scheduling or writing tasks into any external system (Notion, Asana, Google Calendar, or
-  otherwise). This atom outputs a task list for Alex to copy and load; it does not integrate with
+  otherwise). This atom outputs a task list for the creator to copy and load; it does not integrate with
   external tools.
 - Generating content: scripts, hooks, outlines, thumbnails, or captions are produced by their
   own atoms. This atom only plans when and in what order production steps occur.

@@ -8,7 +8,7 @@ load:
 
 # hook-write
 
-Write a single hook in Alex's published voice.
+Write a single hook in the creator's published voice.
 
 ## Input
 ```json

@@ -6,16 +6,16 @@ purpose: keep audience-research scoped to the five-persona model and honest abou
 # audience-research: Maintainer README
 
 ## Purpose
-Research and profile Alex Slason's audience by mapping content signals to the five-persona model. Never fabricates comment text, demographics, or engagement figures.
+Research and profile the creator's audience by mapping content signals to the five-persona model. Never fabricates comment text, demographics, or engagement figures.
 
 ## Non-negotiable invariants
 - Only the five canonical personas are used: Renter, Vintage Hunter, Organizer, Holiday Maximalist, New Homeowner.
-- Inferred persona mapping is labeled as inferred; niche-typical defaults are never stated as Alex's measured data.
+- Inferred persona mapping is labeled as inferred; niche-typical defaults are never stated as the creator's measured data.
 - All external comments and data pass through injection-guard inside ingest-route.
 
 ## Known failure modes
 - Inventing a new persona not in the five-persona model.
-- Presenting niche-typical audience defaults as Alex's measured data.
+- Presenting niche-typical audience defaults as the creator's measured data.
 - Skipping injection-guard for externally fetched comment data.
 
 ## Regression cases to preserve
