@@ -10,6 +10,7 @@ Usage:
 Nothing is overwritten if it already exists.
 """
 import json
+import platform
 import shutil
 import subprocess
 import sys
@@ -46,6 +47,29 @@ def check_python() -> None:
         _say(f"ERROR: Python 3.11 or later required (you have {major}.{minor}).")
         sys.exit(1)
     _ok(f"Python {major}.{minor}")
+
+
+def check_platform() -> None:
+    if sys.platform != "darwin":
+        return
+    arch = platform.machine()
+    _ok(f"macOS detected ({arch})")
+    if arch == "arm64":
+        result = subprocess.run(
+            ["sysctl", "-n", "sysctl.proc_translated"],
+            capture_output=True, text=True,
+        )
+        if result.stdout.strip() == "1":
+            _say("  [warn] Python is running under Rosetta (x86_64 emulation on arm64 hardware).")
+            _say("         For best performance, install a native arm64 Python via Homebrew:")
+            _say("           brew install python@3.11")
+            _say("         Then rerun: /opt/homebrew/bin/python3 tools/setup.py")
+            return
+    _say("  macOS tips:")
+    _say("    If 'python3' is not found, install via Homebrew (https://brew.sh):")
+    _say("      brew install python@3.11")
+    _say("    After installing requirements-render.txt, run once to fetch arm64 Chromium:")
+    _say("      python3 -m playwright install chromium")
 
 
 def create_local_copy(source_path: Path, dest_path: Path, label: str) -> None:
@@ -190,6 +214,7 @@ def main() -> None:
     _say("=" * 40)
 
     check_python()
+    check_platform()
 
     _say("\nCreating local data files...")
     create_config_local()

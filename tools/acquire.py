@@ -23,7 +23,9 @@ USAGE
 from __future__ import annotations
 
 import argparse
+import glob as _glob
 import json
+import os
 import re
 import sys
 import time
@@ -39,9 +41,20 @@ import rate_governor as RG    # noqa
 import fetch_diag as FD       # noqa
 import fetch_cache as FC      # noqa
 
+
+def _mac_playwright_chrome() -> list[str]:
+    """Return installed Playwright Chromium paths on macOS (arm64 and x86_64)."""
+    base = os.path.expanduser("~/Library/Caches/ms-playwright")
+    return sorted(
+        _glob.glob(f"{base}/chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium"),
+        reverse=True,  # newest version first
+    )
+
+
 CHROME_CANDIDATES = [
-    "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
-    "/opt/pw-browsers/chromium/chrome-linux/chrome",
+    "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",  # remote CI (Linux)
+    "/opt/pw-browsers/chromium/chrome-linux/chrome",        # remote CI fallback
+    *_mac_playwright_chrome(),                              # macOS (arm64 + x86_64)
 ]
 FILE_EXT = (".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv", ".zip", ".json", ".xml")
 
