@@ -45,6 +45,12 @@
       "staleness_threshold_days": 30,
       "traversal_depth": 2,
       "_note": "Editorial sites update regularly but rarely break skills. Monthly traversal finds new reference content."
+    },
+    "competitor-page": {
+      "check_interval_days": 3,
+      "staleness_threshold_days": 7,
+      "traversal_depth": 0,
+      "_note": "Competitor video and channel pages. Snapshot saved offline via competitor_snapshot.py for ytInitialPlayerResponse extraction. 3-day check interval keeps tag/hashtag intelligence fresh. traversal_depth=0 — we do not follow links from competitor pages."
     }
   },
   "traversal_max_depth": 2,

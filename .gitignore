@@ -24,6 +24,11 @@ secrets.json
 traversal-candidates.json
 traversal-visited.json
 
+# Competitor intelligence snapshots (raw HTML, screenshots, SQLite index)
+pipeline/competitor-snapshots/
+.harvest-cache/
+snapshots-log.json
+
 # Python
 __pycache__/
 *.pyc

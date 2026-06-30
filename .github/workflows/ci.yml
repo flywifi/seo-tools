@@ -1,6 +1,8 @@
 name: ci
 
 on:
+  schedule:
+    - cron: '0 6 * * 2'   # weekly, Tuesday 06:00 UTC — competitor intelligence run
   push:
     branches: ["**"]
   pull_request:
@@ -32,3 +34,37 @@ jobs:
           PY
       - name: Packaging
         run: python3 tools/package_skill.py --all
+
+  competitor-intel:
+    runs-on: ubuntu-latest
+    # Only run on schedule trigger or explicit workflow_dispatch; skip on PR/push
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install crawl dependencies
+        run: pip install -r requirements-crawl.txt -r requirements-scraper.txt
+      - name: Fetch competitor snapshots
+        run: python3 tools/competitor_snapshot.py --fetch
+        continue-on-error: true   # fetch failures are non-blocking; parse what we have
+      - name: Parse saved HTML into index
+        run: python3 tools/competitor_snapshot.py --parse
+      - name: Export sanitized summary
+        run: python3 tools/competitor_snapshot.py --export-summary
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: competitor-snapshots-${{ github.run_id }}
+          path: pipeline/competitor-snapshots/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Commit competitor-channels.json update (main branch only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add canonical-sources/keyword-library/competitor-channels.json
+          git diff --cached --quiet || git commit -m "chore: update competitor-channels.json from scheduled snapshot run"
+          git push

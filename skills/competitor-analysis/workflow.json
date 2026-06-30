@@ -10,6 +10,6 @@
     {"step": 5, "atom": "trend-check", "input_from": "step4.top_topics", "output_to": "step6", "condition": "trend momentum is part of the request"},
     {"step": 6, "atom": "govern-artifact", "input_from": "assembled_competitive_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
   ],
-  "shortcut_atoms": ["competitor-scan", "entity-extract", "keyword-cluster", "search-intent", "trend-check"],
+  "shortcut_atoms": ["competitor-scan", "deep-competitor-scan", "entity-extract", "keyword-cluster", "search-intent", "trend-check"],
   "note": "Step 2 is conditional on competitor-scan returning usable content. All unverified competitor data carries [unverified] labels. Entity gap output from entity-extract feeds keyword-cluster in step 3 to ensure entity-rich keywords are considered."
 }
