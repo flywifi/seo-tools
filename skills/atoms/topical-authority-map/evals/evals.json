@@ -1,0 +1,41 @@
+{
+  "atom": "topical-authority-map",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "tam-01",
+      "description": "Basic hub-and-cluster for a seasonal keyword",
+      "input": {
+        "pillar": "seasonal and holiday decor",
+        "primary_keyword": "dark moody fall mantel",
+        "secondary_keywords": ["gothic fall decor", "fall mantel ideas budget", "vintage fall mantel"],
+        "cluster_size": 4
+      },
+      "expect": {
+        "hub.format": "long-form",
+        "satellites.length": 4,
+        "all_satellites.cross_link_to_hub": true,
+        "all_satellites.publish_after_hub": true,
+        "no_fabricated_keywords": true,
+        "cluster_depth": "medium"
+      }
+    },
+    {
+      "id": "tam-02",
+      "description": "Renter-persona cluster for DIY pillar",
+      "input": {
+        "pillar": "DIY and room makeovers",
+        "primary_keyword": "renter friendly bedroom makeover",
+        "secondary_keywords": ["no damage wall decor", "rental bedroom ideas", "apartment bedroom transformation"],
+        "persona_focus": "The Renter",
+        "cluster_size": 3
+      },
+      "expect": {
+        "hub.format": "long-form",
+        "satellites.length": 3,
+        "persona_served": "The Renter",
+        "cluster_depth": "shallow"
+      }
+    }
+  ]
+}

@@ -20,6 +20,10 @@ dist/
 secrets.json
 *.secret
 
+# Traversal engine working files (operator reviews before any entry touches the registry)
+traversal-candidates.json
+traversal-visited.json
+
 # Python
 __pycache__/
 *.pyc

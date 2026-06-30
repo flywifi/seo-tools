@@ -1,0 +1,37 @@
+{
+  "atom": "long-tail-expand",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "lte-01",
+      "description": "YouTube autocomplete expansion from a seasonal seed",
+      "input": {
+        "seed_keyword": "dark moody fall mantel",
+        "platform": "youtube",
+        "count": 20,
+        "methods": ["autocomplete", "paa", "related"]
+      },
+      "expect": {
+        "long_tail_keywords.length_min": 10,
+        "all_volume_estimates_labeled_unverified": true,
+        "no_keywords_below_niche_relevance_2": true,
+        "expansion_depth_reached": 2
+      }
+    },
+    {
+      "id": "lte-02",
+      "description": "Pinterest expansion from thrifting seed",
+      "input": {
+        "seed_keyword": "thrift store furniture makeover",
+        "platform": "pinterest",
+        "count": 25
+      },
+      "expect": {
+        "long_tail_keywords.length_min": 15,
+        "all_volume_estimates_labeled_unverified": true,
+        "expansion_depth_reached": 2,
+        "retrieval_gaps_recorded_if_any_method_fails": true
+      }
+    }
+  ]
+}

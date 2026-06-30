@@ -1,0 +1,95 @@
+{
+  "_comment": "Canonical YouTube algorithm signal data. Structured for use by seo-intelligence-engine. NOT keyword data — this is algorithm weight and best-practice data. Updated when source-registry sources (youtube-help-recommendations, youtube-creator-blog, youtube-help-analytics) detect changes. Source IDs are back-references to source-registry.json.",
+  "last_updated": "2026-06-30",
+  "source_ids": ["youtube-help-recommendations", "youtube-creator-blog", "youtube-help-analytics"],
+  "algorithm_signals": [
+    {
+      "signal": "click_through_rate",
+      "impact_tier": "primary",
+      "affects": ["browse_feed", "home_feed", "suggested_videos"],
+      "current_best_practice": "Design thumbnail and title together as a unit. Thumbnail drives the first glance; title confirms the premise. For a new channel in a competitive niche, above 5% CTR on home/browse is strong. Test thumbnails by publishing, waiting 48 hours, and swapping if CTR is below 3%.",
+      "levers": ["thumbnail", "title"],
+      "trap_to_avoid": "Clickbait that does not match the video content. YouTube surveys viewers post-watch; a clickbait mismatch depresses the satisfaction score and reduces future recommendation.",
+      "freshness_note": "Current as of mid-2026. YouTube reweights signals without public notice — verify source monthly."
+    },
+    {
+      "signal": "absolute_watch_time",
+      "impact_tier": "primary",
+      "affects": ["suggested_videos", "youtube_search_ranking"],
+      "current_best_practice": "Maximize total minutes watched per video, not just completion percentage. A 20-minute video watched 50% (10 minutes) earns more signal than a 5-minute video watched 100% (5 minutes). Do not artificially shorten videos to boost completion rate at the cost of watch time.",
+      "levers": ["video_length", "content_density", "pacing"],
+      "trap_to_avoid": "Padding video length with filler to increase watch time. YouTube's satisfaction signal (post-watch survey) will decline, net-negating the watch time gain.",
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "average_view_duration_retention_curve",
+      "impact_tier": "primary",
+      "affects": ["suggested_videos", "browse_feed"],
+      "current_best_practice": "The shape of the retention curve matters more than the final percentage. A flat line at 40% is a stronger signal than a line that drops from 80% to 20%. Hook within the first 30 seconds. Add re-engagement moments every 3 to 5 minutes to flatten the slope.",
+      "levers": ["hook", "pacing", "chapter_structure", "b_roll_density"],
+      "trap_to_avoid": "A sharp retention drop at a specific timestamp is a solvable problem. Identify what is happening at that timestamp in the video and address it in future content.",
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "engagement_velocity_first_48h",
+      "impact_tier": "primary",
+      "affects": ["suggested_videos", "browse_feed", "trending"],
+      "current_best_practice": "Publish when the audience is most active. Check YouTube Studio audience tab for the creator's specific audience activity pattern. Encourage early engagement in the first 60 seconds of the video: tell viewers what to do (comment below, save this video) explicitly and specifically.",
+      "levers": ["publish_time", "call_to_action_in_video", "community_post_before_publish"],
+      "trap_to_avoid": "Generic CTAs ('like and subscribe if you enjoyed this'). Specific CTAs ('comment your biggest thrift store challenge below') drive higher engagement rate.",
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "session_starts",
+      "impact_tier": "secondary",
+      "affects": ["home_feed", "browse_feed"],
+      "current_best_practice": "High-CTR thumbnails are more likely to be session starters because they are surfaced to users not already in a YouTube session. A new channel can disproportionately benefit from this signal by investing heavily in thumbnail quality.",
+      "levers": ["thumbnail_quality", "title_clarity"],
+      "trap_to_avoid": "Underinvesting in thumbnail design when the channel is new. Session starts compound — a video that starts sessions continues to receive home feed distribution weeks after publishing.",
+      "freshness_note": "Current as of mid-2026."
+    },
+    {
+      "signal": "end_screen_click_and_subscribe_rate",
+      "impact_tier": "secondary",
+      "affects": ["subscriber_growth", "returning_viewer_feed"],
+      "current_best_practice": "End screen content should be contextually relevant to the video that just ended. A viewer who just watched a fall mantel video is most likely to click a related fall decor video or a 'how I thrifted everything on this mantel' follow-up. Match the end screen video to the viewer's demonstrated interest.",
+      "levers": ["end_screen_video_selection", "verbal_cta_at_end"],
+      "trap_to_avoid": "Defaulting to the most recent upload as the end screen video regardless of topic relevance.",
+      "freshness_note": "Current as of mid-2026."
+    }
+  ],
+  "shorts_signals": [
+    {
+      "signal": "replay_rate_and_completion",
+      "impact_tier": "primary",
+      "affects": ["shorts_feed", "shorts_shelf"],
+      "current_best_practice": "A Short that gets replayed signals strong entertainment or utility value. Design Shorts with a loop point: the last frame should flow naturally back to the first frame so a replay feels intentional. Completion rate is the dominant signal for Shorts distribution.",
+      "levers": ["loop_design", "pacing", "length"]
+    },
+    {
+      "signal": "swipe_through_rate",
+      "impact_tier": "primary",
+      "affects": ["shorts_feed"],
+      "current_best_practice": "A viewer who swipes away immediately signals low relevance. The first frame is the thumbnail for Shorts. Text overlay and strong visual in the first frame reduce immediate swipe-through.",
+      "levers": ["first_frame_design", "text_overlay"]
+    }
+  ],
+  "ctr_benchmarks": {
+    "_note": "All benchmarks labeled [estimated, unverified]. Verify against the creator's actual YouTube Studio data before making recommendations. These are niche-wide starting points only.",
+    "new_channel_0_to_1k_subscribers": {
+      "strong": "above 5%",
+      "acceptable": "3% to 5%",
+      "weak": "below 3%"
+    },
+    "growing_channel_1k_to_50k_subscribers": {
+      "strong": "above 6%",
+      "acceptable": "4% to 6%",
+      "weak": "below 4%"
+    },
+    "established_channel_50k_plus": {
+      "strong": "above 8%",
+      "acceptable": "5% to 8%",
+      "weak": "below 5%"
+    }
+  }
+}

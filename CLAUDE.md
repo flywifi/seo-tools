@@ -56,6 +56,9 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
 - `tools/source_currency.py` is the only tool that writes to `canonical-sources/source-registry.json`.
   Do not edit source-registry.json by hand.
+- `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
+  `traversal-visited.json`. Do not populate the registry by directly editing source-registry.json;
+  use `--accept` in traversal_engine.py which calls source_currency.py for the registry write.
 
 ## Commit messages
 Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase

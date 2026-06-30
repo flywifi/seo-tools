@@ -1,14 +1,18 @@
 {
-  "_comment": "seo-keywords builds a full SEO strategy: keyword cluster, search intent, competitive gap, and title skeleton.",
+  "_comment": "seo-keywords builds a full SEO strategy: keyword cluster, long-tail expansion, search intent, competitive gap, entity intelligence, SERP feature classification, topical authority map, and title skeleton.",
   "id": "seo-keywords",
-  "description": "Full SEO strategy for a content topic: keyword cluster, intent, competitor gap, and title/description skeleton.",
+  "description": "Full SEO strategy for a content topic: keyword cluster, long-tail expansion, intent, competitor gap, entity gaps, SERP feature recommendation, topical authority architecture, and title/description skeleton.",
   "steps": [
     {"step": 1, "atom": "keyword-cluster", "input_from": "user request + platform_targets", "output_to": "step2"},
-    {"step": 2, "atom": "search-intent", "input_from": "user request + platform_targets", "output_to": "step3"},
-    {"step": 3, "atom": "competitor-scan", "input_from": "step1.primary_keyword + platform_targets", "output_to": "step4", "repeat": "per_platform"},
-    {"step": 4, "atom": "title-generate", "input_from": "step1.keyword_cluster + step2.intent + step3.gap", "output_to": "step5"},
-    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_seo_strategy", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
+    {"step": 2, "atom": "long-tail-expand", "input_from": "step1.primary_keyword + platform_targets", "output_to": "step3", "condition": "caller has not already supplied a long-tail list"},
+    {"step": 3, "atom": "search-intent", "input_from": "step1.keyword_cluster + step2.long_tail_keywords", "output_to": "step4"},
+    {"step": 4, "atom": "competitor-scan", "input_from": "step1.primary_keyword + platform_targets", "output_to": "step5", "repeat": "per_platform"},
+    {"step": 5, "atom": "entity-extract", "input_from": "step4.competitor_content_samples", "output_to": "step6", "condition": "competitor-scan returned content samples"},
+    {"step": 6, "atom": "serp-feature-check", "input_from": "step1.primary_keyword + platform_targets", "output_to": "step7", "condition": "platform_targets includes google"},
+    {"step": 7, "atom": "topical-authority-map", "input_from": "step1.keyword_cluster + step3.classified_intent + step4.gap", "output_to": "step8"},
+    {"step": 8, "atom": "title-generate", "input_from": "step1.keyword_cluster + step3.intent + step4.gap + step7.cluster", "output_to": "step9"},
+    {"step": 9, "atom": "govern-artifact", "input_from": "assembled_seo_strategy", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
   ],
-  "shortcut_atoms": ["keyword-cluster", "search-intent", "competitor-scan", "title-generate"],
-  "note": "Volume estimates from keyword-cluster are always labeled [estimated, unverified]. Competitor data from competitor-scan carries [unverified] labels where not confirmed by retrieval."
+  "shortcut_atoms": ["keyword-cluster", "long-tail-expand", "search-intent", "competitor-scan", "entity-extract", "serp-feature-check", "topical-authority-map", "title-generate"],
+  "note": "Steps 2, 5, and 6 are conditional and may be skipped if the caller has already supplied the relevant data or the condition is not met. Volume estimates are always labeled [estimated, unverified]. Competitor data carries [unverified] labels where not confirmed by retrieval."
 }
