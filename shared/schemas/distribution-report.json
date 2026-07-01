@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "distribution-report",
+  "title": "Distribution Report",
+  "description": "Output schema for the content-distributor spoke. Covers the full distribution run across all targeted platforms.",
+  "type": "object",
+  "required": ["distribution_summary", "posts", "manual_posting_packages", "next_steps"],
+  "properties": {
+    "distribution_summary": {
+      "type": "object",
+      "required": ["total_platforms", "queued", "manual_required", "failed"],
+      "properties": {
+        "total_platforms": {
+          "type": "integer",
+          "description": "Number of platforms in platform_targets."
+        },
+        "queued": {
+          "type": "integer",
+          "description": "Platforms where schedule-post returned status: queued or scheduled."
+        },
+        "manual_required": {
+          "type": "integer",
+          "description": "Platforms where no connector was active and manual posting is required."
+        },
+        "failed": {
+          "type": "integer",
+          "description": "Platforms where the connector returned an error."
+        }
+      }
+    },
+    "posts": {
+      "type": "array",
+      "description": "One entry per platform in platform_targets. human_review_required is always true.",
+      "items": {
+        "type": "object",
+        "required": [
+          "platform",
+          "status",
+          "publishing_tier",
+          "connector_used",
+          "ftc_disclosure_verified",
+          "aigc_flag_set",
+          "human_review_required"
+        ],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["instagram", "tiktok", "pinterest", "youtube"]
+          },
+          "post_id": {
+            "type": ["string", "null"],
+            "description": "ID returned by the connector. Null in manual mode or on error. Never fabricated."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "scheduled", "draft", "failed", "manual_required"]
+          },
+          "scheduled_datetime": {
+            "type": ["string", "null"],
+            "description": "ISO 8601 datetime the post is scheduled for, or null if posted immediately."
+          },
+          "permalink": {
+            "type": ["string", "null"],
+            "description": "URL to the published post. Null until published. Never fabricated."
+          },
+          "publishing_tier": {
+            "type": "string",
+            "enum": ["hosted_mcp", "direct_api", "manual"]
+          },
+          "connector_used": {
+            "type": "string",
+            "enum": [
+              "postiz_mcp",
+              "buffer_mcp",
+              "youtube_publishing",
+              "instagram_publishing",
+              "tiktok_publishing",
+              "pinterest_publishing",
+              "none"
+            ]
+          },
+          "ftc_disclosure_verified": {
+            "type": "boolean",
+            "description": "True when ftc_disclosure was present in caption or was prepended."
+          },
+          "aigc_flag_set": {
+            "type": "boolean",
+            "description": "True when is_aigc was true and the AIGC flag was set in the connector payload."
+          },
+          "human_review_required": {
+            "type": "boolean",
+            "const": true,
+            "description": "Always true. No exception."
+          },
+          "error": {
+            "type": ["string", "null"],
+            "description": "Connector error message. Null on success."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "FTC prepend notice, AIGC reminder, or other compliance notes."
+          }
+        }
+      }
+    },
+    "manual_posting_packages": {
+      "type": "array",
+      "description": "One entry per platform that returned status: manual_required. Empty if all platforms queued successfully.",
+      "items": {
+        "type": "object",
+        "required": ["platform", "formatted_caption", "hashtag_block", "posting_checklist"],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["instagram", "tiktok", "pinterest", "youtube"]
+          },
+          "formatted_caption": {
+            "type": "string",
+            "description": "Paste-ready caption with FTC disclosure prepended if applicable. No em dashes."
+          },
+          "hashtag_block": {
+            "type": "string",
+            "description": "Hashtags as a standalone copyable block. Platform-appropriate count."
+          },
+          "posting_checklist": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Numbered platform-specific steps to manually post the content."
+          },
+          "media_specs": {
+            "type": "object",
+            "description": "Platform media requirements from platform-engine.md.",
+            "properties": {
+              "format": { "type": ["string", "null"] },
+              "aspect_ratio": { "type": ["string", "null"] },
+              "max_duration_seconds": { "type": ["integer", "null"] },
+              "max_file_size_mb": { "type": ["integer", "null"] }
+            }
+          },
+          "ftc_reminder": {
+            "type": ["string", "null"],
+            "description": "Disclosure reminder if ftc_disclosure was non-null."
+          }
+        }
+      }
+    },
+    "next_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Post-distribution actions: follow up on processing posts, handle gate failures, manual posting instructions."
+    },
+    "minority_report": {
+      "type": ["object", "null"],
+      "description": "Disagreements, residual uncertainty, and negative findings checked. Null when no material issues exist."
+    },
+    "confidence_evidence": {
+      "type": "object",
+      "properties": {
+        "overall": { "type": "string", "enum": ["high", "medium", "low"] },
+        "basis": { "type": "string" },
+        "source_tier_breakdown": {
+          "type": "object",
+          "properties": {
+            "t1_count": { "type": "integer" },
+            "t2_count": { "type": "integer" },
+            "t3_count": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "source_citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_id_or_url": { "type": "string" },
+          "tier": { "type": "string" },
+          "claim_supported": { "type": "string" },
+          "in_source_registry": { "type": "boolean" }
+        }
+      }
+    },
+    "govern_artifact_result": {
+      "type": ["object", "null"],
+      "description": "Output from govern-artifact (Step 5). Null if govern-artifact was not run.",
+      "properties": {
+        "integrity": {
+          "type": "object",
+          "properties": {
+            "passed": { "type": "boolean" },
+            "notes": { "type": ["string", "null"] }
+          }
+        },
+        "safety": {
+          "type": "object",
+          "properties": {
+            "passed": { "type": "boolean" },
+            "notes": { "type": ["string", "null"] }
+          }
+        },
+        "brand_alignment": {
+          "type": "object",
+          "properties": {
+            "passed": { "type": "boolean" },
+            "notes": { "type": ["string", "null"] }
+          }
+        },
+        "gate_failures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of gates that failed. Empty array if all gates passed."
+        }
+      }
+    }
+  }
+}

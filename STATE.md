@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P20 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -266,6 +266,59 @@ P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   information flow).
 - `CLAUDE.md`: agent orchestration conventions section added.
 - `docs/DEPLOYMENT.md`: agent orchestration row added to capability matrix.
+
+### Social media scheduling and content distribution (P20)
+- **New spoke:** `skills/content-distributor/` — Content lane spoke accepting finalized content
+  (captions + hashtags from prior shortform-repurposing or video-development runs) and
+  orchestrating the full scheduling lifecycle: connector check → caption/hashtag generation
+  (if needed) → schedule-post per platform → post-status check → govern-artifact.
+- **3 new atoms:**
+  - `skills/atoms/schedule-post/`: queues or schedules a single post via the active publishing
+    connector (Postiz MCP > Buffer MCP > direct platform API > manual fallback). FTC/AIGC
+    compliance enforced. `human_review_required: true` always set. 3 eval cases.
+  - `skills/atoms/publish-draft/`: formats paste-ready posting packages for manual upload —
+    finalized caption with disclosure and hashtags, numbered posting checklist, media spec
+    reminder, optimal posting time. Zero infrastructure required. 3 eval cases.
+  - `skills/atoms/post-status/`: checks status of a previously scheduled post via the active
+    connector. Maps platform-native codes to Creator OS vocabulary (published, scheduled,
+    processing, failed, draft, unknown). Optional engagement snapshot. 3 eval cases.
+- **Connector registry (`shared/connectors/connectors.json`):** `content_publishing` evidence type
+  added; `postiz_mcp` and `buffer_mcp` connectors added; `youtube_publishing`, `instagram_publishing`,
+  `tiktok_publishing`, `pinterest_publishing` direct API connectors added with `content_publishing`
+  in their provides arrays.
+- **Feature flags (`creator-os-config.json`):** 6 new capability flags — `postiz_mcp`,
+  `buffer_mcp`, `youtube_publishing`, `instagram_publishing`, `tiktok_publishing`,
+  `pinterest_publishing` — all default to `enabled: false`. Degraded behavior entries added.
+- **Hub routing (`skills/creator-core/SKILL.md`):** `content_distribution` added to the
+  request_classification enum; routing table row maps to `content-distributor`; spoke added
+  to the downstream list.
+- **Integrations engine (`shared/integrations-engine.md`):** "Content Publishing Endpoints"
+  section added — per-platform write-side API specs (Pinterest v5, YouTube Data API v3,
+  TikTok Content Posting API, Instagram Graph API v25.0), Postiz MCP reference, AIGC flag
+  rules, FTC disclosure requirements, and human confirmation mandate.
+- **Content calendar (`pipeline/user-context/content-calendar.json`):** `posts[]` array added
+  to `entry_schema` tracking per-platform post_id, status, permalink, published_at,
+  publishing_tier, connector_used, ftc_disclosure, and is_aigc.
+- **Distribution report schema (`shared/schemas/distribution-report.json`):** JSON Schema for
+  content-distributor output — `posts[]`, `distribution_summary` (total/queued/manual/failed),
+  `manual_posting_packages[]`, `next_steps[]`, plus verification envelope fields.
+- **MCP server (`tools/mcp_server.py`):** 3 new tools added — `schedule_post` (dispatches to
+  active connector or returns manual plan), `post_status` (checks post status), and
+  `get_publishing_plan` (resolves tier per platform). Total: 13 MCP tools.
+- **Workflow script (`.claude/workflows/content-distribution.js`):** 4-phase adversarially-verified
+  workflow (Prepare → Distribute → Verify → Report). Uses read-only agent rules per
+  research-orchestration-engine.md. Verification envelope fields in all schemas.
+- **Claude Desktop config snippet:** `postiz` MCP server block added to
+  `implementation/claude/desktop/claude_desktop_config_snippet.json`.
+- **Architecture docs:** Content Distribution subsection added to `docs/ARCHITECTURE.md` —
+  publishing tier table, human confirmation gate, compliance checks, atoms, MCP tools, and
+  content calendar integration.
+- **CLAUDE.md:** Human confirmation non-negotiable added to publishing constraints.
+- **Canonical sources note:** 7 new source entries for P20 are pre-seeded via the traversal_engine
+  `--accept` flow rather than direct registry edits. Run `python3 tools/traversal_engine.py
+  --accept` for: postiz-github-repo, postiz-docs, pinterest-api-v5-pin-creation,
+  youtube-api-upload-video, tiktok-content-posting-api-docs, instagram-content-publishing-api-docs,
+  ftc-endorsement-guides-social.
 
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was

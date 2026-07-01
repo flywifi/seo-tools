@@ -10,7 +10,7 @@ role: Authoritative design reference for Creator OS. Describes the hub-and-spoke
 ## Overview
 
 Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills built for the creator, a
-YouTube creator in the moody-vintage home decor and DIY niche.
+YouTube creator in the home decor and DIY niche.
 
 **Hub-and-spoke.** A single routing hub (`creator-core`) sits at the center. It classifies every
 request, loads only the engines that request needs, enforces the governance protocols, and dispatches
@@ -423,6 +423,90 @@ lookups and narrow questions are handled inline by the main loop.
 **Information flow.** Agents gather and return. The main loop aggregates, deduplicates, resolves
 conflicts between agent findings, synthesizes recommendations, and presents results to the user.
 Aggregation is never delegated to an agent.
+
+| Workflow | What it orchestrates |
+|---|---|
+| content-pipeline.js | Research, draft, and quality review for content production |
+| competitor-deep-dive.js | Multi-target competitor scanning with gap analysis |
+| seasonal-planning.js | Trend research, keyword expansion, and calendar assembly |
+| deal-review.js | Evidence audit, rights check, exclusivity check, and scoring |
+| content-distribution.js | Publishing plan resolution, per-platform scheduling, and status verification |
+
+---
+
+## Content Distribution
+
+The `content-distributor` spoke bridges the gap between "content produced" and "content live on
+the platform." It sits downstream of `shortform-repurposing` and `video-development` in the
+Content lane, accepting finalized captions and hashtags from prior spoke runs.
+
+### Publishing tiers
+
+Creator OS resolves publishing connectors in priority order:
+
+| Tier | Connector | Platforms | Notes |
+|---|---|---|---|
+| Tier 1 (Hosted MCP) | `postiz_mcp` | Instagram, TikTok, Pinterest, YouTube, 30+ | Self-hosted Docker stack; built-in MCP server |
+| Tier 1 (Hosted MCP) | `buffer_mcp` | Instagram, TikTok, Pinterest, YouTube | Free tier: 3 channels, 10 posts each |
+| Tier 2 (Direct API) | `instagram_publishing` | Instagram | Graph API v25.0 two-step container+publish |
+| Tier 2 (Direct API) | `tiktok_publishing` | TikTok | Content Posting API; 6 req/min; AIGC flag required |
+| Tier 2 (Direct API) | `pinterest_publishing` | Pinterest | API v5 `POST /v5/pins` with `scheduled_at` |
+| Tier 2 (Direct API) | `youtube_publishing` | YouTube | Data API v3 resumable upload with `publishAt` |
+| Tier 3 (Manual) | none | All | `publish-draft` formats paste-ready posting packages |
+
+Tier resolution is greedy: if `postiz_mcp` is active it handles all four platforms. The resolver
+falls back to per-platform direct API flags only when both Postiz and Buffer are inactive.
+
+### Human confirmation gate
+
+`human_review_required: true` is set on every post output, always. No post is ever queued or
+published without an explicit human confirmation step. This is enforced in the `schedule-post`
+atom and in every publishing tier path.
+
+### Compliance checks (always run before connector call)
+
+1. **FTC disclosure.** If `ftc_disclosure` is non-null, the atom verifies the disclosure string
+   is present in the caption. If absent, it is prepended and the addition is flagged in `notes`.
+2. **AIGC flag.** If `is_aigc: true` and platform is TikTok, the AIGC flag is set in the
+   payload per TikTok's AI content labeling requirement.
+3. **Cross-platform watermark rule.** If content was sourced from a competing platform, the atom
+   flags the watermark risk (watermarked content is penalized on Instagram and TikTok).
+
+### Atoms
+
+| Atom | When invoked |
+|---|---|
+| `caption-write` | Step 2 (conditional — only if captions not provided in spoke input) |
+| `hashtag-set` | Step 2 (conditional — only if hashtags not provided) |
+| `schedule-post` | Step 3 (per platform — core scheduling atom) |
+| `post-status` | Step 4 (optional — after scheduled time, check if post went live) |
+| `govern-artifact` | Step 5 (gates: integrity, safety, brand alignment) |
+
+Shortcut atoms callable directly: `schedule-post`, `publish-draft`, `post-status`.
+
+### Standalone / manual mode
+
+When no connector is active, the spoke produces a full manual posting package for every platform
+via the `publish-draft` atom: paste-ready caption with FTC disclosure, hashtag block, numbered
+platform-specific upload checklist, media spec reminder, and optimal posting time window. No API
+credentials or infrastructure required.
+
+### MCP tools
+
+Three MCP tools expose distribution capabilities to Claude Desktop:
+
+| MCP Tool | Description |
+|---|---|
+| `schedule_post` | Dispatch a post to the active connector or return a manual plan |
+| `post_status` | Check status of a previously queued post |
+| `get_publishing_plan` | Return which platforms have active connectors and at what tier |
+
+### Content calendar integration
+
+After scheduling, `pipeline/user-context/content-calendar.json` entries gain a `posts[]` array
+tracking `post_id`, `status`, `permalink`, `published_at`, `publishing_tier`, and compliance
+fields per platform. This provides a persistent audit trail of what was queued, when, and via
+which connector.
 
 ---
 

@@ -1,0 +1,161 @@
+[
+  {
+    "id": "post-status-001",
+    "description": "Happy path: Postiz MCP active, Instagram Reel published — returns published status with permalink and timestamps",
+    "input": {
+      "platform": "instagram",
+      "post_id": "17895001234567890",
+      "include_engagement_snapshot": false
+    },
+    "connector_state": { "postiz_mcp": true },
+    "simulated_connector_response": { "status": "PUBLISHED", "permalink": "https://www.instagram.com/p/ExampleCode/", "published_at": "2026-09-10T18:02:00Z" },
+    "expect": {
+      "status": "published",
+      "permalink": "non-null URL",
+      "published_at": "non-null ISO 8601 string",
+      "connector_used": "postiz_mcp",
+      "error": null
+    },
+    "prohibit": [
+      "fabricated permalink not returned by connector",
+      "status other than published when connector confirms publication"
+    ]
+  },
+  {
+    "id": "post-status-002",
+    "description": "Scheduled future post: connector confirms post is queued for future datetime — status: scheduled",
+    "input": {
+      "platform": "pinterest",
+      "post_id": "12345678901234567",
+      "include_engagement_snapshot": false
+    },
+    "connector_state": { "pinterest_publishing": true },
+    "simulated_connector_response": { "status": "SCHEDULED", "scheduled_for": "2026-10-01T14:00:00Z" },
+    "expect": {
+      "status": "scheduled",
+      "scheduled_for": "non-null ISO 8601 string",
+      "published_at": null,
+      "permalink": null
+    },
+    "prohibit": [
+      "status: published when connector says scheduled",
+      "fabricated permalink for a post that has not published yet"
+    ]
+  },
+  {
+    "id": "post-status-003",
+    "description": "Processing video on YouTube: connector returns processing status — atom must return processing with retry guidance in notes",
+    "input": {
+      "platform": "youtube",
+      "post_id": "dQw4w9WgXcQ",
+      "include_engagement_snapshot": false
+    },
+    "connector_state": { "youtube_publishing": true },
+    "simulated_connector_response": { "status": "PROCESSING" },
+    "expect": {
+      "status": "processing",
+      "permalink": null,
+      "notes": "non-null — includes guidance to retry in 5 to 30 minutes"
+    },
+    "prohibit": [
+      "status: published when YouTube is still processing",
+      "fabricated permalink before processing completes"
+    ]
+  },
+  {
+    "id": "post-status-004",
+    "description": "Failed post: connector returns error — status: failed, error field populated, no fabrication",
+    "input": {
+      "platform": "tiktok",
+      "post_id": "7012345678901234567",
+      "include_engagement_snapshot": false
+    },
+    "connector_state": { "tiktok_publishing": true },
+    "simulated_connector_response": { "status": "FAILED", "error_code": "upload_timeout", "error_message": "Video upload timed out after 300 seconds." },
+    "expect": {
+      "status": "failed",
+      "error": "non-null — contains connector error message",
+      "post_id": "7012345678901234567",
+      "permalink": null
+    },
+    "prohibit": [
+      "status: published when connector reports failure",
+      "error field null when connector provides an error message",
+      "fabricated permalink on failure"
+    ]
+  },
+  {
+    "id": "post-status-005",
+    "description": "No connector active: returns status: unknown with manual check instructions, no fabrication",
+    "input": {
+      "platform": "instagram",
+      "post_id": "17895001234567890",
+      "include_engagement_snapshot": false
+    },
+    "connector_state": {},
+    "expect": {
+      "status": "unknown",
+      "connector_used": "none",
+      "permalink": null,
+      "notes": "non-null — contains manual check URL pattern for Instagram"
+    },
+    "prohibit": [
+      "fabricated status when no connector is active",
+      "fabricated permalink when no connector is active",
+      "status: published without connector confirmation"
+    ]
+  },
+  {
+    "id": "post-status-006",
+    "description": "Engagement snapshot requested and available: returns non-null engagement_snapshot with real values from connector",
+    "input": {
+      "platform": "instagram",
+      "post_id": "17895001234567890",
+      "include_engagement_snapshot": true
+    },
+    "connector_state": { "instagram_publishing": true },
+    "simulated_connector_response": {
+      "status": "PUBLISHED",
+      "permalink": "https://www.instagram.com/p/ExCode/",
+      "insights": { "views": 1240, "reach": 980, "saved": 73, "shares": 28, "comments_count": 14 }
+    },
+    "expect": {
+      "status": "published",
+      "engagement_snapshot": {
+        "views": "1240",
+        "saves": "73",
+        "shares": "28"
+      }
+    },
+    "prohibit": [
+      "fabricated engagement numbers not returned by connector",
+      "zero-filling metrics that the connector did not return (use null, not 0)"
+    ]
+  },
+  {
+    "id": "post-status-007",
+    "description": "Deprecated Instagram metric requested: clips_replays_count deprecated in API v22.0+ — must return null for that field with a deprecation note",
+    "input": {
+      "platform": "instagram",
+      "post_id": "17895001234567890",
+      "include_engagement_snapshot": true
+    },
+    "connector_state": { "instagram_publishing": true },
+    "simulated_connector_response": {
+      "status": "PUBLISHED",
+      "permalink": "https://www.instagram.com/p/ExCode/",
+      "insights_error": "clips_replays_count is deprecated as of API v22.0"
+    },
+    "expect": {
+      "status": "published",
+      "engagement_snapshot": {
+        "views": null
+      },
+      "notes": "non-null — mentions that the requested metric is deprecated in the current API version"
+    },
+    "prohibit": [
+      "fabricating a view count when the API returns a deprecation error",
+      "zero-filling a deprecated metric"
+    ]
+  }
+]

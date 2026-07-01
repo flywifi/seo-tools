@@ -1,7 +1,30 @@
 {
-  "_comment": "Upcoming content calendar. Used by calendar-slot to check for conflicts and by deal-resourcing to align production tasks with publish targets.",
+  "_comment": "Upcoming content calendar. Used by calendar-slot to check for conflicts, deal-resourcing to align production tasks with publish targets, and content-distributor to track publishing status per platform.",
   "_gitignore_note": "Your real calendar entries go in content-calendar.local.json (gitignored, never overwritten by git pull). This committed file is the empty schema. calendar-slot checks .local.json first, then this file.",
   "entries": [],
   "last_updated": null,
-  "notes": "Each entry: { title, pillar, publish_target_date (ISO 8601), stage (idea/scripted/filmed/edited/scheduled/published), platform_targets (array), linked_deal_id (null if organic) }"
+  "notes": "Each entry follows entry_schema below.",
+  "entry_schema": {
+    "title": "string",
+    "pillar": "string",
+    "publish_target_date": "ISO 8601 date or null",
+    "stage": "idea | scripted | filmed | edited | scheduled | published",
+    "platform_targets": ["instagram", "tiktok", "pinterest", "youtube-shorts", "youtube-long"],
+    "linked_deal_id": "string or null",
+    "posts": [
+      {
+        "platform": "instagram | tiktok | pinterest | youtube-shorts | youtube-long",
+        "post_id": "string or null",
+        "status": "queued | scheduled | published | failed | draft | manual_required",
+        "permalink": "string or null",
+        "scheduled_datetime": "ISO 8601 or null",
+        "published_at": "ISO 8601 or null",
+        "publishing_tier": "hosted_mcp | direct_api | manual",
+        "connector_used": "postiz_mcp | buffer_mcp | youtube_publishing | instagram_publishing | tiktok_publishing | pinterest_publishing | none",
+        "error": "string or null",
+        "ftc_disclosure": "#ad | #gifted | #affiliate | null",
+        "is_aigc": "boolean"
+      }
+    ]
+  }
 }

@@ -1,0 +1,234 @@
+[
+  {
+    "id": "content-distributor-001",
+    "description": "Happy path Mode A: captions and hashtags provided, Postiz MCP active for all platforms — steps 1 and 2 skipped, all posts queued via hosted_mcp",
+    "input": {
+      "captions": {
+        "instagram": "Weekend project complete. One can of chalk paint, one thrifted armoire, three hours.",
+        "tiktok": "Thrift flip reveal. $14 armoire, chalk paint, dark wax. Full before and after.",
+        "pinterest": "How to chalk paint a thrifted armoire. Step-by-step with Annie Sloan in Old White and dark wax.",
+        "youtube": "Chalk paint armoire makeover from start to finish. Everything I used and what I would do differently."
+      },
+      "hashtags": {
+        "instagram": ["#thriftflip", "#chalkpaint", "#diy"],
+        "tiktok": ["#thriftflip", "#diy"],
+        "pinterest": ["#chalkpaint", "#diy", "#armoiremakeover"],
+        "youtube": ["#Shorts", "#diy", "#furnitureflip"]
+      },
+      "platform_targets": ["instagram", "tiktok", "pinterest", "youtube"],
+      "scheduled_datetimes": {
+        "instagram": "2026-09-10T18:00:00Z",
+        "tiktok": "2026-09-10T19:00:00Z",
+        "pinterest": "2026-09-11T14:00:00Z",
+        "youtube": "2026-09-10T17:00:00Z"
+      },
+      "ftc_disclosures": { "instagram": null, "tiktok": null, "pinterest": null, "youtube": null },
+      "is_aigc": false
+    },
+    "connector_state": { "postiz_mcp": true },
+    "expect": {
+      "distribution_summary": {
+        "total_platforms": 4,
+        "queued": 4,
+        "manual_required": 0,
+        "failed": 0
+      },
+      "posts": "array of 4 entries, all with status: queued and publishing_tier: hosted_mcp",
+      "human_review_required": "true on every post entry",
+      "steps_1_2_skipped": true,
+      "govern_artifact_result": "non-null"
+    },
+    "prohibit": [
+      "caption-write or hashtag-set invoked when captions are already provided",
+      "human_review_required absent or false on any post",
+      "fabricated post_id values",
+      "status: manual_required when Postiz is active"
+    ]
+  },
+  {
+    "id": "content-distributor-002",
+    "description": "No connector active: all platforms return status: manual_required with full manual_posting_packages",
+    "input": {
+      "captions": {
+        "instagram": "Bathroom reno day 3. Tile is grouted, vanity is in.",
+        "tiktok": "Bathroom before and after. Three days, $400, complete reno."
+      },
+      "hashtags": {
+        "instagram": ["#bathroomreno", "#diy"],
+        "tiktok": ["#bathroomreno"]
+      },
+      "platform_targets": ["instagram", "tiktok"],
+      "ftc_disclosures": { "instagram": null, "tiktok": null },
+      "is_aigc": false
+    },
+    "connector_state": {},
+    "expect": {
+      "distribution_summary": {
+        "total_platforms": 2,
+        "queued": 0,
+        "manual_required": 2,
+        "failed": 0
+      },
+      "posts": "array of 2 entries with status: manual_required and publishing_tier: manual",
+      "manual_posting_packages": "array of 2 entries, one per platform, each with formatted_caption, hashtag_block, posting_checklist",
+      "human_review_required": "true on every post entry"
+    },
+    "prohibit": [
+      "distribution blocked when no connector is active",
+      "manual_posting_packages empty when status is manual_required",
+      "human_review_required absent or false",
+      "fabricated post_id or permalink in manual mode"
+    ]
+  },
+  {
+    "id": "content-distributor-003",
+    "description": "Mode B: no captions provided, content_brief given — caption-write and hashtag-set run before schedule-post",
+    "input": {
+      "content_brief": "Side table makeover: $6 find from the thrift store, sanded and painted in two hours.",
+      "platform_targets": ["instagram", "tiktok"],
+      "ftc_disclosures": { "instagram": null, "tiktok": null },
+      "is_aigc": false
+    },
+    "connector_state": { "postiz_mcp": true },
+    "expect": {
+      "steps_1_2_run": true,
+      "captions_generated": "non-null caption for each platform in platform_targets",
+      "posts": "array with status: queued for each platform",
+      "human_review_required": "true on every post"
+    },
+    "prohibit": [
+      "steps 1 and 2 skipped when no captions provided",
+      "schedule-post called with null caption",
+      "human_review_required absent or false"
+    ]
+  },
+  {
+    "id": "content-distributor-004",
+    "description": "Mixed result: Postiz active for 3 platforms, no connector for YouTube — 3 queued, 1 manual_required",
+    "input": {
+      "captions": {
+        "instagram": "Fall mantel reveal.",
+        "tiktok": "Fall mantel before and after.",
+        "pinterest": "Dark moody fall mantel with thrifted candlesticks and brass sconces.",
+        "youtube": "Full fall mantel makeover — every item thrifted or under $10."
+      },
+      "hashtags": {
+        "instagram": ["#fallmantel", "#moodydecor"],
+        "tiktok": ["#falldecor"],
+        "pinterest": ["#fallmantel", "#moodydecor", "#thriftdecor"],
+        "youtube": ["#Shorts", "#falldecor"]
+      },
+      "platform_targets": ["instagram", "tiktok", "pinterest", "youtube"],
+      "ftc_disclosures": { "instagram": null, "tiktok": null, "pinterest": null, "youtube": null },
+      "is_aigc": false
+    },
+    "connector_state": { "postiz_mcp": true, "youtube_publishing": false },
+    "expect": {
+      "distribution_summary": {
+        "total_platforms": 4,
+        "queued": 3,
+        "manual_required": 1,
+        "failed": 0
+      },
+      "youtube_post": { "status": "manual_required", "publishing_tier": "manual" },
+      "instagram_post": { "status": "queued", "publishing_tier": "hosted_mcp" },
+      "manual_posting_packages": "array of 1 entry for youtube only"
+    },
+    "prohibit": [
+      "YouTube post returned as queued when no connector is active",
+      "Instagram/TikTok/Pinterest returned as manual when Postiz is active",
+      "manual_posting_packages populated for queued platforms"
+    ]
+  },
+  {
+    "id": "content-distributor-005",
+    "description": "FTC disclosure flow: ftc_disclosure provided, caption does not contain it — schedule-post prepends, govern-artifact verifies",
+    "input": {
+      "captions": {
+        "instagram": "These paint brushes made the project so much easier. Obsessed with the angled tip."
+      },
+      "hashtags": {
+        "instagram": ["#diy", "#sponsored"]
+      },
+      "platform_targets": ["instagram"],
+      "ftc_disclosures": { "instagram": "#ad" },
+      "is_aigc": false
+    },
+    "connector_state": { "postiz_mcp": true },
+    "expect": {
+      "posts": [
+        {
+          "platform": "instagram",
+          "ftc_disclosure_verified": true,
+          "human_review_required": true
+        }
+      ],
+      "govern_artifact_result": "integrity gate passes — disclosure verified"
+    },
+    "prohibit": [
+      "posting caption that does not contain #ad when ftc_disclosure is #ad",
+      "ftc_disclosure_verified: false when disclosure was prepended",
+      "human_review_required absent or false",
+      "govern-artifact reporting integrity gate failure when disclosure is present"
+    ]
+  },
+  {
+    "id": "content-distributor-006",
+    "description": "TikTok AIGC flag: is_aigc: true — schedule-post sets AIGC flag, aigc_flag_set: true in TikTok post entry",
+    "input": {
+      "captions": {
+        "tiktok": "AI-assisted room layout idea for small L-shaped living rooms."
+      },
+      "hashtags": {
+        "tiktok": ["#interiordesign", "#aihome"]
+      },
+      "platform_targets": ["tiktok"],
+      "ftc_disclosures": { "tiktok": null },
+      "is_aigc": true
+    },
+    "connector_state": { "tiktok_publishing": true },
+    "expect": {
+      "posts": [
+        {
+          "platform": "tiktok",
+          "aigc_flag_set": true,
+          "publishing_tier": "direct_api",
+          "human_review_required": true
+        }
+      ]
+    },
+    "prohibit": [
+      "aigc_flag_set: false when is_aigc: true and platform is tiktok",
+      "human_review_required absent or false",
+      "AIGC disclosure omitted from publish-draft checklist in manual fallback"
+    ]
+  },
+  {
+    "id": "content-distributor-007",
+    "description": "Govern-artifact safety gate failure: caption contains prohibited pattern — gate failure surfaced in output and next_steps, queued posts not unqueued",
+    "input": {
+      "captions": {
+        "instagram": "Rewiring the light fixture yourself is easy. Just flip the breaker and swap the wires."
+      },
+      "hashtags": {
+        "instagram": ["#diy", "#electricalwork"]
+      },
+      "platform_targets": ["instagram"],
+      "ftc_disclosures": { "instagram": null },
+      "is_aigc": false
+    },
+    "connector_state": { "postiz_mcp": true },
+    "expect": {
+      "govern_artifact_result": {
+        "gate_failures": "non-empty — safety gate failed on DIY electrical instruction"
+      },
+      "next_steps": "non-empty — includes gate failure reason and remediation guidance",
+      "posts": "status: queued (post was queued before govern-artifact ran), but gate failure is surfaced"
+    },
+    "prohibit": [
+      "govern-artifact gate failure silently dropped from output",
+      "gate failure blocking distribution summary",
+      "human_review_required absent or false"
+    ]
+  }
+]

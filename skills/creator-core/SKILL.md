@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -81,6 +81,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `audience_question` | Content | `audience-research` | persona mapping, behavior signals |
 | `competitor_check` | Content | `competitor-analysis` | competitor channel analysis, gap finding |
 | `seasonal_planning` | Content | `seasonal-trends` | seasonal content calendar, trend timing |
+| `content_distribution` | Content | `content-distributor` | scheduling, posting, and queuing finalized content to social platforms |
 | `document_create` | Document | `document-studio` | new document creation (media kit, brief, etc.) |
 | `document_edit` | Document | `document-studio` | editing an existing document |
 | `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
@@ -193,6 +194,7 @@ Stop after returning the human summary and routing object unless:
 ```
 content-strategy    project-builder    video-development    shortform-repurposing
 seo-keywords        analytics-insights analytics-compute    audience-research
-competitor-analysis seasonal-trends    document-studio      account-manager
-deal-pipeline       deal-resourcing    partnership-mediakit  quality-review
+competitor-analysis seasonal-trends    content-distributor  document-studio
+account-manager     deal-pipeline       deal-resourcing     partnership-mediakit
+quality-review
 ```

@@ -112,6 +112,36 @@
       "enabled": false,
       "description": "Custom GPT export packaging available. Enables: export-gpt atom to package Creator OS for OpenAI Custom GPTs.",
       "requires": "No external dependency. Enable to activate the export-gpt atom."
+    },
+    "postiz_mcp": {
+      "enabled": false,
+      "description": "Postiz self-hosted social scheduler MCP connected. Enables: multi-platform content scheduling (Instagram, TikTok, Pinterest, YouTube, 27+ platforms) via schedule-post atom without per-platform API credentials.",
+      "requires": "Self-hosted Docker stack (docs.postiz.com) + postiz_mcp server block in claude_desktop_config.json"
+    },
+    "buffer_mcp": {
+      "enabled": false,
+      "description": "Buffer hosted social scheduler MCP connected. Enables: content scheduling on up to 3 channels with 10 queued posts each (free tier). No self-hosting required.",
+      "requires": "Buffer account + Buffer MCP configured in claude_desktop_config.json"
+    },
+    "youtube_publishing": {
+      "enabled": false,
+      "description": "YouTube video upload and scheduling via Data API v3. Enables: schedule-post atom to upload videos with publishAt scheduling. Separate from read-only youtube_api flag.",
+      "requires": "OAuth credentials with youtube.upload scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "instagram_publishing": {
+      "enabled": false,
+      "description": "Instagram Reel publishing via Graph API v25.0. Enables: schedule-post atom to post Reels via the two-step container+publish flow. Separate from read-only instagram_api flag.",
+      "requires": "Meta app credentials with instagram_business_content_publish scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "tiktok_publishing": {
+      "enabled": false,
+      "description": "TikTok video posting via Content Posting API. Enables: schedule-post atom with AIGC flag support. Rate limit: 6 req/min. Separate from read-only tiktok_api flag.",
+      "requires": "TikTok developer app credentials with video.publish scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "pinterest_publishing": {
+      "enabled": false,
+      "description": "Pinterest pin creation and scheduling via API v5. Enables: schedule-post atom with board targeting and scheduled_at datetime. Separate from read-only pinterest_api flag.",
+      "requires": "Pinterest developer app credentials with pins:write scope in pipeline/user-context/api-credentials.local.json"
     }
   },
   "degraded_behavior": {
@@ -128,7 +158,11 @@
     "jupyter_disabled": "Persistent notebook sessions unavailable. Multi-step computations cannot maintain state across turns.",
     "stats_general_disabled": "When no statistical MCP is available, all statistical atoms produce guidance-only output: they describe what test to run and provide runnable Python/R code, but do not compute results. All outputs labeled [guidance-only].",
     "gem_export_disabled": "Gemini Gem packaging unavailable. Use the manual export files in implementation/gemini/ instead.",
-    "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead."
+    "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead.",
+    "publishing_disabled": "All scheduling connectors (Postiz, Buffer, platform APIs) are unavailable. schedule-post falls back to publish-draft (manual mode). Output includes a paste-ready caption, platform-specific posting checklist, and FTC reminder. No posts are queued or published automatically.",
+    "postiz_disabled": "Postiz MCP unavailable. schedule-post falls back to direct platform API if any publishing flag is enabled, or to publish-draft (manual) if no API is configured.",
+    "buffer_disabled": "Buffer MCP unavailable. schedule-post falls back to direct platform API if any publishing flag is enabled, or to publish-draft (manual) if no API is configured.",
+    "per_platform_publishing_disabled": "All per-platform publishing flags (youtube_publishing, instagram_publishing, tiktok_publishing, pinterest_publishing) are off and no Postiz or Buffer MCP is active. Every schedule-post call returns publishing_tier: manual and status: manual_required. Use publish-draft to get formatted paste-ready copy and a platform-specific posting checklist."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
 }

@@ -465,6 +465,168 @@ contained.
 
 ---
 
+## Content Publishing Endpoints
+
+This section documents the write-side publishing specs used by `schedule-post` and
+`content-distributor`. All publishing requires human confirmation before any connector call.
+`human_review_required: true` must appear in every post output. Agents never publish directly.
+
+### Connector resolution order
+
+When `schedule-post` is invoked, it resolves the active connector in this fixed priority order:
+
+1. **Postiz MCP (`postiz_mcp`)** — hosted_mcp tier; covers all four platforms via one integration.
+2. **Buffer MCP (`buffer_mcp`)** — hosted_mcp tier; free tier: 3 channels, 10 posts each.
+3. **Per-platform direct API** — direct_api tier; platform flags checked in order:
+   `youtube_publishing`, `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing`.
+4. **Manual (`publish-draft`)** — tier: manual; always available; no API credentials required.
+
+The first available tier for each platform wins. Partial connector coverage is normal: some
+platforms may queue via Postiz while others fall back to manual.
+
+### Pinterest API v5
+
+**Base URL:** `https://api.pinterest.com/v5/`
+**Scope:** `pins:write`, `boards:read`, `boards:write`
+**Rate limits:** Reads 1,000/min; Writes 100/min; Analytics 200/min
+
+**Create and schedule a pin:**
+```
+POST /v5/pins
+{
+  "board_id": "{board_id}",
+  "title": "{pin_title_up_to_100_chars}",
+  "description": "{description_up_to_500_chars}",
+  "link": "{destination_url}",
+  "media_source": {
+    "source_type": "image_url",
+    "url": "{media_url}"
+  },
+  "scheduled_at": "2026-10-01T14:00:00Z"   // ISO 8601; omit for immediate publish
+}
+```
+
+**Video pin workflow:**
+1. `POST /v5/media` — register media and get `media_id`
+2. Upload video to the AWS S3 URL returned in step 1
+3. `POST /v5/pins` with `media_source.source_type: "video_id"` and `media_source.media_id`
+
+**Hashtag behavior (2025 to 2026):** Hashtag follow was removed December 2024. Hashtags now
+function as classification signals for the Pinterest algorithm, not as traffic sources.
+Include 2 to 5 relevant hashtags in the description for algorithm classification. Do not
+promise hashtag-driven traffic. The first 100 characters of the description are weighted
+most heavily for search.
+
+**Publishing safety requirements:**
+- No cross-platform watermarks. TikTok-watermarked video suppresses Pinterest distribution.
+- FTC disclosure must appear in description when `ftc_disclosure` is non-null.
+- Human confirmation required before `POST /v5/pins` is called.
+
+### Instagram Graph API v25.0 (Content Publishing)
+
+Full write-side details are covered in the Meta Graph API section above (two-step
+container+publish flow). Publishing-specific notes for `schedule-post`:
+
+- **Rate limit:** 100 posts per rolling 24-hour window.
+- **FTC disclosure:** Must appear prominently in caption text; prepend `#ad`, `#gifted`, or
+  `#affiliate` before the main caption body if not already present.
+- **Trial Reels:** Pass `trial_params.graduation_strategy=MANUAL` to test with non-followers
+  before committing to full audience distribution. Recommended for new content formats.
+- **Processing time:** After publishing, poll `GET /{container_id}?fields=status_code` until
+  `FINISHED` before calling `post-status` to retrieve the permalink.
+- **Deprecated metrics (v22.0+, April 21, 2025):** `clips_replays_count`, `impressions`,
+  `plays`, `ig_reels_aggregated_all_plays_count`. `post-status` must return null for these
+  fields, not zero.
+
+### TikTok Content Posting API (publishing)
+
+Full endpoint details are covered in the TikTok APIs section above. Publishing-specific notes
+for `schedule-post`:
+
+- **Rate limit:** 6 requests/minute per user token; 5 pending uploads per 24-hour window.
+- **AIGC flag:** `post_info.is_aigc: true` is REQUIRED when `is_aigc: true` in the atom input.
+  This is a TikTok platform requirement, not optional.
+- **Direct scheduling:** TikTok Content Posting API does not support `scheduled_at` natively.
+  For scheduled posts, use Postiz or Buffer MCP (hosted_mcp tier) which handle scheduling
+  via their own queuing layer. Direct API tier posts immediately.
+- **No TikTok-watermarked reposts:** Do not repost watermarked TikTok content to other
+  platforms. Always use the source file.
+- **Status check endpoint:** `POST /v2/post/publish/status/fetch/` with `publish_id`.
+
+### YouTube Data API v3 (upload and scheduling)
+
+**Quota cost per upload:** approximately 1,600 units (resumable upload init + status checks).
+**Default daily quota:** 10,000 units — uploading 6 videos per day approaches the limit.
+
+**Video upload (resumable, required for all video uploads):**
+```
+POST https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable
+  Authorization: Bearer {oauth_token}
+  Content-Type: application/json
+  X-Upload-Content-Type: video/mp4
+  X-Upload-Content-Length: {file_size_bytes}
+
+{
+  "snippet": {
+    "title": "{title}",
+    "description": "{description_with_hashtags}",
+    "tags": ["{tag1}", "{tag2}"],
+    "categoryId": "26"   // "Howto & Style" for DIY/home content
+  },
+  "status": {
+    "privacyStatus": "private",       // keep private until scheduled time passes
+    "publishAt": "2026-09-10T17:00:00Z",  // ISO 8601 — YouTube auto-publishes at this time
+    "selfDeclaredMadeForKids": false
+  }
+}
+```
+Returns: `{ "id": "{video_id}" }` + upload URL in `Location` header.
+
+**YouTube Shorts identification (no dedicated API endpoint):**
+Shorts are identified heuristically: `contentDetails.duration` ≤ 60 seconds + `#Shorts` in
+title or description + 9:16 aspect ratio. There is no `publishAt` difference between Shorts
+and long-form.
+
+**Status check:** `GET /videos?id={video_id}&part=status` — `status.uploadStatus` transitions:
+`uploaded` → `processed` → (then `privacyStatus` changes to `public` at `publishAt`).
+
+### Postiz MCP (hosted_mcp tier)
+
+Postiz is an open-source social media scheduler (AGPL-3.0, self-hosted via Docker).
+It exposes an MCP server interface that `schedule-post` calls via the `postiz_mcp` connector.
+
+**Platforms covered:** Instagram, TikTok, Pinterest, YouTube, and 25+ others.
+**Scheduling:** Full datetime scheduling for all platforms, including TikTok (which lacks
+native API scheduling).
+**Rate limiting:** Postiz manages its own queue and respects per-platform rate limits.
+
+When `postiz_mcp` is active, `schedule-post` delegates scheduling to Postiz rather than
+calling platform APIs directly. Postiz returns a `post_id` and `status` from its own queue.
+
+Reference: `canonical-sources/source-registry.json` entries `postiz-github-repo` and
+`postiz-docs`.
+
+### Buffer MCP (hosted_mcp tier, second tier)
+
+Buffer is a hosted social media scheduling service with a free tier (3 channels, 10 posts each).
+It exposes an MCP server interface callable via the `buffer_mcp` connector.
+
+Buffer is used as the second-tier hosted_mcp connector when Postiz is not configured.
+Buffer's free tier is sufficient for low-volume content calendars without self-hosting.
+
+### Safety requirements for all publishing
+
+- **Human confirmation:** Present the full confirmation table before any connector call.
+  Never auto-publish. `human_review_required: true` always.
+- **FTC disclosures:** Verify or prepend disclosures before connector call, not after.
+- **AIGC flags:** Set TikTok `is_aigc` flag before upload, not as a post-publish edit.
+- **Watermarks:** Never publish TikTok-watermarked content to Instagram or Pinterest.
+  Never publish Instagram-watermarked content to TikTok or Pinterest.
+- **No fabricated IDs:** `post_id` and `permalink` are returned by the connector, never
+  invented. If the connector returns no ID, `post_id: null`.
+
+---
+
 ## Deprecated and discontinued services
 
 **Play.ht:** Play.ht (AI voice generation service) was acquired by Meta in July 2025 and

@@ -2,8 +2,8 @@
 Conventions for working in the Creator OS repository (the `seo-tools` repo).
 
 ## What this repo is
-Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills for the creator, a YouTube
-creator in the moody-vintage home decor and DIY niche. A routing hub (`creator-core`) classifies each
+Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills for YouTube and social media
+creators. A routing hub (`creator-core`) classifies each
 request into one of three lanes (Content, Document, Pipeline/CRM), loads only the engines that lane
 needs, enforces the protocols, and dispatches to a capability spoke. Spokes are thin orchestrators
 that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design. Live status:
@@ -92,6 +92,10 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   resolver (`shared/connectors/connectors.py`) reads both this file and `creator-os-config.local.json`
   to produce the active evidence plan. Per-deployment overrides go in `creator-os-connectors.local.json`
   (gitignored); do not edit `connectors.json` for deployment-specific state changes.
+- **Human confirmation required before every post.** `schedule-post` always sets
+  `human_review_required: true`. No connector call is made, and no post is queued or published,
+  without an explicit human confirmation step. Agents never post directly — they produce
+  confirmation summaries for human review only.
 
 ## Commit messages
 Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase

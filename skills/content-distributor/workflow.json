@@ -1,0 +1,68 @@
+{
+  "spoke": "content-distributor",
+  "description": "Multi-platform content scheduling and distribution workflow. Accepts finalized content and queues or schedules posts across up to 4 platforms via the active publishing connector. Human confirmation required before every post.",
+  "steps": [
+    {
+      "step": 1,
+      "atom": "caption-write",
+      "label": "Caption generation (conditional)",
+      "repeat": "per_platform",
+      "skip_if": "captions_already_provided",
+      "input_from": "caller.content_brief",
+      "output_to": "captions"
+    },
+    {
+      "step": 2,
+      "atom": "hashtag-set",
+      "label": "Hashtag generation (conditional)",
+      "repeat": "per_platform",
+      "skip_if": "captions_already_provided",
+      "input_from": "captions",
+      "output_to": "hashtags"
+    },
+    {
+      "step": 3,
+      "atom": "schedule-post",
+      "label": "Schedule post per platform",
+      "repeat": "per_platform",
+      "input_from": "captions, hashtags, caller.media_urls, caller.scheduled_datetimes, caller.ftc_disclosures, caller.is_aigc, caller.board_names",
+      "output_to": "posts",
+      "notes": "Human confirmation required before this atom sends to any connector. Present the full confirmation table first."
+    },
+    {
+      "step": 4,
+      "atom": "post-status",
+      "label": "Post status check (optional)",
+      "repeat": "per_post",
+      "condition": "post.status == 'processing'",
+      "optional": true,
+      "input_from": "posts[].post_id, posts[].platform",
+      "output_to": "post_status_results",
+      "notes": "Offer to run after all posts are queued. Only required when connector returned status: processing."
+    },
+    {
+      "step": 5,
+      "atom": "govern-artifact",
+      "label": "Quality gate verification",
+      "input_from": "posts, captions, hashtags",
+      "output_to": "govern_artifact_result",
+      "gates": ["integrity", "safety", "brand_alignment"],
+      "notes": "Integrity gate verifies FTC disclosures and AIGC flags. Safety gate checks prohibited content patterns. Brand alignment gate verifies captions match platform conventions."
+    }
+  ],
+  "shortcut_atoms": [
+    "schedule-post",
+    "publish-draft",
+    "post-status"
+  ],
+  "engines_required": [
+    "shared/platform-engine.md",
+    "shared/integrations-engine.md",
+    "shared/brand-engine.md"
+  ],
+  "protocols": [
+    "protocols/safety.md",
+    "protocols/no-fabrication.md",
+    "protocols/formatting-metadata.md"
+  ]
+}
