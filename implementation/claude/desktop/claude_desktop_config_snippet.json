@@ -25,6 +25,40 @@
       "command": "npx",
       "args": ["-y", "@softeria/ms-365-mcp-server"],
       "env": {}
+    },
+    "wolfram-alpha": {
+      "_comment": "Optional. Exact symbolic computation. Free tier: 2,000 calls/month. Get App ID at developer.wolframalpha.com.",
+      "command": "uvx",
+      "args": ["mcp-wolfram-alpha"],
+      "env": {
+        "WOLFRAM_APP_ID": "REPLACE_WITH_WOLFRAM_APP_ID"
+      }
+    },
+    "e2b-code-interpreter": {
+      "_comment": "Optional. Sandboxed Python with scipy/numpy/pandas/matplotlib. Get API key at e2b.dev.",
+      "command": "npx",
+      "args": ["-y", "@e2b/mcp-server"],
+      "env": {
+        "E2B_API_KEY": "REPLACE_WITH_E2B_API_KEY"
+      }
+    },
+    "stats-compass": {
+      "_comment": "Optional. 50+ pandas-based statistical tools. No API key needed.",
+      "command": "python3",
+      "args": ["-m", "stats_compass_mcp"],
+      "env": {}
+    },
+    "duckdb-analytics": {
+      "_comment": "Optional. Analytical SQL engine for CSV/Parquet/JSON. No API key for local mode.",
+      "command": "npx",
+      "args": ["-y", "@motherduckdb/mcp-server-motherduck"],
+      "env": {}
+    },
+    "jupyter-notebook": {
+      "_comment": "Optional. Persistent Jupyter notebook sessions. No API key needed.",
+      "command": "python3",
+      "args": ["-m", "jupyter_mcp_server"],
+      "env": {}
     }
   }
 }

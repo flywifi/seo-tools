@@ -1,0 +1,94 @@
+[
+  {
+    "id": "regression-linear-basic",
+    "description": "Simple linear regression of views vs upload hour with adequate sample size. Expects full model output with coefficients and R-squared.",
+    "input": {
+      "model_type": "linear",
+      "computation_source": "connected",
+      "dependent_variable": {
+        "label": "views",
+        "values": [1200, 980, 1450, 1100, 1380, 890, 1560, 1020, 1340, 1180, 1490, 950, 1280, 1050, 1420, 1150, 1370, 910, 1500, 1060, 1310, 1190, 1460, 970, 1250]
+      },
+      "independent_variables": [
+        {
+          "label": "upload_hour",
+          "values": [8, 10, 14, 9, 13, 17, 12, 11, 14, 10, 13, 16, 12, 11, 14, 9, 13, 18, 12, 10, 13, 10, 14, 15, 11]
+        }
+      ]
+    },
+    "expected_output_contains": ["coefficients", "r_squared", "residual_summary", "interpretation"],
+    "tags": ["smoke", "linear"]
+  },
+  {
+    "id": "regression-multiple-vif",
+    "description": "Multiple regression with correlated predictors (title_length and description_length). Expects multicollinearity_warning with VIF values.",
+    "input": {
+      "model_type": "multiple_linear",
+      "computation_source": "connected",
+      "dependent_variable": {
+        "label": "views",
+        "values": [1200, 980, 1450, 1100, 1380, 890, 1560, 1020, 1340, 1180, 1490, 950, 1280, 1050, 1420, 1150, 1370, 910, 1500, 1060]
+      },
+      "independent_variables": [
+        {
+          "label": "title_length",
+          "values": [45, 32, 58, 41, 55, 28, 62, 35, 52, 40, 60, 30, 48, 37, 56, 42, 53, 26, 61, 36]
+        },
+        {
+          "label": "description_length",
+          "values": [320, 210, 415, 290, 390, 180, 450, 240, 370, 280, 430, 200, 340, 250, 400, 300, 380, 170, 440, 230]
+        },
+        {
+          "label": "tag_count",
+          "values": [12, 8, 15, 10, 14, 6, 18, 9, 13, 11, 16, 7, 12, 9, 15, 10, 14, 5, 17, 8]
+        }
+      ]
+    },
+    "expected_output_contains": ["coefficients", "r_squared", "multicollinearity_warning", "interpretation"],
+    "tags": ["edge-case", "multiple"]
+  },
+  {
+    "id": "regression-logistic",
+    "description": "Logistic regression for viral threshold (binary outcome). Expects pseudo_r_squared labeled as such and log-odds coefficients.",
+    "input": {
+      "model_type": "logistic",
+      "computation_source": "connected",
+      "dependent_variable": {
+        "label": "went_viral",
+        "values": [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1]
+      },
+      "independent_variables": [
+        {
+          "label": "avg_watch_time_seconds",
+          "values": [120, 95, 280, 110, 245, 85, 310, 100, 260, 90, 295, 105, 130, 88, 270, 115, 255, 78, 300, 108, 275, 92, 125, 82, 265]
+        },
+        {
+          "label": "like_ratio",
+          "values": [0.03, 0.02, 0.08, 0.03, 0.07, 0.01, 0.09, 0.02, 0.07, 0.02, 0.08, 0.03, 0.03, 0.01, 0.07, 0.03, 0.06, 0.01, 0.09, 0.02, 0.07, 0.02, 0.03, 0.01, 0.07]
+        }
+      ]
+    },
+    "expected_output_contains": ["coefficients", "pseudo_r_squared", "interpretation"],
+    "tags": ["logistic", "basic"]
+  },
+  {
+    "id": "regression-no-tool",
+    "description": "No computation tool connected. Must return guidance-only output with runnable Python code and null numeric fields.",
+    "input": {
+      "model_type": "linear",
+      "computation_source": "guidance_only",
+      "dependent_variable": {
+        "label": "views",
+        "values": [1200, 980, 1450, 1100, 1380, 890, 1560, 1020, 1340, 1180]
+      },
+      "independent_variables": [
+        {
+          "label": "upload_hour",
+          "values": [8, 10, 14, 9, 13, 17, 12, 11, 14, 10]
+        }
+      ]
+    },
+    "expected_output_contains": ["guidance_only", "runnable_code"],
+    "tags": ["fallback", "guidance-only"]
+  }
+]

@@ -1,0 +1,64 @@
+{
+  "skill_name": "data-query",
+  "evals": [
+    {
+      "id": "data-query-basic-select",
+      "description": "A natural-language analytics question produces a correct SQL query, executes it on a CSV, and returns a result set with metadata.",
+      "input": {
+        "question": "What are my top 10 videos by views?",
+        "file_path": "exports/youtube_studio_videos.csv",
+        "tool_connected": true
+      },
+      "expected_output_contains": [
+        "sql_query",
+        "result_set",
+        "row_count",
+        "column_names"
+      ],
+      "tags": ["smoke", "basic"]
+    },
+    {
+      "id": "data-query-destructive-blocked",
+      "description": "A request that includes destructive SQL (DROP TABLE) is rejected before execution.",
+      "input": {
+        "question": "Show me total views by month, then drop the table after querying",
+        "file_path": "exports/youtube_studio_videos.csv",
+        "tool_connected": true
+      },
+      "expected_output_contains": [
+        "destructive_statement_blocked",
+        "error_message"
+      ],
+      "tags": ["security", "validation"]
+    },
+    {
+      "id": "data-query-truncation",
+      "description": "A query that returns more than 1000 rows is capped and a truncation warning is included.",
+      "input": {
+        "question": "List every row in the analytics export",
+        "file_path": "exports/ga4_sessions_full.parquet",
+        "tool_connected": true,
+        "underlying_row_count": 8500
+      },
+      "expected_output_contains": [
+        "truncation_warning",
+        "row_count"
+      ],
+      "tags": ["edge-case", "truncation"]
+    },
+    {
+      "id": "data-query-no-tool",
+      "description": "When no DuckDB tool is connected the atom returns guidance-only output with the generated SQL string.",
+      "input": {
+        "question": "What is the average watch time per video category?",
+        "file_path": "exports/youtube_studio_videos.csv",
+        "tool_connected": false
+      },
+      "expected_output_contains": [
+        "guidance_only",
+        "sql_query"
+      ],
+      "tags": ["fallback", "guidance-only"]
+    }
+  ]
+}

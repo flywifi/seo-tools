@@ -26,6 +26,8 @@
         "production_plan",
         "outreach_draft",
         "media_kit",
+        "statistical_analysis",
+        "platform_export",
         "quality_check",
         "unclear"
       ],
@@ -75,6 +77,7 @@
         "shortform-repurposing",
         "seo-keywords",
         "analytics-insights",
+        "analytics-compute",
         "audience-research",
         "competitor-analysis",
         "seasonal-trends",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS MCP Server — exposes Python tools to Claude Desktop as MCP tool calls.
 
-Eight tools:
+Ten tools:
   cache_query        Query the offline FTS5 keyword/entity cache.
   competitor_scan    Return parsed metadata for a stored competitor snapshot.
   source_staleness   Report which canonical sources are stale or never checked.
@@ -10,6 +10,8 @@ Eight tools:
   add_competitor     Add a competitor URL to the tracking registry.
   get_capabilities   Return which Creator OS capabilities are enabled.
   get_connectors     Return the full connector evidence plan for this deployment.
+  get_stats_tools    Return which statistical MCP servers are currently enabled.
+  configure_tool     Enable or disable a capability flag in creator-os-config.local.json.
 
 These are the capabilities above what vanilla Claude can do: live competitor
 tag extraction, offline FTS5 keyword lookups, source staleness detection, and
@@ -331,6 +333,89 @@ def get_connectors(flags_path: str = "") -> str:
     if rc != 0:
         return json.dumps({"error": err.strip() or "connector resolver failed"})
     return out.strip() or json.dumps({"error": "no output from connector resolver"})
+
+
+# ---------------------------------------------------------------------------
+# Tool 9: get_stats_tools
+# ---------------------------------------------------------------------------
+
+STATS_FLAGS = [
+    "wolfram_alpha", "e2b_sandbox", "duckdb_analytics", "stats_compass",
+    "jupyter_notebook", "r_statistics", "monte_carlo", "scikit_learn",
+]
+
+
+@mcp.tool()
+def get_stats_tools() -> str:
+    """Return which statistical MCP servers are currently enabled.
+
+    Reads creator-os-config.json (and the .local.json override) and reports
+    the status of each statistical computation capability: Wolfram Alpha, E2B
+    Code Interpreter, DuckDB, stats-compass, Jupyter, R, Monte Carlo, and
+    scikit-learn. Use this before invoking any statistical atom to know which
+    computation engines are available.
+    """
+    config = _load_config()
+    caps = config.get("capabilities", {})
+    result = {}
+    for flag in STATS_FLAGS:
+        meta = caps.get(flag, {})
+        enabled = meta.get("enabled", False) if isinstance(meta, dict) else bool(meta)
+        result[flag] = {
+            "enabled": enabled,
+            "description": meta.get("description", "") if isinstance(meta, dict) else "",
+            "requires": meta.get("requires", "") if isinstance(meta, dict) and not enabled else "",
+        }
+    any_enabled = any(v["enabled"] for v in result.values())
+    return json.dumps({
+        "stats_tools": result,
+        "any_stats_tool_enabled": any_enabled,
+        "fallback_note": (
+            "No statistical MCP tool is connected. Statistical atoms will produce "
+            "guidance-only output with runnable code the user can execute locally."
+            if not any_enabled else ""
+        ),
+    }, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Tool 10: configure_tool
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def configure_tool(capability: str, enabled: bool = True) -> str:
+    """Enable or disable a capability flag in creator-os-config.local.json.
+
+    Writes the flag to the gitignored .local.json override file so the change
+    persists across sessions without affecting the committed config. Used by the
+    configure-stats-tool atom after the user has installed a statistical MCP server.
+
+    Args:
+        capability: The capability flag name (e.g. "wolfram_alpha", "e2b_sandbox",
+                    "duckdb_analytics", "stats_compass", "jupyter_notebook",
+                    "r_statistics", "monte_carlo", "scikit_learn",
+                    "gemini_gem_export", "custom_gpt_export").
+        enabled: True to enable the capability, False to disable it.
+    """
+    local: dict = {}
+    if CONFIG_LOCAL_PATH.exists():
+        try:
+            local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            local = {}
+
+    local.setdefault("capabilities", {})[capability] = enabled
+
+    CONFIG_LOCAL_PATH.write_text(
+        json.dumps(local, indent=2) + "\n", encoding="utf-8"
+    )
+
+    return json.dumps({
+        "result": "ok",
+        "capability": capability,
+        "enabled": enabled,
+        "file": str(CONFIG_LOCAL_PATH),
+    })
 
 
 # ---------------------------------------------------------------------------

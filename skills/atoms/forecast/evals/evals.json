@@ -1,0 +1,78 @@
+{
+  "skill_name": "forecast",
+  "evals": [
+    {
+      "id": "forecast-arima-basic",
+      "description": "24-month subscriber data with ARIMA model and 6-month horizon produces a complete forecast with confidence bounds and diagnostics.",
+      "input": {
+        "metric": "subscriber_count",
+        "data_points": 24,
+        "model": "arima",
+        "horizon": 6,
+        "periodicity": "monthly"
+      },
+      "expected_output_contains": [
+        "point_forecast",
+        "confidence_lower",
+        "confidence_upper",
+        "model_type",
+        "model_fit_diagnostics"
+      ],
+      "tags": ["smoke", "arima"]
+    },
+    {
+      "id": "forecast-short-series",
+      "description": "4 data points requesting ARIMA triggers a model downgrade to linear projection with a fallback note.",
+      "input": {
+        "metric": "view_count",
+        "data_points": 4,
+        "model": "arima",
+        "horizon": 2,
+        "periodicity": "monthly"
+      },
+      "expected_output_contains": [
+        "point_forecast",
+        "confidence_lower",
+        "confidence_upper",
+        "model_type",
+        "fallback_note"
+      ],
+      "tags": ["edge-case", "fallback"]
+    },
+    {
+      "id": "forecast-long-horizon",
+      "description": "12 data points with a 30-period horizon exceeds the 2x limit and triggers a horizon warning with truncation.",
+      "input": {
+        "metric": "engagement_rate",
+        "data_points": 12,
+        "model": "exponential_smoothing",
+        "horizon": 30,
+        "periodicity": "monthly"
+      },
+      "expected_output_contains": [
+        "point_forecast",
+        "confidence_lower",
+        "confidence_upper",
+        "horizon_warning"
+      ],
+      "tags": ["edge-case", "validation"]
+    },
+    {
+      "id": "forecast-no-tool",
+      "description": "No computation tool connected returns guidance-only output with runnable code.",
+      "input": {
+        "metric": "revenue",
+        "data_points": 18,
+        "model": "arima",
+        "horizon": 6,
+        "periodicity": "monthly",
+        "computation_tool": null
+      },
+      "expected_output_contains": [
+        "guidance_only",
+        "runnable_code"
+      ],
+      "tags": ["fallback", "guidance-only"]
+    }
+  ]
+}

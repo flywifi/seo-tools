@@ -15,7 +15,11 @@
     "content_calendar",
     "email_inbox",
     "calendar_events",
-    "spreadsheet_data"
+    "spreadsheet_data",
+    "statistical_computation",
+    "sql_analytics",
+    "notebook_session",
+    "ml_prediction"
   ],
   "connectors": [
     {
@@ -233,36 +237,133 @@
       "requires_capability": "microsoft_365",
       "deployment_support": ["option_a_claude_desktop_mcp"],
       "status": "seed"
+    },
+    {
+      "id": "wolfram_alpha_mcp",
+      "label": "Wolfram Alpha MCP (exact symbolic computation)",
+      "vendor": "Wolfram",
+      "default_flag": "not_installed",
+      "provides": ["statistical_computation"],
+      "authoritative_for": ["statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "WOLFRAM_APP_ID env var required. Free tier: 2,000 calls/month. Install via uvx mcp-wolfram-alpha.",
+      "requires_capability": "wolfram_alpha",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "e2b_code_interpreter",
+      "label": "E2B Code Interpreter (sandboxed Python with scipy/numpy/pandas/matplotlib)",
+      "vendor": "e2b.dev",
+      "default_flag": "not_installed",
+      "provides": ["statistical_computation", "notebook_session"],
+      "privacy_sensitivity": "low",
+      "auth_note": "E2B_API_KEY env var required. Cloud-sandboxed execution. No local dependencies beyond the MCP client.",
+      "requires_capability": "e2b_sandbox",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "stats_compass_mcp",
+      "label": "Stats Compass MCP (50+ pandas-based statistical tools)",
+      "vendor": "stats-compass",
+      "default_flag": "not_installed",
+      "provides": ["statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "No API key required. pip install stats-compass-mcp. Local execution.",
+      "requires_capability": "stats_compass",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "duckdb_analytics_mcp",
+      "label": "DuckDB MCP (analytical SQL on CSV/Parquet/JSON)",
+      "vendor": "MotherDuck",
+      "default_flag": "not_installed",
+      "provides": ["sql_analytics", "statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "No API key for local mode. motherduckdb/mcp-server-motherduck. Optional MotherDuck token for cloud mode.",
+      "requires_capability": "duckdb_analytics",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "jupyter_notebook_mcp",
+      "label": "Jupyter Notebook MCP (persistent notebook sessions)",
+      "vendor": "jupyter-mcp-server",
+      "default_flag": "not_installed",
+      "provides": ["notebook_session", "statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "No API key required. pip install jupyter-mcp-server. Runs local Jupyter kernel.",
+      "requires_capability": "jupyter_notebook",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "r_statistics_mcp",
+      "label": "R Statistics MCP (rmcp, 52 R statistical tools)",
+      "vendor": "rmcp",
+      "default_flag": "not_installed",
+      "provides": ["statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "R must be installed on the system. pip install rmcp.",
+      "requires_capability": "r_statistics",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "monte_carlo_mcp",
+      "label": "Monte Carlo Simulation MCP (probabilistic modeling)",
+      "vendor": "MCS-MCP",
+      "default_flag": "not_installed",
+      "provides": ["statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "No API key required. MCS-MCP MCP server.",
+      "requires_capability": "monte_carlo",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "scikit_learn_mcp",
+      "label": "scikit-learn MCP (ML classification, regression, clustering)",
+      "vendor": "scikit-learn",
+      "default_flag": "not_installed",
+      "provides": ["ml_prediction", "statistical_computation"],
+      "privacy_sensitivity": "low",
+      "auth_note": "No API key required. mcp-server-scikit-learn.",
+      "requires_capability": "scikit_learn",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
     }
   ],
   "deployment_modes": {
     "option_a_claude_desktop_mcp": {
       "label": "Claude Desktop with MCP (full capability)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_b_claude_projects": {
       "label": "Claude Projects on claude.ai (knowledge-only)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
       "connectors_requiring_setup": ["gmail", "google_calendar", "google_docs_sheets"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_c_gpt_api": {
       "label": "GPT-4 API with function calling",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_d_chatgpt_web": {
       "label": "ChatGPT Web with custom instructions",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_e_gemini": {
       "label": "Gemini (Gems or API)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     }
   },
   "extensible_stubs": ["pinterest_api", "snapchat_api", "spotify_podcasts"]
