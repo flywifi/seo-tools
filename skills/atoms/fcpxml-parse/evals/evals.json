@@ -1,0 +1,23 @@
+[
+  {
+    "id": "fcpxml-parse-roundtrip",
+    "description": "An FCPXML built by edit-timeline-spec parses back to the same markers, chapters, keywords, and titles (lossless round-trip).",
+    "input": {"fcpxml_path": "<FCPXML built from a package with 2 markers, 2 chapters, 1 keyword, 1 title>"},
+    "expect": ["markers count matches source", "chapter titles match source", "keyword recovered", "title text recovered", "source == fcpxml-parse"],
+    "prohibit": ["fabricated markers", "fabricated chapter titles", "em dashes"]
+  },
+  {
+    "id": "fcpxml-parse-empty",
+    "description": "An FCPXML with an empty timeline returns a valid empty edit-package plus a gaps[] note.",
+    "input": {"fcpxml_path": "<FCPXML with a gap spine and no markers>"},
+    "expect": ["valid edit-package", "timeline.markers == []", "gaps[] notes empty timeline"],
+    "prohibit": ["invented markers", "invented chapters", "em dashes"]
+  },
+  {
+    "id": "fcpxml-parse-malformed",
+    "description": "Malformed FCPXML returns the validator error, not a partial guess.",
+    "input": {"fcpxml_path": "<not-well-formed XML>"},
+    "expect": ["validation error returned", "no edit-package emitted"],
+    "prohibit": ["partial fabricated package", "silent success", "em dashes"]
+  }
+]

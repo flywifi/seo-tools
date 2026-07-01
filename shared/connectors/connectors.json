@@ -20,7 +20,8 @@
     "sql_analytics",
     "notebook_session",
     "ml_prediction",
-    "content_publishing"
+    "content_publishing",
+    "edit_artifact"
   ],
   "connectors": [
     {
@@ -162,6 +163,60 @@
       "auth_note": "Write side. OAuth 2.0 with the pins:write and boards:write scopes; write rate limit 100/min. Separate from the read-only pinterest_api flag. Enable by setting pinterest_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
       "requires_capability": "pinterest_publishing",
       "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "fcpxml_interchange",
+      "label": "FCPXML / OTIO file interchange",
+      "vendor": "Apple / ASWF OpenTimelineIO",
+      "default_flag": "not_installed",
+      "provides": ["edit_artifact"],
+      "authoritative_for": ["edit_artifact"],
+      "privacy_sensitivity": "low",
+      "auth_note": "No account. The universal file bridge: generate/parse FCPXML (.fcpxmld) and OpenTimelineIO. Works on any OS since it is just a file; Final Cut Pro and DaVinci Resolve both read FCPXML. Realized by tools/videoedit/fcpxml.py + otio_core.py. Validation via xmllint against the DTD in the installed editor. Enable by setting video_editing_enabled: true in creator-os-config.local.json.",
+      "requires_capability": "video_editing_enabled",
+      "api_reference": "shared/videoedit-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "resolve_api",
+      "label": "DaVinci Resolve Scripting API (Studio)",
+      "vendor": "Blackmagic Design",
+      "default_flag": "not_installed",
+      "provides": ["edit_artifact"],
+      "authoritative_for": ["edit_artifact"],
+      "privacy_sensitivity": "low",
+      "auth_note": "Live NLE control on macOS/Windows/Linux via the Resolve Python API. REQUIRES DaVinci Resolve Studio (paid); the free version cannot be scripted externally. Env vars RESOLVE_SCRIPT_API / RESOLVE_SCRIPT_LIB set from the install; pin Python 3.10 to 3.12. Realized by tools/videoedit/resolve.py; degrades to fcpxml_interchange when Studio/Resolve is absent. Enable by setting resolve_scripting: true in creator-os-config.local.json.",
+      "requires_capability": "resolve_scripting",
+      "api_reference": "shared/videoedit-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "compressor_cli",
+      "label": "Apple Compressor (command line)",
+      "vendor": "Apple",
+      "default_flag": "not_installed",
+      "provides": ["edit_artifact"],
+      "privacy_sensitivity": "low",
+      "auth_note": "macOS batch encoder. Runs platform export presets (.compressorsetting) via /Applications/Compressor.app/Contents/MacOS/Compressor. Presets keyed to shared/platform-engine.md. Cross-OS alternative is the Resolve render queue. Enable by setting compressor_presets: true in creator-os-config.local.json.",
+      "requires_capability": "compressor_presets",
+      "api_reference": "shared/videoedit-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "commandpost_bridge",
+      "label": "CommandPost (FCP UI automation)",
+      "vendor": "CommandPost (open source)",
+      "default_flag": "not_installed",
+      "provides": ["edit_artifact"],
+      "privacy_sensitivity": "low",
+      "auth_note": "macOS Lua automation layer for Final Cut Pro finishing chores FCPXML cannot reach (apply LUT, drop intro, run export preset). Realized by tools/videoedit/commandpost.py (emits/triggers macros). Enable by setting commandpost_macros: true in creator-os-config.local.json.",
+      "requires_capability": "commandpost_macros",
+      "api_reference": "shared/videoedit-engine.md",
       "deployment_support": ["option_a_claude_desktop_mcp"],
       "status": "seed"
     },
@@ -397,30 +452,30 @@
     "option_a_claude_desktop_mcp": {
       "label": "Claude Desktop with MCP (full capability)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
     },
     "option_b_claude_projects": {
       "label": "Claude Projects on claude.ai (knowledge-only)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
       "connectors_requiring_setup": ["gmail", "google_calendar", "google_docs_sheets"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
     },
     "option_c_gpt_api": {
       "label": "GPT-4 API with function calling",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
     },
     "option_d_chatgpt_web": {
       "label": "ChatGPT Web with custom instructions",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
     },
     "option_e_gemini": {
       "label": "Gemini (Gems or API)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
     }
   },
   "extensible_stubs": ["snapchat_api", "spotify_podcasts"]

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "edit-timeline-spec-full",
+    "description": "Full input (beats, chapters, titles, b-roll) becomes a valid edit-package that round-trips through tools/videoedit/fcpxml.py.",
+    "input": {
+      "title": "Chalk paint armoire",
+      "frame_rate": 30,
+      "beats": [{"start_seconds": 0.0, "name": "Cold open", "note": "hook"}, {"start_seconds": 12.5, "name": "Prep"}],
+      "chapters": [{"start_seconds": 0.0, "title": "Intro"}, {"start_seconds": 45.0, "title": "First coat"}],
+      "titles": [{"start_seconds": 5.0, "duration_seconds": 4.0, "text": "Chalk Paint Armoire", "template": "brand-lower-third"}],
+      "broll": [{"start_seconds": 0.0, "duration_seconds": 10.0, "name": "armoire before"}]
+    },
+    "expect": ["timeline.markers has both beats", "timeline.chapters has both chapters", "timeline.titles has the title with template", "source == creator-os", "frame_rate == 30"],
+    "prohibit": ["fabricated beats", "em dashes", "app calls", "file writes"]
+  },
+  {
+    "id": "edit-timeline-spec-minimal",
+    "description": "Title-only input yields a valid but empty timeline plus a gaps[] note; nothing invented.",
+    "input": {"title": "Untitled draft"},
+    "expect": ["valid edit-package", "timeline.markers == []", "gaps[] notes missing beats/chapters"],
+    "prohibit": ["fabricated section names", "fabricated chapters", "em dashes"]
+  },
+  {
+    "id": "edit-timeline-spec-missing-flagged",
+    "description": "Beats provided but no chapters/titles: chapters/titles are flagged in gaps[], not invented.",
+    "input": {"title": "DIY shelf", "beats": [{"start_seconds": 0.0, "name": "Intro"}]},
+    "expect": ["timeline.markers has 1 beat", "timeline.chapters == []", "gaps[] mentions chapters and/or titles absent"],
+    "prohibit": ["invented chapter titles", "invented title copy", "em dashes"]
+  }
+]

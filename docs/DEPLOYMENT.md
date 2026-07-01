@@ -248,6 +248,10 @@ python3 tools/competitor_snapshot.py --export-summary
 | Custom GPT export packaging | Yes | Yes | N/A | N/A | No |
 | Subagent workflows (content-pipeline, etc.) | Yes | No | No | No | No |
 | Agent orchestration (read-only research agents) | Yes | No | No | No | No |
+| Edit spec generation (markers, chapters, captions, presets) | Yes | Yes | Yes | Yes | Yes |
+| Build/parse FCPXML + OTIO files | Yes (local) | No | No | No | No |
+| DaVinci Resolve live control | Yes (local + Studio) | No | No | No | No |
+| Compressor export presets (macOS) | Yes (local + Mac) | No | No | No | No |
 | Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | Yes | No | No |
 | Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial | No | No |
 | Channel context from channel-context.json | Yes | Manual paste | Manual paste | No | No |

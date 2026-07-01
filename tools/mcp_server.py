@@ -660,6 +660,84 @@ def get_publishing_plan() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Tools 14 to 18: video editing bridge (P22)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def edit_preflight() -> str:
+    """Report what the video-editing bridge can do on this machine (OS, tools, flags, lanes).
+    Thin wrapper over tools/videoedit/preflight.py; launches nothing."""
+    code, out, err = _run([sys.executable, str(HERE / "videoedit" / "preflight.py"), "--json"])
+    return out if code == 0 else json.dumps({"error": err or "preflight failed"})
+
+
+@mcp.tool()
+def edit_build_fcpxml(edit_package: dict) -> str:
+    """Build a validated FCPXML timeline scaffold from a neutral edit-package.
+    Returns the FCPXML plus a validation result. File generation is allowed even while
+    video_editing_enabled is off (it drives no app). See shared/videoedit-engine.md."""
+    import tempfile as _tf
+    sys.path.insert(0, str(HERE / "videoedit"))
+    sys.path.insert(0, str(HERE))
+    import fcpxml as _f  # type: ignore
+    import videoedit_validate as _v  # type: ignore
+    xml = _f.build(edit_package)
+    val = _v.validate_fcpxml(xml)
+    return json.dumps({"fcpxml": xml, "validation": val}, indent=2)
+
+
+@mcp.tool()
+def edit_parse_fcpxml(fcpxml_path: str) -> str:
+    """Parse an exported FCPXML/.fcpxmld into a neutral edit-package (markers, chapters,
+    keywords, roles). This is the offline-to-online handoff feeding SEO and scheduling."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import fcpxml as _f  # type: ignore
+    try:
+        return json.dumps(_f.parse(fcpxml_path), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def import_edit_artifact(fcpxml_path: str) -> str:
+    """Import an editor export and surface the pieces that feed the rest of Creator OS:
+    chapters -> geo-optimize / description timestamps / scheduling, keywords -> entity-extract,
+    roles -> audio-stem plan. Mirrors the dashboard /api/import-report handoff."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import fcpxml as _f  # type: ignore
+    try:
+        pkg = _f.parse(fcpxml_path)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+    tl = pkg.get("timeline", {})
+    return json.dumps({
+        "edit_package": pkg,
+        "handoff": {
+            "chapters_for_geo_optimize_and_scheduling": tl.get("chapters", []),
+            "keywords_for_entity_extract": [k.get("keyword") for k in tl.get("keywords", [])],
+            "roles_for_audio_stems": tl.get("roles", []),
+            "marker_count": len(tl.get("markers", [])),
+        },
+    }, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def resolve_status() -> str:
+    """Report the DaVinci Resolve lane status (env bootstrap + whether live control is available).
+    Live control needs Resolve Studio + the resolve_scripting/video_editing_enabled flags; this
+    only inspects, it does not launch Resolve."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import resolve as _r  # type: ignore
+    from preflight import _resolve_present, _python_ok  # type: ignore
+    return json.dumps({
+        "bootstrap": _r.bootstrap_env(),
+        "resolve_detected": _resolve_present(),
+        "python_ok_for_resolve": _python_ok(),
+        "note": "Live methods are stubs until video_editing_enabled + resolve_scripting are on and Resolve Studio is running.",
+    }, indent=2)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

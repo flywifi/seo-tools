@@ -29,6 +29,16 @@ pipeline/competitor-snapshots/
 .harvest-cache/
 snapshots-log.json
 
+# Video editing bridge (P22): generated interchange files + local edit packages
+# (committed: only the *.template.json schema files under pipeline/editing/)
+pipeline/editing/*.local.*
+pipeline/editing/*.fcpxml
+pipeline/editing/*.fcpxmld/
+pipeline/editing/*.drt
+pipeline/editing/*.otio
+pipeline/editing/*.compressorsetting
+editing-bucket.manifest.json
+
 # Python
 __pycache__/
 *.pyc

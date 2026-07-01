@@ -53,6 +53,10 @@ CAPABILITY_TO_CONNECTOR = {
     "r_statistics": "r_statistics_mcp",
     "monte_carlo": "monte_carlo_mcp",
     "scikit_learn": "scikit_learn_mcp",
+    "video_editing_enabled": "fcpxml_interchange",
+    "resolve_scripting": "resolve_api",
+    "compressor_presets": "compressor_cli",
+    "commandpost_macros": "commandpost_bridge",
 }
 
 

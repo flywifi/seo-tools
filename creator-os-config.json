@@ -137,6 +137,56 @@
       "enabled": false,
       "description": "Master gate for real platform API publishing (tools/publishing/). While OFF, the Scheduling Dashboard and background scheduler run compliance checks and queue-status updates only, and make NO network call to any platform. Turn ON only after implementing the tools/publishing/ clients and configuring per-platform credentials.",
       "requires": "tools/publishing/ clients implemented + per-platform credentials in pipeline/user-context/api-credentials.local.json. Default OFF; the dashboard is an honest human-in-the-loop scheduler until enabled."
+    },
+    "video_editing_enabled": {
+      "enabled": false,
+      "description": "Master gate for the video-editing bridge (tools/videoedit/). While OFF, the editing atoms still produce timeline/marker/caption specs and validated interchange files, but nothing launches or scripts an editor app. Turn ON to allow writing editor files and driving apps. Independent of the per-feature flags below.",
+      "requires": "tools/videoedit/ present. Default OFF; spec + validated files still work while off. Live app control needs Claude Desktop + local tools."
+    },
+    "resolve_scripting": {
+      "enabled": false,
+      "description": "DaVinci Resolve live control lane (tools/videoedit/resolve.py). Enables scripted timeline import, markers, and render-queue automation via the Resolve Python API. REQUIRES DaVinci Resolve STUDIO (paid); the free version cannot be scripted externally. Auto-detects and degrades to file interchange (FCPXML/OTIO) when Studio or Resolve is absent.",
+      "requires": "DaVinci Resolve Studio installed and running + Python 3.10 to 3.12. Env vars RESOLVE_SCRIPT_API / RESOLVE_SCRIPT_LIB set from the install (see shared/videoedit-engine.md)."
+    },
+    "fcpxml_timeline_export": {
+      "enabled": false,
+      "description": "Feature 1. Turn a finished script + chapter plan into a labeled editor timeline (markers per beat, gap clips for b-roll, chapter markers, empty title clips) as FCPXML/OTIO. Works on FCP and Resolve. Spec-only on knowledge engines; file generation needs local tools.",
+      "requires": "video_editing_enabled for file output. Spec generation works everywhere."
+    },
+    "caption_roundtrip": {
+      "enabled": false,
+      "description": "Feature 2. Move captions both ways: Creator OS transcript to SRT/iTT/CEA-608 for the editor, and the editor's exported captions back for SEO. Reuses shared/docintel/transcripts.py.",
+      "requires": "video_editing_enabled for file output. Reuses the offline transcription/docintel stack."
+    },
+    "shorts_reframe": {
+      "enabled": false,
+      "description": "Feature 3. Choose Shorts clip ranges from the transcript and emit a 9:16 edit-package with an Auto Reframe directive. Reuses the short-extract atom. Auto Reframe itself is a UI-only editor step; the spec requests it and the result rides back in on export.",
+      "requires": "video_editing_enabled for file output. Range selection reuses short-extract."
+    },
+    "marker_intel_import": {
+      "enabled": false,
+      "description": "Feature 4. Read an exported FCPXML: markers become YouTube Key Moments, keywords become shot logs, roles map audio stems. Feeds entity-extract and geo-optimize and the scheduling metadata.",
+      "requires": "video_editing_enabled + a local parser (tools/videoedit/fcpxml.py) to read the exported file."
+    },
+    "compressor_presets": {
+      "enabled": false,
+      "description": "Feature 5. One export-all-deliverables step: platform-correct encode presets (YouTube 4K, Shorts/Reels 1080x1920, Pinterest, TikTok) driven by platform-engine.md, run via the Compressor CLI (macOS) or the Resolve render queue (cross-OS).",
+      "requires": "compressor_presets on + Compressor.app (macOS) OR resolve_scripting for the render-queue path."
+    },
+    "motion_template_fill": {
+      "enabled": false,
+      "description": "Feature 6. Fill the creator's brand Motion title/lower-third templates with generated copy via FCPXML (published parameters). macOS + FCP.",
+      "requires": "video_editing_enabled + brand Motion templates in ~/Movies/Motion Templates/ (macOS)."
+    },
+    "commandpost_macros": {
+      "enabled": false,
+      "description": "Feature 7. Emit or trigger CommandPost automations for finishing chores FCPXML cannot reach (apply brand LUT, drop intro, run an export preset). macOS + CommandPost + Final Cut Pro.",
+      "requires": "commandpost_macros on + CommandPost installed (macOS). Spec/snippet generation works everywhere."
+    },
+    "chapter_sync": {
+      "enabled": false,
+      "description": "Feature 8. One chapter list reused three ways: the editor's chapter track, the YouTube description timestamps, and the scheduling item. Feeds geo-optimize, content-calendar, and the scheduling queue. Pure data transform; works on every engine.",
+      "requires": "Nothing external. Pure transform; always available."
     }
   },
   "degraded_behavior": {
@@ -156,7 +206,17 @@
     "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead.",
     "publishing_disabled": "All per-platform publishing flags are off. schedule-post falls back to publish-draft (manual mode). Output includes a paste-ready caption, platform-specific posting checklist, and FTC reminder. No posts are queued or published automatically. Use the scheduling dashboard (tools/dashboard/) to manage posts visually.",
     "per_platform_publishing_disabled": "All per-platform publishing flags (youtube_publishing, instagram_publishing, tiktok_publishing, pinterest_publishing) are off. Every schedule-post call returns publishing_tier: manual and status: manual_required. Use publish-draft to get formatted paste-ready copy and a platform-specific posting checklist.",
-    "live_publishing_disabled": "live_publishing_enabled is off (default). The Scheduling Dashboard and background scheduler run FTC/AIGC/tier compliance checks and update queue status (drafts advance to ready_to_post at the scheduled time) but make NO network call to any platform. Posting is manual: open the ready_to_post item and post it yourself. The tools/publishing/ clients are stubs until this flag is enabled."
+    "live_publishing_disabled": "live_publishing_enabled is off (default). The Scheduling Dashboard and background scheduler run FTC/AIGC/tier compliance checks and update queue status (drafts advance to ready_to_post at the scheduled time) but make NO network call to any platform. Posting is manual: open the ready_to_post item and post it yourself. The tools/publishing/ clients are stubs until this flag is enabled.",
+    "video_editing_disabled": "video_editing_enabled is off (default). Editing atoms still produce timeline/marker/caption/chapter specs and (on Claude Desktop) validated FCPXML/OTIO files, but nothing launches or scripts an editor app. Import the generated files into Final Cut Pro or DaVinci Resolve manually. Live app control is a no-op until this flag is on.",
+    "resolve_scripting_disabled": "resolve_scripting is off, or DaVinci Resolve Studio is not installed/running. The system cannot drive Resolve live (no scripted timeline import, markers, or render-queue control). It degrades to file interchange: it generates FCPXML/OTIO for the creator to import by hand. Note: external Resolve scripting requires the paid Studio edition.",
+    "fcpxml_timeline_export_disabled": "fcpxml_timeline_export is off. The system will not generate a timeline scaffold file. It still describes the intended timeline (markers, chapters, titles) as a spec the creator can build manually or enable this flag to auto-generate.",
+    "caption_roundtrip_disabled": "caption_roundtrip is off. Captions are not converted to/from editor formats. Transcripts and caption text are still produced; convert to SRT/iTT manually or enable this flag.",
+    "shorts_reframe_disabled": "shorts_reframe is off. The system still recommends Shorts clip ranges and hooks (short-extract) but does not emit a 9:16 reframe edit-package. Cut the Shorts manually or enable this flag.",
+    "marker_intel_import_disabled": "marker_intel_import is off. Exported FCPXML markers/keywords are not parsed back into the system. Chapters and shot logs must be entered manually, or enable this flag to import them from the editor.",
+    "compressor_presets_disabled": "compressor_presets is off. Platform export presets are described but not run. Export from the editor manually using the recommended specs, or enable this flag (needs Compressor on macOS or the Resolve render queue).",
+    "motion_template_fill_disabled": "motion_template_fill is off. Title/lower-third copy is generated but not injected into Motion templates via FCPXML. Type it into the editor manually or enable this flag (macOS + FCP).",
+    "commandpost_macros_disabled": "commandpost_macros is off. Finishing automations are described but not emitted/triggered. Run the finishing steps manually or enable this flag (macOS + CommandPost).",
+    "chapter_sync_disabled": "chapter_sync is off. The chapter list is still produced but not fanned out to the description timestamps and scheduling item automatically. Copy them across manually or enable this flag."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
 }

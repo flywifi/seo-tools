@@ -2,8 +2,18 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P21 are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P22 (Phase 1) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P22 (Phase 1, walking skeleton): video-editing bridge. Neutral core (edit-package + FCPXML,
+  `shared/videoedit-engine.md`) with a lossless script->FCPXML->parse round-trip that needs no editor
+  installed. 10 new flags (2 lane + 8 feature, all default off) + `degraded_behavior`; 4 connectors
+  (`fcpxml_interchange`, `resolve_api`, `compressor_cli`, `commandpost_bridge`) on the `edit_artifact`
+  evidence type, mapped in `CAPABILITY_TO_CONNECTOR`. `tools/videoedit/` (preflight, otio_core, fcpxml
+  build/validate/parse, resolve/compressor/commandpost gated stubs) + `tools/videoedit_validate.py`
+  (gate + validation) + `tools/sync_editing.py` (sha256 bucket manifest). Atoms `edit-timeline-spec`
+  and `fcpxml-parse`; MCP tools `edit_preflight`, `edit_build_fcpxml`, `edit_parse_fcpxml`,
+  `import_edit_artifact`, `resolve_status`. Mirrors the `live_publishing_enabled` seam. DaVinci Resolve
+  live lane (Studio-only) and features 2/3/5/6/7/8 are Phases 2 to 4.
 - P21: P20 adversarial-audit remediation — 27 verified findings closed. Dashboard security
   (CSRF Origin/Content-Type guards, wildcard CORS removed, stored-XSS via data-* binding, queue
   lock + atomic writes); shared `tools/publishing_compliance.py` gate wired into the dashboard

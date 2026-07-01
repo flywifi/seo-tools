@@ -1,0 +1,23 @@
+{
+  "_comment": "Committed null-schema for the video-editing edit-package (P22). Real packages live in pipeline/editing/edit-package.local.json (gitignored). This file defines the shape only. See shared/videoedit-engine.md.",
+  "schema_version": "1.0",
+  "title": null,
+  "created_at": null,
+  "source": "creator-os",
+  "frame_rate": 30,
+  "timeline": {
+    "name": null,
+    "duration_seconds": null,
+    "markers": [],
+    "chapters": [],
+    "titles": [],
+    "clips": [],
+    "captions": [],
+    "keywords": [],
+    "roles": ["video", "titles", "dialogue", "music"]
+  },
+  "reframe": { "enabled": false, "aspect": "9:16", "method": "auto_reframe" },
+  "export": { "presets": [], "platform_targets": [] },
+  "gaps": [],
+  "provenance": { "generated_by": null, "tool_version": "1.0" }
+}
