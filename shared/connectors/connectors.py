@@ -35,6 +35,11 @@ CAPABILITY_TO_CONNECTOR = {
     "youtube_api": "youtube_data_api",
     "instagram_api": "instagram_graph_api",
     "tiktok_api": "tiktok_api",
+    "pinterest_api": "pinterest_api",
+    "youtube_publishing": "youtube_publish_api",
+    "instagram_publishing": "instagram_publish_api",
+    "tiktok_publishing": "tiktok_publish_api",
+    "pinterest_publishing": "pinterest_publish_api",
     "keyword_cache": "sqlite_cache",
     "playwright": "playwright_render",
     "mcp_server": "mcp_server",
@@ -64,16 +69,28 @@ def load_flags(path: str | None) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _cap_enabled(val):
+    """A capability flag is either a bare bool or a {"enabled": bool, ...} object
+    (the shipped creator-os-config.json uses the object form; the wizard-written
+    creator-os-config.local.json uses bare bools). Returns True/False/None (None = unset)."""
+    if isinstance(val, dict):
+        return bool(val["enabled"]) if "enabled" in val else None
+    if isinstance(val, bool):
+        return val
+    return None
+
+
 def _capability_overrides(flags: dict) -> dict:
-    """Translate creator-os-config.json capability booleans into connector state overrides.
-    Only applies when the flags file is a creator-os-config-style file (has 'capabilities' key)
-    and the connector is not already explicitly listed in 'connectors'."""
+    """Translate creator-os-config.json capability flags into connector state overrides.
+    Handles both the object form ({"enabled": bool}) and the bare-bool form, so the
+    shipped config and the wizard-written local config both resolve correctly."""
     caps = flags.get("capabilities", {})
     overrides = {}
     for cap, connector_id in CAPABILITY_TO_CONNECTOR.items():
-        if caps.get(cap) is True:
+        state = _cap_enabled(caps.get(cap))
+        if state is True:
             overrides[connector_id] = "available"
-        elif caps.get(cap) is False:
+        elif state is False:
             overrides[connector_id] = "disabled"
     return overrides
 

@@ -40,6 +40,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
 
+sys.path.insert(0, str(HERE))
+import publishing_compliance as compliance  # noqa: E402
+
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:
@@ -463,27 +466,26 @@ def schedule_post(
         board_name: Pinterest board name (required when platform is pinterest).
     """
     config = _load_config()
-    caps = config.get("capabilities", {})
 
-    def _flag_enabled(name: str) -> bool:
-        meta = caps.get(name, {})
-        return meta.get("enabled", False) if isinstance(meta, dict) else bool(meta)
+    # Shared compliance + tier resolution (same helper the dashboard confirm path uses).
+    result = compliance.check(
+        platform,
+        caption=caption,
+        ftc_disclosure=ftc_disclosure,
+        is_aigc=is_aigc,
+        config=config,
+    )
+    tier = result["tier"]
+    connector = result["connector"]
+    effective_caption = result["effective_caption"]
 
-    # Determine active publishing tier
-    if _flag_enabled(f"{platform}_publishing"):
-        tier = "direct_api"
-        connector = f"{platform}_publishing"
+    if tier == "manual":
+        notes = "No direct-API publishing connector active. Use manual posting package below."
+    elif not result["has_credentials"]:
+        # This tool reports (does not hard-fail); the dashboard confirm path refuses instead.
+        notes = result["error"]
     else:
-        tier = "manual"
-        connector = "none"
-
-    # FTC disclosure check
-    ftc_in_caption = ftc_disclosure and ftc_disclosure in caption
-    ftc_prepended = False
-    effective_caption = caption
-    if ftc_disclosure and not ftc_in_caption:
-        effective_caption = f"{ftc_disclosure} {caption}"
-        ftc_prepended = True
+        notes = f"Connector ready: {connector}. Confirm to proceed."
 
     # Build confirmation summary
     summary = {
@@ -494,19 +496,16 @@ def schedule_post(
         "scheduled_datetime": scheduled_datetime or None,
         "caption_preview": effective_caption[:120] + "..." if len(effective_caption) > 120 else effective_caption,
         "hashtags": hashtags or [],
-        "ftc_disclosure": ftc_disclosure or None,
-        "ftc_disclosure_verified": bool(ftc_disclosure),
-        "ftc_prepended": ftc_prepended,
-        "aigc_flag_would_set": is_aigc and platform == "tiktok",
+        "ftc_disclosure": result["ftc_disclosure"],
+        "ftc_disclosure_verified": result["ftc_disclosure_verified"],
+        "ftc_prepended": result["ftc_prepended"],
+        "aigc_flag_would_set": result["aigc_flag_set"],
         "board_name": board_name or None,
         "media_url_provided": bool(media_url),
+        "has_credentials": result["has_credentials"],
         "human_review_required": True,
         "status": "manual_required" if tier == "manual" else "awaiting_human_confirmation",
-        "notes": (
-            "No content_publishing connector active. Use manual posting package below."
-            if tier == "manual"
-            else f"Connector ready: {connector}. Confirm to proceed."
-        ),
+        "notes": notes,
     }
 
     if tier == "manual":

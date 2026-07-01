@@ -31,6 +31,9 @@ Invariants enforced:
       verify-seasonal, independent-review).
   17. READ-ONLY mandate: every .claude/agents/*.md contains the verbatim marker
       "You are a READ-ONLY research agent. You MUST NOT:"
+  18. Connector capability mapping: every connector in connectors.json that declares a
+      requires_capability has that capability mapped in connectors.py
+      CAPABILITY_TO_CONNECTOR (no silently-inert capability flags).
 """
 import json
 import re
@@ -402,6 +405,32 @@ def check_readonly_mandate():
             problem(f"{rel}: missing READ-ONLY mandate marker")
 
 
+def check_connector_capability_mapping():
+    """Invariant 18: every connector that declares a requires_capability has that
+    capability mapped in connectors.py CAPABILITY_TO_CONNECTOR, so enabling the flag
+    actually activates the connector in the resolver (no silently-inert flags)."""
+    reg_path = ROOT / "shared" / "connectors" / "connectors.json"
+    py_path = ROOT / "shared" / "connectors" / "connectors.py"
+    if not reg_path.exists() or not py_path.exists():
+        return
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        problem("shared/connectors/connectors.json: invalid JSON")
+        return
+    text = py_path.read_text(encoding="utf-8")
+    block = re.search(r"CAPABILITY_TO_CONNECTOR\s*=\s*\{(.*?)\}", text, re.DOTALL)
+    mapped = set(re.findall(r'"([^"]+)"\s*:', block.group(1))) if block else set()
+    for c in reg.get("connectors", []):
+        cap = c.get("requires_capability")
+        if cap and cap not in mapped:
+            problem(
+                f"shared/connectors/connectors.json: connector '{c.get('id')}' "
+                f"requires_capability '{cap}' is not mapped in connectors.py "
+                f"CAPABILITY_TO_CONNECTOR"
+            )
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -419,6 +448,7 @@ def main():
     check_schema_verification_fields()
     check_workflow_verification()
     check_readonly_mandate()
+    check_connector_capability_mapping()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

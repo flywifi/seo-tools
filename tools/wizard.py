@@ -465,12 +465,29 @@ will fall back to manual posting (copy-paste checklists).</div>
 
 def _screen_publishing_youtube(error: str = "") -> str:
     creds = _load_api_credentials()
-    if creds.get("youtube"):
+    yt = creds.get("youtube") or {}
+    has_token = bool(yt.get("access_token") or yt.get("refresh_token"))
+    if has_token:
         return _page("YouTube Connected", """
 <h1><span class="check">&#10003;</span> YouTube Publishing Ready</h1>
-<div class="success-box">YouTube API credentials are configured. Creator OS can upload
-and schedule videos via the YouTube Data API v3.</div>
+<div class="success-box">YouTube app credentials and a user access token are configured.
+Creator OS can upload and schedule videos via the YouTube Data API v3.</div>
 <p>To update your credentials, paste new values below and save again.</p>
+<hr>
+""" + _youtube_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+    if yt:
+        # App credentials saved, but no user authorization token yet: not publish-ready.
+        return _page("YouTube App Registered", """
+<h1>YouTube App Registered</h1>
+<div class="note"><strong>One step remains.</strong> Your Google OAuth app credentials are
+saved, but YouTube publishing also needs user <em>authorization</em> (the sign-in that grants
+the <code>youtube.upload</code> permission and returns an access token). That authorization
+step is not wired up yet, so the <code>youtube_publishing</code> flag stays off and YouTube
+posts fall back to manual posting for now. Instagram, TikTok, and Pinterest collect a token
+directly and are publish-ready once saved.</div>
+<p>To update your app credentials, paste new values below and save again.</p>
 <hr>
 """ + _youtube_form() + """
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
@@ -599,7 +616,10 @@ You need a TikTok Developer account with the <code>video.publish</code> scope.</
       and sign in with your TikTok account.</li>
   <li>Create a new app. Under <strong>Products</strong>, add
       <strong>Content Posting API</strong> and <strong>Login Kit</strong>.</li>
-  <li>Set the redirect URL to <code>http://localhost:8765/oauth/tiktok/callback</code>.</li>
+  <li>Set a redirect URI on the app (TikTok requires one). You can use any URL you
+      control, for example <code>https://example.com/callback</code> &mdash; you will
+      generate and paste the access token manually below, so the wizard does not capture
+      this callback.</li>
   <li>Submit for review. Once approved, copy your <strong>Client Key</strong> and
       <strong>Client Secret</strong>.</li>
   <li>Generate a <strong>User Access Token</strong> using the Login Kit OAuth flow
@@ -770,6 +790,22 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urllib.parse.urlparse(self.path).path
+
+        if path == "/oauth/youtube/callback":
+            # Reserved OAuth callback (dark stub). When live publishing is built, exchange
+            # the ?code= query param for a refresh token at https://oauth2.googleapis.com/token
+            # using the saved client_id/client_secret and the youtube.upload scope, then store
+            # the token in pipeline/user-context/api-credentials.local.json under "youtube" and
+            # set youtube_publishing: true. Today it just explains that the flow is not enabled.
+            self._send(_page("YouTube Authorization (not enabled yet)", """
+<h1>YouTube Authorization Not Enabled Yet</h1>
+<div class="note">This is the reserved callback for the YouTube OAuth sign-in. The
+authorization-code exchange that stores your upload token is not implemented yet, so YouTube
+publishing runs in manual mode for now. No action is needed here.</div>
+<a class="btn btn-outline" href="/publishing-setup">Back to publishing setup</a>
+"""))
+            return
+
         routes: dict[str, str | None] = {
             "/": _screen_welcome(),
             "/claudeai": _screen_claudeai(),
@@ -911,8 +947,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             try:
                 creds[plat] = plat_creds
                 _save_api_credentials(creds)
-                _update_capability_flag(f"{plat}_publishing", True)
-                print(f"[wizard] {plat} publishing credentials saved")
+                # Only flip the publishing flag when a usable publishing credential exists.
+                # YouTube collects an OAuth app (client_id/secret) but no user token yet, so
+                # its flag stays off until the OAuth authorization step is completed.
+                has_token = bool(plat_creds.get("access_token") or plat_creds.get("refresh_token"))
+                if plat == "youtube" and not has_token:
+                    print("[wizard] youtube app credentials saved "
+                          "(user authorization still required; youtube_publishing flag not set)")
+                else:
+                    _update_capability_flag(f"{plat}_publishing", True)
+                    print(f"[wizard] {plat} publishing credentials saved")
                 self._redirect(f"/publishing-setup/{plat}")
             except Exception as exc:
                 screen_fn = {

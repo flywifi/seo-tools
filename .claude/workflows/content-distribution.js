@@ -86,7 +86,7 @@ const POST_RESULT_SCHEMA = {
   type: 'object',
   properties: {
     platform: { type: 'string' },
-    status: { type: 'string', enum: ['queued', 'scheduled', 'manual_required', 'failed', 'skipped'] },
+    status: { type: 'string', enum: ['awaiting_human_confirmation', 'scheduled', 'manual_required', 'failed', 'skipped'] },
     publishing_tier: { type: 'string' },
     post_id: { type: ['string', 'null'] },
     scheduled_datetime: { type: ['string', 'null'] },
@@ -261,8 +261,11 @@ Steps:
 3. Check cross-platform watermark rule: if content_type is reel or short, note if
    content may have been sourced from a competing platform.
 4. Build the confirmation summary fields below.
-5. Set status to 'manual_required' if tier is manual, otherwise 'queued' (pending human confirm).
-6. Never fabricate post_id or permalink — both are null until actual connector call occurs.
+5. Set status to 'manual_required' if tier is manual, otherwise 'awaiting_human_confirmation'.
+   Nothing is queued or posted by this workflow — the creator confirms and schedules each
+   post in the Scheduling Dashboard (http://localhost:8766). The dashboard click IS the
+   human confirmation step.
+6. Never fabricate post_id or permalink — both are null until the creator schedules the post.
 
 Return the structured post result.`,
       {
@@ -275,12 +278,12 @@ Return the structured post result.`,
 )
 
 const validResults = postResults.filter(Boolean)
-const queued = validResults.filter(r => r.status === 'queued' || r.status === 'scheduled').length
+const awaitingConfirmation = validResults.filter(r => r.status === 'awaiting_human_confirmation' || r.status === 'scheduled').length
 const manual = validResults.filter(r => r.status === 'manual_required').length
 const failed = validResults.filter(r => r.status === 'failed').length
 const skipped = validResults.filter(r => r.status === 'skipped').length
 
-log(`Distribution summary: ${queued} queued, ${manual} manual required, ${failed} failed, ${skipped} skipped`)
+log(`Distribution summary: ${awaitingConfirmation} awaiting human confirmation, ${manual} manual required, ${failed} failed, ${skipped} skipped`)
 
 // ---------------------------------------------------------------------------
 // Phase 3: Verify — post-status check for processing posts
@@ -288,7 +291,11 @@ log(`Distribution summary: ${queued} queued, ${manual} manual required, ${failed
 
 phase('Verify')
 
-const processingPosts = validResults.filter(r => r.status === 'queued' && r.post_id)
+// Status checks only apply to posts that actually reached a connector and have a real
+// post_id. This workflow never posts (the creator schedules in the dashboard), so post_id
+// is null here and this stage is a no-op today. It activates once live publishing populates
+// post_id (see tools/publishing/ and the live_publishing_enabled flag).
+const processingPosts = validResults.filter(r => r.status === 'scheduled' && r.post_id)
 
 let statusResults = []
 if (processingPosts.length > 0) {
@@ -315,9 +322,9 @@ If no connector is active, return status: unknown with the manual check URL.`,
       )
     }
   )
-  log(`Status checks complete for ${processingPosts.length} queued posts`)
+  log(`Status checks complete for ${processingPosts.length} scheduled posts`)
 } else {
-  log('No posts in queued state with post_ids to verify — skipping status checks')
+  log('No scheduled posts with post_ids to verify — skipping status checks')
 }
 
 // ---------------------------------------------------------------------------
@@ -328,11 +335,26 @@ phase('Report')
 
 const distributionSummary = {
   total_platforms: platformPlans.length,
-  queued,
+  awaiting_human_confirmation: awaitingConfirmation,
   manual_required: manual,
   failed,
   skipped,
 }
+
+// Enrich each post with the caption/hashtags/schedule from args so the report is
+// importable into the Scheduling Dashboard via POST /api/import-report. The agent's
+// POST_RESULT_SCHEMA carries compliance flags but not the caption text itself.
+const enrichedPosts = validResults.map(r => {
+  const plat = r.platform
+  return {
+    ...r,
+    caption: (args && args.captions ? args.captions[plat] : null) ?? null,
+    hashtags: (args && args.hashtags ? args.hashtags[plat] : null) ?? null,
+    content_type: (args && args.content_types ? args.content_types[plat] : null) ?? null,
+    media_url: (args && args.media_urls ? args.media_urls[plat] : null) ?? null,
+    scheduled_datetime: r.scheduled_datetime ?? (args && args.scheduled_datetimes ? args.scheduled_datetimes[plat] : null) ?? null,
+  }
+})
 
 const manualPackages = validResults
   .filter(r => r.status === 'manual_required')
@@ -351,15 +373,16 @@ if (skipped > 0) {
 if (failed > 0) {
   nextSteps.push(`${failed} platform(s) failed. Review error field per post and retry after resolving.`)
 }
-if (queued > 0) {
-  nextSteps.push(`${queued} post(s) queued (pending human confirmation). Review confirmation summary and confirm to proceed.`)
+if (awaitingConfirmation > 0) {
+  nextSteps.push(`${awaitingConfirmation} post(s) prepared and awaiting human confirmation. Nothing is queued yet — open the Scheduling Dashboard to review, schedule, and confirm each one.`)
 }
 nextSteps.push('Run govern-artifact with gates: integrity, safety, brand_alignment before confirming any post.')
 nextSteps.push('Open the Scheduling Dashboard to review and schedule posts: http://localhost:8766')
+nextSteps.push('To load these posts into the dashboard automatically, POST this report to http://localhost:8766/api/import-report')
 
 return {
   distribution_summary: distributionSummary,
-  posts: validResults,
+  posts: enrichedPosts,
   status_checks: statusResults.filter(Boolean),
   manual_posting_packages: manualPackages,
   next_steps: nextSteps,
@@ -367,4 +390,5 @@ return {
   publishing_plan: prepareAgent,
   plan_verification: planVerifyAgent,
   dashboard_url: 'http://localhost:8766',
+  dashboard_import_url: 'http://localhost:8766/api/import-report',
 }

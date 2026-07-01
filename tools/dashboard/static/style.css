@@ -292,6 +292,7 @@ main {
 
 .status-dot.draft { background: var(--text-light); }
 .status-dot.scheduled { background: var(--warning); }
+.status-dot.ready_to_post { background: var(--accent); }
 .status-dot.dispatched { background: var(--accent); }
 .status-dot.published { background: var(--success); }
 .status-dot.failed { background: var(--error); }
@@ -573,6 +574,7 @@ main {
 
 .status-badge.draft { background: var(--bg); color: var(--text-muted); }
 .status-badge.scheduled { background: var(--warning-bg); color: var(--warning); }
+.status-badge.ready_to_post { background: var(--accent-light); color: var(--accent); }
 .status-badge.dispatched { background: var(--accent-light); color: var(--accent); }
 .status-badge.published { background: var(--success-bg); color: var(--success); }
 .status-badge.failed { background: var(--error-bg); color: var(--error); }

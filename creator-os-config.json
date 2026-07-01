@@ -132,6 +132,11 @@
       "enabled": false,
       "description": "Pinterest pin creation and scheduling via API v5. Enables: schedule-post atom with board targeting and scheduled_at datetime. Separate from read-only pinterest_api flag.",
       "requires": "Pinterest developer app credentials with pins:write scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "live_publishing_enabled": {
+      "enabled": false,
+      "description": "Master gate for real platform API publishing (tools/publishing/). While OFF, the Scheduling Dashboard and background scheduler run compliance checks and queue-status updates only, and make NO network call to any platform. Turn ON only after implementing the tools/publishing/ clients and configuring per-platform credentials.",
+      "requires": "tools/publishing/ clients implemented + per-platform credentials in pipeline/user-context/api-credentials.local.json. Default OFF; the dashboard is an honest human-in-the-loop scheduler until enabled."
     }
   },
   "degraded_behavior": {
@@ -150,7 +155,8 @@
     "gem_export_disabled": "Gemini Gem packaging unavailable. Use the manual export files in implementation/gemini/ instead.",
     "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead.",
     "publishing_disabled": "All per-platform publishing flags are off. schedule-post falls back to publish-draft (manual mode). Output includes a paste-ready caption, platform-specific posting checklist, and FTC reminder. No posts are queued or published automatically. Use the scheduling dashboard (tools/dashboard/) to manage posts visually.",
-    "per_platform_publishing_disabled": "All per-platform publishing flags (youtube_publishing, instagram_publishing, tiktok_publishing, pinterest_publishing) are off. Every schedule-post call returns publishing_tier: manual and status: manual_required. Use publish-draft to get formatted paste-ready copy and a platform-specific posting checklist."
+    "per_platform_publishing_disabled": "All per-platform publishing flags (youtube_publishing, instagram_publishing, tiktok_publishing, pinterest_publishing) are off. Every schedule-post call returns publishing_tier: manual and status: manual_required. Use publish-draft to get formatted paste-ready copy and a platform-specific posting checklist.",
+    "live_publishing_disabled": "live_publishing_enabled is off (default). The Scheduling Dashboard and background scheduler run FTC/AIGC/tier compliance checks and update queue status (drafts advance to ready_to_post at the scheduled time) but make NO network call to any platform. Posting is manual: open the ready_to_post item and post it yourself. The tools/publishing/ clients are stubs until this flag is enabled."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
 }

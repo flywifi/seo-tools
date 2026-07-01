@@ -531,15 +531,22 @@ Port 8766 (the setup wizard uses 8765). Exposes a JSON API:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/queue` | Return the scheduling queue |
-| GET | `/api/publishing-plan` | Which platforms have active direct API connectors |
+| GET | `/api/publishing-plan` | Which platforms have a direct-API publishing flag enabled |
 | GET | `/api/credentials-status` | Which platform API credentials are configured |
-| POST | `/api/queue` | Add or update a post in the queue |
-| POST | `/api/schedule` | Trigger schedule-post for a queued item (human confirmation) |
+| GET | `/api/status/:item_id` | Return one queue item by its queue-item `id` |
+| POST | `/api/queue` | Add or update a queue item (`{title, source?, platforms:{...}}`) |
+| POST | `/api/import-report` | Flatten a content-distribution `posts[]` report into one queue item |
+| POST | `/api/schedule` | Run compliance checks and mark a platform post `scheduled` (human confirmation) |
 | POST | `/api/toggle-platform` | Enable or disable a platform for a queue item |
 | POST | `/api/update-caption` | Update caption or hashtags for a platform-specific post |
 | POST | `/api/update-schedule` | Update scheduled datetime for a platform-specific post |
 | POST | `/api/delete-item` | Remove an item from the queue |
-| GET | `/api/status/:post_id` | Check status of a scheduled post |
+
+**Security:** the server binds to `127.0.0.1` only, emits no wildcard CORS header, requires
+`Content-Type: application/json` on POSTs, rejects mutating requests carrying a foreign `Origin`
+(localhost CSRF defense), and validates queue-item ids to a safe slug so crafted ids cannot reach
+the DOM. Queue reads and writes are serialized by a lock and written atomically (temp file plus
+`os.replace`) so the HTTP thread and the background scheduler cannot lose an update.
 
 **Data store:** `pipeline/user-context/scheduling-queue.local.json` (gitignored via the existing
 `*.local.json` pattern). Each queue item tracks per-platform state: enabled toggle, scheduled
@@ -556,18 +563,37 @@ permalink, and error.
 5. **Edit** (modal) — caption textarea with character count, hashtag editor, content type selector,
    media URL field, FTC disclosure dropdown, AIGC flag toggle (TikTok only).
 
-**Background scheduler:** a daemon thread checks the queue every 60 seconds and dispatches posts
-whose `scheduled_datetime` has passed. Required for TikTok (no native `scheduled_at` in the
-Content Posting API). The dashboard must be running for auto-dispatch; the UI states this
-explicitly.
+**Compliance on confirm:** when the creator clicks "Confirm and Schedule," `/api/schedule` runs the
+shared compliance helper (`tools/publishing_compliance.py`) — the same FTC-disclosure prepend, AIGC
+flag rule, and publishing-tier resolution the MCP `schedule_post` tool uses. If a gate fails (for
+example a `direct_api` platform with no credentials configured), the endpoint refuses and returns an
+error rather than scheduling a non-compliant post. On success it stamps `ftc_disclosure_verified`,
+`aigc_flag_set`, and `publishing_tier` onto the queue entry, sets `status: scheduled` and
+`human_review_required: true`, and persists. The click IS the human confirmation step.
+
+**Live publishing is feature-flagged off.** No code here calls a platform API while
+`live_publishing_enabled` (in `creator-os-config.json`) is off, which is the default. The real API
+clients live in `tools/publishing/` as stubs until that flag is enabled. Because of this:
+
+**Background scheduler:** a daemon thread checks the queue every 60 seconds. When a scheduled
+item's `scheduled_datetime` has passed, it advances the item to `ready_to_post` (a signal to post
+it manually) — it makes NO network call. TikTok has no native `scheduled_at`, so this timer is how
+its schedule is honored; keep the dashboard running so items advance on time (otherwise they
+advance the next time it starts). When `live_publishing_enabled` is turned on, the same loop calls
+`tools/publishing/` and records the real `post_id`/`permalink`, setting `status` to `published` or
+`failed`.
 
 **Integration paths:**
-- *Input:* the `content-distributor` spoke produces a distribution report with `posts[]` and a
-  `dashboard_url` field. The dashboard's `/api/queue` POST endpoint accepts this format.
-- *Output:* when the creator clicks "Confirm and Schedule," the server calls the same
-  `schedule_post` logic the MCP tool uses, maintaining `human_review_required: true`.
+- *Input:* the `content-distributor` spoke produces a distribution report with a flat `posts[]`
+  array and a `dashboard_url`. The report shape does not match the queue schema, so the dashboard
+  exposes `POST /api/import-report`, which flattens `posts[]` into one queue item (keyed by
+  `platform`, mapping `ftc_disclosure_verified`/`aigc_flag_set` to `ftc_disclosure`/`is_aigc`). The
+  workflow's report includes a `dashboard_import_url` pointing at this endpoint. Alternatively the
+  creator reviews and enters posts through the Queue UI.
+- *Output:* confirming a post runs compliance and schedules it (see above). Actual posting is manual
+  (`ready_to_post`) until live publishing is enabled.
 - *Credentials:* the Credentials view links to `tools/wizard.py` at
-  `http://localhost:8765/publishing-setup/<platform>` for OAuth setup flows.
+  `http://localhost:8765/publishing-setup/<platform>` for credential setup flows.
 
 Launch: `python3 tools/dashboard/server.py`
 

@@ -61,7 +61,7 @@
       "label": "YouTube Data API v3",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["analytics", "keyword_data", "channel_stats", "competitor_data", "content_publishing"],
+      "provides": ["analytics", "keyword_data", "channel_stats", "competitor_data"],
       "authoritative_for": ["channel_stats"],
       "privacy_sensitivity": "medium",
       "auth_note": "OAuth 2.0 or API key via Google Cloud Console. Quota: 10,000 units/day default. Realized by host AI's native Google integration or via integrations-engine.md credential pattern. Enable by setting youtube_api: true in creator-os-config.local.json.",
@@ -75,7 +75,7 @@
       "label": "Instagram Graph API (Meta) v25.0",
       "vendor": "Meta",
       "default_flag": "not_installed",
-      "provides": ["analytics", "competitor_data", "content_publishing"],
+      "provides": ["analytics", "competitor_data"],
       "privacy_sensitivity": "medium",
       "auth_note": "Instagram Business or Creator account required. OAuth 2.0 via Meta app. Scopes: instagram_business_basic, instagram_business_content_publish, instagram_business_manage_insights. Enable by setting instagram_api: true in creator-os-config.local.json.",
       "requires_capability": "instagram_api",
@@ -88,7 +88,7 @@
       "label": "TikTok APIs (Content Posting, Research, Display)",
       "vendor": "TikTok",
       "default_flag": "not_installed",
-      "provides": ["analytics", "trend_data", "content_publishing"],
+      "provides": ["analytics", "trend_data"],
       "privacy_sensitivity": "medium",
       "auth_note": "TikTok developer account required. Login Kit for OAuth 2.0. Content Posting API: video.publish or video.upload scope. Research API: non-profit/academic only. Enable by setting tiktok_api: true in creator-os-config.local.json.",
       "requires_capability": "tiktok_api",
@@ -101,12 +101,68 @@
       "label": "Pinterest API v5",
       "vendor": "Pinterest",
       "default_flag": "not_installed",
-      "provides": ["analytics", "trend_data", "content_publishing"],
+      "provides": ["analytics", "trend_data"],
       "privacy_sensitivity": "medium",
-      "auth_note": "Pinterest Developer account required. OAuth 2.0. Scopes: pins:read, pins:write, boards:read. Rate limits: reads 1,000/min, writes 100/min. Enable via creator-os-config.local.json (no capability flag exists yet — add pinterest_api: true).",
+      "auth_note": "Pinterest Developer account required (read side). OAuth 2.0. Scopes: pins:read, boards:read. Rate limits: reads 1,000/min. Enable by setting pinterest_api: true in creator-os-config.local.json.",
       "requires_capability": "pinterest_api",
       "api_reference": "shared/integrations-engine.md",
       "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "status": "seed"
+    },
+    {
+      "id": "youtube_publish_api",
+      "label": "YouTube Publishing (Data API v3 upload)",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": ["content_publishing"],
+      "authoritative_for": ["content_publishing"],
+      "privacy_sensitivity": "high",
+      "auth_note": "Write side. OAuth 2.0 with the youtube.upload scope and a user refresh token (obtained via the wizard's YouTube OAuth flow). Separate from the read-only youtube_api flag. Enable by setting youtube_publishing: true in creator-os-config.local.json and adding credentials to pipeline/user-context/api-credentials.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
+      "requires_capability": "youtube_publishing",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "instagram_publish_api",
+      "label": "Instagram Publishing (Graph API v25.0 Reels)",
+      "vendor": "Meta",
+      "default_flag": "not_installed",
+      "provides": ["content_publishing"],
+      "authoritative_for": ["content_publishing"],
+      "privacy_sensitivity": "high",
+      "auth_note": "Write side. Meta app with the instagram_business_content_publish scope + a long-lived access token and the IG Business account id. Separate from the read-only instagram_api flag. Enable by setting instagram_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
+      "requires_capability": "instagram_publishing",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "tiktok_publish_api",
+      "label": "TikTok Publishing (Content Posting API)",
+      "vendor": "TikTok",
+      "default_flag": "not_installed",
+      "provides": ["content_publishing"],
+      "authoritative_for": ["content_publishing"],
+      "privacy_sensitivity": "high",
+      "auth_note": "Write side. Login Kit OAuth with the video.publish scope; supports the AIGC disclosure flag. No native scheduled_at (the dashboard's background scheduler dispatches). Separate from the read-only tiktok_api flag. Enable by setting tiktok_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
+      "requires_capability": "tiktok_publishing",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "pinterest_publish_api",
+      "label": "Pinterest Publishing (API v5 create-pin)",
+      "vendor": "Pinterest",
+      "default_flag": "not_installed",
+      "provides": ["content_publishing"],
+      "authoritative_for": ["content_publishing"],
+      "privacy_sensitivity": "high",
+      "auth_note": "Write side. OAuth 2.0 with the pins:write and boards:write scopes; write rate limit 100/min. Separate from the read-only pinterest_api flag. Enable by setting pinterest_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
+      "requires_capability": "pinterest_publishing",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
       "status": "seed"
     },
     {
@@ -341,30 +397,30 @@
     "option_a_claude_desktop_mcp": {
       "label": "Claude Desktop with MCP (full capability)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_b_claude_projects": {
       "label": "Claude Projects on claude.ai (knowledge-only)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
       "connectors_requiring_setup": ["gmail", "google_calendar", "google_docs_sheets"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_c_gpt_api": {
       "label": "GPT-4 API with function calling",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_d_chatgpt_web": {
       "label": "ChatGPT Web with custom instructions",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_e_gemini": {
       "label": "Gemini (Gems or API)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     }
   },
   "extensible_stubs": ["snapchat_api", "spotify_podcasts"]

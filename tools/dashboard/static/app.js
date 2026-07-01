@@ -27,8 +27,21 @@ const App = (function () {
   async function api(method, path, body) {
     const opts = { method, headers: { "Content-Type": "application/json" } };
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(path, opts);
-    return res.json();
+    try {
+      const res = await fetch(path, opts);
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = null;
+      }
+      if (!res.ok) {
+        return { ok: false, error: (data && data.error) || "HTTP " + res.status };
+      }
+      return data == null ? { ok: true } : data;
+    } catch (e) {
+      return { ok: false, error: "network error: " + (e && e.message ? e.message : e) };
+    }
   }
 
   async function loadQueue() {
@@ -123,9 +136,9 @@ const App = (function () {
       html += "</div>";
       html += '<div class="card-actions">';
       html +=
-        '<button class="btn btn-danger btn-sm" onclick="App.deleteItem(\'' +
-        item.id +
-        "')\"><svg><use href=\"/static/icons.svg#icon-trash\"/></svg></button>";
+        '<button class="btn btn-danger btn-sm" data-action="delete" data-item-id="' +
+        escapeHtml(item.id) +
+        '"><svg><use href="/static/icons.svg#icon-trash"/></svg></button>';
       html += "</div></div>";
 
       html += '<div class="platforms-grid">';
@@ -146,7 +159,7 @@ const App = (function () {
         html += '<div class="platform-name">' + capitalize(plat) + "</div>";
         html += '<div class="platform-status">';
         html += '<span class="status-dot ' + status + '"></span> ';
-        html += capitalize(status);
+        html += statusLabel(status);
         if (pd.scheduled_datetime) {
           html += " &middot; " + formatDateTime(pd.scheduled_datetime);
         }
@@ -156,21 +169,21 @@ const App = (function () {
         html +=
           '<input type="checkbox"' +
           (enabled ? " checked" : "") +
-          ' onchange="App.togglePlatform(\'' +
-          item.id +
-          "', '" +
+          ' data-action="toggle" data-item-id="' +
+          escapeHtml(item.id) +
+          '" data-platform="' +
           plat +
-          "', this.checked)\">";
+          '">';
         html += '<span class="toggle-track"></span>';
         html += "</label>";
 
         if (enabled) {
           html +=
-            '<button class="platform-edit-btn" onclick="App.openEdit(\'' +
-            item.id +
-            "', '" +
+            '<button class="platform-edit-btn" data-action="edit" data-item-id="' +
+            escapeHtml(item.id) +
+            '" data-platform="' +
             plat +
-            "')\" title=\"Edit\">";
+            '" title="Edit">';
           html +=
             '<svg><use href="/static/icons.svg#icon-edit"/></svg>';
           html += "</button>";
@@ -187,9 +200,9 @@ const App = (function () {
         html +=
           '<div style="margin-top:14px;text-align:right">';
         html +=
-          '<button class="btn btn-primary" onclick="App.scheduleAll(\'' +
-          item.id +
-          "')\">Confirm &amp; Schedule</button>";
+          '<button class="btn btn-primary" data-action="schedule-all" data-item-id="' +
+          escapeHtml(item.id) +
+          '">Confirm &amp; Schedule</button>';
         html += "</div>";
       }
 
@@ -357,7 +370,7 @@ const App = (function () {
         '<td><span class="status-badge ' +
         row.status +
         '">' +
-        capitalize(row.status) +
+        statusLabel(row.status) +
         "</span></td>";
       html +=
         "<td>" +
@@ -449,7 +462,7 @@ const App = (function () {
     html +=
       '<div style="margin-top:24px;padding:16px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">';
     html +=
-      '<p style="font-size:13px;color:var(--text-muted)"><strong>Note:</strong> Keep this dashboard running for scheduled posts to dispatch automatically. If the dashboard is not running at the scheduled time, posts will dispatch the next time you start it.</p>';
+      '<p style="font-size:13px;color:var(--text-muted)"><strong>Note:</strong> Confirming a post runs the FTC and AIGC compliance checks and schedules it. Direct API publishing is not enabled yet, so when a scheduled time passes the post is marked <strong>Ready to post</strong> for you to publish manually. Keep the dashboard running so scheduled items advance to Ready to post on time; if it is not running, they advance the next time you start it.</p>';
     html += "</div>";
 
     container.innerHTML = html;
@@ -516,6 +529,21 @@ const App = (function () {
     if (!itemId || !platform) return;
 
     var caption = document.getElementById("edit-caption").value;
+
+    var limit = CAPTION_LIMITS[platform] || 2200;
+    if (caption.length > limit) {
+      toast(
+        capitalize(platform) +
+          " caption is " +
+          caption.length +
+          " / " +
+          limit +
+          " characters. Trim it before saving.",
+        "error"
+      );
+      return;
+    }
+
     var hashtagsRaw = document.getElementById("edit-hashtags").value;
     var hashtags = hashtagsRaw
       ? hashtagsRaw.split(",").map(function (h) {
@@ -659,11 +687,25 @@ const App = (function () {
 
   function escapeHtml(str) {
     if (!str) return "";
-    return str
+    return String(str)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  var STATUS_LABELS = {
+    draft: "Draft",
+    scheduled: "Scheduled",
+    ready_to_post: "Ready to post",
+    published: "Published",
+    failed: "Failed",
+    awaiting_human_confirmation: "Awaiting confirmation",
+  };
+
+  function statusLabel(s) {
+    return STATUS_LABELS[s] || capitalize(s);
   }
 
   function capitalize(s) {
@@ -705,6 +747,26 @@ const App = (function () {
       btn.addEventListener("click", function () {
         switchView(btn.dataset.view);
       });
+    });
+
+    // Delegated handlers for queue-view actions. Data flows via data-* attributes
+    // (not HTML-parsed) instead of inline onclick string concatenation, so a queue
+    // item id can never break out of an attribute and inject script.
+    var main = document.getElementById("main-content");
+    main.addEventListener("click", function (e) {
+      var el = e.target.closest("[data-action]");
+      if (!el) return;
+      var action = el.dataset.action;
+      var id = el.dataset.itemId;
+      var plat = el.dataset.platform;
+      if (action === "delete") deleteItem(id);
+      else if (action === "edit") openEdit(id, plat);
+      else if (action === "schedule-all") scheduleAll(id);
+    });
+    main.addEventListener("change", function (e) {
+      var el = e.target.closest('[data-action="toggle"]');
+      if (!el) return;
+      togglePlatform(el.dataset.itemId, el.dataset.platform, el.checked);
     });
 
     document

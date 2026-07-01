@@ -2,7 +2,18 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P20 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P21 are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P21: P20 adversarial-audit remediation — 27 verified findings closed. Dashboard security
+  (CSRF Origin/Content-Type guards, wildcard CORS removed, stored-XSS via data-* binding, queue
+  lock + atomic writes); shared `tools/publishing_compliance.py` gate wired into the dashboard
+  confirm path (refuses non-compliant posts) and reused by `schedule_post`; honest scaffold
+  (scheduler advances to `ready_to_post`, no fake dispatch) with a feature-flagged-off
+  `tools/publishing/` real-API seam (`live_publishing_enabled`, default off); `POST /api/import-report`
+  adapter for the content-distributor handoff; four dedicated `{platform}_publish_api` connectors
+  wired through `CAPABILITY_TO_CONNECTOR` (+ object-form flag reading, pinterest_api mapping);
+  wizard YouTube state corrected (no false "Ready" without a token); drift-guard invariant 18
+  (connector requires_capability must be mapped); docs corrected.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -283,8 +294,12 @@ P6 through P20 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
     connector. Maps platform-native codes to Creator OS vocabulary (published, scheduled,
     processing, failed, draft, unknown). Optional engagement snapshot. 3 eval cases.
 - **Connector registry (`shared/connectors/connectors.json`):** `content_publishing` evidence type
-  added; `youtube_publishing`, `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing`
-  direct API connectors added with `content_publishing` in their provides arrays.
+  added. Write-side publishing is provided by four dedicated connectors
+  (`youtube_publish_api`, `instagram_publish_api`, `tiktok_publish_api`, `pinterest_publish_api`),
+  each gated on its `{platform}_publishing` capability flag and mapped in
+  `connectors.py` CAPABILITY_TO_CONNECTOR. These are separate from the read-side connectors
+  (`youtube_data_api`, etc.), which no longer provide `content_publishing` (added in the P20 audit
+  remediation).
 - **Feature flags (`creator-os-config.json`):** 4 new capability flags — `youtube_publishing`,
   `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing` — all default to
   `enabled: false`. Degraded behavior entries added.

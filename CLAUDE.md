@@ -98,7 +98,12 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - **Human confirmation required before every post.** `schedule-post` always sets
   `human_review_required: true`. No connector call is made, and no post is queued or published,
   without an explicit human confirmation step. Agents never post directly — they produce
-  confirmation summaries for human review only.
+  confirmation summaries for human review only. `tools/publishing_compliance.py` is the shared
+  FTC/AIGC/tier/credential gate used by both `schedule_post` (which reports) and the dashboard
+  confirm path (which refuses on a failed gate). Real platform publishing lives in
+  `tools/publishing/` and is gated behind the `live_publishing_enabled` flag (default off); while
+  off, the dashboard schedules and advances items to `ready_to_post` for manual posting and makes
+  no network call.
 
 ## Commit messages
 Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase
