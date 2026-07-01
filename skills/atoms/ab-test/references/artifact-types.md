@@ -1,5 +1,5 @@
 ---
-file: skills/ab-test/references/artifact-types.md
+file: skills/atoms/ab-test/references/artifact-types.md
 role: the artifact types this skill produces and the required elements of each.
 ---
 

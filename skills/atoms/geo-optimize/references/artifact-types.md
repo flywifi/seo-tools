@@ -1,5 +1,5 @@
 ---
-file: skills/geo-optimize/references/artifact-types.md
+file: skills/atoms/geo-optimize/references/artifact-types.md
 role: the artifact types this skill produces and the required elements of each.
 ---
 
