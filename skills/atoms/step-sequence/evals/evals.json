@@ -1,0 +1,73 @@
+[
+  {
+    "id": "step-sequence-001",
+    "description": "Happy path: beginner renter-friendly project with full inputs returns reversible steps with safety notes and broll tags",
+    "input": {
+      "project_title": "Moody peel-and-stick accent wall behind a thrifted headboard",
+      "difficulty": "beginner",
+      "renter_friendly": true
+    },
+    "expect": {
+      "tool": "step-sequence",
+      "project_title": "Moody peel-and-stick accent wall behind a thrifted headboard",
+      "difficulty": "beginner",
+      "total_steps": "positive integer",
+      "estimated_time_per_step": "present, includes range with 'to' and a caveat about variation",
+      "steps": "non-empty array",
+      "steps[].step_number": "sequential integers starting from 1",
+      "steps[].action": "present, imperative voice, one discrete action per step",
+      "steps[].detail": "present, explains why the step matters",
+      "steps[].broll_tag": "present for each non-licensed-trade step",
+      "steps[].licensed_trade_required": false,
+      "warnings": "array, may be empty or contain project-level safety notes"
+    },
+    "prohibit": [
+      "permanent or irreversible methods when renter_friendly is true",
+      "fabricated product names, cure times, or brand specifications",
+      "em dashes in action or detail text",
+      "steps involving drilling, painting permanent surfaces, or wall damage"
+    ]
+  },
+  {
+    "id": "step-sequence-002",
+    "description": "Minimal inputs: intermediate project with only required fields, renter_friendly defaults to false",
+    "input": {
+      "project_title": "Dark-stained vintage dresser flip with new brass hardware",
+      "difficulty": "intermediate"
+    },
+    "expect": {
+      "tool": "step-sequence",
+      "project_title": "Dark-stained vintage dresser flip with new brass hardware",
+      "difficulty": "intermediate",
+      "total_steps": "positive integer",
+      "steps": "non-empty array",
+      "steps[].safety_note": "present on steps involving sanding, staining, or chemical products; null only when no hazard exists",
+      "steps[].broll_tag": "present and descriptive for every non-licensed-trade step"
+    },
+    "prohibit": [
+      "fabricated drying times or cure rates",
+      "em dashes",
+      "missing broll_tag on actionable steps"
+    ]
+  },
+  {
+    "id": "step-sequence-003",
+    "description": "Edge case: project containing one step that requires a licensed trade triggers the hard boundary flag",
+    "input": {
+      "project_title": "Vintage pendant light installation over kitchen island with new dimmer switch wiring",
+      "difficulty": "advanced"
+    },
+    "expect": {
+      "tool": "step-sequence",
+      "steps": "array containing at least one entry with licensed_trade_required true",
+      "steps[licensed_trade_required=true].action": "contains the hard boundary note about licensed professional required",
+      "steps[licensed_trade_required=true].broll_tag": null,
+      "warnings": "non-empty array with project-level safety flags"
+    },
+    "prohibit": [
+      "DIY wiring or electrical instructions for licensed-trade steps",
+      "em dashes",
+      "fabricated electrical specifications or code references"
+    ]
+  }
+]

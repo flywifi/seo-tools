@@ -1,0 +1,73 @@
+[
+  {
+    "id": "personamap-001",
+    "description": "Happy path: DIY renter topic with platform and format context returns high-confidence Renter primary persona",
+    "input": {
+      "topic": "removable wallpaper accent wall for a small rental bedroom",
+      "pillar": "DIY and room makeovers",
+      "platform": "YouTube long-form",
+      "format": "tutorial"
+    },
+    "expect": {
+      "tool": "persona-map",
+      "topic": "removable wallpaper accent wall for a small rental bedroom",
+      "primary_persona": "Renter",
+      "secondary_personas": "array present, may include New Homeowner",
+      "confidence": "high",
+      "fit_rationale": "non-empty string explaining why Renter is strongest fit",
+      "adaptation_notes": "all five persona keys present; Renter value is non-null with reversibility/landlord-safe framing; irrelevant personas set to null",
+      "confidence_note": "null when confidence is high"
+    },
+    "prohibit": [
+      "primary_persona other than Renter for a rental-explicit topic",
+      "any adaptation_notes key missing from the five-persona set",
+      "confidence low when topic, pillar, platform, and format are all provided",
+      "fabricated engagement or analytics data in fit_rationale"
+    ]
+  },
+  {
+    "id": "personamap-002",
+    "description": "Minimal input: topic only with no pillar, platform, or format returns reduced confidence with explanation",
+    "input": {
+      "topic": "thrift store furniture haul and styling"
+    },
+    "expect": {
+      "tool": "persona-map",
+      "topic": "thrift store furniture haul and styling",
+      "primary_persona": "Vintage Hunter",
+      "secondary_personas": "array present",
+      "confidence": "medium or low due to missing platform and format context",
+      "fit_rationale": "non-empty string",
+      "adaptation_notes": "all five persona keys present",
+      "confidence_note": "non-null string explaining that missing platform or format reduced confidence"
+    },
+    "prohibit": [
+      "confidence high when platform and format are both omitted",
+      "confidence_note null when confidence is below high",
+      "any adaptation_notes key omitted rather than set to null"
+    ]
+  },
+  {
+    "id": "personamap-003",
+    "description": "Edge case: ambiguous topic that spans multiple personas returns low confidence with honest rationale",
+    "input": {
+      "topic": "budget-friendly holiday decor ideas for any home",
+      "pillar": "seasonal and holiday",
+      "platform": "Pinterest",
+      "format": "checklist"
+    },
+    "expect": {
+      "tool": "persona-map",
+      "primary_persona": "Holiday Maximalist",
+      "secondary_personas": "non-empty array containing at least Renter or New Homeowner given budget and any-home framing",
+      "confidence": "medium given broad audience scope",
+      "fit_rationale": "explains the multi-persona overlap and why Holiday Maximalist edges others",
+      "adaptation_notes": "multiple personas have non-null values reflecting the broad appeal"
+    },
+    "prohibit": [
+      "empty secondary_personas for a broad topic that spans multiple personas",
+      "fabricated audience analytics or engagement predictions",
+      "adaptation_notes values that contradict the persona definitions in audience-engine"
+    ]
+  }
+]

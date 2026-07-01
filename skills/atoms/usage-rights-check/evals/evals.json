@@ -1,0 +1,69 @@
+[
+  {
+    "id": "usage-rights-check-001",
+    "description": "Happy path: contract text with complete clauses returns structured rights extraction with all fields populated",
+    "input": {
+      "contract_text": "The Creator grants Brand a non-exclusive license to repost the sponsored video on Brand-owned social channels (Instagram, TikTok) for a period of 90 days from the publish date. Creator retains full copyright ownership. During the campaign period (January 15 to April 15, 2026), Creator agrees not to publish sponsored content for competing home furniture brands. Brand may not run paid amplification or whitelisting without a separate written addendum. FTC disclosure is required on all sponsored posts.",
+      "question": "platform exclusivity"
+    },
+    "expect": {
+      "tool": "usage-rights-check",
+      "source": "contract_text",
+      "exclusivity.scope": "present, references home furniture brands",
+      "exclusivity.platform": "present or null based on whether platforms are specified in exclusivity clause",
+      "exclusivity.duration": "present, uses 'to' separator not em dash",
+      "ownership": "present, states Creator retains copyright",
+      "license_grant": "present, describes non-exclusive 90-day license on specified platforms",
+      "platform_restrictions": "non-empty array, includes whitelisting restriction",
+      "ftc_disclosure_required.value": true,
+      "flags": "array, may be empty when all clauses are clear",
+      "recommend_counsel": "boolean"
+    },
+    "prohibit": [
+      "em dashes as range separators in exclusivity.duration",
+      "legal advice or enforceability assessments",
+      "fabricated clause language not present in the input"
+    ]
+  },
+  {
+    "id": "usage-rights-check-002",
+    "description": "Minimal inputs: contract text with vague and incomplete clauses flags ambiguities and recommends counsel",
+    "input": {
+      "contract_text": "Creator will produce one sponsored video for Brand. Brand may use the content. Exclusivity applies for a reasonable period."
+    },
+    "expect": {
+      "tool": "usage-rights-check",
+      "source": "contract_text",
+      "exclusivity.scope": null,
+      "exclusivity.duration": "null or flagged as ambiguous due to 'reasonable period'",
+      "ownership": null,
+      "license_grant": "present but vague, reflecting the source language",
+      "flags": "non-empty array with entries for ambiguous and missing clauses",
+      "recommend_counsel": true,
+      "counsel_reason": "present, cites specific fields or clause gaps"
+    },
+    "prohibit": [
+      "fabricated specifics for vague contract language",
+      "legal advice on what terms to accept",
+      "recommend_counsel false when multiple fields are null or ambiguous",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "usage-rights-check-003",
+    "description": "Edge case: neither deal_id nor contract_text provided returns structured error",
+    "input": {
+      "question": "What are the whitelisting terms?"
+    },
+    "expect": {
+      "error": "no_source",
+      "message": "present, asks the caller to supply deal_id or contract_text"
+    },
+    "prohibit": [
+      "fabricated contract data",
+      "any rights extraction output without a source",
+      "unhandled crash or missing error object",
+      "em dashes"
+    ]
+  }
+]

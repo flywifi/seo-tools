@@ -1,0 +1,71 @@
+[
+  {
+    "id": "hookwrite-001",
+    "description": "Happy path: write a YouTube long-form hook for a moody room makeover concept with full inputs",
+    "input": {
+      "concept": "Transforming a dated 1990s guest bedroom into a dark moody vintage retreat using only thrifted furniture",
+      "persona": "The New Homeowner",
+      "platform": "youtube_longform",
+      "duration_seconds": 30
+    },
+    "expect": {
+      "tool": "hook-write",
+      "hook": "non-empty string in warm published-to-audience voice",
+      "promise_or_problem": "non-empty string establishing the transformation promise or the problem being solved",
+      "first_seconds": "non-empty string with copy for up to 30-second opening window",
+      "note": "non-empty string mentioning establishing promise or problem before process content"
+    },
+    "prohibit": [
+      "hook is empty or missing",
+      "em dashes in the hook text",
+      "hook that opens with process or tutorial steps before establishing the promise or problem",
+      "corporate or generic tone inconsistent with warm published-to-audience voice",
+      "first_seconds exceeding the 30-second window scope"
+    ]
+  },
+  {
+    "id": "hookwrite-002",
+    "description": "Minimal input: short-form Reels hook with default duration, minimal context",
+    "input": {
+      "concept": "Quick thrift store vase styling tip",
+      "persona": "The Vintage Hunter",
+      "platform": "reels"
+    },
+    "expect": {
+      "tool": "hook-write",
+      "hook": "non-empty string",
+      "promise_or_problem": "non-empty string",
+      "first_seconds": "non-empty string scoped to approximately 3-second short-form opening window",
+      "note": "non-empty string"
+    },
+    "prohibit": [
+      "hook is empty or missing",
+      "em dashes in the hook text",
+      "first_seconds written for a 30-second window when platform is short-form (reels)",
+      "promise_or_problem is empty or missing"
+    ]
+  },
+  {
+    "id": "hookwrite-003",
+    "description": "Edge case: TikTok hook where concept is vague; hook must still establish a clear promise or problem",
+    "input": {
+      "concept": "something about old furniture",
+      "persona": "The Renter",
+      "platform": "tiktok",
+      "duration_seconds": 3
+    },
+    "expect": {
+      "tool": "hook-write",
+      "hook": "non-empty string that makes the vague concept specific and compelling",
+      "promise_or_problem": "non-empty string with a clear promise or problem despite vague input",
+      "first_seconds": "non-empty string for 3-second opening",
+      "note": "non-empty string"
+    },
+    "prohibit": [
+      "hook that is equally vague as the input concept without sharpening it",
+      "em dashes in the hook text",
+      "hook longer than what could be delivered in 3 seconds of spoken or on-screen text",
+      "promise_or_problem left empty because the concept was vague"
+    ]
+  }
+]

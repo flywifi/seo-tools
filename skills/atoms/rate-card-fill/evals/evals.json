@@ -1,0 +1,80 @@
+[
+  {
+    "id": "ratecardfill-001",
+    "description": "Happy path: mix of personal rates and benchmark fallback returns correctly labeled sources with disclaimer",
+    "input": {
+      "format_list": [
+        "long-form-integration",
+        "dedicated-video",
+        "short-form",
+        "pinterest-pin"
+      ],
+      "alex_actual_rates": {
+        "long-form-integration": "2500",
+        "dedicated-video": "4000"
+      }
+    },
+    "expect": {
+      "tool": "rate-card-fill",
+      "rate_card": "array of 4 objects, one per format in format_list",
+      "personal_rate_items": "long-form-integration and dedicated-video have source: personal_rate with rate_or_range matching input exactly",
+      "benchmark_items": "short-form and pinterest-pin have source: benchmark_range with rate_or_range from benchmarks.json",
+      "disclaimer": "non-null string present because benchmark_range items exist",
+      "recommended_negotiation_floor": "string or null derived from benchmark entries only"
+    },
+    "prohibit": [
+      "personal rates reformatted, rounded, or adjusted from the input values",
+      "benchmark ranges presented without source: benchmark_range label",
+      "disclaimer absent when benchmark_range items are in the card",
+      "fabricated rates for formats not covered by either source"
+    ]
+  },
+  {
+    "id": "ratecardfill-002",
+    "description": "Minimal input: format_list only with no alex_actual_rates; all formats fall back to benchmarks",
+    "input": {
+      "format_list": [
+        "long-form-integration",
+        "short-form"
+      ]
+    },
+    "expect": {
+      "tool": "rate-card-fill",
+      "rate_card": "array of 2 objects",
+      "all_benchmark": "every item has source: benchmark_range",
+      "disclaimer": "non-null disclaimer string stating these are industry reference ranges",
+      "recommended_negotiation_floor": "present if benchmark data includes a floor"
+    },
+    "prohibit": [
+      "source: personal_rate on any item when alex_actual_rates was not provided",
+      "disclaimer null when all items are benchmark_range",
+      "fabricated rate values not from benchmarks.json"
+    ]
+  },
+  {
+    "id": "ratecardfill-003",
+    "description": "Edge case: format_list includes an unrecognized format key; atom returns no_data with gap note",
+    "input": {
+      "format_list": [
+        "long-form-integration",
+        "podcast-ad-read"
+      ],
+      "alex_actual_rates": {
+        "long-form-integration": "2500"
+      }
+    },
+    "expect": {
+      "tool": "rate-card-fill",
+      "rate_card": "array of 2 objects",
+      "known_format": "long-form-integration has source: personal_rate with rate_or_range '2500'",
+      "unknown_format": "podcast-ad-read has source: no_data, rate_or_range: null, and notes flagging the unrecognized format",
+      "disclaimer": "null because the only non-personal item is no_data, not benchmark_range"
+    },
+    "prohibit": [
+      "fabricated rate for the unrecognized podcast-ad-read format",
+      "source: benchmark_range for a format not in benchmarks.json",
+      "notes null on the no_data item; the gap must be explained",
+      "atom erroring or halting on an unrecognized format key"
+    ]
+  }
+]

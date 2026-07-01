@@ -1,0 +1,71 @@
+[
+  {
+    "id": "roi-metric-001",
+    "description": "Happy path: all optional inputs provided, full ROI calculation with no null fields",
+    "input": {
+      "deal_rate": 2500,
+      "estimated_views": 50000,
+      "estimated_clicks": 800,
+      "production_hours": 12,
+      "hourly_value": 75
+    },
+    "expect": {
+      "revenue": 2500,
+      "estimated_cpm": "non-null number, calculated as (2500 / 50000) * 1000",
+      "estimated_cpc": "non-null number, calculated as 2500 / 800",
+      "hours_invested": 12,
+      "effective_hourly_rate": "non-null number, calculated as 2500 / 12",
+      "roi_summary": "present, plain-language string describing the calculation",
+      "data_quality": "estimated",
+      "flags": "array, may be empty or contain notes about estimated inputs"
+    },
+    "prohibit": [
+      "fabricated benchmarks or industry averages",
+      "em dashes in roi_summary",
+      "null values for any metric field when all inputs are provided"
+    ]
+  },
+  {
+    "id": "roi-metric-002",
+    "description": "Minimal inputs: only required deal_rate, all optional fields omitted produces partial output",
+    "input": {
+      "deal_rate": 1200
+    },
+    "expect": {
+      "revenue": 1200,
+      "estimated_cpm": null,
+      "estimated_cpc": null,
+      "hours_invested": null,
+      "effective_hourly_rate": null,
+      "data_quality": "partial",
+      "flags": "non-empty array listing each missing input and its effect on output fields",
+      "roi_summary": "present, describes what is known and what is missing"
+    },
+    "prohibit": [
+      "non-null values for estimated_cpm, estimated_cpc, hours_invested, or effective_hourly_rate",
+      "fabricated view counts or click estimates",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "roi-metric-003",
+    "description": "Edge case: deal_id not found in pipeline, atom continues with provided inputs and flags the miss",
+    "input": {
+      "deal_id": "deal-nonexistent-999",
+      "deal_rate": 3000,
+      "estimated_views": 75000
+    },
+    "expect": {
+      "revenue": 3000,
+      "estimated_cpm": "non-null number",
+      "estimated_cpc": null,
+      "flags": "contains entry mentioning deal_id not found in pipeline",
+      "data_quality": "estimated or partial"
+    },
+    "prohibit": [
+      "fabricated pipeline data for the missing deal",
+      "error or crash due to missing deal_id",
+      "em dashes"
+    ]
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "keywordcluster-001",
+    "description": "Happy path: YouTube cluster for a moody-vintage topic returns primary, secondary, long-tail, and difficulty note",
+    "input": {
+      "topic": "dark moody bedroom makeover with thrifted furniture",
+      "platform": "youtube"
+    },
+    "expect": {
+      "tool": "keyword-cluster",
+      "primary": "array of 1 to 2 exact-phrase keywords relevant to the topic",
+      "secondary": "array of 2 to 4 keywords for description body and tags",
+      "long_tail": "array of 4 to 8 keywords for description and chapter titles",
+      "difficulty_note": "non-empty string addressing competition for a new channel",
+      "note": "string reminding to verify volume signals via trend-check or web-intel"
+    },
+    "prohibit": [
+      "exact search volume stated as fact without verification caveat",
+      "primary array with more than 2 items",
+      "long_tail array with fewer than 4 or more than 8 items",
+      "keywords unrelated to moody-vintage home decor or DIY"
+    ]
+  },
+  {
+    "id": "keywordcluster-002",
+    "description": "Minimal input: Pinterest platform with a short topic string",
+    "input": {
+      "topic": "fall mantel decor",
+      "platform": "pinterest"
+    },
+    "expect": {
+      "tool": "keyword-cluster",
+      "primary": "array of 1 to 2 keywords optimized for Pinterest search",
+      "secondary": "array of 2 to 4 keywords",
+      "long_tail": "array of 4 to 8 keywords",
+      "difficulty_note": "present and non-empty",
+      "source_artifacts": "array present, may be empty"
+    },
+    "prohibit": [
+      "YouTube-specific keyword framing when platform is pinterest",
+      "fabricated search volume numbers",
+      "secondary array with fewer than 2 items"
+    ]
+  },
+  {
+    "id": "keywordcluster-003",
+    "description": "Edge case: Google platform with a highly competitive generic topic flags difficulty prominently",
+    "input": {
+      "topic": "home decor ideas",
+      "platform": "google"
+    },
+    "expect": {
+      "tool": "keyword-cluster",
+      "primary": "array of 1 to 2 keywords",
+      "difficulty_note": "flags high competition for a new channel on generic home decor terms",
+      "long_tail": "array of 4 to 8 more specific long-tail alternatives",
+      "note": "verification caveat present"
+    },
+    "prohibit": [
+      "recommending a high-competition primary without flagging difficulty",
+      "exact ranking positions or volume figures asserted as fact",
+      "empty difficulty_note for a competitive generic topic"
+    ]
+  }
+]

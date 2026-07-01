@@ -1,0 +1,65 @@
+[
+  {
+    "id": "trend-check-001",
+    "description": "Happy path: topic with platform and freshness_days returns momentum classification with source artifacts",
+    "input": {
+      "topic": "dark moody kitchen makeover",
+      "platform": "youtube",
+      "freshness_days": 14
+    },
+    "expect": {
+      "tool": "trend-check",
+      "topic": "dark moody kitchen makeover",
+      "momentum": "one of: rising | flat | declining | unknown",
+      "source_artifacts": "array, may contain retrieved evidence or be empty",
+      "retrieval_gaps": "array, lists any gaps in retrieval",
+      "freshness_note": "string or null, notes data recency relative to freshness_days"
+    },
+    "prohibit": [
+      "fabricated momentum without retrieval evidence",
+      "invented search volume or trend scores",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "trend-check-002",
+    "description": "Minimal inputs: topic only with default freshness window",
+    "input": {
+      "topic": "peel and stick backsplash DIY"
+    },
+    "expect": {
+      "tool": "trend-check",
+      "topic": "peel and stick backsplash DIY",
+      "momentum": "one of: rising | flat | declining | unknown",
+      "source_artifacts": "array",
+      "retrieval_gaps": "array",
+      "note": "present"
+    },
+    "prohibit": [
+      "asserted momentum without retrieval",
+      "fabricated trend data",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "trend-check-003",
+    "description": "Edge case: retrieval fails entirely, momentum must be unknown with retrieval gaps recorded",
+    "input": {
+      "topic": "obscure antique wirework basket restoration technique",
+      "platform": "tiktok",
+      "freshness_days": 7
+    },
+    "expect": {
+      "tool": "trend-check",
+      "momentum": "unknown",
+      "source_artifacts": "empty array",
+      "retrieval_gaps": "non-empty array describing what retrieval was attempted and why it failed",
+      "note": "present, confirms unknown is a valid honest answer"
+    },
+    "prohibit": [
+      "momentum value other than unknown when no retrieval evidence exists",
+      "fabricated source artifacts",
+      "em dashes"
+    ]
+  }
+]

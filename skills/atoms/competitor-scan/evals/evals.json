@@ -1,0 +1,75 @@
+[
+  {
+    "id": "competitorscan-001",
+    "description": "Happy path: scan YouTube competitors for a moody bedroom makeover topic with full inputs",
+    "input": {
+      "topic": "dark moody bedroom makeover",
+      "platform": "youtube",
+      "count": 5
+    },
+    "expect": {
+      "tool": "competitor-scan",
+      "topic": "dark moody bedroom makeover",
+      "platform": "youtube",
+      "competitors": "array of up to 5 objects each with name, url_if_found, estimated_scale, content_angle, gap_or_differentiation",
+      "overserved_angles": "non-empty array",
+      "underserved_angles": "non-empty array",
+      "overall_gap_summary": "non-empty string",
+      "confidence": "high | medium | low",
+      "fabrication_flags": "array (may be non-empty with [unverified] markers)"
+    },
+    "prohibit": [
+      "competitors array has more than 5 entries when count is 5",
+      "exact subscriber counts, view counts, or engagement rates stated as confirmed fact without [unverified] marker",
+      "channel names or video titles that are fabricated and not sourced from retrieval",
+      "estimated_scale value without [unverified] unless confirmed by a live API",
+      "overall_gap_summary is empty or missing"
+    ]
+  },
+  {
+    "id": "competitorscan-002",
+    "description": "Minimal input: default count of 5, Pinterest platform for vintage thrift flip",
+    "input": {
+      "topic": "vintage thrift flip DIY",
+      "platform": "pinterest"
+    },
+    "expect": {
+      "tool": "competitor-scan",
+      "topic": "vintage thrift flip DIY",
+      "platform": "pinterest",
+      "competitors": "array of up to 5 objects",
+      "overserved_angles": "array",
+      "underserved_angles": "array",
+      "overall_gap_summary": "non-empty string",
+      "confidence": "high | medium | low"
+    },
+    "prohibit": [
+      "competitors array has more than 5 entries (default count is 5)",
+      "fabricated pin engagement stats or save counts stated as fact",
+      "url_if_found containing invented URLs not sourced from retrieval"
+    ]
+  },
+  {
+    "id": "competitorscan-003",
+    "description": "Edge case: retrieval largely fails; confidence must be low, slots replaced with gap-record objects",
+    "input": {
+      "topic": "handmade rattan furniture restoration antique 1920s",
+      "platform": "tiktok",
+      "count": 3
+    },
+    "expect": {
+      "tool": "competitor-scan",
+      "topic": "handmade rattan furniture restoration antique 1920s",
+      "platform": "tiktok",
+      "confidence": "low",
+      "retrieval_gaps": "non-empty array documenting what could not be retrieved",
+      "overall_gap_summary": "non-empty string"
+    },
+    "prohibit": [
+      "confidence is high when retrieval largely failed",
+      "competitors array filled with fabricated creator names or accounts to reach the requested count",
+      "retrieval_gaps is empty when most slots could not be populated from retrieval",
+      "fabrication_flags is empty when unverified data is present"
+    ]
+  }
+]

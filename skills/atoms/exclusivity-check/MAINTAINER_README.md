@@ -40,4 +40,4 @@ category conflicts with overlapping date ranges. Read-only — never modifies de
 ## Update checklist
 - Run python3 tools/sync_check.py.
 - Verify the atom is listed in deal-pipeline spoke's workflow.json.
-- Verify .claude/agents/deal-reviewer.md and .claude/workflows/deal-review.md reference it correctly.
+- Verify `.claude/agents/deal-reviewer.md` and `.claude/workflows/deal-review.js` reference it correctly.

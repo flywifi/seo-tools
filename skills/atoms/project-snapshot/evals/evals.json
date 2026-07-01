@@ -1,0 +1,79 @@
+[
+  {
+    "id": "projectsnapshot-001",
+    "description": "Happy path: fully specified DIY project returns complete snapshot with transformation arc, aesthetic notes, and content angles",
+    "input": {
+      "project_idea": "moody dark green paint treatment on a thrifted china cabinet with brass hardware swap",
+      "skill_level": "intermediate",
+      "tenure": "owner",
+      "budget_tier": "mid_range",
+      "season_or_occasion": "fall"
+    },
+    "expect": {
+      "project_title": "non-empty string derived from project_idea",
+      "pillar": "DIY and makeovers",
+      "transformation_arc": "object with before, process, and after as non-empty one-sentence strings",
+      "skill_level": "intermediate",
+      "estimated_time_hours": "string range using 'to' (e.g. '3 to 6 hours')",
+      "budget_tier": "mid_range",
+      "renter_friendly": "false or null since tenure is owner",
+      "season_or_occasion": "fall",
+      "aesthetic_notes": "one to two sentences grounding project in moody-vintage aesthetic",
+      "content_angles": "array of 2 to 4 one-line content angle ideas",
+      "flags": "empty array if no missing inputs or concerns"
+    },
+    "prohibit": [
+      "em dashes anywhere in output",
+      "ranges using dashes instead of 'to'",
+      "fabricated product names, SKUs, or brand mentions",
+      "content_angles array with fewer than 2 or more than 4 items",
+      "renter_friendly true when tenure is owner"
+    ]
+  },
+  {
+    "id": "projectsnapshot-002",
+    "description": "Minimal input: project_idea only; optional fields default or flag as unspecified",
+    "input": {
+      "project_idea": "gallery wall with thrifted frames"
+    },
+    "expect": {
+      "project_title": "non-empty string",
+      "pillar": "one of the five valid pillars",
+      "transformation_arc": "object with before, process, after strings present",
+      "skill_level": "unspecified",
+      "estimated_time_hours": "string range or null",
+      "budget_tier": "unspecified",
+      "renter_friendly": "null since tenure not provided",
+      "season_or_occasion": "null",
+      "aesthetic_notes": "non-empty string with moody-vintage grounding",
+      "content_angles": "array of 2 to 4 items",
+      "flags": "array may contain notes about missing skill_level, tenure, or budget_tier"
+    },
+    "prohibit": [
+      "skill_level or budget_tier set to a specific value when not provided",
+      "renter_friendly set to true or false when tenure is not supplied",
+      "fabricated specific prices or product names"
+    ]
+  },
+  {
+    "id": "projectsnapshot-003",
+    "description": "Edge case: project idea touches electrical work, triggers safety flag per protocols/safety.md",
+    "input": {
+      "project_idea": "rewiring a vintage chandelier for a dining room makeover",
+      "skill_level": "advanced",
+      "tenure": "owner",
+      "budget_tier": "premium"
+    },
+    "expect": {
+      "project_title": "non-empty string",
+      "flags": "non-empty array with at least one entry flagging electrical work as outside DIY boundary per protocols/safety.md",
+      "transformation_arc": "present but process may note professional involvement for wiring",
+      "aesthetic_notes": "grounds the visual result in moody-vintage aesthetic"
+    },
+    "prohibit": [
+      "empty flags array when project involves electrical rewiring",
+      "step-by-step electrical instructions in any field",
+      "project presented as fully DIY when it involves rewiring"
+    ]
+  }
+]

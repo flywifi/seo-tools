@@ -1,6 +1,6 @@
 ---
 name: __SKILL_NAME__
-description: one or two sentences, third person, with the trigger phrases that should invoke this skill and an explicit "Do NOT use for" clause that points to the right alternative skill.
+description: "one or two sentences, third person, with the trigger phrases that should invoke this skill and an explicit Do NOT use for clause that points to the right alternative skill."
 ---
 
 # __SKILL_NAME__

@@ -1,0 +1,87 @@
+[
+  {
+    "id": "mediakitsection-001",
+    "description": "Happy path: channel_overview with real channel data returns real data_source and no placeholders",
+    "input": {
+      "section_name": "channel_overview",
+      "channel_data": {
+        "subscribers": 45000,
+        "avg_views_per_video": 12000,
+        "engagement_rate_pct": 6.2,
+        "avg_monthly_views": 180000,
+        "top_demographics": null,
+        "recent_case_study": null
+      },
+      "brand_name": null
+    },
+    "expect": {
+      "tool": "mediakit-section",
+      "section_name": "channel_overview",
+      "section_title": "non-empty display heading",
+      "section_body": "markdown-formatted body referencing moody-vintage aesthetic and DIY niche",
+      "data_source": "real or mixed depending on null fields in channel_data",
+      "fabrication_check": "PASS",
+      "placeholders_to_fill": "array present; may list top_demographics if surfaced as missing"
+    },
+    "prohibit": [
+      "fabricated subscriber counts or view figures",
+      "data_source set to real when top_demographics is null and referenced",
+      "benchmark_label present when data_source is real",
+      "em dashes in section_body"
+    ]
+  },
+  {
+    "id": "mediakitsection-002",
+    "description": "Minimal input: rates_summary with no channel_data falls back to benchmark ranges with disclaimer",
+    "input": {
+      "section_name": "rates_summary",
+      "channel_data": {},
+      "brand_name": null
+    },
+    "expect": {
+      "tool": "mediakit-section",
+      "section_name": "rates_summary",
+      "data_source": "benchmark or placeholder",
+      "benchmark_label": "non-null string describing benchmark source and tier",
+      "section_body": "contains labeled benchmark ranges, not presented as personal rates",
+      "placeholders_to_fill": "array listing fields that need real data before publishing",
+      "fabrication_check": "PASS or FLAG explaining omitted fields"
+    },
+    "prohibit": [
+      "benchmark ranges presented as the creator's personal rates",
+      "data_source set to real when no channel_data was supplied",
+      "specific CPM or engagement figures stated as the creator's own",
+      "benchmark_label null when data_source is benchmark"
+    ]
+  },
+  {
+    "id": "mediakitsection-003",
+    "description": "Edge case: case_study section with no recent_case_study returns placeholder block and flags all required fields",
+    "input": {
+      "section_name": "case_study",
+      "channel_data": {
+        "subscribers": null,
+        "avg_views_per_video": null,
+        "engagement_rate_pct": null,
+        "avg_monthly_views": null,
+        "top_demographics": null,
+        "recent_case_study": null
+      },
+      "brand_name": "Vintage Brass Co"
+    },
+    "expect": {
+      "tool": "mediakit-section",
+      "section_name": "case_study",
+      "data_source": "placeholder",
+      "placeholders_to_fill": "non-empty array listing all case study fields that need real data",
+      "section_body": "structured placeholder block, not a fabricated campaign narrative",
+      "fabrication_check": "FLAG with reason explaining absent case study data"
+    },
+    "prohibit": [
+      "invented brand campaign or performance outcomes",
+      "fabricated engagement metrics or conversion figures",
+      "data_source set to real or benchmark for a case study with no source data",
+      "empty placeholders_to_fill array when all case study data is null"
+    ]
+  }
+]

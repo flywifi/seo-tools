@@ -1,0 +1,68 @@
+[
+  {
+    "id": "accounthealth-001",
+    "description": "Happy path: healthy account with all signals green, resolved by account_id",
+    "input": {
+      "account_id": "acct_magnolia_decor_2024",
+      "brand_name": null
+    },
+    "expect": {
+      "tool": "account-health",
+      "account_id": "acct_magnolia_decor_2024",
+      "brand_name": "non-empty string",
+      "health_score": "green | yellow | red",
+      "last_contact_days_ago": "integer >= 0",
+      "open_deals": "integer >= 0",
+      "open_deals_total_value_usd": "number >= 0",
+      "overdue_invoices": "integer >= 0",
+      "exclusivity_conflicts": "array",
+      "recommended_action": "follow_up | review_contract | no_action",
+      "notes": "non-empty string"
+    },
+    "prohibit": [
+      "health_score missing or null",
+      "recommended_action not matching health_score mapping (green must yield no_action)",
+      "last_contact_days_ago is a fabricated or estimated value when last_contact_date is absent from the record",
+      "exclusivity_conflicts containing brand names not found in pipeline/accounts/ exclusivity fields"
+    ]
+  },
+  {
+    "id": "accounthealth-002",
+    "description": "Minimal input: resolve by brand_name only, account_id omitted",
+    "input": {
+      "account_id": null,
+      "brand_name": "Vintage Rug Co"
+    },
+    "expect": {
+      "tool": "account-health",
+      "brand_name": "Vintage Rug Co",
+      "health_score": "green | yellow | red",
+      "recommended_action": "follow_up | review_contract | no_action",
+      "notes": "non-empty string"
+    },
+    "prohibit": [
+      "account_id is null in the output when a matching record exists",
+      "fabricated open_deals_total_value_usd when deal records lack value_usd fields",
+      "overdue_invoices estimated rather than counted from stored records"
+    ]
+  },
+  {
+    "id": "accounthealth-003",
+    "description": "Edge case: neither account_id nor brand_name resolves to a record; must emit gap-record and halt",
+    "input": {
+      "account_id": "acct_nonexistent_999",
+      "brand_name": null
+    },
+    "expect": {
+      "tool": "account-health",
+      "gap_type": "non-null value indicating record not found",
+      "description": "non-empty string explaining the account could not be resolved",
+      "recommended_next_step": "non-empty string advising user how to resolve"
+    },
+    "prohibit": [
+      "health_score present when no record was found",
+      "any fabricated score, metric, or recommended_action when the account does not exist",
+      "output that silently omits the gap without flagging it"
+    ]
+  }
+]

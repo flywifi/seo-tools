@@ -1,0 +1,62 @@
+[
+  {
+    "id": "thumbnail-concept-001",
+    "description": "Happy path: before/after split type with niche-appropriate concept returns full thumbnail design",
+    "input": {
+      "concept": "Moody dark green accent wall transformation in a vintage-styled bedroom",
+      "type": "before_after_split"
+    },
+    "expect": {
+      "tool": "thumbnail-concept",
+      "type": "before_after_split",
+      "composition": "present, describes what is in frame and spatial layout",
+      "text_overlay": "present, 3 to 6 words maximum",
+      "note": "present, references 1280x720, high contrast, and edge margin guidance"
+    },
+    "prohibit": [
+      "text_overlay longer than 6 words",
+      "overpromising beyond what the concept delivers",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "thumbnail-concept-002",
+    "description": "Minimal inputs: concept string with pov_hero type",
+    "input": {
+      "concept": "Thrift store brass candlestick collection styled on a dark wood mantel",
+      "type": "pov_hero"
+    },
+    "expect": {
+      "tool": "thumbnail-concept",
+      "type": "pov_hero",
+      "composition": "present, describes point-of-view framing and subject placement",
+      "text_overlay": "present, 3 to 6 words",
+      "note": "present"
+    },
+    "prohibit": [
+      "text_overlay longer than 6 words",
+      "em dashes",
+      "rendering instructions or image generation prompts"
+    ]
+  },
+  {
+    "id": "thumbnail-concept-003",
+    "description": "Edge case: face_room type with a concept that has no obvious face element tests composition adaptation",
+    "input": {
+      "concept": "Budget bathroom vanity makeover using peel-and-stick tile and chalk paint",
+      "type": "face_room"
+    },
+    "expect": {
+      "tool": "thumbnail-concept",
+      "type": "face_room",
+      "composition": "present, describes face placement and room context framing",
+      "text_overlay": "present, 3 to 6 words",
+      "note": "present, references alignment with the title"
+    },
+    "prohibit": [
+      "text_overlay longer than 6 words",
+      "em dashes",
+      "actual image rendering or file output"
+    ]
+  }
+]

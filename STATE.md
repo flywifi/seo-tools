@@ -37,15 +37,21 @@ P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - Hub: `skills/creator-core/` SKILL.md, MAINTAINER_README.md, workflow.json.
 - Governance: `skills/quality-review/` with score.py and rubric.
 
-### Atoms layer (P3) - 35 atoms
-- idea-generate, pillar-classify, trend-check, hook-write, title-generate, thumbnail-concept,
-  keyword-cluster, search-intent, short-extract, seasonal-map, calendar-slot, competitor-scan,
-  persona-map, project-snapshot, materials-list, step-sequence, safety-check (DIY boundary),
+### Atoms layer — 52 atoms total
+- **P3 original (35):** idea-generate, pillar-classify, trend-check, hook-write, title-generate,
+  thumbnail-concept, keyword-cluster, search-intent, short-extract, seasonal-map, calendar-slot,
+  competitor-scan, persona-map, project-snapshot, materials-list, step-sequence, safety-check,
   styling-variant, renter-alt, script-section, b-roll-note (via short-extract), repurpose-unit,
   pin-write, caption-write, hashtag-set, mediakit-section, rate-card-fill, pitch-paragraph,
   deal-stage-advance, account-health, renewal-signal, invoice-status, usage-rights-check,
-  roi-metric, benchmark-compare, production-task, injection-scan (govern-artifact + gap-record +
-  ingest-route as cross-cutting atoms).
+  roi-metric, benchmark-compare, production-task, injection-scan, govern-artifact, gap-record,
+  ingest-route.
+- **P7 (+4):** topical-authority-map, long-tail-expand, entity-extract, serp-feature-check.
+- **P9 (+1):** deep-competitor-scan.
+- **P10 (+1):** keyword-compare.
+- **P16 (+8):** hypothesis-test, regression-analysis, forecast, ab-test, data-query,
+  configure-stats-tool, export-gem, export-gpt.
+- **P17 (+3):** exclusivity-check, geo-optimize, minority-report.
 
 ### Spokes (P4) - 14 spokes + quality-review
 - **Content lane (9):** content-strategy, project-builder, video-development, shortform-repurposing,

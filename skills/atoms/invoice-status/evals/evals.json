@@ -1,0 +1,58 @@
+[
+  {
+    "id": "invoicestatus-001",
+    "description": "Happy path: single deal with mixed invoice statuses returns correct classification and outstanding total",
+    "input": {
+      "deal_id": "deal-vintagebrassco-2026",
+      "as_of_date": "2026-07-01"
+    },
+    "expect": {
+      "invoices": "array of invoice objects, each with deal_id, brand_name, amount, issued_date, due_date, status, days_overdue",
+      "status_values": "each status is exactly pending, overdue, or paid",
+      "days_overdue": "0 for pending and paid invoices; positive integer for overdue invoices",
+      "total_outstanding_usd": "sum of amount across pending and overdue invoices only",
+      "recommended_actions": "one entry per overdue invoice with deal_id, brand_name, and action string; empty array if none overdue"
+    },
+    "prohibit": [
+      "fabricated invoice amounts or dates not present in the deal record",
+      "status values other than pending, overdue, or paid",
+      "recommended_actions entries for non-overdue invoices",
+      "days_overdue as a negative number"
+    ]
+  },
+  {
+    "id": "invoicestatus-002",
+    "description": "Minimal input: no deal_id and no as_of_date returns all non-paid invoices using current date",
+    "input": {},
+    "expect": {
+      "invoices": "array of invoice objects scoped to all deals, excluding fully paid invoices unless no non-paid exist",
+      "total_outstanding_usd": "number present in output",
+      "recommended_actions": "array present, may be empty if no overdue invoices exist",
+      "as_of_date_behavior": "defaults to current date for overdue calculation"
+    },
+    "prohibit": [
+      "fabricated deal records or brand names not in pipeline/deals/",
+      "null for total_outstanding_usd when invoices array is non-empty",
+      "omission of the recommended_actions field"
+    ]
+  },
+  {
+    "id": "invoicestatus-003",
+    "description": "Edge case: deal record exists but required fields are missing; atom returns null fields without fabrication",
+    "input": {
+      "deal_id": "deal-incomplete-record",
+      "as_of_date": "2026-07-01"
+    },
+    "expect": {
+      "invoices": "array present; entries with missing source fields show null for those fields",
+      "null_handling": "absent fields surfaced as null, not invented or estimated",
+      "total_outstanding_usd": "excludes invoices with null amount from the sum",
+      "recommended_actions": "array present"
+    },
+    "prohibit": [
+      "fabricated values for fields missing from the source deal record",
+      "atom halting or erroring instead of surfacing null fields",
+      "invented brand_name or amount when absent from record"
+    ]
+  }
+]

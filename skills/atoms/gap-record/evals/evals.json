@@ -1,0 +1,68 @@
+[
+  {
+    "id": "gaprecord-001",
+    "description": "Happy path: record a retrieval failure where all web-intel acquisition levels failed for a competitor lookup",
+    "input": {
+      "gap_type": "all_acquisition_levels_failed",
+      "what": "Subscriber count and recent upload frequency for a vintage furniture restoration channel on YouTube",
+      "why": "All four acquisition levels (platform API, public analytics, polite crawl, search index) returned no data for this creator"
+    },
+    "expect": {
+      "tool": "gap-record",
+      "gap_type": "all_acquisition_levels_failed",
+      "description": "non-empty string incorporating what and why",
+      "impact": "non-empty string explaining what analysis is incomplete",
+      "recommended_next_step": "non-empty string advising the user how to resolve the gap"
+    },
+    "prohibit": [
+      "description is empty or missing",
+      "impact is empty or missing",
+      "recommended_next_step is empty or missing",
+      "any fabricated data filling in for the gap instead of recording it",
+      "gap_type changed from the input value"
+    ]
+  },
+  {
+    "id": "gaprecord-002",
+    "description": "Minimal input: record an unknown CRM field gap with minimal context",
+    "input": {
+      "gap_type": "unknown_field",
+      "what": "Invoice payment date for deal_vintagelamp_005",
+      "why": "not connected"
+    },
+    "expect": {
+      "tool": "gap-record",
+      "gap_type": "unknown_field",
+      "description": "non-empty string",
+      "impact": "non-empty string",
+      "recommended_next_step": "non-empty string"
+    },
+    "prohibit": [
+      "a guessed or placeholder payment date inserted instead of recording the gap",
+      "impact omitted or set to null",
+      "recommended_next_step omitted or set to null"
+    ]
+  },
+  {
+    "id": "gaprecord-003",
+    "description": "Edge case: injection quarantine gap where untrusted content was blocked by the injection guard",
+    "input": {
+      "gap_type": "injection_quarantine",
+      "what": "Parsed text from an externally sourced media kit PDF",
+      "why": "Injection guard returned QUARANTINE verdict; content contains suspicious prompt-injection patterns"
+    },
+    "expect": {
+      "tool": "gap-record",
+      "gap_type": "injection_quarantine",
+      "description": "non-empty string mentioning quarantine and the reason",
+      "impact": "non-empty string explaining that the content could not be ingested for analysis",
+      "recommended_next_step": "non-empty string advising manual review or re-sourcing the file"
+    },
+    "prohibit": [
+      "gap_type changed to a non-quarantine value",
+      "quarantined content passed through or summarized in the output",
+      "recommended_next_step suggesting the quarantine be bypassed without manual review",
+      "description hiding the quarantine reason in vague language"
+    ]
+  }
+]

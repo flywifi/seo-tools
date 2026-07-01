@@ -32,6 +32,21 @@
         "expansion_depth_reached": 2,
         "retrieval_gaps_recorded_if_any_method_fails": true
       }
+    },
+    {
+      "id": "lte-03",
+      "description": "Google expansion with retrieval failure on community mining",
+      "input": {
+        "seed_keyword": "vintage brass hardware for furniture",
+        "platform": "google",
+        "count": 15
+      },
+      "expect": {
+        "long_tail_keywords.length_min": 5,
+        "all_volume_estimates_labeled_unverified": true,
+        "retrieval_gaps_recorded_for_failed_methods": true,
+        "no_fabricated_search_volumes": true
+      }
     }
   ]
 }

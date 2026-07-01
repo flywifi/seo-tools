@@ -2,8 +2,7 @@ export const meta = {
   name: 'competitor-deep-dive',
   description: 'Comprehensive competitive analysis: scan, extract metadata, map entities, identify gaps',
   phases: [
-    { title: 'Scan', detail: 'Fetch competitor channel metadata and content inventory' },
-    { title: 'Extract', detail: 'Extract hidden tags, entities, and content patterns' },
+    { title: 'Scan', detail: 'Fetch competitor channel metadata, extract hidden tags and entities' },
     { title: 'Analyze', detail: 'Identify keyword gaps, format gaps, and opportunities' },
   ],
 }

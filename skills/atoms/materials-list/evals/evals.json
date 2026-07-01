@@ -1,0 +1,78 @@
+[
+  {
+    "id": "materialslist-001",
+    "description": "Happy path: mid-budget intermediate DIY project returns full categorized list with cost ranges and safety flags",
+    "input": {
+      "project_title": "moody dark-painted vintage dresser flip",
+      "difficulty": "intermediate",
+      "budget_tier": "mid",
+      "renter_friendly": false
+    },
+    "expect": {
+      "tool": "materials-list",
+      "project_title": "moody dark-painted vintage dresser flip",
+      "budget_tier": "mid",
+      "materials": "array of objects each with item, category, quantity, estimated_cost_range, notes",
+      "tools": "array of objects each with item, essential, safety_required, notes",
+      "safety_flags": "safety_required true for items involving paint, spray, sanding, or heat",
+      "estimated_cost_range_format": "all ranges use 'to' not dashes (e.g. '$15 to $30')",
+      "estimated_total_range": "present with a plain-language caveat about estimates",
+      "optional_upgrades": "array of 3 or fewer items with item, why, estimated_cost_range",
+      "buy_vs_borrow_notes": "present and non-empty",
+      "renter_notes": "null because renter_friendly is false"
+    },
+    "prohibit": [
+      "fixed prices without range format",
+      "em dashes anywhere in output",
+      "renter_notes present when renter_friendly is false",
+      "estimated_cost_range using a dash instead of 'to'",
+      "more than 3 optional_upgrades"
+    ]
+  },
+  {
+    "id": "materialslist-002",
+    "description": "Minimal required inputs: beginner low-budget project with renter_friendly true includes renter_notes",
+    "input": {
+      "project_title": "peel-and-stick backsplash for rental kitchen",
+      "difficulty": "beginner",
+      "budget_tier": "low"
+    },
+    "expect": {
+      "tool": "materials-list",
+      "budget_tier": "low",
+      "materials": "array present with thrift, dollar-store, or DIY alternatives surfaced for low budget",
+      "tools": "array present with beginner-friendly guidance in notes",
+      "estimated_total_range": "present with estimate caveat",
+      "buy_vs_borrow_notes": "present and non-empty",
+      "renter_notes": "null because renter_friendly was not passed (defaults to false)"
+    },
+    "prohibit": [
+      "premium or splurge material suggestions in a low budget tier",
+      "safety_required items without PPE or ventilation notes",
+      "fabricated specific retailer prices"
+    ]
+  },
+  {
+    "id": "materialslist-003",
+    "description": "Edge case: renter_friendly true excludes permanent modifications and flags non-reversible items",
+    "input": {
+      "project_title": "dark moody accent wall with vintage frames",
+      "difficulty": "beginner",
+      "budget_tier": "low",
+      "renter_friendly": true
+    },
+    "expect": {
+      "tool": "materials-list",
+      "renter_notes": "non-null string covering reversibility, damage-free alternatives, and items to skip or substitute",
+      "materials": "items that require permanent modification are flagged or substituted with renter-safe alternatives",
+      "buy_vs_borrow_notes": "present",
+      "estimated_total_range": "present with caveat"
+    },
+    "prohibit": [
+      "permanent paint recommended without renter warning when renter_friendly is true",
+      "drilling or wall anchors listed without damage-free alternative or flag",
+      "renter_notes absent or null when renter_friendly is true",
+      "em dashes in any output field"
+    ]
+  }
+]
