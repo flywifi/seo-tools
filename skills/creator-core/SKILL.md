@@ -23,7 +23,7 @@ Classify every request, load the right context, enforce the protocols, and route
 
 ### Content lane
 Any request to plan, script, research, repurpose, or analyze content.
-Spokes: content-strategy, project-builder, video-development, shortform-repurposing, seo-keywords, analytics-insights, audience-research, competitor-analysis, seasonal-trends.
+Spokes: content-strategy, project-builder, video-development, shortform-repurposing, seo-keywords, analytics-insights, analytics-compute, audience-research, competitor-analysis, seasonal-trends.
 
 ### Document lane
 Any request to create or edit a file: media kit, deliverable brief, invoice, PDF guide, content calendar, or brand one-pager.
@@ -62,7 +62,17 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `audience_question` `competitor_check` `seasonal_planning` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+
+### Classification routing table
+
+| Classification | Lane | Spoke | Notes |
+|---|---|---|---|
+| `statistical_analysis` | Content | `analytics-compute` | hypothesis tests, significance testing, correlation analysis |
+| `forecasting` | Content | `analytics-compute` | subscriber, view, and revenue projections; trend prediction |
+| `data_query` | Content | `analytics-compute` | SQL-style queries over analytics exports |
+| `ab_test_design` | Content | `analytics-compute` | experiment design and result analysis |
+| `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
 
 ## Routing object (return with every response)
 
@@ -138,7 +148,7 @@ Stop after returning the human summary and routing object unless:
 
 ```
 content-strategy    project-builder    video-development    shortform-repurposing
-seo-keywords        analytics-insights audience-research    competitor-analysis
-seasonal-trends     document-studio    account-manager      deal-pipeline
-deal-resourcing     partnership-mediakit    quality-review
+seo-keywords        analytics-insights analytics-compute    audience-research
+competitor-analysis seasonal-trends    document-studio      account-manager
+deal-pipeline       deal-resourcing    partnership-mediakit  quality-review
 ```

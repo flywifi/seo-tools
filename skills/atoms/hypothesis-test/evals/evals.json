@@ -1,0 +1,81 @@
+[
+  {
+    "id": "hypothesis-test-ttest-basic",
+    "description": "Basic independent t-test with two groups of watch-time data (n >= 30 each). Computation tool connected. Expects full statistical output.",
+    "input": {
+      "test_type": "independent_t_test",
+      "computation_source": "connected",
+      "alpha": 0.05,
+      "group_a": {
+        "label": "thumbnail_variant_a",
+        "values": [245, 312, 198, 276, 301, 289, 255, 310, 267, 293, 284, 261, 305, 278, 296, 240, 315, 288, 270, 303, 259, 291, 282, 268, 307, 249, 295, 274, 286, 300],
+        "unit": "seconds_watched"
+      },
+      "group_b": {
+        "label": "thumbnail_variant_b",
+        "values": [320, 345, 298, 367, 312, 355, 330, 378, 305, 342, 360, 318, 375, 328, 352, 310, 365, 335, 348, 370, 315, 358, 340, 325, 372, 308, 350, 332, 362, 345],
+        "unit": "seconds_watched"
+      }
+    },
+    "expected_output_contains": ["test_statistic", "p_value", "effect_size", "conclusion", "interpretation"],
+    "tags": ["smoke", "t-test"]
+  },
+  {
+    "id": "hypothesis-test-no-tool",
+    "description": "Same t-test input but computation_source is guidance_only. Must return runnable Python code and refuse to produce numeric results.",
+    "input": {
+      "test_type": "independent_t_test",
+      "computation_source": "guidance_only",
+      "alpha": 0.05,
+      "group_a": {
+        "label": "thumbnail_variant_a",
+        "values": [245, 312, 198, 276, 301, 289, 255, 310, 267, 293, 284, 261, 305, 278, 296, 240, 315, 288, 270, 303, 259, 291, 282, 268, 307, 249, 295, 274, 286, 300],
+        "unit": "seconds_watched"
+      },
+      "group_b": {
+        "label": "thumbnail_variant_b",
+        "values": [320, 345, 298, 367, 312, 355, 330, 378, 305, 342, 360, 318, 375, 328, 352, 310, 365, 335, 348, 370, 315, 358, 340, 325, 372, 308, 350, 332, 362, 345],
+        "unit": "seconds_watched"
+      }
+    },
+    "expected_output_contains": ["runnable_code", "conclusion"],
+    "tags": ["fallback", "guidance-only"]
+  },
+  {
+    "id": "hypothesis-test-small-sample",
+    "description": "Two groups each with n < 5. Parametric test must be refused with sample_size_warning and recommendation for descriptive stats.",
+    "input": {
+      "test_type": "independent_t_test",
+      "computation_source": "connected",
+      "alpha": 0.05,
+      "group_a": {
+        "label": "room_reveal_watch_time",
+        "values": [180, 210, 195],
+        "unit": "seconds_watched"
+      },
+      "group_b": {
+        "label": "thrift_haul_watch_time",
+        "values": [290, 310, 275, 320],
+        "unit": "seconds_watched"
+      }
+    },
+    "expected_output_contains": ["sample_size_warning", "conclusion"],
+    "tags": ["edge-case", "validation"]
+  },
+  {
+    "id": "hypothesis-test-chi-square",
+    "description": "Chi-square test with observed counts of click-through categories. Expects test_statistic, p_value, and effect_size_label.",
+    "input": {
+      "test_type": "chi_square",
+      "computation_source": "connected",
+      "alpha": 0.05,
+      "observed": {
+        "labels": ["clicked_through", "bounced", "watched_partial"],
+        "counts": [148, 312, 240]
+      },
+      "expected_distribution": "uniform"
+    },
+    "expected_output_contains": ["test_statistic", "p_value", "effect_size_label"],
+    "tags": ["chi-square", "basic"]
+  }
+]

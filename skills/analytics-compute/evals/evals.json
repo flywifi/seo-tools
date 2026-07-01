@@ -1,0 +1,90 @@
+{
+  "skill": "analytics-compute",
+  "evals": [
+    {
+      "id": "ac-eval-001",
+      "name": "hypothesis_test_routing",
+      "description": "User asks whether tutorial videos get significantly more watch time than haul videos. Should route to hypothesis-test atom.",
+      "input": {
+        "user_message": "Is there a significant difference in watch time between my tutorials and hauls? Here's my data.",
+        "data_provided": true,
+        "mcp_tool_connected": true
+      },
+      "expected": {
+        "atoms_invoked": ["data-query", "hypothesis-test", "govern-artifact"],
+        "conditions_met": ["data_files_provided", "comparison_requested"],
+        "output_contains": ["p_value", "effect_size", "test_name", "confidence_interval"],
+        "output_must_not_contain": ["fabricated", "estimated without data"],
+        "quality_gate_passed": true
+      }
+    },
+    {
+      "id": "ac-eval-002",
+      "name": "regression_routing",
+      "description": "User asks about the relationship between posting frequency and subscriber growth. Should route to regression-analysis atom.",
+      "input": {
+        "user_message": "Can you run a regression to see if my posting frequency affects subscriber growth? I have 12 months of data.",
+        "data_provided": true,
+        "mcp_tool_connected": true
+      },
+      "expected": {
+        "atoms_invoked": ["data-query", "regression-analysis", "govern-artifact"],
+        "conditions_met": ["data_files_provided", "relationship_requested"],
+        "output_contains": ["coefficients", "r_squared", "residual_summary"],
+        "output_must_not_contain": ["fabricated"],
+        "quality_gate_passed": true
+      }
+    },
+    {
+      "id": "ac-eval-003",
+      "name": "forecast_routing",
+      "description": "User asks for a subscriber growth prediction for the next 6 months. Should route to forecast atom.",
+      "input": {
+        "user_message": "Predict my subscriber growth for the next 6 months based on my channel data.",
+        "data_provided": true,
+        "mcp_tool_connected": true
+      },
+      "expected": {
+        "atoms_invoked": ["data-query", "forecast", "govern-artifact"],
+        "conditions_met": ["data_files_provided", "forecast_requested"],
+        "output_contains": ["forecast_values", "confidence_bands", "model_type", "horizon"],
+        "output_must_not_contain": ["fabricated"],
+        "quality_gate_passed": true
+      }
+    },
+    {
+      "id": "ac-eval-004",
+      "name": "ab_test_routing",
+      "description": "User asks to design a thumbnail A/B test. Should route to ab-test atom.",
+      "input": {
+        "user_message": "Design a thumbnail A/B test for my next video. I want to compare a dark moody thumbnail vs. a bright one.",
+        "data_provided": false,
+        "mcp_tool_connected": true
+      },
+      "expected": {
+        "atoms_invoked": ["ab-test", "govern-artifact"],
+        "conditions_met": ["ab_test_requested"],
+        "output_contains": ["sample_size_required", "power_analysis", "test_duration_estimate", "variants"],
+        "output_must_not_contain": ["fabricated"],
+        "quality_gate_passed": true
+      }
+    },
+    {
+      "id": "ac-eval-005",
+      "name": "no_mcp_tool_gap_record",
+      "description": "User requests a hypothesis test but no MCP stats tool is connected. Should emit a gap-record, not fabricate results.",
+      "input": {
+        "user_message": "Is my watch time significantly different on weekdays vs. weekends?",
+        "data_provided": true,
+        "mcp_tool_connected": false
+      },
+      "expected": {
+        "atoms_invoked": [],
+        "gap_record_emitted": true,
+        "gap_record_contains": ["tool_missing", "stats_tool_required"],
+        "output_must_not_contain": ["p_value", "significant", "not significant"],
+        "quality_gate_passed": false
+      }
+    }
+  ]
+}

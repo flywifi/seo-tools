@@ -1,0 +1,90 @@
+{
+  "skill_name": "export-gpt",
+  "evals": [
+    {
+      "id": "export-gpt-basic",
+      "description": "Basic export with selected engines produces a valid Custom GPT configuration.",
+      "input": {
+        "action": "export_gpt",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md",
+          "platform-engine.md",
+          "adaptation-engine.md"
+        ],
+        "selected_protocols": [
+          "quality-gates.md"
+        ]
+      },
+      "expected_output_contains": [
+        "instruction_text",
+        "knowledge_files",
+        "conversation_starters",
+        "gpt_metadata"
+      ],
+      "tags": ["smoke", "basic"]
+    },
+    {
+      "id": "export-gpt-char-limit",
+      "description": "Instruction text over 8,000 characters triggers char_limit_exceeded warning.",
+      "input": {
+        "action": "export_gpt",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md",
+          "platform-engine.md",
+          "adaptation-engine.md",
+          "web-intel-engine.md",
+          "pipeline-engine.md"
+        ],
+        "selected_protocols": [
+          "quality-gates.md",
+          "no-fabrication.md",
+          "formatting-metadata.md"
+        ],
+        "instruction_override_length": 8500
+      },
+      "expected_output_contains": [
+        "char_limit_exceeded",
+        "character_count"
+      ],
+      "tags": ["edge-case", "validation"]
+    },
+    {
+      "id": "export-gpt-no-pii",
+      "description": "Export request mentioning deal data excludes pipeline content and flags PII exclusion.",
+      "input": {
+        "action": "export_gpt",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md"
+        ],
+        "include_pipeline_data": true,
+        "deal_reference": "deal-2026-spring-refresh"
+      },
+      "expected_output_contains": [
+        "pii_exclusion_applied",
+        "pipeline_data_excluded"
+      ],
+      "tags": ["security", "privacy"]
+    },
+    {
+      "id": "export-gpt-conversation-starters",
+      "description": "Verify conversation starters are generated with niche-appropriate topics and no real brand names.",
+      "input": {
+        "action": "export_gpt",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md",
+          "platform-engine.md"
+        ],
+        "selected_protocols": []
+      },
+      "expected_output_contains": [
+        "conversation_starters",
+        "no_real_brand_names"
+      ],
+      "tags": ["basic", "starters"]
+    }
+  ]
+}

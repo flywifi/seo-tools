@@ -40,6 +40,14 @@ CAPABILITY_TO_CONNECTOR = {
     "mcp_server": "mcp_server",
     "google_workspace": "gmail",
     "microsoft_365": "microsoft_outlook_email",
+    "wolfram_alpha": "wolfram_alpha_mcp",
+    "e2b_sandbox": "e2b_code_interpreter",
+    "duckdb_analytics": "duckdb_analytics_mcp",
+    "stats_compass": "stats_compass_mcp",
+    "jupyter_notebook": "jupyter_notebook_mcp",
+    "r_statistics": "r_statistics_mcp",
+    "monte_carlo": "monte_carlo_mcp",
+    "scikit_learn": "scikit_learn_mcp",
 }
 
 

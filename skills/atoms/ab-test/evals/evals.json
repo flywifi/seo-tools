@@ -1,0 +1,88 @@
+{
+  "skill_name": "ab-test",
+  "evals": [
+    {
+      "id": "ab-test-design-basic",
+      "description": "Design mode with CTR baseline 3.5%, target lift 20%, alpha 0.05, power 0.8 produces computed sample size and duration.",
+      "input": {
+        "mode": "design",
+        "baseline_rate": 0.035,
+        "target_lift": 0.20,
+        "alpha": 0.05,
+        "power": 0.80
+      },
+      "expected_output_contains": [
+        "sample_size_per_variant",
+        "estimated_duration",
+        "minimum_detectable_effect",
+        "power"
+      ],
+      "tags": ["smoke", "design"]
+    },
+    {
+      "id": "ab-test-analyze-winner",
+      "description": "Analyze mode with two thumbnail variants and sufficient data declares a winner with effect size.",
+      "input": {
+        "mode": "analyze",
+        "variant_a": {
+          "label": "dark-moody-thumbnail",
+          "impressions": 12000,
+          "clicks": 420
+        },
+        "variant_b": {
+          "label": "bright-vintage-thumbnail",
+          "impressions": 12000,
+          "clicks": 510
+        },
+        "alpha": 0.05
+      },
+      "expected_output_contains": [
+        "winner",
+        "p_value",
+        "effect_size",
+        "conclusion"
+      ],
+      "tags": ["smoke", "analyze"]
+    },
+    {
+      "id": "ab-test-analyze-underpowered",
+      "description": "Analyze mode with insufficient sample size flags underpowered status and refuses to declare a winner.",
+      "input": {
+        "mode": "analyze",
+        "variant_a": {
+          "label": "title-variant-a",
+          "impressions": 150,
+          "clicks": 5
+        },
+        "variant_b": {
+          "label": "title-variant-b",
+          "impressions": 150,
+          "clicks": 8
+        },
+        "alpha": 0.05
+      },
+      "expected_output_contains": [
+        "underpowered_warning",
+        "conclusion"
+      ],
+      "tags": ["edge-case", "underpowered"]
+    },
+    {
+      "id": "ab-test-no-tool",
+      "description": "No computation tool connected returns guidance-only output with runnable code.",
+      "input": {
+        "mode": "design",
+        "baseline_rate": 0.04,
+        "target_lift": 0.15,
+        "alpha": 0.05,
+        "power": 0.80,
+        "computation_tool": null
+      },
+      "expected_output_contains": [
+        "guidance_only",
+        "runnable_code"
+      ],
+      "tags": ["fallback", "guidance-only"]
+    }
+  ]
+}

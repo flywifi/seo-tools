@@ -1,0 +1,97 @@
+{
+  "skill_name": "export-gem",
+  "evals": [
+    {
+      "id": "export-gem-basic",
+      "description": "Basic export with 5 selected engines produces a valid Gem configuration bundle.",
+      "input": {
+        "action": "export_gem",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md",
+          "platform-engine.md",
+          "adaptation-engine.md",
+          "web-intel-engine.md"
+        ],
+        "selected_protocols": []
+      },
+      "expected_output_contains": [
+        "system_instruction",
+        "knowledge_files",
+        "knowledge_file_count",
+        "gem_metadata"
+      ],
+      "tags": ["smoke", "basic"]
+    },
+    {
+      "id": "export-gem-file-limit",
+      "description": "Request with 12 knowledge files triggers limit_exceeded warning and suggests prioritization.",
+      "input": {
+        "action": "export_gem",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md",
+          "platform-engine.md",
+          "adaptation-engine.md",
+          "pipeline-engine.md",
+          "web-intel-engine.md",
+          "injection-guard-engine.md",
+          "method.md"
+        ],
+        "selected_protocols": [
+          "quality-gates.md",
+          "no-fabrication.md",
+          "formatting-metadata.md",
+          "evidence-protocol.md"
+        ]
+      },
+      "expected_output_contains": [
+        "limit_exceeded_warning",
+        "suggested_priority"
+      ],
+      "tags": ["edge-case", "validation"]
+    },
+    {
+      "id": "export-gem-char-limit",
+      "description": "System instruction over 32,000 characters triggers char_limit_exceeded warning.",
+      "input": {
+        "action": "export_gem",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md",
+          "platform-engine.md",
+          "adaptation-engine.md",
+          "web-intel-engine.md"
+        ],
+        "selected_protocols": [
+          "quality-gates.md",
+          "no-fabrication.md"
+        ],
+        "system_instruction_override_length": 33000
+      },
+      "expected_output_contains": [
+        "char_limit_exceeded",
+        "character_count"
+      ],
+      "tags": ["edge-case", "validation"]
+    },
+    {
+      "id": "export-gem-no-pii",
+      "description": "Export request mentioning deal data excludes pipeline content and flags PII exclusion.",
+      "input": {
+        "action": "export_gem",
+        "selected_engines": [
+          "brand-engine.md",
+          "audience-engine.md"
+        ],
+        "include_pipeline_data": true,
+        "deal_reference": "deal-2026-summer-haul"
+      },
+      "expected_output_contains": [
+        "pii_exclusion_applied",
+        "pipeline_data_excluded"
+      ],
+      "tags": ["security", "privacy"]
+    }
+  ]
+}

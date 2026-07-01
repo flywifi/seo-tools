@@ -1,0 +1,46 @@
+{
+  "skill_name": "configure-stats-tool",
+  "evals": [
+    {
+      "id": "configure-stats-no-tools",
+      "description": "When no statistical tools are connected, the atom produces a full setup guide with all options and verification steps.",
+      "input": {
+        "connected_tools": [],
+        "connector_registry_path": "shared/connectors/connectors.json"
+      },
+      "expected_output_contains": [
+        "setup_options",
+        "verification_steps",
+        "credentials_target"
+      ],
+      "tags": ["smoke", "setup"]
+    },
+    {
+      "id": "configure-stats-partial",
+      "description": "When one tool is already connected, the atom shows its status and only offers setup for the remaining tools.",
+      "input": {
+        "connected_tools": ["stats-compass"],
+        "connector_registry_path": "shared/connectors/connectors.json"
+      },
+      "expected_output_contains": [
+        "connected_tools",
+        "remaining_options"
+      ],
+      "tags": ["basic", "partial-setup"]
+    },
+    {
+      "id": "configure-stats-credential-safety",
+      "description": "When the user provides an API key, the atom writes it only to a gitignored .local.json file and never to a tracked file.",
+      "input": {
+        "connected_tools": [],
+        "user_provided_api_key": "sk-test-placeholder-key",
+        "target_tool": "stats-compass"
+      },
+      "expected_output_contains": [
+        "credentials_target",
+        "committed_file_write"
+      ],
+      "tags": ["security", "credentials"]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P15 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P16 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -216,6 +216,32 @@ P6 through P15 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - `docs/SETUP_MAC.md`: Step 8 replaced with wizard reference; manual JSON editing removed.
 - `docs/DEPLOYMENT.md`: Option A uses wizard; Option B adds native Google Workspace connector
   instructions; capability matrix adds Google Workspace and Microsoft 365 rows.
+
+### Statistical analysis tools, platform export, and subagent orchestration (P16)
+- `shared/compute-engine.md`: canonical engine for statistical computation — tool selection matrix,
+  fallback chain, output labeling rules, anti-fabrication rules for statistics.
+- `creator-os-config.json`: 10 new capability flags (wolfram_alpha, e2b_sandbox, duckdb_analytics,
+  stats_compass, jupyter_notebook, r_statistics, monte_carlo, scikit_learn, gemini_gem_export,
+  custom_gpt_export) with degraded_behavior entries.
+- `shared/connectors/connectors.json`: 8 new stats/ML connectors + 4 new evidence types
+  (statistical_computation, sql_analytics, notebook_session, ml_prediction).
+- `shared/connectors/connectors.py`: 8 new CAPABILITY_TO_CONNECTOR entries.
+- 8 new atoms: hypothesis-test, regression-analysis, forecast, ab-test, data-query,
+  configure-stats-tool, export-gem, export-gpt (each with SKILL.md, MAINTAINER_README.md,
+  evals/evals.json).
+- `skills/analytics-compute/`: new spoke composing statistical atoms via conditional workflow.
+- `skills/creator-core/SKILL.md` and `workflow.json`: 5 new request_classification values
+  (statistical_analysis, forecasting, data_query, ab_test_design, platform_export).
+- `tools/mcp_server.py`: 2 new MCP tools — `get_stats_tools` (reports which stats tools are
+  enabled) and `configure_tool` (toggles capability flags in .local.json). Total: 10 MCP tools.
+- `implementation/claude/desktop/claude_desktop_config_snippet.json`: 5 new MCP server blocks
+  (wolfram-alpha, e2b-code-interpreter, stats-compass, duckdb-analytics, jupyter-notebook).
+- `.claude/agents/`: 4 agent definitions (seo-researcher, competitor-analyst, content-writer,
+  deal-reviewer).
+- `.claude/workflows/`: 4 workflow scripts (content-pipeline, competitor-deep-dive,
+  seasonal-planning, deal-review).
+- `docs/STATISTICS.md`: statistical tools reference (setup, tool matrix, atoms, output labeling).
+- `docs/DEPLOYMENT.md`: capability matrix expanded with stats, ML, export, and workflow rows.
 
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was
