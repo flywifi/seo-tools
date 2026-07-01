@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SEO Research Agent Output",
+  "description": "Structured output from the seo-researcher agent. Used by content-pipeline and seasonal-planning workflows.",
+  "type": "object",
+  "required": ["keywords", "sources_consulted", "retrieval_gaps", "confidence"],
+  "properties": {
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["keyword", "intent", "source"],
+        "properties": {
+          "keyword": { "type": "string" },
+          "intent": { "type": "string", "enum": ["informational", "navigational", "commercial", "transactional"] },
+          "platform_fit": {
+            "type": "object",
+            "description": "Platform name to fit strength. E.g. { \"youtube\": \"strong\", \"pinterest\": \"moderate\" }",
+            "additionalProperties": { "type": "string", "enum": ["strong", "moderate", "weak", "unknown"] }
+          },
+          "competition_estimate": { "type": "string", "description": "Always labeled [estimated]" },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "trends": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal", "direction", "source"],
+        "properties": {
+          "signal": { "type": "string" },
+          "direction": { "type": "string", "enum": ["rising", "flat", "declining", "unknown"] },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "long_tail_expansions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seed_keyword": { "type": "string" },
+          "expanded_keywords": { "type": "array", "items": { "type": "string" } },
+          "expansion_method": { "type": "string" }
+        }
+      }
+    },
+    "sources_consulted": { "type": "array", "items": { "type": "string" } },
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "discovered_sources": {
+      "type": "array",
+      "description": "New URLs found that should be reviewed for addition to source-registry.json",
+      "items": { "type": "string" }
+    },
+    "confidence": { "type": "string", "enum": ["high", "medium", "low"] }
+  }
+}

@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P16 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -242,6 +242,24 @@ P6 through P16 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   seasonal-planning, deal-review).
 - `docs/STATISTICS.md`: statistical tools reference (setup, tool matrix, atoms, output labeling).
 - `docs/DEPLOYMENT.md`: capability matrix expanded with stats, ML, export, and workflow rows.
+
+### Agent orchestration upgrade (P17)
+- `shared/research-orchestration-engine.md`: canonical engine defining when and how to use
+  subagents — read-only mandate, structured output schemas, recursive extraction protocol,
+  connector and API access rules, information aggregation process, prompt construction patterns.
+- `shared/schemas/`: 4 JSON Schema files for structured agent output — `seo-research.json`,
+  `competitor-analysis.json`, `content-draft.json`, `deal-review.json`.
+- `.claude/agents/`: 4 agent definitions rewritten from inert atom lists to functional system
+  prompts with read-only operating rules, scoped engines/protocols, permitted data sources,
+  and structured output formats.
+- `.claude/workflows/`: 4 prose workflow descriptions replaced with executable JavaScript
+  workflow scripts for the Claude Code Workflow tool — `content-pipeline.js`,
+  `competitor-deep-dive.js`, `seasonal-planning.js`, `deal-review.js`.
+- `skills/creator-core/SKILL.md`: agent dispatch section added to routing object.
+- `docs/ARCHITECTURE.md`: agent orchestration section added (roles, structured output, workflows,
+  information flow).
+- `CLAUDE.md`: agent orchestration conventions section added.
+- `docs/DEPLOYMENT.md`: agent orchestration row added to capability matrix.
 
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was
