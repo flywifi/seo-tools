@@ -3,7 +3,7 @@
   "title": "Content Draft Agent Output",
   "description": "Structured output from the content-writer agent. Used by content-pipeline workflow.",
   "type": "object",
-  "required": ["content_type", "retrieval_gaps"],
+  "required": ["content_type", "retrieval_gaps", "minority_report", "confidence_evidence", "source_citations"],
   "properties": {
     "content_type": { "type": "string", "description": "What was drafted: script, hook, title, caption, pin, hashtags" },
     "platform": { "type": "string" },
@@ -42,6 +42,9 @@
         "flagged_issues": { "type": "array", "items": { "type": "string" } }
       }
     },
-    "retrieval_gaps": { "type": "array", "items": { "type": "string" } }
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "minority_report": { "$ref": "verification-envelope.json#/$defs/minority_report", "nullable": true },
+    "confidence_evidence": { "$ref": "verification-envelope.json#/$defs/confidence_evidence" },
+    "source_citations": { "$ref": "verification-envelope.json#/$defs/source_citations" }
   }
 }

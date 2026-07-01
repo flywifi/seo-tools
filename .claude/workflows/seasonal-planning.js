@@ -4,6 +4,7 @@ export const meta = {
   phases: [
     { title: 'Trends', detail: 'Check seasonal trends and rising topics' },
     { title: 'Keywords', detail: 'Expand trends into keyword targets' },
+    { title: 'Verify', detail: 'Adversarial verification of trend and keyword findings' },
     { title: 'Calendar', detail: 'Map keywords to publish dates with hub-cluster structure' },
   ],
 }
@@ -28,8 +29,11 @@ const TREND_SCHEMA = {
     sources_consulted: { type: 'array', items: { type: 'string' } },
     retrieval_gaps: { type: 'array', items: { type: 'string' } },
     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    minority_report: { type: ['object', 'null'] },
+    confidence_evidence: { type: 'object', properties: { overall: { type: 'string' }, basis: { type: 'string' }, source_tier_breakdown: { type: 'object' } } },
+    source_citations: { type: 'array', items: { type: 'object', properties: { source_id_or_url: { type: 'string' }, tier: { type: 'string' }, claim_supported: { type: 'string' }, in_source_registry: { type: 'boolean' } }, required: ['source_id_or_url', 'tier', 'claim_supported'] } },
   },
-  required: ['season', 'rising_topics', 'sources_consulted', 'confidence'],
+  required: ['season', 'rising_topics', 'sources_consulted', 'confidence', 'minority_report', 'confidence_evidence', 'source_citations'],
 }
 
 const KEYWORD_SCHEMA = {
@@ -51,8 +55,11 @@ const KEYWORD_SCHEMA = {
     },
     sources_consulted: { type: 'array', items: { type: 'string' } },
     retrieval_gaps: { type: 'array', items: { type: 'string' } },
+    minority_report: { type: ['object', 'null'] },
+    confidence_evidence: { type: 'object', properties: { overall: { type: 'string' }, basis: { type: 'string' }, source_tier_breakdown: { type: 'object' } } },
+    source_citations: { type: 'array', items: { type: 'object', properties: { source_id_or_url: { type: 'string' }, tier: { type: 'string' }, claim_supported: { type: 'string' }, in_source_registry: { type: 'boolean' } }, required: ['source_id_or_url', 'tier', 'claim_supported'] } },
   },
-  required: ['keywords', 'sources_consulted'],
+  required: ['keywords', 'sources_consulted', 'minority_report', 'confidence_evidence', 'source_citations'],
 }
 
 const CALENDAR_SCHEMA = {
@@ -78,8 +85,11 @@ const CALENDAR_SCHEMA = {
     season: { type: 'string' },
     lead_time_notes: { type: 'string' },
     retrieval_gaps: { type: 'array', items: { type: 'string' } },
+    minority_report: { type: ['object', 'null'] },
+    confidence_evidence: { type: 'object', properties: { overall: { type: 'string' }, basis: { type: 'string' }, source_tier_breakdown: { type: 'object' } } },
+    source_citations: { type: 'array', items: { type: 'object', properties: { source_id_or_url: { type: 'string' }, tier: { type: 'string' }, claim_supported: { type: 'string' }, in_source_registry: { type: 'boolean' } }, required: ['source_id_or_url', 'tier', 'claim_supported'] } },
   },
-  required: ['entries', 'season'],
+  required: ['entries', 'season', 'minority_report', 'confidence_evidence', 'source_citations'],
 }
 
 const READ_ONLY_RULES = `## Operating rules
@@ -150,9 +160,52 @@ if (!keywords) {
   return { season, trends, keywords: null, calendar: null, status: 'keyword_expansion_failed' }
 }
 
-log(`${keywords.keywords.length} keywords generated. Building calendar.`)
+log(`${keywords.keywords.length} keywords generated. Verifying findings.`)
 
-// Phase 3: Calendar mapping with hub-cluster structure
+// Phase 3: Verify — verify-seasonal: check trend and keyword findings before calendar
+phase('Verify')
+
+const VERIFICATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    verified_claims: { type: 'integer' },
+    flagged_claims: { type: 'array', items: { type: 'object', properties: { claim: { type: 'string' }, issue: { type: 'string' }, severity: { type: 'string' } }, required: ['claim', 'issue'] } },
+    confidence_valid: { type: 'boolean' },
+    minority_report_adequate: { type: 'boolean' },
+    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+  },
+  required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
+}
+
+const verification = await agent(
+  `${READ_ONLY_RULES}
+
+You are an adversarial verification agent. CHALLENGE the seasonal trend and keyword findings.
+
+Trend findings:
+${JSON.stringify(trends, null, 2)}
+
+Keyword findings:
+${JSON.stringify(keywords, null, 2)}
+
+Verification checklist:
+1. Source citations: verify each cited source exists in canonical-sources/source-registry.json
+   or is a real URL. Use Glob/Grep to check.
+2. Peak windows: do the claimed peak search windows match the seasonal lead times in
+   shared/seo-intelligence-engine.md? Read the file and cross-check.
+3. Trend directions: are "rising" claims plausible for the ${season} season and the moody-vintage
+   home decor niche?
+4. Unsourced numbers: flag any specific metrics without citations.
+5. Confidence-tier alignment: check source tier breakdown matches the overall confidence claim.
+6. Keyword relevance: do all keywords genuinely fit the creator's 5 pillars?
+
+Default to flagging if uncertain.`,
+  { label: 'verify-seasonal', phase: 'Verify', schema: VERIFICATION_SCHEMA }
+)
+
+log(verification ? `Seasonal verification: ${verification.overall_verdict}` : 'Verification skipped')
+
+// Phase 4: Calendar mapping with hub-cluster structure
 phase('Calendar')
 
 const calendarInput = {
@@ -190,6 +243,7 @@ return {
   season,
   trends,
   keywords,
+  verification,
   calendar,
   status: calendar ? 'complete' : 'calendar_build_failed',
 }

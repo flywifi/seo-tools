@@ -60,6 +60,18 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   Structured output schemas live in `shared/schemas/`.
 - The four agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
   `deal-reviewer`. Each has a scoped tool list and engine set defined in its agent definition file.
+- Every agent output must include `minority_report`, `confidence_evidence`, and `source_citations`
+  fields (the verification envelope defined in `shared/schemas/verification-envelope.json`).
+- Every workflow includes an adversarial verification step — a second agent that independently
+  challenges the primary agent's claims before the main loop aggregates findings.
+- Agent definitions must include explicit `## Forbidden tools (machine-enforced)` and
+  `## Allowed tools (explicit allowlist)` sections. See `shared/research-orchestration-engine.md`
+  Section 2.1 for the contract specification.
+- `tools/validate_agent_output.py` is the offline fabrication detection tool. It checks source
+  citations against the registry, validates confidence-tier alignment, and flags unsourced numbers.
+- Drift guard invariants 14 to 17 structurally enforce agent contracts: agent definition sections
+  (14), schema verification fields (15), workflow verification steps (16), and the read-only
+  mandate marker (17).
 
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
 - No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).

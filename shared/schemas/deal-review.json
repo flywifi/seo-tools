@@ -3,7 +3,7 @@
   "title": "Deal Review Agent Output",
   "description": "Structured output from the deal-reviewer agent. Used by deal-review workflow.",
   "type": "object",
-  "required": ["deal_id", "stage_ready", "human_review_required", "retrieval_gaps"],
+  "required": ["deal_id", "stage_ready", "human_review_required", "retrieval_gaps", "minority_report", "confidence_evidence", "source_citations"],
   "properties": {
     "deal_id": { "type": "string" },
     "stage_ready": { "type": "boolean", "description": "True only if all evidence is present for the current stage" },
@@ -41,6 +41,9 @@
       "description": "Always true when exclusivity conflicts or ambiguous clauses exist"
     },
     "sources_consulted": { "type": "array", "items": { "type": "string" } },
-    "retrieval_gaps": { "type": "array", "items": { "type": "string" } }
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "minority_report": { "$ref": "verification-envelope.json#/$defs/minority_report", "nullable": true },
+    "confidence_evidence": { "$ref": "verification-envelope.json#/$defs/confidence_evidence" },
+    "source_citations": { "$ref": "verification-envelope.json#/$defs/source_citations" }
   }
 }
