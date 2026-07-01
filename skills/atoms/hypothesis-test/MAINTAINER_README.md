@@ -1,80 +1,46 @@
----
-file: skills/atoms/hypothesis-test/MAINTAINER_README.md
-purpose: preserve the non-negotiable operating rules for hypothesis-test so it stays stable under iteration.
----
+# hypothesis-test — Maintainer Reference
 
-# hypothesis-test: Maintainer README
+## What this atom does
 
-## Purpose
+Performs statistical hypothesis testing on creator-supplied data by delegating computation to a
+connected MCP tool (stats-compass, E2B, R) via `shared/compute-engine.md`. Returns test statistic,
+p-value, effect size, confidence interval, and a plain-language interpretation. Falls back to
+guidance-only output (runnable Python code) when no computation tool is connected.
 
-hypothesis-test performs statistical hypothesis tests (t-test, chi-square, ANOVA, Mann-Whitney U,
-proportion test) on creator-supplied data via connected computation tools. It returns a structured
-result containing the test statistic, p-value, effect size, confidence interval, and a plain-language
-interpretation written for a creator audience — not a statistics textbook. Its job ends at result
-delivery. It does not do regression modeling (use regression-analysis) or project future values
-(use forecast). It loads `shared/compute-engine.md`, `protocols/no-fabrication.md`, and
-`protocols/research-citation.md`.
+## Invariants
 
-## Non-negotiable invariants
+1. `computation_source` is always set to one of: `stats_compass`, `e2b`, `r_statistics`,
+   `wolfram_alpha`, `guidance_only`. Never null, never omitted.
+2. `p_value`, `test_statistic`, `effect_size`, and `confidence_interval` are never fabricated.
+   If no computation tool is connected, all four are null and `conclusion` is `insufficient_data`.
+3. Sample size warnings are emitted whenever any group has n < 30 for parametric tests. If any
+   group has n < 5, the atom refuses parametric tests entirely.
 
-1. Shared: references `shared/method.md` in procedure; self-checks against
-   `protocols/quality-gates.md`; obeys `protocols/no-fabrication.md` (no invented statistics,
-   no fabricated p-values, no fake effect sizes) and `protocols/formatting-metadata.md`
-   (ranges use "to").
-2. Never fabricate p-values, test statistics, effect sizes, or confidence intervals. If no
-   computation tool is connected, return guidance-only output with runnable Python code — never
-   produce numeric results from the model's own generation.
-3. Must emit a `sample_size_warning` when n < 30 for any group in a parametric test (t-test,
-   ANOVA). Small samples invalidate normal-approximation assumptions.
-4. Guidance-only mode (no computation tool connected) must be clearly labeled with
-   `computation_source: "guidance_only"` in the output. The output must include runnable
-   Python code the creator can execute independently.
-5. `test_type` must match the data structure (two independent groups for independent t-test,
-   categorical counts for chi-square, 3+ groups for ANOVA). If the requested test does not
-   match the data shape, downgrade to the appropriate test with an explicit note explaining
-   the change.
-6. `alpha` defaults to 0.05 when not supplied by the caller. The chosen alpha must appear in
-   the output alongside the p-value for correct interpretation.
+## Failure modes
 
-## Known failure modes
+1. **No computation tool connected.** The atom produces guidance-only output with runnable code.
+   This is the expected degraded path, not an error — but the output must be labeled
+   `[guidance-only — no computation engine connected]`.
+2. **Mismatched test type and data structure.** The atom detects mismatches (e.g., ANOVA with
+   two groups) and either downgrades the test or flags the mismatch. It never silently runs a
+   wrong test.
+3. **Small sample size.** Parametric results on n < 30 carry a warning. On n < 5, the atom
+   refuses and recommends descriptive statistics. It never silently proceeds without the warning.
 
-1. Hallucinated p-values when no computation tool is connected: the model generates
-   plausible-looking numeric results instead of switching to guidance-only mode. Mitigation:
-   hard gate on `computation_source` — if not `"connected"`, numeric fields must be null.
-2. Wrong test type selected for data shape: e.g., running a t-test on 4 groups or chi-square
-   on continuous data. Mitigation: validate data shape before test execution; downgrade with
-   explicit note.
-3. Missing sample size warning on small groups: parametric tests run on n < 30 without
-   flagging reduced statistical power. Mitigation: mandatory pre-check populates
-   `sample_size_warning` before any parametric computation.
-4. Silent rounding of intermediate values: effect sizes or p-values rounded mid-calculation,
-   producing inaccurate final results. Mitigation: request full-precision output from the
-   computation tool; round only at the display layer (4 decimal places for p-values, 3 for
-   effect sizes).
+## Regression cases (map to evals/evals.json)
 
-## Regression cases to preserve
-
-1. **t-test with adequate sample** (eval hypothesis-test-ttest-basic): two groups of watch-time
-   data, each n >= 30. Expected: `test_statistic`, `p_value`, `effect_size`, `conclusion`, and
-   `interpretation` all populated with computation-derived values. No sample size warning.
-
-2. **No computation tool connected** (eval hypothesis-test-no-tool): same input but
-   `computation_source` set to `"guidance_only"`. Expected: `runnable_code` populated with
-   executable Python, `conclusion` set to `"insufficient_data"`, numeric fields null.
-
-3. **Sample size under 5** (eval hypothesis-test-small-sample): two groups each with n < 5.
-   Expected: `sample_size_warning` populated, `conclusion` of `"insufficient_data"`, parametric
-   test refused, output recommends descriptive statistics instead.
-
-4. **Mismatched test type and data shape** (eval hypothesis-test-chi-square): chi-square test
-   requested with proper categorical observed counts. Expected: `test_statistic`, `p_value`,
-   and `effect_size_label` all populated; test type preserved because data shape matches.
+| # | Case | Eval ID |
+|---|---|---|
+| 1 | Independent t-test with computation tool | ht-001 |
+| 2 | No computation tool — guidance-only output | ht-002 |
+| 3 | Small sample size triggers warning | ht-003 |
+| 4 | Test type mismatch detected and corrected | ht-004 |
 
 ## Update checklist
 
-1. Edit the relevant section in SKILL.md or this file.
-2. If the output contract changes (new fields, renamed fields, type changes), update
-   `evals/evals.json` to reflect the new expected fields.
-3. If an engine is added or removed, update `engines_required` in SKILL.md frontmatter and
-   verify the engine file exists in `shared/`.
-4. Run `python3 tools/sync_check.py` — must exit 0 before committing.
+1. If `shared/compute-engine.md` tool selection matrix changes, update Step 2 in SKILL.md.
+2. If `protocols/no-fabrication.md` adds new statistical constraints, update the Fabrication
+   rules section.
+3. If a new computation MCP is added, add it to the `computation_source` enum.
+4. Re-run all evals after any change.
+5. Run `python3 tools/sync_check.py`.

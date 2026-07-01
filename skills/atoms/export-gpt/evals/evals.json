@@ -1,90 +1,67 @@
-{
-  "skill_name": "export-gpt",
-  "evals": [
-    {
-      "id": "export-gpt-basic",
-      "description": "Basic export with selected engines produces a valid Custom GPT configuration.",
-      "input": {
-        "action": "export_gpt",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md",
-          "platform-engine.md",
-          "adaptation-engine.md"
-        ],
-        "selected_protocols": [
-          "quality-gates.md"
-        ]
-      },
-      "expected_output_contains": [
-        "instruction_text",
-        "knowledge_files",
-        "conversation_starters",
-        "gpt_metadata"
-      ],
-      "tags": ["smoke", "basic"]
+[
+  {
+    "id": "gpt-001",
+    "description": "Full export with all spokes — instruction within 8K characters, knowledge files listed",
+    "input": {
+      "gpt_name": "Creator OS",
+      "focus_spokes": "all",
+      "include_actions": false
     },
-    {
-      "id": "export-gpt-char-limit",
-      "description": "Instruction text over 8,000 characters triggers char_limit_exceeded warning.",
-      "input": {
-        "action": "export_gpt",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md",
-          "platform-engine.md",
-          "adaptation-engine.md",
-          "web-intel-engine.md",
-          "pipeline-engine.md"
-        ],
-        "selected_protocols": [
-          "quality-gates.md",
-          "no-fabrication.md",
-          "formatting-metadata.md"
-        ],
-        "instruction_override_length": 8500
-      },
-      "expected_output_contains": [
-        "char_limit_exceeded",
-        "character_count"
-      ],
-      "tags": ["edge-case", "validation"]
+    "expected": {
+      "gpt_name": "Creator OS",
+      "instruction_chars": "positive integer <= 8000",
+      "instruction_text": "non-empty string containing brand identity and no-fabrication rule",
+      "instruction_path": "non-null path under implementation/gpt/web/",
+      "knowledge_files": "non-empty array",
+      "actions_schema_path": "null (include_actions is false)"
     },
-    {
-      "id": "export-gpt-no-pii",
-      "description": "Export request mentioning deal data excludes pipeline content and flags PII exclusion.",
-      "input": {
-        "action": "export_gpt",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md"
-        ],
-        "include_pipeline_data": true,
-        "deal_reference": "deal-2026-spring-refresh"
-      },
-      "expected_output_contains": [
-        "pii_exclusion_applied",
-        "pipeline_data_excluded"
-      ],
-      "tags": ["security", "privacy"]
+    "prohibit": [
+      "instruction_chars > 8000",
+      "instruction_text missing brand identity block",
+      "instruction_text missing no-fabrication rule",
+      "actions_schema_path non-null when include_actions is false",
+      "knowledge_files empty when full export requested"
+    ]
+  },
+  {
+    "id": "gpt-002",
+    "description": "Focused export with 2 spokes and actions schema — actions_schema_path non-null",
+    "input": {
+      "gpt_name": "Creator OS — SEO",
+      "focus_spokes": ["seo-keywords", "video-development"],
+      "include_actions": true
     },
-    {
-      "id": "export-gpt-conversation-starters",
-      "description": "Verify conversation starters are generated with niche-appropriate topics and no real brand names.",
-      "input": {
-        "action": "export_gpt",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md",
-          "platform-engine.md"
-        ],
-        "selected_protocols": []
-      },
-      "expected_output_contains": [
-        "conversation_starters",
-        "no_real_brand_names"
-      ],
-      "tags": ["basic", "starters"]
-    }
-  ]
-}
+    "expected": {
+      "gpt_name": "Creator OS — SEO",
+      "instruction_chars": "positive integer <= 8000",
+      "actions_schema_path": "non-null path ending in .yaml",
+      "knowledge_files": "includes files relevant to seo-keywords and video-development",
+      "warnings": "may include note about API authentication configuration"
+    },
+    "prohibit": [
+      "actions_schema_path null when include_actions is true",
+      "fabricated API endpoints in actions schema",
+      "instruction_chars > 8000",
+      "knowledge_files including unrelated spoke files when focused spokes specified"
+    ]
+  },
+  {
+    "id": "gpt-003",
+    "description": "Non-existent spoke requested — warning emitted, valid spokes processed normally",
+    "input": {
+      "gpt_name": "Creator OS — Test",
+      "focus_spokes": ["seo-keywords", "fake-spoke-name"],
+      "include_actions": false
+    },
+    "expected": {
+      "warnings": "contains note about fake-spoke-name not found",
+      "instruction_chars": "positive integer <= 8000",
+      "knowledge_files": "includes files for seo-keywords but not fake-spoke-name"
+    },
+    "prohibit": [
+      "no warning about fake-spoke-name",
+      "fabricated SKILL.md for fake-spoke-name",
+      "atom failure or crash due to missing spoke"
+    ]
+  }
+]

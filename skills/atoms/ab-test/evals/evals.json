@@ -1,88 +1,116 @@
-{
-  "skill_name": "ab-test",
-  "evals": [
-    {
-      "id": "ab-test-design-basic",
-      "description": "Design mode with CTR baseline 3.5%, target lift 20%, alpha 0.05, power 0.8 produces computed sample size and duration.",
-      "input": {
-        "mode": "design",
-        "baseline_rate": 0.035,
-        "target_lift": 0.20,
-        "alpha": 0.05,
-        "power": 0.80
-      },
-      "expected_output_contains": [
-        "sample_size_per_variant",
-        "estimated_duration",
-        "minimum_detectable_effect",
-        "power"
+[
+  {
+    "id": "ab-001",
+    "description": "Design mode — compute sample size for thumbnail CTR A/B test with baseline 6% and 5% MDE",
+    "input": {
+      "mode": "design",
+      "metric": "ctr",
+      "variants": [
+        { "name": "variant_a", "description": "current thumbnail — face close-up with text" },
+        { "name": "variant_b", "description": "new thumbnail — finished room wide shot" }
       ],
-      "tags": ["smoke", "design"]
+      "baseline_rate": 0.06,
+      "minimum_detectable_effect": 0.05,
+      "confidence_level": 0.95,
+      "power": 0.8
     },
-    {
-      "id": "ab-test-analyze-winner",
-      "description": "Analyze mode with two thumbnail variants and sufficient data declares a winner with effect size.",
-      "input": {
-        "mode": "analyze",
-        "variant_a": {
-          "label": "dark-moody-thumbnail",
-          "impressions": 12000,
-          "clicks": 420
-        },
-        "variant_b": {
-          "label": "bright-vintage-thumbnail",
-          "impressions": 12000,
-          "clicks": 510
-        },
-        "alpha": 0.05
-      },
-      "expected_output_contains": [
-        "winner",
-        "p_value",
-        "effect_size",
-        "conclusion"
-      ],
-      "tags": ["smoke", "analyze"]
+    "expected": {
+      "mode": "design",
+      "sample_size_per_variant": "positive integer > 1000",
+      "total_sample_size": "2x sample_size_per_variant",
+      "power": 0.8,
+      "test_plan": "non-empty string describing how to run the experiment",
+      "computation_source": "stats_compass | e2b | wolfram_alpha | guidance_only"
     },
-    {
-      "id": "ab-test-analyze-underpowered",
-      "description": "Analyze mode with insufficient sample size flags underpowered status and refuses to declare a winner.",
-      "input": {
-        "mode": "analyze",
-        "variant_a": {
-          "label": "title-variant-a",
-          "impressions": 150,
-          "clicks": 5
-        },
-        "variant_b": {
-          "label": "title-variant-b",
-          "impressions": 150,
-          "clicks": 8
-        },
-        "alpha": 0.05
-      },
-      "expected_output_contains": [
-        "underpowered_warning",
-        "conclusion"
+    "prohibit": [
+      "sample_size_per_variant = 0 or negative",
+      "total_sample_size not equal to 2x sample_size_per_variant",
+      "fabricated sample size not derived from power calculation",
+      "estimated_duration_days with a specific value when daily impressions not provided"
+    ]
+  },
+  {
+    "id": "ab-002",
+    "description": "Analyze mode — clear winner with sufficient sample size, computation tool connected",
+    "input": {
+      "mode": "analyze",
+      "metric": "ctr",
+      "variants": [
+        { "name": "variant_a", "description": "original thumbnail" },
+        { "name": "variant_b", "description": "new thumbnail" }
       ],
-      "tags": ["edge-case", "underpowered"]
+      "results": {
+        "variant_a": { "impressions": 10000, "successes": 600 },
+        "variant_b": { "impressions": 10000, "successes": 750 }
+      },
+      "confidence_level": 0.95
     },
-    {
-      "id": "ab-test-no-tool",
-      "description": "No computation tool connected returns guidance-only output with runnable code.",
-      "input": {
-        "mode": "design",
-        "baseline_rate": 0.04,
-        "target_lift": 0.15,
-        "alpha": 0.05,
-        "power": 0.80,
-        "computation_tool": null
-      },
-      "expected_output_contains": [
-        "guidance_only",
-        "runnable_code"
+    "expected": {
+      "mode": "analyze",
+      "winner": "variant_b",
+      "p_value": "numeric value < 0.05 (expected given the effect size)",
+      "effect_size": "non-null numeric value",
+      "effect_size_label": "contains Cohen's h",
+      "recommendation": "non-empty string recommending variant_b rollout",
+      "computation_source": "stats_compass | e2b | wolfram_alpha"
+    },
+    "prohibit": [
+      "winner = variant_a when variant_b has higher success rate and p < 0.05",
+      "winner = no_significant_difference when effect is large and n is large",
+      "p_value null when computation tool connected",
+      "fabricated p-value"
+    ]
+  },
+  {
+    "id": "ab-003",
+    "description": "Analyze mode — underpowered test with small sample flags directional-only result",
+    "input": {
+      "mode": "analyze",
+      "metric": "ctr",
+      "variants": [
+        { "name": "variant_a", "description": "control" },
+        { "name": "variant_b", "description": "test" }
       ],
-      "tags": ["fallback", "guidance-only"]
-    }
-  ]
-}
+      "results": {
+        "variant_a": { "impressions": 100, "successes": 6 },
+        "variant_b": { "impressions": 100, "successes": 8 }
+      },
+      "confidence_level": 0.95
+    },
+    "expected": {
+      "mode": "analyze",
+      "retrieval_gaps": "contains note about underpowered test or insufficient sample",
+      "recommendation": "mentions that result is directional but not conclusive"
+    },
+    "prohibit": [
+      "winner = variant_b stated with confidence when test is underpowered",
+      "no mention of underpowered test or small sample size",
+      "p_value presented without caveat about low power"
+    ]
+  },
+  {
+    "id": "ab-004",
+    "description": "No computation tool connected — design mode produces formula and code, analyze mode withholds winner",
+    "input": {
+      "mode": "design",
+      "metric": "engagement_rate",
+      "variants": [
+        { "name": "variant_a", "description": "current posting time" },
+        { "name": "variant_b", "description": "new posting time" }
+      ],
+      "baseline_rate": 0.04,
+      "minimum_detectable_effect": 0.10,
+      "confidence_level": 0.95,
+      "power": 0.8
+    },
+    "expected": {
+      "computation_source": "guidance_only",
+      "sample_size_per_variant": "may be computed from formula or null with code provided",
+      "retrieval_gaps": "contains note about no computation engine connected"
+    },
+    "prohibit": [
+      "computation_source other than guidance_only when no tool available",
+      "no runnable code or formula in guidance-only mode"
+    ]
+  }
+]

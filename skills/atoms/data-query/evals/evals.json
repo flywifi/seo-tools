@@ -1,64 +1,65 @@
-{
-  "skill_name": "data-query",
-  "evals": [
-    {
-      "id": "data-query-basic-select",
-      "description": "A natural-language analytics question produces a correct SQL query, executes it on a CSV, and returns a result set with metadata.",
-      "input": {
-        "question": "What are my top 10 videos by views?",
-        "file_path": "exports/youtube_studio_videos.csv",
-        "tool_connected": true
-      },
-      "expected_output_contains": [
-        "sql_query",
-        "result_set",
-        "row_count",
-        "column_names"
-      ],
-      "tags": ["smoke", "basic"]
+[
+  {
+    "id": "dq-001",
+    "description": "Natural-language query — top 10 videos by watch time generates valid DuckDB SQL and returns results",
+    "input": {
+      "query_description": "What are my top 10 videos by watch time this quarter?",
+      "data_files": ["youtube_export_q2_2026.csv"],
+      "sql": null
     },
-    {
-      "id": "data-query-destructive-blocked",
-      "description": "A request that includes destructive SQL (DROP TABLE) is rejected before execution.",
-      "input": {
-        "question": "Show me total views by month, then drop the table after querying",
-        "file_path": "exports/youtube_studio_videos.csv",
-        "tool_connected": true
-      },
-      "expected_output_contains": [
-        "destructive_statement_blocked",
-        "error_message"
-      ],
-      "tags": ["security", "validation"]
+    "expected": {
+      "columns": "non-empty array including a watch-time column",
+      "rows": "non-empty array when DuckDB connected (up to 10 rows)",
+      "row_count": "between 1 and 10",
+      "sql_executed": "contains ORDER BY and LIMIT 10",
+      "schema": "non-null object with column names and types",
+      "computation_source": "duckdb"
     },
-    {
-      "id": "data-query-truncation",
-      "description": "A query that returns more than 1000 rows is capped and a truncation warning is included.",
-      "input": {
-        "question": "List every row in the analytics export",
-        "file_path": "exports/ga4_sessions_full.parquet",
-        "tool_connected": true,
-        "underlying_row_count": 8500
-      },
-      "expected_output_contains": [
-        "truncation_warning",
-        "row_count"
-      ],
-      "tags": ["edge-case", "truncation"]
+    "prohibit": [
+      "SELECT * without explicit column names",
+      "sql_executed containing INSERT, UPDATE, DELETE, or DROP",
+      "rows with fabricated data not from DuckDB execution",
+      "schema = null when DuckDB successfully inferred it"
+    ]
+  },
+  {
+    "id": "dq-002",
+    "description": "DuckDB not connected — guidance-only output with SQL and empty rows",
+    "input": {
+      "query_description": "Average CTR by content pillar",
+      "data_files": ["youtube_analytics.csv"],
+      "sql": null
     },
-    {
-      "id": "data-query-no-tool",
-      "description": "When no DuckDB tool is connected the atom returns guidance-only output with the generated SQL string.",
-      "input": {
-        "question": "What is the average watch time per video category?",
-        "file_path": "exports/youtube_studio_videos.csv",
-        "tool_connected": false
-      },
-      "expected_output_contains": [
-        "guidance_only",
-        "sql_query"
-      ],
-      "tags": ["fallback", "guidance-only"]
-    }
-  ]
-}
+    "expected": {
+      "computation_source": "guidance_only",
+      "rows": "empty array",
+      "row_count": 0,
+      "sql_executed": "non-null string containing valid DuckDB SQL with read_csv_auto",
+      "retrieval_gaps": "contains note about DuckDB MCP not connected"
+    },
+    "prohibit": [
+      "rows with any data when DuckDB is not connected",
+      "computation_source other than guidance_only",
+      "sql_executed = null in guidance-only mode",
+      "fabricated result rows populated as examples"
+    ]
+  },
+  {
+    "id": "dq-003",
+    "description": "User-supplied SQL with DROP TABLE rejected — read-only enforcement",
+    "input": {
+      "query_description": "Clean up old data",
+      "data_files": ["youtube_export.csv"],
+      "sql": "DROP TABLE IF EXISTS old_data; SELECT * FROM read_csv_auto('youtube_export.csv')"
+    },
+    "expected": {
+      "retrieval_gaps": "contains rejection note about write operation (DROP) in user SQL",
+      "sql_executed": "does not contain DROP — rejected portion stripped or entire query refused"
+    },
+    "prohibit": [
+      "execution of DROP TABLE statement",
+      "sql_executed containing DROP, INSERT, UPDATE, DELETE, or CREATE",
+      "no error or warning about the write operation in user SQL"
+    ]
+  }
+]

@@ -1,65 +1,42 @@
----
-file: skills/atoms/forecast/MAINTAINER_README.md
-purpose: preserve the non-negotiable operating rules for forecast so it stays stable under iteration.
----
+# forecast — Maintainer Reference
 
-# forecast: Maintainer README
+## What this atom does
 
-## Purpose
+Projects future values of a content metric using time-series methods (Holt-Winters, Prophet,
+linear trend). Delegates computation to E2B or Jupyter via `shared/compute-engine.md`. Returns
+point forecasts with prediction intervals, trend direction, and seasonality detection. Loads
+`shared/seo-intelligence-engine.md` for seasonal context.
 
-The forecast atom produces time-series forecasts for creator metrics — subscriber
-growth, view counts, revenue, engagement rates — using ARIMA, exponential smoothing,
-or linear projection via connected computation tools. It returns point forecasts,
-confidence intervals, model fit diagnostics, and a plain-language trend summary
-tailored to the moody-vintage home decor and DIY niche. Its job ends at forecast
-delivery — it does not test hypotheses (use hypothesis-test) or fit regression
-models (use regression-analysis).
+## Invariants
 
-## Non-negotiable invariants
+1. `forecast` array entries always contain `date`, `predicted_value`, `lower_bound`, and
+   `upper_bound`. No field is ever null when a computation tool produced the result.
+2. `seasonality_detected` is null — not false — when the atom cannot test for seasonality
+   (insufficient data or guidance-only mode). False means tested and not found.
+3. Prediction intervals widen with forecast horizon. The atom never produces constant-width
+   intervals across a multi-period forecast.
 
-1. References the pipeline (`shared/method.md`); self-checks against
-   `protocols/quality-gates.md`; obeys `protocols/no-fabrication.md` and
-   `protocols/formatting-metadata.md`.
-2. All point forecasts must include upper and lower confidence bounds — a bare
-   point estimate is never acceptable output.
-3. Forecast horizon must not exceed 2x the input data length; requests beyond
-   that threshold produce a warning and a truncated horizon.
-4. Minimum data-point requirements: 12 for ARIMA, 6 for exponential smoothing,
-   3 for linear projection. Requests that fall short trigger a fallback to the
-   next simpler model with an explicit note.
-5. Never fabricate forecast values, confidence bounds, or model diagnostics.
-   Null and flag instead.
-6. Model selection rationale must be stated in every response.
-7. When no computation tool is connected, output must be clearly labeled
-   "guidance-only" and include runnable code the creator can execute elsewhere.
+## Failure modes
 
-## Known failure modes
+1. **Insufficient historical data.** If data has fewer than 10 points (trend) or fewer than 2
+   full cycles (seasonal), the atom emits a warning and either degrades to trend-only or returns
+   `insufficient_data`.
+2. **Structural break in data.** A viral spike or channel pivot makes history non-representative.
+   The atom flags this but cannot automatically correct for it.
+3. **No computation tool connected.** Guidance-only mode. The atom computes a simple linear trend
+   labeled `[estimated]` and emits Python code for a proper forecast.
 
-1. Forecast delivered without confidence bounds, presenting a point estimate as
-   certain — violates invariant 2.
-2. Horizon set too long relative to data length, producing misleading precision
-   that overstates predictability.
-3. Seasonal patterns missed when the caller does not specify periodicity and the
-   atom does not probe for it.
-4. Trend breaks or regime changes in the data (e.g., a viral video spike) ignored,
-   causing the model to project from a distorted baseline.
+## Regression cases (map to evals/evals.json)
 
-## Regression cases to preserve
-
-1. 24-month subscriber data with a clear uptrend produces an ARIMA forecast with
-   upper and lower confidence bounds and model fit diagnostics.
-2. A 4-point data series requesting ARIMA triggers a fallback to linear projection
-   with an explicit fallback note explaining the downgrade.
-3. A 12-point data series with a 30-period horizon produces a horizon warning and
-   truncates the forecast to the 2x maximum (24 periods).
-4. No computation tool connected returns guidance-only output with runnable code
-   and a clear "guidance-only" label.
+| # | Case | Eval ID |
+|---|---|---|
+| 1 | Monthly views forecast with yearly seasonality | fc-001 |
+| 2 | Insufficient data triggers warning | fc-002 |
+| 3 | No computation tool — guidance-only with trend estimate | fc-003 |
 
 ## Update checklist
 
-1. Edit the canonical file (`skills/atoms/forecast/SKILL.md` or engine references).
-2. Run evals: verify all cases in `evals/evals.json` still pass.
-3. Confirm confidence bounds appear in every forecast output path.
-4. Check that fallback and horizon-warning paths still trigger correctly.
-5. Update `STATE.md` if a phase boundary was crossed.
-6. Run `python3 tools/sync_check.py` — must exit 0.
+1. If `shared/seo-intelligence-engine.md` seasonal patterns change, update Step 5 interpretation.
+2. If `shared/compute-engine.md` tool matrix changes, update Step 2.
+3. Re-run all evals after any change.
+4. Run `python3 tools/sync_check.py`.

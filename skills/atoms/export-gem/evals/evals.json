@@ -1,97 +1,61 @@
-{
-  "skill_name": "export-gem",
-  "evals": [
-    {
-      "id": "export-gem-basic",
-      "description": "Basic export with 5 selected engines produces a valid Gem configuration bundle.",
-      "input": {
-        "action": "export_gem",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md",
-          "platform-engine.md",
-          "adaptation-engine.md",
-          "web-intel-engine.md"
-        ],
-        "selected_protocols": []
-      },
-      "expected_output_contains": [
-        "system_instruction",
-        "knowledge_files",
-        "knowledge_file_count",
-        "gem_metadata"
-      ],
-      "tags": ["smoke", "basic"]
+[
+  {
+    "id": "eg-001",
+    "description": "Full export with all spokes — produces manifest with 10 or fewer knowledge files and system instruction",
+    "input": {
+      "gem_name": "Creator OS — Full",
+      "focus_spokes": "all"
     },
-    {
-      "id": "export-gem-file-limit",
-      "description": "Request with 12 knowledge files triggers limit_exceeded warning and suggests prioritization.",
-      "input": {
-        "action": "export_gem",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md",
-          "platform-engine.md",
-          "adaptation-engine.md",
-          "pipeline-engine.md",
-          "web-intel-engine.md",
-          "injection-guard-engine.md",
-          "method.md"
-        ],
-        "selected_protocols": [
-          "quality-gates.md",
-          "no-fabrication.md",
-          "formatting-metadata.md",
-          "evidence-protocol.md"
-        ]
-      },
-      "expected_output_contains": [
-        "limit_exceeded_warning",
-        "suggested_priority"
-      ],
-      "tags": ["edge-case", "validation"]
+    "expected": {
+      "gem_name": "Creator OS — Full",
+      "total_files": "between 1 and 10 (inclusive)",
+      "knowledge_files": "array with brand-engine.md and voice-engine.md as standalone entries",
+      "system_instruction_path": "non-null string under implementation/gemini/gems/",
+      "system_instruction_length_chars": "positive integer"
     },
-    {
-      "id": "export-gem-char-limit",
-      "description": "System instruction over 32,000 characters triggers char_limit_exceeded warning.",
-      "input": {
-        "action": "export_gem",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md",
-          "platform-engine.md",
-          "adaptation-engine.md",
-          "web-intel-engine.md"
-        ],
-        "selected_protocols": [
-          "quality-gates.md",
-          "no-fabrication.md"
-        ],
-        "system_instruction_override_length": 33000
-      },
-      "expected_output_contains": [
-        "char_limit_exceeded",
-        "character_count"
-      ],
-      "tags": ["edge-case", "validation"]
+    "prohibit": [
+      "total_files > 10",
+      "brand-engine.md missing from knowledge_files",
+      "voice-engine.md missing from knowledge_files",
+      "brand-engine.md or voice-engine.md merged into a combined file",
+      "system_instruction_path null"
+    ]
+  },
+  {
+    "id": "eg-002",
+    "description": "Focused export with 2 spokes — prioritizes those spokes, brand and voice always present",
+    "input": {
+      "gem_name": "Creator OS — SEO",
+      "focus_spokes": ["seo-keywords", "video-development"]
     },
-    {
-      "id": "export-gem-no-pii",
-      "description": "Export request mentioning deal data excludes pipeline content and flags PII exclusion.",
-      "input": {
-        "action": "export_gem",
-        "selected_engines": [
-          "brand-engine.md",
-          "audience-engine.md"
-        ],
-        "include_pipeline_data": true,
-        "deal_reference": "deal-2026-summer-haul"
-      },
-      "expected_output_contains": [
-        "pii_exclusion_applied",
-        "pipeline_data_excluded"
-      ],
-      "tags": ["security", "privacy"]
-    }
-  ]
-}
+    "expected": {
+      "gem_name": "Creator OS — SEO",
+      "knowledge_files": "includes brand-engine.md, voice-engine.md, and files relevant to seo-keywords and video-development",
+      "total_files": "between 4 and 10 (brand + voice + focused spoke files)",
+      "system_instruction_path": "non-null path"
+    },
+    "prohibit": [
+      "brand-engine.md or voice-engine.md missing",
+      "total_files > 10",
+      "knowledge_files including unrelated spoke SKILL.md files when focused spokes specified"
+    ]
+  },
+  {
+    "id": "eg-003",
+    "description": "Non-existent spoke requested — warning emitted, remaining spokes processed normally",
+    "input": {
+      "gem_name": "Creator OS — Test",
+      "focus_spokes": ["seo-keywords", "nonexistent-spoke"]
+    },
+    "expected": {
+      "warnings": "contains note about nonexistent-spoke not found",
+      "knowledge_files": "includes files for seo-keywords but not nonexistent-spoke",
+      "total_files": "between 3 and 10"
+    },
+    "prohibit": [
+      "no warning about nonexistent-spoke",
+      "fabricated SKILL.md for nonexistent-spoke",
+      "atom failure or crash due to missing spoke"
+    ]
+  }
+]

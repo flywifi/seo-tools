@@ -1,94 +1,99 @@
 [
   {
-    "id": "regression-linear-basic",
-    "description": "Simple linear regression of views vs upload hour with adequate sample size. Expects full model output with coefficients and R-squared.",
+    "id": "ra-001",
+    "description": "Simple linear regression — video length predicting watch time, computation tool connected",
     "input": {
       "model_type": "linear",
-      "computation_source": "connected",
-      "dependent_variable": {
-        "label": "views",
-        "values": [1200, 980, 1450, 1100, 1380, 890, 1560, 1020, 1340, 1180, 1490, 950, 1280, 1050, 1420, 1150, 1370, 910, 1500, 1060, 1310, 1190, 1460, 970, 1250]
-      },
-      "independent_variables": [
-        {
-          "label": "upload_hour",
-          "values": [8, 10, 14, 9, 13, 17, 12, 11, 14, 10, 13, 16, 12, 11, 14, 9, 13, 18, 12, 10, 13, 10, 14, 15, 11]
-        }
-      ]
+      "dependent_var": "avg_view_duration_min",
+      "independent_vars": ["video_length_min"],
+      "data_description": "30 long-form videos with length and average view duration",
+      "data_source": "inline_values"
     },
-    "expected_output_contains": ["coefficients", "r_squared", "residual_summary", "interpretation"],
-    "tags": ["smoke", "linear"]
+    "expected": {
+      "model_type": "linear",
+      "coefficients": "object with intercept and video_length_min keys, both numeric",
+      "r_squared": "numeric value between 0 and 1",
+      "adjusted_r_squared": "numeric value between 0 and 1",
+      "p_values": "object with intercept and video_length_min keys",
+      "residual_summary": "object with mean, std, min, max keys",
+      "computation_source": "e2b | jupyter | r_statistics",
+      "interpretation": "non-empty string relating video length to watch time"
+    },
+    "prohibit": [
+      "r_squared outside 0 to 1 range",
+      "coefficients with null values when tool is connected",
+      "fabricated R-squared not from a computation tool",
+      "missing residual_summary for OLS model"
+    ]
   },
   {
-    "id": "regression-multiple-vif",
-    "description": "Multiple regression with correlated predictors (title_length and description_length). Expects multicollinearity_warning with VIF values.",
-    "input": {
-      "model_type": "multiple_linear",
-      "computation_source": "connected",
-      "dependent_variable": {
-        "label": "views",
-        "values": [1200, 980, 1450, 1100, 1380, 890, 1560, 1020, 1340, 1180, 1490, 950, 1280, 1050, 1420, 1150, 1370, 910, 1500, 1060]
-      },
-      "independent_variables": [
-        {
-          "label": "title_length",
-          "values": [45, 32, 58, 41, 55, 28, 62, 35, 52, 40, 60, 30, 48, 37, 56, 42, 53, 26, 61, 36]
-        },
-        {
-          "label": "description_length",
-          "values": [320, 210, 415, 290, 390, 180, 450, 240, 370, 280, 430, 200, 340, 250, 400, 300, 380, 170, 440, 230]
-        },
-        {
-          "label": "tag_count",
-          "values": [12, 8, 15, 10, 14, 6, 18, 9, 13, 11, 16, 7, 12, 9, 15, 10, 14, 5, 17, 8]
-        }
-      ]
-    },
-    "expected_output_contains": ["coefficients", "r_squared", "multicollinearity_warning", "interpretation"],
-    "tags": ["edge-case", "multiple"]
-  },
-  {
-    "id": "regression-logistic",
-    "description": "Logistic regression for viral threshold (binary outcome). Expects pseudo_r_squared labeled as such and log-odds coefficients.",
+    "id": "ra-002",
+    "description": "Logistic regression — predicting whether a video crosses 10K views, returns odds ratios",
     "input": {
       "model_type": "logistic",
-      "computation_source": "connected",
-      "dependent_variable": {
-        "label": "went_viral",
-        "values": [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1]
-      },
-      "independent_variables": [
-        {
-          "label": "avg_watch_time_seconds",
-          "values": [120, 95, 280, 110, 245, 85, 310, 100, 260, 90, 295, 105, 130, 88, 270, 115, 255, 78, 300, 108, 275, 92, 125, 82, 265]
-        },
-        {
-          "label": "like_ratio",
-          "values": [0.03, 0.02, 0.08, 0.03, 0.07, 0.01, 0.09, 0.02, 0.07, 0.02, 0.08, 0.03, 0.03, 0.01, 0.07, 0.03, 0.06, 0.01, 0.09, 0.02, 0.07, 0.02, 0.03, 0.01, 0.07]
-        }
-      ]
+      "dependent_var": "crossed_10k",
+      "independent_vars": ["title_length", "has_face_thumbnail", "is_tutorial"],
+      "data_description": "50 videos with binary outcome (crossed 10K views or not) and three predictors",
+      "data_source": "inline_values"
     },
-    "expected_output_contains": ["coefficients", "pseudo_r_squared", "interpretation"],
-    "tags": ["logistic", "basic"]
+    "expected": {
+      "model_type": "logistic",
+      "coefficients": "object with intercept and three predictor keys",
+      "odds_ratios": "object with same keys as coefficients",
+      "pseudo_r_squared": "numeric value between 0 and 1",
+      "p_values": "object with four keys (intercept + 3 predictors)",
+      "interpretation": "non-empty string interpreting odds ratios in creator context"
+    },
+    "prohibit": [
+      "r_squared field present instead of pseudo_r_squared for logistic model",
+      "odds_ratios missing for logistic model",
+      "fabricated odds ratios not from computation",
+      "coefficients with null values when tool connected"
+    ]
   },
   {
-    "id": "regression-no-tool",
-    "description": "No computation tool connected. Must return guidance-only output with runnable Python code and null numeric fields.",
+    "id": "ra-003",
+    "description": "No computation tool connected — guidance-only output with runnable Python code",
     "input": {
-      "model_type": "linear",
-      "computation_source": "guidance_only",
-      "dependent_variable": {
-        "label": "views",
-        "values": [1200, 980, 1450, 1100, 1380, 890, 1560, 1020, 1340, 1180]
-      },
-      "independent_variables": [
-        {
-          "label": "upload_hour",
-          "values": [8, 10, 14, 9, 13, 17, 12, 11, 14, 10]
-        }
-      ]
+      "model_type": "multiple",
+      "dependent_var": "engagement_rate",
+      "independent_vars": ["posting_hour", "description_length", "hashtag_count"],
+      "data_description": "40 videos with engagement metrics",
+      "data_source": "csv_path"
     },
-    "expected_output_contains": ["guidance_only", "runnable_code"],
-    "tags": ["fallback", "guidance-only"]
+    "expected": {
+      "computation_source": "guidance_only",
+      "runnable_code": "non-null string containing statsmodels or sklearn import",
+      "coefficients": "null — not computed",
+      "r_squared": "null — not computed",
+      "retrieval_gaps": "contains note about no computation engine connected"
+    },
+    "prohibit": [
+      "coefficients or r_squared with numeric values when no tool connected",
+      "computation_source other than guidance_only when no tool available",
+      "runnable_code null in guidance-only mode"
+    ]
+  },
+  {
+    "id": "ra-004",
+    "description": "Polynomial degree requested as 8 — capped at 5 with overfitting warning",
+    "input": {
+      "model_type": "polynomial",
+      "dependent_var": "subscriber_growth",
+      "independent_vars": ["month_number"],
+      "data_description": "12 months of subscriber growth data",
+      "data_source": "inline_values",
+      "polynomial_degree": 8
+    },
+    "expected": {
+      "model_type": "polynomial",
+      "assumption_warnings": "contains overfitting warning about degree > 5",
+      "polynomial_degree_used": "5 (capped from requested 8)"
+    },
+    "prohibit": [
+      "polynomial degree 8 used without capping",
+      "no warning about overfitting when degree was reduced",
+      "silent degree reduction without noting in output"
+    ]
   }
 ]
