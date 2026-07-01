@@ -102,23 +102,39 @@ python3 -m playwright install chromium   # downloads arm64 Chromium (~170 MB, on
 pip3 install -r requirements-mcp.txt
 ```
 
-Smoke test (should return 7 tool definitions):
+Smoke test (should return 8 tool definitions):
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
 ```
 
-### Step 8 -- Configure Claude Desktop
+### Step 8 -- Run the setup wizard
 
-1. Open (or create) the config file:
-   ```
-   ~/Library/Application Support/Claude/claude_desktop_config.json
-   ```
-2. Merge the block from `implementation/claude/desktop/claude_desktop_config_snippet.json`
-   into it. Replace `REPLACE_WITH_ABSOLUTE_PATH` with the absolute path from Step 3.
-3. Restart Claude Desktop.
-4. Verify: open Claude Desktop, confirm "creator-os" appears in the tool list.
-5. Test: ask Claude "run a drift check" -- expected reply: "DRIFT GUARD: clean".
+The wizard opens in your browser and handles Claude Desktop configuration, and optionally
+connects Google Workspace (Gmail, Calendar, Drive/Docs/Sheets) and Microsoft 365 (Outlook,
+Calendar, Excel, OneDrive):
+
+```bash
+python3 tools/wizard.py
+```
+
+A browser window opens automatically at `http://localhost:8765`. Follow the on-screen steps.
+The wizard:
+- Configures the Creator OS MCP server in Claude Desktop's config file
+- Optionally connects Google Workspace (requires Google Cloud credentials -- the wizard walks
+  you through getting them; takes about 5 minutes)
+- Optionally connects Microsoft 365 (requires Node.js 20+; the wizard checks and advises if
+  missing; uses device code flow -- visit a URL, enter a code, done)
+
+When the wizard says "Restart Claude Desktop," quit and reopen the Claude Desktop app.
+
+After restarting, test: ask Claude "run a drift check" -- expected reply: "DRIFT GUARD: clean".
+
+**Manual alternative:** Merge `implementation/claude/desktop/claude_desktop_config_snippet.json`
+into `~/Library/Application Support/Claude/claude_desktop_config.json` by hand, replacing
+`REPLACE_WITH_ABSOLUTE_PATH` with the output of `pwd` from the seo-tools directory.
+
+See `docs/WIZARD.md` for full wizard documentation.
 
 ---
 

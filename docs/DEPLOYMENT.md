@@ -34,34 +34,30 @@ source staleness detection, and deterministic quality scoring. Requires a local 
    python3 shared/cache/cache.py --build
    ```
 
-3. Edit `creator-os-config.json` at the repo root to enable capabilities:
-   ```json
-   {
-     "capabilities": {
-       "mcp_server": true,
-       "keyword_cache": true
-     }
-   }
+3. Run the setup wizard. A browser window opens and walks you through the rest:
+   ```bash
+   python3 tools/wizard.py
    ```
+   The wizard auto-detects your OS, configures Claude Desktop, and optionally connects
+   Google Workspace (Gmail, Calendar, Drive/Docs/Sheets) and Microsoft 365 (Outlook, Calendar,
+   Excel, OneDrive). No JSON editing required.
 
-4. Find the Claude Desktop config file:
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+4. Restart Claude Desktop when the wizard says to.
 
-5. Merge the MCP block from `implementation/claude/desktop/claude_desktop_config_snippet.json`
-   into the config file. Replace `REPLACE_WITH_ABSOLUTE_PATH` with the actual repo path.
-
-6. Restart Claude Desktop.
-
-7. Verify: open Claude Desktop and confirm "creator-os" appears in the tool list.
-
-8. Test:
+5. Test:
    ```
    Ask Claude: "run a drift check"
    Expected response: "DRIFT GUARD: clean"
    ```
 
-See `implementation/claude/desktop/README.md` for the full guide.
+**Manual alternative (advanced users only):** See `implementation/claude/desktop/README.md`
+and `implementation/claude/desktop/claude_desktop_config_snippet.json`.
+
+**Mac users:** See `docs/SETUP_MAC.md` for the full step-by-step walkthrough, including Homebrew
+and arm64 Chromium setup. After installing `requirements-render.txt`, run once:
+`python3 -m playwright install chromium` (downloads the arm64 Chromium binary, approximately 170 MB).
+
+See `docs/WIZARD.md` for what the wizard does and how to use it.
 
 ---
 
@@ -91,6 +87,23 @@ requires a local upgrade.
 7. Wait for all files to finish processing (the spinner stops).
 8. Start a new conversation inside the project and try:
    > Plan a dark moody fall mantel makeover video.
+
+**Connect Google Workspace (optional but recommended):**
+
+Claude Projects on claude.ai supports a native Google Workspace integration that requires no
+setup beyond clicking "Allow."
+
+1. In claude.ai, click your profile icon (top right) and go to **Settings**.
+2. Click **Integrations** (or **Connectors**) in the sidebar.
+3. Click **Add** next to **Google Workspace**.
+4. Sign in with your Google account and click **Allow**.
+
+This gives Creator OS access to your Gmail (brand pitches, partnership emails), Google Calendar
+(content schedule, brand meetings), and Google Drive (briefs, scripts, analytics sheets) -- all
+read-only. No credentials to manage, no command line needed.
+
+Microsoft 365 (Outlook, Calendar, Excel) is not yet available as a native claude.ai connector.
+Use Option A (Claude Desktop) if you need Microsoft services.
 
 See `implementation/claude/project/README.md` for example requests and the capability table.
 
@@ -187,7 +200,7 @@ python3 tools/source_currency.py report
 
 # 5. (Claude Desktop only) MCP server self-test
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
-# Should return 7 tool definitions
+# Should return 8 tool definitions
 ```
 
 ---
@@ -221,6 +234,8 @@ python3 tools/competitor_snapshot.py --export-summary
 | Full hub routing and all spokes | Yes | Yes | Partial | Partial | Partial |
 | SEO keyword strategy (knowledge-based) | Yes | Yes | Yes | Yes | Yes |
 | Video scripts, hooks, captions | Yes | Yes | Yes | Yes | Yes |
+| Google Workspace (Gmail, Calendar, Drive/Docs/Sheets) | Yes (wizard) | Yes (native connector) | No | No | No |
+| Microsoft 365 (Outlook, Calendar, Excel, OneDrive) | Yes (wizard) | No | No | No | No |
 | Competitor hidden video tags (ytInitialPlayerResponse) | Yes (MCP) | No | No | No | No |
 | Offline FTS5 keyword cache queries | Yes (MCP) | No | No | No | No |
 | Source staleness detection | Yes (MCP) | No | No | No | No |

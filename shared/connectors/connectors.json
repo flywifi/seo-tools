@@ -12,7 +12,10 @@
     "voice_profile",
     "channel_stats",
     "rate_benchmarks",
-    "content_calendar"
+    "content_calendar",
+    "email_inbox",
+    "calendar_events",
+    "spreadsheet_data"
   ],
   "connectors": [
     {
@@ -158,36 +161,108 @@
       "auth_note": "none — pip install -r requirements-crawl.txt + requirements-scraper.txt. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
       "deployment_support": ["option_a_claude_desktop_mcp"],
       "status": "seed"
+    },
+    {
+      "id": "gmail",
+      "label": "Gmail (Google Workspace)",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": ["email_inbox", "document_source"],
+      "privacy_sensitivity": "high",
+      "auth_note": "Enabled via the wizard (tools/wizard.py) or claude.ai Settings > Integrations > Google Workspace. Claude Desktop: workspace-mcp via uvx. claude.ai Projects: native Google Workspace connector (zero setup). Set google_workspace: true in creator-os-config.local.json after connecting.",
+      "requires_capability": "google_workspace",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects"],
+      "status": "seed"
+    },
+    {
+      "id": "google_calendar",
+      "label": "Google Calendar (Google Workspace)",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": ["calendar_events", "content_calendar"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Same auth as gmail — both are enabled together by the google_workspace capability flag. The workspace-mcp server exposes Calendar read/write alongside Gmail and Drive.",
+      "requires_capability": "google_workspace",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects"],
+      "status": "seed"
+    },
+    {
+      "id": "google_docs_sheets",
+      "label": "Google Drive / Docs / Sheets (Google Workspace)",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": ["document_source", "spreadsheet_data", "analytics"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Same auth as gmail — Drive covers Docs and Sheets. Analytics tracking sheets and brand brief documents flow in as document_source and spreadsheet_data. Enabled via google_workspace capability flag.",
+      "requires_capability": "google_workspace",
+      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects"],
+      "status": "seed"
+    },
+    {
+      "id": "microsoft_outlook_email",
+      "label": "Outlook Email (Microsoft 365)",
+      "vendor": "Microsoft",
+      "default_flag": "not_installed",
+      "provides": ["email_inbox", "document_source"],
+      "privacy_sensitivity": "high",
+      "auth_note": "Enabled via the wizard (tools/wizard.py) for Claude Desktop. Uses Softeria ms-365-mcp-server (npx -y @softeria/ms-365-mcp-server). Device Code Flow: user visits microsoft.com/devicelogin and enters a short code — no redirect server or credentials to manage. Requires Node.js 20+. Set microsoft_365: true in creator-os-config.local.json after connecting.",
+      "requires_capability": "microsoft_365",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "microsoft_outlook_calendar",
+      "label": "Outlook Calendar (Microsoft 365)",
+      "vendor": "Microsoft",
+      "default_flag": "not_installed",
+      "provides": ["calendar_events", "content_calendar"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Same auth as microsoft_outlook_email — all Microsoft 365 services are enabled together by the microsoft_365 capability flag via the Softeria MCP server.",
+      "requires_capability": "microsoft_365",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
+    },
+    {
+      "id": "microsoft_excel_onedrive",
+      "label": "Excel / OneDrive (Microsoft 365)",
+      "vendor": "Microsoft",
+      "default_flag": "not_installed",
+      "provides": ["spreadsheet_data", "document_source", "analytics"],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Same auth as microsoft_outlook_email — the Softeria ms-365-mcp-server covers Excel, OneDrive, Outlook, Calendar, and 200+ Microsoft 365 tools from a single connection.",
+      "requires_capability": "microsoft_365",
+      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "status": "seed"
     }
   ],
   "deployment_modes": {
     "option_a_claude_desktop_mcp": {
       "label": "Claude Desktop with MCP (full capability)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render"]
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
     },
     "option_b_claude_projects": {
       "label": "Claude Projects on claude.ai (knowledge-only)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
-      "connectors_requiring_setup": [],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api"]
+      "connectors_requiring_setup": ["gmail", "google_calendar", "google_docs_sheets"],
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
     },
     "option_c_gpt_api": {
       "label": "GPT-4 API with function calling",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
     },
     "option_d_chatgpt_web": {
       "label": "ChatGPT Web with custom instructions",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
     },
     "option_e_gemini": {
       "label": "Gemini (Gems or API)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive"]
     }
   },
   "extensible_stubs": ["pinterest_api", "snapchat_api", "spotify_podcasts"]

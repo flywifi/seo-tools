@@ -52,6 +52,16 @@
       "enabled": false,
       "description": "channel-context.json populated with real channel stats. Enables: grounded rate recommendations and benchmark comparisons.",
       "requires": "Edit pipeline/user-context/channel-context.json with subscriber count and avg views"
+    },
+    "google_workspace": {
+      "enabled": false,
+      "description": "Google Workspace connected (Gmail, Calendar, Drive/Docs/Sheets). Enables: brand email reading, calendar sync, document and analytics import.",
+      "requires": "Run python3 tools/wizard.py and connect your Google account (Claude Desktop), or go to claude.ai Settings > Integrations > Google Workspace (claude.ai Projects)"
+    },
+    "microsoft_365": {
+      "enabled": false,
+      "description": "Microsoft 365 connected (Outlook email, Calendar, Excel, OneDrive). Enables: brand email reading, calendar sync, spreadsheet analytics import.",
+      "requires": "Run python3 tools/wizard.py and connect your Microsoft account (Claude Desktop only; requires Node.js 20+)"
     }
   },
   "degraded_behavior": {

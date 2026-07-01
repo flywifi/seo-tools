@@ -38,6 +38,8 @@ CAPABILITY_TO_CONNECTOR = {
     "keyword_cache": "sqlite_cache",
     "playwright": "playwright_render",
     "mcp_server": "mcp_server",
+    "google_workspace": "gmail",
+    "microsoft_365": "microsoft_outlook_email",
 }
 
 
