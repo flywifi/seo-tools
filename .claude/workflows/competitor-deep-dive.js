@@ -104,7 +104,7 @@ const profiles = await pipeline(
   (target, _, idx) => agent(
     `${READ_ONLY_RULES}
 
-You are a competitor intelligence agent for Creator OS (moody-vintage home decor / DIY niche).
+You are a competitor intelligence agent for Creator OS (home decor / DIY niche).
 
 Research this competitor: "${target}"
 
@@ -138,7 +138,7 @@ phase('Analyze')
 const gaps = await agent(
   `${READ_ONLY_RULES}
 
-You are an SEO gap analysis agent for Creator OS (moody-vintage home decor / DIY niche).
+You are an SEO gap analysis agent for Creator OS (home decor / DIY niche).
 
 Analyze these competitor profiles and identify gaps and opportunities for the creator:
 

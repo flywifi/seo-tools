@@ -3,13 +3,13 @@
     "id": "competitorscan-001",
     "description": "Happy path: scan YouTube competitors for a moody bedroom makeover topic with full inputs",
     "input": {
-      "topic": "dark moody bedroom makeover",
+      "topic": "home decor bedroom makeover",
       "platform": "youtube",
       "count": 5
     },
     "expect": {
       "tool": "competitor-scan",
-      "topic": "dark moody bedroom makeover",
+      "topic": "home decor bedroom makeover",
       "platform": "youtube",
       "competitors": "array of up to 5 objects each with name, url_if_found, estimated_scale, content_angle, gap_or_differentiation",
       "overserved_angles": "non-empty array",

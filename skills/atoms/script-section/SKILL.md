@@ -43,7 +43,7 @@ The seven supported section types are:
 ```json
 {
   "section_type": "hook | intro | body-step | broll-cue | transition | cta | outro (required)",
-  "topic": "string (required) -- the video topic or project title, e.g. 'dark moody bookshelf makeover'",
+  "topic": "string (required) -- the video topic or project title, e.g. 'stylized bookshelf makeover'",
   "step_content": "string (optional, required when section_type is body-step) -- the specific step action and detail to convert into spoken script",
   "target_duration_seconds": "integer (optional) -- desired spoken length for this section in seconds",
   "platform": "youtube | shorts (optional, default youtube) -- determines opening-window timing and CTA norms"
@@ -90,7 +90,7 @@ Output rules:
 - Do not fabricate product names, brand timings, measurements, or prices. If the input step_content
   references specifics, carry them through; do not invent new ones.
 - Never use em dashes. Write ranges with "to" per `protocols/formatting-metadata.md`.
-- Voice anchors to the moody-vintage aesthetic and the bungalow context from `shared/brand-engine.md`.
+- Voice anchors to the home decor aesthetic and the bungalow context from `shared/brand-engine.md`.
   Warm, conversational, imperfect-is-fine energy.
 
 ## Do NOT use for

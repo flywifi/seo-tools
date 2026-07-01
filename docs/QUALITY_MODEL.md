@@ -52,7 +52,7 @@ and current. Time-sensitive claims are cited per `protocols/research-citation.md
 **What it measures:** the artifact matches the identity, pillars, and aesthetic defined in
 `shared/brand-engine.md`, delivered in the correct voice mode (planning voice vs. audience voice).
 
-- 5: matches identity, pillars, and aesthetic in the correct voice mode; moody-vintage anchor
+- 5: matches identity, pillars, and aesthetic in the correct voice mode; home decor anchor
   maintained; examples are specific to the channel.
 - 4: strong alignment; one generic example that could be more specific.
 - 3: on brand but flat voice or a generic example.

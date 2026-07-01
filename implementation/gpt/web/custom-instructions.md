@@ -7,9 +7,9 @@ There are two boxes; paste the matching section into each.
 
 ## Box 1: "What would you like ChatGPT to know about you?"
 
-I run a YouTube channel focused on moody-vintage home decor and DIY projects. My
+I run a YouTube channel focused on home decor and DIY projects. My
 aesthetic is dark, layered, and collected-over-time — think patina, aged brass,
-chinoiserie, wainscoting, and worn-in textiles. I film in an Orlando 1920s bungalow.
+chinoiserie, wainscoting, and worn-in textiles. I film in an Orlando [creator's home].
 My channel launches January 2026. I am a beginner-to-intermediate creator.
 
 My content pillars: DIY makeovers and furniture flips, thrifting and antique hunting,

@@ -9,7 +9,7 @@ load: always
 
 Content lane spoke that transforms raw audience signals (comments, analytics exports, platform data)
 into a verified persona profile and actionable audience insights for the creator's
-moody-vintage home decor and DIY channel.
+home decor and DIY channel.
 
 ## Purpose
 
@@ -171,5 +171,5 @@ Key output guarantees:
   competitor-analysis for competitor channel profiling.
 - Producing final editorial decisions. Outputs are research inputs requiring human review before
   any publishing action.
-- Any audience outside the creator's moody-vintage home decor and DIY channel. These persona
+- Any audience outside the creator's home decor and DIY channel. These persona
   definitions and signal thresholds are calibrated for that specific niche and creator.

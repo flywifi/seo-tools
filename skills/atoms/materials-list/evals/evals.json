@@ -56,7 +56,7 @@
     "id": "materialslist-003",
     "description": "Edge case: renter_friendly true excludes permanent modifications and flags non-reversible items",
     "input": {
-      "project_title": "dark moody accent wall with vintage frames",
+      "project_title": "stylized accent wall with vintage frames",
       "difficulty": "beginner",
       "budget_tier": "low",
       "renter_friendly": true

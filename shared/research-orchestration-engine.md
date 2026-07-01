@@ -469,7 +469,7 @@ to the user. This is never delegated to another agent.
 
 ```json
 {
-  "finding": "dark moody fall mantel has strong YouTube search intent",
+  "finding": "seasonal home decor project has strong YouTube search intent",
   "found_by": "seo-researcher",
   "source": "YouTube autocomplete + Google Trends",
   "confidence": "high",

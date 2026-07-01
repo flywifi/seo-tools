@@ -4,7 +4,7 @@
     "description": "Happy path: body-step section with full inputs including step_content and target duration",
     "input": {
       "section_type": "body-step",
-      "topic": "dark moody bookshelf makeover using chalk paint and thrifted decor",
+      "topic": "stylized bookshelf makeover using chalk paint and thrifted decor",
       "step_content": "Sand the thrifted bookshelf lightly with 220-grit sandpaper to create tooth for the chalk paint to grip",
       "target_duration_seconds": 90,
       "platform": "youtube"

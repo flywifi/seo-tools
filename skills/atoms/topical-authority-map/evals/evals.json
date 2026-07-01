@@ -7,8 +7,8 @@
       "description": "Basic hub-and-cluster for a seasonal keyword",
       "input": {
         "pillar": "seasonal and holiday decor",
-        "primary_keyword": "dark moody fall mantel",
-        "secondary_keywords": ["gothic fall decor", "fall mantel ideas budget", "vintage fall mantel"],
+        "primary_keyword": "seasonal home decor project",
+        "secondary_keywords": ["fall decor", "seasonal decor ideas budget", "vintage fall mantel"],
         "cluster_size": 4
       },
       "expect": {

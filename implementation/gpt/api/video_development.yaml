@@ -17,7 +17,7 @@ parameters:
       description: >
         The video concept, keyword, or topic. Can be a rough idea or a specific
         keyword from seo_keywords output.
-        Example: "dark moody fall mantel makeover under $40",
+        Example: "seasonal home decor project makeover under $40",
         "thrift store armoire flip — chalk paint and dark wax".
     platform_targets:
       type: array

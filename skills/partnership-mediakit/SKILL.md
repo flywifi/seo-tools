@@ -7,7 +7,7 @@ load: always
 
 # partnership-mediakit
 
-Pipeline/CRM lane spoke that assembles a complete brand partnership outreach package for the creator's moody-vintage home decor and DIY channel. On a single request it produces the pitch
+Pipeline/CRM lane spoke that assembles a complete brand partnership outreach package for the creator's home decor and DIY channel. On a single request it produces the pitch
 paragraph, the full set of media kit sections, and a rate card. It never guesses at figures or
 invents data: real channel data is used when the caller supplies it; labeled industry benchmark
 ranges from `canonical-sources/rate-benchmarks/benchmarks.json` are used when real data is absent;
@@ -206,7 +206,7 @@ Output guarantees:
 - Fabricating subscriber counts, engagement rates, audience demographics, case study outcomes, or
   brand endorsements. If real data is not supplied and no benchmark applies, the field is null and
   flagged, never filled with an invented figure.
-- Outreach for product categories outside moody-vintage home decor, DIY, thrifting, seasonal decor,
+- Outreach for product categories outside home decor, DIY, thrifting, seasonal decor,
   or outdoor living. Pitches for out-of-niche products misrepresent the creator's audience and brand.
 - Creating or updating `pipeline/` CRM records. Read access to an existing account record is
   permitted when `crm_account_id` is supplied; write operations belong to deal-pipeline or

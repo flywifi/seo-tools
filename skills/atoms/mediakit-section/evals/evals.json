@@ -18,7 +18,7 @@
       "tool": "mediakit-section",
       "section_name": "channel_overview",
       "section_title": "non-empty display heading",
-      "section_body": "markdown-formatted body referencing moody-vintage aesthetic and DIY niche",
+      "section_body": "markdown-formatted body referencing home decor aesthetic and DIY niche",
       "data_source": "real or mixed depending on null fields in channel_data",
       "fabrication_check": "PASS",
       "placeholders_to_fill": "array present; may list top_demographics if surfaced as missing"

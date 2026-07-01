@@ -14,7 +14,7 @@ Generate a few pillar-aligned ideas for one persona and format. Single operation
 - No trend or search claim is asserted here; that is trend-check and keyword-cluster.
 
 ## Known failure modes
-- Drifting off aesthetic (bright farmhouse instead of moody vintage).
+- Drifting off aesthetic (bright farmhouse instead of home decor).
 - Returning a calendar instead of a small batch.
 - Asserting "this is trending" without trend-check.
 

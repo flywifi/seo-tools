@@ -47,4 +47,4 @@ Produces a complete idea cluster even when no downstream spoke is available, and
 - Recommending a trend without verifying current momentum. trend-check is mandatory for any trend or
   seasonal claim; data older than 14 days for fast-moving categories is marked stale.
 - Returning single ideas instead of clusters.
-- Drifting off the moody-vintage aesthetic toward bright farmhouse.
+- Drifting off the home decor aesthetic toward bright farmhouse.

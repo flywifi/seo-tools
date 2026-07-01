@@ -37,7 +37,7 @@ response = client.chat.completions.create(
                 Path("implementation/gpt/web/custom-instructions.md").read_text()
             ),
         },
-        {"role": "user", "content": "Plan a dark moody fall mantel video"},
+        {"role": "user", "content": "Plan a seasonal home decor project video"},
     ],
     tools=[{"type": "function", "function": fn} for fn in functions],
     tool_choice="auto",

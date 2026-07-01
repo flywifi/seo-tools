@@ -3,7 +3,7 @@
     "id": "hookwrite-001",
     "description": "Happy path: write a YouTube long-form hook for a moody room makeover concept with full inputs",
     "input": {
-      "concept": "Transforming a dated 1990s guest bedroom into a dark moody vintage retreat using only thrifted furniture",
+      "concept": "Transforming a dated 1990s guest bedroom into a stylized vintage retreat using only thrifted furniture",
       "persona": "The New Homeowner",
       "platform": "youtube_longform",
       "duration_seconds": 30

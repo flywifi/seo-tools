@@ -14,7 +14,7 @@ and Playwright auto-downloads the arm64 Chromium binary. No Rosetta required.
 3. Open `implementation/claude/project/system-prompt.md`, copy the full text, paste it into the
    Project Instructions field, and save.
 4. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`.
-5. Start a conversation: "Plan a dark moody fall mantel makeover video."
+5. Start a conversation: "Plan a seasonal home decor project makeover video."
 
 See `docs/DEPLOYMENT.md` Option B for the full walkthrough. No Homebrew, no Python, no git needed.
 

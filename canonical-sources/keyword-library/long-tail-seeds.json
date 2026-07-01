@@ -1,15 +1,14 @@
 {
-  "_comment": "Seed keywords for the long-tail-expand atom. Organized by content pillar. Each seed is the starting point for a 2-level autocomplete + PAA + related-search traversal. Grows as the creator produces content and identifies high-performing terms. Verify momentum via trend-check before committing to a seed as a primary keyword.",
+  "_comment": "Seed keywords for the long-tail-expand atom. Organized by content pillar. These are template examples for home decor and DIY niches — replace niche-specific entries with terms that match the creator's actual aesthetic and location via creator-profile.local.json. Each seed is the starting point for a 2-level autocomplete + PAA + related-search traversal. Verify momentum via trend-check before committing to a seed as a primary keyword.",
   "last_updated": "2026-06-30",
   "pillar_1_diy_makeovers": {
     "room_makeovers": [
-      "dark moody bedroom makeover",
       "diy living room makeover on a budget",
       "before and after room makeover",
       "small bedroom transformation diy",
       "rental bedroom makeover no paint",
-      "moody bedroom on a budget",
-      "diy room makeover under 100 dollars"
+      "diy room makeover under 100 dollars",
+      "bedroom makeover ideas on a budget"
     ],
     "furniture": [
       "how to paint old furniture",
@@ -18,7 +17,7 @@
       "how to strip furniture at home",
       "chalk paint furniture tutorial",
       "how to distress furniture",
-      "diy furniture makeover dark paint",
+      "diy furniture makeover",
       "how to reupholster a chair diy",
       "furniture hardware swap diy"
     ],
@@ -29,13 +28,12 @@
       "renter friendly wall treatment",
       "how to wallpaper an accent wall",
       "diy gallery wall ideas",
-      "dark accent wall ideas"
+      "accent wall ideas diy"
     ]
   },
   "pillar_2_thrifting_antiques": {
     "thrift_hauls": [
       "thrift haul home decor",
-      "goodwill furniture finds",
       "thrift store furniture finds this week",
       "best thrift store finds for your home",
       "how to style thrift store finds",
@@ -47,15 +45,12 @@
       "facebook marketplace furniture finds",
       "estate sale shopping tips",
       "how to find vintage furniture cheap",
-      "goodwill bins furniture diy",
       "how to spot quality at thrift stores"
     ],
     "vintage_specific": [
       "vintage decor finds thrift store",
       "antique shopping for beginners",
       "how to authenticate vintage furniture",
-      "vintage brass decor thrift",
-      "how to clean vintage brass",
       "how to clean old furniture thrift store find"
     ]
   },
@@ -85,30 +80,24 @@
   },
   "pillar_4_seasonal_holiday": {
     "fall": [
-      "dark moody fall decor",
-      "gothic fall decor ideas",
+      "fall home decor ideas",
       "fall mantel decorating ideas",
-      "moody fall mantel",
-      "dark fall tablescape",
+      "fall tablescape ideas",
       "vintage fall home decor",
       "cozy fall bedroom decor",
       "fall decor on a budget thrift store",
       "how to decorate for fall on a budget"
     ],
     "halloween": [
-      "halloween home decor not cheesy",
-      "gothic halloween home decor",
-      "dark halloween decor ideas",
+      "halloween home decor ideas",
+      "halloween decor not cheesy",
       "sophisticated halloween decor",
       "vintage halloween decorations"
     ],
     "christmas_holiday": [
       "vintage christmas decor ideas",
-      "dark moody christmas decor",
-      "jewel tone christmas decor",
       "non traditional christmas decor",
       "christmas mantel decorating ideas",
-      "moody christmas aesthetic",
       "thrift store christmas decor haul",
       "christmas decor on a budget"
     ],
@@ -120,14 +109,7 @@
       "summer outdoor patio decor"
     ]
   },
-  "pillar_5_backyard_outdoor": {
-    "florida_specific": [
-      "florida backyard ideas on a budget",
-      "tropical backyard makeover diy",
-      "florida patio decor ideas",
-      "outdoor furniture makeover florida",
-      "florida outdoor living space diy"
-    ],
+  "pillar_5_outdoor": {
     "small_outdoor": [
       "small patio decorating ideas",
       "apartment balcony decor ideas",
@@ -139,7 +121,6 @@
       "outdoor furniture makeover paint",
       "how to paint outdoor furniture",
       "diy outdoor furniture on a budget",
-      "tropical plants home decor",
       "indoor outdoor plants home decor"
     ]
   },

@@ -9,7 +9,7 @@ load: always
 
 ## Purpose
 
-Delivers competitive intelligence to support content positioning for the creator's moody-vintage
+Delivers competitive intelligence to support content positioning for the creator's home decor
 home decor and DIY channel. The skill scans publicly visible content across specified platforms,
 clusters observed content angles, identifies overserved and underserved topics, and returns a
 structured gap report.
@@ -104,7 +104,7 @@ The following atoms are orchestrated in sequence. `trend-check` is conditional.
   organic, publicly visible content.
 - Accessing competitor private analytics, backend dashboards, or any data that is not publicly
   viewable without authentication.
-- General web research outside the moody-vintage home decor and DIY niche. Use
+- General web research outside the home decor and DIY niche. Use
   `shared/web-intel-engine.md` directly for broad research tasks.
 - Producing final editorial decisions. The gap report informs content strategy; it does not
   replace the creator's judgment.

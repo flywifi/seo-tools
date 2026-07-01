@@ -25,7 +25,7 @@ Platform conventions from `shared/platform-engine.md` govern tag formatting, pla
   "topic": "string (the content topic or working title, required)",
   "platform": "instagram | tiktok | pinterest",
   "pillar": "optional string (content pillar, e.g. DIY tutorial, room transformation, thrift flip)",
-  "aesthetic": "optional string (e.g. moody-vintage, cottagecore, dark academia, maximalist, japandi)"
+  "aesthetic": "optional string (e.g. home decor, cottagecore, dark academia, maximalist, japandi)"
 }
 ```
 
@@ -33,7 +33,7 @@ Field notes:
 - `topic` is required. Pass the working title or a plain description of the content (for example, "painting a thrifted dresser in dark green velvet finish").
 - `platform` is required. It controls tag volume targets and formatting conventions.
 - `pillar` is optional. When provided it steers the niche tier toward the correct content category.
-- `aesthetic` is optional. When provided it anchors the micro tier to the specific visual style. Accepted values include but are not limited to: moody-vintage, cottagecore, dark academia, grandmillennial, maximalist, japandi, hygge. Pass whatever aesthetic label applies to the post.
+- `aesthetic` is optional. When provided it anchors the micro tier to the specific visual style. Accepted values include but are not limited to: home decor, cottagecore, dark academia, grandmillennial, maximalist, japandi, hygge. Pass whatever aesthetic label applies to the post.
 
 ## Output
 

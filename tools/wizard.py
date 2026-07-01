@@ -454,7 +454,7 @@ It will ask you to sign in to your connected accounts the first time you use the
   <li>"What&#8217;s on my content calendar for the next two weeks?"</li>
   <li>"Pull my latest analytics from the tracking spreadsheet."</li>
   <li>"I got an email from West Elm about a collab &mdash; add it to the deal pipeline."</li>
-  <li>"Plan a dark moody fall mantel video for my YouTube channel."</li>
+  <li>"Plan a seasonal home decor project video for my YouTube channel."</li>
 </ul>
 <div class="success-box">
   Creator OS routes these requests through the right spokes automatically.

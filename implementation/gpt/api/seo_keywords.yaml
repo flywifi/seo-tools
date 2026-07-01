@@ -15,7 +15,7 @@ parameters:
       type: string
       description: >
         The topic or niche area to build a keyword strategy around.
-        Example: "dark moody fall mantel decor", "chalk paint furniture makeover".
+        Example: "seasonal home decor project decor", "chalk paint furniture makeover".
     platform_targets:
       type: array
       items:

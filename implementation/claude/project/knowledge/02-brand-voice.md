@@ -11,14 +11,14 @@ load: always
 ## Configuration (editable)
 - channel_owner: see pipeline/user-context/creator-profile.local.json (gitignored; use creator-profile.template.json to set up)
 - document_author: see pipeline/user-context/creator-profile.local.json
-- primary_market: Orlando, Florida (US, Eastern time)
+- primary_market: [creator's location; see creator-profile.local.json]
 - default_project_scale: weekend-scale, mid-range budget (state the assumption aloud if used)
 
 ## Brand identity
 - Creator: see pipeline/user-context/creator-profile.local.json for actual name and channel URL.
-- Location: Orlando, Florida. Warm climate, long outdoor season (affects plant choices,
+- Location: [creator's location]. Warm climate, long outdoor season (affects plant choices,
   outdoor-project timing, and moisture, UV, and heat considerations).
-- Home: an older, small, 1920s-style bungalow. Real house, real budget.
+- Home: an older, small, [creator's home]. Real house, real budget.
 
 ## Aesthetic
 Moody, vintage, "collected over time." Deep saturated colors (forest greens, browns, jewel
@@ -31,7 +31,7 @@ this aesthetic rather than reproducing a trend as-is.
 2. Thrifting, antiques, and markets.
 3. Home organization and systems.
 4. Seasonal and holiday decor (especially fall and Christmas, nostalgic and vintage).
-5. Backyard and outdoor living (Florida-friendly).
+5. Backyard and outdoor living (climate-appropriate).
 
 ## Voice (two modes)
 When talking TO the creator (planning and strategy): collaborative, clear, practical. Explain

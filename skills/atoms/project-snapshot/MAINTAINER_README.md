@@ -26,7 +26,7 @@ downstream by the spoke.
 ## Testing
 
 Run evals with:
-- A clear project idea (e.g., "moody fall mantel makeover with vintage candle holders")
+- A clear project idea (e.g., "seasonal home decor makeover with vintage candle holders")
 - An ambiguous idea (e.g., "clean up the living room") - expect flags in output
 - A renter-ambiguous project (e.g., "add shiplap accent wall") - expect renter_friendly: null + flag
 - A project touching electrical (e.g., "install vintage sconce wiring") - expect a safety flag

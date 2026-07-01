@@ -15,7 +15,7 @@
       "prompt": "Write a pitch paragraph for West Elm's vintage furniture line.",
       "expect": [
         "pitch paragraph anchors to West Elm and vintage furniture category",
-        "paragraph connects the creator's thrifting pillar and 1920s bungalow aesthetic",
+        "paragraph connects the creator's thrifting pillar and [creator's home] aesthetic",
         "3 subject_line_options returned",
         "personalization_notes flags at least one thing to verify before sending"
       ]

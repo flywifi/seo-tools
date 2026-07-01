@@ -41,7 +41,7 @@ and flagged for re-verification.
 }
 ```
 
-- `topic`: a keyword phrase or concept (for example, "dark moody bedroom on a budget" or "vintage
+- `topic`: a keyword phrase or concept (for example, "home decor bedroom on a budget" or "vintage
   thrift flip DIY").
 - `platform_targets`: defaults to all three platforms if omitted. YouTube is always included.
 - `persona`: if omitted, the spoke infers from the topic and states the inference explicitly in the
@@ -159,7 +159,7 @@ Key output guarantees:
 - `protocols/research-citation.md` (platform spec freshness window: 3 to 6 months)
 - `protocols/no-fabrication.md`
 - `shared/web-intel-engine.md`
-- `shared/brand-engine.md` (moody-vintage keyword vocabulary and aesthetic guard)
+- `shared/brand-engine.md` (home decor keyword vocabulary and aesthetic guard)
 - `protocols/quality-gates.md` (governs the govern-artifact gate at the end of the workflow)
 
 ## Do NOT use for
@@ -173,5 +173,5 @@ Key output guarantees:
   connection via web-intel-engine Level 1 directly.
 - Trend momentum research outside a specific keyword. Use trend-check for broad trend signals.
 - Brand partnership or sponsorship research. Use deal-tracker or account-manager spokes.
-- Any topic outside the moody-vintage home decor and DIY niche. This spoke's keyword vocabulary
+- Any topic outside the home decor and DIY niche. This spoke's keyword vocabulary
   and competitor pool are calibrated to that niche; off-niche results will be unreliable.

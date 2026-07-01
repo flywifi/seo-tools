@@ -82,7 +82,7 @@ come from `shared/brand-engine.md`. No fabrication under any circumstance; see
 
 **channel_overview**
 Introduce the creator, her channel, its aesthetic (moody, vintage, collected-over-time), and her primary
-content niche (moody vintage home decor and DIY). Draw identity language from `shared/brand-engine.md`.
+content niche (home decor and DIY). Draw identity language from `shared/brand-engine.md`.
 Subscriber count and average views are real data only; emit null and flag if not supplied.
 
 **audience_demo**

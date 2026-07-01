@@ -1,8 +1,8 @@
 # Creator OS
 
-A hub-and-spoke ecosystem of Claude Agent Skills that acts as an all-in-one strategic partner for a
-YouTube creator in the moody-vintage home decor and DIY niche. It covers content strategy, video and
-short-form production, SEO, DIY project planning, brand partnerships, and channel analytics.
+A hub-and-spoke ecosystem of Claude Agent Skills that acts as an all-in-one strategic partner for
+YouTube and social media creators. It covers content strategy, video and short-form production, SEO,
+project planning, brand partnerships, channel analytics, and social media scheduling.
 
 ## How it works
 A routing hub (`creator-core`) classifies every request into one of three lanes, loads only the

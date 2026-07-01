@@ -20,7 +20,7 @@ retrieval is performed.
 
 Content-strategy spokes and idea-generate need to know whether a topic is time-sensitive before
 scheduling it. This atom answers that question in one call without touching the web. It is the
-authoritative source of seasonal timing inside Creator OS for the moody-vintage home decor and DIY
+authoritative source of seasonal timing inside Creator OS for the home decor and DIY
 niche.
 
 Moody/vintage home decor seasonal peaks used by this atom:
@@ -42,7 +42,7 @@ align with a seasonal window.
 {
   "topic": "string -- the video idea or subject to classify",
   "current_month": "integer 1 to 12 -- optional; if omitted the atom cannot compute urgency and sets it to plan_ahead",
-  "channel_niche": "string -- optional; defaults to 'moody vintage home decor'"
+  "channel_niche": "string -- optional; defaults to 'home decor'"
 }
 ```
 

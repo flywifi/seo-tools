@@ -16,7 +16,7 @@ parameters:
       type: string
       description: >
         The content niche to research competitors in.
-        Example: "moody vintage home decor YouTube", "chalk paint furniture DIY".
+        Example: "home decor YouTube", "chalk paint furniture DIY".
     platform_targets:
       type: array
       items:

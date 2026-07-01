@@ -22,7 +22,7 @@ load:
 Expands one seed keyword into 20 to 40 long-tail variations by systematically applying the five
 expansion methods documented in `shared/seo-intelligence-engine.md`. Traversal is 2 levels deep
 from the seed — the seed surfaces first-level candidates, which themselves yield second-level
-candidates. Results are scored and ranked by niche relevance to the moody-vintage home decor niche.
+candidates. Results are scored and ranked by niche relevance to the home decor niche.
 
 ## Input
 
@@ -66,7 +66,7 @@ when the topic has no adjacent product search behavior).
 - All `volume_estimate` values must be labeled `[estimated, unverified]`. No tool in this system
   has direct API access to search volume data. Google Trends signals may be used as a proxy
   with this label; if no signal is available, omit the field rather than guessing.
-- `niche_relevance_score` 1 to 5: 5 = clearly within moody-vintage home decor niche; 1 = generic
+- `niche_relevance_score` 1 to 5: 5 = clearly within home decor niche; 1 = generic
   or off-niche. Never include keywords below 2.
 - `expansion_depth` 1 = direct expansion from seed; 2 = expansion of a depth-1 candidate.
 - Do not exceed depth 2 without explicit caller instruction.

@@ -1,5 +1,5 @@
 {
-  "_comment": "Named entity keywords for the moody-vintage home decor and DIY niche. Used by entity-extract atom and seo-intelligence-engine. Grows over time as the creator produces content and entity-extract identifies new entities from competitor research. All entries are seed values; update via entity-extract output after competitor research runs.",
+  "_comment": "Named entity keywords for home decor and DIY creators. Used by entity-extract atom and seo-intelligence-engine. These are template seed values for common home decor niches — populate with niche-specific terms from creator-profile.local.json and via entity-extract output after competitor research runs.",
   "last_updated": "2026-06-30",
   "brands": {
     "_note": "Use full brand-standard names as they appear on manufacturer marketing. Avoid abbreviations.",
@@ -252,31 +252,25 @@
     ]
   },
   "aesthetic_labels": {
-    "_note": "Aesthetic style names that appear in search. These evolve rapidly — verify via trend-check before asserting as current.",
-    "core_niche": [
-      "moody maximalism",
-      "dark moody decor",
-      "dark academia home",
-      "dark cottagecore",
-      "gothic home decor",
-      "Victorian home decor",
-      "grandmillennial dark",
-      "castlecore",
-      "jewel tone interiors",
-      "dark collected vintage",
-      "moody vintage"
+    "_note": "Aesthetic style names that appear in search. These are template examples — replace with the creator's specific niche labels from creator-profile.local.json. These evolve rapidly; verify via trend-check before asserting as current.",
+    "template_examples": [
+      "[creator's primary aesthetic style]",
+      "[secondary aesthetic style]",
+      "[trending adjacent style]"
     ],
-    "adjacent": [
-      "grandmillennial",
-      "cottagecore",
-      "dark academia",
-      "witchcore",
-      "botanica",
-      "old money aesthetic",
-      "quiet luxury",
+    "common_home_decor_styles": [
       "maximalism",
       "eclectic home decor",
-      "boho vintage"
+      "vintage decor",
+      "cottagecore",
+      "grandmillennial",
+      "dark academia",
+      "old money aesthetic",
+      "quiet luxury",
+      "boho vintage",
+      "farmhouse decor",
+      "modern rustic",
+      "transitional style"
     ]
   }
 }

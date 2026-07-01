@@ -14,26 +14,32 @@ When real analytics are provided (YouTube Studio, Instagram/TikTok insights, Pin
 those override everything here. Never present these defaults as the creator's actual numbers, and never
 fabricate specific audience figures (see protocols/no-fabrication.md).
 
-## Audience profile (niche-typical)
+## Audience profile (niche-typical defaults)
+These are illustrative defaults for a home decor and DIY creator. Override with real analytics
+when available (see protocols/no-fabrication.md). Configure via creator-profile.local.json
+(`audience_profile` field) for creator-specific data.
+
 - Skill level: mostly beginner to intermediate DIYers who want the how and the why, not a montage.
-- Composition: largely women; skews Gen Z and younger Millennials for this moody-vintage aesthetic,
-  with a meaningful Gen X segment. Many are renters or first-time homeowners.
+- Composition: skews toward the niche's core demographic — confirm with the creator's actual analytics.
 - Constraints: limited budgets, small or awkward spaces, frequent rental restrictions.
 - Values: achievable projects (an afternoon or a free weekend), realistic budgets with the odd
-  smart splurge, cozy character-filled homes, and understanding the technique well enough to repeat it.
+  smart splurge, and understanding the technique well enough to repeat it.
 - Macro mindset (2026): a shift away from perfectionism toward self-expression and comfort.
-  Audiences favor "my room, my rules," micro-makeovers (a splash of paint, a reading nook), vintage
-  finds, and low-lift hacks over full renovations. Lean into personality, not catalog perfection.
+  Audiences favor "my room, my rules," micro-makeovers, vintage finds, and low-lift hacks over
+  full renovations. Lean into personality, not catalog perfection.
 
 ## Personas (use by name when mapping who a piece serves)
+These are common home-and-lifestyle creator personas. Customize via creator-profile.local.json
+(`personas` array) if the creator's niche differs.
+
 - The Renter: small apartment, limited permanent changes allowed. Wants reversible, damage-free,
   landlord-safe ideas. Pain point: "my rental does not allow paint or holes."
 - The Vintage Hunter: loves thrifting and antiquing. Wants sourcing strategy, quality and
   authenticity checks, and how to mix old and new cohesively. Pain point: "thrifting overwhelms me."
 - The Organizer: obsessive about tidy, functional spaces. Loves checklists, systems, and labeled
   zones. Pain point: "I have no storage in my tiny kitchen."
-- The Holiday Maximalist: goes big on fall and Christmas. Wants moody, nostalgic, classic decor and
-  tablescapes. Pain point: wants impact without it looking cheap.
+- The Seasonal Decorator: goes big on holiday and seasonal decor. Wants high-impact looks that
+  do not look cheap. Pain point: "my decor looks dated or generic."
 - The New Homeowner: modest budget, dated or builder-basic house. Wants high-impact projects that
   add character. Pain point: "how do I make this feel like mine without a renovation."
 

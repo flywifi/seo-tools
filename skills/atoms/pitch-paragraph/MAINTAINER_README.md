@@ -19,7 +19,7 @@ Write the personalized pitch paragraph for brand outreach. Never write a generic
 - Omitting personalization_notes entirely.
 
 ## Regression cases to preserve
-1. Vintage furniture brand: paragraph connects the creator's thrifting pillar and 1920s bungalow aesthetic.
+1. Vintage furniture brand: paragraph connects the creator's thrifting pillar and [creator's home] aesthetic.
 2. Brand fit notes provided: those notes anchor the paragraph; they are not ignored.
 
 ## Update checklist

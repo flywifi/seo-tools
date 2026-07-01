@@ -17,7 +17,7 @@
           { "timestamp_seconds": 240, "chapter_topic": "Styling layered candlesticks and botanicals" },
           { "timestamp_seconds": 360, "chapter_topic": "Final reveal and styling tips" }
         ],
-        "primary_keyword": "dark moody fall mantel",
+        "primary_keyword": "seasonal home decor project",
         "entity_list": ["Rust-Oleum Chalked Paint", "Linen White", "Goodwill"],
         "platform_targets": ["youtube", "google"]
       },
@@ -127,8 +127,8 @@
       "description": "The first 125 characters of the draft already contain the primary keyword. description_annotation must note no change needed, not insert a second occurrence.",
       "input": {
         "video_title": "Dark Moody Fall Mantel Ideas for a Vintage Home",
-        "video_description_draft": "Dark moody fall mantel styling from scratch using thrift store finds and items you already own. This video walks through every layer of the display from back to front.",
-        "primary_keyword": "dark moody fall mantel"
+        "video_description_draft": "Dark seasonal home decor styling from scratch using thrift store finds and items you already own. This video walks through every layer of the display from back to front.",
+        "primary_keyword": "seasonal home decor project"
       },
       "expected": {
         "changes_from_input_notes_keyword_already_present": true,

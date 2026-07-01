@@ -83,7 +83,7 @@ relevant rather than omitting the key.
 - Producing audience analytics or engagement predictions; this atom uses static persona definitions
   only. If real analytics override the defaults, the calling spoke must apply them after this atom
   returns.
-- Any audience other than the creator's moody-vintage home decor and DIY audience. Do not
+- Any audience other than the creator's home decor and DIY audience. Do not
   extrapolate these personas to a different creator or niche.
 
 ## Pipeline note

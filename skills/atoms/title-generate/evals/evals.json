@@ -3,9 +3,9 @@
     "id": "title-generate-001",
     "description": "Happy path: full inputs with concept, keyword, style, and platform produce multiple front-loaded titles",
     "input": {
-      "concept": "Transforming a thrifted dresser into a moody vintage bathroom vanity",
+      "concept": "Transforming a thrifted dresser into a painted bathroom vanity",
       "primary_keyword": "thrift store dresser vanity",
-      "style": "moody vintage",
+      "style": "home decor",
       "platform": "youtube"
     },
     "expect": {
@@ -47,9 +47,9 @@
     "id": "title-generate-003",
     "description": "Edge case: very long concept tests that titles remain within the recommended 80 to 100 character range",
     "input": {
-      "concept": "Complete living room makeover on a $200 budget using only thrift store finds, chalk paint, peel-and-stick wallpaper, and vintage brass accessories styled in a dark moody aesthetic",
+      "concept": "Complete living room makeover on a $200 budget using only thrift store finds, chalk paint, peel-and-stick wallpaper, and vintage brass accessories styled in a stylized aesthetic",
       "primary_keyword": "budget living room makeover",
-      "style": "moody vintage",
+      "style": "home decor",
       "platform": "youtube"
     },
     "expect": {

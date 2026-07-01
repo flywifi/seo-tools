@@ -69,7 +69,7 @@ If a draft exceeds the field limit, trim body copy first, preserve the leading k
 
 - Titles must open with the primary keyword phrase, not a brand name or article.
 - Descriptions must place the most important keyword in the first clause of the first sentence.
-- Use specific, concrete vocabulary: "dark moody bedroom with jewel-tone velvet curtains" outperforms "beautiful room ideas."
+- Use specific, concrete vocabulary: "home decor bedroom with jewel-tone velvet curtains" outperforms "beautiful room ideas."
 - CTAs in descriptions are action-oriented and Pinterest-native: "Save this for your next room refresh," "Pin it and shop the look," or "Click through for the full tutorial."
 - Do not open with "I" or the brand name; open with the subject keyword.
 - No em dashes anywhere in the output.

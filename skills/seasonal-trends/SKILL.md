@@ -11,7 +11,7 @@ load: always
 
 Builds a seasonal content strategy for a defined planning window in the moody/vintage home decor and DIY niche. The skill maps topic seeds to the four recurring seasonal peaks that drive audience engagement for this channel:
 
-- Fall mantel: September to October
+- Seasonal decor: September to October
 - Holiday tablescapes: November to December
 - Spring refresh: March to April
 - Summer outdoor: May to June

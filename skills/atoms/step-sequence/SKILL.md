@@ -7,7 +7,7 @@ load: when a DIY home decor project needs a numbered build sequence with safety 
 
 # step-sequence
 
-Generate a structured, numbered step-by-step build process for a DIY home decor project in the creator's niche (moody-vintage home decor and DIY). Each step must explain what to do, briefly explain why it matters for the result, include a safety note when the action carries physical risk, and tag a b-roll filming opportunity so the step can feed directly into a production checklist or script.
+Generate a structured, numbered step-by-step build process for a DIY home decor project in the creator's niche (home decor and DIY). Each step must explain what to do, briefly explain why it matters for the result, include a safety note when the action carries physical risk, and tag a b-roll filming opportunity so the step can feed directly into a production checklist or script.
 
 ## Purpose
 

@@ -12,7 +12,7 @@ Generate title options for one concept.
 {
   "concept": "string",
   "primary_keyword": "string",
-  "style": "the aesthetic style label, for example moody vintage",
+  "style": "the aesthetic style label, for example vintage or modern",
   "platform": "youtube"
 }
 ```

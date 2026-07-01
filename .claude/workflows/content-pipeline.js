@@ -85,7 +85,7 @@ const REVIEW_SCHEMA = {
   required: ['composite_score', 'pass'],
 }
 
-const topic = args || 'moody vintage home decor video'
+const topic = args || 'home decor video'
 const READ_ONLY_RULES = `## Operating rules
 You are a READ-ONLY research agent. You MUST NOT create, edit, write, or delete any files.
 You MUST NOT run any command that modifies the filesystem, make commits, or push to any branch.
@@ -99,7 +99,7 @@ log(`Starting keyword research for: ${topic}`)
 const research = await agent(
   `${READ_ONLY_RULES}
 
-You are an SEO research agent for Creator OS (moody-vintage home decor / DIY niche, YouTube creator).
+You are an SEO research agent for Creator OS (home decor / DIY niche, YouTube creator).
 
 Research keywords and search intent for this topic: "${topic}"
 
@@ -146,7 +146,7 @@ Verification checklist:
 1. Source citations: does each cited source exist in canonical-sources/source-registry.json or is it a real URL?
 2. Unsourced numbers: are there specific numbers without a corresponding citation? Flag each one.
 3. Confidence-tier alignment: if confidence is "high", is there at least 1 T1 source?
-4. Keyword claims: are the intent classifications plausible for the moody-vintage home decor niche?
+4. Keyword claims: are the intent classifications plausible for the home decor niche?
 5. Trend directions: are any claimed "rising" trends actually flat or declining based on available data?
 
 Default to flagging if uncertain.`,
@@ -166,8 +166,8 @@ log(`Drafting content using keyword brief: ${keywordBrief}`)
 const draft = await agent(
   `${READ_ONLY_RULES}
 
-You are a content drafting agent for Creator OS. The creator is Alexandra (Alex) Slason,
-moody-vintage home decor / DIY niche, Orlando FL.
+You are a content drafting agent for Creator OS. The creator is the creator,
+home decor / DIY niche, [creator's location].
 
 Draft a video script for this topic: "${topic}"
 Keyword brief: ${keywordBrief}

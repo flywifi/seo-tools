@@ -200,8 +200,8 @@ Build one keyword cluster for one topic and platform.
 - Writing the SEO description (that is video-development or document-studio).
 
 ## Pipeline note
-Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. A moody
-or vintage keyword library (for example, "dark collected vintage," "jewel tone interiors") seeds the
+Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. The
+creator's niche keyword library (configured via `creator-profile.local.json`) seeds the
 cluster. Obeys `protocols/no-fabrication.md`.
 
 ---
@@ -337,7 +337,7 @@ Generate title options for one concept.
 {
   "concept": "string",
   "primary_keyword": "string",
-  "style": "the aesthetic style label, for example moody vintage",
+  "style": "the aesthetic style label, for example vintage or modern",
   "platform": "youtube"
 }
 ```
@@ -413,7 +413,7 @@ The seven supported section types are:
 ```json
 {
   "section_type": "hook | intro | body-step | broll-cue | transition | cta | outro (required)",
-  "topic": "string (required) -- the video topic or project title, e.g. 'dark moody bookshelf makeover'",
+  "topic": "string (required) -- the video topic or project title, e.g. 'stylized bookshelf makeover'",
   "step_content": "string (optional, required when section_type is body-step) -- the specific step action and detail to convert into spoken script",
   "target_duration_seconds": "integer (optional) -- desired spoken length for this section in seconds",
   "platform": "youtube | shorts (optional, default youtube) -- determines opening-window timing and CTA norms"
@@ -460,7 +460,7 @@ Output rules:
 - Do not fabricate product names, brand timings, measurements, or prices. If the input step_content
   references specifics, carry them through; do not invent new ones.
 - Never use em dashes. Write ranges with "to" per `protocols/formatting-metadata.md`.
-- Voice anchors to the moody-vintage aesthetic and the bungalow context from `shared/brand-engine.md`.
+- Voice anchors to the home decor aesthetic and the bungalow context from `shared/brand-engine.md`.
   Warm, conversational, imperfect-is-fine energy.
 
 ## Do NOT use for
@@ -653,7 +653,7 @@ names, video titles, subscriber counts, view counts, or specific metrics.
 }
 ```
 
-- `topic`: a keyword phrase or content concept (for example, "dark moody bedroom makeover" or
+- `topic`: a keyword phrase or content concept (for example, "home decor bedroom makeover" or
   "vintage thrift flip DIY").
 - `platform`: one of the three supported platforms. Pass one platform per call; run the atom twice
   for cross-platform comparison.

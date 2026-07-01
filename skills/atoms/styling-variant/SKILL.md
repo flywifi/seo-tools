@@ -12,7 +12,7 @@ load:
 
 ## Purpose
 
-This atom takes a finished home decor project and produces 2 to 3 aesthetic variants that rework its look without changing its structure or construction steps. Each variant stays grounded in the moody-vintage aesthetic base that defines the Creator OS brand, then shifts one or more design levers (color palette, texture, hardware finish, fabric weight, patina level) to reach a distinct but believable alternate mood.
+This atom takes a finished home decor project and produces 2 to 3 aesthetic variants that rework its look without changing its structure or construction steps. Each variant stays grounded in the home decor aesthetic base that defines the Creator OS brand, then shifts one or more design levers (color palette, texture, hardware finish, fabric weight, patina level) to reach a distinct but believable alternate mood.
 
 Variants deliver actionable swap suggestions written in descriptive sensory language ("aged brass hardware", "linen drop cloth", "deep terracotta limewash") rather than specific product SKUs or prices. The atom surfaces persona alignment and rough effort and budget direction so downstream spokes can route the variants to the right content format or audience segment.
 
@@ -21,7 +21,7 @@ Variants deliver actionable swap suggestions written in descriptive sensory lang
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `project_title` | string | yes | Human-readable name of the completed project (e.g., "Vintage Arched Mirror Makeover") |
-| `base_aesthetic` | string | yes | Starting aesthetic mood of the original project (e.g., "moody vintage", "dark cottagecore") |
+| `base_aesthetic` | string | yes | Starting aesthetic mood of the original project (e.g., "home decor", "rustic farmhouse") |
 | `target_personas` | list of strings | no | Persona labels from `shared/audience-engine.md`; when omitted, the atom selects the best-fit personas from the brand roster |
 
 ## Output

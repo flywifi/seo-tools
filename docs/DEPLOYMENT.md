@@ -86,7 +86,7 @@ requires a local upgrade.
    - `08-key-atoms.md`
 7. Wait for all files to finish processing (the spinner stops).
 8. Start a new conversation inside the project and try:
-   > Plan a dark moody fall mantel makeover video.
+   > Plan a seasonal home decor project makeover video.
 
 **Connect Google Workspace (optional but recommended):**
 
@@ -176,7 +176,7 @@ model = genai.GenerativeModel(
     model_name="gemini-2.0-flash",
     system_instruction=system_instruction,
 )
-response = model.generate_content("Plan a dark moody fall mantel video")
+response = model.generate_content("Plan a seasonal home decor project video")
 ```
 
 See `implementation/gemini/README.md` for notes on Gemini-specific limitations.

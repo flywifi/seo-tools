@@ -458,17 +458,17 @@ Source: pinterest-creator-hub-seo, pinterest-business-specs (verify weekly).
 
 5. **Image quality signals** — Tall 2:3 format (1000x1500) consistently outperforms square and
    landscape. Text overlay on the image improves CTR in search results. High-contrast, warm-toned
-   images perform well in the home decor niche — consistent with the moody-vintage aesthetic.
+   images perform well in the home decor niche — consistent with the home decor aesthetic.
 
 6. **Entity recognition (2026)** — Pinterest's algorithm added entity recognition in 2026.
    Named entities in pin titles and descriptions (specific brands, furniture terms, techniques)
    now influence recommendation matching alongside keyword signals. Use entity-rich descriptions:
-   "Rust-Oleum Chalked Paint in Linen White on a 1920s dresser" is processed differently from
+   "Rust-Oleum Chalked Paint in Linen White on a vintage dresser" is processed differently from
    "painted vintage furniture."
 
 7. **Real-time engagement processing (2026)** — Interaction on one pin now immediately surfaces
    similar content from that account to the engaged user. This means a viewer who saves a "dark
-   fall mantel" pin will see the account's other dark or fall pins surfaced within the same
+   seasonal decor" pin will see the account's other dark or fall pins surfaced within the same
    session. Series and thematically consistent content compounds faster than it did before this
    change.
 
@@ -481,16 +481,16 @@ Source: pinterest-creator-hub-seo, pinterest-business-specs (verify weekly).
 
 ## Topical authority model
 
-A single video on "dark fall mantel" competes against every other video on that exact keyword.
+A single video on "seasonal home decor" competes against every other video on that exact keyword.
 A cluster of related videos signals to both YouTube and Google that the channel has authority
 on the subject, which earns better recommendation placement for all videos in the cluster.
 
 **Hub-and-cluster pattern:**
 - One hub video: comprehensive, long-form, targets the broadest version of the keyword
-  ("Complete Dark Moody Fall Mantel Guide")
+  ("Complete Seasonal Home Decor Guide")
 - Three to five satellite videos: specific angles, shorter, target long-tail variations
   ("How to layer candlesticks for a moody fall look," "The one thrift store find that transformed
-  my fall mantel," "Dark fall mantel on a $30 budget")
+  my seasonal decor," "Seasonal decor on a $30 budget")
 
 Each satellite video mentions and links to the hub in the description. The hub links to each
 satellite in cards and the description. YouTube's Suggested algorithm rewards the resulting
@@ -517,7 +517,7 @@ it alongside related content searches.
 
 - Name specific items. "Rust-Oleum Chalked Paint in Linen White" is more indexable than
   "white chalk paint."
-- Name specific places when relevant. "Goodwill Orlando" or "Habitat for Humanity ReStore" is
+- Name specific places when relevant. "local thrift store" or "Habitat for Humanity ReStore" is
   more indexable than "the thrift store."
 - Spell out entity names in full. Avoid acronyms, shorthand, and nicknames that differ from the
   common search term.
@@ -537,7 +537,7 @@ brands, furniture terms, architectural elements, lighting, textiles, decorative 
 
 Long-tail keywords (3 to 6 words, lower competition, clearer intent) drive the majority of
 search traffic for new channels. A new channel cannot out-compete established channels on
-"fall mantel ideas" but can rank on "moody dark fall mantel on a budget" or "thrift store finds
+"seasonal decor ideas" but can rank on "seasonal home decor on a budget" or "thrift store finds
 for fall mantel decor."
 
 **Five-method expansion sequence — traverse 2 levels from each seed:**
@@ -567,7 +567,7 @@ autocomplete tools but convert well because they reflect real intent.
 
 **5. Product search adjacency**
 Searching Etsy and Amazon for niche-adjacent products (antique brass candlesticks, dark green
-velvet curtains, moody vintage wall art) surfaces keyword variants used by buyers. Buyer
+velvet curtains, stylized home decor) surfaces keyword variants used by buyers. Buyer
 language and searcher language have substantial overlap for decorating content.
 
 **Depth rule:** traverse exactly 2 levels from each seed keyword. Beyond 2 levels the queries

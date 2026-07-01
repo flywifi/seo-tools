@@ -3,7 +3,7 @@ file: skills/atoms/pitch-paragraph/SKILL.md
 name: pitch-paragraph
 description: >
   Write the personalized pitch paragraph for a brand partnership outreach email or media kit.
-  Anchors to a specific brand, connects the creator's moody-vintage aesthetic and audience to the brand's
+  Anchors to a specific brand, connects the creator's home decor aesthetic and audience to the brand's
   product category, and proposes a concrete content format. Outputs the pitch paragraph, three
   subject line options, and personalization notes for the sender to verify before use. Do NOT use
   to send emails, post to any external system, or produce final outreach copy without human review.
@@ -81,7 +81,7 @@ The paragraph should:
 1. Open with a one-sentence connection that names the brand and its product category alongside a
    specific element of the creator's aesthetic or audience (not a generic compliment).
 2. Describe in one to two sentences how the partnership serves the creator's audience -- what problem the
-   product solves or what mood it supports for the moody-vintage home decor viewer.
+   product solves or what mood it supports for the home decor viewer.
 3. Propose the specific content format with a concrete framing (for example: "a dedicated video
    walking through a dark-and-moody bedroom refresh anchored by [Brand]'s hardware line").
 4. Close with a clear, low-friction call to action (offer to send the media kit, suggest a brief
@@ -118,7 +118,7 @@ Add additional notes for any metric, claim, or product detail the sender should 
   Use a spoke that sequences this atom with other writing atoms.
 - Producing final ready-to-send copy without human review. `personalization_notes` must be resolved
   by the sender before the email goes out.
-- Generating pitch paragraphs for product categories unrelated to moody-vintage home decor, DIY,
+- Generating pitch paragraphs for product categories unrelated to home decor, DIY,
   thrifting, seasonal decor, or outdoor living. Out-of-niche pitches misrepresent the creator's audience
   and brand.
 - Inventing past campaign results, engagement metrics, subscriber counts, or brand endorsements.

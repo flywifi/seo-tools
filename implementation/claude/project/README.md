@@ -67,7 +67,7 @@ and notes what the upgrade path is.
 
 Start a new conversation inside the project and try:
 
-> Plan a dark moody fall mantel makeover video.
+> Plan a seasonal home decor project makeover video.
 
 You should see the hub classify your request as Content lane, route to
 video-development, and produce a structured output with hooks, title options,

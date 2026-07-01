@@ -31,7 +31,7 @@ names, video titles, subscriber counts, view counts, or specific metrics.
 }
 ```
 
-- `topic`: a keyword phrase or content concept (for example, "dark moody bedroom makeover" or
+- `topic`: a keyword phrase or content concept (for example, "home decor bedroom makeover" or
   "vintage thrift flip DIY").
 - `platform`: one of the three supported platforms. Pass one platform per call; run the atom twice
   for cross-platform comparison.

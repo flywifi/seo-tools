@@ -29,7 +29,7 @@ occasion). It does NOT produce a materials list or step sequence; those are sepa
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `project_idea` | string | yes | Free-text description of the project (e.g., "moody fall mantel makeover"). |
+| `project_idea` | string | yes | Free-text description of the project (e.g., "seasonal home decor makeover"). |
 | `skill_level` | string | no | beginner / intermediate / advanced. Defaults to unspecified. |
 | `tenure` | string | no | renter / owner / unspecified. Drives renter_friendly flag. |
 | `budget_tier` | string | no | budget / mid_range / premium / unspecified. |
@@ -52,7 +52,7 @@ occasion). It does NOT produce a materials list or step sequence; those are sepa
   "budget_tier": "budget | mid_range | premium | unspecified",
   "renter_friendly": "boolean | null",
   "season_or_occasion": "string | null",
-  "aesthetic_notes": "string - one to two sentences grounding the project in the creator's moody-vintage aesthetic",
+  "aesthetic_notes": "string - one to two sentences grounding the project in the creator's home decor aesthetic",
   "content_angles": ["array of 2 to 4 one-line content angle ideas derived from the transformation arc"],
   "flags": ["array of any missing inputs or design concerns; empty array if none"]
 }
