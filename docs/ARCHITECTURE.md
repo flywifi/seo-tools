@@ -378,6 +378,54 @@ returned, never retries silently, and never fabricates API fields.
 
 ---
 
+## Agent orchestration
+
+Creator OS uses subagents for large research tasks that span multiple sources, platforms, or
+citation chains. The orchestration model is defined in `shared/research-orchestration-engine.md`.
+
+**Read-only mandate.** All subagents are read-only research tools. They read files, query MCP
+tools and APIs, search the web, and return structured findings. They never create, edit, write,
+or delete files. They never commit or push. The main loop (or the user) is the only actor that
+modifies the repository.
+
+**Four agent roles:**
+
+| Agent | Purpose | Scoped tools |
+|---|---|---|
+| seo-researcher | Multi-source SEO research, keyword expansion, trend analysis | cache_query, source_staleness, WebSearch, WebFetch |
+| competitor-analyst | Deep competitor intelligence, entity extraction, gap analysis | competitor_scan, cache_query, source_staleness, WebFetch |
+| content-writer | Script, caption, pin, and pitch drafting with full voice context | cache_query, quality_score |
+| deal-reviewer | Deal evidence audit, usage rights, exclusivity, quality scoring | quality_score |
+
+Agent definitions live in `.claude/agents/`. Each definition is a system prompt that includes
+the read-only operating rules, scoped engine and protocol lists, permitted data sources, and
+the JSON output format.
+
+**Structured output.** Every agent returns JSON conforming to a schema in `shared/schemas/`.
+Schemas are passed via the `schema` option on the `agent()` call in workflow scripts. The
+workflow runtime validates the return and retries on schema mismatch.
+
+**Workflow scripts.** `.claude/workflows/` contains executable JavaScript workflow scripts for
+the Claude Code Workflow tool. Each script orchestrates multiple agent calls with deterministic
+control flow (sequential dependencies, parallel fan-out, quality gate loops). Available workflows:
+
+| Workflow | What it orchestrates |
+|---|---|
+| content-pipeline.js | Research, draft, and quality review for content production |
+| competitor-deep-dive.js | Multi-target competitor scanning with gap analysis |
+| seasonal-planning.js | Trend research, keyword expansion, and calendar assembly |
+| deal-review.js | Evidence audit, rights check, exclusivity check, and scoring |
+
+**When to use agents.** Spawn agents only when: the research spans 3 or more sources, requires
+multi-platform comparison, involves deep competitor analysis, or follows a citation chain. Single
+lookups and narrow questions are handled inline by the main loop.
+
+**Information flow.** Agents gather and return. The main loop aggregates, deduplicates, resolves
+conflicts between agent findings, synthesizes recommendations, and presents results to the user.
+Aggregation is never delegated to an agent.
+
+---
+
 ## Quality Gates
 
 The quality gate is defined in `protocols/quality-gates.md`. No artifact (content, document, or

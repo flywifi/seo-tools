@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Competitor Analysis Agent Output",
+  "description": "Structured output from the competitor-analyst agent. Used by competitor-deep-dive workflow.",
+  "type": "object",
+  "required": ["competitor", "sources_consulted", "retrieval_gaps", "confidence"],
+  "properties": {
+    "competitor": {
+      "type": "object",
+      "required": ["name", "platform"],
+      "properties": {
+        "name": { "type": "string" },
+        "platform": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "content_pillars": { "type": "array", "items": { "type": "string" } },
+    "video_tags": {
+      "type": "array",
+      "description": "Hidden tags extracted from page metadata (e.g. ytInitialPlayerResponse)",
+      "items": { "type": "string" }
+    },
+    "hashtags": { "type": "array", "items": { "type": "string" } },
+    "entity_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["entity", "type"],
+        "properties": {
+          "entity": { "type": "string" },
+          "type": { "type": "string", "enum": ["brand", "product", "place", "technique"] },
+          "frequency": { "type": "integer" },
+          "niche_fit": { "type": "string", "enum": ["high", "medium", "low"] }
+        }
+      }
+    },
+    "keyword_gaps": {
+      "type": "array",
+      "description": "Keywords the competitor targets that the creator does not",
+      "items": { "type": "string" }
+    },
+    "format_gaps": {
+      "type": "array",
+      "description": "Content formats the competitor uses that the creator does not",
+      "items": { "type": "string" }
+    },
+    "sources_consulted": { "type": "array", "items": { "type": "string" } },
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "discovered_sources": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "string", "enum": ["high", "medium", "low"] }
+  }
+}

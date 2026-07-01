@@ -131,6 +131,29 @@ Always return both parts.
 ### JSON routing object
 The schema above, fully populated.
 
+## Agent dispatch
+
+When a request is large enough to warrant parallel research (3+ sources, multi-platform comparison,
+deep competitor analysis, or citation chain traversal), the hub may recommend agent dispatch in the
+routing object. The decision to spawn agents belongs to the operator, not the hub.
+
+Add `"agent_dispatch"` to the routing object when recommending multi-agent research:
+```json
+"agent_dispatch": {
+  "recommended": true,
+  "agents": ["seo-researcher", "competitor-analyst"],
+  "reason": "Multi-platform keyword comparison spanning 4 platforms and 3 competitor channels",
+  "workflow": "competitor-deep-dive"
+}
+```
+
+Set `"agent_dispatch": null` when the task does not warrant agents. Most requests do not.
+
+**Rules:**
+- Agents are read-only. They return structured findings; the main loop writes changes.
+- Never recommend agent dispatch for single-source lookups, simple CRM reads, or narrow questions.
+- Reference `shared/research-orchestration-engine.md` for the full orchestration protocol.
+
 ## Hard rules
 - Do not generate the final content or document in the same turn unless the user explicitly asks for it.
 - Do not infer pipeline field values from prose descriptions; require structured input or flag as `unresolved`.

@@ -247,6 +247,7 @@ python3 tools/competitor_snapshot.py --export-summary
 | Gemini Gem export packaging | Yes | Yes | No | No | N/A |
 | Custom GPT export packaging | Yes | Yes | N/A | N/A | No |
 | Subagent workflows (content-pipeline, etc.) | Yes | No | No | No | No |
+| Agent orchestration (read-only research agents) | Yes | No | No | No | No |
 | Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | Yes | No | No |
 | Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial | No | No |
 | Channel context from channel-context.json | Yes | Manual paste | Manual paste | No | No |

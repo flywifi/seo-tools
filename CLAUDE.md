@@ -45,6 +45,22 @@ python3 tools/sync_check.py                       # must pass
 Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for" clause) and
 `MAINTAINER_README.md`. Spokes carry a `workflow.json` that composes atoms.
 
+## Agent orchestration
+- Subagents are **read-only research tools**. They read files, query MCP tools, search the web,
+  and return structured findings. They never create, edit, write, or delete files. They never
+  commit or push. The main loop aggregates findings and proposes changes to the user.
+- Every agent prompt must include the read-only operating rules block from
+  `shared/research-orchestration-engine.md`.
+- Agent output must use a JSON Schema (passed via the `schema` option on `agent()` in workflows,
+  or via structured output conventions in ad-hoc Agent tool calls). Prose-only agent returns are
+  not acceptable for multi-agent pipelines.
+- Spawn agents only when the task spans 3+ sources, requires multi-platform comparison, deep
+  competitor analysis, or citation chain traversal. Single-source lookups do not warrant an agent.
+- Agent definitions live in `.claude/agents/`. Workflow scripts live in `.claude/workflows/`.
+  Structured output schemas live in `shared/schemas/`.
+- The four agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
+  `deal-reviewer`. Each has a scoped tool list and engine set defined in its agent definition file.
+
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
 - No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).
   Internal docs (SKILL.md, engine files, protocol files, architecture docs) may use em dashes freely.
