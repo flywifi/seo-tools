@@ -1,68 +1,43 @@
----
-file: skills/atoms/ab-test/MAINTAINER_README.md
-purpose: preserve the non-negotiable operating rules for ab-test so it stays stable under iteration.
----
+# ab-test — Maintainer Reference
 
-# ab-test: Maintainer README
+## What this atom does
 
-## Purpose
+Designs A/B test experiments (computing sample size, duration, power) and analyzes results
+(determining winner, p-value, effect size) for content optimization experiments. Delegates
+computation via `shared/compute-engine.md` and references `shared/platform-engine.md` for
+platform-specific metric context.
 
-The ab-test atom designs and analyzes A/B tests for creator content experiments —
-thumbnail variants, title variants, posting time, format comparisons — in the
-moody-vintage home decor and DIY niche. In design mode it computes required sample
-size, test duration estimate, and statistical power. In analyze mode it computes
-significance, effect size, and declares a winner or no-call. Its job ends at
-experiment design or result interpretation — it does not run standalone hypothesis
-tests (use hypothesis-test) or model relationships between variables (use
-regression-analysis).
+## Invariants
 
-## Non-negotiable invariants
+1. Design mode always outputs `sample_size_per_variant` and `total_sample_size`. If duration
+   cannot be estimated (no impression volume data), `estimated_duration_days` is null with
+   an explanation — never fabricated.
+2. Analyze mode never declares a winner without a computed p-value below alpha. If
+   `computation_source` is `guidance_only`, `winner` is `no_significant_difference` with a note
+   that results need computation to confirm.
+3. `minimum_detectable_effect` values above 0.50 trigger a warning. Values above 1.0 are rejected.
 
-1. References the pipeline (`shared/method.md`); self-checks against
-   `protocols/quality-gates.md`; obeys `protocols/no-fabrication.md` and
-   `protocols/formatting-metadata.md`.
-2. Sample size must be computed from effect size, alpha, and power — never guessed,
-   hardcoded, or pulled from a rule of thumb.
-3. Minimum detectable effect must be stated in every design-mode output.
-4. Underpowered tests must be flagged with an explicit warning when power < 0.8;
-   the atom must refuse to declare a winner on underpowered data.
-5. Analyze mode must verify that the experiment ran long enough (minimum duration
-   met) before declaring a winner.
-6. Never fabricate conversion rates, lift percentages, p-values, or sample sizes.
-   Null and flag instead.
-7. When no computation tool is connected, output must be clearly labeled
-   "guidance-only" and include runnable code the creator can execute elsewhere.
+## Failure modes
 
-## Known failure modes
+1. **Underpowered test.** In analyze mode, if observed n < required n for the given MDE, the atom
+   flags the test as underpowered and marks the result as directional only.
+2. **No computation tool connected.** Both modes produce guidance-only output with runnable code.
+   Design mode can still emit the sample size formula. Analyze mode cannot declare a winner.
+3. **Continuous metric submitted as counts.** If the user provides raw values instead of
+   successes/impressions for a rate metric, the atom routes to hypothesis-test internally.
 
-1. Declaring a winner on an underpowered test — violates invariant 4 and
-   produces unreliable recommendations.
-2. Sample size pulled from a rule of thumb or industry default instead of
-   computed from the caller's specific parameters.
-3. Ignoring early stopping bias (peeking) — reporting significance from
-   interim checks without adjusting for multiple looks.
-4. Confusing per-variant sample size with total sample size, leading to an
-   experiment that runs at half the required power.
+## Regression cases (map to evals/evals.json)
 
-## Regression cases to preserve
-
-1. Design mode with a CTR baseline of 3.5% and a 20% target lift produces a
-   computed sample size per variant, estimated duration, minimum detectable
-   effect, and power confirmation.
-2. Analyze mode with two thumbnail variants and adequate data produces a winner
-   declaration with p-value, effect size, and a plain-language conclusion.
-3. Analyze mode with insufficient sample size flags underpowered status (power
-   < 0.8) and refuses to declare a winner, returning an insufficient-data
-   conclusion instead.
-4. No computation tool connected returns guidance-only output with runnable code
-   and a clear "guidance-only" label.
+| # | Case | Eval ID |
+|---|---|---|
+| 1 | Design mode — sample size for thumbnail CTR test | ab-001 |
+| 2 | Analyze mode — clear winner with sufficient data | ab-002 |
+| 3 | Analyze mode — underpowered test flagged | ab-003 |
+| 4 | No computation tool — guidance-only output | ab-004 |
 
 ## Update checklist
 
-1. Edit the canonical file (`skills/atoms/ab-test/SKILL.md` or engine references).
-2. Run evals: verify all cases in `evals/evals.json` still pass.
-3. Confirm sample-size computation path never falls back to a hardcoded value.
-4. Check that the underpowered-warning path still triggers and blocks winner
-   declaration.
-5. Update `STATE.md` if a phase boundary was crossed.
-6. Run `python3 tools/sync_check.py` — must exit 0.
+1. If `shared/platform-engine.md` CTR benchmarks change, update Step 6 interpretation thresholds.
+2. If `shared/compute-engine.md` tool matrix changes, update Step 2.
+3. Re-run all evals after any change.
+4. Run `python3 tools/sync_check.py`.

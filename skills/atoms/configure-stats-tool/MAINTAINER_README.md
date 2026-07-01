@@ -1,64 +1,44 @@
----
-file: skills/atoms/configure-stats-tool/MAINTAINER_README.md
-purpose: preserve the non-negotiable operating rules for configure-stats-tool so it stays stable under iteration.
----
+# configure-stats-tool — Maintainer Reference
 
-# configure-stats-tool: Maintainer README
+## What this atom does
 
-## Purpose
+Guides the user through configuring a statistical MCP server for Creator OS. Detects OS, checks
+prerequisites, generates a Claude Desktop config JSON block, emits environment variable instructions,
+writes an enabled flag to `creator-os-config.local.json`, and suggests a verification prompt.
+Supports 8 tools: Wolfram Alpha, E2B, DuckDB, stats-compass, Jupyter, R, Monte Carlo, scikit-learn.
 
-The configure-stats-tool atom guides the creator through connecting and configuring
-statistical computation tools for Creator OS. It checks the current connector status
-in `shared/connectors/connectors.json`, identifies which tools are available (stats-compass
-MCP, E2B Python sandbox, R statistics, DuckDB), and provides step-by-step setup
-instructions including a verification step for each tool. Its job ends at configuration
-guidance -- it does not run computations (use hypothesis-test, regression-analysis,
-forecast, or data-query) or manage non-stats connectors.
+## Invariants
 
-## Non-negotiable invariants
+1. This atom **never writes to `shared/connectors/connectors.json`**. It writes only to
+   `creator-os-config.local.json` (gitignored). The canonical connector registry is maintained
+   separately.
+2. The atom never asks the user to paste API keys into the chat. It instructs them to set
+   environment variables instead.
+3. Config blocks are always valid JSON that can be merged into Claude Desktop config without
+   modification (except for placeholder values like `<your_app_id>`).
 
-1. **Shared:** references the pipeline (`shared/method.md`); self-checks against
-   `protocols/quality-gates.md`; obeys `protocols/no-fabrication.md` and
-   `protocols/formatting-metadata.md`.
-2. **No secrets in tracked files:** never write API keys, tokens, or secrets to any
-   committed file. All credentials go in `creator-os-config.local.json` or
-   `creator-os-connectors.local.json` (both gitignored).
-3. **Connector registry read:** must check `shared/connectors/connectors.json` for
-   current tool status before generating setup guidance. Never assume availability.
-4. **Verification step required:** every setup instruction sequence must include a
-   verification step that confirms the tool is reachable and functional.
-5. **No fabricated status:** never fabricate tool availability or connection status.
-   Report exactly what the connector registry shows.
+## Failure modes
 
-## Known failure modes
+1. **Prerequisites not met.** Node.js, Python, or R not installed. The atom lists what is missing
+   and provides installation commands — it does not skip silently.
+2. **Unknown tool name.** If the user requests a tool not in the supported list, the atom returns
+   an error with the list of supported tools.
+3. **`all` mode with partial prerequisites.** The atom configures tools whose prerequisites are
+   met and lists skipped tools with reasons.
 
-1. Writing an API key or token to a tracked file (e.g., `connectors.json` or a
-   skill config), exposing credentials in version control.
-2. Claiming a tool is connected when the connector registry shows it is offline or
-   not configured, misleading downstream atoms.
-3. Providing setup steps for a deprecated tool version that no longer matches the
-   current connector interface.
-4. Skipping the verification step, leaving the creator with a tool that appears
-   configured but cannot actually execute queries or computations.
+## Regression cases (map to evals/evals.json)
 
-## Regression cases to preserve
-
-1. When no tools are connected, the atom produces a full setup guide listing all
-   available options with verification steps for each.
-   (eval: `configure-stats-no-tools`)
-2. When one tool (e.g., stats-compass) is already connected, the atom returns a
-   status summary for that tool and only provides setup steps for unconfigured
-   tools. (eval: `configure-stats-partial`)
-3. When the user provides an API key, the atom writes it exclusively to a
-   `.local.json` file and never to `connectors.json` or any other tracked file.
-   (eval: `configure-stats-credential-safety`)
+| # | Case | Eval ID |
+|---|---|---|
+| 1 | Configure wolfram_alpha on macOS | cst-001 |
+| 2 | Configure duckdb_analytics — no API key needed | cst-002 |
+| 3 | Configure all tools — partial prerequisites | cst-003 |
 
 ## Update checklist
 
-1. Edit the canonical source in `skills/atoms/configure-stats-tool/`.
-2. Run evals: confirm all cases in `evals/evals.json` pass.
-3. Verify that `shared/connectors/connectors.json` schema has not drifted from
-   what the atom expects.
-4. Confirm credential-write paths still target only gitignored `.local.json` files.
-5. Update `STATE.md` if this change crosses a phase boundary.
-6. Run `python3 tools/sync_check.py` -- must exit 0.
+1. If a new MCP server package is released or renamed, update the relevant tool configuration
+   section in SKILL.md.
+2. If Claude Desktop config file paths change, update Step 1.
+3. If `creator-os-config.local.json` schema changes, update Step 5.
+4. Re-run all evals after any change.
+5. Run `python3 tools/sync_check.py`.

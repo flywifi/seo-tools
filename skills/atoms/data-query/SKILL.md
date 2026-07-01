@@ -1,7 +1,7 @@
 ---
 name: data-query
 atom: true
-description: "Executes SQL queries over local CSV, Parquet, and JSON files via DuckDB to answer creator data questions — top-performing videos, engagement breakdowns, revenue summaries. Returns structured result sets with provenance. Do NOT use for statistical testing (use hypothesis-test), regression modeling (use regression-analysis), or time-series forecasting (use forecast)."
+description: "Runs analytical SQL queries over local data files (CSV exports from YouTube Studio, Google Analytics, spreadsheets) via DuckDB MCP. Do NOT use for live API queries (use platform APIs) or keyword cache lookups (use cache_query MCP tool)."
 load:
   - shared/compute-engine.md
   - protocols/no-fabrication.md
@@ -9,157 +9,143 @@ load:
 
 # data-query
 
-Execute a SQL query over local data files (CSV, Parquet, JSON) using DuckDB and return a structured
-result set with column names, rows, row count, and computation provenance.
+Run analytical SQL queries over the creator's local data files — YouTube Studio CSV exports, Google
+Analytics exports, spreadsheets, or any tabular file — using DuckDB MCP. Returns structured
+columnar results ready for downstream atoms (hypothesis-test, regression-analysis, forecast) or
+direct creator review.
 
 ## Purpose
 
-The creator exports data from YouTube Studio, affiliate dashboards, and sponsorship trackers as
-CSV or JSON files. This atom lets the creator ask plain-language data questions — "What are my top
-10 videos by watch time?" or "Total revenue by month this year" — translates those into SQL, and
-executes them against the local files via DuckDB. When DuckDB is not connected, it produces the
-SQL and guidance for the creator to run it themselves.
+The creator exports data from YouTube Studio, Google Analytics, and spreadsheets regularly. This
+atom turns natural-language questions into SQL, executes the query via DuckDB, and returns clean
+results. It handles file discovery, schema inference, and query generation so the creator does not
+need to write SQL. When DuckDB is not connected, it emits the SQL for the user to run locally.
 
 ## When to invoke
 
-- "What are my top 10 videos by views?"
-- "Show me engagement rate by content pillar."
-- "Total revenue by month for 2026."
-- "How many videos did I publish each quarter?"
-- "Filter my data to only Shorts with over 10K views."
-- "Join my YouTube export with my sponsorship tracker."
-- Invoke directly or from a spoke that needs to query structured creator data.
+- "What are my top 10 videos by watch time this quarter?"
+- "Show me average CTR by content pillar."
+- "How many Shorts did I publish each month?"
+- "Sum my revenue by month for the last year."
+- "Which videos have more than 10K views but less than 5% CTR?"
+- "Join my YouTube data with my Google Analytics export."
+- Invoke directly or from a spoke that needs filtered or aggregated data before analysis.
 
 ## Do NOT use for
 
-- Statistical hypothesis testing — comparing groups for significance. Use `hypothesis-test`.
-- Regression modeling — fitting relationships between variables. Use `regression-analysis`.
-- Time-series forecasting — projecting future metrics. Use `forecast`.
-- A/B test design or analysis. Use `ab-test`.
-- Querying external APIs or live platform data. Use web-intel or platform-specific spokes.
+- Live API queries — fetching current data from YouTube, Instagram, or Pinterest APIs. Use the
+  platform's API connector or relevant spoke.
+- Keyword cache lookups — querying the scoop cache. Use the `cache_query` MCP tool directly.
+- Statistical testing — analyzing the data after querying. Use `hypothesis-test`, `regression-analysis`,
+  or `forecast` on the query results.
+- Data visualization — creating charts. Downstream spokes or tools handle charting from
+  data-query output.
 
 ## Inputs
 
 ```json
 {
-  "query_description": "string — plain-language description of what the creator wants to know",
-  "data_files": [
-    {
-      "path": "string — relative or absolute path to the data file",
-      "format": "csv | parquet | json",
-      "alias": "string — table alias for SQL (e.g., 'videos', 'revenue')"
-    }
-  ],
-  "sql": "optional string — explicit SQL query if the creator provides one"
+  "query_description": "string — natural-language description of what the user wants to know",
+  "data_files": ["path/to/file1.csv", "path/to/file2.csv"],
+  "sql": "string | null"
 }
 ```
 
-- `query_description`: required. Plain-language description of the data question. Used to generate
-  SQL if `sql` is not provided.
-- `data_files`: required. Array of one or more data file references. Each entry needs:
-  - `path`: path to the file on the creator's local system.
-  - `format`: the file format — `csv`, `parquet`, or `json`.
-  - `alias`: the table name to use in the SQL query.
-- `sql`: optional. If the creator provides an explicit SQL query, use it directly (after
-  validation). If omitted, generate SQL from `query_description`.
+- `query_description`: required. The user's question in plain language. Used to generate SQL if
+  `sql` is null, and always included in the output for traceability.
+- `data_files`: required. One or more paths to local data files (CSV, TSV, Parquet, JSON, or
+  Excel). DuckDB reads these directly. If a path is invalid, report it in `retrieval_gaps`.
+- `sql`: optional. If provided, execute this SQL directly (after safety validation). If null,
+  generate SQL from `query_description` and the inferred schema.
 
 ## Procedure
 
-### Step 1: validate inputs and inspect data files
+### Step 1: validate data files
 
-Confirm that `data_files` is non-empty and each entry has `path`, `format`, and `alias`.
+For each path in `data_files`:
+- Check that the file exists and is a supported format (CSV, TSV, Parquet, JSON, XLSX).
+- If a file does not exist or is unsupported, note it in `retrieval_gaps` and proceed with the
+  remaining files.
+- If no valid files remain, return an error with `retrieval_gaps` explaining the issue.
 
-If DuckDB is connected, run a schema inspection query on each file to discover column names and
-types:
-```sql
-DESCRIBE SELECT * FROM read_csv_auto('path/to/file.csv');
-```
-Use the discovered schema to validate or generate the SQL query.
+### Step 2: infer schema
 
-If DuckDB is not connected, ask the creator to describe the columns or infer from the
-`query_description`.
+If DuckDB is connected:
+- Use DuckDB's `DESCRIBE SELECT * FROM read_csv_auto('path')` to infer column names and types.
+- Present the schema to the query generator.
 
-### Step 2: generate or validate SQL
+If DuckDB is not connected:
+- Read the first 5 rows of each CSV to infer column names and approximate types.
+- Note that type inference is approximate in `retrieval_gaps`.
+
+### Step 3: generate or validate SQL
+
+If `sql` is null:
+- Generate a DuckDB-compatible SQL query from `query_description` and the inferred schema.
+- Use `read_csv_auto('path')` for CSV files, `read_parquet('path')` for Parquet, etc.
+- Prefer explicit column names over `SELECT *` for clarity.
 
 If `sql` is provided:
-- Parse and validate syntax.
-- Confirm all referenced table aliases match entries in `data_files`.
-- Check for dangerous operations (DROP, DELETE, UPDATE, INSERT) — refuse and explain that this
-  atom is read-only.
-
-If `sql` is not provided:
-- Translate `query_description` into a DuckDB-compatible SQL query.
-- Use `read_csv_auto()`, `read_parquet()`, or `read_json_auto()` functions matching each file's
-  format.
-- Prefer explicit column names over `SELECT *` when the schema is known.
-- Add `LIMIT 1000` if the query has no explicit limit to prevent unbounded result sets.
-
-### Step 3: check compute-engine tool selection
-
-Read `shared/compute-engine.md` Section 1 to identify the preferred tool for SQL queries:
-DuckDB analytics (preferred), E2B Python with pandas (alternative).
-
-Check connector availability. Set `computation_source` based on which tool is connected.
+- Validate that the SQL does not contain write operations (INSERT, UPDATE, DELETE, DROP, CREATE).
+  data-query is read-only.
+- Validate that file paths in the SQL match `data_files`.
 
 ### Step 4: execute query
 
-If DuckDB is connected:
-- Execute the SQL query against the data files.
-- Capture column names, all result rows, and the total row count.
+If DuckDB MCP is connected:
+- Execute the SQL query via DuckDB.
+- Capture column names, row data, and row count.
 - Set `computation_source` to `"duckdb"`.
 
-If DuckDB is not connected but E2B Python is available:
-- Generate equivalent pandas code: `pd.read_csv()` plus pandas query operations.
-- Execute via E2B and capture the result.
-- Set `computation_source` to `"e2b"`.
-
-### Step 5: fallback to guidance-only if no tool
-
-If no computation tool is connected (Level 4 in compute-engine fallback chain):
+If DuckDB is not connected:
 - Set `computation_source` to `"guidance_only"`.
-- Emit the generated SQL query and instructions for running it locally with DuckDB CLI or Python.
-- Set `rows` to null and `row_count` to null.
-- Label the output `[guidance-only — no computation engine connected]`.
+- Emit the generated SQL as `sql_executed` so the user can run it locally with DuckDB CLI
+  (`duckdb < query.sql`) or Python (`import duckdb; duckdb.sql("...")`).
+- Set `rows` to an empty array and `row_count` to 0.
+- Note in `retrieval_gaps`: "DuckDB MCP not connected. SQL provided for local execution."
 
-### Step 6: format and return
+### Step 5: format output
 
-Present results in a structured format. If the result set has more than 20 rows, summarize in the
-interpretation and include the full data in the `rows` array. Never truncate without noting it.
+Structure the result as a clean columnar response. If `row_count` exceeds 100, return the first
+100 rows and note the truncation in `retrieval_gaps` with the total count.
 
 ## Output
 
 ```json
 {
-  "columns": ["video_title", "views", "watch_time_hours"],
+  "query_description": "top 10 videos by watch time this quarter",
+  "columns": ["video_title", "watch_time_hours", "views", "ctr"],
   "rows": [
-    ["DIY Vintage Mirror Restoration", 45200, 312.5],
-    ["Moody Kitchen Makeover", 38100, 287.3]
+    ["DIY Dark Moody Bathroom", 142.5, 28400, 0.072],
+    ["Thrift Flip: Vintage Dresser", 98.3, 19200, 0.065]
   ],
-  "row_count": 2,
-  "sql_executed": "SELECT title AS video_title, views, watch_time_hours FROM read_csv_auto('videos.csv') ORDER BY views DESC LIMIT 10",
-  "computation_source": "duckdb | e2b | guidance_only",
-  "interpretation": "plain-language summary of the result anchored to the creator's question",
-  "data_files_used": ["videos.csv"],
+  "row_count": 10,
+  "sql_executed": "SELECT video_title, watch_time_hours, views, ctr FROM read_csv_auto('youtube_export.csv') WHERE upload_date >= '2026-04-01' ORDER BY watch_time_hours DESC LIMIT 10",
+  "schema": {
+    "video_title": "VARCHAR",
+    "watch_time_hours": "DOUBLE",
+    "views": "INTEGER",
+    "ctr": "DOUBLE"
+  },
+  "computation_source": "duckdb | guidance_only",
   "retrieval_gaps": []
 }
 ```
 
 - `columns`: array of column names in the result set.
-- `rows`: array of row arrays. Null when `computation_source` is `guidance_only`.
-- `row_count`: number of rows returned. Null when `computation_source` is `guidance_only`.
-- `sql_executed`: the exact SQL that was run (or would be run in guidance-only mode).
-- `computation_source`: provenance label per `shared/compute-engine.md`.
-- `interpretation`: plain-language summary of results. Always present even in guidance-only mode
-  (describes what the query will return).
-- `data_files_used`: list of file paths that were queried.
-- `retrieval_gaps`: notes on anything that could not be queried or verified.
+- `rows`: array of arrays, each inner array is one row matching the column order.
+- `row_count`: total rows returned (or total rows available if truncated).
+- `sql_executed`: the SQL that was run (or would be run in guidance-only mode). Always included
+  for transparency and reproducibility.
+- `schema`: inferred schema of the source data (column names and types).
+- `computation_source`: `"duckdb"` when the query was executed, `"guidance_only"` when SQL was
+  generated but not run.
 
 ## Fabrication rules
 
-Inherited from `protocols/no-fabrication.md` and `shared/compute-engine.md` Section 4:
-- Never invent query results, row counts, or aggregated values.
-- If no computation tool is connected, produce guidance-only output — never guess what the data
-  contains.
-- This atom is strictly read-only. Never generate SQL that modifies data.
-- If the creator's question cannot be answered from the provided data files, say so and describe
-  what additional data would be needed.
+Inherited from `protocols/no-fabrication.md`:
+- Never invent query results. Every row in `rows` must come from actual query execution.
+- In guidance-only mode, `rows` is empty — never populate it with example or placeholder data.
+- Never fabricate a schema. If schema inference fails, set `schema` to null and note it in
+  `retrieval_gaps`.
+- The `sql_executed` field must reflect the actual SQL, not a simplified or idealized version.
