@@ -1,6 +1,7 @@
 ---
 name: export-gpt
 atom: true
+standalone: true
 description: "Packages Creator OS for an OpenAI Custom GPT. Respects GPT constraints: 8K character instruction limit, Actions via OpenAPI, Code Interpreter available. Do NOT use for Gemini export (use export-gem) or Claude Desktop/Projects (see implementation/claude/)."
 load:
   - shared/brand-engine.md

@@ -1,0 +1,85 @@
+[
+  {
+    "id": "ingestroute-001",
+    "description": "Happy path: ingest a local brand contract DOCX file with default untrusted trust hint",
+    "input": {
+      "file_path": "/uploads/brand_contract_vintage_paint_co.docx",
+      "source": null,
+      "artifact_id": "doc_contract_001",
+      "trust_hint": "untrusted_external"
+    },
+    "expect": {
+      "artifact_id": "doc_contract_001",
+      "source": "upload",
+      "file_type": "docx",
+      "family": "document",
+      "ingestion_status": "content_ingested | metadata_only",
+      "extraction": {
+        "char_count": "integer >= 0",
+        "summary_for_model": "non-empty string"
+      },
+      "injection_scan_result": "CLEAN | REVIEW | QUARANTINE | BLOCK",
+      "ran_locally": true,
+      "tokens_spent_on_parse": 0
+    },
+    "prohibit": [
+      "tokens_spent_on_parse is greater than 0",
+      "ran_locally is false",
+      "ingestion_status is content_ingested when injection_scan_result is QUARANTINE or BLOCK",
+      "artifact_id changed from the caller-supplied value",
+      "content_category set to a specific value by this atom (should be unknown unless unambiguous from file type alone)"
+    ]
+  },
+  {
+    "id": "ingestroute-002",
+    "description": "Minimal input: cloud-sourced Google Drive file with no artifact_id and no trust_hint",
+    "input": {
+      "file_path": null,
+      "source": {
+        "provider": "google_drive",
+        "identifier": "1aBcDeFgHiJkLmNoPqRsTuVwXyZ"
+      }
+    },
+    "expect": {
+      "artifact_id": "non-empty string (auto-generated)",
+      "source": "google_drive",
+      "family": "document | spreadsheet | presentation | pdf | image | transcript | data | audio | video | archive | unknown",
+      "ingestion_status": "content_ingested | metadata_only | quarantined | send_back",
+      "injection_scan_result": "CLEAN | REVIEW | QUARANTINE | BLOCK",
+      "ran_locally": true,
+      "tokens_spent_on_parse": 0
+    },
+    "prohibit": [
+      "artifact_id is null or empty when no caller ID was provided (must auto-generate)",
+      "trust_hint treated as trusted_upload when omitted (default is untrusted_external)",
+      "tokens_spent_on_parse is greater than 0",
+      "both file_path and source populated simultaneously"
+    ]
+  },
+  {
+    "id": "ingestroute-003",
+    "description": "Edge case: file triggers QUARANTINE from injection guard; ingestion_status must be quarantined with no content reaching routing",
+    "input": {
+      "file_path": "/uploads/suspicious_media_kit.pdf",
+      "source": null,
+      "trust_hint": "untrusted_external"
+    },
+    "expect": {
+      "source": "upload",
+      "file_type": "pdf",
+      "family": "pdf",
+      "ingestion_status": "quarantined",
+      "injection_scan_result": "QUARANTINE",
+      "needs_more_info": "non-null gap-record object or prompt for the user",
+      "ran_locally": true,
+      "tokens_spent_on_parse": 0
+    },
+    "prohibit": [
+      "ingestion_status is content_ingested when injection_scan_result is QUARANTINE",
+      "extraction.summary_for_model contains the quarantined content text",
+      "routing_hint set to a specific lane when content is quarantined",
+      "needs_more_info is null when file is quarantined",
+      "quarantined content passed through to downstream routing or analysis"
+    ]
+  }
+]

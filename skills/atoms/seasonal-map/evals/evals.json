@@ -1,0 +1,65 @@
+[
+  {
+    "id": "seasonal-map-001",
+    "description": "Happy path: seasonal topic with current_month provided returns full timing and urgency classification",
+    "input": {
+      "topic": "fall mantel styling with vintage candlesticks and dried florals",
+      "current_month": 8
+    },
+    "expect": {
+      "tool": "seasonal-map",
+      "topic": "fall mantel styling with vintage candlesticks and dried florals",
+      "seasonal_type": "seasonal",
+      "peak_window": "present, references September to October range",
+      "publish_by": "present, references August date range",
+      "urgency": "immediate or upcoming",
+      "rationale": "present, explains seasonal classification and timing"
+    },
+    "prohibit": [
+      "em dashes as range separators",
+      "fabricated search volume or trend data",
+      "null peak_window or publish_by for a clearly seasonal topic"
+    ]
+  },
+  {
+    "id": "seasonal-map-002",
+    "description": "Minimal inputs: evergreen topic with no current_month returns plan_ahead urgency",
+    "input": {
+      "topic": "budget thrift store furniture flip using chalk paint"
+    },
+    "expect": {
+      "tool": "seasonal-map",
+      "seasonal_type": "evergreen",
+      "peak_window": null,
+      "publish_by": null,
+      "urgency": "plan_ahead or off_season",
+      "rationale": "present, explains why topic is evergreen"
+    },
+    "prohibit": [
+      "fabricated seasonal windows for an evergreen topic",
+      "em dashes",
+      "urgency of immediate or upcoming for an evergreen topic without current_month"
+    ]
+  },
+  {
+    "id": "seasonal-map-003",
+    "description": "Edge case: seasonal topic where the peak window has already passed for the current year",
+    "input": {
+      "topic": "spring refresh with light linen curtains and pastel vintage vases",
+      "current_month": 11
+    },
+    "expect": {
+      "tool": "seasonal-map",
+      "seasonal_type": "seasonal",
+      "peak_window": "present, references March to April range",
+      "publish_by": "present, references February to March date range",
+      "urgency": "off_season",
+      "rationale": "present, notes that the peak window has passed for this calendar year"
+    },
+    "prohibit": [
+      "urgency of immediate or upcoming when peak has passed",
+      "em dashes",
+      "fabricated trend momentum data"
+    ]
+  }
+]

@@ -1,0 +1,61 @@
+[
+  {
+    "id": "short-extract-001",
+    "description": "Happy path: long-form outline with requested clip count produces standalone clips with hooks",
+    "input": {
+      "longform_outline": "Video: Moody Vintage Bathroom Makeover on a Budget. Sections: 1) Before tour showing dated builder-grade fixtures. 2) Removing old mirror and light bar. 3) Painting vanity with dark chalk paint. 4) Installing peel-and-stick tile backsplash. 5) Styling with thrifted brass accessories, vintage apothecary jars, and moody art print. 6) Final reveal with before-and-after comparison.",
+      "clip_count": 3
+    },
+    "expect": {
+      "tool": "short-extract",
+      "clips": "array of exactly 3 objects",
+      "clips[].moment": "each clip names a specific moment from the outline",
+      "clips[].own_hook": "each clip has a standalone hook that works with no prior context",
+      "clips[].format": "each is one of: before_after | micro_tutorial | pov | satisfying",
+      "clips[].duration_seconds": "each is a positive integer",
+      "note": "present, confirms clips are standalone content"
+    },
+    "prohibit": [
+      "clips that assume the viewer has seen the full video",
+      "more or fewer than 3 clips",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "short-extract-002",
+    "description": "Minimal inputs: outline provided with default clip_count of 3",
+    "input": {
+      "longform_outline": "Video: Thrift Haul Styling. Sections: 1) Showing raw haul items on the table. 2) Cleaning and prepping a brass candlestick. 3) Arranging a shelf vignette with the haul finds."
+    },
+    "expect": {
+      "tool": "short-extract",
+      "clips": "array with at least 3 objects (default clip_count)",
+      "clips[].own_hook": "each present and standalone",
+      "clips[].format": "each is a valid format enum value"
+    },
+    "prohibit": [
+      "clips referencing full video context",
+      "em dashes",
+      "fabricated view counts or performance predictions"
+    ]
+  },
+  {
+    "id": "short-extract-003",
+    "description": "Edge case: very short outline with limited extractable moments tests clip quality over quantity",
+    "input": {
+      "longform_outline": "Video: Quick Candle Styling Tip. Sections: 1) Grouping three vintage brass candlesticks at varying heights on a dark wood tray.",
+      "clip_count": 3
+    },
+    "expect": {
+      "tool": "short-extract",
+      "clips": "array, each clip must be genuinely standalone even from limited source material",
+      "clips[].own_hook": "each has a hook that works independently",
+      "note": "present"
+    },
+    "prohibit": [
+      "clips that are abbreviated versions of the same single moment",
+      "em dashes",
+      "fabricated outline sections not present in the input"
+    ]
+  }
+]

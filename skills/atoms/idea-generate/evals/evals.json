@@ -1,0 +1,72 @@
+[
+  {
+    "id": "ideagenerate-001",
+    "description": "Happy path: generate 3 thrifting and antiques ideas for The Vintage Hunter in haul format with seasonal context",
+    "input": {
+      "pillar": "thrifting and antiques",
+      "persona": "The Vintage Hunter",
+      "format": "haul",
+      "seasonal_context": "fall 2026",
+      "count": 3
+    },
+    "expect": {
+      "tool": "idea-generate",
+      "ideas": "array of exactly 3 objects each with working_title, pillar, format, persona_served, hook_angle, scale",
+      "note": "non-empty string mentioning verifying trend claims via trend-check"
+    },
+    "prohibit": [
+      "ideas array has fewer or more than 3 entries",
+      "any idea missing working_title, pillar, format, persona_served, hook_angle, or scale",
+      "scale value other than quick_win, medium, or hero",
+      "pillar value not matching the input pillar (thrifting and antiques)",
+      "format value not matching the input format (haul)",
+      "fabricated trend or search-volume claims in hook_angle",
+      "em dashes in working_title or hook_angle"
+    ]
+  },
+  {
+    "id": "ideagenerate-002",
+    "description": "Minimal input: generate ideas with only pillar, persona, and format; no seasonal context",
+    "input": {
+      "pillar": "DIY and room makeovers",
+      "persona": "The Renter",
+      "format": "tutorial",
+      "count": 3
+    },
+    "expect": {
+      "tool": "idea-generate",
+      "ideas": "array of 3 objects each with working_title, pillar, format, persona_served, hook_angle, scale",
+      "note": "non-empty string"
+    },
+    "prohibit": [
+      "ideas array has fewer or more than 3 entries",
+      "any idea with persona_served not matching The Renter",
+      "any idea with pillar not matching DIY and room makeovers",
+      "seasonal references presented as confirmed trends without verification",
+      "scale value other than quick_win, medium, or hero"
+    ]
+  },
+  {
+    "id": "ideagenerate-003",
+    "description": "Edge case: unusual pillar-format combination (backyard and outdoor + review) to test the atom handles uncommon pairings",
+    "input": {
+      "pillar": "backyard and outdoor",
+      "persona": "The New Homeowner",
+      "format": "review",
+      "seasonal_context": null,
+      "count": 3
+    },
+    "expect": {
+      "tool": "idea-generate",
+      "ideas": "array of 3 objects each with all required fields",
+      "note": "non-empty string"
+    },
+    "prohibit": [
+      "ideas array is empty or has fewer than 3 entries",
+      "any idea that does not fit the backyard and outdoor pillar",
+      "any idea with format other than review",
+      "fabricated product review scores or brand endorsements",
+      "working_title that is generic and not specific to the moody-vintage home decor niche"
+    ]
+  }
+]

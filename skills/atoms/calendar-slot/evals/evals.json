@@ -1,0 +1,73 @@
+[
+  {
+    "id": "calendarslot-001",
+    "description": "Happy path: schedule a thrift flip video on a weekly cadence with existing slots to avoid",
+    "input": {
+      "working_title": "Dark Moody Thrift Flip: Turning a $12 Dresser Into a Statement Piece",
+      "publish_by_window": "before October 15",
+      "cadence": "weekly",
+      "existing_slots": ["2026-10-06", "2026-10-13"]
+    },
+    "expect": {
+      "tool": "calendar-slot",
+      "working_title": "Dark Moody Thrift Flip: Turning a $12 Dresser Into a Statement Piece",
+      "recommended_publish_date": "YYYY-MM-DD format, not conflicting with existing_slots",
+      "short_form_drop_dates": "array of 3 to 5 objects each with drop_number, date, platform_priority, timing_note",
+      "rationale": "non-empty string referencing cadence and conflict avoidances",
+      "conflicts_avoided": "array containing dates from existing_slots that were skipped",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "recommended_publish_date matches 2026-10-06 or 2026-10-13",
+      "short_form_drop_dates has fewer than 3 or more than 5 entries",
+      "human_review_required is false or missing",
+      "rationale contains fabricated engagement data or historical performance claims",
+      "short_form_drop_dates entries missing platform_priority field"
+    ]
+  },
+  {
+    "id": "calendarslot-002",
+    "description": "Minimal input: no existing_slots provided, biweekly cadence",
+    "input": {
+      "working_title": "Vintage Mirror Gallery Wall on a Budget",
+      "publish_by_window": "week of November 3",
+      "cadence": "biweekly"
+    },
+    "expect": {
+      "tool": "calendar-slot",
+      "working_title": "Vintage Mirror Gallery Wall on a Budget",
+      "recommended_publish_date": "YYYY-MM-DD format within the week of November 3",
+      "short_form_drop_dates": "array of 3 to 5 objects",
+      "rationale": "non-empty string referencing biweekly cadence",
+      "conflicts_avoided": "empty array",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "conflicts_avoided contains dates when no existing_slots were provided",
+      "cadence logic references weekly spacing when input specifies biweekly",
+      "short_form_drop_dates has fewer than 3 entries"
+    ]
+  },
+  {
+    "id": "calendarslot-003",
+    "description": "Edge case: all reasonable dates within the window are taken by existing_slots",
+    "input": {
+      "working_title": "Cozy Fall Mantel Styling with Thrifted Finds",
+      "publish_by_window": "before September 22",
+      "cadence": "weekly",
+      "existing_slots": ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-19"]
+    },
+    "expect": {
+      "tool": "calendar-slot",
+      "working_title": "Cozy Fall Mantel Styling with Thrifted Finds",
+      "recommended_publish_date": "YYYY-MM-DD format not in existing_slots",
+      "rationale": "non-empty string acknowledging the tight window and heavy conflict avoidance",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "recommended_publish_date falls on a date in existing_slots",
+      "rationale omits mention of the constrained scheduling window",
+      "human_review_required is false"
+    ]
+  }
+]

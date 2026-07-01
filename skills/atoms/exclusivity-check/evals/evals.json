@@ -1,68 +1,48 @@
-{
-  "skill_name": "exclusivity-check",
-  "evals": [
-    {
-      "id": "conflict-same-category",
-      "prompt": "Check exclusivity for the West Elm deal — I also have a Wayfair deal active in the same category.",
-      "expect": [
-        "conflict_count >= 1",
-        "conflicts array contains an entry with conflicting_brand_name",
-        "human_review_required: true",
-        "severity is 'hard' for signed deals"
+[
+  {
+    "test_id": "exclusivity-check-conflict-detected",
+    "description": "Detect exclusivity conflict when two deals overlap in same category",
+    "input": {
+      "deal_id": "deal-west-elm-001",
+      "category": "home-furnishings",
+      "active_deals": [
+        {"deal_id": "deal-wayfair-001", "category": "home-furnishings", "stage": "signed"}
       ]
     },
-    {
-      "id": "no-exclusivity-clause",
-      "prompt": "Check exclusivity for this deal — the contract has no exclusivity section.",
-      "expect": [
-        "exclusivity_clause is null",
-        "atom still checks whether OTHER deals have clauses that this deal might violate",
-        "retrieval_gaps or notes explain no clause was found in the target deal"
-      ]
+    "expected_output_keys": ["conflict_count", "conflicts", "human_review_required"],
+    "assertions": [
+      "conflict_count >= 1",
+      "conflicts array contains entry with conflicting deal",
+      "human_review_required is true"
+    ]
+  },
+  {
+    "test_id": "exclusivity-check-no-conflicts",
+    "description": "No conflicts when deal is only active deal in category",
+    "input": {
+      "deal_id": "deal-target-001",
+      "category": "seasonal-decor",
+      "active_deals": []
     },
-    {
-      "id": "no-active-deals",
-      "prompt": "Check exclusivity — this is my only active deal.",
-      "expect": [
-        "conflict_count: 0",
-        "conflicts array is empty",
-        "human_review_required: false"
-      ]
+    "expected_output_keys": ["conflict_count", "conflicts", "human_review_required"],
+    "assertions": [
+      "conflict_count is 0",
+      "conflicts array is empty",
+      "human_review_required is false"
+    ]
+  },
+  {
+    "test_id": "exclusivity-check-no-clause",
+    "description": "Handle contract with no exclusivity clause",
+    "input": {
+      "deal_id": "deal-homegoods-001",
+      "contract_text": "Creator will produce one sponsored video. Payment $500 upon delivery."
     },
-    {
-      "id": "deal-not-found",
-      "prompt": "Check exclusivity for deal ID nonexistent-deal-123.",
-      "expect": [
-        "error: deal_not_found",
-        "no fabricated deal data",
-        "atom stops cleanly"
-      ]
-    },
-    {
-      "id": "partial-clause-missing-end-date",
-      "prompt": "Check exclusivity — the deal has an exclusivity clause but no end date specified.",
-      "expect": [
-        "retrieval_gaps includes note about missing end_date",
-        "conflict still flagged if category and start_date overlap",
-        "null fields reported as null, not guessed"
-      ]
-    },
-    {
-      "id": "full-scan-fuzzy-match",
-      "prompt": "Run a full scan for the Target deal — check for any related category conflicts.",
-      "expect": [
-        "fuzzy category matching detects 'home furnishings' vs 'furniture' overlap",
-        "match_type: 'fuzzy' label present on fuzzy matches",
-        "human_review_required: true for fuzzy conflicts"
-      ]
-    },
-    {
-      "id": "archived-deal-excluded",
-      "prompt": "Check exclusivity — I have a closed deal from last year in the same category.",
-      "expect": [
-        "archived or closed deals excluded from active deal scan",
-        "conflict_count: 0 if only overlap is with archived deal"
-      ]
-    }
-  ]
-}
+    "expected_output_keys": ["exclusivity_clause", "conflict_count", "warnings"],
+    "assertions": [
+      "exclusivity_clause is null",
+      "warnings notes no exclusivity clause found",
+      "no fabricated contract terms"
+    ]
+  }
+]

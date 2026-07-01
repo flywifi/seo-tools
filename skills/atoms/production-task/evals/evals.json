@@ -1,0 +1,87 @@
+[
+  {
+    "id": "productiontask-001",
+    "description": "Happy path: signed deal with deliverables and brand review requirement returns full task list with critical path",
+    "input": {
+      "project_title": "Vintage Brass Co Kitchen Hardware Makeover",
+      "publish_date": "2026-08-15",
+      "deliverables": [
+        "dedicated YouTube long-form video featuring hardware installation",
+        "Instagram Reel showing before and after",
+        "Pinterest Pin with affiliate link"
+      ],
+      "deal_id": "deal-vintagebrassco-2026",
+      "special_requirements": [
+        "72-hour brand review window before publish"
+      ]
+    },
+    "expect": {
+      "tool": "production-task",
+      "project_title": "Vintage Brass Co Kitchen Hardware Makeover",
+      "publish_date": "2026-08-15",
+      "deal_id": "deal-vintagebrassco-2026",
+      "task_list": "array of task objects ordered by due_date ascending, each with task_name, category, due_date, offset_label, owner, depends_on, notes",
+      "categories_covered": "at least pre-production, shoot, edit, review, and post categories present",
+      "critical_path": "array of task_name values including brand-review task due to special requirement",
+      "special_requirements_applied": "array containing the 72-hour brand review window entry",
+      "human_review_required": true,
+      "brand_review_task": "a review-category task with notes flagging the 72-hour brand review window dependency"
+    },
+    "prohibit": [
+      "due_date values that are after the publish_date (except D-0 tasks)",
+      "fabricated dates not derived from publish_date offsets",
+      "special_requirements silently dropped from special_requirements_applied",
+      "human_review_required set to false",
+      "tasks invented beyond what deliverables require"
+    ]
+  },
+  {
+    "id": "productiontask-002",
+    "description": "Minimal required inputs: single deliverable, no deal_id, no special requirements",
+    "input": {
+      "project_title": "fall mantel styling tutorial",
+      "publish_date": "2026-10-01",
+      "deliverables": [
+        "YouTube long-form tutorial video"
+      ]
+    },
+    "expect": {
+      "tool": "production-task",
+      "deal_id": "null since not provided",
+      "task_list": "array covering pre-production through post phases for a single video deliverable",
+      "critical_path": "array present with core must-not-slip tasks (script, shoot, rough-cut, final-export, upload)",
+      "special_requirements_applied": "empty array",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "deal_id fabricated when not provided",
+      "brand review tasks when no brand review special requirement was listed",
+      "special_requirements_applied containing entries that were not in the input"
+    ]
+  },
+  {
+    "id": "productiontask-003",
+    "description": "Edge case: publish_date is only 5 days away, forcing compressed timeline with warnings",
+    "input": {
+      "project_title": "last-minute thrift haul video",
+      "publish_date": "2026-07-06",
+      "deliverables": [
+        "YouTube long-form haul video",
+        "Instagram Reel teaser"
+      ],
+      "special_requirements": []
+    },
+    "expect": {
+      "tool": "production-task",
+      "task_list": "array with compressed due_dates, some tasks sharing the same date or overlapping",
+      "critical_path": "array present reflecting the tight timeline",
+      "human_review_required": true,
+      "notes_on_compression": "at least one task notes field flags the compressed timeline or risk of missed steps"
+    },
+    "prohibit": [
+      "due_dates before today (2026-07-01) since the project starts now",
+      "task list that ignores the tight timeline by using standard multi-week offsets",
+      "human_review_required set to false"
+    ]
+  }
+]

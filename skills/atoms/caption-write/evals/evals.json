@@ -1,0 +1,85 @@
+[
+  {
+    "id": "captionwrite-001",
+    "description": "Happy path: Instagram Reel caption for a sponsored thrift haul with full inputs",
+    "input": {
+      "topic": "Antique Market Thrift Haul: 5 Moody Vintage Finds Under $20",
+      "platform": "instagram-reel",
+      "hook_angle": "the thrill of finding hidden gems for almost nothing",
+      "persona": "The Vintage Hunter",
+      "sponsored": true,
+      "gifted": false,
+      "affiliate": false
+    },
+    "expect": {
+      "tool": "caption-write",
+      "platform": "instagram-reel",
+      "hook_line": "non-empty string",
+      "caption": "non-empty string containing hook_line and cta",
+      "cta": "non-empty string",
+      "ftc_disclosure_line": "#ad",
+      "character_count": "integer <= 2200",
+      "notes": "string or null"
+    },
+    "prohibit": [
+      "caption exceeds 2200 characters",
+      "ftc_disclosure_line is null when sponsored is true",
+      "em dashes anywhere in the caption",
+      "caption does not contain the hook_line text",
+      "caption does not contain the cta text",
+      "corporate or generic tone inconsistent with warm published-to-audience voice"
+    ]
+  },
+  {
+    "id": "captionwrite-002",
+    "description": "Minimal input: TikTok caption with only required fields, no sponsorship flags",
+    "input": {
+      "topic": "Painting a thrifted nightstand in matte black chalk paint",
+      "platform": "tiktok"
+    },
+    "expect": {
+      "tool": "caption-write",
+      "platform": "tiktok",
+      "hook_line": "non-empty string",
+      "caption": "non-empty string",
+      "cta": "non-empty string",
+      "ftc_disclosure_line": null,
+      "character_count": "integer <= 2200"
+    },
+    "prohibit": [
+      "caption exceeds 2200 characters",
+      "ftc_disclosure_line is non-null when no sponsorship flags are set",
+      "em dashes anywhere in the caption",
+      "hook_line is empty or missing"
+    ]
+  },
+  {
+    "id": "captionwrite-003",
+    "description": "Edge case: YouTube Shorts caption must respect the tight 100-character limit; gifted and affiliate both true",
+    "input": {
+      "topic": "Quick vintage vase arrangement for a moody entryway",
+      "platform": "shorts",
+      "hook_angle": "instant mood upgrade",
+      "sponsored": false,
+      "gifted": true,
+      "affiliate": true
+    },
+    "expect": {
+      "tool": "caption-write",
+      "platform": "shorts",
+      "hook_line": "non-empty string",
+      "caption": "non-empty string",
+      "cta": "non-empty string",
+      "ftc_disclosure_line": "#gifted",
+      "character_count": "integer <= 100",
+      "notes": "string mentioning affiliate flag or truncation if applicable"
+    },
+    "prohibit": [
+      "caption exceeds 100 characters",
+      "ftc_disclosure_line is #affiliate when gifted is also true (gifted outranks affiliate)",
+      "ftc_disclosure_line is null when gifted is true",
+      "em dashes anywhere in the caption",
+      "notes omits mention of the affiliate flag when both gifted and affiliate are true"
+    ]
+  }
+]

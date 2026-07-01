@@ -1,0 +1,75 @@
+[
+  {
+    "id": "pitchparagraph-001",
+    "description": "Happy path: full inputs for a dedicated video pitch returns personalized paragraph, 3 subject lines, and personalization notes with FTC flag",
+    "input": {
+      "brand_name": "Vintage Brass Co",
+      "brand_product_category": "antique-finish cabinet hardware",
+      "proposed_format": "dedicated",
+      "brand_fit_notes": "Their aged brass pulls match the moody-vintage aesthetic; popular in kitchen and bathroom DIY makeovers",
+      "alex_pillar": "DIY and room makeovers"
+    },
+    "expect": {
+      "tool": "pitch-paragraph",
+      "brand_name": "Vintage Brass Co",
+      "proposed_format": "dedicated",
+      "pitch_paragraph": "150 to 250 words; names the brand; connects product category to creator's aesthetic and audience; proposes a dedicated video format with concrete framing; closes with a call to action",
+      "subject_line_options": "array of exactly 3 strings, each under 60 characters",
+      "personalization_notes": "array containing at minimum FTC disclosure reminder and brand contact verification",
+      "fabrication_check": "PASS"
+    },
+    "prohibit": [
+      "generic flattery like 'I love your brand' without specific connection",
+      "fabricated subscriber counts, engagement metrics, or past campaign results",
+      "subject lines longer than 60 characters",
+      "fewer or more than 3 subject line options",
+      "missing FTC disclosure reminder in personalization_notes",
+      "em dashes anywhere in the output"
+    ]
+  },
+  {
+    "id": "pitchparagraph-002",
+    "description": "Minimal required inputs: brand_name, brand_product_category, and proposed_format only; no fit notes or pillar",
+    "input": {
+      "brand_name": "Heritage Linen",
+      "brand_product_category": "linen throw blankets and pillow covers",
+      "proposed_format": "integration"
+    },
+    "expect": {
+      "tool": "pitch-paragraph",
+      "brand_name": "Heritage Linen",
+      "proposed_format": "integration",
+      "pitch_paragraph": "150 to 250 words; draws fit language from brand-engine since brand_fit_notes absent",
+      "subject_line_options": "array of exactly 3 strings",
+      "personalization_notes": "includes FTC reminder, brand contact check, and flags that brand_fit_notes and alex_pillar were absent and would strengthen the pitch",
+      "fabrication_check": "PASS"
+    },
+    "prohibit": [
+      "fabricated specific claims about brand alignment without brand_fit_notes",
+      "pitch_paragraph shorter than 150 words or longer than 250 words",
+      "personalization_notes missing the gap flag for absent optional fields",
+      "em dashes anywhere in the output"
+    ]
+  },
+  {
+    "id": "pitchparagraph-003",
+    "description": "Edge case: out-of-niche product category is rejected or flagged rather than producing a misleading pitch",
+    "input": {
+      "brand_name": "TechGear Pro",
+      "brand_product_category": "gaming headsets and peripherals",
+      "proposed_format": "short-form",
+      "brand_fit_notes": null,
+      "alex_pillar": null
+    },
+    "expect": {
+      "tool": "pitch-paragraph",
+      "fabrication_check": "FLAG with reason explaining the product category is outside the moody-vintage home decor niche",
+      "personalization_notes": "flags that gaming headsets do not align with the creator's niche and audience"
+    },
+    "prohibit": [
+      "pitch paragraph that fabricates a niche connection between gaming peripherals and moody-vintage home decor",
+      "fabrication_check PASS for an out-of-niche product",
+      "subject lines that misrepresent the creator's content focus"
+    ]
+  }
+]

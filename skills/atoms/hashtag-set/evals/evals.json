@@ -1,0 +1,80 @@
+[
+  {
+    "id": "hashtagset-001",
+    "description": "Happy path: full-input Instagram hashtag set for a moody-vintage thrift flip post",
+    "input": {
+      "topic": "Painting a thrifted dresser in dark green velvet finish",
+      "platform": "instagram",
+      "pillar": "DIY tutorial",
+      "aesthetic": "moody-vintage"
+    },
+    "expect": {
+      "tool": "hashtag-set",
+      "platform": "instagram",
+      "topic": "Painting a thrifted dresser in dark green velvet finish",
+      "broad_tags": "array of 3 to 5 strings starting with #",
+      "niche_tags": "array of 5 to 8 strings starting with #",
+      "micro_tags": "array of 3 to 5 strings starting with #",
+      "all_tags_combined": "non-empty string of space-separated tags",
+      "note": "non-empty string mentioning verification of tag performance in-app"
+    },
+    "prohibit": [
+      "broad_tags has fewer than 3 or more than 5 entries",
+      "niche_tags has fewer than 5 or more than 8 entries",
+      "micro_tags has fewer than 3 or more than 5 entries",
+      "total tag count exceeds 18 for Instagram",
+      "tags without # prefix",
+      "fabricated reach numbers, follower counts, or usage statistics for any tag",
+      "note missing the in-app verification reminder"
+    ]
+  },
+  {
+    "id": "hashtagset-002",
+    "description": "Minimal input: TikTok hashtags with only required fields, no pillar or aesthetic",
+    "input": {
+      "topic": "Styling a vintage bookshelf with thrifted objects",
+      "platform": "tiktok"
+    },
+    "expect": {
+      "tool": "hashtag-set",
+      "platform": "tiktok",
+      "topic": "Styling a vintage bookshelf with thrifted objects",
+      "broad_tags": "array of strings",
+      "niche_tags": "array of strings",
+      "micro_tags": "array of strings",
+      "all_tags_combined": "non-empty string",
+      "note": "non-empty string"
+    },
+    "prohibit": [
+      "total tag count exceeds 6 for TikTok",
+      "tags without # prefix",
+      "fabricated engagement metrics or tag performance statistics",
+      "all_tags_combined is empty or missing"
+    ]
+  },
+  {
+    "id": "hashtagset-003",
+    "description": "Edge case: Pinterest platform where tag volume guidance is very low (2 to 5 tags); broad tier should be trimmed first if needed",
+    "input": {
+      "topic": "Dark academia reading nook with antique lamp and velvet chair",
+      "platform": "pinterest",
+      "pillar": "room transformation",
+      "aesthetic": "dark academia"
+    },
+    "expect": {
+      "tool": "hashtag-set",
+      "platform": "pinterest",
+      "broad_tags": "array of strings",
+      "niche_tags": "array of strings",
+      "micro_tags": "array of strings",
+      "all_tags_combined": "non-empty string of 2 to 5 total tags",
+      "note": "non-empty string; if trimmed, mentions that broad tier was reduced"
+    },
+    "prohibit": [
+      "total tag count exceeds 5 for Pinterest",
+      "niche or micro tags trimmed before broad tags when reducing to platform ceiling",
+      "tags without # prefix",
+      "fabricated pin save rates or impression counts"
+    ]
+  }
+]

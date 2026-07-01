@@ -1,6 +1,7 @@
 ---
 name: export-gem
 atom: true
+standalone: true
 description: "Packages Creator OS knowledge files and system instruction for a Google Gemini Gem. Respects Gem constraints: 10 knowledge file max, approximately 82% instruction adherence. Do NOT use for GPT export (use export-gpt) or Claude Projects (see implementation/claude/project/)."
 load:
   - shared/brand-engine.md

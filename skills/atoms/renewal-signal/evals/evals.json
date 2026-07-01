@@ -1,0 +1,62 @@
+[
+  {
+    "id": "renewalsignal-001",
+    "description": "Happy path: scan all deals within 180-day lookback returns priority-ranked renewal candidates with concrete reasons",
+    "input": {
+      "account_id": null,
+      "lookback_days": 180
+    },
+    "expect": {
+      "tool": "renewal-signal",
+      "scanned_deals": "integer count of closed/fulfilled records read before filtering",
+      "renewal_candidates": "array sorted by priority descending then exclusivity_expires ascending",
+      "candidate_fields": "each candidate has deal_id, brand_name, closed_date, exclusivity_expires, renewal_reason, priority",
+      "priority_values": "each priority is exactly high, medium, or low",
+      "renewal_reason": "each reason cites a concrete date or threshold, not vague language",
+      "recommended_next_step": "non-empty string derived from the candidate list"
+    },
+    "prohibit": [
+      "fabricated deal_id, brand_name, or closed_date values",
+      "estimated or inferred exclusivity_expires when field is absent from record",
+      "vague renewal_reason such as 'looks ready' without citing a specific date or threshold",
+      "renewal_candidates sorted incorrectly (must be priority desc, then exclusivity asc)"
+    ]
+  },
+  {
+    "id": "renewalsignal-002",
+    "description": "Minimal input: defaults applied; no account_id and default lookback_days",
+    "input": {},
+    "expect": {
+      "tool": "renewal-signal",
+      "scanned_deals": "integer present",
+      "renewal_candidates": "array present, may be empty if no qualifying deals",
+      "recommended_next_step": "if candidates empty, states 'no renewal candidates found within the current parameters'"
+    },
+    "prohibit": [
+      "fabricated deal data to populate an empty candidate list",
+      "recommended_next_step that gives generic advice not derived from the actual candidate list",
+      "missing scanned_deals field"
+    ]
+  },
+  {
+    "id": "renewalsignal-003",
+    "description": "Edge case: deal record missing exclusivity_expires and closed_date; atom emits gap-record and continues scanning",
+    "input": {
+      "account_id": "acct-incomplete-records",
+      "lookback_days": 90
+    },
+    "expect": {
+      "tool": "renewal-signal",
+      "scanned_deals": "integer reflecting all records read including incomplete ones",
+      "gap_handling": "deals with missing closed_date emit a gap-record noting the missing field rather than halting",
+      "exclusivity_handling": "deals without exclusivity_expires are scored on closed_date alone with gap noted in renewal_reason",
+      "renewal_candidates": "array present; incomplete records are either excluded with gap note or included with null fields"
+    },
+    "prohibit": [
+      "atom halting or erroring on incomplete records instead of continuing the scan",
+      "fabricated closed_date or exclusivity_expires for records missing those fields",
+      "priority scored using an estimated exclusivity date",
+      "silent omission of records without a gap note explaining why"
+    ]
+  }
+]

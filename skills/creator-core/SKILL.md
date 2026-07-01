@@ -68,11 +68,32 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 
 | Classification | Lane | Spoke | Notes |
 |---|---|---|---|
+| `content_ideation` | Content | `content-strategy` | brainstorming, pillar mapping, topic generation |
+| `project_planning` | Content | `project-builder` | DIY project planning, materials, steps |
+| `video_script` | Content | `video-development` | scripts, hooks, b-roll notes, captions |
+| `repurposing` | Content | `shortform-repurposing` | Shorts, Reels, TikTok, Pinterest from long-form |
+| `seo_research` | Content | `seo-keywords` | keyword research, topical authority, SERP analysis |
+| `analytics_review` | Content | `analytics-insights` | performance review, trend interpretation |
 | `statistical_analysis` | Content | `analytics-compute` | hypothesis tests, significance testing, correlation analysis |
 | `forecasting` | Content | `analytics-compute` | subscriber, view, and revenue projections; trend prediction |
 | `data_query` | Content | `analytics-compute` | SQL-style queries over analytics exports |
 | `ab_test_design` | Content | `analytics-compute` | experiment design and result analysis |
+| `audience_question` | Content | `audience-research` | persona mapping, behavior signals |
+| `competitor_check` | Content | `competitor-analysis` | competitor channel analysis, gap finding |
+| `seasonal_planning` | Content | `seasonal-trends` | seasonal content calendar, trend timing |
+| `document_create` | Document | `document-studio` | new document creation (media kit, brief, etc.) |
+| `document_edit` | Document | `document-studio` | editing an existing document |
 | `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
+| `account_create` | Pipeline/CRM | `account-manager` | new brand account record |
+| `account_update` | Pipeline/CRM | `account-manager` | update brand account fields |
+| `deal_create` | Pipeline/CRM | `deal-pipeline` | new deal record |
+| `deal_update` | Pipeline/CRM | `deal-pipeline` | update deal fields |
+| `deal_stage_move` | Pipeline/CRM | `deal-pipeline` | advance or regress deal stage |
+| `production_plan` | Pipeline/CRM | `deal-resourcing` | production resource planning from deal |
+| `outreach_draft` | Pipeline/CRM | `partnership-mediakit` | outreach email or pitch draft |
+| `media_kit` | Pipeline/CRM | `partnership-mediakit` | media kit generation |
+| `quality_check` | Content | `quality-review` | score an artifact against quality gates |
+| `unclear` | — | — | ask a clarifying question before routing |
 
 ## Routing object (return with every response)
 

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "renter-alt-001",
+    "description": "Happy path: permanent wall-mount step gets a full renter-friendly alternative with tradeoffs",
+    "input": {
+      "step_or_material": "Drill pilot holes and mount the floating shelf brackets directly into wall studs using 3-inch wood screws",
+      "project_context": "Installing a moody dark-stained floating shelf display for vintage pottery in a living room"
+    },
+    "expect": {
+      "tool": "renter-alt",
+      "original_approach": "present and references drilling into studs",
+      "renter_alternative": "non-null, names a specific removable method such as command strips, tension-mounted shelf, or freestanding alternative",
+      "flag": null,
+      "tradeoffs.gained": "present, mentions reversibility or deposit safety",
+      "tradeoffs.lost": "present, acknowledges reduced weight capacity or durability",
+      "difficulty_delta": "one of: easier | same | harder",
+      "cost_delta": "one of: lower | same | higher",
+      "reversible": true
+    },
+    "prohibit": [
+      "specific dollar amounts or prices",
+      "specific brand names",
+      "fabricated load ratings or weight limits",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "renter-alt-002",
+    "description": "Minimal inputs: already renter-friendly step requires no substitution",
+    "input": {
+      "step_or_material": "Lean the large framed vintage mirror against the wall on the floor",
+      "project_context": "Styling a moody bedroom corner with thrifted decor"
+    },
+    "expect": {
+      "tool": "renter-alt",
+      "original_approach": "present",
+      "renter_alternative": null,
+      "flag": "indicates original approach is already renter-friendly",
+      "reversible": true
+    },
+    "prohibit": [
+      "fabricated product specifications",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "renter-alt-003",
+    "description": "Edge case: electrical work triggers licensed-professional hard stop with null alternative",
+    "input": {
+      "step_or_material": "Replace the existing ceiling light fixture by disconnecting the wiring and installing a new junction box",
+      "project_context": "Swapping a builder-grade boob light for a vintage brass pendant in the dining room"
+    },
+    "expect": {
+      "tool": "renter-alt",
+      "renter_alternative": null,
+      "flag": "present, references licensed professional and protocols/safety.md",
+      "reversible": true
+    },
+    "prohibit": [
+      "DIY wiring instructions",
+      "specific product recommendations for electrical work",
+      "em dashes"
+    ]
+  }
+]

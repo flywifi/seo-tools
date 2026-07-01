@@ -1,0 +1,77 @@
+[
+  {
+    "id": "governartifact-001",
+    "description": "Happy path: gate a well-formed content-lane caption artifact that should pass all dimensions",
+    "input": {
+      "artifact": "Just found this gorgeous brass candelabra at a flea market for $8. The patina is perfect for that moody, lived-in look on my dining table. Would you keep the patina or polish it? Tell me in the comments.",
+      "request": "Write an Instagram Reel caption for a brass candelabra thrift find",
+      "lane": "content"
+    },
+    "expect": {
+      "tool": "govern-artifact",
+      "scores": {
+        "integrity": "integer 1 to 10",
+        "accuracy": "integer 1 to 10",
+        "brand_alignment": "integer 1 to 10",
+        "audience_fit": "integer 1 to 10",
+        "governance": "integer 1 to 10",
+        "user_intent": "integer 1 to 10",
+        "accessibility": "integer 1 to 10",
+        "professional_quality": "integer 1 to 10",
+        "safety": "integer 1 to 10"
+      },
+      "composite": "number",
+      "verdict": "Released | Not released",
+      "hard_fail": "boolean",
+      "fixes": "array (empty if all dimensions pass)"
+    },
+    "prohibit": [
+      "verdict is Released when hard_fail is true",
+      "any score dimension missing from the scores object",
+      "composite is null or missing",
+      "verdict value other than Released or Not released"
+    ]
+  },
+  {
+    "id": "governartifact-002",
+    "description": "Minimal input: gate a pipeline_crm deal transition record",
+    "input": {
+      "artifact": "{\"deal_id\": \"deal_moodycandle_co_002\", \"from_stage\": \"outreach-sent\", \"to_stage\": \"in-discussion\", \"timestamp_utc\": \"2026-06-30T14:00:00Z\", \"evidence_provided\": {\"contact_name\": \"Jordan Ellis\"}}",
+      "request": "Advance deal_moodycandle_co_002 from outreach-sent to in-discussion",
+      "lane": "pipeline_crm"
+    },
+    "expect": {
+      "tool": "govern-artifact",
+      "scores": "object with all 9 dimension keys present",
+      "composite": "number",
+      "verdict": "Released | Not released",
+      "hard_fail": "boolean"
+    },
+    "prohibit": [
+      "verdict is Released when any dimension is below threshold and hard_fail is true",
+      "scores object missing any of the 9 required dimensions",
+      "composite calculated incorrectly relative to scores"
+    ]
+  },
+  {
+    "id": "governartifact-003",
+    "description": "Edge case: artifact contains fabricated metrics, should trigger a hard fail on integrity or accuracy",
+    "input": {
+      "artifact": "This vintage dresser flip got 1.2M views and a 14% CTR, proving our method works every time. Our engagement rate is 3x the industry average.",
+      "request": "Write a media kit performance summary paragraph",
+      "lane": "document"
+    },
+    "expect": {
+      "tool": "govern-artifact",
+      "verdict": "Not released",
+      "hard_fail": true,
+      "fixes": "non-empty array with at least one fix referencing fabricated metrics or unverified claims"
+    },
+    "prohibit": [
+      "verdict is Released when the artifact contains fabricated performance metrics",
+      "hard_fail is false when integrity or accuracy should fail due to fabrication",
+      "fixes is empty when the artifact contains invented data",
+      "fixes that do not mention the specific fabrication issue"
+    ]
+  }
+]

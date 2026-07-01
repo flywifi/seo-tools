@@ -1,0 +1,56 @@
+[
+  {
+    "id": "pillarclassify-001",
+    "description": "Happy path: clear DIY project idea returns high confidence with correct pillar",
+    "input": {
+      "idea": "chalk paint vintage nightstand makeover with dark moody finish"
+    },
+    "expect": {
+      "tool": "pillar-classify",
+      "pillar": "DIY and room makeovers",
+      "confidence": "high",
+      "rationale": "non-empty one-line string explaining the classification"
+    },
+    "prohibit": [
+      "pillar value outside the five allowed pillars",
+      "confidence low for a clearly DIY makeover project",
+      "empty or missing rationale"
+    ]
+  },
+  {
+    "id": "pillarclassify-002",
+    "description": "Minimal input: short ambiguous idea returns medium confidence with secondary pillar named in rationale",
+    "input": {
+      "idea": "vintage brass candlestick collection"
+    },
+    "expect": {
+      "tool": "pillar-classify",
+      "pillar": "thrifting and antiques",
+      "confidence": "high or medium",
+      "rationale": "non-empty string; if confidence is medium, rationale names the secondary pillar"
+    },
+    "prohibit": [
+      "pillar value outside the five allowed pillars",
+      "empty rationale when confidence is medium",
+      "fabricated performance data or audience metrics in rationale"
+    ]
+  },
+  {
+    "id": "pillarclassify-003",
+    "description": "Edge case: idea spans two pillars equally, returns primary with medium confidence and names secondary in rationale",
+    "input": {
+      "idea": "thrifted Christmas mantel styling with DIY garland"
+    },
+    "expect": {
+      "tool": "pillar-classify",
+      "pillar": "seasonal and holiday or DIY and room makeovers (either valid as primary)",
+      "confidence": "medium",
+      "rationale": "names the secondary pillar that was not chosen as primary"
+    },
+    "prohibit": [
+      "confidence high for a clearly dual-pillar idea",
+      "rationale that omits the secondary pillar when confidence is medium",
+      "pillar value outside the five allowed pillars"
+    ]
+  }
+]

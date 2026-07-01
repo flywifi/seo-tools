@@ -31,6 +31,21 @@
         "recommended_content_format_includes": "Pinterest",
         "optimization_tactics.length_min": 2
       }
+    },
+    {
+      "id": "sfc-03",
+      "description": "Live check requested but web-intel unavailable",
+      "input": {
+        "keyword": "best chalk paint brands 2026",
+        "platform": "google",
+        "check_live": true
+      },
+      "expect": {
+        "live_check_performed": false,
+        "confidence": "low",
+        "retrieval_gaps_includes_live_check_failure": true,
+        "falls_back_to_static_serp_map": true
+      }
     }
   ]
 }
