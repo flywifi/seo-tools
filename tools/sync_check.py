@@ -22,6 +22,15 @@ Invariants enforced:
   11. (Merged into 5) MAINTAINER_README.md path references resolve; .claude added to known roots.
   12. Atom composition: every atom is composed by a spoke workflow or marked standalone: true.
   13. Routing table completeness: all request_classification values appear in the routing table.
+  14. Agent contract blocks: every .claude/agents/*.md has Operating rules, Forbidden tools,
+      Allowed tools, and Output format sections; Forbidden tools lists Write, Edit, NotebookEdit.
+  15. Schema verification fields: every shared/schemas/*.json (except envelope and decision schemas)
+      has minority_report, confidence_evidence, source_citations in its properties.
+  16. Workflow verification step: every .claude/workflows/*.js contains an adversarial verification
+      marker (VERIFICATION_SCHEMA, adversarial-verify, cross-verify, verify-research,
+      verify-seasonal, independent-review).
+  17. READ-ONLY mandate: every .claude/agents/*.md contains the verbatim marker
+      "You are a READ-ONLY research agent. You MUST NOT:"
 """
 import json
 import re
@@ -310,6 +319,89 @@ def check_routing_table():
         problem(f"hub SKILL.md: request_classification '{val}' not mapped in routing table")
 
 
+def check_agent_contracts():
+    """Invariant 14: agent definitions have required contract sections."""
+    agents_dir = ROOT / ".claude" / "agents"
+    if not agents_dir.exists():
+        return
+    required_sections = [
+        "## Operating rules",
+        "## Forbidden tools (machine-enforced)",
+        "## Allowed tools (explicit allowlist)",
+        "## Output format",
+    ]
+    forbidden_tools_must_list = ["Write", "Edit", "NotebookEdit"]
+    for md in sorted(agents_dir.glob("*.md")):
+        rel = md.relative_to(ROOT)
+        text = md.read_text(encoding="utf-8")
+        for section in required_sections:
+            if section not in text:
+                problem(f"{rel}: missing required section '{section}'")
+        if "## Forbidden tools (machine-enforced)" in text:
+            forbidden_block = text.split("## Forbidden tools (machine-enforced)")[1]
+            next_section = forbidden_block.find("\n## ")
+            if next_section > 0:
+                forbidden_block = forbidden_block[:next_section]
+            for tool_name in forbidden_tools_must_list:
+                if tool_name not in forbidden_block:
+                    problem(f"{rel}: Forbidden tools section missing '{tool_name}'")
+
+
+def check_schema_verification_fields():
+    """Invariant 15: agent output schemas have verification envelope fields."""
+    schemas_dir = ROOT / "shared" / "schemas"
+    if not schemas_dir.exists():
+        return
+    skip = {"verification-envelope.json", "verification-decision.json"}
+    required_props = ["minority_report", "confidence_evidence", "source_citations"]
+    for schema_file in sorted(schemas_dir.glob("*.json")):
+        if schema_file.name in skip:
+            continue
+        rel = schema_file.relative_to(ROOT)
+        try:
+            data = json.loads(schema_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            problem(f"{rel}: invalid JSON")
+            continue
+        props = data.get("properties", {})
+        for field in required_props:
+            if field not in props:
+                problem(f"{rel}: missing verification field '{field}' in properties")
+
+
+def check_workflow_verification():
+    """Invariant 16: every workflow has an adversarial verification step."""
+    wf_dir = ROOT / ".claude" / "workflows"
+    if not wf_dir.exists():
+        return
+    markers = [
+        "VERIFICATION_SCHEMA",
+        "adversarial-verify",
+        "cross-verify",
+        "verify-research",
+        "verify-seasonal",
+        "independent-review",
+    ]
+    for js in sorted(wf_dir.glob("*.js")):
+        rel = js.relative_to(ROOT)
+        text = js.read_text(encoding="utf-8")
+        if not any(m in text for m in markers):
+            problem(f"{rel}: no adversarial verification marker found")
+
+
+def check_readonly_mandate():
+    """Invariant 17: every agent definition has the READ-ONLY mandate."""
+    agents_dir = ROOT / ".claude" / "agents"
+    if not agents_dir.exists():
+        return
+    mandate = "You are a READ-ONLY research agent. You MUST NOT:"
+    for md in sorted(agents_dir.glob("*.md")):
+        rel = md.relative_to(ROOT)
+        text = md.read_text(encoding="utf-8")
+        if mandate not in text:
+            problem(f"{rel}: missing READ-ONLY mandate marker")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -323,6 +415,10 @@ def main():
     check_workflow_phases()
     check_atom_composition()
     check_routing_table()
+    check_agent_contracts()
+    check_schema_verification_fields()
+    check_workflow_verification()
+    check_readonly_mandate()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

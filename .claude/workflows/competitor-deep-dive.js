@@ -4,6 +4,7 @@ export const meta = {
   phases: [
     { title: 'Scan', detail: 'Fetch competitor channel metadata, extract hidden tags and entities' },
     { title: 'Analyze', detail: 'Identify keyword gaps, format gaps, and opportunities' },
+    { title: 'Verify', detail: 'Adversarial verification of competitor claims and gap analysis' },
   ],
 }
 
@@ -41,8 +42,11 @@ const COMPETITOR_SCHEMA = {
     retrieval_gaps: { type: 'array', items: { type: 'string' } },
     discovered_sources: { type: 'array', items: { type: 'string' } },
     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    minority_report: { type: ['object', 'null'] },
+    confidence_evidence: { type: 'object', properties: { overall: { type: 'string' }, basis: { type: 'string' }, source_tier_breakdown: { type: 'object' } } },
+    source_citations: { type: 'array', items: { type: 'object', properties: { source_id_or_url: { type: 'string' }, tier: { type: 'string' }, claim_supported: { type: 'string' }, in_source_registry: { type: 'boolean' } }, required: ['source_id_or_url', 'tier', 'claim_supported'] } },
   },
-  required: ['competitor', 'sources_consulted', 'retrieval_gaps', 'confidence'],
+  required: ['competitor', 'sources_consulted', 'retrieval_gaps', 'confidence', 'minority_report', 'confidence_evidence', 'source_citations'],
 }
 
 const GAP_SCHEMA = {
@@ -76,8 +80,11 @@ const GAP_SCHEMA = {
     opportunities: { type: 'array', items: { type: 'string' } },
     sources_consulted: { type: 'array', items: { type: 'string' } },
     retrieval_gaps: { type: 'array', items: { type: 'string' } },
+    minority_report: { type: ['object', 'null'] },
+    confidence_evidence: { type: 'object', properties: { overall: { type: 'string' }, basis: { type: 'string' }, source_tier_breakdown: { type: 'object' } } },
+    source_citations: { type: 'array', items: { type: 'object', properties: { source_id_or_url: { type: 'string' }, tier: { type: 'string' }, claim_supported: { type: 'string' }, in_source_registry: { type: 'boolean' } }, required: ['source_id_or_url', 'tier', 'claim_supported'] } },
   },
-  required: ['keyword_gaps', 'format_gaps', 'opportunities'],
+  required: ['keyword_gaps', 'format_gaps', 'opportunities', 'minority_report', 'confidence_evidence', 'source_citations'],
 }
 
 const READ_ONLY_RULES = `## Operating rules
@@ -151,9 +158,51 @@ Never fabricate volume data. Label all estimates [estimated].`,
   { label: 'gap-analysis', phase: 'Analyze', schema: GAP_SCHEMA }
 )
 
+// Phase 3: Verify — adversarial-verify claims from scan and gap analysis
+phase('Verify')
+log('Running adversarial verification on competitor findings')
+
+const VERIFICATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    verified_claims: { type: 'integer' },
+    flagged_claims: { type: 'array', items: { type: 'object', properties: { claim: { type: 'string' }, issue: { type: 'string' }, severity: { type: 'string' } }, required: ['claim', 'issue'] } },
+    confidence_valid: { type: 'boolean' },
+    minority_report_adequate: { type: 'boolean' },
+    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+  },
+  required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
+}
+
+const verification = await agent(
+  `${READ_ONLY_RULES}
+
+You are an adversarial verification agent. Your job is to CHALLENGE and VERIFY the findings
+from a competitor analysis, not to agree with them.
+
+Primary agent findings to verify:
+${JSON.stringify({ profiles: validProfiles, gaps }, null, 2)}
+
+Verification checklist:
+1. For each source_citation: does it exist in canonical-sources/source-registry.json or is it a real URL?
+   Use Glob/Grep to check source-registry.json for source IDs.
+2. Unsourced numbers: are there specific numbers (view counts, percentages, subscriber counts)
+   without a corresponding citation? Flag each one.
+3. Confidence-tier alignment: if confidence is "high", is there at least 1 T1 source in the
+   source_tier_breakdown? If "medium", at least 1 T2 or 2 T3?
+4. Minority report adequacy: if retrieval_gaps exist, should there be a minority_report documenting
+   residual uncertainty? Flag if missing.
+5. Keyword gaps: are the claimed gaps plausible given the creator's 5 pillars (DIY/makeovers,
+   thrifting/antiques, organization, seasonal/holiday, backyard/outdoor)?
+
+Default to flagging if uncertain. It is better to over-flag than to let fabricated claims through.`,
+  { label: 'adversarial-verify', phase: 'Verify', schema: VERIFICATION_SCHEMA }
+)
+
 return {
   targets,
   profiles: validProfiles,
   gaps,
+  verification,
   status: gaps ? 'complete' : 'gaps_analysis_failed',
 }

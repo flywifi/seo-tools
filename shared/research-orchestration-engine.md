@@ -109,6 +109,23 @@ deal compliance.
 - MCP tools: quality_score
 - Data: reads from pipeline/deals/ and pipeline/accounts/ only
 
+### 2.1 Machine-readable agent contracts
+
+Every agent definition file in `.claude/agents/*.md` must contain these four sections:
+
+1. **`## Operating rules`** — the read-only mandate from Section 2 above, verbatim.
+2. **`## Forbidden tools (machine-enforced)`** — explicit list of tools the agent must never
+   invoke: Write, Edit, NotebookEdit, and Bash commands that modify the filesystem (mkdir, touch,
+   rm, mv, cp, git add, git commit, git push, redirect operators `>`, `>>`).
+3. **`## Allowed tools (explicit allowlist)`** — the positive list of tools the agent may use,
+   scoped to its role (e.g., Read, Glob, Grep, WebSearch, WebFetch, and role-specific MCP tools).
+4. **`## Output format`** — the JSON Schema the agent must return, referencing the canonical
+   schema from `shared/schemas/`.
+
+The drift guard (invariant 14) validates that all four sections are present in every agent
+definition file. The forbidden tools section must list Write, Edit, and NotebookEdit. Invariant 17
+validates the verbatim read-only marker is present.
+
 ---
 
 ## 3. Structured output schemas
@@ -155,11 +172,43 @@ agent calls (via the Agent tool) should request the same schema shape in the pro
     },
     "sources_consulted": { "type": "array", "items": { "type": "string" } },
     "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
-    "confidence": { "type": "string", "enum": ["high", "medium", "low"] }
+    "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+    "minority_report": { "type": ["object", "null"] },
+    "confidence_evidence": {
+      "type": "object",
+      "properties": {
+        "overall": { "type": "string" },
+        "basis": { "type": "string" },
+        "source_tier_breakdown": { "type": "object" }
+      }
+    },
+    "source_citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_id_or_url": { "type": "string" },
+          "tier": { "type": "string" },
+          "claim_supported": { "type": "string" },
+          "in_source_registry": { "type": "boolean" }
+        },
+        "required": ["source_id_or_url", "tier", "claim_supported"]
+      }
+    }
   },
-  "required": ["keywords", "sources_consulted", "retrieval_gaps", "confidence"]
+  "required": ["keywords", "sources_consulted", "retrieval_gaps", "confidence", "minority_report", "confidence_evidence", "source_citations"]
 }
 ```
+
+All four output schemas include three verification envelope fields (defined in
+`shared/schemas/verification-envelope.json`):
+- **`minority_report`** — conflicts between findings, residual uncertainty, and negative findings
+  checked. Null only when no material disagreement exists.
+- **`confidence_evidence`** — structured confidence with `source_tier_breakdown` (t1_count,
+  t2_count, t3_count) that justifies the overall confidence level.
+- **`source_citations`** — per-claim citations with tier classification and a boolean
+  `in_source_registry` flag that `tools/validate_agent_output.py` cross-checks against the
+  actual registry.
 
 ### Competitor analysis result schema
 
@@ -196,9 +245,12 @@ agent calls (via the Agent tool) should request the same schema shape in the pro
     "format_gaps": { "type": "array", "items": { "type": "string" } },
     "sources_consulted": { "type": "array", "items": { "type": "string" } },
     "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
-    "confidence": { "type": "string", "enum": ["high", "medium", "low"] }
+    "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+    "minority_report": { "type": ["object", "null"] },
+    "confidence_evidence": { "type": "object" },
+    "source_citations": { "type": "array", "items": { "type": "object" } }
   },
-  "required": ["competitor", "sources_consulted", "retrieval_gaps", "confidence"]
+  "required": ["competitor", "sources_consulted", "retrieval_gaps", "confidence", "minority_report", "confidence_evidence", "source_citations"]
 }
 ```
 
@@ -236,9 +288,12 @@ agent calls (via the Agent tool) should request the same schema shape in the pro
         "flagged_issues": { "type": "array", "items": { "type": "string" } }
       }
     },
-    "retrieval_gaps": { "type": "array", "items": { "type": "string" } }
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "minority_report": { "type": ["object", "null"] },
+    "confidence_evidence": { "type": "object" },
+    "source_citations": { "type": "array", "items": { "type": "object" } }
   },
-  "required": ["content_type", "retrieval_gaps"]
+  "required": ["content_type", "retrieval_gaps", "minority_report", "confidence_evidence", "source_citations"]
 }
 ```
 
@@ -277,9 +332,12 @@ agent calls (via the Agent tool) should request the same schema shape in the pro
     "open_flags": { "type": "array", "items": { "type": "string" } },
     "human_review_required": { "type": "boolean" },
     "sources_consulted": { "type": "array", "items": { "type": "string" } },
-    "retrieval_gaps": { "type": "array", "items": { "type": "string" } }
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "minority_report": { "type": ["object", "null"] },
+    "confidence_evidence": { "type": "object" },
+    "source_citations": { "type": "array", "items": { "type": "object" } }
   },
-  "required": ["deal_id", "stage_ready", "human_review_required", "retrieval_gaps"]
+  "required": ["deal_id", "stage_ready", "human_review_required", "retrieval_gaps", "minority_report", "confidence_evidence", "source_citations"]
 }
 ```
 
@@ -382,7 +440,23 @@ to the user. This is never delegated to another agent.
    - If one agent has a higher-confidence source (T1 vs. T3), prefer it.
    - If sources are equal tier, present both interpretations to the user with the evidence for
      each.
-   - Never silently discard a minority finding — record it as a `minority_report`.
+   - Never silently discard a minority finding — record it in the `minority_report` field of the
+     agent's structured output (see `shared/schemas/verification-envelope.json` for the schema).
+
+4.5. **Adversarial verification:** Before aggregating findings into a final recommendation,
+   run an adversarial verification step. A separate verification agent independently checks
+   the primary agent's claims:
+   - Cross-references each `source_citation` against `canonical-sources/source-registry.json`
+   - Flags unsourced numbers (view counts, dollar amounts, percentages without citations)
+   - Validates confidence-tier alignment (high confidence requires at least 1 T1 source)
+   - Checks minority report adequacy (retrieval gaps exist but minority_report is null)
+   - Returns a verification verdict: pass, pass_with_flags, or fail
+   The verification result is recorded as a `shared/schemas/verification-decision.json` record
+   in the workflow output. The main loop appends it to `ledger/ledger.json`. Findings that fail
+   verification are flagged with `human_review_required: true`.
+   For offline validation, use `tools/validate_agent_output.py` which performs 5 structural
+   checks: source citation registry cross-ref, confidence-tier match, unsourced number detection,
+   fabricated URL detection, and minority report completeness.
 
 5. **Synthesize:** Merge deduplicated, conflict-resolved findings into a coherent recommendation.
    Organize by the user's original question, not by which agent found what.
@@ -433,6 +507,36 @@ All agent output uses the three-level confidence scale:
 If an agent returns data that cannot be traced to a source (e.g., specific view counts, exact
 subscriber numbers, or precise CPM rates without attribution), the main loop labels the data
 `[unverified — source not provided]` and does not present it as fact.
+
+Use `tools/validate_agent_output.py` to run offline fabrication detection on any agent output
+JSON file. It performs 5 checks: source citation registry cross-ref, confidence-tier alignment,
+unsourced number detection, fabricated URL detection, and minority report completeness.
+
+### Adversarial verification pattern
+
+Every workflow includes an adversarial verification step — a second agent whose job is to
+CHALLENGE the primary agent's findings, not confirm them. The verifier receives the primary
+agent's complete output and independently spot-checks claims against available sources.
+
+**Two-agent pattern (standard):** One primary research agent produces findings. One verification
+agent attempts to refute them. Used in: `competitor-deep-dive.js` (adversarial-verify),
+`seasonal-planning.js` (verify-seasonal), `content-pipeline.js` (verify-research).
+
+**Cross-verification pattern:** When two parallel audit tracks produce independent findings, a
+cross-verification agent checks for contradictions between them. Used in: `deal-review.js`
+(cross-verify usage-rights vs. exclusivity).
+
+**Independent second reviewer pattern:** After a primary reviewer scores an artifact, an
+independent second reviewer scores the same artifact without seeing the first reviewer's scores.
+Score divergences greater than 1 point on any dimension are recorded as disagreements. Used in:
+`content-pipeline.js` (independent-review).
+
+**Verification decision records:** Each verification step produces a structured verdict recorded
+in the workflow output conforming to `shared/schemas/verification-decision.json`. The main loop
+appends these to `ledger/ledger.json` as an audit trail. Agents never write to the ledger.
+
+**Drift guard enforcement:** Invariant 16 in `tools/sync_check.py` validates that every
+`.claude/workflows/*.js` file contains at least one adversarial verification marker.
 
 ---
 

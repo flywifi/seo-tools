@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Verification Envelope",
+  "description": "Reusable field definitions for adversarial verification of agent output. All agent output schemas reference these via $ref.",
+  "$defs": {
+    "minority_report": {
+      "type": "object",
+      "description": "Records disagreements, residual uncertainty, and confirmed negatives. Null when no material disagreement exists.",
+      "properties": {
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "finding_a": { "type": "string" },
+              "finding_b": { "type": "string" },
+              "conflict_summary": { "type": "string" },
+              "materiality": { "type": "string", "enum": ["high", "medium", "low"] }
+            },
+            "required": ["finding_a", "finding_b", "conflict_summary"]
+          }
+        },
+        "residual_uncertainty": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "statement": { "type": "string" },
+              "what_would_resolve_it": { "type": "string" },
+              "impact_if_wrong": { "type": "string" }
+            },
+            "required": ["statement"]
+          }
+        },
+        "negative_findings_checked": {
+          "type": "array",
+          "description": "Things the agent looked for and confirmed absent.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "confidence_evidence": {
+      "type": "object",
+      "description": "Structured confidence assessment with source tier breakdown.",
+      "properties": {
+        "overall": { "type": "string", "enum": ["high", "medium", "low"] },
+        "basis": { "type": "string", "description": "One sentence explaining why this confidence level." },
+        "source_tier_breakdown": {
+          "type": "object",
+          "properties": {
+            "t1_count": { "type": "integer", "description": "Official platform docs, API responses, legal text" },
+            "t2_count": { "type": "integer", "description": "Industry reports, reputable trade press" },
+            "t3_count": { "type": "integer", "description": "Blog posts, community forums, single analyses" }
+          },
+          "required": ["t1_count", "t2_count", "t3_count"]
+        }
+      },
+      "required": ["overall", "basis", "source_tier_breakdown"]
+    },
+    "source_citations": {
+      "type": "array",
+      "description": "Per-claim source citations with tier tagging and registry cross-reference.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_id_or_url": { "type": "string" },
+          "tier": { "type": "string", "enum": ["T1", "T2", "T3", "unknown"] },
+          "claim_supported": { "type": "string", "description": "The specific claim this source backs." },
+          "in_source_registry": { "type": "boolean", "description": "True if this source exists in canonical-sources/source-registry.json." }
+        },
+        "required": ["source_id_or_url", "tier", "claim_supported"]
+      }
+    },
+    "verification_verdict": {
+      "type": "object",
+      "description": "Output of the adversarial verification agent.",
+      "properties": {
+        "verified_claims": { "type": "integer" },
+        "flagged_claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim": { "type": "string" },
+              "issue": { "type": "string" },
+              "severity": { "type": "string", "enum": ["high", "medium", "low"] }
+            },
+            "required": ["claim", "issue"]
+          }
+        },
+        "confidence_valid": { "type": "boolean" },
+        "minority_report_adequate": { "type": "boolean" },
+        "overall_verdict": { "type": "string", "enum": ["pass", "pass_with_flags", "fail"] }
+      },
+      "required": ["verified_claims", "flagged_claims", "overall_verdict"]
+    }
+  }
+}

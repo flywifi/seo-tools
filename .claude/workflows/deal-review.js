@@ -4,6 +4,7 @@ export const meta = {
   phases: [
     { title: 'Load', detail: 'Read deal and account records' },
     { title: 'Audit', detail: 'Check evidence, usage rights, and exclusivity' },
+    { title: 'Verify', detail: 'Cross-verify usage rights against exclusivity for contradictions' },
     { title: 'Score', detail: 'Quality gate scoring and final verdict' },
   ],
 }
@@ -41,8 +42,11 @@ const DEAL_REVIEW_SCHEMA = {
     human_review_required: { type: 'boolean' },
     sources_consulted: { type: 'array', items: { type: 'string' } },
     retrieval_gaps: { type: 'array', items: { type: 'string' } },
+    minority_report: { type: ['object', 'null'] },
+    confidence_evidence: { type: 'object', properties: { overall: { type: 'string' }, basis: { type: 'string' }, source_tier_breakdown: { type: 'object' } } },
+    source_citations: { type: 'array', items: { type: 'object', properties: { source_id_or_url: { type: 'string' }, tier: { type: 'string' }, claim_supported: { type: 'string' }, in_source_registry: { type: 'boolean' } }, required: ['source_id_or_url', 'tier', 'claim_supported'] } },
   },
-  required: ['deal_id', 'stage_ready', 'human_review_required', 'retrieval_gaps'],
+  required: ['deal_id', 'stage_ready', 'human_review_required', 'retrieval_gaps', 'minority_report', 'confidence_evidence', 'source_citations'],
 }
 
 const READ_ONLY_RULES = `## Operating rules
@@ -143,7 +147,50 @@ All data from pipeline/ records only. Never fabricate deal IDs or brand names.`,
 const usageRights = auditResults[0]
 const exclusivity = auditResults[1]
 
-// Phase 3: Score
+// Phase 3: Verify — cross-verify usage rights against exclusivity for contradictions
+phase('Verify')
+log('Cross-verifying usage rights against exclusivity findings')
+
+const VERIFICATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    verified_claims: { type: 'integer' },
+    flagged_claims: { type: 'array', items: { type: 'object', properties: { claim: { type: 'string' }, issue: { type: 'string' }, severity: { type: 'string' } }, required: ['claim', 'issue'] } },
+    confidence_valid: { type: 'boolean' },
+    minority_report_adequate: { type: 'boolean' },
+    cross_verification_issues: { type: 'array', items: { type: 'object', properties: { usage_claim: { type: 'string' }, exclusivity_claim: { type: 'string' }, contradiction: { type: 'string' } } } },
+    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+  },
+  required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
+}
+
+const crossVerify = await agent(
+  `${READ_ONLY_RULES}
+
+You are a cross-verification agent for Creator OS deal reviews. Your job is to find
+CONTRADICTIONS between the usage rights audit and the exclusivity check.
+
+Usage rights findings:
+${JSON.stringify(usageRights, null, 2)}
+
+Exclusivity findings:
+${JSON.stringify(exclusivity, null, 2)}
+
+Cross-verification checklist:
+1. Platform restrictions vs exclusivity scope: if usage rights allow the brand to post on
+   Platform X, but an exclusivity conflict exists on Platform X, flag the contradiction.
+2. Duration vs date range: if usage rights licensing duration extends beyond the exclusivity
+   window of a conflicting deal, flag it.
+3. Content ownership vs exclusivity: if ownership transfers to the brand but another active
+   deal restricts the same content category, flag it.
+4. Source citations: verify each cited pipeline/ file actually exists using Glob.
+5. Missing data: if either audit returned null or incomplete findings, flag it.
+
+Default to flagging if uncertain. Contradictions require human review.`,
+  { label: 'cross-verify', phase: 'Verify', schema: VERIFICATION_SCHEMA, agentType: 'deal-reviewer' }
+)
+
+// Phase 4: Score
 phase('Score')
 log('Running quality gate scoring')
 
@@ -175,6 +222,11 @@ const mergedReview = {
   ],
 }
 
+if (crossVerify && crossVerify.overall_verdict === 'fail') {
+  mergedReview.human_review_required = true
+  mergedReview.open_flags.push('Cross-verification found contradictions between usage rights and exclusivity')
+}
+
 const scored = await agent(
   `${READ_ONLY_RULES}
 
@@ -204,4 +256,4 @@ log(mergedReview.human_review_required
   ? `Deal review complete. Human review required.`
   : `Deal review complete. No conflicts found.`)
 
-return mergedReview
+return { ...mergedReview, crossVerify }
