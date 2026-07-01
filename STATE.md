@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P14 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`. Ready for PR to main.
+P6 through P15 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -13,6 +13,7 @@ P6 through P14 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - P12: local sync workflow — `tools/setup.py`, `tools/update.py`, `.local.json` override pattern — shipped.
 - P13: macOS / Apple Silicon (M2) compatibility — shipped.
 - P14: account-based connector registry and evidence routing — shipped (commit 3ae970d).
+- P15: Google Workspace and Microsoft 365 integration + browser-based setup wizard — shipped.
 
 ## Shipped
 
@@ -192,6 +193,29 @@ P6 through P14 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - `shared/voice-engine.md`: updated to check `voice-profile.local.json` first, then fall back to
   committed seed vocabulary.
 - `docs/DEPLOYMENT.md`: first-time setup section, regular sync section, local data table.
+
+### Google Workspace, Microsoft 365, and guided setup wizard (P15)
+- `tools/wizard.py`: browser-based guided setup wizard (~350 lines, stdlib only); serves HTML
+  at `http://localhost:8765`; auto-detects OS (Mac/Windows/Linux); two paths (claude.ai vs
+  Claude Desktop); Google Workspace flow (workspace-mcp via uvx, 6-step credential guide);
+  Microsoft 365 flow (Softeria ms-365-mcp-server via npx, device code flow); writes
+  Claude Desktop config and `creator-os-config.local.json` automatically.
+- `shared/connectors/connectors.json`: 6 new connectors (gmail, google_calendar,
+  google_docs_sheets, microsoft_outlook_email, microsoft_outlook_calendar,
+  microsoft_excel_onedrive); 3 new evidence types (email_inbox, calendar_events,
+  spreadsheet_data); deployment_modes updated for all new connectors.
+- `shared/connectors/connectors.py`: `google_workspace` and `microsoft_365` added to
+  `CAPABILITY_TO_CONNECTOR` map.
+- `creator-os-config.json`: `google_workspace` and `microsoft_365` capability flags added.
+- `implementation/claude/desktop/claude_desktop_config_snippet.json`: google-workspace and
+  microsoft-365 MCP server blocks added; Linux config path added.
+- `docs/WIZARD.md`: non-technical wizard reference (claude.ai path, Claude Desktop path,
+  behind-the-scenes explanation).
+- `docs/wizard/README.md` and `docs/wizard/screenshot-guide.md`: asset placeholder structure
+  with per-screen capture guide for 9 screens and 3 GIFs.
+- `docs/SETUP_MAC.md`: Step 8 replaced with wizard reference; manual JSON editing removed.
+- `docs/DEPLOYMENT.md`: Option A uses wizard; Option B adds native Google Workspace connector
+  instructions; capability matrix adds Google Workspace and Microsoft 365 rows.
 
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was

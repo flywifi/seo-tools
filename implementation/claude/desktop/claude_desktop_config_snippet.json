@@ -1,7 +1,8 @@
 {
-  "_comment": "Merge this block into your Claude Desktop config file.",
+  "_comment": "Merge this block into your Claude Desktop config file. The wizard (python3 tools/wizard.py) writes these entries automatically. This file is for manual setup or reference.",
   "_config_path_macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
   "_config_path_windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
+  "_config_path_linux": "~/.config/Claude/claude_desktop_config.json",
   "mcpServers": {
     "creator-os": {
       "command": "python3",
@@ -9,6 +10,21 @@
       "env": {
         "CREATOR_OS_ROOT": "REPLACE_WITH_ABSOLUTE_PATH/seo-tools"
       }
+    },
+    "google-workspace": {
+      "_comment": "Optional. Added by wizard when you connect Google. Requires uv (pip install uv). Covers Gmail, Calendar, Drive, Docs, and Sheets.",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tool-tier", "core"],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "REPLACE_WITH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "REPLACE_WITH_CLIENT_SECRET"
+      }
+    },
+    "microsoft-365": {
+      "_comment": "Optional. Added by wizard when you connect Microsoft. Requires Node.js 20+. Covers Outlook, Calendar, Excel, OneDrive, and 200+ Microsoft 365 tools.",
+      "command": "npx",
+      "args": ["-y", "@softeria/ms-365-mcp-server"],
+      "env": {}
     }
   }
 }
