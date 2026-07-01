@@ -19,8 +19,8 @@
         "permalink": "string or null",
         "scheduled_datetime": "ISO 8601 or null",
         "published_at": "ISO 8601 or null",
-        "publishing_tier": "hosted_mcp | direct_api | manual",
-        "connector_used": "postiz_mcp | buffer_mcp | youtube_publishing | instagram_publishing | tiktok_publishing | pinterest_publishing | none",
+        "publishing_tier": "direct_api | manual",
+        "connector_used": "youtube_publishing | instagram_publishing | tiktok_publishing | pinterest_publishing | none",
         "error": "string or null",
         "ftc_disclosure": "#ad | #gifted | #affiliate | null",
         "is_aigc": "boolean"

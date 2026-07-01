@@ -341,6 +341,7 @@ with your Google account. Click <strong>Allow</strong> when prompted.</p>
   <li>Pull analytics data from Google Sheets</li>
 </ul>
 <a class="btn btn-primary" href="/microsoft">Also connect Microsoft 365</a>
+<a class="btn btn-secondary" href="/publishing-setup">Set up social media publishing</a>
 <a class="btn btn-success" href="/done">I&#8217;m done &mdash; show me what to try</a>
 """, dots=["done", "done", "done", "active"])
 
@@ -423,8 +424,279 @@ with your Microsoft account. Follow the prompts to allow access.</p>
   <li>Access documents and files in OneDrive</li>
 </ul>
 <a class="btn btn-primary" href="/google">Also connect Google Workspace</a>
+<a class="btn btn-secondary" href="/publishing-setup">Set up social media publishing</a>
 <a class="btn btn-success" href="/done">I&#8217;m done &mdash; show me what to try</a>
 """, dots=["done", "done", "done", "active"])
+
+def _screen_publishing_setup(error: str = "") -> str:
+    creds = _load_api_credentials()
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
+
+    def _status(plat: str) -> str:
+        if creds.get(plat):
+            return '<span class="check">&#10003; Connected</span>'
+        return "&#9744; Not configured"
+
+    return _page("Publishing Setup", f"""
+<h1>Social Media Publishing Setup</h1>
+<p>Connect your platform accounts so Creator OS can schedule and publish posts directly.
+Each platform requires its own API credentials.</p>
+{err_html}
+<h2>Platform Status</h2>
+<p>{_status("youtube")} YouTube</p>
+<p>{_status("instagram")} Instagram</p>
+<p>{_status("tiktok")} TikTok</p>
+<p>{_status("pinterest")} Pinterest</p>
+<hr>
+<h2>Set up a platform</h2>
+<a class="btn btn-primary" href="/publishing-setup/youtube"
+   style="background:#ff0000">YouTube Publishing</a>
+<a class="btn btn-primary" href="/publishing-setup/instagram"
+   style="background:#e1306c">Instagram Publishing</a>
+<a class="btn btn-primary" href="/publishing-setup/tiktok"
+   style="background:#010101">TikTok Publishing</a>
+<a class="btn btn-primary" href="/publishing-setup/pinterest"
+   style="background:#e60023">Pinterest Publishing</a>
+<a class="btn btn-outline" href="/done">Back to Setup</a>
+<div class="note">You can set up platforms one at a time. Platforms without credentials
+will fall back to manual posting (copy-paste checklists).</div>
+""", dots=["done", "done", "done", "active"])
+
+
+def _screen_publishing_youtube(error: str = "") -> str:
+    creds = _load_api_credentials()
+    if creds.get("youtube"):
+        return _page("YouTube Connected", """
+<h1><span class="check">&#10003;</span> YouTube Publishing Ready</h1>
+<div class="success-box">YouTube API credentials are configured. Creator OS can upload
+and schedule videos via the YouTube Data API v3.</div>
+<p>To update your credentials, paste new values below and save again.</p>
+<hr>
+""" + _youtube_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    return _page("YouTube Publishing", f"""
+<h1>Set Up YouTube Publishing</h1>
+<p>Creator OS uses the <strong>YouTube Data API v3</strong> to upload and schedule videos.
+You need a Google Cloud project with the YouTube Data API enabled.</p>
+{err_html}
+<ol class="steps">
+  <li>Open <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>.
+      Use the same project as Google Workspace, or create a new one.</li>
+  <li>Go to <strong>APIs &amp; Services &rarr; Library</strong>. Search for
+      <strong>YouTube Data API v3</strong> and click <strong>Enable</strong>.</li>
+  <li>Go to <strong>APIs &amp; Services &rarr; Credentials</strong>.
+      Click <strong>+ Create Credentials &rarr; OAuth client ID</strong>.
+      Application type: <strong>Desktop app</strong>.</li>
+  <li>Add the scope <code>https://www.googleapis.com/auth/youtube.upload</code>
+      to your OAuth consent screen.</li>
+  <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> below.</li>
+</ol>
+<div class="note">If you already set up Google Workspace, you can reuse the same
+OAuth credentials. Just add the <code>youtube.upload</code> scope.</div>
+<hr>
+""" + _youtube_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+
+def _youtube_form() -> str:
+    return """
+<h2>YouTube API Credentials</h2>
+<form method="POST" action="/api/write-publishing">
+  <input type="hidden" name="platform" value="youtube">
+  <label for="yt_client_id">Google OAuth Client ID</label>
+  <input type="text" id="yt_client_id" name="client_id"
+         placeholder="123456789-abc...apps.googleusercontent.com" required>
+  <label for="yt_client_secret">Google OAuth Client Secret</label>
+  <input type="password" id="yt_client_secret" name="client_secret"
+         placeholder="GOCSPX-..." required>
+  <button class="btn btn-primary" type="submit" style="background:#ff0000">
+    Save YouTube Credentials</button>
+</form>"""
+
+
+def _screen_publishing_instagram(error: str = "") -> str:
+    creds = _load_api_credentials()
+    if creds.get("instagram"):
+        return _page("Instagram Connected", """
+<h1><span class="check">&#10003;</span> Instagram Publishing Ready</h1>
+<div class="success-box">Instagram API credentials are configured. Creator OS can publish
+Reels and posts via the Instagram Graph API.</div>
+<hr>
+""" + _instagram_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    return _page("Instagram Publishing", f"""
+<h1>Set Up Instagram Publishing</h1>
+<p>Creator OS uses the <strong>Instagram Graph API</strong> (v25.0) to publish Reels and posts.
+You need a Meta Developer App with Content Publishing API access.</p>
+{err_html}
+<ol class="steps">
+  <li>Go to <a href="https://developers.facebook.com" target="_blank">Meta for Developers</a>
+      and create an app (type: <strong>Business</strong>).</li>
+  <li>Under <strong>Add Products</strong>, add <strong>Instagram Graph API</strong>.</li>
+  <li>In <strong>App Review</strong>, request the <code>instagram_content_publish</code>
+      and <code>instagram_business_basic</code> permissions.</li>
+  <li>Link your Instagram Business or Creator account to a Facebook Page
+      in the app dashboard.</li>
+  <li>Generate a long-lived <strong>User Access Token</strong> with content publishing scope.</li>
+  <li>Find your <strong>Instagram Business Account ID</strong> from the API Explorer:
+      <code>GET /me/accounts</code> &rarr; get page ID &rarr;
+      <code>GET /{{page-id}}?fields=instagram_business_account</code></li>
+</ol>
+<div class="note">Instagram requires a Business or Creator account linked to a Facebook Page.
+Personal accounts cannot use the publishing API.</div>
+<hr>
+""" + _instagram_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+
+def _instagram_form() -> str:
+    return """
+<h2>Instagram API Credentials</h2>
+<form method="POST" action="/api/write-publishing">
+  <input type="hidden" name="platform" value="instagram">
+  <label for="ig_access_token">Instagram Access Token</label>
+  <input type="text" id="ig_access_token" name="access_token"
+         placeholder="EAAx..." required>
+  <label for="ig_account_id">Instagram Business Account ID</label>
+  <input type="text" id="ig_account_id" name="account_id"
+         placeholder="17841400..." required>
+  <button class="btn btn-primary" type="submit" style="background:#e1306c">
+    Save Instagram Credentials</button>
+</form>"""
+
+
+def _screen_publishing_tiktok(error: str = "") -> str:
+    creds = _load_api_credentials()
+    if creds.get("tiktok"):
+        return _page("TikTok Connected", """
+<h1><span class="check">&#10003;</span> TikTok Publishing Ready</h1>
+<div class="success-box">TikTok API credentials are configured. Creator OS can publish
+videos via the TikTok Content Posting API.</div>
+<div class="note">TikTok does not support scheduled publishing natively. The Scheduling
+Dashboard handles this with a background scheduler. Keep the dashboard running for
+scheduled posts to dispatch automatically.</div>
+<hr>
+""" + _tiktok_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    return _page("TikTok Publishing", f"""
+<h1>Set Up TikTok Publishing</h1>
+<p>Creator OS uses the <strong>TikTok Content Posting API</strong> to upload videos.
+You need a TikTok Developer account with the <code>video.publish</code> scope.</p>
+{err_html}
+<ol class="steps">
+  <li>Go to <a href="https://developers.tiktok.com" target="_blank">TikTok for Developers</a>
+      and sign in with your TikTok account.</li>
+  <li>Create a new app. Under <strong>Products</strong>, add
+      <strong>Content Posting API</strong> and <strong>Login Kit</strong>.</li>
+  <li>Set the redirect URL to <code>http://localhost:8765/oauth/tiktok/callback</code>.</li>
+  <li>Submit for review. Once approved, copy your <strong>Client Key</strong> and
+      <strong>Client Secret</strong>.</li>
+  <li>Generate a <strong>User Access Token</strong> using the Login Kit OAuth flow
+      with the <code>video.publish</code> scope.</li>
+</ol>
+<div class="note">TikTok requires app review before you can publish via API. This can
+take 1 to 3 business days. In the meantime, use Manual mode (copy-paste checklists).</div>
+<hr>
+""" + _tiktok_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+
+def _tiktok_form() -> str:
+    return """
+<h2>TikTok API Credentials</h2>
+<form method="POST" action="/api/write-publishing">
+  <input type="hidden" name="platform" value="tiktok">
+  <label for="tt_client_key">TikTok Client Key</label>
+  <input type="text" id="tt_client_key" name="client_key"
+         placeholder="aw..." required>
+  <label for="tt_client_secret">TikTok Client Secret</label>
+  <input type="password" id="tt_client_secret" name="client_secret"
+         placeholder="..." required>
+  <label for="tt_access_token">TikTok Access Token</label>
+  <input type="text" id="tt_access_token" name="access_token"
+         placeholder="act...." required>
+  <button class="btn btn-primary" type="submit" style="background:#010101">
+    Save TikTok Credentials</button>
+</form>"""
+
+
+def _screen_publishing_pinterest(error: str = "") -> str:
+    creds = _load_api_credentials()
+    if creds.get("pinterest"):
+        return _page("Pinterest Connected", """
+<h1><span class="check">&#10003;</span> Pinterest Publishing Ready</h1>
+<div class="success-box">Pinterest API credentials are configured. Creator OS can create
+pins and video pins via the Pinterest API v5.</div>
+<hr>
+""" + _pinterest_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    return _page("Pinterest Publishing", f"""
+<h1>Set Up Pinterest Publishing</h1>
+<p>Creator OS uses the <strong>Pinterest API v5</strong> to create pins.
+You need a Pinterest Business account and a developer app.</p>
+{err_html}
+<ol class="steps">
+  <li>Convert your Pinterest account to a
+      <a href="https://www.pinterest.com/business/create/" target="_blank">Business account</a>
+      (free).</li>
+  <li>Go to <a href="https://developers.pinterest.com" target="_blank">Pinterest Developers</a>
+      and create a new app.</li>
+  <li>Request the <code>pins:write</code> and <code>boards:write</code> scopes.</li>
+  <li>Generate an <strong>Access Token</strong> via the OAuth flow.</li>
+</ol>
+<div class="note">Pinterest developer apps start in sandbox mode. You can create pins
+immediately; they will be visible only to you until the app is approved for production.</div>
+<hr>
+""" + _pinterest_form() + """
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
+
+def _pinterest_form() -> str:
+    return """
+<h2>Pinterest API Credentials</h2>
+<form method="POST" action="/api/write-publishing">
+  <input type="hidden" name="platform" value="pinterest">
+  <label for="pin_access_token">Pinterest Access Token</label>
+  <input type="text" id="pin_access_token" name="access_token"
+         placeholder="pina_..." required>
+  <button class="btn btn-primary" type="submit" style="background:#e60023">
+    Save Pinterest Credentials</button>
+</form>"""
+
+
+def _load_api_credentials() -> dict:
+    """Read api-credentials.local.json and return a dict keyed by platform."""
+    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    if creds_path.exists():
+        try:
+            return json.loads(creds_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            pass
+    return {}
+
+
+def _save_api_credentials(creds: dict) -> None:
+    """Write api-credentials.local.json."""
+    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    creds_path.parent.mkdir(parents=True, exist_ok=True)
+    creds_path.write_text(json.dumps(creds, indent=2), encoding="utf-8")
+
 
 def _screen_done() -> str:
     google = _get("google_done")
@@ -460,6 +732,10 @@ It will ask you to sign in to your connected accounts the first time you use the
   Creator OS routes these requests through the right spokes automatically.
   You do not need to tell it which tool to use.
 </div>
+<hr>
+<h2>Social media publishing</h2>
+<p>To schedule and publish posts directly to YouTube, Instagram, TikTok, and Pinterest:</p>
+<a class="btn btn-secondary" href="/publishing-setup">Set up social media publishing</a>
 <p style="font-size:.85rem;color:#7a5a5a">You can close this window at any time.
 To run the wizard again: <code>python3 tools/wizard.py</code></p>
 """, dots=["done", "done", "done", "done"])
@@ -501,6 +777,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             "/google": _screen_google(),
             "/microsoft": _screen_microsoft(),
             "/done": _screen_done(),
+            "/publishing-setup": _screen_publishing_setup(),
+            "/publishing-setup/youtube": _screen_publishing_youtube(),
+            "/publishing-setup/instagram": _screen_publishing_instagram(),
+            "/publishing-setup/tiktok": _screen_publishing_tiktok(),
+            "/publishing-setup/pinterest": _screen_publishing_pinterest(),
         }
         if path in routes:
             self._send(routes[path])
@@ -576,6 +857,71 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._redirect("/microsoft")
             except Exception as exc:
                 self._send(_screen_microsoft(error=f"Could not update Claude Desktop config: {exc}"))
+
+        elif path == "/api/write-publishing":
+            data = self._read_form()
+            plat = data.get("platform", "")
+            if plat not in ("youtube", "instagram", "tiktok", "pinterest"):
+                self._redirect("/publishing-setup")
+                return
+
+            creds = _load_api_credentials()
+            plat_creds: dict = {}
+
+            if plat == "youtube":
+                cid = data.get("client_id", "").strip()
+                csec = data.get("client_secret", "").strip()
+                if not cid or not csec:
+                    self._send(_screen_publishing_youtube(
+                        error="Both Client ID and Client Secret are required."))
+                    return
+                plat_creds = {"client_id": cid, "client_secret": csec}
+
+            elif plat == "instagram":
+                token = data.get("access_token", "").strip()
+                acct = data.get("account_id", "").strip()
+                if not token or not acct:
+                    self._send(_screen_publishing_instagram(
+                        error="Both Access Token and Account ID are required."))
+                    return
+                plat_creds = {"access_token": token, "account_id": acct}
+
+            elif plat == "tiktok":
+                ckey = data.get("client_key", "").strip()
+                csec = data.get("client_secret", "").strip()
+                token = data.get("access_token", "").strip()
+                if not ckey or not csec or not token:
+                    self._send(_screen_publishing_tiktok(
+                        error="Client Key, Client Secret, and Access Token are all required."))
+                    return
+                plat_creds = {
+                    "client_key": ckey,
+                    "client_secret": csec,
+                    "access_token": token,
+                }
+
+            elif plat == "pinterest":
+                token = data.get("access_token", "").strip()
+                if not token:
+                    self._send(_screen_publishing_pinterest(
+                        error="Access Token is required."))
+                    return
+                plat_creds = {"access_token": token}
+
+            try:
+                creds[plat] = plat_creds
+                _save_api_credentials(creds)
+                _update_capability_flag(f"{plat}_publishing", True)
+                print(f"[wizard] {plat} publishing credentials saved")
+                self._redirect(f"/publishing-setup/{plat}")
+            except Exception as exc:
+                screen_fn = {
+                    "youtube": _screen_publishing_youtube,
+                    "instagram": _screen_publishing_instagram,
+                    "tiktok": _screen_publishing_tiktok,
+                    "pinterest": _screen_publishing_pinterest,
+                }[plat]
+                self._send(screen_fn(error=f"Could not save credentials: {exc}"))
 
         else:
             self._send("{}", 404, "application/json")

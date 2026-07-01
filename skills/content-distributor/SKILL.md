@@ -35,7 +35,7 @@ Both modes accept:
 - `ftc_disclosures` (object): keyed by platform — `#ad | #gifted | #affiliate | null` per platform
 - `is_aigc` (boolean): if true, AIGC flag is set for TikTok posts
 - `board_names` (object): Pinterest board names keyed by board platform (for Pinterest)
-- `media_urls` (object): keyed by platform — required for direct API tier, optional for Postiz/Buffer
+- `media_urls` (object): keyed by platform — required for direct API tier
 
 ## Core procedure
 
@@ -43,7 +43,7 @@ Follow `shared/method.md`.
 
 ### Step 1: Connector resolution
 Check `get_publishing_plan` (via integrations-engine.md) to determine which publishing tier is available per platform. Show the creator a publishing plan before proceeding:
-- Which platforms have an active connector and at what tier (hosted_mcp / direct_api / manual)
+- Which platforms have an active connector and at what tier (direct_api / manual)
 - Which platforms will fall back to manual mode (no connector)
 
 ### Step 2: Caption and hashtag preparation (skip if Mode A and all captions provided)
@@ -81,7 +81,7 @@ Run govern-artifact with gates: integrity (FTC disclosures verified, AIGC flags 
       "status": "queued | scheduled | manual_required | failed",
       "scheduled_datetime": "ISO 8601 or null",
       "permalink": "string or null",
-      "publishing_tier": "hosted_mcp | direct_api | manual",
+      "publishing_tier": "direct_api | manual",
       "ftc_disclosure": "string or null",
       "is_aigc": "boolean",
       "human_review_required": true,

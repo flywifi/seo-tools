@@ -24,7 +24,7 @@ This atom formats finalized content into a paste-ready manual posting package â€
 - No media_notes provided: posting checklist omits media-specific steps and adds a reminder.
 
 ## Fragile fallbacks that must not become defaults
-- This atom is the fallback for schedule-post. If it is consistently invoked (rather than a live connector), the creator should be guided to set up Postiz or Buffer. Surface a note suggesting connector setup after 3 or more manual posts to the same platform.
+- This atom is the fallback for schedule-post. If it is consistently invoked (rather than a live connector), the creator should be guided to set up direct platform API credentials. Surface a note suggesting credential setup after 3 or more manual posts to the same platform.
 
 ## Regression cases to preserve (mapped to evals/evals.json)
 1. Instagram Reel: full inputs â†’ formatted_caption with disclosure, 5-hashtag block, numbered checklist, media specs, optimal_posting_time labeled `[estimated]`

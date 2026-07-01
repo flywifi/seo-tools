@@ -1,19 +1,19 @@
 [
   {
     "id": "post-status-001",
-    "description": "Happy path: Postiz MCP active, Instagram Reel published — returns published status with permalink and timestamps",
+    "description": "Happy path: direct API active, Instagram Reel published — returns published status with permalink and timestamps",
     "input": {
       "platform": "instagram",
       "post_id": "17895001234567890",
       "include_engagement_snapshot": false
     },
-    "connector_state": { "postiz_mcp": true },
+    "connector_state": { "instagram_publishing": true },
     "simulated_connector_response": { "status": "PUBLISHED", "permalink": "https://www.instagram.com/p/ExampleCode/", "published_at": "2026-09-10T18:02:00Z" },
     "expect": {
       "status": "published",
       "permalink": "non-null URL",
       "published_at": "non-null ISO 8601 string",
-      "connector_used": "postiz_mcp",
+      "connector_used": "instagram_publishing",
       "error": null
     },
     "prohibit": [

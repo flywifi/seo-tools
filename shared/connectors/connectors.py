@@ -48,8 +48,6 @@ CAPABILITY_TO_CONNECTOR = {
     "r_statistics": "r_statistics_mcp",
     "monte_carlo": "monte_carlo_mcp",
     "scikit_learn": "scikit_learn_mcp",
-    "postiz_mcp": "postiz_mcp",
-    "buffer_mcp": "buffer_mcp",
 }
 
 

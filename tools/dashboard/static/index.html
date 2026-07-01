@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creator OS - Scheduling Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Icon sprite -->
+    <div id="icon-sprite" style="display:none"></div>
+
+    <!-- Header -->
+    <header>
+      <h1>Creator OS <span>Scheduling Dashboard</span></h1>
+      <nav id="nav">
+        <button class="active" data-view="queue">
+          <svg><use href="/static/icons.svg#icon-list"/></svg> Queue
+        </button>
+        <button data-view="calendar">
+          <svg><use href="/static/icons.svg#icon-calendar"/></svg> Calendar
+        </button>
+        <button data-view="status">
+          <svg><use href="/static/icons.svg#icon-activity"/></svg> Status
+        </button>
+        <button data-view="credentials">
+          <svg><use href="/static/icons.svg#icon-settings"/></svg> Credentials
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main content area -->
+    <main id="main-content">
+      <!-- Views rendered by app.js -->
+    </main>
+
+    <!-- Edit modal -->
+    <div class="modal-overlay" id="edit-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modal-title">Edit Post</h3>
+          <button class="modal-close" onclick="App.closeModal()">
+            <svg><use href="/static/icons.svg#icon-x"/></svg>
+          </button>
+        </div>
+        <div id="modal-body">
+          <div class="form-group">
+            <label for="edit-caption">Caption</label>
+            <textarea id="edit-caption" rows="4" placeholder="Write your caption..."></textarea>
+            <div class="char-count" id="caption-count"></div>
+          </div>
+          <div class="form-group">
+            <label for="edit-hashtags">Hashtags (comma-separated)</label>
+            <input type="text" id="edit-hashtags" placeholder="#diy, #thriftflip, #homedecor">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-content-type">Content Type</label>
+              <select id="edit-content-type">
+                <option value="">Select...</option>
+                <option value="reel">Reel / Short</option>
+                <option value="video">Long-form Video</option>
+                <option value="carousel">Carousel / Slides</option>
+                <option value="image">Single Image</option>
+                <option value="pin">Pin</option>
+                <option value="idea_pin">Idea Pin</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit-schedule">Schedule</label>
+              <input type="datetime-local" id="edit-schedule">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-media-url">Media URL</label>
+            <input type="text" id="edit-media-url" placeholder="https://...">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-ftc">FTC Disclosure</label>
+              <select id="edit-ftc">
+                <option value="">None</option>
+                <option value="#ad">#ad</option>
+                <option value="#gifted">#gifted</option>
+                <option value="#affiliate">#affiliate</option>
+              </select>
+            </div>
+            <div class="form-group" id="aigc-group" style="display:none">
+              <label>&nbsp;</label>
+              <div class="form-check">
+                <input type="checkbox" id="edit-aigc">
+                <label for="edit-aigc">AIGC content (TikTok)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="App.closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="App.saveEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toasts"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

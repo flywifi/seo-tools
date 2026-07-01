@@ -59,15 +59,6 @@
       "command": "python3",
       "args": ["-m", "jupyter_mcp_server"],
       "env": {}
-    },
-    "postiz": {
-      "_comment": "Optional. Self-hosted social media scheduler (open source, AGPL-3.0). Covers Instagram, TikTok, Pinterest, YouTube, and 30+ platforms. Requires Postiz Docker stack running locally or on a server. See docs.postiz.com for setup. Enables the postiz_mcp capability flag in Creator OS.",
-      "command": "npx",
-      "args": ["-y", "@postiz/mcp-server"],
-      "env": {
-        "POSTIZ_API_URL": "REPLACE_WITH_POSTIZ_URL",
-        "POSTIZ_API_KEY": "REPLACE_WITH_POSTIZ_API_KEY"
-      }
     }
   }
 }

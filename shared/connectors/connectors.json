@@ -335,62 +335,36 @@
       "requires_capability": "scikit_learn",
       "deployment_support": ["option_a_claude_desktop_mcp"],
       "status": "seed"
-    },
-    {
-      "id": "postiz_mcp",
-      "label": "Postiz self-hosted social scheduler (MCP, 30+ platforms)",
-      "vendor": "Postiz (open source, AGPL-3.0)",
-      "default_flag": "not_installed",
-      "provides": ["content_publishing"],
-      "privacy_sensitivity": "medium",
-      "auth_note": "Self-hosted Docker stack. MCP server built in. Covers Instagram, TikTok, Pinterest, YouTube, 27+ more platforms. No per-platform API credentials required when Postiz handles OAuth. See docs.postiz.com for Docker setup. Configure in claude_desktop_config.json as postiz_mcp server. Enable by setting postiz_mcp: true in creator-os-config.local.json.",
-      "requires_capability": "postiz_mcp",
-      "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
-      "status": "seed"
-    },
-    {
-      "id": "buffer_mcp",
-      "label": "Buffer social scheduler (hosted MCP, free tier: 3 channels / 10 posts each)",
-      "vendor": "Buffer",
-      "default_flag": "not_installed",
-      "provides": ["content_publishing", "analytics"],
-      "privacy_sensitivity": "medium",
-      "auth_note": "Hosted service. Free tier includes 3 channels and 10 scheduled posts per channel. Buffer MCP server connects via API key. No self-hosting required. Enable by setting buffer_mcp: true in creator-os-config.local.json.",
-      "requires_capability": "buffer_mcp",
-      "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
-      "status": "seed"
     }
   ],
   "deployment_modes": {
     "option_a_claude_desktop_mcp": {
       "label": "Claude Desktop with MCP (full capability)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "postiz_mcp", "buffer_mcp"]
+      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_b_claude_projects": {
       "label": "Claude Projects on claude.ai (knowledge-only)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
       "connectors_requiring_setup": ["gmail", "google_calendar", "google_docs_sheets"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "postiz_mcp", "buffer_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_c_gpt_api": {
       "label": "GPT-4 API with function calling",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "postiz_mcp", "buffer_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_d_chatgpt_web": {
       "label": "ChatGPT Web with custom instructions",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "postiz_mcp", "buffer_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     },
     "option_e_gemini": {
       "label": "Gemini (Gems or API)",
       "connectors_available_by_default": ["manual_paste", "uploaded_file"],
       "connectors_requiring_setup": ["google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "postiz_mcp", "buffer_mcp"]
+      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp"]
     }
   },
   "extensible_stubs": ["snapchat_api", "spotify_podcasts"]

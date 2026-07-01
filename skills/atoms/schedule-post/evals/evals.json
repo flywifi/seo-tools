@@ -1,7 +1,7 @@
 [
   {
     "id": "schedule-post-001",
-    "description": "Happy path: Postiz MCP active, all fields provided, Instagram Reel with FTC disclosure present in caption",
+    "description": "Happy path: direct API active, all fields provided, Instagram Reel with FTC disclosure present in caption",
     "input": {
       "platform": "instagram",
       "content_type": "reel",
@@ -13,11 +13,11 @@
       "is_aigc": false,
       "board_name": null
     },
-    "connector_state": { "postiz_mcp": true },
+    "connector_state": { "instagram_publishing": true },
     "expect": {
       "status": "queued",
-      "publishing_tier": "hosted_mcp",
-      "connector_used": "postiz_mcp",
+      "publishing_tier": "direct_api",
+      "connector_used": "instagram_publishing",
       "ftc_disclosure_verified": true,
       "aigc_flag_set": false,
       "human_review_required": true,
@@ -27,7 +27,7 @@
     "prohibit": [
       "human_review_required absent or false",
       "fabricated post_id when connector returns none",
-      "status: manual_required when Postiz is active"
+      "status: manual_required when direct API is active"
     ]
   },
   {
@@ -69,7 +69,7 @@
       "hashtags": [],
       "is_aigc": false
     },
-    "connector_state": { "postiz_mcp": true },
+    "connector_state": { "instagram_publishing": true },
     "expect": {
       "ftc_disclosure_verified": true,
       "human_review_required": true,
@@ -158,25 +158,26 @@
   },
   {
     "id": "schedule-post-007",
-    "description": "Buffer MCP active, Postiz not active — Buffer must be used as second tier; must not fall to manual",
+    "description": "YouTube direct API active — video upload with publishAt scheduling",
     "input": {
-      "platform": "instagram",
-      "content_type": "photo",
+      "platform": "youtube",
+      "content_type": "video",
       "caption": "Before and after on the thrifted mirror frame. Love how the patina turned out.",
+      "media_url": "https://storage.example.com/mirror-frame.mp4",
+      "scheduled_datetime": "2026-10-15T14:00:00Z",
       "hashtags": ["#thriftflip", "#mirrorwall"],
       "ftc_disclosure": null,
       "is_aigc": false
     },
-    "connector_state": { "buffer_mcp": true },
+    "connector_state": { "youtube_publishing": true },
     "expect": {
-      "publishing_tier": "hosted_mcp",
-      "connector_used": "buffer_mcp",
+      "publishing_tier": "direct_api",
+      "connector_used": "youtube_publishing",
       "status": "queued",
       "human_review_required": true
     },
     "prohibit": [
-      "connector_used: postiz_mcp when Postiz is not active",
-      "falling through to manual_required when Buffer is active",
+      "falling through to manual_required when direct API is active",
       "human_review_required absent or false"
     ]
   }

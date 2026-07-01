@@ -23,6 +23,9 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
   personas, rate benchmarks, seasonal aesthetic).
 - `tools/` `sync_check.py` (drift guard), `new_skill.py` (scaffolder), `version.py`,
   `package_skill.py`, `sync_cache.py` (scoop L3), `skill-template/`, `sync_manifest.json`.
+  `tools/dashboard/` is the Scheduling Dashboard (`python3 tools/dashboard/server.py`, port 8766).
+  `tools/wizard.py` is the setup wizard (port 8765), including `/publishing-setup` for platform
+  API credential configuration.
 - `implementation/` platform packaging (claude, gpt, gemini). `docs/`, `ledger/`, `examples/`.
 
 ## Branching and git

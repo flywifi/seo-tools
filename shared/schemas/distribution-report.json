@@ -65,13 +65,11 @@
           },
           "publishing_tier": {
             "type": "string",
-            "enum": ["hosted_mcp", "direct_api", "manual"]
+            "enum": ["direct_api", "manual"]
           },
           "connector_used": {
             "type": "string",
             "enum": [
-              "postiz_mcp",
-              "buffer_mcp",
               "youtube_publishing",
               "instagram_publishing",
               "tiktok_publishing",

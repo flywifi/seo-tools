@@ -446,16 +446,15 @@ Creator OS resolves publishing connectors in priority order:
 
 | Tier | Connector | Platforms | Notes |
 |---|---|---|---|
-| Tier 1 (Hosted MCP) | `postiz_mcp` | Instagram, TikTok, Pinterest, YouTube, 30+ | Self-hosted Docker stack; built-in MCP server |
-| Tier 1 (Hosted MCP) | `buffer_mcp` | Instagram, TikTok, Pinterest, YouTube | Free tier: 3 channels, 10 posts each |
-| Tier 2 (Direct API) | `instagram_publishing` | Instagram | Graph API v25.0 two-step container+publish |
-| Tier 2 (Direct API) | `tiktok_publishing` | TikTok | Content Posting API; 6 req/min; AIGC flag required |
-| Tier 2 (Direct API) | `pinterest_publishing` | Pinterest | API v5 `POST /v5/pins` with `scheduled_at` |
-| Tier 2 (Direct API) | `youtube_publishing` | YouTube | Data API v3 resumable upload with `publishAt` |
-| Tier 3 (Manual) | none | All | `publish-draft` formats paste-ready posting packages |
+| Tier 1 (Direct API) | `instagram_publishing` | Instagram | Graph API v25.0 two-step container+publish |
+| Tier 1 (Direct API) | `tiktok_publishing` | TikTok | Content Posting API; 6 req/min; AIGC flag required |
+| Tier 1 (Direct API) | `pinterest_publishing` | Pinterest | API v5 `POST /v5/pins` with `scheduled_at` |
+| Tier 1 (Direct API) | `youtube_publishing` | YouTube | Data API v3 resumable upload with `publishAt` |
+| Tier 2 (Manual) | none | All | `publish-draft` formats paste-ready posting packages |
 
-Tier resolution is greedy: if `postiz_mcp` is active it handles all four platforms. The resolver
-falls back to per-platform direct API flags only when both Postiz and Buffer are inactive.
+Tier resolution checks per-platform direct API flags first. If a platform's publishing flag is
+active, `schedule-post` uses the direct API. Otherwise it falls back to manual mode. The
+scheduling dashboard (`tools/dashboard/`) provides a browser-based GUI for managing the queue.
 
 ### Human confirmation gate
 
@@ -507,6 +506,70 @@ After scheduling, `pipeline/user-context/content-calendar.json` entries gain a `
 tracking `post_id`, `status`, `permalink`, `published_at`, `publishing_tier`, and compliance
 fields per platform. This provides a persistent audit trail of what was queued, when, and via
 which connector.
+
+### Scheduling Dashboard
+
+A browser-based GUI at `tools/dashboard/` gives the creator a visual interface for toggling
+platforms, setting per-platform schedules, editing captions and hashtags, and monitoring post
+status. No framework dependencies, no CDN, no build step.
+
+**Directory structure:**
+
+```
+tools/dashboard/
+  server.py              Python stdlib HTTP server, JSON API, background scheduler
+  static/
+    index.html           SPA shell (nav tabs, edit modal, toast container)
+    style.css            Brand-consistent theming (warm/moody palette)
+    app.js               Vanilla JS: fetch API, DOM manipulation, localStorage prefs
+    icons.svg            SVG sprite (platform logos, status indicators)
+```
+
+**Server** (`server.py`): pure Python stdlib (`http.server`, `json`, `threading`, `pathlib`).
+Port 8766 (the setup wizard uses 8765). Exposes a JSON API:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/queue` | Return the scheduling queue |
+| GET | `/api/publishing-plan` | Which platforms have active direct API connectors |
+| GET | `/api/credentials-status` | Which platform API credentials are configured |
+| POST | `/api/queue` | Add or update a post in the queue |
+| POST | `/api/schedule` | Trigger schedule-post for a queued item (human confirmation) |
+| POST | `/api/toggle-platform` | Enable or disable a platform for a queue item |
+| POST | `/api/update-caption` | Update caption or hashtags for a platform-specific post |
+| POST | `/api/update-schedule` | Update scheduled datetime for a platform-specific post |
+| POST | `/api/delete-item` | Remove an item from the queue |
+| GET | `/api/status/:post_id` | Check status of a scheduled post |
+
+**Data store:** `pipeline/user-context/scheduling-queue.local.json` (gitignored via the existing
+`*.local.json` pattern). Each queue item tracks per-platform state: enabled toggle, scheduled
+datetime, caption, hashtags, content type, media URL, FTC disclosure, AIGC flag, status, post ID,
+permalink, and error.
+
+**Five views:**
+1. **Queue** (default) — cards per content item with platform toggle switches, status dots, and
+   per-platform date/time pickers.
+2. **Calendar** — monthly grid with posts color-coded by platform.
+3. **Status** — table of all posts with current status, scheduled time, permalink, and error.
+4. **Credentials** — traffic-light indicators per platform linking to the setup wizard's
+   `/publishing-setup` screens for OAuth credential configuration.
+5. **Edit** (modal) — caption textarea with character count, hashtag editor, content type selector,
+   media URL field, FTC disclosure dropdown, AIGC flag toggle (TikTok only).
+
+**Background scheduler:** a daemon thread checks the queue every 60 seconds and dispatches posts
+whose `scheduled_datetime` has passed. Required for TikTok (no native `scheduled_at` in the
+Content Posting API). The dashboard must be running for auto-dispatch; the UI states this
+explicitly.
+
+**Integration paths:**
+- *Input:* the `content-distributor` spoke produces a distribution report with `posts[]` and a
+  `dashboard_url` field. The dashboard's `/api/queue` POST endpoint accepts this format.
+- *Output:* when the creator clicks "Confirm and Schedule," the server calls the same
+  `schedule_post` logic the MCP tool uses, maintaining `human_review_required: true`.
+- *Credentials:* the Credentials view links to `tools/wizard.py` at
+  `http://localhost:8765/publishing-setup/<platform>` for OAuth setup flows.
+
+Launch: `python3 tools/dashboard/server.py`
 
 ---
 

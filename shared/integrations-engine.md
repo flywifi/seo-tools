@@ -475,14 +475,12 @@ This section documents the write-side publishing specs used by `schedule-post` a
 
 When `schedule-post` is invoked, it resolves the active connector in this fixed priority order:
 
-1. **Postiz MCP (`postiz_mcp`)** — hosted_mcp tier; covers all four platforms via one integration.
-2. **Buffer MCP (`buffer_mcp`)** — hosted_mcp tier; free tier: 3 channels, 10 posts each.
-3. **Per-platform direct API** — direct_api tier; platform flags checked in order:
+1. **Per-platform direct API** — direct_api tier; platform flags checked in order:
    `youtube_publishing`, `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing`.
-4. **Manual (`publish-draft`)** — tier: manual; always available; no API credentials required.
+2. **Manual (`publish-draft`)** — tier: manual; always available; no API credentials required.
 
 The first available tier for each platform wins. Partial connector coverage is normal: some
-platforms may queue via Postiz while others fall back to manual.
+platforms may have direct API credentials while others fall back to manual.
 
 ### Pinterest API v5
 
@@ -547,8 +545,8 @@ for `schedule-post`:
 - **AIGC flag:** `post_info.is_aigc: true` is REQUIRED when `is_aigc: true` in the atom input.
   This is a TikTok platform requirement, not optional.
 - **Direct scheduling:** TikTok Content Posting API does not support `scheduled_at` natively.
-  For scheduled posts, use Postiz or Buffer MCP (hosted_mcp tier) which handle scheduling
-  via their own queuing layer. Direct API tier posts immediately.
+  The scheduling dashboard background scheduler handles timed dispatch for TikTok posts.
+  Direct API tier posts immediately when dispatched.
 - **No TikTok-watermarked reposts:** Do not repost watermarked TikTok content to other
   platforms. Always use the source file.
 - **Status check endpoint:** `POST /v2/post/publish/status/fetch/` with `publish_id`.
@@ -589,30 +587,6 @@ and long-form.
 
 **Status check:** `GET /videos?id={video_id}&part=status` — `status.uploadStatus` transitions:
 `uploaded` → `processed` → (then `privacyStatus` changes to `public` at `publishAt`).
-
-### Postiz MCP (hosted_mcp tier)
-
-Postiz is an open-source social media scheduler (AGPL-3.0, self-hosted via Docker).
-It exposes an MCP server interface that `schedule-post` calls via the `postiz_mcp` connector.
-
-**Platforms covered:** Instagram, TikTok, Pinterest, YouTube, and 25+ others.
-**Scheduling:** Full datetime scheduling for all platforms, including TikTok (which lacks
-native API scheduling).
-**Rate limiting:** Postiz manages its own queue and respects per-platform rate limits.
-
-When `postiz_mcp` is active, `schedule-post` delegates scheduling to Postiz rather than
-calling platform APIs directly. Postiz returns a `post_id` and `status` from its own queue.
-
-Reference: `canonical-sources/source-registry.json` entries `postiz-github-repo` and
-`postiz-docs`.
-
-### Buffer MCP (hosted_mcp tier, second tier)
-
-Buffer is a hosted social media scheduling service with a free tier (3 channels, 10 posts each).
-It exposes an MCP server interface callable via the `buffer_mcp` connector.
-
-Buffer is used as the second-tier hosted_mcp connector when Postiz is not configured.
-Buffer's free tier is sufficient for low-volume content calendars without self-hosting.
 
 ### Safety requirements for all publishing
 

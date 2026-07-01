@@ -1,7 +1,7 @@
 ---
 name: schedule-post
 atom: true
-description: "Queues or schedules a single piece of content to a social platform via the active publishing connector (Postiz MCP, Buffer MCP, or direct platform API) and returns the post ID and status. Falls back to publish-draft (manual mode) when no content_publishing connector is active. Do NOT use for content creation — use caption-write or pin-write first; do NOT use to check post status after publishing — use post-status instead."
+description: "Queues or schedules a single piece of content to a social platform via the active publishing connector (direct platform API) and returns the post ID and status. Falls back to publish-draft (manual mode) when no content_publishing connector is active. Do NOT use for content creation — use caption-write or pin-write first; do NOT use to check post status after publishing — use post-status instead."
 engines_required:
   - shared/platform-engine.md
   - shared/integrations-engine.md
@@ -49,10 +49,8 @@ Retrieved automatically:
 
 ### Step 1: Connector resolution
 Check which `content_publishing` connectors are active:
-1. Postiz MCP (Tier 1, highest priority) — covers all four platforms via a single MCP tool
-2. Buffer MCP (Tier 1 alternative) — covers up to 3 channels at free tier
-3. Per-platform direct API (Tier 2) — check the platform-specific publishing flag (`youtube_publishing`, `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing`)
-4. Manual fallback (Tier 3) — if no connector is active, fall back to publish-draft behavior inline
+1. Per-platform direct API — check the platform-specific publishing flag (`youtube_publishing`, `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing`)
+2. Manual fallback — if no connector is active, fall back to publish-draft behavior inline
 
 ### Step 2: Compliance check (before any connector call)
 - FTC disclosure: if `ftc_disclosure` is non-null, verify the disclosure string is present in `caption`. If absent, prepend it and note the addition in `notes`.
@@ -64,8 +62,6 @@ Return a confirmation summary BEFORE queuing. The caller (content-distributor sp
 
 ### Step 4: Connector call (post-confirmation only)
 Call the resolved connector:
-- **Postiz MCP**: invoke `schedule_post` Postiz tool with platform, caption, media_url, scheduled_datetime, hashtags, board_name
-- **Buffer MCP**: invoke Buffer scheduling tool with equivalent fields
 - **YouTube direct API**: initiate resumable upload to Data API v3, set `status.publishAt` if scheduled_datetime is provided
 - **Instagram direct API**: POST to `/{ig-user-id}/media` (container), poll `status_code`, then POST to `/{ig-user-id}/media_publish`
 - **TikTok direct API**: POST to `/v2/post/publish/video/init/`, upload chunk, set `is_aigc` flag if required
@@ -84,8 +80,8 @@ On connector error: return `status: failed`, populate `error` with the connector
   "status": "queued | scheduled | draft | failed | manual_required",
   "scheduled_datetime": "ISO 8601 or null",
   "permalink": "string or null",
-  "publishing_tier": "hosted_mcp | direct_api | manual",
-  "connector_used": "postiz_mcp | buffer_mcp | youtube_publishing | instagram_publishing | tiktok_publishing | pinterest_publishing | none",
+  "publishing_tier": "direct_api | manual",
+  "connector_used": "youtube_publishing | instagram_publishing | tiktok_publishing | pinterest_publishing | none",
   "ftc_disclosure_verified": "boolean",
   "aigc_flag_set": "boolean",
   "human_review_required": true,
@@ -117,6 +113,6 @@ When invoked directly without the content-distributor spoke, accepts caption and
 
 - **No connector active**: gracefully falls back to manual mode; returns `publishing_tier: manual` and `status: manual_required`. Never fails silently.
 - **FTC disclosure missing**: atom adds the disclosure and flags the addition; does not block posting.
-- **Media URL missing for direct API tier**: returns `status: failed` with a note that media_url is required for the direct API path. Postiz/Buffer do not require a media_url (the creator uploads media directly to those platforms).
+- **Media URL missing for direct API tier**: returns `status: failed` with a note that media_url is required for the direct API path.
 - **Platform rate limit hit**: returns `status: failed` with the rate limit message from the connector. TikTok Content Posting API rate limit is 6 requests per minute; Pinterest Pins API write limit is 100 per minute.
 - **AIGC flag omitted on TikTok for AI-generated content**: atom auto-sets the flag when `is_aigc: true` is passed. If the caller does not pass `is_aigc`, the atom cannot detect AI content and the flag is omitted — document this in `notes`.

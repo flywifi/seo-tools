@@ -38,7 +38,7 @@ const PUBLISHING_PLAN_SCHEMA = {
         type: 'object',
         properties: {
           platform: { type: 'string' },
-          tier: { type: 'string', enum: ['hosted_mcp', 'direct_api', 'manual'] },
+          tier: { type: 'string', enum: ['direct_api', 'manual'] },
           connector: { type: 'string' },
           will_auto_queue: { type: 'boolean' },
           caption_ready: { type: 'boolean' },
@@ -132,7 +132,7 @@ You MUST NOT commit or push. Your only job is to read and return structured find
 TASK: Resolve the content distribution publishing plan.
 
 1. Call the get_publishing_plan MCP tool to determine which platforms have active connectors
-   and at what tier (hosted_mcp, direct_api, or manual).
+   and at what tier (direct_api or manual).
 
 2. Inspect the args object (passed from the caller). It should contain:
    - platform_targets: array of platforms to distribute to
@@ -355,6 +355,7 @@ if (queued > 0) {
   nextSteps.push(`${queued} post(s) queued (pending human confirmation). Review confirmation summary and confirm to proceed.`)
 }
 nextSteps.push('Run govern-artifact with gates: integrity, safety, brand_alignment before confirming any post.')
+nextSteps.push('Open the Scheduling Dashboard to review and schedule posts: http://localhost:8766')
 
 return {
   distribution_summary: distributionSummary,
@@ -365,4 +366,5 @@ return {
   human_review_required: true,
   publishing_plan: prepareAgent,
   plan_verification: planVerifyAgent,
+  dashboard_url: 'http://localhost:8766',
 }

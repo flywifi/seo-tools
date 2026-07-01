@@ -426,7 +426,6 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
 # ---------------------------------------------------------------------------
 
 PUBLISHING_FLAGS = [
-    "postiz_mcp", "buffer_mcp",
     "youtube_publishing", "instagram_publishing",
     "tiktok_publishing", "pinterest_publishing",
 ]
@@ -446,11 +445,11 @@ def schedule_post(
 ) -> str:
     """Dispatch a single post to the active publishing connector or return a manual plan.
 
-    Checks which content_publishing connector is active (postiz_mcp > buffer_mcp >
-    per-platform direct API > manual fallback), enforces FTC disclosure and AIGC flag
-    rules, then returns a confirmation summary. Human confirmation is ALWAYS required
-    before the connector actually queues the post — this tool returns the plan, not a
-    completed action. When no connector is active, returns a manual posting package.
+    Checks which content_publishing connector is active (per-platform direct API >
+    manual fallback), enforces FTC disclosure and AIGC flag rules, then returns a
+    confirmation summary. Human confirmation is ALWAYS required before the connector
+    actually queues the post — this tool returns the plan, not a completed action.
+    When no connector is active, returns a manual posting package.
 
     Args:
         platform: One of: instagram, tiktok, pinterest, youtube.
@@ -471,13 +470,7 @@ def schedule_post(
         return meta.get("enabled", False) if isinstance(meta, dict) else bool(meta)
 
     # Determine active publishing tier
-    if _flag_enabled("postiz_mcp"):
-        tier = "hosted_mcp"
-        connector = "postiz_mcp"
-    elif _flag_enabled("buffer_mcp"):
-        tier = "hosted_mcp"
-        connector = "buffer_mcp"
-    elif _flag_enabled(f"{platform}_publishing"):
+    if _flag_enabled(f"{platform}_publishing"):
         tier = "direct_api"
         connector = f"{platform}_publishing"
     else:
@@ -560,11 +553,7 @@ def post_status(
         meta = caps.get(name, {})
         return meta.get("enabled", False) if isinstance(meta, dict) else bool(meta)
 
-    if _flag_enabled("postiz_mcp"):
-        connector = "postiz_mcp"
-    elif _flag_enabled("buffer_mcp"):
-        connector = "buffer_mcp"
-    elif _flag_enabled(f"{platform}_publishing"):
+    if _flag_enabled(f"{platform}_publishing"):
         connector = f"{platform}_publishing"
     else:
         connector = "none"
@@ -607,8 +596,8 @@ def post_status(
         "notes": (
             f"Connector '{connector}' is configured. Call the connector's status endpoint "
             f"directly with post_id '{post_id}' to retrieve live status. "
-            "Creator OS MCP delegates status checks to the connector's own MCP tools "
-            "(postiz_mcp or buffer_mcp) rather than re-implementing their APIs."
+            "Creator OS MCP delegates status checks to the platform's direct API "
+            "rather than re-implementing their interfaces."
         ),
     }, indent=2)
 
@@ -622,7 +611,7 @@ def get_publishing_plan() -> str:
     """Return which platforms have active publishing connectors and at what tier.
 
     Reads all content_publishing capability flags and resolves a publishing plan
-    showing the available tier (hosted_mcp, direct_api, or manual) per platform.
+    showing the available tier (direct_api or manual) per platform.
     Use this before running content-distributor to know which platforms will queue
     automatically and which will require manual posting.
     """
@@ -635,19 +624,10 @@ def get_publishing_plan() -> str:
 
     platforms = ["instagram", "tiktok", "pinterest", "youtube"]
 
-    postiz_active = _flag_enabled("postiz_mcp")
-    buffer_active = _flag_enabled("buffer_mcp")
-
     platform_plans = {}
     for plat in platforms:
         per_platform_flag = f"{plat}_publishing"
-        if postiz_active:
-            tier = "hosted_mcp"
-            connector = "postiz_mcp"
-        elif buffer_active:
-            tier = "hosted_mcp"
-            connector = "buffer_mcp"
-        elif _flag_enabled(per_platform_flag):
+        if _flag_enabled(per_platform_flag):
             tier = "direct_api"
             connector = per_platform_flag
         else:
@@ -665,16 +645,15 @@ def get_publishing_plan() -> str:
         "publishing_plan": platform_plans,
         "any_connector_active": any_connector,
         "connectors_checked": {
-            "postiz_mcp": postiz_active,
-            "buffer_mcp": buffer_active,
             "youtube_publishing": _flag_enabled("youtube_publishing"),
             "instagram_publishing": _flag_enabled("instagram_publishing"),
             "tiktok_publishing": _flag_enabled("tiktok_publishing"),
             "pinterest_publishing": _flag_enabled("pinterest_publishing"),
         },
+        "dashboard_url": "http://localhost:8766",
         "note": (
-            "All platforms in manual mode. No content_publishing connector is active. "
-            "Enable postiz_mcp or buffer_mcp in creator-os-config.local.json for auto-queuing."
+            "All platforms in manual mode. No per-platform publishing connector is active. "
+            "Enable per-platform flags in creator-os-config.local.json or use the scheduling dashboard."
             if not any_connector
             else "Publishing plan resolved. Human confirmation required before any post is queued."
         ),

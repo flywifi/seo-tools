@@ -28,16 +28,16 @@ purpose: preserve the non-negotiable operating rules for content-distributor so 
 
 ## Fragile fallbacks that must not become defaults
 
-- **`publish-draft` as scheduling.** The manual package is a fallback for when no connector is active. It must never be returned as the primary output when a connector is available. The publishing_tier label (`hosted_mcp | direct_api | manual`) must accurately reflect which path was used.
+- **`publish-draft` as scheduling.** The manual package is a fallback for when no connector is active. It must never be returned as the primary output when a connector is available. The publishing_tier label (`direct_api | manual`) must accurately reflect which path was used.
 - **Caption generation (Mode B).** Invoking `caption-write` is only valid when no caption was provided for a platform. Mode B is a degraded path for operators who did not run `shortform-repurposing` first. It must be labeled as such in output notes when invoked.
 - **Post-status skip.** Step 4 is optional; skipping it is acceptable. But when a connector returns `status: processing` and the creator does not check back, posts may fail silently. The spoke must remind the creator in `next_steps` to run `post-status` for any processing posts.
 
 ## Regression cases to preserve
 
-1. **content-distributor-001** (Mode A, all platforms queued via Postiz): captions provided, Postiz active for all platforms, human confirms — all posts return `status: queued`, `publishing_tier: hosted_mcp`; Steps 1 and 2 are skipped; `distribution_summary.queued == platform_count`.
+1. **content-distributor-001** (Mode A, all platforms queued via direct API): captions provided, per-platform direct API active for all platforms, human confirms — all posts return `status: queued`, `publishing_tier: direct_api`; Steps 1 and 2 are skipped; `distribution_summary.queued == platform_count`.
 2. **content-distributor-002** (No connector, full manual fallback): no connector active for any platform — all posts return `status: manual_required`; every platform has a populated `manual_posting_packages` entry; nothing blocks distribution.
 3. **content-distributor-003** (Mode B, captions generated): no captions provided, `content_brief` given — `caption-write` and `hashtag-set` run per platform before `schedule-post`; generated captions are passed to connector, not placeholder values.
-4. **content-distributor-004** (Mixed: 3 platforms queued, 1 manual): Postiz active for Instagram, TikTok, Pinterest; no connector for YouTube — `distribution_summary` shows `queued: 3, manual_required: 1`; YouTube gets a `manual_posting_package`; other platforms do not.
+4. **content-distributor-004** (Mixed: 3 platforms queued, 1 manual): direct API active for Instagram, TikTok, Pinterest; no connector for YouTube — `distribution_summary` shows `queued: 3, manual_required: 1`; YouTube gets a `manual_posting_package`; other platforms do not.
 5. **content-distributor-005** (FTC disclosure prepend): `ftc_disclosure: "#gifted"` provided; caption does not contain `#gifted` — `schedule-post` prepends disclosure; `ftc_disclosure_verified: true` in every post entry; govern-artifact confirms disclosure before releasing.
 6. **content-distributor-006** (Govern-artifact gate failure): caption fails the safety gate — gate failure appears in `govern_artifact_result` and `next_steps`; all posts that were queued before the gate check retain their `status: queued` but the gate failure is surfaced.
 7. **content-distributor-007** (TikTok AIGC flag): `is_aigc: true`, platform includes TikTok — `schedule-post` sets AIGC flag in connector payload; `aigc_flag_set: true` appears in TikTok post entry.
@@ -46,7 +46,7 @@ purpose: preserve the non-negotiable operating rules for content-distributor so 
 
 - **Output schema changes** (`distribution_summary`, `posts[]`, `manual_posting_packages[]`): any field addition, removal, or rename requires a version bump and evals update.
 - **Atom wiring changes** (adding, removing, or reordering steps in `workflow.json`): requires review against the skip conditions and the human confirmation gate placement.
-- **Connector tier resolution order** (Postiz > Buffer > direct API > manual): any change to this priority requires updating `schedule-post/SKILL.md` and this file.
+- **Connector tier resolution order** (direct API > manual): any change to this priority requires updating `schedule-post/SKILL.md` and this file.
 - **Govern-artifact gate list** (integrity, safety, brand_alignment): any gate addition or removal requires eval coverage for the new gate.
 
 ## Minority-report policy

@@ -37,14 +37,12 @@ Retrieved automatically:
 
 ### Step 1: Connector resolution
 Determine which connector handles the given platform:
-1. Postiz MCP — check post status via Postiz's internal tracking
-2. Buffer MCP — check via Buffer API
-3. Direct platform API — call the platform's status endpoint:
+1. Direct platform API — call the platform's status endpoint:
    - Instagram: `GET /{ig-container-id}?fields=status_code` then `GET /{ig-media-id}?fields=permalink`
    - TikTok: check via Display API or Content Posting API status poll
    - Pinterest: `GET /v5/pins/{pin_id}?fields=id,link,created_at`
    - YouTube: `GET /youtube/v3/videos?part=status,statistics&id={video_id}`
-4. No connector: return `status: unknown` with manual check instructions
+2. No connector: return `status: unknown` with manual check instructions
 
 ### Step 2: Status fetch
 Call the resolved connector. Map platform-native status codes to the Creator OS status vocabulary:
@@ -90,7 +88,7 @@ If the permalink is not yet available (processing), return null and note that th
     "shares": "number or null",
     "comments": "number or null"
   },
-  "connector_used": "postiz_mcp | buffer_mcp | direct_api | none",
+  "connector_used": "direct_api | none",
   "error": "string or null",
   "notes": "string or null"
 }

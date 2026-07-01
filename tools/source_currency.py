@@ -429,6 +429,9 @@ def main():
     p_seed = sub.add_parser("seed-sources", help="Upsert depth-0 seed sources from a JSON file")
     p_seed.add_argument("file", help="Path to JSON file containing array of source objects")
 
+    p_rm = sub.add_parser("remove-source", help="Remove a source entry by ID")
+    p_rm.add_argument("id", help="Source id to remove from the registry")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -448,6 +451,16 @@ def main():
         cmd_seed_partners(args, registry, traversal_config)
     elif args.command == "seed-sources":
         cmd_seed_sources(args, registry, traversal_config)
+    elif args.command == "remove-source":
+        sources = registry.get("sources", [])
+        before = len(sources)
+        registry["sources"] = [s for s in sources if s.get("id") != args.id]
+        after = len(registry["sources"])
+        if before == after:
+            print(f"[warn] source '{args.id}' not found in registry.")
+        else:
+            save_registry(registry)
+            print(f"[ok] removed source '{args.id}' from registry.")
 
 
 if __name__ == "__main__":

@@ -26,7 +26,7 @@ This atom checks the current status of a single previously scheduled post via th
 - `status: unknown` with manual check guidance is acceptable when no connector is active. It must never be the return when a connector is configured but returns an unexpected response — surface the actual connector error in `error`.
 
 ## Regression cases to preserve (mapped to evals/evals.json)
-1. Published post with Postiz MCP active → `status: published`, `permalink` populated
+1. Published post with direct API active → `status: published`, `permalink` populated
 2. Scheduled future post → `status: scheduled`, `scheduled_for` populated, `published_at` null
 3. Processing video (YouTube) → `status: processing`, `permalink` null, note with retry guidance
 4. Failed post → `status: failed`, `error` populated
