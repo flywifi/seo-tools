@@ -1,0 +1,99 @@
+[
+  {
+    "id": "ra-001",
+    "description": "Simple linear regression — video length predicting watch time, computation tool connected",
+    "input": {
+      "model_type": "linear",
+      "dependent_var": "avg_view_duration_min",
+      "independent_vars": ["video_length_min"],
+      "data_description": "30 long-form videos with length and average view duration",
+      "data_source": "inline_values"
+    },
+    "expected": {
+      "model_type": "linear",
+      "coefficients": "object with intercept and video_length_min keys, both numeric",
+      "r_squared": "numeric value between 0 and 1",
+      "adjusted_r_squared": "numeric value between 0 and 1",
+      "p_values": "object with intercept and video_length_min keys",
+      "residual_summary": "object with mean, std, min, max keys",
+      "computation_source": "e2b | jupyter | r_statistics",
+      "interpretation": "non-empty string relating video length to watch time"
+    },
+    "prohibit": [
+      "r_squared outside 0 to 1 range",
+      "coefficients with null values when tool is connected",
+      "fabricated R-squared not from a computation tool",
+      "missing residual_summary for OLS model"
+    ]
+  },
+  {
+    "id": "ra-002",
+    "description": "Logistic regression — predicting whether a video crosses 10K views, returns odds ratios",
+    "input": {
+      "model_type": "logistic",
+      "dependent_var": "crossed_10k",
+      "independent_vars": ["title_length", "has_face_thumbnail", "is_tutorial"],
+      "data_description": "50 videos with binary outcome (crossed 10K views or not) and three predictors",
+      "data_source": "inline_values"
+    },
+    "expected": {
+      "model_type": "logistic",
+      "coefficients": "object with intercept and three predictor keys",
+      "odds_ratios": "object with same keys as coefficients",
+      "pseudo_r_squared": "numeric value between 0 and 1",
+      "p_values": "object with four keys (intercept + 3 predictors)",
+      "interpretation": "non-empty string interpreting odds ratios in creator context"
+    },
+    "prohibit": [
+      "r_squared field present instead of pseudo_r_squared for logistic model",
+      "odds_ratios missing for logistic model",
+      "fabricated odds ratios not from computation",
+      "coefficients with null values when tool connected"
+    ]
+  },
+  {
+    "id": "ra-003",
+    "description": "No computation tool connected — guidance-only output with runnable Python code",
+    "input": {
+      "model_type": "multiple",
+      "dependent_var": "engagement_rate",
+      "independent_vars": ["posting_hour", "description_length", "hashtag_count"],
+      "data_description": "40 videos with engagement metrics",
+      "data_source": "csv_path"
+    },
+    "expected": {
+      "computation_source": "guidance_only",
+      "runnable_code": "non-null string containing statsmodels or sklearn import",
+      "coefficients": "null — not computed",
+      "r_squared": "null — not computed",
+      "retrieval_gaps": "contains note about no computation engine connected"
+    },
+    "prohibit": [
+      "coefficients or r_squared with numeric values when no tool connected",
+      "computation_source other than guidance_only when no tool available",
+      "runnable_code null in guidance-only mode"
+    ]
+  },
+  {
+    "id": "ra-004",
+    "description": "Polynomial degree requested as 8 — capped at 5 with overfitting warning",
+    "input": {
+      "model_type": "polynomial",
+      "dependent_var": "subscriber_growth",
+      "independent_vars": ["month_number"],
+      "data_description": "12 months of subscriber growth data",
+      "data_source": "inline_values",
+      "polynomial_degree": 8
+    },
+    "expected": {
+      "model_type": "polynomial",
+      "assumption_warnings": "contains overfitting warning about degree > 5",
+      "polynomial_degree_used": "5 (capped from requested 8)"
+    },
+    "prohibit": [
+      "polynomial degree 8 used without capping",
+      "no warning about overfitting when degree was reduced",
+      "silent degree reduction without noting in output"
+    ]
+  }
+]

@@ -1,0 +1,73 @@
+[
+  {
+    "id": "fc-001",
+    "description": "Monthly views forecast with yearly seasonality over 90-day horizon — computation tool connected",
+    "input": {
+      "metric": "monthly_views",
+      "historical_data": "inline_values — 24 months of monthly view counts",
+      "forecast_horizon": "90d",
+      "seasonality": "yearly",
+      "confidence_level": 0.95
+    },
+    "expected": {
+      "forecast": "array with 3 entries (one per month in 90d horizon)",
+      "forecast_entries": "each has date, predicted_value, lower_bound, upper_bound — all non-null",
+      "lower_bound_less_than_predicted": true,
+      "upper_bound_greater_than_predicted": true,
+      "trend": "rising | flat | declining",
+      "seasonality_detected": "true or false — not null (sufficient data for yearly test with 24 months)",
+      "computation_source": "e2b | jupyter",
+      "interpretation": "non-empty string mentioning monthly views and trend direction"
+    },
+    "prohibit": [
+      "forecast entries with null predicted_value",
+      "lower_bound >= upper_bound in any forecast entry",
+      "seasonality_detected = null when 24 months of data provided with yearly seasonality",
+      "fabricated forecast values not from a computation tool"
+    ]
+  },
+  {
+    "id": "fc-002",
+    "description": "Insufficient data for seasonal model — only 5 weekly data points with yearly seasonality requested",
+    "input": {
+      "metric": "weekly_engagement_rate",
+      "historical_data": "inline_values — 5 weeks of engagement rate",
+      "forecast_horizon": "30d",
+      "seasonality": "yearly"
+    },
+    "expected": {
+      "assumption_warnings": "contains warning about insufficient data for yearly seasonality (need 2 full cycles = 104 weeks)",
+      "model_type": "linear_trend — degraded from seasonal model",
+      "seasonality_detected": "null — insufficient data to test",
+      "retrieval_gaps": "notes insufficient history for seasonal decomposition"
+    },
+    "prohibit": [
+      "model_type = holt_winters or prophet when only 5 data points available",
+      "seasonality_detected = true or false when data insufficient for testing",
+      "no warning about data insufficiency"
+    ]
+  },
+  {
+    "id": "fc-003",
+    "description": "No computation tool connected — guidance-only with simple trend estimate and runnable code",
+    "input": {
+      "metric": "subscriber_count",
+      "historical_data": "inline_values — 12 months of subscriber counts",
+      "forecast_horizon": "90d",
+      "seasonality": "none"
+    },
+    "expected": {
+      "computation_source": "guidance_only",
+      "trend": "rising | flat | declining — derived from simple slope calculation",
+      "seasonality_detected": "null — cannot test without computation tool",
+      "runnable_code": "non-null string containing statsmodels or prophet import",
+      "retrieval_gaps": "contains note about no computation engine connected"
+    },
+    "prohibit": [
+      "computation_source other than guidance_only",
+      "forecast entries with precise prediction intervals from Claude arithmetic",
+      "runnable_code null in guidance-only mode",
+      "seasonality_detected = true or false without a computation tool"
+    ]
+  }
+]

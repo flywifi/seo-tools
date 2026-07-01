@@ -200,7 +200,7 @@ python3 tools/source_currency.py report
 
 # 5. (Claude Desktop only) MCP server self-test
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
-# Should return 8 tool definitions
+# Should return 10 tool definitions
 ```
 
 ---
@@ -240,6 +240,14 @@ python3 tools/competitor_snapshot.py --export-summary
 | Offline FTS5 keyword cache queries | Yes (MCP) | No | No | No | No |
 | Source staleness detection | Yes (MCP) | No | No | No | No |
 | Deterministic quality scoring | Yes (MCP) | No | No | No | No |
+| Statistical computation (hypothesis tests, regression) | Yes (MCP) | No | No | No | No |
+| SQL analytics (DuckDB over CSV/Parquet/JSON) | Yes (MCP) | No | No | No | No |
+| Jupyter notebook sessions | Yes (MCP) | No | No | No | No |
+| ML predictions (scikit-learn) | Yes (MCP) | No | No | No | No |
+| Gemini Gem export packaging | Yes | Yes | No | No | N/A |
+| Custom GPT export packaging | Yes | Yes | N/A | N/A | No |
+| Subagent workflows (content-pipeline, etc.) | Yes | No | No | No | No |
+| Agent orchestration (read-only research agents) | Yes | No | No | No | No |
 | Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | Yes | No | No |
 | Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial | No | No |
 | Channel context from channel-context.json | Yes | Manual paste | Manual paste | No | No |

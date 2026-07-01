@@ -23,7 +23,7 @@ Classify every request, load the right context, enforce the protocols, and route
 
 ### Content lane
 Any request to plan, script, research, repurpose, or analyze content.
-Spokes: content-strategy, project-builder, video-development, shortform-repurposing, seo-keywords, analytics-insights, audience-research, competitor-analysis, seasonal-trends.
+Spokes: content-strategy, project-builder, video-development, shortform-repurposing, seo-keywords, analytics-insights, analytics-compute, audience-research, competitor-analysis, seasonal-trends.
 
 ### Document lane
 Any request to create or edit a file: media kit, deliverable brief, invoice, PDF guide, content calendar, or brand one-pager.
@@ -62,7 +62,38 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `audience_question` `competitor_check` `seasonal_planning` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+
+### Classification routing table
+
+| Classification | Lane | Spoke | Notes |
+|---|---|---|---|
+| `content_ideation` | Content | `content-strategy` | brainstorming, pillar mapping, topic generation |
+| `project_planning` | Content | `project-builder` | DIY project planning, materials, steps |
+| `video_script` | Content | `video-development` | scripts, hooks, b-roll notes, captions |
+| `repurposing` | Content | `shortform-repurposing` | Shorts, Reels, TikTok, Pinterest from long-form |
+| `seo_research` | Content | `seo-keywords` | keyword research, topical authority, SERP analysis |
+| `analytics_review` | Content | `analytics-insights` | performance review, trend interpretation |
+| `statistical_analysis` | Content | `analytics-compute` | hypothesis tests, significance testing, correlation analysis |
+| `forecasting` | Content | `analytics-compute` | subscriber, view, and revenue projections; trend prediction |
+| `data_query` | Content | `analytics-compute` | SQL-style queries over analytics exports |
+| `ab_test_design` | Content | `analytics-compute` | experiment design and result analysis |
+| `audience_question` | Content | `audience-research` | persona mapping, behavior signals |
+| `competitor_check` | Content | `competitor-analysis` | competitor channel analysis, gap finding |
+| `seasonal_planning` | Content | `seasonal-trends` | seasonal content calendar, trend timing |
+| `document_create` | Document | `document-studio` | new document creation (media kit, brief, etc.) |
+| `document_edit` | Document | `document-studio` | editing an existing document |
+| `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
+| `account_create` | Pipeline/CRM | `account-manager` | new brand account record |
+| `account_update` | Pipeline/CRM | `account-manager` | update brand account fields |
+| `deal_create` | Pipeline/CRM | `deal-pipeline` | new deal record |
+| `deal_update` | Pipeline/CRM | `deal-pipeline` | update deal fields |
+| `deal_stage_move` | Pipeline/CRM | `deal-pipeline` | advance or regress deal stage |
+| `production_plan` | Pipeline/CRM | `deal-resourcing` | production resource planning from deal |
+| `outreach_draft` | Pipeline/CRM | `partnership-mediakit` | outreach email or pitch draft |
+| `media_kit` | Pipeline/CRM | `partnership-mediakit` | media kit generation |
+| `quality_check` | Content | `quality-review` | score an artifact against quality gates |
+| `unclear` | — | — | ask a clarifying question before routing |
 
 ## Routing object (return with every response)
 
@@ -121,6 +152,29 @@ Always return both parts.
 ### JSON routing object
 The schema above, fully populated.
 
+## Agent dispatch
+
+When a request is large enough to warrant parallel research (3+ sources, multi-platform comparison,
+deep competitor analysis, or citation chain traversal), the hub may recommend agent dispatch in the
+routing object. The decision to spawn agents belongs to the operator, not the hub.
+
+Add `"agent_dispatch"` to the routing object when recommending multi-agent research:
+```json
+"agent_dispatch": {
+  "recommended": true,
+  "agents": ["seo-researcher", "competitor-analyst"],
+  "reason": "Multi-platform keyword comparison spanning 4 platforms and 3 competitor channels",
+  "workflow": "competitor-deep-dive"
+}
+```
+
+Set `"agent_dispatch": null` when the task does not warrant agents. Most requests do not.
+
+**Rules:**
+- Agents are read-only. They return structured findings; the main loop writes changes.
+- Never recommend agent dispatch for single-source lookups, simple CRM reads, or narrow questions.
+- Reference `shared/research-orchestration-engine.md` for the full orchestration protocol.
+
 ## Hard rules
 - Do not generate the final content or document in the same turn unless the user explicitly asks for it.
 - Do not infer pipeline field values from prose descriptions; require structured input or flag as `unresolved`.
@@ -138,7 +192,7 @@ Stop after returning the human summary and routing object unless:
 
 ```
 content-strategy    project-builder    video-development    shortform-repurposing
-seo-keywords        analytics-insights audience-research    competitor-analysis
-seasonal-trends     document-studio    account-manager      deal-pipeline
-deal-resourcing     partnership-mediakit    quality-review
+seo-keywords        analytics-insights analytics-compute    audience-research
+competitor-analysis seasonal-trends    document-studio      account-manager
+deal-pipeline       deal-resourcing    partnership-mediakit  quality-review
 ```

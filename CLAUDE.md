@@ -45,6 +45,34 @@ python3 tools/sync_check.py                       # must pass
 Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for" clause) and
 `MAINTAINER_README.md`. Spokes carry a `workflow.json` that composes atoms.
 
+## Agent orchestration
+- Subagents are **read-only research tools**. They read files, query MCP tools, search the web,
+  and return structured findings. They never create, edit, write, or delete files. They never
+  commit or push. The main loop aggregates findings and proposes changes to the user.
+- Every agent prompt must include the read-only operating rules block from
+  `shared/research-orchestration-engine.md`.
+- Agent output must use a JSON Schema (passed via the `schema` option on `agent()` in workflows,
+  or via structured output conventions in ad-hoc Agent tool calls). Prose-only agent returns are
+  not acceptable for multi-agent pipelines.
+- Spawn agents only when the task spans 3+ sources, requires multi-platform comparison, deep
+  competitor analysis, or citation chain traversal. Single-source lookups do not warrant an agent.
+- Agent definitions live in `.claude/agents/`. Workflow scripts live in `.claude/workflows/`.
+  Structured output schemas live in `shared/schemas/`.
+- The four agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
+  `deal-reviewer`. Each has a scoped tool list and engine set defined in its agent definition file.
+- Every agent output must include `minority_report`, `confidence_evidence`, and `source_citations`
+  fields (the verification envelope defined in `shared/schemas/verification-envelope.json`).
+- Every workflow includes an adversarial verification step — a second agent that independently
+  challenges the primary agent's claims before the main loop aggregates findings.
+- Agent definitions must include explicit `## Forbidden tools (machine-enforced)` and
+  `## Allowed tools (explicit allowlist)` sections. See `shared/research-orchestration-engine.md`
+  Section 2.1 for the contract specification.
+- `tools/validate_agent_output.py` is the offline fabrication detection tool. It checks source
+  citations against the registry, validates confidence-tier alignment, and flags unsourced numbers.
+- Drift guard invariants 14 to 17 structurally enforce agent contracts: agent definition sections
+  (14), schema verification fields (15), workflow verification steps (16), and the read-only
+  mandate marker (17).
+
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
 - No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).
   Internal docs (SKILL.md, engine files, protocol files, architecture docs) may use em dashes freely.

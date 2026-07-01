@@ -36,6 +36,23 @@
         "persona_served": "The Renter",
         "cluster_depth": "shallow"
       }
+    },
+    {
+      "id": "tam-03",
+      "description": "Single secondary keyword produces minimal cluster",
+      "input": {
+        "pillar": "thrifting and antiques",
+        "primary_keyword": "thrift store furniture flip",
+        "secondary_keywords": ["thrift haul home decor"],
+        "cluster_size": 2
+      },
+      "expect": {
+        "hub.format": "long-form",
+        "satellites.length": 2,
+        "all_satellites.cross_link_to_hub": true,
+        "cluster_depth": "shallow",
+        "no_fabricated_keywords": true
+      }
     }
   ]
 }

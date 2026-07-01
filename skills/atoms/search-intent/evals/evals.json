@@ -1,0 +1,67 @@
+[
+  {
+    "id": "search-intent-001",
+    "description": "Happy path: clear informational keyword with platform signal returns high-confidence classification",
+    "input": {
+      "keyword": "how to style a thrift store lamp on a moody nightstand",
+      "platform": "youtube"
+    },
+    "expect": {
+      "tool": "search-intent",
+      "keyword": "how to style a thrift store lamp on a moody nightstand",
+      "intent.label": "informational",
+      "content_format_fit.primary": "tutorial/how-to",
+      "content_format_fit.rationale": "present, references question framing and action verb signals",
+      "confidence.value": "high or medium",
+      "rationale": "present, two to four sentences referencing word-level signals"
+    },
+    "prohibit": [
+      "fabricated search volume or difficulty scores",
+      "generated titles or hooks",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "search-intent-002",
+    "description": "Minimal inputs: keyword only with no platform, returns platform-agnostic classification",
+    "input": {
+      "keyword": "dark cottagecore living room ideas"
+    },
+    "expect": {
+      "tool": "search-intent",
+      "keyword": "dark cottagecore living room ideas",
+      "intent.label": "one of: informational | commercial | transactional | navigational",
+      "content_format_fit.primary": "one of the five format types",
+      "confidence.value": "one of: high | medium | low",
+      "rationale": "present",
+      "notes": "string or null"
+    },
+    "prohibit": [
+      "platform-specific format scoring when no platform was provided",
+      "fabricated SERP data or live search results",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "search-intent-003",
+    "description": "Edge case: ambiguous short keyword returns low confidence with noted ambiguity",
+    "input": {
+      "keyword": "vintage brass",
+      "platform": "pinterest"
+    },
+    "expect": {
+      "tool": "search-intent",
+      "keyword": "vintage brass",
+      "intent.label": "one of: informational | commercial | transactional | navigational",
+      "confidence.value": "low or medium",
+      "confidence.note": "present, explains the keyword is too short or generic",
+      "content_format_fit.secondary": "present, since the keyword is ambiguous",
+      "notes": "present, describes alternate interpretations or caveats"
+    },
+    "prohibit": [
+      "high confidence on a two-word ambiguous keyword",
+      "fabricated click-through or volume data",
+      "em dashes"
+    ]
+  }
+]

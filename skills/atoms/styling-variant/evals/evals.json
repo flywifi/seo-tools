@@ -1,0 +1,68 @@
+[
+  {
+    "id": "styling-variant-001",
+    "description": "Happy path: completed project with base aesthetic and target personas returns 2 to 3 variants with swap suggestions",
+    "input": {
+      "project_title": "Vintage Arched Mirror Makeover with Aged Gold Frame",
+      "base_aesthetic": "moody vintage",
+      "target_personas": ["The Renter", "The Thrift Maximalist"]
+    },
+    "expect": {
+      "variants": "array of 2 to 3 objects",
+      "variants[].aesthetic_name": "present, short label for the variant mood",
+      "variants[].key_changes": "non-empty array of swap objects",
+      "variants[].key_changes[].item": "present, names the element being swapped",
+      "variants[].key_changes[].swap_description": "present, uses descriptive sensory language",
+      "variants[].persona_fit": "present, references at least one of the provided target personas",
+      "variants[].difficulty_delta": "one of: easier | same | harder",
+      "variants[].budget_delta": "one of: lower | same | higher"
+    },
+    "prohibit": [
+      "specific product SKUs or prices",
+      "specific brand names in swap descriptions",
+      "more than 3 variants",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "styling-variant-002",
+    "description": "Minimal inputs: project and base aesthetic only, atom selects personas from brand roster",
+    "input": {
+      "project_title": "Dark Chalk-Painted Bookshelf with Thrifted Brass Objects",
+      "base_aesthetic": "dark cottagecore"
+    },
+    "expect": {
+      "variants": "array of 2 to 3 objects",
+      "variants[].aesthetic_name": "present",
+      "variants[].key_changes": "non-empty array",
+      "variants[].persona_fit": "present, atom selects best-fit personas when none provided",
+      "variants[].difficulty_delta": "present",
+      "variants[].budget_delta": "present"
+    },
+    "prohibit": [
+      "specific product SKUs or prices",
+      "more than 3 variants",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "styling-variant-003",
+    "description": "Edge case: project where a swap cannot be determined without fabricating sourcing data results in null field and flag",
+    "input": {
+      "project_title": "Hand-Carved Antique Mantel Restoration",
+      "base_aesthetic": "moody Victorian",
+      "target_personas": ["The Heritage Collector"]
+    },
+    "expect": {
+      "variants": "array of 2 to 3 objects",
+      "variants[].key_changes[].swap_description": "uses descriptive language, not fabricated sourcing or availability claims",
+      "notes": "present when any field could not be determined without fabrication, flags the limitation"
+    },
+    "prohibit": [
+      "fabricated availability or sourcing data",
+      "specific prices or cost estimates",
+      "more than 3 variants",
+      "em dashes"
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "id": "pinwrite-001",
+    "description": "Happy path: full inputs with keyword cluster returns keyword-first title, keyword-rich description, alt text, and character counts within limits",
+    "input": {
+      "topic": "dark moody bedroom makeover with thrifted nightstands",
+      "video_url": "https://youtube.com/watch?v=example123",
+      "board_name": "Moody Bedroom Inspiration",
+      "keyword_cluster": {
+        "primary": ["dark moody bedroom makeover"],
+        "secondary": ["thrifted nightstand styling", "vintage bedroom decor", "moody home aesthetic"]
+      },
+      "persona": "Vintage Hunter"
+    },
+    "expect": {
+      "tool": "pin-write",
+      "pin_title": "string max 100 chars, opens with primary keyword phrase not brand name",
+      "pin_description": "string max 500 chars, front-loads keywords in first sentence, ends with CTA",
+      "alt_text": "string max 500 chars, describes the image specifically with 1 to 2 keywords woven in",
+      "seo_keywords_used": "array containing keywords from the cluster",
+      "character_counts": "object with pin_title, pin_description, alt_text as integers within limits",
+      "notes": "string or null"
+    },
+    "prohibit": [
+      "pin_title exceeding 100 characters",
+      "pin_description exceeding 500 characters",
+      "alt_text exceeding 500 characters",
+      "title opening with 'I' or the brand name instead of the keyword",
+      "em dashes anywhere in the output",
+      "fabricated search volume or engagement benchmarks"
+    ]
+  },
+  {
+    "id": "pinwrite-002",
+    "description": "Minimal input: topic only with no keyword cluster, video_url, board_name, or persona",
+    "input": {
+      "topic": "fall mantel decorating ideas"
+    },
+    "expect": {
+      "tool": "pin-write",
+      "pin_title": "keyword-first title derived from topic, max 100 chars",
+      "pin_description": "keyword-rich description with CTA, max 500 chars",
+      "alt_text": "descriptive alt text, max 500 chars",
+      "seo_keywords_used": "array of keywords derived from the topic alone",
+      "character_counts": "all three fields present with integer values",
+      "notes": "may note that no keyword cluster was provided"
+    },
+    "prohibit": [
+      "empty seo_keywords_used when topic is provided",
+      "pin_description without a CTA",
+      "alt_text that keyword-stuffs rather than describing an image",
+      "em dashes anywhere in the output"
+    ]
+  },
+  {
+    "id": "pinwrite-003",
+    "description": "Edge case: very long topic that could cause title to exceed 100 chars; atom trims and documents in notes",
+    "input": {
+      "topic": "how to transform a builder-basic bathroom into a dark moody vintage spa retreat with thrifted mirrors and antique brass hardware on a budget",
+      "board_name": "Bathroom Makeovers",
+      "persona": "New Homeowner"
+    },
+    "expect": {
+      "tool": "pin-write",
+      "pin_title": "max 100 chars; primary keyword preserved at the front despite trimming",
+      "pin_description": "max 500 chars; full topic detail moved into description body",
+      "character_counts": "pin_title value is 100 or fewer",
+      "notes": "non-null string explaining any trimming or shortening applied"
+    },
+    "prohibit": [
+      "pin_title exceeding 100 characters",
+      "primary keyword phrase removed or buried due to trimming",
+      "silent truncation without a note in the notes field",
+      "em dashes anywhere in the output"
+    ]
+  }
+]

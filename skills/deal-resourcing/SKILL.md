@@ -1,7 +1,7 @@
 ---
 file: skills/deal-resourcing/SKILL.md
 name: deal-resourcing
-description: takes a signed deal and produces a production resource plan: task list with due dates, production timeline, invoice schedule, and go/no-go checklist. Pipeline/CRM lane spoke.
+description: "takes a signed deal and produces a production resource plan: task list with due dates, production timeline, invoice schedule, and go/no-go checklist. Pipeline/CRM lane spoke."
 load: always
 ---
 

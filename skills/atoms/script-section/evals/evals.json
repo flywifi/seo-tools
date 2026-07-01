@@ -1,0 +1,66 @@
+[
+  {
+    "id": "script-section-001",
+    "description": "Happy path: body-step section with full inputs including step_content and target duration",
+    "input": {
+      "section_type": "body-step",
+      "topic": "dark moody bookshelf makeover using chalk paint and thrifted decor",
+      "step_content": "Sand the thrifted bookshelf lightly with 220-grit sandpaper to create tooth for the chalk paint to grip",
+      "target_duration_seconds": 90,
+      "platform": "youtube"
+    },
+    "expect": {
+      "section_type": "body-step",
+      "script_text": "present, written in second-person planning voice using 'you' to address the creator",
+      "duration_estimate_seconds": "integer, rough estimate near the target duration",
+      "notes": "string or null",
+      "broll_suggestion": "present, names a specific filming shot opportunity"
+    },
+    "prohibit": [
+      "em dashes",
+      "first-person audience-facing copy",
+      "fabricated product names or brand names not in the input",
+      "verbatim teleprompter script instead of speaking notes"
+    ]
+  },
+  {
+    "id": "script-section-002",
+    "description": "Minimal inputs: hook section with only required fields, defaults to youtube platform",
+    "input": {
+      "section_type": "hook",
+      "topic": "thrift store lamp transformation with spray paint"
+    },
+    "expect": {
+      "section_type": "hook",
+      "script_text": "present, planning voice, opens with a promise or problem statement",
+      "duration_estimate_seconds": "integer between 15 and 30 for youtube hook default",
+      "notes": "string or null",
+      "broll_suggestion": "string or null"
+    },
+    "prohibit": [
+      "em dashes",
+      "step_content references (not a body-step)",
+      "duration longer than 30 seconds for a youtube hook"
+    ]
+  },
+  {
+    "id": "script-section-003",
+    "description": "Edge case: broll-cue section produces editor-facing notes with zero spoken duration",
+    "input": {
+      "section_type": "broll-cue",
+      "topic": "vintage brass hardware installation on a painted dresser",
+      "platform": "youtube"
+    },
+    "expect": {
+      "section_type": "broll-cue",
+      "script_text": "present, contains editor-facing production notes not spoken copy",
+      "duration_estimate_seconds": 0,
+      "broll_suggestion": "present and descriptive"
+    },
+    "prohibit": [
+      "em dashes",
+      "spoken dialogue or creator-addressed speaking notes in script_text",
+      "non-zero duration_estimate_seconds"
+    ]
+  }
+]

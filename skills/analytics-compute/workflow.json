@@ -1,0 +1,13 @@
+{
+  "_comment": "analytics-compute composes statistical atoms. Requires at least one stats MCP tool connected.",
+  "id": "analytics-compute",
+  "steps": [
+    {"step": 1, "atom": "data-query", "input_from": "caller", "output_to": "next", "condition": "data_files_provided"},
+    {"step": 2, "atom": "hypothesis-test", "input_from": "previous_or_caller", "output_to": "next", "condition": "comparison_requested"},
+    {"step": 3, "atom": "regression-analysis", "input_from": "previous_or_caller", "output_to": "next", "condition": "relationship_requested"},
+    {"step": 4, "atom": "forecast", "input_from": "previous_or_caller", "output_to": "next", "condition": "forecast_requested"},
+    {"step": 5, "atom": "ab-test", "input_from": "previous_or_caller", "output_to": "next", "condition": "ab_test_requested"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "previous"}
+  ],
+  "shortcut_atoms": ["hypothesis-test", "regression-analysis", "forecast", "ab-test", "data-query", "configure-stats-tool"]
+}

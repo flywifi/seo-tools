@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P15 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -37,15 +37,21 @@ P6 through P15 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - Hub: `skills/creator-core/` SKILL.md, MAINTAINER_README.md, workflow.json.
 - Governance: `skills/quality-review/` with score.py and rubric.
 
-### Atoms layer (P3) - 35 atoms
-- idea-generate, pillar-classify, trend-check, hook-write, title-generate, thumbnail-concept,
-  keyword-cluster, search-intent, short-extract, seasonal-map, calendar-slot, competitor-scan,
-  persona-map, project-snapshot, materials-list, step-sequence, safety-check (DIY boundary),
+### Atoms layer — 52 atoms total
+- **P3 original (35):** idea-generate, pillar-classify, trend-check, hook-write, title-generate,
+  thumbnail-concept, keyword-cluster, search-intent, short-extract, seasonal-map, calendar-slot,
+  competitor-scan, persona-map, project-snapshot, materials-list, step-sequence, safety-check,
   styling-variant, renter-alt, script-section, b-roll-note (via short-extract), repurpose-unit,
   pin-write, caption-write, hashtag-set, mediakit-section, rate-card-fill, pitch-paragraph,
   deal-stage-advance, account-health, renewal-signal, invoice-status, usage-rights-check,
-  roi-metric, benchmark-compare, production-task, injection-scan (govern-artifact + gap-record +
-  ingest-route as cross-cutting atoms).
+  roi-metric, benchmark-compare, production-task, injection-scan, govern-artifact, gap-record,
+  ingest-route.
+- **P7 (+4):** topical-authority-map, long-tail-expand, entity-extract, serp-feature-check.
+- **P9 (+1):** deep-competitor-scan.
+- **P10 (+1):** keyword-compare.
+- **P16 (+8):** hypothesis-test, regression-analysis, forecast, ab-test, data-query,
+  configure-stats-tool, export-gem, export-gpt.
+- **P17 (+3):** exclusivity-check, geo-optimize, minority-report.
 
 ### Spokes (P4) - 14 spokes + quality-review
 - **Content lane (9):** content-strategy, project-builder, video-development, shortform-repurposing,
@@ -216,6 +222,50 @@ P6 through P15 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
 - `docs/SETUP_MAC.md`: Step 8 replaced with wizard reference; manual JSON editing removed.
 - `docs/DEPLOYMENT.md`: Option A uses wizard; Option B adds native Google Workspace connector
   instructions; capability matrix adds Google Workspace and Microsoft 365 rows.
+
+### Statistical analysis tools, platform export, and subagent orchestration (P16)
+- `shared/compute-engine.md`: canonical engine for statistical computation — tool selection matrix,
+  fallback chain, output labeling rules, anti-fabrication rules for statistics.
+- `creator-os-config.json`: 10 new capability flags (wolfram_alpha, e2b_sandbox, duckdb_analytics,
+  stats_compass, jupyter_notebook, r_statistics, monte_carlo, scikit_learn, gemini_gem_export,
+  custom_gpt_export) with degraded_behavior entries.
+- `shared/connectors/connectors.json`: 8 new stats/ML connectors + 4 new evidence types
+  (statistical_computation, sql_analytics, notebook_session, ml_prediction).
+- `shared/connectors/connectors.py`: 8 new CAPABILITY_TO_CONNECTOR entries.
+- 8 new atoms: hypothesis-test, regression-analysis, forecast, ab-test, data-query,
+  configure-stats-tool, export-gem, export-gpt (each with SKILL.md, MAINTAINER_README.md,
+  evals/evals.json).
+- `skills/analytics-compute/`: new spoke composing statistical atoms via conditional workflow.
+- `skills/creator-core/SKILL.md` and `workflow.json`: 5 new request_classification values
+  (statistical_analysis, forecasting, data_query, ab_test_design, platform_export).
+- `tools/mcp_server.py`: 2 new MCP tools — `get_stats_tools` (reports which stats tools are
+  enabled) and `configure_tool` (toggles capability flags in .local.json). Total: 10 MCP tools.
+- `implementation/claude/desktop/claude_desktop_config_snippet.json`: 5 new MCP server blocks
+  (wolfram-alpha, e2b-code-interpreter, stats-compass, duckdb-analytics, jupyter-notebook).
+- `.claude/agents/`: 4 agent definitions (seo-researcher, competitor-analyst, content-writer,
+  deal-reviewer).
+- `.claude/workflows/`: 4 workflow scripts (content-pipeline, competitor-deep-dive,
+  seasonal-planning, deal-review).
+- `docs/STATISTICS.md`: statistical tools reference (setup, tool matrix, atoms, output labeling).
+- `docs/DEPLOYMENT.md`: capability matrix expanded with stats, ML, export, and workflow rows.
+
+### Agent orchestration upgrade (P17)
+- `shared/research-orchestration-engine.md`: canonical engine defining when and how to use
+  subagents — read-only mandate, structured output schemas, recursive extraction protocol,
+  connector and API access rules, information aggregation process, prompt construction patterns.
+- `shared/schemas/`: 4 JSON Schema files for structured agent output — `seo-research.json`,
+  `competitor-analysis.json`, `content-draft.json`, `deal-review.json`.
+- `.claude/agents/`: 4 agent definitions rewritten from inert atom lists to functional system
+  prompts with read-only operating rules, scoped engines/protocols, permitted data sources,
+  and structured output formats.
+- `.claude/workflows/`: 4 prose workflow descriptions replaced with executable JavaScript
+  workflow scripts for the Claude Code Workflow tool — `content-pipeline.js`,
+  `competitor-deep-dive.js`, `seasonal-planning.js`, `deal-review.js`.
+- `skills/creator-core/SKILL.md`: agent dispatch section added to routing object.
+- `docs/ARCHITECTURE.md`: agent orchestration section added (roles, structured output, workflows,
+  information flow).
+- `CLAUDE.md`: agent orchestration conventions section added.
+- `docs/DEPLOYMENT.md`: agent orchestration row added to capability matrix.
 
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was

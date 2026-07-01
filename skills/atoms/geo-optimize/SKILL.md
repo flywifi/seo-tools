@@ -1,7 +1,8 @@
 ---
 name: geo-optimize
 atom: true
-description: Given a video title, description draft, and optional chapter outline, produces
+description: >
+  Given a video title, description draft, and optional chapter outline, produces
   GEO/AEO optimization artifacts: chapter timestamp list with keyword-rich titles, VideoObject
   schema annotation notes, and a companion blog post outline that enables dual-ranking across
   YouTube Search and Google Search while building AI citation authority. Do NOT use for

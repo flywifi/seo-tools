@@ -35,6 +35,19 @@
         "creator_already_covers_is_not_null": true,
         "entity_gaps_excludes_existing_coverage": true
       }
+    },
+    {
+      "id": "ee-03",
+      "description": "Empty content samples returns empty entity map",
+      "input": {
+        "content_samples": [],
+        "entity_types": ["brand", "product"]
+      },
+      "expect": {
+        "entity_map_is_empty": true,
+        "entity_gaps_is_empty_or_null": true,
+        "no_fabricated_entities": true
+      }
     }
   ]
 }

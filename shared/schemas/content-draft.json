@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Content Draft Agent Output",
+  "description": "Structured output from the content-writer agent. Used by content-pipeline workflow.",
+  "type": "object",
+  "required": ["content_type", "retrieval_gaps", "minority_report", "confidence_evidence", "source_citations"],
+  "properties": {
+    "content_type": { "type": "string", "description": "What was drafted: script, hook, title, caption, pin, hashtags" },
+    "platform": { "type": "string" },
+    "hook_variants": {
+      "type": "array",
+      "description": "3 to 5 hook options, each opening with the object or the problem",
+      "items": { "type": "string" }
+    },
+    "title_options": {
+      "type": "array",
+      "description": "3 to 5 title options incorporating the primary keyword",
+      "items": { "type": "string" }
+    },
+    "script_sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section_name", "content"],
+        "properties": {
+          "section_name": { "type": "string" },
+          "content": { "type": "string" },
+          "b_roll_notes": { "type": "string" }
+        }
+      }
+    },
+    "captions": {
+      "type": "object",
+      "description": "Platform name to caption text",
+      "additionalProperties": { "type": "string" }
+    },
+    "self_assessment": {
+      "type": "object",
+      "properties": {
+        "voice_adherence": { "type": "string", "enum": ["strong", "moderate", "weak"] },
+        "formatting_clean": { "type": "boolean", "description": "True if no em dashes and ranges use to" },
+        "flagged_issues": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "retrieval_gaps": { "type": "array", "items": { "type": "string" } },
+    "minority_report": { "$ref": "verification-envelope.json#/$defs/minority_report", "nullable": true },
+    "confidence_evidence": { "$ref": "verification-envelope.json#/$defs/confidence_evidence" },
+    "source_citations": { "$ref": "verification-envelope.json#/$defs/source_citations" }
+  }
+}

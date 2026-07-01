@@ -1,0 +1,86 @@
+[
+  {
+    "id": "dealstageadvance-001",
+    "description": "Happy path: advance from identified to outreach-sent with all required evidence provided",
+    "input": {
+      "deal_id": "deal_vintagepaint_co_001",
+      "current_stage": "identified",
+      "target_stage": "outreach-sent",
+      "evidence": {
+        "outreach_date": "2026-06-28",
+        "contact_name": "Jordan Ellis",
+        "notes": "Initial outreach email sent regarding fall campaign collaboration for vintage chalk paint line"
+      }
+    },
+    "expect": {
+      "tool": "deal-stage-advance",
+      "deal_id": "deal_vintagepaint_co_001",
+      "transition_allowed": true,
+      "missing_evidence": [],
+      "stage_change_record": {
+        "deal_id": "deal_vintagepaint_co_001",
+        "from_stage": "identified",
+        "to_stage": "outreach-sent",
+        "timestamp_utc": "ISO 8601 datetime string",
+        "evidence_provided": "object containing outreach_date and contact_name"
+      },
+      "warnings": "empty array or array of non-blocking concerns"
+    },
+    "prohibit": [
+      "transition_allowed is false when all required evidence is present",
+      "missing_evidence contains items when outreach_date and contact_name are both provided",
+      "timestamp_utc uses a date from the evidence object rather than current UTC time",
+      "stage_change_record is missing when transition_allowed is true"
+    ]
+  },
+  {
+    "id": "dealstageadvance-002",
+    "description": "Blocked transition: advance from signed to in-production without agreed_deliverables being true",
+    "input": {
+      "deal_id": "deal_moodycandle_co_002",
+      "current_stage": "signed",
+      "target_stage": "in-production",
+      "evidence": {
+        "notes": "Contract signed last week, waiting on deliverables confirmation"
+      }
+    },
+    "expect": {
+      "tool": "deal-stage-advance",
+      "deal_id": "deal_moodycandle_co_002",
+      "transition_allowed": false,
+      "missing_evidence": "array containing agreed_deliverables"
+    },
+    "prohibit": [
+      "transition_allowed is true when agreed_deliverables is absent or not true",
+      "stage_change_record is present when transition_allowed is false",
+      "missing_evidence is empty when required evidence is missing",
+      "agreed_deliverables inferred or assumed true without being explicitly provided"
+    ]
+  },
+  {
+    "id": "dealstageadvance-003",
+    "description": "Edge case: attempt to skip stages (identified directly to signed); must be rejected with warning about skipped stages",
+    "input": {
+      "deal_id": "deal_antiquemirror_003",
+      "current_stage": "identified",
+      "target_stage": "signed",
+      "evidence": {
+        "signed_contract_date": "2026-06-25",
+        "contact_name": "Taylor Morgan",
+        "notes": "Brand wants to fast-track the deal"
+      }
+    },
+    "expect": {
+      "tool": "deal-stage-advance",
+      "deal_id": "deal_antiquemirror_003",
+      "transition_allowed": false,
+      "warnings": "non-empty array listing skipped stages (outreach-sent, in-discussion, contract-negotiating)"
+    },
+    "prohibit": [
+      "transition_allowed is true when stages are being skipped",
+      "stage_change_record is present for a multi-stage jump",
+      "warnings is empty when a stage skip was attempted",
+      "atom silently advances multiple stages without flagging the skip"
+    ]
+  }
+]

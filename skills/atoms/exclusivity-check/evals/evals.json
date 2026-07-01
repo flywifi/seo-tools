@@ -1,0 +1,48 @@
+[
+  {
+    "test_id": "exclusivity-check-conflict-detected",
+    "description": "Detect exclusivity conflict when two deals overlap in same category",
+    "input": {
+      "deal_id": "deal-west-elm-001",
+      "category": "home-furnishings",
+      "active_deals": [
+        {"deal_id": "deal-wayfair-001", "category": "home-furnishings", "stage": "signed"}
+      ]
+    },
+    "expected_output_keys": ["conflict_count", "conflicts", "human_review_required"],
+    "assertions": [
+      "conflict_count >= 1",
+      "conflicts array contains entry with conflicting deal",
+      "human_review_required is true"
+    ]
+  },
+  {
+    "test_id": "exclusivity-check-no-conflicts",
+    "description": "No conflicts when deal is only active deal in category",
+    "input": {
+      "deal_id": "deal-target-001",
+      "category": "seasonal-decor",
+      "active_deals": []
+    },
+    "expected_output_keys": ["conflict_count", "conflicts", "human_review_required"],
+    "assertions": [
+      "conflict_count is 0",
+      "conflicts array is empty",
+      "human_review_required is false"
+    ]
+  },
+  {
+    "test_id": "exclusivity-check-no-clause",
+    "description": "Handle contract with no exclusivity clause",
+    "input": {
+      "deal_id": "deal-homegoods-001",
+      "contract_text": "Creator will produce one sponsored video. Payment $500 upon delivery."
+    },
+    "expected_output_keys": ["exclusivity_clause", "conflict_count", "warnings"],
+    "assertions": [
+      "exclusivity_clause is null",
+      "warnings notes no exclusivity clause found",
+      "no fabricated contract terms"
+    ]
+  }
+]

@@ -62,6 +62,56 @@
       "enabled": false,
       "description": "Microsoft 365 connected (Outlook email, Calendar, Excel, OneDrive). Enables: brand email reading, calendar sync, spreadsheet analytics import.",
       "requires": "Run python3 tools/wizard.py and connect your Microsoft account (Claude Desktop only; requires Node.js 20+)"
+    },
+    "wolfram_alpha": {
+      "enabled": false,
+      "description": "Wolfram Alpha MCP connected. Enables: exact symbolic computation, unit conversion, mathematical proofs, statistical distributions.",
+      "requires": "uvx mcp-wolfram-alpha configured in Claude Desktop + WOLFRAM_APP_ID env var (free at developer.wolframalpha.com, 2000 calls/month)"
+    },
+    "e2b_sandbox": {
+      "enabled": false,
+      "description": "E2B Code Interpreter MCP connected. Enables: sandboxed Python with scipy, numpy, pandas, matplotlib for statistical analysis and visualization.",
+      "requires": "E2B MCP configured in Claude Desktop + E2B_API_KEY env var (free tier at e2b.dev)"
+    },
+    "duckdb_analytics": {
+      "enabled": false,
+      "description": "DuckDB MCP connected. Enables: analytical SQL over CSV, Parquet, and JSON files. No API key needed for local mode.",
+      "requires": "npx @motherduckdb/mcp-server-motherduck configured in Claude Desktop"
+    },
+    "stats_compass": {
+      "enabled": false,
+      "description": "stats-compass-mcp connected. Enables: 50+ pandas-based statistical tools (t-tests, ANOVA, chi-square, correlation matrices).",
+      "requires": "pip install stats-compass-mcp + configured in Claude Desktop"
+    },
+    "jupyter_notebook": {
+      "enabled": false,
+      "description": "Jupyter MCP connected. Enables: persistent notebook sessions with full Python scientific stack.",
+      "requires": "jupyter-mcp-server configured in Claude Desktop"
+    },
+    "r_statistics": {
+      "enabled": false,
+      "description": "R Statistics MCP connected (rmcp). Enables: 52 R statistical tools for advanced modeling.",
+      "requires": "R installed + rmcp configured in Claude Desktop"
+    },
+    "monte_carlo": {
+      "enabled": false,
+      "description": "Monte Carlo Simulation MCP connected. Enables: probabilistic modeling, risk analysis, revenue forecasting.",
+      "requires": "MCS-MCP configured in Claude Desktop"
+    },
+    "scikit_learn": {
+      "enabled": false,
+      "description": "scikit-learn MCP connected. Enables: ML classification, regression, clustering for audience segmentation and trend prediction.",
+      "requires": "mcp-server-scikit-learn configured in Claude Desktop"
+    },
+    "gemini_gem_export": {
+      "enabled": false,
+      "description": "Gemini Gem export packaging available. Enables: export-gem atom to package Creator OS for Google Gemini Gems.",
+      "requires": "No external dependency. Enable to activate the export-gem atom."
+    },
+    "custom_gpt_export": {
+      "enabled": false,
+      "description": "Custom GPT export packaging available. Enables: export-gpt atom to package Creator OS for OpenAI Custom GPTs.",
+      "requires": "No external dependency. Enable to activate the export-gpt atom."
     }
   },
   "degraded_behavior": {
@@ -70,7 +120,15 @@
     "keyword_cache_disabled": "keyword lookups use in-context knowledge from canonical-sources/ loaded into the system. Slower and token-intensive. Build the cache for faster results.",
     "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null — not provided]. Never fabricated.",
     "voice_profile_disabled": "Scripts and captions use seed vocabulary from voice-engine.md. Personalized phrases from actual content are not available yet.",
-    "channel_context_disabled": "Rate recommendations use industry benchmark ranges from canonical-sources/rate-benchmarks. Not grounded in actual channel performance."
+    "channel_context_disabled": "Rate recommendations use industry benchmark ranges from canonical-sources/rate-benchmarks. Not grounded in actual channel performance.",
+    "wolfram_disabled": "Exact computation unavailable. Arithmetic results are best-effort estimates labeled [estimated]. Never present unverified arithmetic as precise.",
+    "e2b_disabled": "Sandboxed Python unavailable. Statistical analysis limited to conceptual guidance. Cannot generate charts or run iterative algorithms.",
+    "duckdb_disabled": "Analytical SQL unavailable. CSV/Parquet/JSON files cannot be queried directly. Use manual data inspection or cache_query for keyword data.",
+    "stats_compass_disabled": "Pandas-based statistical tools unavailable. Hypothesis testing and correlation analysis limited to conceptual recommendations.",
+    "jupyter_disabled": "Persistent notebook sessions unavailable. Multi-step computations cannot maintain state across turns.",
+    "stats_general_disabled": "When no statistical MCP is available, all statistical atoms produce guidance-only output: they describe what test to run and provide runnable Python/R code, but do not compute results. All outputs labeled [guidance-only].",
+    "gem_export_disabled": "Gemini Gem packaging unavailable. Use the manual export files in implementation/gemini/ instead.",
+    "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
 }

@@ -1,0 +1,84 @@
+[
+  {
+    "id": "benchmarkcompare-001",
+    "description": "Happy path: compare a real CTR value against YouTube home-decor-diy benchmarks",
+    "input": {
+      "metric_name": "ctr",
+      "alex_value": 5.2,
+      "platform": "youtube",
+      "niche": "home-decor-diy"
+    },
+    "expect": {
+      "tool": "benchmark-compare",
+      "metric": "ctr",
+      "benchmark_range": {
+        "low": "number",
+        "high": "number",
+        "unit": "percent"
+      },
+      "benchmark_source": "canonical-sources/rate-benchmarks/benchmarks.json",
+      "alex_value": 5.2,
+      "gap_assessment": "above | below | within",
+      "interpretation": "non-empty string",
+      "data_source": "industry-estimate-home-decor-diy"
+    },
+    "prohibit": [
+      "gap_assessment is unknown when alex_value is provided and benchmark_range is non-null",
+      "benchmark_range values fabricated rather than read from benchmarks.json",
+      "recommendation containing a specific numeric target presented as guaranteed",
+      "data_source value other than industry-estimate-home-decor-diy"
+    ]
+  },
+  {
+    "id": "benchmarkcompare-002",
+    "description": "Minimal input: no alex_value provided; gap_assessment must be unknown",
+    "input": {
+      "metric_name": "engagement_rate",
+      "platform": "instagram",
+      "niche": "home-decor-diy"
+    },
+    "expect": {
+      "tool": "benchmark-compare",
+      "metric": "engagement_rate",
+      "alex_value": null,
+      "gap_assessment": "unknown",
+      "benchmark_range": {
+        "low": "number",
+        "high": "number",
+        "unit": "string"
+      },
+      "recommendation": null,
+      "data_source": "industry-estimate-home-decor-diy"
+    },
+    "prohibit": [
+      "alex_value is a non-null number when none was supplied",
+      "gap_assessment is above, below, or within when alex_value is null",
+      "fabricated creator metric inserted to fill the gap",
+      "recommendation containing specific action when gap_assessment is unknown"
+    ]
+  },
+  {
+    "id": "benchmarkcompare-003",
+    "description": "Edge case: unsupported niche not in benchmarks.json; benchmark_range must be null with gap flag",
+    "input": {
+      "metric_name": "avd",
+      "alex_value": 240,
+      "platform": "tiktok",
+      "niche": "exotic-pet-care"
+    },
+    "expect": {
+      "tool": "benchmark-compare",
+      "metric": "avd",
+      "benchmark_range": null,
+      "alex_value": 240,
+      "gap_assessment": "unknown",
+      "interpretation": "non-empty string mentioning the niche is not available in benchmarks",
+      "data_source": "industry-estimate-home-decor-diy"
+    },
+    "prohibit": [
+      "benchmark_range containing fabricated low/high values for an unsupported niche",
+      "gap_assessment is above, below, or within when benchmark_range is null",
+      "borrowing or extrapolating from adjacent niches to fill the range"
+    ]
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "gpt-001",
+    "description": "Full export with all spokes — instruction within 8K characters, knowledge files listed",
+    "input": {
+      "gpt_name": "Creator OS",
+      "focus_spokes": "all",
+      "include_actions": false
+    },
+    "expected": {
+      "gpt_name": "Creator OS",
+      "instruction_chars": "positive integer <= 8000",
+      "instruction_text": "non-empty string containing brand identity and no-fabrication rule",
+      "instruction_path": "non-null path under implementation/gpt/web/",
+      "knowledge_files": "non-empty array",
+      "actions_schema_path": "null (include_actions is false)"
+    },
+    "prohibit": [
+      "instruction_chars > 8000",
+      "instruction_text missing brand identity block",
+      "instruction_text missing no-fabrication rule",
+      "actions_schema_path non-null when include_actions is false",
+      "knowledge_files empty when full export requested"
+    ]
+  },
+  {
+    "id": "gpt-002",
+    "description": "Focused export with 2 spokes and actions schema — actions_schema_path non-null",
+    "input": {
+      "gpt_name": "Creator OS — SEO",
+      "focus_spokes": ["seo-keywords", "video-development"],
+      "include_actions": true
+    },
+    "expected": {
+      "gpt_name": "Creator OS — SEO",
+      "instruction_chars": "positive integer <= 8000",
+      "actions_schema_path": "non-null path ending in .yaml",
+      "knowledge_files": "includes files relevant to seo-keywords and video-development",
+      "warnings": "may include note about API authentication configuration"
+    },
+    "prohibit": [
+      "actions_schema_path null when include_actions is true",
+      "fabricated API endpoints in actions schema",
+      "instruction_chars > 8000",
+      "knowledge_files including unrelated spoke files when focused spokes specified"
+    ]
+  },
+  {
+    "id": "gpt-003",
+    "description": "Non-existent spoke requested — warning emitted, valid spokes processed normally",
+    "input": {
+      "gpt_name": "Creator OS — Test",
+      "focus_spokes": ["seo-keywords", "fake-spoke-name"],
+      "include_actions": false
+    },
+    "expected": {
+      "warnings": "contains note about fake-spoke-name not found",
+      "instruction_chars": "positive integer <= 8000",
+      "knowledge_files": "includes files for seo-keywords but not fake-spoke-name"
+    },
+    "prohibit": [
+      "no warning about fake-spoke-name",
+      "fabricated SKILL.md for fake-spoke-name",
+      "atom failure or crash due to missing spoke"
+    ]
+  }
+]

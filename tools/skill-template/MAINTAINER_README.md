@@ -32,3 +32,4 @@ chosen, and what would overturn it.
 
 ## Update checklist
 Ordered steps to run on any change, always ending with python3 tools/sync_check.py.
+Verify all backticked path references in this file and SKILL.md resolve to real files on disk.

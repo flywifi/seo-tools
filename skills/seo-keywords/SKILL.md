@@ -1,7 +1,7 @@
 ---
 file: skills/seo-keywords/SKILL.md
 name: seo-keywords
-description: build a full SEO strategy for a content topic: keyword cluster, search intent, competitive gap analysis, and a recommended title and description skeleton. Optimized for YouTube; also covers Pinterest and TikTok.
+description: "build a full SEO strategy for a content topic: keyword cluster, search intent, competitive gap analysis, and a recommended title and description skeleton. Optimized for YouTube; also covers Pinterest and TikTok."
 load: always
 ---
 

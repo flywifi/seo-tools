@@ -1,7 +1,7 @@
 ---
 file: skills/partnership-mediakit/SKILL.md
 name: partnership-mediakit
-description: Pipeline/CRM spoke that builds brand partnership outreach materials for the creator: pitch paragraph, media kit sections, and rate card. Uses real data when supplied; uses labeled benchmarks when not.
+description: "Pipeline/CRM spoke that builds brand partnership outreach materials for the creator: pitch paragraph, media kit sections, and rate card. Uses real data when supplied; uses labeled benchmarks when not."
 load: always
 ---
 

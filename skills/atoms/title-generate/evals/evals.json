@@ -1,0 +1,67 @@
+[
+  {
+    "id": "title-generate-001",
+    "description": "Happy path: full inputs with concept, keyword, style, and platform produce multiple front-loaded titles",
+    "input": {
+      "concept": "Transforming a thrifted dresser into a moody vintage bathroom vanity",
+      "primary_keyword": "thrift store dresser vanity",
+      "style": "moody vintage",
+      "platform": "youtube"
+    },
+    "expect": {
+      "tool": "title-generate",
+      "titles": "array of multiple title objects",
+      "titles[].title": "present, human-readable string",
+      "titles[].chars": "positive integer reflecting the title character count",
+      "titles[].keyword_front_loaded": "boolean, at least one title has true",
+      "note": "present, references human readability and SEO balance"
+    },
+    "prohibit": [
+      "titles exceeding 100 characters without clear justification",
+      "overpromising beyond what the concept delivers",
+      "em dashes in title text",
+      "fabricated view counts or performance predictions"
+    ]
+  },
+  {
+    "id": "title-generate-002",
+    "description": "Minimal inputs: concept and primary_keyword only, style and platform default",
+    "input": {
+      "concept": "Budget gallery wall using thrifted frames and vintage art prints",
+      "primary_keyword": "gallery wall"
+    },
+    "expect": {
+      "tool": "title-generate",
+      "titles": "array of at least one title object",
+      "titles[].title": "present",
+      "titles[].chars": "present, positive integer",
+      "titles[].keyword_front_loaded": "boolean present on each"
+    },
+    "prohibit": [
+      "em dashes",
+      "overpromising",
+      "fabricated metrics"
+    ]
+  },
+  {
+    "id": "title-generate-003",
+    "description": "Edge case: very long concept tests that titles remain within the recommended 80 to 100 character range",
+    "input": {
+      "concept": "Complete living room makeover on a $200 budget using only thrift store finds, chalk paint, peel-and-stick wallpaper, and vintage brass accessories styled in a dark moody aesthetic",
+      "primary_keyword": "budget living room makeover",
+      "style": "moody vintage",
+      "platform": "youtube"
+    },
+    "expect": {
+      "tool": "title-generate",
+      "titles": "array of multiple title objects",
+      "titles[].chars": "values roughly in the 80 to 100 character range for search-optimized titles",
+      "titles[].keyword_front_loaded": "at least one title front-loads the primary keyword"
+    },
+    "prohibit": [
+      "titles that try to include every detail from the long concept",
+      "em dashes",
+      "overpromising beyond what the concept delivers"
+    ]
+  }
+]

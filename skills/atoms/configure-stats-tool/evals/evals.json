@@ -1,0 +1,60 @@
+[
+  {
+    "id": "cst-001",
+    "description": "Configure wolfram_alpha on macOS — produces config block with WOLFRAM_APP_ID env var and macOS config path",
+    "input": {
+      "tool": "wolfram_alpha"
+    },
+    "expected": {
+      "tool": "wolfram_alpha",
+      "config_block": "contains mcpServers.wolfram-alpha with command npx",
+      "env_vars_needed": "contains WOLFRAM_APP_ID key",
+      "prerequisites": "includes Wolfram Alpha API key and Node.js",
+      "config_file_path": "contains Library/Application Support/Claude (macOS path)",
+      "verification_prompt": "non-empty string mentioning integral or computation test"
+    },
+    "prohibit": [
+      "API key value hardcoded in config_block (should be placeholder)",
+      "config_file_path pointing to Windows or Linux path on macOS",
+      "env_vars_needed empty when wolfram_alpha requires WOLFRAM_APP_ID",
+      "instructions to paste API key into chat"
+    ]
+  },
+  {
+    "id": "cst-002",
+    "description": "Configure duckdb_analytics — no API key needed, env_vars_needed is empty",
+    "input": {
+      "tool": "duckdb_analytics"
+    },
+    "expected": {
+      "tool": "duckdb_analytics",
+      "config_block": "contains mcpServers with duckdb entry",
+      "env_vars_needed": "empty object — DuckDB requires no API key",
+      "prerequisites": "includes DuckDB CLI or Python duckdb",
+      "verification_prompt": "non-empty string mentioning CSV query"
+    },
+    "prohibit": [
+      "env_vars_needed with any API key entries",
+      "prerequisites including an API key for DuckDB",
+      "config_block missing mcpServers entry"
+    ]
+  },
+  {
+    "id": "cst-003",
+    "description": "Configure all tools — some prerequisites not met, skipped tools listed",
+    "input": {
+      "tool": "all"
+    },
+    "expected": {
+      "tool": "all",
+      "configured_tools": "array of tools whose prerequisites were met",
+      "skipped_tools": "array of tools whose prerequisites were not met, with reasons",
+      "retrieval_gaps": "notes about any tools skipped due to missing prerequisites"
+    },
+    "prohibit": [
+      "all 8 tools marked as configured without checking prerequisites",
+      "skipped tools with no reason given",
+      "silent skip without appearing in retrieval_gaps or skipped_tools"
+    ]
+  }
+]

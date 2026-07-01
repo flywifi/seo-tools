@@ -1,0 +1,112 @@
+[
+  {
+    "id": "ht-001",
+    "description": "Independent t-test with two groups of watch time data — computation tool connected, returns test statistic and p-value",
+    "input": {
+      "test_type": "t_test_independent",
+      "data": {
+        "group_a": [5.2, 6.1, 4.8, 7.3, 5.9, 6.5, 5.0, 6.8, 7.1, 5.5],
+        "group_b": [7.1, 8.0, 6.9, 8.5, 7.8, 7.2, 8.1, 7.6, 8.3, 7.0]
+      },
+      "alpha": 0.05,
+      "hypothesis": "Tutorial-style videos have different average watch time than vlog-style videos",
+      "data_source": "YouTube Studio export, June 2026"
+    },
+    "expected": {
+      "test_type": "t_test_independent",
+      "conclusion": "reject_null or fail_to_reject — not insufficient_data",
+      "test_statistic": "non-null numeric value",
+      "p_value": "non-null numeric value between 0 and 1",
+      "effect_size": "non-null numeric value",
+      "confidence_interval": "two-element array [lower, upper]",
+      "computation_source": "stats_compass | e2b | r_statistics | wolfram_alpha",
+      "interpretation": "non-empty string referencing watch time and video format"
+    },
+    "prohibit": [
+      "conclusion = insufficient_data when data has 10 observations per group",
+      "computation_source = guidance_only when a tool is connected",
+      "p_value or test_statistic that is null",
+      "fabricated p-value not produced by a computation tool"
+    ]
+  },
+  {
+    "id": "ht-002",
+    "description": "No computation tool connected — produces guidance-only output with runnable Python code",
+    "input": {
+      "test_type": "chi_square",
+      "data": {
+        "observed": [[120, 80], [90, 110]],
+        "labels": { "rows": ["thumbnail_A", "thumbnail_B"], "cols": ["clicked", "not_clicked"] }
+      },
+      "alpha": 0.05,
+      "hypothesis": "Thumbnail style affects click-through rate",
+      "data_source": "Manual tally from YouTube Studio, May 2026"
+    },
+    "expected": {
+      "test_type": "chi_square",
+      "conclusion": "insufficient_data",
+      "computation_source": "guidance_only",
+      "runnable_code": "non-null string containing scipy.stats.chi2_contingency or equivalent",
+      "p_value": "null (not computed)",
+      "test_statistic": "null (not computed)",
+      "retrieval_gaps": "contains note about no computation engine connected"
+    },
+    "prohibit": [
+      "p_value with a non-null numeric value when no tool is connected",
+      "conclusion = reject_null or fail_to_reject without a computation tool",
+      "runnable_code that is null in guidance-only mode",
+      "fabricated chi-square statistic"
+    ]
+  },
+  {
+    "id": "ht-003",
+    "description": "Small sample size (n < 5 per group) — atom refuses parametric test and recommends descriptive statistics",
+    "input": {
+      "test_type": "t_test_independent",
+      "data": {
+        "group_a": [5.2, 6.1, 4.8],
+        "group_b": [7.1, 8.0, 6.9]
+      },
+      "alpha": 0.05,
+      "hypothesis": "Posting on Monday vs. Friday affects average view duration",
+      "data_source": "YouTube Studio export, Q2 2026"
+    },
+    "expected": {
+      "sample_size_warning": "non-null string mentioning n < 5 or n < 30",
+      "conclusion": "insufficient_data — atom refuses parametric test with n = 3 per group",
+      "assumption_warnings": "non-empty array"
+    },
+    "prohibit": [
+      "conclusion = reject_null or fail_to_reject with n = 3 per group",
+      "sample_size_warning that is null when groups have 3 observations",
+      "p_value with a non-null value when atom refuses to run the test"
+    ]
+  },
+  {
+    "id": "ht-004",
+    "description": "User requests ANOVA but provides only two groups — atom downgrades to t-test and notes the change",
+    "input": {
+      "test_type": "anova_one_way",
+      "data": {
+        "groups": {
+          "morning_posts": [120, 145, 130, 155, 140, 135, 150, 128, 142, 138],
+          "evening_posts": [180, 165, 190, 175, 185, 170, 195, 160, 178, 172]
+        }
+      },
+      "alpha": 0.05,
+      "hypothesis": "Posting time of day affects view count",
+      "data_source": "YouTube Studio export, Q1 2026"
+    },
+    "expected": {
+      "test_type": "t_test_independent — downgraded from anova_one_way",
+      "retrieval_gaps": "contains note about test type downgrade from ANOVA to t-test",
+      "test_statistic": "non-null if computation tool connected",
+      "p_value": "non-null if computation tool connected"
+    },
+    "prohibit": [
+      "test_type = anova_one_way when only 2 groups provided",
+      "silent downgrade without noting in retrieval_gaps or interpretation",
+      "fabricated F-statistic for a 2-group comparison run as ANOVA"
+    ]
+  }
+]
