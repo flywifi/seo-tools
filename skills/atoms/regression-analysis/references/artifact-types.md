@@ -1,5 +1,5 @@
 ---
-file: skills/regression-analysis/references/artifact-types.md
+file: skills/atoms/regression-analysis/references/artifact-types.md
 role: the artifact types this skill produces and the required elements of each.
 ---
 
