@@ -187,6 +187,31 @@
       "enabled": false,
       "description": "Feature 8. One chapter list reused three ways: the editor's chapter track, the YouTube description timestamps, and the scheduling item. Feeds geo-optimize, content-calendar, and the scheduling queue. Pure data transform; works on every engine.",
       "requires": "Nothing external. Pure transform; always available."
+    },
+    "contract_management": {
+      "enabled": false,
+      "description": "Master gate for the contract-desk spoke (P23). While OFF, deal-pipeline still handles the plain-language contract-negotiating behavior it always has (summarize terms, flag attention points, recommend counsel). Turn ON to activate the contract-desk spoke and its atoms (triage, clause review, legal-requirement checks, escalation briefs). This is legal information only, never legal advice. Independent of the per-feature flags below.",
+      "requires": "Nothing external. Point the atoms at an uploaded contract file (reuses the uploaded_file / google_drive document connectors). A configured pipeline/user-context/deal-playbook.local.json makes the review creator-specific; without it the atoms run in a labeled provisional mode against generic creator-side defaults."
+    },
+    "contract_drafting": {
+      "enabled": false,
+      "description": "Feature 1 (P23 Phase 2). Assemble a plain-language draft agreement from the deal-playbook standard positions plus the deal's agreed terms. Never emits binding language and always labels output not-vetted, review-before-signing. Requires contract_management on.",
+      "requires": "contract_management on. The contract-draft atom is delivered in P23 Phase 2; while off or unbuilt, contract-desk routes drafting requests to a plain-language term summary and recommends drafting with counsel."
+    },
+    "contract_redline": {
+      "enabled": false,
+      "description": "Feature 2 (P23). Clause-by-clause review with dual severity (legal risk + business friction), exact-quote findings, playbook gaps, and plain-language redline suggestions; plus version tracking (net current state across contract versions). Requires contract_management on.",
+      "requires": "contract_management on. contract-review ships in P23 Phase 1; amendment/version tracing (amendment-trace) ships in P23 Phase 2."
+    },
+    "contract_obligations": {
+      "enabled": false,
+      "description": "Feature 3 (P23 Phase 3). Pull deliverables, deadlines, and payment terms out of a signed contract into an obligation register with send-by date math, and sync them to the content calendar and production tasks. Requires contract_management on.",
+      "requires": "contract_management on. The obligation-extract atom and the obligation register ship in P23 Phase 3; while off, deadlines are surfaced as flagged action items only."
+    },
+    "legal_requirement_checks": {
+      "enabled": false,
+      "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",
+      "requires": "contract_management on. legal-requirement-check ships in P23 Phase 1 and cites canonical-sources/source-registry.json FTC entries."
     }
   },
   "degraded_behavior": {
@@ -216,7 +241,12 @@
     "compressor_presets_disabled": "compressor_presets is off. Platform export presets are described but not run. Export from the editor manually using the recommended specs, or enable this flag (needs Compressor on macOS or the Resolve render queue).",
     "motion_template_fill_disabled": "motion_template_fill is off. Title/lower-third copy is generated but not injected into Motion templates via FCPXML. Type it into the editor manually or enable this flag (macOS + FCP).",
     "commandpost_macros_disabled": "commandpost_macros is off. Finishing automations are described but not emitted/triggered. Run the finishing steps manually or enable this flag (macOS + CommandPost).",
-    "chapter_sync_disabled": "chapter_sync is off. The chapter list is still produced but not fanned out to the description timestamps and scheduling item automatically. Copy them across manually or enable this flag."
+    "chapter_sync_disabled": "chapter_sync is off. The chapter list is still produced but not fanned out to the description timestamps and scheduling item automatically. Copy them across manually or enable this flag.",
+    "contract_management_disabled": "contract_management is off (default). The contract-desk spoke and its atoms are not activated. Deal work continues exactly as before: at contract-negotiating, deal-pipeline summarizes terms in plain language, flags the points that deserve attention as action items, and recommends review with a qualified professional per protocols/safety.md. Turn the flag on for structured triage, clause-by-clause review, legal-requirement flags, and escalation briefs. Even on, output is legal information only, never legal advice.",
+    "contract_drafting_disabled": "contract_drafting is off, or the contract-draft atom is not yet built (Phase 2). Drafting requests degrade to a plain-language summary of the agreed terms plus a recommendation to draft the binding agreement with a qualified professional. The system never emits binding contract language as if vetted.",
+    "contract_redline_disabled": "contract_redline is off. Clause-by-clause review with dual severity and version tracing is not produced. A contract at contract-negotiating still gets the plain-language term summary and attention flags. Amendment/version tracing (net current state across versions) ships in Phase 2.",
+    "contract_obligations_disabled": "contract_obligations is off, or the obligation register is not yet built (Phase 3). Deliverables, deadlines, and payment terms are surfaced as flagged action items on the deal record but are not written to a dated obligation register or synced to the content calendar and production tasks.",
+    "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
 }

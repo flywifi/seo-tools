@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -93,6 +93,10 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `production_plan` | Pipeline/CRM | `deal-resourcing` | production resource planning from deal |
 | `outreach_draft` | Pipeline/CRM | `partnership-mediakit` | outreach email or pitch draft |
 | `media_kit` | Pipeline/CRM | `partnership-mediakit` | media kit generation |
+| `contract_review` | Pipeline/CRM | `contract-desk` | review an inbound brand contract: triage, clause findings, legal-requirement flags, escalation brief (gated by contract_management) |
+| `contract_draft` | Pipeline/CRM | `contract-desk` | draft a plain-language agreement from the playbook standards (Phase 2; gated by contract_drafting; never binding language) |
+| `contract_amendment` | Pipeline/CRM | `contract-desk` | trace changes across contract versions, net current state (Phase 2; gated by contract_redline) |
+| `contract_obligations` | Pipeline/CRM | `contract-desk` | pull deliverables, deadlines, and payment terms onto the timeline (Phase 3; gated by contract_obligations) |
 | `quality_check` | Content | `quality-review` | score an artifact against quality gates |
 | `unclear` | — | — | ask a clarifying question before routing |
 
@@ -196,5 +200,5 @@ content-strategy    project-builder    video-development    shortform-repurposin
 seo-keywords        analytics-insights analytics-compute    audience-research
 competitor-analysis seasonal-trends    content-distributor  document-studio
 account-manager     deal-pipeline       deal-resourcing     partnership-mediakit
-quality-review
+contract-desk       quality-review
 ```

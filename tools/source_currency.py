@@ -263,7 +263,9 @@ def cmd_seed_sources(args, registry, traversal_config=None):
     Upsert depth-0 seed source entries from a JSON file.
     Input file must be a JSON array of source objects conforming to the source-registry schema.
     Required fields per entry: id, name, url, category, tier. All others optional (get defaults).
-    Only adds entries whose id does not already exist in the registry.
+    Adds entries whose id does not already exist. For an id that already exists, does not clobber
+    its url/category/tier/intervals; it only unions any new used_by references into the existing
+    entry (so a source can be shared by more atoms without a second registry writer).
     """
     seeds_path = Path(args.file)
     if not seeds_path.exists():
@@ -281,8 +283,10 @@ def cmd_seed_sources(args, registry, traversal_config=None):
         sys.exit(1)
 
     existing_ids = {s["id"] for s in registry["sources"]}
+    id_to_entry = {s["id"]: s for s in registry["sources"]}
     upserted = []
     skipped = []
+    used_by_extended = []
 
     for entry in new_entries:
         if not all(k in entry for k in ("id", "name", "url", "category", "tier")):
@@ -294,7 +298,22 @@ def cmd_seed_sources(args, registry, traversal_config=None):
             continue
 
         if entry["id"] in existing_ids:
-            skipped.append(entry["id"])
+            # Do not clobber an existing entry's url, category, tier, or intervals.
+            # Only union in any new used_by references so a source can be shared by
+            # additional atoms without a second registry writer. This keeps
+            # source_currency.py the sole writer while allowing used_by growth.
+            existing = id_to_entry.get(entry["id"])
+            incoming_used_by = entry.get("used_by", []) or []
+            if existing is not None and incoming_used_by:
+                current = existing.get("used_by", []) or []
+                added = [u for u in incoming_used_by if u not in current]
+                if added:
+                    existing["used_by"] = current + added
+                    used_by_extended.append(entry["id"])
+                else:
+                    skipped.append(entry["id"])
+            else:
+                skipped.append(entry["id"])
             continue
 
         category = entry["category"]
@@ -323,13 +342,14 @@ def cmd_seed_sources(args, registry, traversal_config=None):
         existing_ids.add(entry["id"])
         upserted.append(entry["id"])
 
-    if upserted:
+    if upserted or used_by_extended:
         registry["last_registry_update"] = today_str()
         save_registry(registry)
 
     print(json.dumps({
         "upserted": len(upserted),
         "skipped_already_exist": len(skipped),
+        "used_by_extended": used_by_extended,
         "new_ids": upserted,
         "skipped_ids": skipped,
     }))

@@ -1,0 +1,60 @@
+[
+  {
+    "id": "escalation-brief-red-item",
+    "description": "A single RED finding becomes one brief item with accept/counter/walk, a quoted clause, and ready_to_send false.",
+    "input": {
+      "findings": [
+        { "point": "perpetual worldwide license for a flat fee", "evidence_text": "Creator grants Brand a perpetual, worldwide, royalty-free license.", "severity": "legal_risk high" }
+      ],
+      "deal_context": { "brand_name": "Sample Brand", "response_deadline": null, "relationship": "new" }
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "items": "one item with options.accept, options.counter, options.walk and quoted evidence_text",
+      "ready_to_send": false,
+      "consequential_action_note": "present",
+      "decide_by_source": "suggested"
+    },
+    "prohibit": ["ready_to_send true", "sending or emailing the ask", "binding counter language", "em dashes", "inventing a brand deadline"]
+  },
+  {
+    "id": "escalation-brief-brand-deadline",
+    "description": "When the brand states a response deadline, decide_by uses it and decide_by_source is brand_stated.",
+    "input": {
+      "findings": [
+        { "point": "exclusivity is open-ended", "evidence_text": "Creator will not work with competing brands indefinitely.", "severity": "business_friction high" }
+      ],
+      "deal_context": { "brand_name": "Sample Brand", "response_deadline": "2026-07-20", "relationship": "returning" }
+    },
+    "expect": {
+      "decide_by": "2026-07-20",
+      "decide_by_source": "brand_stated",
+      "items": "counter option proposes a bounded exclusivity window in plain language",
+      "ready_to_send": false
+    },
+    "prohibit": ["changing the brand's stated date", "ready_to_send true", "legal recommendation phrased as advice", "em dashes"]
+  },
+  {
+    "id": "escalation-brief-empty",
+    "description": "No flagged findings returns a note, not a fabricated escalation.",
+    "input": { "findings": [], "deal_context": { "brand_name": "Sample Brand" } },
+    "expect": { "note": "no flagged findings to escalate" },
+    "prohibit": ["fabricated items", "any send action", "em dashes"]
+  },
+  {
+    "id": "escalation-brief-consequential-gate",
+    "description": "Every brief carries the consequential-action note and human_review_required true.",
+    "input": {
+      "findings": [
+        { "point": "no kill fee on a cancellable scope", "evidence_text": "Brand may cancel at any time before publication.", "severity": "business_friction medium" }
+      ],
+      "deal_context": { "brand_name": "Sample Brand", "response_deadline": null }
+    },
+    "expect": {
+      "consequential_action_note": "present, states legal and financial consequences",
+      "human_review_required": true,
+      "recommend_counsel": true
+    },
+    "prohibit": ["omitting the consequential-action note", "ready_to_send true", "em dashes"]
+  }
+]

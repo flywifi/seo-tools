@@ -1,0 +1,56 @@
+{
+  "_comment": "Committed null-schema for the contract-artifact store (P23). Real contracts live in pipeline/contracts/<contract_id>.local.json (gitignored by the pipeline/**/*.local.* rule). This file defines the shape only; real contract TEXT is never committed. See shared/contract-engine.md. This is legal information only, never legal advice.",
+  "_boundary": "RESEARCH NOTES. NOT LEGAL ADVICE. REVIEW WITH A LICENSED ATTORNEY IN YOUR JURISDICTION BEFORE ACTING.",
+  "schema_version": "0.1.0",
+  "contract_id": null,
+  "deal_id": null,
+  "brand_name": null,
+  "jurisdiction": "US",
+  "status": "received | in_review | redlined | negotiating | signed | amended | expired",
+  "human_review_required": true,
+  "recommend_counsel": true,
+  "parties": {
+    "creator": { "legal_name": null, "signatory": null },
+    "brand": { "legal_name": null, "signatory": null, "agency_of_record": null }
+  },
+  "versions": [
+    {
+      "version": null,
+      "received_date": null,
+      "source_file_ref": null,
+      "source_connector": "uploaded_file | google_drive | email | manual",
+      "notes": null
+    }
+  ],
+  "current_version": null,
+  "source_file_ref": null,
+  "contract_text_ref": "pipeline/contracts/<contract_id>.local.json — raw text lives ONLY in the .local file, never here",
+  "triage": {
+    "verdict": "GREEN | YELLOW | RED | null",
+    "reasons": [],
+    "hidden_obligations_found": [],
+    "deal_breakers_found": [],
+    "assessed_on": null
+  },
+  "extracted_clauses": {
+    "usage_rights": { "license_grant": null, "scope": null, "platforms": [], "duration": null, "ownership": null },
+    "exclusivity": { "active": null, "scope": null, "platform": null, "category": null, "duration": null },
+    "deliverables": [],
+    "revisions": { "rounds": null, "approval_window_days": null },
+    "payment": { "amount": null, "currency": "USD", "terms": null, "kill_fee": null },
+    "ftc_disclosure": { "required": null, "language_present": null, "reason": null },
+    "content_approval": { "brand_veto": null, "approval_window_days": null },
+    "whitelisting_boosting": { "allowed": null, "terms": null },
+    "morality": { "present": null, "terms": null },
+    "territory": null,
+    "flags": []
+  },
+  "review_findings": [],
+  "legal_requirement_flags": [],
+  "obligations": [],
+  "amendments": [],
+  "signed_date": null,
+  "effective_dates": { "start": null, "end": null },
+  "quality_verdict": null,
+  "provenance": { "generated_by": null, "engine_version": "0.1.0" }
+}

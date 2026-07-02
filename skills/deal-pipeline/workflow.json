@@ -6,7 +6,7 @@
     {"step": 1, "atom": "deal-stage-advance", "input_from": "deal_id + current_stage + target_stage + evidence", "output_to": "step2", "condition": "action is advance_stage"},
     {"step": 2, "atom": "usage-rights-check", "input_from": "deal_id or contract_text", "output_to": "step3", "condition": "stage is contract-negotiating or signed or action includes rights_check"},
     {"step": 3, "atom": "exclusivity-check", "input_from": "deal_id + brand_category", "output_to": "step4", "condition": "stage is contract-negotiating or signed"},
-    {"step": 4, "atom": "account-health", "input_from": "account_id from deal record", "output_to": "step5", "note": "checks exclusivity conflicts"},
+    {"step": 4, "atom": "account-health", "input_from": "account_ref from deal record", "output_to": "step5", "note": "checks exclusivity conflicts"},
     {"step": 5, "atom": "gap-record", "input_from": "missing evidence from step1", "output_to": "step6", "condition": "transition_allowed is false"},
     {"step": 6, "atom": "govern-artifact", "input_from": "assembled_deal_report", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
   ],

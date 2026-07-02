@@ -1,7 +1,7 @@
 {
   "_comment": "Creator OS source registry — citation graph. Written and updated exclusively by tools/source_currency.py and tools/traversal_engine.py. Do not edit by hand. Intervals governed by canonical-sources/traversal-config.json.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-01",
+  "last_registry_update": "2026-07-02",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -690,7 +690,10 @@
       "used_by": [
         "safety",
         "deal-pipeline",
-        "partnership-mediakit"
+        "partnership-mediakit",
+        "legal-requirement-check",
+        "contract-review",
+        "contract-triage"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -710,7 +713,9 @@
       "extraction_hint": "Check for updates to the formal endorsement guides (16 CFR Part 255). Pay attention to social media platform-specific guidance and AI-generated content rules.",
       "used_by": [
         "safety",
-        "deal-pipeline"
+        "deal-pipeline",
+        "legal-requirement-check",
+        "contract-review"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -1271,6 +1276,124 @@
       "extraction_hint": "Set extraction_hint after first review.",
       "used_by": [],
       "depth": 1,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "ftc-endorsements-faq",
+      "name": "FTC Endorsement Guides: What People Are Asking (FAQ)",
+      "url": "https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "practical dos and don'ts on disclosure placement, wording, and platform tools; answers common creator questions",
+      "used_by": [
+        "legal-requirement-check",
+        "contract-review"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "ftc-endorsements-hub",
+      "name": "FTC Endorsements, Influencers, and Reviews hub",
+      "url": "https://www.ftc.gov/business-guidance/advertising-marketing/endorsements-influencers-reviews",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "landing page linking current FTC endorsement guidance and enforcement updates for influencers",
+      "used_by": [
+        "legal-requirement-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "us-copyright-basics",
+      "name": "U.S. Copyright Office: What Is Copyright",
+      "url": "https://www.copyright.gov/what-is-copyright/",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "copyright ownership basics; who holds rights in created content; useful for usage-rights and ownership clause review",
+      "used_by": [
+        "contract-review",
+        "usage-rights-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "cornell-wex-contract",
+      "name": "Cornell LII Wex: Contract",
+      "url": "https://www.law.cornell.edu/wex/contract",
+      "category": "legal-authority",
+      "tier": "T2",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "plain-language definition of contract terms and formation; general reference only, not case law",
+      "used_by": [
+        "contract-review",
+        "legal-requirement-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "cornell-wex-license",
+      "name": "Cornell LII Wex: License",
+      "url": "https://www.law.cornell.edu/wex/license",
+      "category": "legal-authority",
+      "tier": "T2",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "plain-language definition of a license and its scope; supports usage-rights and licensing clause review",
+      "used_by": [
+        "contract-review",
+        "usage-rights-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "ftc-soliciting-reviews-marketers",
+      "name": "FTC Soliciting and Paying for Online Reviews: A Guide for Marketers",
+      "url": "https://www.ftc.gov/business-guidance/resources/soliciting-paying-online-reviews-guide-marketers",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "rules on paid and incentivized reviews and endorsements; relevant to gifted and affiliate deal terms",
+      "used_by": [
+        "legal-requirement-check"
+      ],
+      "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []

@@ -2,8 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P22 (Phases 1 to 2) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P23 (Phase 1) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P23 (Phase 1): deal contract management. New `contract-desk` Pipeline/CRM spoke that reviews the
+  contract *document* (deal-pipeline still owns the deal record and stage transitions). Canonical
+  `shared/contract-engine.md` (non-advisory boundary, clause taxonomy, four-tier playbook model, dual
+  severity, confidence labels, amendment net-current-state + difference labels + source precedence,
+  deadline date math, curated legal sources). Contract-artifact store `pipeline/contracts/`
+  (`contract.template.json` committed; real text gitignored). Creator-side clause library
+  `pipeline/user-context/deal-playbook.template.json`. `pipeline/deals/deal-schema.json` reconciled to
+  `shared/pipeline-engine.md` (deal_type, per-deliverable FTC, compensation, usage_rights,
+  exclusivity, invoice states; account_ref and quality_verdict) plus `contract_ref` / `contract_text`.
+  5 flags (contract_management master + contract_drafting, contract_redline, contract_obligations,
+  legal_requirement_checks) with degraded_behavior; no new connector (intake reuses the document
+  connectors). Legal sources: `canonical-sources/legal-sources-seed.json` seeded via
+  `tools/source_currency.py seed-sources` (6 new FTC/reference entries; the two existing FTC entries'
+  `used_by` extended to the contract atoms via a new used_by-union in the seeder). Four atoms
+  (`contract-triage`, `contract-review`, `legal-requirement-check`, `escalation-brief`), all
+  non-advisory with the verbatim RESEARCH NOTES header, human_review_required, confidence labels, and
+  quoted evidence; reuse `usage-rights-check` and `exclusivity-check`. Hub wired (4
+  request_classification values + routing rows + downstream spoke). Legal information only, never legal
+  advice; nothing is signed or sent. Reference doc `docs/CONTRACTS.md`. Phases 2 (drafting,
+  amendment-trace) and 3 (obligation register + timeline) remain, flags in place and off.
 - P22 (Phase 2): captions + chapters. Feature 2 (caption round-trip) via `tools/videoedit/captions.py`
   (SRT/VTT reuse `shared/docintel/transcripts.py`; iTT added; CEA-608 deferred) + the `caption-bridge`
   atom. Feature 8 (chapter fan-out) via `tools/videoedit/chapters.py` (geo-optimize outline +

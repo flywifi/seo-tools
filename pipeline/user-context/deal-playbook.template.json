@@ -1,0 +1,46 @@
+{
+  "_comment": "Copy this file to deal-playbook.local.json and fill in your real negotiating positions. The .local.json is gitignored and never committed. This template is the shape only, with all positions null. Every contract atom reads the playbook first; if it is still this null template, the atom runs in a clearly labeled provisional mode against the generic creator-side defaults in shared/contract-engine.md, never against invented positions.",
+  "_gitignore_note": "deal-playbook.local.json is gitignored (pipeline/user-context/*.local.json).",
+  "_model": "Four-tier clause library. For each clause: standard = the position you open with; fallbacks = ordered concessions you can live with; never = lines you will not cross; the_one_thing = the single point that matters most on this clause. Leave a tier null or empty until you have decided it. Do not invent positions.",
+  "schema_version": "0.1.0",
+  "jurisdiction": "US",
+  "last_updated": null,
+  "clauses": {
+    "usage_licensing_rights": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "where, how long, and by whom sponsored content may be reused; organic vs paid; license duration"
+    },
+    "exclusivity": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "category scope, competitor list, platforms, and duration of any no-competing-brand window"
+    },
+    "deliverables_and_revisions": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "format and count of deliverables, number of revision rounds, and the approval window"
+    },
+    "payment_terms_and_kill_fee": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "fee, payment timing (for example net 30 from delivery), deposit, and kill fee if the brand cancels"
+    },
+    "ftc_disclosure": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "who is responsible for the #ad / paid-partnership disclosure and confirmation the contract does not try to waive it"
+    },
+    "content_approval_and_veto": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "brand review and approval rights, veto scope, and the turnaround window for approvals"
+    },
+    "whitelisting_and_paid_boosting": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "whether the brand may run your content as paid ads (whitelisting / boosting) and on what terms"
+    },
+    "morality_clause": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "conduct clauses that let the brand terminate; scope and mutuality"
+    },
+    "territory": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "geographic scope of the license and exclusivity"
+    }
+  }
+}

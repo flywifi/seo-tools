@@ -1,0 +1,239 @@
+---
+file: shared/contract-engine.md
+role: Source of truth for contract review, redline, obligations, and legal-requirement checks on
+  brand-partnership agreements. Read by the contract-desk spoke and the contract atoms
+  (contract-triage, contract-review, legal-requirement-check, escalation-brief, and the Phase 2 and 3
+  atoms). The deal lifecycle and CRM record live in shared/pipeline-engine.md; the legal, disclosure,
+  and safety boundaries live in protocols/safety.md; non-fabrication rules live in
+  protocols/no-fabrication.md.
+load: for every contract-desk request and any Pipeline/CRM request that touches contract text
+status: authored for P23 from the creator-side deal-review need; adopts the durable patterns from a
+  prior commercial-legal review skill (clause taxonomy, obligation rows, difference labels, source
+  precedence) and converts them to the solo-creator brand-deal context. US jurisdiction only.
+---
+
+# Contract Engine
+
+This engine turns a brand-partnership contract into structured, source-grounded review output for a
+solo creator. It never rules on enforceability and never drafts binding language as if vetted. It
+organizes, extracts, flags, and explains in plain language so the creator and a qualified attorney
+can decide.
+
+## The hard boundary (non-negotiable, identical to protocols/safety.md)
+
+Creator OS is not legal counsel and does not give legal advice. Every contract atom:
+
+- Emits this exact header, verbatim, as the first line of any contract output:
+
+  ```
+  RESEARCH NOTES. NOT LEGAL ADVICE. REVIEW WITH A LICENSED ATTORNEY IN YOUR JURISDICTION BEFORE ACTING.
+  ```
+
+  (The header uses periods, not dashes, because Creator OS forbids em dashes in user-facing output;
+  see protocols/formatting-metadata.md. The meaning is the standard non-lawyer banner.)
+
+- Sets `human_review_required: true` on every output.
+- Defaults `recommend_counsel: true` whenever anything is ambiguous, high value, one-sided, or
+  structurally incomplete. It may be `false` only when every key field is present, no flags are
+  raised, and the terms are unambiguous on their face.
+- Summarizes terms in plain language, surfaces the points that deserve attention, and never states
+  that a term is or is not enforceable.
+- Passes a **consequential-action gate** before anything that leads to signing, sending, or
+  committing money: state plainly "this step has legal consequences," attach a one-page brief the
+  creator can bring to a lawyer, and do not proceed without an explicit yes from the human. Agents
+  never sign, send, or commit; they produce confirmation summaries for human review only.
+
+This is legal information, never legal advice, in every mode, on every path.
+
+## Where a contract sits in the deal lifecycle
+
+The contract-artifact store is `pipeline/contracts/` (schema:
+`pipeline/contracts/contract.template.json`; real records are gitignored `.local.json`, and raw
+contract text is never committed). A contract record links to its deal by `contract_ref` on the deal
+and `deal_id` on the contract.
+
+Contract status maps onto the nine deal stages in `shared/pipeline-engine.md`:
+
+| Contract status | Deal stage | What it means |
+|---|---|---|
+| `received` | in-discussion or contract-negotiating | an inbound draft has arrived, not yet reviewed |
+| `in_review` | contract-negotiating | the atoms have triaged and reviewed it |
+| `redlined` | contract-negotiating | review findings and suggested changes exist |
+| `negotiating` | contract-negotiating | changes are going back and forth across versions |
+| `signed` | signed | an executed agreement exists (every sponsored deliverable has its FTC field) |
+| `amended` | signed or in-production | a later version modifies the signed agreement |
+| `expired` | closed/fulfilled or archived | the term or usage window has ended |
+
+The Contract Review entry rule (`shared/pipeline-engine.md`) applies at `contract-negotiating`: a deal
+cannot advance to `signed` unless every sponsored deliverable has its FTC disclosure field populated.
+
+## Clause taxonomy (creator-side families)
+
+Use these families as stable review buckets. Keep the contract's own labels when they exist.
+
+- **Usage and licensing rights**: where, how long, and by whom the content may be reused; organic vs
+  paid; license duration; ownership and copyright.
+- **Exclusivity**: category scope, competitor list, platforms, and the duration of any
+  no-competing-brand window.
+- **Deliverables and revisions**: format and count of deliverables, number of revision rounds, and
+  the approval window.
+- **Payment and kill fee**: fee, payment timing (for example, net 30 from delivery), deposit, and a
+  kill fee if the brand cancels.
+- **FTC and disclosure**: who is responsible for the paid-partnership disclosure; confirmation the
+  contract does not try to waive it (a contract cannot waive the FTC obligation).
+- **Content approval and veto**: brand review and approval rights, veto scope, and the approval
+  turnaround window.
+- **Whitelisting and paid boosting**: whether the brand may run the creator's content as paid ads,
+  and on what terms.
+- **Morality**: conduct clauses that let the brand terminate; scope and mutuality.
+- **Territory**: geographic scope of the license and the exclusivity.
+
+## The four-tier playbook model
+
+The creator's own negotiating positions live in `pipeline/user-context/deal-playbook.template.json`
+(real values in the gitignored `.local.json`). For each clause the playbook records four tiers:
+
+- **standard**: the position the creator opens with.
+- **fallbacks**: ordered concessions the creator can live with.
+- **never**: lines the creator will not cross.
+- **the_one_thing**: the single point that matters most on this clause.
+
+Every contract atom reads the playbook first. If the playbook is still the null template, the atom
+runs in a clearly labeled provisional mode (prefix `[PROVISIONAL: no playbook configured]`) against
+the generic creator-side defaults below, and never against invented positions. Generic defaults
+(guidance, not the creator's committed positions):
+
+- Usage rights default to organic social use for a bounded window (commonly 6 to 12 months); paid
+  amplification and perpetual or white-label use are worth flagging and pricing separately.
+- Exclusivity should name a specific category and a bounded window; open-ended or whole-niche
+  exclusivity for a single-post fee is worth flagging.
+- Payment should state a fee and a timing (for example, net 30 from delivery) and, on larger scopes,
+  a kill fee; "payment on brand's discretion" or no timing is worth flagging.
+- The FTC disclosure obligation cannot be contracted away and is required on every sponsored,
+  gifted, or affiliate deliverable (protocols/safety.md).
+
+## Dual severity (rank deal-breakers first)
+
+Every review finding carries two independent severities, each `none | low | medium | high`:
+
+- **legal_risk**: how exposed the creator is if the clause operates as written (for example, granting
+  perpetual worldwide rights, or an uncapped indemnity).
+- **business_friction**: how much the clause costs the creator in practice (for example, a 5-round
+  approval loop, or exclusivity that blocks likely future deals).
+
+Order findings deal-breakers first: any finding with `high` on either axis leads, then `medium`, then
+the rest. A clause can be low legal risk but high business friction, or the reverse. Never collapse
+the two into one score.
+
+## Confidence labels (quote before you infer)
+
+Tag every extracted field and finding with one of:
+
+- `explicit`: directly supported by quoted or clearly visible contract wording.
+- `high`: simple structural inference (for example, carrying a section heading to the paragraph
+  directly under it).
+- `medium` or `low`: best-effort interpretation, used only when the creator asked for it and the
+  field cannot be left blank.
+
+Separate three states in every output: **explicitly stated**, **reasonably inferred**, and
+**missing or not found**. Never smooth over a gap. A missing clause is a finding, not a blank.
+
+## Obligation-row schema (one row per distinct duty)
+
+When extracting obligations (contract-review surfaces them; the Phase 3 obligation-extract atom writes
+them to the register), keep one row per distinct obligation and preserve the direction of the duty.
+Columns:
+
+`document`, `section`, `clause_family`, `obligation_type`, `obligated_party`,
+`beneficiary_or_counterparty`, `required_action`, `trigger`, `timing_or_deadline`,
+`consequence_if_stated`, `evidence_text`, `confidence`, `notes`.
+
+Do not merge unrelated duties into one row. Quote `evidence_text` from the source.
+
+## Amendment and version model (net current state)
+
+When more than one version exists, produce a net-current-state view: for each topic, what the
+operative agreement says right now after all amendments, with the exact quote and its source version.
+
+Classify each material difference with exactly one label: `unchanged`, `clarified`, `expanded`,
+`narrowed`, `added`, `removed`, `contradictory`, or `uncertain`. Align by section number or exact
+heading; if numbering differs, align by clause topic. Preserve both versions' wording for material
+differences. Call out when a later document overrides an earlier one. If alignment is weak, mark
+`uncertain` rather than forcing a match.
+
+Source precedence when versions conflict:
+
+1. Final signed or latest operative agreement text
+2. Amendment or side letter that explicitly modifies the agreement
+3. Order form or exhibit tied by exact reference to the agreement
+4. Redline or comparison copy
+5. Conservative inference from document structure
+6. Otherwise mark as missing or uncertain
+
+(Version tracing, `amendment-trace`, ships in P23 Phase 2. This section defines the model it uses.)
+
+## Deadline date math (obligations to timeline)
+
+For deadlines pulled from a contract (Phase 3 obligation register), store both the raw date and an
+effective date with a provenance tag, and:
+
+- **Alert off the send-by date**, not the due date. If an invoice is due net 30 from delivery, the
+  action the creator controls is delivering and invoicing on time; surface the send-by date.
+- **Roll backward over weekends and holidays**: if a computed action date lands on a weekend or a US
+  federal holiday, move it earlier to the prior business day, never later.
+- **Urgency bands** (half-open, in days until the action date): red is 0 to 13, orange is 14 to 44,
+  yellow is 45 to 89, and beyond 89 is out of band. Feed these to the existing join points
+  (content-calendar, production-task) rather than a parallel calendar.
+
+## Inbound triage (GREEN, YELLOW, RED)
+
+`contract-triage` gives an inbound offer a fast verdict before a full review:
+
+- **GREEN**: standard, low-risk terms; nothing hidden; proceed to normal review.
+- **YELLOW**: something needs attention before signing (an ambiguous clause, a missing standard term,
+  or a hidden obligation such as a non-disclosure or non-compete tucked into a sponsorship offer).
+  Any hidden obligation auto-sets YELLOW at minimum.
+- **RED**: a likely deal-breaker on the creator's `never` list, or a term with high legal risk (for
+  example, perpetual worldwide rights for a flat fee, or an uncapped indemnity).
+
+Triage scores relevance and importance separately from the verdict and records the reasons; it never
+resolves the issue, it routes it.
+
+## Curated legal sources (US only)
+
+`legal-requirement-check` cites these. They are registered in
+`canonical-sources/source-registry.json` (seeded from `canonical-sources/legal-sources-seed.json` via
+`tools/source_currency.py`, the only writer). Creator OS deliberately avoids case-law, court-docket,
+and statute corpora; this is a small curated set of primary FTC and plain-language contract-hygiene
+references, not a legal database.
+
+- FTC Endorsement Guides (16 CFR Part 255)
+- FTC Disclosures 101 for Social Media Influencers
+- FTC Endorsements FAQ (The Dos and Don'ts)
+- FTC Endorsements and influencers hub
+- U.S. Copyright Office (copyright basics and ownership)
+- Cornell LII Wex: contract, and Wex: license
+
+Jurisdiction is US only, matching these sources. A non-US contract would need different sources; flag
+that rather than applying US guidance to a foreign agreement.
+
+## Reuse map (compose, do not duplicate)
+
+- `usage-rights-check` is the raw-`contract_text` clause extractor (usage rights, exclusivity,
+  ownership, FTC, flags, recommend_counsel). contract-triage and contract-review call it rather than
+  re-parsing.
+- `exclusivity-check` cross-references active deals for category and timing conflicts.
+- `invoice-status`, `production-task`, and `calendar-slot` are reused for the obligations and timeline
+  work (Phase 3).
+- `govern-artifact` runs the quality gate on every contract output before the spoke surfaces it.
+
+## Non-fabrication rules for contracts
+
+Inherited from protocols/no-fabrication.md and non-negotiable here:
+
+- Never invent clause language, party names, dates, fees, or terms. Quote or paraphrase conservatively
+  from the source; if a term is absent, the field is null and a flag is raised.
+- Never present an interpretation as a legal conclusion.
+- Every finding points to `evidence_text` quoted from the contract, or is labeled as inferred or
+  missing.
+- When a document is ambiguous, conflicting, or incomplete, say so directly.

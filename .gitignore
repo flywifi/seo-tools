@@ -29,6 +29,12 @@ pipeline/competitor-snapshots/
 .harvest-cache/
 snapshots-log.json
 
+# Contract-artifact store (P23): raw contract text and per-contract records
+# (committed: only pipeline/contracts/contract.template.json and the deal-playbook template).
+# Covered by pipeline/**/*.local.* above; listed here so the intent is explicit: contract TEXT is never committed.
+pipeline/contracts/*.local.json
+pipeline/user-context/deal-playbook.local.json
+
 # Video editing bridge (P22): generated interchange files + local edit packages
 # (committed: only the *.template.json schema files under pipeline/editing/)
 pipeline/editing/*.local.*

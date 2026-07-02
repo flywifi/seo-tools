@@ -35,6 +35,15 @@ When a deal moves to **contract-negotiating**, deal-pipeline automatically flags
 - contract review required (route to legal or designated reviewer)
 - usage rights scope (exclusivity window, platforms, content types) must be captured before advancing to signed
 
+When the `contract_management` capability is enabled, the hub routes the review of the contract
+*document itself* to the `contract-desk` spoke (triage, clause-by-clause review, legal-requirement
+checks, escalation brief; legal information only, never legal advice). deal-pipeline continues to own
+the deal record, stage transitions, and the FTC gate on entering `signed`. When
+`contract_management` is off, deal-pipeline handles contract-negotiating exactly as before: it
+summarizes terms in plain language, flags attention points as action items, and recommends review
+with a qualified professional per `protocols/safety.md`. The contract record links to the deal via
+`contract_ref` (see `pipeline/contracts/contract.template.json`).
+
 ### FTC disclosure requirement
 
 FTC disclosure is required on ALL sponsored, gifted, and affiliate deals. The `ftc_disclosure_required` flag is set to `true` on every deal where `deal_type` is any of: sponsored, gifted, affiliate, barter. This flag surfaces in every deal report regardless of stage and is enforced by `protocols/safety.md`.
