@@ -66,7 +66,14 @@ same way the scheduling dashboard imports a distribution report.
 
 ## Status
 
-Phase 1 (this release) delivers the neutral core and the script -> timeline -> parse round-trip
-(features 1 and 4). Captions and chapters (2, 8), the live Resolve lane (3 render + markers),
-Compressor/Motion/CommandPost (5, 6, 7) follow in later phases. The wiring for all of them is already
+Phase 1 delivered the neutral core and the script -> timeline -> parse round-trip (features 1 and 4).
+Phase 2 (this release) adds captions (feature 2: transcript <-> SRT/VTT/iTT, via
+`tools/videoedit/captions.py` and the `caption-bridge` atom) and chapters (feature 8: one chapter
+list fanned out to YouTube timestamps, the geo-optimize outline, and scheduling, via
+`tools/videoedit/chapters.py` and the `chapter-map` atom). The live DaVinci Resolve lane (3 render +
+markers) and Compressor/Motion/CommandPost (5, 6, 7) follow in later phases; their wiring is already
 in place and feature-flagged off.
+
+Try Phase 2 features:
+- `python3 tools/videoedit/captions.py to-editor transcript.srt --fmt itt` -- transcript to iTT.
+- `python3 tools/videoedit/chapters.py edit-package.json` -- YouTube timestamps + rule flags.

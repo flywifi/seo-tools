@@ -737,6 +737,34 @@ def resolve_status() -> str:
     }, indent=2)
 
 
+@mcp.tool()
+def edit_captions(source: str, direction: str = "from_editor", format: str = "srt") -> str:
+    """Caption round-trip (feature 2). direction='to_editor' converts a transcript/caption file to
+    SRT/VTT/iTT text; direction='from_editor' parses an editor caption file into edit-package
+    captions[]. Reuses the offline transcript stack; drives no app."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import captions as _c  # type: ignore
+    try:
+        if direction == "to_editor":
+            return json.dumps({"format": format, "caption_text": _c.to_editor(source, format)}, ensure_ascii=False)
+        return json.dumps(_c.from_editor(source), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def chapter_map(chapters: dict) -> str:
+    """Chapter fan-out (feature 8). Accepts an edit-package, a {chapters:[...]} object, or a bare
+    list, and returns the geo-optimize chapter_outline, a paste-ready YouTube description timestamp
+    block, scheduling metadata, and YouTube-rule validation flags. Pure transform."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import chapters as _ch  # type: ignore
+    try:
+        return json.dumps(_ch.fan_out(chapters), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

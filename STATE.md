@@ -2,8 +2,14 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P22 (Phase 1) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P22 (Phases 1 to 2) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P22 (Phase 2): captions + chapters. Feature 2 (caption round-trip) via `tools/videoedit/captions.py`
+  (SRT/VTT reuse `shared/docintel/transcripts.py`; iTT added; CEA-608 deferred) + the `caption-bridge`
+  atom. Feature 8 (chapter fan-out) via `tools/videoedit/chapters.py` (geo-optimize outline +
+  paste-ready YouTube timestamps + scheduling metadata; YouTube Key Moments rules validate-and-flag) +
+  the `chapter-map` atom. MCP tools `edit_captions` + `chapter_map`. Both atoms standalone, compose via
+  the shared edit-package. Phases 3 to 4 (Resolve live lane; Shorts/Compressor/Motion/CommandPost) remain.
 - P22 (Phase 1, walking skeleton): video-editing bridge. Neutral core (edit-package + FCPXML,
   `shared/videoedit-engine.md`) with a lossless script->FCPXML->parse round-trip that needs no editor
   installed. 10 new flags (2 lane + 8 feature, all default off) + `degraded_behavior`; 4 connectors

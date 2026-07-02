@@ -73,7 +73,17 @@ FCPXML layer converts to rational time.
 
 FCP imports/exports **CEA-608 (.scc)**, **iTT (.itt)**, and **SRT (.srt)**; only CEA-608 embeds into
 the media. Reuse `shared/docintel/transcripts.py` (already parses/emits SRT/VTT) for the transcript
-↔ caption conversion; convert its segments to the edit-package `captions[]` and back.
+↔ caption conversion; convert its segments to the edit-package `captions[]` and back. Realized by
+`tools/videoedit/captions.py` (`to_editor` / `from_editor`): SRT/VTT via docintel, iTT (Apple TTML)
+added here, CEA-608 deferred and flagged (never faked).
+
+## Chapters (feature 8)
+
+One chapter list, fanned out by `tools/videoedit/chapters.py:fan_out`: the `geo-optimize` input shape
+(`{timestamp_seconds, chapter_topic}`), a paste-ready YouTube description block (`0:00 Title`, MM:SS
+then H:MM:SS past an hour, first line forced to 0:00), and scheduling metadata for the content
+calendar / scheduling queue. YouTube's Key Moments rules (first at 0:00, at least 3 chapters, each at
+least 10 seconds) are validate-and-flag in `gaps[]`, never silently fixed or invented.
 
 ## Compressor (feature 5)
 
