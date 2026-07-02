@@ -2,7 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P25 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P26 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P26: open-source video tooling evaluation (evaluation only; no integration, no flag changes; G9
+  and G10 stay open and the scenario probes still observe them). 15 candidates scored against the
+  two-lane videoedit architecture with a 9-criterion rubric; 7 hands-on spikes against synthetic
+  media sharing ground truth with the committed `workshop-footage.srt` fixture; 4 research agents
+  plus 1 adversarial verifier (8 load-bearing claims attacked: 3 upheld, 5 refined). Headlines:
+  PySceneDetect found all 4 authored cuts frame-exact including an isoluminant cut that ffmpeg
+  misses by default (luma-only YUV scoring, source-verified, `format=rgb24` workaround); ffmpeg
+  silencedetect hit authored silences within 0.021 s; PyAV reproduced silence detection in-process
+  with no binary; MoviePy v2 passed the 9:16 reframe spike fully self-contained; the stdlib S-0
+  control recovered all transcript gaps with zero dependencies (the degradation floor); auto-editor
+  is conditionally shortlisted (emits our exact Lane A formats, but its PyPI wheel is a binary-
+  downloading bootstrap and the fcpxml.py round-trip is still unvalidated, S-2 network-blocked);
+  Kdenlive/Shotcut verified to have no edit-automation API, confirming the two-lane thesis (their
+  surface IS the MLT XML project file + melt). Remotion excluded on its non-OSI license; Revideo/
+  editly/ffmpeg-python/Olive/ffmpeg-concat confirmed dormant or stalled. Deliverables:
+  `docs/VIDEO_TOOLING_EVAL.md`, `docs/video-tooling-scores.json` (machine-recomputable totals),
+  `docs/video-tooling-spike-evidence.json`, first real `ledger/ledger.json` decisions (umbrella +
+  4 feature slots).
 
 - P25: the 38-check handoff simulation is now committed and offline-runnable
   (`python3 tools/handoff_sim.py`), completing the offline test battery. All write phases run in a

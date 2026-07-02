@@ -1,0 +1,142 @@
+{
+  "_comment": "P26 empirical spike evidence for the open-source video tooling evaluation (docs/VIDEO_TOOLING_EVAL.md). One entry per spike, including the control and the blocked spike. Raw artifacts (media, exports, venv) live only in the session scratchpad and are identified here by sha256; nothing from the spike environment is committed.",
+  "date": "2026-07-02",
+  "environment": {
+    "os": "Linux x86_64 (remote container)",
+    "python": "3.11.15",
+    "ffmpeg": {
+      "version": "7.0.2-static",
+      "source_url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
+      "archive_sha256": "abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"
+    },
+    "pip_versions": {
+      "auto-editor": "29.3.1", "scenedetect": "0.7", "opencv-python-headless": "5.0.0.93",
+      "av": "18.0.0", "moviepy": "2.2.1", "imageio-ffmpeg": "0.6.0", "numpy": "2.4.6",
+      "opentimelineio": "0.18.1", "otio-fcpx-xml-adapter": "1.0.0", "otio-kdenlive-adapter": "0.0.3"
+    }
+  },
+  "fixture": {
+    "file": "workshop-synth.mp4 (scratchpad only)",
+    "sha256": "e2841070a55108310c2a2bf469bce118a339e1267a0a947d63f4ee85fe0be906",
+    "generator": "ffmpeg lavfi: 5 solid-color scenes (red 0 to 60, green 60 to 150, blue 150 to 240, yellow 240 to 330, magenta 330 to 420) concatenated at 1280x720@30 (libx264 ultrafast crf 28); sine 440Hz 48kHz AAC muted via volume=0:enable=between() during the authored gaps",
+    "ground_truth": {
+      "duration_s": 420.0,
+      "scene_cuts_s": [60.0, 150.0, 240.0, 330.0],
+      "silences_s": [[92.0, 104.5], [210.0, 218.5], [300.0, 320.0]],
+      "provenance": "silences equal the three authored inter-segment gaps of the committed S5 fixture skills/creator-core/evals/fixtures/workshop-footage.srt, so the transcript fixture and the media fixture share one ground truth"
+    }
+  },
+  "spikes": [
+    {
+      "id": "S-0",
+      "candidate": "stdlib control (no media tooling)",
+      "version": "Python 3.11.15 stdlib (re, json)",
+      "install_method": "none",
+      "commands": ["python3 s0_stdlib_srt.py skills/creator-core/evals/fixtures/workshop-footage.srt"],
+      "expected": "recover the 3 authored gaps with pause_threshold 3.0s; plausible WPM stats",
+      "observed": "pauses [92.0 to 104.5 (12.5s), 210.0 to 218.5 (8.5s), 300.0 to 320.0 (20.0s)]; 20 segments; wpm min 32.3 / mean 68.0 / max 112.5",
+      "deltas": "0.0s on all gap boundaries (input is the transcript itself)",
+      "pass": true,
+      "wall_time_seconds": 0.021,
+      "artifacts_sha256": {"s0_stdlib_srt.py": "8917b6093f121d6e350b4ca9e2c6b94ac2aa4ce03b88604e30afe6571eab53c4"},
+      "notes": "The degradation floor. Transcript-only pause and pacing analysis needs no media, no binary, no pip install. Every media tool must beat or complement this to justify its dependency weight."
+    },
+    {
+      "id": "S-1",
+      "candidate": "FFmpeg / ffprobe",
+      "version": "7.0.2-static",
+      "install_method": "static binary download (no system install)",
+      "commands": [
+        "ffmpeg -i workshop-synth.mp4 -af silencedetect=noise=-50dB:d=2 -f null -",
+        "ffmpeg -i workshop-synth.mp4 -vf \"select='gt(scene,0.3)',metadata=print\" -an -f null -",
+        "ffmpeg -i workshop-synth.mp4 -vf scdet=threshold=1 -an -f null -",
+        "ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,r_frame_rate,sample_rate -of json workshop-synth.mp4"
+      ],
+      "expected": "silences within 0.5s of ground truth; scene cuts within 0.2s; ffprobe JSON parses",
+      "observed": "silencedetect: 92.011 to 104.512, 210.005 to 218.517, 300.011 to 320.021 (3 of 3). scene select at 0.3: 150 (score 0.400), 240 (1.0), 330 (1.0); the 60s cut absent even at threshold 0.001. scdet at threshold 1: same three cuts (scores 15.6 / 66.0 / 40.6), 60s cut absent. ffprobe: clean JSON, duration 420.000000.",
+      "deltas": "silences max +0.021s; detected cuts frame-exact; 1 of 4 cuts missed (red to green at 60s)",
+      "pass": true,
+      "pass_caveat": "Scene scoring is luma-only in practice: detected scores match deltaY/100 exactly (green to blue deltaY approx 39.5 gives 0.400) and the red/green pair with near-equal luma (Y approx 81 vs 80.5) scores approx 0. Isoluminant cuts are invisible to ffmpeg scene detection. Established empirically on this fixture.",
+      "wall_time_seconds": {"silencedetect": 2.4, "scene_select": 2.6},
+      "artifacts_sha256": {},
+      "notes": "About 170x realtime on the 420s fixture. silencedetect output is unstructured stderr text needing regex parsing; ffprobe JSON is machine-first. Static-binary posture fits the repo's shutil.which optional-dep detection."
+    },
+    {
+      "id": "S-2",
+      "candidate": "auto-editor",
+      "version": "29.3.1 (PyPI bootstrap; compiled binary unreachable)",
+      "install_method": "pip install auto-editor succeeds (32KB); first run downloads a platform binary from GitHub releases",
+      "commands": [
+        "auto-editor workshop-synth.mp4 --edit audio:threshold=0.04 --margin 0.2s --export final-cut-pro -o s2-autoeditor.fcpxml",
+        "curl -sSL https://github.com/WyattBlue/auto-editor/releases/download/29.3.1/auto-editor-linux-x86_64"
+      ],
+      "expected": "cut list matches the 3 silence gaps; emitted FCPXML parses through tools/videoedit/fcpxml.py into clips[]",
+      "observed": "Never executed: the tool's first-run binary download failed (HTTP 403 from the session proxy; GitHub release assets for out-of-scope repositories are blocked). Direct curl to the same URL returns the proxy's JSON block message. The PyPI mirror offers only 29.3.1; older pure-Python releases were not installable.",
+      "deltas": "n/a",
+      "pass": false,
+      "blocked_by": "container network policy, not the tool itself",
+      "wall_time_seconds": 540,
+      "artifacts_sha256": {},
+      "notes": "Posture finding stands regardless of the block: as of v29+ auto-editor is not a pure-Python dependency. The PyPI wheel is a launcher that fetches a per-platform compiled binary (core rewritten in Nim) with no hash pinning observed. Its real posture is ffmpeg-like (single binary, shutil.which detection, or brew install auto-editor on macOS). The FCPXML round-trip through tools/videoedit/fcpxml.py is the number one open validation item for any integration phase."
+    },
+    {
+      "id": "S-3",
+      "candidate": "PySceneDetect",
+      "version": "0.7 (backend opencv-python-headless 5.0.0.93)",
+      "install_method": "pip install scenedetect opencv-python-headless (clean wheels)",
+      "commands": ["python s3_pyscenedetect.py  (detect() + ContentDetector(threshold=27.0))"],
+      "expected": "all 4 authored cuts within 0.2s, no false positives",
+      "observed": "cuts [60.0, 150.0, 240.0, 330.0]; 5 scenes; zero false positives",
+      "deltas": "0.0s on all four cuts (frame-exact), including the isoluminant 60s cut that ffmpeg missed (ContentDetector scores in HSV, not luma alone)",
+      "pass": true,
+      "wall_time_seconds": 10.13,
+      "artifacts_sha256": {"s3_pyscenedetect.py": "a21518c9c65cea348c0cfe53907255d3f2fcc18346c2d1c2978edc0c7fdc473e"},
+      "notes": "About 41x realtime (4x slower than ffmpeg) but strictly more complete on this fixture. Three-line Python API. Scene list maps directly to edit-package chapters[]. Minor churn signal: get_seconds() deprecation warning on 0.7."
+    },
+    {
+      "id": "S-4",
+      "candidate": "PyAV",
+      "version": "18.0.0 (wheel bundles FFmpeg libs)",
+      "install_method": "pip install av (manylinux wheel; no system ffmpeg)",
+      "commands": ["python s4_pyav_rms.py  (av.open, decode audio, 100ms windowed RMS below -50dB, min 2s)"],
+      "expected": "reproduce S-1 silencedetect results without any external binary",
+      "observed": "silences [[92.1, 104.5], [210.1, 218.5], [300.1, 320.0]] from 4200 windows at 48kHz",
+      "deltas": "max +0.1s vs ground truth, equal to the window quantization; matches silencedetect to within one window",
+      "pass": true,
+      "wall_time_seconds": 0.53,
+      "artifacts_sha256": {"s4_pyav_rms.py": "99334497fd4bbbe206f35bca1d8f0a60716f1e5d4c94d76c809a5ca7762ee17f"},
+      "notes": "The no-binary degradation path is real. Audio-only decode of 420s in 0.53s (about 790x realtime), faster than the ffmpeg binary for this job because no video is decoded. Costs about 30 lines of numpy DSP in our tool instead of a filter one-liner. PyAV is also a supported PySceneDetect backend."
+    },
+    {
+      "id": "S-5",
+      "candidate": "MoviePy v2",
+      "version": "2.2.1",
+      "install_method": "pip install moviepy (self-contained: imageio-ffmpeg wheel ships its own ffmpeg 7.0.2 binary, confirmed via imageio_ffmpeg.get_ffmpeg_exe())",
+      "commands": ["python s5_moviepy_reframe.py  (VideoFileClip .subclipped(140,160) .cropped(x_center=w/2, width=h*9/16) .write_videofile)"],
+      "expected": "9:16 center-crop of the 16:9 source encodes; ffprobe confirms geometry",
+      "observed": "output 405x720 h264 + aac, duration 20.000000 (ffprobe-verified)",
+      "deltas": "geometry exact (405 = 720*9/16 rounded); duration exact",
+      "pass": true,
+      "wall_time_seconds": 2.26,
+      "artifacts_sha256": {"s5_moviepy_reframe.py": "7196bfd4e0c4cf6e5653f114ce53d7a988d6008582a9dc9b56cfe3d7aa0976b6", "s5-reframed.mp4": "4b9c30f2739c06824a1db004f0b2c8624f836b43bb40f6543fbdc5638b00e34e"},
+      "notes": "v2 renames confirmed live (subclipped/cropped; v1 tutorials are stale). Text/compositing not exercised. Static center-crop covers the mechanical half of shorts_reframe; subject tracking would need extra CV and is out of scope."
+    },
+    {
+      "id": "S-6",
+      "candidate": "OpenTimelineIO + plugin adapters (unplanned bonus spike)",
+      "version": "opentimelineio 0.18.1, otio-fcpx-xml-adapter 1.0.0, otio-kdenlive-adapter 0.0.3",
+      "install_method": "pip install opentimelineio otio-fcpx-xml-adapter otio-kdenlive-adapter (clean wheels)",
+      "commands": [
+        "python -c \"import opentimelineio as otio; print(sorted(a.name for a in otio.plugins.ActiveManifest().adapters))\"",
+        "python: tools/videoedit/fcpxml.py build(5 chapters + 3 markers) then otio.adapters.read_from_string(doc, adapter_name='fcpx_xml')"
+      ],
+      "expected": "repo-emitted FCPXML readable by the OTIO ecosystem",
+      "observed": "Core 0.18.1 ships only [otio_json, otiod, otioz]; format adapters are separate plugin packages. With plugins installed the registry shows [fcpx_xml, kdenlive, otio_json, otiod, otioz]. The repo-built FCPXML parsed via fcpx_xml into an OTIO SerializableCollection.",
+      "deltas": "read succeeded first try; content-level round-trip equality not asserted",
+      "pass": true,
+      "wall_time_seconds": 30,
+      "artifacts_sha256": {"p26-interop.fcpxml": "d4fe5f155242c5b5b72ae22c20d8375c05aadafd1f139a935ab0de06992f9326"},
+      "notes": "Empirically confirms the post-0.18 adapter split-out and that the dormant (2023) fcpx_xml adapter still reads our FCPXML 1.10 output today."
+    }
+  ]
+}

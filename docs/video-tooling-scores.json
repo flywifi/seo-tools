@@ -1,0 +1,761 @@
+{
+  "_comment": "P26 scored matrix for docs/VIDEO_TOOLING_EVAL.md. Raw scores are 0 to 5 per criterion; weighted_total = sum(score x weight) / 5 on a 0 to 100 scale, machine-computed (see verification_note). Every maintenance/license cell cites a source fetched on the accessed date or is marked unverified (protocols/no-fabrication.md). Verification envelope: each candidate carries minority_report, confidence_evidence (as confidence field + evidence_ref), and source_citations (as sources).",
+  "date": "2026-07-02",
+  "verification_note": "Recompute totals: python3 -c \"import json; d=json.load(open('docs/video-tooling-scores.json')); w={c['key']: c['weight'] for c in d['criteria']}; [print(c['name'], round(sum(c['scores'][k]*v for k,v in w.items())/5.0,1), c['weighted_total']) for c in d['candidates']]\"",
+  "criteria": [
+    {
+      "key": "edit_package_fit",
+      "weight": 20,
+      "meaning": "maps cleanly onto the edit-package timeline.* contract (markers/chapters/captions/clips/keywords/titles/reframe/gaps)"
+    },
+    {
+      "key": "g9_relevance",
+      "weight": 15,
+      "meaning": "closes distance to gap G9 (transcript-to-chapters/cuts)"
+    },
+    {
+      "key": "lane_fit_degradation",
+      "weight": 15,
+      "meaning": "fits Lane A (file interchange) or gated Lane B with a clean degradation chain to stdlib"
+    },
+    {
+      "key": "automation_surface",
+      "weight": 12,
+      "meaning": "quality of the headless API/CLI surface"
+    },
+    {
+      "key": "dependency_weight",
+      "weight": 12,
+      "meaning": "compatibility with the optional-dep posture (runtime-detected, small, no forced installs)"
+    },
+    {
+      "key": "macos_crossos",
+      "weight": 8,
+      "meaning": "macOS-first (Alex) plus cross-OS availability"
+    },
+    {
+      "key": "maintenance_health",
+      "weight": 8,
+      "meaning": "release cadence, maintainer base, dormancy risk (web-verified only)"
+    },
+    {
+      "key": "license_posture",
+      "weight": 5,
+      "meaning": "permissive 5; LGPL 4 to 5; GPL via subprocess 4; GPL import 2; non-OSI 0 to 1"
+    },
+    {
+      "key": "token_economy",
+      "weight": 5,
+      "meaning": "context/output cost of driving the tool from agent workflows"
+    }
+  ],
+  "hard_gate_definitions": {
+    "headless": "runs without a display/GUI interaction",
+    "no_gui_interaction": "automation does not require a human at a GUI",
+    "sourced_cells": "maintenance/license cells carry a source URL or unverified marker"
+  },
+  "candidates": [
+    {
+      "name": "FFmpeg/ffprobe",
+      "group": "A",
+      "scores": {
+        "edit_package_fit": 4,
+        "g9_relevance": 5,
+        "lane_fit_degradation": 5,
+        "automation_surface": 4,
+        "dependency_weight": 4,
+        "macos_crossos": 5,
+        "maintenance_health": 5,
+        "license_posture": 4,
+        "token_economy": 4
+      },
+      "weighted_total": 89.2,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "shortlist: G9 silence detection + probe backbone",
+      "minority_report": "Scene detection is luma-only for YUV inputs (source-verified in f_select.c/vf_scdet.c: nb_planes forced to 1); an isoluminant cut scored ~0 on the S-1 fixture at every threshold. Adversarial refinement: prefixing format=rgb24 makes the filters score all planes and detect such cuts, at extra decode cost. silencedetect output is unstructured stderr. If LGPL redistribution ever matters, the Homebrew bottle is a GPL build.",
+      "confidence": "high",
+      "evidence_ref": "spike S-1 (docs/video-tooling-spike-evidence.json) + 4 official sources",
+      "sources": [
+        {
+          "url": "https://ffmpeg.org/legal.html",
+          "accessed": "2026-07-02",
+          "claim": "LGPL-2.1+ default; GPL with --enable-gpl",
+          "verified": true
+        },
+        {
+          "url": "https://ffmpeg.org/download.html",
+          "accessed": "2026-07-02",
+          "claim": "six branches maintained: 8.1.2 / 8.0.3 / 7.1.5 / 7.0.3 / 6.1.6 / 5.1.10, all updated 2025-08 to 2026-06",
+          "verified": true
+        },
+        {
+          "url": "https://formulae.brew.sh/api/formula/ffmpeg.json",
+          "accessed": "2026-07-02",
+          "claim": "brew stable 8.1.2, GPL-3.0-or-later build",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "auto-editor",
+      "group": "A",
+      "scores": {
+        "edit_package_fit": 5,
+        "g9_relevance": 5,
+        "lane_fit_degradation": 4,
+        "automation_surface": 4,
+        "dependency_weight": 2,
+        "macos_crossos": 4,
+        "maintenance_health": 3,
+        "license_posture": 5,
+        "token_economy": 4
+      },
+      "weighted_total": 81.6,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "conditional shortlist: pending FCPXML round-trip validation (S-2 was network-blocked)",
+      "minority_report": "pip installs a bootstrap two major versions behind Homebrew that downloads a binary at first run; adversarial verification showed the download IS tag-pinned to the wheel's own version but carries no hash or signature verification, so some security postures will still reject that path. Solo maintainer with very high release velocity implies CLI churn risk. The emitted FCPXML version is unverified (docs page 404).",
+      "confidence": "high on posture and license; unverified on output-format compatibility",
+      "evidence_ref": "spike S-2 blocked-by-environment + wheel contents inspection + 6 sources",
+      "sources": [
+        {
+          "url": "https://pypi.org/pypi/auto-editor/json",
+          "accessed": "2026-07-02",
+          "claim": "license_expression Unlicense; PyPI latest 29.3.1 (2025-11-04); exports premiere/resolve/final-cut-pro/shotcut/kdenlive/clip-sequence",
+          "verified": true
+        },
+        {
+          "url": "https://github.com/WyattBlue/auto-editor",
+          "accessed": "2026-07-02",
+          "claim": "Unlicense; core Nim 99.8%; 4.5k stars",
+          "verified": true
+        },
+        {
+          "url": "https://github.com/WyattBlue/auto-editor/releases",
+          "accessed": "2026-07-02",
+          "claim": "31.1.0 (2026-06-30); 10 releases May to June 2026",
+          "verified": true
+        },
+        {
+          "url": "https://formulae.brew.sh/api/formula/auto-editor.json",
+          "accessed": "2026-07-02",
+          "claim": "brew 31.1.0, Unlicense, depends on ffmpeg",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "PySceneDetect",
+      "group": "A",
+      "scores": {
+        "edit_package_fit": 4,
+        "g9_relevance": 5,
+        "lane_fit_degradation": 5,
+        "automation_surface": 5,
+        "dependency_weight": 4,
+        "macos_crossos": 5,
+        "maintenance_health": 3,
+        "license_posture": 5,
+        "token_economy": 5
+      },
+      "weighted_total": 90.4,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "shortlist: G9 scene/chapter detection",
+      "minority_report": "Solo-maintainer bus factor; 0.7 is an explicitly breaking release only two months old, so most community examples target the 0.6.x API. Needs a decode backend (opencv or av wheels).",
+      "confidence": "high",
+      "evidence_ref": "spike S-3 (all 4 cuts frame-exact incl. isoluminant) + PyPI/docs sources",
+      "sources": [
+        {
+          "url": "https://pypi.org/pypi/scenedetect/json",
+          "accessed": "2026-07-02",
+          "claim": "BSD-3-Clause; 0.7 uploaded 2026-05-03; 7 releases in 24 months; author Brandon Castellano",
+          "verified": true
+        },
+        {
+          "url": "https://www.scenedetect.com/docs/latest/api/detectors.html",
+          "accessed": "2026-07-02",
+          "claim": "Content/Adaptive/Threshold/Histogram/Hash detectors",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "PyAV",
+      "group": "A",
+      "scores": {
+        "edit_package_fit": 3,
+        "g9_relevance": 4,
+        "lane_fit_degradation": 5,
+        "automation_surface": 4,
+        "dependency_weight": 4,
+        "macos_crossos": 5,
+        "maintenance_health": 4,
+        "license_posture": 5,
+        "token_economy": 4
+      },
+      "weighted_total": 81.6,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "shortlist: no-binary degradation path (and PySceneDetect backend)",
+      "minority_report": "Aggressive major-version cadence (13 to 18 in 22 months) tracking FFmpeg means recurring pin management. The active lead also maintains auto-editor: two Group A candidates share one key maintainer. 18.0.0 was zero days old at evaluation; pinning 17.1.0 may be more prudent.",
+      "confidence": "high",
+      "evidence_ref": "spike S-4 (silencedetect reproduced in-process, 0.53s) + PyPI/GitHub sources",
+      "sources": [
+        {
+          "url": "https://pypi.org/pypi/av/json",
+          "accessed": "2026-07-02",
+          "claim": "BSD-3-Clause; 18.0.0 (2026-07-02); 17 releases in 24 months; macOS arm64/x86_64 wheels bundle FFmpeg",
+          "verified": true
+        },
+        {
+          "url": "https://github.com/PyAV-Org/PyAV/releases",
+          "accessed": "2026-07-02",
+          "claim": "v18 wheels built against FFmpeg 8.1.2; drops Python 3.10",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "MLT framework + melt",
+      "group": "B",
+      "scores": {
+        "edit_package_fit": 4,
+        "g9_relevance": 2,
+        "lane_fit_degradation": 4,
+        "automation_surface": 3,
+        "dependency_weight": 2,
+        "macos_crossos": 3,
+        "maintenance_health": 4,
+        "license_posture": 4,
+        "token_economy": 4
+      },
+      "weighted_total": 65.2,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "Lane A emitter target (MLT XML writable from stdlib); melt render optional",
+      "minority_report": "melt is officially self-described as a test tool; headless render without a desktop needs xvfb (Qt linkage); the LGPL core / GPL modules split is unverified beyond COPYING (LGPL-2.1) plus GitHub's detection of additional GPL files. A GitHub releases-page fetch returned year-shifted dates; blog + tags dates (which agree) were used instead.",
+      "confidence": "high on cadence/version; medium on license module split",
+      "evidence_ref": "web research only (no spike; brew tree too heavy for the container box)",
+      "sources": [
+        {
+          "url": "https://formulae.brew.sh/api/formula/mlt.json",
+          "accessed": "2026-07-02",
+          "claim": "brew mlt 7.40.0, LGPL-2.1-only, heavy dep tree (ffmpeg/qt/opencv/...)",
+          "verified": true
+        },
+        {
+          "url": "https://www.mltframework.org/blog/",
+          "accessed": "2026-07-02",
+          "claim": "7.40.0 announced 2026-06-24; ~bimonthly cadence over 24 months",
+          "verified": true
+        },
+        {
+          "url": "https://www.mltframework.org/docs/melt/",
+          "accessed": "2026-07-02",
+          "claim": "melt renders headlessly via avformat consumer; self-described test tool",
+          "verified": true
+        },
+        {
+          "url": "https://shotcut.org/FAQ/",
+          "accessed": "2026-07-02",
+          "claim": "Shotcut saves projects as MLT XML; Dan Dennedy leads MLT",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "OpenTimelineIO",
+      "group": "B",
+      "scores": {
+        "edit_package_fit": 5,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 5,
+        "automation_surface": 4,
+        "dependency_weight": 4,
+        "macos_crossos": 5,
+        "maintenance_health": 3,
+        "license_posture": 5,
+        "token_economy": 4
+      },
+      "weighted_total": 79.0,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "hold position: already the repo's optional interchange hub; document the adapter plugin split",
+      "minority_report": "Most format adapters have had zero releases since the 2023-07 split-out; the FCPXML adapter is release-dormant (1.0.0, 2023-07-07; repo commits until 2024-06-25) though S-6 shows it still reads our output. A maintained third-party otio-fcpx-xml-lite-adapter (0.2.3, 2025-06-02) exists for basic FCPXML read/write. Core cadence is ~1 release/year and pre-1.0. The kdenlive adapter (0.0.3) has placeholder PyPI metadata.",
+      "confidence": "high (registry JSON + live S-6 spike agree)",
+      "evidence_ref": "spike S-6 + PyPI registry JSON per adapter",
+      "sources": [
+        {
+          "url": "https://pypi.org/pypi/OpenTimelineIO/json",
+          "accessed": "2026-07-02",
+          "claim": "Apache-2.0 (legacy string); 0.18.1 (2025-11-09); ASWF governance",
+          "verified": true
+        },
+        {
+          "url": "https://opentimelineio.readthedocs.io/en/latest/tutorials/adapters.html",
+          "accessed": "2026-07-02",
+          "claim": "core ships only otio_json/otiod/otioz; plugin adapters at varying maintenance",
+          "verified": true
+        },
+        {
+          "url": "https://pypi.org/pypi/otio-fcpx-xml-adapter/json",
+          "accessed": "2026-07-02",
+          "claim": "FCPXML adapter 1.0.0, 2023-07-07, community tier",
+          "verified": true
+        },
+        {
+          "url": "https://pypi.org/pypi/otio-aaf-adapter/json",
+          "accessed": "2026-07-02",
+          "claim": "AAF adapter 2.0.0, 2025-11-21 (the one actively maintained adapter)",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "LosslessCut",
+      "group": "B",
+      "scores": {
+        "edit_package_fit": 2,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 2,
+        "automation_surface": 1,
+        "dependency_weight": 2,
+        "macos_crossos": 4,
+        "maintenance_health": 4,
+        "license_posture": 4,
+        "token_economy": 3
+      },
+      "weighted_total": 44.0,
+      "hard_gates": {
+        "headless": false,
+        "no_gui_interaction": false,
+        "sourced_cells": true
+      },
+      "verdict": "gate fail (GUI-bound automation): manual companion tool only; our pipeline can emit its CSV cut-list format",
+      "minority_report": "The CLI/HTTP API is real automation, just not headless: it remote-controls a running Electron GUI. For a human-in-the-loop lossless trim pass this is genuinely useful; the gate failure only excludes it as a pipeline dependency. Release dates before 3.69.0 could not be pinned precisely (GitHub HTML date rendering was inconsistent).",
+      "confidence": "high on format/automation facts; medium on historical cadence",
+      "evidence_ref": "official docs files (cli.md, api.md, index.md) + brew cask",
+      "sources": [
+        {
+          "url": "https://github.com/mifi/lossless-cut",
+          "accessed": "2026-07-02",
+          "claim": "GPL-2.0; 3.69.0 (2026-06-04); solo owner mifi",
+          "verified": true
+        },
+        {
+          "url": "https://github.com/mifi/lossless-cut/blob/master/docs/cli.md",
+          "accessed": "2026-07-02",
+          "claim": "CLI/--http-api drive a RUNNING instance; not headless",
+          "verified": true
+        },
+        {
+          "url": "https://github.com/mifi/lossless-cut/blob/master/docs/index.md",
+          "accessed": "2026-07-02",
+          "claim": ".llc is JSON5; CSV import start,end,label seconds",
+          "verified": true
+        },
+        {
+          "url": "https://formulae.brew.sh/api/cask/losslesscut.json",
+          "accessed": "2026-07-02",
+          "claim": "cask 3.69.0, macOS 12+",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "MoviePy v2",
+      "group": "C",
+      "scores": {
+        "edit_package_fit": 3,
+        "g9_relevance": 2,
+        "lane_fit_degradation": 4,
+        "automation_surface": 5,
+        "dependency_weight": 4,
+        "macos_crossos": 5,
+        "maintenance_health": 3,
+        "license_posture": 5,
+        "token_economy": 4
+      },
+      "weighted_total": 73.4,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "shortlist: shorts_reframe mechanical half (crop/trim/encode)",
+      "minority_report": "13 months without a release after the v2 revival burst, and adversarial verification found no master commits since 2025-09-25 either; numpy/Pillow pins will age. The official migration page does not list every v1 to v2 rename (subclipped was confirmed from API docs and live behavior in S-5, not the migration guide).",
+      "confidence": "high (S-5 live pass + PyPI registry)",
+      "evidence_ref": "spike S-5 + PyPI JSON",
+      "sources": [
+        {
+          "url": "https://pypi.org/pypi/moviepy/json",
+          "accessed": "2026-07-02",
+          "claim": "MIT; 2.2.1 (2025-05-21); revival maintainers Zulko/osaajani/tburrows13/keikoro",
+          "verified": true
+        },
+        {
+          "url": "https://zulko.github.io/moviepy/getting_started/updating_to_v2.html",
+          "accessed": "2026-07-02",
+          "claim": "v2 breaking renames; moviepy.editor removed; ImageMagick dropped",
+          "verified": true
+        },
+        {
+          "url": "https://pypi.org/pypi/imageio-ffmpeg/json",
+          "accessed": "2026-07-02",
+          "claim": "0.6.0 BSD-2-Clause; macOS x86_64 + arm64 wheels bundle ffmpeg",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "Blender VSE headless",
+      "group": "C",
+      "scores": {
+        "edit_package_fit": 2,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 3,
+        "automation_surface": 3,
+        "dependency_weight": 1,
+        "macos_crossos": 4,
+        "maintenance_health": 5,
+        "license_posture": 4,
+        "token_economy": 2
+      },
+      "weighted_total": 50.0,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "documented only: capability real, weight/benefit loses to MoviePy + ffmpeg",
+      "minority_report": "blender.org returned 403 through the session proxy, so LTS dates rest on press links, developer.blender.org notes, and Wikipedia rather than a directly fetched blender.org page. Install size in the hundreds of MB is commonly cited but was not measured: unverified.",
+      "confidence": "medium-high",
+      "evidence_ref": "web research only",
+      "sources": [
+        {
+          "url": "https://formulae.brew.sh/api/cask/blender.json",
+          "accessed": "2026-07-02",
+          "claim": "cask 5.1.2, dmg from download.blender.org",
+          "verified": true
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Blender_(software)",
+          "accessed": "2026-07-02",
+          "claim": "GPL-2.0-or-later",
+          "verified": true
+        },
+        {
+          "url": "https://developer.blender.org/docs/release_notes/4.4/python_api/",
+          "accessed": "2026-07-02",
+          "claim": "Sequence types renamed to Strip in 4.4 (via search summary)",
+          "verified": false
+        }
+      ]
+    },
+    {
+      "name": "Remotion",
+      "group": "C",
+      "scores": {
+        "edit_package_fit": 2,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 2,
+        "automation_surface": 4,
+        "dependency_weight": 2,
+        "macos_crossos": 4,
+        "maintenance_health": 5,
+        "license_posture": 0,
+        "token_economy": 2
+      },
+      "weighted_total": 47.8,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "excluded: non-OSI source-available license (companies over 3 employees pay); technically excellent, unusable as a Creator OS dependency",
+      "minority_report": "For a strictly solo creator the free tier would apply today, so the exclusion is a policy choice about downstream users of Creator OS, not a hard legal bar for Alex personally.",
+      "confidence": "high (license text read directly)",
+      "evidence_ref": "LICENSE.md + npm registry",
+      "sources": [
+        {
+          "url": "https://github.com/remotion-dev/remotion/blob/main/LICENSE.md",
+          "accessed": "2026-07-02",
+          "claim": "free tier: individuals, up-to-3-employee for-profits, non-profits, evaluation; company license otherwise",
+          "verified": true
+        },
+        {
+          "url": "https://registry.npmjs.org/remotion",
+          "accessed": "2026-07-02",
+          "claim": "4.0.484 (2026-06-26); 295 versions in 24 months; license field SEE LICENSE IN LICENSE.md",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "Revideo",
+      "group": "C",
+      "scores": {
+        "edit_package_fit": 2,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 2,
+        "automation_surface": 3,
+        "dependency_weight": 2,
+        "macos_crossos": 2,
+        "maintenance_health": 1,
+        "license_posture": 5,
+        "token_economy": 2
+      },
+      "weighted_total": 40.8,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "do not adopt: dormant since 2025-04; sponsor pivoted to commercial Midrender, improvements kept downstream",
+      "minority_report": "Adversarial verification found maintenance commits (deps/docs) on 2026-07-01/02, so the repo is release-dormant rather than abandoned; midrender.com frames Revideo as part of Midrender. Nothing consumable has shipped on npm in 14 months, which is what the maintenance score reflects. macOS render path detail unverified given project status.",
+      "confidence": "high on dormancy (registry timestamps)",
+      "evidence_ref": "npm registry + midrender.com",
+      "sources": [
+        {
+          "url": "https://registry.npmjs.org/@revideo/core",
+          "accessed": "2026-07-02",
+          "claim": "MIT; last stable 0.10.4 (2025-02-24); last publish of any kind 2025-04-20",
+          "verified": true
+        },
+        {
+          "url": "https://midrender.com/revideo",
+          "accessed": "2026-07-02",
+          "claim": "team now primarily works on Midrender; engine improvements not yet upstreamed",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "editly",
+      "group": "C",
+      "scores": {
+        "edit_package_fit": 2,
+        "g9_relevance": 2,
+        "lane_fit_degradation": 2,
+        "automation_surface": 2,
+        "dependency_weight": 1,
+        "macos_crossos": 2,
+        "maintenance_health": 0,
+        "license_posture": 5,
+        "token_economy": 3
+      },
+      "weighted_total": 38.4,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "do not adopt: stalled (last stable 2022-12; lone 2025-01 RC never promoted)",
+      "minority_report": "The 2025-01 RC shows the maintainer briefly returned; 'stalled indefinitely' is more accurate than 'dead'. Historic native-dep fragility (gl/canvas) on macOS not re-verified.",
+      "confidence": "high (registry timestamps)",
+      "evidence_ref": "npm registry + repo page",
+      "sources": [
+        {
+          "url": "https://registry.npmjs.org/editly",
+          "accessed": "2026-07-02",
+          "claim": "MIT; latest 0.14.2 (2022-12-23); next tag 0.15.0-rc.1 (2025-01-19), nothing since",
+          "verified": true
+        },
+        {
+          "url": "https://github.com/mifi/editly",
+          "accessed": "2026-07-02",
+          "claim": "not archived; README: maintained by one person",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "GStreamer + GES",
+      "group": "C",
+      "scores": {
+        "edit_package_fit": 2,
+        "g9_relevance": 2,
+        "lane_fit_degradation": 3,
+        "automation_surface": 2,
+        "dependency_weight": 1,
+        "macos_crossos": 2,
+        "maintenance_health": 5,
+        "license_posture": 5,
+        "token_economy": 2
+      },
+      "weighted_total": 48.4,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "documented only: best-in-group license and health, worst-in-group developer experience for a Python-first macOS repo",
+      "minority_report": "Whether ges-launch-1.0 is among the executables in the consolidated brew gstreamer formula was not directly enumerable from the formula JSON; macOS second-tier assessment is qualitative.",
+      "confidence": "high on versions/license; medium on macOS ergonomics",
+      "evidence_ref": "web research only",
+      "sources": [
+        {
+          "url": "https://formulae.brew.sh/api/formula/gstreamer.json",
+          "accessed": "2026-07-02",
+          "claim": "1.28.4; LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT; all gst modules incl. editing services consolidated",
+          "verified": true
+        },
+        {
+          "url": "https://gstreamer.freedesktop.org/releases/1.28/",
+          "accessed": "2026-07-02",
+          "claim": "1.28.0 (2026-01-27) through 1.28.4 (2026-06-12)",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "Kdenlive (as interchange target)",
+      "group": "D",
+      "scores": {
+        "edit_package_fit": 3,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 4,
+        "automation_surface": 2,
+        "dependency_weight": 2,
+        "macos_crossos": 3,
+        "maintenance_health": 5,
+        "license_posture": 4,
+        "token_economy": 3
+      },
+      "weighted_total": 56.4,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "interchange target, not a dependency: emit .kdenlive/MLT XML; render via melt; no scripting API exists to gate a Lane B on",
+      "minority_report": "License shown as GPL-3.0-only on apps.kde.org but historical packaging elsewhere says GPL-2.0-or-later; repo LICENSES/ dir unreadable this session (GitHub scope). Some community posts run melt directly on .kdenlive files; the official path routes through a generated render script. macOS build quality relative to Linux: unverified.",
+      "confidence": "high on cadence/automation-surface absence; medium on exact license variant",
+      "evidence_ref": "official docs + KDE appstream + brew cask",
+      "sources": [
+        {
+          "url": "https://apps.kde.org/kdenlive/",
+          "accessed": "2026-07-02",
+          "claim": "GPL-3.0-only; 26.04.3 (2026-07-02); KDE project",
+          "verified": true
+        },
+        {
+          "url": "https://docs.kdenlive.org/en/exporting/render.html",
+          "accessed": "2026-07-02",
+          "claim": "documented automation: generate render script, run melt script.mlt",
+          "verified": true
+        },
+        {
+          "url": "https://formulae.brew.sh/api/cask/kdenlive.json",
+          "accessed": "2026-07-02",
+          "claim": "cask 26.04.2, official KDE dmg, macOS 13+",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "name": "Shotcut (as interchange target)",
+      "group": "D",
+      "scores": {
+        "edit_package_fit": 4,
+        "g9_relevance": 1,
+        "lane_fit_degradation": 4,
+        "automation_surface": 2,
+        "dependency_weight": 2,
+        "macos_crossos": 4,
+        "maintenance_health": 5,
+        "license_posture": 4,
+        "token_economy": 3
+      },
+      "weighted_total": 62.0,
+      "hard_gates": {
+        "headless": true,
+        "no_gui_interaction": true,
+        "sourced_cells": true
+      },
+      "verdict": "interchange target, not a dependency: .mlt project files ARE MLT XML; export via melt is the developer-documented CLI path",
+      "minority_report": "GPLv3 statement comes from the FAQ; the -only vs -or-later variant was not confirmed from the repo LICENSE (GitHub scope). Effectively a one-lead project (Dan Dennedy), mitigated by a long uninterrupted monthly release record. Adversarial nuance: Shotcut has an official QML plugin API, but it adds custom filters/UI rather than edit automation, so the project-file-is-the-surface conclusion stands.",
+      "confidence": "high",
+      "evidence_ref": "shotcut.org blog/FAQ/CLI docs + brew cask",
+      "sources": [
+        {
+          "url": "https://shotcut.org/blog/",
+          "accessed": "2026-07-02",
+          "claim": "26.06 (2026-06-25); monthly-to-bimonthly cadence through 24 months",
+          "verified": true
+        },
+        {
+          "url": "https://www.shotcut.org/notes/command-line-options/",
+          "accessed": "2026-07-02",
+          "claim": "CLI options are GUI startup flags only; no export/render/batch flag",
+          "verified": true
+        },
+        {
+          "url": "https://forum.shotcut.org/t/export-at-the-command-line/44067",
+          "accessed": "2026-07-02",
+          "claim": "official doc post: CLI export = melt project.mlt -consumer avformat:out.mp4",
+          "verified": true
+        }
+      ]
+    }
+  ],
+  "pruned_upfront": [
+    {
+      "name": "ffmpeg-python",
+      "reason": "dormant 7 years: last release 0.2.0 on 2019-07-06",
+      "source": {
+        "url": "https://pypi.org/pypi/ffmpeg-python/json",
+        "accessed": "2026-07-02"
+      }
+    },
+    {
+      "name": "Olive",
+      "reason": "hiatus: site is a holding page ('Olive will return'); last stable 0.1.2 (2019-11-11)",
+      "source": {
+        "url": "https://olivevideoeditor.org/download",
+        "accessed": "2026-07-02"
+      }
+    },
+    {
+      "name": "ffmpeg-concat",
+      "reason": "dead: last npm publish 1.3.0 on 2022-10-15",
+      "source": {
+        "url": "https://registry.npmjs.org/ffmpeg-concat",
+        "accessed": "2026-07-02"
+      }
+    },
+    {
+      "name": "OpenShot",
+      "reason": "maintained (3.5.1, 2026-04-06) but libopenshot's Python surface carries a documented segfault record (object-lifetime design issues); keep pruned for automation use",
+      "source": {
+        "url": "https://www.openshot.org/blog/",
+        "accessed": "2026-07-02"
+      }
+    },
+    {
+      "name": "whisper / aeneas / ffsubsync / jiwer",
+      "reason": "already evaluated in shared/transcription-engine.md; this evaluation adds only interop notes",
+      "source": null
+    }
+  ]
+}

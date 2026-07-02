@@ -1,5 +1,51 @@
 {
   "_comment": "Audit trail of quality decisions and notable build events. Append only.",
-  "decisions": [],
-  "updated": "2026-06-30"
+  "decisions": [
+    {
+      "id": "P26-video-tooling-eval",
+      "date": "2026-07-02",
+      "decision": "Completed the open-source video tooling evaluation: 15 candidates scored against the two-lane videoedit architecture, 7 hands-on spikes (6 passed, 1 blocked by container network policy), 4 research agents plus 1 adversarial verification agent (3 of 8 load-bearing claims upheld, 5 refined).",
+      "rationale": "G9 (transcript-to-chapters/cuts) and the flagged-off shorts_reframe and render/export slots need a vetted shortlist before any integration work. Empirical spikes ran against synthetic media sharing ground truth with the committed workshop-footage.srt fixture, so tool accuracy is measured against known-authored cuts and silences.",
+      "evidence": ["docs/VIDEO_TOOLING_EVAL.md", "docs/video-tooling-scores.json", "docs/video-tooling-spike-evidence.json"],
+      "status": "shortlisted",
+      "explicit_non_action": "No integration, no flag changes, no requirements changes; G9 and G10 remain open and the scenario suite's probes still observe them."
+    },
+    {
+      "id": "P26-slot-silence-cuts",
+      "date": "2026-07-02",
+      "decision": "G9 silence/cut detection slot: shortlist ffmpeg silencedetect (top pick), PyAV windowed RMS (no-binary runner-up), degrading to the stdlib SRT gap analysis proven in spike S-0.",
+      "rationale": "S-1 measured silencedetect within 0.021s of authored silences; S-4 reproduced it in-process within one 100ms window without any binary; S-0 recovered all three authored gaps from the transcript alone in 21ms.",
+      "evidence": ["docs/video-tooling-spike-evidence.json#S-1", "docs/video-tooling-spike-evidence.json#S-4", "docs/video-tooling-spike-evidence.json#S-0"],
+      "status": "shortlisted",
+      "explicit_non_action": "No integration, no flags, G9 remains open."
+    },
+    {
+      "id": "P26-slot-scene-chapters",
+      "date": "2026-07-02",
+      "decision": "G9 scene/chapter detection slot: shortlist PySceneDetect ContentDetector (top pick), ffmpeg scdet (runner-up with a documented luma-only default), degrading to transcript-derived chapter heuristics.",
+      "rationale": "S-3 found all 4 authored cuts frame-exact with zero false positives, including an isoluminant cut that ffmpeg missed; the adversarial pass source-verified the ffmpeg limitation (YUV path scores luma only) and its format=rgb24 workaround.",
+      "evidence": ["docs/video-tooling-spike-evidence.json#S-3", "docs/video-tooling-spike-evidence.json#S-1", "docs/video-tooling-scores.json"],
+      "status": "shortlisted",
+      "explicit_non_action": "No integration, no flags, G9 remains open."
+    },
+    {
+      "id": "P26-slot-shorts-reframe",
+      "date": "2026-07-02",
+      "decision": "shorts_reframe slot: shortlist MoviePy v2 for the mechanical crop/trim/encode half (ffmpeg crop filter as runner-up), degrading to emitting crop parameters into the edit package without rendering.",
+      "rationale": "S-5 produced an ffprobe-verified 9:16 crop with a fully self-contained pip install (imageio-ffmpeg bundles its own ffmpeg). Maintenance is the watch item: no release since 2025-05, no commits since 2025-09 (adversarially verified).",
+      "evidence": ["docs/video-tooling-spike-evidence.json#S-5", "docs/video-tooling-scores.json"],
+      "status": "shortlisted",
+      "explicit_non_action": "No integration; the shorts_reframe flag stays off."
+    },
+    {
+      "id": "P26-slot-render-export",
+      "date": "2026-07-02",
+      "decision": "render/export slot: shortlist MLT XML emission as a second Lane A format (Shotcut native, Kdenlive substrate) with optional melt rendering; ffmpeg direct encode as runner-up; auto-editor conditionally shortlisted pending FCPXML round-trip validation. Kdenlive and Shotcut are interchange targets, not dependencies: both were verified to expose no edit-automation API (project file + melt is the surface), which confirms the two-lane thesis.",
+      "rationale": "Group B/D research verified MLT XML as the shared substrate across Shotcut and Kdenlive and melt as the developer-documented headless export path for both. auto-editor emits exactly our Lane A formats but its S-2 spike was network-blocked, so the fcpxml.py round-trip is the top open validation item. LosslessCut failed the headless gate (GUI-bound automation) and is documented as a manual companion only.",
+      "evidence": ["docs/VIDEO_TOOLING_EVAL.md", "docs/video-tooling-scores.json", "docs/video-tooling-spike-evidence.json#S-2"],
+      "status": "shortlisted",
+      "explicit_non_action": "No integration; the render/export flag stays off; no MLT writer is built by this decision."
+    }
+  ],
+  "updated": "2026-07-02"
 }
