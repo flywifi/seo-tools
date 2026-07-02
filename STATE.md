@@ -2,7 +2,18 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P24 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P25 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P25: the 38-check handoff simulation is now committed and offline-runnable
+  (`python3 tools/handoff_sim.py`), completing the offline test battery. All write phases run in a
+  throwaway sandbox: `tools/obligations.py` now honors `CREATOR_OS_ROOT` (same pattern as
+  `mcp_server.py`), the sim sets it to a temp dir before loading the stack, REFUSES to run write
+  phases if the redirect did not take, and Phase J proves reality untouched (real
+  `creator-os-config.local.json` and obligation register byte-identical after the run, no tracked
+  `.local` files, drift guard green). Verified: 38/38 twice, sentinel-file proof, and a mid-run
+  SIGKILL proof (real files byte-identical). Full battery: scenario_check (5 scenarios, 10-gap
+  contract) + handoff_sim (38) + obligations selftest (15) + scenario_check selftest (12) +
+  sync_check (19 invariants).
 
 - P24: realistic scenario test suite. Five realistic cross-lane utterances ("what's the email for
   that guy from my Hearthline account?", "where are we with that lightbulb company contract?",

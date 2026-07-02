@@ -25,11 +25,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+# CREATOR_OS_ROOT redirects every path this tool touches (config, register) to another root.
+# Same pattern as tools/mcp_server.py. Used by tools/handoff_sim.py to sandbox its write phases;
+# leave it unset for normal runs.
+ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(Path(__file__).resolve().parent.parent)))
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
 REGISTER_PATH = ROOT / "pipeline" / "user-context" / "obligation-register.local.json"

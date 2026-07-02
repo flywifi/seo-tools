@@ -76,6 +76,10 @@ python3 tools/obligations.py --verify obligations-bucket.manifest.json
 
 # prove the date math on this machine any time (offline, no writes)
 python3 tools/obligations.py --selftest
+
+# the full 38-check handoff simulation (offline; all writes go to a throwaway
+# sandbox that is deleted at the end; your real local files are proven untouched)
+python3 tools/handoff_sim.py
 ```
 
 Relative deadlines ("net 30 from delivery") round-trip too: the model supplies the anchor date from

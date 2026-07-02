@@ -12,6 +12,10 @@ python3 tools/scenario_check.py --json       # machine-readable report
 python3 tools/scenario_check.py --selftest   # the runner's own micro-tests
 ```
 
+The full offline battery is this suite plus `python3 tools/handoff_sim.py` (the 38-check
+online-to-offline handoff simulation, sandboxed), `python3 tools/obligations.py --selftest`, and
+`python3 tools/sync_check.py`.
+
 The contract lives in `skills/creator-core/evals/scenarios.json` with fictional fixtures in
 `skills/creator-core/evals/fixtures/`. The clock is pinned (`pinned_today: 2026-09-15`) so urgency
 bands and dates are exact; `--today` or `--year` overrides demote date-exact assertions to
