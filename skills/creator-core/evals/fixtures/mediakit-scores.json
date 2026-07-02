@@ -1,0 +1,11 @@
+{
+  "_comment": "Test fixture for the scenario suite (S4 media kit critique). Two 9-dimension Quality Gates score sets for skills/quality-review/scripts/score.py evaluate(): one releasable, one integrity hard-fail. The dimension judgments themselves are the model's job; this fixture tests the deterministic verdict arithmetic.",
+  "releasable": {
+    "integrity": 5, "accuracy": 4, "brand_alignment": 5, "audience_fit": 4,
+    "governance": 5, "user_intent": 4, "accessibility": 4, "professional_quality": 4, "safety": 5
+  },
+  "hard_fail": {
+    "integrity": 1, "accuracy": 4, "brand_alignment": 4, "audience_fit": 4,
+    "governance": 4, "user_intent": 4, "accessibility": 4, "professional_quality": 4, "safety": 4
+  }
+}

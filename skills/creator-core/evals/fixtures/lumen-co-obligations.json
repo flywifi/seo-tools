@@ -1,0 +1,42 @@
+{
+  "_comment": "FICTIONAL test fixture for the scenario suite (S2 'lightbulb company' contract). Lumen & Co is not a real brand. Obligation rows in the shape obligation-extract emits; includes one weekend roll-back case, one anchor+offset (net 30) case, and one Sunday usage-window case. Dates are ISO and chosen against the suite's pinned_today of 2026-09-15.",
+  "contract_ref": "contract-lumen-fixture-001",
+  "deal_id": "deal-lumen-pendant-001",
+  "obligations": [
+    {
+      "required_action": "Deliver pendant lamp feature video to Lumen & Co",
+      "obligated_party": "creator",
+      "clause_family": "deliverables_and_revisions",
+      "trigger": "signature",
+      "timing_or_deadline": "2026-09-26",
+      "evidence_text": "Creator delivers the pendant feature video by 2026-09-26.",
+      "confidence": "explicit",
+      "document": "Lumen & Co SOW (fixture)",
+      "section": "2.1"
+    },
+    {
+      "required_action": "Invoice Lumen & Co (net 30 from delivery)",
+      "obligated_party": "creator",
+      "clause_family": "payment_terms_and_kill_fee",
+      "trigger": "delivery",
+      "timing_or_deadline": "net 30 from delivery",
+      "anchor_date": "2026-09-26",
+      "offset_days": 30,
+      "evidence_text": "Payment due net 30 from delivery.",
+      "confidence": "explicit",
+      "document": "Lumen & Co SOW (fixture)",
+      "section": "5"
+    },
+    {
+      "required_action": "Confirm Lumen & Co paid usage window has ended",
+      "obligated_party": "creator",
+      "clause_family": "usage_licensing_rights",
+      "trigger": "calendar",
+      "timing_or_deadline": "2026-12-13",
+      "evidence_text": "Paid amplification window ends 2026-12-13.",
+      "confidence": "explicit",
+      "document": "Lumen & Co SOW (fixture)",
+      "section": "6"
+    }
+  ]
+}

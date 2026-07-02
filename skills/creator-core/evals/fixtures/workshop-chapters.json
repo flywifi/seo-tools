@@ -1,0 +1,10 @@
+{
+  "_comment": "Test fixture for the scenario suite (S5 raw footage). An AUTHORED chapter list, i.e. what a human or the model would produce after watching the footage. Input to tools/videoedit/chapters.py fan_out/validate. No product tool derives this list from the transcript (gap G9); the suite tests the fan-out plumbing that exists.",
+  "chapters": [
+    { "start_seconds": 0, "title": "Intro: the workshop tour begins" },
+    { "start_seconds": 45, "title": "Bench build and the tool wall" },
+    { "start_seconds": 120, "title": "Lumber storage that actually works" },
+    { "start_seconds": 225, "title": "Finishing corner and dust control" },
+    { "start_seconds": 330, "title": "Final reveal and what is next" }
+  ]
+}

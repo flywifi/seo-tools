@@ -1,0 +1,23 @@
+{
+  "_comment": "FICTIONAL test fixture for the scenario suite (S1 contact lookup). Not a real brand, person, or email. Shape mirrors the COMMITTED pipeline/accounts/account-schema.json exactly, so the suite can assert what the schema does and does not carry (no secondary_contacts, no alias, free-string product_category).",
+  "_schema_version": "0.1.0",
+  "account_id": "acct-hearthline-001",
+  "brand_name": "Hearthline Home",
+  "primary_contact": {
+    "name": "Marcus Webb",
+    "email": "marcus.webb@hearthlinehome.example",
+    "role": "Partnerships Manager"
+  },
+  "website": "https://hearthlinehome.example",
+  "product_category": "home decor",
+  "first_contact_date": "2026-03-02",
+  "last_contact_date": "2026-08-28",
+  "open_deals": ["deal-hearthline-fall-tour"],
+  "closed_deals": [],
+  "notes": "Fictional fixture. Prefers email over calls.",
+  "health_score": null,
+  "exclusivity_active": false,
+  "exclusivity_scope": null,
+  "exclusivity_expires": null,
+  "tags": ["fixture"]
+}

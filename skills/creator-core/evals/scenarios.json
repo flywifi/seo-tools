@@ -1,0 +1,274 @@
+{
+  "suite": "creator-core-scenarios",
+  "_comment": "Realistic cross-lane scenario contract, run by tools/scenario_check.py. TEST-ONLY: it exercises what exists today and pins what does not (the gap_ledger). Findings-as-contract: the runner fails if a leg breaks, if a declared-absent classification appears in the hub routing table, OR if a gap probe stops observing its gap; either direction forces this file and docs/SCENARIOS.md to be updated deliberately. All fixture data is fictional.",
+  "schema_version": "0.1.0",
+  "pinned_today": "2026-09-15",
+  "defaults": { "lead_days": 3 },
+  "gap_ledger": [
+    {
+      "id": "G1",
+      "title": "No contact-retrieval capability: account-manager actions are health_check, renewal_scan, overview only; no MCP tool reads contacts",
+      "probe": { "op": "text.probe", "with": { "file": "skills/account-manager/SKILL.md", "pattern": "contact_lookup|contact retrieval|get_contact", "expect": "absent" } },
+      "scenarios": ["S1-contact-lookup"]
+    },
+    {
+      "id": "G2",
+      "title": "No fuzzy/nickname/category account resolver: account-health needs an exact brand_name; no alias field in the schema",
+      "probe": [
+        { "op": "text.probe", "with": { "file": "skills/atoms/account-health/SKILL.md", "pattern": "fuzzy", "expect": "absent" } },
+        { "op": "text.probe", "with": { "file": "pipeline/accounts/account-schema.json", "pattern": "alias", "expect": "absent" } }
+      ],
+      "scenarios": ["S1-contact-lookup", "S2-lightbulb-contract"]
+    },
+    {
+      "id": "G3",
+      "title": "No routing classification for CRM read/status queries (account_read / deal_status absent from the hub table)",
+      "probe": { "op": "routing.probe", "with": { "classification": "account_read", "expect": "absent" } },
+      "scenarios": ["S1-contact-lookup", "S2-lightbulb-contract"]
+    },
+    {
+      "id": "G4",
+      "title": "Schema drift: pipeline/accounts/account-schema.json (free-string product_category, single primary_contact) vs shared/pipeline-engine.md (brand_category enum incl. lighting, secondary_contacts, relationship_health)",
+      "probe": { "op": "json.probe", "with": { "file": "pipeline/accounts/account-schema.json" }, "assert": [
+        { "path": "brand_category", "check": "absent_key" },
+        { "path": "secondary_contacts", "check": "absent_key" },
+        { "path": "relationship_health", "check": "absent_key" }
+      ] },
+      "scenarios": ["S2-lightbulb-contract"]
+    },
+    {
+      "id": "G5",
+      "title": "Broken load ref: skills/atoms/seasonal-map/SKILL.md lists canonical-sources/seasonal-aesthetic.md which does not exist (escapes drift invariant 5's backtick-only scan)",
+      "probe": [
+        { "op": "text.probe", "with": { "file": "skills/atoms/seasonal-map/SKILL.md", "pattern": "canonical-sources/seasonal-aesthetic\\.md", "expect": "present" } },
+        { "op": "path.probe", "with": { "path": "canonical-sources/seasonal-aesthetic.md", "expect": "absent" } }
+      ],
+      "scenarios": ["S3-seasonal-prep"]
+    },
+    {
+      "id": "G6",
+      "title": "Seasonal publish-by deadlines are prose-only with 3 non-reconciled copies (engine table, seasonal.json relative windows, seasonal-map table); no machine-readable ISO source",
+      "probe": { "op": "text.probe", "with": { "file": "canonical-sources/seasonal-aesthetic/seasonal.json", "pattern": "[0-9]{4}-[0-9]{2}-[0-9]{2}", "expect": "absent" } },
+      "scenarios": ["S3-seasonal-prep"]
+    },
+    {
+      "id": "G7",
+      "title": "No media-kit critique path: media_kit routes to a generation-only spoke; quality_check scores internal gates, not market benchmarks; no content_critique classification",
+      "probe": { "op": "routing.probe", "with": { "classification": "content_critique", "expect": "absent" } },
+      "scenarios": ["S4-mediakit-critique"]
+    },
+    {
+      "id": "G8",
+      "title": "Benchmark coverage: benchmarks.json has 2 dedicated-video rate rows and zero of benchmark-compare's 6 metric rows (ctr, avd, engagement_rate, views, subscribers, rpm with low/high/unit)",
+      "probe": { "op": "text.probe", "with": { "file": "canonical-sources/rate-benchmarks/benchmarks.json", "pattern": "\"low\"|\"unit\"|engagement_rate|\"rpm\"", "expect": "absent" } },
+      "scenarios": ["S4-mediakit-critique"]
+    },
+    {
+      "id": "G9",
+      "title": "No transcript-to-chapters/cuts capability: nothing proposes chapters or cut points from transcript timecodes; no pause/WPM/filler analysis; short-extract consumes outlines, not timecodes",
+      "probe": [
+        { "op": "text.probe", "with": { "file": "tools/videoedit/chapters.py", "pattern": "pause|silence|words_per_minute", "expect": "absent" } },
+        { "op": "text.probe", "with": { "file": "shared/docintel/transcripts.py", "pattern": "pause|silence|words_per_minute", "expect": "absent" } }
+      ],
+      "scenarios": ["S5-raw-footage"]
+    },
+    {
+      "id": "G10",
+      "title": "No dedicated routing for raw-footage breakdown (ambiguous between repurposing and the videoedit import path)",
+      "probe": { "op": "routing.probe", "with": { "classification": "footage_breakdown", "expect": "absent" } },
+      "scenarios": ["S5-raw-footage"]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S1-contact-lookup",
+      "utterance": "what's the email for that guy from my Hearthline account?",
+      "routing": {
+        "mode": "gap",
+        "present": [],
+        "absent_classifications": ["account_read", "crm_query", "contact_lookup"]
+      },
+      "legs": [
+        {
+          "id": "account-record-shape",
+          "op": "json.load",
+          "with": { "fixture": "hearthline-account.json" },
+          "assert": [
+            { "path": "primary_contact.email", "check": "not_null" },
+            { "path": "primary_contact.name", "check": "eq", "value": "Marcus Webb" },
+            { "path": "secondary_contacts", "check": "absent_key" },
+            { "path": "alias", "check": "absent_key" }
+          ]
+        }
+      ],
+      "known_gaps": ["G1", "G2", "G3"]
+    },
+    {
+      "id": "S2-lightbulb-contract",
+      "utterance": "where are we with that lightbulb company contract?",
+      "routing": {
+        "mode": "partial",
+        "present": [ { "classification": "contract_obligations", "spoke": "contract-desk" } ],
+        "absent_classifications": ["account_read", "deal_status"]
+      },
+      "legs": [
+        {
+          "id": "lumen-register",
+          "op": "obligations.build_register",
+          "with": { "fixture": "lumen-co-obligations.json" },
+          "assert": [
+            { "path": "obligation_count", "check": "eq", "value": 3 },
+            { "path": "obligations[0].raw_date", "check": "eq", "value": "2026-09-26" },
+            { "path": "obligations[0].effective_date", "check": "eq", "value": "2026-09-25" },
+            { "path": "obligations[1].raw_date", "check": "eq", "value": "2026-10-26" },
+            { "path": "obligations[1].provenance.derived_from.offset_days", "check": "eq", "value": 30 }
+          ]
+        },
+        {
+          "id": "lumen-scan",
+          "op": "obligations.scan",
+          "with": { "fixture": "lumen-co-obligations.json" },
+          "assert": [
+            { "path": "band_counts.red", "check": "eq", "value": 1, "pinned_today_only": true },
+            { "path": "band_counts.orange", "check": "eq", "value": 1, "pinned_today_only": true },
+            { "path": "band_counts.yellow", "check": "eq", "value": 1, "pinned_today_only": true },
+            { "path": "action_queue[0].urgency_band", "check": "eq", "value": "red", "pinned_today_only": true },
+            { "path": "action_queue[0].send_by_date", "check": "eq", "value": "2026-09-23", "pinned_today_only": true },
+            { "path": "action_queue[1].send_by_date", "check": "eq", "value": "2026-10-23", "pinned_today_only": true },
+            { "path": "action_queue[2].send_by_date", "check": "eq", "value": "2026-12-10", "pinned_today_only": true }
+          ]
+        }
+      ],
+      "known_gaps": ["G2", "G3", "G4"]
+    },
+    {
+      "id": "S3-seasonal-prep",
+      "utterance": "what's the market going to look like for the holiday season and what should I start doing to prepare?",
+      "routing": {
+        "mode": "present",
+        "present": [ { "classification": "seasonal_planning", "spoke": "seasonal-trends" } ],
+        "absent_classifications": []
+      },
+      "legs": [
+        {
+          "id": "seasonal-register",
+          "op": "obligations.build_register",
+          "with": { "fixture": "seasonal-windows.json", "substitute_year": true },
+          "assert": [
+            { "path": "obligation_count", "check": "eq", "value": 16 },
+            { "path": "band_counts.unknown", "check": "absent_key" },
+            { "path": "band_counts.overdue", "check": "eq", "value": 10, "pinned_today_only": true },
+            { "path": "band_counts.orange", "check": "eq", "value": 3, "pinned_today_only": true },
+            { "path": "band_counts.yellow", "check": "eq", "value": 2, "pinned_today_only": true },
+            { "path": "band_counts.out_of_band", "check": "eq", "value": 1, "pinned_today_only": true },
+            { "path": "obligations[4].send_by_date", "check": "eq", "value": "2026-11-06", "pinned_today_only": true }
+          ]
+        },
+        {
+          "id": "seasonal-scan",
+          "op": "obligations.scan",
+          "with": { "fixture": "seasonal-windows.json", "substitute_year": true },
+          "assert": [
+            { "path": "action_queue[0].urgency_band", "check": "eq", "value": "overdue", "pinned_today_only": true }
+          ]
+        }
+      ],
+      "known_gaps": ["G5", "G6"]
+    },
+    {
+      "id": "S4-mediakit-critique",
+      "utterance": "here's my media kit, do market research and give me critiques",
+      "routing": {
+        "mode": "ambiguous",
+        "present": [
+          { "classification": "media_kit", "spoke": "partnership-mediakit" },
+          { "classification": "quality_check", "spoke": "quality-review" }
+        ],
+        "absent_classifications": ["content_critique"]
+      },
+      "legs": [
+        {
+          "id": "quality-releasable",
+          "op": "quality.evaluate",
+          "with": { "fixture": "mediakit-scores.json", "key": "releasable" },
+          "assert": [
+            { "path": "released", "check": "eq", "value": true },
+            { "path": "composite", "check": "eq", "value": 4.44 },
+            { "path": "verdict", "check": "eq", "value": "Released" }
+          ]
+        },
+        {
+          "id": "quality-hard-fail",
+          "op": "quality.evaluate",
+          "with": { "fixture": "mediakit-scores.json", "key": "hard_fail" },
+          "assert": [
+            { "path": "hard_fail", "check": "eq", "value": true },
+            { "path": "verdict", "check": "eq", "value": "Not released" },
+            { "path": "reasons[0]", "check": "contains", "value": "critical-failure override" }
+          ]
+        },
+        {
+          "id": "benchmark-rate-rows-exist",
+          "op": "json.load",
+          "with": { "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json" },
+          "assert": [
+            { "path": "[0].id", "check": "eq", "value": "rate-dedicated-50-100k" },
+            { "path": "[1].id", "check": "eq", "value": "rate-format-50-100k" }
+          ]
+        }
+      ],
+      "known_gaps": ["G7", "G8"]
+    },
+    {
+      "id": "S5-raw-footage",
+      "utterance": "here's raw footage, break it down: what should the chapters be and what should I cut?",
+      "routing": {
+        "mode": "ambiguous",
+        "present": [ { "classification": "repurposing", "spoke": "shortform-repurposing" } ],
+        "absent_classifications": ["footage_breakdown"]
+      },
+      "legs": [
+        {
+          "id": "footage-parse",
+          "op": "transcripts.parse",
+          "with": { "fixture": "workshop-footage.srt" },
+          "assert": [
+            { "path": "format", "check": "eq", "value": "srt" },
+            { "path": "segment_count", "check": "eq", "value": 20 },
+            { "path": "duration_seconds", "check": "eq", "value": 420.0 }
+          ]
+        },
+        {
+          "id": "footage-silence-evidence",
+          "op": "transcripts.gap_metrics",
+          "with": { "parsed": { "$from": "footage-parse" }, "min_gap_seconds": 8.0 },
+          "evidence_for": "G9",
+          "assert": [
+            { "path": "silences", "check": "len_eq", "value": 3 },
+            { "path": "silences[0].gap_seconds", "check": "eq", "value": 12.5 },
+            { "path": "silences[2].gap_seconds", "check": "eq", "value": 20.0 }
+          ]
+        },
+        {
+          "id": "authored-chapters-fanout",
+          "op": "chapters.fan_out",
+          "with": { "fixture": "workshop-chapters.json" },
+          "assert": [
+            { "path": "chapter_count", "check": "eq", "value": 5 },
+            { "path": "youtube_description_timestamps", "check": "contains", "value": "0:00 Intro: the workshop tour begins" },
+            { "path": "gaps", "check": "len_eq", "value": 0 }
+          ]
+        },
+        {
+          "id": "authored-chapters-validate",
+          "op": "chapters.validate",
+          "with": { "fixture": "workshop-chapters.json" },
+          "assert": [
+            { "path": "violations", "check": "len_eq", "value": 0 }
+          ]
+        }
+      ],
+      "known_gaps": ["G9", "G10"]
+    }
+  ]
+}

@@ -2,7 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P23 (Phases 1 to 3) are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P24 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P24: realistic scenario test suite. Five realistic cross-lane utterances ("what's the email for
+  that guy from my Hearthline account?", "where are we with that lightbulb company contract?",
+  seasonal prep, media kit critique, raw-footage breakdown) pinned as a committed, re-runnable
+  contract: `skills/creator-core/evals/scenarios.json` + fictional fixtures, run by
+  `tools/scenario_check.py` (stdlib, deterministic, pinned clock 2026-09-15, writes nothing).
+  Deterministic legs run through the real product code: obligations date math (register, bands,
+  net-30 anchor), transcript parsing, chapter fan-out + YouTube-rule validation, Quality Gates
+  verdict arithmetic, benchmark rows. **Findings-as-contract**: the suite fails if a leg breaks, if
+  a declared-absent classification appears in the hub routing table, or if any of the 10 gap-ledger
+  probes stops observing its gap (closing a gap requires updating the contract + docs/SCENARIOS.md
+  deliberately; proven by negative test). Gap ledger G1 to G10 (docs/SCENARIOS.md) is the
+  later-phase backlog: no CRM read/contact/fuzzy-resolver capability (G1 to G3), account-schema
+  drift vs pipeline-engine (G4), seasonal-map broken load ref + prose-only seasonal dates (G5, G6),
+  no media-kit critique path + sparse benchmarks (G7, G8), no transcript-to-chapters/cuts analysis
+  (G9), no footage-breakdown routing (G10). TEST-ONLY phase per user decision: gaps documented, not
+  built. Result: 5/5 scenarios pass, 10/10 gaps observed, runner selftest 12/12.
 
 - P23 (Phase 3): obligations, timelines, local-first privacy, and an offline compute lane. Two new
   atoms: `obligation-extract` (pulls deliverables/deadlines/payment terms from a SIGNED contract into
