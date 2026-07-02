@@ -2,8 +2,25 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P23 (Phase 1) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P23 (Phases 1 to 2) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P23 (Phase 2): contract drafting + version tracking. Three atoms, designed and adversarially
+  verified by a workflow (6 agents; all returned pass_with_fixes with zero boundary/binding-language/
+  fabrication/dash issues; the small required fixes were applied before writing): `contract-draft`
+  (assembles a plain-language, not-vetted, not-binding starting point from the playbook standards +
+  the deal's agreed terms via a tagged source precedence deal_agreed > playbook_standard >
+  generic_default > MISSING; nulls unknowns; never operative legalese; ready_to_sign false),
+  `amendment-trace` (net current state across contract versions using the difference labels and
+  source precedence already in `shared/contract-engine.md`; quotes exactly, flags conflicts, marks
+  uncertain rather than forcing a match), and `playbook-bootstrap` (proposal-only: bootstrap a
+  starting playbook from example contracts, or nudge an off-standard default from recent deals; never
+  writes the playbook, the human confirms). Engine gains "Plain-language draft assembly" and
+  "Bootstrapping and nudging the playbook" sections. contract-desk workflow rewired (triage, review,
+  amendment-trace, legal-requirement-check, escalation-brief, contract-draft, govern-artifact; new
+  actions trace/draft/playbook_setup; playbook-bootstrap as a shortcut). Flags contract_drafting and
+  contract_redline now ship their atoms (degraded_behavior updated); playbook_bootstrap_disabled added.
+  All non-advisory: verbatim RESEARCH NOTES header, human_review_required, recommend_counsel; nothing
+  signed or sent. Phase 3 (obligation register + timeline) remains, flag in place and off.
 - P23 (Phase 1): deal contract management. New `contract-desk` Pipeline/CRM spoke that reviews the
   contract *document* (deal-pipeline still owns the deal record and stage transitions). Canonical
   `shared/contract-engine.md` (non-advisory boundary, clause taxonomy, four-tier playbook model, dual

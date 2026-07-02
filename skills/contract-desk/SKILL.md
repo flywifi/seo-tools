@@ -28,19 +28,27 @@ committing money (see `shared/contract-engine.md` and `protocols/safety.md`).
 - `contract_management` (master): activates this spoke. When off, deal-pipeline's existing
   plain-language contract-negotiating behavior is unchanged and this spoke does not run.
 - `legal_requirement_checks`: enables the legal-requirement scan step.
-- `contract_redline`: enables the full clause-by-clause review; version tracing (amendment-trace) is
-  Phase 2.
-- `contract_drafting` (Phase 2) and `contract_obligations` (Phase 3): drafting and the obligation
-  register are not built in Phase 1. Requests for them degrade honestly to a plain-language summary
-  plus a recommendation to proceed with a qualified professional (see `creator-os-config.json`
-  degraded_behavior).
+- `contract_redline`: enables the full clause-by-clause review and, in Phase 2, version tracing
+  (`amendment-trace`): net current state across contract versions.
+- `contract_drafting`: enables the Phase 2 plain-language draft assembly (`contract-draft`); the draft
+  is always not-vetted, not-binding, and never signed.
+- `contract_obligations` (Phase 3): the obligation register is not built yet. Requests for it degrade
+  honestly to flagged action items plus a recommendation to proceed with a qualified professional (see
+  `creator-os-config.json` degraded_behavior).
+- `playbook-bootstrap` (proposal-only playbook setup) is gated by the `contract_management` master and
+  never writes the playbook.
 
-## What Phase 1 delivers
+## What is delivered
 
-Feed a brand contract (uploaded file or pasted text, reusing the existing document connectors; no new
-connector is added) and the spoke produces: a triage verdict, a clause review with dual severity and
-exact quotes, legal-requirement flags with cited FTC and reference sources, and an escalation brief of
-the points worth raising with the brand and an attorney.
+Phase 1 delivers the review path: feed a brand contract (uploaded file or pasted text, reusing the
+existing document connectors; no new connector is added) and the spoke produces a triage verdict, a
+clause review with dual severity and exact quotes, legal-requirement flags with cited FTC and
+reference sources, and an escalation brief of the points worth raising with the brand and an attorney.
+
+Phase 2 adds drafting and version tracking: `contract-draft` assembles a plain-language, not-binding
+starting point from the playbook and the deal's agreed terms; `amendment-trace` produces the
+net-current-state view across contract versions; and `playbook-bootstrap` proposes (never writes) a
+starting playbook from example contracts or nudges an off-standard default from recent deals.
 
 ## Inputs
 
@@ -48,7 +56,7 @@ the points worth raising with the brand and an attorney.
 |---|---|---|
 | `contract_text` | one of these | the raw contract or offer text |
 | `deal_id` | one of these | read the linked contract from `pipeline/contracts/` and the deal from `pipeline/deals/` |
-| `action` | required | one of: `triage`, `review`, `legal_check`, `escalate`, `full` |
+| `action` | required | one of: `triage`, `review`, `trace`, `legal_check`, `escalate`, `draft`, `full`, `playbook_setup` |
 | `deal_context` | optional | fee, category, sponsorship type, brand name; never invented |
 
 Supply `contract_text` or `deal_id`. The spoke reads the creator's positions from the deal-playbook
@@ -56,22 +64,35 @@ Supply `contract_text` or `deal_id`. The spoke reads the creator's positions fro
 null template the atoms run in a labeled provisional mode against the generic defaults in
 `shared/contract-engine.md`.
 
-## Atoms composed (Phase 1)
+## Atoms composed
 
+Phase 1:
 - `contract-triage` -- GREEN/YELLOW/RED verdict; hidden-obligation and deal-breaker scan.
 - `contract-review` -- clause-by-clause findings with dual severity and plain-language redline
   suggestions.
 - `legal-requirement-check` -- FTC disclosure, usage-rights, exclusivity, and payment flags with
   cited sources.
 - `escalation-brief` -- decision-ready accept/counter/walk brief; draft only, never sent.
-- `usage-rights-check` and `exclusivity-check` -- reused as the extraction and conflict-detection core.
+
+Phase 2:
+- `contract-draft` -- assembles a plain-language, not-vetted, not-binding starting point from the
+  playbook standards and the deal's agreed terms; nulls unknowns; never emits operative legalese.
+- `amendment-trace` -- net current state across contract versions with the difference labels and
+  source precedence from `shared/contract-engine.md`; quotes exactly, flags conflicts.
+- `playbook-bootstrap` -- proposal-only: bootstrap a starting playbook from example contracts, or
+  nudge an off-standard default from recent deals; never writes the playbook (the human confirms).
+
+Reused and governance:
+- `usage-rights-check` and `exclusivity-check` -- the extraction and conflict-detection core.
 - `govern-artifact` -- runs the quality gate before any output is surfaced.
 
 ## Workflow
 
-For `action: full`: `contract-triage` then, unless triage is a clear walk-away RED, `contract-review`
-and `legal-requirement-check`, then `escalation-brief` on the flagged items, then `govern-artifact`.
-Each atom is also directly callable via `shortcut_atoms`.
+For `action: full`: `contract-triage` then, unless triage is a clear walk-away RED, `contract-review`,
+`amendment-trace` (when two or more versions exist), and `legal-requirement-check`, then
+`escalation-brief` on the flagged items, then `govern-artifact`. `contract-draft` (`action: draft`)
+and `playbook-bootstrap` (`action: playbook_setup`) run outside the review chain and still pass through
+`govern-artifact`. Each atom is also directly callable via `shortcut_atoms`.
 
 ## Engines required
 

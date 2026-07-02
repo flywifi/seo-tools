@@ -112,6 +112,47 @@ the generic creator-side defaults below, and never against invented positions. G
 - The FTC disclosure obligation cannot be contracted away and is required on every sponsored,
   gifted, or affiliate deliverable (protocols/safety.md).
 
+## Plain-language draft assembly (contract-draft)
+
+`contract-draft` (P23 Phase 2) assembles a plain-language starting point from terms that are already
+known. It never parses raw contract text (that is `usage-rights-check`) and never emits operative
+legalese, indemnity, or warranty language. For each clause family it fills one plain-language term by
+this source precedence, and tags the term with the source it used:
+
+1. `deal_agreed`: a term explicitly agreed in the deal record or the supplied agreed_terms object.
+   Agreed terms always win. Quote the source field exactly.
+2. `playbook_standard`: where the deal is silent and a real playbook is configured, the creator's
+   `standard` tier for that clause (the opening position, never a `fallback` or `never` line). Labeled,
+   because a standard opening position is not the same as an agreed term.
+3. `generic_default`: provisional mode only (null-template playbook). The generic creator-side defaults
+   in this engine, offered as guidance and never presented as the creator's committed position.
+4. `MISSING`: no source provides the term. The term is null, the family is flagged and listed in
+   `missing_terms`, and nothing is invented to fill it.
+
+The output is always labeled not-vetted, not-binding, and a starting point to formalize with a qualified
+professional. It passes the consequential-action gate above (turning these terms into a signed agreement
+is a consequential action), sets `ready_to_sign: false`, and never emits anything meant to be signed
+as-is. `amendment-trace` uses the separate version source precedence in "Amendment and version model";
+this section governs draft assembly only.
+
+## Bootstrapping and nudging the playbook (proposal only)
+
+The playbook is the creator's own document. No atom ever writes it. `playbook-bootstrap` (P23 Phase 2)
+proposes to it in two modes, and the human confirms, edits, and saves the local playbook file by hand:
+
+- bootstrap: from example past contracts or terms the creator supplies, propose a starting four-tier
+  position per clause family, each proposed value tagged with the example that supports it (an exact
+  quote) and a confidence label. Omit any clause family the examples do not address; never invent a
+  position to fill a tier.
+- nudge: from a set of recent deals, detect a term the creator has repeatedly accepted off the current
+  standard (the same off-standard value in at least two of the provided deals) and propose updating
+  that default, quoting the supporting deals. Never fabricate the frequency; count only observed deals.
+
+Both modes are proposal-only, carry the RESEARCH NOTES boundary, set `human_review_required: true`,
+and state plainly that nothing is written to the playbook automatically. Neither mode rules on
+enforceability or drafts binding clause language; proposed positions are plain-language negotiating
+preferences, not vetted contract text.
+
 ## Dual severity (rank deal-breakers first)
 
 Every review finding carries two independent severities, each `none | low | medium | high`:
@@ -170,7 +211,7 @@ Source precedence when versions conflict:
 5. Conservative inference from document structure
 6. Otherwise mark as missing or uncertain
 
-(Version tracing, `amendment-trace`, ships in P23 Phase 2. This section defines the model it uses.)
+(Version tracing is implemented in P23 Phase 2 as the `amendment-trace` atom, which uses this model.)
 
 ## Deadline date math (obligations to timeline)
 

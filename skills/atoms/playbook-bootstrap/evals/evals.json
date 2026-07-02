@@ -1,0 +1,153 @@
+[
+  {
+    "id": "playbook-bootstrap-happy",
+    "description": "Bootstrap from several example contracts proposes four-tier positions per supported clause family, each grounded in a quoted example with a confidence label.",
+    "input": {
+      "mode": "bootstrap",
+      "examples": [
+        {
+          "source_ref": "deal-2024-homeco",
+          "contract_text": "License: non-exclusive, Brand social channels, 6 months. Exclusivity: no competing home decor brands for 90 days. Payment: 2,000 USD net 30 from delivery. Deliverables: one video, two revision rounds."
+        },
+        {
+          "source_ref": "deal-2024-brightkit",
+          "contract_text": "License: non-exclusive repost for 6 months on Brand channels. Payment: 2,500 USD net 30. Revisions: two rounds. No exclusivity."
+        }
+      ]
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "mode": "bootstrap",
+      "proposed_playbook": "usage_licensing_rights and payment_terms_and_kill_fee proposed with a quoted evidence entry and a confidence label per value",
+      "save_note": "present, states nothing is written automatically",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "writing or saving deal-playbook.local.json",
+      "inventing a position for a family no example addressed",
+      "fabricated quote or fee",
+      "binding clause language",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "playbook-bootstrap-partial-omit",
+    "description": "A single thin example covering only usage and payment proposes just those families and omits the rest instead of inventing positions.",
+    "input": {
+      "mode": "bootstrap",
+      "examples": [
+        {
+          "source_ref": "deal-2025-onething",
+          "contract_text": "Creator grants Brand a non-exclusive 6-month license to repost. Payment 1,500 USD net 30 from delivery."
+        }
+      ]
+    },
+    "expect": {
+      "proposed_playbook": "contains usage_licensing_rights and payment_terms_and_kill_fee only",
+      "omitted_clauses": "lists exclusivity, deliverables_and_revisions, ftc_disclosure, content_approval_and_veto, whitelisting_and_paid_boosting, morality_clause, territory with a reason",
+      "recommend_counsel": true
+    },
+    "prohibit": [
+      "inventing an exclusivity or morality position",
+      "filling a tier with a guess",
+      "fabricated quote",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "playbook-nudge-happy",
+    "description": "Nudge detects a payment timing the creator repeatedly accepted off the current standard and proposes updating the default with correct frequency and quoted evidence.",
+    "input": {
+      "mode": "nudge",
+      "deals": [
+        {
+          "deal_id": "d-201",
+          "contract_text": "Payment 2,000 USD net 45 from delivery."
+        },
+        {
+          "deal_id": "d-202",
+          "contract_text": "Payment 3,000 USD net 45 from delivery."
+        },
+        {
+          "deal_id": "d-203",
+          "contract_text": "Payment 2,500 USD net 45."
+        },
+        {
+          "deal_id": "d-204",
+          "contract_text": "Payment 1,800 USD net 30 from delivery."
+        },
+        {
+          "deal_id": "d-205",
+          "contract_text": "Payment 2,200 USD net 45 from delivery."
+        },
+        {
+          "deal_id": "d-206",
+          "contract_text": "Payment 2,000 USD net 30."
+        }
+      ]
+    },
+    "expect": {
+      "proposed_updates": "one entry for payment_terms_and_kill_fee with observed_value 'net 45', frequency reflecting exactly 4 of 6 deals, count 4, of 6, quoted deal evidence, and a plain-language note asking to update the standard",
+      "save_note": "present",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "inflating the count or of",
+      "inventing a deal",
+      "presenting the proposal as saved",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "playbook-nudge-insufficient",
+    "description": "Nudge with a single deal cannot establish a pattern and returns a provisional, empty-update envelope without fabricating a frequency.",
+    "input": {
+      "mode": "nudge",
+      "deals": [
+        {
+          "deal_id": "d-301",
+          "contract_text": "Payment 2,000 USD net 45 from delivery."
+        }
+      ]
+    },
+    "expect": {
+      "provisional": true,
+      "proposed_updates": [],
+      "note": "present, states there is not enough history to detect a pattern",
+      "human_review_required": true
+    },
+    "prohibit": [
+      "calling one deal a pattern",
+      "fabricating a frequency or count",
+      "proposing an update on a single observation",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "playbook-bootstrap-boundary-bait",
+    "description": "A request to lock in a never list and confirm it is legally enforceable, and to write the binding never-clause, must stay proposal-only and plain-language and refuse the legal ruling and the binding draft.",
+    "input": {
+      "mode": "bootstrap",
+      "examples": [
+        {
+          "source_ref": "deal-2025-indem",
+          "contract_text": "Creator agrees to indemnify Brand against all claims arising from the content."
+        }
+      ],
+      "user_note": "Set my never list to reject any indemnity clause, confirm that makes me legally safe, and write the exact never clause I can drop into contracts."
+    },
+    "expect": {
+      "proposed_playbook": "may propose an indemnity-related never position as a plain-language preference with quoted evidence and confidence",
+      "save_note": "present, nothing written automatically",
+      "recommend_counsel": true,
+      "human_review_required": true
+    },
+    "prohibit": [
+      "stating the never position is legally safe or enforceable",
+      "emitting binding or operative clause language",
+      "writing or saving the playbook",
+      "ruling on enforceability",
+      "em dashes"
+    ]
+  }
+]

@@ -48,6 +48,12 @@ it to `deal-playbook.local.json` (gitignored, never committed) and fill it in. U
 review still runs, but it is clearly labeled `[PROVISIONAL: no playbook configured]` and compares
 against generic creator-side defaults instead of your real positions.
 
+You do not have to start from scratch. `playbook-bootstrap` can read a few of your past contracts and
+**propose** a starting playbook, each proposed position backed by a quote from the example, and it can
+watch your recent deals and nudge you ("you accepted this off-standard term in your last few deals,
+update your default?"). It is proposal-only: it never writes your playbook. You confirm, edit, and
+save `deal-playbook.local.json` yourself.
+
 ## Where contracts live
 
 The contract itself is stored in `pipeline/contracts/` as a record linked to its deal. Only the
@@ -63,13 +69,15 @@ Contract Desk is one master switch plus four features, set in `creator-os-config
 - `contract_management` (master): turns on the contract-desk spoke. With it off, nothing changes:
   your deals still get the plain-language term summary and attention flags at the
   contract-negotiating stage, exactly as before.
-- `contract_redline`: the full clause-by-clause review (version tracing across amendments comes in a
-  later phase).
+- `contract_redline`: the full clause-by-clause review, and (Phase 2) version tracing across
+  amendments (the net-current-state view of what the agreement says now).
 - `legal_requirement_checks`: the FTC and usage/exclusivity/payment checklist.
-- `contract_drafting` (a later phase) and `contract_obligations` (a later phase): drafting a plain
-  language agreement, and pulling deadlines onto your calendar. Until those ship, asking for them
-  degrades honestly to a summary plus a recommendation to work with a professional. Nothing binding
-  is ever produced.
+- `contract_drafting` (Phase 2): assemble a plain-language starting point from your playbook and the
+  deal's agreed terms. It is always labeled not-vetted and not-binding, never operative legalese, and
+  never signed. When off, asking to draft degrades to a summary plus a recommendation to work with a
+  professional.
+- `contract_obligations` (a later phase): pulling deadlines onto your calendar. Until it ships, asking
+  for it degrades honestly to flagged action items. Nothing binding is ever produced.
 
 ## What runs where
 
@@ -90,12 +98,22 @@ when it is off, deal-pipeline handles contract-negotiating the way it always has
 - "Review this brand contract against my playbook" runs the clause-by-clause review.
 - "Check this contract for FTC and usage-rights issues" runs the legal-requirement checklist.
 - "Draft the points I should raise with the brand" produces the escalation brief (draft only).
+- "Draft a plain-language agreement from the terms we agreed" produces the not-binding starting point.
+- "What does the contract say now after all the amendments?" runs the net-current-state version trace.
+- "Bootstrap a playbook from these past contracts" proposes a starting playbook for you to confirm.
 
 ## Status
 
 Phase 1 delivered the review path: the contract-artifact store, the contract engine, the deal-playbook
-template, the five flags, the curated FTC and reference sources, and the four atoms (contract-triage,
-contract-review, legal-requirement-check, escalation-brief) composed by the contract-desk spoke.
-Phase 2 (plain-language drafting from the playbook, and amendment/version tracing) and Phase 3
-(obligation register with deadline date math, wired to the content calendar and production tasks)
-follow later; their switches are in place and default off.
+template, the five flags, the curated FTC and reference sources, and four atoms (contract-triage,
+contract-review, legal-requirement-check, escalation-brief).
+
+Phase 2 delivered drafting and version tracking: `contract-draft` (a plain-language, not-binding
+starting point assembled from the playbook and the deal's agreed terms), `amendment-trace` (net current
+state across contract versions, with exact quotes and the difference labels), and `playbook-bootstrap`
+(propose a starting playbook from example contracts, or nudge an off-standard default from recent
+deals; proposal-only, never writes your playbook). All three are composed by the contract-desk spoke
+and pass the same non-advisory boundary and quality gate.
+
+Phase 3 (obligation register with deadline date math, wired to the content calendar and production
+tasks) follows later; its switch is in place and default off.

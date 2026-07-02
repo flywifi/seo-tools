@@ -1,14 +1,16 @@
 {
-  "_comment": "contract-desk reviews an inbound brand contract. Legal information only, never legal advice. Gated behind the contract_management flag. Every output carries the RESEARCH NOTES boundary, human_review_required, and passes govern-artifact. Reuses usage-rights-check and exclusivity-check as the extraction/conflict core.",
+  "_comment": "contract-desk reviews an inbound brand contract and assembles plain-language drafts. Legal information only, never legal advice. Gated behind the contract_management flag. Every output carries the RESEARCH NOTES boundary, human_review_required, and passes govern-artifact. Reuses usage-rights-check and exclusivity-check as the extraction/conflict core.",
   "id": "contract-desk",
-  "description": "Contract review: triage, clause-by-clause review with dual severity, legal-requirement checks with cited sources, and a decision-ready escalation brief.",
+  "description": "Contract review and drafting: triage, clause-by-clause review with dual severity, version tracing (net current state), legal-requirement checks with cited sources, a decision-ready escalation brief, and a plain-language not-binding draft.",
   "steps": [
     {"step": 1, "atom": "contract-triage", "input_from": "contract_text or deal_id + deal_context", "output_to": "step2", "condition": "action is triage or full"},
     {"step": 2, "atom": "contract-review", "input_from": "contract_text or deal_id", "output_to": "step3", "condition": "action is review or full, and triage is not a clear walk-away RED; requires contract_redline"},
-    {"step": 3, "atom": "legal-requirement-check", "input_from": "contract_text or deal_id + deal_context", "output_to": "step4", "condition": "action is legal_check or full; requires legal_requirement_checks"},
-    {"step": 4, "atom": "escalation-brief", "input_from": "flagged findings from steps 1 to 3", "output_to": "step5", "condition": "action is escalate or full, and any flags or RED/YELLOW items exist"},
-    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_contract_report", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
+    {"step": 3, "atom": "amendment-trace", "input_from": "versions[] from the contract record (contract_id) or supplied versions", "output_to": "step4", "condition": "action is trace or full, and two or more versions with resolvable text exist; requires contract_redline"},
+    {"step": 4, "atom": "legal-requirement-check", "input_from": "contract_text or deal_id + deal_context", "output_to": "step5", "condition": "action is legal_check or full; requires legal_requirement_checks"},
+    {"step": 5, "atom": "escalation-brief", "input_from": "flagged findings from steps 1 to 4, including amendment-trace conflicts and watch_items", "output_to": "step7", "condition": "action is escalate or full, and any flags, RED/YELLOW items, conflicts, or watch_items exist"},
+    {"step": 6, "atom": "contract-draft", "input_from": "deal_id or agreed_terms + deal-playbook", "output_to": "step7", "condition": "action is draft; requires contract_drafting; independent of the triage-to-escalation chain"},
+    {"step": 7, "atom": "govern-artifact", "input_from": "assembled_contract_report", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
   ],
-  "shortcut_atoms": ["contract-triage", "contract-review", "legal-requirement-check", "escalation-brief", "usage-rights-check", "exclusivity-check"],
-  "note": "Master gate: contract_management. Intake reuses the uploaded_file / google_drive document connectors (no new connector). contract-draft (Phase 2), amendment-trace (Phase 2), and obligation-extract (Phase 3) are not composed here yet; drafting/obligation requests degrade honestly per creator-os-config.json. This spoke never signs or sends; escalation-brief is draft-only."
+  "shortcut_atoms": ["contract-triage", "contract-review", "amendment-trace", "legal-requirement-check", "escalation-brief", "contract-draft", "playbook-bootstrap", "usage-rights-check", "exclusivity-check"],
+  "note": "Master gate: contract_management. Intake reuses the uploaded_file / google_drive document connectors (no new connector). Phase 2 adds contract-draft (plain-language, not-binding, never signed; gated by contract_drafting), amendment-trace (net-current-state version tracing; gated by contract_redline), and playbook-bootstrap (proposal-only playbook bootstrap/nudge; never writes the playbook; invoked directly, not as a review step). obligation-extract (Phase 3) is not composed here yet; obligation requests degrade honestly per creator-os-config.json. This spoke never signs or sends; escalation-brief and contract-draft are draft-only (ready_to_send / ready_to_sign false)."
 }

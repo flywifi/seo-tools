@@ -196,12 +196,12 @@
     "contract_drafting": {
       "enabled": false,
       "description": "Feature 1 (P23 Phase 2). Assemble a plain-language draft agreement from the deal-playbook standard positions plus the deal's agreed terms. Never emits binding language and always labels output not-vetted, review-before-signing. Requires contract_management on.",
-      "requires": "contract_management on. The contract-draft atom is delivered in P23 Phase 2; while off or unbuilt, contract-desk routes drafting requests to a plain-language term summary and recommends drafting with counsel."
+      "requires": "contract_management on. The contract-draft atom (P23 Phase 2) assembles a plain-language, not-vetted, not-binding draft from the playbook and agreed terms; while off, contract-desk routes drafting requests to a plain-language term summary and recommends drafting with counsel."
     },
     "contract_redline": {
       "enabled": false,
       "description": "Feature 2 (P23). Clause-by-clause review with dual severity (legal risk + business friction), exact-quote findings, playbook gaps, and plain-language redline suggestions; plus version tracking (net current state across contract versions). Requires contract_management on.",
-      "requires": "contract_management on. contract-review ships in P23 Phase 1; amendment/version tracing (amendment-trace) ships in P23 Phase 2."
+      "requires": "contract_management on. contract-review ships in P23 Phase 1; amendment/version tracing (amendment-trace, net current state across versions) ships in P23 Phase 2. Both are enabled by this flag."
     },
     "contract_obligations": {
       "enabled": false,
@@ -243,8 +243,9 @@
     "commandpost_macros_disabled": "commandpost_macros is off. Finishing automations are described but not emitted/triggered. Run the finishing steps manually or enable this flag (macOS + CommandPost).",
     "chapter_sync_disabled": "chapter_sync is off. The chapter list is still produced but not fanned out to the description timestamps and scheduling item automatically. Copy them across manually or enable this flag.",
     "contract_management_disabled": "contract_management is off (default). The contract-desk spoke and its atoms are not activated. Deal work continues exactly as before: at contract-negotiating, deal-pipeline summarizes terms in plain language, flags the points that deserve attention as action items, and recommends review with a qualified professional per protocols/safety.md. Turn the flag on for structured triage, clause-by-clause review, legal-requirement flags, and escalation briefs. Even on, output is legal information only, never legal advice.",
-    "contract_drafting_disabled": "contract_drafting is off, or the contract-draft atom is not yet built (Phase 2). Drafting requests degrade to a plain-language summary of the agreed terms plus a recommendation to draft the binding agreement with a qualified professional. The system never emits binding contract language as if vetted.",
-    "contract_redline_disabled": "contract_redline is off. Clause-by-clause review with dual severity and version tracing is not produced. A contract at contract-negotiating still gets the plain-language term summary and attention flags. Amendment/version tracing (net current state across versions) ships in Phase 2.",
+    "contract_drafting_disabled": "contract_drafting is off. Drafting requests degrade to a plain-language summary of the agreed terms plus a recommendation to draft the binding agreement with a qualified professional. When on, contract-draft assembles a plain-language, not-vetted, not-binding starting point (never operative legalese, never signed). The system never emits binding contract language as if vetted.",
+    "contract_redline_disabled": "contract_redline is off. Clause-by-clause review with dual severity and version tracing is not produced. A contract at contract-negotiating still gets the plain-language term summary and attention flags. When on, contract-review and amendment-trace (net current state across versions) are both available.",
+    "playbook_bootstrap_disabled": "playbook-bootstrap runs only when contract_management is on. It is proposal-only: it suggests a starting deal-playbook from example contracts, or nudges an off-standard default from recent deals, and never writes deal-playbook.local.json (the human confirms and saves by hand). While off, configure the playbook by hand or with a qualified professional.",
     "contract_obligations_disabled": "contract_obligations is off, or the obligation register is not yet built (Phase 3). Deliverables, deadlines, and payment terms are surfaced as flagged action items on the deal record but are not written to a dated obligation register or synced to the content calendar and production tasks.",
     "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage."
   },
