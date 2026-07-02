@@ -174,18 +174,35 @@ def _rows_from_input(data) -> tuple[list, str | None, str | None]:
 
 
 def compute(rows: list, today: date, lead_days: int) -> list:
-    """Compute the dated register rows. Never invents a date; null-and-flag when absent."""
+    """Compute the dated register rows. Never invents a date; null-and-flag when absent.
+
+    Relative deadlines round-trip through the anchor fields: when a contract states a
+    relative timing (for example "net 30 from delivery") the online side resolves the
+    anchor from the deal record and passes `anchor_date` (ISO) + `offset_days` (int) on
+    the row; the date arithmetic (anchor + offset, then roll-back and banding) happens
+    HERE, offline, never in the model. Without a resolvable date or anchor pair, the
+    row stays null and flagged.
+    """
     computed = []
     for row in rows:
         if not isinstance(row, dict):
             continue
         raw = _parse_date(row.get("timing_or_deadline"))
+        derived_from = None
+        if raw is None:
+            anchor = _parse_date(row.get("anchor_date"))
+            offset = row.get("offset_days")
+            if anchor is not None and isinstance(offset, int) and not isinstance(offset, bool):
+                raw = anchor + timedelta(days=offset)
+                derived_from = {"anchor_date": anchor.isoformat(), "offset_days": offset,
+                                "stated_as": row.get("timing_or_deadline")}
         gaps = []
         if raw is None:
             effective = send_by = None
             band = "unknown"
             if row.get("timing_or_deadline"):
-                gaps.append("timing_or_deadline is not an ISO date; left null, not inferred")
+                gaps.append("timing_or_deadline is not an ISO date and no anchor_date/offset_days "
+                            "pair was supplied; left null, not inferred")
             else:
                 gaps.append("no timing_or_deadline in the source row; deadline null")
         else:
@@ -208,6 +225,7 @@ def compute(rows: list, today: date, lead_days: int) -> list:
                 "source_row": {k: row.get(k) for k in ("document", "section", "obligation_type")},
                 "lead_days": lead_days,
                 "computed_by": "tools/obligations.py",
+                **({"derived_from": derived_from} if derived_from else {}),
             },
             "gaps": gaps,
         })
@@ -304,6 +322,58 @@ def verify(manifest_path: str) -> dict:
     return {"ok": not changed and not missing, "verified": ok, "changed": changed, "missing": missing}
 
 
+# --------------------------------------------------------------------------- selftest
+
+def selftest() -> int:
+    """Deterministic self-test of the date-math invariants. Offline, no writes, no deps.
+
+    Run any time with: python3 tools/obligations.py --selftest
+    """
+    t = date(2026, 7, 2)
+    failures = []
+
+    def expect(name, cond):
+        if not cond:
+            failures.append(name)
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+
+    # roll-back: plain weekend, holiday, and holiday-chain (Jul 4 2026 is a Saturday;
+    # Jul 3 is the observed holiday, so Sat 7/4 must roll all the way to Thu 7/2)
+    expect("Saturday rolls to Friday", roll_backward(date(2026, 7, 11)) == date(2026, 7, 10))
+    expect("Jul 4 (Sat) chains past observed Fri to Thu", roll_backward(date(2026, 7, 4)) == date(2026, 7, 2))
+    expect("Labor Day Monday rolls to prior Friday", roll_backward(date(2026, 9, 7)) == date(2026, 9, 4))
+    expect("Christmas (Fri) rolls to Thursday", roll_backward(date(2026, 12, 25)) == date(2026, 12, 24))
+    expect("business day unchanged", roll_backward(date(2026, 8, 14)) == date(2026, 8, 14))
+
+    # urgency bands (half-open: red 0 to 13, orange 14 to 44, yellow 45 to 89)
+    expect("band red at 0 and 13", urgency_band(t, t) == "red" and urgency_band(t + timedelta(days=13), t) == "red")
+    expect("band orange at 14 and 44", urgency_band(t + timedelta(days=14), t) == "orange" and urgency_band(t + timedelta(days=44), t) == "orange")
+    expect("band yellow at 45 and 89", urgency_band(t + timedelta(days=45), t) == "yellow" and urgency_band(t + timedelta(days=89), t) == "yellow")
+    expect("band out_of_band at 90", urgency_band(t + timedelta(days=90), t) == "out_of_band")
+    expect("band overdue in the past", urgency_band(t - timedelta(days=1), t) == "overdue")
+    expect("band unknown when dateless", urgency_band(None, t) == "unknown")
+
+    # anchor round-trip: net 30 from a 2026-07-24 delivery = 08-23 (Sun) -> eff 08-21, send-by 08-20
+    rows = [{"required_action": "invoice", "timing_or_deadline": "net 30 from delivery",
+             "anchor_date": "2026-07-24", "offset_days": 30}]
+    o = compute(rows, t, 3)[0]
+    expect("anchor+offset derives 2026-08-23", o["raw_date"] == "2026-08-23")
+    expect("derived date rolls Sunday to Friday", o["effective_date"] == "2026-08-21" and o["send_by_date"] == "2026-08-20")
+    expect("derivation recorded in provenance", o["provenance"].get("derived_from", {}).get("offset_days") == 30)
+
+    # null-and-flag discipline
+    o = compute([{"required_action": "vague", "timing_or_deadline": "soonish"}], t, 3)[0]
+    expect("unparseable date stays null + flagged", o["raw_date"] is None and o["gaps"])
+    o = compute([{"required_action": "bool trap", "timing_or_deadline": None,
+                  "anchor_date": "2026-07-24", "offset_days": True}], t, 3)[0]
+    expect("boolean offset_days rejected (no sneaky True==1)", o["raw_date"] is None)
+    expect("non-dict rows skipped", len(compute(["junk", 42], t, 3)) == 0)
+
+    print(f"selftest: {'PASS' if not failures else 'FAIL'} "
+          f"({15 - len(failures)} of 15 checks)")
+    return 1 if failures else 0
+
+
 # --------------------------------------------------------------------------- CLI
 
 def _today(arg: str | None) -> date:
@@ -327,9 +397,12 @@ def main(argv) -> int:
     ap.add_argument("--today", metavar="YYYY-MM-DD", help="anchor date for urgency bands (reproducible)")
     ap.add_argument("--lead-days", type=int, default=DEFAULT_LEAD_DAYS, help="send-by lead in days")
     ap.add_argument("--write", action="store_true", help="write the register (gated by contract_obligations)")
+    ap.add_argument("--selftest", action="store_true", help="run the deterministic date-math self-test")
     a = ap.parse_args(argv)
     today = _today(a.today)
 
+    if a.selftest:
+        return selftest()
     if a.verify:
         print(json.dumps(verify(a.verify), indent=2))
         return 0

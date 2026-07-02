@@ -247,7 +247,12 @@ scoop handoff: a `--scan` read-only mode (always available), a flag-gated `--bui
 needs `contract_obligations`), and a sha256 bucket manifest (`--manifest` / `--verify`) so an offline
 machine's register can be verified before the online side trusts it. The MCP tools `obligation_build`,
 `obligation_scan`, and `import_obligations` are the online-to-offline bridge: the model calls them, the
-local tool returns the computed register or scan as JSON, and the model never does the arithmetic. The
+local tool returns the computed register or scan as JSON, and the model never does the arithmetic.
+Relative deadlines round-trip the same way: when a contract states a relative timing (for example,
+"net 30 from delivery"), the online side resolves the anchor from the deal record and passes
+`anchor_date` (ISO) plus `offset_days` (integer) on the obligation row; the offline tool derives the
+date (anchor plus offset, then roll-back and banding) and records the derivation in `provenance`.
+Without a resolvable date or anchor pair, the row stays null and flagged, never inferred. The
 general rule: deterministic tasks (date math, rollups, register builds, deadline scans, hash
 verification) run locally over gitignored `.local` artifacts; the LLM orchestrates and interprets;
 results cross back through an import adapter with a hash-verified manifest.

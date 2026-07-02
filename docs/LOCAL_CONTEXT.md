@@ -73,7 +73,15 @@ python3 tools/obligations.py --build rows.json --today 2026-07-02 --write
 # verify a register copied between machines (sha256, like the P22 editing bucket)
 python3 tools/obligations.py --manifest --write-manifest obligations-bucket.manifest.json
 python3 tools/obligations.py --verify obligations-bucket.manifest.json
+
+# prove the date math on this machine any time (offline, no writes)
+python3 tools/obligations.py --selftest
 ```
+
+Relative deadlines ("net 30 from delivery") round-trip too: the model supplies the anchor date from
+the deal record on the row (`anchor_date` + `offset_days`), and the offline tool derives the actual
+date, rolls it off weekends and holidays, and records how it got there. The model never adds the
+days.
 
 ### The reusable pattern
 

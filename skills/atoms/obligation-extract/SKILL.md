@@ -57,7 +57,11 @@ roll-back, and urgency bands deterministically in the local compute lane.
    `timing_or_deadline`, `consequence_if_stated`, `evidence_text`, `confidence`, `notes`.
 3. Put the deadline as the contract states it in `timing_or_deadline` (an ISO date when the contract
    gives one, or the exact phrase such as "net 30 from delivery" when it does not). Do NOT convert or
-   compute a date here; that is the offline tool's job.
+   compute a date here; that is the offline tool's job. When the timing is relative and the anchor
+   event's date is known from the deal record (for example, the delivery date), add `anchor_date`
+   (the anchor's ISO date, copied from the record) and `offset_days` (the integer the contract
+   states) to the row; `tools/obligations.py` derives the actual date offline and records the
+   derivation in provenance. The atom still never performs the arithmetic.
 4. Preserve the direction of each duty (who owes whom). Quote `evidence_text` from the contract. If a
    duty's date or term is absent, leave the field null and add a gap, never a guess.
 5. Tag each row's `confidence` (`explicit`, `high`, `medium`, `low`) per the engine.
