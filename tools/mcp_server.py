@@ -765,6 +765,93 @@ def chapter_map(chapters: dict) -> str:
         return json.dumps({"error": str(exc)})
 
 
+@mcp.tool()
+def obligation_scan(rows: dict | None = None, today: str | None = None, lead_days: int = 3) -> str:
+    """Read-only deadline scan for contract obligations (P23 Phase 3). Deterministic date math runs
+    in local Python (tools/obligations.py), so the model spends no tokens on arithmetic. Pass `rows`
+    (obligation-extract output) to scan them, or omit to scan the stored register. Always available,
+    even when contract_obligations is off; never writes."""
+    sys.path.insert(0, str(HERE))
+    import obligations as _ob  # type: ignore
+    try:
+        anchor = _ob._today(today)
+        data = rows if rows is not None else (
+            json.loads(_ob.REGISTER_PATH.read_text(encoding="utf-8")) if _ob.REGISTER_PATH.exists() else None
+        )
+        if data is None:
+            return json.dumps({"error": "no_source", "message": "pass rows or build the register first"})
+        return json.dumps(_ob.scan(data, anchor, lead_days), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def obligation_build(rows: dict, today: str | None = None, lead_days: int = 3, write: bool = False) -> str:
+    """Compute the dated obligation register from obligation-extract rows (P23 Phase 3). The date math
+    (send-by, weekend/US-holiday roll-back, urgency bands) runs in local Python, not tokens. Returns
+    the computed register JSON. Persisting it (write=True) is gated behind contract_obligations; while
+    off, the register is computed and returned with a gate note but not written."""
+    sys.path.insert(0, str(HERE))
+    import obligations as _ob  # type: ignore
+    try:
+        anchor = _ob._today(today)
+        reg = _ob.build_register(rows, anchor, lead_days)
+        if write:
+            cfg = _ob.load_config()
+            if not _ob.flag_enabled(cfg, "contract_obligations"):
+                reg = dict(reg)
+                reg["_gate"] = ("contract_obligations is off: register computed but NOT written. "
+                                "Enable it to persist (see degraded_behavior).")
+            else:
+                _ob.REGISTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+                _ob.REGISTER_PATH.write_text(json.dumps(reg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                reg = dict(reg)
+                reg["_written"] = _ob.REGISTER_PATH.relative_to(_ob.ROOT).as_posix()
+        return json.dumps(reg, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def import_obligations() -> str:
+    """Import the computed obligation register and surface the pieces that feed the rest of Creator OS:
+    deadlines -> content-calendar (publish_target_date / ftc_disclosure via linked_deal_id),
+    send-by dates -> production-task (D-minus-N offsets), payment terms -> deal-resourcing / invoice-status.
+    Mirrors import_edit_artifact and the dashboard /api/import-report handoff. Read-only."""
+    sys.path.insert(0, str(HERE))
+    import obligations as _ob  # type: ignore
+    if not _ob.REGISTER_PATH.exists():
+        return json.dumps({"error": "no_register",
+                           "message": "no obligation register yet; run obligation_build with write=True (contract_obligations on)"})
+    try:
+        reg = json.loads(_ob.REGISTER_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+    obs = reg.get("obligations", [])
+    return json.dumps({
+        "boundary": reg.get("_boundary"),
+        "contract_ref": reg.get("contract_ref"),
+        "deal_id": reg.get("deal_id"),
+        "band_counts": reg.get("band_counts", {}),
+        "handoff": {
+            "calendar_deadlines": [
+                {"required_action": o.get("required_action"), "effective_date": o.get("effective_date"),
+                 "send_by_date": o.get("send_by_date"), "urgency_band": o.get("urgency_band")}
+                for o in obs
+            ],
+            "production_send_by_dates": [o.get("send_by_date") for o in obs if o.get("send_by_date")],
+            "payment_obligations": [
+                {"required_action": o.get("required_action"), "send_by_date": o.get("send_by_date")}
+                for o in obs if (o.get("clause_family") == "payment_terms_and_kill_fee"
+                                 or (o.get("required_action") or "").lower().find("invoice") >= 0
+                                 or (o.get("required_action") or "").lower().find("payment") >= 0)
+            ],
+        },
+        "human_review_required": True,
+        "note": "Deterministic register from tools/obligations.py; map these onto content-calendar, production-task, and deal-resourcing. A human confirms before any calendar or invoice action.",
+    }, indent=2, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

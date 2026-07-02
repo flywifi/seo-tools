@@ -1,0 +1,31 @@
+{
+  "_comment": "Committed null schema for the obligation register (P23 Phase 3). Real dated obligations live in pipeline/user-context/obligation-register.local.json (gitignored; stays on the creator's machine). This file defines the shape only. The dates are computed offline by tools/obligations.py (send-by, weekend/US-holiday roll-back, urgency bands); the obligation-extract atom supplies the rows. This is organization only, never legal advice.",
+  "_boundary": "RESEARCH NOTES. NOT LEGAL ADVICE. REVIEW WITH A LICENSED ATTORNEY IN YOUR JURISDICTION BEFORE ACTING.",
+  "schema_version": "0.1.0",
+  "contract_ref": null,
+  "deal_id": null,
+  "computed_as_of": null,
+  "lead_days": 3,
+  "obligation_count": 0,
+  "band_counts": {},
+  "obligations": [
+    {
+      "required_action": null,
+      "obligated_party": null,
+      "clause_family": null,
+      "trigger": null,
+      "raw_date": null,
+      "effective_date": null,
+      "send_by_date": null,
+      "urgency_band": "red | orange | yellow | out_of_band | overdue | unknown",
+      "consequence_if_stated": null,
+      "evidence_text": null,
+      "confidence": "explicit | high | medium | low",
+      "provenance": { "source_row": {}, "lead_days": 3, "computed_by": "tools/obligations.py" },
+      "gaps": []
+    }
+  ],
+  "human_review_required": true,
+  "generated_by": "tools/obligations.py",
+  "last_computed": null
+}

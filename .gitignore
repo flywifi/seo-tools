@@ -34,6 +34,9 @@ snapshots-log.json
 # Covered by pipeline/**/*.local.* above; listed here so the intent is explicit: contract TEXT is never committed.
 pipeline/contracts/*.local.json
 pipeline/user-context/deal-playbook.local.json
+# Obligation register (P23 Phase 3): real dated obligations stay local; only the template is committed.
+pipeline/user-context/obligation-register.local.json
+obligations-bucket.manifest.json
 
 # Video editing bridge (P22): generated interchange files + local edit packages
 # (committed: only the *.template.json schema files under pipeline/editing/)

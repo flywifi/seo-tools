@@ -76,8 +76,10 @@ Contract Desk is one master switch plus four features, set in `creator-os-config
   deal's agreed terms. It is always labeled not-vetted and not-binding, never operative legalese, and
   never signed. When off, asking to draft degrades to a summary plus a recommendation to work with a
   professional.
-- `contract_obligations` (a later phase): pulling deadlines onto your calendar. Until it ships, asking
-  for it degrades honestly to flagged action items. Nothing binding is ever produced.
+- `contract_obligations` (Phase 3): pull the deliverables, deadlines, and payment terms out of a
+  signed contract into a dated obligation register, and feed those deadlines to your calendar and
+  production tasks. The date math runs on your computer in Python (no tokens); the register is written
+  only when this flag is on, but the read-only deadline scan always works. See `docs/LOCAL_CONTEXT.md`.
 
 ## What runs where
 
@@ -101,6 +103,9 @@ when it is off, deal-pipeline handles contract-negotiating the way it always has
 - "Draft a plain-language agreement from the terms we agreed" produces the not-binding starting point.
 - "What does the contract say now after all the amendments?" runs the net-current-state version trace.
 - "Bootstrap a playbook from these past contracts" proposes a starting playbook for you to confirm.
+- "Pull the deadlines out of this signed contract" extracts obligations; the register's dates are then
+  computed on your computer (`tools/obligations.py`), never in the model.
+- "What do I need to act on in the next two weeks?" runs the read-only deadline scan.
 
 ## Status
 
@@ -115,5 +120,11 @@ state across contract versions, with exact quotes and the difference labels), an
 deals; proposal-only, never writes your playbook). All three are composed by the contract-desk spoke
 and pass the same non-advisory boundary and quality gate.
 
-Phase 3 (obligation register with deadline date math, wired to the content calendar and production
-tasks) follows later; its switch is in place and default off.
+Phase 3 delivered obligations, timelines, and memory: `obligation-extract` pulls the duties from a
+signed contract into rows; `tools/obligations.py` computes the dated register offline (send-by dates,
+weekend and US-holiday roll-back, urgency bands) so the model spends no tokens on the math, gated by
+`contract_obligations` for the write; `import_obligations` feeds the deadlines to the content calendar,
+production tasks, and invoicing; and `deal-debrief` proposes (never writes) playbook memory after a
+deal closes. All of the creator's real data (contracts, the register, the playbook) stays in gitignored
+`.local` files on the creator's machine, enforced by drift-guard invariant 19 and reported by
+`tools/local_privacy.py`. See `docs/LOCAL_CONTEXT.md`.

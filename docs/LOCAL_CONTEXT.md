@@ -1,0 +1,94 @@
+# Local Context and the Offline Compute Lane
+
+Two promises this document explains and shows how to verify:
+
+1. **Your personal files stay on your computer.** Everything specific to you (your channel stats, your
+   voice, your negotiating playbook, your real contracts, your obligation deadlines, your credentials)
+   lives in files that are never committed to git and never pushed. When the repo updates, those files
+   are left exactly as they are.
+2. **The boring math runs on your computer, not in the model.** Deterministic work (deadline date
+   math, deadline scans, register building, file verification) runs as local Python so it costs no
+   tokens. The model asks for the result and gets it back; it never does the arithmetic itself.
+
+## What stays local (and is never pushed)
+
+Real, personal data lives in gitignored `*.local.*` files. Only blank templates and schemas are
+committed. The committed template shows the shape; your real file sits next to it with `.local` in the
+name and never enters git.
+
+| Committed template (safe, blank) | Your real file (local only, gitignored) |
+|---|---|
+| `pipeline/user-context/channel-context.json` | `channel-context.local.json` |
+| `pipeline/user-context/voice-profile.json` | `voice-profile.local.json` |
+| `pipeline/user-context/creator-profile.template.json` | `creator-profile.local.json` |
+| `pipeline/user-context/content-calendar.json` | `content-calendar.local.json` |
+| `pipeline/user-context/deal-playbook.template.json` | `deal-playbook.local.json` |
+| `pipeline/user-context/obligation-register.template.json` | `obligation-register.local.json` |
+| `pipeline/contracts/contract.template.json` | `pipeline/contracts/<id>.local.json` (raw contract text) |
+| `pipeline/deals/deal-schema.json` | `pipeline/deals/<id>.local.json` |
+| (none) | `api-credentials.local.json`, `google-credentials.local.json`, `microsoft-credentials.local.json` |
+| (none) | `creator-os-config.local.json`, `creator-os-connectors.local.json` |
+
+`git pull` and repo updates never touch these `.local` files (git leaves untracked files alone), so
+updating Creator OS never overwrites or exposes your data.
+
+### The guarantee is enforced, not just promised
+
+- **Drift-guard invariant 19** (`tools/sync_check.py`) fails the build if git is ever found tracking a
+  `*.local.*` file. A stray `git add -A` cannot slip your personal data into a commit.
+- **`python3 tools/local_privacy.py`** prints, in plain English, which files live only on your machine
+  and confirms none are tracked. Run it any time you want reassurance.
+
+```bash
+python3 tools/local_privacy.py       # human-readable report
+python3 tools/sync_check.py          # invariant 19 (and the rest) must pass
+```
+
+If you ever see a warning that a personal file is tracked, stop tracking it with
+`git rm --cached <path>` and commit that removal.
+
+## The offline compute lane
+
+Some work is pure arithmetic and logic: computing when to send an invoice, rolling a deadline off a
+weekend or holiday, sorting deadlines by urgency, verifying a file has not changed. There is no reason
+to spend model tokens on it. Creator OS runs that work locally in Python and hands the result back.
+
+The first realized instance is contract obligations (P23 Phase 3):
+
+- `obligation-extract` (the model) reads a signed contract and lists the duties as rows, quoting the
+  contract.
+- `tools/obligations.py` (local Python, no network, no tokens) takes those rows and computes each
+  obligation's effective date, send-by date (with weekend and US federal holiday roll-back), and
+  urgency band, then writes the register to your local machine.
+- The `import_obligations` handoff hands the computed deadlines to your content calendar, production
+  tasks, and invoicing, so nothing is a parallel calendar.
+
+```bash
+# read-only: what is due and when to act (no writes, always available)
+python3 tools/obligations.py --scan rows.json --today 2026-07-02
+
+# compute and store the dated register (write gated by the contract_obligations flag)
+python3 tools/obligations.py --build rows.json --today 2026-07-02 --write
+
+# verify a register copied between machines (sha256, like the P22 editing bucket)
+python3 tools/obligations.py --manifest --write-manifest obligations-bucket.manifest.json
+python3 tools/obligations.py --verify obligations-bucket.manifest.json
+```
+
+### The reusable pattern
+
+Any future deterministic task follows the same shape, so it also saves tokens and keeps data local:
+
+1. The model produces or reads structured input.
+2. A local Python tool does the deterministic work over gitignored `.local` artifacts.
+3. A sha256 bucket manifest lets an offline copy be verified before the online side trusts it.
+4. An MCP import adapter hands the result back to the model, which interprets it.
+
+This mirrors the P22 video-editing handoff (`tools/sync_editing.py`, `import_edit_artifact`, the
+dashboard `/api/import-report` adapter). The model orchestrates and explains; the computer computes.
+
+## Note
+
+Contract work is legal information, never legal advice. The obligation register organizes dates from a
+signed contract; it does not rule on enforceability. Review anything with legal consequences with a
+qualified professional. See `shared/contract-engine.md` and `protocols/safety.md`.

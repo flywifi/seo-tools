@@ -226,6 +226,39 @@ effective date with a provenance tag, and:
   yellow is 45 to 89, and beyond 89 is out of band. Feed these to the existing join points
   (content-calendar, production-task) rather than a parallel calendar.
 
+## Obligation register (P23 Phase 3)
+
+`obligation-extract` reads a signed contract and emits obligation rows (the schema above). The rows
+are the input to the offline compute lane; the register itself is the dated result. Record shape
+(`pipeline/user-context/obligation-register.template.json`; real data in the gitignored `.local.json`):
+`obligations[]` each carrying the extracted row plus the computed `raw_date`, `effective_date`,
+`send_by_date`, `urgency_band`, `provenance`, and `gaps`; plus `contract_ref`/`deal_id`,
+`computed_as_of`, `lead_days`, `band_counts`, and `last_computed`. The register feeds the existing
+join points, never a parallel calendar: content-calendar (`entries[].publish_target_date`,
+`posts[].ftc_disclosure` via `linked_deal_id`), production-task (D-minus-N offsets from `send_by_date`),
+and deal-resourcing plus invoice-status (payment triggers).
+
+## Offline compute lane (deterministic, token-saving)
+
+The date math above is pure arithmetic, so it runs in code, not in tokens. `tools/obligations.py`
+(pure stdlib, no network) takes the extracted rows and computes send-by dates, weekend and
+US-federal-holiday roll-backward, and urgency bands, then writes the register. It mirrors the P22
+scoop handoff: a `--scan` read-only mode (always available), a flag-gated `--build --write` (the write
+needs `contract_obligations`), and a sha256 bucket manifest (`--manifest` / `--verify`) so an offline
+machine's register can be verified before the online side trusts it. The MCP tools `obligation_build`,
+`obligation_scan`, and `import_obligations` are the online-to-offline bridge: the model calls them, the
+local tool returns the computed register or scan as JSON, and the model never does the arithmetic. The
+general rule: deterministic tasks (date math, rollups, register builds, deadline scans, hash
+verification) run locally over gitignored `.local` artifacts; the LLM orchestrates and interprets;
+results cross back through an import adapter with a hash-verified manifest.
+
+## Playbook memory (deal-debrief)
+
+`deal-debrief` closes the loop after a deal ends: it records why any off-standard term was accepted and
+PROPOSES a playbook update (`update_standard` or `note_exception`), backed by evidence from the deal.
+Like `playbook-bootstrap`, it is proposal-only and never writes `deal-playbook.local.json`; the human
+confirms and saves. It never invents a reason the creator did not give.
+
 ## Inbound triage (GREEN, YELLOW, RED)
 
 `contract-triage` gives an inbound offer a fast verdict before a full review:

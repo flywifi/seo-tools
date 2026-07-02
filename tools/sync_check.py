@@ -34,9 +34,14 @@ Invariants enforced:
   18. Connector capability mapping: every connector in connectors.json that declares a
       requires_capability has that capability mapped in connectors.py
       CAPABILITY_TO_CONNECTOR (no silently-inert capability flags).
+  19. Local-context privacy: no personal *.local.* file (the creator's real context: contract
+      records, obligation register, playbook, channel/voice profile, credentials, config
+      overrides) is tracked by git. Personal data stays on the local machine; only null
+      templates are committed. Runs `git ls-files` read-only; skips cleanly outside a git repo.
 """
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -431,6 +436,37 @@ def check_connector_capability_mapping():
             )
 
 
+LOCAL_FILE_RE = re.compile(r"\.local(\.|$)")
+
+
+def check_local_privacy():
+    """Invariant 19: no personal *.local.* file is tracked by git.
+
+    The creator's real context (contract records, obligation register, deal-playbook,
+    channel/voice profile, credentials, config overrides) lives in gitignored *.local.* files
+    that git pull never touches. This asserts none of them ever entered git, so a stray
+    `git add -A` cannot leak or commit personal data. Read-only; skips cleanly if git is
+    unavailable or this is not a git checkout.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "ls-files"], cwd=str(ROOT), capture_output=True, text=True, timeout=30
+        )
+    except (OSError, subprocess.SubprocessError):
+        return  # git unavailable; cannot check, do not fail
+    if out.returncode != 0:
+        return  # not a git repo; skip cleanly
+    for line in out.stdout.splitlines():
+        path = line.strip()
+        if not path:
+            continue
+        basename = path.rsplit("/", 1)[-1]
+        if LOCAL_FILE_RE.search(basename):
+            problem(
+                f"privacy: personal local file is tracked by git and must be gitignored: {path}"
+            )
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -449,6 +485,7 @@ def main():
     check_workflow_verification()
     check_readonly_mandate()
     check_connector_capability_mapping()
+    check_local_privacy()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

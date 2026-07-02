@@ -2,8 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P23 (Phases 1 to 2) are complete. Drift guard exits 0 (18 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P23 (Phases 1 to 3) are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P23 (Phase 3): obligations, timelines, local-first privacy, and an offline compute lane. Two new
+  atoms: `obligation-extract` (pulls deliverables/deadlines/payment terms from a SIGNED contract into
+  obligation rows using the engine's obligation-row schema; quotes evidence; never computes dates) and
+  `deal-debrief` (proposal-only close-out memory that proposes playbook updates and never writes the
+  playbook). **Offline compute lane** `tools/obligations.py` (pure stdlib, no network) does the
+  deterministic date math the model must not spend tokens on: send-by dates, weekend and US-federal-
+  holiday roll-backward, and urgency bands (red 0 to 13, orange 14 to 44, yellow 45 to 89, overdue,
+  out_of_band); writes `pipeline/user-context/obligation-register.local.json` (gated by
+  `contract_obligations`); `--scan` is read-only and always available; sha256 bucket manifest
+  (`--manifest`/`--verify`) mirrors `tools/sync_editing.py`. Tested deterministically (weekend +
+  Juneteenth/July-4 roll-back, all bands, null-and-flag). MCP tools `obligation_build`,
+  `obligation_scan`, `import_obligations` bridge online-to-offline (the model never does the
+  arithmetic). **Local-first privacy** is now a hard guarantee: drift-guard **invariant 19**
+  (`tools/sync_check.py`) fails if git tracks any personal `*.local.*` file (proven to bite), and
+  `tools/local_privacy.py` reports what stays local. `pipeline/user-context/obligation-register.template.json`
+  committed (null); real register `.local` and gitignored. contract-desk wired (actions `obligations`,
+  `debrief`); `contract_obligations` degraded_behavior updated. Engine gains obligation-register,
+  offline-compute-lane, and deal-debrief notes. New reference doc `docs/LOCAL_CONTEXT.md`. All
+  non-advisory (verbatim RESEARCH NOTES header, human_review_required); nothing signed or sent; the
+  creator's data stays on her machine. P23 is complete (Phases 1 to 3).
 - P23 (Phase 2): contract drafting + version tracking. Three atoms, designed and adversarially
   verified by a workflow (6 agents; all returned pass_with_fixes with zero boundary/binding-language/
   fabrication/dash issues; the small required fixes were applied before writing): `contract-draft`

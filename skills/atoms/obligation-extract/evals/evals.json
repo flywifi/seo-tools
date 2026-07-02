@@ -1,0 +1,51 @@
+[
+  {
+    "id": "obligation-extract-dated-duties",
+    "description": "A signed contract with dated deliverables and net-30 payment yields one row per duty with quoted evidence and the contract's own dates/phrases.",
+    "input": {
+      "contract_text": "SIGNED. Section 3: Creator delivers one dedicated video by 2026-07-11 and one Reel by 2026-07-18. Section 4: Creator may request two revision rounds; Brand approves within 5 business days. Section 5: Brand pays 2,000 USD net 30 from delivery. Section 6: 25 percent kill fee if Brand cancels after signature.",
+      "deal_id": "d-001"
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "obligations": "one row per duty (video delivery, reel delivery, revision window, payment, kill fee); timing_or_deadline carries '2026-07-11', '2026-07-18', and 'net 30 from delivery' verbatim",
+      "next_step": "names tools/obligations.py --build",
+      "human_review_required": true
+    },
+    "prohibit": ["computing a send-by date or urgency band in the atom", "merging two duties into one row", "em dashes", "fabricated dates", "enforceability claims"]
+  },
+  {
+    "id": "obligation-extract-missing-date",
+    "description": "A duty with no stated date is emitted with timing_or_deadline null and listed in missing, never invented.",
+    "input": {
+      "contract_text": "SIGNED. Creator will deliver one video within a reasonable time. Brand will pay upon satisfaction.",
+      "deal_id": "d-002"
+    },
+    "expect": {
+      "obligations": "delivery and payment rows with timing_or_deadline null",
+      "missing": "notes the absent delivery date and payment date/timing",
+      "recommend_counsel": true
+    },
+    "prohibit": ["inventing a date for 'reasonable time' or 'upon satisfaction'", "computing dates", "em dashes"]
+  },
+  {
+    "id": "obligation-extract-unsigned",
+    "description": "An unsigned draft returns empty obligations with a flag to use contract-review first.",
+    "input": {
+      "contract_text": "DRAFT for discussion, not signed. Creator will deliver one video.",
+      "deal_id": "d-003"
+    },
+    "expect": {
+      "obligations": "empty array",
+      "retrieval_gaps": "flags that the contract is not signed; obligation extraction runs on signed contracts; use contract-review before signing"
+    },
+    "prohibit": ["extracting obligations from an unsigned draft as if final", "em dashes"]
+  },
+  {
+    "id": "obligation-extract-no-source",
+    "description": "Neither contract_text nor deal_id returns a structured error.",
+    "input": { "focus": "payment" },
+    "expect": { "error": "no_source", "message": "present, asks for contract_text or deal_id" },
+    "prohibit": ["fabricated obligations", "any output without a source", "em dashes"]
+  }
+]

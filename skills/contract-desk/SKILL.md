@@ -32,11 +32,12 @@ committing money (see `shared/contract-engine.md` and `protocols/safety.md`).
   (`amendment-trace`): net current state across contract versions.
 - `contract_drafting`: enables the Phase 2 plain-language draft assembly (`contract-draft`); the draft
   is always not-vetted, not-binding, and never signed.
-- `contract_obligations` (Phase 3): the obligation register is not built yet. Requests for it degrade
-  honestly to flagged action items plus a recommendation to proceed with a qualified professional (see
-  `creator-os-config.json` degraded_behavior).
-- `playbook-bootstrap` (proposal-only playbook setup) is gated by the `contract_management` master and
-  never writes the playbook.
+- `contract_obligations` (Phase 3): enables `obligation-extract` (pull duties from a signed contract
+  into rows) and the offline obligation register. The date math (send-by, weekend and US-holiday
+  roll-back, urgency bands) runs in local Python via `tools/obligations.py`, not in tokens; the
+  register write is gated by this flag while the read-only scan is always available.
+- `playbook-bootstrap` and `deal-debrief` (proposal-only playbook setup and close-out memory) are
+  gated by the `contract_management` master and never write the playbook.
 
 ## What is delivered
 
@@ -50,13 +51,21 @@ starting point from the playbook and the deal's agreed terms; `amendment-trace` 
 net-current-state view across contract versions; and `playbook-bootstrap` proposes (never writes) a
 starting playbook from example contracts or nudges an off-standard default from recent deals.
 
+Phase 3 adds obligations and memory: `obligation-extract` pulls the deliverables, deadlines, and
+payment terms out of a signed contract into rows; `tools/obligations.py` then computes the dated
+register offline (send-by dates, weekend and US-holiday roll-back, urgency bands) so the model spends
+no tokens on arithmetic, and the register feeds the content-calendar, production-task, and
+deal-resourcing join points through the `import_obligations` handoff. `deal-debrief` closes the loop
+after a deal ends by proposing (never writing) playbook memory updates. The register and all real
+contract data stay in gitignored `.local` files on the creator's machine.
+
 ## Inputs
 
 | Field | Required | Notes |
 |---|---|---|
 | `contract_text` | one of these | the raw contract or offer text |
 | `deal_id` | one of these | read the linked contract from `pipeline/contracts/` and the deal from `pipeline/deals/` |
-| `action` | required | one of: `triage`, `review`, `trace`, `legal_check`, `escalate`, `draft`, `full`, `playbook_setup` |
+| `action` | required | one of: `triage`, `review`, `trace`, `legal_check`, `escalate`, `draft`, `obligations`, `debrief`, `full`, `playbook_setup` |
 | `deal_context` | optional | fee, category, sponsorship type, brand name; never invented |
 
 Supply `contract_text` or `deal_id`. The spoke reads the creator's positions from the deal-playbook
@@ -81,6 +90,13 @@ Phase 2:
   source precedence from `shared/contract-engine.md`; quotes exactly, flags conflicts.
 - `playbook-bootstrap` -- proposal-only: bootstrap a starting playbook from example contracts, or
   nudge an off-standard default from recent deals; never writes the playbook (the human confirms).
+
+Phase 3:
+- `obligation-extract` -- pulls deliverables, deadlines, and payment terms from a signed contract into
+  obligation rows (one per duty, quoted evidence); hands them to `tools/obligations.py` for the offline
+  date math; never computes dates or writes the register itself.
+- `deal-debrief` -- proposal-only close-out memory: records why off-standard terms were accepted and
+  proposes playbook updates; never writes the playbook.
 
 Reused and governance:
 - `usage-rights-check` and `exclusivity-check` -- the extraction and conflict-detection core.
