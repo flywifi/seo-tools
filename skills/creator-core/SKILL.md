@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -71,6 +71,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `content_ideation` | Content | `content-strategy` | brainstorming, pillar mapping, topic generation |
 | `project_planning` | Content | `project-builder` | DIY project planning, materials, steps |
 | `video_script` | Content | `video-development` | scripts, hooks, b-roll notes, captions |
+| `footage_breakdown` | Content | `video-development` | chapter and cut-point suggestions from raw-footage transcripts (footage-analysis atom) |
 | `repurposing` | Content | `shortform-repurposing` | Shorts, Reels, TikTok, Pinterest from long-form |
 | `seo_research` | Content | `seo-keywords` | keyword research, topical authority, SERP analysis |
 | `analytics_review` | Content | `analytics-insights` | performance review, trend interpretation |

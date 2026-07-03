@@ -194,27 +194,13 @@ def op_transcripts_parse(withp, clock, prior):
 
 
 def op_gap_metrics(withp, clock, prior):
-    """Runner-owned inter-segment silence computation. Evidence for a gap finding only: this
-    demonstrates the raw material for chapter/cut proposals exists in the transcript data while
-    no product tool computes it."""
+    """Delegates to the product capability shared/docintel/transcripts.gap_metrics (P28)."""
     parsed = withp["parsed"]
     segs = parsed.get("segments", [])
     min_gap = float(withp.get("min_gap_seconds", 5.0))
-    silences = []
-    for i in range(1, len(segs)):
-        gap = round(float(segs[i]["start"]) - float(segs[i - 1]["end"]), 3)
-        if gap >= min_gap:
-            silences.append({
-                "after_segment": i - 1,
-                "gap_seconds": gap,
-                "from_end": segs[i - 1]["end"],
-                "to_start": segs[i]["start"],
-            })
-    return {
-        "silences": silences,
-        "min_gap_seconds": min_gap,
-        "computed_by": "tools/scenario_check.py (evidence only, not a product capability)",
-    }
+    result = transcripts.gap_metrics(segs, min_gap)
+    result["computed_by"] = "shared/docintel/transcripts.gap_metrics"
+    return result
 
 
 def op_fan_out(withp, clock, prior):

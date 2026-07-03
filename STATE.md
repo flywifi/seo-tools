@@ -2,8 +2,20 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P27 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P28 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P28: transcript-to-chapters capability shipped and gaps G9 + G10 closed (the scenario suite now
+  declares 8 gaps, all observed). `shared/docintel/transcripts.py` gained `gap_metrics()`
+  (inter-segment silence detection, promoted from the runner-owned evidence code the P26 S-0 spike
+  validated) and `suggest_chapters()` (chapter boundaries from silences plus words_per_minute
+  drops; titles always null, never invented), plus `--gap-metrics` and `--suggest-chapters` CLI
+  flags. `tools/scenario_check.py` `op_gap_metrics` now delegates to the product function. New
+  `footage_breakdown` classification routes to `video-development`; new `footage-analysis` atom
+  (shortcut on video-development) is the realizer: local timing math, model names chapters from
+  transcript text only, `human_review_required: true`. Scenario S5 flipped from ambiguous to
+  present routing and its silence leg asserts the product `computed_by`. Zero new dependencies;
+  the P26 media-tool shortlist (PySceneDetect, ffmpeg, auto-editor, PyAV) remains a future
+  integration phase above this stdlib floor. Ledger: `P28-transcript-chapters-footage-routing`.
 - P27: evidence governance patterns adopted from the maintainer's prior meeting-evidence system
   (reviewed offline; the source document itself is not committed). Five additive changes: the
   five-mode evidence acquisition ladder (connectors.md + connectors.json v0.2.0

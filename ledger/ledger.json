@@ -70,7 +70,13 @@
       "date": "2026-07-03",
       "decision": "Adopted five governance patterns from the maintainer's prior meeting-evidence system (reviewed offline; source document not committed): (1) a five-mode evidence acquisition ladder (direct_connector / export_bundle / excerpt_only / internal_context_only / hybrid_reconciliation) added to the connector model and registry; (2) a field-level memory safety model (raw / conditional / derived_reviewed / safe write classes) added to the pipeline engine; (3) identity confidence separated from claim confidence in the verification envelope; (4) artifact_completeness (minimal/partial/rich) plus per-item provenance required on evidence bundles; (5) explicit stop conditions as first-class workflow outcomes, implemented in deal-review.js.",
       "rationale": "The patterns operationalize the existing no-fabrication and human-review protocols at finer granularity: silent downgrades, identity laundering via strong claims, and confident-wrong CRM writes were previously discouraged by prose but not structurally named. All changes are additive; no schema field was removed and drift guard invariants 14 to 17 are unaffected."
+    },
+    {
+      "id": "P28-transcript-chapters-footage-routing",
+      "date": "2026-07-03",
+      "decision": "Closed scenario-suite gaps G9 and G10. Promoted the stdlib SRT pause analysis (proven in the P26 S-0 spike and previously runner-owned evidence code) into product capability: shared/docintel/transcripts.py gained gap_metrics() (inter-segment silence detection) and suggest_chapters() (chapter boundary proposal from silences plus words_per_minute drops; titles always null, named by the model or human from transcript text). Added the footage_breakdown routing classification to creator-core (Content lane, video-development spoke) and a footage-analysis atom as the realizer. tools/scenario_check.py op_gap_metrics now delegates to the product function; scenario S5 flipped from ambiguous routing with G9/G10 evidence legs to a present-routing product assertion.",
+      "rationale": "P26 shortlisted media tools (PySceneDetect, ffmpeg, auto-editor, PyAV) for a future integration phase but proved the zero-dependency stdlib floor recovers the authored silence structure exactly. Shipping the floor first gives the raw-footage breakdown request an honest, offline, zero-token capability today and preserves the degradation chain the P26 report specified (tool -> ffmpeg-only -> stdlib floor). Media tool integration remains a future phase; no new dependency, flag, or connector was added."
     }
   ],
-  "updated": "2026-07-02"
+  "updated": "2026-07-03"
 }

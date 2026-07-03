@@ -62,23 +62,12 @@
       "title": "Benchmark coverage: benchmarks.json has 2 dedicated-video rate rows and zero of benchmark-compare's 6 metric rows (ctr, avd, engagement_rate, views, subscribers, rpm with low/high/unit)",
       "probe": { "op": "text.probe", "with": { "file": "canonical-sources/rate-benchmarks/benchmarks.json", "pattern": "\"low\"|\"unit\"|engagement_rate|\"rpm\"", "expect": "absent" } },
       "scenarios": ["S4-mediakit-critique"]
-    },
-    {
-      "id": "G9",
-      "title": "No transcript-to-chapters/cuts capability: nothing proposes chapters or cut points from transcript timecodes; no pause/WPM/filler analysis; short-extract consumes outlines, not timecodes",
-      "probe": [
-        { "op": "text.probe", "with": { "file": "tools/videoedit/chapters.py", "pattern": "pause|silence|words_per_minute", "expect": "absent" } },
-        { "op": "text.probe", "with": { "file": "shared/docintel/transcripts.py", "pattern": "pause|silence|words_per_minute", "expect": "absent" } }
-      ],
-      "scenarios": ["S5-raw-footage"]
-    },
-    {
-      "id": "G10",
-      "title": "No dedicated routing for raw-footage breakdown (ambiguous between repurposing and the videoedit import path)",
-      "probe": { "op": "routing.probe", "with": { "classification": "footage_breakdown", "expect": "absent" } },
-      "scenarios": ["S5-raw-footage"]
     }
   ],
+  "_closed_gaps": {
+    "G9": "Closed by P28: shared/docintel/transcripts.py gap_metrics() and suggest_chapters() provide pause/silence and words_per_minute analysis from transcript timecodes.",
+    "G10": "Closed by P28: footage_breakdown classification routes to video-development (footage-analysis atom)."
+  },
   "scenarios": [
     {
       "id": "S1-contact-lookup",
@@ -223,9 +212,9 @@
       "id": "S5-raw-footage",
       "utterance": "here's raw footage, break it down: what should the chapters be and what should I cut?",
       "routing": {
-        "mode": "ambiguous",
-        "present": [ { "classification": "repurposing", "spoke": "shortform-repurposing" } ],
-        "absent_classifications": ["footage_breakdown"]
+        "mode": "present",
+        "present": [ { "classification": "footage_breakdown", "spoke": "video-development" } ],
+        "absent_classifications": []
       },
       "legs": [
         {
@@ -239,14 +228,14 @@
           ]
         },
         {
-          "id": "footage-silence-evidence",
+          "id": "footage-silences",
           "op": "transcripts.gap_metrics",
           "with": { "parsed": { "$from": "footage-parse" }, "min_gap_seconds": 8.0 },
-          "evidence_for": "G9",
           "assert": [
             { "path": "silences", "check": "len_eq", "value": 3 },
             { "path": "silences[0].gap_seconds", "check": "eq", "value": 12.5 },
-            { "path": "silences[2].gap_seconds", "check": "eq", "value": 20.0 }
+            { "path": "silences[2].gap_seconds", "check": "eq", "value": 20.0 },
+            { "path": "computed_by", "check": "eq", "value": "shared/docintel/transcripts.gap_metrics" }
           ]
         },
         {
@@ -268,7 +257,7 @@
           ]
         }
       ],
-      "known_gaps": ["G9", "G10"]
+      "known_gaps": []
     }
   ]
 }

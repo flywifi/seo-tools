@@ -39,7 +39,7 @@ The run fails loudly in BOTH directions:
 | S2 | "where are we with that lightbulb company contract?" | partial: `contract_obligations` covers the timeline half; no `account_read` / `deal_status`, no category resolver for "lightbulb" | The full obligations lane on a fictional lighting brand: register build, weekend roll-back, net-30 anchor derivation, urgency bands, action-queue ordering |
 | S3 | "what's the market going to look like for the holiday season and what should I start doing to prepare?" | present: `seasonal_planning` routes to `seasonal-trends` | All 16 seasonal publish-by deadlines (hand-transcribed from the engine's prose table) through the obligations date math: band counts, roll-backs, prep queue ordered by urgency |
 | S4 | "here's my media kit, do market research and give me critiques" | ambiguous: `media_kit` (generation only) vs `quality_check`; no `content_critique` | The deterministic Quality Gates verdict arithmetic (releasable and integrity hard-fail cases) and the two rate-benchmark rows that exist |
-| S5 | "here's raw footage, break it down: chapters and what to cut" | ambiguous: `repurposing` vs the videoedit import path; no `footage_breakdown` | Transcript parsing (20 segments, exact duration), chapter fan-out and YouTube-rule validation on an authored chapter list, plus runner-computed silence evidence (three 8-to-20 second gaps) |
+| S5 | "here's raw footage, break it down: chapters and what to cut" | present: `footage_breakdown` routes to `video-development` (P28; footage-analysis atom) | Transcript parsing (20 segments, exact duration), product silence detection via `shared/docintel/transcripts.gap_metrics` (three 8-to-20 second gaps), chapter fan-out and YouTube-rule validation on an authored chapter list |
 
 ## Gap ledger (the later-phase backlog)
 
@@ -57,8 +57,13 @@ ledger and the contract are updated together.
 | G6 | Seasonal publish-by deadlines are prose-only with 3 non-reconciled copies (engine table, `seasonal.json` relative windows, seasonal-map table); no machine-readable ISO source | S3 |
 | G7 | No media-kit critique path: `media_kit` routes to a generation-only spoke; `quality_check` scores internal gates, not market position; no `content_critique` classification | S4 |
 | G8 | Benchmark coverage: `benchmarks.json` has 2 dedicated-video rate rows and zero of benchmark-compare's 6 metric rows (ctr, avd, engagement_rate, views, subscribers, rpm) | S4 |
-| G9 | No transcript-to-chapters/cuts capability: nothing proposes chapters or cut points from transcript timecodes; no pause/WPM/filler analysis anywhere; short-extract consumes outlines, not timecodes | S5 |
-| G10 | No dedicated routing for raw-footage breakdown | S5 |
+
+### Closed gaps
+
+| ID | Gap | Closed by |
+|---|---|---|
+| G9 | No transcript-to-chapters/cuts capability: nothing proposed chapters or cut points from transcript timecodes; no pause/WPM/filler analysis anywhere | P28: `shared/docintel/transcripts.py` gained `gap_metrics()` (inter-segment silences) and `suggest_chapters()` (silence plus words_per_minute boundary proposal); the runner's S5 leg now asserts the product function, not runner-owned evidence |
+| G10 | No dedicated routing for raw-footage breakdown | P28: `footage_breakdown` classification routes to `video-development`; the `footage-analysis` atom is the realizer |
 
 ## What the suite deliberately does not do
 

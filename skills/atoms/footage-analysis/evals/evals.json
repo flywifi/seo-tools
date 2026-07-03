@@ -1,0 +1,59 @@
+[
+  {
+    "test_id": "footage-analysis-srt-happy-path",
+    "description": "SRT transcript with engineered silences yields cut candidates and proposed chapters",
+    "input": {
+      "transcript_path": "skills/creator-core/evals/fixtures/workshop-footage.srt",
+      "min_gap_seconds": 8.0
+    },
+    "expected_output_keys": ["cut_candidates", "proposed_chapters", "timing_source", "human_review_required"],
+    "assertions": [
+      "cut_candidates has exactly 3 entries with gap_seconds 12.5, 8.5, and 20.0",
+      "every proposed chapter has a basis of silence, wpm_drop, or both",
+      "chapter titles are named from transcript text only",
+      "human_review_required is true",
+      "no fabricated timecodes"
+    ]
+  },
+  {
+    "test_id": "footage-analysis-defaults",
+    "description": "minimal input (path only) applies default thresholds",
+    "input": {
+      "transcript_path": "skills/creator-core/evals/fixtures/workshop-footage.srt"
+    },
+    "expected_output_keys": ["cut_candidates", "proposed_chapters", "timing_source"],
+    "assertions": [
+      "min_gap_seconds defaults to 8.0 for chapter suggestion and is reported in output",
+      "timing_source names shared/docintel/transcripts.py",
+      "output is valid against the SKILL.md contract"
+    ]
+  },
+  {
+    "test_id": "footage-analysis-untimed-transcript",
+    "description": "plain-text transcript with no timecodes degrades honestly",
+    "input": {
+      "transcript_path": "a-plain-text-transcript.txt"
+    },
+    "expected_output_keys": ["timing_unavailable", "human_review_required"],
+    "assertions": [
+      "timing_unavailable is true",
+      "cut_candidates is empty or absent, never invented",
+      "output offers a topic-only outline clearly labeled as untimed",
+      "no fabricated fallback data"
+    ]
+  },
+  {
+    "test_id": "footage-analysis-no-silences",
+    "description": "dense speech with no gaps at threshold returns empty candidates with a note",
+    "input": {
+      "transcript_path": "a-dense-speech.srt",
+      "min_gap_seconds": 8.0
+    },
+    "expected_output_keys": ["cut_candidates", "notes"],
+    "assertions": [
+      "cut_candidates is an empty list",
+      "notes state no silences met the threshold",
+      "threshold is not lowered silently to force candidates"
+    ]
+  }
+]
