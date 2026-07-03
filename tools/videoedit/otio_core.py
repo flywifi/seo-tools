@@ -75,6 +75,8 @@ def merge(base: dict, incoming: dict) -> dict:
     bt["roles"] = sorted(set(bt["roles"]) | set(it["roles"]))
     base["gaps"] = _union(base.get("gaps", []), incoming.get("gaps", []),
                           lambda g: (g.get("gap_type", ""), g.get("description", "")))
+    if incoming.get("reframe", {}).get("enabled") and not base.get("reframe", {}).get("enabled"):
+        base["reframe"] = incoming["reframe"]
     if it.get("name") and not bt.get("name"):
         bt["name"] = it["name"]
     return base

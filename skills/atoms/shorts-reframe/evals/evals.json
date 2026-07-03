@@ -1,0 +1,69 @@
+[
+  {
+    "test_id": "shorts-reframe-geometry-golden",
+    "description": "16:9 source to 9:16 returns the P26 golden crop",
+    "input": {
+      "source_width": 1280,
+      "source_height": 720,
+      "aspect": "9:16"
+    },
+    "expected_output_keys": ["crop_exact", "crop", "ffmpeg_filter", "computed_by"],
+    "assertions": [
+      "crop_exact width is 405.0",
+      "even crop is 404x720 at x=438, y=0",
+      "computed_by is reframe.crop_geometry",
+      "no rectangle is model-computed"
+    ]
+  },
+  {
+    "test_id": "shorts-reframe-flag-off",
+    "description": "render request with shorts_reframe off refuses but keeps geometry",
+    "input": {
+      "source_width": 1920,
+      "source_height": 1080,
+      "media_path": "clip.mp4",
+      "start_seconds": 10.0,
+      "end_seconds": 40.0,
+      "out_path": "short.mp4"
+    },
+    "expected_output_keys": ["crop", "rendered", "gaps"],
+    "assertions": [
+      "rendered is false with gap_type flag_off",
+      "the gap points at degraded_behavior.shorts_reframe_disabled",
+      "crop parameters are still returned and stated valid"
+    ]
+  },
+  {
+    "test_id": "shorts-reframe-no-backend",
+    "description": "flag on but neither MoviePy nor ffmpeg present degrades honestly",
+    "input": {
+      "source_width": 1280,
+      "source_height": 720,
+      "media_path": "clip.mp4",
+      "start_seconds": 0.0,
+      "end_seconds": 20.0,
+      "out_path": "short.mp4"
+    },
+    "expected_output_keys": ["rendered", "backend_chain", "gaps"],
+    "assertions": [
+      "rendered is false with gap_type no_backend",
+      "backend_chain records moviepy then ffmpeg attempts with reasons",
+      "recommended next step names both install options and the editor-side crop"
+    ]
+  },
+  {
+    "test_id": "shorts-reframe-off-center",
+    "description": "explicit x_center shifts the window and clamps in frame",
+    "input": {
+      "source_width": 1280,
+      "source_height": 720,
+      "aspect": "9:16",
+      "x_center": 1280
+    },
+    "expected_output_keys": ["crop"],
+    "assertions": [
+      "crop x clamps at the right edge (876 for a 404-wide crop)",
+      "crop never leaves the source frame"
+    ]
+  }
+]

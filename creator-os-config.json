@@ -160,8 +160,8 @@
     },
     "shorts_reframe": {
       "enabled": false,
-      "description": "Feature 3. Choose Shorts clip ranges from the transcript and emit a 9:16 edit-package with an Auto Reframe directive. Reuses the short-extract atom. Auto Reframe itself is a UI-only editor step; the spec requests it and the result rides back in on export.",
-      "requires": "video_editing_enabled for file output. Range selection reuses short-extract."
+      "description": "Feature 3. Turn a chosen Shorts clip range into a vertical frame. Crop geometry is pure math (tools/videoedit/reframe.py, always available); with this flag on, a local render runs via MoviePy when installed or the ffmpeg crop filter, both optional and runtime-detected. Range selection reuses the short-extract atom; the shorts-reframe atom does the geometry and render.",
+      "requires": "Nothing for crop geometry. For a local render: this flag plus MoviePy (pip) or ffmpeg on PATH; see requirements-videoedit.txt."
     },
     "marker_intel_import": {
       "enabled": false,
@@ -218,7 +218,7 @@
     "mcp_server_disabled": "All MCP tools (cache_query, competitor_scan, etc.) are unavailable. Use knowledge-only spokes. Competition estimates remain [estimated]. Source staleness cannot be checked automatically.",
     "competitor_snapshots_disabled": "deep-competitor-scan falls back to live web-intel-engine mode. No ytInitialPlayerResponse tag extraction. Output labeled [web-mode: no snapshot saved].",
     "keyword_cache_disabled": "keyword lookups use in-context knowledge from canonical-sources/ loaded into the system. Slower and token-intensive. Build the cache for faster results.",
-    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null — not provided]. Never fabricated.",
+    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null \u2014 not provided]. Never fabricated.",
     "voice_profile_disabled": "Scripts and captions use seed vocabulary from voice-engine.md. Personalized phrases from actual content are not available yet.",
     "channel_context_disabled": "Rate recommendations use industry benchmark ranges from canonical-sources/rate-benchmarks. Not grounded in actual channel performance.",
     "wolfram_disabled": "Exact computation unavailable. Arithmetic results are best-effort estimates labeled [estimated]. Never present unverified arithmetic as precise.",
@@ -236,7 +236,7 @@
     "resolve_scripting_disabled": "resolve_scripting is off, or DaVinci Resolve Studio is not installed/running. The system cannot drive Resolve live (no scripted timeline import, markers, or render-queue control). It degrades to file interchange: it generates FCPXML/OTIO for the creator to import by hand. Note: external Resolve scripting requires the paid Studio edition.",
     "fcpxml_timeline_export_disabled": "fcpxml_timeline_export is off. The system will not generate a timeline scaffold file. It still describes the intended timeline (markers, chapters, titles) as a spec the creator can build manually or enable this flag to auto-generate.",
     "caption_roundtrip_disabled": "caption_roundtrip is off. Captions are not converted to/from editor formats. Transcripts and caption text are still produced; convert to SRT/iTT manually or enable this flag.",
-    "shorts_reframe_disabled": "shorts_reframe is off. The system still recommends Shorts clip ranges and hooks (short-extract) but does not emit a 9:16 reframe edit-package. Cut the Shorts manually or enable this flag.",
+    "shorts_reframe_disabled": "shorts_reframe is off. Clip ranges and hooks are still recommended (short-extract) and the 9:16 crop parameters are still computed and emitted into the edit-package (shorts-reframe geometry); no local render happens. Apply the crop in the editor or enable this flag.",
     "marker_intel_import_disabled": "marker_intel_import is off. Exported FCPXML markers/keywords are not parsed back into the system. Chapters and shot logs must be entered manually, or enable this flag to import them from the editor.",
     "compressor_presets_disabled": "compressor_presets is off. Platform export presets are described but not run. Export from the editor manually using the recommended specs, or enable this flag (needs Compressor on macOS or the Resolve render queue).",
     "motion_template_fill_disabled": "motion_template_fill is off. Title/lower-third copy is generated but not injected into Motion templates via FCPXML. Type it into the editor manually or enable this flag (macOS + FCP).",
@@ -249,5 +249,5 @@
     "contract_obligations_disabled": "contract_obligations is off. obligation-extract can still pull duties into rows and tools/obligations.py --scan can compute a read-only deadline view (send-by dates, weekend/US-holiday roll-back, urgency bands) in local Python, but the dated obligation register is NOT written to pipeline/user-context/obligation-register.local.json and is not synced to the content calendar or production tasks. Turn the flag on to persist the register; the date math runs offline either way (no tokens).",
     "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage."
   },
-  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
+  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
 }

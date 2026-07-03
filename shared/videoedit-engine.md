@@ -1,9 +1,9 @@
 # Video Editing Engine
 
 Canonical knowledge layer for the Creator OS video-editing bridge (P22). Loaded by the editing
-atoms (`edit-timeline-spec`, `fcpxml-parse`, `caption-bridge`, `shorts-edit-spec`, `chapter-map`,
-`compressor-preset`, `motion-fill`, `commandpost-macro`, `resolve-drive`) and realized by
-`tools/videoedit/`. Internal engine doc; may use em dashes freely.
+atoms (`edit-timeline-spec`, `fcpxml-parse`, `caption-bridge`, `shorts-reframe`, `chapter-map`,
+`silence-scan`, `scene-scan`, `compressor-preset`, `motion-fill`, `commandpost-macro`,
+`resolve-drive`) and realized by `tools/videoedit/`. Internal engine doc; may use em dashes freely.
 
 ## The design in one paragraph
 
@@ -104,6 +104,18 @@ Provenance contract: every result carries `computed_by` (the backend that actual
 human or the model names them from real content). `mediaprobe.to_edit_package` folds results
 into the shared edit-package as markers; pending titles are recorded in `gaps[]`. Atoms:
 `silence-scan`, `scene-scan`; `footage-analysis` composes them when media is present.
+
+## Shorts reframe (feature 3)
+
+`tools/videoedit/reframe.py` realizes the reframe in two halves. Geometry (always available, no
+flag, pure math): `crop_geometry` computes the centered or offset crop rectangle for the target
+aspect, returns exact and even-rounded dimensions (H.264 needs even sizes), and
+`reframe_package` emits the edit-package `reframe` block, which `otio_core.merge` adopts without
+clobbering an existing enabled directive. Render (flag-gated on `shorts_reframe`): MoviePy v2
+when installed, else the ffmpeg crop filter, else an honest refusal whose `gaps[]` entry states
+the crop parameters remain valid for the editor to apply. Center-crop only; subject tracking is
+out of scope, and editor-side Auto Reframe stays the UI-only alternative documented below.
+Clip range selection is `short-extract`'s job; the atom here is `shorts-reframe`.
 
 ## Compressor (feature 5)
 
