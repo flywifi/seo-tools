@@ -76,10 +76,13 @@ Load the deal record and linked account for deal ID: "${dealId}"
 
 1. Search pipeline/deals/ for a JSON file matching this deal ID.
 2. Read the deal record. If not found, return deal_id with stage_ready: false and
-   note "deal_not_found" in evidence_gaps.
+   note "deal_not_found" in evidence_gaps. If MORE THAN ONE record plausibly matches,
+   do not pick one: note "deal_ambiguous" in evidence_gaps and list the candidates in
+   open_flags. Unknown over false certainty.
 3. Extract the linked account ID from the deal record.
 4. Search pipeline/accounts/ for the linked account. If not found, note
-   "account_not_found" in evidence_gaps.
+   "account_not_found" in evidence_gaps. If the linkage is ambiguous, note
+   "account_link_unknown" instead of guessing a brand.
 5. Read shared/pipeline-engine.md for the stage-transition rules and evidence requirements.
 6. Report what stage the deal is in and what evidence fields are required for that stage.
 
@@ -95,6 +98,13 @@ if (!context) {
 if (context.evidence_gaps && context.evidence_gaps.includes('deal_not_found')) {
   log(`Deal ${dealId} not found in pipeline/deals/.`)
   return context
+}
+
+// Stop condition: target ambiguous. A review of the wrong deal is worse than no review
+// (research-orchestration-engine.md, Explicit stop conditions).
+if (context.evidence_gaps && context.evidence_gaps.some(g => g === 'deal_ambiguous' || g === 'account_link_unknown')) {
+  log(`Stop condition hit: target ambiguous (${context.evidence_gaps.join(', ')}). Routing to human review.`)
+  return { ...context, status: 'stopped_target_ambiguous', human_review_required: true }
 }
 
 // Phase 2: Audit — usage rights and exclusivity run in parallel
@@ -146,6 +156,18 @@ All data from pipeline/ records only. Never fabricate deal IDs or brand names.`,
 
 const usageRights = auditResults[0]
 const exclusivity = auditResults[1]
+
+// Stop condition: evidence too thin. With both audit tracks dead there is nothing to
+// verify or score; continuing would produce a verdict from the Load context alone.
+if (!usageRights && !exclusivity) {
+  log('Stop condition hit: both audit agents returned nothing. Routing to human review.')
+  return {
+    deal_id: dealId,
+    status: 'stopped_evidence_too_thin',
+    human_review_required: true,
+    evidence_gaps: [...(context.evidence_gaps || []), 'usage_rights_audit_failed', 'exclusivity_audit_failed'],
+  }
+}
 
 // Phase 3: Verify — cross-verify usage rights against exclusivity for contradictions
 phase('Verify')

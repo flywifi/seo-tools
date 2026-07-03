@@ -112,6 +112,36 @@ web_intel_crawl > manual_paste > uploaded_file`
 
 ---
 
+## Evidence acquisition modes (the degradation ladder)
+
+Beyond per-connector fallback, every evidence request resolves to one of five **acquisition modes**.
+The mode is declared in the execution trace, and every step down the ladder records what confidence
+was lost — a downgrade is never silent. The registry carries the machine-readable copy in
+`connectors.json` under `evidence_modes`.
+
+| Mode | Use when | Inputs accepted | Required transforms | Primary weakness |
+|---|---|---|---|---|
+| A. `direct_connector` | A platform API or native integration is `available` and fresh data is needed | API responses via the host AI's native integration or MCP | Normalize ids; convert timestamps to ISO 8601; preserve source links | Coverage limits per connector (see restricted evidence) |
+| B. `export_bundle` | No live connector, but the creator has exported files | CSV/JSON analytics exports, media files, .zip bundles via `uploaded_file` | Parse the bundle; infer metadata from filenames or headers; mark unknowns explicitly | Loses platform-level metadata that only the API returns |
+| C. `excerpt_only` | Only pasted text, a screenshot description, or a partial excerpt exists | `manual_paste` fragments, quoted snippets, single-value answers | Create a pseudo-record; flag missing fields; keep sentence-level provenance where possible | No way to validate against the original artifact; weaker timing and identity confidence |
+| D. `internal_context_only` | No new external evidence at all; only existing records | `pipeline/` records, `*.local.json` context, prior conversation notes | Treat as secondary evidence; never imply retrieval or platform certainty | Cannot support claims that need fresh external data |
+| E. `hybrid_reconciliation` | Several partial sources exist and gaps must be filled across them | Any mix of modes A to D | Reconcile source trust; keep primary vs corroborating support separate; surface conflicts instead of merging them | Requires explicit conflict handling and freshness checks |
+
+Mode rules:
+- **Declare the mode** on every evidence bundle an atom or agent produces, alongside the
+  provider chain the resolver returned.
+- **Grade completeness.** Every bundle carries `artifact_completeness: minimal | partial | rich`
+  (derived from what the mode could actually see), so downstream consumers can gate on it
+  instead of assuming the bundle is whole.
+- **Weakness is part of the contract.** When reporting evidence acquired below mode A, state the
+  mode's primary weakness in the confidence basis — for example, mode C evidence cannot support
+  claims that depend on playback, exact timestamps, or speaker identity.
+- **Hybrid keeps sources apart.** In mode E, a claim keeps its strongest single source as
+  `primary` and lists others as `corroborating`; conflicting sources produce a conflict entry
+  (minority report), never an average.
+
+---
+
 ## Deployment mode matrix
 
 | Connector | Option A (Desktop+MCP) | Option B (Projects) | Option C (GPT API) | Option D (ChatGPT Web) | Option E (Gemini) |

@@ -2,8 +2,17 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P26 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P27 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P27: evidence governance patterns adopted from the maintainer's prior meeting-evidence system
+  (reviewed offline; the source document itself is not committed). Five additive changes: the
+  five-mode evidence acquisition ladder (connectors.md + connectors.json v0.2.0
+  `evidence_modes`), the field-level memory safety model and write stop conditions
+  (pipeline-engine.md), identity confidence split from claim confidence plus
+  `artifact_completeness` (verification-envelope.json, exposed in deal-review.json), the
+  unknown-over-false-certainty and explicit-stop-conditions rules
+  (research-orchestration-engine.md Section 7), and two concrete stop gates in deal-review.js
+  (target ambiguous; evidence too thin). Ledger: `P27-evidence-governance-patterns`.
 - P26: open-source video tooling evaluation (evaluation only; no integration, no flag changes; G9
   and G10 stay open and the scenario probes still observe them). 15 candidates scored against the
   two-lane videoedit architecture with a 9-criterion rubric; 7 hands-on spikes against synthetic

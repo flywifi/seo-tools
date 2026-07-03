@@ -1,8 +1,16 @@
 {
   "_comment": "Creator OS connector registry + feature-flag contract. Each connector declares the normalized EVIDENCE it can provide so an atom can use whatever is available and DEGRADE via alternates when one is off. Offline contract only — we build NO provider auth/API clients here. Live retrieval is realized by the host AI's native integration (Claude / OpenAI / Gemini) when the deployment has connected it, or via manual_paste / uploaded_file. A deployment may RESTRICT specific evidence even when a connector is active (see per-deployment 'restricted_evidence' + reason); atoms then take what they can get and look elsewhere. Prose: connectors.md. Per-deployment flags: feature-flags.example.json.",
-  "version": "0.1.0",
-  "updated": "2026-06-30",
-  "states": ["available", "disabled", "not_installed", "permission_blocked", "metadata_only", "unsupported", "unknown"],
+  "version": "0.2.0",
+  "updated": "2026-07-03",
+  "states": [
+    "available",
+    "disabled",
+    "not_installed",
+    "permission_blocked",
+    "metadata_only",
+    "unsupported",
+    "unknown"
+  ],
   "evidence_types": [
     "analytics",
     "keyword_data",
@@ -23,16 +31,114 @@
     "content_publishing",
     "edit_artifact"
   ],
+  "evidence_modes": [
+    {
+      "id": "direct_connector",
+      "rank": 1,
+      "use_when": "a platform API or native integration is available and fresh data is needed",
+      "inputs": [
+        "api_responses",
+        "mcp_tools"
+      ],
+      "required_transforms": [
+        "normalize ids",
+        "timestamps to ISO 8601",
+        "preserve source links"
+      ],
+      "primary_weakness": "per-connector coverage limits (restricted evidence)"
+    },
+    {
+      "id": "export_bundle",
+      "rank": 2,
+      "use_when": "no live connector but the creator has exported files",
+      "inputs": [
+        "uploaded_file: csv/json exports, media, zip bundles"
+      ],
+      "required_transforms": [
+        "parse bundle",
+        "infer metadata from filenames/headers",
+        "mark unknowns explicitly"
+      ],
+      "primary_weakness": "loses platform-level metadata only the API returns"
+    },
+    {
+      "id": "excerpt_only",
+      "rank": 3,
+      "use_when": "only pasted text or a partial excerpt exists",
+      "inputs": [
+        "manual_paste fragments",
+        "quoted snippets"
+      ],
+      "required_transforms": [
+        "create pseudo-record",
+        "flag missing fields",
+        "sentence-level provenance where possible"
+      ],
+      "primary_weakness": "no validation against the original artifact; weaker timing and identity confidence"
+    },
+    {
+      "id": "internal_context_only",
+      "rank": 4,
+      "use_when": "no new external evidence; only existing records",
+      "inputs": [
+        "pipeline/ records",
+        "*.local.json context",
+        "prior notes"
+      ],
+      "required_transforms": [
+        "treat as secondary evidence",
+        "never imply retrieval or platform certainty"
+      ],
+      "primary_weakness": "cannot support claims needing fresh external data"
+    },
+    {
+      "id": "hybrid_reconciliation",
+      "rank": 5,
+      "use_when": "several partial sources exist and gaps must be filled across them",
+      "inputs": [
+        "any mix of the other modes"
+      ],
+      "required_transforms": [
+        "reconcile source trust",
+        "primary vs corroborating kept separate",
+        "surface conflicts"
+      ],
+      "primary_weakness": "requires explicit conflict handling and freshness checks"
+    }
+  ],
+  "evidence_mode_rules": {
+    "declare_mode_on_every_bundle": true,
+    "artifact_completeness_values": [
+      "minimal",
+      "partial",
+      "rich"
+    ],
+    "silent_downgrade_forbidden": "every step down the ladder records the confidence lost in the execution trace",
+    "hybrid_conflict_policy": "conflicting sources produce a minority-report conflict entry, never an average"
+  },
   "connectors": [
     {
       "id": "manual_paste",
       "label": "Manual paste",
       "vendor": "(none)",
       "default_flag": "available",
-      "provides": ["analytics", "keyword_data", "competitor_data", "channel_stats", "rate_benchmarks", "content_calendar"],
+      "provides": [
+        "analytics",
+        "keyword_data",
+        "competitor_data",
+        "channel_stats",
+        "rate_benchmarks",
+        "content_calendar"
+      ],
       "privacy_sensitivity": "depends_on_content",
       "auth_note": "none — creator pastes data directly into the conversation",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects", "option_c_gpt_api", "option_d_chatgpt_web", "option_e_gemini"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_b_claude_projects",
+        "option_c_gpt_api",
+        "option_d_chatgpt_web",
+        "option_e_gemini"
+      ],
       "status": "seed"
     },
     {
@@ -40,10 +146,21 @@
       "label": "Uploaded file (read via shared/docintel/)",
       "vendor": "(none)",
       "default_flag": "available",
-      "provides": ["document_source", "voice_profile", "analytics", "rate_benchmarks"],
+      "provides": [
+        "document_source",
+        "voice_profile",
+        "analytics",
+        "rate_benchmarks"
+      ],
       "privacy_sensitivity": "depends_on_content",
       "auth_note": "none — creator uploads .pdf/.docx/.csv/.xlsx; read via docintel-engine and parse_text.py",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects", "option_c_gpt_api", "option_d_chatgpt_web", "option_e_gemini"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_b_claude_projects",
+        "option_c_gpt_api",
+        "option_d_chatgpt_web",
+        "option_e_gemini"
+      ],
       "status": "seed"
     },
     {
@@ -51,10 +168,17 @@
       "label": "Local .local.json data files (voice-profile, channel-context, content-calendar)",
       "vendor": "(none)",
       "default_flag": "available",
-      "provides": ["channel_stats", "voice_profile", "content_calendar", "rate_benchmarks"],
+      "provides": [
+        "channel_stats",
+        "voice_profile",
+        "content_calendar",
+        "rate_benchmarks"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "none — reads pipeline/user-context/*.local.json; gitignored, never committed. Created by tools/setup.py.",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -62,13 +186,23 @@
       "label": "YouTube Data API v3",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["analytics", "keyword_data", "channel_stats", "competitor_data"],
-      "authoritative_for": ["channel_stats"],
+      "provides": [
+        "analytics",
+        "keyword_data",
+        "channel_stats",
+        "competitor_data"
+      ],
+      "authoritative_for": [
+        "channel_stats"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "OAuth 2.0 or API key via Google Cloud Console. Quota: 10,000 units/day default. Realized by host AI's native Google integration or via integrations-engine.md credential pattern. Enable by setting youtube_api: true in creator-os-config.local.json.",
       "requires_capability": "youtube_api",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_c_gpt_api"
+      ],
       "status": "seed"
     },
     {
@@ -76,12 +210,18 @@
       "label": "Instagram Graph API (Meta) v25.0",
       "vendor": "Meta",
       "default_flag": "not_installed",
-      "provides": ["analytics", "competitor_data"],
+      "provides": [
+        "analytics",
+        "competitor_data"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Instagram Business or Creator account required. OAuth 2.0 via Meta app. Scopes: instagram_business_basic, instagram_business_content_publish, instagram_business_manage_insights. Enable by setting instagram_api: true in creator-os-config.local.json.",
       "requires_capability": "instagram_api",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_c_gpt_api"
+      ],
       "status": "seed"
     },
     {
@@ -89,12 +229,18 @@
       "label": "TikTok APIs (Content Posting, Research, Display)",
       "vendor": "TikTok",
       "default_flag": "not_installed",
-      "provides": ["analytics", "trend_data"],
+      "provides": [
+        "analytics",
+        "trend_data"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "TikTok developer account required. Login Kit for OAuth 2.0. Content Posting API: video.publish or video.upload scope. Research API: non-profit/academic only. Enable by setting tiktok_api: true in creator-os-config.local.json.",
       "requires_capability": "tiktok_api",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_c_gpt_api"
+      ],
       "status": "seed"
     },
     {
@@ -102,12 +248,18 @@
       "label": "Pinterest API v5",
       "vendor": "Pinterest",
       "default_flag": "not_installed",
-      "provides": ["analytics", "trend_data"],
+      "provides": [
+        "analytics",
+        "trend_data"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Pinterest Developer account required (read side). OAuth 2.0. Scopes: pins:read, boards:read. Rate limits: reads 1,000/min. Enable by setting pinterest_api: true in creator-os-config.local.json.",
       "requires_capability": "pinterest_api",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_c_gpt_api"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_c_gpt_api"
+      ],
       "status": "seed"
     },
     {
@@ -115,13 +267,19 @@
       "label": "YouTube Publishing (Data API v3 upload)",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["content_publishing"],
-      "authoritative_for": ["content_publishing"],
+      "provides": [
+        "content_publishing"
+      ],
+      "authoritative_for": [
+        "content_publishing"
+      ],
       "privacy_sensitivity": "high",
       "auth_note": "Write side. OAuth 2.0 with the youtube.upload scope and a user refresh token (obtained via the wizard's YouTube OAuth flow). Separate from the read-only youtube_api flag. Enable by setting youtube_publishing: true in creator-os-config.local.json and adding credentials to pipeline/user-context/api-credentials.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
       "requires_capability": "youtube_publishing",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -129,13 +287,19 @@
       "label": "Instagram Publishing (Graph API v25.0 Reels)",
       "vendor": "Meta",
       "default_flag": "not_installed",
-      "provides": ["content_publishing"],
-      "authoritative_for": ["content_publishing"],
+      "provides": [
+        "content_publishing"
+      ],
+      "authoritative_for": [
+        "content_publishing"
+      ],
       "privacy_sensitivity": "high",
       "auth_note": "Write side. Meta app with the instagram_business_content_publish scope + a long-lived access token and the IG Business account id. Separate from the read-only instagram_api flag. Enable by setting instagram_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
       "requires_capability": "instagram_publishing",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -143,13 +307,19 @@
       "label": "TikTok Publishing (Content Posting API)",
       "vendor": "TikTok",
       "default_flag": "not_installed",
-      "provides": ["content_publishing"],
-      "authoritative_for": ["content_publishing"],
+      "provides": [
+        "content_publishing"
+      ],
+      "authoritative_for": [
+        "content_publishing"
+      ],
       "privacy_sensitivity": "high",
       "auth_note": "Write side. Login Kit OAuth with the video.publish scope; supports the AIGC disclosure flag. No native scheduled_at (the dashboard's background scheduler dispatches). Separate from the read-only tiktok_api flag. Enable by setting tiktok_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
       "requires_capability": "tiktok_publishing",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -157,13 +327,19 @@
       "label": "Pinterest Publishing (API v5 create-pin)",
       "vendor": "Pinterest",
       "default_flag": "not_installed",
-      "provides": ["content_publishing"],
-      "authoritative_for": ["content_publishing"],
+      "provides": [
+        "content_publishing"
+      ],
+      "authoritative_for": [
+        "content_publishing"
+      ],
       "privacy_sensitivity": "high",
       "auth_note": "Write side. OAuth 2.0 with the pins:write and boards:write scopes; write rate limit 100/min. Separate from the read-only pinterest_api flag. Enable by setting pinterest_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
       "requires_capability": "pinterest_publishing",
       "api_reference": "shared/integrations-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -171,13 +347,19 @@
       "label": "FCPXML / OTIO file interchange",
       "vendor": "Apple / ASWF OpenTimelineIO",
       "default_flag": "not_installed",
-      "provides": ["edit_artifact"],
-      "authoritative_for": ["edit_artifact"],
+      "provides": [
+        "edit_artifact"
+      ],
+      "authoritative_for": [
+        "edit_artifact"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "No account. The universal file bridge: generate/parse FCPXML (.fcpxmld) and OpenTimelineIO. Works on any OS since it is just a file; Final Cut Pro and DaVinci Resolve both read FCPXML. Realized by tools/videoedit/fcpxml.py + otio_core.py. Validation via xmllint against the DTD in the installed editor. Enable by setting video_editing_enabled: true in creator-os-config.local.json.",
       "requires_capability": "video_editing_enabled",
       "api_reference": "shared/videoedit-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -185,13 +367,19 @@
       "label": "DaVinci Resolve Scripting API (Studio)",
       "vendor": "Blackmagic Design",
       "default_flag": "not_installed",
-      "provides": ["edit_artifact"],
-      "authoritative_for": ["edit_artifact"],
+      "provides": [
+        "edit_artifact"
+      ],
+      "authoritative_for": [
+        "edit_artifact"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "Live NLE control on macOS/Windows/Linux via the Resolve Python API. REQUIRES DaVinci Resolve Studio (paid); the free version cannot be scripted externally. Env vars RESOLVE_SCRIPT_API / RESOLVE_SCRIPT_LIB set from the install; pin Python 3.10 to 3.12. Realized by tools/videoedit/resolve.py; degrades to fcpxml_interchange when Studio/Resolve is absent. Enable by setting resolve_scripting: true in creator-os-config.local.json.",
       "requires_capability": "resolve_scripting",
       "api_reference": "shared/videoedit-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -199,12 +387,16 @@
       "label": "Apple Compressor (command line)",
       "vendor": "Apple",
       "default_flag": "not_installed",
-      "provides": ["edit_artifact"],
+      "provides": [
+        "edit_artifact"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "macOS batch encoder. Runs platform export presets (.compressorsetting) via /Applications/Compressor.app/Contents/MacOS/Compressor. Presets keyed to shared/platform-engine.md. Cross-OS alternative is the Resolve render queue. Enable by setting compressor_presets: true in creator-os-config.local.json.",
       "requires_capability": "compressor_presets",
       "api_reference": "shared/videoedit-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -212,12 +404,16 @@
       "label": "CommandPost (FCP UI automation)",
       "vendor": "CommandPost (open source)",
       "default_flag": "not_installed",
-      "provides": ["edit_artifact"],
+      "provides": [
+        "edit_artifact"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "macOS Lua automation layer for Final Cut Pro finishing chores FCPXML cannot reach (apply LUT, drop intro, run export preset). Realized by tools/videoedit/commandpost.py (emits/triggers macros). Enable by setting commandpost_macros: true in creator-os-config.local.json.",
       "requires_capability": "commandpost_macros",
       "api_reference": "shared/videoedit-engine.md",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -225,10 +421,16 @@
       "label": "Google Drive / Google Workspace",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["document_source"],
+      "provides": [
+        "document_source"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Realized by host AI's native Google Drive integration when the deployment has connected it. Scopes: drive.readonly for reading files. No client built here.",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects", "option_c_gpt_api"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_b_claude_projects",
+        "option_c_gpt_api"
+      ],
       "status": "seed"
     },
     {
@@ -236,11 +438,16 @@
       "label": "Offline SQLite caches (keyword FTS5 + competitor snapshots)",
       "vendor": "(local)",
       "default_flag": "not_installed",
-      "provides": ["keyword_data", "competitor_data"],
+      "provides": [
+        "keyword_data",
+        "competitor_data"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "none — reads shared/cache/index.local.db (FTS5 keyword cache) and pipeline/competitor-snapshots/index.local.db (competitor metadata). Both gitignored. Built by tools/setup.py and tools/competitor_snapshot.py.",
       "requires_capability": "keyword_cache",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -248,11 +455,17 @@
       "label": "Creator OS MCP server (stdio, Claude Desktop)",
       "vendor": "(local)",
       "default_flag": "not_installed",
-      "provides": ["keyword_data", "competitor_data", "analytics"],
+      "provides": [
+        "keyword_data",
+        "competitor_data",
+        "analytics"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "none — stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes 8 tools: cache_query, competitor_scan, source_staleness, drift_check, quality_score, add_competitor, get_capabilities, get_connectors. Enable by setting mcp_server: true in creator-os-config.local.json.",
       "requires_capability": "mcp_server",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -260,11 +473,15 @@
       "label": "Playwright Chromium (JS rendering for competitor snapshots)",
       "vendor": "Microsoft",
       "default_flag": "not_installed",
-      "provides": ["competitor_data"],
+      "provides": [
+        "competitor_data"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "pip install -r requirements-render.txt + playwright install chromium. On macOS M2: auto-downloads arm64 binary. Enables ytInitialData extraction from YouTube pages that require JavaScript. Enable by setting playwright: true in creator-os-config.local.json.",
       "requires_capability": "playwright",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -272,10 +489,16 @@
       "label": "Web crawl (acquire.py + fetch_resilient.py, polite rate-governed)",
       "vendor": "(local)",
       "default_flag": "available",
-      "provides": ["keyword_data", "competitor_data", "trend_data"],
+      "provides": [
+        "keyword_data",
+        "competitor_data",
+        "trend_data"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "none — pip install -r requirements-crawl.txt + requirements-scraper.txt. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -283,11 +506,17 @@
       "label": "Gmail (Google Workspace)",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["email_inbox", "document_source"],
+      "provides": [
+        "email_inbox",
+        "document_source"
+      ],
       "privacy_sensitivity": "high",
       "auth_note": "Enabled via the wizard (tools/wizard.py) or claude.ai Settings > Integrations > Google Workspace. Claude Desktop: workspace-mcp via uvx. claude.ai Projects: native Google Workspace connector (zero setup). Set google_workspace: true in creator-os-config.local.json after connecting.",
       "requires_capability": "google_workspace",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_b_claude_projects"
+      ],
       "status": "seed"
     },
     {
@@ -295,11 +524,17 @@
       "label": "Google Calendar (Google Workspace)",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["calendar_events", "content_calendar"],
+      "provides": [
+        "calendar_events",
+        "content_calendar"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Same auth as gmail — both are enabled together by the google_workspace capability flag. The workspace-mcp server exposes Calendar read/write alongside Gmail and Drive.",
       "requires_capability": "google_workspace",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_b_claude_projects"
+      ],
       "status": "seed"
     },
     {
@@ -307,11 +542,18 @@
       "label": "Google Drive / Docs / Sheets (Google Workspace)",
       "vendor": "Google",
       "default_flag": "not_installed",
-      "provides": ["document_source", "spreadsheet_data", "analytics"],
+      "provides": [
+        "document_source",
+        "spreadsheet_data",
+        "analytics"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Same auth as gmail — Drive covers Docs and Sheets. Analytics tracking sheets and brand brief documents flow in as document_source and spreadsheet_data. Enabled via google_workspace capability flag.",
       "requires_capability": "google_workspace",
-      "deployment_support": ["option_a_claude_desktop_mcp", "option_b_claude_projects"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_b_claude_projects"
+      ],
       "status": "seed"
     },
     {
@@ -319,11 +561,16 @@
       "label": "Outlook Email (Microsoft 365)",
       "vendor": "Microsoft",
       "default_flag": "not_installed",
-      "provides": ["email_inbox", "document_source"],
+      "provides": [
+        "email_inbox",
+        "document_source"
+      ],
       "privacy_sensitivity": "high",
       "auth_note": "Enabled via the wizard (tools/wizard.py) for Claude Desktop. Uses Softeria ms-365-mcp-server (npx -y @softeria/ms-365-mcp-server). Device Code Flow: user visits microsoft.com/devicelogin and enters a short code — no redirect server or credentials to manage. Requires Node.js 20+. Set microsoft_365: true in creator-os-config.local.json after connecting.",
       "requires_capability": "microsoft_365",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -331,11 +578,16 @@
       "label": "Outlook Calendar (Microsoft 365)",
       "vendor": "Microsoft",
       "default_flag": "not_installed",
-      "provides": ["calendar_events", "content_calendar"],
+      "provides": [
+        "calendar_events",
+        "content_calendar"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Same auth as microsoft_outlook_email — all Microsoft 365 services are enabled together by the microsoft_365 capability flag via the Softeria MCP server.",
       "requires_capability": "microsoft_365",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -343,11 +595,17 @@
       "label": "Excel / OneDrive (Microsoft 365)",
       "vendor": "Microsoft",
       "default_flag": "not_installed",
-      "provides": ["spreadsheet_data", "document_source", "analytics"],
+      "provides": [
+        "spreadsheet_data",
+        "document_source",
+        "analytics"
+      ],
       "privacy_sensitivity": "medium",
       "auth_note": "Same auth as microsoft_outlook_email — the Softeria ms-365-mcp-server covers Excel, OneDrive, Outlook, Calendar, and 200+ Microsoft 365 tools from a single connection.",
       "requires_capability": "microsoft_365",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -355,12 +613,18 @@
       "label": "Wolfram Alpha MCP (exact symbolic computation)",
       "vendor": "Wolfram",
       "default_flag": "not_installed",
-      "provides": ["statistical_computation"],
-      "authoritative_for": ["statistical_computation"],
+      "provides": [
+        "statistical_computation"
+      ],
+      "authoritative_for": [
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "WOLFRAM_APP_ID env var required. Free tier: 2,000 calls/month. Install via uvx mcp-wolfram-alpha.",
       "requires_capability": "wolfram_alpha",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -368,11 +632,16 @@
       "label": "E2B Code Interpreter (sandboxed Python with scipy/numpy/pandas/matplotlib)",
       "vendor": "e2b.dev",
       "default_flag": "not_installed",
-      "provides": ["statistical_computation", "notebook_session"],
+      "provides": [
+        "statistical_computation",
+        "notebook_session"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "E2B_API_KEY env var required. Cloud-sandboxed execution. No local dependencies beyond the MCP client.",
       "requires_capability": "e2b_sandbox",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -380,11 +649,15 @@
       "label": "Stats Compass MCP (50+ pandas-based statistical tools)",
       "vendor": "stats-compass",
       "default_flag": "not_installed",
-      "provides": ["statistical_computation"],
+      "provides": [
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "No API key required. pip install stats-compass-mcp. Local execution.",
       "requires_capability": "stats_compass",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -392,11 +665,16 @@
       "label": "DuckDB MCP (analytical SQL on CSV/Parquet/JSON)",
       "vendor": "MotherDuck",
       "default_flag": "not_installed",
-      "provides": ["sql_analytics", "statistical_computation"],
+      "provides": [
+        "sql_analytics",
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "No API key for local mode. motherduckdb/mcp-server-motherduck. Optional MotherDuck token for cloud mode.",
       "requires_capability": "duckdb_analytics",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -404,11 +682,16 @@
       "label": "Jupyter Notebook MCP (persistent notebook sessions)",
       "vendor": "jupyter-mcp-server",
       "default_flag": "not_installed",
-      "provides": ["notebook_session", "statistical_computation"],
+      "provides": [
+        "notebook_session",
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "No API key required. pip install jupyter-mcp-server. Runs local Jupyter kernel.",
       "requires_capability": "jupyter_notebook",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -416,11 +699,15 @@
       "label": "R Statistics MCP (rmcp, 52 R statistical tools)",
       "vendor": "rmcp",
       "default_flag": "not_installed",
-      "provides": ["statistical_computation"],
+      "provides": [
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "R must be installed on the system. pip install rmcp.",
       "requires_capability": "r_statistics",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -428,11 +715,15 @@
       "label": "Monte Carlo Simulation MCP (probabilistic modeling)",
       "vendor": "MCS-MCP",
       "default_flag": "not_installed",
-      "provides": ["statistical_computation"],
+      "provides": [
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "No API key required. MCS-MCP MCP server.",
       "requires_capability": "monte_carlo",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     },
     {
@@ -440,43 +731,233 @@
       "label": "scikit-learn MCP (ML classification, regression, clustering)",
       "vendor": "scikit-learn",
       "default_flag": "not_installed",
-      "provides": ["ml_prediction", "statistical_computation"],
+      "provides": [
+        "ml_prediction",
+        "statistical_computation"
+      ],
       "privacy_sensitivity": "low",
       "auth_note": "No API key required. mcp-server-scikit-learn.",
       "requires_capability": "scikit_learn",
-      "deployment_support": ["option_a_claude_desktop_mcp"],
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
       "status": "seed"
     }
   ],
   "deployment_modes": {
     "option_a_claude_desktop_mcp": {
       "label": "Claude Desktop with MCP (full capability)",
-      "connectors_available_by_default": ["manual_paste", "uploaded_file", "local_json_files", "web_intel_crawl"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "sqlite_cache", "mcp_server", "playwright_render", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
+      "connectors_available_by_default": [
+        "manual_paste",
+        "uploaded_file",
+        "local_json_files",
+        "web_intel_crawl"
+      ],
+      "connectors_requiring_setup": [
+        "youtube_data_api",
+        "instagram_graph_api",
+        "tiktok_api",
+        "pinterest_api",
+        "youtube_publish_api",
+        "instagram_publish_api",
+        "tiktok_publish_api",
+        "pinterest_publish_api",
+        "google_drive",
+        "sqlite_cache",
+        "mcp_server",
+        "playwright_render",
+        "gmail",
+        "google_calendar",
+        "google_docs_sheets",
+        "microsoft_outlook_email",
+        "microsoft_outlook_calendar",
+        "microsoft_excel_onedrive",
+        "wolfram_alpha_mcp",
+        "e2b_code_interpreter",
+        "stats_compass_mcp",
+        "duckdb_analytics_mcp",
+        "jupyter_notebook_mcp",
+        "r_statistics_mcp",
+        "monte_carlo_mcp",
+        "scikit_learn_mcp",
+        "fcpxml_interchange",
+        "resolve_api",
+        "compressor_cli",
+        "commandpost_bridge"
+      ]
     },
     "option_b_claude_projects": {
       "label": "Claude Projects on claude.ai (knowledge-only)",
-      "connectors_available_by_default": ["manual_paste", "uploaded_file", "google_drive"],
-      "connectors_requiring_setup": ["gmail", "google_calendar", "google_docs_sheets"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
+      "connectors_available_by_default": [
+        "manual_paste",
+        "uploaded_file",
+        "google_drive"
+      ],
+      "connectors_requiring_setup": [
+        "gmail",
+        "google_calendar",
+        "google_docs_sheets"
+      ],
+      "connectors_unsupported": [
+        "local_json_files",
+        "sqlite_cache",
+        "mcp_server",
+        "playwright_render",
+        "web_intel_crawl",
+        "youtube_data_api",
+        "instagram_graph_api",
+        "tiktok_api",
+        "pinterest_api",
+        "youtube_publish_api",
+        "instagram_publish_api",
+        "tiktok_publish_api",
+        "pinterest_publish_api",
+        "microsoft_outlook_email",
+        "microsoft_outlook_calendar",
+        "microsoft_excel_onedrive",
+        "wolfram_alpha_mcp",
+        "e2b_code_interpreter",
+        "stats_compass_mcp",
+        "duckdb_analytics_mcp",
+        "jupyter_notebook_mcp",
+        "r_statistics_mcp",
+        "monte_carlo_mcp",
+        "scikit_learn_mcp",
+        "fcpxml_interchange",
+        "resolve_api",
+        "compressor_cli",
+        "commandpost_bridge"
+      ]
     },
     "option_c_gpt_api": {
       "label": "GPT-4 API with function calling",
-      "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_requiring_setup": ["youtube_data_api", "instagram_graph_api", "tiktok_api", "google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
+      "connectors_available_by_default": [
+        "manual_paste",
+        "uploaded_file"
+      ],
+      "connectors_requiring_setup": [
+        "youtube_data_api",
+        "instagram_graph_api",
+        "tiktok_api",
+        "google_drive"
+      ],
+      "connectors_unsupported": [
+        "local_json_files",
+        "sqlite_cache",
+        "mcp_server",
+        "playwright_render",
+        "web_intel_crawl",
+        "youtube_publish_api",
+        "instagram_publish_api",
+        "tiktok_publish_api",
+        "pinterest_publish_api",
+        "gmail",
+        "google_calendar",
+        "google_docs_sheets",
+        "microsoft_outlook_email",
+        "microsoft_outlook_calendar",
+        "microsoft_excel_onedrive",
+        "wolfram_alpha_mcp",
+        "e2b_code_interpreter",
+        "stats_compass_mcp",
+        "duckdb_analytics_mcp",
+        "jupyter_notebook_mcp",
+        "r_statistics_mcp",
+        "monte_carlo_mcp",
+        "scikit_learn_mcp",
+        "fcpxml_interchange",
+        "resolve_api",
+        "compressor_cli",
+        "commandpost_bridge"
+      ]
     },
     "option_d_chatgpt_web": {
       "label": "ChatGPT Web with custom instructions",
-      "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "google_drive", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
+      "connectors_available_by_default": [
+        "manual_paste",
+        "uploaded_file"
+      ],
+      "connectors_unsupported": [
+        "local_json_files",
+        "sqlite_cache",
+        "mcp_server",
+        "playwright_render",
+        "web_intel_crawl",
+        "youtube_data_api",
+        "instagram_graph_api",
+        "tiktok_api",
+        "pinterest_api",
+        "youtube_publish_api",
+        "instagram_publish_api",
+        "tiktok_publish_api",
+        "pinterest_publish_api",
+        "google_drive",
+        "gmail",
+        "google_calendar",
+        "google_docs_sheets",
+        "microsoft_outlook_email",
+        "microsoft_outlook_calendar",
+        "microsoft_excel_onedrive",
+        "wolfram_alpha_mcp",
+        "e2b_code_interpreter",
+        "stats_compass_mcp",
+        "duckdb_analytics_mcp",
+        "jupyter_notebook_mcp",
+        "r_statistics_mcp",
+        "monte_carlo_mcp",
+        "scikit_learn_mcp",
+        "fcpxml_interchange",
+        "resolve_api",
+        "compressor_cli",
+        "commandpost_bridge"
+      ]
     },
     "option_e_gemini": {
       "label": "Gemini (Gems or API)",
-      "connectors_available_by_default": ["manual_paste", "uploaded_file"],
-      "connectors_requiring_setup": ["google_drive"],
-      "connectors_unsupported": ["local_json_files", "sqlite_cache", "mcp_server", "playwright_render", "web_intel_crawl", "youtube_data_api", "instagram_graph_api", "tiktok_api", "pinterest_api", "youtube_publish_api", "instagram_publish_api", "tiktok_publish_api", "pinterest_publish_api", "gmail", "google_calendar", "google_docs_sheets", "microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "wolfram_alpha_mcp", "e2b_code_interpreter", "stats_compass_mcp", "duckdb_analytics_mcp", "jupyter_notebook_mcp", "r_statistics_mcp", "monte_carlo_mcp", "scikit_learn_mcp", "fcpxml_interchange", "resolve_api", "compressor_cli", "commandpost_bridge"]
+      "connectors_available_by_default": [
+        "manual_paste",
+        "uploaded_file"
+      ],
+      "connectors_requiring_setup": [
+        "google_drive"
+      ],
+      "connectors_unsupported": [
+        "local_json_files",
+        "sqlite_cache",
+        "mcp_server",
+        "playwright_render",
+        "web_intel_crawl",
+        "youtube_data_api",
+        "instagram_graph_api",
+        "tiktok_api",
+        "pinterest_api",
+        "youtube_publish_api",
+        "instagram_publish_api",
+        "tiktok_publish_api",
+        "pinterest_publish_api",
+        "gmail",
+        "google_calendar",
+        "google_docs_sheets",
+        "microsoft_outlook_email",
+        "microsoft_outlook_calendar",
+        "microsoft_excel_onedrive",
+        "wolfram_alpha_mcp",
+        "e2b_code_interpreter",
+        "stats_compass_mcp",
+        "duckdb_analytics_mcp",
+        "jupyter_notebook_mcp",
+        "r_statistics_mcp",
+        "monte_carlo_mcp",
+        "scikit_learn_mcp",
+        "fcpxml_interchange",
+        "resolve_api",
+        "compressor_cli",
+        "commandpost_bridge"
+      ]
     }
   },
-  "extensible_stubs": ["snapchat_api", "spotify_podcasts"]
+  "extensible_stubs": [
+    "snapchat_api",
+    "spotify_podcasts"
+  ]
 }

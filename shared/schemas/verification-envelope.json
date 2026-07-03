@@ -71,6 +71,25 @@
         "required": ["source_id_or_url", "tier", "claim_supported"]
       }
     },
+    "identity_confidence": {
+      "type": "object",
+      "description": "Confidence that statements are attributed to the right person or brand. Independent of claim confidence: a strong claim never raises identity confidence, and a resolved identity never raises claim confidence.",
+      "properties": {
+        "overall": { "type": "string", "enum": ["high", "medium", "low", "unresolved"] },
+        "basis": { "type": "string", "description": "One sentence explaining how identities were resolved (named source, CRM record match, explicit user statement)." },
+        "unresolved_labels": {
+          "type": "array",
+          "description": "Raw labels from the evidence that could not be mapped to a known person or brand. Kept raw; never guessed.",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["overall", "basis"]
+    },
+    "artifact_completeness": {
+      "type": "string",
+      "description": "Completeness grade of the evidence bundle behind this output. minimal: an excerpt or single fragment. partial: some artifacts present with known gaps. rich: full artifact set for the source.",
+      "enum": ["minimal", "partial", "rich"]
+    },
     "verification_verdict": {
       "type": "object",
       "description": "Output of the adversarial verification agent.",

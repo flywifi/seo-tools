@@ -1,6 +1,6 @@
 {
   "_comment": "SAMPLE per-deployment connector flags for Creator OS. Copy this to creator-os-connectors.local.json (gitignored) and set states for what you have connected. Unlisted connectors fall back to their registry default_flag (platform APIs default not_installed). manual_paste + uploaded_file are always available. A connector can be ACTIVE yet restricted for specific evidence -- use the object form {state, restricted_evidence, reason}. The simple creator-os-config.local.json capability flags also work: set youtube_api: true and the resolver maps it to youtube_data_api: available automatically.",
-  "deployment": "Option A -- Claude Desktop with MCP (example config for Matt)",
+  "deployment": "Option A -- Claude Desktop with MCP (example config)",
   "connectors": {
     "mcp_server": "available",
     "sqlite_cache": "available",
