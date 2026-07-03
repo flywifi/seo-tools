@@ -1,0 +1,107 @@
+{
+  "_comment": "P29 integration evidence: the shipped tools/videoedit modules exercised live against the P26 spike goldens. Companion to docs/video-tooling-spike-evidence.json (P26, frozen). All media and installs lived in a throwaway scratchpad; only the raw stderr fixtures under tools/videoedit/fixtures/ entered the repo.",
+  "date": "2026-07-03",
+  "environment": {
+    "os": "Linux x86_64 (remote container)",
+    "python": "3.11.15",
+    "ffmpeg": {
+      "version": "7.0.2-static",
+      "source_url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
+      "archive_sha256": "abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67",
+      "note": "identical archive hash to the P26 spike environment"
+    },
+    "pip_versions": {
+      "scenedetect": "0.7",
+      "opencv-python-headless": "5.0.0.93",
+      "av": "18.0.0",
+      "moviepy": "2.2.1",
+      "numpy": "2.4.6",
+      "opentimelineio": "0.18.1",
+      "otio-fcpx-xml-adapter": "1.0.0",
+      "otio-kdenlive-adapter": "0.0.3"
+    }
+  },
+  "fixture_media": {
+    "file": "workshop-synth.mp4 (scratchpad only, regenerated from the recipe in docs/video-tooling-spike-evidence.json)",
+    "sha256": "471098437753825e1c34903743bb592bffee24991e92efae6afca7e8b683e98f",
+    "note": "hash differs from the P26 encode (encoder nondeterminism); ground truth timings identical: cuts 60/150/240/330, silences 92 to 104.5 / 210 to 218.5 / 300 to 320, duration 420.0"
+  },
+  "committed_fixtures": {
+    "tools/videoedit/fixtures/silencedetect-ffmpeg-7.0.2.stderr.txt": "b4ca0ee805fc70ebf3e7d026b01b5d910f5b4040dac5f1310b106017298f69d2",
+    "tools/videoedit/fixtures/scdet-ffmpeg-7.0.2.stderr.txt": "2e03f8239627f5a54f8a6c6b0ccb805b23882889e94baf47c4187bc090f28d9f",
+    "tools/videoedit/fixtures/sample-timeline.mlt": "db9c68c99dbef8300a78ac07196166084c98457841b9a2599f28003fdb0ab156"
+  },
+  "live_checks": [
+    {
+      "id": "silence-ffmpeg",
+      "command": "mediaprobe.py silence --media workshop-synth.mp4 --backend ffmpeg",
+      "expected": "P26 S-1 golden: 92.011 to 104.512, 210.005 to 218.517, 300.011 to 320.021",
+      "observed": "92.011 to 104.512, 210.008 to 218.517, 300.013 to 320.021; computed_by ffmpeg.silencedetect",
+      "max_delta_seconds": 0.003,
+      "pass": true
+    },
+    {
+      "id": "silence-pyav",
+      "command": "mediaprobe.py silence --media workshop-synth.mp4 --backend pyav (venv python)",
+      "expected": "P26 S-4 golden: [[92.1, 104.5], [210.1, 218.5], [300.1, 320.0]]",
+      "observed": "[[92.1, 104.5], [210.1, 218.5], [300.1, 320.0]]; computed_by pyav.rms_window",
+      "max_delta_seconds": 0.0,
+      "pass": true
+    },
+    {
+      "id": "scenes-pyscenedetect",
+      "command": "mediaprobe.py scenes --media workshop-synth.mp4 --backend scenedetect (venv python)",
+      "expected": "P26 S-3 golden: cuts [60.0, 150.0, 240.0, 330.0], zero false positives, threshold 27.0",
+      "observed": "cuts [60.0, 150.0, 240.0, 330.0]; computed_by pyscenedetect.ContentDetector; scenedetect 0.7 renamed get_seconds() to the seconds property (handled with a compatibility shim; open validation item 4 resolved)",
+      "pass": true
+    },
+    {
+      "id": "scenes-ffmpeg-scdet",
+      "command": "mediaprobe.py scenes --media workshop-synth.mp4 --backend ffmpeg --scdet-threshold 1",
+      "expected": "P26 S-1 golden: cuts 150/240/330 (scores 15.6 / 66.0 / 40.6), 60s isoluminant cut absent",
+      "observed": "cuts [150.0, 240.0, 330.0] (scores 15.625 / 66.016 / 40.625); 60s cut absent; luma caveat note attached to the result",
+      "pass": true
+    },
+    {
+      "id": "reframe-moviepy-render",
+      "command": "reframe.render(media, out, 100.0, 120.0, crop_geometry(1280,720).crop, backend=moviepy) with shorts_reframe enabled",
+      "expected": "P26 S-5 shape: 9:16 crop of a 1280x720 source, h264 + aac, 20.0s (even-rounded 404x720 vs the spike's odd 405)",
+      "observed": "ffprobe: h264 404x720 + aac, duration 20.000000; renderer moviepy.crop",
+      "pass": true
+    },
+    {
+      "id": "reframe-ffmpeg-render",
+      "command": "reframe.render(..., backend=ffmpeg) with shorts_reframe enabled",
+      "observed": "ffprobe: 404x720; renderer ffmpeg.crop",
+      "pass": true
+    },
+    {
+      "id": "mcp-tools-list",
+      "command": "initialize + tools/list against tools/mcp_server.py (venv has mcp 1.28.1)",
+      "observed": "27 tools; silence_scan, scene_scan, reframe_shorts, edit_build_mlt all present",
+      "pass": true
+    }
+  ],
+  "blocked_or_unverified": [
+    {
+      "id": "auto-editor",
+      "status": "blocked",
+      "detail": "pip install auto-editor still fails at its post-install binary bootstrap: HTTP 403 from github.com/WyattBlue/auto-editor releases through the container proxy (same as P26 S-2). Open validation item 1 (auto-editor FCPXML through fcpxml.parse) remains unvalidated; auto-editor stays conditionally shortlisted, not integrated."
+    },
+    {
+      "id": "otio-kdenlive-adapter-read",
+      "status": "failed (bonus check, recorded honestly)",
+      "detail": "otio-kdenlive-adapter 0.0.3 cannot read the MLT XML mltxml.py emits (AttributeError on a missing kdenlive-specific element): the adapter expects Kdenlive's own project structure (kdenlive:docproperties), not generic/Shotcut-flavored MLT. Our .mlt targets Shotcut natively; Kdenlive opens generic MLT through its own importer, which is not verifiable in this container. Open validation item 2 partially resolved: adapter interop is a no, editor-side import remains unverified."
+    },
+    {
+      "id": "melt-render",
+      "status": "unverified",
+      "detail": "No melt binary available in the container; the melt path of mltxml.render is implemented and gate-tested (selftest covers both flag permutations and the honest missing-backend refusal) but has never executed a real render. macOS headless melt (open validation item 3) likewise unverified."
+    },
+    {
+      "id": "editor-side-open",
+      "status": "unverified",
+      "detail": "No Shotcut/Kdenlive/FCP available; emitted .mlt files are verified well-formed and round-trip through mltxml.parse only."
+    }
+  ]
+}

@@ -2,8 +2,25 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P28 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P29 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P29: the P26 media-tool shortlist integrated as optional, runtime-detected backends over the P28
+  transcript floor. `tools/videoedit/mediaprobe.py` (silence: ffmpeg silencedetect -> PyAV RMS ->
+  gap_metrics; scenes: PySceneDetect -> ffmpeg scdet with the luma caveat attached ->
+  suggest_chapters; 17-check selftest on committed raw-stderr fixtures),
+  `tools/videoedit/reframe.py` (crop geometry always available, render gated on `shorts_reframe`,
+  12-check selftest), `tools/videoedit/mltxml.py` (MLT XML as the second Lane A format, Shotcut
+  native; render gated on the new `media_render` flag, APP_DRIVING tier; 13-check selftest). Every
+  result carries `computed_by` plus a `backend_chain` audit trail; no backend means honest
+  `gaps[]`, never numbers. Three new atoms (`silence-scan`, `scene-scan`, `shorts-reframe`), two
+  new flags (`mlt_timeline_export`, `media_render`), four MCP tools (27 total), preflight
+  detection and degrade notes, `requirements-videoedit.txt` (optional only). `otio_core.merge` now
+  unions incoming `gaps[]` and adopts an enabled reframe directive (both were silently dropped).
+  All backends live-verified against the P26 goldens
+  (`docs/video-tooling-integration-evidence.json`); unverified and recorded: melt render
+  execution, macOS paths, editor-side .mlt opening, otio-kdenlive-adapter reading our MLT, and
+  auto-editor (bootstrap still 403-blocked; conditionally shortlisted only). Ledger:
+  `P29-media-tool-integration`.
 - P28: transcript-to-chapters capability shipped and gaps G9 + G10 closed (the scenario suite now
   declares 8 gaps, all observed). `shared/docintel/transcripts.py` gained `gap_metrics()`
   (inter-segment silence detection, promoted from the runner-owned evidence code the P26 S-0 spike
