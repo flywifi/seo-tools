@@ -33,6 +33,7 @@ APP_DRIVING = {
     "compressor_presets",
     "commandpost_macros",
     "motion_template_fill",
+    "media_render",
 }
 
 

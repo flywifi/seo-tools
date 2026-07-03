@@ -212,6 +212,16 @@
       "enabled": false,
       "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",
       "requires": "contract_management on. legal-requirement-check ships in P23 Phase 1 and cites canonical-sources/source-registry.json FTC entries."
+    },
+    "mlt_timeline_export": {
+      "enabled": false,
+      "description": "Feature 9. Emit the edit-package as MLT XML, Shotcut's native project format and the Kdenlive substrate (tools/videoedit/mltxml.py). The second Lane A interchange format alongside FCPXML; stdlib-written, no external tool needed to build or parse the file.",
+      "requires": "Nothing to build/parse the file. Shotcut or Kdenlive to open it."
+    },
+    "media_render": {
+      "enabled": false,
+      "description": "Feature 10. Render an .mlt timeline (or single-asset cut list) to a video file locally: melt when installed, ffmpeg concat encode as fallback. App-driving tier: also requires the video_editing_enabled master gate, like Compressor.",
+      "requires": "video_editing_enabled plus this flag, and melt or ffmpeg on PATH. See requirements-videoedit.txt for the optional backends."
     }
   },
   "degraded_behavior": {
@@ -247,7 +257,9 @@
     "contract_redline_disabled": "contract_redline is off. Clause-by-clause review with dual severity and version tracing is not produced. A contract at contract-negotiating still gets the plain-language term summary and attention flags. When on, contract-review and amendment-trace (net current state across versions) are both available.",
     "playbook_bootstrap_disabled": "playbook-bootstrap runs only when contract_management is on. It is proposal-only: it suggests a starting deal-playbook from example contracts, or nudges an off-standard default from recent deals, and never writes deal-playbook.local.json (the human confirms and saves by hand). While off, configure the playbook by hand or with a qualified professional.",
     "contract_obligations_disabled": "contract_obligations is off. obligation-extract can still pull duties into rows and tools/obligations.py --scan can compute a read-only deadline view (send-by dates, weekend/US-holiday roll-back, urgency bands) in local Python, but the dated obligation register is NOT written to pipeline/user-context/obligation-register.local.json and is not synced to the content calendar or production tasks. Turn the flag on to persist the register; the date math runs offline either way (no tokens).",
-    "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage."
+    "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage.",
+    "mlt_timeline_export_disabled": "mlt_timeline_export is off. Timelines still export as FCPXML (fcpxml_timeline_export) or as the neutral edit-package JSON; Shotcut/Kdenlive users convert manually or enable this flag.",
+    "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
 }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mlt LC_NUMERIC="C" version="7.0.0" title="sample fixture" producer="tractor0">
+  <profile description="automatic" frame_rate_num="30" frame_rate_den="1" progressive="1"/>
+  <producer id="producer0">
+    <property name="resource">workshop.mp4</property>
+  </producer>
+  <playlist id="playlist0">
+    <entry producer="producer0" in="00:00:00.000" out="00:00:30.000"/>
+  </playlist>
+  <tractor id="tractor0" title="sample fixture" in="00:00:00.000" out="00:00:30.000">
+    <properties name="shotcut:markers">
+      <properties name="0">
+        <property name="text">intro ends</property>
+        <property name="start">00:00:12.000</property>
+        <property name="end">00:00:12.000</property>
+        <property name="color">#008000</property>
+      </properties>
+    </properties>
+    <track producer="playlist0"/>
+  </tractor>
+</mlt>
