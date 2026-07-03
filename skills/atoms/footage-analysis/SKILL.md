@@ -31,15 +31,21 @@ Do NOT use for:
 
 ## Core procedure
 1. Parse the transcript: `python3 shared/docintel/transcripts.py <file> --json`.
-2. Compute silences: `python3 shared/docintel/transcripts.py <file> --gap-metrics
-   [--min-gap-seconds N]`. Each silence is a cut candidate (dead air between segments).
-3. Compute chapter boundary candidates: `python3 shared/docintel/transcripts.py <file>
-   --suggest-chapters`. Boundaries come from long silences and words_per_minute drops; the tool
-   never invents titles (`suggested_title` is always null).
-4. Name each proposed chapter from the transcript text around its boundary; never invent content
+2. When the actual media file is available, upgrade the timing evidence: run `silence-scan` and
+   `scene-scan` (realized by `tools/videoedit/mediaprobe.py`), which measure audio level and
+   pixels directly and fall back to the transcript floor themselves. Keep each result's
+   `computed_by` label; media-measured and transcript-derived timings are never conflated.
+3. Transcript-only path: compute silences with `python3 shared/docintel/transcripts.py <file>
+   --gap-metrics [--min-gap-seconds N]`. Each silence is a cut candidate (dead air between
+   segments).
+4. Transcript-only path: compute chapter boundary candidates with
+   `python3 shared/docintel/transcripts.py <file> --suggest-chapters`. Boundaries come from long
+   silences and words_per_minute drops; the tool never invents titles (`suggested_title` is
+   always null).
+5. Name each proposed chapter from the transcript text around its boundary; never invent content
    that is not in the transcript. If a plain-text transcript has no timecodes, report that
    timing analysis is unavailable and degrade to a topic-only outline, flagged as such.
-5. Hand the confirmed chapter list to `chapter-map` for YouTube description timestamps and
+6. Hand the confirmed chapter list to `chapter-map` for YouTube description timestamps and
    scheduling fan-out when the user wants those artifacts.
 
 ## Output contract

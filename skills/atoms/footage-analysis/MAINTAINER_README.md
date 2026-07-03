@@ -8,8 +8,11 @@ purpose: preserve the non-negotiable operating rules for footage-analysis so it 
 ## Purpose
 Turn a raw-footage transcript into chapter and cut suggestions. Timing math (silence detection,
 words_per_minute analysis) is delegated to `shared/docintel/transcripts.py` functions
-`gap_metrics()` and `suggest_chapters()`; this atom's job ends at a named, evidence-cited
-proposal for human review. Formatting the confirmed chapters is `chapter-map`'s job.
+`gap_metrics()` and `suggest_chapters()`; when the media file itself is available, timing
+evidence upgrades to `silence-scan`/`scene-scan` (P29, `tools/videoedit/mediaprobe.py`) with the
+transcript numbers remaining the floor and every result keeping its own `computed_by`. This
+atom's job ends at a named, evidence-cited proposal for human review. Formatting the confirmed
+chapters is `chapter-map`'s job.
 
 ## Non-negotiable invariants
 - Shared: references the pipeline (`shared/method.md`); self-checks against

@@ -85,6 +85,26 @@ then H:MM:SS past an hour, first line forced to 0:00), and scheduling metadata f
 calendar / scheduling queue. YouTube's Key Moments rules (first at 0:00, at least 3 chapters, each at
 least 10 seconds) are validate-and-flag in `gaps[]`, never silently fixed or invented.
 
+## Media analysis: silence and scenes (P29)
+
+`tools/videoedit/mediaprobe.py` measures raw media locally with optional, runtime-detected
+backends and honest degradation. No capability flag gates it (read-only local analysis, like
+chapter fan-out); availability is a function of what is installed, reported by preflight.
+
+- Silence chain: `ffmpeg silencedetect` -> PyAV windowed RMS -> the transcript floor
+  (`shared/docintel/transcripts.gap_metrics`).
+- Scene chain: PySceneDetect `ContentDetector` -> `ffmpeg scdet` -> the transcript floor
+  (`shared/docintel/transcripts.suggest_chapters`). The scdet fallback scores luma only, so cuts
+  between isoluminant colors can be missed; that caveat rides on every scdet result as a note
+  (verified in the P26 evaluation, `docs/VIDEO_TOOLING_EVAL.md`).
+
+Provenance contract: every result carries `computed_by` (the backend that actually ran),
+`backend_chain` (each link tried, with the reason it was skipped or failed), and the echoed
+`parameters`. Chapter candidates never carry invented titles (`suggested_title` is null until a
+human or the model names them from real content). `mediaprobe.to_edit_package` folds results
+into the shared edit-package as markers; pending titles are recorded in `gaps[]`. Atoms:
+`silence-scan`, `scene-scan`; `footage-analysis` composes them when media is present.
+
 ## Compressor (feature 5)
 
 macOS batch encoder: `/Applications/Compressor.app/Contents/MacOS/Compressor -batchname NAME

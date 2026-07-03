@@ -11,6 +11,6 @@
     {"step": 6, "atom": "geo-optimize", "input_from": "step3.title + assembled_description + step5.clips", "output_to": "step7", "condition": "seo_optimization_requested or platform_targets includes google"},
     {"step": 7, "atom": "govern-artifact", "input_from": "assembled_package", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment", "professional_quality"]}
   ],
-  "shortcut_atoms": ["hook-write", "title-generate", "short-extract", "thumbnail-concept", "keyword-cluster", "footage-analysis"],
-  "note": "The user can call any shortcut atom directly without running the full workflow. footage-analysis serves the footage_breakdown routing: raw-footage transcript to chapter and cut suggestions, then chapter-map for fan-out."
+  "shortcut_atoms": ["hook-write", "title-generate", "short-extract", "thumbnail-concept", "keyword-cluster", "footage-analysis", "silence-scan", "scene-scan"],
+  "note": "The user can call any shortcut atom directly without running the full workflow. footage-analysis serves the footage_breakdown routing: raw-footage transcript to chapter and cut suggestions, then chapter-map for fan-out. silence-scan and scene-scan measure raw media directly (tools/videoedit/mediaprobe.py) when it is available, degrading to the transcript floor."
 }
