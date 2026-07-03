@@ -73,6 +73,8 @@ def merge(base: dict, incoming: dict) -> dict:
     bt["captions"] = _union(bt["captions"], it["captions"], lambda c: (round(c.get("start_seconds", 0), 3), c.get("text", "")))
     bt["keywords"] = _union(bt["keywords"], it["keywords"], lambda k: (round(k.get("start_seconds", 0), 3), k.get("keyword", "")))
     bt["roles"] = sorted(set(bt["roles"]) | set(it["roles"]))
+    base["gaps"] = _union(base.get("gaps", []), incoming.get("gaps", []),
+                          lambda g: (g.get("gap_type", ""), g.get("description", "")))
     if it.get("name") and not bt.get("name"):
         bt["name"] = it["name"]
     return base

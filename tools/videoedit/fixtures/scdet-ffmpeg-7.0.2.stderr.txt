@@ -1,0 +1,41 @@
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'workshop-synth.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf61.1.100
+  Duration: 00:07:00.00, start: 0.000000, bitrate: 76 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Constrained Baseline) (avc1 / 0x31637661), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 6 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+      Metadata:
+        handler_name    : VideoHandler
+        vendor_id       : [0][0][0][0]
+        encoder         : Lavc61.3.100 libx264
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, mono, fltp, 63 kb/s (default)
+      Metadata:
+        handler_name    : SoundHandler
+        vendor_id       : [0][0][0][0]
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> wrapped_avframe (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf61.1.100
+  Stream #0:0(und): Video: wrapped_avframe, yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 200 kb/s, 30 fps, 30 tbn (default)
+      Metadata:
+        handler_name    : VideoHandler
+        vendor_id       : [0][0][0][0]
+        encoder         : Lavc61.3.100 wrapped_avframe
+frame= 1917 fps=0.0 q=-0.0 size=N/A time=00:01:03.90 bitrate=N/A speed= 128x    
+frame= 4043 fps=4040 q=-0.0 size=N/A time=00:02:14.76 bitrate=N/A speed= 135x    
+[scdet @ 0x7ff540002140] lavfi.scd.score: 15.625, lavfi.scd.time: 150
+frame= 6070 fps=4043 q=-0.0 size=N/A time=00:03:22.33 bitrate=N/A speed= 135x    
+[scdet @ 0x7ff540002140] lavfi.scd.score: 66.016, lavfi.scd.time: 240
+frame= 8023 fps=4009 q=-0.0 size=N/A time=00:04:27.43 bitrate=N/A speed= 134x    
+[scdet @ 0x7ff540002140] lavfi.scd.score: 40.625, lavfi.scd.time: 330
+frame=10079 fps=4029 q=-0.0 size=N/A time=00:05:35.96 bitrate=N/A speed= 134x    
+frame=12190 fps=4060 q=-0.0 size=N/A time=00:06:46.33 bitrate=N/A speed= 135x    
+[out#0/null @ 0x116a3580] video:5414KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown
+frame=12600 fps=4048 q=-0.0 Lsize=N/A time=00:07:00.00 bitrate=N/A speed= 135x    
