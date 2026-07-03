@@ -1,0 +1,22 @@
+# Optional media backends for the videoedit tools (P29). NOTHING here is required:
+# every tool in tools/videoedit/ runs stdlib-only and degrades to the transcript floor
+# (shared/docintel/transcripts.py) when a backend is absent. Install only what you want;
+# preflight (python3 tools/videoedit/preflight.py) reports what was found.
+#
+# ffmpeg and melt are system binaries, not pip packages: install via your OS package
+# manager (brew install ffmpeg mlt / apt install ffmpeg melt) or a static build.
+
+# Scene/chapter detection (recommended detector; catches isoluminant cuts ffmpeg scdet misses)
+scenedetect>=0.7,<0.8
+opencv-python-headless
+
+# In-process silence detection without an ffmpeg binary
+av
+
+# Local Shorts reframe rendering (crop geometry itself needs nothing)
+moviepy>=2,<3
+
+# Timeline interchange extras (adapters are separate plugins since OTIO 0.18)
+opentimelineio
+otio-fcpx-xml-adapter
+otio-kdenlive-adapter
