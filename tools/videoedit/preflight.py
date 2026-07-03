@@ -33,6 +33,14 @@ def _otio_available() -> bool:
         return False
 
 
+def _importable(name: str) -> bool:
+    try:
+        __import__(name)
+        return True
+    except Exception:
+        return False
+
+
 def _resolve_present() -> dict:
     """Best-effort detection of a Resolve install + its fusionscript lib, per OS."""
     plat = sys.platform
@@ -68,6 +76,13 @@ def preflight(config: dict | None = None) -> dict:
         "final_cut_pro": is_mac and Path("/Applications/Final Cut Pro.app").exists(),
         "commandpost": is_mac and Path("/Applications/CommandPost.app").exists(),
         "otio": _otio_available(),
+        "ffmpeg": bool(shutil.which("ffmpeg")),
+        "ffprobe": bool(shutil.which("ffprobe")),
+        "melt": bool(shutil.which("melt")),
+        "auto_editor": bool(shutil.which("auto-editor")),
+        "av": _importable("av"),
+        "scenedetect": _importable("scenedetect"),
+        "moviepy": _importable("moviepy"),
     }
     resolve = _resolve_present()
 
@@ -77,6 +92,7 @@ def preflight(config: dict | None = None) -> dict:
             "video_editing_enabled", "resolve_scripting", "fcpxml_timeline_export",
             "caption_roundtrip", "shorts_reframe", "marker_intel_import",
             "compressor_presets", "motion_template_fill", "commandpost_macros", "chapter_sync",
+            "mlt_timeline_export", "media_render",
         )
     }
 
@@ -89,6 +105,15 @@ def preflight(config: dict | None = None) -> dict:
         "compressor_run": bool(is_mac and tools["compressor"] and flags["compressor_presets"] and flags["video_editing_enabled"]),
         # FCP import needs macOS + FCP present.
         "fcp_import": bool(is_mac and tools["final_cut_pro"]),
+        # Media analysis lanes (P29): no flag, availability is tool presence; both degrade to
+        # the transcript floor which is always available.
+        "silence_scan_media": bool(tools["ffmpeg"] or tools["av"]),
+        "scene_scan_media": bool(tools["scenedetect"] or tools["ffmpeg"]),
+        # Reframe render needs the flag plus a backend; geometry itself is always available.
+        "reframe_render": bool(flags["shorts_reframe"] and (tools["moviepy"] or tools["ffmpeg"])),
+        # MLT export is a plain file-writing flag; melt render is app-driving (master gate).
+        "mlt_export": bool(flags["mlt_timeline_export"]),
+        "melt_render": bool(tools["melt"] and flags["media_render"] and flags["video_editing_enabled"]),
     }
 
     notes = []
@@ -100,6 +125,16 @@ def preflight(config: dict | None = None) -> dict:
         notes.append("Non-macOS: Final Cut Pro and Compressor are unavailable; use the Resolve lane or hand off FCPXML files.")
     if flags["resolve_scripting"] and not resolve["lib_present"]:
         notes.append("resolve_scripting is on but no Resolve fusionscript library was found; degrading to file interchange.")
+    if not lanes["silence_scan_media"]:
+        notes.append("No ffmpeg and no av: silence-scan degrades to transcript gap analysis (the P28 floor).")
+    if not lanes["scene_scan_media"]:
+        notes.append("No scenedetect and no ffmpeg: scene-scan degrades to transcript chapter heuristics (the P28 floor).")
+    if tools["ffmpeg"] and not tools["scenedetect"]:
+        notes.append("scene-scan will use ffmpeg scdet (luma-only; isoluminant cuts can be missed). pip install scenedetect for the recommended detector.")
+    if flags["shorts_reframe"] and not (tools["moviepy"] or tools["ffmpeg"]):
+        notes.append("shorts_reframe is on but no MoviePy or ffmpeg was found; crop parameters are emitted without a local render.")
+    if flags["media_render"] and not flags["video_editing_enabled"]:
+        notes.append("media_render is on but the video_editing_enabled master gate is off; no render will run.")
 
     return {
         "os": plat,

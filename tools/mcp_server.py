@@ -766,6 +766,69 @@ def chapter_map(chapters: dict) -> str:
 
 
 @mcp.tool()
+def silence_scan(media_path: str | None = None, transcript_path: str | None = None,
+                 noise_db: float = -50.0, min_silence_seconds: float = 2.0) -> str:
+    """Silence (dead air) detection with provenance (P29). Local analysis, no flag, no app:
+    ffmpeg silencedetect when present, PyAV RMS as fallback, degrading to the transcript gap
+    floor. Result carries computed_by and the backend_chain audit trail; no backend means an
+    honest gaps[] entry, never invented numbers."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import mediaprobe as _mp  # type: ignore
+    try:
+        return json.dumps(_mp.detect_silence(media_path, transcript_path, noise_db,
+                                             min_silence_seconds), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def scene_scan(media_path: str | None = None, transcript_path: str | None = None,
+               threshold: float = 27.0) -> str:
+    """Scene-change detection and chapter candidates with provenance (P29). Local analysis, no
+    flag, no app: PySceneDetect when installed, ffmpeg scdet as fallback (luma-only caveat rides
+    on the result), degrading to the transcript chapter floor. Chapter titles are never
+    invented (suggested_title is always null)."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import mediaprobe as _mp  # type: ignore
+    try:
+        return json.dumps(_mp.detect_scenes(media_path, transcript_path, threshold),
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def reframe_shorts(source_width: int, source_height: int, aspect: str = "9:16",
+                   x_center: float | None = None) -> str:
+    """Shorts crop geometry (P29, feature 3). Pure math, always available: the centered (or
+    offset, clamped) crop rectangle plus the ffmpeg filter string, as an edit-package reframe
+    block. Local rendering is CLI-only (tools/videoedit/reframe.py render, gated on the
+    shorts_reframe flag); this tool never renders."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import reframe as _rf  # type: ignore
+    try:
+        return json.dumps(_rf.crop_geometry(source_width, source_height, aspect, x_center),
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def edit_build_mlt(edit_package: dict) -> str:
+    """Build MLT XML (Shotcut-native, Kdenlive substrate) from an edit-package (P29, feature 9).
+    Mirrors edit_build_fcpxml: returns the XML plus a well-formedness validation verdict. File
+    generation only; rendering is CLI-only behind the media_render flag."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import mltxml as _mlt  # type: ignore
+    try:
+        xml = _mlt.build(edit_package)
+        verdict = _mlt.validate(xml)
+        return json.dumps({"mlt_xml": xml, "validation": verdict}, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
 def obligation_scan(rows: dict | None = None, today: str | None = None, lead_days: int = 3) -> str:
     """Read-only deadline scan for contract obligations (P23 Phase 3). Deterministic date math runs
     in local Python (tools/obligations.py), so the model spends no tokens on arithmetic. Pass `rows`
