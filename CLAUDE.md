@@ -106,6 +106,27 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   off, the dashboard schedules and advances items to `ready_to_post` for manual posting and makes
   no network call.
 
+## Commit and PR hygiene (non-negotiable, machine-enforced)
+Nothing leaves this machine that reveals more than the code change itself:
+- Commit messages, PR titles/bodies, and issue comments never contain: claude.ai session links,
+  personal email addresses, real dollar amounts, real brand or counterparty names from the
+  pipeline, credentials, or any PII. Fictional examples only, and only when needed.
+- The commit author email is the GitHub noreply address (repo-local `git config user.email`),
+  never a personal address.
+- After cloning, run `python3 tools/install_hooks.py` once: the pre-commit hook runs
+  `tools/secret_scan.py --staged` (blocks staged secrets, `.local.` files, CSV/spreadsheet
+  exports, key material, `.env*`), and the commit-msg hook rejects messages carrying session
+  links, emails, or secret patterns.
+- CI backstops clones that skipped the hooks: the guard job scans all tracked content
+  (invariant 21) and every commit message plus author email after the policy boundary SHA
+  recorded in `tools/secret-scan-allowlist.json`. History before the boundary is not rewritten
+  and not re-litigated.
+- Verified false positives are exempted only in `tools/secret-scan-allowlist.json`, each with a
+  written reason. Never exempt a real secret; fix the file instead.
+- Data at rest: drift invariants 19 (no tracked `.local.` files), 20 (tracked files under
+  `pipeline/` must be on the explicit allowlist; no tracked CSV/XLSX/OFX/QFX/PEM/KEY/.env
+  anywhere), and 21 (content scan) fail the build on violation and fail closed in CI.
+
 ## Commit messages
 Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase
-boundaries and after a skill ships.
+boundaries and after a skill ships. Subject to the hygiene rules above.
