@@ -21,7 +21,7 @@ All outputs are governed by the Quality Gates before delivery.
 |---|---|---|---|
 | `file_path` | string | conditional | Local path to the source file. Required if `source` is not provided. |
 | `source` | string | conditional | Cloud source identifier: `onedrive`, `google-drive`, `youtube`, or `instagram`. Required if `file_path` is not provided. Routed via `shared/integrations-engine.md`. |
-| `artifact_type` | string | required | One of: `project_brief`, `script`, `materials_list`, `caption_set`, `custom`. |
+| `artifact_type` | string | required | One of: `project_brief`, `script`, `materials_list`, `caption_set`, `invoice`, `custom`. |
 | `output_format` | string | optional | One of: `docx`, `txt`, `json`. Defaults to `docx` if not specified. |
 
 Exactly one of `file_path` or `source` must be present. Providing both or neither is an input validation error.
@@ -33,7 +33,7 @@ Exactly one of `file_path` or `source` must be present. Providing both or neithe
 | `file_type_confirmed` | Boolean. True only after the caller explicitly confirms the detected file type. No downstream atoms run until this is true. |
 | `ingestion_record` | Produced by the `ingest-route` atom. Includes raw parse metadata and `injection_scan_result` from `shared/injection-guard-engine.md`. |
 | `extracted_content_summary` | Structured summary of the parsed document content: title, detected sections, word count, and any embedded media references. |
-| `artifact` | The primary deliverable. Structure depends on `artifact_type`: a project brief follows the project-snapshot schema, a script follows the script-section schema, a materials list follows the materials-list schema, a caption set follows the caption-write schema, and a custom artifact follows spoke conventions with explicit field labels. |
+| `artifact` | The primary deliverable. Structure depends on `artifact_type`: a project brief follows the project-snapshot schema, a script follows the script-section schema, a materials list follows the materials-list schema, a caption set follows the caption-write schema, an invoice restates a pipeline/finance/ invoice record exactly (built by invoice-generate via tools/finance.py; the document adds nothing to the record and is drafted, never sent), and a custom artifact follows spoke conventions with explicit field labels. |
 | `quality_gate_result` | Pass or fail result from `govern-artifact`. Includes gate ID, checked fields, and any flagged items. Artifact is not delivered if this is a fail. |
 
 ## Atoms composed

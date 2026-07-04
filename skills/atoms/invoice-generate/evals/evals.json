@@ -1,0 +1,70 @@
+[
+  {
+    "test_id": "invoice-generate-happy-path",
+    "description": "deal with agreed figures and structured terms produces a complete draft",
+    "input": {
+      "deal_id": "hearthline-2026-001",
+      "line_items": [
+        { "description": "dedicated video", "quantity": 1, "unit_price": 2500 },
+        { "description": "usage rights addon", "amount": 500 }
+      ],
+      "adjustments": [ { "description": "early-commit discount", "amount": -250 } ],
+      "anchor_date": "2026-07-01",
+      "seq": 1
+    },
+    "expected_output_keys": ["invoice_id", "subtotal", "total", "payment_due_date", "terms_snapshot", "human_review_required"],
+    "assertions": [
+      "invoice_id is INV-hearthline-2026-001-001 (deterministic, tool-assigned)",
+      "subtotal 3000.00 and total 2750.00 as exact-decimal strings",
+      "payment_due_date derived net-30 from the anchor, not weekend-rolled",
+      "status is draft and human_review_required is true",
+      "the boundary line and consequential-action gate precede any send"
+    ]
+  },
+  {
+    "test_id": "invoice-generate-missing-figures",
+    "description": "figures absent from the record become gaps, never estimates",
+    "input": {
+      "deal_id": "d",
+      "line_items": [ { "description": "integration segment" } ]
+    },
+    "expected_output_keys": ["gaps", "subtotal"],
+    "assertions": [
+      "a missing_amount gap names the line",
+      "a missing_terms gap says to normalize payment terms first",
+      "no figure is estimated from benchmarks or adjacent deals",
+      "the draft states it is incomplete"
+    ]
+  },
+  {
+    "test_id": "invoice-generate-flag-off",
+    "description": "write request with flags off refuses the write but returns the draft",
+    "input": {
+      "deal_id": "hearthline-2026-001",
+      "line_items": [ { "description": "dedicated video", "amount": 2500 } ],
+      "write": true
+    },
+    "expected_output_keys": ["_gate", "invoice_id"],
+    "assertions": [
+      "_gate names the off flag and its degraded_behavior pointer",
+      "no file is written under pipeline/finance/",
+      "the computed draft is still returned in full",
+      "invoice_refs on the deal is NOT updated"
+    ]
+  },
+  {
+    "test_id": "invoice-generate-terms-snapshot",
+    "description": "issued invoice freezes terms; later deal edits do not change it",
+    "input": {
+      "deal_id": "hearthline-2026-001",
+      "line_items": [ { "description": "final balance", "amount": 1000 } ],
+      "seq": 2
+    },
+    "expected_output_keys": ["terms_snapshot"],
+    "assertions": [
+      "terms_snapshot equals the deal's payment_terms_structured at build time",
+      "editing the deal's terms afterward does not mutate the issued record",
+      "sequence 2 yields INV-hearthline-2026-001-002"
+    ]
+  }
+]

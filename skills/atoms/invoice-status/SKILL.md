@@ -1,7 +1,7 @@
 ---
 file: skills/atoms/invoice-status/SKILL.md
 name: invoice-status
-description: "reads invoice and payment state from pipeline/deals/ records and surfaces overdue, pending, and paid invoices; does NOT issue invoices, send payment reminders, or modify records."
+description: "reads invoice and payment state, preferring the standalone records in pipeline/finance/ (authoritative since P30) and falling back to the deal record's denormalized invoice summary; surfaces the full six-state lifecycle (draft, sent, viewed, paid, overdue, disputed) with days overdue; does NOT issue invoices (invoice-generate), report portfolio aging (ar-review), send payment reminders, or modify records."
 load:
   - shared/pipeline-engine.md
   - protocols/no-fabrication.md
@@ -11,7 +11,7 @@ load:
 
 ## Purpose
 
-Read invoice and payment state from `pipeline/deals/` records and surface overdue, pending, and paid invoices. This atom is a read-only lens over the deals store. It classifies each invoice by status relative to the current or supplied date, computes days overdue, and aggregates total outstanding balance. It does not modify any record, send any communication, or create new invoices.
+Read invoice and payment state, preferring the standalone invoice records in `pipeline/finance/` (authoritative, `shared/pipeline-engine.md`) and falling back to the deal record's denormalized `invoice` summary when no standalone record exists. This atom is a read-only lens over the stores. It classifies each invoice by status relative to the current or supplied date, computes days overdue, and aggregates total outstanding balance. It does not modify any record, send any communication, or create new invoices.
 
 ## Inputs
 
@@ -31,7 +31,7 @@ Read invoice and payment state from `pipeline/deals/` records and surface overdu
       "amount": "<number>",
       "issued_date": "<YYYY-MM-DD>",
       "due_date": "<YYYY-MM-DD>",
-      "status": "<pending | overdue | paid>",
+      "status": "<draft | sent | viewed | paid | overdue | disputed>",
       "days_overdue": "<integer, 0 if not overdue>"
     }
   ],

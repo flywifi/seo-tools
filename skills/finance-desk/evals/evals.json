@@ -1,0 +1,64 @@
+[
+  {
+    "test_id": "finance-desk-invoice-action",
+    "description": "action invoice drafts a record and stops at the consequential gate",
+    "input": {
+      "action": "invoice",
+      "deal_id": "hearthline-2026-001",
+      "line_items": [ { "description": "dedicated video", "quantity": 1, "unit_price": 2500 } ],
+      "anchor_date": "2026-07-01"
+    },
+    "expected_output_keys": ["invoice_id", "total", "payment_due_date", "human_review_required"],
+    "assertions": [
+      "the draft comes from tools/finance.py with computed_by provenance",
+      "the confirmation summary restates amount, counterparty, and terms and asks for an explicit yes",
+      "nothing is sent; with flags off nothing is written and the _gate reason is shown",
+      "output passes govern-artifact before release"
+    ]
+  },
+  {
+    "test_id": "finance-desk-ar-action",
+    "description": "action ar reports the whole book read-only",
+    "input": { "action": "ar", "as_of_date": "2026-07-03" },
+    "expected_output_keys": ["buckets", "total_outstanding", "action_queue"],
+    "assertions": [
+      "runs with all finance flags off (read-only discipline)",
+      "figures are the tool's exact-decimal strings",
+      "disputed invoices are separated and excluded from outstanding",
+      "a single deal_id input adds the invoice-status per-deal narrative"
+    ]
+  },
+  {
+    "test_id": "finance-desk-estimate-action",
+    "description": "action estimate builds a sourced cost projection (chunk 6 atom)",
+    "input": {
+      "action": "estimate",
+      "project_ref": "fall-workshop-tour",
+      "line_items": [ { "category": "production_materials", "description": "chalk paint", "amount": 42.50, "source": "quote" } ]
+    },
+    "expected_output_keys": ["totals", "gaps"],
+    "assertions": [
+      "every line carries its source; assumptions are labeled",
+      "capex and expense are split; totals computed by cost_rollup",
+      "the CPA boundary line is present",
+      "unknown costs are gaps, never guesses"
+    ]
+  },
+  {
+    "test_id": "finance-desk-price-action",
+    "description": "action price computes a floor and names the binding constraint",
+    "input": {
+      "action": "price",
+      "cost_total": 500,
+      "margin_percent": 30,
+      "rate_floor": 800
+    },
+    "expected_output_keys": ["price_floor", "bound"],
+    "assertions": [
+      "price_floor is max(cost floor, negotiation floor) with the bound named",
+      "a floor above the benchmark range is flagged, not hidden",
+      "the output is decision support; the consequential gate precedes any external quote",
+      "feeds pitch-paragraph and contract-draft without re-computing"
+    ]
+  }
+]

@@ -71,8 +71,8 @@ roll-back, and urgency bands deterministically in the local compute lane.
    cap, penalty rate) is normalized into the record's structured blocks per the procedure in
    `shared/finance-engine.md` (quoted evidence or null); the payout and accrual arithmetic is
    `tools/finance.py`'s job, never this atom's and never the register's.
-5. Tag each row's `confidence` (`explicit`, `high`, `medium`, `low`) per the engine.
-6. Set `human_review_required: true` and `recommend_counsel: true` when any term is ambiguous or a
+6. Tag each row's `confidence` (`explicit`, `high`, `medium`, `low`) per the engine.
+7. Set `human_review_required: true` and `recommend_counsel: true` when any term is ambiguous or a
    consequence is unclear.
 
 ## Output

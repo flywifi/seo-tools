@@ -1,0 +1,65 @@
+[
+  {
+    "test_id": "ar-review-aging-buckets",
+    "description": "open invoices land in the correct buckets with tool-computed figures",
+    "input": {
+      "as_of_date": "2026-07-03",
+      "invoices": [
+        { "invoice_id": "INV-a-001", "brand_name": "Hearthline", "total": "2750.00", "payment_due_date": "2026-06-01", "status": "sent" },
+        { "invoice_id": "INV-b-001", "brand_name": "Lumen Co", "total": "1200.00", "payment_due_date": "2026-07-10", "status": "sent" }
+      ]
+    },
+    "expected_output_keys": ["buckets", "bucket_totals", "total_outstanding", "action_queue"],
+    "assertions": [
+      "32 days past due lands in 31_to_60 (left-inclusive edges)",
+      "the invoice due in 7 days is current with urgency band red",
+      "total_outstanding is the tool's exact-decimal string, never re-added by the model",
+      "action_queue is sorted by days past due"
+    ]
+  },
+  {
+    "test_id": "ar-review-disputed-and-paid",
+    "description": "paid invoices drop out; disputed are separated and accrue nothing",
+    "input": {
+      "as_of_date": "2026-07-03",
+      "invoices": [
+        { "invoice_id": "INV-c-001", "total": "500.00", "payment_due_date": "2026-05-01", "status": "paid" },
+        { "invoice_id": "INV-c-002", "brand_name": "Lumen Co", "total": "800.00", "payment_due_date": "2026-05-01", "status": "disputed" }
+      ]
+    },
+    "expected_output_keys": ["disputed", "total_outstanding"],
+    "assertions": [
+      "the paid invoice appears nowhere in the report",
+      "the disputed invoice is listed under disputed only",
+      "total_outstanding excludes the disputed amount",
+      "no penalty accrues on the disputed invoice"
+    ]
+  },
+  {
+    "test_id": "ar-review-penalty-accrual",
+    "description": "late penalties accrue under each invoice's frozen terms",
+    "input": {
+      "as_of_date": "2026-09-10",
+      "invoices": [
+        { "invoice_id": "INV-d-001", "brand_name": "Hearthline", "total": "1000.00", "payment_due_date": "2026-07-03", "status": "overdue", "terms_snapshot": { "late_penalty": { "type": "percent_per_month", "rate": 1.5, "grace_days": 5 } } }
+      ]
+    },
+    "expected_output_keys": ["buckets"],
+    "assertions": [
+      "accrued_penalty reflects full elapsed months past grace only, no proration",
+      "the accrual carries computed_by from tools/finance.py",
+      "the penalty is reported alongside the principal, never folded in"
+    ]
+  },
+  {
+    "test_id": "ar-review-empty-state",
+    "description": "no invoice records yields an honest empty report",
+    "input": { "as_of_date": "2026-07-03" },
+    "expected_output_keys": ["total_outstanding", "buckets", "gaps"],
+    "assertions": [
+      "total_outstanding is 0.00 with empty buckets",
+      "no entries are fabricated",
+      "the summary names the store path and points to invoice-generate"
+    ]
+  }
+]
