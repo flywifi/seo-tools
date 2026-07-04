@@ -128,5 +128,7 @@ Nothing leaves this machine that reveals more than the code change itself:
   anywhere), and 21 (content scan) fail the build on violation and fail closed in CI.
 
 ## Commit messages
-Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase
-boundaries and after a skill ships. Subject to the hygiene rules above.
+Keep them short: a few sentences at most, describing only what was added or changed and the
+affected engine, protocol, or skill. Never include conversation details, decision background,
+personal information, or links of any kind. Update `STATE.md` at phase boundaries and after a
+skill ships. Subject to the hygiene rules above. All work stays in this repository only.
