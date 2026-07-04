@@ -88,17 +88,19 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
 - `canonical-sources/source-registry.json` is written only through `tools/registry_io.py`
-  (`load_registry`/`save_registry`), the single shared write implementation. Two tools import it:
+  (`load_registry`/`save_registry`), the single shared write implementation. Three tools import it:
   `tools/source_currency.py` (report/check/mark-checked/seed-sources/seed-partners/update-source/
-  remove-source) and `tools/traversal_engine.py` (`accept`, which appends a graph-discovered
-  source). Do not edit source-registry.json by hand; use `seed-sources` for new sources,
-  `update-source` for corrections, and `accept` for traversal discoveries.
+  remove-source), `tools/traversal_engine.py` (`accept`, which appends a graph-discovered source),
+  and `tools/dependency_currency.py` (`check --apply`, which stamps dependency freshness). Do not
+  edit source-registry.json by hand; use `seed-sources` for new sources, `update-source` for
+  corrections, and `accept` for traversal discoveries.
 - `tools/dependency_currency.py` is the token-free version-drift checker for pip packages, system
   binaries, and MCP servers (categories `software-dependency`, `mcp-server`): it queries PyPI and
-  GitHub Releases directly and reconciles against `requirements-*.txt`, the validated versions in
-  `docs/video-tooling-integration-evidence.json`, and `shared/connectors/connectors.json`. It is
-  read-only on the registry; closing the loop (stamping `last_checked`/`latest_seen`) goes through
-  `source_currency.py`.
+  GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and reconciles against
+  `requirements-*.txt`, the validated versions in `docs/video-tooling-integration-evidence.json`,
+  and `shared/connectors/connectors.json`. `report`/`check` are read-only; `check --apply` stamps
+  `last_checked`/`latest_seen` for reachable entries via `registry_io` so routine currency
+  maintenance runs with no model tokens. Binary/manual entries degrade to advisory.
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
   `traversal-visited.json`.
 - `shared/connectors/connectors.json` is the source of truth for the connector registry. The
