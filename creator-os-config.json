@@ -213,6 +213,21 @@
       "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",
       "requires": "contract_management on. legal-requirement-check ships in P23 Phase 1 and cites canonical-sources/source-registry.json FTC entries."
     },
+    "finance_management": {
+      "enabled": false,
+      "description": "Master gate for the finance bucket (P30). Activates finance record writes: invoice records, cost estimates, cost actuals, and the finance register under pipeline/finance/. Read-only scans (AR aging, invoice status) are always available without this flag. See shared/finance-engine.md.",
+      "requires": "Nothing external. tools/finance.py runs offline (stdlib, no network)."
+    },
+    "invoice_generation": {
+      "enabled": false,
+      "description": "Invoice drafting (P30). Activates the invoice-generate atom and tools/finance.py --build-invoice --write. Invoices are DRAFTED only and never sent by the system; the human reviews and sends (consequential-action gate, shared/finance-engine.md).",
+      "requires": "finance_management plus this flag."
+    },
+    "cost_research": {
+      "enabled": false,
+      "description": "Cost researcher dispatch (P30). Allows the cost-researcher agent to research vendor/product prices via the web-intel lanes for cost estimates and proposals. All findings cited or labeled [estimated]; read-only research, never a record write.",
+      "requires": "This flag; agent dispatch remains the operator's decision."
+    },
     "mlt_timeline_export": {
       "enabled": false,
       "description": "Feature 9. Emit the edit-package as MLT XML, Shotcut's native project format and the Kdenlive substrate (tools/videoedit/mltxml.py). The second Lane A interchange format alongside FCPXML; stdlib-written, no external tool needed to build or parse the file.",
@@ -259,7 +274,10 @@
     "contract_obligations_disabled": "contract_obligations is off. obligation-extract can still pull duties into rows and tools/obligations.py --scan can compute a read-only deadline view (send-by dates, weekend/US-holiday roll-back, urgency bands) in local Python, but the dated obligation register is NOT written to pipeline/user-context/obligation-register.local.json and is not synced to the content calendar or production tasks. Turn the flag on to persist the register; the date math runs offline either way (no tokens).",
     "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage.",
     "mlt_timeline_export_disabled": "mlt_timeline_export is off. Timelines still export as FCPXML (fcpxml_timeline_export) or as the neutral edit-package JSON; Shotcut/Kdenlive users convert manually or enable this flag.",
-    "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior."
+    "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior.",
+    "finance_management_disabled": "finance_management is off. AR aging and invoice status remain fully readable (tools/finance.py --ar-scan and the invoice-status atom need no flag), and all money math still runs offline on request, but no invoice record, cost estimate, or cost actual is written to pipeline/finance/. Turn the flag on to persist records.",
+    "invoice_generation_disabled": "invoice_generation is off. The system still computes what an invoice WOULD contain (line items, due date from structured terms, totals) and reports it for manual invoicing, but writes no invoice record and produces no invoice document.",
+    "cost_research_disabled": "cost_research is off. Cost estimates use only vendor quotes you provide, the local cost library, and labeled assumptions; no web research for prices is dispatched. Estimates remain honest: unknown costs are null and flagged, never guessed."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
 }

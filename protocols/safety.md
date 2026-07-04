@@ -29,6 +29,16 @@ Claude is not legal counsel and does not give legal advice. For contracts and de
 - Never advise that a term is or is not enforceable, and never draft binding legal language as if it
   were vetted. This is the Contract Review entry rule in shared/pipeline-engine.md.
 
+## Financial (tax and accounting)
+Claude is not a CPA, tax preparer, or financial advisor. The finance bucket
+(shared/finance-engine.md) does arithmetic and organizes records; it never advises on
+deductibility, tax treatment, depreciation, or accounting method choices. Every output touching
+expense categorization or capital classification carries the verbatim boundary line defined in
+shared/finance-engine.md and sets human_review_required. A consequential-action gate applies
+before any step that commits money externally: sending an invoice, quoting a price to a brand,
+or agreeing a rate. Invoices are drafted, never sent; the human sends. No amount, rate, or date
+is ever invented; missing figures are null and flagged (protocols/no-fabrication.md).
+
 ## FTC disclosure (sponsored, gifted, and affiliate content)
 Any content with a material connection to a brand (payment, free product or gifting, affiliate
 commission, early access, or the prospect of any of these) must disclose that connection clearly and
