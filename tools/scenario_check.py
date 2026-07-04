@@ -42,6 +42,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "tools" / "videoedit"))
 sys.path.insert(0, str(ROOT / "shared" / "docintel"))
 import obligations  # noqa: E402
+import accounts  # noqa: E402
 import chapters  # noqa: E402
 import transcripts  # noqa: E402
 
@@ -219,6 +220,25 @@ def op_quality(withp, clock, prior):
     return qr_score.evaluate(scores)
 
 
+def op_accounts_resolve(withp, clock, prior):
+    """Delegates to the product capability tools/accounts.resolve (P32). Fixture-driven: the
+    roster comes from a fixture so the runner never touches the local account store."""
+    roster = _load_fixture({"fixture": withp["fixture"]}, clock)
+    return accounts.resolve(withp["query"], accounts=roster)
+
+
+def op_accounts_contacts(withp, clock, prior):
+    roster = _load_fixture({"fixture": withp["fixture"]}, clock)
+    return accounts.contacts(withp["query"], person=withp.get("person"), accounts=roster)
+
+
+def op_accounts_deal_status(withp, clock, prior):
+    roster = _load_fixture({"fixture": withp["fixture"]}, clock)
+    deals = _load_fixture({"fixture": withp["deals"]}, clock)
+    return accounts.deal_status(query=withp.get("query"), deal_id=withp.get("deal_id"),
+                                deals=deals, accounts=roster)
+
+
 def op_text_probe(withp, clock, prior):
     p = ROOT / withp["file"]
     if not p.exists():
@@ -240,6 +260,9 @@ OPS = {
     "chapters.fan_out": op_fan_out,
     "chapters.validate": op_validate,
     "quality.evaluate": op_quality,
+    "accounts.resolve": op_accounts_resolve,
+    "accounts.contacts": op_accounts_contacts,
+    "accounts.deal_status": op_accounts_deal_status,
     "text.probe": op_text_probe,
     "path.probe": op_path_probe,
 }

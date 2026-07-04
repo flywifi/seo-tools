@@ -12,15 +12,6 @@
       "scenarios": ["S1-contact-lookup"]
     },
     {
-      "id": "G2",
-      "title": "No fuzzy/nickname/category account resolver: account-health needs an exact brand_name; no alias field in the schema",
-      "probe": [
-        { "op": "text.probe", "with": { "file": "skills/atoms/account-health/SKILL.md", "pattern": "fuzzy", "expect": "absent" } },
-        { "op": "text.probe", "with": { "file": "pipeline/accounts/account-schema.json", "pattern": "alias", "expect": "absent" } }
-      ],
-      "scenarios": ["S1-contact-lookup", "S2-lightbulb-contract"]
-    },
-    {
       "id": "G3",
       "title": "No routing classification for CRM read/status queries (account_read / deal_status absent from the hub table)",
       "probe": { "op": "routing.probe", "with": { "classification": "account_read", "expect": "absent" } },
@@ -34,6 +25,7 @@
     }
   ],
   "_closed_gaps": {
+    "G2": "Closed by P32: tools/accounts.py resolve() does tiered brand-phrase matching (exact, alias, substring, difflib fuzzy, brand-category term map) over an aliases[] field now in account-schema.json; the account-resolve atom wraps it and account-health delegates fuzzy resolution to it. Never auto-picks past a confident exact or alias match.",
     "G4": "Closed by P32: account-schema.json v0.2.0 reconciled to shared/pipeline-engine.md (brand_category enum including lighting, secondary_contacts, relationship_health, channel_preferences, deal_history_summary, renewal_candidate); product_category kept deprecated for pre-v0.2.0 records.",
     "G5": "Closed by P32: canonical-sources/seasonal-aesthetic.md now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 (frontmatter load refs) and canonical-sources in KNOWN_ROOTS close the scan hole that let the dangling ref escape.",
     "G6": "Closed by P32: canonical-sources/seasonal-aesthetic/seasonal.json gained the seasonal-windows entry with resolved ISO dates for reference_year 2026 (annual recurrence stated); the engine table, seasonal-map table, and JSON are reconciled to the same eight windows.",
@@ -61,11 +53,29 @@
             { "path": "secondary_contacts", "check": "len_gte", "value": 1 },
             { "path": "secondary_contacts[0].email", "check": "not_null" },
             { "path": "relationship_health", "check": "eq", "value": "warm" },
-            { "path": "alias", "check": "absent_key" }
+            { "path": "aliases", "check": "len_gte", "value": 1 }
+          ]
+        },
+        {
+          "id": "hearthline-resolve",
+          "op": "accounts.resolve",
+          "with": { "fixture": "accounts-roster.json", "query": "hearthline" },
+          "assert": [
+            { "path": "resolved.account_id", "check": "eq", "value": "acct-hearthline-001" },
+            { "path": "computed_by", "check": "eq", "value": "tools/accounts.py.resolve" }
+          ]
+        },
+        {
+          "id": "hearth-ambiguous",
+          "op": "accounts.resolve",
+          "with": { "fixture": "accounts-roster.json", "query": "hearth" },
+          "assert": [
+            { "path": "resolved", "check": "null" },
+            { "path": "candidates", "check": "len_eq", "value": 2 }
           ]
         }
       ],
-      "known_gaps": ["G1", "G2", "G3"]
+      "known_gaps": ["G1", "G3"]
     },
     {
       "id": "S2-lightbulb-contract",
@@ -101,9 +111,20 @@
             { "path": "action_queue[1].send_by_date", "check": "eq", "value": "2026-10-23", "pinned_today_only": true },
             { "path": "action_queue[2].send_by_date", "check": "eq", "value": "2026-12-10", "pinned_today_only": true }
           ]
+        },
+        {
+          "id": "lightbulb-resolve",
+          "op": "accounts.resolve",
+          "with": { "fixture": "accounts-roster.json", "query": "that lightbulb company" },
+          "assert": [
+            { "path": "resolved", "check": "null" },
+            { "path": "resolution", "check": "eq", "value": "category" },
+            { "path": "candidates[0].brand_name", "check": "eq", "value": "Lumen & Co" },
+            { "path": "computed_by", "check": "eq", "value": "tools/accounts.py.resolve" }
+          ]
         }
       ],
-      "known_gaps": ["G2", "G3"]
+      "known_gaps": ["G3"]
     },
     {
       "id": "S3-seasonal-prep",

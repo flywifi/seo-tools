@@ -35,8 +35,8 @@ The run fails loudly in BOTH directions:
 
 | ID | Utterance | Routing verdict | What runs deterministically today |
 |---|---|---|---|
-| S1 | "what's the email for that guy from my Hearthline account?" | gap: no `account_read` / `crm_query` / `contact_lookup` classification | The account record shape: the email is reachable at `primary_contact.email`, and the committed schema has no `secondary_contacts` or `alias` field ("that guy" has nowhere to resolve) |
-| S2 | "where are we with that lightbulb company contract?" | partial: `contract_obligations` covers the timeline half; no `account_read` / `deal_status`, no category resolver for "lightbulb" | The full obligations lane on a fictional lighting brand: register build, weekend roll-back, net-30 anchor derivation, urgency bands, action-queue ordering |
+| S1 | "what's the email for that guy from my Hearthline account?" | gap: no `account_read` / `crm_query` / `contact_lookup` classification | The account record shape (email at `primary_contact.email`, `secondary_contacts` and `aliases` populated) plus the account resolver: "hearthline" resolves to one account, "hearth" surfaces both prefix-sharing brands without auto-picking (P32) |
+| S2 | "where are we with that lightbulb company contract?" | partial: `contract_obligations` covers the timeline half; no `account_read` / `deal_status` | The full obligations lane on a fictional lighting brand (register build, weekend roll-back, net-30 anchor derivation, urgency bands, action-queue ordering), plus the category resolver: "that lightbulb company" surfaces the lighting-category brand as a candidate, never auto-resolved (P32) |
 | S3 | "what's the market going to look like for the holiday season and what should I start doing to prepare?" | present: `seasonal_planning` routes to `seasonal-trends` | All 16 seasonal publish-by deadlines through the obligations date math (band counts, roll-backs, prep queue ordered by urgency), plus the canonical machine-readable source itself: `canonical-sources/seasonal-aesthetic/seasonal.json` seasonal-windows entry with 8 windows of resolved ISO dates (P32) |
 | S4 | "here's my media kit, do market research and give me critiques" | ambiguous: `media_kit` (generation only) vs `quality_check`; no `content_critique` | The deterministic Quality Gates verdict arithmetic (releasable and integrity hard-fail cases) plus the structured benchmark rows: 2 rate rows with low/high/unit and 6 sourced-or-null metric rows (P30) |
 | S5 | "here's raw footage, break it down: chapters and what to cut" | present: `footage_breakdown` routes to `video-development` (P28; footage-analysis atom) | Transcript parsing (20 segments, exact duration), product silence detection via `shared/docintel/transcripts.gap_metrics` (three 8-to-20 second gaps), chapter fan-out and YouTube-rule validation on an authored chapter list |
@@ -50,7 +50,6 @@ ledger and the contract are updated together.
 | ID | Gap | Blocks |
 |---|---|---|
 | G1 | No contact-retrieval capability: account-manager actions are health_check, renewal_scan, overview only; no MCP tool reads contacts | S1 |
-| G2 | No fuzzy/nickname/category account resolver: account-health needs an exact `brand_name`; no alias field in any schema | S1, S2 |
 | G3 | No routing classification for CRM read/status queries (`account_read` / `deal_status`) | S1, S2 |
 | G7 | No media-kit critique path: `media_kit` routes to a generation-only spoke; `quality_check` scores internal gates, not market position; no `content_critique` classification | S4 |
 
@@ -58,6 +57,7 @@ ledger and the contract are updated together.
 
 | ID | Gap | Closed by |
 |---|---|---|
+| G2 | No fuzzy/nickname/category account resolver: account-health needed an exact `brand_name`; no alias field | P32: `tools/accounts.py` resolve() does tiered matching (exact, alias, substring, difflib fuzzy, brand-category term map) over the new `aliases[]` field; the `account-resolve` atom wraps it and account-health delegates fuzzy resolution to it; never auto-picks past a confident exact or alias match |
 | G4 | Schema drift: `pipeline/accounts/account-schema.json` (free-string `product_category`, single contact) vs `shared/pipeline-engine.md` | P32: schema v0.2.0 reconciled to the engine (`brand_category` enum including lighting, `secondary_contacts`, `relationship_health`, `channel_preferences`, `deal_history_summary`, `renewal_candidate`); `product_category` kept deprecated |
 | G5 | Broken load ref: `skills/atoms/seasonal-map/SKILL.md` listed `canonical-sources/seasonal-aesthetic.md`, which did not exist | P32: the canonical file now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 validates frontmatter load refs and `canonical-sources` joined KNOWN_ROOTS, closing the scan hole |
 | G6 | Seasonal publish-by deadlines were prose-only with 3 non-reconciled copies; no machine-readable ISO source | P32: `seasonal.json` gained the seasonal-windows entry (8 windows, resolved ISO dates for reference_year 2026, annual recurrence stated); engine table, seasonal-map table, and JSON reconciled |

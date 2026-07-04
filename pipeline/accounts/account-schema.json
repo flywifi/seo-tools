@@ -3,6 +3,7 @@
   "_note": "Source of truth for brand account records. Real data is gitignored (*.local.*). This is the blank schema only. v0.2.0 reconciles to shared/pipeline-engine.md: brand_category enum, secondary_contacts, relationship_health, channel_preferences, deal_history_summary, renewal_candidate. product_category is deprecated; use brand_category (kept for records written before v0.2.0).",
   "account_id": "",
   "brand_name": "",
+  "aliases": [],
   "brand_category": "furniture | home decor | paint and finishes | tools and hardware | textiles | lighting | organization | garden and outdoor | marketplace and thrift | other",
   "primary_contact": { "name": "", "email": "", "role": "" },
   "secondary_contacts": [],

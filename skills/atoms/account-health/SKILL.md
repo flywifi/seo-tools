@@ -41,8 +41,12 @@ Overall health_score is the worst individual signal. If any signal is red, the a
 }
 ```
 
-Exactly one of `account_id` or `brand_name` must be provided. If neither resolves to a record, emit
-a gap-record object (see `shared/pipeline-engine.md`) and halt; do not fabricate a score.
+Exactly one of `account_id` or `brand_name` must be provided, and `brand_name` must match one
+record exactly. This atom does NOT do fuzzy or nickname matching itself: when the caller has only
+a loose phrase ("that lightbulb company"), run `account-resolve` first (it handles the fuzzy,
+alias, and brand-category resolution and returns one `account_id`), then pass that exact id here.
+If neither input resolves to a record, emit a gap-record object (see `shared/pipeline-engine.md`)
+and halt; do not fabricate a score.
 
 ## Output
 

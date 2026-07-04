@@ -18,6 +18,8 @@ protocols/no-fabrication.md). If a value is unknown, it stays null and is flagge
 
 ## Account schema (pipeline/accounts/<brand-slug>.json)
 - `brand_name`: string.
+- `aliases`: list of alternate names or nicknames the creator uses for this brand (for the
+  account resolver in `tools/accounts.py`; empty list when none).
 - `brand_category`: one of furniture, home decor, paint and finishes, tools and hardware, textiles,
   lighting, organization, garden and outdoor, marketplace and thrift, other.
 - `primary_contact`: { name, role, email } (null fields allowed and flagged).

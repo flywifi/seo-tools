@@ -1,0 +1,46 @@
+[
+  {
+    "test_id": "account-resolve-alias",
+    "description": "an alias phrase resolves to a single account",
+    "input": { "query": "hearthline" },
+    "expected_output_keys": ["resolved", "resolution", "candidates"],
+    "assertions": [
+      "resolved is non-null and its account_id is the Hearthline record",
+      "resolution basis is exact, alias, or substring (a confident single match)",
+      "computed_by is tools/accounts.py.resolve"
+    ]
+  },
+  {
+    "test_id": "account-resolve-ambiguous",
+    "description": "two brands sharing a prefix resolve to null with both surfaced",
+    "input": { "query": "hearth" },
+    "expected_output_keys": ["resolved", "candidates"],
+    "assertions": [
+      "resolved is null (never auto-picks between close candidates)",
+      "candidates lists both the Hearthline and Hearthstone records",
+      "a gap tells the caller to ask the human which brand"
+    ]
+  },
+  {
+    "test_id": "account-resolve-category",
+    "description": "a category or nickname phrase never auto-resolves",
+    "input": { "query": "that lightbulb company" },
+    "expected_output_keys": ["resolved", "resolution", "candidates"],
+    "assertions": [
+      "resolved is null",
+      "resolution is category",
+      "the lighting-category brand appears in candidates at low confidence"
+    ]
+  },
+  {
+    "test_id": "account-resolve-unknown",
+    "description": "an unknown brand yields no candidates and a gap, never a fabricated account",
+    "input": { "query": "some brand we never talked to" },
+    "expected_output_keys": ["resolved", "candidates", "gaps"],
+    "assertions": [
+      "resolved is null and candidates is empty",
+      "a gap asks the human to name the brand exactly",
+      "no account is invented (no-fabrication)"
+    ]
+  }
+]

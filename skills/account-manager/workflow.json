@@ -3,11 +3,12 @@
   "id": "account-manager",
   "description": "Brand account health check, renewal signal scan, and follow-up recommendations.",
   "steps": [
-    {"step": 1, "atom": "account-health", "input_from": "account_id or brand_name", "output_to": "step2"},
-    {"step": 2, "atom": "renewal-signal", "input_from": "account_id + lookback_days", "output_to": "step3", "condition": "action includes renewal_scan"},
-    {"step": 3, "atom": "gap-record", "input_from": "step1 result", "output_to": "final", "condition": "account not found in step1"},
-    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_account_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
+    {"step": 1, "atom": "account-resolve", "input_from": "a fuzzy brand phrase", "output_to": "step2", "condition": "the caller has a loose phrase, not an exact account_id; read-only; resolves to one account_id or surfaces candidates for the human"},
+    {"step": 2, "atom": "account-health", "input_from": "resolved account_id (or an exact account_id/brand_name)", "output_to": "step3"},
+    {"step": 3, "atom": "renewal-signal", "input_from": "account_id + lookback_days", "output_to": "step4", "condition": "action includes renewal_scan"},
+    {"step": 4, "atom": "gap-record", "input_from": "step2 result", "output_to": "final", "condition": "account not found in step2"},
+    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_account_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
   ],
-  "shortcut_atoms": ["account-health", "renewal-signal"],
+  "shortcut_atoms": ["account-resolve", "account-health", "renewal-signal"],
   "note": "All data comes from pipeline/accounts/ and pipeline/deals/. No record is written without going through stage-transition rules in pipeline-engine.md."
 }
