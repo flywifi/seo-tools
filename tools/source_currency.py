@@ -328,6 +328,15 @@ def cmd_seed_sources(args, registry, traversal_config=None):
             "traversal_status": entry.get("traversal_status", "pending"),
             "child_source_ids": entry.get("child_source_ids", []),
         }
+        # Carry through optional dependency / marker fields when present (P33 schema extension):
+        # dependency drift is checked by tools/dependency_currency.py against these fields, and
+        # _static / _no_upstream / _why are documentation markers. Absent fields are simply omitted
+        # so existing web-content entries are unchanged.
+        for opt in ("package", "upstream_api", "check_url", "pinned_constraint",
+                    "validated_version", "latest_seen", "latest_seen_date",
+                    "_why", "_static", "_no_upstream", "source_ids"):
+            if opt in entry:
+                seeded[opt] = entry[opt]
         registry["sources"].append(seeded)
         existing_ids.add(entry["id"])
         upserted.append(entry["id"])
