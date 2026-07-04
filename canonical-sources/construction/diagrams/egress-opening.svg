@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 380" width="520" height="380" font-family="sans-serif">
+  <title>Emergency escape and rescue opening (IRC R310)</title>
+  <desc>An egress window showing the net clear opening minimum width, height, area, and maximum sill height. Original Creator OS drawing.</desc>
+  <rect x="0" y="0" width="520" height="380" fill="#ffffff"/>
+  <!-- floor -->
+  <line x1="30" y1="330" x2="490" y2="330" stroke="#222" stroke-width="2"/>
+  <text x="30" y="348" font-size="11" fill="#444">finished floor</text>
+  <!-- net clear opening -->
+  <rect x="180" y="120" width="150" height="150" fill="#eaf3ff" stroke="#06c" stroke-width="2"/>
+  <text x="196" y="196" font-size="13" fill="#06c">net clear opening</text>
+  <text x="196" y="214" font-size="13" fill="#06c">(window open)</text>
+  <!-- width dim -->
+  <g stroke="#b00" stroke-width="1.2" fill="#b00" font-size="12">
+    <line x1="180" y1="108" x2="330" y2="108"/>
+    <text x="196" y="102">width 20 in min</text>
+  </g>
+  <!-- height dim -->
+  <g stroke="#090" stroke-width="1.2" fill="#090" font-size="12">
+    <line x1="342" y1="120" x2="342" y2="270"/>
+    <text x="348" y="200">height</text>
+    <text x="348" y="216">24 in min</text>
+  </g>
+  <!-- sill height -->
+  <g stroke="#a60" stroke-width="1.2" fill="#a60" font-size="12">
+    <line x1="140" y1="270" x2="140" y2="330"/>
+    <text x="30" y="300">sill 44 in</text>
+    <text x="30" y="316">max</text>
+  </g>
+  <!-- area callout -->
+  <text x="180" y="300" font-size="13" fill="#222">Net clear area: 5.7 sq ft min (5.0 sq ft at grade or below-grade openings)</text>
+  <text x="30" y="366" font-size="11" fill="#888">Original Creator OS drawing (CC0). Use the net clear opening, not the rough opening. Verify against your adopted code edition.</text>
+</svg>

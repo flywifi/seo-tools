@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360" width="560" height="360" font-family="sans-serif">
+  <title>Wood wall framing layout (IRC R602)</title>
+  <desc>Elevation of a framed wall showing studs at 16 inches on center, double top plate, bottom plate, and a header over an opening with king and jack studs. Original Creator OS drawing.</desc>
+  <rect x="0" y="0" width="560" height="360" fill="#ffffff"/>
+  <g stroke="#222" stroke-width="2" fill="#e9dfc6">
+    <!-- double top plate -->
+    <rect x="40" y="50" width="480" height="14"/>
+    <rect x="40" y="64" width="480" height="14"/>
+    <!-- bottom plate -->
+    <rect x="40" y="286" width="480" height="14"/>
+  </g>
+  <!-- studs 16 in OC -->
+  <g stroke="#222" stroke-width="2" fill="#efe7cf">
+    <rect x="48" y="78" width="12" height="208"/>
+    <rect x="112" y="78" width="12" height="208"/>
+    <rect x="176" y="78" width="12" height="208"/>
+    <!-- opening region: king + jack studs -->
+    <rect x="300" y="78" width="12" height="208"/>
+    <rect x="314" y="120" width="12" height="166"/>
+    <rect x="452" y="78" width="12" height="208"/>
+    <rect x="438" y="120" width="12" height="166"/>
+    <rect x="504" y="78" width="12" height="208"/>
+  </g>
+  <!-- header -->
+  <rect x="312" y="96" width="140" height="24" fill="#c8a15a" stroke="#222" stroke-width="2"/>
+  <text x="336" y="113" font-size="12" fill="#333">header</text>
+  <!-- 16 OC dim -->
+  <g stroke="#b00" stroke-width="1.2" fill="#b00" font-size="12">
+    <line x1="54" y1="330" x2="118" y2="330"/>
+    <text x="56" y="346">16 in on center</text>
+  </g>
+  <!-- labels -->
+  <text x="44" y="44" font-size="12" fill="#06c">double top plate</text>
+  <text x="44" y="322" font-size="12" fill="#06c">bottom (sole) plate</text>
+  <text x="470" y="200" font-size="12" fill="#090">king stud</text>
+  <text x="360" y="200" font-size="12" fill="#a60">jack (trimmer) studs carry the header</text>
+  <text x="44" y="200" font-size="12" fill="#444">common studs</text>
+</svg>
