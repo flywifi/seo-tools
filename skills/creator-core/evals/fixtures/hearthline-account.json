@@ -1,21 +1,29 @@
 {
-  "_comment": "FICTIONAL test fixture for the scenario suite (S1 contact lookup). Not a real brand, person, or email. Shape mirrors the COMMITTED pipeline/accounts/account-schema.json exactly, so the suite can assert what the schema does and does not carry (no secondary_contacts, no alias, free-string product_category).",
-  "_schema_version": "0.1.0",
+  "_comment": "FICTIONAL test fixture for the scenario suite (S1 contact lookup). Not a real brand, person, or email. Shape mirrors the COMMITTED pipeline/accounts/account-schema.json (v0.2.0: brand_category enum, secondary_contacts, relationship_health).",
+  "_schema_version": "0.2.0",
   "account_id": "acct-hearthline-001",
   "brand_name": "Hearthline Home",
+  "brand_category": "home decor",
   "primary_contact": {
     "name": "Marcus Webb",
     "email": "marcus.webb@hearthlinehome.example",
     "role": "Partnerships Manager"
   },
+  "secondary_contacts": [
+    { "name": "Dana Ellis", "email": "dana.ellis@hearthlinehome.example", "role": "Creative Director" }
+  ],
+  "relationship_health": "warm",
+  "channel_preferences": ["email"],
   "website": "https://hearthlinehome.example",
   "product_category": "home decor",
   "first_contact_date": "2026-03-02",
   "last_contact_date": "2026-08-28",
   "open_deals": ["deal-hearthline-fall-tour"],
   "closed_deals": [],
+  "deal_history_summary": "One open fall campaign deal (fictional).",
   "notes": "Fictional fixture. Prefers email over calls.",
   "health_score": null,
+  "renewal_candidate": false,
   "exclusivity_active": false,
   "exclusivity_scope": null,
   "exclusivity_expires": null,

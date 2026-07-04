@@ -27,16 +27,6 @@
       "scenarios": ["S1-contact-lookup", "S2-lightbulb-contract"]
     },
     {
-      "id": "G4",
-      "title": "Schema drift: pipeline/accounts/account-schema.json (free-string product_category, single primary_contact) vs shared/pipeline-engine.md (brand_category enum incl. lighting, secondary_contacts, relationship_health)",
-      "probe": { "op": "json.probe", "with": { "file": "pipeline/accounts/account-schema.json" }, "assert": [
-        { "path": "brand_category", "check": "absent_key" },
-        { "path": "secondary_contacts", "check": "absent_key" },
-        { "path": "relationship_health", "check": "absent_key" }
-      ] },
-      "scenarios": ["S2-lightbulb-contract"]
-    },
-    {
       "id": "G7",
       "title": "No media-kit critique path: media_kit routes to a generation-only spoke; quality_check scores internal gates, not market benchmarks; no content_critique classification",
       "probe": { "op": "routing.probe", "with": { "classification": "content_critique", "expect": "absent" } },
@@ -44,6 +34,7 @@
     }
   ],
   "_closed_gaps": {
+    "G4": "Closed by P32: account-schema.json v0.2.0 reconciled to shared/pipeline-engine.md (brand_category enum including lighting, secondary_contacts, relationship_health, channel_preferences, deal_history_summary, renewal_candidate); product_category kept deprecated for pre-v0.2.0 records.",
     "G5": "Closed by P32: canonical-sources/seasonal-aesthetic.md now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 (frontmatter load refs) and canonical-sources in KNOWN_ROOTS close the scan hole that let the dangling ref escape.",
     "G6": "Closed by P32: canonical-sources/seasonal-aesthetic/seasonal.json gained the seasonal-windows entry with resolved ISO dates for reference_year 2026 (annual recurrence stated); the engine table, seasonal-map table, and JSON are reconciled to the same eight windows.",
     "G8": "Closed by P30: benchmarks.json rate rows gained structured low/high/unit/currency (parsed from their own prose) and benchmark-compare's 6 metric rows now exist with the low/high/unit schema, values sourced-or-null (null until verified against a registered rate-benchmark source; never estimated).",
@@ -67,7 +58,9 @@
           "assert": [
             { "path": "primary_contact.email", "check": "not_null" },
             { "path": "primary_contact.name", "check": "eq", "value": "Marcus Webb" },
-            { "path": "secondary_contacts", "check": "absent_key" },
+            { "path": "secondary_contacts", "check": "len_gte", "value": 1 },
+            { "path": "secondary_contacts[0].email", "check": "not_null" },
+            { "path": "relationship_health", "check": "eq", "value": "warm" },
             { "path": "alias", "check": "absent_key" }
           ]
         }
@@ -110,7 +103,7 @@
           ]
         }
       ],
-      "known_gaps": ["G2", "G3", "G4"]
+      "known_gaps": ["G2", "G3"]
     },
     {
       "id": "S3-seasonal-prep",

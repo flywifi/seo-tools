@@ -52,13 +52,13 @@ ledger and the contract are updated together.
 | G1 | No contact-retrieval capability: account-manager actions are health_check, renewal_scan, overview only; no MCP tool reads contacts | S1 |
 | G2 | No fuzzy/nickname/category account resolver: account-health needs an exact `brand_name`; no alias field in any schema | S1, S2 |
 | G3 | No routing classification for CRM read/status queries (`account_read` / `deal_status`) | S1, S2 |
-| G4 | Schema drift: `pipeline/accounts/account-schema.json` (free-string `product_category`, single contact) vs `shared/pipeline-engine.md` (`brand_category` enum including lighting, `secondary_contacts`, `relationship_health`) | S2 |
 | G7 | No media-kit critique path: `media_kit` routes to a generation-only spoke; `quality_check` scores internal gates, not market position; no `content_critique` classification | S4 |
 
 ### Closed gaps
 
 | ID | Gap | Closed by |
 |---|---|---|
+| G4 | Schema drift: `pipeline/accounts/account-schema.json` (free-string `product_category`, single contact) vs `shared/pipeline-engine.md` | P32: schema v0.2.0 reconciled to the engine (`brand_category` enum including lighting, `secondary_contacts`, `relationship_health`, `channel_preferences`, `deal_history_summary`, `renewal_candidate`); `product_category` kept deprecated |
 | G5 | Broken load ref: `skills/atoms/seasonal-map/SKILL.md` listed `canonical-sources/seasonal-aesthetic.md`, which did not exist | P32: the canonical file now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 validates frontmatter load refs and `canonical-sources` joined KNOWN_ROOTS, closing the scan hole |
 | G6 | Seasonal publish-by deadlines were prose-only with 3 non-reconciled copies; no machine-readable ISO source | P32: `seasonal.json` gained the seasonal-windows entry (8 windows, resolved ISO dates for reference_year 2026, annual recurrence stated); engine table, seasonal-map table, and JSON reconciled |
 | G8 | Benchmark coverage: `benchmarks.json` had 2 prose-only rate rows and zero of benchmark-compare's 6 metric rows | P30: rate rows gained structured low/high/unit/currency parsed from their own prose; the 6 metric rows (ctr, avd, engagement_rate, views, subscribers, rpm) now exist with the low/high/unit schema, values sourced-or-null (null until verified against a registered rate-benchmark source, never estimated) |
