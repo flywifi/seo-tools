@@ -51,6 +51,30 @@
       "staleness_threshold_days": 7,
       "traversal_depth": 0,
       "_note": "Competitor video and channel pages. Snapshot saved offline via competitor_snapshot.py for ytInitialPlayerResponse extraction. 3-day check interval keeps tag/hashtag intelligence fresh. traversal_depth=0 — we do not follow links from competitor pages."
+    },
+    "legal-authority": {
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "traversal_depth": 1,
+      "_note": "FTC endorsement guides, copyright basics, contract references. Change semi-annually. Without this override the traversal engine treated legal sources as 7-day-due (the global default), contradicting their intent."
+    },
+    "cost-vendor": {
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "traversal_depth": 1,
+      "_note": "Materials-pricing vendor pages for the cost library. Quarterly is sufficient; prices drift but the cost tool null-and-flags rather than trusting a stale scrape."
+    },
+    "software-dependency": {
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "traversal_depth": 0,
+      "_note": "pip packages and system binaries. NOT web-traversed (traverse-all skips this category). Authoritative freshness is computed per-package by tools/dependency_currency.py against PyPI / GitHub Releases from each entry's own check_interval_days; this override only governs the generic source_currency report grouping."
+    },
+    "mcp-server": {
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "traversal_depth": 0,
+      "_note": "Third-party MCP servers (stats fleet, Google/Microsoft). NOT web-traversed. Version drift checked by tools/dependency_currency.py against their GitHub release pages; a tool-name or auth change silently drops a connector."
     }
   },
   "traversal_max_depth": 2,
@@ -98,7 +122,11 @@
     "apartmenttherapy.com",
     "sproutsocial.com",
     "buffer.com",
-    "trends.google.com"
+    "trends.google.com",
+    "tiktok.com",
+    "copyright.gov",
+    "law.cornell.edu",
+    "github.com"
   ],
   "_allowlist_note": "Only outlinks from pages on this list are followed during traversal. To add a domain, append it here. Removing a domain does not prune existing registry entries.",
   "niche_relevance_terms": [

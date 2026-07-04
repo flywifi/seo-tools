@@ -87,11 +87,20 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
-- `tools/source_currency.py` is the only tool that writes to `canonical-sources/source-registry.json`.
-  Do not edit source-registry.json by hand.
+- `canonical-sources/source-registry.json` is written only through `tools/registry_io.py`
+  (`load_registry`/`save_registry`), the single shared write implementation. Two tools import it:
+  `tools/source_currency.py` (report/check/mark-checked/seed-sources/seed-partners/update-source/
+  remove-source) and `tools/traversal_engine.py` (`accept`, which appends a graph-discovered
+  source). Do not edit source-registry.json by hand; use `seed-sources` for new sources,
+  `update-source` for corrections, and `accept` for traversal discoveries.
+- `tools/dependency_currency.py` is the token-free version-drift checker for pip packages, system
+  binaries, and MCP servers (categories `software-dependency`, `mcp-server`): it queries PyPI and
+  GitHub Releases directly and reconciles against `requirements-*.txt`, the validated versions in
+  `docs/video-tooling-integration-evidence.json`, and `shared/connectors/connectors.json`. It is
+  read-only on the registry; closing the loop (stamping `last_checked`/`latest_seen`) goes through
+  `source_currency.py`.
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
-  `traversal-visited.json`. Do not populate the registry by directly editing source-registry.json;
-  use `--accept` in traversal_engine.py which calls source_currency.py for the registry write.
+  `traversal-visited.json`.
 - `shared/connectors/connectors.json` is the source of truth for the connector registry. The
   resolver (`shared/connectors/connectors.py`) reads both this file and `creator-os-config.local.json`
   to produce the active evidence plan. Per-deployment overrides go in `creator-os-connectors.local.json`

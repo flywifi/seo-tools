@@ -255,7 +255,7 @@
     {
       "id": "tiktok-api-changelog",
       "name": "TikTok for Developers API Changelog",
-      "url": "https://developers.tiktok.com/doc/tiktok-api-v2-changelog",
+      "url": "https://developers.tiktok.com/doc/changelog",
       "category": "api-changelog",
       "tier": "T1",
       "check_interval_days": 14,
@@ -411,7 +411,7 @@
     {
       "id": "mcp-specification",
       "name": "MCP Specification (modelcontextprotocol.io)",
-      "url": "https://spec.modelcontextprotocol.io/",
+      "url": "https://modelcontextprotocol.io/specification/",
       "category": "tool-mcp",
       "tier": "T1",
       "check_interval_days": 14,
@@ -1030,25 +1030,6 @@
       "child_source_ids": []
     },
     {
-      "id": "meta-developer-changelog",
-      "name": "Meta for Developers: Platform changelog",
-      "url": "https://developers.facebook.com/docs/graph-api/changelog",
-      "category": "api-changelog",
-      "tier": "T1",
-      "check_interval_days": 14,
-      "staleness_threshold_days": 14,
-      "last_checked": null,
-      "last_changed_detected": null,
-      "extraction_hint": "Track Graph API version releases and sunsets (v20.0 sunsets September 24, 2026), deprecated fields, new Reels metrics, and webhook changes. Note the date of each changelog entry.",
-      "used_by": [
-        "integrations-engine"
-      ],
-      "depth": 0,
-      "parent_source_id": null,
-      "traversal_status": "pending",
-      "child_source_ids": []
-    },
-    {
       "id": "instagram-help-algorithm",
       "name": "Instagram: How Reels are ranked and recommended",
       "url": "https://help.instagram.com/1906735726188036",
@@ -1214,7 +1195,7 @@
     },
     {
       "id": "pinterest-api-v5-pin-creation",
-      "name": "https://developers.pinterest.com/docs/api/v5/pins-create",
+      "name": "Pinterest API v5 create-pin",
       "url": "https://developers.pinterest.com/docs/api/v5/pins-create",
       "category": "api-changelog",
       "tier": "T2",
@@ -1222,8 +1203,11 @@
       "staleness_threshold_days": 14,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "Set extraction_hint after first review.",
-      "used_by": [],
+      "extraction_hint": "pins-create endpoint: media registration, board_id, required scopes (pins:write); watch for v6 or field changes",
+      "used_by": [
+        "integrations-engine",
+        "pin-write"
+      ],
       "depth": 1,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -1231,33 +1215,18 @@
     },
     {
       "id": "youtube-api-upload-video",
-      "name": "https://developers.google.com/youtube/v3/docs/videos/insert",
+      "name": "YouTube Data API v3 videos.insert",
       "url": "https://developers.google.com/youtube/v3/docs/videos/insert",
-      "category": "seo-authority",
+      "category": "api-changelog",
       "tier": "T2",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "Set extraction_hint after first review.",
-      "used_by": [],
-      "depth": 1,
-      "parent_source_id": null,
-      "traversal_status": "pending",
-      "child_source_ids": []
-    },
-    {
-      "id": "tiktok-content-posting-api-docs",
-      "name": "https://developers.tiktok.com/doc/content-posting-api-get-started",
-      "url": "https://developers.tiktok.com/doc/content-posting-api-get-started",
-      "category": "api-changelog",
-      "tier": "T2",
-      "check_interval_days": 14,
-      "staleness_threshold_days": 14,
-      "last_checked": null,
-      "last_changed_detected": null,
-      "extraction_hint": "Set extraction_hint after first review.",
-      "used_by": [],
+      "extraction_hint": "resumable upload endpoint, quota cost, required scopes; watch for quota changes",
+      "used_by": [
+        "integrations-engine"
+      ],
       "depth": 1,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -1265,7 +1234,7 @@
     },
     {
       "id": "instagram-content-publishing-api-docs",
-      "name": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/content-publishing",
+      "name": "Instagram Content Publishing API",
       "url": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/content-publishing",
       "category": "api-changelog",
       "tier": "T2",
@@ -1273,8 +1242,11 @@
       "staleness_threshold_days": 14,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "Set extraction_hint after first review.",
-      "used_by": [],
+      "extraction_hint": "two-step container then media_publish flow; rate limits; trial_params; watch for Graph API version sunsets",
+      "used_by": [
+        "integrations-engine",
+        "schedule-post"
+      ],
       "depth": 1,
       "parent_source_id": null,
       "traversal_status": "pending",

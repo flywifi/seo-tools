@@ -39,6 +39,12 @@ CONFIG_FILE = ROOT / "canonical-sources" / "traversal-config.json"
 CANDIDATES_FILE = ROOT / "traversal-candidates.json"
 VISITED_FILE = ROOT / "traversal-visited.json"
 
+# Categories that are NOT web pages with followable outlinks: competitor pages (snapshotted
+# offline by competitor_snapshot.py) and dependency/MCP-server entries (version-checked by
+# dependency_currency.py against PyPI/GitHub, never crawled). traverse-all skips these so it
+# never emits a link-crawl instruction for a PyPI or releases page.
+NON_TRAVERSABLE_CATEGORIES = {"competitor-page", "software-dependency", "mcp-server"}
+
 
 def load_json(path: Path) -> dict:
     if not path.exists():
@@ -55,13 +61,9 @@ def load_config() -> dict:
     return raw
 
 
-def load_registry() -> dict:
-    raw = load_json(REGISTRY_FILE)
-    return raw
-
-
-def save_registry(registry: dict) -> None:
-    save_json(REGISTRY_FILE, registry)
+# The registry has one write implementation, shared with source_currency.py, so both sanctioned
+# writers (source_currency.py and this file's `accept`) produce byte-identical output.
+from registry_io import load_registry, save_registry  # noqa: E402
 
 
 def get_interval(config: dict, category: str, field: str) -> int:
@@ -191,6 +193,7 @@ def cmd_traverse(args, registry: dict, config: dict) -> None:
         targets = [
             s for s in sources
             if s.get("depth", 0) == 0
+            and s.get("category") not in NON_TRAVERSABLE_CATEGORIES
             and (not category_filter or s.get("category") == category_filter)
         ]
 

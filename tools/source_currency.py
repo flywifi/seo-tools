@@ -69,17 +69,7 @@ def get_threshold_for_source(source, traversal_config):
     return source.get("staleness_threshold_days", source.get("check_interval_days", global_default))
 
 
-def load_registry():
-    if not REGISTRY_PATH.exists():
-        return {"sources": []}
-    return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
-
-
-def save_registry(data):
-    REGISTRY_PATH.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+from registry_io import load_registry, save_registry  # single sanctioned writer (shared)
 
 
 def today_str():
@@ -426,6 +416,37 @@ def cmd_seed_partners(args, registry, traversal_config=None):
     }))
 
 
+def cmd_update_source(args, registry):
+    """Correct fields on an existing source in place (URL fix, recategorization, name/tier, hint,
+    used_by union). Intended for corrections that seed-sources cannot make (it never clobbers an
+    existing id). Keeps source_currency.py the single hand-driven writer for these edits."""
+    sources = registry.get("sources", [])
+    entry = next((s for s in sources if s.get("id") == args.id), None)
+    if entry is None:
+        print(f"[error] source '{args.id}' not found in registry.", file=sys.stderr)
+        sys.exit(1)
+    changed = []
+    for field, val in (("url", args.url), ("category", args.category),
+                       ("name", args.name), ("tier", args.tier),
+                       ("extraction_hint", args.extraction_hint)):
+        if val is not None and entry.get(field) != val:
+            entry[field] = val
+            changed.append(field)
+    if args.add_used_by:
+        additions = [u.strip() for u in args.add_used_by.split(",") if u.strip()]
+        existing = entry.setdefault("used_by", [])
+        for u in additions:
+            if u not in existing:
+                existing.append(u)
+                changed.append(f"used_by+{u}")
+    if not changed:
+        print(json.dumps({"id": args.id, "changed": [], "note": "no field differed; nothing written"}))
+        return
+    registry["last_registry_update"] = today_str()
+    save_registry(registry)
+    print(json.dumps({"id": args.id, "changed": changed, "written": True}, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Creator OS source registry staleness tool",
@@ -451,6 +472,15 @@ def main():
 
     p_rm = sub.add_parser("remove-source", help="Remove a source entry by ID")
     p_rm.add_argument("id", help="Source id to remove from the registry")
+
+    p_upd = sub.add_parser("update-source", help="Correct fields on an existing source (url, category, name, tier)")
+    p_upd.add_argument("id", help="Source id to update")
+    p_upd.add_argument("--url", help="Corrected URL")
+    p_upd.add_argument("--category", help="Corrected category")
+    p_upd.add_argument("--name", help="Corrected human-readable name")
+    p_upd.add_argument("--tier", help="Corrected tier (T1|T2|T3)")
+    p_upd.add_argument("--extraction-hint", dest="extraction_hint", help="Corrected extraction hint")
+    p_upd.add_argument("--add-used-by", dest="add_used_by", help="Comma-separated atoms/engines to union into used_by")
 
     args = parser.parse_args()
 
@@ -479,8 +509,11 @@ def main():
         if before == after:
             print(f"[warn] source '{args.id}' not found in registry.")
         else:
+            registry["last_registry_update"] = today_str()
             save_registry(registry)
             print(f"[ok] removed source '{args.id}' from registry.")
+    elif args.command == "update-source":
+        cmd_update_source(args, registry)
 
 
 if __name__ == "__main__":
