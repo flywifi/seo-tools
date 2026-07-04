@@ -49,6 +49,9 @@ Invariants enforced:
   22. Frontmatter load refs: every repo-relative path named in a SKILL.md frontmatter list
       (load:, engines_required:, protocols:) exists on disk. Closes the un-backticked-ref
       hole that invariant 5's backtick-only scan cannot see.
+  23. Dependency registry: every pip package in a requirements-*.txt and every MCP-server-backed
+      connector in connectors.json has a matching software-dependency / mcp-server entry in
+      source-registry.json, so no dependency ships untracked by the currency system.
 """
 import json
 import os
@@ -472,6 +475,63 @@ def check_connector_capability_mapping():
             )
 
 
+def check_dependency_registry():
+    """Invariant 23: every pip package named in a requirements-*.txt and every MCP-server-backed
+    connector in connectors.json must have a matching entry in source-registry.json
+    (software-dependency / mcp-server). Mirrors invariant 18's connector-mapping discipline, so a
+    new dependency or MCP server cannot ship untracked by the dependency-currency system."""
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if not reg_path.exists():
+        return
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        problem("canonical-sources/source-registry.json: invalid JSON")
+        return
+    sources = reg.get("sources", [])
+
+    def norm(p):
+        return p.strip().lower().replace("_", "-")
+
+    covered_packages = {norm(s["package"]) for s in sources
+                        if s.get("category") == "software-dependency" and s.get("package")}
+    # connector ids named in any dependency/mcp-server entry's used_by
+    covered_connectors = set()
+    for s in sources:
+        if s.get("category") in ("software-dependency", "mcp-server"):
+            covered_connectors.update(s.get("used_by", []))
+
+    # 1. requirements-*.txt packages
+    for req in sorted(ROOT.glob("requirements-*.txt")):
+        for line in req.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or line.startswith("-"):
+                continue
+            name = re.split(r"[<>=!~;\[ ]", line, 1)[0].strip()
+            if name and norm(name) not in covered_packages:
+                problem(f"{req.name}: package '{name}' has no software-dependency entry in "
+                        f"source-registry.json (invariant 23; add it via dependency-sources-seed.json)")
+
+    # 2. MCP-server-backed connectors
+    mcp_caps = {"google_workspace", "microsoft_365", "wolfram_alpha", "e2b_sandbox",
+                "stats_compass", "duckdb_analytics", "jupyter_notebook", "r_statistics",
+                "monte_carlo", "scikit_learn", "mcp_server"}
+    conn_path = ROOT / "shared" / "connectors" / "connectors.json"
+    if conn_path.exists():
+        try:
+            conns = json.loads(conn_path.read_text(encoding="utf-8")).get("connectors", [])
+        except json.JSONDecodeError:
+            conns = []
+        for c in conns:
+            cid = c.get("id", "")
+            cap = c.get("requires_capability", "")
+            is_mcp = cid.endswith("_mcp") or cap in mcp_caps
+            if is_mcp and cid not in covered_connectors:
+                problem(f"connectors.json: MCP-backed connector '{cid}' is not referenced by any "
+                        f"mcp-server/software-dependency entry's used_by in source-registry.json "
+                        f"(invariant 23)")
+
+
 LOCAL_FILE_RE = re.compile(r"\.local(\.|$)")
 
 # Invariant 20: the ONLY files allowed to be git-tracked under pipeline/. Blank shapes only.
@@ -622,6 +682,7 @@ def main():
     check_local_privacy()
     check_pipeline_allowlist()
     check_secret_content()
+    check_dependency_registry()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

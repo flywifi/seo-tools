@@ -2,7 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P32 are complete. Drift guard exits 0 (22 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P33 are complete. Drift guard exits 0 (23 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P33: audited and modernized the source-currency system. Fixed its config bugs (legal-authority
+  and cost-vendor cadence overrides added to traversal-config so they are no longer treated as
+  7-day-due; corrected the stale MCP-spec and TikTok changelog URLs; deduped two duplicate entries;
+  filled or pruned the four placeholder stubs; allowlist gained tiktok.com, copyright.gov,
+  law.cornell.edu, github.com, ecfr.gov). Extracted `tools/registry_io.py` as the single shared
+  registry writer (source_currency, traversal_engine, dependency_currency import it) and added a
+  `source_currency.py update-source` correction subcommand. Closed the dependency blind spot: the
+  registry gained `software-dependency` and `mcp-server` categories (fields upstream_api, check_url,
+  package, pinned_constraint, validated_version, latest_seen) and 28 seeded entries (12 pip, 6
+  binaries, 10 MCP servers), each naming what it protects and why a bump matters.
+  `tools/dependency_currency.py` is the token-free version-drift checker (PyPI JSON + GitHub
+  Releases, deterministic drift with major-bump-is-breaking, advisory offline degradation, --apply
+  stamping, 21-check selftest); `source_currency.py check --detect-changes` adds token-free
+  content-change detection (conditional GET + sha256 stored on the entry; unchanged stamped, changed
+  queued; 10-check selftest). Added content sources (FTC eCFR 16 CFR 255, three cost vendors, a
+  github-seo upstream) and `data-currency-map.json` classifying every canonical file
+  (watched/static/dated/tool-managed) so the audit's orphan finding is resolved permanently. Drift
+  invariant 23 fails if a requirements package or MCP-backed connector has no registry entry; a
+  read-only weekly `currency-report` CI job runs both reports; `docs/CURRENCY.md` is the runbook.
+  A dependency baseline --apply ended the pip deps' dormancy. Ledger: `P33-source-dependency-currency`.
 
 - P32: closed all seven remaining scenario-suite gaps (G1 to G7); the P24 gap ledger (G1 to G10)
   is now empty, all closed deliberately. The CRM read lane: `tools/accounts.py` is a third offline

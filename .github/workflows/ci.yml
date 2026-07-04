@@ -82,3 +82,23 @@ jobs:
           git add canonical-sources/keyword-library/competitor-channels.json
           git diff --cached --quiet || git commit -m "chore: update competitor-channels.json from scheduled snapshot run"
           git push
+
+  currency-report:
+    runs-on: ubuntu-latest
+    # Weekly source + dependency freshness. READ-ONLY: reports stale sources and drifted
+    # dependencies; never writes the registry (a human closes the loop with mark-checked / --apply).
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Source staleness report (read-only)
+        run: python3 tools/source_currency.py report
+      - name: Dependency version-drift report (read-only; PyPI + GitHub)
+        run: python3 tools/dependency_currency.py report
+        continue-on-error: true   # a network hiccup degrades to advisory, never fails the run
+      - name: Dependency drift selftest
+        run: python3 tools/dependency_currency.py --selftest

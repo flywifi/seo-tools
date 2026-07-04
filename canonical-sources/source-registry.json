@@ -1418,7 +1418,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "SDK release notes for transport/auth and tool-registration API changes tracked to the MCP spec",
       "used_by": [
@@ -1435,7 +1435,9 @@
       "check_url": "https://pypi.org/pypi/mcp/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure"
+      "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure",
+      "latest_seen": "1.28.1",
+      "latest_seen_date": "2026-06-26"
     },
     {
       "id": "dep-scenedetect",
@@ -1445,7 +1447,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "ContentDetector / scene_manager API changes; the get_seconds()->seconds rename in 0.7",
       "used_by": [
@@ -1461,7 +1463,9 @@
       "check_url": "https://pypi.org/pypi/scenedetect/json",
       "pinned_constraint": ">=0.7,<0.8",
       "validated_version": "0.7",
-      "_why": "pinned >=0.7,<0.8; a 0.8/major bump renames API (get_seconds->seconds shim precedent) and breaks scene detection"
+      "_why": "pinned >=0.7,<0.8; a 0.8/major bump renames API (get_seconds->seconds shim precedent) and breaks scene detection",
+      "latest_seen": "0.7",
+      "latest_seen_date": "2026-05-03"
     },
     {
       "id": "dep-moviepy",
@@ -1471,7 +1475,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "breaking renames; removal of moviepy.editor; a v3 major",
       "used_by": [
@@ -1487,7 +1491,9 @@
       "check_url": "https://pypi.org/pypi/moviepy/json",
       "pinned_constraint": ">=2,<3",
       "validated_version": "2.2.1",
-      "_why": "pinned >=2,<3; v2 was a breaking rewrite (renamed methods, removed moviepy.editor). A v3 would break the shorts render lane"
+      "_why": "pinned >=2,<3; v2 was a breaking rewrite (renamed methods, removed moviepy.editor). A v3 would break the shorts render lane",
+      "latest_seen": "2.2.1",
+      "latest_seen_date": "2025-05-21"
     },
     {
       "id": "dep-opentimelineio",
@@ -1497,7 +1503,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "schema version bumps; adapter packaging (adapters split into separate pip packages since 0.17/0.18)",
       "used_by": [
@@ -1514,7 +1520,9 @@
       "check_url": "https://pypi.org/pypi/opentimelineio/json",
       "pinned_constraint": "",
       "validated_version": "0.18.1",
-      "_why": "the neutral timeline core round-trips through OTIO; a schema or adapter-packaging change breaks build/parse"
+      "_why": "the neutral timeline core round-trips through OTIO; a schema or adapter-packaging change breaks build/parse",
+      "latest_seen": "0.18.1",
+      "latest_seen_date": "2025-11-09"
     },
     {
       "id": "dep-otio-fcpx-adapter",
@@ -1524,7 +1532,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "adapter API/compat with the installed opentimelineio core",
       "used_by": [
@@ -1540,7 +1548,9 @@
       "check_url": "https://pypi.org/pypi/otio-fcpx-xml-adapter/json",
       "pinned_constraint": "",
       "validated_version": "1.0.0",
-      "_why": "FCPXML round-trip depends on this adapter matching the OTIO core version"
+      "_why": "FCPXML round-trip depends on this adapter matching the OTIO core version",
+      "latest_seen": "1.0.0",
+      "latest_seen_date": "2023-07-07"
     },
     {
       "id": "dep-otio-kdenlive-adapter",
@@ -1550,7 +1560,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "early 0.0.x adapter; API is unstable, watch every release",
       "used_by": [
@@ -1566,7 +1576,9 @@
       "check_url": "https://pypi.org/pypi/otio-kdenlive-adapter/json",
       "pinned_constraint": "",
       "validated_version": "0.0.3",
-      "_why": "the MLT/Kdenlive read path uses this pre-1.0 adapter; any release can change the API"
+      "_why": "the MLT/Kdenlive read path uses this pre-1.0 adapter; any release can change the API",
+      "latest_seen": "0.0.3",
+      "latest_seen_date": "2026-01-03"
     },
     {
       "id": "dep-av",
@@ -1576,7 +1588,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "libav/ffmpeg ABI compatibility; a major that drops an ffmpeg series",
       "used_by": [
@@ -1591,7 +1603,9 @@
       "check_url": "https://pypi.org/pypi/av/json",
       "pinned_constraint": "",
       "validated_version": "18.0.0",
-      "_why": "windowed-RMS silence backend; PyAV tracks the ffmpeg ABI, so an ffmpeg bump can force a PyAV bump"
+      "_why": "windowed-RMS silence backend; PyAV tracks the ffmpeg ABI, so an ffmpeg bump can force a PyAV bump",
+      "latest_seen": "18.0.0",
+      "latest_seen_date": "2026-07-02"
     },
     {
       "id": "dep-opencv-headless",
@@ -1601,7 +1615,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "the backend PySceneDetect uses; a major that changes cv2 imports",
       "used_by": [
@@ -1616,7 +1630,9 @@
       "check_url": "https://pypi.org/pypi/opencv-python-headless/json",
       "pinned_constraint": "",
       "validated_version": "5.0.0.93",
-      "_why": "PySceneDetect ContentDetector runs on OpenCV; an incompatible major breaks scene detection"
+      "_why": "PySceneDetect ContentDetector runs on OpenCV; an incompatible major breaks scene detection",
+      "latest_seen": "5.0.0.93",
+      "latest_seen_date": "2026-07-02"
     },
     {
       "id": "dep-playwright",
@@ -1626,7 +1642,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py",
       "used_by": [
@@ -1642,7 +1658,9 @@
       "check_url": "https://pypi.org/pypi/playwright/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "JavaScript-render path for competitor snapshots; the Chromium bundle and API drift"
+      "_why": "JavaScript-render path for competitor snapshots; the Chromium bundle and API drift",
+      "latest_seen": "1.61.0",
+      "latest_seen_date": "2026-06-29"
     },
     {
       "id": "dep-requests",
@@ -1652,7 +1670,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "stable HTTP client; only a major (3.x) matters",
       "used_by": [
@@ -1668,7 +1686,9 @@
       "check_url": "https://pypi.org/pypi/requests/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "HTTP client under the fetch stack; low churn, long interval"
+      "_why": "HTTP client under the fetch stack; low churn, long interval",
+      "latest_seen": "2.34.2",
+      "latest_seen_date": "2026-05-14"
     },
     {
       "id": "dep-charset-normalizer",
@@ -1678,7 +1698,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "encoding detection used by the fetch stack; only a major matters",
       "used_by": [
@@ -1693,7 +1713,9 @@
       "check_url": "https://pypi.org/pypi/charset-normalizer/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "charset detection for fetched pages; low churn"
+      "_why": "charset detection for fetched pages; low churn",
+      "latest_seen": "3.4.7",
+      "latest_seen_date": "2026-04-02"
     },
     {
       "id": "dep-beautifulsoup4",
@@ -1703,7 +1725,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters",
       "used_by": [
@@ -1719,7 +1741,9 @@
       "check_url": "https://pypi.org/pypi/beautifulsoup4/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "parses competitor page HTML (SIGI_STATE, og tags); stable API, long interval"
+      "_why": "parses competitor page HTML (SIGI_STATE, og tags); stable API, long interval",
+      "latest_seen": "4.15.0",
+      "latest_seen_date": "2026-06-07"
     },
     {
       "id": "dep-ffmpeg",
@@ -1991,7 +2015,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-07-04",
       "last_changed_detected": null,
       "extraction_hint": "the 50+ pandas tool names for t-tests/ANOVA/chi-square",
       "used_by": [
@@ -2008,7 +2032,9 @@
       "check_url": "https://pypi.org/pypi/stats-compass-mcp/json",
       "pinned_constraint": "pip install stats-compass-mcp",
       "validated_version": null,
-      "_why": "the pandas hypothesis-testing lane; a tool-name change drops it to guidance-only"
+      "_why": "the pandas hypothesis-testing lane; a tool-name change drops it to guidance-only",
+      "latest_seen": "0.3.22",
+      "latest_seen_date": "2026-06-30"
     },
     {
       "id": "mcp-duckdb",
