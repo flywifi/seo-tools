@@ -26,6 +26,10 @@ name and never enters git.
 | `pipeline/user-context/obligation-register.template.json` | `obligation-register.local.json` |
 | `pipeline/contracts/contract.template.json` | `pipeline/contracts/<id>.local.json` (raw contract text) |
 | `pipeline/deals/deal-schema.json` | `pipeline/deals/<id>.local.json` |
+| `pipeline/user-context/rate-card.template.json` | `rate-card.local.json` (your real rates) |
+| `pipeline/finance/invoice.template.json` | `pipeline/finance/INV-<deal>-<seq>.local.json` |
+| `pipeline/finance/cost-estimate.template.json` | `pipeline/finance/<estimate>.local.json` |
+| `pipeline/finance/cost-actuals.template.json` | `pipeline/finance/cost-actuals.local.json` |
 | (none) | `api-credentials.local.json`, `google-credentials.local.json`, `microsoft-credentials.local.json` |
 | (none) | `creator-os-config.local.json`, `creator-os-connectors.local.json` |
 
@@ -98,6 +102,24 @@ Any future deterministic task follows the same shape, so it also saves tokens an
 
 This mirrors the P22 video-editing handoff (`tools/sync_editing.py`, `import_edit_artifact`, the
 dashboard `/api/import-report` adapter). The model orchestrates and explains; the computer computes.
+
+The second realized instance is the finance bucket (P30): `tools/finance.py` does the money math
+(accounts-receivable aging, invoice assembly with due dates from structured net terms,
+late-penalty accrual, revenue-share payouts, cost rollups, proposal price floors) in exact
+decimal over `pipeline/finance/*.local.json` records. Reads (`--ar-scan`) are always available;
+writes gate on the `finance_management` and `invoice_generation` flags; the same sha256 manifest
+discipline (`--manifest` / `--verify`) applies; and the `finance_scan` / `invoice_build` /
+`cost_rollup` / `proposal_price` / `import_finance` MCP tools are the handoff. The model never
+does the arithmetic, and nothing money-facing is sent without an explicit human yes
+(`shared/finance-engine.md`).
+
+```bash
+# read-only: who owes what, aged and prioritized (no writes, always available)
+python3 tools/finance.py --ar-scan --today 2026-07-03
+
+# draft an invoice (write gated by finance_management + invoice_generation)
+python3 tools/finance.py --build-invoice payload.json --write
+```
 
 ## Note
 

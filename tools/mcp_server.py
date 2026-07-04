@@ -915,6 +915,112 @@ def import_obligations() -> str:
     }, indent=2, ensure_ascii=False)
 
 
+@mcp.tool()
+def finance_scan(invoices: list | None = None, today: str | None = None) -> str:
+    """Accounts-receivable scan (P30). Read-only and always available: aging buckets, per-brand
+    totals, accrued late penalties under each invoice's frozen terms, and the chase queue. Pass
+    invoice records inline, or omit to read pipeline/finance/*.local.json. All arithmetic runs in
+    tools/finance.py (exact decimal, no tokens); the model never re-adds figures."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else None
+        return json.dumps(_fin.ar_scan(invoices, t), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def invoice_build(payload: dict, today: str | None = None, write: bool = False) -> str:
+    """Draft a standalone invoice record (P30). Numbers only from the payload (deal figures);
+    deterministic INV-<deal_id>-<seq> id; due date derived from structured net terms offline.
+    write=True persists to pipeline/finance/ ONLY when finance_management AND invoice_generation
+    are on; otherwise the computed draft returns with a _gate note. Nothing is ever sent; the
+    human reviews and sends (consequential-action gate, shared/finance-engine.md)."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    import obligations as _ob  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else _date.today()
+        inv = _fin.build_invoice(payload, t)
+        if write:
+            ok, reason = _fin._write_allowed(_ob.load_config())
+            if not ok:
+                inv["_gate"] = reason
+            else:
+                _fin.FINANCE_DIR.mkdir(parents=True, exist_ok=True)
+                out = _fin.FINANCE_DIR / f"{inv['invoice_id']}.local.json"
+                out.write_text(json.dumps(inv, indent=2) + "\n", encoding="utf-8")
+                inv["_written_to"] = str(out)
+        return json.dumps(inv, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def cost_rollup(line_items: list, time: dict | None = None) -> str:
+    """Cost-estimate totals (P30): category sums, expense vs capex split, time cost (hours x
+    hourly rate), grand total. Exact decimal via tools/finance.py; null amounts come back as
+    gaps and are excluded from totals, never guessed in. Carries the CPA boundary downstream."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    try:
+        return json.dumps(_fin.cost_rollup(line_items, time), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def proposal_price(cost_total: float | None = None, margin_percent: float | None = None,
+                   rate_floor: float | None = None, benchmark_range: dict | None = None) -> str:
+    """Standardized proposal price floor (P30): max(cost floor, negotiation floor) with the
+    binding constraint named and benchmark-range flags. Decision support only; the
+    consequential-action gate applies before any number is quoted externally."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    try:
+        return json.dumps(_fin.proposal_price(cost_total, margin_percent, rate_floor,
+                                              benchmark_range), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def import_finance(today: str | None = None) -> str:
+    """Fan the AR scan out to the existing join points (P30), mirroring import_obligations:
+    chase send-by dates for the content calendar and production tasks, deposit and payment due
+    dates for deal-resourcing. Read-only; a human confirms before any calendar or chase action."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else None
+        scan = _fin.ar_scan(None, t)
+        return json.dumps({
+            "as_of": scan["as_of"],
+            "join_points": {
+                "calendar_chase_dates": [
+                    {"invoice_id": r["invoice_id"], "brand_name": r.get("brand_name"),
+                     "chase_send_by": r.get("chase_send_by"), "urgency_band": r.get("urgency_band")}
+                    for r in scan["action_queue"]
+                ],
+                "production_payment_dates": [
+                    {"invoice_id": r["invoice_id"], "payment_due_date": r.get("payment_due_date")}
+                    for bucket in scan["buckets"].values() for r in bucket
+                ],
+                "disputed_for_review": scan["disputed"],
+            },
+            "total_outstanding": scan["total_outstanding"],
+            "computed_by": scan["computed_by"],
+            "human_review_required": True,
+            "note": "Deterministic AR view from tools/finance.py; map chase dates onto content-calendar and production-task. A human confirms before any chase or calendar action; nothing is sent.",
+        }, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

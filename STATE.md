@@ -2,7 +2,31 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P29 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P30 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P30: the accounting bucket. `pipeline/finance/` record store (standalone invoices with line
+  items and frozen terms_snapshot, cost estimates, cost actuals; deal.invoice becomes a
+  denormalized summary plus `invoice_refs[]`, resolving the P23-era drift toward the engine's
+  standalone model). Structured money terms, additive: `payment_terms_structured` (net days,
+  anchor, deposit, late penalty, kill fee), `revenue_share`, `commission`, `ip_license_fee` on
+  deal v0.3.0 and contract schemas, filled only from quoted evidence; playbook gains
+  `pricing_and_rates` and `revenue_share_and_commission` families. `tools/finance.py` is the
+  second offline compute lane instance (imports the obligations date machinery; exact Decimal;
+  44-check selftest): AR aging, late-penalty accrual, revenue-share/commission clamps from
+  reported basis figures only, cost rollups, proposal price floors, deterministic invoice ids,
+  sha256 manifest, CREATOR_OS_ROOT sandbox; reads always on, writes gated by
+  `finance_management` + `invoice_generation` (+ `cost_research` for agent dispatch). New
+  `finance-desk` spoke (atoms `invoice-generate`, `ar-review`, `cost-estimate`,
+  `proposal-price`; hub classifications `invoice_create`, `finance_review`, `cost_estimate`,
+  `proposal_price`); document-studio gains the `invoice` artifact type; invoice-status upgraded
+  to standalone records and the six-state lifecycle. G8 closed deliberately (structured
+  benchmark rows plus 6 sourced-or-null metric rows; scenario suite now 7 gaps, all observed).
+  Personal rate card template with the deal-debrief proposal-only feedback loop. Fifth agent
+  role `cost-researcher` (envelope schema, observed-or-null prices) with the cost library and
+  vendor pricing sources registered via source_currency.py. Five MCP tools (32 total). Verbatim
+  financial boundary (NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE) plus a consequential-action
+  gate before any external money commitment; invoices are drafted, never sent. Ledger:
+  `P30-accounting-bucket`.
 
 - P29: the P26 media-tool shortlist integrated as optional, runtime-detected backends over the P28
   transcript floor. `tools/videoedit/mediaprobe.py` (silence: ffmpeg silencedetect -> PyAV RMS ->
