@@ -37,6 +37,10 @@ commits money externally: sending an invoice, quoting a price, agreeing a rate
   invoices and dated scheduled rows, outflows from dated estimates (`cashflow-view`). Routed as
   `cashflow_projection`. Read-only, always available; redacted output (banded amounts,
   initialed brands) for anything that leaves the machine.
+- `reconcile` — match a bank or PayPal export against open invoices with confidence tiers,
+  confirm each proposal, then the gated mark-paid write (`payment-reconcile`). Routed as
+  `payment_reconcile`. The export must live at a gitignored .local. path or outside the repo;
+  the tool structurally refuses anything else.
 
 ## How the money math runs
 

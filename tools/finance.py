@@ -33,6 +33,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -624,6 +625,206 @@ def redact(obj):
     return out
 
 
+# ── payment reconciliation ───────────────────────────────────────────────────
+
+def _csv_rows(source):
+    """Rows from a CSV path or an already-parsed list of dicts.
+
+    STRUCTURAL SAFETY: a CSV path inside the repo tree is refused unless its filename contains
+    `.local.` — bank exports live at pipeline/finance/<name>.local.csv (gitignored by the
+    allowlist-invert rules) or outside the repo entirely. This makes 'accidentally committed the
+    bank export' structurally impossible via this tool."""
+    import csv
+    if isinstance(source, list):
+        return source
+    p = Path(source).resolve()
+    try:
+        inside = p.is_relative_to(ROOT.resolve())
+    except AttributeError:  # Python < 3.9 fallback (not expected)
+        inside = str(p).startswith(str(ROOT.resolve()))
+    if inside and ".local." not in p.name:
+        raise PermissionError(
+            f"refusing to read a CSV inside the repo without a .local. name: {p.name}. "
+            "Save bank exports as pipeline/finance/<name>.local.csv (gitignored) or keep them "
+            "outside the repo entirely (shared/finance-engine.md privacy boundary).")
+    with open(p, newline="", encoding="utf-8-sig") as fh:
+        return list(csv.DictReader(fh))
+
+
+def _pick_columns(rows, mapping=None):
+    """Column names for date/amount/description: explicit mapping wins, else heuristics."""
+    mapping = mapping or {}
+    if not rows:
+        return mapping.get("date"), mapping.get("amount"), mapping.get("description")
+    headers = list(rows[0].keys())
+    lower = {h.lower(): h for h in headers}
+
+    def _by_names(names):
+        for n in names:
+            if n in lower:
+                return lower[n]
+        return None
+
+    date_col = mapping.get("date") or _by_names(["date", "posted", "transaction date", "posting date"])
+    amount_col = mapping.get("amount") or _by_names(["amount", "gross", "credit", "deposit"])
+    desc_col = mapping.get("description") or _by_names(["description", "memo", "name", "payee", "details"])
+    if date_col is None:  # first column whose first value parses as a date
+        for h in headers:
+            try:
+                _flex_date(rows[0].get(h))
+                date_col = h
+                break
+            except (ValueError, TypeError):
+                continue
+    if amount_col is None:  # rightmost column whose first value parses as a Decimal
+        for h in reversed(headers):
+            try:
+                _flex_amount(rows[0].get(h))
+                amount_col = h
+                break
+            except (ValueError, TypeError, ArithmeticError):
+                continue
+    if desc_col is None and headers:  # longest text value in the first row
+        desc_col = max(headers, key=lambda h: len(str(rows[0].get(h) or "")))
+    return date_col, amount_col, desc_col
+
+
+def _flex_date(value):
+    """ISO or US-style date."""
+    s = str(value or "").strip()
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        pass
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2,4})$", s)
+    if m:
+        mth, day, yr = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if yr < 100:
+            yr += 2000
+        return date(yr, mth, day)
+    raise ValueError(f"unparseable date: {value!r}")
+
+
+def _flex_amount(value):
+    s = str(value or "").strip().replace("$", "").replace(",", "")
+    if s.startswith("(") and s.endswith(")"):
+        s = "-" + s[1:-1]
+    return Decimal(s)
+
+
+def reconcile(csv_rows_or_path, invoices=None, window_days=5, amount_tolerance="0.00",
+              mapping=None, today=None):
+    """Match bank/PayPal export rows to open invoices. PROPOSAL-ONLY: nothing is marked paid
+    here; the human confirms each proposal and mark_paid() does the gated write.
+
+    Confidence tiers per CSV row against open (not paid/disputed) invoices:
+      exact    -- amount equal, date within window, and the brand name appears in the description
+      probable -- amount equal and date within window
+      uncertain-- amount within tolerance, or brand match alone
+    Each invoice is matched at most once (greedy: best tier first, then smallest date delta).
+    Unmatched rows and unmatched invoices are listed, never force-paired."""
+    if invoices is None:
+        invoices = _load_local_invoices()
+    open_invoices = [i for i in invoices if i.get("status") not in ("paid", "disputed")]
+    rows = _csv_rows(csv_rows_or_path)
+    date_col, amount_col, desc_col = _pick_columns(rows, mapping)
+    gaps = []
+    if not rows:
+        gaps.append({"gap_type": "empty_csv", "description": "no rows to reconcile",
+                     "impact": "nothing proposed", "recommended_next_step": "check the export"})
+    tol = dec(amount_tolerance) or Decimal(0)
+    candidates = []  # (tier_rank, date_delta, row_idx, invoice_id, detail)
+    parsed_rows = []
+    for idx, row in enumerate(rows):
+        try:
+            r_date = _flex_date(row.get(date_col))
+            r_amount = _flex_amount(row.get(amount_col))
+        except (ValueError, TypeError, ArithmeticError) as exc:
+            gaps.append({"gap_type": "unparseable_row",
+                         "description": f"row {idx}: {exc}",
+                         "impact": "excluded from matching",
+                         "recommended_next_step": "pass an explicit column mapping"})
+            parsed_rows.append(None)
+            continue
+        desc = str(row.get(desc_col) or "")
+        parsed_rows.append({"index": idx, "date": r_date, "amount": r_amount,
+                            "description": desc})
+    for pr in parsed_rows:
+        if pr is None:
+            continue
+        for inv in open_invoices:
+            inv_amount = dec(inv.get("total") if inv.get("total") is not None else inv.get("amount"))
+            if inv_amount is None:
+                continue
+            due = inv.get("payment_due_date")
+            date_delta = abs((pr["date"] - _parse_date(due)).days) if due else 9999
+            brand = str(inv.get("brand_name") or "")
+            brand_hit = bool(brand) and brand.lower() in pr["description"].lower()
+            amount_exact = pr["amount"] == inv_amount
+            amount_close = abs(pr["amount"] - inv_amount) <= tol
+            if amount_exact and date_delta <= window_days and brand_hit:
+                tier = ("exact", 0)
+            elif amount_exact and date_delta <= window_days:
+                tier = ("probable", 1)
+            elif amount_close or brand_hit:
+                tier = ("uncertain", 2)
+            else:
+                continue
+            candidates.append((tier[1], date_delta, pr["index"], inv.get("invoice_id"),
+                               {"row_index": pr["index"], "row_date": pr["date"].isoformat(),
+                                "row_amount": _mstr(pr["amount"]),
+                                "row_description": pr["description"][:120],
+                                "invoice_id": inv.get("invoice_id"),
+                                "invoice_amount": _mstr(inv_amount),
+                                "brand_name": brand, "date_delta_days": date_delta,
+                                "confidence": tier[0]}))
+    candidates.sort(key=lambda c: (c[0], c[1]))
+    used_rows, used_invoices = set(), set()
+    proposals = []
+    for _, _, row_idx, inv_id, detail in candidates:
+        if row_idx in used_rows or inv_id in used_invoices:
+            continue
+        used_rows.add(row_idx)
+        used_invoices.add(inv_id)
+        proposals.append(detail)
+    unmatched_rows = [{"row_index": pr["index"], "row_date": pr["date"].isoformat(),
+                       "row_amount": _mstr(pr["amount"]),
+                       "row_description": pr["description"][:120]}
+                      for pr in parsed_rows if pr and pr["index"] not in used_rows]
+    unmatched_invoices = [{"invoice_id": i.get("invoice_id"), "brand_name": i.get("brand_name"),
+                           "amount": _mstr(dec(i.get("total") if i.get("total") is not None
+                                               else i.get("amount")))}
+                          for i in open_invoices if i.get("invoice_id") not in used_invoices]
+    return {"proposals": proposals, "unmatched_rows": unmatched_rows,
+            "unmatched_invoices": unmatched_invoices,
+            "human_review_required": True,
+            "note": "proposal only; confirm each match, then mark_paid does the gated write",
+            "computed_by": f"{TOOL} reconcile", "gaps": gaps}
+
+
+def mark_paid(invoice_id, paid_date, method=None, config=None):
+    """Mark one invoice paid AFTER the human confirms a reconciliation proposal. Gated on
+    finance_management; edits the standalone record in place and reports what changed."""
+    cfg = config if config is not None else _ob.load_config()
+    if not _ob.flag_enabled(cfg, "finance_management"):
+        return {"updated": False,
+                "reason": ("finance_management is off; the record was not modified "
+                           "(see degraded_behavior.finance_management_disabled)")}
+    path = FINANCE_DIR / f"{invoice_id}.local.json"
+    if not path.exists():
+        return {"updated": False, "reason": f"no record at pipeline/finance/{invoice_id}.local.json"}
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["status"] = "paid"
+    record["payment_received_date"] = _parse_date(paid_date).isoformat()
+    if method:
+        record["payment_method"] = method
+    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    return {"updated": True, "invoice_id": invoice_id, "status": "paid",
+            "payment_received_date": record["payment_received_date"],
+            "payment_method": record.get("payment_method"),
+            "computed_by": f"{TOOL} mark_paid"}
+
+
 # ── manifest ─────────────────────────────────────────────────────────────────
 
 def manifest(directory=None):
@@ -845,7 +1046,68 @@ def selftest():
     _check("redact: marks itself and never mutates the original",
            red.get("_redacted") is True and cf_invoices[0]["total"] == "2750.00", f)
 
-    n = 59
+    # Reconciliation fixtures: INLINE and obviously fictional (no CSV file is ever committed).
+    rec_invoices = [
+        {"invoice_id": "INV-hearthline-2026-001-001", "brand_name": "Hearthline",
+         "total": "2750.00", "payment_due_date": "2026-07-31", "status": "sent"},
+        {"invoice_id": "INV-lumen-2026-002-001", "brand_name": "Lumen Co",
+         "total": "1200.00", "payment_due_date": "2026-07-15", "status": "sent"},
+        {"invoice_id": "INV-x-old", "brand_name": "Fictionalia", "total": "500.00",
+         "payment_due_date": "2026-05-01", "status": "paid"},
+    ]
+    rec_rows = [
+        {"Date": "2026-07-30", "Description": "ACH HEARTHLINE HOME LLC", "Amount": "2,750.00"},
+        {"Date": "07/16/2026", "Description": "DEPOSIT TRANSFER", "Amount": "$1,200.00"},
+        {"Date": "2026-07-02", "Description": "COFFEE SHOP", "Amount": "(4.50)"},
+    ]
+    rec = reconcile(rec_rows, rec_invoices, window_days=5)
+    _check("reconcile: exact tier (amount + window + brand substring)",
+           rec["proposals"][0]["confidence"] == "exact"
+           and rec["proposals"][0]["invoice_id"] == "INV-hearthline-2026-001-001", f)
+    _check("reconcile: probable tier (amount + window, US date and $ comma parsing)",
+           any(p["confidence"] == "probable" and p["invoice_id"] == "INV-lumen-2026-002-001"
+               for p in rec["proposals"]), f)
+    _check("reconcile: unrelated row stays unmatched",
+           any(r["row_description"].startswith("COFFEE") for r in rec["unmatched_rows"]), f)
+    _check("reconcile: paid invoices never proposed",
+           all(p["invoice_id"] != "INV-x-old" for p in rec["proposals"]), f)
+    _check("reconcile: proposal-only with human review",
+           rec["human_review_required"] is True and "proposal only" in rec["note"], f)
+    two_rows = [{"Date": "2026-07-30", "Description": "wire", "Amount": "2750.00"},
+                {"Date": "2026-07-31", "Description": "HEARTHLINE payment", "Amount": "2750.00"}]
+    rec2 = reconcile(two_rows, rec_invoices[:1], window_days=5)
+    _check("reconcile: each invoice matched at most once, best tier wins",
+           len(rec2["proposals"]) == 1 and rec2["proposals"][0]["confidence"] == "exact"
+           and rec2["proposals"][0]["row_index"] == 1, f)
+    _check("reconcile: negative parenthesized amounts parse",
+           _flex_amount("(4.50)") == Decimal("-4.50"), f)
+    _check("reconcile: tolerance promotes near-miss to uncertain",
+           any(p["confidence"] == "uncertain" for p in
+               reconcile([{"Date": "2026-07-31", "Description": "wire", "Amount": "2749.00"}],
+                         rec_invoices[:1], amount_tolerance="1.00")["proposals"]), f)
+    _check("reconcile: unparseable row becomes a gap, not a guess",
+           any(g["gap_type"] == "unparseable_row" for g in
+               reconcile([{"Date": "not a date", "Description": "x", "Amount": "??"}],
+                         rec_invoices[:1])["gaps"]), f)
+    try:
+        _csv_rows(str(ROOT / "pipeline" / "finance" / "bank.csv"))
+        refused = False
+    except PermissionError:
+        refused = True
+    _check("reconcile: in-repo CSV without .local. is REFUSED (structural boundary)", refused, f)
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as td:
+        outside = Path(td) / "export.csv"
+        outside.write_text("Date,Description,Amount\n2026-07-30,HEARTHLINE,2750.00\n",
+                           encoding="utf-8")
+        ok_outside = len(reconcile(str(outside), rec_invoices[:1])["proposals"]) == 1
+    _check("reconcile: CSV outside the repo is allowed", ok_outside, f)
+    mp = mark_paid("INV-hearthline-2026-001-001", "2026-07-30",
+                   config={"capabilities": {}})
+    _check("mark_paid: refused with finance_management off, record untouched",
+           mp["updated"] is False and "finance_management" in mp["reason"], f)
+
+    n = 71
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
 
@@ -860,6 +1122,12 @@ def main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline finance math")
     ap.add_argument("--ar-scan", nargs="?", const="__local__", metavar="INVOICES_JSON")
     ap.add_argument("--cashflow", nargs="?", const="__local__", metavar="INPUTS_JSON")
+    ap.add_argument("--reconcile", metavar="CSV_PATH")
+    ap.add_argument("--window-days", type=int, default=5)
+    ap.add_argument("--amount-tolerance", default="0.00")
+    ap.add_argument("--mark-paid", metavar="INVOICE_ID")
+    ap.add_argument("--paid-date", metavar="YYYY-MM-DD")
+    ap.add_argument("--method", metavar="PAYMENT_METHOD")
     ap.add_argument("--horizon-days", type=int, default=90)
     ap.add_argument("--redacted", action="store_true",
                     help="band amounts and initial names for output that leaves this machine")
@@ -890,6 +1158,17 @@ def main(argv):
         result = cashflow(inputs.get("invoices"), inputs.get("scheduled"),
                           inputs.get("estimates"), args.horizon_days, today)
         print(json.dumps(redact(result) if args.redacted else result, indent=2))
+        return 0
+    if args.reconcile:
+        result = reconcile(args.reconcile, None, args.window_days, args.amount_tolerance,
+                           today=today)
+        print(json.dumps(redact(result) if args.redacted else result, indent=2))
+        return 0
+    if args.mark_paid:
+        if not args.paid_date:
+            print(json.dumps({"error": "--mark-paid requires --paid-date YYYY-MM-DD"}))
+            return 1
+        print(json.dumps(mark_paid(args.mark_paid, args.paid_date, args.method), indent=2))
         return 0
     if args.build_invoice:
         inv = build_invoice(_read_json(args.build_invoice), today)

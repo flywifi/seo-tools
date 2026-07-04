@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS MCP Server — exposes Python tools to Claude Desktop as MCP tool calls.
 
-Thirteen tools:
+Tools (the docstrings below and tools/list are authoritative; the set has grown by phase):
   cache_query          Query the offline FTS5 keyword/entity cache.
   competitor_scan      Return parsed metadata for a stored competitor snapshot.
   source_staleness     Report which canonical sources are stale or never checked.
@@ -1005,6 +1005,27 @@ def cashflow_view(scheduled: list | None = None, estimates: list | None = None,
         result = _fin.cashflow(None, scheduled, estimates, horizon_days, t)
         return json.dumps(_fin.redact(result) if redacted else result,
                           indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def payment_reconcile(csv_path: str, window_days: int = 5, amount_tolerance: str = "0.00",
+                      redacted: bool = False) -> str:
+    """Match a bank/PayPal export to open invoices (P31). PROPOSAL-ONLY: confidence-tiered
+    matches for human confirmation; nothing is marked paid here (mark-paid is a gated CLI step
+    after an explicit yes per invoice). STRUCTURAL BOUNDARY: an in-repo CSV is refused unless
+    its filename carries .local. (bank exports live at pipeline/finance/<name>.local.csv,
+    gitignored, or outside the repo). EXPOSURE NOTE: raw output contains real amounts and
+    descriptions; pass redacted=True for anything quoted off this machine."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    try:
+        result = _fin.reconcile(csv_path, None, window_days, amount_tolerance)
+        return json.dumps(_fin.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except PermissionError as exc:
+        return json.dumps({"error": str(exc), "refused": True})
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": str(exc)})
 

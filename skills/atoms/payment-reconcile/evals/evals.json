@@ -1,0 +1,57 @@
+[
+  {
+    "test_id": "payment-reconcile-tiers",
+    "description": "matches propose in confidence tiers from the tool, never by eye",
+    "input": {
+      "csv_path": "pipeline/finance/checking-2026-07.local.csv",
+      "window_days": 5
+    },
+    "expected_output_keys": ["proposals", "unmatched_rows", "unmatched_invoices", "human_review_required"],
+    "assertions": [
+      "exact requires amount plus date window plus brand substring; probable drops the brand; uncertain is tolerance or brand-only",
+      "each invoice appears in at most one proposal (best tier, smallest date delta)",
+      "paid and disputed invoices are never candidates",
+      "output is proposal-only with human_review_required true"
+    ]
+  },
+  {
+    "test_id": "payment-reconcile-structural-refusal",
+    "description": "an in-repo CSV without .local. in the name is refused",
+    "input": { "csv_path": "pipeline/finance/bank.csv" },
+    "expected_output_keys": ["error"],
+    "assertions": [
+      "the tool raises the privacy refusal naming the .local. requirement",
+      "the refusal is surfaced with the fix (rename to <name>.local.csv or move outside the repo)",
+      "no row is read and nothing is proposed"
+    ]
+  },
+  {
+    "test_id": "payment-reconcile-messy-export",
+    "description": "US dates, $ commas, parenthesized negatives, and junk rows",
+    "input": {
+      "csv_path": "pipeline/finance/paypal-2026-07.local.csv",
+      "mapping": { "date": "Posted", "amount": "Gross", "description": "Name" }
+    },
+    "expected_output_keys": ["proposals", "gaps"],
+    "assertions": [
+      "explicit mapping overrides the column heuristics",
+      "unparseable rows become unparseable_row gaps, never guesses",
+      "unrelated rows land in unmatched_rows"
+    ]
+  },
+  {
+    "test_id": "payment-reconcile-confirm-then-write",
+    "description": "mark-paid happens only after the human yes and only with the flag on",
+    "input": {
+      "confirmed_invoice_id": "INV-hearthline-2026-001-001",
+      "paid_date": "2026-07-30",
+      "method": "ach"
+    },
+    "expected_output_keys": ["updated"],
+    "assertions": [
+      "with finance_management off the write is refused and the record untouched",
+      "with the flag on the record flips to paid with payment_received_date and method",
+      "no proposal is auto-applied without the per-invoice explicit yes"
+    ]
+  }
+]
