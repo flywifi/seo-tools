@@ -1,0 +1,70 @@
+[
+  {
+    "id": "plumbing-drain-slope",
+    "title": "Drain pipe slope",
+    "text": "Plumbing on supply, drain, waste, and vent systems should be done or verified by a licensed plumber and permitted. As reference: horizontal drain pipes need enough slope to carry solids but not so much that liquid outruns solids and leaves them behind. Pipes 2.5 inches and smaller are commonly run at 1/4 inch per foot; larger pipes of 3 inches to 6 inches may be run at 1/8 inch per foot where the code and AHJ allow. Too little slope lets drains clog; too much causes the same siphoning problem as too little. Set the slope per the drainage table, confirm with a licensed plumber, and verify against IPC 704.1 or IRC P3005 for your adopted edition.",
+    "trade": "plumbing",
+    "topic": "drainage",
+    "licensed_trade": true,
+    "dimensions": [
+      {"item": "pipe 2.5 in and smaller", "value": "1/4 in per foot", "note": "IPC 704.1 / IRC P3005.3; the build-calc drain_slope tool computes total fall"},
+      {"item": "pipe 3 in to 6 in", "value": "1/8 in per foot minimum where permitted", "note": "IPC 704.1; confirm with the AHJ"}
+    ],
+    "steps": [
+      "Engage a licensed plumber and pull the plumbing permit.",
+      "Determine pipe size, then set the slope from the drainage table.",
+      "Keep the slope uniform along the run, avoiding bellies and back-pitch.",
+      "Schedule rough-in and final inspections."
+    ],
+    "common_mistakes": [
+      "Too little slope (flat runs) that clog, or too much slope that siphons.",
+      "Bellies in the line that hold water and solids.",
+      "Doing DWV work without a permit or licensed plumber."
+    ],
+    "code_refs": [
+      {"code": "IPC", "section": "704.1", "edition": "2021", "url": "https://codes.iccsafe.org/codes/i-codes"},
+      {"code": "IRC", "section": "P3005.3", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL follows the FBC Plumbing / Residential provisions; confirm the adopted edition and slope allowances.",
+      "nc": "NC uses the NC Plumbing Code; confirm the enforced edition and any AHJ slope allowance for larger pipe."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-ipc-imc-ifgc", "icc-irc-2021"],
+    "boundary": "verify-locally-licensed-pro"
+  },
+  {
+    "id": "plumbing-trap-vent",
+    "title": "Traps, trap arms, and venting",
+    "text": "Plumbing should be done or verified by a licensed plumber. As reference: every fixture drain needs a P-trap to hold a water seal that blocks sewer gas, and the trap must be vented so the seal is not siphoned out. The trap arm (the pipe from the trap to the vent) has a maximum length that depends on pipe size; run it too long or omit the vent and the trap siphons dry. An S-trap is prohibited because it self-siphons. Provide a P-trap and proper vent within the allowed trap-arm length, confirm with a licensed plumber, and verify against IPC 909 or IRC P3201 for your adopted edition.",
+    "trade": "plumbing",
+    "topic": "traps-vents",
+    "licensed_trade": true,
+    "dimensions": [
+      {"item": "trap arm max length", "value": "by pipe size, per table", "note": "IPC 909.1 / IRC P3105.1; longer pipe needs a closer or larger vent"},
+      {"item": "S-trap", "value": "prohibited", "note": "self-siphoning; use a vented P-trap"}
+    ],
+    "steps": [
+      "Install a P-trap at each fixture with the correct water-seal depth.",
+      "Vent the trap within the maximum trap-arm length for the pipe size.",
+      "Avoid S-traps and unvented island sinks unless using an approved method.",
+      "Have the DWV system inspected."
+    ],
+    "common_mistakes": [
+      "Trap arm too long, siphoning the trap dry and letting sewer gas in.",
+      "S-trap or unvented fixture.",
+      "Undersized or missing vent."
+    ],
+    "code_refs": [
+      {"code": "IPC", "section": "909.1", "edition": "2021", "url": "https://codes.iccsafe.org/codes/i-codes"},
+      {"code": "IRC", "section": "P3105.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Follow the FBC Plumbing / Residential trap and vent provisions.",
+      "nc": "Follow the enforced NC Plumbing Code trap and vent provisions."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-ipc-imc-ifgc", "icc-irc-2021"],
+    "boundary": "verify-locally-licensed-pro"
+  }
+]

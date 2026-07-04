@@ -1,0 +1,73 @@
+[
+  {
+    "id": "assemblies-material-layer-r",
+    "title": "Material-layer R-values (per layer)",
+    "text": "The total R-value of a wall, roof, or floor is the sum of the R-values of its layers plus the interior and exterior air films. These per-layer R-values are drawn from the NREL openstudio-standards material dataset (BSD-3 license, attribution to NREL): half-inch gypsum board about R-0.45, five-eighths-inch plywood about R-0.75, eight-inch normalweight concrete about R-0.67, half-inch acoustic ceiling tile about R-1.27, plus roughly R-0.68 interior and R-0.17 exterior air film. The dominant layer is almost always the cavity or continuous insulation, whose R-value comes from the insulation table; these sheathing and finish layers add a little on top. Use these to understand how an assembly reaches its rated R-value.",
+    "trade": "assemblies",
+    "topic": "layer-r-values",
+    "dimensions": [
+      {"item": "1/2 in gypsum board", "value": "R 0.45", "note": "NREL openstudio-standards"},
+      {"item": "5/8 in plywood", "value": "R 0.75", "note": "NREL openstudio-standards"},
+      {"item": "8 in normalweight concrete", "value": "R 0.67", "note": "NREL openstudio-standards"},
+      {"item": "1/2 in acoustic ceiling tile", "value": "R 1.27", "note": "NREL openstudio-standards"},
+      {"item": "interior air film", "value": "R 0.68", "note": "still-air surface resistance"},
+      {"item": "exterior air film", "value": "R 0.17", "note": "moving-air surface resistance"}
+    ],
+    "steps": [
+      "List the assembly layers from outside to inside.",
+      "Add each layer R-value plus the interior and exterior air films.",
+      "The cavity or continuous insulation layer dominates; its R comes from the insulation table.",
+      "Compare the total against the prescriptive minimum for the climate zone."
+    ],
+    "common_mistakes": [
+      "Counting only the insulation and ignoring or double-counting air films.",
+      "Assuming sheathing and drywall add a large R-value (they add a little).",
+      "Ignoring thermal bridging through the studs, which lowers the whole-wall R."
+    ],
+    "code_refs": [
+      {"code": "IECC", "section": "Table R402.1.2 (assembly minimums)", "edition": "2021", "url": "https://codes.iccsafe.org/content/IECC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL zones 1 to 2 need less cavity insulation; the layer math is the same.",
+      "nc": "NC zones 3A to 5A need more cavity or continuous insulation to reach the higher minimums."
+    },
+    "diagram_refs": [],
+    "source_ids": ["nrel-openstudio-standards", "icc-iecc-2021"],
+    "boundary": "verify-locally",
+    "attribution": "Layer R-values derived from NREL openstudio-standards (BSD-3 License)."
+  },
+  {
+    "id": "assemblies-wall-roof-floor",
+    "title": "How wall, roof, and floor assemblies reach their R-value",
+    "text": "A typical wood-frame exterior wall is, from outside in, cladding, water-resistive barrier, sheathing, the stud cavity filled with insulation, and interior gypsum board. Its rated R-value is mostly the cavity insulation (for example R-13 to R-21) plus any continuous exterior insulation, with the sheathing, drywall, and air films adding a little. A vented attic roof reaches its R-value with insulation on the attic floor (for example R-38 to R-60 in colder zones). A framed floor over a crawlspace or unconditioned space is insulated in the joist bays. The assembly structure here follows the NREL openstudio-standards construction dataset (BSD-3, attribution to NREL), which lists each assembly as an ordered set of material layers. Confirm the required assembly R-value against the insulation table for the climate zone.",
+    "trade": "assemblies",
+    "topic": "assembly-buildup",
+    "dimensions": [
+      {"item": "typical wood-frame wall", "value": "cavity R-13 to R-21 + optional continuous R-5", "note": "plus sheathing, drywall, air films"},
+      {"item": "vented attic roof", "value": "attic-floor insulation R-30 to R-60 by zone", "note": "see insulation table"},
+      {"item": "framed floor", "value": "joist-bay insulation R-13 to R-30 by zone", "note": "over crawlspace or unconditioned space"}
+    ],
+    "steps": [
+      "Identify the assembly type: wall, roof, or floor.",
+      "Determine the required assembly R-value for the climate zone from the insulation table.",
+      "Choose cavity plus continuous insulation to reach it, accounting for framing thermal bridging.",
+      "Verify the final assembly against the adopted energy code."
+    ],
+    "common_mistakes": [
+      "Meeting the cavity R but ignoring continuous insulation the code requires.",
+      "Ignoring thermal bridging, so the whole-wall R falls short of the cavity R.",
+      "Compressing insulation, which reduces the installed R-value."
+    ],
+    "code_refs": [
+      {"code": "IECC", "section": "R402.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IECC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL emphasizes ceiling insulation and air sealing over high wall R-values.",
+      "nc": "NC piedmont and mountain zones require higher wall and ceiling assemblies than the coast."
+    },
+    "diagram_refs": ["rvalue-zone-map"],
+    "source_ids": ["nrel-openstudio-standards", "doe-basc-insulation-table", "icc-iecc-2021"],
+    "boundary": "verify-locally",
+    "attribution": "Assembly structure derived from NREL openstudio-standards (BSD-3 License)."
+  }
+]

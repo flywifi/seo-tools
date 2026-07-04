@@ -1,0 +1,67 @@
+[
+  {
+    "id": "siding-water-resistive-barrier",
+    "title": "Water-resistive barrier behind siding",
+    "text": "Behind exterior siding, a water-resistive barrier (housewrap or building paper) sheds any water that gets past the cladding and drains it out, so at least one layer is required and it must be lapped shingle-fashion: upper courses lap over lower ones, and vertical joints lap so water always sheds to the outside. A reverse-lapped barrier funnels water into the wall. Install at least one lapped water-resistive barrier layer integrated with the flashing, and verify against IRC R703.1 and R703.2 for your adopted edition.",
+    "trade": "siding-flashing",
+    "topic": "water-barrier",
+    "dimensions": [
+      {"item": "water-resistive barrier layers", "value": "at least 1", "note": "IRC R703.2; two layers behind stucco/adhered masonry"},
+      {"item": "lap", "value": "shingle-fashion, upper over lower", "note": "horizontal laps ~2 in, vertical joints ~6 in; confirm product instructions"}
+    ],
+    "steps": [
+      "Install the water-resistive barrier from the bottom up so each course laps over the one below.",
+      "Lap vertical seams so water sheds outward.",
+      "Integrate the barrier with window, door, and penetration flashing.",
+      "Provide the required layers for the cladding type (two behind stucco)."
+    ],
+    "common_mistakes": [
+      "Reverse-lapped housewrap that funnels water into the wall.",
+      "Barrier not integrated with window and door flashing.",
+      "Only one layer behind stucco where two are required."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R703.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-7-wall-covering"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL wind-driven rain and HVHZ zones make barrier and flashing integration critical; follow product approval.",
+      "nc": "Coastal NC wind-driven rain raises the same integration priority; confirm the enforced edition."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "building-science-corp"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "siding-flashing-details",
+    "title": "Flashing at openings and transitions",
+    "text": "Flashing directs water out of vulnerable joints: over window and door heads, at sills (with a sill pan), at roof-to-wall intersections (step and kickout flashing), and at deck ledgers. Flashing is layered shingle-fashion with the water-resistive barrier so water always laps to the outside. Caulk is not a substitute for flashing; sealant fails while properly lapped flashing keeps working. Install head, sill-pan, and transition flashing integrated with the barrier, and verify against IRC R703.4 for your adopted edition.",
+    "trade": "siding-flashing",
+    "topic": "flashing",
+    "dimensions": [
+      {"item": "window/door head flashing", "value": "required, lapped over the unit", "note": "IRC R703.4"},
+      {"item": "sill pan", "value": "recommended/required at windows and doors", "note": "IRC R703.4; directs any leak back out"},
+      {"item": "kickout flashing", "value": "required at roof-wall terminations", "note": "IRC R903.2.1 diverts roof runoff away from the wall"}
+    ],
+    "steps": [
+      "Install a sill pan before setting the window or door.",
+      "Lap head flashing over the unit and under the barrier above.",
+      "Add step and kickout flashing where a roof meets a wall.",
+      "Never rely on caulk in place of flashing."
+    ],
+    "common_mistakes": [
+      "Caulk used instead of flashing at heads and transitions.",
+      "No sill pan, so any window leak enters the wall.",
+      "Missing kickout flashing, dumping roof water behind the siding."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R703.4", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-7-wall-covering"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Critical in FL wind-driven rain and HVHZ; follow product approval for flashing assemblies.",
+      "nc": "Critical on the coast; confirm details for the enforced NC RC 2018."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "building-science-corp"],
+    "boundary": "verify-locally"
+  }
+]

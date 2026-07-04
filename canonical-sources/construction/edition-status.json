@@ -1,0 +1,47 @@
+[
+  {
+    "id": "edition-status-florida",
+    "title": "Florida adopted code edition status",
+    "text": "Florida enforces the 2023 Florida Building Code, 8th Edition, effective December 31, 2023, based on the 2021 International Codes and ASCE 7-22 for wind. A 9th Edition (2026) is in draft. Florida is a single statewide code; local governments may adopt more-stringent amendments. When answering a Florida code question, cite the 8th Edition and note the pending 9th Edition transition.",
+    "trade": "edition-status",
+    "topic": "florida",
+    "jurisdiction": "FL",
+    "adopted_edition": "2023 Florida Building Code, 8th Edition",
+    "model_basis": "2021 I-Codes + ASCE 7-22",
+    "effective_date": "2023-12-31",
+    "pending": "9th Edition (2026) in draft",
+    "watch": "Florida Building Commission adoption calendar for the 9th Edition",
+    "source_ids": ["fl-building-code-portal", "fl-residential-code-icc"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "edition-status-north-carolina",
+    "title": "North Carolina adopted code edition status",
+    "text": "North Carolina currently enforces the 2018 NC Residential Code, based on the 2015 IRC. The 2024 NC Residential Code, based on the 2021 IRC, has been adopted but its effective date is postponed (earliest around 2027), gated on the new NC Residential Code Council and OSFM certification. When answering a North Carolina code question, cite the enforced 2018 edition and its 2015 IRC basis, and flag the pending 2024 transition and its uncertain effective date. Always confirm which edition the Authority Having Jurisdiction is enforcing.",
+    "trade": "edition-status",
+    "topic": "north-carolina",
+    "jurisdiction": "NC",
+    "adopted_edition": "2018 NC Residential Code (enforced)",
+    "model_basis": "2015 IRC",
+    "effective_date": "in force",
+    "pending": "2024 NC Residential Code (2021 IRC) adopted, effective date postponed (earliest ~2027)",
+    "watch": "NC OSFM press releases and the Residential Code Council for the 2024 effective date",
+    "source_ids": ["nc-osfm-codes", "nc-osfm-press", "nc-building-code-council"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "edition-status-model-codes",
+    "title": "Model code editions referenced",
+    "text": "The dictionary keys residential requirements to the 2021 International Residential Code and companion I-Codes (IECC, IPC, IMC, IFGC) and the National Electrical Code, because Florida's current code derives from the 2021 I-Codes and the pending North Carolina 2024 code does as well. North Carolina's enforced 2018 code uses the 2015 IRC, where a few section numbers or values differ; jurisdiction notes flag those cases. Newer model editions (2024 IRC) are published and will flow into state codes over the next cycles; the currency system watches for adoption.",
+    "trade": "edition-status",
+    "topic": "model-codes",
+    "jurisdiction": "model",
+    "adopted_edition": "2021 I-Codes (dictionary citation basis)",
+    "model_basis": "IRC/IECC/IPC/IMC/IFGC 2021; NEC per state adoption",
+    "effective_date": "n/a",
+    "pending": "2024 IRC published; state adoption pending",
+    "watch": "ICC Digital Codes library for new editions and state adoptions",
+    "source_ids": ["icc-irc-2021", "icc-codes-landing"],
+    "boundary": "verify-locally"
+  }
+]

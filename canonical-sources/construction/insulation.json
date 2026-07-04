@@ -1,0 +1,70 @@
+[
+  {
+    "id": "insulation-rvalue-by-zone",
+    "title": "Prescriptive insulation R-values by climate zone",
+    "text": "Minimum insulation R-values are set by climate zone: colder zones require more. Florida is in IECC climate zones 1 and 2 (hot-humid), so it needs the least insulation, weighted toward the ceiling and toward keeping humidity out. North Carolina spans zones 3A on the coast, 4A across the piedmont (most of the state), and 5A in the mountains, so requirements rise from east to west. The values below are the public-domain DOE Building America ranges restating the IECC and IRC minimums across recent editions; confirm the exact cell for your adopted edition and your county climate zone. Verify against IECC Table R402.1.2 (or IRC N1102) for your adopted edition.",
+    "trade": "insulation",
+    "topic": "r-value",
+    "dimensions": [
+      {"item": "climate zone 1 (south FL)", "value": "ceiling R30, wood-frame wall R13, floor R13", "note": "DOE BASC restatement of IECC/IRC minimums"},
+      {"item": "climate zone 2 (most of FL)", "value": "ceiling R30 to R49, wall R13, floor R13", "note": "confirm exact edition value"},
+      {"item": "climate zone 3A (coastal NC)", "value": "ceiling R30 to R49, wall R20 or R13+5 continuous, floor R19 to R25", "note": "confirm exact edition value"},
+      {"item": "climate zone 4A (piedmont NC)", "value": "ceiling R38 to R60, wall R30 or R20+5 continuous, floor R19 to R30", "note": "confirm exact edition value"},
+      {"item": "climate zone 5A (mountain NC)", "value": "ceiling R38 to R60, wall R20+5 to R30, floor R30", "note": "confirm exact edition value"}
+    ],
+    "steps": [
+      "Find the county climate zone (FL is 1 to 2; NC is 3A to 5A) from the DOE county-to-zone table.",
+      "Read the prescriptive ceiling, wall, and floor R-values for that zone and the adopted edition.",
+      "Choose insulation type and thickness to hit the R-value (see the build-calc rvalue_zone tool).",
+      "Air seal before insulating so the insulation performs as rated."
+    ],
+    "common_mistakes": [
+      "Using a cold-climate R-value or detail in hot-humid Florida.",
+      "Compressing batts into a cavity, which drops the effective R-value.",
+      "Insulating without air sealing first."
+    ],
+    "code_refs": [
+      {"code": "IECC", "section": "Table R402.1.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IECC2021P1"},
+      {"code": "IRC", "section": "N1102.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Climate zones 1 to 2; weight insulation to the ceiling and prioritize air sealing and humidity control over wall R-value.",
+      "nc": "Climate zones 3A (coast) to 4A (piedmont) to 5A (mountains); confirm the county zone, values rise westward."
+    },
+    "diagram_refs": ["rvalue-zone-map"],
+    "source_ids": ["doe-basc-insulation-table", "icc-iecc-2021", "doe-energycodes-county-zone"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "insulation-air-vapor-control",
+    "title": "Air sealing and vapor control by climate",
+    "text": "Insulation only performs if air is not leaking around it, so air sealing the building enclosure comes first. Vapor control depends on climate and must face the right way. In hot-humid Florida (zones 1 to 2) the moisture drive is inward from hot humid outdoor air, so an interior polyethylene vapor barrier is a mistake: it traps condensation against the back of the drywall and causes mold. In cold and mixed climates the vapor retarder logic differs. Air seal the enclosure, choose vapor control appropriate to the climate zone, and verify against the IECC air-barrier and vapor-retarder provisions for your adopted edition.",
+    "trade": "insulation",
+    "topic": "air-and-vapor",
+    "dimensions": [
+      {"item": "Florida (zones 1 to 2)", "value": "no interior polyethylene vapor barrier", "note": "inward moisture drive; interior poly traps condensation"},
+      {"item": "air sealing", "value": "required before insulating", "note": "IECC air-barrier provisions; blower-door tested in many jurisdictions"}
+    ],
+    "steps": [
+      "Air seal top plates, penetrations, rim joists, and the attic access.",
+      "In hot-humid FL, avoid an interior vapor barrier; let assemblies dry inward.",
+      "In cooler NC zones, follow the vapor-retarder class appropriate to the assembly.",
+      "Verify enclosure tightness where a blower-door test is required."
+    ],
+    "common_mistakes": [
+      "Interior poly vapor barrier in hot-humid Florida, causing hidden condensation and mold.",
+      "Insulating over air leaks, so the insulation underperforms.",
+      "Blocking soffit vents with attic insulation."
+    ],
+    "code_refs": [
+      {"code": "IECC", "section": "R402.4", "edition": "2021", "url": "https://codes.iccsafe.org/content/IECC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Hot-humid zones 1 to 2: air seal, no interior vapor barrier, manage humidity with right-sized HVAC.",
+      "nc": "Zones 3A to 5A: vapor-retarder strategy shifts with the zone; confirm the assembly for the county zone."
+    },
+    "diagram_refs": ["rvalue-zone-map"],
+    "source_ids": ["doe-basc", "icc-iecc-2021", "building-science-corp"],
+    "boundary": "verify-locally"
+  }
+]

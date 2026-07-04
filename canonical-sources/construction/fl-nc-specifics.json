@@ -1,0 +1,134 @@
+[
+  {
+    "id": "fl-hvhz-wind",
+    "title": "Florida high-velocity hurricane zone and wind-borne debris",
+    "text": "Florida has the strictest wind provisions in the country. Miami-Dade and Broward counties are the High-Velocity Hurricane Zone (HVHZ), where products must carry a Miami-Dade Notice of Acceptance (NOA) and pass large- and small-missile impact tests (TAS 201, 202, 203). Across the broader wind-borne debris region, openings must be protected with impact-rated glazing or shutters. Florida uses ASCE 7-22 wind loads under the 2023 FBC. For a specific site's design wind speed, use the ASCE Hazard Tool rather than guessing. Verify product approval and opening protection against the FBC and the local building department.",
+    "trade": "fl-nc-specifics",
+    "topic": "florida-wind",
+    "dimensions": [
+      {"item": "HVHZ counties", "value": "Miami-Dade and Broward", "note": "require Miami-Dade NOA and TAS 201/202/203 impact testing"},
+      {"item": "wind-borne debris region", "value": "opening protection required", "note": "impact glazing or shutters per FBC 1609"},
+      {"item": "wind load standard", "value": "ASCE 7-22", "note": "under the 2023 FBC 8th Edition; use the ASCE Hazard Tool for site values"}
+    ],
+    "steps": [
+      "Determine whether the site is in the HVHZ (Miami-Dade or Broward) or the wider debris region.",
+      "Specify products with Florida Product Approval, or a Miami-Dade NOA in the HVHZ.",
+      "Provide impact-rated openings or shutters where required.",
+      "Pull the site design wind speed from the ASCE Hazard Tool."
+    ],
+    "common_mistakes": [
+      "Using a non-approved product in the HVHZ.",
+      "Skipping opening protection in the wind-borne debris region.",
+      "Guessing the design wind speed instead of using the Hazard Tool."
+    ],
+    "code_refs": [
+      {"code": "FBC", "section": "1609 / HVHZ", "edition": "2023 8th", "url": "https://codes.iccsafe.org/content/FLRC2023P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Statewide product approval with the Miami-Dade NOA overlay in the HVHZ.",
+      "nc": "NC uses Chapter 45 high-wind provisions on the coast instead of an HVHZ system."
+    },
+    "diagram_refs": [],
+    "source_ids": ["fl-building-code-portal", "miami-dade-noa-hvhz", "fl-product-approval"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "fl-termite-flood",
+    "title": "Florida termite and flood provisions",
+    "text": "Two Florida-specific residential requirements catch homeowners. Termite protection (FRC R318) requires soil treatment or an approved system plus a Certificate of Compliance, and a 6 mil vapor retarder under slabs. Flood construction requires building to or above the Base Flood Elevation from the FEMA Flood Insurance Rate Map; coastal V-zones require open or breakaway foundations and follow ASCE 24. For a site's Base Flood Elevation and flood zone, use the FEMA Map Service Center rather than assuming. Verify termite and flood requirements against the FBC and the FEMA FIRM for the site.",
+    "trade": "fl-nc-specifics",
+    "topic": "florida-termite-flood",
+    "dimensions": [
+      {"item": "termite protection", "value": "soil treatment + Certificate of Compliance", "note": "FRC R318"},
+      {"item": "flood elevation", "value": "at or above Base Flood Elevation", "note": "FBC flood provisions / ASCE 24; get the BFE from the FEMA FIRM"}
+    ],
+    "steps": [
+      "Provide approved termite protection and obtain the Certificate of Compliance.",
+      "Look up the flood zone and Base Flood Elevation on the FEMA Map Service Center.",
+      "Elevate to or above the BFE; use open or breakaway foundations in coastal V-zones."
+    ],
+    "common_mistakes": [
+      "No termite Certificate of Compliance at inspection.",
+      "Building below the Base Flood Elevation.",
+      "Solid enclosed foundation walls in a coastal V-zone."
+    ],
+    "code_refs": [
+      {"code": "FRC", "section": "R318 / R322", "edition": "2023 8th", "url": "https://codes.iccsafe.org/content/FLRC2023P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Termite protection is a statewide FL requirement; flood rules follow the local FIRM.",
+      "nc": "NC coastal flood rules follow the FEMA FIRM as well; termite provisions differ."
+    },
+    "diagram_refs": [],
+    "source_ids": ["fl-building-code-portal", "fl-fdacs-termite", "fema-residential"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "nc-climate-highwind-radon",
+    "title": "North Carolina climate zones, high-wind coast, and radon",
+    "text": "North Carolina spans three IECC climate zones: 3A on the coast, 4A across the piedmont (the majority of the state, including Wake and Mecklenburg), and 5A in the mountains (such as Ashe and Watauga). This drives the insulation table from east to west. On the coast, NC uses the Residential Code Chapter 45 High Wind Zones prescriptive path, with Outer Banks design winds around 140 to 150 mph. Parts of NC use radon-resistant construction (IRC Appendix F methods) where adopted. Confirm the county climate zone from the DOE county-to-zone table and the wind and radon requirements with the local building department.",
+    "trade": "fl-nc-specifics",
+    "topic": "north-carolina",
+    "dimensions": [
+      {"item": "coastal counties", "value": "climate zone 3A", "note": "e.g. New Hanover, Carteret"},
+      {"item": "piedmont counties", "value": "climate zone 4A", "note": "e.g. Wake, Mecklenburg, Alamance"},
+      {"item": "mountain counties", "value": "climate zone 5A", "note": "e.g. Ashe, Watauga"},
+      {"item": "coastal high wind", "value": "NC RC Chapter 45, ~140 to 150 mph on the Outer Banks", "note": "prescriptive high-wind path"}
+    ],
+    "steps": [
+      "Look up the county IECC climate zone in the DOE county-to-zone table.",
+      "Apply the insulation values for that zone (3A, 4A, or 5A).",
+      "On the coast, follow Chapter 45 high-wind detailing.",
+      "Confirm whether radon-resistant construction is required locally."
+    ],
+    "common_mistakes": [
+      "Using piedmont insulation values in the colder mountain zone.",
+      "Skipping Chapter 45 detailing on the coast.",
+      "Assuming NC has a Florida-style HVHZ system (it does not)."
+    ],
+    "code_refs": [
+      {"code": "NC RC", "section": "Chapter 45 / N1101", "edition": "2018 (2015 IRC)", "url": "https://codes.iccsafe.org/content/NCRC2018P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL is a single hot-humid system (zones 1 to 2) with statewide product approval.",
+      "nc": "NC varies by county zone (3A coast, 4A piedmont, 5A mountains) with Chapter 45 on the coast."
+    },
+    "diagram_refs": ["rvalue-zone-map"],
+    "source_ids": ["nc-osfm-codes", "nc-residential-code-icc", "doe-energycodes-county-zone"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "fl-nc-county-climate-zones",
+    "title": "Sample Florida and North Carolina county climate zones",
+    "text": "The county determines the IECC climate zone, which sets the insulation R-values. Florida counties are climate zone 1 (south Florida, including Broward and Miami-Dade) or 2 (most of the state, including Alachua and Orange). North Carolina counties range from 3A on the coast to 4A across the piedmont (Wake, Mecklenburg, Alamance) to 5A in the mountains (Ashe). These sample assignments come from the public-domain DOE county-to-climate-zone data; look up the specific county in the DOE table before selecting insulation values. Verify the county zone against the DOE energycodes county-to-zone resource.",
+    "trade": "fl-nc-specifics",
+    "topic": "county-zones",
+    "dimensions": [
+      {"item": "Broward County, FL", "value": "climate zone 1A", "note": "south Florida, HVHZ"},
+      {"item": "Alachua County, FL", "value": "climate zone 2A", "note": "north-central Florida"},
+      {"item": "Wake County, NC", "value": "climate zone 4A", "note": "piedmont (Raleigh)"},
+      {"item": "Alamance County, NC", "value": "climate zone 4A", "note": "piedmont"},
+      {"item": "Ashe County, NC", "value": "climate zone 5A", "note": "mountains"}
+    ],
+    "steps": [
+      "Identify the county for the project.",
+      "Find its IECC climate zone in the DOE county-to-zone table.",
+      "Apply the insulation R-values for that zone."
+    ],
+    "common_mistakes": [
+      "Assuming one climate zone for a whole state.",
+      "Using a neighboring county's zone without checking.",
+      "Reading an outdated county-to-zone vintage; confirm against the current DOE table."
+    ],
+    "code_refs": [
+      {"code": "IECC", "section": "Figure/Table R301.1 (climate zones)", "edition": "2021", "url": "https://codes.iccsafe.org/content/IECC2021P1"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "All FL counties are zone 1 or 2.",
+      "nc": "NC counties are zone 3A, 4A, or 5A depending on coast, piedmont, or mountains."
+    },
+    "diagram_refs": ["rvalue-zone-map"],
+    "source_ids": ["doe-energycodes-county-zone"],
+    "boundary": "verify-locally"
+  }
+]
