@@ -1,0 +1,47 @@
+[
+  {
+    "test_id": "dunning-draft-tone-ladder",
+    "description": "tone follows the aging bucket exactly",
+    "input": { "invoice_id": "INV-hearthline-2026-001-001" },
+    "expected_output_keys": ["tone", "subject", "draft", "sent"],
+    "assertions": [
+      "1 to 30 days past due drafts gentle; 31 to 60 firm; 61 plus final (edges at 30/31 and 60/61)",
+      "every figure and date restates the ar_scan row verbatim",
+      "sent is false and human_review_required is true",
+      "no em dashes; ranges written with to"
+    ]
+  },
+  {
+    "test_id": "dunning-draft-penalty-quoting",
+    "description": "penalty language only when the frozen terms contain it",
+    "input": { "invoice_id": "INV-lumen-2026-002-001" },
+    "expected_output_keys": ["penalty_clause_quoted", "draft"],
+    "assertions": [
+      "with a percent-per-month clause: the clause is quoted and the accrued figure comes from the row",
+      "with no penalty clause: penalty_clause_quoted is null and the draft implies no penalty",
+      "no legal threat exceeds the contract's own remedies"
+    ]
+  },
+  {
+    "test_id": "dunning-draft-disputed-refusal",
+    "description": "disputed invoices are not chased",
+    "input": { "invoice_id": "INV-x-004" },
+    "expected_output_keys": ["draft"],
+    "assertions": [
+      "the atom refuses and points at resolving the dispute first",
+      "no draft is produced for a disputed invoice",
+      "nothing is written to disk"
+    ]
+  },
+  {
+    "test_id": "dunning-draft-local-only",
+    "description": "the draft file never enters git",
+    "input": { "invoice_id": "INV-hearthline-2026-001-001" },
+    "expected_output_keys": ["saved_to"],
+    "assertions": [
+      "saved_to is a pipeline/finance/dunning-<id>.local.md path (gitignored by the allowlist-invert rules)",
+      "the exposure note states the draft holds real amounts and stays local",
+      "the consequential gate restates amount, counterparty, and tone before the human sends"
+    ]
+  }
+]

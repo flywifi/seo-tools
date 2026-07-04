@@ -41,6 +41,10 @@ commits money externally: sending an invoice, quoting a price, agreeing a rate
   confirm each proposal, then the gated mark-paid write (`payment-reconcile`). Routed as
   `payment_reconcile`. The export must live at a gitignored .local. path or outside the repo;
   the tool structurally refuses anything else.
+- `dun` — an escalating payment-reminder DRAFT for one overdue invoice, tone keyed to the aging
+  bucket (gentle for current and 1 to 30 days, firm for 31 to 60, final for 61 plus), figures
+  verbatim from a fresh ar-review row (`dunning-draft`). Routed as `dunning_draft`. NEVER sends;
+  drafts land in gitignored .local files and the human sends from their own client.
 
 ## How the money math runs
 

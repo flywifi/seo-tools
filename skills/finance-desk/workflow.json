@@ -7,21 +7,21 @@
       "step": 1,
       "atom": "invoice-generate",
       "input_from": "deal_id + line items from the deal record + anchor_date",
-      "output_to": "step8",
+      "output_to": "step9",
       "condition": "action is invoice; write requires finance_management and invoice_generation"
     },
     {
       "step": 2,
       "atom": "ar-review",
       "input_from": "pipeline/finance records (or inline invoices) + as_of_date",
-      "output_to": "step8",
+      "output_to": "step9",
       "condition": "action is ar; read-only, always available"
     },
     {
       "step": 3,
       "atom": "invoice-status",
       "input_from": "deal_id + as_of_date",
-      "output_to": "step8",
+      "output_to": "step9",
       "condition": "action is ar and a single deal_id is given (per-deal narrative)"
     },
     {
@@ -35,25 +35,32 @@
       "step": 5,
       "atom": "proposal-price",
       "input_from": "step4.totals.grand + margin + rate card / playbook floor + benchmark_range",
-      "output_to": "step8",
+      "output_to": "step9",
       "condition": "action is price; output feeds pitch-paragraph and contract-draft"
     },
     {
       "step": 6,
       "atom": "cashflow-view",
       "input_from": "pipeline/finance records + scheduled rows from deal-resourcing + dated estimates + horizon_days",
-      "output_to": "step8",
+      "output_to": "step9",
       "condition": "action is cashflow; read-only, always available; redacted output for anything leaving the machine"
     },
     {
       "step": 7,
       "atom": "payment-reconcile",
       "input_from": "csv_path (pipeline/finance/<name>.local.csv or outside the repo) + window_days + mapping",
-      "output_to": "step8",
+      "output_to": "step9",
       "condition": "action is reconcile; proposal-only; mark-paid write requires finance_management plus an explicit human yes per invoice"
     },
     {
       "step": 8,
+      "atom": "dunning-draft",
+      "input_from": "invoice_id + fresh ar-review row + terms_snapshot penalty clause",
+      "output_to": "step9",
+      "condition": "action is dun; drafts only, never sends; requires a fresh ar-review row; disputed invoices refused"
+    },
+    {
+      "step": 9,
       "atom": "govern-artifact",
       "input_from": "assembled_finance_report",
       "output_to": "final",
@@ -71,7 +78,8 @@
     "cost-estimate",
     "proposal-price",
     "cashflow-view",
-    "payment-reconcile"
+    "payment-reconcile",
+    "dunning-draft"
   ],
   "note": "Master gate for writes: finance_management. deal-resourcing keeps the per-deal trigger-based invoice schedule; this spoke drafts the actual invoice records and reads the whole book. Boundary and gate language come from shared/finance-engine.md; the AR chase queue feeds the content calendar and production tasks via the import_finance MCP handoff (chunk 8), never a parallel calendar."
 }

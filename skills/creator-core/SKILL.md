@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_create` `account_update` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -104,6 +104,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `proposal_price` | Pipeline/CRM | `finance-desk` | standardized price floor for a proposal: cost floor vs negotiation floor, feeds pitch and contract drafts |
 | `cashflow_projection` | Pipeline/CRM | `finance-desk` | weekly cash-movement view over the horizon (read-only; redacted output available) |
 | `payment_reconcile` | Pipeline/CRM | `finance-desk` | match a bank/PayPal export to open invoices; proposal-only, gated mark-paid after human confirmation |
+| `dunning_draft` | Pipeline/CRM | `finance-desk` | escalating payment-reminder DRAFTS keyed to aging buckets; never sends |
 | `quality_check` | Content | `quality-review` | score an artifact against quality gates |
 | `unclear` | — | — | ask a clarifying question before routing |
 
