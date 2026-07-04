@@ -660,6 +660,60 @@ def check_secret_content():
             problem(f"privacy: secret scan exited {out.returncode}: {out.stdout.strip()[-300:]}")
 
 
+def check_construction():
+    """Invariant 22: construction dictionary integrity (P34).
+
+    Every diagram-index entry carries a license and an id. Every construction dictionary record carries
+    non-empty source_ids; any record that cites code carries the verify-locally boundary; every code_ref
+    names a section, an edition, and a url; and every diagram_ref resolves to a diagram-index id. This
+    keeps citations edition-aware, keeps bundled diagrams license-tagged, and keeps the boundary on every
+    code-bearing answer. No-op when the construction directory is absent."""
+    cdir = ROOT / "canonical-sources" / "construction"
+    if not cdir.exists():
+        return
+    idx_ids = set()
+    idxf = cdir / "diagram-index.json"
+    if idxf.exists():
+        try:
+            idx = json.loads(idxf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"construction: diagram-index.json unreadable: {exc}")
+            idx = []
+        for e in idx if isinstance(idx, list) else []:
+            if not e.get("id"):
+                problem("construction: a diagram-index entry is missing its id")
+            else:
+                idx_ids.add(e["id"])
+            if not e.get("license"):
+                problem(f"construction: diagram '{e.get('id', '<no id>')}' has no license in diagram-index.json")
+    for jf in sorted(cdir.glob("*.json")):
+        if jf.name == "diagram-index.json":
+            continue
+        try:
+            recs = json.loads(jf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"construction: {jf.name} unreadable: {exc}")
+            continue
+        if not isinstance(recs, list):
+            continue
+        for r in recs:
+            if not isinstance(r, dict):
+                continue
+            rid = r.get("id", "<no id>")
+            if not r.get("source_ids"):
+                problem(f"construction: {jf.name}:{rid} has no source_ids")
+            code_refs = r.get("code_refs") or []
+            if code_refs and not r.get("boundary"):
+                problem(f"construction: {jf.name}:{rid} cites code but carries no boundary")
+            for ref in code_refs:
+                for k in ("section", "edition", "url"):
+                    if not ref.get(k):
+                        problem(f"construction: {jf.name}:{rid} code_ref is missing '{k}'")
+            for d in r.get("diagram_refs") or []:
+                if d not in idx_ids:
+                    problem(f"construction: {jf.name}:{rid} diagram_ref '{d}' is not in diagram-index.json")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -683,6 +737,7 @@ def main():
     check_pipeline_allowlist()
     check_secret_content()
     check_dependency_registry()
+    check_construction()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

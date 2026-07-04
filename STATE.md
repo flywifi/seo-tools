@@ -2,7 +2,23 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P33 are complete. Drift guard exits 0 (23 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P34 are complete. Drift guard exits 0 (24 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P34: added the offline residential construction and DIY knowledge base scoped to Florida and North
+  Carolina. `shared/construction-engine.md` defines the offline-dictionary schema, the cite-and-link-only
+  redistribution model (the codes are copyrighted, so we author cited prose keyed to section numbers and
+  never bundle code text), and FL/NC edition awareness. The dictionary
+  (`canonical-sources/construction/*.json`: 12 trades plus glossary, assemblies, fl-nc-specifics,
+  edition-status, diagram-index) is indexed by the scoop cache and answerable offline via
+  `construction_lookup`. `tools/build_calc.py` adds eight first-principles calculators (selftest 24/24).
+  Three atoms (construction-lookup, code-lookup, build-calc) compose the new `construction-desk` spoke,
+  hub-routed as `construction_question`/`code_lookup`/`build_calc`, with `project-builder` consuming them;
+  MCP tools `construction_lookup`/`code_lookup`/`build_calc` added. Five original CC0 SVG diagrams with a
+  license-tagged index. `tools/construction_fetch.py` downloads only public-domain/open assets and
+  structurally refuses copyrighted hosts (selftest 12/12). 37 sources registered under new `building-code`
+  (cite-only, 365d) and `construction-authority` (180d) currency categories; `edition-status.json` and the
+  data-currency-map watch the NC 2024 and FL 9th-Edition transitions. Drift invariant 22 enforces
+  edition-aware citations, per-diagram licenses, and diagram_ref resolution. Docs: `docs/CONSTRUCTION.md`.
 
 - P33: audited and modernized the source-currency system. Fixed its config bugs (legal-authority
   and cost-vendor cadence overrides added to traversal-config so they are no longer treated as
