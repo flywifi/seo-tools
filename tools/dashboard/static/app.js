@@ -95,6 +95,9 @@ const App = (function () {
       case "status":
         renderStatus(main);
         break;
+      case "ar":
+        renderAr(main);
+        break;
       case "credentials":
         renderCredentials(main);
         break;
@@ -405,6 +408,73 @@ const App = (function () {
   }
 
   // ── Credentials view ──────────────────────────────────────────
+
+  function loadAr() {
+    return api("GET", "/api/ar").then(function (data) {
+      state.ar = data;
+    });
+  }
+
+  function renderAr(container) {
+    var ar = state.ar;
+    var html = '<div class="card"><h2>Accounts receivable</h2>';
+    html += '<p class="muted">Real money data from your local records. Localhost only; ' +
+            'nothing here is sent anywhere. Use the redacted CLI view for screenshots.</p>';
+    if (!ar || ar.error) {
+      html += '<p class="queue-empty">' + escapeHtml((ar && ar.error) || "Could not load the AR view.") + "</p></div>";
+      container.innerHTML = html;
+      return;
+    }
+    html += "<p>As of " + escapeHtml(ar.as_of) + " &middot; total outstanding: <strong>" +
+            escapeHtml(ar.total_outstanding) + "</strong></p>";
+    var bucketLabels = {
+      current: "Current",
+      "1_to_30": "1 to 30 days",
+      "31_to_60": "31 to 60 days",
+      "61_to_90": "61 to 90 days",
+      over_90: "Over 90 days"
+    };
+    html += '<div class="status-table-wrap"><table class="status-table">';
+    html += "<thead><tr><th>Bucket</th><th>Invoices</th><th>Total</th></tr></thead><tbody>";
+    Object.keys(bucketLabels).forEach(function (key) {
+      var rows = (ar.buckets && ar.buckets[key]) || [];
+      html += "<tr><td>" + bucketLabels[key] + "</td><td>" + rows.length + "</td><td>" +
+              escapeHtml((ar.bucket_totals && ar.bucket_totals[key]) || "0.00") + "</td></tr>";
+    });
+    html += "</tbody></table></div>";
+
+    var queue = ar.action_queue || [];
+    html += "<h3>Chase queue</h3>";
+    if (!queue.length) {
+      html += '<p class="queue-empty">Nothing overdue. Nice.</p>';
+    } else {
+      html += '<div class="status-table-wrap"><table class="status-table">';
+      html += "<thead><tr><th>Invoice</th><th>Brand</th><th>Amount</th>" +
+              "<th>Days past due</th><th>Penalty accrued</th><th>Chase by</th></tr></thead><tbody>";
+      queue.forEach(function (row) {
+        html += "<tr>";
+        html += "<td>" + escapeHtml(row.invoice_id || "") + "</td>";
+        html += "<td>" + escapeHtml(row.brand_name || "") + "</td>";
+        html += "<td>" + escapeHtml(row.amount || "") + "</td>";
+        html += "<td>" + escapeHtml(String(row.days_past_due)) + "</td>";
+        html += "<td>" + escapeHtml(row.accrued_penalty || "0.00") + "</td>";
+        html += "<td>" + escapeHtml(row.chase_send_by || "") + "</td>";
+        html += "</tr>";
+      });
+      html += "</tbody></table></div>";
+    }
+    var disputed = ar.disputed || [];
+    if (disputed.length) {
+      html += "<h3>Disputed (excluded from totals)</h3><ul>";
+      disputed.forEach(function (row) {
+        html += "<li>" + escapeHtml(row.invoice_id || "") + " &middot; " +
+                escapeHtml(row.brand_name || "") + " &middot; " + escapeHtml(row.amount || "") + "</li>";
+      });
+      html += "</ul>";
+    }
+    html += "</div>";
+    container.innerHTML = html;
+  }
 
   function renderCredentials(container) {
     var html = "<h2>Platform Credentials</h2>";
@@ -779,7 +849,7 @@ const App = (function () {
         if (e.target === this) closeModal();
       });
 
-    await Promise.all([loadQueue(), loadPublishingPlan(), loadCredentials()]);
+    await Promise.all([loadQueue(), loadPublishingPlan(), loadCredentials(), loadAr()]);
     render();
   }
 

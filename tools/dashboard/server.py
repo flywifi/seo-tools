@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import publishing_compliance as compliance  # noqa: E402
 import publishing  # noqa: E402
+import finance  # noqa: E402  (P31: read-only AR view)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -202,6 +203,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         if path == "/api/queue":
             with _queue_lock:
                 return self._json_response(_load_queue())
+
+        if path == "/api/ar":
+            # P31: read-only accounts-receivable view over pipeline/finance/*.local.json.
+            # Real money data; the server binds localhost only and this route never writes.
+            try:
+                return self._json_response(finance.ar_scan(None, None))
+            except Exception as exc:  # noqa: BLE001
+                return self._json_response({"error": str(exc)}, status=500)
 
         if path == "/api/publishing-plan":
             return self._json_response(_get_publishing_plan(_load_config()))
