@@ -1,0 +1,100 @@
+[
+  {
+    "id": "decks-ledger-attachment",
+    "title": "Deck ledger attachment and flashing",
+    "text": "The ledger board attaches the deck to the house and is the most safety-critical deck connection: most catastrophic deck collapses are ledger failures. The ledger must be fastened to the house band joist with lag screws or through-bolts in a staggered two-row pattern at the required spacing, never with nails, and it must be flashed so water sheds over the ledger instead of behind it and rots the band joist. Attach with the fasteners and spacing in the deck code and the AWC DCA6 deck guide, integrate flashing behind the siding and over the ledger, and verify against IRC R507.9 for your adopted edition.",
+    "trade": "decks",
+    "topic": "ledger",
+    "dimensions": [
+      {"item": "fastener type", "value": "1/2 in lag screw or through-bolt", "note": "IRC R507.9.1.3; never nails"},
+      {"item": "fastener pattern", "value": "two staggered rows", "note": "spacing per IRC Table R507.9.1.3(1) by joist span"},
+      {"item": "flashing", "value": "required", "note": "corrosion-resistant, over the ledger and behind the water-resistive barrier"}
+    ],
+    "steps": [
+      "Remove siding and confirm a solid band joist (not brick veneer or a cantilever) to attach to.",
+      "Fasten the ledger with lag screws or through-bolts in two staggered rows at the table spacing.",
+      "Install continuous flashing so water sheds over the ledger, integrated with the housewrap.",
+      "Add lateral load hold-down connectors into the floor framing."
+    ],
+    "common_mistakes": [
+      "Lag-only or nail-only ledger with no flashing, leading to band joist rot and collapse.",
+      "Attaching a ledger to brick veneer or over foam without solid backing.",
+      "No lateral load connectors, so the ledger pulls off under load."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R507.9", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-5-floors"},
+      {"code": "AWC DCA6", "section": "Ledger attachment", "edition": "2015", "url": "https://awc.org/wp-content/uploads/2022/02/AWC-DCA62015-DeckGuide-1804.pdf"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL requires corrosion-resistant fasteners and connectors; coastal and HVHZ zones add uplift and lateral requirements.",
+      "nc": "NC RC 2018 references DCA6; confirm ledger table and lateral device counts for the enforced edition."
+    },
+    "diagram_refs": ["deck-ledger"],
+    "source_ids": ["icc-irc-2021", "awc-dca6-deck"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "decks-lateral-load",
+    "title": "Deck lateral load connection",
+    "text": "Beyond the ledger fasteners, a deck needs a dedicated lateral load connection that ties the deck framing back into the house floor framing with tension hold-down devices, so the deck cannot pull away from the wall. The code prescribes tested hold-down devices at a required capacity, installed into the floor joists inside the house. Install the lateral connectors called for by the deck code and verify against IRC R507.9.2 for your adopted edition.",
+    "trade": "decks",
+    "topic": "lateral-load",
+    "dimensions": [
+      {"item": "hold-down devices", "value": "2 tension devices at 1500 lb each (or 4 at 750 lb)", "note": "IRC R507.9.2, tied into house floor joists"}
+    ],
+    "steps": [
+      "Locate the deck joists that align with house floor joists for the hold-down path.",
+      "Install tested tension hold-down devices per the manufacturer and the code capacity.",
+      "Anchor them into the interior floor framing, not just the band joist."
+    ],
+    "common_mistakes": [
+      "Skipping lateral connectors entirely and relying on ledger lags alone.",
+      "Anchoring the device to the band joist instead of the floor joists.",
+      "Using non-tested hardware for the tension connection."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R507.9.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-5-floors"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Follow the FBC and product approval for the specific tested device.",
+      "nc": "Confirm the device count and capacity in the enforced NC RC 2018."
+    },
+    "diagram_refs": ["deck-ledger"],
+    "source_ids": ["icc-irc-2021", "awc-dca6-deck"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "decks-footings-spans",
+    "title": "Deck footings, posts, joists, and beams",
+    "text": "Deck footings must bear below the local frost line on undisturbed or compacted soil and be sized for the soil bearing capacity and the load area they carry. Joist and beam spans come from the deck span tables, which depend on wood species, member size, and spacing. Do not guess spans: read them from the AWC DCA6 deck guide or the IRC deck span tables, keep footings below frost, and verify against IRC R507 for your adopted edition. This dictionary cites the span tables rather than reproducing them, because the tables are copyrighted; use the AWC calculator or the code table for the exact cell.",
+    "trade": "decks",
+    "topic": "structure",
+    "dimensions": [
+      {"item": "footing depth", "value": "below local frost line", "note": "IRC R403.1.4; minimal in FL, deeper in NC piedmont/mountains"},
+      {"item": "joist and beam spans", "value": "per DCA6 / IRC deck span tables", "note": "by species, size, spacing; do not copy the table, read the cell"},
+      {"item": "guard height", "value": "36 in min", "note": "IRC R312 where walking surface over 30 in above grade"}
+    ],
+    "steps": [
+      "Size footings for the soil and the tributary load, and dig below the local frost depth.",
+      "Select joist size and spacing, then read the allowable span from the deck table.",
+      "Size the beam for its span and the joist load it carries from the table.",
+      "Add guards at 36 in where the deck is more than 30 in above grade."
+    ],
+    "common_mistakes": [
+      "Footings placed above the frost line, causing seasonal heave.",
+      "Joists or beams overspanned beyond the table.",
+      "Nails driven into joist hangers instead of the specified joist-hanger nails or structural screws."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R507.3", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-5-floors"},
+      {"code": "AWC DCA6", "section": "Span tables", "edition": "2015", "url": "https://awc.org/wp-content/uploads/2022/02/AWC-DCA62015-DeckGuide-1804.pdf"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL frost depth is negligible; wind uplift and corrosion drive hardware choice.",
+      "nc": "NC frost depth increases from coast to mountains; confirm the local frost line with the AHJ."
+    },
+    "diagram_refs": ["deck-ledger"],
+    "source_ids": ["icc-irc-2021", "awc-dca6-deck", "awc-span-calculator"],
+    "boundary": "verify-locally"
+  }
+]

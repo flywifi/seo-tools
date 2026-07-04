@@ -1,0 +1,70 @@
+[
+  {
+    "id": "foundations-footings-frost",
+    "title": "Footing size and frost depth",
+    "text": "A footing spreads the building load onto the soil and must sit below the local frost line so seasonal freezing cannot heave it. Minimum footing width and thickness are set by the code for the soil bearing value and the load; a common minimum is 12 inches wide and 6 inches thick, but the required size grows with load and weaker soil. Place footings on undisturbed or properly compacted soil below the frost depth, size them from the IRC footing table for the soil and load, and verify against IRC R403 for your adopted edition.",
+    "trade": "foundations",
+    "topic": "footings",
+    "dimensions": [
+      {"item": "min footing width", "value": "12 in typical", "note": "IRC R403.1.1; grows with load and lower soil bearing"},
+      {"item": "min footing thickness", "value": "6 in typical", "note": "IRC R403.1.1"},
+      {"item": "depth below grade", "value": "below local frost line", "note": "IRC R403.1.4; frost-protected shallow foundations per R403.3 are an alternative"}
+    ],
+    "steps": [
+      "Confirm the local frost depth with the building department.",
+      "Excavate to undisturbed or compacted bearing soil below the frost line.",
+      "Size footing width and thickness from the code table for the soil and the load.",
+      "Add reinforcing dowels tying the footing to the stem wall where required."
+    ],
+    "common_mistakes": [
+      "Footings placed above the frost line, causing heave and cracking.",
+      "Pouring on loose fill or organic topsoil instead of bearing soil.",
+      "No dowels connecting the footing to the wall above."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R403.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-4-foundations"},
+      {"code": "IRC", "section": "R403.1.4", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-4-foundations"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL has negligible frost depth; the FBC emphasizes termite protection (soil treatment and a 6 mil vapor retarder) and flood elevation in coastal zones.",
+      "nc": "NC frost depth increases from the coast to the mountains; confirm the local frost line and any radon provisions."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "doe-basc"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "foundations-slab-vapor",
+    "title": "Concrete slab thickness and vapor retarder",
+    "text": "A residential concrete slab-on-grade is placed over a prepared base with a vapor retarder between the base and the concrete to keep ground moisture out of the floor. Minimum slab thickness is set by the code, commonly 3.5 inches, and is usually poured at 4 inches. A 6 mil polyethylene vapor retarder is placed under the slab in habitable and many other spaces. Prepare and compact the base, lay a continuous vapor retarder with lapped seams, pour to the required thickness, and verify against IRC R506 for your adopted edition.",
+    "trade": "foundations",
+    "topic": "slab",
+    "dimensions": [
+      {"item": "min slab thickness", "value": "3.5 in", "note": "IRC R506.1; commonly poured 4 in"},
+      {"item": "vapor retarder", "value": "6 mil polyethylene", "note": "IRC R506.2.3, seams lapped, under the slab"},
+      {"item": "base course", "value": "4 in of clean gravel or sand", "note": "IRC R506.2.2 where required"}
+    ],
+    "steps": [
+      "Prepare and compact the sub-base and any required gravel base course.",
+      "Lay a continuous 6 mil vapor retarder, lapping and sealing seams.",
+      "Pour and finish the slab at the required thickness, keeping the retarder intact.",
+      "Provide control joints to manage shrinkage cracking."
+    ],
+    "common_mistakes": [
+      "Omitting the vapor retarder, letting ground moisture wick into the floor.",
+      "Puncturing or short-lapping the retarder so it leaks.",
+      "No control joints, leading to random cracks."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R506.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-5-floors"},
+      {"code": "IRC", "section": "R506.2.3", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-5-floors"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL termite provisions (FRC R318) require soil treatment and the under-slab vapor retarder plus a Certificate of Compliance.",
+      "nc": "NC RC 2018 follows the 2015 IRC slab provisions; confirm any radon-resistant slab detailing in adopting jurisdictions."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "doe-basc"],
+    "boundary": "verify-locally"
+  }
+]

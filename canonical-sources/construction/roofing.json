@@ -1,0 +1,69 @@
+[
+  {
+    "id": "roofing-asphalt-slope",
+    "title": "Asphalt shingle minimum slope and underlayment",
+    "text": "Asphalt shingles have a minimum roof slope below which they should not be used because they rely on gravity and overlap to shed water. Asphalt shingles require a slope of at least 2:12 (two units of rise per twelve of run). Between 2:12 and 4:12 the roof needs a doubled or reinforced underlayment because low slopes drain slowly and are prone to wind-driven water intrusion. For slopes at or above 4:12 a single layer of the specified underlayment is used. Confirm the slope, apply the correct underlayment for the slope band, and verify against IRC R905.2 for your adopted edition.",
+    "trade": "roofing",
+    "topic": "shingles",
+    "dimensions": [
+      {"item": "min slope for asphalt shingles", "value": "2:12", "note": "IRC R905.2.2"},
+      {"item": "double underlayment band", "value": "2:12 up to under 4:12", "note": "IRC R905.1.1"},
+      {"item": "single underlayment", "value": "4:12 and steeper", "note": "IRC R905.1.1"}
+    ],
+    "steps": [
+      "Measure the roof slope as rise over 12 in of run.",
+      "If below 2:12, choose a different roof covering rated for low slope.",
+      "Apply doubled underlayment for 2:12 up to under 4:12, single layer at 4:12 and above.",
+      "Install a drip edge at eaves and rakes."
+    ],
+    "common_mistakes": [
+      "Installing asphalt shingles below 2:12.",
+      "Single underlayment on a 3:12 roof that requires the doubled application.",
+      "Skipping the drip edge."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R905.2.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-9-roof-assemblies"},
+      {"code": "IRC", "section": "R905.1.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-9-roof-assemblies"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL high-wind and HVHZ zones require enhanced fastening, sealed underlayment (secondary water barrier), and product approval.",
+      "nc": "Coastal NC follows Chapter 45 high-wind roofing detail; confirm underlayment for the enforced 2018 edition."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "roofing-ice-barrier-fastening",
+    "title": "Ice barrier and shingle fastening",
+    "text": "In climates with a history of ice forming along the eaves, an ice barrier membrane is required from the eave edge to a point measured inside the exterior wall line, so meltwater backing up under the shingles cannot enter the building. Warm and hot climates without an ice-dam history are generally exempt. Shingles are fastened with the required number of nails per shingle placed in the nailing zone, more in high-wind areas, and never overdriven or high. Apply the ice barrier where required, nail shingles per the code and manufacturer, and verify against IRC R905.1.2 and R905.2.6 for your adopted edition.",
+    "trade": "roofing",
+    "topic": "weatherproofing",
+    "dimensions": [
+      {"item": "ice barrier extent", "value": "to 24 in inside the exterior wall line", "note": "IRC R905.1.2 where there is an ice-dam history"},
+      {"item": "shingle fasteners", "value": "min 4 nails per strip shingle", "note": "IRC R905.2.6; 6 in high-wind areas"}
+    ],
+    "steps": [
+      "Determine whether the jurisdiction requires an ice barrier (cold climates with ice-dam history).",
+      "Where required, run the membrane from the eave to at least 24 in inside the wall line.",
+      "Nail each shingle with the required number of fasteners in the nailing zone, flush not high.",
+      "Increase to 6 fasteners and add sealant in high-wind zones."
+    ],
+    "common_mistakes": [
+      "Omitting the ice barrier in a cold jurisdiction that requires it.",
+      "High nails above the nailing zone that miss the shingle below.",
+      "Only 4 nails in a high-wind zone that requires 6."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R905.1.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-9-roof-assemblies"},
+      {"code": "IRC", "section": "R905.2.6", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-9-roof-assemblies"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL (climate zones 1 to 2) generally does not require an ice barrier, but requires enhanced high-wind fastening and a secondary water barrier in many zones.",
+      "nc": "NC mountain counties (colder zones) may require an ice barrier; coastal counties emphasize high-wind fastening instead."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "fema-residential"],
+    "boundary": "verify-locally"
+  }
+]

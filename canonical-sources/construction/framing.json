@@ -1,0 +1,99 @@
+[
+  {
+    "id": "framing-stud-spacing",
+    "title": "Wall stud size, spacing, and height",
+    "text": "Wood wall studs in residential framing are spaced 16 inches or 24 inches on center. A standard pre-cut stud for an 8 foot wall is 92 and 5/8 inches, which yields a finished 8 foot 1 and 1/8 inch wall after plates. Exterior and bearing walls are commonly 2x6 at 16 inches on center in colder climate zones and 2x4 at 16 inches on center elsewhere; 2x4 studs at 24 inches on center carry limits on wall height and load. Stud size, spacing, and maximum height are set by the IRC wall framing table. Verify the exact stud grade, spacing, and height against IRC Table R602.3(5) and your adopted edition.",
+    "trade": "framing",
+    "topic": "walls",
+    "dimensions": [
+      {"item": "stud spacing", "value": "16 in or 24 in on center", "note": "depends on stud size, height, and load per IRC Table R602.3(5)"},
+      {"item": "pre-cut stud (8 ft wall)", "value": "92 5/8 in", "note": "gives ~8 ft 1 1/8 in with single bottom + double top plate"},
+      {"item": "pre-cut stud (9 ft wall)", "value": "104 5/8 in", "note": "common tall-wall pre-cut"}
+    ],
+    "steps": [
+      "Confirm the wall is bearing or non-bearing and the climate zone (drives 2x4 vs 2x6).",
+      "Lay out studs 16 in on center from one corner so sheathing edges land on studs.",
+      "Use full-length king studs plus jack (trimmer) studs at every opening.",
+      "Cap with a double top plate, lapping splices at least 24 in and over studs."
+    ],
+    "common_mistakes": [
+      "Using 2x4 studs at 24 in on center on a tall or bearing wall beyond the table limit.",
+      "Missing or single top plate where a double top plate is required.",
+      "Splicing both top plates at the same stud bay instead of offsetting the laps."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R602.3", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-6-wall-construction"},
+      {"code": "IRC", "section": "Table R602.3(5)", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-6-wall-construction"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FBC Residential 8th Edition (2023) follows the 2021 IRC wall framing provisions; high-wind and HVHZ zones add uplift connection requirements.",
+      "nc": "NC Residential Code 2018 uses the 2015 IRC; the values are the same in practice but confirm table numbers, and Chapter 45 governs coastal high-wind framing."
+    },
+    "diagram_refs": ["wall-framing-layout"],
+    "source_ids": ["icc-irc-2021", "awc-wfcm", "doe-basc"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "framing-headers",
+    "title": "Header sizing over openings",
+    "text": "A header carries the load over a window or door opening down to jack (trimmer) studs and then to the foundation. Header size grows with the opening width and the load above (roof only versus roof plus floors). Prescriptive header sizes are given by span tables in the IRC; a wider opening or more load above needs a deeper built-up header and more jack studs at each end. Never eyeball a header on a bearing wall. Size it from IRC Table R602.7(1) or R602.7(2) for the span, the number of stories carried, and the ground snow or roof load, and verify against your adopted edition.",
+    "trade": "framing",
+    "topic": "openings",
+    "dimensions": [
+      {"item": "jack studs", "value": "1 or more per end", "note": "count increases with opening width per IRC Table R602.7.5"},
+      {"item": "header bearing length", "value": "min 1 1/2 in", "note": "full bearing on jack studs each end"}
+    ],
+    "steps": [
+      "Determine what the header carries: roof only, roof plus one floor, and so on.",
+      "Look up the required header size for the opening width and load in the IRC header table.",
+      "Provide the required number of jack studs plus a full-height king stud each side.",
+      "Confirm full bearing of the header on the jacks with no gaps."
+    ],
+    "common_mistakes": [
+      "Undersized header for the opening width or the load above.",
+      "Too few jack studs at a wide opening.",
+      "Header with no solid bearing on the trimmer studs."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R602.7", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-6-wall-construction"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Wind uplift can govern header-to-stud connections in FL; HVHZ requires tested connectors.",
+      "nc": "Confirm header tables in the enforced 2018 NC RC (2015 IRC); coastal Chapter 45 adds connection detail."
+    },
+    "diagram_refs": ["wall-framing-layout"],
+    "source_ids": ["icc-irc-2021", "awc-wfcm"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "framing-fastening",
+    "title": "Framing fastener schedule",
+    "text": "The IRC fastening schedule sets the nail size and count for every common wood framing connection: top plate to stud, stud to sole plate, sheathing to framing, and so on. Sheathing nails must be driven flush, not overdriven through the panel face, because an overdriven nail loses shear capacity. Use the connection-by-connection requirements in IRC Table R602.3(1) and hand-drive or set the compressor depth so nail heads sit flush. Verify the schedule against your adopted edition and any high-wind amendments.",
+    "trade": "framing",
+    "topic": "fastening",
+    "dimensions": [
+      {"item": "wall sheathing edge nailing", "value": "typically 6 in on center at edges", "note": "field spacing wider; confirm per panel and wind zone in IRC Table R602.3(1)"},
+      {"item": "nail set depth", "value": "flush, not overdriven", "note": "overdriven nails lose shear value"}
+    ],
+    "steps": [
+      "Identify each connection and read its nail size and spacing from the fastening schedule.",
+      "Set pneumatic nailer depth on a scrap so heads finish flush with the sheathing face.",
+      "Tighten edge nailing in high-wind zones per the local amendment."
+    ],
+    "common_mistakes": [
+      "Overdriving sheathing nails through the panel face.",
+      "Using the field nail spacing at panel edges.",
+      "Substituting the wrong nail size or a clipped-head nail where a common nail is required."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "Table R602.3(1)", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-6-wall-construction"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL wind-borne debris and HVHZ zones tighten edge nailing and require rated connectors; follow the FBC and product approval.",
+      "nc": "Coastal NC Chapter 45 high-wind zones tighten fastening; confirm the enforced schedule."
+    },
+    "diagram_refs": ["wall-framing-layout"],
+    "source_ids": ["icc-irc-2021", "awc-wfcm"],
+    "boundary": "verify-locally"
+  }
+]
