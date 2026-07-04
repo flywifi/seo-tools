@@ -17,8 +17,31 @@ dist/
 
 # Secrets and credentials
 .env
+.env.*
 secrets.json
 *.secret
+*.pem
+*.key
+
+# Finance boundary (P31): allowlist-invert. EVERYTHING under pipeline/finance/ is ignored by
+# default; only the blank template schemas are committed. A bank export, a hand-dropped
+# invoices.json, or any unknown file type never enters git even without a .local. suffix.
+# Drift invariant 20 enforces the same allowlist on TRACKED files as a second layer.
+pipeline/finance/*
+!pipeline/finance/*.template.json
+!pipeline/finance/*-schema.json
+
+# Financial exports and statements: never committed, anywhere in the repo.
+pipeline/**/*.csv
+pipeline/**/*.xlsx
+pipeline/**/*.xls
+pipeline/**/*.pdf
+*.ofx
+*.qfx
+*statement*.csv
+*export*.csv
+paypal*.csv
+transactions*.csv
 
 # Traversal engine working files (operator reviews before any entry touches the registry)
 traversal-candidates.json

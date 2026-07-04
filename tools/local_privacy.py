@@ -27,6 +27,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LOCAL_FILE_RE = re.compile(r"\.local(\.|$)")
 
+# P31: financial-export and secret file types that must never be tracked, anywhere.
+EXPORT_SUFFIXES = (".csv", ".xlsx", ".xls", ".ofx", ".qfx", ".pem", ".key")
+ENV_BASENAME_RE = re.compile(r"^\.env(\.|$)")
+
 
 def _tracked_files() -> set[str] | None:
     """Paths git is tracking, or None if git is unavailable / not a repo."""
@@ -54,11 +58,31 @@ def _find_local_files() -> list[Path]:
     return sorted(set(found))
 
 
+def _tracked_exports(tracked: set[str] | None) -> list[str]:
+    """Tracked financial exports / secret material (P31): must be empty, always."""
+    if tracked is None:
+        return []
+    hits = []
+    for path in sorted(tracked):
+        base = path.rsplit("/", 1)[-1].lower()
+        if base.endswith(EXPORT_SUFFIXES) or ENV_BASENAME_RE.match(base):
+            hits.append(path)
+    return hits
+
+
 def report() -> dict:
+    import os
     tracked = _tracked_files()
+    if tracked is None and os.environ.get("CI"):
+        # Fail closed in CI: a privacy check without its enforcement mechanism is not a boundary.
+        return {"git_checked": False, "ci_fail_closed": True, "ok": False,
+                "local_only_files": [], "local_only_count": 0,
+                "leaked_tracked_files": [], "tracked_exports": [],
+                "committed_templates_safe_to_share": []}
     local_files = _find_local_files()
     rel = [p.relative_to(ROOT).as_posix() for p in local_files]
     leaked = [] if tracked is None else [r for r in rel if r in tracked]
+    exports = _tracked_exports(tracked)
     templates = sorted(
         p.relative_to(ROOT).as_posix()
         for p in (ROOT / "pipeline" / "user-context").glob("*.template.json")
@@ -68,7 +92,8 @@ def report() -> dict:
         "local_only_files": rel,
         "local_only_count": len(rel),
         "leaked_tracked_files": leaked,
-        "ok": tracked is not None and not leaked,
+        "tracked_exports": exports,
+        "ok": tracked is not None and not leaked and not exports,
         "committed_templates_safe_to_share": templates,
     }
 
@@ -96,15 +121,28 @@ def main(argv) -> int:
     print("untouched. Only the blank templates below are committed:")
     for t in r["committed_templates_safe_to_share"]:
         print(f"  - {t}")
+    problems = False
     if r["leaked_tracked_files"]:
+        problems = True
         print("\nWARNING: these personal files are tracked by git and should be removed from")
         print("version control (they must stay local):")
         for f in r["leaked_tracked_files"]:
             print(f"  - {f}")
         print("\nRun: git rm --cached <path>  (then commit) to stop tracking them.")
+    if r.get("tracked_exports"):
+        problems = True
+        print("\nWARNING: financial export or secret files are tracked by git (never allowed):")
+        for f in r["tracked_exports"]:
+            print(f"  - {f}")
+        print("\nRun: git rm --cached <path>  (then commit) to stop tracking them.")
+    if r.get("ci_fail_closed"):
+        print("\nCI run without git: privacy cannot be verified; failing closed.")
+        return 1
+    if problems:
         return 1
     if r["git_checked"]:
-        print("\nGood: no personal file is tracked by git. Your context stays on your computer.")
+        print("\nGood: no personal file, export, or secret is tracked by git. Your context stays")
+        print("on your computer.")
     return 0
 
 

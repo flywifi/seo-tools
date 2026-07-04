@@ -37,9 +37,18 @@ Invariants enforced:
   19. Local-context privacy: no personal *.local.* file (the creator's real context: contract
       records, obligation register, playbook, channel/voice profile, credentials, config
       overrides) is tracked by git. Personal data stays on the local machine; only null
-      templates are committed. Runs `git ls-files` read-only; skips cleanly outside a git repo.
+      templates are committed. Runs `git ls-files` read-only. Fails closed in CI when git is
+      unavailable; warns and skips locally.
+  20. Pipeline tracked-file allowlist: every git-tracked file under pipeline/ is on the explicit
+      PIPELINE_TRACKED_ALLOWLIST (blank templates and schemas only), and no financial-export or
+      secret file type (.csv/.xlsx/.xls/.ofx/.qfx/.pem/.key/.env*) is tracked anywhere in the
+      repo. Catches force-adds and gitignore rule gaps. Fails closed in CI.
+  21. Content secret scan: tools/secret_scan.py --tracked finds no API keys, private keys,
+      credential values, session links, or non-allowlisted email addresses in tracked file
+      content (the filename invariants 19 and 20 are blind to content).
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -438,6 +447,55 @@ def check_connector_capability_mapping():
 
 LOCAL_FILE_RE = re.compile(r"\.local(\.|$)")
 
+# Invariant 20: the ONLY files allowed to be git-tracked under pipeline/. Blank shapes only.
+# Anything else tracked under pipeline/ is treated as a potential real-data leak and fails the
+# guard. Extend this list deliberately, never casually.
+PIPELINE_TRACKED_ALLOWLIST = {
+    "pipeline/accounts/account-schema.json",
+    "pipeline/contracts/contract.template.json",
+    "pipeline/deals/deal-schema.json",
+    "pipeline/editing/edit-package.template.json",
+    "pipeline/editing/render-manifest.template.json",
+    "pipeline/finance/cost-actuals.template.json",
+    "pipeline/finance/cost-estimate.template.json",
+    "pipeline/finance/invoice.template.json",
+    "pipeline/user-context/channel-context.json",
+    "pipeline/user-context/content-calendar.json",
+    "pipeline/user-context/creator-profile.template.json",
+    "pipeline/user-context/deal-playbook.template.json",
+    "pipeline/user-context/obligation-register.template.json",
+    "pipeline/user-context/rate-card.template.json",
+    "pipeline/user-context/setup-context.json",
+    "pipeline/user-context/voice-profile.json",
+}
+
+# Invariant 20 (second half): file types that must never be tracked anywhere in the repo
+# (financial exports, spreadsheets, secrets, key material).
+FORBIDDEN_TRACKED_SUFFIXES = (".csv", ".xlsx", ".xls", ".ofx", ".qfx", ".pem", ".key")
+FORBIDDEN_TRACKED_BASENAMES = re.compile(r"^\.env(\.|$)")
+
+
+def _git_ls_files():
+    """Tracked file list, or None when git is unavailable. Privacy invariants FAIL CLOSED in
+    CI when this returns None (a privacy check that silently passes without its enforcement
+    mechanism is not a boundary); locally they warn and skip."""
+    try:
+        out = subprocess.run(
+            ["git", "ls-files"], cwd=str(ROOT), capture_output=True, text=True, timeout=30
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    return [line.strip() for line in out.stdout.splitlines() if line.strip()]
+
+
+def _privacy_git_unavailable(invariant):
+    if os.environ.get("CI"):
+        problem(f"privacy: git unavailable in CI; invariant {invariant} cannot run (fail closed)")
+    else:
+        print(f"  [warn] git unavailable; privacy invariant {invariant} skipped (local run)")
+
 
 def check_local_privacy():
     """Invariant 19: no personal *.local.* file is tracked by git.
@@ -445,25 +503,45 @@ def check_local_privacy():
     The creator's real context (contract records, obligation register, deal-playbook,
     channel/voice profile, credentials, config overrides) lives in gitignored *.local.* files
     that git pull never touches. This asserts none of them ever entered git, so a stray
-    `git add -A` cannot leak or commit personal data. Read-only; skips cleanly if git is
-    unavailable or this is not a git checkout.
+    `git add -A` cannot leak or commit personal data. Fails closed in CI when git is
+    unavailable; warns and skips locally.
     """
-    try:
-        out = subprocess.run(
-            ["git", "ls-files"], cwd=str(ROOT), capture_output=True, text=True, timeout=30
-        )
-    except (OSError, subprocess.SubprocessError):
-        return  # git unavailable; cannot check, do not fail
-    if out.returncode != 0:
-        return  # not a git repo; skip cleanly
-    for line in out.stdout.splitlines():
-        path = line.strip()
-        if not path:
-            continue
+    tracked = _git_ls_files()
+    if tracked is None:
+        _privacy_git_unavailable(19)
+        return
+    for path in tracked:
         basename = path.rsplit("/", 1)[-1]
         if LOCAL_FILE_RE.search(basename):
             problem(
                 f"privacy: personal local file is tracked by git and must be gitignored: {path}"
+            )
+
+
+def check_pipeline_allowlist():
+    """Invariant 20: tracked files under pipeline/ must be on the explicit allowlist, and no
+    financial-export or secret file type is tracked anywhere.
+
+    The gitignore's allowlist-invert rules stop accidents; this catches force-adds
+    (`git add -f`) and rule gaps. A bank CSV, a hand-dropped invoices.json under
+    pipeline/finance/, an .env, or key material tracked anywhere fails the guard. Fails closed
+    in CI when git is unavailable.
+    """
+    tracked = _git_ls_files()
+    if tracked is None:
+        _privacy_git_unavailable(20)
+        return
+    for path in tracked:
+        if path.startswith("pipeline/") and path not in PIPELINE_TRACKED_ALLOWLIST:
+            problem(
+                f"privacy: tracked file under pipeline/ is not on the allowlist "
+                f"(potential real-data leak): {path}"
+            )
+        basename = path.rsplit("/", 1)[-1].lower()
+        if basename.endswith(FORBIDDEN_TRACKED_SUFFIXES) or FORBIDDEN_TRACKED_BASENAMES.match(basename):
+            problem(
+                f"privacy: forbidden file type is tracked by git "
+                f"(financial export / secret material): {path}"
             )
 
 
@@ -486,6 +564,7 @@ def main():
     check_readonly_mandate()
     check_connector_capability_mapping()
     check_local_privacy()
+    check_pipeline_allowlist()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
