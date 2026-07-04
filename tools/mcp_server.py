@@ -1064,6 +1064,26 @@ def import_finance(today: str | None = None) -> str:
         return json.dumps({"error": str(exc)})
 
 
+@mcp.tool()
+def contact_lookup(query: str, person: str | None = None, redacted: bool = False) -> str:
+    """Resolve a fuzzy brand phrase to one account and read its contact(s) (P32). Read-only,
+    always available. The brand is resolved via the tiered account resolver (exact, alias,
+    substring, fuzzy, brand-category); if it does not resolve to ONE account, no contacts are
+    read and the resolver candidates are surfaced. A person hint that matches nobody returns a
+    gap naming the known contacts, never the wrong person. EXPOSURE NOTE: contacts are real
+    names and emails read from pipeline/accounts/*.local.json; the raw result is for the human
+    operator on this machine. Pass redacted=True (initials, masked emails) for anything quoted
+    off this machine."""
+    sys.path.insert(0, str(HERE))
+    import accounts as _acct  # type: ignore
+    try:
+        result = _acct.contacts(query, person=person)
+        return json.dumps(_acct.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

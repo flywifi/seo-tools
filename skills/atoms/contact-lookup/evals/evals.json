@@ -1,0 +1,46 @@
+[
+  {
+    "test_id": "contact-lookup-all-rows",
+    "description": "a resolved brand returns its contact rows",
+    "input": { "query": "hearthline" },
+    "expected_output_keys": ["account", "contacts"],
+    "assertions": [
+      "account resolves to the Hearthline record",
+      "contacts includes the primary and any secondary contacts with name, role, email",
+      "computed_by is tools/accounts.py.contacts"
+    ]
+  },
+  {
+    "test_id": "contact-lookup-person-hint",
+    "description": "a person hint filters to the matching contact, email verbatim",
+    "input": { "query": "hearthline", "person": "marcus" },
+    "expected_output_keys": ["contacts"],
+    "assertions": [
+      "exactly the Marcus Webb row is returned",
+      "the email is the verbatim address from the record",
+      "no other contact is included"
+    ]
+  },
+  {
+    "test_id": "contact-lookup-unmatched-person",
+    "description": "a person hint that matches nobody gaps, never guesses",
+    "input": { "query": "hearthline", "person": "that guy" },
+    "expected_output_keys": ["contacts", "gaps"],
+    "assertions": [
+      "contacts is empty",
+      "a gap names the contacts that are on the account",
+      "no contact the hint did not match is returned (no-fabrication)"
+    ]
+  },
+  {
+    "test_id": "contact-lookup-unresolved-brand",
+    "description": "an ambiguous brand returns no contacts, only the resolver candidates",
+    "input": { "query": "hearth" },
+    "expected_output_keys": ["account", "contacts", "candidates"],
+    "assertions": [
+      "account is null and contacts is empty",
+      "candidates lists the brands the phrase could mean",
+      "the caller is directed to disambiguate before reading contacts"
+    ]
+  }
+]
