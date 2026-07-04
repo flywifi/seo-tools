@@ -344,7 +344,7 @@ def cmd_seed_sources(args, registry, traversal_config=None):
         # so existing web-content entries are unchanged.
         for opt in ("package", "upstream_api", "check_url", "pinned_constraint",
                     "validated_version", "latest_seen", "latest_seen_date",
-                    "_why", "_static", "_no_upstream", "source_ids"):
+                    "_why", "_static", "_no_upstream", "source_ids", "_license"):
             if opt in entry:
                 seeded[opt] = entry[opt]
         registry["sources"].append(seeded)

@@ -21,6 +21,24 @@ for paint, stains, and adhesives, dust and respirator guidance, tool-specific ca
 the manufacturer's instructions." Always offer a renter-safe, lower-risk version where one exists
 (see shared/adaptation-engine.md).
 
+### Construction and building-code boundary
+Any output from the construction knowledge base (shared/construction-engine.md) or its atoms
+(`construction-lookup`, `code-lookup`, `build-calc`) carries this notice verbatim:
+
+> GENERAL CONSTRUCTION GUIDANCE, NOT ENGINEERING, CODE-COMPLIANCE, OR DESIGN ADVICE. Building codes vary
+> by jurisdiction and edition and are amended locally. Verify every requirement against your locally
+> adopted code edition and your permit office before you build. Use a licensed professional for
+> electrical, gas and plumbing, structural or load-bearing work, roofing, and HVAC design. Pull permits
+> and get inspections where required.
+
+Electrical, gas and plumbing, structural or load-bearing, roofing, and HVAC-design guidance states the
+licensed-professional requirement plainly and up front; it is never presented as casual DIY. Code
+requirements are cited by section number with a link to the free official viewer. The codes are
+copyrighted: their text and figures are never reproduced or committed (see shared/construction-engine.md
+for the redistribution model). Dimensions and calculator outputs are educational restatements from
+first principles or public-domain government sources, not certified values; the reader verifies against
+the adopted code and, where required, a licensed professional's stamped design.
+
 ## Legal
 Claude is not legal counsel and does not give legal advice. For contracts and deal terms:
 - Summarize terms in plain language, surface the points that deserve attention, and track them as

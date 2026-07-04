@@ -75,6 +75,18 @@
       "staleness_threshold_days": 30,
       "traversal_depth": 0,
       "_note": "Third-party MCP servers (stats fleet, Google/Microsoft). NOT web-traversed. Version drift checked by tools/dependency_currency.py against their GitHub release pages; a tool-name or auth change silently drops a connector."
+    },
+    "building-code": {
+      "check_interval_days": 365,
+      "staleness_threshold_days": 365,
+      "traversal_depth": 0,
+      "_note": "Florida, North Carolina, and model I-Code / NEC portals plus permit authorities. Cite-only (copyrighted code text is never ingested; we key to section numbers and link the free viewer). Code cycles run three years, so an annual check is right; the content-change detector still catches an edition banner or errata between cycles (the NC 2024 transition and FL 9th Edition draft are watched deliberately). Depth 0: these viewers are not crawled, only change-detected."
+    },
+    "construction-authority": {
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "traversal_depth": 1,
+      "_note": "AWC / APA / ACCA / Building Science plus the public-domain U.S. government sources (DOE BASC, OSHA/eCFR, FEMA, CPSC, NIST/USDA-FPL, energycodes.gov) and open datasets (NREL BSD-3, Wikidata CC0, Wikimedia). Semi-annual. Government and open sources here are redistributable; the trade-association sources are cite-only."
     }
   },
   "traversal_max_depth": 2,
@@ -127,7 +139,29 @@
     "copyright.gov",
     "law.cornell.edu",
     "github.com",
-    "ecfr.gov"
+    "ecfr.gov",
+    "floridabuilding.org",
+    "ncosfm.gov",
+    "codes.iccsafe.org",
+    "up.codes",
+    "nfpa.org",
+    "awc.org",
+    "apawood.org",
+    "buildingscience.com",
+    "basc.pnnl.gov",
+    "energycodes.gov",
+    "fema.gov",
+    "cpsc.gov",
+    "huduser.gov",
+    "fpl.fs.usda.gov",
+    "osha.gov",
+    "commons.wikimedia.org",
+    "wikidata.org",
+    "oah.nc.gov",
+    "miamidade.gov",
+    "leg.state.fl.us",
+    "fdacs.gov",
+    "osti.gov"
   ],
   "_allowlist_note": "Only outlinks from pages on this list are followed during traversal. To add a domain, append it here. Removing a domain does not prune existing registry entries.",
   "niche_relevance_terms": [
