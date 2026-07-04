@@ -1010,6 +1010,34 @@ def cashflow_view(scheduled: list | None = None, estimates: list | None = None,
 
 
 @mcp.tool()
+def build_calc(calc: str, params: dict | None = None) -> str:
+    """Offline residential construction calculation (P34). calc is one of: stair, egress, rvalue,
+    box_fill, drain_slope, roof_pitch, board_foot, deck_span. params holds the numeric inputs, e.g.
+    stair -> {total_rise_in}; egress -> {width_in, height_in, sill_in, at_grade}; rvalue ->
+    {component, climate_zone}; box_fill -> {conductors:[awg...], devices, clamps, grounds};
+    drain_slope -> {pipe_dia_in, run_ft}; roof_pitch -> {rise, run}; board_foot -> {thickness_in,
+    width_in, length_ft, qty}; deck_span -> {species, nominal, spacing_in}. All math is first
+    principles in tools/build_calc.py (no copyrighted tables); every result carries its code section
+    and the verify-locally boundary. deck_span is advisory only, never an authoritative span."""
+    sys.path.insert(0, str(HERE))
+    import build_calc as _bc  # type: ignore
+    fns = {
+        "stair": _bc.stair, "egress": _bc.egress, "rvalue": _bc.rvalue_zone,
+        "box_fill": _bc.box_fill, "drain_slope": _bc.drain_slope, "roof_pitch": _bc.roof_pitch,
+        "board_foot": _bc.board_foot, "deck_span": _bc.deck_span_sanity,
+    }
+    fn = fns.get(calc)
+    if fn is None:
+        return json.dumps({"error": f"unknown calc '{calc}'; choose one of {sorted(fns)}"})
+    try:
+        return json.dumps(fn(**(params or {})), indent=2, ensure_ascii=False)
+    except TypeError as exc:
+        return json.dumps({"error": f"bad params for {calc}: {exc}"})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
 def payment_reconcile(csv_path: str, window_days: int = 5, amount_tolerance: str = "0.00",
                       redacted: bool = False) -> str:
     """Match a bank/PayPal export to open invoices (P31). PROPOSAL-ONLY: confidence-tiered
