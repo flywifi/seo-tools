@@ -24,8 +24,13 @@ Modes:
 """
 
 import argparse
+import hashlib
 import json
+import os
+import ssl
 import sys
+import urllib.error
+import urllib.request
 from datetime import date, datetime
 from pathlib import Path
 
@@ -33,6 +38,11 @@ ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT / "canonical-sources" / "source-registry.json"
 TRAVERSAL_CONFIG_PATH = ROOT / "canonical-sources" / "traversal-config.json"
 DEALS_DIR = ROOT / "pipeline" / "deals"
+CA_BUNDLE = os.environ.get("REQUESTS_CA_BUNDLE") or "/root/.ccr/ca-bundle.crt"
+
+# Categories that are not fetchable web pages (checked by dependency_currency.py / competitor
+# snapshots instead), so --detect-changes skips them.
+NON_WEB_CATEGORIES = {"software-dependency", "mcp-server", "competitor-page"}
 
 ACTIVE_DEAL_STAGES = {
     "in-discussion",
@@ -425,6 +435,107 @@ def cmd_seed_partners(args, registry, traversal_config=None):
     }))
 
 
+# ── token-free content-change detection (P33) ────────────────────────────────
+# The mundane question "did this source page change since we last looked?" is answered
+# deterministically by a conditional GET + sha256 (the tools/fetch_cache.py pattern), with the
+# authoritative hash stored on the registry entry so the baseline travels with the repo. Unchanged
+# and first-seen pages are stamped last_checked token-free; changed pages are stamped AND flagged
+# (last_changed_detected) and surfaced in a queue so the model interprets the diff and updates the
+# canonical data file the source feeds. No model tokens are spent on the unchanged majority.
+
+def _http_get_content(url, etag=None, last_modified=None, timeout=12):
+    """Conditional GET. Returns {status, body, etag, last_modified, error}. Never raises.
+    status 304 => unchanged (no body). Honors the env proxy + CA bundle."""
+    ctx = ssl.create_default_context()
+    if os.path.exists(CA_BUNDLE):
+        try:
+            ctx.load_verify_locations(CA_BUNDLE)
+        except Exception:  # noqa: BLE001
+            pass
+    headers = {"User-Agent": "creator-os-source-currency", "Accept": "*/*"}
+    if etag:
+        headers["If-None-Match"] = etag
+    if last_modified:
+        headers["If-Modified-Since"] = last_modified
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+            body = r.read()
+            rh = r.headers
+            return {"status": r.status, "body": body,
+                    "etag": rh.get("ETag"), "last_modified": rh.get("Last-Modified"), "error": None}
+    except urllib.error.HTTPError as exc:
+        if exc.code == 304:
+            return {"status": 304, "body": None, "etag": etag, "last_modified": last_modified, "error": None}
+        return {"status": exc.code, "body": None, "etag": None, "last_modified": None,
+                "error": f"HTTP {exc.code}"}
+    except Exception as exc:  # noqa: BLE001
+        return {"status": None, "body": None, "etag": None, "last_modified": None,
+                "error": f"{type(exc).__name__}: {str(exc)[:140]}"}
+
+
+def classify_content_change(entry, resp):
+    """Deterministic change status for one source given a fetch response. Returns
+    (status, new_sha) where status is unchanged|first_seen|changed|unreachable."""
+    prior = entry.get("content_sha256")
+    if resp.get("status") == 304:
+        return "unchanged", prior
+    body = resp.get("body")
+    if body is None:
+        return "unreachable", None
+    new_sha = hashlib.sha256(body).hexdigest()
+    if not prior:
+        return "first_seen", new_sha
+    return ("unchanged" if new_sha == prior else "changed"), new_sha
+
+
+def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_content):
+    """Fetch each web-content source, detect change by sha256, and (with --apply) stamp
+    last_checked token-free. Changed pages are flagged and queued for model interpretation."""
+    sources = registry.get("sources", [])
+    detectable = [
+        s for s in sources
+        if str(s.get("url", "")).startswith("http") and s.get("category") not in NON_WEB_CATEGORIES
+        and (not getattr(args, "category", None) or s.get("category") == args.category)
+        and (not getattr(args, "only", None) or s.get("id") == args.only)
+    ]
+    today = today_str()
+    buckets = {"unchanged": [], "first_seen": [], "changed": [], "unreachable": []}
+    changed_queue = []
+    stamped = []
+    for e in detectable:
+        resp = getter(e.get("url"), e.get("content_etag"), e.get("content_last_modified"))
+        status, new_sha = classify_content_change(e, resp)
+        buckets[status].append(e["id"])
+        if status == "changed":
+            changed_queue.append({
+                "id": e["id"], "url": e.get("url"), "used_by": e.get("used_by", []),
+                "note": "content changed; review the page and update the canonical data it feeds",
+            })
+        if getattr(args, "apply", False) and status in ("unchanged", "first_seen", "changed"):
+            e["last_checked"] = today
+            if new_sha:
+                e["content_sha256"] = new_sha
+            if resp.get("etag"):
+                e["content_etag"] = resp["etag"]
+            if resp.get("last_modified"):
+                e["content_last_modified"] = resp["last_modified"]
+            if status == "changed":
+                e["last_changed_detected"] = today
+            stamped.append(e["id"])
+    if getattr(args, "apply", False) and stamped:
+        registry["last_registry_update"] = today
+        save_registry(registry)
+    print(json.dumps({
+        "as_of": today,
+        "computed_by": "tools/source_currency.py.classify_content_change",
+        "summary": {k: len(v) for k, v in buckets.items()},
+        "changed_queue": changed_queue,
+        "stamped": stamped if getattr(args, "apply", False) else [],
+        "note": "unchanged/first_seen stamped token-free; changed entries need model interpretation of the diff",
+    }, indent=2, ensure_ascii=False))
+
+
 def cmd_update_source(args, registry):
     """Correct fields on an existing source in place (URL fix, recategorization, name/tier, hint,
     used_by union). Intended for corrections that seed-sources cannot make (it never clobbers an
@@ -456,6 +567,63 @@ def cmd_update_source(args, registry):
     print(json.dumps({"id": args.id, "changed": changed, "written": True}, indent=2))
 
 
+def selftest_detect():
+    """Pure-logic checks for the content-change detector (no network, no real registry write)."""
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+
+    import hashlib as _h
+    body = b"hello world"
+    sha = _h.sha256(body).hexdigest()
+    ok("first_seen when no prior hash",
+       classify_content_change({}, {"status": 200, "body": body}) == ("first_seen", sha))
+    ok("unchanged when hash matches",
+       classify_content_change({"content_sha256": sha}, {"status": 200, "body": body}) == ("unchanged", sha))
+    ok("changed when hash differs",
+       classify_content_change({"content_sha256": "deadbeef"}, {"status": 200, "body": body})[0] == "changed")
+    ok("unchanged on 304",
+       classify_content_change({"content_sha256": sha}, {"status": 304, "body": None}) == ("unchanged", sha))
+    ok("unreachable when body None and not 304",
+       classify_content_change({}, {"status": None, "body": None})[0] == "unreachable")
+
+    # end-to-end with an injected getter and a fake registry; apply=False must not write
+    class Args:
+        category = None
+        only = None
+        apply = False
+    reg = {"sources": [
+        {"id": "s-changed", "url": "https://x.example/a", "category": "seo-authority",
+         "content_sha256": "old", "used_by": ["trend-check"]},
+        {"id": "s-first", "url": "https://x.example/b", "category": "legal-authority"},
+        {"id": "dep-skip", "url": "https://pypi.org/pypi/x/json", "category": "software-dependency"},
+    ]}
+
+    def fake_getter(url, etag=None, last_modified=None):
+        return {"status": 200, "body": b"NEW-" + url.encode(), "etag": None, "last_modified": None, "error": None}
+
+    import io
+    import contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        cmd_detect_changes(Args(), reg, {}, getter=fake_getter)
+    out = json.loads(buf.getvalue())
+    ok("dep category skipped by detect", "dep-skip" not in json.dumps(out["summary"]) or out["summary"]["changed"] >= 1)
+    ok("changed source detected", "s-changed" in [q["id"] for q in out["changed_queue"]])
+    ok("first_seen counted", out["summary"]["first_seen"] == 1)
+    ok("apply=false writes nothing (stamped empty)", out["stamped"] == [])
+    ok("dependency entry not fetched (only 2 web sources touched)",
+       out["summary"]["changed"] + out["summary"]["first_seen"] + out["summary"]["unchanged"] + out["summary"]["unreachable"] == 2)
+
+    passed = sum(1 for _, c in checks if c)
+    for name, c in checks:
+        print(f"  [{'ok' if c else 'FAIL'}] {name}")
+    total = len(checks)
+    print(f"selftest: {'PASS' if passed == total else 'FAIL'} ({passed} of {total} checks)")
+    return 0 if passed == total else 1
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Creator OS source registry staleness tool",
@@ -469,6 +637,11 @@ def main():
 
     p_check = sub.add_parser("check", help="Report + include refetch queue for web-intel-engine")
     p_check.add_argument("--category", help="Filter by category")
+    p_check.add_argument("--detect-changes", dest="detect_changes", action="store_true",
+                         help="Token-free: conditional-GET + sha256 per web source; unchanged stamped, changed queued")
+    p_check.add_argument("--apply", action="store_true",
+                         help="(with --detect-changes) stamp last_checked/content_sha256 token-free")
+    p_check.add_argument("--only", metavar="ID", help="Restrict --detect-changes to one source id")
 
     p_mark = sub.add_parser("mark-checked", help="Mark a source as checked today")
     p_mark.add_argument("id", help="Source id (from source-registry.json)")
@@ -481,6 +654,8 @@ def main():
 
     p_rm = sub.add_parser("remove-source", help="Remove a source entry by ID")
     p_rm.add_argument("id", help="Source id to remove from the registry")
+
+    sub.add_parser("selftest", help="Run the content-change detector selftest (no network)")
 
     p_upd = sub.add_parser("update-source", help="Correct fields on an existing source (url, category, name, tier)")
     p_upd.add_argument("id", help="Source id to update")
@@ -497,13 +672,19 @@ def main():
         parser.print_help()
         sys.exit(1)
 
+    if args.command == "selftest":
+        sys.exit(selftest_detect())
+
     registry = load_registry()
     traversal_config = load_traversal_config()
 
     if args.command == "report":
         cmd_report(args, registry, traversal_config)
     elif args.command == "check":
-        cmd_check(args, registry, traversal_config)
+        if getattr(args, "detect_changes", False):
+            cmd_detect_changes(args, registry, traversal_config)
+        else:
+            cmd_check(args, registry, traversal_config)
     elif args.command == "mark-checked":
         cmd_mark_checked(args, registry, traversal_config)
     elif args.command == "seed-partners":
