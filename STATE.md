@@ -2,7 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P30 are complete. Drift guard exits 0 (19 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P31 are complete. Drift guard exits 0 (21 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P31: finance features on a hardened privacy boundary. Security first: allowlist-invert
+  `.gitignore` for `pipeline/finance/` plus repo-wide export/key/env ignore patterns; drift
+  invariant 20 (every tracked file under `pipeline/` must be on the explicit allowlist; no
+  tracked CSV/XLSX/OFX/QFX/PEM/KEY/.env anywhere) and invariant 21 (content secret scan), both
+  failing closed in CI; `tools/secret_scan.py` (stdlib scanner: key material, credential values,
+  session links, emails, amount-plus-brand pairs in pipeline files; selftest on concatenated
+  fixtures) with `tools/secret-scan-allowlist.json` (reasoned exemptions plus the commit-policy
+  boundary SHA); `tools/install_hooks.py` (pre-commit staged scan, commit-msg hygiene hook); CI
+  gains a tracked-content scan and a commit-message/author backstop; CLAUDE.md gains the
+  machine-enforced commit and PR hygiene non-negotiables. Then the features on top:
+  `finance.cashflow()` (weekly cash-movement buckets over a horizon; overdue, beyond-horizon,
+  and undated flows totaled separately with gaps), `finance.redact()` (banded amounts, initialed
+  brands; `--redacted` CLI flag and MCP parameter), `finance.reconcile()` (bank/PayPal CSV to
+  open invoices in exact/probable/uncertain tiers, proposal-only, structural refusal of any
+  in-repo non-`.local.` CSV) with the gated `mark_paid()` write, dashboard AR tab (read-only
+  aging plus chase queue at `/api/ar`), and three new atoms (`cashflow-view`,
+  `payment-reconcile`, `dunning-draft` with its bucket-keyed tone ladder that never sends).
+  Hub classifications `cashflow_projection`, `payment_reconcile`, `dunning_draft`; finance-desk
+  actions `cashflow`, `reconcile`, `dun`. finance.py selftest now 71 checks. Two MCP tools
+  (34 total). Ledger: `P31-finance-privacy-boundary`.
 
 - P30: the accounting bucket. `pipeline/finance/` record store (standalone invoices with line
   items and frozen terms_snapshot, cost estimates, cost actuals; deal.invoice becomes a

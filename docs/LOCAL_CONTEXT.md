@@ -119,7 +119,40 @@ python3 tools/finance.py --ar-scan --today 2026-07-03
 
 # draft an invoice (write gated by finance_management + invoice_generation)
 python3 tools/finance.py --build-invoice payload.json --write
+
+# weekly cash-movement view (read-only; add --redacted for anything leaving the machine)
+python3 tools/finance.py --cashflow --horizon-days 90
+
+# match a bank export to open invoices (proposal-only; the CSV must be a .local. path or outside the repo)
+python3 tools/finance.py --reconcile pipeline/finance/checking.local.csv
 ```
+
+## The privacy boundary (P31)
+
+Financial data and PII are kept out of git by layered, machine-enforced controls, not convention:
+
+1. **Data at rest.** `.gitignore` ignores everything under `pipeline/finance/` by default (only
+   `*.template.json` and `*-schema.json` are allowlisted back in), plus all CSV/XLSX/PDF exports
+   under `pipeline/`, `.env*`, key material, and common bank-export filename patterns. Drift
+   invariant 20 verifies that every git-tracked file under `pipeline/` is on an explicit
+   allowlist and that no CSV/XLSX/OFX/QFX/PEM/KEY/.env file is tracked anywhere; invariant 19
+   keeps `.local.` files untracked. Both fail closed in CI.
+2. **Content scanning.** `tools/secret_scan.py` (stdlib, offline) scans all tracked content for
+   key material, credential values, session links, personal emails, and amount-plus-brand pairs
+   in pipeline files. Wired as drift invariant 21 and a CI step. Verified false positives go in
+   `tools/secret-scan-allowlist.json` with a written reason.
+3. **Commit hygiene.** `python3 tools/install_hooks.py` installs a pre-commit hook (scans staged
+   content) and a commit-msg hook (rejects messages carrying session links, emails, or secret
+   patterns). CI re-checks commit messages and author emails after the policy boundary SHA in
+   the allowlist file.
+4. **Redaction for anything leaving the machine.** `finance.redact()` bands amounts into ranges
+   and reduces brand names to initials; the `--redacted` CLI flag and the `redacted` parameter
+   on the finance MCP tools apply it. The dashboard stays raw because it is localhost-only.
+5. **Structural refusals.** `finance.reconcile()` refuses any CSV inside the repo tree unless the
+   filename contains `.local.`; dunning drafts are written only to gitignored `.local.md` paths
+   and are never sent by the system.
+
+`python3 tools/local_privacy.py` reports the live state of the boundary on this machine.
 
 ## Note
 
