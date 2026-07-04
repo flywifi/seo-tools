@@ -23,7 +23,7 @@ Classify every request, load the right context, enforce the protocols, and route
 
 ### Content lane
 Any request to plan, script, research, repurpose, or analyze content.
-Spokes: content-strategy, project-builder, video-development, shortform-repurposing, seo-keywords, analytics-insights, analytics-compute, audience-research, competitor-analysis, seasonal-trends.
+Spokes: content-strategy, project-builder, construction-desk, video-development, shortform-repurposing, seo-keywords, analytics-insights, analytics-compute, audience-research, competitor-analysis, seasonal-trends.
 
 ### Document lane
 Any request to create or edit a file: media kit, deliverable brief, invoice, PDF guide, content calendar, or brand one-pager.
@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `document_create` `document_edit` `account_read` `account_create` `account_update` `deal_status` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `construction_question` `code_lookup` `build_calc` `document_create` `document_edit` `account_read` `account_create` `account_update` `deal_status` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -70,6 +70,9 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 |---|---|---|---|
 | `content_ideation` | Content | `content-strategy` | brainstorming, pillar mapping, topic generation |
 | `project_planning` | Content | `project-builder` | DIY project planning, materials, steps |
+| `construction_question` | Content | `construction-desk` | residential build and trade reference: dimensions, steps, common mistakes, cited by IRC/NEC section (construction-lookup); general guidance only, licensed pro for the licensed trades |
+| `code_lookup` | Content | `construction-desk` | governing residential code section and the adopted edition for FL (2023 8th Ed) or NC (2018/2015 IRC, 2024 pending), with a free-viewer link (code-lookup); never reproduces copyrighted code text |
+| `build_calc` | Content | `construction-desk` | first-principles construction calculation: stair, egress area, R-value by zone, box fill, drain slope, roof pitch (build-calc); computed offline, cited, bounded |
 | `video_script` | Content | `video-development` | scripts, hooks, b-roll notes, captions |
 | `footage_breakdown` | Content | `video-development` | chapter and cut-point suggestions from raw-footage transcripts (footage-analysis atom) |
 | `repurposing` | Content | `shortform-repurposing` | Shorts, Reels, TikTok, Pinterest from long-form |
@@ -207,7 +210,7 @@ Stop after returning the human summary and routing object unless:
 ## Downstream spokes
 
 ```
-content-strategy    project-builder    video-development    shortform-repurposing
+content-strategy    project-builder    construction-desk    video-development    shortform-repurposing
 seo-keywords        analytics-insights analytics-compute    audience-research
 competitor-analysis seasonal-trends    content-distributor  document-studio
 account-manager     deal-pipeline       deal-resourcing     partnership-mediakit

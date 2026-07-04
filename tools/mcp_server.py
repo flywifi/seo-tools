@@ -124,6 +124,67 @@ def cache_query(query: str, limit: int = 5) -> str:
     return out.strip() or json.dumps([])
 
 
+def _construction_query(query, limit):
+    """Run the offline cache query and keep only construction-dictionary results."""
+    cache_script = ROOT / "shared" / "cache" / "cache.py"
+    if not (ROOT / "shared" / "cache" / "index.local.db").exists():
+        return None, {"error": "Cache index not found.", "hint": "Run: python3 shared/cache/cache.py --build"}
+    rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
+                         "--limit", str(max(limit * 5, 20)), "--json"])
+    if rc != 0:
+        return None, {"error": err.strip() or "cache query failed"}
+    try:
+        data = json.loads(out or "{}")
+    except json.JSONDecodeError:
+        return None, {"error": "could not parse cache output"}
+    results = data.get("results", data if isinstance(data, list) else [])
+    kept = [r for r in results if str(r.get("source", "")).startswith("canonical-sources/construction")]
+    return kept[:limit], None
+
+
+@mcp.tool()
+def construction_lookup(query: str, limit: int = 6) -> str:
+    """Query the offline residential-construction dictionary (P34): dimensions, required steps, common
+    mistakes, and code citations for framing, stairs, decks, foundations, roofing, electrical,
+    plumbing, HVAC, drywall, insulation, egress, siding/flashing, plus the glossary, assemblies, and
+    FL/NC specifics. Returns ranked entries with their source file and record id (read the record for
+    the full dimensions and citations). Every entry carries the verify-locally boundary. Do NOT treat
+    results as code-compliance or engineering advice. Requires the cache: python3 shared/cache/cache.py
+    --build."""
+    kept, err = _construction_query(query, limit)
+    if err is not None:
+        return json.dumps(err)
+    return json.dumps({"query": query, "results": kept}, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def code_lookup(topic: str, jurisdiction: str = "both", limit: int = 6) -> str:
+    """Resolve a residential requirement by topic and jurisdiction (P34), returning the matching
+    dictionary entries (with their IRC/NEC/IPC section citations) plus the adopted code edition for the
+    jurisdiction: Florida (2023 FBC 8th Edition, 2021 I-Codes) or North Carolina (2018 NC RC, 2015 IRC,
+    with the pending 2024 transition). jurisdiction is 'fl', 'nc', or 'both'. Codes are cited by section
+    with a link to the free viewer; text and tables are never reproduced. Carries the verify-locally
+    boundary; not code-compliance advice. Requires the cache built."""
+    kept, err = _construction_query(topic, limit)
+    if err is not None:
+        return json.dumps(err)
+    edition = []
+    est = ROOT / "canonical-sources" / "construction" / "edition-status.json"
+    try:
+        entries = json.loads(est.read_text(encoding="utf-8"))
+        want = {"fl": {"FL", "model"}, "nc": {"NC", "model"}, "both": {"FL", "NC", "model"}}.get(
+            jurisdiction.lower(), {"FL", "NC", "model"})
+        edition = [{"jurisdiction": e.get("jurisdiction"), "adopted_edition": e.get("adopted_edition"),
+                    "model_basis": e.get("model_basis"), "pending": e.get("pending")}
+                   for e in entries if e.get("jurisdiction") in want]
+    except (OSError, json.JSONDecodeError):
+        edition = []
+    return json.dumps({"topic": topic, "jurisdiction": jurisdiction, "edition_status": edition,
+                       "requirements": kept,
+                       "boundary": "Verify against the adopted code edition and your permit office; not code-compliance advice."},
+                      indent=2, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Tool 2: competitor_scan
 # ---------------------------------------------------------------------------
