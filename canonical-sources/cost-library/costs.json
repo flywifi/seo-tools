@@ -1,0 +1,28 @@
+{
+  "_comment": "Creator OS cost library: dated reference costs for the products, materials, and services the creator's projects commonly need. Every entry carries a source and an as_of date; entries with null prices are placeholders awaiting verification and are NEVER used as figures (protocols/no-fabrication.md). The cost-researcher agent proposes entries with citations; the human accepts them here. Sources for this library are registered in canonical-sources/source-registry.json via tools/source_currency.py (the only registry writer).",
+  "_schema": {
+    "id": "string", "item": "string",
+    "category": "production_materials | equipment_capex | software_subscriptions | contractor_labor | travel | shipping_and_fees",
+    "price": "number or null (null until verified; never estimated)",
+    "currency": "USD", "unit": "string (each, per_quart, per_month, per_hour)",
+    "vendor": "string or null", "url": "string or null",
+    "as_of": "ISO date the price was observed, or null",
+    "source": "quote | cost_research | manual", "notes": "string"
+  },
+  "entries": [
+    {
+      "id": "chalk-paint-quart",
+      "item": "Chalk-style paint, one quart",
+      "category": "production_materials",
+      "price": null,
+      "currency": "USD",
+      "unit": "per_quart",
+      "vendor": null,
+      "url": null,
+      "as_of": null,
+      "source": "manual",
+      "notes": "placeholder awaiting a verified price; null is never used as a figure"
+    }
+  ],
+  "last_updated": null
+}

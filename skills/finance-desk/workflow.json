@@ -1,13 +1,15 @@
 {
-  "_comment": "finance-desk composes the accounting-bucket atoms. All arithmetic is tools/finance.py offline (no tokens); reads are flag-free, record writes gate on finance_management (+ invoice_generation for invoices). Nothing is ever sent by the system; the consequential-action gate precedes any external money commitment. cost-estimate and proposal-price join in P30 chunk 6.",
+  "_comment": "finance-desk composes the accounting-bucket atoms. All arithmetic is tools/finance.py offline (no tokens); reads are flag-free, record writes gate on finance_management (+ invoice_generation for invoices). Nothing is ever sent by the system; the consequential-action gate precedes any external money commitment.",
   "id": "finance-desk",
   "description": "Invoice drafting, accounts-receivable review, cost estimates, and proposal price floors.",
   "steps": [
-    {"step": 1, "atom": "invoice-generate", "input_from": "deal_id + line items from the deal record + anchor_date", "output_to": "step4", "condition": "action is invoice; write requires finance_management and invoice_generation"},
-    {"step": 2, "atom": "ar-review", "input_from": "pipeline/finance records (or inline invoices) + as_of_date", "output_to": "step4", "condition": "action is ar; read-only, always available"},
-    {"step": 3, "atom": "invoice-status", "input_from": "deal_id + as_of_date", "output_to": "step4", "condition": "action is ar and a single deal_id is given (per-deal narrative)"},
-    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_finance_report", "output_to": "final", "gates": ["integrity", "accuracy", "safety"]}
+    {"step": 1, "atom": "invoice-generate", "input_from": "deal_id + line items from the deal record + anchor_date", "output_to": "step6", "condition": "action is invoice; write requires finance_management and invoice_generation"},
+    {"step": 2, "atom": "ar-review", "input_from": "pipeline/finance records (or inline invoices) + as_of_date", "output_to": "step6", "condition": "action is ar; read-only, always available"},
+    {"step": 3, "atom": "invoice-status", "input_from": "deal_id + as_of_date", "output_to": "step6", "condition": "action is ar and a single deal_id is given (per-deal narrative)"},
+    {"step": 4, "atom": "cost-estimate", "input_from": "project_ref + sourced line_items + time phases", "output_to": "step5", "condition": "action is estimate or price; record write requires finance_management"},
+    {"step": 5, "atom": "proposal-price", "input_from": "step4.totals.grand + margin + rate card / playbook floor + benchmark_range", "output_to": "step6", "condition": "action is price; output feeds pitch-paragraph and contract-draft"},
+    {"step": 6, "atom": "govern-artifact", "input_from": "assembled_finance_report", "output_to": "final", "gates": ["integrity", "accuracy", "safety"]}
   ],
-  "shortcut_atoms": ["invoice-generate", "ar-review", "invoice-status"],
+  "shortcut_atoms": ["invoice-generate", "ar-review", "invoice-status", "cost-estimate", "proposal-price"],
   "note": "Master gate for writes: finance_management. deal-resourcing keeps the per-deal trigger-based invoice schedule; this spoke drafts the actual invoice records and reads the whole book. Boundary and gate language come from shared/finance-engine.md; the AR chase queue feeds the content calendar and production tasks via the import_finance MCP handoff (chunk 8), never a parallel calendar."
 }
