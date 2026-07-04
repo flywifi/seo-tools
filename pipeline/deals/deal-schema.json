@@ -1,6 +1,6 @@
 {
-  "_schema_version": "0.2.0",
-  "_note": "Source of truth for deal records. Real data is gitignored (*.local.*). This is the blank schema only. Reconciled to shared/pipeline-engine.md (canonical) in P23: deal_type enum, per-deliverable FTC, compensation, usage_rights, exclusivity, and invoice states now match the engine. account_ref replaces account_id; quality_verdict replaces quality_gate_result. contract_ref links to a record in pipeline/contracts/; raw contract_text lives only in the .local file, never committed.",
+  "_schema_version": "0.3.0",
+  "_note": "Source of truth for deal records. Real data is gitignored (*.local.*). This is the blank schema only. Reconciled to shared/pipeline-engine.md (canonical) in P23: deal_type enum, per-deliverable FTC, compensation, usage_rights, exclusivity, and invoice states now match the engine. account_ref replaces account_id; quality_verdict replaces quality_gate_result. contract_ref links to a record in pipeline/contracts/; raw contract_text lives only in the .local file, never committed. P30 (v0.3.0, additive): invoices are standalone records in pipeline/finance/ referenced by invoice_refs[]; the embedded invoice object is a denormalized summary of the most recent invoice record, kept for radar and quick reads. payment_terms stays free text as received; payment_terms_structured is the computable sibling filled only from quoted evidence per shared/finance-engine.md (never inferred). revenue_share, commission, and ip_license_fee model the money side of those clauses; duties with dates (reporting cadences, renewals) go to the obligation register.",
   "deal_id": "",
   "account_ref": "",
   "brand_name": "",
@@ -20,6 +20,14 @@
   "usage_rights": { "scope": "social_only | paid_amplification | in_perpetuity | white_label", "window_start": null, "window_end": null },
   "exclusivity": { "active": false, "scope": null, "window_start": null, "window_end": null, "blocks": [] },
   "payment_terms": null,
+  "payment_terms_structured": {
+    "net_days": null,
+    "anchor": "delivery | invoice_date | contract_signing | publish_date",
+    "deposit_percent": null,
+    "late_penalty": { "type": "none | flat | percent_per_month", "rate": null, "grace_days": 0 },
+    "kill_fee": null,
+    "evidence_text": null
+  },
   "payment_due_date": null,
   "invoice": {
     "amount": null,
@@ -28,6 +36,35 @@
     "payment_received_date": null,
     "payment_method": null,
     "status": "draft | sent | viewed | paid | overdue | disputed"
+  },
+  "invoice_refs": [],
+  "revenue_share": {
+    "active": false,
+    "basis": "ad_revenue | affiliate_sales | gross | other",
+    "percent": null,
+    "floor": null,
+    "cap": null,
+    "reporting_cadence": null,
+    "source_of_truth": null,
+    "evidence_text": null
+  },
+  "commission": {
+    "active": false,
+    "basis": "tracked_sales | leads | other",
+    "rate_percent": null,
+    "cookie_window_days": null,
+    "floor": null,
+    "cap": null,
+    "evidence_text": null
+  },
+  "ip_license_fee": {
+    "active": false,
+    "fee": null,
+    "term_months": null,
+    "renewal_fee": null,
+    "renewal_date": null,
+    "exclusivity_premium": null,
+    "evidence_text": null
   },
   "contract_ref": null,
   "contract_text": null,

@@ -20,7 +20,15 @@
     },
     "payment_terms_and_kill_fee": {
       "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
-      "_covers": "fee, payment timing (for example net 30 from delivery), deposit, and kill fee if the brand cancels"
+      "_covers": "fee, payment timing (for example net 30 from delivery), deposit, kill fee if the brand cancels, and the late-payment penalty position (for example 1.5 percent per month after a 5 day grace period)"
+    },
+    "pricing_and_rates": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "standard rates per format (from the personal rate card in pipeline/user-context/rate-card.local.json), package pricing posture, the cost floor rule (never price below documented cost plus margin, shared/finance-engine.md), and usage-rights or exclusivity pricing add-ons"
+    },
+    "revenue_share_and_commission": {
+      "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
+      "_covers": "acceptable revenue-share and commission structures: basis definition and who reports it, percent ranges, floor and cap positions, cookie windows for affiliate terms, and reporting cadence requirements"
     },
     "ftc_disclosure": {
       "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,

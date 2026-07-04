@@ -1,0 +1,40 @@
+{
+  "_schema_version": "0.1.0",
+  "_note": "Blank schema for a projected-cost estimate for a future project or proposal. Real estimates live in pipeline/finance/<estimate_id>.local.json (gitignored). Every line item carries its source (quote | cost_library | cost_research | assumption) and, when sourced, a citation; assumptions are labeled and never presented as quotes. is_capex classification is organizational, not a tax determination (see _boundary). Time cost uses the personal rate card's effective_hourly when present, else a labeled assumption. Totals are computed by tools/finance.py cost_rollup, never by the model.",
+  "_boundary": "ARITHMETIC AND RESEARCH NOTES. NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE. REVIEW WITH A CPA OR TAX PROFESSIONAL BEFORE FILING OR RELYING ON CATEGORIZATIONS.",
+  "estimate_id": "",
+  "project_ref": null,
+  "deal_id": null,
+  "currency": "USD",
+  "line_items": [
+    {
+      "category": "production_materials | equipment_capex | software_subscriptions | contractor_labor | travel | shipping_and_fees",
+      "description": "",
+      "quantity": 1,
+      "unit_cost": null,
+      "amount": null,
+      "is_capex": false,
+      "source": "quote | cost_library | cost_research | assumption",
+      "citation": null,
+      "confidence_label": null
+    }
+  ],
+  "time": {
+    "phases": [
+      { "phase": "", "hours": null, "hourly_rate_ref": "rate_card_effective_hourly | assumption" }
+    ],
+    "total_hours": null,
+    "hourly_rate": null,
+    "hourly_rate_source": null
+  },
+  "totals": {
+    "expense": null,
+    "capex": null,
+    "time_cost": null,
+    "grand": null,
+    "computed_by": null
+  },
+  "human_review_required": true,
+  "gaps": [],
+  "notes": ""
+}

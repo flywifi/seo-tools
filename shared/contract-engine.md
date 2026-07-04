@@ -77,8 +77,18 @@ Use these families as stable review buckets. Keep the contract's own labels when
   no-competing-brand window.
 - **Deliverables and revisions**: format and count of deliverables, number of revision rounds, and
   the approval window.
-- **Payment and kill fee**: fee, payment timing (for example, net 30 from delivery), deposit, and a
-  kill fee if the brand cancels.
+- **Payment and kill fee**: fee, payment timing (for example, net 30 from delivery), deposit, a
+  kill fee if the brand cancels, and any late-payment penalty (type, rate, grace period). The
+  computable form of these terms is the `payment_terms_structured` block filled only from quoted
+  contract text per the normalization procedure in `shared/finance-engine.md`; the arithmetic
+  (due dates, aging, penalty accrual) belongs to `tools/finance.py`, never to the extraction.
+- **Pricing and rates**: the creator's standard rates per format, package posture, and the cost
+  floor rule; positions live in the playbook `pricing_and_rates` family and the money model in
+  `shared/finance-engine.md`.
+- **Revenue share and commission**: basis definition and who reports it, percent, floor and cap,
+  cookie windows, and reporting cadence. Reporting cadences and any license renewal dates are
+  duties with dates and become obligation rows; the payout arithmetic is
+  `tools/finance.py:revenue_share`, computed only from a reported basis figure.
 - **FTC and disclosure**: who is responsible for the paid-partnership disclosure; confirmation the
   contract does not try to waive it (a contract cannot waive the FTC obligation).
 - **Content approval and veto**: brand review and approval rights, veto scope, and the approval

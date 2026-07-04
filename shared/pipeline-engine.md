@@ -92,6 +92,14 @@ professional and by the owner before signing (see protocols/safety.md).
 carries `amount`, `invoice_date`, `payment_due_date`, `payment_received_date`, and `payment_method`,
 and never invents a figure.
 
+Invoices are standalone records in `pipeline/finance/` (schema:
+`pipeline/finance/invoice.template.json`), many per deal: deposits, partials, kill fees, and
+final balances are separate invoices. The deal record carries `invoice_refs[]` plus an embedded
+`invoice` object that is a denormalized summary of the most recent invoice record (kept for the
+radar and quick reads; the standalone record is authoritative). Due dates, aging, and
+late-penalty accrual are computed offline by `tools/finance.py` from the deal's
+`payment_terms_structured` block, never by the model; see `shared/finance-engine.md`.
+
 ## Radar views (read-only computed flags)
 The radar reads the store and surfaces, without writing anything:
 - `payment_overdue`: any invoice unpaid past its due date, with a days-overdue count.

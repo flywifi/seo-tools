@@ -64,6 +64,13 @@ roll-back, and urgency bands deterministically in the local compute lane.
    derivation in provenance. The atom still never performs the arithmetic.
 4. Preserve the direction of each duty (who owes whom). Quote `evidence_text` from the contract. If a
    duty's date or term is absent, leave the field null and add a gap, never a guess.
+5. Revenue-share and commission clauses produce rows too: each reporting cadence (for example
+   "brand reports affiliate sales monthly") is a recurring duty with a date, and each IP-license
+   renewal date is a duty with a date; both belong in the register. Late-payment penalty language
+   goes in `consequence_if_stated` verbatim. The MONEY side of these clauses (percent, floor,
+   cap, penalty rate) is normalized into the record's structured blocks per the procedure in
+   `shared/finance-engine.md` (quoted evidence or null); the payout and accrual arithmetic is
+   the offline finance tool's job (see the engine), never this atom's and never the register's.
 5. Tag each row's `confidence` (`explicit`, `high`, `medium`, `low`) per the engine.
 6. Set `human_review_required: true` and `recommend_counsel: true` when any term is ambiguous or a
    consequence is unclear.
