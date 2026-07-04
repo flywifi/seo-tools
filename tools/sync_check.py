@@ -545,6 +545,34 @@ def check_pipeline_allowlist():
             )
 
 
+def check_secret_content():
+    """Invariant 21: tools/secret_scan.py --tracked finds no secret content in tracked files.
+
+    Invariants 19 and 20 are filename checks; this one reads content: API keys, private-key
+    blocks, non-placeholder credential values, session links, non-allowlisted emails, and
+    dollar figures inside committed pipeline/ templates. Fails closed in CI when the scanner
+    cannot run."""
+    scanner = ROOT / "tools" / "secret_scan.py"
+    if not scanner.exists():
+        problem("privacy: tools/secret_scan.py is missing (invariant 21 cannot run)")
+        return
+    try:
+        out = subprocess.run([sys.executable, str(scanner), "--tracked"],
+                             cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        if os.environ.get("CI"):
+            problem(f"privacy: secret scan failed to run in CI (fail closed): {exc}")
+        else:
+            print(f"  [warn] secret scan could not run; invariant 21 skipped (local): {exc}")
+        return
+    if out.returncode != 0:
+        for line in out.stdout.splitlines():
+            if line.strip().startswith("- "):
+                problem(f"secret content: {line.strip()[2:]}")
+        if not any(line.strip().startswith("- ") for line in out.stdout.splitlines()):
+            problem(f"privacy: secret scan exited {out.returncode}: {out.stdout.strip()[-300:]}")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -565,6 +593,7 @@ def main():
     check_connector_capability_mapping()
     check_local_privacy()
     check_pipeline_allowlist()
+    check_secret_content()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

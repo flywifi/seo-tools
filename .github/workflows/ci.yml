@@ -12,11 +12,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the commit-message backstop needs history
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Drift guard
         run: python3 tools/sync_check.py
+      - name: Secret scan (tracked content)
+        run: python3 tools/secret_scan.py --tracked
+      - name: Commit hygiene backstop (messages + author emails after the policy boundary)
+        run: |
+          git fetch origin main --depth=200 || true
+          if git rev-parse origin/main >/dev/null 2>&1; then
+            python3 tools/secret_scan.py --commit-messages origin/main..HEAD
+          else
+            python3 tools/secret_scan.py --commit-messages HEAD~20..HEAD
+          fi
       - name: Version consistency
         run: python3 tools/version.py --check
       - name: Eval JSON validity
@@ -53,6 +65,8 @@ jobs:
         run: python3 tools/competitor_snapshot.py --parse
       - name: Export sanitized summary
         run: python3 tools/competitor_snapshot.py --export-summary
+      - name: Secret scan before any artifact or commit
+        run: python3 tools/secret_scan.py --tracked
       - name: Upload snapshot artifacts
         uses: actions/upload-artifact@v4
         with:
