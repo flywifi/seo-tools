@@ -70,7 +70,7 @@ roll-back, and urgency bands deterministically in the local compute lane.
    goes in `consequence_if_stated` verbatim. The MONEY side of these clauses (percent, floor,
    cap, penalty rate) is normalized into the record's structured blocks per the procedure in
    `shared/finance-engine.md` (quoted evidence or null); the payout and accrual arithmetic is
-   the offline finance tool's job (see the engine), never this atom's and never the register's.
+   `tools/finance.py`'s job, never this atom's and never the register's.
 5. Tag each row's `confidence` (`explicit`, `high`, `medium`, `low`) per the engine.
 6. Set `human_review_required: true` and `recommend_counsel: true` when any term is ambiguous or a
    consequence is unclear.
