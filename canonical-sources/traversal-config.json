@@ -126,13 +126,31 @@
     "tiktok.com",
     "copyright.gov",
     "law.cornell.edu",
-    "github.com"
+    "github.com",
+    "ecfr.gov"
   ],
   "_allowlist_note": "Only outlinks from pages on this list are followed during traversal. To add a domain, append it here. Removing a domain does not prune existing registry entries.",
   "niche_relevance_terms": [
-    "home decor", "diy", "vintage", "moody", "youtube", "creator", "algorithm",
-    "seo", "search", "platform", "thrift", "antique", "makeover", "interior",
-    "content", "keyword", "ranking", "influencer", "sponsored", "affiliate"
+    "home decor",
+    "diy",
+    "vintage",
+    "moody",
+    "youtube",
+    "creator",
+    "algorithm",
+    "seo",
+    "search",
+    "platform",
+    "thrift",
+    "antique",
+    "makeover",
+    "interior",
+    "content",
+    "keyword",
+    "ranking",
+    "influencer",
+    "sponsored",
+    "affiliate"
   ],
   "_note": "To change any interval, edit this file. Use tools/traversal_engine.py --set-interval --category=<cat> <days> as a convenience shortcut, or edit the JSON directly."
 }

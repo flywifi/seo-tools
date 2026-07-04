@@ -1,0 +1,58 @@
+[
+  {
+    "_comment": "P33 content-source additions. Load via: python3 tools/source_currency.py seed-sources canonical-sources/content-sources-p33-seed.json. Fills coverage gaps the audit found: the live FTC eCFR text, a broader DIY cost-vendor base, and an upstream for the github-seo methodology data file.",
+    "id": "ftc-ecfr-16-cfr-255",
+    "name": "FTC Endorsement Guides, eCFR 16 CFR Part 255 (live text)",
+    "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "live authoritative 16 CFR Part 255 text; the 2024 amendments and any staff guidance on AI / virtual-influencer endorsements; clear-and-conspicuous disclosure",
+    "used_by": ["shared/contract-engine.md", "safety", "legal-requirement-check", "contract-review"]
+  },
+  {
+    "id": "amazon-materials-pricing",
+    "name": "Amazon (materials pricing)",
+    "url": "https://www.amazon.com",
+    "category": "cost-vendor",
+    "tier": "T3",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "extraction_hint": "list price for a named product/model at fetch time; cite the URL and date, never a remembered price",
+    "used_by": ["cost-estimate", "cost-researcher"]
+  },
+  {
+    "id": "rustoleum-paint-pricing",
+    "name": "Rust-Oleum paint and finishes (pricing reference)",
+    "url": "https://www.rustoleum.com",
+    "category": "cost-vendor",
+    "tier": "T3",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "extraction_hint": "paint/finish product lines and MSRP where listed; retailer price is the authority for actual cost",
+    "used_by": ["cost-estimate", "cost-researcher"]
+  },
+  {
+    "id": "michaels-craft-pricing",
+    "name": "Michaels (craft materials pricing)",
+    "url": "https://www.michaels.com",
+    "category": "cost-vendor",
+    "tier": "T3",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "extraction_hint": "craft and decor materials list price at fetch time; cite URL and date",
+    "used_by": ["cost-estimate", "cost-researcher"]
+  },
+  {
+    "id": "github-seo-oss-methodology",
+    "name": "GitHub OSS SEO methodology (curated crawl)",
+    "url": "https://github.com/topics/seo",
+    "category": "seo-authority",
+    "tier": "T3",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "extraction_hint": "notable open-source SEO/keyword tooling and methodology repos (SERP-overlap clustering, PAA expansion, topical maps); re-crawl for new techniques feeding github-seo-methodology.json",
+    "used_by": ["keyword-cluster", "seo-intelligence-engine", "topical-authority-map"]
+  }
+]

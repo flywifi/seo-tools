@@ -133,5 +133,7 @@
     "no damage wall decor ideas renter",
     "command strip wall decor ideas",
     "renter friendly bedroom transformation"
-  ]
+  ],
+  "_static": true,
+  "_currency": "static template, no external upstream (data-currency-map.json)"
 }

@@ -2141,6 +2141,109 @@
       "pinned_constraint": "mcp-server-scikit-learn",
       "validated_version": null,
       "_why": "ML prediction lane for audience segmentation and trend prediction; API drift drops it to guidance-only"
+    },
+    {
+      "id": "ftc-ecfr-16-cfr-255",
+      "name": "FTC Endorsement Guides, eCFR 16 CFR Part 255 (live text)",
+      "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "live authoritative 16 CFR Part 255 text; the 2024 amendments and any staff guidance on AI / virtual-influencer endorsements; clear-and-conspicuous disclosure",
+      "used_by": [
+        "shared/contract-engine.md",
+        "safety",
+        "legal-requirement-check",
+        "contract-review"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "amazon-materials-pricing",
+      "name": "Amazon (materials pricing)",
+      "url": "https://www.amazon.com",
+      "category": "cost-vendor",
+      "tier": "T3",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "list price for a named product/model at fetch time; cite the URL and date, never a remembered price",
+      "used_by": [
+        "cost-estimate",
+        "cost-researcher"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "rustoleum-paint-pricing",
+      "name": "Rust-Oleum paint and finishes (pricing reference)",
+      "url": "https://www.rustoleum.com",
+      "category": "cost-vendor",
+      "tier": "T3",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "paint/finish product lines and MSRP where listed; retailer price is the authority for actual cost",
+      "used_by": [
+        "cost-estimate",
+        "cost-researcher"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "michaels-craft-pricing",
+      "name": "Michaels (craft materials pricing)",
+      "url": "https://www.michaels.com",
+      "category": "cost-vendor",
+      "tier": "T3",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "craft and decor materials list price at fetch time; cite URL and date",
+      "used_by": [
+        "cost-estimate",
+        "cost-researcher"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "github-seo-oss-methodology",
+      "name": "GitHub OSS SEO methodology (curated crawl)",
+      "url": "https://github.com/topics/seo",
+      "category": "seo-authority",
+      "tier": "T3",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "notable open-source SEO/keyword tooling and methodology repos (SERP-overlap clustering, PAA expansion, topical maps); re-crawl for new techniques feeding github-seo-methodology.json",
+      "used_by": [
+        "keyword-cluster",
+        "seo-intelligence-engine",
+        "topical-authority-map"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ]
 }

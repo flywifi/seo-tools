@@ -272,5 +272,7 @@
       "modern rustic",
       "transitional style"
     ]
-  }
+  },
+  "_static": true,
+  "_currency": "static template, no external upstream (data-currency-map.json)"
 }
