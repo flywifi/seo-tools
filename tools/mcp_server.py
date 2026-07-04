@@ -988,6 +988,28 @@ def proposal_price(cost_total: float | None = None, margin_percent: float | None
 
 
 @mcp.tool()
+def cashflow_view(scheduled: list | None = None, estimates: list | None = None,
+                  horizon_days: int = 90, today: str | None = None,
+                  redacted: bool = False) -> str:
+    """Weekly cash-movement view (P31). Read-only, always available: expected inflows from open
+    invoices (read from pipeline/finance/) and dated scheduled rows, outflows from dated cost
+    estimates; overdue and undated items totaled separately with gaps, never guessed into a
+    week. Movement, not a bank balance. EXPOSURE NOTE: raw output contains real amounts and
+    brand names; pass redacted=True (banded amounts, initialed brands) for anything that will
+    be quoted outside this machine."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else None
+        result = _fin.cashflow(None, scheduled, estimates, horizon_days, t)
+        return json.dumps(_fin.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
 def import_finance(today: str | None = None) -> str:
     """Fan the AR scan out to the existing join points (P30), mirroring import_obligations:
     chase send-by dates for the content calendar and production tasks, deposit and payment due

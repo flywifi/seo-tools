@@ -1,0 +1,51 @@
+[
+  {
+    "test_id": "cashflow-view-weekly-buckets",
+    "description": "open invoices and dated items land in the right weeks",
+    "input": { "horizon_days": 90 },
+    "expected_output_keys": ["weeks", "totals", "computed_by"],
+    "assertions": [
+      "every figure comes from tools/finance.py cashflow with computed_by",
+      "weeks carry inflow, outflow, net, and running_net as exact-decimal strings",
+      "paid and disputed invoices never appear",
+      "the movement-not-balance note is present"
+    ]
+  },
+  {
+    "test_id": "cashflow-view-overdue-exclusion",
+    "description": "overdue receivables are never guessed into a week",
+    "input": { "horizon_days": 90 },
+    "expected_output_keys": ["overdue_receivables", "gaps"],
+    "assertions": [
+      "overdue amounts are totaled in overdue_receivables only",
+      "a gap points at ar-review for chasing",
+      "no bucket contains an overdue amount on an invented date"
+    ]
+  },
+  {
+    "test_id": "cashflow-view-undated-items",
+    "description": "undated estimates and scheduled rows are gaps, not buckets",
+    "input": {
+      "scheduled": [ { "amount": 100, "label": "undated trigger" } ],
+      "estimates": [ { "estimate_id": "e2", "totals": { "grand": "50.00" } } ]
+    },
+    "expected_output_keys": ["undated_outflows", "gaps"],
+    "assertions": [
+      "the undated estimate totals into undated_outflows with a gap naming the fix",
+      "the undated scheduled row is an unbucketable_scheduled gap",
+      "neither enters any week"
+    ]
+  },
+  {
+    "test_id": "cashflow-view-redacted",
+    "description": "redacted output is safe to leave the machine",
+    "input": { "horizon_days": 90, "redacted": true },
+    "expected_output_keys": ["weeks", "_redacted"],
+    "assertions": [
+      "amounts are bands written with to (for example 1k to 5k)",
+      "brand names are initials",
+      "_redacted is true and the raw records are untouched",
+      "redacted output is never fed back into bookkeeping"
+    ]
+  }
+]

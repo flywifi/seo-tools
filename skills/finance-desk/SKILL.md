@@ -33,6 +33,10 @@ commits money externally: sending an invoice, quoting a price, agreeing a rate
 - `price` — a standardized price floor for a proposal: cost floor vs negotiation floor, fed by
   the rate card and the estimate (`proposal-price`). Routed as `proposal_price`. Output feeds
   `pitch-paragraph` and `contract-draft`.
+- `cashflow` — the weekly cash-movement view over the horizon: expected inflows from open
+  invoices and dated scheduled rows, outflows from dated estimates (`cashflow-view`). Routed as
+  `cashflow_projection`. Read-only, always available; redacted output (banded amounts,
+  initialed brands) for anything that leaves the machine.
 
 ## How the money math runs
 

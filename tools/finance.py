@@ -447,6 +447,183 @@ def ar_scan(invoices=None, today=None):
             "computed_by": f"{TOOL} ar_scan", "gaps": gaps}
 
 
+# ── cash flow ────────────────────────────────────────────────────────────────
+
+def cashflow(invoices=None, scheduled=None, estimates=None, horizon_days=90, today=None):
+    """Deterministic cash view over the horizon: expected inflows from open invoice due dates,
+    planned inflows from scheduled invoice rows (deal-resourcing triggers already mapped to
+    dates), and outflows from cost estimates. Weekly buckets. This is MOVEMENT, not a bank
+    balance (no opening balance is known here); overdue receivables and undated outflows are
+    reported separately with gaps, never guessed into a week."""
+    today = today or date.today()
+    horizon_days = max(7, int(horizon_days))
+    if invoices is None:
+        invoices = _load_local_invoices()
+    weeks = []
+    n_weeks = (horizon_days + 6) // 7
+    for i in range(n_weeks):
+        weeks.append({"week_start": (today + timedelta(days=7 * i)).isoformat(),
+                      "inflow": Decimal(0), "outflow": Decimal(0)})
+    end = today + timedelta(days=7 * n_weeks)
+    gaps = []
+    overdue_total = Decimal(0)
+    beyond_horizon = Decimal(0)
+    undated_outflows = Decimal(0)
+
+    def _bucket(d):
+        idx = (d - today).days // 7
+        return weeks[idx] if 0 <= idx < n_weeks else None
+
+    for inv in invoices:
+        status = inv.get("status")
+        if status in ("paid", "disputed"):
+            continue
+        amount = dec(inv.get("total") if inv.get("total") is not None else inv.get("amount"))
+        due = inv.get("payment_due_date")
+        if amount is None or due is None:
+            gaps.append({"gap_type": "unbucketable_invoice",
+                         "description": f"{inv.get('invoice_id')} lacks an amount or due date",
+                         "impact": "excluded from the cash view",
+                         "recommended_next_step": "complete the invoice record"})
+            continue
+        due_d = _parse_date(due)
+        if due_d < today:
+            overdue_total += amount
+            continue
+        w = _bucket(due_d)
+        if w is None:
+            beyond_horizon += amount
+            continue
+        w["inflow"] += amount
+    for row in scheduled or []:
+        amount = dec(row.get("amount"))
+        d = row.get("due_date") or row.get("expected_date")
+        if amount is None or d is None:
+            gaps.append({"gap_type": "unbucketable_scheduled",
+                         "description": f"scheduled row {row.get('label') or row.get('invoice_id') or ''} "
+                                        "lacks an amount or date",
+                         "impact": "excluded from the cash view",
+                         "recommended_next_step": "date the trigger via deal-resourcing first"})
+            continue
+        d = _parse_date(d)
+        w = _bucket(d)
+        if w is None:
+            if d < today:
+                gaps.append({"gap_type": "scheduled_in_past",
+                             "description": f"scheduled inflow dated {d.isoformat()} is in the past",
+                             "impact": "excluded from the cash view",
+                             "recommended_next_step": "invoice it (invoice-generate) or re-date the trigger"})
+            else:
+                beyond_horizon += amount
+            continue
+        w["inflow"] += amount
+    for est in estimates or []:
+        totals = est.get("totals") or {}
+        amount = dec(totals.get("grand") if totals.get("grand") is not None else est.get("amount"))
+        d = est.get("expected_date")
+        if amount is None:
+            continue
+        if d is None:
+            undated_outflows += amount
+            gaps.append({"gap_type": "undated_outflow",
+                         "description": f"estimate {est.get('estimate_id') or ''} has no expected_date",
+                         "impact": "outflow totaled separately, not bucketed",
+                         "recommended_next_step": "date the spend to place it in a week"})
+            continue
+        w = _bucket(_parse_date(d))
+        if w is not None:
+            w["outflow"] += amount
+    running = Decimal(0)
+    out_weeks = []
+    for w in weeks:
+        net = w["inflow"] - w["outflow"]
+        running += net
+        out_weeks.append({"week_start": w["week_start"], "inflow": _mstr(w["inflow"]),
+                          "outflow": _mstr(w["outflow"]), "net": _mstr(net),
+                          "running_net": _mstr(running)})
+    if overdue_total:
+        gaps.append({"gap_type": "overdue_receivables",
+                     "description": f"overdue invoices total {_mstr(overdue_total)} and have no "
+                                    "predictable week",
+                     "impact": "not counted in any bucket",
+                     "recommended_next_step": "run ar-review and chase; collection timing is unknown"})
+    return {"as_of": today.isoformat(), "horizon_days": 7 * n_weeks,
+            "horizon_end": end.isoformat(), "weeks": out_weeks,
+            "totals": {"inflow": _mstr(sum((dec(w["inflow"]) for w in out_weeks), Decimal(0))),
+                       "outflow": _mstr(sum((dec(w["outflow"]) for w in out_weeks), Decimal(0))),
+                       "net_movement": _mstr(running)},
+            "overdue_receivables": _mstr(overdue_total),
+            "beyond_horizon": _mstr(beyond_horizon),
+            "undated_outflows": _mstr(undated_outflows),
+            "note": "cash MOVEMENT over the horizon, not a bank balance",
+            "computed_by": f"{TOOL} cashflow", "gaps": gaps}
+
+
+# ── redaction (for anything that leaves this machine) ────────────────────────
+
+REDACT_AMOUNT_KEYS = {"amount", "total", "subtotal", "payout", "raw", "price_floor",
+                      "cost_floor", "negotiation_floor", "total_outstanding", "accrued_penalty",
+                      "inflow", "outflow", "net", "running_net", "net_movement",
+                      "overdue_receivables", "beyond_horizon", "undated_outflows",
+                      "unit_price", "grand", "expense", "capex", "time_cost"}
+REDACT_NAME_KEYS = {"brand_name", "account_ref", "vendor"}
+_BANDS = [(100, "under 100"), (500, "100 to 500"), (1000, "500 to 1k"), (5000, "1k to 5k"),
+          (10000, "5k to 10k"), (50000, "10k to 50k")]
+
+
+def _band(value):
+    try:
+        v = Decimal(str(value))
+    except Exception:
+        return value
+    if v == 0:
+        return "0"
+    neg = v < 0
+    v = abs(v)
+    label = "over 50k"
+    for edge, name in _BANDS:
+        if v < edge:
+            label = name
+            break
+    return f"minus {label}" if neg else label
+
+
+def _initials(name):
+    if not isinstance(name, str) or not name.strip():
+        return name
+    return ".".join(part[0].upper() for part in name.split() if part) + "."
+
+
+def redact(obj):
+    """Mask money figures into bands and counterparty names into initials for any output that
+    leaves this machine (screenshots, shared text, transcripts). The raw record is untouched;
+    this returns a copy. Redacted output is for sharing, never for bookkeeping."""
+    if isinstance(obj, list):
+        return [redact(x) for x in obj]
+    if not isinstance(obj, dict):
+        return obj
+    out = {}
+    for k, v in obj.items():
+        if k in REDACT_NAME_KEYS and isinstance(v, str):
+            out[k] = _initials(v)
+        elif k == "per_brand" and isinstance(v, dict):
+            out[k] = {_initials(b): _band(a) for b, a in v.items()}
+        elif k == "bucket_totals" and isinstance(v, dict):
+            out[k] = {b: _band(a) for b, a in v.items()}
+        elif k in REDACT_AMOUNT_KEYS:
+            if isinstance(v, dict):
+                out[k] = redact(v)
+            elif isinstance(v, list):
+                out[k] = [redact(x) for x in v]
+            else:
+                out[k] = _band(v)
+        else:
+            out[k] = redact(v)
+    if "computed_by" in out:
+        out["_redacted"] = True
+    return out
+
+
 # ── manifest ─────────────────────────────────────────────────────────────────
 
 def manifest(directory=None):
@@ -620,7 +797,55 @@ def selftest():
     _check("ar: empty state is honest",
            ar_scan([], t)["total_outstanding"] == "0.00" and ar_scan([], t)["gaps"] == [], f)
 
-    n = 44
+    cf_invoices = [
+        {"invoice_id": "INV-a-001", "brand_name": "Hearthline", "total": "2750.00",
+         "payment_due_date": "2026-07-10", "status": "sent"},
+        {"invoice_id": "INV-a-002", "brand_name": "Lumen Co", "total": "1200.00",
+         "payment_due_date": "2026-06-01", "status": "overdue"},
+        {"invoice_id": "INV-a-003", "brand_name": "Fictionalia", "total": "900.00",
+         "payment_due_date": "2027-01-15", "status": "sent"},
+        {"invoice_id": "INV-a-004", "total": "10.00", "payment_due_date": "2026-07-05",
+         "status": "paid"},
+    ]
+    cf = cashflow(cf_invoices,
+                  scheduled=[{"amount": 500, "due_date": "2026-07-20", "label": "deposit"},
+                             {"amount": 100, "label": "undated trigger"}],
+                  estimates=[{"estimate_id": "e1", "totals": {"grand": "300.00"},
+                              "expected_date": "2026-07-08"},
+                             {"estimate_id": "e2", "totals": {"grand": "50.00"}}],
+                  horizon_days=90, today=t)
+    _check("cashflow: due-in-7-days lands in week 1", cf["weeks"][1]["inflow"] == "2750.00", f)
+    _check("cashflow: scheduled deposit lands in week 3", cf["weeks"][2]["inflow"] == "500.00", f)
+    _check("cashflow: dated estimate is a week-1 outflow", cf["weeks"][0]["outflow"] == "300.00", f)
+    _check("cashflow: overdue receivable excluded with a gap",
+           cf["overdue_receivables"] == "1200.00"
+           and any(g["gap_type"] == "overdue_receivables" for g in cf["gaps"]), f)
+    _check("cashflow: beyond-horizon inflow totaled separately",
+           cf["beyond_horizon"] == "900.00", f)
+    _check("cashflow: undated outflow totaled separately with a gap",
+           cf["undated_outflows"] == "50.00"
+           and any(g["gap_type"] == "undated_outflow" for g in cf["gaps"]), f)
+    _check("cashflow: undated scheduled row is a gap, never bucketed",
+           any(g["gap_type"] == "unbucketable_scheduled" for g in cf["gaps"]), f)
+    _check("cashflow: paid invoices are ignored",
+           all(w["inflow"] != "10.00" for w in cf["weeks"]), f)
+    _check("cashflow: net movement adds up",
+           cf["totals"]["net_movement"] == "2950.00", f)
+    _check("cashflow: movement-not-balance note present", "not a bank balance" in cf["note"], f)
+
+    _check("redact: band edges (999.99 -> 500 to 1k, 1000 -> 1k to 5k)",
+           _band("999.99") == "500 to 1k" and _band("1000") == "1k to 5k", f)
+    _check("redact: zero and negative bands", _band("0") == "0"
+           and _band("-250") == "minus 100 to 500", f)
+    _check("redact: brand becomes initials", _initials("Hearthline Home Co") == "H.H.C.", f)
+    red = redact(ar_scan(cf_invoices, t))
+    _check("redact: ar amounts banded and brands masked",
+           red["total_outstanding"] in ("1k to 5k", "5k to 10k")
+           and all("." in b for b in red["per_brand"]), f)
+    _check("redact: marks itself and never mutates the original",
+           red.get("_redacted") is True and cf_invoices[0]["total"] == "2750.00", f)
+
+    n = 59
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
 
@@ -634,6 +859,10 @@ def _read_json(path):
 def main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline finance math")
     ap.add_argument("--ar-scan", nargs="?", const="__local__", metavar="INVOICES_JSON")
+    ap.add_argument("--cashflow", nargs="?", const="__local__", metavar="INPUTS_JSON")
+    ap.add_argument("--horizon-days", type=int, default=90)
+    ap.add_argument("--redacted", action="store_true",
+                    help="band amounts and initial names for output that leaves this machine")
     ap.add_argument("--build-invoice", metavar="PAYLOAD_JSON")
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--accrue", metavar="INVOICE_JSON")
@@ -653,7 +882,14 @@ def main(argv):
         return selftest()
     if args.ar_scan:
         invoices = None if args.ar_scan == "__local__" else _read_json(args.ar_scan)
-        print(json.dumps(ar_scan(invoices, today), indent=2))
+        result = ar_scan(invoices, today)
+        print(json.dumps(redact(result) if args.redacted else result, indent=2))
+        return 0
+    if args.cashflow:
+        inputs = {} if args.cashflow == "__local__" else _read_json(args.cashflow)
+        result = cashflow(inputs.get("invoices"), inputs.get("scheduled"),
+                          inputs.get("estimates"), args.horizon_days, today)
+        print(json.dumps(redact(result) if args.redacted else result, indent=2))
         return 0
     if args.build_invoice:
         inv = build_invoice(_read_json(args.build_invoice), today)
