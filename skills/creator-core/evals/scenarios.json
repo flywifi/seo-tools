@@ -4,15 +4,9 @@
   "schema_version": "0.1.0",
   "pinned_today": "2026-09-15",
   "defaults": { "lead_days": 3 },
-  "gap_ledger": [
-    {
-      "id": "G7",
-      "title": "No media-kit critique path: media_kit routes to a generation-only spoke; quality_check scores internal gates, not market benchmarks; no content_critique classification",
-      "probe": { "op": "routing.probe", "with": { "classification": "content_critique", "expect": "absent" } },
-      "scenarios": ["S4-mediakit-critique"]
-    }
-  ],
+  "gap_ledger": [],
   "_closed_gaps": {
+    "G7": "Closed by P32: the mediakit-critique atom and the partnership-mediakit content_critique action critique the creator's own media kit against the market (benchmark-compare per metric plus a structural review), honestly degrading to structural_only when the benchmark rows are unsourced (null). quality-review stays the internal-Quality-Gates lens; the two do not overlap.",
     "G3": "Closed by P32: the hub routing table gained account_read (account-manager, read-only account and contact lookup) and deal_status (deal-pipeline, read-only lifecycle status). S1 keeps crm_query and contact_lookup pinned absent deliberately: account_read subsumes them and contact_lookup is a spoke action, not a hub route (anti-synonym-bloat).",
     "G1": "Closed by P32: the contact-lookup atom and the account-manager contact_lookup action resolve a brand phrase (account-resolve) then read the contact rows via tools/accounts.contacts(); the contact_lookup MCP tool exposes the same read. A person hint that matches nobody returns a gap naming the known contacts, never the wrong person; contact PII is masked when it leaves the machine.",
     "G2": "Closed by P32: tools/accounts.py resolve() does tiered brand-phrase matching (exact, alias, substring, difflib fuzzy, brand-category term map) over an aliases[] field now in account-schema.json; the account-resolve atom wraps it and account-health delegates fuzzy resolution to it. Never auto-picks past a confident exact or alias match.",
@@ -203,12 +197,13 @@
       "id": "S4-mediakit-critique",
       "utterance": "here's my media kit, do market research and give me critiques",
       "routing": {
-        "mode": "ambiguous",
+        "mode": "present",
         "present": [
+          { "classification": "content_critique", "spoke": "partnership-mediakit" },
           { "classification": "media_kit", "spoke": "partnership-mediakit" },
           { "classification": "quality_check", "spoke": "quality-review" }
         ],
-        "absent_classifications": ["content_critique"]
+        "absent_classifications": []
       },
       "legs": [
         {
@@ -246,9 +241,17 @@
             { "path": "[7].metric", "check": "eq", "value": "rpm" },
             { "path": "[7].unit", "check": "eq", "value": "USD_per_1000_views" }
           ]
+        },
+        {
+          "id": "critique-degrades-honestly",
+          "op": "text.probe",
+          "with": { "file": "skills/atoms/mediakit-critique/SKILL.md", "pattern": "structural_only", "expect": "present" },
+          "assert": [
+            { "path": "present", "check": "eq", "value": true }
+          ]
         }
       ],
-      "known_gaps": ["G7"]
+      "known_gaps": []
     },
     {
       "id": "S5-raw-footage",

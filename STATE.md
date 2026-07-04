@@ -2,7 +2,27 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P31 are complete. Drift guard exits 0 (21 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P32 are complete. Drift guard exits 0 (22 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P32: closed all seven remaining scenario-suite gaps (G1 to G7); the P24 gap ledger (G1 to G10)
+  is now empty, all closed deliberately. The CRM read lane: `tools/accounts.py` is a third offline
+  compute-lane instance (stdlib, CREATOR_OS_ROOT sandbox, computed_by, gaps[], 27-check selftest,
+  read-only) with a tiered brand resolver (exact, alias, substring, difflib fuzzy, brand-category
+  term map) that never auto-picks past a confident exact or alias match, a contacts reader, and a
+  verbatim deal-status reader (no money math). Three atoms (`account-resolve`, `contact-lookup`,
+  `deal-status`); account-manager gains a `contact_lookup` action and an account-resolve step,
+  deal-pipeline a deal-status read step. account-schema v0.2.0 reconciled to the pipeline engine
+  (brand_category enum incl. lighting, secondary_contacts, relationship_health, aliases,
+  channel_preferences, deal_history_summary, renewal_candidate). Hub classifications
+  `account_read`, `deal_status`, `content_critique`. Seasonal: new
+  `canonical-sources/seasonal-aesthetic.md` plus the `seasonal.json` seasonal-windows entry with
+  resolved ISO dates (reference_year 2026, annual recurrence); engine table, seasonal-map table,
+  and JSON reconciled; drift invariant 22 validates frontmatter load refs and canonical-sources
+  joined KNOWN_ROOTS. Media-kit critique: `mediakit-critique` (benchmark-compare per metric plus a
+  structural review, honest `structural_only` degradation when benchmarks are unsourced) routed via
+  content_critique to partnership-mediakit. Two MCP tools (`contact_lookup`, `deal_status`,
+  read-only and PII-masked; 36 total). Contact PII stays on-machine; reads redact for anything
+  quoted off-machine. Ledger: `P32-close-all-scenario-gaps`.
 
 - P31: finance features on a hardened privacy boundary. Security first: allowlist-invert
   `.gitignore` for `pipeline/finance/` plus repo-wide export/key/env ignore patterns; drift

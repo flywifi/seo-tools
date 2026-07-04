@@ -113,7 +113,22 @@ discipline (`--manifest` / `--verify`) applies; and the `finance_scan` / `invoic
 does the arithmetic, and nothing money-facing is sent without an explicit human yes
 (`shared/finance-engine.md`).
 
+The third realized instance is the CRM read lane (P32): `tools/accounts.py` reads
+`pipeline/accounts/*.local.json` and `pipeline/deals/*.local.json` to resolve a fuzzy brand phrase
+to one account (tiered exact/alias/substring/difflib/brand-category matching that never auto-picks
+past a confident exact or alias match), read its contacts, and report a deal's lifecycle status
+verbatim. It is READ-ONLY (no write modes at all), CREATOR_OS_ROOT-sandboxed, carries `computed_by`
+and `gaps[]`, and degrades to an empty result plus a gap on a fresh clone. Contacts are PII, so the
+`contact_lookup` and `deal_status` MCP tools (and the `--redacted` CLI flag) mask names to initials
+and emails to a stub for anything quoted off this machine; the raw result is for the human operator
+here.
+
 ```bash
+# read-only: resolve a fuzzy brand phrase, read a contact, or check a deal's stage
+python3 tools/accounts.py --resolve "that lightbulb company"
+python3 tools/accounts.py --contacts "hearthline" --person "marcus" --redacted
+python3 tools/accounts.py --deal-status "lumen"
+
 # read-only: who owes what, aged and prioritized (no writes, always available)
 python3 tools/finance.py --ar-scan --today 2026-07-03
 

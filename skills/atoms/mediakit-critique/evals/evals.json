@@ -1,0 +1,60 @@
+[
+  {
+    "test_id": "mediakit-critique-structural-only",
+    "description": "all-null benchmark rows degrade to structural_only with market claims withheld",
+    "input": {
+      "media_kit": { "ctr": 6.2, "avd": 4.1, "sections": ["audience", "formats", "rates", "contact"] },
+      "platform": "youtube"
+    },
+    "expected_output_keys": ["critique_mode", "market_position", "data_gaps", "structural_findings"],
+    "assertions": [
+      "critique_mode is structural_only because every relevant benchmark range is null",
+      "market_position is null and no above/below/competitive claim is made",
+      "data_gaps names each unsourced benchmark metric",
+      "the structural review still ships (sections, rate labeling, FTC, sourcing)"
+    ]
+  },
+  {
+    "test_id": "mediakit-critique-benchmarked",
+    "description": "a sourced benchmark range yields a benchmarked-mode standing",
+    "input": {
+      "media_kit": { "ctr": 6.2, "sections": ["audience", "formats", "rates", "contact"] },
+      "platform": "youtube",
+      "_note_for_reviewer": "exercised when a benchmark row for the metric is sourced (non-null low/high)"
+    },
+    "expected_output_keys": ["critique_mode", "metric_standings"],
+    "assertions": [
+      "critique_mode is benchmarked when at least one range is sourced",
+      "metric_standings reports gap_assessment above/below/within for the sourced metric",
+      "any still-null metric is listed in data_gaps, never guessed"
+    ]
+  },
+  {
+    "test_id": "mediakit-critique-rate-labeling",
+    "description": "a rate presented as personal without labeling is flagged",
+    "input": {
+      "media_kit": { "rates": { "dedicated_video": 2500, "labeled_as": "my rate" }, "sections": ["audience", "formats", "rates", "contact"] },
+      "platform": "youtube"
+    },
+    "expected_output_keys": ["rate_review", "issues"],
+    "assertions": [
+      "rate_review compares the figure to the structured rate rows",
+      "an unlabeled personal-vs-industry rate is flagged with a fix",
+      "no benchmark or rate is fabricated"
+    ]
+  },
+  {
+    "test_id": "mediakit-critique-not-quality-gates",
+    "description": "the atom does market critique, never the internal Quality Gates",
+    "input": {
+      "media_kit": { "ctr": 5.0, "sections": ["audience", "formats"] },
+      "platform": "instagram"
+    },
+    "expected_output_keys": ["structural_findings", "critique_mode"],
+    "assertions": [
+      "missing required sections (rates, contact) are structural issues with fixes",
+      "the output does not score integrity, safety, or the other Quality Gates dimensions",
+      "market-position language appears only in benchmarked mode"
+    ]
+  }
+]

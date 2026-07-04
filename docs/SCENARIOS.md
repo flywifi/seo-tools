@@ -38,7 +38,7 @@ The run fails loudly in BOTH directions:
 | S1 | "what's the email for that guy from my Hearthline account?" | present: `account_read` routes to `account-manager` (`crm_query` / `contact_lookup` deliberately subsumed) | The resolver plus the contact read: "hearthline" resolves to one account, "hearth" surfaces both prefix-sharing brands without auto-picking, `contact-lookup` returns Marcus Webb's verbatim email, and an unmatched person hint returns a gap naming the known contacts rather than the wrong person (P32) |
 | S2 | "where are we with that lightbulb company contract?" | present: `contract_obligations` (timeline), `account_read`, and `deal_status` all route | The obligations lane on a fictional lighting brand (register build, weekend roll-back, net-30 anchor derivation, urgency bands, action-queue ordering), the category resolver ("that lightbulb company" surfaces the lighting brand as a candidate, never auto-resolved), and `deal-status` reporting the deal stage verbatim (P32) |
 | S3 | "what's the market going to look like for the holiday season and what should I start doing to prepare?" | present: `seasonal_planning` routes to `seasonal-trends` | All 16 seasonal publish-by deadlines through the obligations date math (band counts, roll-backs, prep queue ordered by urgency), plus the canonical machine-readable source itself: `canonical-sources/seasonal-aesthetic/seasonal.json` seasonal-windows entry with 8 windows of resolved ISO dates (P32) |
-| S4 | "here's my media kit, do market research and give me critiques" | ambiguous: `media_kit` (generation only) vs `quality_check`; no `content_critique` | The deterministic Quality Gates verdict arithmetic (releasable and integrity hard-fail cases) plus the structured benchmark rows: 2 rate rows with low/high/unit and 6 sourced-or-null metric rows (P30) |
+| S4 | "here's my media kit, do market research and give me critiques" | present: `content_critique` routes to `partnership-mediakit` (alongside `media_kit` generation and `quality_check` internal gates) | The Quality Gates verdict arithmetic (releasable and integrity hard-fail cases), the structured benchmark rows (2 rate rows with low/high/unit, 6 sourced-or-null metric rows), and the documented honest degradation: with the metric rows null, `mediakit-critique` runs in `structural_only` mode and withholds market-position claims (P32) |
 | S5 | "here's raw footage, break it down: chapters and what to cut" | present: `footage_breakdown` routes to `video-development` (P28; footage-analysis atom) | Transcript parsing (20 segments, exact duration), product silence detection via `shared/docintel/transcripts.gap_metrics` (three 8-to-20 second gaps), chapter fan-out and YouTube-rule validation on an authored chapter list |
 
 ## Gap ledger (the later-phase backlog)
@@ -47,14 +47,15 @@ Each gap has a repo-state probe in `scenarios.json`; the suite asserts all of th
 observable. When one of these is built or fixed, the probe fires and the suite fails until this
 ledger and the contract are updated together.
 
-| ID | Gap | Blocks |
-|---|---|---|
-| G7 | No media-kit critique path: `media_kit` routes to a generation-only spoke; `quality_check` scores internal gates, not market position; no `content_critique` classification | S4 |
+The ledger is currently EMPTY: every gap the P24 suite raised (G1 to G10) has been closed
+deliberately, each with the probe flip, a `_closed_gaps` entry, and a strengthened product leg.
+New gaps are added here when a future scenario surfaces one.
 
 ### Closed gaps
 
 | ID | Gap | Closed by |
 |---|---|---|
+| G7 | No media-kit critique path: `media_kit` routes to a generation-only spoke; `quality_check` scores internal gates, not market position; no `content_critique` classification | P32: the `mediakit-critique` atom and the partnership-mediakit `content_critique` action critique a kit against the market (benchmark-compare per metric plus a structural review), degrading to `structural_only` when the benchmark rows are unsourced; quality-review stays the internal-gates lens |
 | G3 | No routing classification for CRM read/status queries (`account_read` / `deal_status`) | P32: the hub table gained `account_read` (account-manager) and `deal_status` (deal-pipeline), both read-only; S1 keeps `crm_query` / `contact_lookup` pinned absent on purpose (account_read subsumes them; contact_lookup is a spoke action, not a route) |
 | G1 | No contact-retrieval capability: no atom, action, or MCP tool read contacts | P32: the `contact-lookup` atom and account-manager `contact_lookup` action resolve the brand then read the contact rows via `tools/accounts.contacts()`; the `contact_lookup` MCP tool exposes the same read; an unmatched person hint gaps rather than guessing, and contact PII is masked when it leaves the machine |
 | G2 | No fuzzy/nickname/category account resolver: account-health needed an exact `brand_name`; no alias field | P32: `tools/accounts.py` resolve() does tiered matching (exact, alias, substring, difflib fuzzy, brand-category term map) over the new `aliases[]` field; the `account-resolve` atom wraps it and account-health delegates fuzzy resolution to it; never auto-picks past a confident exact or alias match |

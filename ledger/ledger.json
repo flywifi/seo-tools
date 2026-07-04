@@ -103,6 +103,24 @@
       ],
       "status": "shipped",
       "explicit_non_action": "No history rewrite; no new dependencies; no entropy scanning; no auto-sent dunning; no bank API integrations."
+    },
+    {
+      "id": "P32-close-all-scenario-gaps",
+      "date": "2026-07-04",
+      "decision": "Close all seven remaining scenario-suite capability gaps (G1 to G7): the CRM read lane, the seasonal canonical source, and the media-kit market critique path. The P24 gap ledger is now empty (G1 to G10 all closed).",
+      "rationale": "The findings-as-contract suite pinned these as the documented backlog. Each close lands atomically with its probe flip and a strengthened product leg so the suite never drifts silently.",
+      "what_shipped": [
+        "tools/accounts.py: offline, read-only CRM resolver (tiered exact/alias/substring/difflib/category matching, never auto-picks past alias), contacts reader, and verbatim deal-status reader; CREATOR_OS_ROOT sandbox; redaction for PII; 27-check selftest",
+        "account-resolve, contact-lookup, deal-status atoms; account-manager gains a contact_lookup action and account-resolve step; deal-pipeline gains a deal-status read step",
+        "account-schema.json v0.2.0 reconciled to the pipeline engine (brand_category enum, secondary_contacts, relationship_health, aliases, channel_preferences, deal_history_summary, renewal_candidate)",
+        "hub classifications account_read, deal_status, content_critique with routing rows",
+        "canonical-sources/seasonal-aesthetic.md and the seasonal.json seasonal-windows entry with resolved ISO dates (reference_year, annual recurrence); engine/atom/JSON reconciled; drift invariant 22 validates frontmatter load refs and canonical-sources joined KNOWN_ROOTS",
+        "mediakit-critique atom (benchmark-compare per metric plus structural review; structural_only degraded mode when benchmarks are unsourced) routed via content_critique to partnership-mediakit",
+        "MCP tools contact_lookup and deal_status (read-only, PII-masked); runner OPS accounts.resolve/contacts/deal_status"
+      ],
+      "privacy_posture": "Contacts are PII: account/deal reads are read-only, output is for the human operator on-machine, and MCP tools plus the CLI redact names and emails for anything quoted off-machine. No new tracked files under pipeline/; fixtures are fictional with .example emails.",
+      "status": "shipped",
+      "explicit_non_action": "No CRM write paths; no nickname dictionary or phonetic matching; no combined crm_scan MCP tool; no sourcing of the null benchmark metric rows; quality-review scope unchanged."
     }
   ],
   "updated": "2026-07-04"

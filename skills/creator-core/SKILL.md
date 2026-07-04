@@ -96,6 +96,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `production_plan` | Pipeline/CRM | `deal-resourcing` | production resource planning from deal |
 | `outreach_draft` | Pipeline/CRM | `partnership-mediakit` | outreach email or pitch draft |
 | `media_kit` | Pipeline/CRM | `partnership-mediakit` | media kit generation |
+| `content_critique` | Pipeline/CRM | `partnership-mediakit` | critique the creator's own media kit against the market: benchmark comparison per metric plus a structural review (mediakit-critique; degrades to structural_only when benchmarks are unsourced; not the internal Quality Gates, which are quality_check) |
 | `contract_review` | Pipeline/CRM | `contract-desk` | review an inbound brand contract: triage, clause findings, legal-requirement flags, escalation brief (gated by contract_management) |
 | `contract_draft` | Pipeline/CRM | `contract-desk` | draft a plain-language agreement from the playbook standards (Phase 2; gated by contract_drafting; never binding language) |
 | `contract_amendment` | Pipeline/CRM | `contract-desk` | trace changes across contract versions, net current state (Phase 2; gated by contract_redline) |
