@@ -56,15 +56,10 @@
       "title": "No media-kit critique path: media_kit routes to a generation-only spoke; quality_check scores internal gates, not market benchmarks; no content_critique classification",
       "probe": { "op": "routing.probe", "with": { "classification": "content_critique", "expect": "absent" } },
       "scenarios": ["S4-mediakit-critique"]
-    },
-    {
-      "id": "G8",
-      "title": "Benchmark coverage: benchmarks.json has 2 dedicated-video rate rows and zero of benchmark-compare's 6 metric rows (ctr, avd, engagement_rate, views, subscribers, rpm with low/high/unit)",
-      "probe": { "op": "text.probe", "with": { "file": "canonical-sources/rate-benchmarks/benchmarks.json", "pattern": "\"low\"|\"unit\"|engagement_rate|\"rpm\"", "expect": "absent" } },
-      "scenarios": ["S4-mediakit-critique"]
     }
   ],
   "_closed_gaps": {
+    "G8": "Closed by P30: benchmarks.json rate rows gained structured low/high/unit/currency (parsed from their own prose) and benchmark-compare's 6 metric rows now exist with the low/high/unit schema, values sourced-or-null (null until verified against a registered rate-benchmark source; never estimated).",
     "G9": "Closed by P28: shared/docintel/transcripts.py gap_metrics() and suggest_chapters() provide pause/silence and words_per_minute analysis from transcript timecodes.",
     "G10": "Closed by P28: footage_breakdown classification routes to video-development (footage-analysis atom)."
   },
@@ -197,16 +192,23 @@
           ]
         },
         {
-          "id": "benchmark-rate-rows-exist",
+          "id": "benchmark-rows-structured",
           "op": "json.load",
           "with": { "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json" },
           "assert": [
             { "path": "[0].id", "check": "eq", "value": "rate-dedicated-50-100k" },
-            { "path": "[1].id", "check": "eq", "value": "rate-format-50-100k" }
+            { "path": "[0].low", "check": "eq", "value": 500 },
+            { "path": "[0].high", "check": "eq", "value": 3000 },
+            { "path": "[0].unit", "check": "eq", "value": "USD_per_video" },
+            { "path": "[1].id", "check": "eq", "value": "rate-format-50-100k" },
+            { "path": "[2].metric", "check": "eq", "value": "ctr" },
+            { "path": "[2].low", "check": "null" },
+            { "path": "[7].metric", "check": "eq", "value": "rpm" },
+            { "path": "[7].unit", "check": "eq", "value": "USD_per_1000_views" }
           ]
         }
       ],
-      "known_gaps": ["G7", "G8"]
+      "known_gaps": ["G7"]
     },
     {
       "id": "S5-raw-footage",

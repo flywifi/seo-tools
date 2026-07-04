@@ -23,8 +23,11 @@ kits, or negotiation briefs draws from the same source of truth and applies the 
 
 It handles two scenarios:
 
-1. the creator's actual rates are provided: each requested format is filled from `alex_actual_rates`. Source
-   is marked `personal_rate`. No benchmark data is surfaced unless a format is missing from the
+1. the creator's actual rates are available: each requested format is filled from `alex_actual_rates`
+   when the caller provides them, else from the personal rate actuals file
+   rate-card.local.json under pipeline/user-context/ (gitignored; schema:
+   `pipeline/user-context/rate-card.template.json`; rows saved by the human from deal-debrief
+   proposals). Source is marked `personal_rate`. No benchmark data is surfaced unless a format is missing from the
    provided rates.
 2. the creator's rates are not provided (or a format is absent from them): the atom reads
    `canonical-sources/rate-benchmarks/benchmarks.json` and returns the benchmark range for that
@@ -64,7 +67,9 @@ returned with `rate_or_range: null` and a `notes` value explaining the gap.
 Field rules:
 - `format_list` is required. It must contain at least one value from the allowed set above. Unknown
   format identifiers are returned with `rate_or_range: null` and a note flagging the unrecognized key.
-- `alex_actual_rates` is optional. If omitted entirely, all formats fall back to benchmark ranges.
+- `alex_actual_rates` is optional. If omitted, the personal rate-card local file is checked next;
+  only when neither has the format do benchmark ranges apply. Rate benchmark rows carry structured
+  `low`/`high`/`unit` fields (P30); metric-benchmark rows with null values are never quoted as ranges.
   If provided but a format key is absent, that format falls back to benchmark ranges and is labeled
   `benchmark_range`. Never infer a missing rate from adjacent formats.
 
