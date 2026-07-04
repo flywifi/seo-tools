@@ -37,21 +37,6 @@
       "scenarios": ["S2-lightbulb-contract"]
     },
     {
-      "id": "G5",
-      "title": "Broken load ref: skills/atoms/seasonal-map/SKILL.md lists canonical-sources/seasonal-aesthetic.md which does not exist (escapes drift invariant 5's backtick-only scan)",
-      "probe": [
-        { "op": "text.probe", "with": { "file": "skills/atoms/seasonal-map/SKILL.md", "pattern": "canonical-sources/seasonal-aesthetic\\.md", "expect": "present" } },
-        { "op": "path.probe", "with": { "path": "canonical-sources/seasonal-aesthetic.md", "expect": "absent" } }
-      ],
-      "scenarios": ["S3-seasonal-prep"]
-    },
-    {
-      "id": "G6",
-      "title": "Seasonal publish-by deadlines are prose-only with 3 non-reconciled copies (engine table, seasonal.json relative windows, seasonal-map table); no machine-readable ISO source",
-      "probe": { "op": "text.probe", "with": { "file": "canonical-sources/seasonal-aesthetic/seasonal.json", "pattern": "[0-9]{4}-[0-9]{2}-[0-9]{2}", "expect": "absent" } },
-      "scenarios": ["S3-seasonal-prep"]
-    },
-    {
       "id": "G7",
       "title": "No media-kit critique path: media_kit routes to a generation-only spoke; quality_check scores internal gates, not market benchmarks; no content_critique classification",
       "probe": { "op": "routing.probe", "with": { "classification": "content_critique", "expect": "absent" } },
@@ -59,6 +44,8 @@
     }
   ],
   "_closed_gaps": {
+    "G5": "Closed by P32: canonical-sources/seasonal-aesthetic.md now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 (frontmatter load refs) and canonical-sources in KNOWN_ROOTS close the scan hole that let the dangling ref escape.",
+    "G6": "Closed by P32: canonical-sources/seasonal-aesthetic/seasonal.json gained the seasonal-windows entry with resolved ISO dates for reference_year 2026 (annual recurrence stated); the engine table, seasonal-map table, and JSON are reconciled to the same eight windows.",
     "G8": "Closed by P30: benchmarks.json rate rows gained structured low/high/unit/currency (parsed from their own prose) and benchmark-compare's 6 metric rows now exist with the low/high/unit schema, values sourced-or-null (null until verified against a registered rate-benchmark source; never estimated).",
     "G9": "Closed by P28: shared/docintel/transcripts.py gap_metrics() and suggest_chapters() provide pause/silence and words_per_minute analysis from transcript timecodes.",
     "G10": "Closed by P28: footage_breakdown classification routes to video-development (footage-analysis atom)."
@@ -155,9 +142,21 @@
           "assert": [
             { "path": "action_queue[0].urgency_band", "check": "eq", "value": "overdue", "pinned_today_only": true }
           ]
+        },
+        {
+          "id": "seasonal-canonical-source",
+          "op": "json.load",
+          "with": { "fixture": "repo:canonical-sources/seasonal-aesthetic/seasonal.json" },
+          "assert": [
+            { "path": "[4].id", "check": "eq", "value": "seasonal-windows" },
+            { "path": "[4].reference_year", "check": "eq", "value": 2026 },
+            { "path": "[4].windows", "check": "len_eq", "value": 8 },
+            { "path": "[4].windows[0].youtube_publish_by", "check": "eq", "value": "2026-09-01" },
+            { "path": "[4].windows[7].pinterest_pin_by", "check": "eq", "value": "2026-07-10" }
+          ]
         }
       ],
-      "known_gaps": ["G5", "G6"]
+      "known_gaps": []
     },
     {
       "id": "S4-mediakit-critique",

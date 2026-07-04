@@ -19,18 +19,20 @@ retrieval is performed.
 ## Purpose
 
 Content-strategy spokes and idea-generate need to know whether a topic is time-sensitive before
-scheduling it. This atom answers that question in one call without touching the web. It is the
-authoritative source of seasonal timing inside Creator OS for the home decor and DIY
-niche.
+scheduling it. This atom answers that question in one call without touching the web. Seasonal
+timing is owned by `canonical-sources/seasonal-aesthetic.md` (prose) and
+`canonical-sources/seasonal-aesthetic/seasonal.json` (machine-readable ISO dates); the rows
+below derive from that canonical table and must stay reconciled with it.
 
-Moody/vintage home decor seasonal peaks used by this atom:
+Moody/vintage home decor seasonal peaks used by this atom (derived from the canonical
+eight-window table; the four windows most relevant to this niche):
 
 | Season | Peak window | Ideal publish-by |
 |---|---|---|
-| Fall mantel and autumn decor | September to October | August 20 to 31 |
-| Holiday tablescapes and winter decor | November to December | October 25 to November 7 |
-| Spring refresh and light interiors | March to April | February 20 to March 7 |
-| Summer outdoor and backyard | May to June | April 20 to May 7 |
+| Fall mantel and autumn decor | September 15 to October 20 | September 1 (pins by August 15) |
+| Holiday tablescapes and winter decor | November 20 to December 15 | November 10 (pins by October 31) |
+| Spring refresh and light interiors | March 1 to April 15 | February 20 (pins by February 10) |
+| Summer outdoor and backyard | May 1 to June 30 | April 25 (pins by April 10) |
 
 Evergreen topics (thrift-haul walkthroughs, budget room makeovers, furniture flips, organization
 systems) carry no publish-by constraint and receive urgency "off_season" unless they incidentally

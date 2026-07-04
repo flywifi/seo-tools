@@ -1,6 +1,24 @@
 [
-  {"id": "season-christmas", "title": "Christmas", "text": "vintage decor stylernaments, candlelight, dark greenery; not red and green farmhouse; publish Pinterest 6 to 8 weeks ahead, video 3 to 6 weeks ahead", "category": "seasonal"},
+  {"id": "season-christmas", "title": "Christmas", "text": "vintage decor styled ornaments, candlelight, dark greenery; not red and green farmhouse; publish Pinterest 6 to 8 weeks ahead, video 3 to 6 weeks ahead", "category": "seasonal"},
   {"id": "season-fall", "title": "Fall", "text": "gothic, rich burgundy, burnished brass, dried botanicals, layered textiles", "category": "seasonal"},
   {"id": "season-spring", "title": "Spring", "text": "botanical prints, muted dusty rose, brass vessels, vintage garden elements", "category": "seasonal"},
-  {"id": "season-calendar", "title": "Seasonal calendar", "text": "January organize, February cozy, March to April outdoor, summer retreat, fall layered coziness, November to December holiday", "category": "seasonal"}
+  {"id": "season-calendar", "title": "Seasonal calendar", "text": "January organize, February cozy, March to April outdoor, summer retreat, fall layered coziness, November to December holiday", "category": "seasonal"},
+  {
+    "id": "seasonal-windows",
+    "title": "Seasonal timing windows (machine-readable)",
+    "category": "seasonal",
+    "source": "shared/seo-intelligence-engine.md (Seasonal SEO lead times); prose companion canonical-sources/seasonal-aesthetic.md",
+    "reference_year": 2026,
+    "recurrence": "annual; the month-day pairs are canonical and recur every year; dates below are resolved for reference_year so offline tools can do exact date math; resolve to the planning year in real calendars",
+    "windows": [
+      {"window": "Fall / Halloween", "search_peak_start": "2026-09-15", "search_peak_end": "2026-10-20", "youtube_publish_by": "2026-09-01", "pinterest_pin_by": "2026-08-15"},
+      {"window": "Thanksgiving / late fall", "search_peak_start": "2026-11-01", "search_peak_end": "2026-11-25", "youtube_publish_by": "2026-10-25", "pinterest_pin_by": "2026-10-10"},
+      {"window": "Christmas / holiday", "search_peak_start": "2026-11-20", "search_peak_end": "2026-12-15", "youtube_publish_by": "2026-11-10", "pinterest_pin_by": "2026-10-31"},
+      {"window": "New Year organizing", "search_peak_start": "2026-12-26", "search_peak_end": "2027-01-15", "youtube_publish_by": "2026-12-20", "pinterest_pin_by": "2026-12-10"},
+      {"window": "Valentine / cozy February", "search_peak_start": "2026-02-01", "search_peak_end": "2026-02-14", "youtube_publish_by": "2026-01-28", "pinterest_pin_by": "2026-01-15"},
+      {"window": "Spring refresh", "search_peak_start": "2026-03-01", "search_peak_end": "2026-04-15", "youtube_publish_by": "2026-02-20", "pinterest_pin_by": "2026-02-10"},
+      {"window": "Summer outdoor", "search_peak_start": "2026-05-01", "search_peak_end": "2026-06-30", "youtube_publish_by": "2026-04-25", "pinterest_pin_by": "2026-04-10"},
+      {"window": "Back-to-school / fall prep", "search_peak_start": "2026-08-01", "search_peak_end": "2026-08-25", "youtube_publish_by": "2026-07-25", "pinterest_pin_by": "2026-07-10"}
+    ]
+  }
 ]

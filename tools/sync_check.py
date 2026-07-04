@@ -46,6 +46,9 @@ Invariants enforced:
   21. Content secret scan: tools/secret_scan.py --tracked finds no API keys, private keys,
       credential values, session links, or non-allowlisted email addresses in tracked file
       content (the filename invariants 19 and 20 are blind to content).
+  22. Frontmatter load refs: every repo-relative path named in a SKILL.md frontmatter list
+      (load:, engines_required:, protocols:) exists on disk. Closes the un-backticked-ref
+      hole that invariant 5's backtick-only scan cannot see.
 """
 import json
 import os
@@ -152,7 +155,8 @@ def check_formatting():
 
 
 PATH_RE = re.compile(r"`([A-Za-z0-9_.][A-Za-z0-9_./-]*\.(?:md|json|py|js))`")
-KNOWN_ROOTS = ("shared", "protocols", "skills", "pipeline", "tools", "docs", ".claude")
+KNOWN_ROOTS = ("shared", "protocols", "skills", "pipeline", "tools", "docs", ".claude",
+               "canonical-sources")
 
 
 def check_references():
@@ -173,6 +177,29 @@ def check_references():
                 ref = match.group(1)
                 if ref.split("/")[0] in KNOWN_ROOTS and not (ROOT / ref).exists():
                     problem(f"{rel}: references missing path `{ref}`")
+
+
+def check_frontmatter_loads():
+    """Invariant 22: every repo-relative path in a SKILL.md frontmatter load:/engines_required:/
+    protocols: list exists on disk. These YAML entries are usually not backticked, so the
+    invariant-5 scan never sees them; a dangling load ref means an atom silently loads nothing."""
+    skills = ROOT / "skills"
+    if not skills.exists():
+        return
+    list_item = re.compile(r"^\s*-\s*[\"']?([A-Za-z0-9_.][A-Za-z0-9_./-]*\.(?:md|json|py|js))[\"']?\s*$")
+    for skill_md in sorted(skills.rglob("SKILL.md")):
+        rel = skill_md.relative_to(ROOT)
+        text = skill_md.read_text(encoding="utf-8")
+        m = FM_RE.match(text)
+        if not m:
+            continue
+        for line in m.group(1).splitlines():
+            item = list_item.match(line)
+            if not item:
+                continue
+            ref = item.group(1)
+            if ref.split("/")[0] in KNOWN_ROOTS and not (ROOT / ref).exists():
+                problem(f"{rel}: frontmatter references missing path {ref}")
 
 
 def check_hub():
@@ -579,6 +606,7 @@ def main():
     check_skills()
     check_formatting()
     check_references()
+    check_frontmatter_loads()
     check_hub()
     check_workflows()
     check_yaml_strict()
