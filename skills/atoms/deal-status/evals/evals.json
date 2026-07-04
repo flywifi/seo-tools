@@ -1,0 +1,46 @@
+[
+  {
+    "test_id": "deal-status-by-brand",
+    "description": "an alias-resolved brand lists its deal with the verbatim stage",
+    "input": { "query": "lumen" },
+    "expected_output_keys": ["deals"],
+    "assertions": [
+      "the deal resolves via the account alias",
+      "stage is the record's stage, quoted verbatim",
+      "computed_by is tools/accounts.py.deal_status"
+    ]
+  },
+  {
+    "test_id": "deal-status-by-id",
+    "description": "an explicit deal_id returns that deal, bypassing resolution",
+    "input": { "deal_id": "deal-lumen-001" },
+    "expected_output_keys": ["deals"],
+    "assertions": [
+      "exactly the requested deal is returned",
+      "latest_stage_event is the last stage_history entry",
+      "invoice_status is the denormalized invoice.status, verbatim"
+    ]
+  },
+  {
+    "test_id": "deal-status-unknown-id",
+    "description": "an unknown deal_id gaps, never fabricates a stage",
+    "input": { "deal_id": "deal-does-not-exist" },
+    "expected_output_keys": ["deals", "gaps"],
+    "assertions": [
+      "deals is empty",
+      "a gap names the missing deal id",
+      "no stage or date is invented (no-fabrication)"
+    ]
+  },
+  {
+    "test_id": "deal-status-unresolved-brand",
+    "description": "an ambiguous brand returns no deals, only resolver candidates",
+    "input": { "query": "hearth" },
+    "expected_output_keys": ["deals", "gaps"],
+    "assertions": [
+      "deals is empty because the brand did not resolve to one account",
+      "a gap directs the caller to disambiguate first",
+      "no deal is invented"
+    ]
+  }
+]

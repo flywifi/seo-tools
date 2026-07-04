@@ -3,6 +3,7 @@
   "id": "deal-pipeline",
   "description": "Deal lifecycle management: stage transitions, usage rights checks, and exclusivity conflict detection.",
   "steps": [
+    {"step": 0, "atom": "deal-status", "input_from": "deal_id or a brand phrase", "output_to": "final", "condition": "action is deal_status; read-only; reports the deal's stage and lifecycle fields verbatim, no transition, no money math"},
     {"step": 1, "atom": "deal-stage-advance", "input_from": "deal_id + current_stage + target_stage + evidence", "output_to": "step2", "condition": "action is advance_stage"},
     {"step": 2, "atom": "usage-rights-check", "input_from": "deal_id or contract_text", "output_to": "step3", "condition": "stage is contract-negotiating or signed or action includes rights_check"},
     {"step": 3, "atom": "exclusivity-check", "input_from": "deal_id + brand_category", "output_to": "step4", "condition": "stage is contract-negotiating or signed"},
@@ -10,6 +11,6 @@
     {"step": 5, "atom": "gap-record", "input_from": "missing evidence from step1", "output_to": "step6", "condition": "transition_allowed is false"},
     {"step": 6, "atom": "govern-artifact", "input_from": "assembled_deal_report", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
   ],
-  "shortcut_atoms": ["deal-stage-advance", "usage-rights-check", "exclusivity-check", "account-health"],
+  "shortcut_atoms": ["deal-status", "deal-stage-advance", "usage-rights-check", "exclusivity-check", "account-health"],
   "note": "Stage transitions require evidence per pipeline-engine.md rules. FTC disclosure check fires on every outreach-sent and signed transition. Contract review triggers at contract-negotiating per protocols/safety.md."
 }

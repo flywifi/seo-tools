@@ -358,7 +358,7 @@ def selftest() -> int:
     table = parse_routing_table()
     expect("routing table parses with 25 or more rows", len(table) >= 25)
     expect("seasonal_planning routes to seasonal-trends", table.get("seasonal_planning") == "seasonal-trends")
-    expect("account_read is not in the live table", "account_read" not in table)
+    expect("crm_query is not in the live table", "crm_query" not in table)
 
     obj = {"a": {"b": [{"c": 5}]}, "s": "hello world", "l": [1, 2, 3]}
     expect("path a.b[0].c resolves", resolve_path(obj, "a.b[0].c")[1] == 5)
@@ -377,7 +377,7 @@ def selftest() -> int:
     expect("gap-diff logic detects a silently closed gap", declared != observed)
 
     clock = {"today": date(2026, 9, 15), "year": 2026, "lead_days": 3, "pinned": True}
-    expect("routing.probe absent works", run_probe({"op": "routing.probe", "with": {"classification": "account_read", "expect": "absent"}}, table, clock))
+    expect("routing.probe absent works", run_probe({"op": "routing.probe", "with": {"classification": "crm_query", "expect": "absent"}}, table, clock))
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({12 - len(failures)} of 12 checks)")
     return 1 if failures else 0
 

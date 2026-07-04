@@ -1084,6 +1084,26 @@ def contact_lookup(query: str, person: str | None = None, redacted: bool = False
         return json.dumps({"error": str(exc)})
 
 
+@mcp.tool()
+def deal_status(query: str | None = None, deal_id: str | None = None,
+                redacted: bool = False) -> str:
+    """Report a deal's lifecycle status verbatim (P32). Read-only, always available: stage, the
+    latest stage_history event, payment_due_date, and the denormalized invoice.status, quoted
+    from pipeline/deals/*.local.json. Give a brand phrase (resolved to the account, then its
+    deals are listed) or an explicit deal_id. NO money math (aging, penalties, totals are
+    finance_scan) and NO stage transition (that is the evidence-gated deal-pipeline flow).
+    EXPOSURE NOTE: brand names are real; pass redacted=True for anything quoted off this
+    machine."""
+    sys.path.insert(0, str(HERE))
+    import accounts as _acct  # type: ignore
+    try:
+        result = _acct.deal_status(query=query, deal_id=deal_id)
+        return json.dumps(_acct.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
