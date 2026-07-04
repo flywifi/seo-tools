@@ -109,6 +109,17 @@ deal compliance.
 - MCP tools: quality_score
 - Data: reads from pipeline/deals/ and pipeline/accounts/ only
 
+**Cost Researcher** — vendor and product price research for cost estimates and proposals (P30):
+observed prices with URL and date, expense vs capex classification, cited time-required ranges.
+- Engines: finance-engine, web-intel-engine, injection-guard-engine
+- Protocols: no-fabrication (a price not observed on a source is null, never estimated),
+  research-citation, safety (financial boundary)
+- MCP tools: cache_query, source_staleness
+- Web: web-intel L2 public data and L3 polite crawl for vendor pricing pages
+- Output schema: shared/schemas/cost-research.json. Dispatch requires the cost_research flag;
+  findings are proposals and only the human writes the cost library
+  (canonical-sources/cost-library/costs.json).
+
 ### 2.1 Machine-readable agent contracts
 
 Every agent definition file in `.claude/agents/*.md` must contain these four sections:

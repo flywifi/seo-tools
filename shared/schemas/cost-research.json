@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "cost-research",
+  "description": "Output contract for the cost-researcher agent (P30). Every price is observed on a cited source or null (never estimated); expense vs capex classification is organizational per shared/finance-engine.md; the human decides what enters canonical-sources/cost-library/costs.json. Includes the verification envelope (minority_report, confidence_evidence, source_citations) per shared/schemas/verification-envelope.json.",
+  "type": "object",
+  "required": ["items", "gaps", "minority_report", "confidence_evidence", "source_citations", "human_review_required"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["product_or_service", "price", "currency", "capex_or_expense"],
+        "properties": {
+          "product_or_service": { "type": "string" },
+          "vendor": { "type": ["string", "null"] },
+          "price": { "type": ["number", "null"], "description": "observed on the cited source, or null; never estimated" },
+          "currency": { "type": "string", "default": "USD" },
+          "unit": { "type": ["string", "null"], "description": "each, per_quart, per_month, per_hour" },
+          "price_date": { "type": ["string", "null"], "description": "ISO date the price was observed" },
+          "url": { "type": ["string", "null"] },
+          "capex_or_expense": { "type": "string", "enum": ["expense", "capex", "uncertain"] },
+          "category": { "type": ["string", "null"], "description": "finance-engine cost taxonomy category" },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "vendor": { "type": ["string", "null"] },
+                "price": { "type": ["number", "null"] },
+                "url": { "type": ["string", "null"] },
+                "tradeoff": { "type": ["string", "null"] }
+              }
+            }
+          },
+          "notes": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "time_estimates": {
+      "type": "array",
+      "description": "only when a credible published basis exists; the basis is cited or the entry is absent",
+      "items": {
+        "type": "object",
+        "required": ["task", "basis"],
+        "properties": {
+          "task": { "type": "string" },
+          "hours_low": { "type": ["number", "null"] },
+          "hours_high": { "type": ["number", "null"] },
+          "basis": { "type": "string", "description": "the cited published basis; never invented" }
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "gap_type": { "type": "string" },
+          "description": { "type": "string" },
+          "impact": { "type": "string" },
+          "recommended_next_step": { "type": "string" }
+        }
+      }
+    },
+    "minority_report": { "$ref": "verification-envelope.json#/$defs/minority_report" },
+    "confidence_evidence": { "$ref": "verification-envelope.json#/$defs/confidence_evidence" },
+    "source_citations": { "$ref": "verification-envelope.json#/$defs/source_citations" },
+    "human_review_required": { "type": "boolean", "const": true }
+  }
+}

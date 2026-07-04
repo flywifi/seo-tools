@@ -1,7 +1,7 @@
 {
   "_comment": "Creator OS source registry — citation graph. Written and updated exclusively by tools/source_currency.py and tools/traversal_engine.py. Do not edit by hand. Intervals governed by canonical-sources/traversal-config.json.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-02",
+  "last_registry_update": "2026-07-04",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -1392,6 +1392,46 @@
       "extraction_hint": "rules on paid and incentivized reviews and endorsements; relevant to gifted and affiliate deal terms",
       "used_by": [
         "legal-requirement-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "homedepot-materials-pricing",
+      "name": "The Home Depot product pricing (DIY materials and tools)",
+      "url": "https://www.homedepot.com/",
+      "category": "cost-vendor",
+      "tier": "T2",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "current retail prices for project materials (lumber, paint, hardware, fasteners) and tools; per-item vendor pricing pages, not aggregators",
+      "used_by": [
+        "cost-estimate",
+        "cost-researcher"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "lowes-materials-pricing",
+      "name": "Lowe's product pricing (DIY materials and tools)",
+      "url": "https://www.lowes.com/",
+      "category": "cost-vendor",
+      "tier": "T2",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "current retail prices for project materials and tools; per-item vendor pricing pages for cross-vendor comparison against Home Depot",
+      "used_by": [
+        "cost-estimate",
+        "cost-researcher"
       ],
       "depth": 0,
       "parent_source_id": null,

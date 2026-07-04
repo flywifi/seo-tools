@@ -61,8 +61,9 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   competitor analysis, or citation chain traversal. Single-source lookups do not warrant an agent.
 - Agent definitions live in `.claude/agents/`. Workflow scripts live in `.claude/workflows/`.
   Structured output schemas live in `shared/schemas/`.
-- The four agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
-  `deal-reviewer`. Each has a scoped tool list and engine set defined in its agent definition file.
+- The five agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
+  `deal-reviewer`, `cost-researcher`. Each has a scoped tool list and engine set defined in its
+  agent definition file.
 - Every agent output must include `minority_report`, `confidence_evidence`, and `source_citations`
   fields (the verification envelope defined in `shared/schemas/verification-envelope.json`).
 - Every workflow includes an adversarial verification step — a second agent that independently
