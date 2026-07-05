@@ -45,6 +45,9 @@ import obligations  # noqa: E402
 import accounts  # noqa: E402
 import chapters  # noqa: E402
 import transcripts  # noqa: E402
+import tasks as tasks_mod  # noqa: E402
+import shipments as shipments_mod  # noqa: E402
+import coverage_verify as coverage_mod  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location(
     "qr_score", ROOT / "skills" / "quality-review" / "scripts" / "score.py"
@@ -239,6 +242,68 @@ def op_accounts_deal_status(withp, clock, prior):
                                 deals=deals, accounts=roster)
 
 
+def op_tasks_scan(withp, clock, prior):
+    """Delegates to the product capability tools/tasks.scan (P35): the waiting-on vs I-owe split plus
+    overdue/due-soon, computed offline from a fictional task register on the pinned clock."""
+    register = _load_fixture({"fixture": withp["fixture"]}, clock)
+    out = tasks_mod.scan(register, clock["today"])
+    out["computed_by"] = "tools/tasks.py.scan"
+    return out
+
+
+def op_tasks_ping_pong(withp, clock, prior):
+    """Delegates to tools/tasks.advance_ping_pong + apply_deliverable_event (P35). Runs one full
+    two-party approval loop (creator submits, brand requests changes, creator resubmits, brand approves)
+    and fires the deliverable-approval event that flips the payment milestone to billable-ready. Returns
+    the folded end state plus the newly-billable, citation-carrying finance proposal."""
+    fx = _load_fixture({"fixture": withp["fixture"]}, clock)
+    task = fx["task"]
+    schedule = fx["schedule"]
+    at = fx.get("at", clock["today"].isoformat())
+    tasks_mod.advance_ping_pong(task, "submit", at)
+    tasks_mod.advance_ping_pong(task, "request_changes", at)
+    tasks_mod.advance_ping_pong(task, "resubmit", at)
+    folded = tasks_mod.advance_ping_pong(task, "approve", at)
+    newly = tasks_mod.apply_deliverable_event(schedule, fx["deliverable_id"], "approval", at)
+    bill = newly[0] if newly else {}
+    return {
+        "final_status": folded.get("status"),
+        "final_responsible_party": folded.get("responsible_party"),
+        "iteration": (task.get("ping_pong") or {}).get("iteration"),
+        "billable_count": len(newly),
+        "billable_task_id": bill.get("id"),
+        "billable_source_kind": (bill.get("source") or {}).get("kind"),
+        "billable_amount": (bill.get("_billing") or {}).get("amount"),
+        "human_review_required": True,
+        "computed_by": "tools/tasks.py.advance_ping_pong+apply_deliverable_event",
+    }
+
+
+def op_shipment_manual(withp, clock, prior):
+    """Delegates to tools/shipments.manual_shipment + planning_anchor (P35): a manually-entered delivered
+    shipment yields the immutable delivered_at backwards-planning anchor (not a provisional estimate)."""
+    ship = shipments_mod.manual_shipment(
+        tracking_number=withp.get("tracking_number"), carrier=withp.get("carrier"),
+        status=withp.get("status", "delivered"), delivered_at=withp.get("delivered_at"),
+        est_delivery=withp.get("est_delivery"), note=withp.get("note"),
+        source_ref=withp.get("source_ref"), deal_id=withp.get("deal_id"))
+    anchor = shipments_mod.planning_anchor(ship)
+    return {"shipment": ship, "anchor": anchor, "computed_by": "tools/shipments.py.planning_anchor"}
+
+
+def op_coverage_verify(withp, clock, prior):
+    """Delegates to tools/coverage_verify.reconcile + verify_coverage (P35): reconcile N fictional media
+    transcripts to a canonical truth, then verify the required talking points against it with an extractive
+    citation per satisfied point, abstaining rather than inferring. Conflicts surface as a minority_report."""
+    fx = _load_fixture({"fixture": withp["fixture"]}, clock)
+    recon = coverage_mod.reconcile(fx["sources"])
+    result = coverage_mod.verify_coverage(recon.get("canonical_text", ""), fx["required_points"],
+                                          reconciliation=recon)
+    result["reconciliation_conflicts"] = len(recon.get("conflicts", []))
+    result["computed_by"] = "tools/coverage_verify.py.verify_coverage"
+    return result
+
+
 def op_text_probe(withp, clock, prior):
     p = ROOT / withp["file"]
     if not p.exists():
@@ -263,6 +328,10 @@ OPS = {
     "accounts.resolve": op_accounts_resolve,
     "accounts.contacts": op_accounts_contacts,
     "accounts.deal_status": op_accounts_deal_status,
+    "tasks.scan": op_tasks_scan,
+    "tasks.ping_pong": op_tasks_ping_pong,
+    "shipments.manual": op_shipment_manual,
+    "coverage.verify": op_coverage_verify,
     "text.probe": op_text_probe,
     "path.probe": op_path_probe,
 }

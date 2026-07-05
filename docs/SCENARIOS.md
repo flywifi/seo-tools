@@ -31,7 +31,7 @@ The run fails loudly in BOTH directions:
   observing its gap, ALSO fails the suite. Closing a gap is good news, but it must be closed
   deliberately: update `scenarios.json` and this ledger in the same change.
 
-## The five scenarios
+## The six scenarios
 
 | ID | Utterance | Routing verdict | What runs deterministically today |
 |---|---|---|---|
@@ -40,6 +40,7 @@ The run fails loudly in BOTH directions:
 | S3 | "what's the market going to look like for the holiday season and what should I start doing to prepare?" | present: `seasonal_planning` routes to `seasonal-trends` | All 16 seasonal publish-by deadlines through the obligations date math (band counts, roll-backs, prep queue ordered by urgency), plus the canonical machine-readable source itself: `canonical-sources/seasonal-aesthetic/seasonal.json` seasonal-windows entry with 8 windows of resolved ISO dates (P32) |
 | S4 | "here's my media kit, do market research and give me critiques" | present: `content_critique` routes to `partnership-mediakit` (alongside `media_kit` generation and `quality_check` internal gates) | The Quality Gates verdict arithmetic (releasable and integrity hard-fail cases), the structured benchmark rows (2 rate rows with low/high/unit, 6 sourced-or-null metric rows), and the documented honest degradation: with the metric rows null, `mediakit-critique` runs in `structural_only` mode and withholds market-position claims (P32) |
 | S5 | "here's raw footage, break it down: chapters and what to cut" | present: `footage_breakdown` routes to `video-development` (P28; footage-analysis atom) | Transcript parsing (20 segments, exact duration), product silence detection via `shared/docintel/transcripts.gap_metrics` (three 8-to-20 second gaps), chapter fan-out and YouTube-rule validation on an authored chapter list |
+| S6 | "what am I waiting on from Northwind, and did my final cut cover the approved talking points?" | present: `task_status` and `coverage_check` both route to `task-desk` (P35) | The task tracker end to end on a fictional brand: `tools/tasks.scan` splits waiting-on (aging brand review) from I-owe (overdue brief plus a due-soon script); a full two-party approval loop through `advance_ping_pong` (creator submit, brand request-changes, creator resubmit, brand approve) lands `done` with the responsible-party flip and iteration count, and the approval fires an acceptance-required milestone into a citation-carrying (`event_derived`) billable finance proposal; a manual delivered shipment yields the immutable `delivered_at` planning anchor; and `coverage_verify` reconciles two divergent transcripts (one credible conflict, surfaced as a minority report) then verifies the required points with an extractive citation per satisfied point, abstaining on the absent return-policy point rather than inferring |
 
 ## Gap ledger (the later-phase backlog)
 

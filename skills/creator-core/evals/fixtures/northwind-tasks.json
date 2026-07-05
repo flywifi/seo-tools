@@ -1,0 +1,52 @@
+{
+  "_comment": "TEST-ONLY fictional task register for the P35 task tracker (S6). Exercises tools/tasks.scan: the waiting-on vs I-owe split plus overdue/due-soon on the pinned clock 2026-09-15. Every task carries a source (anti-phantom). No real brand or person.",
+  "_boundary": "Local task tracking. Human review required before any status change or send.",
+  "schema_version": "0.1.0",
+  "deal_id": "deal-northwind-001",
+  "contract_ref": "contract-northwind-2026",
+  "tasks": [
+    {
+      "id": "task-nw-draft-review",
+      "title": "Northwind reviews the spring haul draft",
+      "task_kind": "waiting_on",
+      "status": "waiting_external",
+      "responsible_party": "brand",
+      "waiting_on_party": "brand",
+      "due_date": null,
+      "blocked_by": [],
+      "handoff": {"handed_off_at": "2026-09-08", "expected_response_business_days": 3, "response_due_at": "2026-09-11"},
+      "source": {"kind": "document", "ref": {"contract_id": "contract-northwind-2026", "clause": "3.1"}}
+    },
+    {
+      "id": "task-nw-script",
+      "title": "Write the spring haul script",
+      "task_kind": "next_action",
+      "status": "in_progress",
+      "responsible_party": "creator",
+      "due_date": "2026-09-16",
+      "blocked_by": [],
+      "source": {"kind": "user_stated", "channel": "chat", "at": "2026-09-05"}
+    },
+    {
+      "id": "task-nw-brief",
+      "title": "Send the collaboration brief back to Northwind",
+      "task_kind": "next_action",
+      "status": "not_started",
+      "responsible_party": "creator",
+      "due_date": "2026-09-09",
+      "blocked_by": [],
+      "source": {"kind": "document", "ref": {"message_id": "msg-brief-thread-0912"}}
+    },
+    {
+      "id": "task-nw-contract-signed",
+      "title": "Countersign the Northwind agreement",
+      "task_kind": "milestone",
+      "status": "done",
+      "responsible_party": "creator",
+      "due_date": "2026-09-02",
+      "blocked_by": [],
+      "source": {"kind": "document", "ref": {"contract_id": "contract-northwind-2026", "clause": "signature"}}
+    }
+  ],
+  "human_review_required": true
+}

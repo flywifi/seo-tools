@@ -718,6 +718,58 @@ def check_construction():
                     problem(f"construction: {jf.name}:{rid} diagram_ref '{d}' is not in diagram-index.json")
 
 
+def check_task_tracker():
+    """Invariant 24: task-tracker integrity (P35).
+
+    The task tracker rests on four gitignored record templates, three offline tools, its canonical
+    engine, and four config capabilities. This verifies each piece is present and structurally sound so
+    a spoke never composes against a missing store or tool: the task-register / recurrence-rules /
+    shipments / payment-schedule templates exist and parse as JSON; tools/tasks.py, tools/shipments.py,
+    and tools/coverage_verify.py exist; shared/tasks-engine.md exists; and creator-os-config.json
+    declares task_tracking, shipment_tracking, coverage_verification, and task_store_backend. No-op when
+    none of the task-tracker files are present (the feature has not been installed)."""
+    uc = ROOT / "pipeline" / "user-context"
+    templates = [
+        "task-register.template.json",
+        "recurrence-rules.template.json",
+        "shipments.template.json",
+        "payment-schedule.template.json",
+    ]
+    tools = ["tasks.py", "shipments.py", "coverage_verify.py"]
+    engine = ROOT / "shared" / "tasks-engine.md"
+
+    present = engine.exists() or any((uc / t).exists() for t in templates) or \
+        any((ROOT / "tools" / t).exists() for t in tools)
+    if not present:
+        return
+
+    for t in templates:
+        p = uc / t
+        if not p.exists():
+            problem(f"task-tracker: missing register template pipeline/user-context/{t}")
+            continue
+        try:
+            json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"task-tracker: {t} is not valid JSON: {exc}")
+    for t in tools:
+        if not (ROOT / "tools" / t).exists():
+            problem(f"task-tracker: missing tool tools/{t}")
+    if not engine.exists():
+        problem("task-tracker: missing canonical engine shared/tasks-engine.md")
+
+    cfg = ROOT / "creator-os-config.json"
+    if cfg.exists():
+        try:
+            caps = (json.loads(cfg.read_text(encoding="utf-8")) or {}).get("capabilities", {})
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"task-tracker: creator-os-config.json unreadable: {exc}")
+            caps = {}
+        for cap in ("task_tracking", "shipment_tracking", "coverage_verification", "task_store_backend"):
+            if cap not in caps:
+                problem(f"task-tracker: creator-os-config.json is missing the '{cap}' capability")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -742,6 +794,7 @@ def main():
     check_secret_content()
     check_dependency_registry()
     check_construction()
+    check_task_tracker()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
