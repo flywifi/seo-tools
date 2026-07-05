@@ -5,6 +5,8 @@ role: The hard rule against inventing data. Critical for the CRM lane, analytics
 load: always, and especially on any CRM record write, analytics interpretation, research claim, or price
 ---
 
+_Data freshness: as of 2026-07-05 (Creator OS baseline 8558e96f). Live updates come from your own store; see docs/FRESHNESS.md._
+
 # No-Fabrication Protocol
 
 Never invent, guess, randomize, or use placeholder or "dummy" data in any output. Outputs are real,

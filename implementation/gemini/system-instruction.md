@@ -1,3 +1,5 @@
+_Data freshness: as of 2026-07-05 (Creator OS baseline 8558e96f). Live updates come from your own store; see docs/FRESHNESS.md._
+
 # Creator OS — Gemini System Instruction
 
 Paste this into Gemini Advanced → Gems → New Gem → "Instructions" field,

@@ -1,0 +1,52 @@
+{
+  "_boundary": "Owner dev-time projection. Local working tree only; never auto-published, never GitHub.",
+  "as_of": "2026-07-05",
+  "canonical_digest": "8558e96f6b70d8d3e7474513a85715567bc0303480f5829764196604c2027bfd",
+  "managed_files": [
+    {
+      "file": "implementation/claude/project/knowledge/01-creator-core.md",
+      "sha256": "272db7ba72e9a7b2dbd6955be0ace609ab4e81f5960ff9dd60c8ba33fa75bd2d"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/02-brand-voice.md",
+      "sha256": "794619f513688f967c52ac785ac01dc8a8b78713430a83d5dcda0ddffde52020"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/03-platform-seo.md",
+      "sha256": "7b70fac389bdeba9daccb21cc531d68468a4b02b3499aa10dd368b6a3cb1e18b"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/04-protocols.md",
+      "sha256": "f6905874e2b51be2574f09517f50fac02d73242171b96011ea4db6e09c1bf7d7"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/05-content-spokes.md",
+      "sha256": "088bc22720de7ed85540c09c19ca7f2ccc394f6066d2e1f7182198189b01c68e"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/06-document-spoke.md",
+      "sha256": "b5b2b1c382a97219f12b03dab111456f3abe11eacf78bb3c5c816677ea536f72"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/07-pipeline-spokes.md",
+      "sha256": "3addd0921dd7cf080dc4d895e7ed606f8b93d8eb0a96c505eebfad52acb427e8"
+    },
+    {
+      "file": "implementation/claude/project/knowledge/08-key-atoms.md",
+      "sha256": "825797d345f2898657f3b10210cbdeea7d8340c5426f29fa213d18a763da8adc"
+    },
+    {
+      "file": "implementation/claude/project/system-prompt.md",
+      "sha256": "a82f7ee3a9bdc8b8abbb43a7f514330fc2b25a72601f94d51b4d7e9fe26b511c"
+    },
+    {
+      "file": "implementation/gpt/web/custom-instructions.md",
+      "sha256": "43c81f94c4e1957ca4b4a462f930c136ba507030330f0a8979ad5d7a8cc268f5"
+    },
+    {
+      "file": "implementation/gemini/system-instruction.md",
+      "sha256": "e112cffb9f3db10738cc6988f335f11524ed1cfc585e1120a0c8b8175f61cf6f"
+    }
+  ],
+  "generated_by": "tools/build_freshness_bundle.py"
+}

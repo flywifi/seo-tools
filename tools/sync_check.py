@@ -718,6 +718,32 @@ def check_construction():
                     problem(f"construction: {jf.name}:{rid} diagram_ref '{d}' is not in diagram-index.json")
 
 
+def check_freshness_bundle():
+    """Invariant 26: knowledge-only-surface freshness projection (P36).
+
+    The implementation/** knowledge digests that feed Claude Projects, Custom GPT, and Gemini must
+    each carry a visible freshness (as_of) stamp and be recorded in the projection manifest
+    (implementation/freshness-bundle.json), and the manifest's canonical_digest must still match the
+    current canonical data. This means a published baseline can never silently lag canonical: editing
+    the tracked sources without re-running build_freshness_bundle --apply fails the guard. No-op when
+    the freshness bundle has not been created yet (the tool/manifest are absent)."""
+    tool = ROOT / "tools" / "build_freshness_bundle.py"
+    manifest = ROOT / "implementation" / "freshness-bundle.json"
+    if not tool.exists() or not manifest.exists():
+        return
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_bfb", tool)
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+        ok, problems = mod.check(ROOT)
+    except Exception as exc:  # noqa: BLE001
+        problem(f"freshness-bundle: check failed to run: {exc}")
+        return
+    for p in problems:
+        problem(f"freshness-bundle: {p}")
+
+
 def check_currency_map():
     """Invariant 25: currency-map integrity (P36).
 
@@ -841,6 +867,7 @@ def main():
     check_construction()
     check_task_tracker()
     check_currency_map()
+    check_freshness_bundle()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
