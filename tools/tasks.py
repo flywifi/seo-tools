@@ -280,9 +280,45 @@ def _empty_register(deal_id=None, contract_ref=None) -> dict:
     }
 
 
-def load_register(backend="local_fs", path=None) -> dict:
-    """Load the register through the selected store backend. Only local_fs is implemented here; the
-    google_drive and remote_mcp backends are wired in later chunks (shared/integrations-engine.md)."""
+def serialize_register(register) -> str:
+    register["task_count"] = len(register.get("tasks", []))
+    register["status_counts"] = _status_counts(register.get("tasks", []))
+    return json.dumps(register, indent=2) + "\n"
+
+
+def deserialize_register(blob) -> dict:
+    return json.loads(blob) if blob else _empty_register()
+
+
+# A human-readable projection for the Google Sheets mirror (regenerated from the canonical JSON, never the
+# source of truth). One header row + one row per task.
+_SHEET_HEADER = ["id", "title", "status", "responsible_party", "due_date", "task_kind", "deal_id",
+                 "source_kind", "source_ref"]
+
+
+def register_to_sheet_rows(register):
+    rows = [list(_SHEET_HEADER)]
+    for t in register.get("tasks", []):
+        src = t.get("source") or {}
+        ref = ""
+        if src.get("kind") == "document":
+            r = src.get("ref") or {}
+            ref = r.get("message_id") or f"{r.get('contract_id', '')} {r.get('section', '')}".strip()
+        elif src.get("kind") == "event_derived":
+            ref = (src.get("rule") or {}).get("rule_id", "")
+        elif src.get("kind") == "user_stated":
+            ref = "user statement"
+        rows.append([t.get("id"), t.get("title"), t.get("status"), t.get("responsible_party"),
+                     t.get("due_date"), t.get("task_kind"), t.get("project_id"), src.get("kind"), ref])
+    return rows
+
+
+def load_register(backend="local_fs", path=None, blob=None) -> dict:
+    """Load the register through the selected store backend over one canonical JSON schema.
+    - local_fs: read the .local.json (Claude Desktop).
+    - google_drive: the host's native Drive connector supplies the file contents as `blob`, or a Drive-synced
+      `path`. Same schema, so web/desktop/mobile share one store; event-log merge keeps them consistent.
+    - remote_mcp: wired in the next chunk (a hosted endpoint serves the same tools)."""
     if backend == "local_fs":
         p = Path(path) if path else REGISTER_PATH
         if not p.exists():
@@ -291,20 +327,38 @@ def load_register(backend="local_fs", path=None) -> dict:
             return json.loads(p.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise ValueError(f"could not read task register: {exc}")
-    if backend in STORE_BACKENDS:
-        raise NotImplementedError(f"store backend '{backend}' is configured in a later chunk; use local_fs")
+    if backend == "google_drive":
+        if blob is not None:
+            return deserialize_register(blob)
+        if path and Path(path).exists():
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        raise ValueError("google_drive backend needs the Drive file contents (blob=) or a synced path=; "
+                         "the host's native Google Drive connector supplies them")
+    if backend == "remote_mcp":
+        raise NotImplementedError("remote_mcp store is served by the remote MCP endpoint; see chunk 14")
     raise ValueError(f"unknown store backend '{backend}'")
 
 
-def save_register(register, backend="local_fs", path=None) -> str:
-    if backend != "local_fs":
-        raise NotImplementedError(f"store backend '{backend}' write is wired in a later chunk")
-    p = Path(path) if path else REGISTER_PATH
-    register["task_count"] = len(register.get("tasks", []))
-    register["status_counts"] = _status_counts(register.get("tasks", []))
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(register, indent=2) + "\n", encoding="utf-8")
-    return str(p)
+def save_register(register, backend="local_fs", path=None):
+    """Persist the register. local_fs writes the file and returns the path. google_drive returns the
+    canonical JSON blob + the Sheets-mirror rows for the host to write via the native connector (and also
+    writes the JSON to a Drive-synced path when one is given). remote_mcp defers to the endpoint."""
+    if backend == "local_fs":
+        p = Path(path) if path else REGISTER_PATH
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(serialize_register(register), encoding="utf-8")
+        return str(p)
+    if backend == "google_drive":
+        blob = serialize_register(register)
+        if path:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            Path(path).write_text(blob, encoding="utf-8")
+        return {"canonical_json": blob, "sheet_rows": register_to_sheet_rows(register),
+                "note": "the host writes canonical_json to the Drive file and sheet_rows to the Sheets mirror "
+                        "via the native Google Drive/Sheets connector"}
+    if backend == "remote_mcp":
+        raise NotImplementedError("remote_mcp write is handled by the remote MCP endpoint; see chunk 14")
+    raise ValueError(f"unknown store backend '{backend}'")
 
 
 def _status_counts(tasks) -> dict:
@@ -951,7 +1005,14 @@ def selftest() -> int:
     dig = reminders_digest({"tasks": [copy.deepcopy(t2)]}, date(2026, 7, 15))
     check("reminders-overdue", len(dig["overdue"]) >= 1)
 
-    n = 43
+    # google_drive store backend: canonical JSON round-trips (shared cross-surface store); Sheets mirror is a projection
+    saved = save_register({"tasks": [copy.deepcopy(t)]}, backend="google_drive")
+    check("gd-canonical", "canonical_json" in saved and "sheet_rows" in saved)
+    reloaded = load_register(backend="google_drive", blob=saved["canonical_json"])
+    check("gd-roundtrip", reloaded["tasks"][0]["id"] == t["id"])
+    check("gd-sheet-projection", saved["sheet_rows"][0][0] == "id" and len(saved["sheet_rows"]) == 2)
+
+    n = 46
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))

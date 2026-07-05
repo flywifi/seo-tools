@@ -608,3 +608,29 @@ fully shut down on December 31, 2025. Any workflow, skill, or documentation refe
 Play.ht as an active integration is outdated. Do not attempt to call Play.ht endpoints.
 If voice generation is needed, surface `needs_more_info: voice_service_unavailable` and
 request a replacement service decision from the creator.
+
+## Task store adapter (P35): Google Drive + Sheets, read and write
+
+The task tracker (`shared/tasks-engine.md`) stores its register through a pluggable adapter in
+`tools/tasks.py` (`load_register`/`save_register`, backends `local_fs | google_drive | remote_mcp`). The
+`google_drive` backend is what makes tasks continuous across Claude web, desktop, and mobile without any
+server to host, because Google Drive is the one substrate all of those surfaces reach natively and it is
+**read and write** (Claude can save files back to Drive).
+
+- **Canonical store:** one JSON file (the same schema as `task-register.template.json`) in the creator's
+  Google Drive. `save_register(..., backend="google_drive")` returns `canonical_json`; the host's native
+  Drive connector writes it to the file. `load_register(backend="google_drive", blob=...)` deserializes the
+  file contents the host read back. We build no Google API auth here (the connector doctrine above); the host
+  performs the I/O.
+- **Human-readable mirror:** `register_to_sheet_rows(register)` projects the register to a Google Sheets
+  mirror (one header row plus one row per task) for at-a-glance viewing and row-level edits. The Sheet is a
+  regenerated projection, never the source of truth.
+- **Concurrency safety:** because the task history is an append-only event log, two surfaces editing the same
+  Drive store are reconciled by `reconcile()` (union of events, then re-fold), not last-writer-wins clobber.
+- **Provider-neutral exports:** the `.ics` calendar (`register_to_ics`), a portable JSON/CSV, and the Sheet
+  make the same data usable in Google/Apple Calendar and in other AI systems (Gemini reads Drive natively;
+  ChatGPT via an app/Drive), so the tracker is not locked to one vendor.
+
+Enable it by connecting the native Google Drive connector and setting `task_store_backend: "google_drive"`
+in `creator-os-config.local.json`. The `local_fs` backend remains the full-fidelity Claude Desktop mode; the
+`remote_mcp` backend (a hosted endpoint) is the cross-AI option.

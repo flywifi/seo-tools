@@ -30,7 +30,8 @@
     "ml_prediction",
     "content_publishing",
     "edit_artifact",
-    "shipment_tracking"
+    "shipment_tracking",
+    "task_store"
   ],
   "evidence_modes": [
     {
@@ -423,10 +424,14 @@
       "vendor": "Google",
       "default_flag": "not_installed",
       "provides": [
-        "document_source"
+        "document_source",
+        "task_store"
+      ],
+      "authoritative_for": [
+        "task_store"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Realized by host AI's native Google Drive integration when the deployment has connected it. Scopes: drive.readonly for reading files. No client built here.",
+      "auth_note": "Realized by host AI's native Google Drive integration when the deployment has connected it. Read AND write (Drive can save files back), so it hosts the P35 task store: the canonical task-register JSON plus a Sheets mirror live in Drive and claude.ai web/mobile and Claude Desktop share one store (event-log merge keeps concurrent surfaces consistent). See shared/tasks-engine.md and shared/integrations-engine.md. No client built here; the host connector performs the I/O.",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
         "option_b_claude_projects",
