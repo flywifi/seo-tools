@@ -29,7 +29,8 @@
     "notebook_session",
     "ml_prediction",
     "content_publishing",
-    "edit_artifact"
+    "edit_artifact",
+    "shipment_tracking"
   ],
   "evidence_modes": [
     {
@@ -738,6 +739,43 @@
       "privacy_sensitivity": "low",
       "auth_note": "No API key required. mcp-server-scikit-learn.",
       "requires_capability": "scikit_learn",
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
+      "status": "seed"
+    },
+    {
+      "id": "easypost_tracking",
+      "label": "EasyPost shipment tracking",
+      "vendor": "EasyPost",
+      "default_flag": "not_installed",
+      "provides": [
+        "shipment_tracking"
+      ],
+      "authoritative_for": [
+        "shipment_tracking"
+      ],
+      "privacy_sensitivity": "medium",
+      "auth_note": "API key via HTTP Basic; read from the EASYPOST_API_KEY environment variable only, never persisted. tools/shipments.py polls over stdlib urllib honoring the env proxy + CA bundle (no webhook). Enable by setting shipment_tracking: true in creator-os-config.local.json and providing the key in the environment.",
+      "requires_capability": "shipment_tracking",
+      "api_reference": "shared/tasks-engine.md",
+      "deployment_support": [
+        "option_a_claude_desktop_mcp"
+      ],
+      "status": "seed"
+    },
+    {
+      "id": "ship24_tracking",
+      "label": "Ship24 shipment tracking",
+      "vendor": "Ship24",
+      "default_flag": "not_installed",
+      "provides": [
+        "shipment_tracking"
+      ],
+      "privacy_sensitivity": "medium",
+      "auth_note": "Bearer API key from the SHIP24_API_KEY environment variable only. Free tier ~10 shipments/month. Alternative to EasyPost; same normalized schema in tools/shipments.py. Enable via shipment_tracking: true and the env key.",
+      "requires_capability": "shipment_tracking",
+      "api_reference": "shared/tasks-engine.md",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
       ],

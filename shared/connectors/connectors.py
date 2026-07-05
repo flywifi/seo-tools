@@ -45,6 +45,7 @@ CAPABILITY_TO_CONNECTOR = {
     "mcp_server": "mcp_server",
     "google_workspace": "gmail",
     "microsoft_365": "microsoft_outlook_email",
+    "shipment_tracking": "easypost_tracking",
     "wolfram_alpha": "wolfram_alpha_mcp",
     "e2b_sandbox": "e2b_code_interpreter",
     "duckdb_analytics": "duckdb_analytics_mcp",
