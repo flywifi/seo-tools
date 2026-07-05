@@ -1,0 +1,34 @@
+# P36 local freshness scheduler (examples). Runs the token-free detection on YOUR machine and writes
+# to YOUR own store overlay. Nothing here contacts GitHub, pushes, or nags. Copy the snippet that
+# fits your OS, set OVERLAY to your store path, and adjust the cadence.
+#
+# The runtime is entirely local: reading public changelog/feed pages is downloading, never uploading.
+# See docs/FRESHNESS.md for the model.
+
+# ---- macOS / Linux cron (crontab -e) ----------------------------------------
+# Every Monday 08:00, detect changes and stamp your overlay; then refresh your local dashboard.
+# 0 8 * * 1  cd /path/to/seo-tools && \
+#   python3 tools/source_currency.py check --detect-changes --apply --overlay "$HOME/CreatorOS/freshness.overlay.json" >/dev/null 2>&1 ; \
+#   python3 tools/source_currency.py dashboard --overlay "$HOME/CreatorOS/freshness.overlay.json" --out "$HOME/CreatorOS/currency-dashboard.md"
+
+# ---- macOS launchd (~/Library/LaunchAgents/com.creatoros.freshness.plist) ----
+# <?xml version="1.0" encoding="UTF-8"?>
+# <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+# <plist version="1.0"><dict>
+#   <key>Label</key><string>com.creatoros.freshness</string>
+#   <key>ProgramArguments</key><array>
+#     <string>/bin/sh</string><string>-c</string>
+#     <string>cd /path/to/seo-tools && python3 tools/source_currency.py check --detect-changes --apply --overlay "$HOME/CreatorOS/freshness.overlay.json"</string>
+#   </array>
+#   <key>StartCalendarInterval</key><dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer></dict>
+# </dict></plist>
+# Load with: launchctl load ~/Library/LaunchAgents/com.creatoros.freshness.plist
+
+# ---- Notes ------------------------------------------------------------------
+# - OVERLAY should live in a folder YOU control (Claude Desktop MCP allowed-dir, or a Drive/on-device
+#   folder). Prefer a folder that is NOT continuously cloud-synced to avoid last-writer-wins races;
+#   the append-only union-merge protects the data, but single-device writes are simplest.
+# - Optional carrier/API keys are read from the environment only (EASYPOST_API_KEY, etc.), never
+#   persisted. The detection core needs no keys.
+# - There is no scheduled GitHub job. Downloading a newer shared baseline (git pull) is a separate,
+#   manual choice you make when you want it.

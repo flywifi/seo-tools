@@ -241,6 +241,89 @@ def source_staleness(category: str = "") -> str:
     return out.strip()
 
 
+@mcp.tool()
+def currency_scan(category: str = "", overlay_path: str = "") -> str:
+    """Report your sources' freshness, merging YOUR personal freshness overlay when given (P36).
+
+    Read-only. With overlay_path, union-merges your own store's freshness stamps onto the read-only
+    baseline so you see YOUR up-to-date view. Writes nothing; never touches GitHub.
+
+    Args:
+        category: Optional category filter (seo-authority, api-changelog, platform-spec, ...).
+        overlay_path: Path to your personal freshness overlay JSON (your store). Omit for baseline-only.
+    """
+    cmd = [sys.executable, str(ROOT / "tools" / "source_currency.py"), "report"]
+    if category:
+        cmd += [f"--category={category}"]
+    if overlay_path:
+        cmd += ["--overlay", overlay_path]
+    rc, out, err = _run(cmd)
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "currency scan failed"})
+    return out.strip()
+
+
+@mcp.tool()
+def currency_detect_changes(overlay_path: str, apply: bool = False, category: str = "", only: str = "") -> str:
+    """Token-free change detection over your web sources; stamps go to YOUR overlay only (P36).
+
+    Conditional-GET + sha256 per source; unchanged/first-seen are stamped, changed pages are queued
+    for you to interpret. With apply=true, freshness stamps are written to overlay_path (your own
+    store) -- NEVER the repo registry and NEVER GitHub. Requires an overlay_path so writes stay in
+    your control.
+
+    Args:
+        overlay_path: Path to your personal freshness overlay JSON (required as the write target).
+        apply: Write the freshness stamps to your overlay (default false = report only).
+        category: Optional category filter.
+        only: Optional single source id.
+    """
+    if not overlay_path:
+        return json.dumps({"error": "overlay_path is required so all writes stay in your own store"})
+    cmd = [sys.executable, str(ROOT / "tools" / "source_currency.py"), "check",
+           "--detect-changes", "--overlay", overlay_path]
+    if apply:
+        cmd += ["--apply"]
+    if category:
+        cmd += [f"--category={category}"]
+    if only:
+        cmd += ["--only", only]
+    rc, out, err = _run(cmd)
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "detect-changes failed"})
+    return out.strip()
+
+
+@mcp.tool()
+def freshness_refresh(overlay_path: str, source_id: str, field: str, value: str,
+                      source_citation: str, publish_date: str = "") -> str:
+    """Record ONE cited, refreshed reference value into YOUR freshness overlay (P36 Flow B).
+
+    Writes an {as_of, source_citation, publish_date} envelope to overlay_path (your own store) so the
+    value can be aged/flagged rather than silently trusted. Writes only your store; never GitHub, never
+    shared. Provide a real source_citation (no-fabrication): if you cannot cite it, do not record it.
+
+    Args:
+        overlay_path: Path to your personal freshness overlay JSON (your store; the only write target).
+        source_id: The registry source id this value came from.
+        field: The field name being refreshed (e.g. "instagram_reels_max_hashtags").
+        value: The refreshed value (as a string).
+        source_citation: The URL/citation the value came from (required).
+        publish_date: The source's publish date if known (ISO), for aging.
+    """
+    if not overlay_path or not source_citation:
+        return json.dumps({"error": "overlay_path and source_citation are required (no-fabrication)"})
+    sys.path.insert(0, str(HERE))
+    import freshness_overlay as _fo  # noqa: E402
+    overlay = _fo.load_overlay(overlay_path)
+    env = _fo.record_value(overlay, source_id, field, value, source_citation,
+                           publish_date=publish_date or None)
+    _fo.save_overlay(overlay, overlay_path)
+    return json.dumps({"recorded": {"source_id": source_id, "field": field}, "envelope": env,
+                       "wrote_to": overlay_path,
+                       "boundary": "your store only; never GitHub, never shared"}, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Tool 4: drift_check
 # ---------------------------------------------------------------------------
