@@ -667,6 +667,85 @@ def billable_scan(schedule):
     return {"boundary": BOUNDARY, "ready_to_bill": ready, "human_review_required": True}
 
 
+# ── .ics calendar export (stdlib RFC 5545; portable across any calendar app) ──
+def _ics_escape(s):
+    return (s or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _ics_fold(line):
+    b = line.encode("utf-8")
+    if len(b) <= 75:
+        return line
+    parts, first = [], True
+    while b:
+        take = 75 if first else 74  # continuation lines start with a space (1 octet)
+        parts.append(b[:take].decode("utf-8", "ignore"))
+        b = b[take:]
+        first = False
+    return "\r\n ".join(parts)
+
+
+def build_ics(events, now=None, prodid="-//Creator OS//Task Tracker//EN"):
+    """A minimal valid RFC 5545 VCALENDAR of all-day VEVENTs with a VALARM each. events is a list of
+    {uid, summary, description, date (ISO), alarm_days, sequence}. Stable UIDs mean re-export updates rather
+    than duplicates. CRLF line endings and 75-octet folding per spec."""
+    now = now or date.today().isoformat()
+    stamp = now.replace("-", "") + "T000000Z"
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:" + prodid, "CALSCALE:GREGORIAN"]
+    for e in events:
+        d = _ob._parse_date(e.get("date"))
+        if not d:
+            continue
+        alarm = int(e.get("alarm_days", 1))
+        lines += [
+            "BEGIN:VEVENT",
+            "UID:" + e["uid"],
+            "DTSTAMP:" + stamp,
+            "DTSTART;VALUE=DATE:" + d.strftime("%Y%m%d"),
+            "DTEND;VALUE=DATE:" + (d + timedelta(days=1)).strftime("%Y%m%d"),
+            _ics_fold("SUMMARY:" + _ics_escape(e.get("summary", "Task"))),
+            _ics_fold("DESCRIPTION:" + _ics_escape(e.get("description", ""))),
+            "STATUS:CONFIRMED",
+            "SEQUENCE:" + str(e.get("sequence", 0)),
+            "BEGIN:VALARM", "ACTION:DISPLAY",
+            _ics_fold("DESCRIPTION:" + _ics_escape(e.get("summary", "Reminder"))),
+            "TRIGGER;RELATED=START:-P%dD" % alarm,
+            "END:VALARM", "END:VEVENT",
+        ]
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def register_to_ics(register, now=None, milestones=None, alarm_days=1):
+    events = []
+    for t in register.get("tasks", []):
+        if t.get("due_date") and t.get("status") not in CLOSED_STATES:
+            events.append({
+                "uid": f"{t.get('project_id') or 'na'}-{t.get('id')}@creator-os",
+                "summary": t.get("title") or "Task",
+                "description": f"{t.get('task_kind')} for {t.get('responsible_party')} ({t.get('status')})",
+                "date": t["due_date"], "alarm_days": alarm_days,
+            })
+    for ms in (milestones or []):
+        if ms.get("date"):
+            events.append({"uid": f"milestone-{ms.get('milestone_id')}@creator-os",
+                           "summary": f"Payment milestone: {ms.get('label')}",
+                           "description": "Billable milestone", "date": ms["date"], "alarm_days": alarm_days})
+    return build_ics(events, now)
+
+
+def reminders_digest(register, today):
+    """Due-soon, overdue, and aging-waiting-on items for the creator to review. Nothing is sent."""
+    s = scan(register, today)
+    return {
+        "boundary": BOUNDARY, "as_of": today.isoformat(),
+        "overdue": s["overdue"], "due_soon": s["due_soon"],
+        "aging_waits": [r for r in s["waiting_on_counterparty"] if r["is_aging_wait"]],
+        "human_review_required": True,
+        "_note": "Reminders are for your review; nothing is sent automatically.",
+    }
+
+
 # ── read-only scan ────────────────────────────────────────────────────────────
 def scan(register, today: date) -> dict:
     tasks = register.get("tasks", [])
@@ -854,7 +933,25 @@ def selftest() -> int:
     check("billable-fires", len(fired) == 1 and sched["milestones"][0]["billable_ready"] is True)
     check("billable-source", validate_source(fired[0]["source"]) == [])
 
-    n = 37
+    # .ics export
+    ics = build_ics([{"uid": "deal_1-a@creator-os", "summary": "Draft, due; test", "description": "x",
+                      "date": "2026-08-10"}])
+    check("ics-vevent", "BEGIN:VEVENT" in ics and "DTSTART;VALUE=DATE:20260810" in ics)
+    check("ics-valarm", "TRIGGER;RELATED=START:-P1D" in ics and ics.strip().endswith("END:VCALENDAR"))
+    check("ics-escape", "\\, due\\;" in ics)
+    reg_ics = {"tasks": [
+        {"id": "a", "project_id": "deal_1", "title": "Draft due", "task_kind": "next_action",
+         "responsible_party": "creator", "status": "not_started", "due_date": "2026-08-10"},
+        {"id": "b", "project_id": "deal_1", "title": "Done", "task_kind": "next_action",
+         "responsible_party": "creator", "status": "done", "due_date": "2026-08-01"}]}
+    r2 = register_to_ics(reg_ics)
+    check("ics-skips-closed", r2.count("BEGIN:VEVENT") == 1 and "UID:deal_1-a@creator-os" in r2)
+
+    # reminders digest surfaces overdue
+    dig = reminders_digest({"tasks": [copy.deepcopy(t2)]}, date(2026, 7, 15))
+    check("reminders-overdue", len(dig["overdue"]) >= 1)
+
+    n = 43
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))
@@ -870,6 +967,8 @@ def main(argv):
     p = sub.add_parser("plan")
     p.add_argument("--register"); p.add_argument("--events", help="JSON file mapping event_key -> ISO date")
     p.add_argument("--deadline-task"); p.add_argument("--deadline")
+    p = sub.add_parser("ics"); p.add_argument("--register"); p.add_argument("--out")
+    p = sub.add_parser("reminders"); p.add_argument("--register"); p.add_argument("--today")
     sub.add_parser("manifest")
     args = ap.parse_args(argv)
     if args.selftest:
@@ -892,6 +991,20 @@ def main(argv):
             print(json.dumps(feasibility(tasks, events, args.deadline_task, args.deadline), indent=2))
         else:
             print(json.dumps(forward_schedule(tasks, events), indent=2))
+        return 0
+    if args.cmd == "ics":
+        reg = load_register("local_fs", args.register)
+        ics = register_to_ics(reg)
+        if args.out:
+            Path(args.out).write_text(ics, encoding="utf-8")
+            print(json.dumps({"written": args.out, "events": ics.count("BEGIN:VEVENT")}))
+        else:
+            sys.stdout.write(ics)
+        return 0
+    if args.cmd == "reminders":
+        reg = load_register("local_fs", args.register)
+        today = _ob._parse_date(args.today) or date.today()
+        print(json.dumps(reminders_digest(reg, today), indent=2))
         return 0
     if args.cmd == "manifest":
         print(json.dumps(manifest(), indent=2))
