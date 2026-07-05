@@ -718,6 +718,51 @@ def check_construction():
                     problem(f"construction: {jf.name}:{rid} diagram_ref '{d}' is not in diagram-index.json")
 
 
+def check_currency_map():
+    """Invariant 25: currency-map integrity (P36).
+
+    Every `watched_by` source id named in data-currency-map.json (both the canonical-sources `files`
+    and the repo-root `embedded_fact_files`) must resolve to a real entry in source-registry.json, so a
+    watched data file or embedded-fact prose can never point at a source that does not exist. Every
+    embedded_fact_files entry must name a file that exists on disk and carry at least one watched_by.
+    And the P36 highest-value embedded-fact artifacts (the connector registry and the integrations
+    engine) must be present in embedded_fact_files, so the facts duplicated in prose/config stay tied
+    to their upstream source. No-op when the currency map or registry is absent."""
+    cmap_path = ROOT / "canonical-sources" / "data-currency-map.json"
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if not cmap_path.exists() or not reg_path.exists():
+        return
+    try:
+        cmap = json.loads(cmap_path.read_text(encoding="utf-8"))
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"currency-map: unreadable: {exc}")
+        return
+    reg_ids = {s.get("id") for s in reg.get("sources", []) if isinstance(s, dict)}
+    for group in ("files", "embedded_fact_files"):
+        for entry in cmap.get(group, []):
+            if not isinstance(entry, dict):
+                continue
+            f = entry.get("file", "<no file>")
+            for sid in entry.get("watched_by", []):
+                if sid not in reg_ids:
+                    problem(f"currency-map: {group} '{f}' watched_by unknown source id '{sid}'")
+    # embedded_fact_files must exist on disk and be non-empty-watched
+    for entry in cmap.get("embedded_fact_files", []):
+        if not isinstance(entry, dict):
+            continue
+        f = entry.get("file", "")
+        if f and not (ROOT / f).exists():
+            problem(f"currency-map: embedded_fact_files names a missing file '{f}'")
+        if entry.get("status") == "watched" and not entry.get("watched_by"):
+            problem(f"currency-map: embedded_fact_files '{f}' is watched but names no watched_by source")
+    # the two highest-value embedded-fact artifacts must be tracked
+    tracked = {e.get("file") for e in cmap.get("embedded_fact_files", []) if isinstance(e, dict)}
+    for required in ("shared/connectors/connectors.json", "shared/integrations-engine.md"):
+        if required not in tracked:
+            problem(f"currency-map: required embedded-fact artifact '{required}' is not in embedded_fact_files")
+
+
 def check_task_tracker():
     """Invariant 24: task-tracker integrity (P35).
 
@@ -795,6 +840,7 @@ def main():
     check_dependency_registry()
     check_construction()
     check_task_tracker()
+    check_currency_map()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

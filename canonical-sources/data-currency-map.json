@@ -1,6 +1,6 @@
 {
   "_comment": "Authoritative classification of every canonical data file: is it WATCHED by a registered source (so a change upstream flags it for review), intentionally STATIC (creator/template-derived, no upstream), DATED (internal data on a calendar cadence), or TOOL-MANAGED (owned by another tool). This resolves the P33 audit's 'orphaned data file' finding permanently: a future audit reads this map instead of re-flagging. Watched files name the registry source_ids that feed them; source_currency.py mark-checked --changed on one of those sources surfaces the file to update.",
-  "as_of": "2026-07-04",
+  "as_of": "2026-07-05",
   "files": [
     {"file": "keyword-library/youtube-algorithm-signals.json", "status": "watched",
      "watched_by": ["youtube-help-recommendations", "youtube-creator-blog", "youtube-help-analytics"],
@@ -58,6 +58,41 @@
     {"file": "construction/glossary.json", "status": "watched", "watched_by": ["wikidata-construction"], "reason": "CC0 construction term definitions seeded from Wikidata"},
     {"file": "construction/diagram-index.json", "status": "static", "watched_by": [], "reason": "index of authored CC0 SVGs and link-only references; authored, no external upstream"}
   ],
-  "_infrastructure": ["source-registry.json", "traversal-config.json", "legal-sources-seed.json", "cost-sources-seed.json", "dependency-sources-seed.json", "content-sources-p33-seed.json", "data-currency-map.json"],
-  "_note": "WATCHED = a registered source feeds it; on mark-checked --changed of that source, review this file. DATED = internal data on a calendar cadence. STATIC = no upstream by design. TOOL-MANAGED = another tool owns it."
+  "embedded_fact_files": [
+    {"file": "shared/connectors/connectors.json", "status": "watched",
+     "watched_by": ["meta-graph-api-changelog", "instagram-graph-api-docs", "pinterest-api-v5-docs", "youtube-api-changelog", "tiktok-api-changelog", "microsoft-graph-changelog", "mcp-wolfram"],
+     "reason": "P36: connector registry embeds live API versions/quotas/rate limits (IG v25, Pinterest v5, YouTube quota, Wolfram tier) in prose auth_notes; review when a watching API-changelog source changes"},
+    {"file": "shared/integrations-engine.md", "status": "watched",
+     "watched_by": ["meta-graph-api-changelog", "instagram-graph-api-docs", "youtube-api-changelog", "tiktok-api-changelog", "microsoft-graph-changelog", "pinterest-api-v5-docs"],
+     "reason": "P36: densest embedded API facts (dated deprecations, quotas, token lifetimes); the prose parallels the tracked signal JSONs but was itself unwatched"},
+    {"file": "shared/contract-engine.md", "status": "watched",
+     "watched_by": ["ftc-ecfr-16-cfr-255", "ftc-endorsement-guides", "ftc-disclosures-101"],
+     "reason": "P36: embeds the FTC endorsement corpus (16 CFR Part 255); review when the eCFR part or FTC guidance changes"},
+    {"file": "shared/construction-engine.md", "status": "watched",
+     "watched_by": ["fl-building-code-portal", "nc-osfm-codes", "icc-irc-2021", "icc-iecc-2021", "nfpa-nec-free-access"],
+     "reason": "P36: embeds adopted code editions (FL 8th, NC 2018/2015-IRC) that duplicate edition-status.json; review on a code-edition change"},
+    {"file": "shared/compute-engine.md", "status": "watched",
+     "watched_by": ["mcp-wolfram", "mcp-e2b", "mcp-duckdb", "mcp-stats-compass", "mcp-jupyter", "mcp-scikit-learn"],
+     "reason": "P36: embeds the compute-MCP routing matrix naming specific MCP tools; review when an MCP-server source is renamed/retired"},
+    {"file": "shared/tasks-engine.md", "status": "watched",
+     "watched_by": ["google-drive-mcp-docs"],
+     "reason": "P36: embeds the Google Drive/Sheets store model and carrier-provider posture; carrier-API sources join watched_by once seeded (P36-3)"},
+    {"file": "shared/platform-engine.md", "status": "watched",
+     "watched_by": ["youtube-help-video-specs", "instagram-help-reels", "tiktok-creator-portal", "pinterest-business-specs"],
+     "reason": "P36: embeds platform specs/signal descriptions paralleling platform-specs/specs.json; review when a platform-spec source changes"},
+    {"file": "creator-os-config.json", "status": "watched",
+     "watched_by": ["mcp-wolfram", "youtube-api-changelog", "pinterest-api-v5-docs"],
+     "reason": "P36: capability descriptions embed external facts (Wolfram call tier, API names/versions, endpoints); review on the relevant source change"},
+    {"file": "tools/wizard.py", "status": "watched",
+     "watched_by": ["mcp-workspace", "mcp-ms365"],
+     "reason": "P36: setup wizard embeds OAuth/MCP install flows (workspace-mcp, ms-365-mcp-server); review when those MCP-server sources change"},
+    {"file": "docs/video-tooling-integration-evidence.json", "status": "watched",
+     "watched_by": ["dep-ffmpeg", "dep-scenedetect", "dep-moviepy", "dep-opencv-headless"],
+     "reason": "P36: validated tool versions reconciled by dependency_currency.py but not previously on the currency map; review on a dependency major bump"},
+    {"file": "docs/video-tooling-scores.json", "status": "watched",
+     "watched_by": ["dep-ffmpeg", "dep-scenedetect", "dep-moviepy"],
+     "reason": "P36: dated web-verified license/version cells with no prior recheck trigger; review on a dependency change"}
+  ],
+  "_infrastructure": ["source-registry.json", "traversal-config.json", "legal-sources-seed.json", "cost-sources-seed.json", "dependency-sources-seed.json", "content-sources-p33-seed.json", "building-code-sources-seed.json", "construction-authority-sources-seed.json", "data-currency-map.json"],
+  "_note": "WATCHED = a registered source feeds it; on mark-checked --changed of that source, review this file (both canonical-sources data files AND the embedded_fact_files prose/config that duplicate the same fact). DATED = internal data on a calendar cadence. STATIC = no upstream by design. TOOL-MANAGED = another tool owns it. embedded_fact_files paths are repo-root-relative; files[] paths are canonical-sources-relative."
 }
