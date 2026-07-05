@@ -1,0 +1,32 @@
+[
+  {
+    "test_id": "task-status-happy-path",
+    "description": "happy path with full inputs",
+    "input": {},
+    "expected_output_keys": [],
+    "assertions": [
+      "output contains expected keys",
+      "no fabricated data"
+    ]
+  },
+  {
+    "test_id": "task-status-minimal-input",
+    "description": "minimal required inputs with defaults applied",
+    "input": {},
+    "expected_output_keys": [],
+    "assertions": [
+      "defaults are applied correctly",
+      "output is valid"
+    ]
+  },
+  {
+    "test_id": "task-status-edge-case",
+    "description": "edge case or error condition",
+    "input": {},
+    "expected_output_keys": [],
+    "assertions": [
+      "error is handled gracefully",
+      "no fabricated fallback data"
+    ]
+  }
+]
