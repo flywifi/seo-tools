@@ -2,7 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P35 are complete. Drift guard exits 0 (25 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P36 are complete. Drift guard exits 0 (27 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P36: turned the dormant source-currency system into an always-fresh, per-user, self-contained
+  freshness system that keeps every deployment's reference data accurate on every modality WITHOUT the
+  freshness runtime ever touching GitHub. `tools/freshness_overlay.py` (selftest 30/30) adds the
+  read-only-baseline + user-controlled overlay: an append-only event log with deterministic
+  union-merge, a provenance envelope on every refreshed value, selector-scoped hashing, RFC 9111
+  max-age, a two-tier SLA, Wayback link-rot, a local dashboard, and a store adapter over
+  local_fs/google_drive/remote_mcp (reusing the P35 store model). `source_currency.py` gained an
+  `--overlay` path so report/check/detect-changes/dashboard write only to the user's own store, never
+  the repo registry or GitHub. `data-currency-map.json` now tracks 12 embedded-fact prose/config
+  artifacts (the connector registry, integrations/contract/construction/compute/tasks/platform
+  engines, config, wizard, video-tooling evidence) under drift invariant 25. Four seed files add 33
+  monitorable sources (registry 139->172): connector API changelogs, a new `ai-surface-spec` category
+  (MCP/.mcpb/Skills/GPT-Actions/Apps-SDK/Gemini), creator content data (Google Search feeds, Trends
+  API, Sprout/Hootsuite, IMH/HypeAuditor, Shopify), and compliance (eCFR Part 465, FTC/Fed-Register/
+  USCO feeds, NY/CA AI-disclosure laws, DOE IECC, ICC map). `tools/build_freshness_bundle.py`
+  (selftest 9/9) stamps a visible freshness date on the 11 knowledge digests under drift invariant 26.
+  The wizard gained a `/freshness-setup` store step; the MCP server gained currency_scan/
+  currency_detect_changes/freshness_refresh (overlay-only writes); a local launchd/cron scheduler
+  example ships; the weekly CI currency job is retired for zero GitHub coupling. Docs:
+  `docs/FRESHNESS.md`. Ledger: `P36-source-currency-freshness`.
 
 - P35: added the offline, source-cited, human-gated project task and obligation tracker for brand deals.
   `shared/tasks-engine.md` defines the model: the anti-phantom rule (every task cites a document,

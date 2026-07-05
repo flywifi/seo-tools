@@ -3,6 +3,10 @@
 How Creator OS keeps its reference data, canonical sources, and dependencies current, and how to
 run the mundane parts token-free (as deterministic Python, without spending model tokens).
 
+> **P36:** for the per-user, self-contained freshness model (the overlay, per-modality stores, the
+> "never touches GitHub / no homework" rules, and the full source poll list) see **`docs/FRESHNESS.md`**.
+> This page covers the token-free maintenance mechanics those rules build on.
+
 ## Two lanes
 
 | Lane | What it watches | Tool | Token-free? |
