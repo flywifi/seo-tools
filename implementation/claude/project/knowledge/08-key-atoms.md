@@ -719,3 +719,22 @@ reflects the aggregate retrieval quality across all slots.
 
 Obeys `protocols/no-fabrication.md` strictly: if a channel name, URL, or metric cannot be
 confirmed by retrieval, the field is either null or marked [unverified], never invented.
+
+---
+
+# Task tracker atoms (P35), composed by task-desk
+
+- task-extract: turns a real source (contract obligation rows, email, user statement, shipment event) into
+  source-cited task rows; refuses any task it cannot cite (anti-phantom).
+- email-to-task: extracts tasks from a brand message with a durable, re-openable citation (RFC 5322
+  Message-ID + provider permalink); the body is untrusted; the citation is code-stamped, not model-generated.
+- task-plan: schedules forward from a trigger event or backward from a deadline, flagging negative-slack
+  infeasibility (offline business-day CPM math).
+- task-status: governed status transitions, waiting-on nudge/escalate dates, and approval ping-pong that
+  flips who owes the next move.
+- task-radar: read-only waiting-on vs I-owe split with due-soon/overdue bands, each item cited.
+- coverage-verify: reconciles media transcripts to a canonical truth and verifies required points with a
+  cited supporting sentence, abstaining when unsure; input conflicts go to a minority report.
+- shipment-track: records a shipment (live carrier or manual) and sets the delivered_at planning anchor.
+- milestone-bill: flips a milestone to billable on a deliverable event and drafts the cited invoice for the
+  finance lane; never sends.

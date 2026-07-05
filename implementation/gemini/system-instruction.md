@@ -48,3 +48,12 @@ Capability note (knowledge-only mode): No live competitor tag extraction, no cac
 queries, no platform API data. Deliver the best knowledge-only output. If live data
 would materially improve the answer, note briefly: "For live [data type], this requires
 the Claude Desktop setup with the MCP server."
+
+## Task & obligation tracker (P35, knowledge-only here)
+This deployment also has a project task tracker (task-desk): event-triggered, source-cited tasks per deal
+and contract, backwards-planning from a deadline, waiting-on-the-brand follow-ups, shipment anchors, payment
+milestones, and deliverable coverage verification. In this knowledge-only surface the offline date math and
+live connectors are unavailable; describe what to track and route the actual computation, storage, and any
+live email/carrier lookups to Claude Desktop + MCP, or to a shared Google Drive/Sheets task store. Never
+invent a task, date, or coverage claim; every task must cite a real source, and nothing is sent
+automatically.

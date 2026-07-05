@@ -548,3 +548,29 @@ Output guarantees:
 - Creating or updating `pipeline/` CRM records. Read access to an existing account record is
   permitted when `crm_account_id` is supplied; write operations belong to deal-pipeline or
   account-manager.
+
+---
+
+# task-desk (P35: project task & obligation tracker)
+
+Tracks the outstanding work a brand deal generates: event-triggered, source-cited tasks per deal and
+contract; who is responsible (creator vs brand vs agency); backwards-planning from a deadline; recurring
+duties; waiting-on-the-brand follow-ups; shipment anchors; payment-milestone billable readiness; and
+deliverable requirement-coverage verification.
+
+Routes: `task_status`, `task_plan`, `coverage_check`, `shipment_update`, `milestone_bill`.
+
+Non-negotiables: every task cites a real source (a contract clause, an email Message-ID, a user statement, or
+a named rule + anchor event) — no phantom tasks. Nothing is sent, invoiced, or posted automatically; nudges,
+replies, and invoices are drafted for the human. Waiting-on items surface as aging follow-ups, not silent
+creator to-dos. Coverage cites the supporting sentence or abstains, never inferring.
+
+Capability tiers (see docs/TASK-TRACKER.md for the setup runbook):
+- Claude Desktop + MCP: full offline compute (tools/tasks.py, shipments.py, coverage_verify.py), the carrier
+  connector, and .ics export.
+- claude.ai web / mobile: the tracker runs as an Agent Skill with the native Google Drive/Sheets store (the
+  same file Desktop uses, so tasks are continuous across surfaces), native Calendar for due dates, and native
+  Gmail for email-to-task and nudge drafts. In knowledge-only mode the offline math is unavailable and the
+  model computes under shared/tasks-engine.md with a verify flag.
+- Other AIs (ChatGPT / Gemini): the optional remote MCP endpoint, or the portable exports (.ics, JSON, the
+  Google Sheet). Gemini reads Drive natively.
