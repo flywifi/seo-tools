@@ -368,6 +368,120 @@ def verify(manifest_path) -> dict:
     return {"ok": ok, "expected": m.get("entries"), "actual": current.get("entries")}
 
 
+# ── scheduling: DAG forward/backward pass, reverse-plan, feasibility (CPM) ────
+def _apply_offset(d: date, days: int, basis: str) -> date:
+    return add_business_days(d, days) if basis == "business" else d + timedelta(days=days)
+
+
+def _dag(tasks):
+    """Predecessor map from blocked_by (finish-to-start) + trigger.after_task (a task predecessor)."""
+    by_id = {t["id"]: t for t in tasks}
+    preds = {tid: set() for tid in by_id}
+    for t in tasks:
+        tid = t["id"]
+        for b in t.get("blocked_by") or []:
+            if b in by_id:
+                preds[tid].add(b)
+        trg = t.get("trigger") or {}
+        if trg.get("type") == "after_task" and trg.get("event_key") in by_id:
+            preds[tid].add(trg["event_key"])
+    return by_id, preds
+
+
+def _topo(by_id, preds):
+    from collections import deque
+    indeg = {tid: len(preds[tid]) for tid in by_id}
+    succ = {tid: [] for tid in by_id}
+    for tid, ps in preds.items():
+        for p in ps:
+            succ[p].append(tid)
+    q = deque([tid for tid in by_id if indeg[tid] == 0])
+    order = []
+    while q:
+        n = q.popleft()
+        order.append(n)
+        for s in succ[n]:
+            indeg[s] -= 1
+            if indeg[s] == 0:
+                q.append(s)
+    if len(order) != len(by_id):
+        raise ValueError("cycle in task dependency graph")
+    return order, succ
+
+
+def forward_schedule(tasks, events=None) -> dict:
+    """Forward pass: earliest due for each task from its trigger (fixed | after_event | after_task) plus the
+    finish-to-start constraint (not before any blocker's due). events maps event_key -> ISO date. Unresolved
+    triggers leave the due null and add a gap, never a guessed date."""
+    events = events or {}
+    by_id, preds = _dag(tasks)
+    order, _ = _topo(by_id, preds)
+    due, gaps = {}, []
+    for tid in order:
+        t = by_id[tid]
+        trg = t.get("trigger") or {}
+        ttype = trg.get("type")
+        base = None
+        if ttype in (None, "fixed"):
+            base = _ob._parse_date(t.get("due_date"))
+        elif ttype == "after_event":
+            evd = _ob._parse_date(events.get(trg.get("event_key")))
+            if evd is not None:
+                base = _apply_offset(evd, trg.get("offset_days") or 0, trg.get("offset_basis") or "calendar")
+            else:
+                gaps.append(f"{tid}: event '{trg.get('event_key')}' unresolved; due unknown")
+        elif ttype == "after_task":
+            pd = due.get(trg.get("event_key"))
+            if pd is not None:
+                base = _apply_offset(pd, trg.get("offset_days") or 0, trg.get("offset_basis") or "calendar")
+            else:
+                gaps.append(f"{tid}: predecessor '{trg.get('event_key')}' has no due yet")
+        cand = [d for d in [base] + [due[b] for b in preds[tid] if due.get(b)] if d]
+        due[tid] = max(cand) if cand else None
+    return {"due": {k: (v.isoformat() if v else None) for k, v in due.items()}, "gaps": gaps}
+
+
+def reverse_plan(tasks, deadline_task, deadline_date) -> dict:
+    """Backward pass from a hard deadline on one task: the latest each upstream task must FINISH to hit it
+    ('when must the product ship for a fixed publish date'). Propagates the per-edge lag backward."""
+    by_id, preds = _dag(tasks)
+    order, _ = _topo(by_id, preds)
+    dd = _ob._parse_date(deadline_date)
+    if dd is None or deadline_task not in by_id:
+        return {"must_finish_by": {}, "gaps": [f"deadline task '{deadline_task}' or date invalid"]}
+    must = {deadline_task: dd}
+    for tid in reversed(order):
+        my_latest = must.get(tid)
+        if my_latest is None:
+            continue
+        trg = by_id[tid].get("trigger") or {}
+        lag_pred = trg.get("event_key") if trg.get("type") == "after_task" else None
+        lag, basis = trg.get("offset_days") or 0, trg.get("offset_basis") or "calendar"
+        for p in preds[tid]:
+            latest_p = _apply_offset(my_latest, -lag, basis) if p == lag_pred and lag else my_latest
+            if p not in must or latest_p < must[p]:
+                must[p] = latest_p
+    return {"must_finish_by": {k: v.isoformat() for k, v in must.items()}, "gaps": []}
+
+
+def feasibility(tasks, events, deadline_task, deadline_date) -> dict:
+    """Compare earliest-possible (forward) against latest-allowed (backward). Any task whose earliest due is
+    later than its must-finish-by has negative slack: the chain cannot fit the deadline. Surfaced, never
+    silently dropped."""
+    fwd = forward_schedule(tasks, events)["due"]
+    rev = reverse_plan(tasks, deadline_task, deadline_date)["must_finish_by"]
+    conflicts = []
+    for tid, latest in rev.items():
+        earliest = fwd.get(tid)
+        if earliest and _ob._parse_date(earliest) > _ob._parse_date(latest):
+            conflicts.append({
+                "task": tid, "earliest_possible": earliest, "must_finish_by": latest,
+                "slack_days": (_ob._parse_date(latest) - _ob._parse_date(earliest)).days,
+            })
+    return {"feasible": not conflicts, "conflicts": conflicts, "forward": fwd, "reverse": rev,
+            "boundary": BOUNDARY}
+
+
 # ── read-only scan ────────────────────────────────────────────────────────────
 def scan(register, today: date) -> dict:
     tasks = register.get("tasks", [])
@@ -488,7 +602,24 @@ def selftest() -> int:
     rec = reconcile(ra, rb)
     check("reconcile-union", rec["task_count"] == 2)
 
-    n = 18
+    # scheduling: draft (7 cal days after product receipt) -> brand review (3 business days) -> post
+    def trg(ttype, key, days, basis):
+        return {"type": ttype, "event_key": key, "offset_days": days, "offset_basis": basis,
+                "resolved": False, "source": doc_src}
+    draft = make_task("draft", "Draft", doc_src, project_id="d", trigger=trg("after_event", "product_received", 7, "calendar"))
+    review = make_task("review", "Review", doc_src, project_id="d", responsible_party="brand", trigger=trg("after_task", "draft", 3, "business"))
+    post = make_task("post", "Post", doc_src, project_id="d", trigger=trg("after_task", "review", 0, "calendar"))
+    chain = [draft, review, post]
+    fwd = forward_schedule(chain, {"product_received": "2026-08-03"})["due"]
+    check("fwd-draft", fwd["draft"] == "2026-08-10")     # Aug 3 + 7 calendar
+    check("fwd-review", fwd["review"] == "2026-08-13")   # Aug 10 + 3 business
+    rev = reverse_plan(chain, "post", "2026-08-14")["must_finish_by"]
+    check("rev-draft", rev["draft"] == "2026-08-11")     # Aug 14 - 3 business
+    check("feasible", feasibility(chain, {"product_received": "2026-08-03"}, "post", "2026-08-14")["feasible"] is True)
+    bad = feasibility(chain, {"product_received": "2026-08-03"}, "post", "2026-08-11")
+    check("infeasible", bad["feasible"] is False and any(c["task"] == "draft" for c in bad["conflicts"]))
+
+    n = 23
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))
@@ -501,6 +632,9 @@ def main(argv):
     ap.add_argument("--selftest", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
     p = sub.add_parser("scan"); p.add_argument("--register"); p.add_argument("--today")
+    p = sub.add_parser("plan")
+    p.add_argument("--register"); p.add_argument("--events", help="JSON file mapping event_key -> ISO date")
+    p.add_argument("--deadline-task"); p.add_argument("--deadline")
     sub.add_parser("manifest")
     args = ap.parse_args(argv)
     if args.selftest:
@@ -509,6 +643,20 @@ def main(argv):
         reg = load_register("local_fs", args.register)
         today = _ob._parse_date(args.today) or date.today()
         print(json.dumps(scan(reg, today), indent=2))
+        return 0
+    if args.cmd == "plan":
+        reg = load_register("local_fs", args.register)
+        tasks = reg.get("tasks", [])
+        events = {}
+        if args.events:
+            try:
+                events = json.loads(Path(args.events).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                print(json.dumps({"error": f"could not read events file: {exc}"})); return 1
+        if args.deadline_task and args.deadline:
+            print(json.dumps(feasibility(tasks, events, args.deadline_task, args.deadline), indent=2))
+        else:
+            print(json.dumps(forward_schedule(tasks, events), indent=2))
         return 0
     if args.cmd == "manifest":
         print(json.dumps(manifest(), indent=2))
