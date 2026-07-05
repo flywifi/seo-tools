@@ -1,0 +1,59 @@
+{
+  "_comment": "Committed null schema for the task register (P35). Real tasks live in pipeline/user-context/task-register.local.json (gitignored; stays on the creator's machine or in the configured store backend). This file defines the shape only. Dates and derived flags are computed offline by tools/tasks.py; the task-extract atom supplies rows; history[] is the append-only source of truth. Organizational tracking only, never legal, financial, or compliance advice.",
+  "_boundary": "ORGANIZATIONAL TRACKING, NOT LEGAL, FINANCIAL, OR COMPLIANCE ADVICE. Verify dates and tasks against the contract and counterparty. Nothing is sent, filed, invoiced, or posted automatically.",
+  "schema_version": "0.1.0",
+  "deal_id": null,
+  "contract_ref": null,
+  "computed_as_of": null,
+  "task_count": 0,
+  "status_counts": {},
+  "tasks": [
+    {
+      "id": null,
+      "schema_version": 1,
+      "title": null,
+      "project_id": null,
+      "contract_id": null,
+      "obligation_id": null,
+      "parent_id": null,
+      "deliverable_ref": null,
+      "task_kind": "next_action | waiting_on | agenda | milestone",
+      "responsible_party": "creator | brand | agency | platform | other",
+      "party_ref": null,
+      "accountable_party": null,
+      "waiting_on_party": null,
+      "status": "not_started | in_progress | waiting_external | blocked | deferred | done | cancelled",
+      "status_reason": null,
+      "blocked_by": [],
+      "defer_until": null,
+      "scheduled_date": null,
+      "due_date": null,
+      "expires_at": null,
+      "trigger": {
+        "type": "after_event | after_task | fixed",
+        "event_key": null,
+        "offset_days": null,
+        "offset_basis": "business | calendar",
+        "resolved": false,
+        "source": {}
+      },
+      "priority": "H | M | L",
+      "tags": [],
+      "recurrence_id": null,
+      "occurrence_index": null,
+      "handoff": null,
+      "ping_pong": null,
+      "source": {
+        "kind": "document | event_derived | user_stated"
+      },
+      "created_at": null,
+      "updated_at": null,
+      "started_at": null,
+      "completed_at": null,
+      "history": []
+    }
+  ],
+  "human_review_required": true,
+  "generated_by": "tools/tasks.py",
+  "last_computed": null
+}

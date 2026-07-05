@@ -66,6 +66,14 @@ pipeline/user-context/deal-playbook.local.json
 pipeline/user-context/obligation-register.local.json
 obligations-bucket.manifest.json
 
+# Task tracker (P35): real tasks, recurrence rules, shipments, and payment schedules stay local; only
+# the templates are committed. Covered by pipeline/user-context/*.local.json above; explicit for intent.
+pipeline/user-context/task-register.local.json
+pipeline/user-context/recurrence-rules.local.json
+pipeline/user-context/shipments.local.json
+pipeline/user-context/payment-schedule.local.json
+tasks-bucket.manifest.json
+
 # Video editing bridge (P22): generated interchange files + local edit packages
 # (committed: only the *.template.json schema files under pipeline/editing/)
 pipeline/editing/*.local.*

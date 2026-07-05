@@ -208,6 +208,26 @@
       "description": "Feature 3 (P23 Phase 3). Pull deliverables, deadlines, and payment terms out of a signed contract into an obligation register with send-by date math, and sync them to the content calendar and production tasks. Requires contract_management on.",
       "requires": "contract_management on. Enables obligation-extract and the offline obligation register (tools/obligations.py). The register write is gated by this flag; the read-only deadline scan runs regardless. The date math runs in local Python, not tokens."
     },
+    "task_tracking": {
+      "enabled": false,
+      "description": "Feature (P35). The project task and obligation tracker: event-triggered, source-cited tasks per deal and contract, with backwards-planning, recurrence, waiting-on accountability, and payment milestones. Register writes gate on this flag; read-only task scans run regardless. All date/dependency math is offline in tools/tasks.py. See shared/tasks-engine.md.",
+      "requires": "Nothing external for local_fs. tools/tasks.py runs offline (stdlib). google_drive / remote_mcp store backends need the corresponding connector configured."
+    },
+    "shipment_tracking": {
+      "enabled": false,
+      "description": "Feature (P35). Live carrier shipment tracking (EasyPost default, Ship24 alternative) that turns a tracking number into a normalized status and a delivered_at anchor for backwards-planning. Manual shipment entry is always available without this flag.",
+      "requires": "An aggregator API key in the environment (EASYPOST_API_KEY or SHIP24_API_KEY). tools/shipments.py polls over stdlib urllib honoring the env proxy + CA bundle; keys are read from env only, never persisted."
+    },
+    "coverage_verification": {
+      "enabled": false,
+      "description": "Feature (P35). Reconciles multiple media transcripts to a canonical truth and verifies that a deliverable covered its required points, citing the supporting sentence per point. The reconciliation and lexical tiers run offline in stdlib; this flag enables the optional semantic/NLI tiers when their dependencies are present. Without it, coverage abstains and routes to human review rather than inferring.",
+      "requires": "Nothing for the stdlib core. Optional: sentence-transformers / an NLI model for the semantic and entailment tiers."
+    },
+    "task_store_backend": {
+      "enabled": "local_fs",
+      "description": "Feature (P35). Where the task register lives: local_fs (Claude Desktop, offline), google_drive (a canonical JSON + Sheets mirror in Drive so claude.ai web/mobile and Desktop share one store), or remote_mcp (a hosted streamable-HTTP MCP endpoint serving Claude/ChatGPT/Gemini). Event-log union-merge keeps concurrent surfaces consistent. See shared/tasks-engine.md and shared/integrations-engine.md.",
+      "requires": "local_fs: nothing. google_drive: the Google Workspace connector (native on claude.ai web / Gemini; wizard-configured on Desktop). remote_mcp: a deployed remote MCP server (user/host provided)."
+    },
     "legal_requirement_checks": {
       "enabled": false,
       "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",

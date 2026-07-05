@@ -9,11 +9,13 @@
   "stage": "identified | outreach-sent | in-discussion | contract-negotiating | signed | in-production | delivered | invoiced | closed/fulfilled | archived",
   "agreed_deliverables": [
     {
+      "deliverable_id": null,
       "format": null,
       "count": null,
       "platform": null,
       "due_date": null,
-      "ftc": null
+      "ftc": null,
+      "approval_state": "not_submitted | submitted | in_revision | approved | rejected"
     }
   ],
   "compensation": { "amount": null, "type": "cash | product | affiliate | mixed", "currency": "USD" },

@@ -45,9 +45,13 @@ protocols/no-fabrication.md). If a value is unknown, it stays null and is flagge
 - `brand_name` and `account_ref`: link to the account record.
 - `deal_type`: one of dedicated_video, integrated_segment, product_mention, shorts, bundle.
 - `platforms`: list (youtube, youtube_shorts, instagram_reels, instagram_feed, tiktok, pinterest).
-- `agreed_deliverables`: list of { format, count, platform, due_date, ftc } where `ftc` records the
-  required disclosure for that deliverable (see protocols/safety.md FTC disclosure). `ftc` is a
-  required field on every sponsored deliverable and is never left blank on a signed deal.
+- `agreed_deliverables`: list of { deliverable_id, format, count, platform, due_date, ftc,
+  approval_state } where `ftc` records the required disclosure for that deliverable (see
+  protocols/safety.md FTC disclosure). `ftc` is a required field on every sponsored deliverable and is
+  never left blank on a signed deal. `deliverable_id` is a stable id so tasks and milestones (the task
+  tracker, shared/tasks-engine.md) can reference a specific deliverable; `approval_state` is one of
+  not_submitted, submitted, in_revision, approved, rejected, tracking the brand-approval round-trip per
+  deliverable (for example the long-form approved while the short is still in revision).
 - `compensation`: { amount, type } where type is one of cash, product, affiliate, mixed. Amount is
   null until a real figure is provided; never invent a rate.
 - `usage_rights`: { scope, window_start, window_end } where scope is one of social_only,
