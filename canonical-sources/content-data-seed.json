@@ -1,0 +1,83 @@
+[
+  {
+    "_comment": "P36 creator content-data monitors. Load: python3 tools/source_currency.py seed-sources canonical-sources/content-data-seed.json. SEO has the cleanest machine-readable signals (Google feeds). For platform specs the pattern is 'official page for the value, datestamped aggregator for the change-alarm'. Rate/seasonal are HTML-only: cache the numeric FACT with its publish date + source URL, never the page.",
+    "id": "google-search-central-feed",
+    "name": "Google Search Central blog (RSS)",
+    "url": "https://developers.google.com/search/blog/feed.xml",
+    "category": "seo-authority",
+    "tier": "T1",
+    "extraction_hint": "core-update announcements and SEO best-practice changes; newest pubDate/guid is the signal; verified valid RSS 2.0",
+    "_signal": "rss",
+    "used_by": ["keyword-library/github-seo-methodology.json", "seo-intelligence-engine", "seo_research"]
+  },
+  {
+    "id": "google-search-status-dashboard",
+    "name": "Google Search Status Dashboard (ranking/core updates)",
+    "url": "https://status.search.google.com/products/rGHU1u87FJnkP6W2GwMi/history",
+    "category": "seo-authority",
+    "tier": "T1",
+    "extraction_hint": "authoritative record of core/ranking-update rollouts with timestamps; exposes both RSS and a JSON history endpoint",
+    "_signal": "rss-json",
+    "used_by": ["seo-intelligence-engine", "seo_research"]
+  },
+  {
+    "id": "google-trends-api",
+    "name": "Google Trends API (alpha)",
+    "url": "https://developers.google.com/search/apis/trends",
+    "category": "seo-authority",
+    "tier": "T1",
+    "extraction_hint": "first sanctioned programmatic Trends access; JSON, consistent cross-request scaling, ~5yr window to T-2 days; monitor alpha->GA via the Search Central feed",
+    "_signal": "sha256",
+    "used_by": ["keyword-library/long-tail-seeds.json", "seasonal-aesthetic/seasonal.json", "seo_research"]
+  },
+  {
+    "id": "sprout-social-image-sizes",
+    "name": "Sprout Social social media image sizes guide (datestamped)",
+    "url": "https://sproutsocial.com/insights/social-media-image-sizes-guide/",
+    "category": "platform-spec",
+    "tier": "T2",
+    "extraction_hint": "self-describes 'Last Updated: <date>'; the change-alarm for platform specs -> when it moves, re-read the OFFICIAL platform help page to confirm before updating specs.json",
+    "_signal": "sha256",
+    "used_by": ["platform-specs/specs.json", "platform-engine"]
+  },
+  {
+    "id": "hootsuite-image-sizes",
+    "name": "Hootsuite social media image sizes guide (monthly datestamp)",
+    "url": "https://blog.hootsuite.com/social-media-image-sizes-guide/",
+    "category": "platform-spec",
+    "tier": "T3",
+    "extraction_hint": "title carries [Month Year]; a 2-of-3 cross-check with Sprout to reduce single-source error; confirm against the official page",
+    "_signal": "sha256",
+    "used_by": ["platform-specs/specs.json", "platform-engine"]
+  },
+  {
+    "id": "imh-benchmark-report",
+    "name": "Influencer Marketing Hub benchmark report (annual)",
+    "url": "https://influencermarketinghub.com/influencer-marketing-benchmark-report/",
+    "category": "rate-benchmark",
+    "tier": "T2",
+    "extraction_hint": "annual (~May), byline-date on the page; cache derived rate numbers WITH the report publish date + URL, never the page/tables (proprietary)",
+    "_signal": "sha256",
+    "used_by": ["rate-benchmarks/benchmarks.json", "rate-card-fill", "proposal-price"]
+  },
+  {
+    "id": "hypeauditor-state-of-influencer",
+    "name": "HypeAuditor State of Influencer Marketing (annual)",
+    "url": "https://hypeauditor.com/resources/whitepapers/state-of-influencer-marketing-2026-download/",
+    "category": "rate-benchmark",
+    "tier": "T3",
+    "extraction_hint": "first-party platform data; email-gated PDF; a new year-slug returning 200 is the freshness signal; cache facts + attribution only",
+    "_signal": "sha256",
+    "used_by": ["rate-benchmarks/benchmarks.json", "proposal-price"]
+  },
+  {
+    "id": "shopify-retail-holiday-calendar",
+    "name": "Shopify retail holiday calendar (annual)",
+    "url": "https://www.shopify.com/blog/retail-holiday-calendar",
+    "category": "seo-authority",
+    "tier": "T3",
+    "extraction_hint": "year-stamped retail shopping dates; the DATES are public facts (freely cacheable); re-verify on the year flip in the title",
+    "_signal": "sha256",
+    "used_by": ["seasonal-aesthetic/seasonal.json", "seasonal-map", "content-calendar"]
+  }
+]

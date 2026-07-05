@@ -1,0 +1,93 @@
+[
+  {
+    "_comment": "P36 AI-surface / packaging format monitors (new category ai-surface-spec). Load: python3 tools/source_currency.py seed-sources canonical-sources/ai-surface-spec-seed.json. These protect our exports from silently breaking: MCP transport deadlines, .dxt->.mcpb rename, SKILL.md field caps + reserved-word ban, GPT Actions char limits, Gemini model retirements. Prefer git releases/commits Atom feeds; ETag+sha256 or the plain-text changelog for the rest.",
+    "id": "mcp-protocol-releases",
+    "name": "Model Context Protocol spec releases (GitHub)",
+    "url": "https://github.com/modelcontextprotocol/modelcontextprotocol/releases.atom",
+    "category": "ai-surface-spec",
+    "tier": "T1",
+    "extraction_hint": "a new date-tag (e.g. 2025-11-25) is a new protocol revision; watch for transport deprecations (SSE->Streamable HTTP), JSON Schema dialect, auth changes",
+    "_signal": "git-atom",
+    "used_by": ["tools/mcp_server.py", "shared/connectors/connectors.json", "shared/integrations-engine.md"]
+  },
+  {
+    "id": "mcpb-manifest-spec",
+    "name": "MCP Bundle (.mcpb) manifest spec (GitHub)",
+    "url": "https://github.com/modelcontextprotocol/mcpb/blob/main/MANIFEST.md",
+    "category": "ai-surface-spec",
+    "tier": "T2",
+    "extraction_hint": "the .dxt->.mcpb rename and manifest_version bumps (0.3/0.4); required manifest fields for a Desktop Extension bundle",
+    "_signal": "git-file-sha256",
+    "used_by": ["implementation/claude/desktop", "tools/mcp_server.py"]
+  },
+  {
+    "id": "anthropic-skills-commits",
+    "name": "Anthropic Agent Skills repo commits (GitHub)",
+    "url": "https://github.com/anthropics/skills/commits/main.atom",
+    "category": "ai-surface-spec",
+    "tier": "T1",
+    "extraction_hint": "no releases; watch commits for skill-format changes; the repo has no tags",
+    "_signal": "git-atom",
+    "used_by": ["skills", "tools/package_skill.py"]
+  },
+  {
+    "id": "agentskills-specification",
+    "name": "Agent Skills open specification (SKILL.md contract)",
+    "url": "https://agentskills.io/specification",
+    "category": "ai-surface-spec",
+    "tier": "T1",
+    "extraction_hint": "SKILL.md frontmatter caps (name 64 / description 1024 / compatibility 500 chars), reserved-word ban on 'anthropic'/'claude', no consecutive hyphens; the field-constraint table is what breaks packaging",
+    "_signal": "sha256",
+    "used_by": ["skills", "tools/package_skill.py", "tools/sync_check.py"]
+  },
+  {
+    "id": "claude-apps-release-notes",
+    "name": "Claude Apps release notes (Projects/Desktop)",
+    "url": "https://support.claude.com/en/articles/12138966-release-notes",
+    "category": "ai-surface-spec",
+    "tier": "T2",
+    "extraction_hint": "consumer-surface changes to Projects knowledge limits, Memory, Desktop connectors; no RSS, ETag+sha256",
+    "_signal": "sha256",
+    "used_by": ["implementation/claude/project", "shared/integrations-engine.md"]
+  },
+  {
+    "id": "openai-apps-sdk-changelog",
+    "name": "OpenAI Apps SDK changelog (MCP in ChatGPT)",
+    "url": "https://developers.openai.com/apps-sdk/changelog",
+    "category": "ai-surface-spec",
+    "tier": "T2",
+    "extraction_hint": "the newer ChatGPT app packaging surface (built on MCP); _meta.ui contract, widget MIME, structuredContent",
+    "_signal": "sha256",
+    "used_by": ["implementation/gpt", "skills/atoms/export-gpt"]
+  },
+  {
+    "id": "openai-gpt-actions-production",
+    "name": "OpenAI GPT Actions production limits",
+    "url": "https://developers.openai.com/api/docs/actions/production",
+    "category": "ai-surface-spec",
+    "tier": "T2",
+    "extraction_hint": "hard caps that silently truncate/reject exports: endpoint/param descriptions 300/700 chars, payloads <100k chars, 45s timeout, no custom headers",
+    "_signal": "sha256",
+    "used_by": ["implementation/gpt/api", "skills/atoms/export-gpt"]
+  },
+  {
+    "id": "gemini-api-changelog",
+    "name": "Google Gemini API changelog (plain text)",
+    "url": "https://ai.google.dev/gemini-api/docs/changelog.md.txt",
+    "category": "ai-surface-spec",
+    "tier": "T1",
+    "extraction_hint": "plain-text mirror; cheapest reliable sha256 diff of any surface; tool/agent packaging changes",
+    "_signal": "sha256",
+    "used_by": ["implementation/gemini", "skills/atoms/export-gem"]
+  },
+  {
+    "id": "gemini-deprecations",
+    "name": "Google Gemini model deprecations",
+    "url": "https://ai.google.dev/gemini-api/docs/deprecations",
+    "category": "ai-surface-spec",
+    "tier": "T1",
+    "extraction_hint": "model retirement dates; any pinned model id in an export fails after its shutdown date",
+    "_signal": "sha256",
+    "used_by": ["implementation/gemini", "shared/integrations-engine.md"]
+  }
+]

@@ -93,6 +93,6 @@
      "watched_by": ["dep-ffmpeg", "dep-scenedetect", "dep-moviepy"],
      "reason": "P36: dated web-verified license/version cells with no prior recheck trigger; review on a dependency change"}
   ],
-  "_infrastructure": ["source-registry.json", "traversal-config.json", "legal-sources-seed.json", "cost-sources-seed.json", "dependency-sources-seed.json", "content-sources-p33-seed.json", "building-code-sources-seed.json", "construction-authority-sources-seed.json", "data-currency-map.json"],
+  "_infrastructure": ["source-registry.json", "traversal-config.json", "legal-sources-seed.json", "cost-sources-seed.json", "dependency-sources-seed.json", "content-sources-p33-seed.json", "building-code-sources-seed.json", "construction-authority-sources-seed.json", "api-changelog-seed.json", "ai-surface-spec-seed.json", "content-data-seed.json", "compliance-sources-seed.json", "data-currency-map.json"],
   "_note": "WATCHED = a registered source feeds it; on mark-checked --changed of that source, review this file (both canonical-sources data files AND the embedded_fact_files prose/config that duplicate the same fact). DATED = internal data on a calendar cadence. STATIC = no upstream by design. TOOL-MANAGED = another tool owns it. embedded_fact_files paths are repo-root-relative; files[] paths are canonical-sources-relative."
 }

@@ -87,6 +87,12 @@
       "staleness_threshold_days": 180,
       "traversal_depth": 1,
       "_note": "AWC / APA / ACCA / Building Science plus the public-domain U.S. government sources (DOE BASC, OSHA/eCFR, FEMA, CPSC, NIST/USDA-FPL, energycodes.gov) and open datasets (NREL BSD-3, Wikidata CC0, Wikimedia). Semi-annual. Government and open sources here are redistributable; the trade-association sources are cite-only."
+    },
+    "ai-surface-spec": {
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "traversal_depth": 0,
+      "_note": "P36. The AI-surface/packaging formats this ecosystem exports to (MCP protocol, .mcpb manifest, Anthropic Agent Skills, OpenAI GPT Actions / Apps SDK, Google Gemini). Monthly check so an export cannot silently break on an MCP transport deadline, a SKILL.md field cap, a GPT Actions char limit, or a model-id retirement. Prefer a git releases/commits feed; ETag+sha256 for the HTML/plain-text holdouts."
     }
   },
   "traversal_max_depth": 2,

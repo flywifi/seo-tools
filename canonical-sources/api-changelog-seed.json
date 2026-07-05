@@ -1,0 +1,83 @@
+[
+  {
+    "_comment": "P36 connector/API changelog monitors. Load: python3 tools/source_currency.py seed-sources canonical-sources/api-changelog-seed.json. Each names the best token-free signal in _signal (git-atom = a public releases/commits Atom feed; rss = native feed; sha256 = ETag/If-Modified-Since + content hash). These feed the connector registry + integrations engine embedded_fact_files so an upstream API change flags the prose that advertises the old version.",
+    "id": "gmail-release-notes-feed",
+    "name": "Gmail API release notes (Atom feed)",
+    "url": "https://developers.google.com/feeds/gmail-release-notes.xml",
+    "category": "api-changelog",
+    "tier": "T1",
+    "extraction_hint": "new dated entries: quota-model changes, deprecations, new endpoints; the feed's newest pubDate is the freshness signal",
+    "_signal": "rss",
+    "used_by": ["shared/integrations-engine.md", "shared/connectors/connectors.json", "gmail-connector"]
+  },
+  {
+    "id": "google-drive-release-notes",
+    "name": "Google Drive API release notes",
+    "url": "https://developers.google.com/workspace/drive/api/release-notes",
+    "category": "api-changelog",
+    "tier": "T1",
+    "extraction_hint": "Drive v3 additive changes and deprecations; verify the per-page Subscribe feed slug, else ETag+sha256 of the dated entry list",
+    "_signal": "rss-or-sha256",
+    "used_by": ["shared/connectors/connectors.json", "shared/integrations-engine.md", "google-drive-connector"]
+  },
+  {
+    "id": "google-sheets-release-notes",
+    "name": "Google Sheets API release notes",
+    "url": "https://developers.google.com/workspace/sheets/api/release-notes",
+    "category": "api-changelog",
+    "tier": "T1",
+    "extraction_hint": "Sheets v4 changes; the cross-surface task/freshness store writes append rows here, so field/quota changes matter",
+    "_signal": "rss-or-sha256",
+    "used_by": ["shared/connectors/connectors.json", "shared/tasks-engine.md"]
+  },
+  {
+    "id": "pinterest-api-description-releases",
+    "name": "Pinterest OpenAPI spec releases (GitHub)",
+    "url": "https://github.com/pinterest/api-description/releases.atom",
+    "category": "api-changelog",
+    "tier": "T1",
+    "extraction_hint": "each release documents added endpoints and marks breaking changes; the raw OpenAPI in the repo is the authoritative v5 surface",
+    "_signal": "git-atom",
+    "used_by": ["shared/connectors/connectors.json", "shared/integrations-engine.md", "pinterest-connector"]
+  },
+  {
+    "id": "msgraph-metadata-commits",
+    "name": "Microsoft Graph metadata (CSDL) commit feed",
+    "url": "https://github.com/microsoftgraph/msgraph-metadata/commits/master.atom",
+    "category": "api-changelog",
+    "tier": "T1",
+    "extraction_hint": "schema/property changes in the annotated CSDL catch breaks the prose changelog may lag; pair with the changelog RSS",
+    "_signal": "git-atom",
+    "used_by": ["shared/connectors/connectors.json", "shared/integrations-engine.md", "microsoft-outlook-connector"]
+  },
+  {
+    "id": "easypost-node-releases",
+    "name": "EasyPost client library releases (GitHub)",
+    "url": "https://github.com/EasyPost/easypost-node/releases.atom",
+    "category": "api-changelog",
+    "tier": "T2",
+    "extraction_hint": "mirrors the dated YYYY.MM.DD API versions and carrier decommissions; backs the shipments carrier connector",
+    "_signal": "git-atom",
+    "used_by": ["shared/connectors/connectors.json", "shared/tasks-engine.md", "shipment-track"]
+  },
+  {
+    "id": "ship24-openapi-spec",
+    "name": "Ship24 tracking API OpenAPI spec",
+    "url": "https://docs.ship24.com/assets/openapi/ship24-tracking-api.yaml",
+    "category": "api-changelog",
+    "tier": "T2",
+    "extraction_hint": "Ship24 publishes no changelog; sha256 the OpenAPI YAML to detect endpoint/field changes (the only reliable signal)",
+    "_signal": "sha256",
+    "used_by": ["shared/connectors/connectors.json", "shared/tasks-engine.md", "shipment-track"]
+  },
+  {
+    "id": "youtube-analytics-revision-feed",
+    "name": "YouTube Analytics API revision history (Atom feed)",
+    "url": "https://developers.google.com/static/youtube/analytics/feeds/analytics-api-revision-history.xml",
+    "category": "api-changelog",
+    "tier": "T1",
+    "extraction_hint": "report-version bumps and metric changes (engaged_views, Shorts view redefinition); dated structured entries",
+    "_signal": "rss",
+    "used_by": ["shared/integrations-engine.md", "youtube-connector"]
+  }
+]
