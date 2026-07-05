@@ -80,6 +80,16 @@ def get_threshold_for_source(source, traversal_config):
 
 
 from registry_io import load_registry, save_registry  # single sanctioned writer (shared)
+import freshness_overlay as _fo  # P36: per-user overlay; runtime writes here, never the repo registry
+
+
+def _apply_overlay_if_any(registry, overlay_path):
+    """When an --overlay path is given, union-merge the user's freshness overlay onto the read-only
+    baseline sources and return (sources, overlay). Otherwise return the baseline sources as-is."""
+    if not overlay_path:
+        return registry.get("sources", []), None
+    overlay = _fo.load_overlay(overlay_path)
+    return _fo.apply_overlay(registry.get("sources", []), overlay), overlay
 
 
 def today_str():
@@ -200,16 +210,50 @@ def build_report(sources, category=None, include_refetch=False, traversal_config
     return report
 
 
+def _sla_counts(sources, traversal_config):
+    """Two-tier freshness SLA (dbt warn_after/error_after) over the sources: ok/warn/error counts,
+    using the per-source threshold as warn_after and 3x as error_after (a stale source becomes an
+    error once it is badly overdue). Read-only."""
+    counts = {"ok": 0, "warn": 0, "error": 0}
+    for s in sources:
+        warn_after = get_threshold_for_source(s, traversal_config or {})
+        error_after = warn_after * 3 if warn_after else None
+        age = days_since(s.get("last_checked"))
+        counts[_fo.sla_status(age, warn_after, error_after)] += 1
+    return counts
+
+
 def cmd_report(args, registry, traversal_config):
     category = getattr(args, "category", None)
-    report = build_report(registry["sources"], category=category, traversal_config=traversal_config)
+    sources, _ = _apply_overlay_if_any(registry, getattr(args, "overlay", None))
+    report = build_report(sources, category=category, traversal_config=traversal_config)
+    report["sla"] = _sla_counts(sources if not category else
+                                [s for s in sources if s.get("category") == category], traversal_config)
     print(json.dumps(report, indent=2))
 
 
 def cmd_check(args, registry, traversal_config):
     category = getattr(args, "category", None)
-    report = build_report(registry["sources"], category=category, include_refetch=True, traversal_config=traversal_config)
+    sources, _ = _apply_overlay_if_any(registry, getattr(args, "overlay", None))
+    report = build_report(sources, category=category, include_refetch=True, traversal_config=traversal_config)
+    report["sla"] = _sla_counts(sources if not category else
+                                [s for s in sources if s.get("category") == category], traversal_config)
     print(json.dumps(report, indent=2))
+
+
+def cmd_dashboard(args, registry, traversal_config):
+    """Render the personal Currency Dashboard (a single local view; never sent, pushed, or shared).
+    With --out, write it to the user's store path; otherwise print it."""
+    sources, _ = _apply_overlay_if_any(registry, getattr(args, "overlay", None))
+    report = build_report(sources, category=getattr(args, "category", None), traversal_config=traversal_config)
+    md = _fo.dashboard_markdown(report)
+    out = getattr(args, "out", None)
+    if out:
+        Path(out).write_text(md + "\n", encoding="utf-8")
+        print(json.dumps({"written": out, "as_of": report["as_of"],
+                          "boundary": "local view only; nothing sent or pushed"}))
+    else:
+        print(md)
 
 
 def cmd_mark_checked(args, registry, traversal_config=None):
@@ -463,36 +507,46 @@ def _http_get_content(url, etag=None, last_modified=None, timeout=12):
             body = r.read()
             rh = r.headers
             return {"status": r.status, "body": body,
-                    "etag": rh.get("ETag"), "last_modified": rh.get("Last-Modified"), "error": None}
+                    "etag": rh.get("ETag"), "last_modified": rh.get("Last-Modified"),
+                    "cache_control": rh.get("Cache-Control"), "error": None}
     except urllib.error.HTTPError as exc:
         if exc.code == 304:
-            return {"status": 304, "body": None, "etag": etag, "last_modified": last_modified, "error": None}
+            return {"status": 304, "body": None, "etag": etag, "last_modified": last_modified,
+                    "cache_control": None, "error": None}
         return {"status": exc.code, "body": None, "etag": None, "last_modified": None,
-                "error": f"HTTP {exc.code}"}
+                "cache_control": None, "error": f"HTTP {exc.code}"}
     except Exception as exc:  # noqa: BLE001
         return {"status": None, "body": None, "etag": None, "last_modified": None,
-                "error": f"{type(exc).__name__}: {str(exc)[:140]}"}
+                "cache_control": None, "error": f"{type(exc).__name__}: {str(exc)[:140]}"}
 
 
 def classify_content_change(entry, resp):
     """Deterministic change status for one source given a fetch response. Returns
-    (status, new_sha) where status is unchanged|first_seen|changed|unreachable."""
+    (status, new_sha) where status is unchanged|first_seen|changed|unreachable. When the entry carries
+    a `content_selector`, only the text inside that region is hashed (nav/ads/timestamps outside it do
+    not create false 'changed' events)."""
     prior = entry.get("content_sha256")
     if resp.get("status") == 304:
         return "unchanged", prior
     body = resp.get("body")
     if body is None:
         return "unreachable", None
-    new_sha = hashlib.sha256(body).hexdigest()
+    new_sha = _fo.content_hash(body, entry.get("content_selector"))
     if not prior:
         return "first_seen", new_sha
     return ("unchanged" if new_sha == prior else "changed"), new_sha
 
 
 def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_content):
-    """Fetch each web-content source, detect change by sha256, and (with --apply) stamp
-    last_checked token-free. Changed pages are flagged and queued for model interpretation."""
-    sources = registry.get("sources", [])
+    """Fetch each web-content source, detect change by sha256, and (with --apply) stamp last_checked
+    token-free. Changed pages are flagged and queued for the user to interpret. With --overlay PATH,
+    stamps are written to the USER'S OWN overlay store (never the repo registry, never GitHub); the
+    baseline+overlay are union-merged so prior stamps are honored. RFC 9111 max-age, when present, is
+    recorded as a min_recheck_at hint so the origin's own policy can lengthen the re-check cadence."""
+    overlay_path = getattr(args, "overlay", None)
+    sources, overlay = _apply_overlay_if_any(registry, overlay_path)
+    if overlay is None:
+        overlay = _fo.empty_overlay()  # not persisted unless overlay_path is set
     detectable = [
         s for s in sources
         if str(s.get("url", "")).startswith("http") and s.get("category") not in NON_WEB_CATEGORIES
@@ -503,6 +557,7 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
     buckets = {"unchanged": [], "first_seen": [], "changed": [], "unreachable": []}
     changed_queue = []
     stamped = []
+    apply = getattr(args, "apply", False)
     for e in detectable:
         resp = getter(e.get("url"), e.get("content_etag"), e.get("content_last_modified"))
         status, new_sha = classify_content_change(e, resp)
@@ -510,29 +565,44 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
         if status == "changed":
             changed_queue.append({
                 "id": e["id"], "url": e.get("url"), "used_by": e.get("used_by", []),
-                "note": "content changed; review the page and update the canonical data it feeds",
+                "note": "content changed; review the page and update YOUR OWN copy of the data it feeds",
             })
-        if getattr(args, "apply", False) and status in ("unchanged", "first_seen", "changed"):
-            e["last_checked"] = today
+        if apply and status in ("unchanged", "first_seen", "changed"):
+            fields = {"last_checked": today}
             if new_sha:
-                e["content_sha256"] = new_sha
+                fields["content_sha256"] = new_sha
             if resp.get("etag"):
-                e["content_etag"] = resp["etag"]
+                fields["content_etag"] = resp["etag"]
             if resp.get("last_modified"):
-                e["content_last_modified"] = resp["last_modified"]
+                fields["content_last_modified"] = resp["last_modified"]
+            max_age = _fo.max_age_seconds(resp.get("cache_control"))
+            if max_age:
+                fields["min_recheck_at"] = (date.today().toordinal() + max_age // 86400)
             if status == "changed":
-                e["last_changed_detected"] = today
+                fields["last_changed_detected"] = today
+            if overlay_path:
+                _fo.stamp(overlay, e["id"], today, kind="detect", **fields)
+            else:
+                # owner/dev mode (no overlay): stamp the working-copy registry as before
+                for k, v in fields.items():
+                    e[k] = v
             stamped.append(e["id"])
-    if getattr(args, "apply", False) and stamped:
-        registry["last_registry_update"] = today
-        save_registry(registry)
+    if apply and stamped:
+        if overlay_path:
+            _fo.save_overlay(overlay, overlay_path)
+        else:
+            registry["last_registry_update"] = today
+            save_registry(registry)
     print(json.dumps({
         "as_of": today,
         "computed_by": "tools/source_currency.py.classify_content_change",
+        "wrote_to": ("overlay:" + overlay_path) if (apply and overlay_path) else
+                    ("registry" if apply else "nothing (read-only)"),
         "summary": {k: len(v) for k, v in buckets.items()},
         "changed_queue": changed_queue,
-        "stamped": stamped if getattr(args, "apply", False) else [],
-        "note": "unchanged/first_seen stamped token-free; changed entries need model interpretation of the diff",
+        "stamped": stamped if apply else [],
+        "note": "unchanged/first_seen stamped token-free; changed entries need interpretation of the diff. "
+                "With --overlay, all writes go to your own store; nothing touches the repo or GitHub.",
     }, indent=2, ensure_ascii=False))
 
 
@@ -634,14 +704,21 @@ def main():
 
     p_report = sub.add_parser("report", help="Print staleness report (read-only)")
     p_report.add_argument("--category", help="Filter by category (seo-authority, platform-spec, api-changelog, rate-benchmark, tool-mcp, partner-site)")
+    p_report.add_argument("--overlay", metavar="PATH", help="Union-merge your personal freshness overlay onto the read-only baseline")
 
     p_check = sub.add_parser("check", help="Report + include refetch queue for web-intel-engine")
     p_check.add_argument("--category", help="Filter by category")
+    p_check.add_argument("--overlay", metavar="PATH", help="Your personal freshness overlay (read + write target for --apply)")
     p_check.add_argument("--detect-changes", dest="detect_changes", action="store_true",
                          help="Token-free: conditional-GET + sha256 per web source; unchanged stamped, changed queued")
     p_check.add_argument("--apply", action="store_true",
-                         help="(with --detect-changes) stamp last_checked/content_sha256 token-free")
+                         help="(with --detect-changes) stamp freshness; writes to --overlay if given, else the working-copy registry")
     p_check.add_argument("--only", metavar="ID", help="Restrict --detect-changes to one source id")
+
+    p_dash = sub.add_parser("dashboard", help="Render your personal Currency Dashboard (local view; never sent)")
+    p_dash.add_argument("--category", help="Filter by category")
+    p_dash.add_argument("--overlay", metavar="PATH", help="Your personal freshness overlay")
+    p_dash.add_argument("--out", metavar="PATH", help="Write the dashboard markdown to your store (default: print)")
 
     p_mark = sub.add_parser("mark-checked", help="Mark a source as checked today")
     p_mark.add_argument("id", help="Source id (from source-registry.json)")
@@ -680,6 +757,8 @@ def main():
 
     if args.command == "report":
         cmd_report(args, registry, traversal_config)
+    elif args.command == "dashboard":
+        cmd_dashboard(args, registry, traversal_config)
     elif args.command == "check":
         if getattr(args, "detect_changes", False):
             cmd_detect_changes(args, registry, traversal_config)
