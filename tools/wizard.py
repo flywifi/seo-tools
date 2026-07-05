@@ -762,6 +762,34 @@ To run the wizard again: <code>python3 tools/wizard.py</code></p>
 
 # ── HTTP handler ───────────────────────────────────────────────────────────
 
+def _screen_freshness(saved: str = "") -> str:
+    """Freshness / data-store setup: pick where your refreshed reference data lives. Local-only."""
+    opts = "".join(
+        f'<option value="{m}">{m.replace("_", " ").title()} '
+        f'&rarr; {FRESHNESS_STORE_MATRIX[m]["store"]}</option>'
+        for m in ["desktop", "cross_platform", "gemini", "chatgpt", "web_only", "on_device"]
+    )
+    saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    return _page("Freshness &amp; Data Store", f"""
+<h1>Keep your data fresh &mdash; your way</h1>
+<p>Choose where your <strong>own</strong> refreshed reference data (platform specs, rates, API
+versions, code editions) is stored. Creator OS keeps it current on your machine and in the store you
+pick.</p>
+<div class="note"><strong>Your data stays yours.</strong> The system never pushes, proposes, or nags
+anything to GitHub. Downloading a newer shared baseline from the repo is always an optional choice you
+make on your own &mdash; nobody sends you homework.</div>
+{saved_html}
+<form method="POST" action="/api/write-freshness">
+  <label>How do you mainly use Creator OS?</label>
+  <select name="modality">{opts}</select>
+  <label style="margin-top:12px">Check for updates every (days)</label>
+  <input type="number" name="cadence_days" value="30" min="1" max="365" />
+  <button class="btn" type="submit" style="margin-top:16px">Save my store choice</button>
+</form>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
 class _Handler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
@@ -818,6 +846,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/publishing-setup/instagram": _screen_publishing_instagram(),
             "/publishing-setup/tiktok": _screen_publishing_tiktok(),
             "/publishing-setup/pinterest": _screen_publishing_pinterest(),
+            "/freshness-setup": _screen_freshness(),
         }
         if path in routes:
             self._send(routes[path])
@@ -829,6 +858,18 @@ publishing runs in manual mode for now. No action is needed here.</div>
 
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
+
+        if path == "/api/write-freshness":
+            data = self._read_form()
+            rec = freshness_store_recommendation(data.get("modality", "cross_platform"))
+            store = rec["recommended_store"]
+            _write_freshness_config(store, data.get("cadence_days", "30"), rec["modality"])
+            self._send(_screen_freshness(saved=(
+                f"Saved. Recommended store for <strong>{rec['modality'].replace('_',' ')}</strong>: "
+                f"<strong>{store}</strong>. {rec['why']} <br><em>{rec['note']}</em><br>"
+                f"{rec['guarantee']}"
+            )))
+            return
 
         if path == "/api/write-google":
             data = self._read_form()
@@ -973,8 +1014,8 @@ publishing runs in manual mode for now. No action is needed here.</div>
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-def _update_capability_flag(key: str, value: bool) -> None:
-    """Set a capability flag in creator-os-config.local.json."""
+def _update_capability_flag(key: str, value) -> None:
+    """Set a capability flag in creator-os-config.local.json (local only; never GitHub)."""
     local_path = ROOT / "creator-os-config.local.json"
     try:
         cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
@@ -982,6 +1023,85 @@ def _update_capability_flag(key: str, value: bool) -> None:
         local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     except Exception as exc:
         print(f"[wizard] Warning: could not update capability flag {key}: {exc}")
+
+
+# ── P36 freshness / store orchestration ──────────────────────────────────────
+# The store each modality can actually write to (from the P36 per-platform research). The freshness
+# runtime writes ONLY to the user's own store; it never pushes, proposes, or nags anything to GitHub.
+FRESHNESS_STORE_MATRIX = {
+    "desktop": {
+        "store": "local_fs",
+        "why": "Claude Desktop's filesystem MCP is the only true write-in-place store; best fidelity, no hosting, no OAuth.",
+        "note": "Keep the overlay file OUT of a continuously-synced folder (iCloud/Dropbox) to avoid last-writer-wins races.",
+    },
+    "cross_platform": {
+        "store": "google_drive",
+        "why": "Google Drive/Docs/Sheets is the neutral store every surface shares; Google hosts it, you host nothing.",
+        "note": "Uses append-new-dated-file + union-merge (Claude cannot update a Sheet in place); Gemini writes natively, ChatGPT writes on Enterprise/Dev-mode.",
+    },
+    "gemini": {
+        "store": "google_drive",
+        "why": "Gemini writes refreshed data natively into Docs/Sheets/Drive and auto-saves.",
+        "note": "Advanced Docs/Sheets writes are tier-gated (AI Pro/Ultra); verify your plan.",
+    },
+    "chatgpt": {
+        "store": "google_drive",
+        "why": "ChatGPT has no native writable dataset store; route writes to a connected Google Drive (Enterprise write actions or a Drive-write MCP in Developer Mode).",
+        "note": "Otherwise fall back to export-and-you-save: ChatGPT exports a dated file you file into Drive.",
+    },
+    "web_only": {
+        "store": "google_drive",
+        "why": "claude.ai web/mobile has no writable Project store (knowledge is upload-only), so the Drive connector's create-file is the store.",
+        "note": "Falls back to export-and-you-save when create-file is unavailable.",
+    },
+    "on_device": {
+        "store": "local_fs",
+        "why": "A plain JSON file in a folder you control, edited by the Desktop filesystem MCP.",
+        "note": "If the folder is iCloud/Dropbox-synced, prefer single-device edits; the append-only union-merge protects against clobber but sync can still slow things down.",
+    },
+}
+
+
+def freshness_store_recommendation(modality: str) -> dict:
+    """Pure: recommend a personal freshness store for a modality, with rationale + trade-offs. The
+    repo is never a write target; every option keeps the user's data in a store they control."""
+    m = (modality or "").strip().lower().replace("-", "_").replace(" ", "_")
+    rec = FRESHNESS_STORE_MATRIX.get(m, FRESHNESS_STORE_MATRIX["cross_platform"])
+    return {
+        "modality": m if m in FRESHNESS_STORE_MATRIX else "cross_platform",
+        "recommended_store": rec["store"],
+        "why": rec["why"],
+        "note": rec["note"],
+        "switchable_to": sorted({v["store"] for v in FRESHNESS_STORE_MATRIX.values()} | {"remote_mcp"}),
+        "guarantee": ("Your refreshed data stays in your own store. The system never pushes, proposes, "
+                      "or nags anything to GitHub. Downloading a newer repo baseline is an optional "
+                      "choice you make on your own."),
+    }
+
+
+def _write_freshness_config(store_backend: str, cadence_days: int, modality: str = "") -> None:
+    """Persist the chosen freshness store + cadence to creator-os-config.local.json (local only)."""
+    valid = {"local_fs", "google_drive", "remote_mcp"}
+    if store_backend not in valid:
+        store_backend = "local_fs"
+    try:
+        cadence = int(cadence_days)
+    except (TypeError, ValueError):
+        cadence = 30
+    _update_capability_flag("task_store_backend", store_backend)
+    local_path = ROOT / "creator-os-config.local.json"
+    try:
+        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+        cfg["freshness"] = {
+            "store_backend": store_backend,
+            "cadence_days": cadence,
+            "modality": modality,
+            "writes_to_github": False,
+            "_note": "Personal freshness overlay location. The runtime writes only here, never GitHub.",
+        }
+        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    except Exception as exc:
+        print(f"[wizard] Warning: could not write freshness config: {exc}")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────
