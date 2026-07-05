@@ -31,7 +31,7 @@ Spoke: document-studio.
 
 ### Pipeline/CRM lane
 Any request touching a brand account or deal: create/read/update records, move a deal stage, generate a production plan from a signed deal, compute the radar, check deadlines or payment status.
-Spokes: account-manager, deal-pipeline, deal-resourcing, partnership-mediakit.
+Spokes: account-manager, deal-pipeline, deal-resourcing, partnership-mediakit, contract-desk, finance-desk, task-desk.
 
 A request can span two lanes (for example, a signed deal that immediately needs a production plan and a deliverable brief). Route the primary lane first, then note the secondary lane in the routing object.
 
@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `construction_question` `code_lookup` `build_calc` `document_create` `document_edit` `account_read` `account_create` `account_update` `deal_status` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `construction_question` `code_lookup` `build_calc` `document_create` `document_edit` `account_read` `account_create` `account_update` `deal_status` `deal_create` `deal_update` `deal_stage_move` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `task_status` `task_plan` `coverage_check` `shipment_update` `milestone_bill` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -111,6 +111,11 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `cashflow_projection` | Pipeline/CRM | `finance-desk` | weekly cash-movement view over the horizon (read-only; redacted output available) |
 | `payment_reconcile` | Pipeline/CRM | `finance-desk` | match a bank/PayPal export to open invoices; proposal-only, gated mark-paid after human confirmation |
 | `dunning_draft` | Pipeline/CRM | `finance-desk` | escalating payment-reminder DRAFTS keyed to aging buckets; never sends |
+| `task_status` | Pipeline/CRM | `task-desk` | create/update source-cited tasks, record a governed status change or approval hand-off, and view what is outstanding (waiting-on vs I-owe); gated by task_tracking; nothing sent |
+| `task_plan` | Pipeline/CRM | `task-desk` | schedule a project's tasks forward from a trigger event or backward from a deadline, with a negative-slack feasibility check (offline date math) |
+| `coverage_check` | Pipeline/CRM | `task-desk` | verify a deliverable covered its required points by reconciling media transcripts and citing the supporting sentence per point; abstains rather than infers |
+| `shipment_update` | Pipeline/CRM | `task-desk` | record a shipment (live carrier or manual) and set the delivered_at anchor that starts backwards-planning |
+| `milestone_bill` | Pipeline/CRM | `task-desk` | determine which payment milestones are billable from a deliverable event and hand the cited invoice draft to finance-desk (never sends) |
 | `quality_check` | Content | `quality-review` | score an artifact against quality gates |
 | `unclear` | — | — | ask a clarifying question before routing |
 
@@ -214,5 +219,5 @@ content-strategy    project-builder    construction-desk    video-development   
 seo-keywords        analytics-insights analytics-compute    audience-research
 competitor-analysis seasonal-trends    content-distributor  document-studio
 account-manager     deal-pipeline       deal-resourcing     partnership-mediakit
-contract-desk       finance-desk       quality-review
+contract-desk       finance-desk       task-desk           quality-review
 ```

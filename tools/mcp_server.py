@@ -1194,6 +1194,130 @@ def deal_status(query: str | None = None, deal_id: str | None = None,
 
 
 # ---------------------------------------------------------------------------
+# Task tracker (P35): tasks, scheduling, coverage, shipments, milestones
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def task_scan(register_path: str | None = None, today: str | None = None) -> str:
+    """Read-only outstanding-task view (P35): the waiting-on-counterparty vs I-owe split plus due-soon,
+    overdue, and status counts, each item cited. Offline, always available. Nothing is sent."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    from datetime import date as _date
+    try:
+        reg = _t.load_register("local_fs", register_path)
+        d = _t._ob._parse_date(today) or _date.today()
+        return json.dumps(_t.scan(reg, d), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def task_plan(tasks: list, events: dict | None = None, deadline_task: str | None = None,
+              deadline: str | None = None) -> str:
+    """Schedule a project's tasks (P35): forward from trigger events, or, with deadline_task + deadline, a
+    backward reverse-plan plus a negative-slack feasibility check. Offline business-day math; unresolved
+    triggers are null and flagged, never guessed."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    try:
+        if deadline_task and deadline:
+            return json.dumps(_t.feasibility(tasks, events or {}, deadline_task, deadline), indent=2, ensure_ascii=False)
+        return json.dumps(_t.forward_schedule(tasks, events or {}), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def task_transition(task: dict, to_status: str, by: str = "user:creator", at: str | None = None,
+                    note: str | None = None) -> str:
+    """Apply one governed task state change (P35) through the single choke point: validates the allowed
+    transition, appends the audit event, and re-folds. Illegal transitions are refused, not forced. The
+    register write itself is human-confirmed."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    from datetime import date as _date
+    try:
+        return json.dumps(_t.transition(task, to_status, by, at or _date.today().isoformat(), note),
+                          indent=2, ensure_ascii=False)
+    except ValueError as exc:
+        return json.dumps({"error": str(exc), "refused": True})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def task_ics_export(register_path: str | None = None) -> str:
+    """Export tracked task due dates (and payment milestones) as a portable RFC 5545 .ics calendar (P35) that
+    imports into any calendar app. Skips closed tasks; stable UIDs so re-export updates rather than duplicates."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    try:
+        reg = _t.load_register("local_fs", register_path)
+        return _t.register_to_ics(reg)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def coverage_verify(canonical_or_sources: dict, required_points: list) -> str:
+    """Verify a deliverable covered its required points (P35). Pass {"texts": [...]} to reconcile multiple
+    transcripts to a canonical truth first, or {"canonical_text": "..."}. Returns per-point verdicts with an
+    extractive supporting quote, abstaining when unsure; input conflicts flow into a minority report. Not
+    compliance advice."""
+    sys.path.insert(0, str(HERE))
+    import coverage_verify as _cv  # type: ignore
+    try:
+        rec = None
+        if canonical_or_sources.get("texts"):
+            srcs = [{"id": f"src{i}", "text": t} for i, t in enumerate(canonical_or_sources["texts"])]
+            rec = _cv.reconcile(srcs)
+            canonical = rec.get("canonical_text", "")
+        else:
+            canonical = canonical_or_sources.get("canonical_text", "")
+        return json.dumps(_cv.verify_coverage(canonical, required_points, reconciliation=rec), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def shipment_track(tracking_number: str | None = None, carrier: str | None = None,
+                   provider: str = "easypost", manual: dict | None = None) -> str:
+    """Record a product shipment (P35): a live carrier poll (flag-gated, API key from env only) or a manual
+    entry, normalized to the canonical status enum, returning the delivered_at planning anchor. No key means
+    manual entry, never a guessed status."""
+    sys.path.insert(0, str(HERE))
+    import shipments as _sh  # type: ignore
+    try:
+        if manual:
+            ship = _sh.manual_shipment(**manual)
+            return json.dumps({"shipment": ship, "anchor": _sh.planning_anchor(ship)}, indent=2, ensure_ascii=False)
+        res = _sh.fetch(tracking_number, carrier, provider)
+        if res.get("shipment"):
+            res["anchor"] = _sh.planning_anchor(res["shipment"])
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def milestone_status(schedule: dict, deliverable_id: str | None = None, event: str | None = None) -> str:
+    """Payment-milestone billable readiness (P35). With deliverable_id + event, flips the matching milestones
+    to billable and returns citation-carrying invoice-draft tasks for the finance lane; otherwise reports
+    which milestones are already ready to bill. Nothing is invoiced or sent here."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    from datetime import date as _date
+    try:
+        if deliverable_id and event:
+            fired = _t.apply_deliverable_event(schedule, deliverable_id, event, _date.today().isoformat())
+            return json.dumps({"newly_billable": fired, "human_review_required": True}, indent=2, ensure_ascii=False)
+        return json.dumps(_t.billable_scan(schedule), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
