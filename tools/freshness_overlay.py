@@ -251,6 +251,109 @@ def save_overlay(overlay, path):
     Path(path).write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+# -- refreshed VALUES (not just freshness stamps) carry a provenance envelope --
+def record_value(overlay, source_id, field, value, source_citation, publish_date=None, at=None,
+                 actor="agent:refresh"):
+    """Append a refreshed reference VALUE to the overlay with its {as_of, source_citation,
+    publish_date} envelope so it can be aged/flagged rather than silently trusted. Used by the
+    in-platform refresh agent (Flow B). Writes only to the user's overlay -- never GitHub."""
+    at = at or date.today().isoformat()
+    env = envelope(value, source_citation, publish_date=publish_date, as_of=at)
+    record_event(overlay, source_id, "value", at, actor=actor, **{f"value:{field}": env})
+    return env
+
+
+def values_view(overlay, today=None, stale_after_days=365):
+    """Fold the overlay's value events into current values, flagging any whose publish_date is older
+    than stale_after_days (no-fabrication: a stale value is surfaced, not trusted)."""
+    today = today or date.today()
+    out = {}
+    for sid, entry in (overlay.get("entries") or {}).items():
+        folded = fold_entry(entry)
+        for k, v in folded.items():
+            if not k.startswith("value:") or not isinstance(v, dict):
+                continue
+            field = k[len("value:"):]
+            pub = v.get("publish_date")
+            stale = False
+            if pub:
+                try:
+                    stale = (today - datetime.fromisoformat(pub).date()).days > stale_after_days
+                except ValueError:
+                    stale = False
+            out.setdefault(sid, {})[field] = {**v, "is_stale": stale}
+    return out
+
+
+# -- store adapter (reuses the P35 local_fs | google_drive | remote_mcp model) --
+def overlay_to_sheet_rows(overlay):
+    """Human-readable projection of the overlay: one row per source freshness state, for the Google
+    Sheets mirror. Regenerated from the canonical overlay JSON; never the source of truth."""
+    header = ["source_id", "last_checked", "content_sha256", "last_changed_detected",
+              "link_status", "replacement_url"]
+    rows = [header]
+    for sid, entry in sorted((overlay.get("entries") or {}).items()):
+        f = fold_entry(entry)
+        rows.append([sid, f.get("last_checked", ""), (f.get("content_sha256", "") or "")[:12],
+                     f.get("last_changed_detected", ""), f.get("link_status", ""),
+                     f.get("replacement_url", "")])
+    return rows
+
+
+def save_overlay_store(overlay, backend="local_fs", path=None):
+    """Persist the overlay through the selected store backend, mirroring tasks.py's P35 adapter:
+      local_fs   -> write the JSON file at `path` (Claude Desktop / on-device).
+      google_drive -> return {canonical_json, sheet_rows} for the caller to write via the native
+                      Drive/Sheets connector (claude.ai web/mobile, Gemini). In-place Sheet update is
+                      weak, so callers use append-new-dated-file + union-merge on read.
+      remote_mcp -> raise; the remote MCP server owns persistence behind its own tools.
+    No backend writes to GitHub."""
+    overlay.setdefault("_boundary", BOUNDARY)
+    if backend == "local_fs":
+        if not path:
+            raise ValueError("local_fs backend requires a path")
+        save_overlay(overlay, path)
+        return {"backend": "local_fs", "path": path}
+    if backend == "google_drive":
+        return {"backend": "google_drive",
+                "canonical_json": json.dumps(overlay, indent=2, ensure_ascii=False),
+                "sheet_rows": overlay_to_sheet_rows(overlay)}
+    if backend == "remote_mcp":
+        raise NotImplementedError("remote_mcp persistence is owned by the remote MCP server")
+    raise ValueError(f"unknown store backend '{backend}'")
+
+
+def load_overlay_store(backend="local_fs", path=None, blob=None):
+    """Load the overlay from the selected backend. local_fs reads `path`; google_drive/remote_mcp
+    pass the fetched JSON `blob` (the connector/MCP layer does the transport)."""
+    if backend == "local_fs":
+        return load_overlay(path) if path else empty_overlay()
+    if blob:
+        try:
+            data = json.loads(blob) if isinstance(blob, str) else blob
+        except (json.JSONDecodeError, TypeError):
+            return empty_overlay()
+        data.setdefault("entries", {})
+        return data
+    return empty_overlay()
+
+
+# The read-only contract for an in-platform refresh agent (Flow B). The agent researches on the
+# user's tokens and returns schema-locked value records; the main loop appends them to the user's
+# overlay via record_value. The agent never writes files, never commits, never touches GitHub.
+REFRESH_AGENT_CONTRACT = {
+    "role": "freshness-refresher",
+    "operating_rules": ["read-only research (web/MCP); returns data only",
+                        "no file writes, no commits, no GitHub, no sharing",
+                        "every value carries source_citation + publish_date (no-fabrication)",
+                        "abstain and null-flag when a value cannot be cited"],
+    "output_schema": {"type": "object", "required": ["source_id", "field", "value", "source_citation"],
+                      "properties": {"source_id": {"type": "string"}, "field": {"type": "string"},
+                                     "value": {}, "source_citation": {"type": "string"},
+                                     "publish_date": {"type": ["string", "null"]}}},
+}
+
+
 # -- dashboard (a personal, local view; never sent anywhere) ------------------
 def dashboard_markdown(report, as_of=None):
     """Render a staleness report as a single local 'Currency Dashboard' markdown -- one view, not
@@ -355,6 +458,34 @@ def selftest():
                                "stale": [{"name": "S", "category": "seo-authority", "days_overdue": 4}],
                                "never_checked": []})
     ok("dashboard renders stale checklist", "S" in dash and "as of 2026-07-05" in dash)
+
+    # refreshed values carry a provenance envelope + stale flag
+    ovv = empty_overlay()
+    record_value(ovv, "imh-benchmark-report", "youtube_rate_low", 500,
+                 "https://influencermarketinghub.com/...", publish_date="2026-05-04", at="2026-07-05")
+    record_value(ovv, "old-src", "x", 1, "https://x", publish_date="2020-01-01", at="2026-07-05")
+    vv = values_view(ovv, today=date(2026, 7, 5))
+    ok("value view folds refreshed value", vv["imh-benchmark-report"]["youtube_rate_low"]["value"] == 500)
+    ok("fresh value not stale", vv["imh-benchmark-report"]["youtube_rate_low"]["is_stale"] is False)
+    ok("old value flagged stale", vv["old-src"]["x"]["is_stale"] is True)
+
+    # store adapter: local_fs round-trip, google_drive projection, remote_mcp refusal
+    import tempfile
+    import os as _os
+    tmpf = _os.path.join(tempfile.mkdtemp(), "ov.json")
+    save_overlay_store(ovv, "local_fs", tmpf)
+    reloaded = load_overlay_store("local_fs", tmpf)
+    ok("local_fs store round-trips", "imh-benchmark-report" in reloaded["entries"])
+    gd = save_overlay_store(ov, "google_drive")
+    ok("google_drive returns canonical_json + sheet_rows",
+       "canonical_json" in gd and gd["sheet_rows"][0][0] == "source_id")
+    try:
+        save_overlay_store(ov, "remote_mcp")
+        ok("remote_mcp raises", False)
+    except NotImplementedError:
+        ok("remote_mcp raises", True)
+    ok("refresh-agent contract forbids github",
+       any("GitHub" in r for r in REFRESH_AGENT_CONTRACT["operating_rules"]))
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
