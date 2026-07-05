@@ -482,6 +482,191 @@ def feasibility(tasks, events, deadline_task, deadline_date) -> dict:
             "boundary": BOUNDARY}
 
 
+# ── recurrence (RRULE subset; materialize on demand, never spawn-on-complete) ─
+def _add_months(d: date, n: int) -> date:
+    import calendar
+    m = d.month - 1 + n
+    y = d.year + m // 12
+    m = m % 12 + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+
+def _add_freq(d: date, freq: str, interval: int) -> date:
+    if freq == "DAILY":
+        return d + timedelta(days=interval)
+    if freq == "WEEKLY":
+        return d + timedelta(weeks=interval)
+    if freq == "MONTHLY":
+        return _add_months(d, interval)
+    return _add_months(d, 12 * interval)  # YEARLY
+
+
+def rrule_dates(rule, cap=500):
+    """Expand an RRULE-subset rule to concrete dates. FREQ/INTERVAL/COUNT-xor-UNTIL in stdlib; BYDAY defers
+    to python-dateutil when present, else returns a gap (never guesses). Returns (dates, gaps)."""
+    freq = rule.get("freq")
+    interval = rule.get("interval") or 1
+    count, until = rule.get("count"), _ob._parse_date(rule.get("until"))
+    anchor = _ob._parse_date(rule.get("anchor_date"))
+    if count and rule.get("until"):
+        raise ValueError("RRULE count and until are mutually exclusive")
+    if anchor is None or freq not in {"DAILY", "WEEKLY", "MONTHLY", "YEARLY"}:
+        return [], ["recurrence rule needs a valid anchor_date and freq"]
+    if rule.get("byday"):
+        try:
+            from dateutil import rrule as _rr  # optional
+            FR = {"DAILY": _rr.DAILY, "WEEKLY": _rr.WEEKLY, "MONTHLY": _rr.MONTHLY, "YEARLY": _rr.YEARLY}
+            wd = {"MO": _rr.MO, "TU": _rr.TU, "WE": _rr.WE, "TH": _rr.TH, "FR": _rr.FR, "SA": _rr.SA, "SU": _rr.SU}
+            from datetime import datetime
+            kwargs = {"interval": interval, "dtstart": datetime(anchor.year, anchor.month, anchor.day),
+                      "byweekday": [wd[b] for b in rule["byday"] if b in wd]}
+            if count:
+                kwargs["count"] = count
+            elif until:
+                kwargs["until"] = datetime(until.year, until.month, until.day)
+            else:
+                kwargs["count"] = cap
+            return [dt.date() for dt in _rr.rrule(FR[freq], **kwargs)], []
+        except ImportError:
+            return [], ["BYDAY recurrence needs python-dateutil; install it or drop byday"]
+    out, d, i = [], anchor, 0
+    while len(out) < (count or cap):
+        if until and d > until:
+            break
+        out.append(d)
+        d = _add_freq(d, freq, interval)
+        i += 1
+        if i > cap:
+            break
+    return out, []
+
+
+def materialize_occurrences(rule_record, horizon_date, by="system:recurrence", now=None):
+    """Create the concrete occurrence tasks due on or before horizon_date that have not been generated yet.
+    Idempotent on (recurrence_id, occurrence_index) via the generation ledger; each occurrence inherits the
+    template source (anti-phantom). Skips are handled by cancelling the occurrence, not by advancing here."""
+    now = now or date.today().isoformat()
+    rule = rule_record.get("rule", {})
+    tmpl = rule_record.get("template", {})
+    horizon = _ob._parse_date(horizon_date)
+    dates, gaps = rrule_dates(rule)
+    gen = rule_record.setdefault("generation", {"lookahead": 1, "last_generated_index": 0, "next_anchor": None})
+    last = gen.get("last_generated_index", 0)
+    off = tmpl.get("due_offset") or {}
+    made = []
+    for idx, d in enumerate(dates):
+        if idx < last:
+            continue
+        if horizon and d > horizon:
+            break
+        due = _apply_offset(d, off.get("days") or 0, off.get("basis") or "calendar")
+        src = dict(tmpl.get("source") or {"kind": "user_stated", "statement": "recurring duty",
+                                          "stated_by": by})
+        occ = make_task(f"{rule_record.get('id')}#{idx}", tmpl.get("title") or "Recurring task", src,
+                        project_id=rule_record.get("project_id"), contract_id=rule_record.get("contract_id"),
+                        task_kind=tmpl.get("task_kind") or "next_action",
+                        responsible_party=tmpl.get("responsible_party") or "creator",
+                        at=now, by=by,
+                        recurrence_id=rule_record.get("id"), occurrence_index=idx,
+                        obligation_id=rule_record.get("obligation_id"))
+        occ["due_date"] = due.isoformat()
+        made.append(occ)
+        gen["last_generated_index"] = idx + 1
+        nxt = dates[idx + 1] if idx + 1 < len(dates) else None
+        gen["next_anchor"] = nxt.isoformat() if nxt else None
+    return made, gaps
+
+
+# ── waiting-on / nudge / approval ping-pong ───────────────────────────────────
+def compute_handoff(handed_off_at, n_business_days):
+    """Nudge at 80% of the response window, escalate at 50% past due (business-day aware)."""
+    h = _ob._parse_date(handed_off_at)
+    if h is None or not n_business_days:
+        return {}
+    response_due = add_business_days(h, n_business_days)
+    window = business_days_between(h, response_due)
+    return {
+        "handed_off_at": handed_off_at,
+        "expected_response_business_days": n_business_days,
+        "response_due_at": response_due.isoformat(),
+        "nudge_at": add_business_days(h, max(1, int(0.8 * window))).isoformat(),
+        "escalate_at": add_business_days(response_due, max(1, (window + 1) // 2)).isoformat(),
+        "nudge_count": 0,
+    }
+
+
+_PP_MAP = {  # event -> (target status, responsible party, stage, iteration delta)
+    "submit": ("waiting_external", "brand", "awaiting_human_review", 0),
+    "resubmit": ("waiting_external", "brand", "awaiting_human_review", 0),
+    "request_changes": ("in_progress", "creator", "revision_queue", 1),
+    "approve": ("done", "creator", "done", 0),
+}
+
+
+def advance_ping_pong(task, event, at, by="user:creator", handoff=None):
+    """One hand-off in an approval/revision loop: flip responsible_party, count iterations, and move the
+    status. Beyond max_iterations the cycle escalates. The party who owes the next move is responsible_party."""
+    if event not in _PP_MAP:
+        raise ValueError(f"unknown ping-pong event '{event}'")
+    to_status, party, stage, delta = _PP_MAP[event]
+    pp = task.get("ping_pong") or {"cycle_id": task.get("id"), "iteration": 0, "max_iterations": 5, "stage": "draft"}
+    pp["iteration"] += delta
+    pp["stage"] = "escalated" if pp["iteration"] > pp.get("max_iterations", 5) else stage
+    task["ping_pong"] = pp
+    if event in ("submit", "resubmit"):
+        task["waiting_on_party"] = "brand"
+        task["status_reason"] = "awaiting brand review"
+        task["handoff"] = handoff or task.get("handoff")
+    # move status through the validated transition, carrying the responsible-party flip on the event
+    frm = task.get("status")
+    if to_status in ALLOWED_TRANSITIONS.get(frm, set()):
+        ev = make_event(task["history"], f"pingpong:{event}", by, at,
+                        from_status=frm, to_status=to_status, responsible_party=party,
+                        note=f"iteration {pp['iteration']}")
+        task["history"].append(ev)
+    else:
+        task["history"].append(make_event(task["history"], f"pingpong:{event}", by, at, responsible_party=party))
+    return fold_task(task)
+
+
+# ── payment milestones -> billable readiness -> finance lane ──────────────────
+def _billable_task(schedule, ms, at, by="system:billable"):
+    trg = ms.get("trigger") or {}
+    defined_in = (ms.get("source") or {}).get("ref") or {"contract_id": schedule.get("contract_ref")}
+    src = {"kind": "event_derived",
+           "rule": {"rule_id": f"bill_on_{trg.get('event') or trg.get('type')}", "defined_in": defined_in},
+           "anchor_event": {"type": "deliverable_event", "value": at, "deliverable_id": trg.get("deliverable_id")}}
+    task = make_task(f"bill_{ms.get('milestone_id')}", f"Invoice ready: {ms.get('label')}", src,
+                     project_id=schedule.get("deal_id"), contract_id=schedule.get("contract_ref"),
+                     task_kind="milestone", responsible_party="creator", at=at, by=by,
+                     tags=["billable"], deliverable_ref=trg.get("deliverable_id"))
+    task["_billing"] = {"amount": ms.get("amount"), "pct_of_total": ms.get("pct_of_total"),
+                        "milestone_id": ms.get("milestone_id"), "net_terms_days": schedule.get("net_terms_days")}
+    return task
+
+
+def apply_deliverable_event(schedule, deliverable_id, event, at):
+    """When a deliverable event fires (delivery/approval/publish), flip billable_ready on matching milestones
+    and return the newly-billable milestones as citation-carrying billable tasks (proposals for the finance
+    lane; nothing is invoiced or sent here). acceptance_required milestones only fire on 'approval'."""
+    newly = []
+    for ms in schedule.get("milestones", []):
+        trg = ms.get("trigger") or {}
+        if (trg.get("type") == "on_deliverable_event" and trg.get("deliverable_id") == deliverable_id
+                and trg.get("event") == event):
+            if ms.get("acceptance_required") and event != "approval":
+                continue
+            if not ms.get("billable_ready"):
+                ms["billable_ready"] = True
+                newly.append(_billable_task(schedule, ms, at))
+    return newly
+
+
+def billable_scan(schedule):
+    ready = [ms for ms in schedule.get("milestones", []) if ms.get("billable_ready") and not ms.get("billed_invoice_id")]
+    return {"boundary": BOUNDARY, "ready_to_bill": ready, "human_review_required": True}
+
+
 # ── read-only scan ────────────────────────────────────────────────────────────
 def scan(register, today: date) -> dict:
     tasks = register.get("tasks", [])
@@ -619,7 +804,57 @@ def selftest() -> int:
     bad = feasibility(chain, {"product_received": "2026-08-03"}, "post", "2026-08-11")
     check("infeasible", bad["feasible"] is False and any(c["task"] == "draft" for c in bad["conflicts"]))
 
-    n = 23
+    # recurrence: monthly, 3 occurrences, materialize-on-demand, idempotent, source inherited
+    rr = {"id": "recur1", "project_id": "deal_1", "contract_id": "ctr1",
+          "template": {"title": "Monthly report", "task_kind": "next_action", "responsible_party": "creator",
+                       "due_offset": {"anchor": "period_start", "days": 5, "basis": "business"}, "source": doc_src},
+          "rule": {"freq": "MONTHLY", "interval": 1, "count": 3, "until": None, "byday": None,
+                   "anchor_date": "2026-07-01"},
+          "generation": {"lookahead": 1, "last_generated_index": 0, "next_anchor": None}, "status": "active"}
+    rdates, _ = rrule_dates(rr["rule"])
+    check("rrule-monthly", [d.isoformat() for d in rdates] == ["2026-07-01", "2026-08-01", "2026-09-01"])
+    try:
+        rrule_dates({"freq": "MONTHLY", "count": 2, "until": "2026-12-01", "anchor_date": "2026-07-01"})
+        failures.append("count-until-allowed")
+    except ValueError:
+        pass
+    occ, _ = materialize_occurrences(rr, "2026-12-31", now="2026-07-01")
+    check("materialize-3", len(occ) == 3 and occ[0]["occurrence_index"] == 0)
+    check("occ-source-inherit", occ[0]["source"] == doc_src)
+    check("occ-due-set", occ[2]["due_date"] is not None)
+    occ2, _ = materialize_occurrences(rr, "2026-12-31", now="2026-07-01")
+    check("materialize-idempotent", len(occ2) == 0)
+
+    # waiting-on nudge/escalate math
+    ho = compute_handoff("2026-08-03", 3)
+    check("handoff-due", ho["response_due_at"] == "2026-08-06")
+    check("handoff-nudge", ho["nudge_at"] == "2026-08-05")
+    check("handoff-escalate", ho["escalate_at"] == "2026-08-10")
+
+    # approval ping-pong: responsible_party flips, iteration counts
+    wt = make_task("wt", "Reel approval", doc_src, project_id="deal_1")
+    transition(wt, "in_progress", "user:creator", "2026-08-01")
+    advance_ping_pong(wt, "submit", "2026-08-02", handoff=ho)
+    check("pp-submit", wt["status"] == "waiting_external" and wt["responsible_party"] == "brand")
+    advance_ping_pong(wt, "request_changes", "2026-08-05")
+    check("pp-changes", wt["status"] == "in_progress" and wt["responsible_party"] == "creator" and wt["ping_pong"]["iteration"] == 1)
+    advance_ping_pong(wt, "resubmit", "2026-08-06")
+    advance_ping_pong(wt, "approve", "2026-08-08")
+    check("pp-approve", wt["status"] == "done")
+
+    # billable readiness on a deliverable approval
+    sched = {"deal_id": "deal_1", "contract_ref": "ctr1", "net_terms_days": 30,
+             "milestones": [{"milestone_id": "ms_final", "label": "Final approval", "amount": None,
+                             "pct_of_total": 50, "acceptance_required": True, "billable_ready": False,
+                             "trigger": {"type": "on_deliverable_event", "deliverable_id": "del_final", "event": "approval"},
+                             "source": doc_src}]}
+    check("billable-gated", apply_deliverable_event(sched, "del_final", "delivery", "2026-09-01") == []
+          and sched["milestones"][0]["billable_ready"] is False)
+    fired = apply_deliverable_event(sched, "del_final", "approval", "2026-09-01")
+    check("billable-fires", len(fired) == 1 and sched["milestones"][0]["billable_ready"] is True)
+    check("billable-source", validate_source(fired[0]["source"]) == [])
+
+    n = 37
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))
