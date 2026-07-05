@@ -1320,6 +1320,31 @@ def milestone_status(schedule: dict, deliverable_id: str | None = None, event: s
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+#
+# Transport (P35 cross-surface / cross-AI):
+#   default (no args)  -> stdio, for a local Claude Desktop MCP server (claude_desktop_config.json).
+#   --serve-remote     -> a remote streamable-HTTP MCP endpoint. Behind an HTTPS reverse proxy with OAuth,
+#                         this becomes ONE "custom connector" that works on claude.ai web + mobile AND, since
+#                         both vendors speak MCP, ChatGPT (apps/dev-mode) and Gemini (CLI / Agent Platform).
+#                         We ship the transport option and this runbook; we do not host a server. Deploy
+#                         runbook: docs/TASK-TRACKER.md. The same task tools serve every surface unchanged.
 
 if __name__ == "__main__":
-    mcp.run()
+    import argparse as _argparse
+    _ap = _argparse.ArgumentParser(description="Creator OS MCP server")
+    _ap.add_argument("--serve-remote", action="store_true",
+                     help="run as a remote streamable-HTTP MCP endpoint (one connector for web/mobile + other AIs)")
+    _ap.add_argument("--transport", choices=["stdio", "streamable-http", "sse"], default=None)
+    _ap.add_argument("--host", default="127.0.0.1")
+    _ap.add_argument("--port", type=int, default=8080)
+    _args, _ = _ap.parse_known_args()
+    _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
+    if _transport != "stdio":
+        try:
+            mcp.settings.host = _args.host
+            mcp.settings.port = _args.port
+        except Exception:  # noqa: BLE001  (older FastMCP: host/port come from env or defaults)
+            pass
+        mcp.run(transport=_transport)
+    else:
+        mcp.run()
