@@ -2,7 +2,30 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P34 are complete. Drift guard exits 0 (24 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P35 are complete. Drift guard exits 0 (25 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P35: added the offline, source-cited, human-gated project task and obligation tracker for brand deals.
+  `shared/tasks-engine.md` defines the model: the anti-phantom rule (every task cites a document,
+  event_derived, or user_stated source; there is never a task the tool cannot cite), a seven-state
+  lifecycle with a first-class waiting_external state, and history[] as the append-only source of truth
+  that status/responsible_party/billable_ready fold over. `tools/tasks.py` (selftest 46/46) does the
+  offline compute: forward/backward/reverse-plan scheduling with a negative-slack feasibility check on the
+  obligations date math, RRULE recurrence materialized on demand, waiting-on handoff nudge/escalate,
+  two-party approval ping-pong, payment-milestone billable-readiness into the finance lane, .ics export +
+  reminders digest, and a store adapter (local_fs / google_drive / remote_mcp) whose append-only event-log
+  union-merge makes a shared Google Drive store concurrency-safe (not last-writer-wins). `tools/shipments.py`
+  (15/15) normalizes carrier status to a canonical enum, polls EasyPost/Ship24 with env-only keys (or takes
+  manual entry), and sets the immutable delivered_at planning anchor. `tools/coverage_verify.py` (18/18)
+  reconciles multiple media transcripts to a canonical truth (surfacing every credible dissent as a
+  conflict) and verifies required talking points with extractive citations, abstaining rather than inferring.
+  Eight atoms compose the `task-desk` spoke, hub-routed as task_status/task_plan/coverage_check/
+  shipment_update/milestone_bill; MCP tools and a dashboard tasks view added. Cross-surface continuity for a
+  non-technical Mac user runs the same tasks on claude.ai web, the Claude desktop app, and mobile via the
+  Drive/Sheets store, with an optional remote-MCP transport unlocking ChatGPT/Gemini. Four config
+  capabilities (task_tracking, shipment_tracking, coverage_verification, task_store_backend). Drift invariant
+  24 enforces task-tracker integrity; the S6 creator-core scenario exercises a two-party ping-pong plus
+  milestone, shipment, and coverage on fictional fixtures. Docs: `docs/TASK-TRACKER.md`. Ledger:
+  `P35-task-tracker`.
 
 - P34: added the offline residential construction and DIY knowledge base scoped to Florida and North
   Carolina. `shared/construction-engine.md` defines the offline-dictionary schema, the cite-and-link-only

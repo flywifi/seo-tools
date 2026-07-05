@@ -255,6 +255,13 @@ python3 tools/competitor_snapshot.py --export-summary
 | Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | Yes | No | No |
 | Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial | No | No |
 | Channel context from channel-context.json | Yes | Manual paste | Manual paste | No | No |
+| Task tracker (source-cited tasks, scheduling, waiting-on) | Yes (MCP) | Partial (model computes under tasks-engine) | Partial | No | Partial |
+| Cross-surface task store (Google Drive JSON + Sheets mirror) | Yes (wizard) | Yes (native connector) | No | No | Partial (Drive native) |
+| Live carrier shipment tracking (EasyPost/Ship24) | Yes (MCP + env key) | No | Partial (key) | No | No |
+| Manual shipment entry + delivered_at anchor | Yes | Yes | Yes | Yes | Yes |
+| Coverage verification (multi-transcript reconcile + cited points) | Yes (MCP) | Partial (lexical/model, abstains) | Partial | No | Partial |
+| Payment milestone billable-readiness into finance | Yes (MCP) | Partial | Partial | No | Partial |
+| .ics calendar export + reminders digest | Yes (local) | No | No | No | No |
 
 ---
 
