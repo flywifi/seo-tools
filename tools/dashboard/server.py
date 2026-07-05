@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import publishing_compliance as compliance  # noqa: E402
 import publishing  # noqa: E402
 import finance  # noqa: E402  (P31: read-only AR view)
+import tasks as _tasks  # noqa: E402  (P35: read-only task view)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -209,6 +210,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             # Real money data; the server binds localhost only and this route never writes.
             try:
                 return self._json_response(finance.ar_scan(None, None))
+            except Exception as exc:  # noqa: BLE001
+                return self._json_response({"error": str(exc)}, status=500)
+
+        if path == "/api/tasks":
+            # P35: read-only task view over pipeline/user-context/task-register.local.json.
+            # Waiting-on-counterparty vs I-owe split + due-soon/overdue bands. Never writes; localhost only.
+            try:
+                from datetime import date as _date
+                reg = _tasks.load_register("local_fs")
+                return self._json_response(_tasks.scan(reg, _date.today()))
             except Exception as exc:  # noqa: BLE001
                 return self._json_response({"error": str(exc)}, status=500)
 
