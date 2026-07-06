@@ -233,6 +233,11 @@
       "description": "Feature (P37, optional). Advisory jurisdictional overlays on top of the construction base: does a project location fall inside a flood zone / historic district / ridge / steep-slope / watershed overlay (geometry, point-in-polygon), or trigger a statutory rule (attribute, e.g. HVHZ = Miami-Dade/Broward, SB 4D milestone by stories+age), or a versioned fact (SLR projection, adopted code edition). Inter-overlay conflicts resolve by floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis, escalating genuine legal conflicts to human review. ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination. Offline stdlib engine (tools/geo_overlay.py) in EPSG:4326; the canonical-sources/jurisdiction/ bucket is optional and only loaded with this flag. Without it, construction lookups run as before.",
       "requires": "Nothing for the offline core (stdlib point-in-polygon over cached or supplied GeoJSON). Live GIS queries (e.g. FEMA NFHL) need outbound HTTPS; non-4326 reprojection would need an optional pyproj tier (off by default)."
     },
+    "jurisdictional_overlay_live": {
+      "enabled": false,
+      "description": "Feature (P37, optional). Live GIS queries for jurisdictional overlays (e.g. a FEMA National Flood Hazard Layer point flood-zone lookup) via tools/geo_fetch.py. SEPARATE from and stricter than jurisdictional_overlay: with this off, the overlay engine uses only cached or user-supplied boundaries and returns a config gap for anything needing a live boundary; it never makes a surprise network call. Requires jurisdictional_overlay on. Advisory planning information only, never an official or legal determination.",
+      "requires": "jurisdictional_overlay on, plus outbound HTTPS (honors the env proxy + CA bundle). No API key for the FEMA public endpoint. Off by default."
+    },
     "legal_requirement_checks": {
       "enabled": false,
       "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",
