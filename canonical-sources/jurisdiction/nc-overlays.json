@@ -1,0 +1,110 @@
+[
+  {
+    "_comment": "P37 North Carolina jurisdictional overlays (western NC focus: Buncombe/Asheville + Rutherford; optional bucket, advisory only). Attribute thresholds are cited statutory/ordinance facts. Geometry records carry a geometry_ref to the authoritative endpoint plus an ILLUSTRATIVE bbox only. Corrections baked in from verified research: Rutherford has NO steep-slope ordinance / no countywide zoning; Asheville is Code Sec. 7-9-2; the MRPA ridgeline layer is topo-map-digitized (screening only). Never a legal or permitting determination.",
+    "id": "nc-mrpa-protected-ridge-statutory",
+    "title": "Mountain Ridge Protection Act - protected ridge test (statutory)",
+    "text": "Under the NC Mountain Ridge Protection Act, a protected mountain ridge is one whose elevation is at least 3,000 feet AND at least 500 feet above the adjacent valley floor; a 'tall building' over 40 feet on such a ridge is restricted where a county or city has opted into the Act. Attribute test on site elevation and height above valley. Advisory only; the opting jurisdiction and a survey are authoritative.",
+    "overlay_kind": "attribute",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 4,
+    "predicate": [
+      {"field": "elevation_ft", "op": "gte", "value": 3000},
+      {"field": "elevation_above_valley_ft", "op": "gte", "value": 500}
+    ],
+    "source_ids": ["nc-statute-113a-mrpa"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "nc-mrpa-ridgeline-screening",
+    "title": "MRPA ridgeline proximity (screening layer)",
+    "text": "Whether a project point is near a mapped protected ridgeline. The NC OneMap MRPA ridgelines layer is topo-map digitized and is SCREENING ONLY; a real determination uses the statutory elevation test plus LiDAR/survey. Resolve the boundary via the live connector or user-supplied data; the bbox below is an ILLUSTRATIVE western-NC placeholder, not a real ridgeline.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 3,
+    "geometry_ref": "cache_or_live:nc-onemap-mrpa-ridgelines",
+    "_geometry_is_illustrative": true,
+    "bbox": [-84.0, 35.0, -81.0, 36.5],
+    "source_ids": ["nc-onemap-mrpa-ridgelines", "nc-statute-113a-mrpa"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "buncombe-steep-slope-high-elevation",
+    "title": "Buncombe County Steep Slope / High Elevation Overlay",
+    "text": "Buncombe County (FIPS 37021) Sec. 78-644 Steep Slope/High Elevation Overlay applies to land above 2,500 feet elevation; structures must sit on soils with slope no greater than 35%. Attribute test on county + elevation; the mapped county overlay layer and DEM-derived slope are authoritative. Advisory only.",
+    "overlay_kind": "attribute",
+    "jurisdiction_level": "county",
+    "preemption_type": "floor",
+    "local_authority": "home_rule",
+    "specificity_scope": 5,
+    "predicate": [
+      {"field": "county_fips", "op": "eq", "value": "37021"},
+      {"field": "elevation_ft", "op": "gte", "value": 2500}
+    ],
+    "source_ids": ["buncombe-zoning-ordinance", "buncombe-gis-overlays"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "buncombe-geotech-slope-trigger",
+    "title": "Buncombe County geotechnical analysis trigger (steep grade)",
+    "text": "In Buncombe County, development on existing grade of 36% or greater (or on parcels mapped High/Moderate hazard on the county Slope Stability Index Map) requires geotechnical analysis by an NC-registered PE. Attribute test on slope percent; the hazard map is the alternative trigger. Advisory only; DEM-derived slope and the county map are authoritative.",
+    "overlay_kind": "attribute",
+    "jurisdiction_level": "county",
+    "preemption_type": "floor",
+    "local_authority": "home_rule",
+    "specificity_scope": 5,
+    "predicate": [
+      {"field": "county_fips", "op": "eq", "value": "37021"},
+      {"field": "slope_pct", "op": "gte", "value": 36}
+    ],
+    "source_ids": ["buncombe-zoning-ordinance", "buncombe-gis-overlays"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "rutherford-no-steep-slope-ordinance",
+    "title": "Rutherford County - no steep-slope ordinance (documentation)",
+    "text": "Rutherford County (FIPS 37161) has NO countywide zoning and NO steep-slope/hillside/ridge-protection ordinance. Slope controls there reduce to the Watershed Protection, Flood Damage Prevention, Subdivision, and Solar ordinances; any hillside control in the county seat comes from Town of Rutherfordton zoning, a separate jurisdiction. This record exists so the engine does NOT falsely apply a steep-slope overlay to Rutherford. Advisory only.",
+    "overlay_kind": "versioned-fact",
+    "jurisdiction_level": "county",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 4,
+    "value": "no_steep_slope_ordinance",
+    "effective_date": "2026",
+    "as_of": "2026-07-06",
+    "source_ids": ["rutherford-gis-reference"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "asheville-historic-design-review",
+    "title": "Asheville local historic district / downtown design review",
+    "text": "Whether a project point falls inside an Asheville local historic overlay or the downtown design review district (Asheville Code Sec. 7-9-2), triggering design review. The authoritative boundary is the city ArcGIS layer; resolve via the live connector or user-supplied GeoJSON. The bbox below is an ILLUSTRATIVE downtown-Asheville placeholder only. Advisory only.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache_or_live:asheville-historic-gis",
+    "_geometry_is_illustrative": true,
+    "bbox": [-82.56, 35.58, -82.54, 35.60],
+    "source_ids": ["asheville-historic-gis"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "nc-water-supply-watershed",
+    "title": "NC water-supply watershed protection overlay",
+    "text": "Whether a project point falls inside an NC DEQ water-supply-watershed (WS) protection overlay (built-upon-area and buffer limits) or a designated river basin (e.g. French Broad, Broad). The authoritative boundary is the NC OneMap / DEQ layer; resolve via the live connector or user-supplied GeoJSON. Advisory only.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 4,
+    "geometry_ref": "cache_or_live:nc-onemap-watersheds",
+    "_geometry_is_illustrative": false,
+    "source_ids": ["nc-onemap-watersheds"],
+    "boundary": "advisory-not-legal-determination"
+  }
+]

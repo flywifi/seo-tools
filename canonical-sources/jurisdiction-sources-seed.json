@@ -78,5 +78,84 @@
     "_signal": "sha256",
     "_license": "regional compact report; cite the projection facts + edition, do not mirror the report",
     "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "nc-onemap-mrpa-ridgelines",
+    "name": "NC Mountain Ridge Protection Act ridgelines (NC OneMap ArcGIS)",
+    "url": "https://services1.arcgis.com/YBWrN5qiESVpqi92/arcgis/rest/services/mrpa_ridgelines/FeatureServer",
+    "category": "jurisdiction-gis",
+    "tier": "T2",
+    "check_url": "https://services1.arcgis.com/YBWrN5qiESVpqi92/arcgis/rest/services/mrpa_ridgelines/FeatureServer/0?f=json",
+    "extraction_hint": "statewide protected-ridge lines (topo-map digitized, SCREENING ONLY); static unless the MRPA is amended; the FeatureServer editingInfo/item modified is the freshness signal",
+    "_signal": "arcgis-rest",
+    "_license": "NC OneMap / NCGS open, public; no warranty (accuracy); attribute to NCGS",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
+  },
+  {
+    "id": "buncombe-gis-overlays",
+    "name": "Buncombe County GIS - protected ridges + zoning overlays (ArcGIS)",
+    "url": "https://gis.buncombecounty.org/arcgis/rest/services/bcmap_vt/MapServer",
+    "category": "jurisdiction-gis",
+    "tier": "T2",
+    "check_url": "https://gis.buncombecounty.org/arcgis/rest/services/bcmap_vt/MapServer?f=json",
+    "extraction_hint": "layer 7 Protected Ridges, layer 20 County Zoning Overlay, Slope Stability Index Map; steep-slope % itself is DEM-derived (no slope-percent layer)",
+    "_signal": "arcgis-rest",
+    "_license": "county public records / open GIS; standard accuracy disclaimer; attribute to Buncombe County GIS",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
+  },
+  {
+    "id": "rutherford-gis-reference",
+    "name": "Rutherford County GIS - reference layers (parcels/flood only)",
+    "url": "https://gis.rutherfordcountync.gov/server/rest/services/ReferenceLayers/MapServer",
+    "category": "jurisdiction-gis",
+    "tier": "T3",
+    "extraction_hint": "parcels + flood zones only; Rutherford has NO countywide zoning and NO steep-slope ordinance, so slope must be DEM-derived",
+    "_signal": "arcgis-rest",
+    "_license": "county public records / open GIS; standard accuracy disclaimer",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
+  },
+  {
+    "id": "nc-statute-113a-mrpa",
+    "name": "NC Mountain Ridge Protection Act (Ch. 113A, Article 14)",
+    "url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/ByArticle/Chapter_113A/Article_14.html",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "protected ridge = elevation >= 3,000 ft AND >= 500 ft above the adjacent valley; tall building > 40 ft; counties/cities opt in",
+    "_signal": "sha256",
+    "_license": "government edict, public domain",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
+  },
+  {
+    "id": "buncombe-zoning-ordinance",
+    "name": "Buncombe County zoning ordinance (Ch. 78 Art. VI, steep-slope/ridge overlays)",
+    "url": "https://media.buncombenc.gov/common/planning/zoning/zoning-ordinance.pdf",
+    "category": "legal-authority",
+    "tier": "T2",
+    "extraction_hint": "Sec. 78-644 Steep Slope/High Elevation (above 2,500 ft, slope <= 35%); Sec. 78-645 Protected Ridge (above 3,000 ft); geotech trigger at existing grade >= 36% or mapped hazard",
+    "_signal": "sha256",
+    "_license": "county ordinance = public-domain law; the .gov PDF is fetchable, Municode hosting is not",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
+  },
+  {
+    "id": "asheville-historic-gis",
+    "name": "Asheville local historic districts + downtown design review (ArcGIS open data)",
+    "url": "https://data.ashevillenc.gov/",
+    "category": "jurisdiction-gis",
+    "tier": "T3",
+    "extraction_hint": "local historic overlay + downtown design review district (Asheville Code Sec. 7-9-2); boundary polygons via the city ArcGIS hub",
+    "_signal": "arcgis-rest",
+    "_license": "municipal open data; per-item license",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
+  },
+  {
+    "id": "nc-onemap-watersheds",
+    "name": "NC water-supply watersheds + river basins (NC OneMap / DEQ)",
+    "url": "https://www.nconemap.gov/",
+    "category": "jurisdiction-gis",
+    "tier": "T2",
+    "extraction_hint": "NC DEQ water-supply-watershed (WS) protection overlays + major river basins (French Broad, Broad); ArcGIS REST / Hub modified date",
+    "_signal": "arcgis-rest",
+    "_license": "NC OneMap open data; public",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/nc-overlays.json"]
   }
 ]

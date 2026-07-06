@@ -60,7 +60,10 @@
     {"file": "jurisdiction/overlays.example.json", "status": "static", "watched_by": [], "reason": "P37: example jurisdictional-overlay records (schema demonstration; optional bucket). Real overlays cite government GIS/legal sources seeded into the registry per deployment; the example carries illustrative geometry only, no live upstream"},
     {"file": "jurisdiction/fl-overlays.json", "status": "watched",
      "watched_by": ["fema-nfhl-flood-zones", "fema-nfhl-lomrs", "sfwmd-open-data-gis", "miami-historic-districts-gis", "fl-statute-553-899-milestone", "fl-statute-553-842-product-approval", "seflcompact-slr-projection"],
-     "reason": "P37: Florida advisory jurisdictional overlays (HVHZ/SB4D attribute, SLR versioned-fact, FEMA flood + historic geometry); review when a watching GIS/legal source changes"}
+     "reason": "P37: Florida advisory jurisdictional overlays (HVHZ/SB4D attribute, SLR versioned-fact, FEMA flood + historic geometry); review when a watching GIS/legal source changes"},
+    {"file": "jurisdiction/nc-overlays.json", "status": "watched",
+     "watched_by": ["nc-onemap-mrpa-ridgelines", "nc-statute-113a-mrpa", "buncombe-gis-overlays", "buncombe-zoning-ordinance", "rutherford-gis-reference", "asheville-historic-gis", "nc-onemap-watersheds"],
+     "reason": "P37: North Carolina advisory jurisdictional overlays (MRPA ridge, Buncombe steep-slope/geotech, Rutherford no-ordinance note, Asheville historic, NC watersheds); review when a watching GIS/legal source changes"}
   ],
   "embedded_fact_files": [
     {"file": "shared/connectors/connectors.json", "status": "watched",
