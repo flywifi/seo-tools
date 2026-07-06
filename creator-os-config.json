@@ -229,14 +229,16 @@
       "requires": "local_fs: nothing. google_drive: the Google Workspace connector (native on claude.ai web / Gemini; wizard-configured on Desktop). remote_mcp: a deployed remote MCP server (user/host provided)."
     },
     "jurisdictional_overlay": {
-      "enabled": false,
-      "description": "Feature (P37, optional). Advisory jurisdictional overlays on top of the construction base: does a project location fall inside a flood zone / historic district / ridge / steep-slope / watershed overlay (geometry, point-in-polygon), or trigger a statutory rule (attribute, e.g. HVHZ = Miami-Dade/Broward, SB 4D milestone by stories+age), or a versioned fact (SLR projection, adopted code edition). Inter-overlay conflicts resolve by floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis, escalating genuine legal conflicts to human review. ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination. Offline stdlib engine (tools/geo_overlay.py) in EPSG:4326; the canonical-sources/jurisdiction/ bucket is optional and only loaded with this flag. Without it, construction lookups run as before.",
-      "requires": "Nothing for the offline core (stdlib point-in-polygon over cached or supplied GeoJSON). Live GIS queries (e.g. FEMA NFHL) need outbound HTTPS; non-4326 reprojection would need an optional pyproj tier (off by default)."
+      "enabled": true,
+      "description": "Feature (P37/P38). Advisory jurisdictional overlays on top of the construction base: does a project location fall inside a flood zone / historic district / ridge / steep-slope / watershed overlay (geometry, point-in-polygon), or trigger a statutory rule (attribute, e.g. HVHZ = Miami-Dade/Broward, SB 4D milestone by stories+age), or a versioned fact (SLR projection scoped to its counties, adopted code edition). Inter-overlay conflicts resolve by floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis, escalating genuine legal conflicts to human review. ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination. Offline stdlib engine (tools/geo_overlay.py) in EPSG:4326; the canonical-sources/jurisdiction/ bucket ships with the download and loads when this master switch is on (default on). Every output still carries the advisory boundary; on-by-default means available, never a determination.",
+      "requires": "Nothing for the offline core (stdlib point-in-polygon over cached or supplied GeoJSON). Live GIS/geocoding needs outbound HTTPS and is governed by jurisdictional_overlay_live (ask-first consent); non-4326 reprojection would need an optional pyproj tier (off by default)."
     },
     "jurisdictional_overlay_live": {
-      "enabled": false,
-      "description": "Feature (P37, optional). Live GIS queries for jurisdictional overlays (e.g. a FEMA National Flood Hazard Layer point flood-zone lookup) via tools/geo_fetch.py. SEPARATE from and stricter than jurisdictional_overlay: with this off, the overlay engine uses only cached or user-supplied boundaries and returns a config gap for anything needing a live boundary; it never makes a surprise network call. Requires jurisdictional_overlay on. Advisory planning information only, never an official or legal determination.",
-      "requires": "jurisdictional_overlay on, plus outbound HTTPS (honors the env proxy + CA bundle). No API key for the FEMA public endpoint. Off by default."
+      "enabled": true,
+      "mode": "ask",
+      "cadence": "per_session",
+      "description": "Feature (P38). Live-network CONSENT POLICY for jurisdictional overlays: the FEMA National Flood Hazard Layer flood lookup (tools/geo_fetch.py) and U.S. Census address geocoding (tools/geo_geocode.py). Default-ON but ASK-FIRST, once per session (mode 'ask', cadence 'per_session', enforced by tools/geo_consent.py): the first live lookup in a session asks the human, nothing is fetched until granted, a grant covers the session, and a denial or a headless run (no interactive prompt) falls back with NO network call. Set mode 'never' (or enabled false) to disable live lookups entirely; 'always' to pre-grant. Requires jurisdictional_overlay on. Advisory planning information only, never an official or legal determination.",
+      "requires": "jurisdictional_overlay on, plus outbound HTTPS (honors the env proxy + CA bundle). No API key (FEMA + Census public endpoints). Per-session human consent unless mode is 'always'."
     },
     "legal_requirement_checks": {
       "enabled": false,

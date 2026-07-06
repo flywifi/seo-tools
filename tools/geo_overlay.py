@@ -261,10 +261,21 @@ def eval_overlay(overlay, context):
         r = eval_attribute(overlay.get("predicate", []), context.get("facts", {}))
         return {**base, "applies": r["applies"], "evaluated": r["evaluated"]}
     if kind == "versioned-fact":
-        return {**base, "applies": True, "value": overlay.get("value"),
-                "effective_date": overlay.get("effective_date"),
-                "source_reference": overlay.get("source_reference"),
-                "as_of": overlay.get("as_of")}
+        # Optional applicability predicate: a versioned fact only applies where its predicate holds
+        # (e.g. an SE-FL-Compact sea-level-rise projection applies only in the compact counties).
+        # No predicate -> applies everywhere (back-compat). Predicate present and failing -> does not
+        # apply and the value is nulled so it can never leak outside its scope.
+        pred = overlay.get("applicability")
+        common = {"effective_date": overlay.get("effective_date"),
+                  "source_reference": overlay.get("source_reference"), "as_of": overlay.get("as_of")}
+        if pred:
+            r = eval_attribute(pred, context.get("facts", {}))
+            if not r["applies"]:
+                return {**base, "applies": False, "evaluated": r["evaluated"], "value": None,
+                        "note": "versioned fact out of scope for these facts/location", **common}
+            return {**base, "applies": True, "evaluated": r["evaluated"],
+                    "value": overlay.get("value"), **common}
+        return {**base, "applies": True, "value": overlay.get("value"), **common}
     return {**base, "applies": None, "note": f"unknown overlay_kind '{kind}'"}
 
 
@@ -418,6 +429,17 @@ def selftest():
            "source_reference": "SE FL Compact 2019 Unified Projection", "as_of": "2026-07-05"}
     vf = eval_overlay(slr, {})
     ok("versioned-fact returns value+source", vf["value"] == 12.0 and "Compact" in vf["source_reference"])
+
+    # versioned-fact WITH an applicability predicate: scoped by county FIPS (SE FL Compact)
+    slr_gated = {"id": "slr-gated", "overlay_kind": "versioned-fact", "value": 12.0,
+                 "effective_date": "2019", "source_reference": "SE FL Compact 2019 Unified Projection",
+                 "as_of": "2026-07-05",
+                 "applicability": [{"field": "county_fips", "op": "in", "value": ["12086", "12011"]}]}
+    ok("versioned-fact applies inside its counties (Miami-Dade 12086)",
+       eval_overlay(slr_gated, {"facts": {"county_fips": "12086"}})["applies"] is True)
+    vf_out = eval_overlay(slr_gated, {"facts": {"county_fips": "12095"}})
+    ok("versioned-fact does NOT apply outside its counties (Orange 12095), value nulled",
+       vf_out["applies"] is False and vf_out["value"] is None)
 
     # conflict: ceiling preemption -> higher governs
     fed = {"id": "fed-ceiling", "jurisdiction_level": "federal", "preemption_type": "ceiling"}

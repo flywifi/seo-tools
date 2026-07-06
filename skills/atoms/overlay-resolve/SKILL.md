@@ -36,19 +36,20 @@ Do NOT use for:
 ## Inputs
 A project location (longitude and latitude in EPSG:4326) and any known facts (county FIPS, ownership
 form, habitable stories, certificate-of-occupancy age, elevation, slope). No network is required for
-attribute and cached-geometry overlays; a live boundary needs `jurisdictional_overlay_live` on.
+attribute and cached-geometry overlays; a live boundary needs per-session live consent (jurisdictional_overlay_live).
 
 ## Core procedure
 Follow `shared/method.md`. Uses `tools/geo_overlay.py` (offline EPSG:4326 point-in-polygon plus overlay
-evaluation) and, only when the live flag is on, `tools/geo_fetch.py` (FEMA NFHL point query). Reads the
+evaluation) and, only with per-session live consent, `tools/geo_fetch.py` (FEMA NFHL point query) and
+`tools/geo_geocode.py` (address to point). Reads the
 optional `canonical-sources/jurisdiction/` overlay records.
 
 ### Step 1: gather the location and facts
 Collect the point and the project facts. Null-and-flag anything unknown; never guess a value.
 
 ### Step 2: evaluate each overlay and cite it
-Evaluate attribute overlays against the facts and geometry overlays by containment (cached or, with the
-live flag, fetched). Return each applicable overlay with its source citation and the advisory boundary.
+Evaluate attribute overlays against the facts and geometry overlays by containment (cached or, with
+per-session live consent, fetched). Return each applicable overlay with its source citation and the advisory boundary.
 Hand the result to `govern-artifact`.
 
 ## Output contract
@@ -59,7 +60,7 @@ unverified is labeled and resolved via the live connector or user-supplied data.
 
 ## Standalone usability
 Resolves a location's advisory overlays offline (attribute plus cached geometry), cited and bounded,
-with no downstream skill; the live flag adds FEMA flood resolution.
+with no downstream skill; granting per-session live consent adds address geocoding and FEMA flood resolution.
 
 ## Failure modes
 - `jurisdictional_overlay` off: says the capability is off rather than answering.

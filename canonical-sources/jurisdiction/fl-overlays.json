@@ -44,6 +44,7 @@
     "unit": "inches_additional_freeboard",
     "effective_date": "2019",
     "as_of": "2026-07-05",
+    "applicability": [{"field": "county_fips", "op": "in", "value": ["12086", "12011", "12099", "12087"]}],
     "source_ids": ["seflcompact-slr-projection"],
     "boundary": "advisory-not-legal-determination"
   },

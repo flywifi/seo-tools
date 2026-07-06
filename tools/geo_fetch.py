@@ -21,6 +21,8 @@ import urllib.parse
 import urllib.request
 from datetime import date, datetime
 
+import geo_consent  # noqa: E402  (sibling tool module: unified live-network consent policy)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CA_BUNDLE = os.environ.get("REQUESTS_CA_BUNDLE") or "/root/.ccr/ca-bundle.crt"
 
@@ -55,11 +57,10 @@ def load_config(root=ROOT):
 
 
 def live_enabled(config):
-    """True only if BOTH jurisdictional_overlay and jurisdictional_overlay_live are on."""
-    caps = (config or {}).get("capabilities", {})
-    def on(name):
-        return bool(caps.get(name, {}).get("enabled")) if isinstance(caps.get(name), dict) else bool(caps.get(name))
-    return on("jurisdictional_overlay") and on("jurisdictional_overlay_live")
+    """True if live lookups are permitted (master feature on and the live policy is not 'never').
+    A permitted call may still require per-session consent before it runs. Kept for display /
+    back-compat; the actual gate is geo_consent.gate in resolve_live."""
+    return geo_consent.master_on(config) and geo_consent.live_policy(config)["mode"] != geo_consent.NEVER
 
 
 # ---- ArcGIS REST point query (stdlib urllib, env proxy + CA bundle) ----------
@@ -126,15 +127,20 @@ def fema_flood_zone(lon, lat, getter=None):
 
 
 # ---- gated entry point -------------------------------------------------------
-def resolve_live(endpoint_id, lon, lat, config=None, getter=None):
-    """Resolve a live overlay for a point, GATED by the live flag. endpoint_id names the source
-    (e.g. 'fema-nfhl-flood-zones'). With the flag OFF, returns a config gap and makes NO network call."""
+def resolve_live(endpoint_id, lon, lat, config=None, getter=None, session=None, asker=None):
+    """Resolve a live overlay for a point, GATED by the unified consent policy (geo_consent).
+    endpoint_id names the source (e.g. 'fema-nfhl-flood-zones'). Default-on but ask-first per
+    session: without consent (or headless), returns a consent gap and makes NO network call.
+    session is a caller-owned dict tracking the per-session grant; asker(prompt)->bool obtains it."""
     config = config if config is not None else load_config()
-    if not live_enabled(config):
+    decision = geo_consent.gate(config, purpose=f"a FEMA flood-zone lookup at {lon},{lat}",
+                                service="FEMA National Flood Hazard Layer", session=session, asker=asker)
+    if not decision["proceed"]:
         return {"enabled": False, "endpoint_id": endpoint_id, "result": None,
-                "config_gap": "jurisdictional_overlay_live is off",
-                "hint": "enable jurisdictional_overlay + jurisdictional_overlay_live, or use a cached/"
-                        "user-supplied boundary; nothing was fetched", "boundary": ADVISORY}
+                "consent": decision["code"], "reason": decision["reason"],
+                "prompt": decision.get("prompt"),
+                "hint": "grant consent for this session, or use a cached / user-supplied boundary; "
+                        "nothing was fetched", "boundary": ADVISORY}
     if endpoint_id == "fema-nfhl-flood-zones":
         try:
             res = fema_flood_zone(lon, lat, getter=getter)
@@ -178,34 +184,45 @@ def selftest():
     ok("layer_freshness reads lastEditDate", ld == 1700000000000)
     ok("layer_freshness None when absent", layer_freshness(FEMA_NFHL_ZONES, getter=lambda u: {}) is None)
 
-    # GATE: flag off -> config gap, NO network (getter that raises must never be called)
+    ON = {"capabilities": {"jurisdictional_overlay": {"enabled": True}}}  # live absent -> ask/per_session
+
     def exploding_getter(u):
-        raise AssertionError("network must not be called when the live flag is off")
+        raise AssertionError("network must not be called without consent")
+
+    # GATE: live policy 'never' (legacy enabled:false) -> refuse, NO network
     off = resolve_live("fema-nfhl-flood-zones", -80.19, 25.77,
                        config={"capabilities": {"jurisdictional_overlay": {"enabled": True},
                                                 "jurisdictional_overlay_live": {"enabled": False}}},
-                       getter=exploding_getter)
-    ok("flag off -> config gap, no network", off["enabled"] is False and off["result"] is None and "config_gap" in off)
+                       getter=exploding_getter, session={}, asker=lambda p: True)
+    ok("live policy off -> refuse, no network",
+       off["enabled"] is False and off["result"] is None and off["consent"] == "policy_off")
 
-    # GATE: requires BOTH flags
+    # GATE: master off -> refuse
     off2 = resolve_live("fema-nfhl-flood-zones", -80.19, 25.77,
-                        config={"capabilities": {"jurisdictional_overlay": {"enabled": False},
-                                                 "jurisdictional_overlay_live": {"enabled": True}}},
-                        getter=exploding_getter)
-    ok("needs jurisdictional_overlay too -> off", off2["enabled"] is False)
+                        config={"capabilities": {"jurisdictional_overlay": {"enabled": False}}},
+                        getter=exploding_getter, session={}, asker=lambda p: True)
+    ok("master feature off -> refuse", off2["enabled"] is False and off2["consent"] == "feature_off")
 
-    # GATE: both on -> queries via injected getter
-    on = resolve_live("fema-nfhl-flood-zones", -80.19, 25.77,
-                      config={"capabilities": {"jurisdictional_overlay": {"enabled": True},
-                                               "jurisdictional_overlay_live": {"enabled": True}}},
-                      getter=gj_getter)
-    ok("both flags on -> result returned", on["enabled"] is True and on["result"]["flood_zone"] == "AE")
+    # GATE: ask + no asker (headless) -> consent_required, NO network
+    nc = resolve_live("fema-nfhl-flood-zones", -80.19, 25.77, config=ON, getter=exploding_getter,
+                      session={}, asker=None)
+    ok("ask + no asker -> consent_required, no network",
+       nc["enabled"] is False and nc["consent"] == "consent_required" and nc.get("prompt"))
 
-    # unknown endpoint
-    unk = resolve_live("no-such", 0, 0,
-                       config={"capabilities": {"jurisdictional_overlay": {"enabled": True},
-                                                "jurisdictional_overlay_live": {"enabled": True}}},
-                       getter=gj_getter)
+    # GATE: ask + consent granted -> queries via injected getter
+    sess = {}
+    on = resolve_live("fema-nfhl-flood-zones", -80.19, 25.77, config=ON, getter=gj_getter,
+                      session=sess, asker=lambda p: True)
+    ok("consent granted -> result returned", on["enabled"] is True and on["result"]["flood_zone"] == "AE")
+    ok("grant recorded for session", sess.get("granted_live") is True)
+
+    # GATE: second call same session -> queries WITHOUT re-asking (asker would raise)
+    on2 = resolve_live("fema-nfhl-flood-zones", -80.19, 25.77, config=ON, getter=gj_getter,
+                       session=sess, asker=lambda p: (_ for _ in ()).throw(AssertionError("no re-ask")))
+    ok("granted session -> no re-ask", on2["enabled"] is True and on2["result"]["flood_zone"] == "AE")
+
+    # unknown endpoint (consent granted) -> error, no crash
+    unk = resolve_live("no-such", 0, 0, config=ON, getter=gj_getter, session={"granted_live": True})
     ok("unknown endpoint -> error, no crash", unk["result"] is None and "error" in unk)
 
     passed = sum(1 for _, c in checks if c)
