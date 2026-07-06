@@ -1,51 +1,51 @@
 {
   "_boundary": "Owner dev-time projection. Local working tree only; never auto-published, never GitHub.",
-  "as_of": "2026-07-05",
-  "canonical_digest": "8558e96f6b70d8d3e7474513a85715567bc0303480f5829764196604c2027bfd",
+  "as_of": "2026-07-06",
+  "canonical_digest": "02b28f376e338873fd5c70c8693a46ee774199a29231a85809cb93fdbd5eea18",
   "managed_files": [
     {
       "file": "implementation/claude/project/knowledge/01-creator-core.md",
-      "sha256": "272db7ba72e9a7b2dbd6955be0ace609ab4e81f5960ff9dd60c8ba33fa75bd2d"
+      "sha256": "dcbece8f41e8cf8bdda59a638ca74ee1d35615145ce17bc1ce9f0ee709195a94"
     },
     {
       "file": "implementation/claude/project/knowledge/02-brand-voice.md",
-      "sha256": "794619f513688f967c52ac785ac01dc8a8b78713430a83d5dcda0ddffde52020"
+      "sha256": "bba5c2294ef9499f82fa09d2b5478d0aa173af9c661e7710a8cee4ec7bf206ea"
     },
     {
       "file": "implementation/claude/project/knowledge/03-platform-seo.md",
-      "sha256": "7b70fac389bdeba9daccb21cc531d68468a4b02b3499aa10dd368b6a3cb1e18b"
+      "sha256": "bbaf93c7f93757e379ebde4e383256065eafdb97a03ab348096e9739c4b7ce1f"
     },
     {
       "file": "implementation/claude/project/knowledge/04-protocols.md",
-      "sha256": "f6905874e2b51be2574f09517f50fac02d73242171b96011ea4db6e09c1bf7d7"
+      "sha256": "3dc26cad428446680cd23505835544772f6e33c70d14928b26ac89df0b84dbf6"
     },
     {
       "file": "implementation/claude/project/knowledge/05-content-spokes.md",
-      "sha256": "088bc22720de7ed85540c09c19ca7f2ccc394f6066d2e1f7182198189b01c68e"
+      "sha256": "a08e701e58c86bf0be3d1c5050d0effdb980b57ae35d80ab6855d6bcd071d0fe"
     },
     {
       "file": "implementation/claude/project/knowledge/06-document-spoke.md",
-      "sha256": "b5b2b1c382a97219f12b03dab111456f3abe11eacf78bb3c5c816677ea536f72"
+      "sha256": "dab75c1d0f955d4deb1b0434ad7720f4ac33fb6c909b4094241c0a5a64459f8e"
     },
     {
       "file": "implementation/claude/project/knowledge/07-pipeline-spokes.md",
-      "sha256": "3addd0921dd7cf080dc4d895e7ed606f8b93d8eb0a96c505eebfad52acb427e8"
+      "sha256": "b1a43837db21391c4d309e70be6779de0606f1e1166bafe7e5918f034230eed0"
     },
     {
       "file": "implementation/claude/project/knowledge/08-key-atoms.md",
-      "sha256": "825797d345f2898657f3b10210cbdeea7d8340c5426f29fa213d18a763da8adc"
+      "sha256": "05761769b1ebd85a7f1b6363e7b684473e6a34e72bad831b3e58b766757cf39d"
     },
     {
       "file": "implementation/claude/project/system-prompt.md",
-      "sha256": "a82f7ee3a9bdc8b8abbb43a7f514330fc2b25a72601f94d51b4d7e9fe26b511c"
+      "sha256": "cb787bb26c1a13098813eb5c150b6a88834b8c74e458895d194fc5f6e78e9924"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",
-      "sha256": "43c81f94c4e1957ca4b4a462f930c136ba507030330f0a8979ad5d7a8cc268f5"
+      "sha256": "b857ed2dbd3fbc7d0fb837f463a09bc283a7b6fa1b1dccfef78e4fd8dd08cdbe"
     },
     {
       "file": "implementation/gemini/system-instruction.md",
-      "sha256": "e112cffb9f3db10738cc6988f335f11524ed1cfc585e1120a0c8b8175f61cf6f"
+      "sha256": "ff82eb1d30e2eb41dc37acae6421f0cb45a5d36e8a7805acb1005f1ed93ecf46"
     }
   ],
   "generated_by": "tools/build_freshness_bundle.py"

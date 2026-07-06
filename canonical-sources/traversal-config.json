@@ -93,6 +93,12 @@
       "staleness_threshold_days": 30,
       "traversal_depth": 0,
       "_note": "P36. The AI-surface/packaging formats this ecosystem exports to (MCP protocol, .mcpb manifest, Anthropic Agent Skills, OpenAI GPT Actions / Apps SDK, Google Gemini). Monthly check so an export cannot silently break on an MCP transport deadline, a SKILL.md field cap, a GPT Actions char limit, or a model-id retirement. Prefer a git releases/commits feed; ETag+sha256 for the HTML/plain-text holdouts."
+    },
+    "jurisdiction-gis": {
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "traversal_depth": 0,
+      "_note": "P37 (optional jurisdictional-overlay bucket). Government GIS boundary services (FEMA NFHL, water management district hubs, county/municipal ArcGIS, NC OneMap) that feed advisory overlays. Poll the layer metadata JSON for the ArcGIS editingInfo.lastEditDate / OGC ETag freshness signal (FEMA NFHL layer 28 has none, so poll the LOMRs layer). Public-domain federal + open state/county data; cache the boundary fact, never a legal determination."
     }
   },
   "traversal_max_depth": 2,

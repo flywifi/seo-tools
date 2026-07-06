@@ -10,7 +10,7 @@ load:
   - protocols/formatting-metadata.md
 ---
 
-_Data freshness: as of 2026-07-05 (Creator OS baseline 8558e96f). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-06 (Creator OS baseline 02b28f37). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # keyword-compare
 

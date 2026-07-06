@@ -1,0 +1,82 @@
+[
+  {
+    "_comment": "P37 jurisdictional-overlay sources (FL first; NC added in P37-P4). Load: python3 tools/source_currency.py seed-sources canonical-sources/jurisdiction-sources-seed.json. Government GIS boundary services + statutes that feed the optional advisory overlays. Public-domain federal + open state/county data (cache freely, per-layer metadata); statutes are public-domain edicts. Model building-code text (ICC/FBC) is copyrighted -> cache the adopted-edition FACT only. ArcGIS editingInfo.lastEditDate / OGC ETag is the token-free freshness signal.",
+    "id": "fema-nfhl-flood-zones",
+    "name": "FEMA National Flood Hazard Layer - Flood Hazard Zones (ArcGIS REST)",
+    "url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28",
+    "category": "jurisdiction-gis",
+    "tier": "T1",
+    "check_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28?f=json",
+    "extraction_hint": "point flood-zone query on layer 28 (FLD_ZONE, SFHA_TF, STATIC_BFE) in inSR=4326; layer 28 has no editingInfo, so poll the LOMRs layer 1 for change",
+    "_signal": "arcgis-rest",
+    "_license": "US federal work, public domain (17 USC 105); not the legally authoritative FIRM",
+    "used_by": ["shared/construction-engine.md", "jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "fema-nfhl-lomrs",
+    "name": "FEMA NFHL - Letters of Map Revision (change signal)",
+    "url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/1",
+    "category": "jurisdiction-gis",
+    "tier": "T1",
+    "check_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/1?f=json",
+    "extraction_hint": "LOMR effective/case dates; the regulatory-change signal for NFHL since layer 28 lacks editingInfo",
+    "_signal": "arcgis-rest",
+    "_license": "US federal work, public domain",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "sfwmd-open-data-gis",
+    "name": "South Florida Water Management District open-data GIS (ArcGIS Hub)",
+    "url": "https://geo-sfwmd.hub.arcgis.com/",
+    "category": "jurisdiction-gis",
+    "tier": "T2",
+    "extraction_hint": "district/basin boundaries + ERP layers; ArcGIS Hub item modified date / REST lastEditDate",
+    "_signal": "arcgis-rest",
+    "_license": "FL public agency open data; per-item license, generally open/public-domain",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "miami-historic-districts-gis",
+    "name": "City of Miami historic districts (ArcGIS open data)",
+    "url": "https://datahub-miamigis.opendata.arcgis.com/datasets/MiamiGIS::historic-districts/about",
+    "category": "jurisdiction-gis",
+    "tier": "T2",
+    "extraction_hint": "local historic-district boundary polygons (design-review trigger); Hub item modified / REST lastEditDate",
+    "_signal": "arcgis-rest",
+    "_license": "municipal public records / open data; per-item license",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "fl-statute-553-899-milestone",
+    "name": "Florida Statute 553.899 - Milestone structural inspections (SB 4D)",
+    "url": "https://www.flsenate.gov/Laws/Statutes/2025/553.899",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "condo/co-op >=3 stories, milestone by year building turns 30 then every 10y; the year in the URL path is the codification-change signal",
+    "_signal": "sha256",
+    "_license": "government edict, public domain",
+    "used_by": ["shared/construction-engine.md", "jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "fl-statute-553-842-product-approval",
+    "name": "Florida Statute 553.842 - Statewide product approval (HVHZ authority)",
+    "url": "https://www.flsenate.gov/Laws/Statutes/2025/553.842",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "statewide product evaluation/approval; underpins HVHZ product control (Miami-Dade NOA / TAS)",
+    "_signal": "sha256",
+    "_license": "government edict, public domain",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  },
+  {
+    "id": "seflcompact-slr-projection",
+    "name": "Southeast Florida Regional Climate Compact - Unified Sea Level Rise Projection",
+    "url": "https://southeastfloridaclimatecompact.org/sea-level-rise/",
+    "category": "legal-authority",
+    "tier": "T2",
+    "extraction_hint": "the regional SLR projection edition (2019 current, ~5yr revision); the value informs local freeboard ordinances; watch the edition year",
+    "_signal": "sha256",
+    "_license": "regional compact report; cite the projection facts + edition, do not mirror the report",
+    "used_by": ["jurisdiction-desk", "canonical-sources/jurisdiction/fl-overlays.json"]
+  }
+]

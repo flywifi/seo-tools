@@ -57,7 +57,10 @@
     {"file": "construction/edition-status.json", "status": "watched", "watched_by": ["fl-building-code-portal", "nc-osfm-codes", "nc-osfm-press", "icc-codes-landing"], "reason": "the edition watch: adopted editions (FL 8th, NC 2018/2015-IRC) and pending transitions (NC 2024, FL 9th); review when a watching source announces a change"},
     {"file": "construction/glossary.json", "status": "watched", "watched_by": ["wikidata-construction"], "reason": "CC0 construction term definitions seeded from Wikidata"},
     {"file": "construction/diagram-index.json", "status": "static", "watched_by": [], "reason": "index of authored CC0 SVGs and link-only references; authored, no external upstream"},
-    {"file": "jurisdiction/overlays.example.json", "status": "static", "watched_by": [], "reason": "P37: example jurisdictional-overlay records (schema demonstration; optional bucket). Real overlays cite government GIS/legal sources seeded into the registry per deployment; the example carries illustrative geometry only, no live upstream"}
+    {"file": "jurisdiction/overlays.example.json", "status": "static", "watched_by": [], "reason": "P37: example jurisdictional-overlay records (schema demonstration; optional bucket). Real overlays cite government GIS/legal sources seeded into the registry per deployment; the example carries illustrative geometry only, no live upstream"},
+    {"file": "jurisdiction/fl-overlays.json", "status": "watched",
+     "watched_by": ["fema-nfhl-flood-zones", "fema-nfhl-lomrs", "sfwmd-open-data-gis", "miami-historic-districts-gis", "fl-statute-553-899-milestone", "fl-statute-553-842-product-approval", "seflcompact-slr-projection"],
+     "reason": "P37: Florida advisory jurisdictional overlays (HVHZ/SB4D attribute, SLR versioned-fact, FEMA flood + historic geometry); review when a watching GIS/legal source changes"}
   ],
   "embedded_fact_files": [
     {"file": "shared/connectors/connectors.json", "status": "watched",
@@ -94,6 +97,6 @@
      "watched_by": ["dep-ffmpeg", "dep-scenedetect", "dep-moviepy"],
      "reason": "P36: dated web-verified license/version cells with no prior recheck trigger; review on a dependency change"}
   ],
-  "_infrastructure": ["source-registry.json", "traversal-config.json", "legal-sources-seed.json", "cost-sources-seed.json", "dependency-sources-seed.json", "content-sources-p33-seed.json", "building-code-sources-seed.json", "construction-authority-sources-seed.json", "api-changelog-seed.json", "ai-surface-spec-seed.json", "content-data-seed.json", "compliance-sources-seed.json", "data-currency-map.json"],
+  "_infrastructure": ["source-registry.json", "traversal-config.json", "legal-sources-seed.json", "cost-sources-seed.json", "dependency-sources-seed.json", "content-sources-p33-seed.json", "building-code-sources-seed.json", "construction-authority-sources-seed.json", "api-changelog-seed.json", "ai-surface-spec-seed.json", "content-data-seed.json", "compliance-sources-seed.json", "jurisdiction-sources-seed.json", "data-currency-map.json"],
   "_note": "WATCHED = a registered source feeds it; on mark-checked --changed of that source, review this file (both canonical-sources data files AND the embedded_fact_files prose/config that duplicate the same fact). DATED = internal data on a calendar cadence. STATIC = no upstream by design. TOOL-MANAGED = another tool owns it. embedded_fact_files paths are repo-root-relative; files[] paths are canonical-sources-relative."
 }

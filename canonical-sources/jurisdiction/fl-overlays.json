@@ -1,0 +1,92 @@
+[
+  {
+    "_comment": "P37 Florida jurisdictional overlays (optional bucket, advisory only). attribute + versioned-fact records carry fully-cited real facts. geometry records carry a geometry_ref to the authoritative endpoint plus a clearly-labeled ILLUSTRATIVE bbox only (a real boundary is resolved via the live connector, jurisdictional_overlay_live, or user-supplied GeoJSON) -- no fabricated boundaries. Never a legal or permitting determination.",
+    "id": "fl-hvhz",
+    "title": "High-Velocity Hurricane Zone (HVHZ) - Miami-Dade and Broward",
+    "text": "The Florida Building Code High-Velocity Hurricane Zone applies to all of Miami-Dade and Broward counties by definition, so it is an attribute test on county FIPS (12086 Miami-Dade, 12011 Broward), not a boundary polygon. In the HVHZ, exterior products must be impact-rated and carry Miami-Dade Notice of Acceptance (NOA) / TAS approval. Advisory only; confirm the current FBC edition and product requirements with the authority having jurisdiction.",
+    "overlay_kind": "attribute",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 5,
+    "predicate": [{"field": "county_fips", "op": "in", "value": ["12086", "12011"]}],
+    "source_ids": ["fl-statute-553-842-product-approval", "fl-building-code-portal"],
+    "code_refs": [{"code": "FBC", "section": "202 (HVHZ definition); TAS 201/202/203", "edition": "8th Edition (2023)", "url": "https://floridabuilding.org"}],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "fl-sb4d-milestone-inspection",
+    "title": "SB 4D milestone structural inspection (condo/co-op, 3+ stories)",
+    "text": "Florida Statute 553.899 requires a milestone structural inspection for condominium and cooperative buildings three or more habitable stories tall: the initial inspection by December 31 of the year the building turns 30 (from the certificate of occupancy date), then every 10 years; a local enforcement agency may lower the trigger to 25 years for coastal exposure. Attribute test on ownership form + stories + building age. Advisory only; the local building official is authoritative.",
+    "overlay_kind": "attribute",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 4,
+    "predicate": [
+      {"field": "ownership_form", "op": "in", "value": ["condominium", "cooperative"]},
+      {"field": "habitable_stories", "op": "gte", "value": 3},
+      {"field": "building_age_years", "op": "gte", "value": 30}
+    ],
+    "source_ids": ["fl-statute-553-899-milestone"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "fl-slr-freeboard-projection",
+    "title": "Sea-level-rise projection for resilience freeboard (SE FL Compact)",
+    "text": "The Southeast Florida Regional Climate Compact Unified Sea Level Rise Projection informs additional resilience freeboard set by local floodplain ordinances (Broward, Miami-Dade, Palm Beach, Monroe). This is a versioned fact tied to its projection edition (2019 current), not a boundary; the specific freeboard value is set by the adopted local ordinance and is null here until supplied per deployment (no-fabrication).",
+    "overlay_kind": "versioned-fact",
+    "jurisdiction_level": "regional",
+    "preemption_type": "floor",
+    "local_authority": "home_rule",
+    "specificity_scope": 3,
+    "value": null,
+    "unit": "inches_additional_freeboard",
+    "effective_date": "2019",
+    "as_of": "2026-07-05",
+    "source_ids": ["seflcompact-slr-projection"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "fl-fema-flood-zone",
+    "title": "FEMA flood hazard zone (NFHL)",
+    "text": "Whether a project point falls in a FEMA Special Flood Hazard Area (e.g. zone AE, VE) and its base flood elevation. Resolved by a live point query to the FEMA National Flood Hazard Layer (layer 28) when the live connector is enabled, or from a user-supplied determination. Advisory only; not a substitute for an official FEMA flood determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "federal",
+    "preemption_type": "floor",
+    "local_authority": "home_rule",
+    "specificity_scope": 2,
+    "geometry_ref": "live:fema-nfhl-flood-zones",
+    "_geometry_is_illustrative": false,
+    "source_ids": ["fema-nfhl-flood-zones", "fema-nfhl-lomrs"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "fl-miami-historic-district",
+    "title": "Local historic-preservation district (design review)",
+    "text": "Whether a project point falls inside a designated local historic-preservation district that triggers design review (e.g. matching historic frame profiles). The authoritative boundary is the municipal ArcGIS historic-districts layer; resolve it via the live connector or a user-supplied GeoJSON. The bbox below is an ILLUSTRATIVE placeholder only, not the real district boundary. Advisory only.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache_or_live:miami-historic-districts-gis",
+    "_geometry_is_illustrative": true,
+    "bbox": [-80.21, 25.79, -80.16, 25.83],
+    "source_ids": ["miami-historic-districts-gis"],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "fl-historic-frame-requirement",
+    "title": "Historic-district frame-profile requirement (conflict example alpha)",
+    "text": "Within a designated historic district, exterior openings must preserve the original historic frame/mullion profile. This can collide with the HVHZ impact-window requirement (fl-hvhz), a genuine legal conflict (structural safety vs historic aesthetics) the engine escalates to human review rather than auto-resolving.",
+    "overlay_kind": "attribute",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 5,
+    "predicate": [{"field": "in_historic_district", "op": "eq", "value": true}],
+    "source_ids": ["miami-historic-districts-gis"],
+    "boundary": "advisory-not-legal-determination"
+  }
+]
