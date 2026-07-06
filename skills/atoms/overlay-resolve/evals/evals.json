@@ -1,0 +1,73 @@
+[
+  {
+    "test_id": "overlay-resolve-attribute-hvhz-applies",
+    "description": "HVHZ attribute overlay applies for a Miami-Dade FIPS location",
+    "input": {
+      "location": {"lon": -80.19, "lat": 25.76, "crs": "EPSG:4326"},
+      "facts": {"county_fips": "12086"}
+    },
+    "expected_output_keys": ["advisory_boundary", "applicable_overlays"],
+    "assertions": [
+      "fl-hvhz is returned as applicable with its source citation",
+      "decided-by basis names the matched attribute rule (county FIPS)",
+      "first line is the verbatim advisory boundary",
+      "no fabricated data"
+    ]
+  },
+  {
+    "test_id": "overlay-resolve-attribute-hvhz-not-applies",
+    "description": "HVHZ does not apply outside Miami-Dade/Broward",
+    "input": {
+      "location": {"lon": -81.66, "lat": 30.33, "crs": "EPSG:4326"},
+      "facts": {"county_fips": "12031"}
+    },
+    "expected_output_keys": ["advisory_boundary", "applicable_overlays"],
+    "assertions": [
+      "fl-hvhz is NOT in applicable_overlays",
+      "no fabricated fallback data"
+    ]
+  },
+  {
+    "test_id": "overlay-resolve-missing-fact-null-and-flag",
+    "description": "SB 4D milestone needs stories + ownership + CO age; unknown facts are null-and-flagged, not assumed",
+    "input": {
+      "location": {"lon": -80.13, "lat": 25.88, "crs": "EPSG:4326"},
+      "facts": {"county_fips": "12086"}
+    },
+    "expected_output_keys": ["advisory_boundary", "applicable_overlays", "flagged_unknowns"],
+    "assertions": [
+      "SB 4D is not reported as applicable when required facts are unknown",
+      "the missing facts (stories, ownership, CO age) are null-and-flagged",
+      "applicability is never assumed"
+    ]
+  },
+  {
+    "test_id": "overlay-resolve-live-flag-off-config-gap",
+    "description": "A geometry overlay needing a live boundary while jurisdictional_overlay_live is off returns a config gap and makes no network call",
+    "input": {
+      "location": {"lon": -80.19, "lat": 25.76, "crs": "EPSG:4326"},
+      "facts": {},
+      "flags": {"jurisdictional_overlay": true, "jurisdictional_overlay_live": false}
+    },
+    "expected_output_keys": ["advisory_boundary", "config_gap"],
+    "assertions": [
+      "returns a config gap pointing to cached/manual data",
+      "no network call is made",
+      "no fabricated boundary is substituted"
+    ]
+  },
+  {
+    "test_id": "overlay-resolve-capability-off",
+    "description": "jurisdictional_overlay disabled -> reports the capability is off rather than answering",
+    "input": {
+      "location": {"lon": -80.19, "lat": 25.76, "crs": "EPSG:4326"},
+      "facts": {},
+      "flags": {"jurisdictional_overlay": false}
+    },
+    "expected_output_keys": ["capability_off"],
+    "assertions": [
+      "states the capability is off",
+      "does not resolve any overlay"
+    ]
+  }
+]

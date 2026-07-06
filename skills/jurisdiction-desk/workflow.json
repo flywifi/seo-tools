@@ -1,0 +1,29 @@
+{
+  "_comment": "jurisdiction-desk composes the ADVISORY jurisdictional-overlay atoms. All attribute and cached-geometry evaluation runs offline in tools/geo_overlay.py (EPSG:4326); live FEMA flood queries run only when jurisdictional_overlay_live is on (tools/geo_fetch.py). Every output carries the advisory-not-legal-determination boundary; genuine legal conflicts return human_review_required, never an auto-decision. Optional and default off. Advisory only: no code text (construction-desk), no project planning (project-builder), no legal/permitting/engineering advice.",
+  "id": "jurisdiction-desk",
+  "description": "Advisory jurisdictional overlays for a Florida or North Carolina project location: which location-based rules apply (flood, historic, HVHZ, steep-slope, watershed, SB 4D) and, on conflict, which governs.",
+  "steps": [
+    {
+      "step": 1,
+      "atom": "overlay-resolve",
+      "input_from": "the project location (lon/lat, EPSG:4326) + known building facts",
+      "output_to": "step3",
+      "condition": "always; resolves which advisory overlays apply, each cited"
+    },
+    {
+      "step": 2,
+      "atom": "conflict-check",
+      "input_from": "two applicable overlays from step 1 that address the same feature",
+      "output_to": "step3",
+      "condition": "only when two applicable overlays collide; returns the governing rule or human_review_required with a PROV audit"
+    },
+    {
+      "step": 3,
+      "atom": "govern-artifact",
+      "input_from": "the assembled overlays + any conflict decision from steps 1 to 2",
+      "output_to": "final",
+      "condition": "always; enforces the advisory boundary, citations, no fabrication, and formatting before handoff"
+    }
+  ],
+  "notes": "overlay-resolve and conflict-check are directly callable by the user. Geometry overlays needing a live boundary return a config gap when jurisdictional_overlay_live is off; nothing is fetched."
+}

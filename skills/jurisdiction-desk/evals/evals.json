@@ -1,0 +1,62 @@
+[
+  {
+    "test_id": "jurisdiction-desk-resolve-then-govern",
+    "description": "Happy path: resolve applicable overlays for an FL location and govern the briefing",
+    "input": {
+      "location": {"lon": -80.19, "lat": 25.76, "crs": "EPSG:4326"},
+      "facts": {"county_fips": "12086"},
+      "flags": {"jurisdictional_overlay": true, "jurisdictional_overlay_live": false}
+    },
+    "expected_output_keys": ["advisory_boundary", "applicable_overlays", "governed"],
+    "assertions": [
+      "applicable overlays are cited (e.g. fl-hvhz for the Miami-Dade FIPS)",
+      "first line is the verbatim advisory boundary",
+      "govern-artifact pass is present",
+      "no fabricated data"
+    ]
+  },
+  {
+    "test_id": "jurisdiction-desk-conflict-routes-to-human-review",
+    "description": "Two colliding overlays route through conflict-check and escalate a genuine conflict",
+    "input": {
+      "location": {"lon": -80.13, "lat": 25.79, "crs": "EPSG:4326"},
+      "facts": {"county_fips": "12086", "in_historic_district": true},
+      "flags": {"jurisdictional_overlay": true}
+    },
+    "expected_output_keys": ["advisory_boundary", "conflict_decision"],
+    "assertions": [
+      "the historic-frame vs HVHZ-window conflict returns human_review_required",
+      "no fabricated winner",
+      "a PROV audit is attached"
+    ]
+  },
+  {
+    "test_id": "jurisdiction-desk-live-flag-off-config-gap",
+    "description": "A geometry overlay needing a live boundary while jurisdictional_overlay_live is off returns a config gap with no network call",
+    "input": {
+      "location": {"lon": -80.19, "lat": 25.76, "crs": "EPSG:4326"},
+      "facts": {},
+      "flags": {"jurisdictional_overlay": true, "jurisdictional_overlay_live": false}
+    },
+    "expected_output_keys": ["advisory_boundary", "config_gap"],
+    "assertions": [
+      "a config gap is returned for the live-boundary overlay",
+      "no network call is made",
+      "no fabricated fallback boundary"
+    ]
+  },
+  {
+    "test_id": "jurisdiction-desk-capability-off",
+    "description": "jurisdictional_overlay disabled -> the desk says the capability is off",
+    "input": {
+      "location": {"lon": -80.19, "lat": 25.76, "crs": "EPSG:4326"},
+      "facts": {},
+      "flags": {"jurisdictional_overlay": false}
+    },
+    "expected_output_keys": ["capability_off"],
+    "assertions": [
+      "states the capability is off",
+      "does not resolve any overlay"
+    ]
+  }
+]
