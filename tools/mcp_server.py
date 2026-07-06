@@ -324,6 +324,88 @@ def freshness_refresh(overlay_path: str, source_id: str, field: str, value: str,
                        "boundary": "your store only; never GitHub, never shared"}, ensure_ascii=False)
 
 
+@mcp.tool()
+def jurisdiction_resolve(lon: float, lat: float, facts_json: str = "{}") -> str:
+    """Resolve which advisory jurisdictional overlays apply to a project location (P37, optional).
+
+    Evaluates the canonical-sources/jurisdiction/ overlays offline: attribute overlays (HVHZ, SB 4D,
+    steep-slope) against the supplied facts; geometry overlays against the point when a cached boundary
+    is present (live boundaries need jurisdictional_overlay_live and are noted, not fetched here);
+    versioned-fact overlays return their dated value. Gated by the jurisdictional_overlay flag.
+    ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination.
+
+    Args:
+        lon: longitude (EPSG:4326).
+        lat: latitude (EPSG:4326).
+        facts_json: JSON object of project facts (county_fips, ownership_form, habitable_stories,
+                    building_age_years, elevation_ft, elevation_above_valley_ft, slope_pct, ...).
+    """
+    sys.path.insert(0, str(HERE))
+    import glob as _glob
+    import geo_overlay as _go  # noqa: E402
+    cfg = _load_config()
+    caps = cfg.get("capabilities", {})
+    on = caps.get("jurisdictional_overlay", {})
+    if not (on.get("enabled") if isinstance(on, dict) else on):
+        return json.dumps({"enabled": False, "note": "jurisdictional_overlay is off; enable it to resolve overlays",
+                           "boundary": _go.ADVISORY})
+    try:
+        facts = json.loads(facts_json) if facts_json else {}
+    except json.JSONDecodeError:
+        return json.dumps({"error": "facts_json is not valid JSON"})
+    applicable, evaluated = [], []
+    for f in sorted(_glob.glob(str(ROOT / "canonical-sources" / "jurisdiction" / "*.json"))):
+        try:
+            recs = json.loads(open(f, encoding="utf-8").read())
+        except (OSError, json.JSONDecodeError):
+            continue
+        for r in recs:
+            if not isinstance(r, dict) or not r.get("id"):
+                continue
+            ctx = {"facts": facts, "point": (lon, lat)}
+            # geometry overlays only self-evaluate when a real inline geometry is present
+            if r.get("overlay_kind") == "geometry" and not (r.get("geometry") and not r.get("_geometry_is_illustrative")):
+                evaluated.append({"overlay_id": r["id"], "overlay_kind": "geometry", "applies": None,
+                                  "note": "needs a cached or live boundary (geometry_ref=" + str(r.get("geometry_ref")) + ")"})
+                continue
+            res = _go.eval_overlay(r, ctx)
+            evaluated.append({"overlay_id": r["id"], "overlay_kind": r.get("overlay_kind"),
+                              "applies": res.get("applies"), "note": res.get("note")})
+            if res.get("applies") is True:
+                applicable.append({"overlay_id": r["id"], "title": r.get("title"),
+                                   "kind": r.get("overlay_kind"), "source_ids": r.get("source_ids")})
+    return json.dumps({"enabled": True, "point": [lon, lat], "applicable_overlays": applicable,
+                       "evaluated": evaluated, "human_review_required": True, "boundary": _go.ADVISORY},
+                      ensure_ascii=False)
+
+
+@mcp.tool()
+def overlay_conflict(overlay_id_a: str, overlay_id_b: str) -> str:
+    """Resolve a conflict between two jurisdictional overlays by their ids (P37, optional).
+
+    Looks up both overlay records in canonical-sources/jurisdiction/, runs the conflict-resolution
+    cascade (floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis), and returns the
+    governing rule with a W3C PROV audit -- or human_review_required for a genuine legal conflict. Never
+    auto-resolves a genuine conflict. ADVISORY ONLY.
+    """
+    sys.path.insert(0, str(HERE))
+    import glob as _glob
+    import geo_overlay as _go  # noqa: E402
+    by = {}
+    for f in _glob.glob(str(ROOT / "canonical-sources" / "jurisdiction" / "*.json")):
+        try:
+            for r in json.loads(open(f, encoding="utf-8").read()):
+                if isinstance(r, dict) and r.get("id"):
+                    by[r["id"]] = r
+        except (OSError, json.JSONDecodeError):
+            continue
+    a, b = by.get(overlay_id_a), by.get(overlay_id_b)
+    if not a or not b:
+        missing = [i for i in (overlay_id_a, overlay_id_b) if i not in by]
+        return json.dumps({"error": f"overlay id(s) not found: {missing}"})
+    return json.dumps(_go.resolve_conflict(a, b), ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Tool 4: drift_check
 # ---------------------------------------------------------------------------

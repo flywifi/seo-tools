@@ -2,7 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P36 are complete. Drift guard exits 0 (27 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P37 are complete. Drift guard exits 0 (28 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P37: added an OPTIONAL, advisory jurisdictional-overlay bucket on top of the construction base
+  (default off). `tools/geo_overlay.py` (selftest 26/26) is a stdlib EPSG:4326 engine: point-in-polygon
+  (half-open vertex rule, holes, multipolygon), bbox pre-filter + true ring test, GeoJSON/KML ingest,
+  three overlay kinds (geometry / attribute / versioned-fact), and a conflict-resolution cascade
+  (floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis + human-review escape) with a
+  W3C PROV audit. `tools/geo_fetch.py` (10/10) is the live FEMA NFHL flood connector behind a SECOND
+  default-off flag (`jurisdictional_overlay_live`): with it off it makes no network call (proven by an
+  exploding-getter test). The optional `canonical-sources/jurisdiction/` bucket (fl-overlays +
+  nc-overlays) auto-indexes into the scoop cache; 14 FL+NC GIS/legal sources are seeded under a new
+  `jurisdiction-gis` cadence category with P36 currency wiring (registry 172->186); drift invariant 27
+  (`check_jurisdiction`) keeps every overlay cited, kind-typed, and advisory-flagged. MCP tools
+  `jurisdiction_resolve` and `overlay_conflict`. Everything is advisory-not-legal-determination;
+  genuine legal conflicts escalate to human review. NC modeled honestly (Rutherford has no steep-slope
+  ordinance; Asheville Sec. 7-9-2; MRPA layer is screening-only). Docs: `docs/JURISDICTION-OVERLAY.md`,
+  `docs/JURISDICTION-OVERLAY-PLAN.md`. Ledger: `P37-jurisdictional-overlay`. (Hub `jurisdiction-desk`
+  spoke + routing is the remaining optional wiring.)
 
 - P36: turned the dormant source-currency system into an always-fresh, per-user, self-contained
   freshness system that keeps every deployment's reference data accurate on every modality WITHOUT the
