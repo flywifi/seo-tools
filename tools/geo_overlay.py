@@ -285,12 +285,21 @@ def _authority_rank(rule):
 
 
 def _more_stringent(a, b):
-    """Return the more-stringent of two rules that carry a comparable stringency {value, direction}.
-    direction 'higher_is_stricter' -> larger value wins; 'lower_is_stricter' -> smaller wins. Returns
-    (winner_rule, note) or (None, note) if not comparable."""
+    """Return the more-stringent of two rules that carry a COMPARABLE stringency
+    {value, direction, unit}. Two stringencies are comparable ONLY when they share the same explicit
+    unit AND the same direction -- otherwise the quantities are incommensurable (e.g. mph of design
+    wind vs feet of height) and must NOT be ranked by raw value. direction 'higher_is_stricter' ->
+    larger value wins; 'lower_is_stricter' -> smaller wins. Returns (winner_rule, note) or (None,
+    note) when not comparable (the caller escalates to human review)."""
     sa, sb = a.get("stringency"), b.get("stringency")
     if not sa or not sb or sa.get("direction") != sb.get("direction"):
-        return None, "stringency not comparable"
+        return None, "stringency not comparable (missing or opposing direction)"
+    ua, ub = sa.get("unit"), sb.get("unit")
+    if not ua or not ub or ua != ub:
+        # Incommensurable units (or unit unspecified): a 175 mph wind floor and a 200 ft height cap
+        # are not rankable by value. Refuse to compare so the caller escalates rather than silently
+        # discarding one rule.
+        return None, "stringency not comparable (units differ or unspecified)"
     direction = sa.get("direction")
     va, vb = sa.get("value"), sb.get("value")
     if va is None or vb is None:
@@ -298,8 +307,8 @@ def _more_stringent(a, b):
     if va == vb:
         return None, "equal stringency"
     if direction == "higher_is_stricter":
-        return (a if va > vb else b), "more-stringent value governs"
-    return (a if va < vb else b), "more-stringent value governs"
+        return (a if va > vb else b), f"more-stringent {ua} value governs"
+    return (a if va < vb else b), f"more-stringent {ua} value governs"
 
 
 def resolve_conflict(rule_a, rule_b, actor="engine:geo_overlay"):
@@ -465,13 +474,26 @@ def selftest():
     d1 = resolve_conflict(fed, loc)
     ok("ceiling -> higher governs, no human review", d1["winner"] == "fed-ceiling" and d1["human_review_required"] is False)
 
-    # conflict: floor + home rule -> most stringent (local) governs
+    # conflict: floor + home rule -> most stringent (local) governs (SAME unit -> comparable)
     state_floor = {"id": "state-floor", "jurisdiction_level": "state", "preemption_type": "floor",
-                   "stringency": {"value": 130, "direction": "higher_is_stricter"}}
+                   "stringency": {"value": 130, "direction": "higher_is_stricter", "unit": "mph_design_wind"}}
     county_strict = {"id": "county-strict", "jurisdiction_level": "county", "preemption_type": "none",
-                     "local_authority": "home_rule", "stringency": {"value": 150, "direction": "higher_is_stricter"}}
+                     "local_authority": "home_rule",
+                     "stringency": {"value": 150, "direction": "higher_is_stricter", "unit": "mph_design_wind"}}
     d2 = resolve_conflict(state_floor, county_strict)
-    ok("floor+authority -> most stringent (county 150) governs", d2["winner"] == "county-strict" and d2["human_review_required"] is False)
+    ok("floor+authority, same unit -> most stringent (county 150 mph) governs",
+       d2["winner"] == "county-strict" and d2["human_review_required"] is False)
+
+    # conflict: floor vs local with SAME direction but DIFFERENT units (mph vs ft) -> incommensurable
+    # -> human review; the safety floor is NEVER discarded by comparing across units (P38-2 finding 2).
+    wind_floor = {"id": "wind-floor", "jurisdiction_level": "state", "preemption_type": "floor",
+                  "stringency": {"value": 175, "direction": "higher_is_stricter", "unit": "mph_design_wind"}}
+    height_cap = {"id": "height-cap", "jurisdiction_level": "municipal", "preemption_type": "none",
+                  "local_authority": "home_rule",
+                  "stringency": {"value": 200, "direction": "higher_is_stricter", "unit": "feet_max_height"}}
+    d2b = resolve_conflict(wind_floor, height_cap)
+    ok("floor vs local across different units -> human review, no winner",
+       d2b["human_review_required"] is True and d2b["winner"] is None)
 
     # conflict: genuine legal conflict (historic frame vs HVHZ window) -> human review
     hist = {"id": "historic-frame", "jurisdiction_level": "municipal", "preemption_type": "none",
