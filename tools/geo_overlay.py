@@ -305,15 +305,21 @@ def _more_stringent(a, b):
 def resolve_conflict(rule_a, rule_b, actor="engine:geo_overlay"):
     """Resolve a conflict between two applicable rules on the same feature. Cascade:
       1. higher rule is field/ceiling preemption -> higher jurisdiction governs (discard stricter local)
-      2. higher rule is floor AND the more-local rule has local authority -> most-stringent governs
-      3. lex specialis -> the more-specific scope governs
-      4. otherwise -> human_review_required (a genuine legal conflict)
-    Returns a decision dict with a W3C PROV-style audit record. Never fabricates a winner in case 4."""
+      2. higher rule is a floor AND the more-local rule has local authority:
+           - stringency comparable  -> most-stringent governs
+           - stringency NOT comparable (e.g. a safety floor vs an aesthetic rule) -> human review
+             (a genuine, incommensurable conflict; NEVER decided by an unrelated specificity integer)
+      3. no preemption asymmetry (both rules preemption_type 'none') -> lex specialis: the more-specific
+         scope governs; a tie escalates to human review
+      4. otherwise (a preemption rule is involved that 1 to 2 did not cleanly resolve) -> human review
+    Returns a decision dict with a W3C PROV-style audit record. Never fabricates a winner; a safety
+    floor is never silently discarded for a lower-authority rule."""
     higher, lower = (rule_a, rule_b) if _authority_rank(rule_a) <= _authority_rank(rule_b) else (rule_b, rule_a)
     decision = {"boundary": ADVISORY, "conflicting": [rule_a.get("id"), rule_b.get("id")]}
     winner, basis, human = None, None, True
 
     hp = higher.get("preemption_type", "none")
+    lp = lower.get("preemption_type", "none")
     if hp in ("field", "ceiling"):
         winner, basis, human = higher, f"higher jurisdiction governs ({hp} preemption)", False
     elif hp == "floor" and lower.get("local_authority") in ("home_rule", "dillon_expressly_granted"):
@@ -321,10 +327,21 @@ def resolve_conflict(rule_a, rule_b, actor="engine:geo_overlay"):
         if w is not None:
             winner, basis, human = w, f"floor preemption + local authority: {note}", False
         else:
-            # authority to be stricter exists but stringency is not comparable -> specificity, then human
-            winner, basis, human = _by_specificity(higher, lower)
-    else:
+            # A safety floor meets a local rule the engine cannot rank on a common stringency scale
+            # (missing/opposing/incommensurable stringency). This is a GENUINE legal conflict and must
+            # escalate -- it is never broken by an unrelated specificity integer, which would silently
+            # discard a life-safety floor for an aesthetic or lower-purpose local rule.
+            winner, basis, human = None, (f"floor preemption vs local rule with non-comparable "
+                                          f"stringency ({note}); genuine legal conflict, human review "
+                                          f"required"), True
+    elif hp == "none" and lp == "none":
+        # No preemption asymmetry: two co-equal rules; the more-specific one refines (lex specialis).
         winner, basis, human = _by_specificity(higher, lower)
+    else:
+        # A preemption rule is in play that branches 1 to 2 did not cleanly resolve (e.g. a floor
+        # without local authority to exceed it). Do not guess -> escalate.
+        winner, basis, human = None, ("unresolved preemption interaction (a floor/ceiling/field rule "
+                                      "is involved); genuine legal conflict, human review required"), True
 
     decision.update({
         "winner": (winner or {}).get("id"),
@@ -464,12 +481,33 @@ def selftest():
     d3 = resolve_conflict(hist, hvhz_rule)
     ok("genuine conflict -> human review required", d3["human_review_required"] is True and d3["winner"] is None)
 
-    # lex specialis tiebreak
-    broad = {"id": "broad", "jurisdiction_level": "state", "preemption_type": "floor", "specificity_scope": 1}
-    narrow = {"id": "narrow", "jurisdiction_level": "municipal", "preemption_type": "none",
-              "local_authority": "home_rule", "specificity_scope": 9}
-    d4 = resolve_conflict(broad, narrow)
-    ok("lex specialis -> narrower scope governs", d4["winner"] == "narrow" and d4["human_review_required"] is False)
+    # FIX (P38-2 adversarial finding): a safety FLOOR vs a lower-authority rule the engine cannot rank
+    # on a common stringency scale is a GENUINE conflict -> human review, NEVER decided by an unrelated
+    # specificity integer (which previously let a municipal aesthetic rule silently discard a state
+    # safety floor). Unequal specificity (5 vs 6) must NOT auto-resolve here.
+    safety_floor = {"id": "safety-floor", "jurisdiction_level": "state", "preemption_type": "floor",
+                    "specificity_scope": 5}
+    aesthetic_local = {"id": "aesthetic-local", "jurisdiction_level": "municipal", "preemption_type": "none",
+                       "local_authority": "home_rule", "specificity_scope": 6}
+    d4 = resolve_conflict(safety_floor, aesthetic_local)
+    ok("safety floor vs incommensurable local (unequal specificity) -> human review, no winner",
+       d4["human_review_required"] is True and d4["winner"] is None)
+
+    # genuine lex specialis: two co-equal (no-preemption) rules -> the more-specific governs
+    coeq_broad = {"id": "coeq-broad", "jurisdiction_level": "county", "preemption_type": "none",
+                  "specificity_scope": 3}
+    coeq_narrow = {"id": "coeq-narrow", "jurisdiction_level": "county", "preemption_type": "none",
+                   "specificity_scope": 6}
+    d5 = resolve_conflict(coeq_broad, coeq_narrow)
+    ok("lex specialis (both non-preemptive) -> narrower scope governs",
+       d5["winner"] == "coeq-narrow" and d5["human_review_required"] is False)
+
+    # a floor WITHOUT local authority to exceed it is not silently resolved -> human review
+    d6 = resolve_conflict(
+        {"id": "state-floor-2", "jurisdiction_level": "state", "preemption_type": "floor", "specificity_scope": 2},
+        {"id": "muni-noauth", "jurisdiction_level": "municipal", "preemption_type": "none", "specificity_scope": 8})
+    ok("floor without local authority -> human review, no winner",
+       d6["human_review_required"] is True and d6["winner"] is None)
 
     # PROV audit present
     ok("decision carries PROV audit", d1["prov"]["activity"] == "conflict_resolution" and d1["prov"]["used"])

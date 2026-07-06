@@ -17,6 +17,8 @@ All network is injected. Run offline: python3 tools/geo_e2e_proof.py
 """
 from __future__ import annotations
 
+import json
+import os
 import sys
 
 import geo_consent
@@ -138,6 +140,36 @@ def proof():
     # 8) consent policy invariant: a fresh session with no asker never touches the network
     d2 = geo_consent.gate(ON, "a flood lookup", session={}, asker=None)
     ok("fresh session, no asker -> consent_required (belt-and-suspenders)", d2["code"] == "consent_required")
+
+    # 9) REAL-record conflict regression (P38-2 adversarial finding): the SHIPPED canonical records
+    # must escalate a safety-floor vs lower-purpose-rule collision to human review, never auto-resolve
+    # by an unrelated specificity integer. This runs against the real files (not synthetic) so the
+    # silent-discard bug can never come back unnoticed.
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _load_recs(fname):
+        p = os.path.join(root, "canonical-sources", "jurisdiction", fname)
+        try:
+            return {r["id"]: r for r in json.load(open(p, encoding="utf-8"))
+                    if isinstance(r, dict) and r.get("id")}
+        except (OSError, ValueError):
+            return {}
+
+    real_pairs = [
+        ("fl-overlays.json", "fl-hvhz", "fl-miami-historic-district"),
+        ("fl-overlays.json", "fl-hvhz", "fl-historic-frame-requirement"),
+        ("nc-overlays.json", "nc-mrpa-protected-ridge-statutory", "asheville-historic-design-review"),
+        ("nc-overlays.json", "buncombe-steep-slope-high-elevation", "asheville-historic-design-review"),
+    ]
+    tested = 0
+    for fname, ida, idb in real_pairs:
+        recs = _load_recs(fname)
+        if ida in recs and idb in recs:
+            tested += 1
+            dd = go.resolve_conflict(recs[ida], recs[idb])
+            ok(f"REAL {ida} vs {idb} -> human review, no auto-winner",
+               dd["human_review_required"] is True and dd.get("winner") is None)
+    ok("real-record conflict regression actually ran (>=1 shipped safety-vs-other pair)", tested >= 1)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
