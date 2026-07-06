@@ -744,6 +744,48 @@ def check_freshness_bundle():
         problem(f"freshness-bundle: {p}")
 
 
+def check_jurisdiction():
+    """Invariant 27: jurisdictional-overlay bucket integrity (P37, optional).
+
+    For the optional canonical-sources/jurisdiction/ bucket (no-op if absent): every record is a
+    cache-indexable {id, title, non-empty text}; every record declares an overlay_kind in
+    {geometry, attribute, versioned-fact}; every record carries a source (non-empty source_ids OR a
+    source_reference) and the advisory boundary marker; and any code_refs carry section+edition+url
+    (mirroring the construction contract). This keeps every overlay cited and advisory-flagged so it
+    can never present as a legal determination."""
+    jdir = ROOT / "canonical-sources" / "jurisdiction"
+    if not jdir.exists():
+        return
+    kinds = {"geometry", "attribute", "versioned-fact"}
+    for jf in sorted(jdir.glob("*.json")):
+        try:
+            recs = json.loads(jf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"jurisdiction: {jf.name} unreadable: {exc}")
+            continue
+        if not isinstance(recs, list):
+            problem(f"jurisdiction: {jf.name} must be a JSON array of overlay records")
+            continue
+        for r in recs:
+            if not isinstance(r, dict):
+                continue
+            if "_comment" in r and len(r) == 1:
+                continue
+            rid = r.get("id", "<no id>")
+            if not r.get("id") or not r.get("title") or not (r.get("text") or "").strip():
+                problem(f"jurisdiction: {jf.name}:{rid} needs id, title, and non-empty text")
+            if r.get("overlay_kind") not in kinds:
+                problem(f"jurisdiction: {jf.name}:{rid} overlay_kind must be one of {sorted(kinds)}")
+            if not r.get("source_ids") and not r.get("source_reference"):
+                problem(f"jurisdiction: {jf.name}:{rid} has no source_ids or source_reference")
+            if not r.get("boundary"):
+                problem(f"jurisdiction: {jf.name}:{rid} is missing the advisory boundary marker")
+            for ref in r.get("code_refs") or []:
+                for k in ("section", "edition", "url"):
+                    if not ref.get(k):
+                        problem(f"jurisdiction: {jf.name}:{rid} code_ref is missing '{k}'")
+
+
 def check_currency_map():
     """Invariant 25: currency-map integrity (P36).
 
@@ -868,6 +910,7 @@ def main():
     check_task_tracker()
     check_currency_map()
     check_freshness_bundle()
+    check_jurisdiction()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

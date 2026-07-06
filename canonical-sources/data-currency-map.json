@@ -56,7 +56,8 @@
     {"file": "construction/fl-nc-specifics.json", "status": "watched", "watched_by": ["fl-building-code-portal", "nc-osfm-codes", "doe-energycodes-county-zone"], "reason": "HVHZ, wind, termite, flood, NC climate zones and county-to-zone mapping"},
     {"file": "construction/edition-status.json", "status": "watched", "watched_by": ["fl-building-code-portal", "nc-osfm-codes", "nc-osfm-press", "icc-codes-landing"], "reason": "the edition watch: adopted editions (FL 8th, NC 2018/2015-IRC) and pending transitions (NC 2024, FL 9th); review when a watching source announces a change"},
     {"file": "construction/glossary.json", "status": "watched", "watched_by": ["wikidata-construction"], "reason": "CC0 construction term definitions seeded from Wikidata"},
-    {"file": "construction/diagram-index.json", "status": "static", "watched_by": [], "reason": "index of authored CC0 SVGs and link-only references; authored, no external upstream"}
+    {"file": "construction/diagram-index.json", "status": "static", "watched_by": [], "reason": "index of authored CC0 SVGs and link-only references; authored, no external upstream"},
+    {"file": "jurisdiction/overlays.example.json", "status": "static", "watched_by": [], "reason": "P37: example jurisdictional-overlay records (schema demonstration; optional bucket). Real overlays cite government GIS/legal sources seeded into the registry per deployment; the example carries illustrative geometry only, no live upstream"}
   ],
   "embedded_fact_files": [
     {"file": "shared/connectors/connectors.json", "status": "watched",

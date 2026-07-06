@@ -228,6 +228,11 @@
       "description": "Feature (P35). Where the task register lives: local_fs (Claude Desktop, offline), google_drive (a canonical JSON + Sheets mirror in Drive so claude.ai web/mobile and Desktop share one store), or remote_mcp (a hosted streamable-HTTP MCP endpoint serving Claude/ChatGPT/Gemini). Event-log union-merge keeps concurrent surfaces consistent. See shared/tasks-engine.md and shared/integrations-engine.md.",
       "requires": "local_fs: nothing. google_drive: the Google Workspace connector (native on claude.ai web / Gemini; wizard-configured on Desktop). remote_mcp: a deployed remote MCP server (user/host provided)."
     },
+    "jurisdictional_overlay": {
+      "enabled": false,
+      "description": "Feature (P37, optional). Advisory jurisdictional overlays on top of the construction base: does a project location fall inside a flood zone / historic district / ridge / steep-slope / watershed overlay (geometry, point-in-polygon), or trigger a statutory rule (attribute, e.g. HVHZ = Miami-Dade/Broward, SB 4D milestone by stories+age), or a versioned fact (SLR projection, adopted code edition). Inter-overlay conflicts resolve by floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis, escalating genuine legal conflicts to human review. ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination. Offline stdlib engine (tools/geo_overlay.py) in EPSG:4326; the canonical-sources/jurisdiction/ bucket is optional and only loaded with this flag. Without it, construction lookups run as before.",
+      "requires": "Nothing for the offline core (stdlib point-in-polygon over cached or supplied GeoJSON). Live GIS queries (e.g. FEMA NFHL) need outbound HTTPS; non-4326 reprojection would need an optional pyproj tier (off by default)."
+    },
     "legal_requirement_checks": {
       "enabled": false,
       "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",
