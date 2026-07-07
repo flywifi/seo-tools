@@ -4,41 +4,44 @@ info:
   version: "1.0.0"
   description: >
     ADVISORY jurisdictional overlays for a project location. Geocodes an address and resolves which
-    location-based rules apply (local historic district, zoning, FEMA flood zone, water-management
-    district) by querying public government GIS/geocoding endpoints that perform point-in-polygon
-    SERVER-SIDE. Keyless. ADVISORY PLANNING INFORMATION ONLY, never a legal, permitting, engineering,
-    or code-compliance determination; a genuine conflict between a safety rule and an aesthetic rule is
-    for the authority having jurisdiction, not this tool. Values that live behind ToS-limited code
-    portals (e.g. exact setback numbers) are NOT returned here; cite the ordinance and verify locally.
-    Coverage of local historic/zoning layers shown here is City of Orlando; flood + geocoding are
-    nationwide.
+    location-based rules apply (local historic district, zoning, FEMA flood zone) by querying public
+    government GIS/geocoding endpoints that perform point-in-polygon SERVER-SIDE. Keyless. ADVISORY
+    PLANNING INFORMATION ONLY, never a legal, permitting, engineering, or code-compliance
+    determination; a genuine conflict between a safety rule and an aesthetic rule is for the authority
+    having jurisdiction, not this tool. Values behind ToS-limited code portals (e.g. exact setback
+    numbers) are NOT returned; cite the ordinance and verify locally. Coverage of local historic/zoning
+    layers here is City of Orlando; flood and geocoding are nationwide.
 servers:
   - url: https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services
 paths:
-  # --- Address -> coordinate (U.S. Census geocoder) ---------------------------------------------
   /geocode:
     servers:
       - url: https://geocoding.geo.census.gov/geocoder
     get:
       operationId: geocodeAddress
-      summary: Geocode a US street address to longitude/latitude (EPSG:4326). Advisory, not survey-grade.
+      summary: Geocode a US street address to longitude/latitude (EPSG 4326). Advisory, not survey-grade.
       parameters:
         - name: address
           in: query
           required: true
-          schema: { type: string }
-          description: One-line US street address, e.g. "809 E Amelia St, Orlando FL 32803".
+          description: One-line US street address, e.g. 809 E Amelia St, Orlando FL 32803.
+          schema:
+            type: string
         - name: benchmark
           in: query
           required: true
-          schema: { type: string, default: "Public_AR_Current" }
+          schema:
+            type: string
+            default: "Public_AR_Current"
         - name: format
           in: query
           required: true
-          schema: { type: string, default: "json" }
+          schema:
+            type: string
+            default: "json"
       responses:
-        "200": { description: Census geocoder result with addressMatches[].coordinates {x=lon,y=lat}. }
-  # --- Local historic district at a point (City of Orlando) -------------------------------------
+        "200":
+          description: "Census geocoder result. Read result.addressMatches first coordinates: x is longitude, y is latitude."
   /OrlandoHistoricLocalDistricts/FeatureServer/0/query:
     get:
       operationId: historicDistrictAtPoint
@@ -47,34 +50,104 @@ paths:
         exterior work needs a Certificate of Appropriateness (Orlando City Code Ch. 62 sec. 62.200)
         before a permit. Advisory only.
       parameters:
-        - { name: geometry, in: query, required: true, schema: { type: string }, description: "lon,lat e.g. -81.3674,28.5495" }
-        - { name: geometryType, in: query, required: true, schema: { type: string, default: "esriGeometryPoint" } }
-        - { name: inSR, in: query, required: true, schema: { type: string, default: "4326" } }
-        - { name: spatialRel, in: query, required: true, schema: { type: string, default: "esriSpatialRelIntersects" } }
-        - { name: outFields, in: query, required: true, schema: { type: string, default: "HistoricDistricts" } }
-        - { name: returnGeometry, in: query, required: true, schema: { type: string, default: "false" } }
-        - { name: f, in: query, required: true, schema: { type: string, default: "geojson" } }
+        - name: geometry
+          in: query
+          required: true
+          description: "Point as lon,lat e.g. -81.3674,28.5495"
+          schema:
+            type: string
+        - name: geometryType
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "esriGeometryPoint"
+        - name: inSR
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "4326"
+        - name: spatialRel
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "esriSpatialRelIntersects"
+        - name: outFields
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "HistoricDistricts"
+        - name: returnGeometry
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "false"
+        - name: f
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "geojson"
       responses:
-        "200": { description: GeoJSON FeatureCollection; features[].properties.HistoricDistricts names the district. }
-  # --- Zoning at a point (City of Orlando) ------------------------------------------------------
+        "200":
+          description: "GeoJSON FeatureCollection. Each feature property HistoricDistricts names the district."
   /OrlandoLUZoning/FeatureServer/0/query:
     get:
       operationId: zoningAtPoint
       summary: >
-        City of Orlando zoning + overlays at the point (e.g. R-2B/T/HP = base district + Traditional
-        City + Historic Preservation). Exact setback NUMBERS are not returned (they live in the Ch. 58
-        code, ToS-limited) -- cite the code and verify with the City. Advisory only.
+        City of Orlando zoning plus overlays at the point (e.g. R-2B/T/HP = base district plus
+        Traditional City plus Historic Preservation). Exact setback numbers are NOT returned (they live
+        in the Ch. 58 code, ToS-limited); cite the code and verify with the City. Advisory only.
       parameters:
-        - { name: geometry, in: query, required: true, schema: { type: string } }
-        - { name: geometryType, in: query, required: true, schema: { type: string, default: "esriGeometryPoint" } }
-        - { name: inSR, in: query, required: true, schema: { type: string, default: "4326" } }
-        - { name: spatialRel, in: query, required: true, schema: { type: string, default: "esriSpatialRelIntersects" } }
-        - { name: outFields, in: query, required: true, schema: { type: string, default: "Zoning,OverlayA,OverlayB" } }
-        - { name: returnGeometry, in: query, required: true, schema: { type: string, default: "false" } }
-        - { name: f, in: query, required: true, schema: { type: string, default: "geojson" } }
+        - name: geometry
+          in: query
+          required: true
+          description: "Point as lon,lat e.g. -81.3674,28.5495"
+          schema:
+            type: string
+        - name: geometryType
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "esriGeometryPoint"
+        - name: inSR
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "4326"
+        - name: spatialRel
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "esriSpatialRelIntersects"
+        - name: outFields
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "Zoning,OverlayA,OverlayB"
+        - name: returnGeometry
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "false"
+        - name: f
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "geojson"
       responses:
-        "200": { description: GeoJSON FeatureCollection; features[].properties.Zoning is the district code. }
-  # --- FEMA flood zone at a point (nationwide) --------------------------------------------------
+        "200":
+          description: "GeoJSON FeatureCollection. Feature property Zoning is the district code."
   /flood:
     servers:
       - url: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28
@@ -84,12 +157,48 @@ paths:
         FEMA National Flood Hazard Layer flood zone at the point (e.g. AE, VE, X). Advisory only; NOT a
         substitute for an official FEMA flood determination or the stamped FIRM.
       parameters:
-        - { name: geometry, in: query, required: true, schema: { type: string } }
-        - { name: geometryType, in: query, required: true, schema: { type: string, default: "esriGeometryPoint" } }
-        - { name: inSR, in: query, required: true, schema: { type: string, default: "4326" } }
-        - { name: spatialRel, in: query, required: true, schema: { type: string, default: "esriSpatialRelIntersects" } }
-        - { name: outFields, in: query, required: true, schema: { type: string, default: "FLD_ZONE,SFHA_TF" } }
-        - { name: returnGeometry, in: query, required: true, schema: { type: string, default: "false" } }
-        - { name: f, in: query, required: true, schema: { type: string, default: "json" } }
+        - name: geometry
+          in: query
+          required: true
+          description: "Point as lon,lat e.g. -81.3674,28.5495"
+          schema:
+            type: string
+        - name: geometryType
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "esriGeometryPoint"
+        - name: inSR
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "4326"
+        - name: spatialRel
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "esriSpatialRelIntersects"
+        - name: outFields
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "FLD_ZONE,SFHA_TF"
+        - name: returnGeometry
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "false"
+        - name: f
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "json"
       responses:
-        "200": { description: ArcGIS result; features[].attributes.FLD_ZONE is the flood zone. }
+        "200":
+          description: "ArcGIS result. Feature attribute FLD_ZONE is the flood zone."
