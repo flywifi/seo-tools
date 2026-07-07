@@ -139,7 +139,7 @@
   {
     "id": "fl-historic-frame-requirement",
     "title": "Historic-district frame-profile requirement (conflict example alpha)",
-    "text": "Within a designated historic district, exterior openings must preserve the original historic frame/mullion profile. This can collide with the HVHZ impact-window requirement (fl-hvhz), a genuine legal conflict (structural safety vs historic aesthetics) the engine escalates to human review rather than auto-resolving.",
+    "text": "Within a designated Miami-Dade or Broward historic district (a cited example of the safety-vs-aesthetics conflict class), exterior openings must preserve the original historic frame/mullion profile. This can collide with the HVHZ impact-window requirement (fl-hvhz), a genuine legal conflict (structural safety vs historic aesthetics) the engine escalates to human review rather than auto-resolving.",
     "overlay_kind": "attribute",
     "jurisdiction_level": "municipal",
     "preemption_type": "none",
@@ -150,6 +150,14 @@
         "field": "in_historic_district",
         "op": "eq",
         "value": true
+      },
+      {
+        "field": "county_fips",
+        "op": "in",
+        "value": [
+          "12086",
+          "12011"
+        ]
       }
     ],
     "source_ids": [

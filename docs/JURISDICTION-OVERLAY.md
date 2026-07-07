@@ -81,8 +81,9 @@ Every endpoint does point-in-polygon server-side, so any surface that can make a
 the same answer: Claude Desktop/Code (native, offline engine + consent-gated live), claude.ai
 web/mobile (hosted remote-MCP connector), Custom GPT (a GPT Action over the public REST), the Gemini
 API (function calling), or a human with `curl`. The one dead end is the consumer Gemini "Gems" UI (no
-custom-tool surface). The full per-surface access matrix + non-Claude packaging (a GPT Action, a
-Gemini function declaration, and the remote-MCP route) land in P38-6.
+custom-tool surface). Full per-surface access matrix + packaging: **`docs/CROSS-MODALITY.md`**, the GPT
+Action `implementation/gpt/actions/jurisdiction_overlay_action.yaml`, and the Gemini declarations
+`implementation/gemini/jurisdiction-function-declarations.json`.
 
 ## Licensing (hard boundary)
 - **Cache freely (public domain / open):** FEMA NFHL, water-management-district hubs, NC OneMap,
