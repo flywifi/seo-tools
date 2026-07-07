@@ -2,7 +2,27 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P37 are complete. Drift guard exits 0 (28 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P38 are complete through P38-4 (P38-5 809 test + P38-6 cross-modality packaging + P38-7
+skill-wide cross-modality architecture remain). Drift guard exits 0 (28 invariants). Branch:
+`claude/repo-access-confirm-wxe50a`.
+
+- P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
+  consent (`tools/geo_consent.py`): default-on but ask-first once per session, headless/declined falls
+  back with no call, governing both `geo_fetch.py` (FEMA) and the new `tools/geo_geocode.py` (US Census
+  address to point). The master `jurisdictional_overlay` switch is now default-on. An independent
+  adversarial gate (5 properties + confirm pass) caught + fixed two safety-discard bugs in
+  `resolve_conflict`: non-comparable stringency, and comparison across incommensurable units, now
+  escalate to human review (a safety floor is never silently discarded). `tools/geo_source_fetch.py` is
+  the universal-path fetcher + build cacher: cached all 6 City of Orlando historic-district boundaries +
+  the R-2B/T/HP zoning polygon as real GeoJSON with provenance (`orlando-boundaries/`), resolved via a
+  new `geometry_ref: cache:` loader. Authored 11 cited overlay records (`orlando-overlays.json` +
+  statewide FL Building Code edition); 6 sources seeded + a currency baseline stamped (registry
+  186->192). Fixed a versioned-fact over-fire (rutherford scoped to its county); `*.example.json` demos
+  excluded from production resolution; invariant 27 now requires every versioned-fact to declare
+  `applicability`. Selftests: geo_overlay 37/37, geo_consent 12/12, geo_geocode 9/9, geo_fetch 13/13,
+  e2e proof 17/17. 809 E Amelia resolves offline to Lake Eola Heights + R-2B/T/HP + FBC 8th Edition,
+  with flood/SJRWMD as consent-gated live gaps. Everything advisory-not-legal-determination. Ledger:
+  `P38-jurisdictional-overlay-hardening-orlando`.
 
 - P37: added an OPTIONAL, advisory jurisdictional-overlay bucket on top of the construction base
   (default off). `tools/geo_overlay.py` (selftest 26/26) is a stdlib EPSG:4326 engine: point-in-polygon

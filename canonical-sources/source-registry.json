@@ -1260,7 +1260,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "practical dos and don'ts on disclosure placement, wording, and platform tools; answers common creator questions",
       "used_by": [
@@ -1270,7 +1270,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "4128e82b64ec6dc59302df4ce8c1d6f65e16422877e8bdc9e54fece6aacae0e6",
+      "content_etag": "\"1783401750\"",
+      "content_last_modified": "Tue, 07 Jul 2026 05:22:30 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "ftc-endorsements-hub",
@@ -1280,7 +1284,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "landing page linking current FTC endorsement guidance and enforcement updates for influencers",
       "used_by": [
@@ -1289,7 +1293,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "52c4d0bc35bf38df3f772a235679a934586296607c0877e4f1e29af966a3ec45",
+      "content_etag": "\"1783401749\"",
+      "content_last_modified": "Tue, 07 Jul 2026 05:22:29 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "us-copyright-basics",
@@ -1299,7 +1307,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "copyright ownership basics; who holds rights in created content; useful for usage-rights and ownership clause review",
       "used_by": [
@@ -1309,7 +1317,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "e176d4f919b0971e0530e8a564b88eb6e63388de6b3c9e3e6768c4e32e4c56ca",
+      "content_last_modified": "Thu, 18 Jun 2026 07:03:52 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "cornell-wex-contract",
@@ -1319,7 +1330,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "plain-language definition of contract terms and formation; general reference only, not case law",
       "used_by": [
@@ -1329,7 +1340,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "2053f9af7c4daa9e5797e12b99bab4c49827ead8a058ea572471c784c7a52388",
+      "content_etag": "\"6a3e4de2-9390\"",
+      "content_last_modified": "Fri, 26 Jun 2026 10:01:06 GMT",
+      "min_recheck_at": 739805
     },
     {
       "id": "cornell-wex-license",
@@ -1339,7 +1354,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "plain-language definition of a license and its scope; supports usage-rights and licensing clause review",
       "used_by": [
@@ -1349,7 +1364,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "453629c3d444f9b05d984b3890a04a41f91814547fa810ab83e09e0e3c2e8ed6",
+      "content_etag": "\"6a3e4fc2-6edb\"",
+      "content_last_modified": "Fri, 26 Jun 2026 10:09:06 GMT",
+      "min_recheck_at": 739805
     },
     {
       "id": "ftc-soliciting-reviews-marketers",
@@ -1359,7 +1378,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "rules on paid and incentivized reviews and endorsements; relevant to gifted and affiliate deal terms",
       "used_by": [
@@ -1368,7 +1387,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "7048055242e56942e4c46f830efae710d7f4e537feef12bcccc79722beccb36d",
+      "content_etag": "\"1783401728\"",
+      "content_last_modified": "Tue, 07 Jul 2026 05:22:08 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "homedepot-materials-pricing",
@@ -2176,7 +2199,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "live authoritative 16 CFR Part 255 text; the 2024 amendments and any staff guidance on AI / virtual-influencer endorsements; clear-and-conspicuous disclosure",
       "used_by": [
@@ -2188,7 +2211,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "853f81515aadd8552a4bed2b7e399b7dfcca7d27fa84f2cae294a2b4bb527454"
     },
     {
       "id": "amazon-materials-pricing",
@@ -3588,7 +3612,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "the real 2024 legislative rule (effective 2024-10-21): bans fake/AI-generated reviews, undisclosed insider reviews, review suppression; sha256 the Versioner part XML",
       "used_by": [
@@ -3601,7 +3625,8 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "check_url": "https://www.ecfr.gov/api/versioner/v1/full/current/title-16.xml?part=465",
-      "_signal": "ecfr-api"
+      "_signal": "ecfr-api",
+      "content_sha256": "fec4ad516c222243b60237b880dee53fe019c2a752b7c8fd50e39825b69ffcf4"
     },
     {
       "id": "ftc-press-release-feed",
@@ -3611,7 +3636,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "the primary FTC change signal; filter items for endorsement/reviews/AI/influencer; announces new AI-endorsement actions",
       "used_by": [
@@ -3622,7 +3647,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "rss"
+      "_signal": "rss",
+      "content_sha256": "313fee77f2c9d9493e95445efec95cfd994179ad32023d55bc49cb7f04510a00",
+      "content_etag": "\"1783401774\"",
+      "content_last_modified": "Tue, 07 Jul 2026 05:22:54 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "federal-register-ftc-api",
@@ -3632,7 +3661,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "JSON, no key; newest document_number for CFR title 16 FTC actions on Part 255/465",
       "used_by": [
@@ -3643,7 +3672,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "json"
+      "_signal": "json",
+      "content_sha256": "1dd7a506fb24f9d1ad3b389415c7f37758f6b73d757472336d47e1c1073c392d"
     },
     {
       "id": "us-copyright-fedreg-rss",
@@ -3696,7 +3726,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "provenance/disclosure duties for large GenAI providers; effective 2026-08-02 (delayed by AB 853); watch for further amending bills",
       "used_by": [
@@ -3707,7 +3737,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "981331ce6db8f6c54349b79c570c3c0e1f27d7a960e16224ce354ccf337ff694"
     },
     {
       "id": "doe-iecc-state-certifications",
@@ -3760,7 +3791,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "point flood-zone query on layer 28 (FLD_ZONE, SFHA_TF, STATIC_BFE) in inSR=4326; layer 28 has no editingInfo, so poll the LOMRs layer 1 for change",
       "used_by": [
@@ -3774,7 +3805,9 @@
       "child_source_ids": [],
       "check_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28?f=json",
       "_license": "US federal work, public domain (17 USC 105); not the legally authoritative FIRM",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "1f2526ca852a6c78850b70a06df4ffedb618634aec1c2c5707b84ae9634e5144",
+      "content_etag": "\"82ba7590\""
     },
     {
       "id": "fema-nfhl-lomrs",
@@ -3784,7 +3817,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "LOMR effective/case dates; the regulatory-change signal for NFHL since layer 28 lacks editingInfo",
       "used_by": [
@@ -3797,7 +3830,9 @@
       "child_source_ids": [],
       "check_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/1?f=json",
       "_license": "US federal work, public domain",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "3c451157c434472f9a768427d641343e3f52a0030646b20ccf5d00341672366c",
+      "content_etag": "\"8cdf3448\""
     },
     {
       "id": "sfwmd-open-data-gis",
@@ -3807,7 +3842,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "district/basin boundaries + ERP layers; ArcGIS Hub item modified date / REST lastEditDate",
       "used_by": [
@@ -3819,7 +3854,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "FL public agency open data; per-item license, generally open/public-domain",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "ba77674419958b96a7aa18037060b62afc66a0c00069ee0dc6fb24f677b6bf4f",
+      "content_etag": "W/\"1c7e2-oshdHC6hIdk3bG7tuzbO6dYl96M\""
     },
     {
       "id": "miami-historic-districts-gis",
@@ -3829,7 +3866,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "local historic-district boundary polygons (design-review trigger); Hub item modified / REST lastEditDate",
       "used_by": [
@@ -3841,7 +3878,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "municipal public records / open data; per-item license",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "8b4f7b4141105cde6b04c3e7e6c3d0a85cf133c1aa69c532c62398320c6977e2",
+      "content_etag": "W/\"b011-5ctVgkBZ9YojiaDQL7gFQILh0WM\""
     },
     {
       "id": "fl-statute-553-899-milestone",
@@ -3851,7 +3890,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "condo/co-op >=3 stories, milestone by year building turns 30 then every 10y; the year in the URL path is the codification-change signal",
       "used_by": [
@@ -3864,7 +3903,8 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "government edict, public domain",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "fa9a6a632bba8937ee19ad971cd1dcfd0d0b7d1855c6d9fa379c00d901e336b0"
     },
     {
       "id": "fl-statute-553-842-product-approval",
@@ -3874,7 +3914,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "statewide product evaluation/approval; underpins HVHZ product control (Miami-Dade NOA / TAS)",
       "used_by": [
@@ -3886,7 +3926,8 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "government edict, public domain",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "4d9214e83384667e38eee6cc4b9ddcee012c39f5c0fe37ee34c0b3e1d9aec66e"
     },
     {
       "id": "seflcompact-slr-projection",
@@ -3896,7 +3937,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "the regional SLR projection edition (2019 current, ~5yr revision); the value informs local freeboard ordinances; watch the edition year",
       "used_by": [
@@ -3908,7 +3949,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "regional compact report; cite the projection facts + edition, do not mirror the report",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "cc0fdb12dcac17968a4054276de94e5e3a7f02bd1c789d692c0b18865bcd866c",
+      "content_etag": "\"65427c44-e4f28\"",
+      "content_last_modified": "Wed, 01 Nov 2023 16:26:44 GMT",
+      "min_recheck_at": 740169
     },
     {
       "id": "nc-onemap-mrpa-ridgelines",
@@ -3918,7 +3963,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "statewide protected-ridge lines (topo-map digitized, SCREENING ONLY); static unless the MRPA is amended; the FeatureServer editingInfo/item modified is the freshness signal",
       "used_by": [
@@ -3931,7 +3976,11 @@
       "child_source_ids": [],
       "check_url": "https://services1.arcgis.com/YBWrN5qiESVpqi92/arcgis/rest/services/mrpa_ridgelines/FeatureServer/0?f=json",
       "_license": "NC OneMap / NCGS open, public; no warranty (accuracy); attribute to NCGS",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "bb9e926ee1188a1ce77bf88162a1b808be173c046b089692ac838c748ed4ed97",
+      "content_etag": "sds_282294189",
+      "content_last_modified": "Fri, 12 Sep 2025 15:00:20 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "buncombe-gis-overlays",
@@ -3941,7 +3990,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "layer 7 Protected Ridges, layer 20 County Zoning Overlay, Slope Stability Index Map; steep-slope % itself is DEM-derived (no slope-percent layer)",
       "used_by": [
@@ -3954,7 +4003,8 @@
       "child_source_ids": [],
       "check_url": "https://gis.buncombecounty.org/arcgis/rest/services/bcmap_vt/MapServer?f=json",
       "_license": "county public records / open GIS; standard accuracy disclaimer; attribute to Buncombe County GIS",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "04503975d02c8dc2888ffeaa1d72d4f037492fa7628b839d5252c492d4e87d5e"
     },
     {
       "id": "rutherford-gis-reference",
@@ -3964,7 +4014,7 @@
       "tier": "T3",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "parcels + flood zones only; Rutherford has NO countywide zoning and NO steep-slope ordinance, so slope must be DEM-derived",
       "used_by": [
@@ -3976,7 +4026,8 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "county public records / open GIS; standard accuracy disclaimer",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "7208d8934f5ac43b0749146555e295a8a6cfc6e6c66d9e05e78f6ebebafc837f"
     },
     {
       "id": "nc-statute-113a-mrpa",
@@ -3986,7 +4037,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "protected ridge = elevation >= 3,000 ft AND >= 500 ft above the adjacent valley; tall building > 40 ft; counties/cities opt in",
       "used_by": [
@@ -3998,7 +4049,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "government edict, public domain",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "21066cf95a868c2f83f9553376bb74b2fb74542e3d213533965abf23fa12494c",
+      "content_last_modified": "Fri, 17 Apr 2026 18:11:44 GMT"
     },
     {
       "id": "buncombe-zoning-ordinance",
@@ -4008,7 +4061,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "Sec. 78-644 Steep Slope/High Elevation (above 2,500 ft, slope <= 35%); Sec. 78-645 Protected Ridge (above 3,000 ft); geotech trigger at existing grade >= 36% or mapped hazard",
       "used_by": [
@@ -4020,7 +4073,10 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "county ordinance = public-domain law; the .gov PDF is fetchable, Municode hosting is not",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "541c77257f1f1252c363ae9c3fc657607c966cc4d2251a81b3fd7eb23fddfc6a",
+      "content_etag": "\"8c4478491fe2d31:0\"",
+      "content_last_modified": "Wed, 02 May 2018 14:10:12 GMT"
     },
     {
       "id": "asheville-historic-gis",
@@ -4052,7 +4108,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "NC DEQ water-supply-watershed (WS) protection overlays + major river basins (French Broad, Broad); ArcGIS REST / Hub modified date",
       "used_by": [
@@ -4064,7 +4120,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "NC OneMap open data; public",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "8e6c4dcc9babc4410f93f107f9f9ef325214bdc6cd94f1efe6c98bcc178ff827",
+      "content_etag": "W/\"15802-+P96s1La6nkz6M6R4engKJUoeyo\""
     },
     {
       "id": "orlando-historic-districts-gis",
@@ -4074,7 +4132,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "point-in-polygon on HistoricDistricts; watch editingInfo.lastEditDate for boundary change; re-run tools/geo_source_fetch.py --cache-orlando to refresh cached polygons",
       "used_by": [
@@ -4087,7 +4145,11 @@
       "child_source_ids": [],
       "check_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0?f=json",
       "_license": "City of Orlando open data / public records; City disclaims legal-boundary accuracy ('not legally binding','spatially inaccurate'); advisory only",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "1b4422df3ed563518b8093a3e9e170b1fd5447f402c37296731175bfab98d466",
+      "content_etag": "1929016645",
+      "content_last_modified": "Sun, 28 Jun 2026 06:31:46 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "orlando-zoning-gis",
@@ -4097,7 +4159,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "point-in-polygon on Zoning + OverlayA-D; watch editingInfo.lastEditDate; setback NUMBERS live in Ch.58 code (not scraped)",
       "used_by": [
@@ -4110,7 +4172,11 @@
       "child_source_ids": [],
       "check_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0?f=json",
       "_license": "City of Orlando open data / public records; advisory only",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "02854b38059c878694c27896816edb47a916c2481dee7e1d7500e2b9e1a5bdf2",
+      "content_etag": "1331430813",
+      "content_last_modified": "Sun, 28 Jun 2026 06:33:56 GMT",
+      "min_recheck_at": 739804
     },
     {
       "id": "orlando-city-code-ch62",
@@ -4120,7 +4186,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "cite adopted section (62.200 COA required) + district list; monitor the City page (code text on Municode is ToS-limited, not scraped)",
       "used_by": [
@@ -4133,7 +4199,9 @@
       "child_source_ids": [],
       "check_url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts",
       "_license": "public ordinance (Georgia v. Public.Resource.Org); cite the section, do not reproduce Municode text",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "035f46522314788bdb99b2d476c07b58ef65eb487da7462fe6f2ed412de915d2",
+      "min_recheck_at": 739804
     },
     {
       "id": "orlando-ldc-traditional-city",
@@ -4143,7 +4211,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "cite Traditional City section range + overlay legend; setback values live in Ch.58 tables (Municode, not scraped) -> null-flagged",
       "used_by": [
@@ -4156,7 +4224,9 @@
       "child_source_ids": [],
       "check_url": "https://www.orlando.gov/Building-Development/Planning-Zoning-Approvals/Residential-Development-Standards-Guide",
       "_license": "public ordinance; cite section, do not reproduce code text",
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "d9801b538c80964316e9b227f58ed49cd60ccf04f330cfc3d7bcc655027242a6",
+      "min_recheck_at": 739804
     },
     {
       "id": "asce7-hazard-tool",
@@ -4166,7 +4236,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "authoritative point Vult (Fig. 1609.3(2)) + WBDR determination; values null-flagged in records until a point query is run",
       "used_by": [
@@ -4179,7 +4249,9 @@
       "child_source_ids": [],
       "check_url": "https://ascehazardtool.org/",
       "_license": "ASCE tool; wind-speed FACT is not copyrightable, cite the source",
-      "_signal": "manual"
+      "_signal": "manual",
+      "content_sha256": "61dd8ee9c53b4d0cd6d6393fb327a8e4e65a8dc0c861aea625499c35fa53e813",
+      "content_last_modified": "Tue, 05 May 2026 15:49:56 GMT"
     },
     {
       "id": "sjrwmd-open-data-gis",
@@ -4189,7 +4261,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-07-07",
       "last_changed_detected": null,
       "extraction_hint": "point-in-polygon NAME (SJRWMD) + Major_Drainage_Basin_24K_2013 basin; Orange is a split county (south = SFWMD)",
       "used_by": [
@@ -4202,7 +4274,11 @@
       "child_source_ids": [],
       "check_url": "https://services.arcgis.com/s8wtJX9suxFen6TA/arcgis/rest/services/Florida_Water_Management_Districts/FeatureServer/0?f=json",
       "_license": "Florida public records (SJRWMD open data); advisory only",
-      "_signal": "arcgis-rest"
+      "_signal": "arcgis-rest",
+      "content_sha256": "3648de59d265e2700d3067376927a14ef4cd3a927251bfa4acd7194479732985",
+      "content_etag": "1000036456",
+      "content_last_modified": "Tue, 14 Jan 2025 15:07:15 GMT",
+      "min_recheck_at": 739804
     }
   ]
 }
