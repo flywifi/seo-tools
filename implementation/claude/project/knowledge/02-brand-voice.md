@@ -6,7 +6,7 @@ role: Source of truth for brand identity, aesthetic, and voice. Read by the hub 
 load: always
 ---
 
-_Data freshness: as of 2026-07-06 (Creator OS baseline 7ffff31a). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-07 (Creator OS baseline 556c3c21). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # Brand Engine
 

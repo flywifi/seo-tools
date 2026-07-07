@@ -758,6 +758,9 @@ def check_jurisdiction():
         return
     kinds = {"geometry", "attribute", "versioned-fact"}
     for jf in sorted(jdir.glob("*.json")):
+        # *.example.json are schema demos, never loaded for production resolution -> not validated here.
+        if jf.name.endswith(".example.json"):
+            continue
         try:
             recs = json.loads(jf.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -776,6 +779,11 @@ def check_jurisdiction():
                 problem(f"jurisdiction: {jf.name}:{rid} needs id, title, and non-empty text")
             if r.get("overlay_kind") not in kinds:
                 problem(f"jurisdiction: {jf.name}:{rid} overlay_kind must be one of {sorted(kinds)}")
+            # A versioned-fact with no applicability predicate applies EVERYWHERE (the SLR/rutherford
+            # over-fire class): require an explicit scope so a fact cannot leak outside its jurisdiction.
+            if r.get("overlay_kind") == "versioned-fact" and not r.get("applicability"):
+                problem(f"jurisdiction: {jf.name}:{rid} versioned-fact must declare an 'applicability' "
+                        f"predicate (else it over-fires outside its jurisdiction)")
             if not r.get("source_ids") and not r.get("source_reference"):
                 problem(f"jurisdiction: {jf.name}:{rid} has no source_ids or source_reference")
             if not r.get("boundary"):

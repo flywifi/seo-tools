@@ -1,0 +1,266 @@
+[
+  {
+    "_comment": "P38 Orlando/Orange advisory jurisdictional overlays. Geometry records reference REAL City of Orlando GIS boundary polygons cached under orlando-boundaries/ (public records; the City disclaims legal-boundary accuracy). Values that live only behind a ToS-limited code portal (e.g. the exact R-2B front setback) are null-flagged, never scraped. Historic/zoning overlays are aesthetic/land-use (preemption_type none); wind/WBDR/code-edition are safety (preemption_type floor) so a historic-vs-safety collision escalates to human review. Never a legal or permitting determination."
+  },
+  {
+    "id": "orlando-hist-lake-eola-heights",
+    "title": "Lake Eola Heights Historic District (Orlando local, design review)",
+    "text": "The Lake Eola Heights Historic District is a City of Orlando LOCAL historic-preservation overlay district. A project inside it triggers design review: exterior changes require a Certificate of Appropriateness (COA) before work (Orlando City Code Ch. 62, Part 2, sec. 62.200; standards sec. 62.201 and Part 7). Major work (additions, demolition, new construction, major alterations) goes to the Historic Preservation Board and City Council. The boundary is the City's authoritative GIS polygon, cached here (advisory; the City disclaims legal-boundary accuracy). Advisory only, not a legal or permitting determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache:orlando-boundaries/hist_lake_eola_heights_historic_district.geojson",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "orlando-historic-districts-gis",
+      "orlando-city-code-ch62"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando City Code (LDC)",
+        "section": "Ch. 62, Part 2, sec. 62.200 (COA required); sec. 62.201; Part 7",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-hist-downtown",
+    "title": "Downtown Historic District (Orlando local, design review)",
+    "text": "The Downtown Historic District is a City of Orlando LOCAL historic-preservation overlay district. A project inside it triggers design review: exterior changes require a Certificate of Appropriateness (COA) before work (Orlando City Code Ch. 62, Part 2, sec. 62.200; standards sec. 62.201 and Part 7). Major work (additions, demolition, new construction, major alterations) goes to the Historic Preservation Board and City Council. The boundary is the City's authoritative GIS polygon, cached here (advisory; the City disclaims legal-boundary accuracy). Advisory only, not a legal or permitting determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache:orlando-boundaries/hist_downtown_historic_district.geojson",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "orlando-historic-districts-gis",
+      "orlando-city-code-ch62"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando City Code (LDC)",
+        "section": "Ch. 62, Part 2, sec. 62.200 (COA required); sec. 62.201; Part 7",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-hist-lake-cherokee",
+    "title": "Lake Cherokee Historic District (Orlando local, design review)",
+    "text": "The Lake Cherokee Historic District is a City of Orlando LOCAL historic-preservation overlay district. A project inside it triggers design review: exterior changes require a Certificate of Appropriateness (COA) before work (Orlando City Code Ch. 62, Part 2, sec. 62.200; standards sec. 62.201 and Part 7). Major work (additions, demolition, new construction, major alterations) goes to the Historic Preservation Board and City Council. The boundary is the City's authoritative GIS polygon, cached here (advisory; the City disclaims legal-boundary accuracy). Advisory only, not a legal or permitting determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache:orlando-boundaries/hist_lake_cherokee_historic_district.geojson",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "orlando-historic-districts-gis",
+      "orlando-city-code-ch62"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando City Code (LDC)",
+        "section": "Ch. 62, Part 2, sec. 62.200 (COA required); sec. 62.201; Part 7",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-hist-lake-copeland",
+    "title": "Lake Copeland Historic District (Orlando local, design review)",
+    "text": "The Lake Copeland Historic District is a City of Orlando LOCAL historic-preservation overlay district. A project inside it triggers design review: exterior changes require a Certificate of Appropriateness (COA) before work (Orlando City Code Ch. 62, Part 2, sec. 62.200; standards sec. 62.201 and Part 7). Major work (additions, demolition, new construction, major alterations) goes to the Historic Preservation Board and City Council. The boundary is the City's authoritative GIS polygon, cached here (advisory; the City disclaims legal-boundary accuracy). Advisory only, not a legal or permitting determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache:orlando-boundaries/hist_lake_copeland_historic_district.geojson",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "orlando-historic-districts-gis",
+      "orlando-city-code-ch62"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando City Code (LDC)",
+        "section": "Ch. 62, Part 2, sec. 62.200 (COA required); sec. 62.201; Part 7",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-hist-lake-lawsona",
+    "title": "Lake Lawsona Historic District (Orlando local, design review)",
+    "text": "The Lake Lawsona Historic District is a City of Orlando LOCAL historic-preservation overlay district. A project inside it triggers design review: exterior changes require a Certificate of Appropriateness (COA) before work (Orlando City Code Ch. 62, Part 2, sec. 62.200; standards sec. 62.201 and Part 7). Major work (additions, demolition, new construction, major alterations) goes to the Historic Preservation Board and City Council. The boundary is the City's authoritative GIS polygon, cached here (advisory; the City disclaims legal-boundary accuracy). Advisory only, not a legal or permitting determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache:orlando-boundaries/hist_lake_lawsona_historic_district.geojson",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "orlando-historic-districts-gis",
+      "orlando-city-code-ch62"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando City Code (LDC)",
+        "section": "Ch. 62, Part 2, sec. 62.200 (COA required); sec. 62.201; Part 7",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-hist-colonialtown-south",
+    "title": "Colonialtown South Historic District (Orlando local, design review)",
+    "text": "The Colonialtown South Historic District is a City of Orlando LOCAL historic-preservation overlay district. A project inside it triggers design review: exterior changes require a Certificate of Appropriateness (COA) before work (Orlando City Code Ch. 62, Part 2, sec. 62.200; standards sec. 62.201 and Part 7). Major work (additions, demolition, new construction, major alterations) goes to the Historic Preservation Board and City Council. The boundary is the City's authoritative GIS polygon, cached here (advisory; the City disclaims legal-boundary accuracy). Advisory only, not a legal or permitting determination.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 6,
+    "geometry_ref": "cache:orlando-boundaries/hist_colonialtown_south_historic_district.geojson",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "orlando-historic-districts-gis",
+      "orlando-city-code-ch62"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando City Code (LDC)",
+        "section": "Ch. 62, Part 2, sec. 62.200 (COA required); sec. 62.201; Part 7",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-zoning-r2b-th-hp-lake-eola",
+    "title": "Orlando R-2B / Traditional City / Historic Preservation zoning (Lake Eola area)",
+    "text": "Zoning for the Lake Eola Heights residential blocks (including 809 E Amelia St) is R-2B (residential, two-family / medium-density) with the Traditional City overlay (/T, Orlando LDC sec. 62.600 to 62.629) and the Historic Preservation overlay (/HP, Lake Eola Heights). Front building placement follows the Traditional City design standards, which allow first-story porches to encroach into the front setback, AND is subject to Historic Preservation Board review. The exact base R-2B front-yard setback lives in the Ch. 58 zoning tables and is null-flagged here (not fabricated). The boundary is the City's authoritative zoning polygon, cached here. Advisory only.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "municipal",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 5,
+    "geometry_ref": "cache:orlando-boundaries/zoning_r_2b_t_hp_lake_eola.geojson",
+    "_geometry_is_illustrative": false,
+    "value": null,
+    "unit": "feet_front_setback (null: lives in Ch. 58 zoning tables, not scraped)",
+    "source_ids": [
+      "orlando-zoning-gis",
+      "orlando-ldc-traditional-city"
+    ],
+    "code_refs": [
+      {
+        "code": "Orlando LDC",
+        "section": "sec. 62.600 to 62.629 (Traditional City); Ch. 58 (base district dimensional tables)",
+        "edition": "current codification",
+        "url": "https://www.orlando.gov/Building-Development/Planning-Zoning-Approvals/Residential-Development-Standards-Guide"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orange-design-wind-speed",
+    "title": "Ultimate design wind speed (Vult), Orange County (advisory; value pending official map)",
+    "text": "Wind design for Orange County follows the Florida Building Code (ASCE 7-22) ultimate design wind speed (Vult) for the risk category. Secondary sources place Orlando/Orange County Risk Category II near 130 mph (3-second gust), but the authoritative value is the ASCE 7 Hazard Tool / FBC Figure 1609.3(2) at the specific point; the numeric value is null-flagged here rather than asserted from a non-official source. HVHZ does NOT apply (Miami-Dade and Broward only). Advisory only.",
+    "overlay_kind": "versioned-fact",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 3,
+    "value": null,
+    "unit": "mph_ultimate_design_wind_speed (null: verify at ASCE 7 Hazard Tool)",
+    "effective_date": "ASCE 7-22 (FBC 8th Ed.)",
+    "as_of": "2026-07-07",
+    "applicability": [
+      {
+        "field": "county_fips",
+        "op": "eq",
+        "value": "12095"
+      }
+    ],
+    "source_ids": [
+      "asce7-hazard-tool",
+      "fl-building-code-portal"
+    ],
+    "code_refs": [
+      {
+        "code": "FBC/ASCE 7-22",
+        "section": "Fig. 1609.3(2); Ch. 16",
+        "edition": "8th Edition (2023)",
+        "url": "https://www.floridabuilding.org/"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orange-wbdr-status",
+    "title": "Wind-Borne Debris Region status, Orange County (advisory; site-specific)",
+    "text": "The Wind-Borne Debris Region (WBDR) triggers impact-resistant or protected glazing. Downtown Orlando / Lake Eola is generally OUTSIDE the WBDR (inland, below the inland Vult threshold). However, ASCE 7-22 (adopted by the FBC 8th Edition) can pull some inland areas near large open water into the WBDR, so the status is site-specific and null-flagged here; verify against the ASCE 7 Hazard Tool / FBC Fig. 1609.3(2) at the point. Advisory only.",
+    "overlay_kind": "versioned-fact",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 3,
+    "value": null,
+    "unit": "wbdr_in_or_out (null: site-specific, verify ASCE 7 Hazard Tool)",
+    "effective_date": "ASCE 7-22 (FBC 8th Ed.)",
+    "as_of": "2026-07-07",
+    "applicability": [
+      {
+        "field": "county_fips",
+        "op": "eq",
+        "value": "12095"
+      }
+    ],
+    "source_ids": [
+      "asce7-hazard-tool",
+      "fl-building-code-portal"
+    ],
+    "code_refs": [
+      {
+        "code": "FBC/ASCE 7-22",
+        "section": "1609.2 (WBDR); Fig. 1609.3(2)",
+        "edition": "8th Edition (2023)",
+        "url": "https://www.floridabuilding.org/"
+      }
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "orlando-sjrwmd-watershed",
+    "title": "St. Johns River Water Management District (Middle St. Johns basin)",
+    "text": "Downtown Orlando / Lake Eola is in the St. Johns River Water Management District (SJRWMD), Middle St. Johns River major basin (confirmed by point-in-polygon against the district boundary). NOTE: Orange County is a split county; its southern/southwestern portion is in the South Florida WMD. The WMD/basin boundaries are large and resolved via the live SJRWMD endpoint (consent-gated) rather than cached. Water-management permitting is set by the district and local ordinance. Advisory only.",
+    "overlay_kind": "geometry",
+    "jurisdiction_level": "regional",
+    "preemption_type": "none",
+    "local_authority": "home_rule",
+    "specificity_scope": 3,
+    "geometry_ref": "live:sjrwmd-wmd-boundary",
+    "_geometry_is_illustrative": false,
+    "source_ids": [
+      "sjrwmd-open-data-gis"
+    ],
+    "boundary": "advisory-not-legal-determination"
+  }
+]

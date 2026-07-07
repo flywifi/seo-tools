@@ -10,10 +10,20 @@
     "local_authority": "dillon_expressly_granted",
     "specificity_scope": 4,
     "predicate": [
-      {"field": "elevation_ft", "op": "gte", "value": 3000},
-      {"field": "elevation_above_valley_ft", "op": "gte", "value": 500}
+      {
+        "field": "elevation_ft",
+        "op": "gte",
+        "value": 3000
+      },
+      {
+        "field": "elevation_above_valley_ft",
+        "op": "gte",
+        "value": 500
+      }
     ],
-    "source_ids": ["nc-statute-113a-mrpa"],
+    "source_ids": [
+      "nc-statute-113a-mrpa"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -27,8 +37,16 @@
     "specificity_scope": 3,
     "geometry_ref": "cache_or_live:nc-onemap-mrpa-ridgelines",
     "_geometry_is_illustrative": true,
-    "bbox": [-84.0, 35.0, -81.0, 36.5],
-    "source_ids": ["nc-onemap-mrpa-ridgelines", "nc-statute-113a-mrpa"],
+    "bbox": [
+      -84.0,
+      35.0,
+      -81.0,
+      36.5
+    ],
+    "source_ids": [
+      "nc-onemap-mrpa-ridgelines",
+      "nc-statute-113a-mrpa"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -41,10 +59,21 @@
     "local_authority": "home_rule",
     "specificity_scope": 5,
     "predicate": [
-      {"field": "county_fips", "op": "eq", "value": "37021"},
-      {"field": "elevation_ft", "op": "gte", "value": 2500}
+      {
+        "field": "county_fips",
+        "op": "eq",
+        "value": "37021"
+      },
+      {
+        "field": "elevation_ft",
+        "op": "gte",
+        "value": 2500
+      }
     ],
-    "source_ids": ["buncombe-zoning-ordinance", "buncombe-gis-overlays"],
+    "source_ids": [
+      "buncombe-zoning-ordinance",
+      "buncombe-gis-overlays"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -57,10 +86,21 @@
     "local_authority": "home_rule",
     "specificity_scope": 5,
     "predicate": [
-      {"field": "county_fips", "op": "eq", "value": "37021"},
-      {"field": "slope_pct", "op": "gte", "value": 36}
+      {
+        "field": "county_fips",
+        "op": "eq",
+        "value": "37021"
+      },
+      {
+        "field": "slope_pct",
+        "op": "gte",
+        "value": 36
+      }
     ],
-    "source_ids": ["buncombe-zoning-ordinance", "buncombe-gis-overlays"],
+    "source_ids": [
+      "buncombe-zoning-ordinance",
+      "buncombe-gis-overlays"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -75,8 +115,17 @@
     "value": "no_steep_slope_ordinance",
     "effective_date": "2026",
     "as_of": "2026-07-06",
-    "source_ids": ["rutherford-gis-reference"],
-    "boundary": "advisory-not-legal-determination"
+    "source_ids": [
+      "rutherford-gis-reference"
+    ],
+    "boundary": "advisory-not-legal-determination",
+    "applicability": [
+      {
+        "field": "county_fips",
+        "op": "eq",
+        "value": "37161"
+      }
+    ]
   },
   {
     "id": "asheville-historic-design-review",
@@ -89,8 +138,15 @@
     "specificity_scope": 6,
     "geometry_ref": "cache_or_live:asheville-historic-gis",
     "_geometry_is_illustrative": true,
-    "bbox": [-82.56, 35.58, -82.54, 35.60],
-    "source_ids": ["asheville-historic-gis"],
+    "bbox": [
+      -82.56,
+      35.58,
+      -82.54,
+      35.6
+    ],
+    "source_ids": [
+      "asheville-historic-gis"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -104,7 +160,9 @@
     "specificity_scope": 4,
     "geometry_ref": "cache_or_live:nc-onemap-watersheds",
     "_geometry_is_illustrative": false,
-    "source_ids": ["nc-onemap-watersheds"],
+    "source_ids": [
+      "nc-onemap-watersheds"
+    ],
     "boundary": "advisory-not-legal-determination"
   }
 ]

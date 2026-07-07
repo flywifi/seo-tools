@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-06",
+  "last_registry_update": "2026-07-07",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4064,6 +4064,144 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_license": "NC OneMap open data; public",
+      "_signal": "arcgis-rest"
+    },
+    {
+      "id": "orlando-historic-districts-gis",
+      "name": "City of Orlando Local Historic Districts (ArcGIS FeatureServer)",
+      "url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "category": "jurisdiction-gis",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "point-in-polygon on HistoricDistricts; watch editingInfo.lastEditDate for boundary change; re-run tools/geo_source_fetch.py --cache-orlando to refresh cached polygons",
+      "used_by": [
+        "jurisdiction-desk",
+        "canonical-sources/jurisdiction/orlando-overlays.json"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "check_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0?f=json",
+      "_license": "City of Orlando open data / public records; City disclaims legal-boundary accuracy ('not legally binding','spatially inaccurate'); advisory only",
+      "_signal": "arcgis-rest"
+    },
+    {
+      "id": "orlando-zoning-gis",
+      "name": "City of Orlando Land Use Zoning (ArcGIS FeatureServer)",
+      "url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0",
+      "category": "jurisdiction-gis",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "point-in-polygon on Zoning + OverlayA-D; watch editingInfo.lastEditDate; setback NUMBERS live in Ch.58 code (not scraped)",
+      "used_by": [
+        "jurisdiction-desk",
+        "canonical-sources/jurisdiction/orlando-overlays.json"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "check_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0?f=json",
+      "_license": "City of Orlando open data / public records; advisory only",
+      "_signal": "arcgis-rest"
+    },
+    {
+      "id": "orlando-city-code-ch62",
+      "name": "Orlando City Code Ch. 62 (Historic Preservation) + COA rule",
+      "url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "cite adopted section (62.200 COA required) + district list; monitor the City page (code text on Municode is ToS-limited, not scraped)",
+      "used_by": [
+        "jurisdiction-desk",
+        "canonical-sources/jurisdiction/orlando-overlays.json"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "check_url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts",
+      "_license": "public ordinance (Georgia v. Public.Resource.Org); cite the section, do not reproduce Municode text",
+      "_signal": "sha256"
+    },
+    {
+      "id": "orlando-ldc-traditional-city",
+      "name": "Orlando LDC Traditional City design standards (62.600 to 62.629) + Residential Standards Guide",
+      "url": "https://www.orlando.gov/Building-Development/Planning-Zoning-Approvals/Residential-Development-Standards-Guide",
+      "category": "legal-authority",
+      "tier": "T2",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "cite Traditional City section range + overlay legend; setback values live in Ch.58 tables (Municode, not scraped) -> null-flagged",
+      "used_by": [
+        "jurisdiction-desk",
+        "canonical-sources/jurisdiction/orlando-overlays.json"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "check_url": "https://www.orlando.gov/Building-Development/Planning-Zoning-Approvals/Residential-Development-Standards-Guide",
+      "_license": "public ordinance; cite section, do not reproduce code text",
+      "_signal": "sha256"
+    },
+    {
+      "id": "asce7-hazard-tool",
+      "name": "ASCE 7 Hazard Tool / FBC wind maps (Vult, WBDR authoritative source)",
+      "url": "https://ascehazardtool.org/",
+      "category": "legal-authority",
+      "tier": "T2",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "authoritative point Vult (Fig. 1609.3(2)) + WBDR determination; values null-flagged in records until a point query is run",
+      "used_by": [
+        "jurisdiction-desk",
+        "canonical-sources/jurisdiction/orlando-overlays.json"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "check_url": "https://ascehazardtool.org/",
+      "_license": "ASCE tool; wind-speed FACT is not copyrightable, cite the source",
+      "_signal": "manual"
+    },
+    {
+      "id": "sjrwmd-open-data-gis",
+      "name": "St. Johns River WMD open GIS (WMD + major drainage basin boundaries)",
+      "url": "https://services.arcgis.com/s8wtJX9suxFen6TA/arcgis/rest/services/Florida_Water_Management_Districts/FeatureServer/0",
+      "category": "jurisdiction-gis",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "point-in-polygon NAME (SJRWMD) + Major_Drainage_Basin_24K_2013 basin; Orange is a split county (south = SFWMD)",
+      "used_by": [
+        "jurisdiction-desk",
+        "canonical-sources/jurisdiction/orlando-overlays.json"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "check_url": "https://services.arcgis.com/s8wtJX9suxFen6TA/arcgis/rest/services/Florida_Water_Management_Districts/FeatureServer/0?f=json",
+      "_license": "Florida public records (SJRWMD open data); advisory only",
       "_signal": "arcgis-rest"
     }
   ]

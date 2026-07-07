@@ -355,6 +355,8 @@ def jurisdiction_resolve(lon: float, lat: float, facts_json: str = "{}") -> str:
         return json.dumps({"error": "facts_json is not valid JSON"})
     applicable, evaluated = [], []
     for f in sorted(_glob.glob(str(ROOT / "canonical-sources" / "jurisdiction" / "*.json"))):
+        if f.endswith(".example.json"):
+            continue  # schema demos are never loaded for production resolution
         try:
             recs = json.loads(open(f, encoding="utf-8").read())
         except (OSError, json.JSONDecodeError):
@@ -393,6 +395,8 @@ def overlay_conflict(overlay_id_a: str, overlay_id_b: str) -> str:
     import geo_overlay as _go  # noqa: E402
     by = {}
     for f in _glob.glob(str(ROOT / "canonical-sources" / "jurisdiction" / "*.json")):
+        if f.endswith(".example.json"):
+            continue  # schema demos are never loaded for production resolution
         try:
             for r in json.loads(open(f, encoding="utf-8").read()):
                 if isinstance(r, dict) and r.get("id"):

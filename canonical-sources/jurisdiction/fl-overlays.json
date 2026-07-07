@@ -9,9 +9,28 @@
     "preemption_type": "floor",
     "local_authority": "dillon_expressly_granted",
     "specificity_scope": 5,
-    "predicate": [{"field": "county_fips", "op": "in", "value": ["12086", "12011"]}],
-    "source_ids": ["fl-statute-553-842-product-approval", "fl-building-code-portal"],
-    "code_refs": [{"code": "FBC", "section": "202 (HVHZ definition); TAS 201/202/203", "edition": "8th Edition (2023)", "url": "https://floridabuilding.org"}],
+    "predicate": [
+      {
+        "field": "county_fips",
+        "op": "in",
+        "value": [
+          "12086",
+          "12011"
+        ]
+      }
+    ],
+    "source_ids": [
+      "fl-statute-553-842-product-approval",
+      "fl-building-code-portal"
+    ],
+    "code_refs": [
+      {
+        "code": "FBC",
+        "section": "202 (HVHZ definition); TAS 201/202/203",
+        "edition": "8th Edition (2023)",
+        "url": "https://floridabuilding.org"
+      }
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -24,11 +43,28 @@
     "local_authority": "dillon_expressly_granted",
     "specificity_scope": 4,
     "predicate": [
-      {"field": "ownership_form", "op": "in", "value": ["condominium", "cooperative"]},
-      {"field": "habitable_stories", "op": "gte", "value": 3},
-      {"field": "building_age_years", "op": "gte", "value": 30}
+      {
+        "field": "ownership_form",
+        "op": "in",
+        "value": [
+          "condominium",
+          "cooperative"
+        ]
+      },
+      {
+        "field": "habitable_stories",
+        "op": "gte",
+        "value": 3
+      },
+      {
+        "field": "building_age_years",
+        "op": "gte",
+        "value": 30
+      }
     ],
-    "source_ids": ["fl-statute-553-899-milestone"],
+    "source_ids": [
+      "fl-statute-553-899-milestone"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -44,8 +80,21 @@
     "unit": "inches_additional_freeboard",
     "effective_date": "2019",
     "as_of": "2026-07-05",
-    "applicability": [{"field": "county_fips", "op": "in", "value": ["12086", "12011", "12099", "12087"]}],
-    "source_ids": ["seflcompact-slr-projection"],
+    "applicability": [
+      {
+        "field": "county_fips",
+        "op": "in",
+        "value": [
+          "12086",
+          "12011",
+          "12099",
+          "12087"
+        ]
+      }
+    ],
+    "source_ids": [
+      "seflcompact-slr-projection"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -59,7 +108,10 @@
     "specificity_scope": 2,
     "geometry_ref": "live:fema-nfhl-flood-zones",
     "_geometry_is_illustrative": false,
-    "source_ids": ["fema-nfhl-flood-zones", "fema-nfhl-lomrs"],
+    "source_ids": [
+      "fema-nfhl-flood-zones",
+      "fema-nfhl-lomrs"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -73,8 +125,15 @@
     "specificity_scope": 6,
     "geometry_ref": "cache_or_live:miami-historic-districts-gis",
     "_geometry_is_illustrative": true,
-    "bbox": [-80.21, 25.79, -80.16, 25.83],
-    "source_ids": ["miami-historic-districts-gis"],
+    "bbox": [
+      -80.21,
+      25.79,
+      -80.16,
+      25.83
+    ],
+    "source_ids": [
+      "miami-historic-districts-gis"
+    ],
     "boundary": "advisory-not-legal-determination"
   },
   {
@@ -86,8 +145,49 @@
     "preemption_type": "none",
     "local_authority": "home_rule",
     "specificity_scope": 5,
-    "predicate": [{"field": "in_historic_district", "op": "eq", "value": true}],
-    "source_ids": ["miami-historic-districts-gis"],
+    "predicate": [
+      {
+        "field": "in_historic_district",
+        "op": "eq",
+        "value": true
+      }
+    ],
+    "source_ids": [
+      "miami-historic-districts-gis"
+    ],
+    "boundary": "advisory-not-legal-determination"
+  },
+  {
+    "id": "fl-building-code-edition",
+    "title": "Florida Building Code edition (statewide)",
+    "text": "The Florida Building Code is a single statewide standard. The current edition is the 8th Edition (2023), based on the 2021 I-Codes, effective December 31, 2023 (permits applied for on or after that date fall under the 8th Edition). This is a statewide versioned fact, not a boundary; confirm the current edition and any newer cycle at the Florida Building Commission portal. Advisory only.",
+    "overlay_kind": "versioned-fact",
+    "jurisdiction_level": "state",
+    "preemption_type": "floor",
+    "local_authority": "dillon_expressly_granted",
+    "specificity_scope": 2,
+    "value": "8th Edition (2023)",
+    "unit": "code_edition",
+    "effective_date": "2023-12-31",
+    "as_of": "2026-07-07",
+    "applicability": [
+      {
+        "field": "state",
+        "op": "eq",
+        "value": "FL"
+      }
+    ],
+    "source_ids": [
+      "fl-building-code-portal"
+    ],
+    "code_refs": [
+      {
+        "code": "FBC",
+        "section": "Effective dates schedule",
+        "edition": "8th Edition (2023)",
+        "url": "https://www.floridabuilding.org/fbc/Publications/2023_Effective_Dates.pdf"
+      }
+    ],
     "boundary": "advisory-not-legal-determination"
   }
 ]
