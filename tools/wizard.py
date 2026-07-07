@@ -222,6 +222,8 @@ calendar, emails from brands, planning docs, and analytics spreadsheets.</p>
 <a class="btn btn-secondary" href="/desktop">I use <strong>Claude Desktop</strong> on this computer</a>
 <p class="hint">Not sure? If you have the Claude app installed on your computer, choose Desktop.
 If you go to claude.ai in a web browser, choose the first option.</p>
+<hr>
+<a class="btn btn-outline" href="/cross-modality">Use Creator OS on another AI (Custom GPT, Gemini, ...)</a>
 """, dots=["active", "dot", "dot", "dot"])
 
 def _screen_claudeai() -> str:
@@ -790,6 +792,107 @@ make on your own &mdash; nobody sends you homework.</div>
 """)
 
 
+def _skill_modality_summary() -> dict:
+    """Scan skills/*/SKILL.md for the '## Cross-modality' Class line. Returns {'A':[...], 'B':[...],
+    'C':[...], 'unknown':[...]} of spoke names, so the wizard can say what runs where."""
+    out: dict[str, list] = {"A": [], "B": [], "C": [], "unknown": []}
+    skills_dir = ROOT / "skills"
+    if not skills_dir.exists():
+        return out
+    for d in sorted(p for p in skills_dir.iterdir() if p.is_dir() and p.name != "atoms"):
+        f = d / "SKILL.md"
+        if not f.exists():
+            continue
+        txt = f.read_text(encoding="utf-8")
+        if "## Cross-modality" not in txt:
+            out["unknown"].append(d.name)
+            continue
+        seg = txt.split("## Cross-modality", 1)[1]
+        cls = "unknown"
+        for line in seg.splitlines():
+            s = line.strip()
+            if s.startswith("Class:"):
+                token = s.split(":", 1)[1].strip()[:1].upper()
+                cls = token if token in ("A", "B", "C") else "unknown"
+                break
+        out[cls].append(d.name)
+    return out
+
+
+# Per-surface wiring guidance (mirrors shared/cross-modality-engine.md packaging map).
+_SURFACES = {
+    "claude_desktop": ("Claude Desktop (local MCP)",
+        ["Add the MCP server from implementation/claude/desktop/claude_desktop_config_snippet.json.",
+         "Restart Claude Desktop. Tools like jurisdiction_resolve run offline; live lookups ask for consent."],
+        "native", "Every class (A, B, C) runs natively."),
+    "claude_code": ("Claude Code / CLI",
+        ["Run the tools directly (python3 tools/...), or use the same MCP server."],
+        "native", "Every class (A, B, C) runs natively."),
+    "claude_web": ("claude.ai web + mobile",
+        ["Host the remote MCP: python3 tools/mcp_server.py --serve-remote (reachable from Anthropic cloud).",
+         "In claude.ai, add it as a Custom Connector (remote MCP). One endpoint also serves ChatGPT + Gemini."],
+        "seam", "Class A native; B and C via the hosted remote-MCP connector."),
+    "custom_gpt": ("Custom GPT (OpenAI)",
+        ["In the GPT builder, add an Action and paste implementation/gpt/actions/*.yaml. Auth = None.",
+         "The GPT calls the public endpoints itself (server-side point-in-polygon)."],
+        "action", "Class A knowledge-only; B via a GPT Action; C only if you host the tool."),
+    "gemini_api": ("Gemini API (developer)",
+        ["Load implementation/gemini/*function-declarations.json as functionDeclarations.",
+         "When Gemini returns a call, YOUR app executes the HTTPS request and returns the result."],
+        "action", "Class A knowledge-only; B and C via your backend executing the call."),
+    "gemini_gems": ("Gemini 'Gems' (consumer)",
+        ["Paste implementation/gemini/system-instruction.md into a Gem for the knowledge-only path.",
+         "Gems cannot call custom tools: paste a lon/lat yourself, or move to the Gemini API."],
+        "none", "Class A only. B and C are unavailable here (the one dead end)."),
+    "human_curl": ("Human (curl / browser, no AI)",
+        ["python3 tools/geo_source_fetch.py resolve \"<address>\", or curl the public /query endpoints."],
+        "curl", "Class B via curl; Class C by running the tool locally."),
+}
+
+
+def _screen_cross_modality(surface: str = "") -> str:
+    """Show, for the user's AI surface, exactly how to wire Creator OS capabilities + what runs there."""
+    summ = _skill_modality_summary()
+    picker = "".join(
+        f'<a class="btn btn-outline" href="/cross-modality?surface={k}" '
+        f'style="display:block;margin:6px 0">{v[0]}</a>'
+        for k, v in _SURFACES.items())
+    body = f"""
+<h1>Use Creator OS on any AI (or none)</h1>
+<p>Every skill declares where it can run outside Claude (see <code>shared/cross-modality-engine.md</code>).
+Pick your surface for the exact setup steps and what is available there.</p>
+<div class="note"><strong>Capability classes:</strong> A = pure reasoning (runs everywhere);
+B = offloadable (a public/hosted endpoint does the work); C = needs a local runtime or a hosted seam.
+Your skills today: <strong>{len(summ['A'])}</strong> Class A, <strong>{len(summ['B'])}</strong> Class B,
+<strong>{len(summ['C'])}</strong> Class C.</div>
+{picker}
+<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
+"""
+    if surface in _SURFACES:
+        label, steps, kind, avail = _SURFACES[surface]
+        steps_html = "".join(f"<li>{s}</li>" for s in steps)
+        # which of the user's skills work here
+        if kind in ("native", "seam", "action", "curl"):
+            reach = "All classes reachable." if kind in ("native", "seam") else \
+                    ("Class A + B reachable; Class C needs a hosted tool." if kind == "action" else
+                     "Class B + C reachable; Class A is reasoning-only.")
+        else:  # none = gems
+            reach = (f"Only Class A ({len(summ['A'])} skills) works. Class B + C "
+                     f"({len(summ['B']) + len(summ['C'])} skills) need the API or a coordinate you paste.")
+        body = f"""
+<h1>{label}</h1>
+<div class="note">{avail}</div>
+<h2>Setup steps</h2>
+<ol>{steps_html}</ol>
+<div class="note"><strong>What runs here:</strong> {reach}</div>
+<p style="font-size:.85rem;color:#7a5a5a">Class A: {', '.join(summ['A']) or 'none'}<br>
+Class B: {', '.join(summ['B']) or 'none'}<br>Class C: {', '.join(summ['C']) or 'none'}</p>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/cross-modality">Pick another surface</a>
+<a class="btn btn-outline" href="/">Back to start</a></p>
+"""
+    return _page("Cross-Modality Setup", body)
+
+
 class _Handler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
@@ -834,8 +937,14 @@ publishing runs in manual mode for now. No action is needed here.</div>
 """))
             return
 
+        if path == "/cross-modality":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(_screen_cross_modality(q.get("surface", [""])[0]))
+            return
+
         routes: dict[str, str | None] = {
             "/": _screen_welcome(),
+            "/cross-modality": _screen_cross_modality(),
             "/claudeai": _screen_claudeai(),
             "/desktop": _screen_desktop(),
             "/google": _screen_google(),
