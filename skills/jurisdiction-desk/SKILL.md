@@ -70,6 +70,20 @@ or values (`protocols/no-fabrication.md`); no copyrighted code text or NOAs; hon
 Resolves a location's advisory overlays and any conflicts offline, cited and bounded, with no network
 unless per-session live consent is granted.
 
+## Cross-modality
+Class: B (offloadable) for the geometry/geocode/flood lookups; the offline engine is a Class-C
+convenience for surfaces with a local runtime.
+Runs on: Claude Desktop/Code (native, `jurisdiction_resolve` + offline `geo_overlay`); claude.ai +
+Custom GPT + Gemini API (via the public ArcGIS/FEMA/Census endpoints, which do point-in-polygon
+server-side); a human via `tools/geo_source_fetch.py`. Gems: no (paste a lon/lat or use the API).
+Mechanism: MCP `jurisdiction_resolve` / `overlay_conflict`;
+`implementation/gpt/actions/jurisdiction_overlay_action.yaml`;
+`implementation/gemini/jurisdiction-function-declarations.json`; or the public endpoints direct.
+Fallback: no local runtime -> hosted/Action/public REST (rung 2 to 3); no network -> cached boundaries
++ null-flagged values (rung 4), and ask the user for a coordinate a Gem cannot fetch (rung 5). The
+advisory boundary and human-review escalation travel with every rung.
+See `shared/cross-modality-engine.md` and `docs/CROSS-MODALITY.md`.
+
 ## Failure modes
 - `jurisdictional_overlay` off: says the capability is off rather than answering.
 - A geometry overlay needing a live boundary without per-session live consent (declined or headless):
