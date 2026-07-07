@@ -48,3 +48,10 @@ Produces a complete idea cluster even when no downstream spoke is available, and
   seasonal claim; data older than 14 days for fast-moving categories is marked stale.
 - Returning single ideas instead of clusters.
 - Drifting off the home decor aesthetic toward bright farmhouse.
+
+## Cross-modality
+Class: A (pure reasoning over knowledge + protocols).
+Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
+Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+See `shared/cross-modality-engine.md`.

@@ -794,6 +794,60 @@ def check_jurisdiction():
                         problem(f"jurisdiction: {jf.name}:{rid} code_ref is missing '{k}'")
 
 
+def check_cross_modality():
+    """Invariant 28: every spoke SKILL.md declares its cross-modality (P38).
+
+    Each capability skill under skills/*/ (excluding atoms) must carry a `## Cross-modality` section
+    referencing shared/cross-modality-engine.md, so every skill states where/how it runs outside
+    Claude (surfaces, mechanism, fallback) and the setup wizard can guide per-surface setup."""
+    engine = ROOT / "shared" / "cross-modality-engine.md"
+    if not engine.exists():
+        problem("cross-modality: shared/cross-modality-engine.md is missing")
+        return
+    sk = ROOT / "skills"
+    if not sk.exists():
+        return
+    for d in sorted(sk.iterdir()):
+        if not d.is_dir() or d.name == "atoms":
+            continue
+        f = d / "SKILL.md"
+        if not f.exists():
+            continue
+        txt = f.read_text(encoding="utf-8")
+        if "## Cross-modality" not in txt:
+            problem(f"cross-modality: skills/{d.name}/SKILL.md is missing a '## Cross-modality' section")
+        elif "shared/cross-modality-engine.md" not in txt:
+            problem(f"cross-modality: skills/{d.name}/SKILL.md must reference shared/cross-modality-engine.md")
+
+
+def check_implementation_schemas():
+    """Invariant 29: every packaged schema under implementation/ parses (P38).
+
+    Every .json / .yaml / .yml under implementation/ must parse cleanly, so a malformed GPT Action
+    OpenAPI schema or Gemini function declaration can never ship (caught the P38-6 YAML typo class)."""
+    impl = ROOT / "implementation"
+    if not impl.exists():
+        return
+    for f in sorted(impl.rglob("*")):
+        if not f.is_file():
+            continue
+        suf = f.suffix.lower()
+        if suf == ".json":
+            try:
+                json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                problem(f"implementation: {f.relative_to(ROOT)} is invalid JSON: {exc}")
+        elif suf in (".yaml", ".yml"):
+            try:
+                import yaml  # noqa: PLC0415
+            except ImportError:
+                continue  # pyyaml absent -> advisory skip
+            try:
+                yaml.safe_load(f.read_text(encoding="utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                problem(f"implementation: {f.relative_to(ROOT)} is invalid YAML: {exc}")
+
+
 def check_currency_map():
     """Invariant 25: currency-map integrity (P36).
 
@@ -919,6 +973,8 @@ def main():
     check_currency_map()
     check_freshness_bundle()
     check_jurisdiction()
+    check_cross_modality()
+    check_implementation_schemas()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

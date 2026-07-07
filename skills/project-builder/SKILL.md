@@ -67,3 +67,10 @@ Atoms are called in the order listed. govern-artifact always runs last.
 - SEO keyword strategy, search clustering, or metadata optimization -- use the seo-keywords spoke
 - Brand deal tracking, rate negotiation, or sponsorship outreach -- use the deal-pipeline spoke
 - Any workflow that requires live trend data or real-time search signals without first running trend-check -- project-builder does not call external data sources
+
+## Cross-modality
+Class: A (pure reasoning over knowledge + protocols).
+Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
+Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+See `shared/cross-modality-engine.md`.

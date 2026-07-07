@@ -175,3 +175,10 @@ Key output guarantees:
 - Brand partnership or sponsorship research. Use deal-tracker or account-manager spokes.
 - Any topic outside the home decor and DIY niche. This spoke's keyword vocabulary
   and competitor pool are calibrated to that niche; off-niche results will be unreliable.
+
+## Cross-modality
+Class: B (offloadable: the data step is a cache/API lookup a server can do).
+Runs on: Claude Desktop/Code (native, MCP tools + the scoop cache); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless the user supplies it).
+Mechanism: MCP tools + the scoop cache on Claude; a hosted endpoint / GPT Action / Gemini function declaration off Claude.
+Fallback: no live data -> use the cached canonical snapshot and flag its as_of; on a knowledge-only surface, ask the user for fresh inputs. Never fabricate a fetched value.
+See `shared/cross-modality-engine.md`.

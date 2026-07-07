@@ -223,3 +223,10 @@ competitor-analysis seasonal-trends    content-distributor  document-studio
 account-manager     deal-pipeline       deal-resourcing     partnership-mediakit
 contract-desk       finance-desk       task-desk           quality-review
 ```
+
+## Cross-modality
+Class: A (pure reasoning over knowledge + protocols).
+Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
+Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+See `shared/cross-modality-engine.md`.

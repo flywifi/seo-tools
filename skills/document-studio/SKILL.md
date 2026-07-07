@@ -69,3 +69,10 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 - Content lane generation (ideas, hooks, trending topics, SEO research) that does not have a file source. Use a Content lane spoke for those requests.
 - Pipeline CRM writes, deal creation, or contact updates. Use the `deal-pipeline` spoke for CRM operations.
 - Bulk file processing involving more than one file per invocation. This spoke operates on a single-file ingest model. Run one invocation per file.
+
+## Cross-modality
+Class: A (pure reasoning over knowledge + protocols).
+Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
+Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+See `shared/cross-modality-engine.md`.

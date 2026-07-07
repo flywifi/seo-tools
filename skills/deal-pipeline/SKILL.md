@@ -101,3 +101,10 @@ A single `deal_report` object with the following fields:
 - Accessing legal systems, sending notifications, or executing contracts
 - Advancing a deal to a non-adjacent stage in a single action
 - Any action that bypasses stage-transition evidence requirements
+
+## Cross-modality
+Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
+Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
+Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+See `shared/cross-modality-engine.md`.

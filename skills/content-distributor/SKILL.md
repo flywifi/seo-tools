@@ -138,3 +138,10 @@ When no connector is active, produces a full manual posting package (via publish
 - **Caption generation failure (Step 2)**: if caption-write cannot produce a caption for a platform, that platform is skipped and noted in `next_steps`.
 - **FTC disclosure missing**: schedule-post prepends the disclosure and flags it; govern-artifact verifies before completing.
 - **Govern-artifact gate failure**: if a post fails the integrity or safety gate, the post is not queued and the creator is shown the gate failure reason.
+
+## Cross-modality
+Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
+Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
+Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+See `shared/cross-modality-engine.md`.

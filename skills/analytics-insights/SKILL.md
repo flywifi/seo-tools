@@ -63,3 +63,10 @@ Returns an `insights_report` object with the following fields:
 - Generating content recommendations that are not grounded in the provided analytics data.
 - Accessing live platform APIs directly. If fresh data is needed from a live source, route through `shared/web-intel-engine.md` Level 1 fetch; this skill does not call platform APIs itself.
 - Producing a final deliverable that has not passed the Quality Gates enforced by `govern-artifact`.
+
+## Cross-modality
+Class: B (offloadable: the data step is a cache/API lookup a server can do).
+Runs on: Claude Desktop/Code (native, MCP tools + the scoop cache); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless the user supplies it).
+Mechanism: MCP tools + the scoop cache on Claude; a hosted endpoint / GPT Action / Gemini function declaration off Claude.
+Fallback: no live data -> use the cached canonical snapshot and flag its as_of; on a knowledge-only surface, ask the user for fresh inputs. Never fabricate a fetched value.
+See `shared/cross-modality-engine.md`.

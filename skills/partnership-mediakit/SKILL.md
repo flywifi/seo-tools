@@ -211,3 +211,10 @@ Output guarantees:
 - Creating or updating `pipeline/` CRM records. Read access to an existing account record is
   permitted when `crm_account_id` is supplied; write operations belong to deal-pipeline or
   account-manager.
+
+## Cross-modality
+Class: A (pure reasoning over knowledge + protocols).
+Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
+Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+See `shared/cross-modality-engine.md`.

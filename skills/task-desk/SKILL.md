@@ -76,3 +76,10 @@ Tracks, plans, and reports cited tasks offline from the register, with no downst
 - An infeasible deadline surfaces the negative-slack conflict, not a false "on track".
 - Coverage abstains rather than inferring; input conflicts go to the minority report and the human gate.
 - Nothing is sent; nudges, replies, and invoices are drafted for the human.
+
+## Cross-modality
+Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
+Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
+Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+See `shared/cross-modality-engine.md`.
