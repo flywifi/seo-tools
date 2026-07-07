@@ -2,8 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P38 are complete through P38-4 (P38-5 809 test + P38-6 cross-modality packaging + P38-7
-skill-wide cross-modality architecture remain). Drift guard exits 0 (28 invariants). Branch:
+P6 through P38 are complete. Drift guard exits 0 (30 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
 
 - P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
@@ -23,6 +22,13 @@ skill-wide cross-modality architecture remain). Drift guard exits 0 (28 invarian
   e2e proof 17/17. 809 E Amelia resolves offline to Lake Eola Heights + R-2B/T/HP + FBC 8th Edition,
   with flood/SJRWMD as consent-gated live gaps. Everything advisory-not-legal-determination. Ledger:
   `P38-jurisdictional-overlay-hardening-orlando`.
+  Cross-modality (P38-6/7): `docs/CROSS-MODALITY.md` + a GPT Action
+  (`implementation/gpt/actions/jurisdiction_overlay_action.yaml`) + Gemini function declarations make
+  the overlay reachable off Claude (Custom GPT, Gemini API, remote MCP, curl; consumer Gems is the one
+  dead end). `shared/cross-modality-engine.md` defines the model (capability classes A/B/C, surface
+  matrix, packaging map, fallback ladder); every spoke SKILL.md now carries a `## Cross-modality`
+  declaration; the setup wizard added a `/cross-modality` per-surface screen. New drift invariants: 28
+  (every spoke declares cross-modality) and 29 (every `implementation/` schema parses).
 
 - P37: added an OPTIONAL, advisory jurisdictional-overlay bucket on top of the construction base
   (default off). `tools/geo_overlay.py` (selftest 26/26) is a stdlib EPSG:4326 engine: point-in-polygon
