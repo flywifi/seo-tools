@@ -192,6 +192,12 @@
       "date": "2026-07-07",
       "decision": "Made every skill declare where/how it runs outside Claude, and packaged the jurisdiction overlay for non-Claude surfaces. shared/cross-modality-engine.md defines the model: three capability classes (A pure-reasoning, B offloadable to a public/hosted endpoint, C local-runtime), a per-surface matrix, a packaging map, and a degrade-never-fail fallback ladder. All 23 spokes carry a ## Cross-modality declaration; jurisdiction gets a GPT Action OpenAPI schema, Gemini function declarations, and docs/CROSS-MODALITY.md (access matrix). The setup wizard gained a /cross-modality screen that prints per-surface wiring steps and what runs there. Two new drift invariants: 28 (spokes declare cross-modality) and 29 (implementation/ schemas parse, which would have caught the GPT Action YAML typo).",
       "rationale": "P38-6/7: the ecosystem targets Claude Desktop/Code, claude.ai, Custom GPT, Gemini, and no-AI users; the ArcGIS/FEMA/Census endpoints do point-in-polygon server-side, so the universal path (call the public endpoint) reaches every surface except consumer Gemini Gems. Skills must know their class + mechanism so users can set them up per surface rather than hit a gap at use time."
+    },
+    {
+      "id": "P39-cross-modality-audit",
+      "date": "2026-07-07",
+      "decision": "Audited and corrected the cross-modality declarations from P38-7 (which were assigned by heuristic). Re-derived each spoke's class from evidence (SKILL.md + workflow.json + composed atoms' tools + mcp_server.py). Two class fixes: analytics-insights B->C (runs roi-metric money math + docintel parsing) and partnership-mediakit A->B (depends on rate-benchmarks data); all other Class-C mechanism lines corrected to name the real tool module. Added an inherited one-line ## Cross-modality declaration to all 96 atoms. Hardened invariant 28 to require Class:/Runs on:/Mechanism:/Fallback: on spokes (no stub) + the line on atoms. Final: A=4, B=6, C=13. docs/CROSS-MODALITY-AUDIT.md records the per-skill verdicts + the packaging-candidate list (one remote-MCP deployment surfaces all Class-C skills; Class-B skills are knowledge-pack candidates).",
+      "rationale": "P39: the P38-7 rollout was fast/heuristic; this makes each declaration evidence-true. The planned adversarial multi-agent audit hit an account session limit after 4 spokes and was completed as a deterministic self-audit incorporating those 4 agent findings; the full adversarial run is resumable when budget resets."
     }
   ],
   "updated": "2026-07-07"

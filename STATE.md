@@ -2,8 +2,10 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P38 are complete. Drift guard exits 0 (30 invariants). Branch:
+P6 through P39 are complete. Drift guard exits 0 (30 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
+
+- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Two class fixes (analytics-insights B->C, partnership-mediakit A->B); all Class-C mechanism text now names the real tool module; all 96 atoms carry an inherited one-line declaration; invariant 28 hardened to reject a stub (Class/Runs on/Mechanism/Fallback required). Final A=4/B=6/C=13. docs/CROSS-MODALITY-AUDIT.md has the per-skill verdicts + packaging candidates. The planned adversarial multi-agent audit hit a session limit after 4 spokes and was finished as a deterministic self-audit incorporating those findings (resumable for a full second opinion).
 
 - P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
   consent (`tools/geo_consent.py`): default-on but ask-first once per session, headless/declined falls
