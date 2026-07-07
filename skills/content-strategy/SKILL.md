@@ -50,8 +50,8 @@ Produces a complete idea cluster even when no downstream spoke is available, and
 - Drifting off the home decor aesthetic toward bright farmhouse.
 
 ## Cross-modality
-Class: A (pure reasoning over knowledge + protocols).
+Class: A.
 Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
-Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
-Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+Mechanism: Pure reasoning over the shared brand/audience/platform/adaptation engines + protocols; no tool or data fetch.
+Fallback: None needed; reasoning-only. Null-flag any figure the user has not supplied; never invent metrics.
 See `shared/cross-modality-engine.md`.

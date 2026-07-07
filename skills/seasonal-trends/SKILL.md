@@ -80,8 +80,8 @@ Atoms are invoked in the order listed. `trend-check` is conditional and runs onc
 - Producing a plan that bypasses the Quality Gates -- `govern-artifact` is non-optional; a plan that does not pass the gate is not released
 
 ## Cross-modality
-Class: B (offloadable: the data step is a cache/API lookup a server can do).
-Runs on: Claude Desktop/Code (native, MCP tools + the scoop cache); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless the user supplies it).
-Mechanism: MCP tools + the scoop cache on Claude; a hosted endpoint / GPT Action / Gemini function declaration off Claude.
-Fallback: no live data -> use the cached canonical snapshot and flag its as_of; on a knowledge-only surface, ask the user for fresh inputs. Never fabricate a fetched value.
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over the seasonal canonical source + scoop cache (seasonal-map, trend-check, keyword-cluster, calendar-slot); no compute tool beyond the shared gate.
+Fallback: Off a runtime, the seasonal data is providable as knowledge; degrade to reasoning + flag as_of. Never fabricate a trend.
 See `shared/cross-modality-engine.md`.

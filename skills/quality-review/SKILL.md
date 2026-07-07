@@ -63,8 +63,8 @@ no downstream skill required.
 - Doing the arithmetic by hand instead of using `scripts/score.py`.
 
 ## Cross-modality
-Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
-Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
-Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: skills/quality-review/scripts/score.py deterministic Quality-Gates scoring, invoked by every spoke's govern-artifact; MCP gate. A governance/meta capability.
+Fallback: No runtime or hosted seam -> the model scores under the quality-gates.md rubric explicitly labelled an estimate (not the deterministic score); never release on a hard-fail dimension.
 See `shared/cross-modality-engine.md`.

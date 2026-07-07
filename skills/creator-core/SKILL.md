@@ -225,8 +225,8 @@ contract-desk       finance-desk       task-desk           quality-review
 ```
 
 ## Cross-modality
-Class: A (pure reasoning over knowledge + protocols).
+Class: A.
 Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
-Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
-Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+Mechanism: The hub/router: classifies a request into a lane and dispatches to a spoke (pure reasoning); runs no tool of its own. The spoke it routes to carries its own class.
+Fallback: Runs on every surface; if a routed spoke is Class C and the surface has no runtime or hosted seam, it hands off with that spoke's own fallback.
 See `shared/cross-modality-engine.md`.

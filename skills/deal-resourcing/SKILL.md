@@ -171,8 +171,8 @@ Key output guarantees:
   the pipeline schema in `shared/pipeline-engine.md` and will misread records from other schemas.
 
 ## Cross-modality
-Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
-Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
-Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: Deterministic resourcing/cost math (crew, effort, budget) per the shared pipeline + finance engines; MCP tools.
+Fallback: No runtime or hosted seam -> show the resourcing calculation from the engine spec, flag unverified; never fabricate a cost or resource figure.
 See `shared/cross-modality-engine.md`.

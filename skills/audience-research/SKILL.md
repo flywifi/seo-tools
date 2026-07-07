@@ -175,8 +175,8 @@ Key output guarantees:
   definitions and signal thresholds are calibrated for that specific niche and creator.
 
 ## Cross-modality
-Class: B (offloadable: the data step is a cache/API lookup a server can do).
-Runs on: Claude Desktop/Code (native, MCP tools + the scoop cache); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless the user supplies it).
-Mechanism: MCP tools + the scoop cache on Claude; a hosted endpoint / GPT Action / Gemini function declaration off Claude.
-Fallback: no live data -> use the cached canonical snapshot and flag its as_of; on a knowledge-only surface, ask the user for fresh inputs. Never fabricate a fetched value.
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over supplied channel data or the scoop cache personas/audience data (canonical-sources); composes ingest-route + persona-map; no compute tool beyond the shared gate.
+Fallback: Off a runtime, the persona/audience data can be pasted or provided as knowledge; degrade to reasoning over supplied inputs and flag its as_of. Never invent audience data.
 See `shared/cross-modality-engine.md`.

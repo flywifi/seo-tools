@@ -140,8 +140,8 @@ When no connector is active, produces a full manual posting package (via publish
 - **Govern-artifact gate failure**: if a post fails the integrity or safety gate, the post is not queued and the creator is shown the gate failure reason.
 
 ## Cross-modality
-Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
-Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
-Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: tools/publishing_compliance.py (FTC/AIGC/tier/credential gate) + the schedule/dashboard tools; connector calls are human-confirmed and gated (live_publishing_enabled default off); MCP schedule tools.
+Fallback: No runtime or hosted seam -> produce a confirmation summary for human review only; never post, never bypass the compliance gate, never fabricate a scheduled state.
 See `shared/cross-modality-engine.md`.

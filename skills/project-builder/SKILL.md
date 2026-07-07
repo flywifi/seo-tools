@@ -69,8 +69,8 @@ Atoms are called in the order listed. govern-artifact always runs last.
 - Any workflow that requires live trend data or real-time search signals without first running trend-check -- project-builder does not call external data sources
 
 ## Cross-modality
-Class: A (pure reasoning over knowledge + protocols).
+Class: A.
 Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
-Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
-Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+Mechanism: Reasoning over shared/method.md + the construction/adaptation engines to plan a project end to end; no tool of its own (quantity calcs defer to construction-desk).
+Fallback: Runs everywhere; where a downstream calculation is wanted it defers to construction-desk (Class C). Null-flag unknowns; never fabricate quantities.
 See `shared/cross-modality-engine.md`.

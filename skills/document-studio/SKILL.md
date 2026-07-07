@@ -71,8 +71,8 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 - Bulk file processing involving more than one file per invocation. This spoke operates on a single-file ingest model. Run one invocation per file.
 
 ## Cross-modality
-Class: A (pure reasoning over knowledge + protocols).
+Class: A.
 Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
-Mechanism: the packaged system instructions (`implementation/claude/`, `implementation/gpt/web/`, `implementation/gemini/`).
-Fallback: none needed; it is reasoning-only. Cite sources and null-flag anything unknown rather than guess.
+Mechanism: Reasoning/formatting over the artifact-type schemas + shared engines; an invoice artifact restates a pipeline/finance record built upstream by finance-desk (invoice-generate via tools/finance.py), adding nothing. The shared govern-artifact gate applies.
+Fallback: Runs on any surface; the invoice case needs the finance-built record supplied (it computes no money itself). Null-flag missing fields; never invent figures.
 See `shared/cross-modality-engine.md`.

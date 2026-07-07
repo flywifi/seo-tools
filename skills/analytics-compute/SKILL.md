@@ -95,8 +95,8 @@ interpretation suitable for the creator.
   does not retry silently, and flags the output as `computation_failed`.
 
 ## Cross-modality
-Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
-Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
-Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: Delegates the statistics to a connected external compute MCP (E2B/scipy, Wolfram, DuckDB, R, ...) per shared/compute-engine.md; ships no tools/*.py of its own (mcp_server.py exposes only get_stats_tools discovery + configure_tool).
+Fallback: No compute MCP connected -> emit guidance-only output (the test/formula/assumptions + runnable Python/R) labelled computation_source=guidance_only; never use model arithmetic for tests/regression/forecasting, never fabricate a result.
 See `shared/cross-modality-engine.md`.

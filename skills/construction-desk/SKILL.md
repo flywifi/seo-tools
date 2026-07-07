@@ -78,8 +78,8 @@ skill and no network.
   reader to the span table or a licensed engineer, never an authoritative member size.
 
 ## Cross-modality
-Class: C (local-runtime: needs a Python/tool runtime or an MCP host to execute).
-Runs on: Claude Desktop/Code (native via MCP + the skill's `tools/`); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: MCP tools in `tools/mcp_server.py` + the skill's tool module; off Claude, the remote-MCP transport (`tools/mcp_server.py --serve-remote`).
-Fallback: no runtime and no hosted seam -> the model reasons under the engine spec, explicitly flagged as unverified, and states the exact tool/command the user could run. Never fabricate the computed result.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: tools/build_calc.py deterministic calculators (board-feet, coverage, spans, ...) over the construction dictionary + FL/NC editions; MCP build tools; scoop cache for the dictionary.
+Fallback: No runtime or hosted seam -> reason over shared/construction-engine.md formulas, show the calculation, flag unverified, and name the calc to run; never fabricate a quantity or a code figure.
 See `shared/cross-modality-engine.md`.

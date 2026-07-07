@@ -177,8 +177,8 @@ Key output guarantees:
   and competitor pool are calibrated to that niche; off-niche results will be unreliable.
 
 ## Cross-modality
-Class: B (offloadable: the data step is a cache/API lookup a server can do).
-Runs on: Claude Desktop/Code (native, MCP tools + the scoop cache); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless the user supplies it).
-Mechanism: MCP tools + the scoop cache on Claude; a hosted endpoint / GPT Action / Gemini function declaration off Claude.
-Fallback: no live data -> use the cached canonical snapshot and flag its as_of; on a knowledge-only surface, ask the user for fresh inputs. Never fabricate a fetched value.
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over the keyword library + scoop cache (keyword-cluster, long-tail-expand, search-intent, SERP/topical-authority mapping); no compute tool beyond the shared gate.
+Fallback: Off a runtime, provide the keyword/SERP data or use cached snapshots (flag as_of) and reason over what is supplied. No fabricated volumes.
 See `shared/cross-modality-engine.md`.
