@@ -25,9 +25,12 @@ RFC 7946 order. Callers passing (lat, lon) MUST flip first.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ADVISORY = ("Advisory planning information only. Derived from third-party government GIS/legal "
             "sources; NOT an official or legal determination. Flood, zoning, and jurisdiction "
@@ -242,6 +245,37 @@ def eval_attribute(predicate, facts):
     return {"applies": applies, "evaluated": results}
 
 
+def load_cached_geometry(geometry_ref, root=ROOT):
+    """Resolve a 'cache:<relpath>' geometry_ref to a GeoJSON geometry dict from a file under
+    canonical-sources/jurisdiction/ (offline; no network). Accepts a FeatureCollection (uses the
+    first feature), a Feature, or a bare Polygon/MultiPolygon. Returns None if it is not a cache ref,
+    or the file is missing/unreadable/not geometry. A 'live:' ref returns None (resolved by the live
+    connector with consent, not here)."""
+    if not (isinstance(geometry_ref, str) and geometry_ref.startswith("cache:")):
+        return None
+    rel = geometry_ref[len("cache:"):].lstrip("/")
+    # Contain to the jurisdiction bucket (no path escape).
+    base_dir = os.path.realpath(os.path.join(root, "canonical-sources", "jurisdiction"))
+    path = os.path.realpath(os.path.join(base_dir, rel))
+    if not path.startswith(base_dir + os.sep):
+        return None
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    t = data.get("type")
+    if t == "FeatureCollection":
+        feats = data.get("features") or []
+        return feats[0].get("geometry") if feats else None
+    if t == "Feature":
+        return data.get("geometry")
+    if t in ("Polygon", "MultiPolygon"):
+        return data
+    return None
+
+
 def eval_overlay(overlay, context):
     """Dispatch on overlay['overlay_kind']. context supplies point (lon,lat) and/or facts.
     Returns a result dict carrying the advisory boundary and a source citation."""
@@ -251,12 +285,21 @@ def eval_overlay(overlay, context):
             "human_review_required": True}
     if kind == "geometry":
         pt = context.get("point")
-        geom = overlay.get("geometry") or context.get("geometry")  # inline GeoJSON geometry dict
+        gref = overlay.get("geometry_ref") or ""
+        # Boundary source order: inline geometry -> caller-supplied geometry -> a cached file (cache:).
+        # A 'live:' ref is NOT fetched here (needs the consent-gated live connector).
+        geom = overlay.get("geometry") or context.get("geometry")
+        if not geom and isinstance(gref, str) and gref.startswith("cache:"):
+            geom = load_cached_geometry(gref)
         if pt is None or not geom:
-            return {**base, "applies": None, "note": "no point and/or geometry supplied; live-query or cache the boundary first"}
+            note = "no point and/or geometry supplied; live-query or cache the boundary first"
+            if isinstance(gref, str) and gref.startswith("live:"):
+                note = (f"boundary requires a live query ({gref}); grant per-session consent or supply "
+                        f"a cached / user boundary. Nothing fetched here.")
+            return {**base, "applies": None, "note": note, "geometry_ref": gref or None}
         mp = geojson_geometry_to_multipolygon(geom) if isinstance(geom, dict) else geom
         c = contains(tuple(pt), mp, overlay.get("bbox"))
-        return {**base, "applies": c["contained"], "decided_by": c["decided_by"]}
+        return {**base, "applies": c["contained"], "decided_by": c["decided_by"], "geometry_ref": gref or None}
     if kind == "attribute":
         r = eval_attribute(overlay.get("predicate", []), context.get("facts", {}))
         return {**base, "applies": r["applies"], "evaluated": r["evaluated"]}
@@ -422,6 +465,25 @@ def selftest():
     # MultiPolygon geojson
     gj2 = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
     ok("bare geometry parsed", len(parse_geojson(gj2)) == 1)
+
+    # cache: geometry_ref loader -- non-cache and missing refs return None (no crash, no path escape)
+    ok("live: ref not loaded as cache", load_cached_geometry("live:fema-nfhl-flood-zones") is None)
+    ok("missing cache file -> None", load_cached_geometry("cache:orlando-boundaries/does_not_exist.geojson") is None)
+    ok("path escape blocked", load_cached_geometry("cache:../../../etc/passwd") is None)
+    # a geometry overlay with a live: ref and no cached geometry -> applies None with a live note (no fetch)
+    live_ov = {"id": "live-geom", "overlay_kind": "geometry", "geometry_ref": "live:fema-nfhl-flood-zones",
+               "source_ids": ["x"]}
+    lr = eval_overlay(live_ov, {"point": [-81.37, 28.54]})
+    ok("live geometry_ref -> applies None + live note, no fetch",
+       lr["applies"] is None and "live query" in lr["note"])
+    # guarded integration: if the committed Lake Eola Heights boundary exists, a cache: overlay resolves 809
+    leh = "cache:orlando-boundaries/hist_lake_eola_heights_historic_district.geojson"
+    if load_cached_geometry(leh) is not None:
+        cov = {"id": "leh", "overlay_kind": "geometry", "geometry_ref": leh, "source_ids": ["x"]}
+        inside = eval_overlay(cov, {"point": [-81.367424, 28.549501]})   # 809 E Amelia
+        outside = eval_overlay(cov, {"point": [-81.379, 28.5416]})       # ~Downtown district, not LEH
+        ok("cache: boundary resolves 809 inside Lake Eola Heights", inside["applies"] is True)
+        ok("cache: boundary excludes a point outside it", outside["applies"] is False)
 
     # KML ingest
     kml = ("<kml xmlns='http://www.opengis.net/kml/2.2'><Document><Placemark><name>Z</name>"
