@@ -112,3 +112,6 @@ When no connector is active, returns `status: unknown` and a platform-specific m
 - **Processing timeout**: YouTube videos and Instagram Reels can take minutes to hours to process. If `status: processing` is returned, advise the creator to check again in 5 to 30 minutes.
 - **Engagement data unavailable**: TikTok Research API is restricted to academic institutions. If the direct connector is not active, `engagement_snapshot` is null. Never substituted with estimates.
 - **Platform API deprecation**: Instagram deprecated `clips_replays_count` and `impressions` in API v22.0+ (April 2025). If the connector returns a deprecation error for a metric, that metric is null in the snapshot and the deprecation is noted.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

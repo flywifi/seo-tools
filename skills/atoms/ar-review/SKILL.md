@@ -61,3 +61,6 @@ The scan output alone is a complete AR aging report the creator can act on with 
   the terms), never guessed into a bucket.
 - Penalty terms the math cannot express (anything beyond flat or percent-per-month) are flagged
   for manual handling, never approximated.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

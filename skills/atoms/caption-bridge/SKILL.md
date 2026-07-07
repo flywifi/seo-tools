@@ -45,3 +45,6 @@ AI engine for the spec/text; file output needs local tools.
 - Unsupported request for CEA-608/.scc: return a clear "not supported yet" note; do not emit a
   malformed file.
 - Malformed caption input: surface the parse error; never partially guess cues.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

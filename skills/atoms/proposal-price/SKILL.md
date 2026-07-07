@@ -68,3 +68,6 @@ the scope, with the reasoning attached.
   says the negotiation posture is unset (point at the playbook `pricing_and_rates` family).
 - Benchmark rows with null values (unverified) are never used as a range; the flag logic simply
   skips them and says so.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

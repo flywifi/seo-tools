@@ -149,3 +149,6 @@ Inherited from `protocols/no-fabrication.md`:
 - Do not invent file sizes or counts. Measure them from the actual files.
 - Do not claim a file is included if it was excluded due to constraints.
 - If a requested spoke does not exist, report it in `warnings` — do not fabricate a SKILL.md.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

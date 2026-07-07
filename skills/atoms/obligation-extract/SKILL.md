@@ -132,3 +132,6 @@ Gated by the `contract_obligations` capability. Reuses `usage-rights-check`; fol
 `protocols/no-fabrication.md` and `protocols/safety.md`. Emits rows for `tools/obligations.py` and the
 `obligation-register.template.json` store; passes output to `govern-artifact` before the spoke surfaces
 it.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

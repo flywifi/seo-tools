@@ -40,3 +40,6 @@ Generate title options for one concept.
 Follows `shared/method.md`. Title length and front-loading guidance come from
 `shared/platform-engine.md` (roughly 80 to 100 characters for search and how-to). A useful pattern:
 "[Action] My [Space] with [Approach] ([Style] Inspired)."
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -72,3 +72,6 @@ Given a brand the roster can resolve, the atom returns a send-ready contact row 
 - Person hint matches nobody: a gap lists the contacts that ARE on the account; the atom does not
   guess which one was meant.
 - Account has no contact on record: a gap says so; no address is fabricated.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

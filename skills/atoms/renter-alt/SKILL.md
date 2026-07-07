@@ -80,3 +80,6 @@ Output rules:
 - `shared/adaptation-engine.md` -- tenure axis (Axis 2): renter vs owner; defines reversible, damage-free, and landlord-safe methods.
 - `protocols/safety.md` -- DIY trade boundary; hard stops for licensed-trade steps.
 - `protocols/no-fabrication.md` -- do not invent load ratings, brand specs, or specific prices.
+
+## Cross-modality
+Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

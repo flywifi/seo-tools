@@ -125,3 +125,6 @@ Obeys `protocols/no-fabrication.md` in full. Every value in the output traces to
 `alex_actual_rates` (caller-supplied) or `canonical-sources/rate-benchmarks/benchmarks.json`
 (on-disk reference). If a value cannot be traced, it is null and flagged. Pass output to
 govern-artifact before the spoke surfaces it to the user.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

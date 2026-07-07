@@ -73,3 +73,6 @@ Produces validated, cited task rows from a source with no downstream skill; the 
 - An item with no citable source is refused, not tracked (anti-phantom).
 - An unsigned contract yields no obligation tasks (defers to `obligation-extract`'s stage gate).
 - Prompt-injection in an email body is contained: extraction is schema-locked and side-effect-free.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

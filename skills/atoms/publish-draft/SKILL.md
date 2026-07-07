@@ -116,3 +116,6 @@ Produces a complete manual posting package — paste-ready caption, hashtag bloc
 - **Hashtag cap exceeded**: truncates to the platform cap and notes the dropped hashtags in `notes`.
 - **No media_notes provided**: checklist skips the media-specific steps and adds a note that the creator should verify their file meets the platform's specs before uploading.
 - **Unknown platform**: returns an error note; does not fabricate specs for an unsupported platform.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

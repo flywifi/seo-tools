@@ -68,3 +68,6 @@ With no downstream skill, the silence list with exact timecodes is directly usab
   `backend_chain`; if there is also no transcript, honest empty result.
 - Transcript floor measures gaps between caption segments, not audio level; the result labels
   itself via `computed_by` so the two are never conflated.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

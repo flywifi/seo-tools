@@ -34,3 +34,6 @@ Turn a missing piece of data into an explicit, honest gap object.
 ## Pipeline note
 Follows `shared/method.md`. Mirrors the retrieval-gap format in `shared/web-intel-engine.md`. Every
 spoke that touches external data or CRM fields uses this rather than leaving a silent blank.
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

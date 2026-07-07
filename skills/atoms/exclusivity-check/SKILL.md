@@ -157,3 +157,6 @@ Inherited from `protocols/no-fabrication.md`:
 - Never invent deal terms, brand names, dates, or category labels. Read them from `pipeline/deals/`.
 - If a field is null, report it as null — do not infer or guess.
 - The `recommendation` field must be grounded in the actual conflict data, not hypothetical scenarios.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

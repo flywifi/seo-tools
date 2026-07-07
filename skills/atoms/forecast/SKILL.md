@@ -168,3 +168,6 @@ Inherited from `protocols/no-fabrication.md` and `shared/compute-engine.md` Sect
 - State all model assumptions (stationarity, no structural breaks, representative history).
 - If the model detects a structural break (e.g., a viral video spike), flag it and note that
   the forecast may be unreliable beyond the break.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

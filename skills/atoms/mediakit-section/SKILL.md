@@ -131,3 +131,6 @@ Include a note that final rates are quoted individually based on deliverable sco
 - `protocols/no-fabrication.md` -- hard rule; no invented figures under any circumstance
 - `canonical-sources/rate-benchmarks/benchmarks.json` -- industry benchmark ranges (benchmark tier
   only, always labeled)
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

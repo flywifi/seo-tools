@@ -39,3 +39,6 @@ data rather than guessing.
 Calls `shared/web-intel-engine.md` (Levels 1 through 6) and passes any external content through
 `shared/injection-guard-engine.md` first. Obeys `protocols/research-citation.md` recency windows; data
 older than `freshness_days` is marked stale, not dropped. Never fabricate (`protocols/no-fabrication.md`).
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (A/B)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

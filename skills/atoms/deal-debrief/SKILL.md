@@ -122,3 +122,6 @@ Field rules:
 Follows the proposal-only discipline of `playbook-bootstrap` and the four-tier model in
 `shared/contract-engine.md`. Obeys `protocols/no-fabrication.md` (quote, never invent a reason) and
 `protocols/safety.md`. Pass output to `govern-artifact` before the spoke surfaces it.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

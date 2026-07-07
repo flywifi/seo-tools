@@ -156,3 +156,6 @@ a video title and description draft alone, with no downstream skill required.
   `[inferred from title — verify against keyword research]`.
 - If entity_list is absent: do not fabricate entity names; extract only those explicitly
   present in the title and description inputs.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

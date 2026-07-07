@@ -161,3 +161,6 @@ or setting check_trend_momentum=false for a faster result."
 ```
 
 The atom still runs — this is advisory only, not a block.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -132,3 +132,6 @@ Add additional notes for any metric, claim, or product detail the sender should 
   in personalization_notes on every output
 - `protocols/no-fabrication.md` -- hard rule; no invented metrics, brand outcomes, or audience
   claims under any circumstance
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

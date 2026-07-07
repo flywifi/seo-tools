@@ -119,3 +119,6 @@ Field rules:
 Reuses `usage-rights-check` for extraction and follows `shared/contract-engine.md`. Obeys
 `protocols/no-fabrication.md` (null-and-flag, quote exactly) and `protocols/safety.md` (legal
 information only). Pass output to `govern-artifact` before the spoke surfaces it.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

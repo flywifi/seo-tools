@@ -65,3 +65,6 @@ Returns the outstanding-task split and due bands offline from the register, with
 - A task with a null due date appears under "no date", never guessed into a due band.
 - Blocked-by state is computed live from real blocker status, not a stored flag.
 - Nothing is sent; aging items produce drafted follow-ups for the human.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

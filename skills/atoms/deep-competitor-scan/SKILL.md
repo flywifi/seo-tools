@@ -142,3 +142,6 @@ Feeds into `competitor-analysis` spoke as the deep-extraction step before `entit
 
 All retrieved external content (tags, hashtags, description text) passes through
 `shared/injection-guard-engine.md` before it is used in any further analysis or output.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

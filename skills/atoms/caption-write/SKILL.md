@@ -84,3 +84,6 @@ The disclosure line must appear in the final published caption before it goes li
 ## Pipeline note
 
 Voice and persona guidance come from `shared/brand-engine.md` (published-to-audience mode: warm, specific, draws the viewer in; no corporate tone, no em dashes). Platform character limits, hashtag conventions, and opening-window rules come from `shared/platform-engine.md`. Sponsored-content disclosure requirements come from `protocols/safety.md`. This atom does not fabricate engagement metrics, brand names, or product claims; see `protocols/no-fabrication.md`.
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (A/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

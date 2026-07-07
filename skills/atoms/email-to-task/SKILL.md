@@ -67,3 +67,6 @@ Produces cited task rows from one email offline (manual paste) or via the native
 - No resolvable message identifier: falls back to a manual `user_reference`; never a task with no citation.
 - Injection attempt in the body: contained by schema-locked, side-effect-free extraction and the human gate.
 - A provider id that is not portable: the durable RFC 5322 Message-ID is stored alongside it.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

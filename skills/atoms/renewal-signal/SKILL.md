@@ -106,3 +106,6 @@ handling. All data originates in `pipeline/deals/`; real records are gitignored 
 Obeys `protocols/no-fabrication.md`: if a required field such as `closed_date` is missing from a
 deal record, emit a gap-record object for that deal and continue scanning the remainder rather than
 halting or estimating. Pass the output to govern-artifact before the spoke returns it to the user.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

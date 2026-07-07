@@ -73,3 +73,6 @@ Returns a cited answer with the boundary offline, from the cache, with no downst
 - A copyrighted table value is asked for: cites the section and links the free viewer instead of
   reproducing the table.
 - Cache not built: instructs to run the cache build rather than answering from memory.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

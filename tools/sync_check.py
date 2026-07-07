@@ -795,11 +795,13 @@ def check_jurisdiction():
 
 
 def check_cross_modality():
-    """Invariant 28: every spoke SKILL.md declares its cross-modality (P38).
+    """Invariant 28: cross-modality declarations (P38/P39).
 
-    Each capability skill under skills/*/ (excluding atoms) must carry a `## Cross-modality` section
-    referencing shared/cross-modality-engine.md, so every skill states where/how it runs outside
-    Claude (surfaces, mechanism, fallback) and the setup wizard can guide per-surface setup."""
+    Every spoke SKILL.md (skills/*/, excluding atoms) must carry a `## Cross-modality` section with a
+    real `Class:` (A/B/C) plus `Runs on:`, `Mechanism:`, and `Fallback:` lines, referencing
+    shared/cross-modality-engine.md -- so a stub cannot pass and the wizard can guide per-surface
+    setup. Every atom (skills/atoms/*/) must carry a `## Cross-modality` line referencing the engine
+    (atoms inherit their calling spoke's class)."""
     engine = ROOT / "shared" / "cross-modality-engine.md"
     if not engine.exists():
         problem("cross-modality: shared/cross-modality-engine.md is missing")
@@ -816,8 +818,28 @@ def check_cross_modality():
         txt = f.read_text(encoding="utf-8")
         if "## Cross-modality" not in txt:
             problem(f"cross-modality: skills/{d.name}/SKILL.md is missing a '## Cross-modality' section")
-        elif "shared/cross-modality-engine.md" not in txt:
+            continue
+        if "shared/cross-modality-engine.md" not in txt:
             problem(f"cross-modality: skills/{d.name}/SKILL.md must reference shared/cross-modality-engine.md")
+        seg = txt.split("## Cross-modality", 1)[1]
+        if not re.search(r"Class:\s*[ABC]\b", seg):
+            problem(f"cross-modality: skills/{d.name}/SKILL.md ## Cross-modality needs a 'Class: A|B|C'")
+        for field in ("Runs on:", "Mechanism:", "Fallback:"):
+            if field not in seg:
+                problem(f"cross-modality: skills/{d.name}/SKILL.md ## Cross-modality needs a '{field}' line")
+    adir = sk / "atoms"
+    if adir.exists():
+        for d in sorted(adir.iterdir()):
+            if not d.is_dir():
+                continue
+            f = d / "SKILL.md"
+            if not f.exists():
+                continue
+            txt = f.read_text(encoding="utf-8")
+            if "## Cross-modality" not in txt:
+                problem(f"cross-modality: skills/atoms/{d.name}/SKILL.md is missing a '## Cross-modality' line")
+            elif "shared/cross-modality-engine.md" not in txt:
+                problem(f"cross-modality: skills/atoms/{d.name}/SKILL.md must reference shared/cross-modality-engine.md")
 
 
 def check_implementation_schemas():

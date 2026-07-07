@@ -61,3 +61,6 @@ All descriptive language must follow `shared/brand-engine.md` voice guidelines (
 ## Pipeline note
 
 `styling-variant` is a pure generation atom. It reads brand and adaptation engines at load time and emits a structured variants object. It does not write to the pipeline CRM, does not call any scoop cache layer, and does not trigger quality review. The calling spoke is responsible for passing the output to `quality-review/` before surfacing variants to the creator or publishing them downstream.
+
+## Cross-modality
+Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

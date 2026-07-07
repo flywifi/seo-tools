@@ -93,3 +93,6 @@ if a topic does not map cleanly to any persona, set `confidence` to `low`, retur
 as `primary_persona`, and explain in `fit_rationale` rather than fabricating a strong match. Obeys
 `protocols/formatting-metadata.md`: no em dashes; ranges expressed as "X to Y". Pass output to
 govern-artifact before it surfaces to the user.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

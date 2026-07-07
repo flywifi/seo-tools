@@ -73,3 +73,6 @@ Produces a valid calculation with citation and boundary with no downstream skill
 - Out-of-range or missing inputs return a structured error, not a guessed value.
 - The deck-span result is advisory only and says so; it must not be built to.
 - Climate zone or edition ambiguity is surfaced, not silently resolved.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

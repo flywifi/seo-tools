@@ -87,3 +87,6 @@ Output rules:
 - `protocols/safety.md` -- DIY trade boundary; licensed-trade hard stop; PPE, ventilation, and wellbeing rules.
 - `shared/adaptation-engine.md` -- renter vs owner axis (Axis 2) for renter-friendly step adaptation.
 - `shared/brand-engine.md` -- voice and tone for `action` and `detail` copy (published mode).
+
+## Cross-modality
+Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

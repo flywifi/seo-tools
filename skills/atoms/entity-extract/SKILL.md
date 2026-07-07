@@ -81,3 +81,6 @@ it. The calling spoke (competitor-analysis) is responsible for passing clean tex
 - shared/injection-guard-engine.md (confirms input text has been scanned)
 - canonical-sources/keyword-library/entity-keywords.json (seed entity list for niche_fit scoring)
 - protocols/no-fabrication.md (frequency counts must be exact, not estimated)
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

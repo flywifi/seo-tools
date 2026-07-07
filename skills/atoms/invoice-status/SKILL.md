@@ -67,3 +67,6 @@ If a required field is absent from the source deal record, the atom surfaces `nu
 ## Pipeline note
 
 All source data is read from `pipeline/deals/`. Real deal records are gitignored per the non-negotiables in `CLAUDE.md`; only schemas and blank structures are committed to the repository. This atom must never be seeded with fabricated deal data during development or testing. Use the blank structures and placeholder values provided in the `pipeline/` schema files for any local validation work.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

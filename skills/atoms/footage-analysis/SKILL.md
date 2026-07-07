@@ -83,3 +83,6 @@ outline with exact timecodes the creator can apply by hand in any editor.
   atom does not lower the threshold silently.
 - Fewer than 3 proposed chapters: flagged against the YouTube Key Moments minimum rather than
   padded with invented boundaries.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

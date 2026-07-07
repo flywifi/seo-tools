@@ -82,3 +82,6 @@ comes from `shared/platform-engine.md`. Fabrication rules are governed by
 surface a flag instead. Benchmark ranges in the source file are expressed as low-to-high pairs
 with a unit label; always echo both ends of the range and the unit in output so downstream spokes
 can format them correctly for the creator.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -77,3 +77,6 @@ directly usable in any editor or command line.
 - No MoviePy and no ffmpeg: render refuses with `gaps[]` naming both missing backends.
 - Subject not centered: center crop can miss it; pass `x_center` explicitly or apply the crop
   in the editor with Auto Reframe (a UI-only editor feature, per the engine).
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

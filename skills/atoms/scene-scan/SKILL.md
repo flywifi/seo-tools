@@ -71,3 +71,6 @@ editor marker list or a manual chapter draft.
   the result rather than hidden.
 - Transcript floor proposes boundaries from pauses and pace shifts, not pixels; `computed_by`
   keeps the provenance explicit so the two are never conflated.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

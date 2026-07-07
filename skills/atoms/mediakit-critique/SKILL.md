@@ -81,3 +81,6 @@ where the market comparison is limited by missing benchmark sourcing.
   `data_gaps`; never borrowed from an adjacent niche.
 - A rate presented as personal without labeling: flagged in `rate_review` with the fix, never
   silently accepted.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

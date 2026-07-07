@@ -114,3 +114,6 @@ Output rules:
 - `protocols/formatting-metadata.md` -- no em dashes; ranges use "to."
 - `protocols/no-fabrication.md` -- do not invent measurements, product names, prices, or timings not
   present in the inputs.
+
+## Cross-modality
+Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

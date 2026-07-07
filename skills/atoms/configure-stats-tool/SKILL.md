@@ -199,3 +199,6 @@ Provide a verification step the user can run to confirm the tool is working:
 - `prerequisites_met`: true if all prerequisites were detected, false if any are missing.
 - `flag_enabled`: true if the flag was written to `creator-os-config.local.json`.
 - `verification_prompt`: a test prompt the user can try to confirm the tool works.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

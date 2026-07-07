@@ -74,3 +74,6 @@ the edition-status file, with no network.
   guesses which is enforced.
 - No mapped section for the topic: says so and points to the code landing page.
 - A request to quote the code text: refused; cites the section and links the viewer instead.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -70,3 +70,6 @@ elsewhere.
 - Ambiguous columns: unparseable rows become gaps; pass an explicit `mapping`.
 - Two candidate invoices for one deposit: the better tier wins the proposal and the other stays
   unmatched for the human to resolve; never both.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

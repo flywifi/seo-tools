@@ -43,3 +43,6 @@ Fully standalone; always available (no flag or tool needed to compute the fan-ou
 - Fewer than 3 chapters, first not at 0:00, or any gap under 10 seconds: emit the artifacts anyway
   and flag each violation in `gaps[]`. Never renumber, drop, or invent chapters to force compliance.
 - No chapters: return empty artifacts and a `no_chapters` gap.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

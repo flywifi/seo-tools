@@ -184,3 +184,6 @@ the deal linkage in `shared/pipeline-engine.md`. Composes `usage-rights-check` f
 extraction. Feeds its `conflicts` and `watch_items` into `escalation-brief`. Obeys
 `protocols/no-fabrication.md` and `protocols/safety.md`. Pass output to `govern-artifact` before the
 spoke surfaces it.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -190,3 +190,6 @@ for the clause taxonomy, the four-tier playbook model, and confidence labels, an
 `pipeline/user-context/deal-playbook.template.json` (shape) and, in nudge mode, recent deals shaped by
 `pipeline/deals/deal-schema.json`. Obeys `protocols/no-fabrication.md` and `protocols/safety.md`. Pass
 output to `govern-artifact` before the spoke surfaces it.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

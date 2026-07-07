@@ -43,3 +43,6 @@ Standalone. Reading + normalizing is a local file operation and does not need `v
 - Malformed/invalid FCPXML: return the well-formedness/validation error from
   `tools/videoedit/fcpxml.py validate`; do not partially guess.
 - Empty timeline: return a valid empty edit-package and a `gaps[]` note; never fabricate markers.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

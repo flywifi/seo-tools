@@ -69,3 +69,6 @@ Reconciles transcripts and returns cited per-point coverage verdicts offline, ab
 - No sentence supports a point: abstains (missing) and routes to the human, never fabricates coverage.
 - Inputs disagree: the conflict is retained in the minority report and, if credible, forces review.
 - A single low-quality transcript: coverage is reported with lower confidence; the gap is stated.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

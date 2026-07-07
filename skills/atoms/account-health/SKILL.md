@@ -86,3 +86,6 @@ Follows `shared/pipeline-engine.md` for record resolution and gap handling. All 
 `pipeline/accounts/` and `pipeline/deals/`; real records are gitignored and never committed.
 Obeys `protocols/no-fabrication.md`: if a required field is missing, emit a gap-record object
 rather than an estimate. Pass the output to govern-artifact before the spoke returns it to the user.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

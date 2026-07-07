@@ -72,3 +72,6 @@ Given a resolvable brand or a deal id, the atom returns the deal's current stand
 - Account resolves but has no deals, or the deal_id is unknown: a gap says so; no stage is
   invented.
 - A caller wanting "how much is overdue": out of scope; route to `ar-review` for the money math.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

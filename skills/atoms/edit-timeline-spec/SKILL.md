@@ -50,3 +50,6 @@ is on; while off, the spec is still the deliverable.
 - No beats/chapters provided: return an empty-but-valid timeline and a `gaps[]` note; never invent
   section names.
 - Overlapping/negative times: clamp to 0 and flag; do not silently reorder.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -173,3 +173,6 @@ Inherited from `protocols/no-fabrication.md` and `shared/compute-engine.md` Sect
   independence of observations for logistic).
 - If the model shows signs of overfitting (polynomial degree too high, R-squared near 1.0 on small
   data), flag it explicitly.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

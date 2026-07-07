@@ -201,3 +201,6 @@ Inherited from `protocols/no-fabrication.md` and `shared/compute-engine.md` Sect
 - If the test is underpowered (observed n < required n), flag it: "This test may be underpowered.
   The result is directional but not conclusive."
 - Never round intermediate results.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

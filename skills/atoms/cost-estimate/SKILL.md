@@ -78,3 +78,6 @@ price floor when asked.
 - No hourly rate anywhere: time cost is null with a gap, not a silent zero.
 - cost_research flag off: web research is not dispatched; the degrade note says estimates use
   quotes, the library, and labeled assumptions only.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

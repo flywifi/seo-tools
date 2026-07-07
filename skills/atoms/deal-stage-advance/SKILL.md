@@ -131,3 +131,6 @@ values. Obeys `protocols/safety.md`: the atom emits warnings for unusual pattern
 archiving with open invoice, stage gap exceeding 90 days) without blocking on them unless the
 transition rules above explicitly require it. The calling spoke is responsible for persisting the
 `stage_change_record` and updating the deal record in `pipeline/deals/`.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

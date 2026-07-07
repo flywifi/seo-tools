@@ -87,3 +87,6 @@ Reads seasonal peaks from `canonical-sources/seasonal-aesthetic.md`. Obeys
 `seasonal_type` to `evergreen` and explain in `rationale` rather than fabricating a window. Obeys
 `protocols/formatting-metadata.md`: no em dashes; ranges expressed as "X to Y". Pass output to
 govern-artifact before it surfaces to the user.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

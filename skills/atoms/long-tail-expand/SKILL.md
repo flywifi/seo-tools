@@ -79,3 +79,6 @@ when the topic has no adjacent product search behavior).
 - shared/web-intel-engine.md (live autocomplete and PAA retrieval via Levels 2 and 3)
 - shared/platform-engine.md (platform-specific keyword format conventions)
 - protocols/no-fabrication.md (volume labeling rule)
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

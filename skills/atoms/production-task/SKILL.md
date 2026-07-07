@@ -130,3 +130,6 @@ sourced from the pipeline record referenced by `deal_id`; the atom does not muta
 Brand constraints and integration requirements that affect task scope come from
 `shared/brand-engine.md`. Output passes to `protocols/quality-gates.md` before the task list
 is treated as final.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

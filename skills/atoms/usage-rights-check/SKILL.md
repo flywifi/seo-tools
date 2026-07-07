@@ -129,3 +129,6 @@ Obeys `protocols/no-fabrication.md`: if a required field is absent from the sour
 field is null and a flag is raised rather than estimating or constructing a value. Obeys
 `protocols/safety.md`: output is scoped to legal information only and carries no legal advice.
 Pass output to govern-artifact before the spoke surfaces it to the user.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

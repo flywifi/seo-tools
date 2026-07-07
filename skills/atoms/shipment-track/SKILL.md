@@ -63,3 +63,6 @@ Records a shipment and derives the delivered anchor offline (manual) or via the 
 - No API key: falls back to manual entry, never a fabricated status.
 - Not yet delivered: the clock is unstarted; only a labeled provisional estimate is shown.
 - A carrier reshuffle after delivery: delivered_at is immutable once set from the delivered checkpoint.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

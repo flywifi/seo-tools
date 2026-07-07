@@ -113,3 +113,6 @@ creator-core can log it in the ledger for auditing.
 - `shared/docintel/transcripts.py` (local parse script for transcript formats)
 - `shared/integrations-engine.md` (cloud fetch, called upstream of this atom)
 - `shared/method.md` (pipeline discipline and evidence standards)
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (A/B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

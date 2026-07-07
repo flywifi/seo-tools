@@ -66,3 +66,6 @@ Reports which milestones are billable and drafts the invoice task offline, witho
 - A milestone with no real amount stays null and flagged, never guessed.
 - An acceptance-required milestone does not fire on delivery, only on approval.
 - The invoice is drafted only; the consequential-action gate keeps the send with the human.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -157,3 +157,6 @@ Inherited from `protocols/no-fabrication.md`:
 - Do not claim content is in the instruction if it was moved to a knowledge file.
 - Do not fabricate API endpoints in the Actions schema. Only include real, documented APIs.
 - If a requested spoke does not exist, report it in `warnings` — do not fabricate a SKILL.md.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

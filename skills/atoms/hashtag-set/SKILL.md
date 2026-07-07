@@ -85,3 +85,6 @@ The `all_tags_combined` string must respect the total count appropriate to the p
 ## Pipeline note
 
 Platform tag conventions, character limits, and placement rules come from `shared/platform-engine.md`. Aesthetic vocabulary and content pillar labels come from `shared/brand-engine.md`. This atom does not fabricate engagement metrics, reach numbers, or tag follower counts; all such figures change and must be verified in-app before publishing.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -65,3 +65,6 @@ Computes a forward or reverse schedule with a feasibility verdict offline, from 
 - An unresolved trigger event leaves the task deferred with a null due and a gap, never a guessed date.
 - A dependency cycle is reported as an error, not silently resolved.
 - An infeasible deadline surfaces the negative-slack conflict rather than a false "on track".
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

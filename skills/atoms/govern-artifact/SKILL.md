@@ -39,3 +39,6 @@ The gate step. Hands a drafted artifact to `quality-review` and returns the dete
 ## Pipeline note
 Wraps `skills/quality-review/`. Scores the nine dimensions with evidence, then runs the deterministic
 scorer. For a CRM artifact, the verdict is recorded alongside the record (`shared/pipeline-engine.md`).
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (A/B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

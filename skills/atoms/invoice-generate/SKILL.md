@@ -77,3 +77,6 @@ can copy the figures into any invoicing tool.
   `shared/finance-engine.md` first.
 - Missing figures: line excluded from totals with a gap naming the field; the invoice is
   incomplete and says so rather than guessing.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

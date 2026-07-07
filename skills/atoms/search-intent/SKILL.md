@@ -69,3 +69,6 @@ This atom exists because the same keyword can serve radically different searcher
 ## Pipeline note
 
 This atom classifies from keyword signals alone. It reads `shared/platform-engine.md` for platform-specific format conventions and `shared/brand-engine.md` to confirm format fit against the creator's content model, but it does NOT make live search calls or pull live SERP data. If fresh SERP context has already been retrieved by `web-intel-engine.md` and is present in the current context window, this atom may reference it; it will not initiate a new fetch. All classifications obey `protocols/no-fabrication.md`: if confidence is low, the atom returns `"confidence": "low"` and flags the ambiguity in `notes` rather than forcing a label.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

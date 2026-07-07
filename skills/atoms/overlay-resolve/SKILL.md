@@ -67,3 +67,6 @@ with no downstream skill; granting per-session live consent adds address geocodi
 - A geometry overlay needing a live boundary while `jurisdictional_overlay_live` is off: returns a
   config gap and points to cached/manual data; never fetches.
 - Missing facts: null-and-flags the affected overlay rather than assuming applicability.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

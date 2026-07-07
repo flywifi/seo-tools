@@ -66,3 +66,6 @@ Records a validated, audited status change and computes the nudge date offline, 
 - An illegal transition (for example done while blocked) is refused with the reason, never forced.
 - A waiting-on item that ages past its response-due surfaces as an aging follow-up, not a silent creator task.
 - No source for the change: the change is flagged for the human, keeping the audit trail honest.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

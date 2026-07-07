@@ -62,3 +62,6 @@ The weekly table alone answers "when does money move" with no other skill involv
 - Undated estimates or scheduled rows: totaled separately with gaps, never assigned a week.
 - Overdue receivables: excluded from buckets (collection timing is unknown) and pointed at
   ar-review; never counted as expected cash on a made-up date.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

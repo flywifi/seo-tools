@@ -37,3 +37,6 @@ Build one keyword cluster for one topic and platform.
 Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. The
 creator's niche keyword library (configured via `creator-profile.local.json`) seeds the
 cluster. Obeys `protocols/no-fabrication.md`.
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

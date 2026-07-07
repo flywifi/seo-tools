@@ -116,3 +116,6 @@ When invoked directly without the content-distributor spoke, accepts caption and
 - **Media URL missing for direct API tier**: returns `status: failed` with a note that media_url is required for the direct API path.
 - **Platform rate limit hit**: returns `status: failed` with the rate limit message from the connector. TikTok Content Posting API rate limit is 6 requests per minute; Pinterest Pins API write limit is 100 per minute.
 - **AIGC flag omitted on TikTok for AI-generated content**: atom auto-sets the flag when `is_aigc: true` is passed. If the caller does not pass `is_aigc`, the atom cannot detect AI content and the flag is omitted — document this in `notes`.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

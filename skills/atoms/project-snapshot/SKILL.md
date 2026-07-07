@@ -84,3 +84,6 @@ All fields in this output are derived from the concept description; none are rea
 - `protocols/no-fabrication.md`
 - `protocols/safety.md` (DIY trade boundary check; flag if project touches electrical, gas, or structural work)
 - `protocols/formatting-metadata.md`
+
+## Cross-modality
+Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

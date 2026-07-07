@@ -67,3 +67,6 @@ to put to the human.
   candidates; a category phrase never auto-resolves because more than one brand can share it.
 - Empty account store (fresh clone): `resolved` null plus a gap naming the empty store; nothing
   is invented.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

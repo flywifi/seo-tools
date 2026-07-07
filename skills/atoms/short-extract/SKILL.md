@@ -39,3 +39,6 @@ Extract self-contained short-form clips from a long-form outline.
 Follows `shared/method.md`. Short-form lengths and audio-first guidance come from
 `shared/platform-engine.md`. Every video concept yields at least 3 clips (the brand ecosystem ratio).
 Each clip carries its own hook.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

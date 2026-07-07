@@ -86,3 +86,6 @@ The draft alone is a complete, send-ready message; the human can copy it into an
   penalty stated; a penalty is never implied that the agreement does not contain.
 - Disputed invoice: refused with a pointer to resolve the dispute first (chasing a disputed
   invoice is a human judgment call).
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

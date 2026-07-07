@@ -81,3 +81,6 @@ on the same keyword phrase across the same board.
 - shared/brand-engine.md (aesthetic and pillar guard on working titles)
 - shared/platform-engine.md (format decisions: long-form vs short-form satellite)
 - protocols/no-fabrication.md (no invented keywords or volume claims)
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

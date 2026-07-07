@@ -58,3 +58,6 @@ Resolves or escalates a two-overlay conflict offline, cited and audited, with no
 ## Failure modes
 - An overlay id not found: names the missing id rather than guessing.
 - A genuine legal conflict: returns `human_review_required`, never a fabricated winner.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
