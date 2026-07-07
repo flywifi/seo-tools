@@ -1,0 +1,15 @@
+{
+  "file": "zoning_r_2b_t_hp_lake_eola.geojson",
+  "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0",
+  "license": "City of Orlando open data / public records. Advisory only; setback values live in the Ch.58 code (not cached).",
+  "fetched_at": "2026-07-07T03:52:24.153971+00:00",
+  "sha256": "132f6cd2d6a0ad0cb6821523867c8d5f18f2daf52277c879e4660feb82debb3e",
+  "boundary": "Advisory planning information only, derived from public government GIS; NOT a legal, survey, or permitting determination. Boundaries may be simplified or lag the source. Verify with the authority having jurisdiction.",
+  "zoning": "R-2B/T/HP",
+  "vertices": 128,
+  "at_point": [
+    -81.367423721953,
+    28.549500950282
+  ],
+  "layer": "OrlandoLUZoning/0"
+}

@@ -1,0 +1,11 @@
+{
+  "file": "hist_downtown_historic_district.geojson",
+  "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+  "license": "City of Orlando open data / public records. The City disclaims legal-boundary accuracy ('not legally binding', 'spatially inaccurate', 'as is'). Advisory only.",
+  "fetched_at": "2026-07-07T03:52:23.086191+00:00",
+  "sha256": "408c77ba9ea2684433928ce53deae4f5a49e2c3a6e329fc32149c7c92925ad24",
+  "boundary": "Advisory planning information only, derived from public government GIS; NOT a legal, survey, or permitting determination. Boundaries may be simplified or lag the source. Verify with the authority having jurisdiction.",
+  "district": "Downtown Historic District",
+  "vertices": 50,
+  "layer": "OrlandoHistoricLocalDistricts/0"
+}

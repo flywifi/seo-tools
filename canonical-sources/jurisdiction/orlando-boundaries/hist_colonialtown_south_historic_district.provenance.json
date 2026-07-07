@@ -1,0 +1,11 @@
+{
+  "file": "hist_colonialtown_south_historic_district.geojson",
+  "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+  "license": "City of Orlando open data / public records. The City disclaims legal-boundary accuracy ('not legally binding', 'spatially inaccurate', 'as is'). Advisory only.",
+  "fetched_at": "2026-07-07T03:52:23.086814+00:00",
+  "sha256": "0255792058135f72b391a91f3141c8220086d6dcdde99a23eece2cbd1c79886d",
+  "boundary": "Advisory planning information only, derived from public government GIS; NOT a legal, survey, or permitting determination. Boundaries may be simplified or lag the source. Verify with the authority having jurisdiction.",
+  "district": "Colonialtown South Historic District",
+  "vertices": 46,
+  "layer": "OrlandoHistoricLocalDistricts/0"
+}

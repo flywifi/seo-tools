@@ -1,0 +1,11 @@
+{
+  "file": "hist_lake_copeland_historic_district.geojson",
+  "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+  "license": "City of Orlando open data / public records. The City disclaims legal-boundary accuracy ('not legally binding', 'spatially inaccurate', 'as is'). Advisory only.",
+  "fetched_at": "2026-07-07T03:52:23.089096+00:00",
+  "sha256": "d0e8776c13dbe8eac831dcd2e891466b08a963c9cc54613f2bda4c135f3c9074",
+  "boundary": "Advisory planning information only, derived from public government GIS; NOT a legal, survey, or permitting determination. Boundaries may be simplified or lag the source. Verify with the authority having jurisdiction.",
+  "district": "Lake Copeland Historic District",
+  "vertices": 104,
+  "layer": "OrlandoHistoricLocalDistricts/0"
+}
