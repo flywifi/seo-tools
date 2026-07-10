@@ -10,12 +10,12 @@ Two rounds. Round 1 (deterministic): evidence read of every spoke's SKILL.md + w
 composed atoms + tools/mcp_server.py, incorporating 4 early agent classifications; produced 2 class
 fixes and specific mechanism text. Round 2 (adversarial, resumed after a session-limit interruption):
 23 independent classifier agents (file:line-cited evidence) + skeptic agents challenging each
-classification. Skeptic coverage: **18 of 23 ran** (5 blocked by successive session limits; listed
-below). Classifier coverage: 23 of 23.
+classification, completed across three resumed runs (session limits interrupted twice). Final
+coverage: **23 of 23 classifiers and 23 of 23 skeptics.**
 
 ## Adversarial results
-- **17 of 18 skeptics upheld** the classification they challenged (including jurisdiction-desk C,
-  partnership-mediakit B, project-builder A, and quality-review C at high confidence).
+- **22 of 23 skeptics upheld** the classification they challenged (including every class change and
+  jurisdiction-desk C, partnership-mediakit B, project-builder A, quality-review C at high confidence).
 - **1 skeptic overturned a classifier over-call**: audience-research had been derived C (its
   ingest-route atom can run docintel parsing), but ingest is conditional (paste-source flows skip it)
   and the core is persona reasoning over data -> stays **B**. This is the distinction the audit
@@ -35,11 +35,10 @@ below). Classifier coverage: 23 of 23.
 
 Final distribution: **A = 2 (creator-core, project-builder), B = 7, C = 14.**
 
-## Skeptic coverage gaps (pending)
-5 skeptics remain blocked by successive session limits: seasonal-trends, seo-keywords,
-shortform-repurposing, task-desk, video-development. All five kept their Round-1 classes and none
-changed class in the adversarial round, so no unverified class change remains. The workflow is
-resumable (same runId) to close these last gaps.
+## Skeptic coverage: COMPLETE (23/23)
+All skeptics have run. The final five (seasonal-trends B, seo-keywords B, shortform-repurposing C,
+task-desk C, video-development C) each upheld their classification. Every class in the repo matches
+the audit's final verdicts; no unverified declaration remains.
 
 ## Doc-claim accuracy
 The load-bearing claims in `docs/CROSS-MODALITY.md` (GPT Actions call public keyless REST; one
