@@ -10,24 +10,25 @@ Two rounds. Round 1 (deterministic): evidence read of every spoke's SKILL.md + w
 composed atoms + tools/mcp_server.py, incorporating 4 early agent classifications; produced 2 class
 fixes and specific mechanism text. Round 2 (adversarial, resumed after a session-limit interruption):
 23 independent classifier agents (file:line-cited evidence) + skeptic agents challenging each
-classification. Skeptic coverage: **14 of 23 ran** (9 blocked by a second session limit; listed
+classification. Skeptic coverage: **18 of 23 ran** (5 blocked by successive session limits; listed
 below). Classifier coverage: 23 of 23.
 
 ## Adversarial results
-- **13 of 14 skeptics upheld** the classification they challenged.
+- **17 of 18 skeptics upheld** the classification they challenged (including jurisdiction-desk C,
+  partnership-mediakit B, project-builder A, and quality-review C at high confidence).
 - **1 skeptic overturned a classifier over-call**: audience-research had been derived C (its
   ingest-route atom can run docintel parsing), but ingest is conditional (paste-source flows skip it)
   and the core is persona reasoning over data -> stays **B**. This is the distinction the audit
   settled: MANDATORY local compute makes a spoke C (document-studio); OPTIONAL/conditional compute
   does not (audience-research).
-- **4 class corrections from the adversarial round** (all evidence-cited, 3 skeptic-confirmed):
+- **4 class corrections from the adversarial round** (all evidence-cited, all 4 skeptic-confirmed):
 
 | Spoke | Was | Now | Why |
 |---|---|---|---|
 | content-strategy | A | **B** | trend-check is mandatory for any trend/seasonal claim: a web-intel data lookup (offloadable), not pure reasoning |
 | deal-pipeline | C | **B** | its only tool (deal_status) is a read-only data lookup; stage transitions are rule reasoning per pipeline-engine.md |
 | document-studio | A | **C** | mandatory local docintel ingest (classify.py/parse_text.py/transcripts.py) before any reasoning |
-| jurisdiction-desk | B | **C** | the default path is deterministic local compute (geo_overlay point-in-polygon + the conflict cascade); the public-endpoint universal path is its Class-B rung. Skeptic pending (limit) |
+| jurisdiction-desk | B | **C** | the default path is deterministic local compute (geo_overlay point-in-polygon + the conflict cascade); the public-endpoint universal path is its Class-B rung. Skeptic-confirmed (high confidence) |
 
 - Plus the 2 class fixes from Round 1 (analytics-insights B->C, partnership-mediakit A->B) and
   mechanism-text corrections across 16 spokes naming the real modules.
@@ -35,11 +36,10 @@ below). Classifier coverage: 23 of 23.
 Final distribution: **A = 2 (creator-core, project-builder), B = 7, C = 14.**
 
 ## Skeptic coverage gaps (pending)
-9 skeptics were blocked by a session limit and have not independently challenged their spoke's
-classification: jurisdiction-desk, partnership-mediakit, project-builder, quality-review,
-seasonal-trends, seo-keywords, shortform-repurposing, task-desk, video-development. Of these, only
-jurisdiction-desk changed class in the adversarial round without a skeptic; the other 8 kept their
-Round-1 classes. The workflow is resumable (same runId) to close these gaps.
+5 skeptics remain blocked by successive session limits: seasonal-trends, seo-keywords,
+shortform-repurposing, task-desk, video-development. All five kept their Round-1 classes and none
+changed class in the adversarial round, so no unverified class change remains. The workflow is
+resumable (same runId) to close these last gaps.
 
 ## Doc-claim accuracy
 The load-bearing claims in `docs/CROSS-MODALITY.md` (GPT Actions call public keyless REST; one
