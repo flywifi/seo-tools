@@ -71,18 +71,11 @@ Resolves a location's advisory overlays and any conflicts offline, cited and bou
 unless per-session live consent is granted.
 
 ## Cross-modality
-Class: B (offloadable) for the geometry/geocode/flood lookups; the offline engine is a Class-C
-convenience for surfaces with a local runtime.
-Runs on: Claude Desktop/Code (native, `jurisdiction_resolve` + offline `geo_overlay`); claude.ai +
-Custom GPT + Gemini API (via the public ArcGIS/FEMA/Census endpoints, which do point-in-polygon
-server-side); a human via `tools/geo_source_fetch.py`. Gems: no (paste a lon/lat or use the API).
-Mechanism: MCP `jurisdiction_resolve` / `overlay_conflict`;
-`implementation/gpt/actions/jurisdiction_overlay_action.yaml`;
-`implementation/gemini/jurisdiction-function-declarations.json`; or the public endpoints direct.
-Fallback: no local runtime -> hosted/Action/public REST (rung 2 to 3); no network -> cached boundaries
-+ null-flagged values (rung 4), and ask the user for a coordinate a Gem cannot fetch (rung 5). The
-advisory boundary and human-review escalation travel with every rung.
-See `shared/cross-modality-engine.md` and `docs/CROSS-MODALITY.md`.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: Class C: MCP `jurisdiction_resolve`/`overlay_conflict` run deterministic local compute in tools/geo_overlay.py — ray-casting point-in-polygon (half-open vertex rule, hole-aware, bbox prefilter) over canonical-sources/jurisdiction/*.json cached geometries plus the floor/ceiling-preemption + authority-rank + comparable-stringency + lex-specialis conflict cascade; live FEMA NFHL ArcGIS queries (tools/geo_fetch.py) and geocoding (tools/geo_geocode.py) are the offloadable Class-B rung.
+Fallback: No local runtime -> the geometry question offloads to the public FEMA NFHL / ArcGIS / Census endpoints (server-side point-in-polygon) via the GPT Action / Gemini function declarations, but the conflict cascade degrades to engine-guided reasoning with human_review_required; no network -> cached boundaries + null-flagged values; Gems -> ask the user for a lon/lat and reason over pasted overlay records, advisory boundary always attached.
+See `shared/cross-modality-engine.md`.
 
 ## Failure modes
 - `jurisdictional_overlay` off: says the capability is off rather than answering.

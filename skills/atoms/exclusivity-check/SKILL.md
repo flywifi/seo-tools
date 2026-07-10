@@ -159,4 +159,4 @@ Inherited from `protocols/no-fabrication.md`:
 - The `recommendation` field must be grounded in the actual conflict data, not hypothetical scenarios.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

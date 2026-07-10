@@ -131,4 +131,4 @@ field is null and a flag is raised rather than estimating or constructing a valu
 Pass output to govern-artifact before the spoke surfaces it to the user.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

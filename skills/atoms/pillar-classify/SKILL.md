@@ -31,4 +31,4 @@ Follows `shared/method.md`. Pillars are defined in `shared/brand-engine.md`. If 
 pillars, return the primary with medium confidence and name the secondary in the rationale.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -86,4 +86,4 @@ All fields in this output are derived from the concept description; none are rea
 - `protocols/formatting-metadata.md`
 
 ## Cross-modality
-Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (varies by caller (A/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

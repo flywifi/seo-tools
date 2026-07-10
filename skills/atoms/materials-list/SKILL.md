@@ -100,4 +100,4 @@ Output rules:
 - `shared/adaptation-engine.md` -- renter vs owner axis (Axis 2) and budget tier axis (Axis 3); sourcing guidance and the rule against inventing specific prices.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (varies by caller (A/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

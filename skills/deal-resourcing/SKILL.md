@@ -173,6 +173,6 @@ Key output guarantees:
 ## Cross-modality
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: Deterministic resourcing/cost math (crew, effort, budget) per the shared pipeline + finance engines; MCP tools.
-Fallback: No runtime or hosted seam -> show the resourcing calculation from the engine spec, flag unverified; never fabricate a cost or resource figure.
+Mechanism: Deterministic scheduling and money math on the local deal record: reads pipeline/deals/ via the deal_status MCP tool (tools/accounts.py), computes D-minus-N business-day due dates via tools/obligations.py + tools/tasks.py (task_scan/task_plan MCP tools), and invoice schedule/AR figures via tools/finance.py (finance_scan); ROI/CPM decimal math from deal-record figures only.
+Fallback: No MCP runtime or hosted seam -> emit the resource plan structure from the deal record with all computed due dates and invoice amounts set to null plus a due_date_note/gap-record per field, go_no_go downgraded to CONDITIONAL or NO-GO; never estimate a date, rate, or invoice amount.
 See `shared/cross-modality-engine.md`.

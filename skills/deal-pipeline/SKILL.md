@@ -103,8 +103,8 @@ A single `deal_report` object with the following fields:
 - Any action that bypasses stage-transition evidence requirements
 
 ## Cross-modality
-Class: C.
-Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: MCP deal tools (deal_status, stage transitions) + deterministic stage/field logic per shared/pipeline-engine.md over the private pipeline/deals/*.local.json store. Off Claude only via remote MCP.
-Fallback: No runtime or hosted seam -> the private deal store is unreachable; reason over the pipeline spec against pasted records, flag unverified; never fabricate deal facts or stages.
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Model-side rule reasoning per shared/pipeline-engine.md (evidence-gated transitions, usage rights, exclusivity) over deal records fetched by the read-only deal_status MCP tool (tools/mcp_server.py -> tools/accounts.py, reading the private pipeline/deals/*.local.json store); there is no stage-transition or compute tool — deal-stage-advance emits a stage_change_record for the local store to persist.
+Fallback: Without the local runtime the private pipeline/deals store is unreachable: reason over shared/pipeline-engine.md against user-pasted deal records, emit the transition record marked unverified/not persisted, and never fabricate deal facts, stages, or evidence.
 See `shared/cross-modality-engine.md`.

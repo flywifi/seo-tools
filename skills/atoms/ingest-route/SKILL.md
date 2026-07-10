@@ -115,4 +115,4 @@ creator-core can log it in the ledger for auditing.
 - `shared/method.md` (pipeline discipline and evidence standards)
 
 ## Cross-modality
-Inherits its calling spoke's class (varies by caller (A/B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

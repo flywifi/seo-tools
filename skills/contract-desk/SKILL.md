@@ -139,6 +139,6 @@ and `playbook-bootstrap` (`action: playbook_setup`) run outside the review chain
 ## Cross-modality
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: tools/obligations.py deterministic date math (obligations, renewals, notice windows) over the private contract store; the contract-engine + MCP tools; scoop cache for legal sources.
-Fallback: No runtime or hosted seam -> reason over contract-engine.md date rules against pasted terms, flag unverified, name the obligation calc; escalate genuine legal questions; never fabricate a date or obligation.
+Mechanism: tools/obligations.py deterministic date math (send-by dates with weekend/US-federal-holiday roll-backward, urgency bands, register compute) exposed via MCP tools obligation_scan / obligation_build / import_obligations; contract-engine.md reasoning atoms for triage/review/legal checks; FTC citations from canonical-sources/source-registry.json.
+Fallback: No runtime or hosted seam: run the reasoning atoms (triage, review, legal-requirement-check, escalation-brief) over shared/contract-engine.md against pasted contract text; state that the obligation register date math (tools/obligations.py send-by/holiday-roll/urgency compute) is unavailable, present raw contract deadlines quoted verbatim without computed dates, flag them unverified, and never fabricate a date or obligation.
 See `shared/cross-modality-engine.md`.

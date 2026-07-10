@@ -48,4 +48,4 @@ Follows `shared/method.md` at the Generation step. Pulls aesthetic and pillars f
 `protocols/formatting-metadata.md`. Pass the batch to govern-artifact before it ships.
 
 ## Cross-modality
-Inherits its calling spoke's class (varies by caller (A/B)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

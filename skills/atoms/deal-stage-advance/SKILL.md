@@ -133,4 +133,4 @@ transition rules above explicitly require it. The calling spoke is responsible f
 `stage_change_record` and updating the deal record in `pipeline/deals/`.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

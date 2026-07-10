@@ -50,8 +50,8 @@ Produces a complete idea cluster even when no downstream spoke is available, and
 - Drifting off the home decor aesthetic toward bright farmhouse.
 
 ## Cross-modality
-Class: A.
-Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
-Mechanism: Pure reasoning over the shared brand/audience/platform/adaptation engines + protocols; no tool or data fetch.
-Fallback: None needed; reasoning-only. Null-flag any figure the user has not supplied; never invent metrics.
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over the brand/audience/platform/adaptation engines, plus a mandatory data lookup: trend-check verifies every trend or seasonal claim via shared/web-intel-engine.md (Levels 1 to 6 retrieval) and optionally the scoop cache (cache_query over canonical-sources); the data is offloadable, no local compute runs.
+Fallback: If no retrieval surface is available (e.g. a knowledge-only Gemini Gem), degrade trend-check to web-intel Level 5 (user-provided evidence) or Level 6 (momentum=unknown with a recorded retrieval gap); idea generation still ships as a reasoning-only cluster with trend claims flagged unverified.
 See `shared/cross-modality-engine.md`.

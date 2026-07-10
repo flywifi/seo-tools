@@ -112,6 +112,6 @@ The following atoms are orchestrated in sequence. `trend-check` is conditional.
 ## Cross-modality
 Class: B.
 Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
-Mechanism: Reasoning over supplied or scoop-cached competitor data (competitor-scan, entity-extract, keyword-cluster, search-intent); no compute tool beyond the shared gate.
-Fallback: Off a runtime, supply the competitor/keyword data or use cached snapshots (flag as_of) and reason over what is provided. No fabricated competitor facts.
+Mechanism: MCP data-lookup tools competitor_scan + add_competitor (tools/mcp_server.py) over the tools/competitor_snapshot.py pipeline (acquire.py fetch, parse_competitor_meta.py extraction of ytInitialPlayerResponse/SIGI_STATE, SQLite index in pipeline/competitor-snapshots/, scoop export to canonical-sources/keyword-library/competitor-channels.json); the model reasons over that data via competitor-scan/deep-competitor-scan/entity-extract/keyword-cluster/search-intent — all data acquisition and lookup, no compute beyond the shared govern-artifact gate.
+Fallback: Off a runtime, deep-competitor-scan degrades to web-intel Level 3 in-context retrieval and parsing (labeled [web-mode: no snapshot saved]); otherwise reason over the committed competitor-channels.json scoop snapshot or user-supplied competitor data (flag as_of), marking unconfirmed fields [unverified] — never fabricated competitor facts.
 See `shared/cross-modality-engine.md`.

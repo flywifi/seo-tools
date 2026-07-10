@@ -71,8 +71,8 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 - Bulk file processing involving more than one file per invocation. This spoke operates on a single-file ingest model. Run one invocation per file.
 
 ## Cross-modality
-Class: A.
-Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
-Mechanism: Reasoning/formatting over the artifact-type schemas + shared engines; an invoice artifact restates a pipeline/finance record built upstream by finance-desk (invoice-generate via tools/finance.py), adding nothing. The shared govern-artifact gate applies.
-Fallback: Runs on any surface; the invoice case needs the finance-built record supplied (it computes no money itself). Null-flag missing fields; never invent figures.
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: Mandatory local docintel ingest before any reasoning: ingest-route runs shared/docintel/classify.py (magic-byte + extension file classification) then shared/docintel/parse_text.py or shared/docintel/transcripts.py to extract binary/Office/PDF/transcript content and injection-scan it; the model then reasons over the extraction to draft the artifact per the artifact-type schemas, and the invoice case restates a record built upstream by tools/finance.py.
+Fallback: Off Claude (no local Python runtime): the docintel ingest cannot run, so the spoke degrades to surfaces where the file's plain-text content is pasted or fetched for the model; binary/Office/PDF/audio classification and parsing are unavailable, injection scanning is best-effort prompt-level only, and missing fields are null-flagged, never invented.
 See `shared/cross-modality-engine.md`.

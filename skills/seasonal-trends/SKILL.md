@@ -82,6 +82,6 @@ Atoms are invoked in the order listed. `trend-check` is conditional and runs onc
 ## Cross-modality
 Class: B.
 Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
-Mechanism: Reasoning over the seasonal canonical source + scoop cache (seasonal-map, trend-check, keyword-cluster, calendar-slot); no compute tool beyond the shared gate.
-Fallback: Off a runtime, the seasonal data is providable as knowledge; degrade to reasoning + flag as_of. Never fabricate a trend.
+Mechanism: Reasoning over canonical-sources/seasonal-aesthetic/seasonal.json (seasonal-map) and scoop-cache keyword/persona data via cache_query (keyword-cluster, idea-generate), with live web retrieval through shared/web-intel-engine.md for trend-check; calendar-slot and govern-artifact are model reasoning against protocols/quality-gates.md — no tools/*.py compute module runs.
+Fallback: Off a runtime, supply seasonal.json and the relevant scoop-cache slices as knowledge; skip live trend-check, set trend_status to null with the topic logged in retrieval_gaps, and flag as_of on all seasonal data. Never fabricate a trend.
 See `shared/cross-modality-engine.md`.

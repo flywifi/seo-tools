@@ -74,4 +74,4 @@ Given a resolvable brand or a deal id, the atom returns the deal's current stand
 - A caller wanting "how much is overdue": out of scope; route to `ar-review` for the money math.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

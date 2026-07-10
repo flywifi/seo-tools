@@ -52,6 +52,6 @@ available; the clip list is usable on its own.
 ## Cross-modality
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: Media compute via the videoedit tools (mediaprobe / scan / reframe / MLT) + captions/chapters; MCP media tools; scoop cache for platform specs.
-Fallback: No runtime or hosted seam -> reason over the supplied transcript/probe data + specs, flag unverified; never fabricate media facts it cannot probe.
+Mechanism: Core package build is pure reasoning over the engines plus scoop-cache lookups (platform specs, keyword library); the footage_breakdown lane runs deterministic media compute in tools/videoedit/mediaprobe.py via the silence_scan and scene_scan MCP tools (ffmpeg silencedetect / PyAV RMS; PySceneDetect / ffmpeg scdet).
+Fallback: Without a local runtime or hosted MCP seam, silence-scan and scene-scan degrade to the transcript gap/chapter-suggestion floor and the rest of the package is built by reasoning over supplied transcript, probe data, and specs; media facts that cannot be probed are flagged unverified, never fabricated.
 See `shared/cross-modality-engine.md`.

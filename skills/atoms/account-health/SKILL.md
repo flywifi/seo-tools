@@ -88,4 +88,4 @@ Obeys `protocols/no-fabrication.md`: if a required field is missing, emit a gap-
 rather than an estimate. Pass the output to govern-artifact before the spoke returns it to the user.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

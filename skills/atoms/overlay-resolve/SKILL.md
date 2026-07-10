@@ -69,4 +69,4 @@ with no downstream skill; granting per-session live consent adds address geocodi
 - Missing facts: null-and-flags the affected overlay rather than assuming applicability.
 
 ## Cross-modality
-Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

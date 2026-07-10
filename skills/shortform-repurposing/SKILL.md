@@ -65,6 +65,6 @@ Atoms are invoked in the order listed. `caption-write` and `hashtag-set` run onc
 ## Cross-modality
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
-Mechanism: Media compute via the videoedit tools (mediaprobe / captions / chapters) to cut long-form into short-form; MCP media tools; scoop cache for platform specs.
-Fallback: No runtime or hosted seam -> reason over the transcript/specs the user supplies (timestamps, platform limits), flag unverified; never fabricate cut points or durations it cannot probe.
+Mechanism: Reasoning over the transcript plus scoop-cached platform specs (cache_query / shared/platform-engine.md) for clips, captions, hashtags, Pins, and calendar slots; local COMPUTE only through the shorts-reframe shortcut atom's MCP tool reframe_shorts (tools/videoedit/reframe.py 9:16 crop geometry + ffmpeg filter string, flag-gated CLI render) and mediaprobe-backed silence_scan / scene_scan for clip-point probing.
+Fallback: Without the MCP runtime, run the full 6-step package as B/A work: reason over the user-supplied transcript and platform specs for clips, captions, hashtags, Pins, and schedule; skip shorts-reframe crop geometry and media probing, flag cut points/durations as unverified, and never fabricate timecodes it cannot probe.
 See `shared/cross-modality-engine.md`.

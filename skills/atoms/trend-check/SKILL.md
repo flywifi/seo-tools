@@ -41,4 +41,4 @@ Calls `shared/web-intel-engine.md` (Levels 1 through 6) and passes any external 
 older than `freshness_days` is marked stale, not dropped. Never fabricate (`protocols/no-fabrication.md`).
 
 ## Cross-modality
-Inherits its calling spoke's class (varies by caller (A/B)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

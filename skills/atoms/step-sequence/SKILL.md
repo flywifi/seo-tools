@@ -89,4 +89,4 @@ Output rules:
 - `shared/brand-engine.md` -- voice and tone for `action` and `detail` copy (published mode).
 
 ## Cross-modality
-Inherits its calling spoke's class (Class A); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+Inherits its calling spoke's class (varies by caller (A/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
