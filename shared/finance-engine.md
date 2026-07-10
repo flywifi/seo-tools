@@ -149,7 +149,7 @@ dated obligation rows). This engine owns the money side:
 
 Rate sources, in order of authority (never blended without labels, per `rate-card-fill`):
 
-1. Personal rate actuals — `pipeline/user-context/rate-card.local.json`, rows written by the
+1. Personal rate actuals — `rate-card.local.json` under pipeline/finance/ (schema `pipeline/finance/rate-card.template.json`), rows written by the
    human (deal-debrief PROPOSES a row from each closed deal; only the human saves it).
 2. Industry benchmarks — `canonical-sources/rate-benchmarks/benchmarks.json`, structured
    low/high/unit rows, always labeled as benchmarks with the verify-before-quoting caveat.

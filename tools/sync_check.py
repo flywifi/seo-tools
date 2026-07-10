@@ -556,7 +556,6 @@ PIPELINE_TRACKED_ALLOWLIST = {
     "pipeline/user-context/recurrence-rules.template.json",
     "pipeline/user-context/shipments.template.json",
     "pipeline/user-context/payment-schedule.template.json",
-    "pipeline/user-context/rate-card.template.json",
     "pipeline/user-context/setup-context.json",
     "pipeline/user-context/voice-profile.json",
 }

@@ -34,7 +34,7 @@ automatically. The creator confirms, edits, and saves `deal-playbook.local.json`
 The same proposal-only discipline extends to pricing (P30): from the closed deal's compensation
 and, when cost actuals exist in `pipeline/finance/`, the effective hourly computed offline by
 `tools/finance.py`, the debrief PROPOSES one rate-actual row for the personal rate card
-(`pipeline/user-context/rate-card.template.json` schema). The human saves it to
+(`pipeline/finance/rate-card.template.json` schema). The human saves it to
 `rate-card.local.json` or discards it; nothing is written automatically, and no figure is ever
 estimated (`shared/finance-engine.md` pricing standardization).
 
