@@ -289,6 +289,58 @@ def proposal_price(cost_total=None, margin_percent=None, rate_floor=None, benchm
             "flags": flags, "computed_by": f"{TOOL} proposal_price", "gaps": gaps}
 
 
+def load_rate_card(root=None):
+    """Load the personal rate card: pipeline/finance/rate-card.local.json if present (real rates,
+    gitignored), else the committed template (all-null). Returns (card, source) with source
+    'local' | 'template_defaults'. Honors CREATOR_OS_ROOT via ROOT. Never fabricates a rate."""
+    base = Path(root) if root else ROOT
+    local = base / "pipeline" / "finance" / "rate-card.local.json"
+    tmpl = base / "pipeline" / "finance" / "rate-card.template.json"
+    for path, source in ((local, "local"), (tmpl, "template_defaults")):
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8")), source
+            except (OSError, json.JSONDecodeError):
+                continue
+    return {"rates": [], "uplifts": [], "subscriber_tier": None}, "template_defaults"
+
+
+def rate_floor_for(card, fmt):
+    """Resolve a format's base rate from the rate card. Returns (base_rate_or_None, gap_or_None);
+    a missing or null entry is a named gap, never a guessed number."""
+    for r in (card or {}).get("rates", []):
+        if r.get("format") == fmt:
+            if r.get("base_rate") is not None:
+                return r["base_rate"], None
+            break
+    return None, {"gap_type": "no_rate_card_entry",
+                  "description": f"no base_rate for format '{fmt}' in the rate card",
+                  "impact": "negotiation floor missing for this format",
+                  "recommended_next_step": "fill the format's base_rate in rate-card.local.json "
+                                           "(copy pipeline/finance/rate-card.template.json)"}
+
+
+def _tier_gaps(card, benchmark_range, benchmark_tier=None):
+    """F8: benchmark comparisons need a known subscriber tier. Returns a list of gap/flag dicts:
+    tier unknown while a benchmark is attached -> benchmark_tier_assumed gap; tier known and the
+    payload declares the benchmark's tier and they differ -> benchmark_tier_mismatch gap."""
+    if not benchmark_range:
+        return []
+    tier = (card or {}).get("subscriber_tier")
+    if tier is None:
+        return [{"gap_type": "benchmark_tier_assumed",
+                 "description": "benchmark range applied without a known subscriber tier",
+                 "impact": "the range may belong to a different audience size",
+                 "recommended_next_step": "set subscriber_tier in rate-card.local.json"}]
+    if benchmark_tier is not None and str(benchmark_tier) != str(tier):
+        return [{"gap_type": "benchmark_tier_mismatch",
+                 "description": f"rate card tier '{tier}' differs from the benchmark's tier "
+                                f"'{benchmark_tier}'",
+                 "impact": "the comparison range does not match the creator's tier",
+                 "recommended_next_step": "use the benchmark rows for the creator's own tier"}]
+    return []
+
+
 def price_package(payload):
     """Multi-deliverable package floor. payload: {line_items: [{label, rate_floor?, cost_total?,
     margin_percent?, benchmark_range?}, ...], package_benchmark_range?: {low, high}}.
@@ -303,16 +355,31 @@ def price_package(payload):
                 "gaps": [{"gap_type": "missing_input", "description": "line_items is empty",
                           "impact": "no package floor computed",
                           "recommended_next_step": "supply one line item per deliverable"}]}
+    card = None
+    if any(li.get("format") and li.get("rate_floor") is None for li in items_in) \
+            or payload.get("package_benchmark_range"):
+        card, card_source = load_rate_card()
     items_out, unpriceable, gaps = [], [], []
     total = Decimal(0)
     for i, li in enumerate(items_in):
         label = li.get("label") or f"item_{i + 1}"
+        rate_floor = li.get("rate_floor")
+        rate_floor_source = "payload" if rate_floor is not None else None
+        if rate_floor is None and li.get("format"):
+            rate_floor, rc_gap = rate_floor_for(card, li["format"])
+            if rate_floor is not None:
+                rate_floor_source = "rate_card"
+            elif rc_gap:
+                gaps.append({**rc_gap, "item": label})
         res = proposal_price(cost_total=li.get("cost_total"), margin_percent=li.get("margin_percent"),
-                             rate_floor=li.get("rate_floor"), benchmark_range=li.get("benchmark_range"))
+                             rate_floor=rate_floor, benchmark_range=li.get("benchmark_range"))
         for g in res.get("gaps", []):
             gaps.append({**g, "item": label})
+        for tg in _tier_gaps(card, li.get("benchmark_range"), li.get("benchmark_tier")):
+            gaps.append({**tg, "item": label})
         items_out.append({"label": label, "price_floor": res["price_floor"],
-                          "bound": res.get("bound"), "flags": res.get("flags", []),
+                          "bound": res.get("bound"), "rate_floor_source": rate_floor_source,
+                          "flags": res.get("flags", []),
                           "gaps": res.get("gaps", [])})
         if res["price_floor"] is None:
             unpriceable.append(label)
@@ -329,6 +396,7 @@ def price_package(payload):
         package_flags.append("package floor exceeds the benchmark range high; expect pushback or justify scope")
     if br.get("low") is not None and total < dec(br["low"]):
         package_flags.append("package floor is below the benchmark range low; the market may bear more")
+    gaps.extend(_tier_gaps(card, br or None, payload.get("package_benchmark_tier")))
     return {"package_floor": _mstr(total) if len(unpriceable) < len(items_in) else None,
             "items": items_out, "unpriceable_items": unpriceable,
             "package_benchmark_range": {k: _mstr(v) for k, v in br.items()} if br else None,
@@ -916,6 +984,7 @@ def verify(manifest_path, directory=None):
 # ── selftest ─────────────────────────────────────────────────────────────────
 
 def _check(label, cond, failures):
+    _check.count = getattr(_check, "count", 0) + 1
     print(f"  [{'ok' if cond else 'FAIL'}] {label}")
     if not cond:
         failures.append(label)
@@ -1038,6 +1107,38 @@ def selftest():
            any("below the benchmark" in x for x in pk["package_flags"]), f)
     pk = price_package({"line_items": [{"label": "a", "rate_floor": "99.999"}]})
     _check("package: sum quantized to cents once", pk["package_floor"] == "100.00", f)
+
+    # P40-2 (F5): rate card load + format resolution (temp-dir sandbox, never the real repo files)
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        fin = Path(td) / "pipeline" / "finance"
+        fin.mkdir(parents=True)
+        card, src = load_rate_card(root=td)
+        _check("ratecard: no files -> empty defaults, template_defaults source",
+               src == "template_defaults" and card.get("subscriber_tier") is None, f)
+        (fin / "rate-card.local.json").write_text(json.dumps({
+            "subscriber_tier": "50k_to_100k",
+            "rates": [{"format": "youtube_dedicated_long_form", "base_rate": 600},
+                      {"format": "tiktok_dedicated", "base_rate": None}]}), encoding="utf-8")
+        card, src = load_rate_card(root=td)
+        _check("ratecard: local card wins", src == "local"
+               and card["subscriber_tier"] == "50k_to_100k", f)
+        rf, gap = rate_floor_for(card, "youtube_dedicated_long_form")
+        _check("ratecard: format resolves to 600", rf == 600 and gap is None, f)
+        rf, gap = rate_floor_for(card, "tiktok_dedicated")
+        _check("ratecard: null base_rate -> no_rate_card_entry gap, never a guess",
+               rf is None and gap["gap_type"] == "no_rate_card_entry", f)
+    # P40-2 (F8): tier gaps
+    tg = _tier_gaps({"subscriber_tier": None}, {"low": 500, "high": 3000})
+    _check("tier: unknown tier + benchmark -> benchmark_tier_assumed",
+           tg and tg[0]["gap_type"] == "benchmark_tier_assumed", f)
+    tg = _tier_gaps({"subscriber_tier": "50k_to_100k"}, {"low": 500, "high": 3000},
+                    benchmark_tier="10k_to_50k")
+    _check("tier: declared benchmark tier mismatch flagged",
+           tg and tg[0]["gap_type"] == "benchmark_tier_mismatch", f)
+    tg = _tier_gaps({"subscriber_tier": "50k_to_100k"}, {"low": 500, "high": 3000},
+                    benchmark_tier="50k_to_100k")
+    _check("tier: matching tier -> no gap", tg == [], f)
 
     payload = {"deal_id": "hearthline-2026-001", "brand_name": "Hearthline", "seq": 1,
                "line_items": [{"description": "dedicated video", "quantity": 1, "unit_price": 2500},
@@ -1206,7 +1307,7 @@ def selftest():
     _check("mark_paid: refused with finance_management off, record untouched",
            mp["updated"] is False and "finance_management" in mp["reason"], f)
 
-    n = 71
+    n = getattr(_check, "count", 0)
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
 
@@ -1302,8 +1403,24 @@ def main(argv):
         return 0
     if args.price:
         p = _read_json(args.price)
-        print(json.dumps(proposal_price(p.get("cost_total"), p.get("margin_percent"),
-                                        p.get("rate_floor"), p.get("benchmark_range")), indent=2))
+        rate_floor = p.get("rate_floor")
+        rate_floor_source = "payload" if rate_floor is not None else None
+        extra_gaps = []
+        card = None
+        if rate_floor is None and p.get("format") or p.get("benchmark_range"):
+            card, _src = load_rate_card()
+        if rate_floor is None and p.get("format"):
+            rate_floor, rc_gap = rate_floor_for(card, p["format"])
+            if rate_floor is not None:
+                rate_floor_source = "rate_card"
+            elif rc_gap:
+                extra_gaps.append(rc_gap)
+        res = proposal_price(p.get("cost_total"), p.get("margin_percent"),
+                             rate_floor, p.get("benchmark_range"))
+        res["rate_floor_source"] = rate_floor_source
+        res["gaps"] = res.get("gaps", []) + extra_gaps + _tier_gaps(
+            card, p.get("benchmark_range"), p.get("benchmark_tier"))
+        print(json.dumps(res, indent=2))
         return 0
     if args.price_package:
         p = _read_json(args.price_package)

@@ -1,0 +1,24 @@
+{
+  "_comment": "Copy this file to rate-card.local.json and fill in real rates. The .local.json is gitignored and never committed. This template shows the schema only.",
+  "_gitignore_note": "rate-card.local.json is gitignored. Keep real rates out of git.",
+  "_boundary": "Personal rates are decision inputs for proposal-price and pitch triage, never auto-quoted; the consequential-action gate (amount, counterparty, explicit yes) applies before any number reaches a brand.",
+  "schema_version": "1.0",
+  "as_of": null,
+  "subscriber_tier": null,
+  "currency": "USD",
+  "rates": [
+    {"format": "youtube_dedicated_long_form", "base_rate": null, "notes": null},
+    {"format": "youtube_integration_60_90s", "base_rate": null, "notes": null},
+    {"format": "tiktok_dedicated", "base_rate": null, "notes": null},
+    {"format": "instagram_reel", "base_rate": null, "notes": null},
+    {"format": "pinterest_idea_pin", "base_rate": null, "notes": null},
+    {"format": "photo_set", "base_rate": null, "notes": null}
+  ],
+  "uplifts": [
+    {"lever": "paid_usage_30d", "policy": null, "notes": "set as a percent of base or a flat amount; null until the creator decides"},
+    {"lever": "paid_usage_90d", "policy": null, "notes": null},
+    {"lever": "category_exclusivity_30d", "policy": null, "notes": null},
+    {"lever": "rush_delivery_under_14d", "policy": null, "notes": null}
+  ],
+  "notes": "subscriber_tier (e.g. '50k_to_100k') keys benchmark comparisons; leaving it null makes pricing emit a benchmark_tier_assumed gap."
+}

@@ -38,8 +38,8 @@ Do NOT use for:
 }
 ```
 `cost_total` comes from a `cost-estimate` run; `rate_floor` from the personal rate card
-(`pipeline/finance/rate-card.local.json`, template `pipeline/finance/rate-card.template.json`) or
-the playbook; `benchmark_range` from the structured rows in
+(`rate-card.local.json` under pipeline/finance/, gitignored; template
+`pipeline/finance/rate-card.template.json`) or the playbook; `benchmark_range` from the structured rows in
 `canonical-sources/rate-benchmarks/benchmarks.json` (labeled benchmarks, verify-before-quoting
 caveat intact).
 

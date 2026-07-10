@@ -546,6 +546,7 @@ PIPELINE_TRACKED_ALLOWLIST = {
     "pipeline/finance/cost-actuals.template.json",
     "pipeline/finance/cost-estimate.template.json",
     "pipeline/finance/invoice.template.json",
+    "pipeline/finance/rate-card.template.json",
     "pipeline/user-context/channel-context.json",
     "pipeline/user-context/content-calendar.json",
     "pipeline/user-context/creator-profile.template.json",

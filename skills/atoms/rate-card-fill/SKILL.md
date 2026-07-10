@@ -25,9 +25,9 @@ It handles two scenarios:
 
 1. the creator's actual rates are available: each requested format is filled from `alex_actual_rates`
    when the caller provides them, else from the personal rate actuals file
-   rate-card.local.json under pipeline/user-context/ (gitignored; schema:
-   `pipeline/user-context/rate-card.template.json`; rows saved by the human from deal-debrief
-   proposals). Source is marked `personal_rate`. No benchmark data is surfaced unless a format is missing from the
+   rate-card.local.json under pipeline/finance/ (gitignored; schema:
+   `pipeline/finance/rate-card.template.json`; rows saved by the human from deal-debrief
+   proposals; loaded by `tools/finance.py` load_rate_card). Source is marked `personal_rate`. No benchmark data is surfaced unless a format is missing from the
    provided rates.
 2. the creator's rates are not provided (or a format is absent from them): the atom reads
    `canonical-sources/rate-benchmarks/benchmarks.json` and returns the benchmark range for that
