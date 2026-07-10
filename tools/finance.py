@@ -14,8 +14,8 @@ records and explicit inputs; a missing figure is null plus a gaps[] entry, never
 Contractual due dates are NOT rolled over weekends or holidays (the contract says what it
 says); only derived ACTION dates (chase reminders) roll backward, via obligations.roll_backward.
 
-Read-only commands (--ar-scan, --accrue, --revshare, --rollup, --price, --status) are always
-available. Record writes are gated: --build-invoice --write requires the finance_management AND
+Read-only commands (--ar-scan, --accrue, --revshare, --rollup, --price, --price-package, --status)
+are always available. Record writes are gated: --build-invoice --write requires the finance_management AND
 invoice_generation flags. Real records live in pipeline/finance/*.local.json (gitignored);
 CREATOR_OS_ROOT redirects all paths for sandboxed runs, exactly like obligations.py.
 
@@ -26,6 +26,7 @@ Usage:
   python3 tools/finance.py --revshare PAYLOAD_JSON
   python3 tools/finance.py --rollup ESTIMATE_JSON
   python3 tools/finance.py --price PAYLOAD_JSON
+  python3 tools/finance.py --price-package PAYLOAD_JSON
   python3 tools/finance.py --status | --manifest | --write-manifest FILE | --verify FILE
   python3 tools/finance.py --selftest
 """
@@ -245,18 +246,34 @@ def cost_rollup(line_items, time=None):
             "computed_by": f"{TOOL} cost_rollup", "gaps": gaps}
 
 
-def proposal_price(cost_total, margin_percent, rate_floor=None, benchmark_range=None):
-    """Price floor = max(cost floor, negotiation floor). Decision support, never the quote."""
-    if cost_total is None or margin_percent is None:
-        return {"price_floor": None, "computed_by": f"{TOOL} proposal_price",
-                "gaps": [{"gap_type": "missing_input",
-                          "description": "needs cost_total and margin_percent",
-                          "impact": "no price floor computed",
-                          "recommended_next_step": "run cost_rollup first and state a margin"}]}
-    cost_floor = dec(cost_total) * (Decimal(100) + dec(margin_percent)) / Decimal(100)
-    floors = {"cost_floor": cost_floor}
+def proposal_price(cost_total=None, margin_percent=None, rate_floor=None, benchmark_range=None):
+    """Price floor = max(available floors). Floors: cost_floor (cost_total + margin) when BOTH cost
+    inputs are supplied; negotiation_floor when rate_floor is supplied. At least one floor is
+    required; missing inputs become named gaps, never zeros. Decision support, never the quote."""
+    gaps = []
+    floors = {}
+    have_cost = cost_total is not None and margin_percent is not None
+    if have_cost:
+        floors["cost_floor"] = dec(cost_total) * (Decimal(100) + dec(margin_percent)) / Decimal(100)
+    elif cost_total is not None or margin_percent is not None:
+        gaps.append({"gap_type": "partial_cost_inputs",
+                     "description": "only one of cost_total/margin_percent supplied; cost floor not computed",
+                     "impact": "cost floor missing from the comparison",
+                     "recommended_next_step": "supply both cost_total and margin_percent (run cost_rollup)"})
     if rate_floor is not None:
         floors["negotiation_floor"] = dec(rate_floor)
+    if not floors:
+        return {"price_floor": None, "computed_by": f"{TOOL} proposal_price",
+                "gaps": gaps + [{"gap_type": "missing_input",
+                                 "description": "needs cost_total+margin_percent and/or rate_floor",
+                                 "impact": "no price floor computed",
+                                 "recommended_next_step": "run cost_rollup first and state a margin, "
+                                                          "or supply the rate-card negotiation floor"}]}
+    if "cost_floor" not in floors:
+        gaps.append({"gap_type": "no_cost_basis",
+                     "description": "cost floor not computed; true margin at this price is unknown",
+                     "impact": "the floor rests on the negotiation floor alone",
+                     "recommended_next_step": "run cost-estimate and re-price to confirm margin"})
     bound = max(floors, key=lambda k: floors[k])
     price = floors[bound]
     flags = []
@@ -266,10 +283,57 @@ def proposal_price(cost_total, margin_percent, rate_floor=None, benchmark_range=
     if br.get("low") is not None and price < dec(br["low"]):
         flags.append("price floor is below the benchmark range low; the market may bear more")
     return {"price_floor": _mstr(price), "bound": bound,
-            "cost_floor": _mstr(cost_floor),
+            "cost_floor": _mstr(floors.get("cost_floor")),
             "negotiation_floor": _mstr(rate_floor),
             "benchmark_range": {k: _mstr(v) for k, v in br.items()} if br else None,
-            "flags": flags, "computed_by": f"{TOOL} proposal_price", "gaps": []}
+            "flags": flags, "computed_by": f"{TOOL} proposal_price", "gaps": gaps}
+
+
+def price_package(payload):
+    """Multi-deliverable package floor. payload: {line_items: [{label, rate_floor?, cost_total?,
+    margin_percent?, benchmark_range?}, ...], package_benchmark_range?: {low, high}}.
+    Runs proposal_price per item, sums per-item floors into package_floor (quantized once), unions
+    per-item gaps tagged with the item label, and flags the SUM against package_benchmark_range.
+    Items with no computable floor are listed in unpriceable_items and EXCLUDED from the sum with a
+    package-level gap (an unpriceable item is never treated as costing 0)."""
+    items_in = payload.get("line_items") or []
+    if not items_in:
+        return {"package_floor": None, "items": [], "unpriceable_items": [],
+                "computed_by": f"{TOOL} price_package",
+                "gaps": [{"gap_type": "missing_input", "description": "line_items is empty",
+                          "impact": "no package floor computed",
+                          "recommended_next_step": "supply one line item per deliverable"}]}
+    items_out, unpriceable, gaps = [], [], []
+    total = Decimal(0)
+    for i, li in enumerate(items_in):
+        label = li.get("label") or f"item_{i + 1}"
+        res = proposal_price(cost_total=li.get("cost_total"), margin_percent=li.get("margin_percent"),
+                             rate_floor=li.get("rate_floor"), benchmark_range=li.get("benchmark_range"))
+        for g in res.get("gaps", []):
+            gaps.append({**g, "item": label})
+        items_out.append({"label": label, "price_floor": res["price_floor"],
+                          "bound": res.get("bound"), "flags": res.get("flags", []),
+                          "gaps": res.get("gaps", [])})
+        if res["price_floor"] is None:
+            unpriceable.append(label)
+        else:
+            total += dec(res["price_floor"])
+    if unpriceable:
+        gaps.append({"gap_type": "unpriceable_items",
+                     "description": f"no floor computable for: {', '.join(unpriceable)}",
+                     "impact": "package floor UNDERSTATES the package (these items are excluded, not zero)",
+                     "recommended_next_step": "supply a rate_floor or cost inputs for each listed item"})
+    package_flags = []
+    br = payload.get("package_benchmark_range") or {}
+    if br.get("high") is not None and total > dec(br["high"]):
+        package_flags.append("package floor exceeds the benchmark range high; expect pushback or justify scope")
+    if br.get("low") is not None and total < dec(br["low"]):
+        package_flags.append("package floor is below the benchmark range low; the market may bear more")
+    return {"package_floor": _mstr(total) if len(unpriceable) < len(items_in) else None,
+            "items": items_out, "unpriceable_items": unpriceable,
+            "package_benchmark_range": {k: _mstr(v) for k, v in br.items()} if br else None,
+            "package_flags": package_flags,
+            "computed_by": f"{TOOL} price_package", "gaps": gaps}
 
 
 # ── invoice assembly ─────────────────────────────────────────────────────────
@@ -940,6 +1004,41 @@ def selftest():
     pp = proposal_price(500, 30, rate_floor=800, benchmark_range={"low": 200, "high": 700})
     _check("price: above-benchmark flag raised", len(pp["flags"]) == 1, f)
 
+    # P40-1 (F4): rate-floor-only pricing works, with the honest no-cost-basis gap
+    pp = proposal_price(rate_floor=600, benchmark_range={"low": 500, "high": 3000})
+    _check("price: rate-floor-only computes 600.00", pp["price_floor"] == "600.00"
+           and pp["bound"] == "negotiation_floor", f)
+    _check("price: rate-floor-only carries no_cost_basis gap",
+           any(g["gap_type"] == "no_cost_basis" for g in pp["gaps"]), f)
+    pp = proposal_price()
+    _check("price: no floors at all -> missing_input gap, null floor",
+           pp["price_floor"] is None
+           and any(g["gap_type"] == "missing_input" for g in pp["gaps"]), f)
+    pp = proposal_price(cost_total=500, rate_floor=600)
+    _check("price: partial cost inputs -> partial_cost_inputs gap, floor still 600.00",
+           pp["price_floor"] == "600.00"
+           and any(g["gap_type"] == "partial_cost_inputs" for g in pp["gaps"]), f)
+
+    # P40-1 (F6): package pricing
+    pk = price_package({"line_items": [
+        {"label": "long_form", "rate_floor": 600},
+        {"label": "tiktok", "rate_floor": 200}]})
+    _check("package: two items sum to 800.00", pk["package_floor"] == "800.00"
+           and not pk["unpriceable_items"], f)
+    pk = price_package({"line_items": [
+        {"label": "long_form", "rate_floor": 600},
+        {"label": "tiktok"}]})
+    _check("package: unpriceable item excluded from sum, not zeroed",
+           pk["package_floor"] == "600.00" and pk["unpriceable_items"] == ["tiktok"]
+           and any(g["gap_type"] == "unpriceable_items" for g in pk["gaps"]), f)
+    pk = price_package({"line_items": [{"label": "long_form", "rate_floor": 600},
+                                       {"label": "tiktok", "rate_floor": 200}],
+                        "package_benchmark_range": {"low": 900, "high": 5000}})
+    _check("package: below-benchmark package flag raised",
+           any("below the benchmark" in x for x in pk["package_flags"]), f)
+    pk = price_package({"line_items": [{"label": "a", "rate_floor": "99.999"}]})
+    _check("package: sum quantized to cents once", pk["package_floor"] == "100.00", f)
+
     payload = {"deal_id": "hearthline-2026-001", "brand_name": "Hearthline", "seq": 1,
                "line_items": [{"description": "dedicated video", "quantity": 1, "unit_price": 2500},
                               {"description": "usage rights addon", "amount": 500}],
@@ -1137,6 +1236,7 @@ def main(argv):
     ap.add_argument("--revshare", metavar="PAYLOAD_JSON")
     ap.add_argument("--rollup", metavar="ESTIMATE_JSON")
     ap.add_argument("--price", metavar="PAYLOAD_JSON")
+    ap.add_argument("--price-package", dest="price_package", metavar="PAYLOAD_JSON")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--manifest", action="store_true")
     ap.add_argument("--write-manifest", metavar="FILE")
@@ -1204,6 +1304,10 @@ def main(argv):
         p = _read_json(args.price)
         print(json.dumps(proposal_price(p.get("cost_total"), p.get("margin_percent"),
                                         p.get("rate_floor"), p.get("benchmark_range")), indent=2))
+        return 0
+    if args.price_package:
+        p = _read_json(args.price_package)
+        print(json.dumps(price_package(p), indent=2))
         return 0
     if args.status:
         m = manifest()

@@ -33,23 +33,36 @@ Do NOT use for:
   "cost_total": null,
   "margin_percent": null,
   "rate_floor": "the negotiation floor: personal rate card entry for the format, else the playbook pricing_and_rates standard, else null",
+  "format": "optional rate-card format key (e.g. youtube_dedicated_long_form); resolves rate_floor from the rate card when rate_floor is absent",
   "benchmark_range": { "low": null, "high": null }
 }
 ```
-`cost_total` comes from a `cost-estimate` run; `rate_floor` from
-`pipeline/user-context/rate-card.template.json` data (human-saved actuals) or the playbook;
-`benchmark_range` from the structured rows in `canonical-sources/rate-benchmarks/benchmarks.json`
-(labeled benchmarks, verify-before-quoting caveat intact).
+`cost_total` comes from a `cost-estimate` run; `rate_floor` from the personal rate card
+(`pipeline/finance/rate-card.local.json`, template `pipeline/finance/rate-card.template.json`) or
+the playbook; `benchmark_range` from the structured rows in
+`canonical-sources/rate-benchmarks/benchmarks.json` (labeled benchmarks, verify-before-quoting
+caveat intact).
 
 ## Core procedure
 Run `python3 tools/finance.py --price <payload.json>`:
-`price_floor = max(cost_floor, negotiation_floor)` where
-`cost_floor = cost_total x (1 + margin_percent / 100)`. The result names which floor bound, and
-flags when the floor sits above the benchmark high (expect pushback or justify scope) or below
-the benchmark low (the market may bear more). A price below documented cost is flagged, never
-silently accepted (`shared/finance-engine.md` pricing standardization). Present the floor, the
-inputs, and the flags; the consequential-action gate (amount, counterparty, explicit yes)
-applies before the human quotes anything externally.
+`price_floor = max(available floors)` where `cost_floor = cost_total x (1 + margin_percent / 100)`
+(only when both cost inputs are supplied) and `negotiation_floor = rate_floor`. Cost inputs are
+OPTIONAL: a rate-floor-only run works and carries a `no_cost_basis` gap (true margin unknown; run
+cost-estimate and re-price). Supplying only one cost input yields a `partial_cost_inputs` gap,
+never a guessed value. The result names which floor bound, and flags when the floor sits above the
+benchmark high (expect pushback or justify scope) or below the benchmark low (the market may bear
+more). A price below documented cost is flagged, never silently accepted
+(`shared/finance-engine.md` pricing standardization).
+
+For a multi-deliverable package (e.g. a long-form video plus a TikTok), run
+`python3 tools/finance.py --price-package <payload.json>` with
+`{line_items: [{label, rate_floor | cost inputs, benchmark_range?}], package_benchmark_range?}`:
+per-item floors are summed into `package_floor`; an item with no computable floor is listed in
+`unpriceable_items` and EXCLUDED from the sum with a package-level gap (never treated as 0), so the
+package floor is explicitly an understatement until every item is priced.
+
+Present the floor(s), the inputs, and the flags; the consequential-action gate (amount,
+counterparty, explicit yes) applies before the human quotes anything externally.
 
 ## Output contract
 The `proposal_price` result verbatim (`price_floor`, `bound`, `cost_floor`,
