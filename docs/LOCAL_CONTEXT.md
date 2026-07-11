@@ -26,7 +26,7 @@ name and never enters git.
 | `pipeline/user-context/obligation-register.template.json` | `obligation-register.local.json` |
 | `pipeline/contracts/contract.template.json` | `pipeline/contracts/<id>.local.json` (raw contract text) |
 | `pipeline/deals/deal-schema.json` | `pipeline/deals/<id>.local.json` |
-| `pipeline/user-context/rate-card.template.json` | `rate-card.local.json` (your real rates) |
+| `pipeline/finance/rate-card.template.json` | `pipeline/finance/rate-card.local.json` (your real rates) |
 | `pipeline/finance/invoice.template.json` | `pipeline/finance/INV-<deal>-<seq>.local.json` |
 | `pipeline/finance/cost-estimate.template.json` | `pipeline/finance/<estimate>.local.json` |
 | `pipeline/finance/cost-actuals.template.json` | `pipeline/finance/cost-actuals.local.json` |

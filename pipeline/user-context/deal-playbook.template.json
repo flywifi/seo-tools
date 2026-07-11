@@ -24,7 +24,7 @@
     },
     "pricing_and_rates": {
       "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,
-      "_covers": "standard rates per format (from the personal rate card in pipeline/user-context/rate-card.local.json), package pricing posture, the cost floor rule (never price below documented cost plus margin, shared/finance-engine.md), and usage-rights or exclusivity pricing add-ons"
+      "_covers": "standard rates per format (from the personal rate card in pipeline/finance/rate-card.local.json), package pricing posture, the cost floor rule (never price below documented cost plus margin, shared/finance-engine.md), and usage-rights or exclusivity pricing add-ons"
     },
     "revenue_share_and_commission": {
       "standard": null, "fallbacks": [], "never": [], "the_one_thing": null,

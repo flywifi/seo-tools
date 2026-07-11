@@ -1,6 +1,7 @@
 {
   "_comment": "Copy this file to rate-card.local.json and fill in real rates. The .local.json is gitignored and never committed. This template shows the schema only.",
   "_gitignore_note": "rate-card.local.json is gitignored. Keep real rates out of git.",
+  "_write_discipline": "Rows are written by the human only. deal-debrief PROPOSES a rate_history row from each closed deal (effective hourly computed offline by tools/finance.py from cost actuals when available) and the human saves or discards it, mirroring the playbook-bootstrap discipline. rate-card-fill reads this file FIRST as the personal_rate source, before benchmark ranges (shared/finance-engine.md pricing standardization).",
   "_boundary": "Personal rates are decision inputs for proposal-price and pitch triage, never auto-quoted; the consequential-action gate (amount, counterparty, explicit yes) applies before any number reaches a brand.",
   "schema_version": "1.0",
   "as_of": null,
@@ -19,6 +20,20 @@
     {"lever": "paid_usage_90d", "policy": null, "notes": null},
     {"lever": "category_exclusivity_30d", "policy": null, "notes": null},
     {"lever": "rush_delivery_under_14d", "policy": null, "notes": null}
+  ],
+  "rate_history": [
+    {
+      "format": null,
+      "rate": null,
+      "deal_ref": null,
+      "brand_name": null,
+      "closed_date": null,
+      "hours_spent": null,
+      "cost_actuals_total": null,
+      "effective_hourly": null,
+      "computed_by": null,
+      "notes": "what a real closed deal actually paid for this format; rows proposed by deal-debrief, saved by the human"
+    }
   ],
   "notes": "subscriber_tier (e.g. '50k_to_100k') keys benchmark comparisons; leaving it null makes pricing emit a benchmark_tier_assumed gap."
 }
