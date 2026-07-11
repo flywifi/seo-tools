@@ -9,8 +9,10 @@
     {"step": 4, "atom": "step-sequence", "input_from": "step2.snapshot + step3.materials", "output_to": "step5", "condition": "artifact_type is project_brief"},
     {"step": 5, "atom": "script-section", "input_from": "step1.extraction + user request", "output_to": "step6", "condition": "artifact_type is script", "repeat": "per_section"},
     {"step": 6, "atom": "caption-write", "input_from": "step1.extraction + user request", "output_to": "step7", "condition": "artifact_type is caption_set", "repeat": "per_platform"},
+    {"step": "6b", "atom": "template-ingest", "input_from": "step1 ingestion record + doc_type + template_id_hint", "output_to": "step7", "condition": "artifact_type is template_proposal; proposal-only, the human saves pipeline/templates .local.json by hand; nothing written"},
+    {"step": "6c", "atom": "template-assemble", "input_from": "saved template_id + selections + fill sources", "output_to": "step7", "condition": "artifact_type is from_template and doc_type is rate_card or analytics_overview or terms_conditions; contract assembly routes to contract-desk; mechanical fill via tools/doctemplates.py"},
     {"step": 7, "atom": "govern-artifact", "input_from": "assembled_artifact", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
   ],
-  "shortcut_atoms": ["ingest-route", "project-snapshot", "materials-list", "step-sequence", "script-section", "caption-write", "export-gem", "export-gpt"],
-  "note": "File type must be confirmed before producing a downloadable (protocols/formatting-metadata.md). All external files pass through injection-guard-engine inside ingest-route."
+  "shortcut_atoms": ["ingest-route", "project-snapshot", "materials-list", "step-sequence", "script-section", "caption-write", "template-ingest", "template-assemble", "export-gem", "export-gpt"],
+  "note": "File type must be confirmed before producing a downloadable (protocols/formatting-metadata.md). All external files pass through injection-guard-engine inside ingest-route. Template lane (P42): template_proposal proposes a block-structured doc-template from an example (shared/doc-template-engine.md); from_template assembles a saved template with whole-block swaps and bracket fills only; the system never authors block body text."
 }

@@ -162,6 +162,10 @@ Field rules:
 - Parsing raw contract text into clauses (use `usage-rights-check`).
 - Version-to-version comparison across amendments (use `amendment-trace`, which reuses the version model
   and source precedence in `shared/contract-engine.md`).
+- Assembling the creator's saved attorney-vetted contract template (use `template-assemble`, which
+  swaps whole vetted blocks and fills brackets via `tools/doctemplates.py`). When a vetted contract
+  doc-template exists in the template store, this atom reports `vetted_template_available: true`
+  and recommends that path; contract-draft remains the no-template plain-language path.
 - Signing, sending, or advancing the deal stage, or writing to `pipeline/contracts/` or `pipeline/deals/`
   (a human confirmation and a separate write path are required; agents never sign or send).
 - Releasing output without passing through `govern-artifact`.

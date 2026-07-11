@@ -62,7 +62,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 - Ingest connectors (email, calendar, Drive, general CRM): input signals only; never overwrite pipeline store records.
 
 ## Request classification (use as the primary enum in the routing object)
-`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `construction_question` `code_lookup` `build_calc` `jurisdiction_overlay` `document_create` `document_edit` `account_read` `account_create` `account_update` `deal_status` `deal_create` `deal_update` `deal_stage_move` `pitch_triage` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `task_status` `task_plan` `coverage_check` `shipment_update` `milestone_bill` `quality_check` `unclear`
+`content_ideation` `project_planning` `video_script` `footage_breakdown` `repurposing` `seo_research` `analytics_review` `statistical_analysis` `forecasting` `data_query` `ab_test_design` `platform_export` `audience_question` `competitor_check` `seasonal_planning` `content_distribution` `construction_question` `code_lookup` `build_calc` `jurisdiction_overlay` `document_create` `document_edit` `template_manage` `account_read` `account_create` `account_update` `deal_status` `deal_create` `deal_update` `deal_stage_move` `pitch_triage` `production_plan` `outreach_draft` `media_kit` `contract_review` `contract_draft` `contract_amendment` `contract_obligations` `invoice_create` `finance_review` `cost_estimate` `proposal_price` `cashflow_projection` `payment_reconcile` `dunning_draft` `task_status` `task_plan` `coverage_check` `shipment_update` `milestone_bill` `quality_check` `unclear`
 
 ### Classification routing table
 
@@ -90,6 +90,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `document_create` | Document | `document-studio` | new document creation (media kit, brief, etc.) |
 | `document_edit` | Document | `document-studio` | editing an existing document |
 | `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
+| `template_manage` | Document | `document-studio` | ingest an example into a proposed doc-template, list or diff saved templates (template-ingest, tools/doctemplates.py; proposal-only, the human saves the gitignored .local.json); assembly from a saved template rides document_create (non-contract) or contract_draft (contracts, via contract-desk) |
 | `account_read` | Pipeline/CRM | `account-manager` | read-only account and contact lookup: resolve a fuzzy brand phrase to an account, then read its health, contacts, or overview (contact-lookup / account-resolve; never writes) |
 | `account_create` | Pipeline/CRM | `account-manager` | new brand account record |
 | `account_update` | Pipeline/CRM | `account-manager` | update brand account fields |

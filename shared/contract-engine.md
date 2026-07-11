@@ -145,6 +145,19 @@ is a consequential action), sets `ready_to_sign: false`, and never emits anythin
 as-is. `amendment-trace` uses the separate version source precedence in "Amendment and version model";
 this section governs draft assembly only.
 
+## Vetted-template assembly (P42)
+
+When the creator has saved an attorney-vetted contract template
+(`pipeline/templates/*.local.json`, `doc_type: contract`, `vetted: true`), drafting can assemble
+that template instead of the plain-language path: `template-assemble` selects and swaps whole
+clause blocks per deal and `tools/doctemplates.py` fills the bracketed fields mechanically. The
+attorney's language passes through byte-for-byte; the system never authors, edits, or rephrases
+clause text. Selection, fill sources, and the authorship boundary are defined in
+`shared/doc-template-engine.md`. Every assembled agreement still opens with the verbatim banner,
+carries `ready_to_sign: false` and `recommend_counsel: true`, and passes the consequential-action
+gate. `contract-draft` remains the no-template path and reports when a vetted template is
+available.
+
 ## Bootstrapping and nudging the playbook (proposal only)
 
 The playbook is the creator's own document. No atom ever writes it. `playbook-bootstrap` (P23 Phase 2)

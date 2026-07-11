@@ -21,7 +21,7 @@ All outputs are governed by the Quality Gates before delivery.
 |---|---|---|---|
 | `file_path` | string | conditional | Local path to the source file. Required if `source` is not provided. |
 | `source` | string | conditional | Cloud source identifier: `onedrive`, `google-drive`, `youtube`, or `instagram`. Required if `file_path` is not provided. Routed via `shared/integrations-engine.md`. |
-| `artifact_type` | string | required | One of: `project_brief`, `script`, `materials_list`, `caption_set`, `invoice`, `custom`. |
+| `artifact_type` | string | required | One of: `project_brief`, `script`, `materials_list`, `caption_set`, `invoice`, `custom`, `template_proposal` (propose a block-structured doc-template from an uploaded example; proposal-only, the human saves the gitignored template file), `from_template` (assemble a saved rate-card, analytics-overview, or terms/conditions template; contract assembly routes to `contract-desk`). |
 | `output_format` | string | optional | One of: `docx`, `txt`, `json`. Defaults to `docx` if not specified. |
 
 Exactly one of `file_path` or `source` must be present. Providing both or neither is an input validation error.
@@ -47,7 +47,9 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 5. `script-section` (repeat: per_section) -- drafts each script section when `artifact_type` is `script`.
 6. `caption-write` -- produces platform captions when `artifact_type` is `caption_set`.
 7. `pin-write` -- produces Pinterest pin copy when `artifact_type` is `caption_set` and the platform list includes Pinterest.
-8. `govern-artifact` -- runs the Quality Gates checklist and returns `quality_gate_result`.
+8. `template-ingest` -- when `artifact_type` is `template_proposal`: proposes a block-structured doc-template from the ingested example (exact-quote bodies, bracketed fill fields, variant groups; `shared/doc-template-engine.md`). Proposal-only; the human saves the `.local.json` by hand.
+9. `template-assemble` -- when `artifact_type` is `from_template` (rate_card, analytics_overview, or terms_conditions): selects and swaps whole blocks per situation and delegates the mechanical bracket fill to `tools/doctemplates.py`; the system never authors block text.
+10. `govern-artifact` -- runs the Quality Gates checklist and returns `quality_gate_result`.
 
 ## Engines required
 
@@ -69,6 +71,8 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 - Content lane generation (ideas, hooks, trending topics, SEO research) that does not have a file source. Use a Content lane spoke for those requests.
 - Pipeline CRM writes, deal creation, or contact updates. Use the `deal-pipeline` spoke for CRM operations.
 - Bulk file processing involving more than one file per invocation. This spoke operates on a single-file ingest model. Run one invocation per file.
+- Assembling a CONTRACT from a vetted template (route via `contract_draft` to `contract-desk`, which enforces the contract flags and the legal safety envelope).
+- Writing or saving a template file (templates are saved by the human only; `template-ingest` proposes).
 
 ## Cross-modality
 Class: C.
