@@ -48,6 +48,7 @@ import transcripts  # noqa: E402
 import tasks as tasks_mod  # noqa: E402
 import shipments as shipments_mod  # noqa: E402
 import coverage_verify as coverage_mod  # noqa: E402
+import finance as finance_mod  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location(
     "qr_score", ROOT / "skills" / "quality-review" / "scripts" / "score.py"
@@ -304,6 +305,54 @@ def op_coverage_verify(withp, clock, prior):
     return result
 
 
+def _fixture_rate_card(withp):
+    """Optional in-memory stand-in for the gitignored rate-card.local.json: a committed fictional
+    fixture (never a tracked .local. file). Nothing is written anywhere."""
+    if not withp.get("rate_card_fixture"):
+        return None
+    return json.loads(_fixture_path(withp["rate_card_fixture"]).read_text(encoding="utf-8"))
+
+
+def op_finance_price(withp, clock, prior):
+    """Delegates to tools/finance.proposal_price, mirroring the --price CLI handler (P40): rate-card
+    format resolution, rate_floor_source provenance, and tier gaps."""
+    p = _load_fixture(withp, clock) if "fixture" in withp else withp["payload"]
+    card = _fixture_rate_card(withp)
+    rate_floor = p.get("rate_floor")
+    rate_floor_source = "payload" if rate_floor is not None else None
+    extra_gaps = []
+    if card is None and (rate_floor is None and p.get("format") or p.get("benchmark_range")):
+        card, _src = finance_mod.load_rate_card()
+    if rate_floor is None and p.get("format"):
+        rate_floor, rc_gap = finance_mod.rate_floor_for(card, p["format"])
+        if rate_floor is not None:
+            rate_floor_source = "rate_card"
+        elif rc_gap:
+            extra_gaps.append(rc_gap)
+    res = finance_mod.proposal_price(p.get("cost_total"), p.get("margin_percent"),
+                                     rate_floor, p.get("benchmark_range"))
+    res["rate_floor_source"] = rate_floor_source
+    res["gaps"] = res.get("gaps", []) + extra_gaps + finance_mod._tier_gaps(
+        card, p.get("benchmark_range"), p.get("benchmark_tier"))
+    res["computed_by"] = "tools/finance.py.proposal_price"
+    return res
+
+
+def op_finance_price_package(withp, clock, prior):
+    """Delegates to tools/finance.price_package (P40). With rate_card_fixture, the fictional card
+    stands in for rate-card.local.json in memory only (restored in finally; no writes)."""
+    p = _load_fixture(withp, clock) if "fixture" in withp else withp["payload"]
+    card = _fixture_rate_card(withp)
+    if card is not None:
+        orig = finance_mod.load_rate_card
+        finance_mod.load_rate_card = lambda root=None: (card, "local")
+        try:
+            return finance_mod.price_package(p)
+        finally:
+            finance_mod.load_rate_card = orig
+    return finance_mod.price_package(p)
+
+
 def op_text_probe(withp, clock, prior):
     p = ROOT / withp["file"]
     if not p.exists():
@@ -332,6 +381,8 @@ OPS = {
     "tasks.ping_pong": op_tasks_ping_pong,
     "shipments.manual": op_shipment_manual,
     "coverage.verify": op_coverage_verify,
+    "finance.price": op_finance_price,
+    "finance.price_package": op_finance_price_package,
     "text.probe": op_text_probe,
     "path.probe": op_path_probe,
 }

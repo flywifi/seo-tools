@@ -939,6 +939,185 @@
                 }
             ],
             "known_gaps": []
+        },
+        {
+            "id": "S7-coolbreeze-pitch",
+            "utterance": "CoolBreeze emailed asking for a long-form video plus a TikTok about their portable AC; is it a fit and what should I charge?",
+            "routing": {
+                "mode": "present",
+                "present": [
+                    {
+                        "classification": "pitch_triage",
+                        "spoke": "deal-pipeline"
+                    }
+                ],
+                "absent_classifications": [
+                    "brand_pitch",
+                    "pitch_review"
+                ],
+                "note": "One classification carries the whole inbound-pitch flow (P40 F1): pitch_triage (deal-pipeline) chains pitch-extract, product-fit, proposal-price, gap-record, govern-artifact. brand_pitch and pitch_review stay pinned absent: pitch_triage subsumes the intent."
+            },
+            "legs": [
+                {
+                    "id": "rate-floor-only-price",
+                    "op": "finance.price",
+                    "with": {
+                        "payload": {
+                            "rate_floor": 600
+                        }
+                    },
+                    "assert": [
+                        {
+                            "path": "price_floor",
+                            "check": "eq",
+                            "value": "600.00"
+                        },
+                        {
+                            "path": "bound",
+                            "check": "eq",
+                            "value": "negotiation_floor"
+                        },
+                        {
+                            "path": "gaps[0].gap_type",
+                            "check": "eq",
+                            "value": "no_cost_basis"
+                        },
+                        {
+                            "path": "rate_floor_source",
+                            "check": "eq",
+                            "value": "payload"
+                        }
+                    ]
+                },
+                {
+                    "id": "package-price-one-call",
+                    "op": "finance.price_package",
+                    "with": {
+                        "fixture": "coolbreeze-package.json",
+                        "rate_card_fixture": "coolbreeze-rate-card.json"
+                    },
+                    "assert": [
+                        {
+                            "path": "package_floor",
+                            "check": "eq",
+                            "value": "600.00"
+                        },
+                        {
+                            "path": "items[0].rate_floor_source",
+                            "check": "eq",
+                            "value": "rate_card"
+                        },
+                        {
+                            "path": "unpriceable_items",
+                            "check": "contains",
+                            "value": "tiktok video"
+                        },
+                        {
+                            "path": "gaps",
+                            "check": "matches",
+                            "value": "unpriceable_items"
+                        },
+                        {
+                            "path": "gaps",
+                            "check": "matches",
+                            "value": "benchmark_tier_assumed"
+                        }
+                    ]
+                },
+                {
+                    "id": "product-fit-contract",
+                    "op": "text.probe",
+                    "with": {
+                        "file": "skills/atoms/product-fit/SKILL.md",
+                        "pattern": "data_basis"
+                    },
+                    "assert": [
+                        {
+                            "path": "present",
+                            "check": "eq",
+                            "value": true
+                        }
+                    ]
+                },
+                {
+                    "id": "pitch-extract-contract",
+                    "op": "text.probe",
+                    "with": {
+                        "file": "skills/atoms/pitch-extract/SKILL.md",
+                        "pattern": "VERBATIM quote from the email"
+                    },
+                    "assert": [
+                        {
+                            "path": "present",
+                            "check": "eq",
+                            "value": true
+                        }
+                    ]
+                },
+                {
+                    "id": "wizard-brand-deals-screen",
+                    "op": "text.probe",
+                    "with": {
+                        "file": "tools/wizard.py",
+                        "pattern": "_screen_brand_deals"
+                    },
+                    "assert": [
+                        {
+                            "path": "present",
+                            "check": "eq",
+                            "value": true
+                        }
+                    ]
+                },
+                {
+                    "id": "contract-draft-profile-gaps",
+                    "op": "text.probe",
+                    "with": {
+                        "file": "skills/atoms/contract-draft/SKILL.md",
+                        "pattern": "profile_gaps"
+                    },
+                    "assert": [
+                        {
+                            "path": "present",
+                            "check": "eq",
+                            "value": true
+                        }
+                    ]
+                },
+                {
+                    "id": "lever-records-null-flagged",
+                    "op": "json.load",
+                    "with": {
+                        "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json"
+                    },
+                    "assert": [
+                        {
+                            "path": "[8].id",
+                            "check": "eq",
+                            "value": "uplift-paid-usage-30d"
+                        },
+                        {
+                            "path": "[8].low",
+                            "check": "null"
+                        },
+                        {
+                            "path": "[8].needs_research",
+                            "check": "eq",
+                            "value": true
+                        },
+                        {
+                            "path": "[11].id",
+                            "check": "eq",
+                            "value": "rate-tiktok-dedicated-50-100k"
+                        },
+                        {
+                            "path": "[11].low",
+                            "check": "null"
+                        }
+                    ]
+                }
+            ],
+            "known_gaps": []
         }
     ]
 }

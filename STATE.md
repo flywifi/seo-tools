@@ -2,10 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P39 are complete. Drift guard exits 0 (30 invariants). Branch:
+P6 through P40 are complete. Drift guard exits 0 (30 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
 
-- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Two class fixes (analytics-insights B->C, partnership-mediakit A->B); all Class-C mechanism text now names the real tool module; all 96 atoms carry an inherited one-line declaration; invariant 28 hardened to reject a stub (Class/Runs on/Mechanism/Fallback required). Final A=4/B=6/C=13. docs/CROSS-MODALITY-AUDIT.md has the per-skill verdicts + packaging candidates. The planned adversarial multi-agent audit hit a session limit after 4 spokes and was finished as a deterministic self-audit incorporating those findings (resumable for a full second opinion).
+- P40: brand-deal flow hardening, all 10 flaws from the CoolBreeze test run fixed. Finance core:
+  rate-floor-only pricing (`no_cost_basis` gap) + `price_package` (unpriceable items excluded,
+  never 0). Personal rate card: `pipeline/finance/rate-card.template.json` (real card gitignored),
+  format resolution with `rate_floor_source` provenance, `benchmark_tier_assumed`/`_mismatch` gaps.
+  Five structure-only benchmark lever records (null, `needs_research`, do-not-quote). New atoms:
+  `product-fit` (persona-scored verdict, mandatory `data_basis`, exclusivity red-flag cap) and
+  `pitch-extract` (untrusted body, envelope-stamped citation, verbatim compensation). New hub route
+  `pitch_triage` -> deal-pipeline chains extract -> fit -> package price -> gaps -> gate; contract
+  drafting stays human-requested. Wizard `/brand-deals` readiness screen (one-click local flag
+  enable); degraded messages name the exact flag + wizard route; contract-draft output carries
+  mandatory `profile_gaps[]`. Acceptance: 10/10 assertions on the live CLI + repo state (throwaway
+  sandbox removed); scenario `S7-coolbreeze-pitch` regression-locks the flow (7/7 suite green).
+  Runbook: `docs/BRAND-DEALS.md`.
+
+- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Full adversarial
+  audit completed across three resumed runs: 23/23 classifiers + 23/23 skeptics (22 upheld, 1
+  overturned an over-call). Class corrections applied; all 96 atoms carry an inherited one-line
+  declaration; invariant 28 hardened to reject a stub (Class/Runs on/Mechanism/Fallback required).
+  Final A=2/B=7/C=14. docs/CROSS-MODALITY-AUDIT.md has the per-skill verdicts + packaging candidates.
 
 - P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
   consent (`tools/geo_consent.py`): default-on but ask-first once per session, headless/declined falls
