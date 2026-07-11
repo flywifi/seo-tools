@@ -49,6 +49,7 @@ import tasks as tasks_mod  # noqa: E402
 import shipments as shipments_mod  # noqa: E402
 import coverage_verify as coverage_mod  # noqa: E402
 import finance as finance_mod  # noqa: E402
+import doctemplates as doct_mod  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location(
     "qr_score", ROOT / "skills" / "quality-review" / "scripts" / "score.py"
@@ -356,6 +357,26 @@ def op_finance_price_package(withp, clock, prior):
     return finance_mod.price_package(p)
 
 
+def op_doctemplates_validate(withp, clock, prior):
+    """Delegates to tools/doctemplates.validate_template (P42). Fixture-driven; the filename
+    argument controls starter-purity rules (fixtures use a .local.json name)."""
+    tpl = _load_fixture(withp, clock)
+    errors, warnings = doct_mod.validate_template(tpl, withp.get("as_filename", "fixture.local.json"))
+    return {"errors": errors, "warnings": warnings, "computed_by": "tools/doctemplates.py.validate"}
+
+
+def op_doctemplates_assemble(withp, clock, prior):
+    """Delegates to tools/doctemplates.assemble (P42): structural selection resolution + bracket
+    fills, all from committed fictional fixtures (profile via profile_fixture; nothing on-disk is
+    read or written)."""
+    tpl = _load_fixture(withp, clock)
+    sources = {}
+    if withp.get("profile_fixture"):
+        sources["profile"] = _load_fixture({"fixture": withp["profile_fixture"]}, clock)
+    return doct_mod.assemble(tpl, withp.get("selections") or {}, sources=sources,
+                             fills=withp.get("fills") or {})
+
+
 def op_text_probe(withp, clock, prior):
     p = ROOT / withp["file"]
     if not p.exists():
@@ -386,6 +407,8 @@ OPS = {
     "coverage.verify": op_coverage_verify,
     "finance.price": op_finance_price,
     "finance.price_package": op_finance_price_package,
+    "doctemplates.validate": op_doctemplates_validate,
+    "doctemplates.assemble": op_doctemplates_assemble,
     "text.probe": op_text_probe,
     "path.probe": op_path_probe,
 }

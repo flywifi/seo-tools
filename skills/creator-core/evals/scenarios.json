@@ -1152,6 +1152,147 @@
                 }
             ],
             "known_gaps": []
+        },
+        {
+            "id": "S8-vetted-template-assembly",
+            "utterance": "draft the CoolBreeze agreement from my vetted template, paid usage this time, no exclusivity",
+            "routing": {
+                "mode": "present",
+                "present": [
+                    {
+                        "classification": "template_manage",
+                        "spoke": "document-studio"
+                    },
+                    {
+                        "classification": "contract_draft",
+                        "spoke": "contract-desk"
+                    }
+                ],
+                "absent_classifications": [
+                    "template_assemble",
+                    "document_template"
+                ],
+                "note": "template_manage (document-studio) covers ingest/list/diff of doc-templates; assembling the vetted CONTRACT template rides the existing contract_draft route to contract-desk, which branches to template-assemble when a vetted template exists. template_assemble and document_template stay pinned absent: assembly is not a hub route (anti-synonym-bloat)."
+            },
+            "legs": [
+                {
+                    "id": "vetted-template-validates",
+                    "op": "doctemplates.validate",
+                    "with": {
+                        "fixture": "coolbreeze-vetted-template.json"
+                    },
+                    "assert": [
+                        {
+                            "path": "errors",
+                            "check": "len_eq",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "id": "assemble-swap-and-exclude",
+                    "op": "doctemplates.assemble",
+                    "with": {
+                        "fixture": "coolbreeze-vetted-template.json",
+                        "profile_fixture": "coolbreeze-profile.json",
+                        "selections": {
+                            "variants": {
+                                "usage_rights": "usage_organic_plus_paid"
+                            },
+                            "exclude": [
+                                "exclusivity"
+                            ],
+                            "reasons": {
+                                "exclusivity": "no exclusivity agreed in this deal"
+                            }
+                        },
+                        "fills": {
+                            "[BRAND_LEGAL_NAME]": "CoolBreeze Example Corp"
+                        }
+                    },
+                    "assert": [
+                        {
+                            "path": "document_text",
+                            "check": "matches",
+                            "value": "FIXTURE-USAGE-PAID"
+                        },
+                        {
+                            "path": "document_text",
+                            "check": "not_matches",
+                            "value": "FIXTURE-USAGE-ORGANIC:"
+                        },
+                        {
+                            "path": "document_text",
+                            "check": "not_matches",
+                            "value": "FIXTURE-EXCLUSIVITY"
+                        },
+                        {
+                            "path": "document_text",
+                            "check": "matches",
+                            "value": "^RESEARCH NOTES. NOT LEGAL ADVICE"
+                        },
+                        {
+                            "path": "document_text",
+                            "check": "matches",
+                            "value": "Fictional Creator LLC"
+                        },
+                        {
+                            "path": "document_text",
+                            "check": "matches",
+                            "value": "\\[GOVERNING_LAW_STATE\\]"
+                        },
+                        {
+                            "path": "ready_to_sign",
+                            "check": "eq",
+                            "value": false
+                        },
+                        {
+                            "path": "gaps",
+                            "check": "matches",
+                            "value": "governing_law_state"
+                        },
+                        {
+                            "path": "blocks_used[0].provenance_tag",
+                            "check": "eq",
+                            "value": "creator_vetted_text"
+                        },
+                        {
+                            "path": "human_review_required",
+                            "check": "eq",
+                            "value": true
+                        }
+                    ]
+                },
+                {
+                    "id": "both-variants-rejected",
+                    "op": "doctemplates.assemble",
+                    "with": {
+                        "fixture": "coolbreeze-vetted-template.json",
+                        "selections": {
+                            "include": [
+                                "usage_organic_plus_paid"
+                            ]
+                        }
+                    },
+                    "assert": [
+                        {
+                            "path": "selection_errors",
+                            "check": "len_gte",
+                            "value": 1
+                        },
+                        {
+                            "path": "selection_errors",
+                            "check": "matches",
+                            "value": "exactly one variant"
+                        },
+                        {
+                            "path": "document_text",
+                            "check": "null"
+                        }
+                    ]
+                }
+            ],
+            "known_gaps": []
         }
     ]
 }

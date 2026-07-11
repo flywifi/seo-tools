@@ -1,0 +1,9 @@
+{
+  "_comment": "FICTIONAL creator profile fixture for scenario S8 (P42): legal_name filled, governing_law_state deliberately null so the assembly leg proves the missing value stays bracketed and gapped.",
+  "creator_name": "Alex Fixture",
+  "creator_display_name": "Alex",
+  "legal_name": "Fictional Creator LLC",
+  "business_address": "100 Example Lane, Testville",
+  "governing_law_state": null,
+  "contact_email": null
+}

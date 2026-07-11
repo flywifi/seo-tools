@@ -825,6 +825,7 @@ _BRAND_DEAL_FLAGS = {
     "contract_management": "contract-desk review of an inbound brand contract (triage, clause findings, escalation brief)",
     "contract_drafting": "plain-language draft agreements from the deal playbook (requires contract_management)",
     "finance_management": "finance record writes: invoices, cost estimates, actuals under pipeline/finance/",
+    "document_templates": "the document-template lane: persist documents assembled from your saved block templates (contracts, rate cards, analytics overviews, terms); read-only assembly always works",
 }
 
 
@@ -855,6 +856,21 @@ def _screen_brand_deals(saved: str = "") -> str:
                 '<code>pipeline/user-context/creator-profile.local.json</code> (or run the ChatGPT '
                 'profile import) so contract drafts stop carrying placeholders for your legal name, '
                 'address, and governing-law state')
+    tmpl_rows = []
+    for tf in sorted((ROOT / "pipeline" / "templates").glob("*.local.json")):
+        try:
+            t = json.loads(tf.read_text(encoding="utf-8"))
+            tmpl_rows.append(f"<code>{tf.name}</code> ({t.get('doc_type')}, "
+                             f"{'vetted' if t.get('vetted') else 'not vetted'}, "
+                             f"{len(t.get('blocks') or [])} blocks)")
+        except (OSError, json.JSONDecodeError):
+            tmpl_rows.append(f"<code>{tf.name}</code> (unreadable)")
+    tmpl_state = ("<br>".join(tmpl_rows) if tmpl_rows else
+                  '<strong style="color:#cc2222">none saved</strong> &mdash; copy a starter from '
+                  '<code>pipeline/templates/</code> (contract base, rate card display, analytics '
+                  'overview, terms) to a <code>.local.json</code> and fill it, or ask for '
+                  'template-ingest to propose one from an old document (you save it by hand; '
+                  'gitignored, never committed)')
     saved_html = f'<div class="success-box">{saved}</div>' if saved else ""
     return _page("Brand Deals", f"""
 <h1>Brand-deal readiness</h1>
@@ -868,6 +884,7 @@ local gitignored files; your rates and legal details never reach GitHub.</p>
 <ul class="steps">
 <li><strong>Personal rate card</strong>: {rc_state}</li>
 <li><strong>Creator profile</strong>: {pf_state}</li>
+<li><strong>Document templates</strong>: {tmpl_state}</li>
 </ul>
 <div class="note">Rates and profile data are decision inputs, never auto-quoted: the
 consequential-action gate (amount, counterparty, explicit yes) applies before any number reaches a
