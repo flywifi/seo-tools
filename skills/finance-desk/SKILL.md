@@ -70,7 +70,9 @@ report, a sourced cost estimate, or a price floor with its binding constraint na
 
 ## Failure modes
 - Flags off: computations still run and are reported; nothing is written. Each refusal points at
-  its `degraded_behavior` entry.
+  its `degraded_behavior` entry, names the exact flag (`finance_management`, plus
+  `invoice_generation` for invoice writes), and points at the setup wizard's /brand-deals screen
+  (python3 tools/wizard.py) for the one-click enable.
 - No finance records yet: honest empty states, never fabricated pipelines.
 - Unstructured payment terms: due dates and penalties cannot be computed until the terms are
   normalized (quoted evidence or null, per the engine); the gap says exactly that.

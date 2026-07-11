@@ -26,12 +26,17 @@ committing money (see `shared/contract-engine.md` and `protocols/safety.md`).
 ## Capability gating (all default off)
 
 - `contract_management` (master): activates this spoke. When off, deal-pipeline's existing
-  plain-language contract-negotiating behavior is unchanged and this spoke does not run.
+  plain-language contract-negotiating behavior is unchanged and this spoke does not run. The
+  capability-off message names the exact flag and the fix: "contract_management is off; enable it
+  in creator-os-config.local.json or one click at the setup wizard's /brand-deals screen
+  (python3 tools/wizard.py)."
 - `legal_requirement_checks`: enables the legal-requirement scan step.
 - `contract_redline`: enables the full clause-by-clause review and, in Phase 2, version tracing
   (`amendment-trace`): net current state across contract versions.
 - `contract_drafting`: enables the Phase 2 plain-language draft assembly (`contract-draft`); the draft
-  is always not-vetted, not-binding, and never signed.
+  is always not-vetted, not-binding, and never signed. While off, drafting requests get the exact
+  flag name (`contract_drafting`) and the wizard route (/brand-deals) alongside the plain-language
+  term summary.
 - `contract_obligations` (Phase 3): enables `obligation-extract` (pull duties from a signed contract
   into rows) and the offline obligation register. The date math (send-by, weekend and US-holiday
   roll-back, urgency bands) runs in local Python via `tools/obligations.py`, not in tokens; the

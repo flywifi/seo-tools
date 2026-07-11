@@ -224,6 +224,7 @@ calendar, emails from brands, planning docs, and analytics spreadsheets.</p>
 If you go to claude.ai in a web browser, choose the first option.</p>
 <hr>
 <a class="btn btn-outline" href="/cross-modality">Use Creator OS on another AI (Custom GPT, Gemini, ...)</a>
+<a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
 """, dots=["active", "dot", "dot", "dot"])
 
 def _screen_claudeai() -> str:
@@ -792,6 +793,89 @@ make on your own &mdash; nobody sends you homework.</div>
 """)
 
 
+def _load_creator_config() -> dict:
+    """Merged capability config: committed creator-os-config.json overlaid by the gitignored
+    creator-os-config.local.json (same merge as tools/obligations.py load_config)."""
+    base: dict = {}
+    try:
+        base = json.loads((ROOT / "creator-os-config.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        pass
+    local_path = ROOT / "creator-os-config.local.json"
+    if local_path.exists():
+        try:
+            local = json.loads(local_path.read_text(encoding="utf-8"))
+            for k, v in local.get("capabilities", {}).items():
+                base.setdefault("capabilities", {})[k] = v
+        except (OSError, json.JSONDecodeError):
+            pass
+    return base
+
+
+def _flag_enabled(config: dict, name: str) -> bool:
+    caps = config.get("capabilities", {}) if isinstance(config, dict) else {}
+    meta = caps.get(name)
+    if isinstance(meta, dict):
+        return bool(meta.get("enabled", False))
+    return bool(meta)
+
+
+# The three capability flags the brand-deals screen may enable, and what each unlocks.
+_BRAND_DEAL_FLAGS = {
+    "contract_management": "contract-desk review of an inbound brand contract (triage, clause findings, escalation brief)",
+    "contract_drafting": "plain-language draft agreements from the deal playbook (requires contract_management)",
+    "finance_management": "finance record writes: invoices, cost estimates, actuals under pipeline/finance/",
+}
+
+
+def _screen_brand_deals(saved: str = "") -> str:
+    """Brand-deal readiness checklist: flag states, rate card + profile presence, one-click enable."""
+    cfg = _load_creator_config()
+    rows = []
+    for flag, unlocks in _BRAND_DEAL_FLAGS.items():
+        on = _flag_enabled(cfg, flag)
+        state = '<span class="check">ON</span>' if on else '<strong style="color:#cc2222">OFF</strong>'
+        action = "" if on else (
+            f'<form method="POST" action="/api/enable-capability" style="margin-top:6px">'
+            f'<input type="hidden" name="flag" value="{flag}">'
+            f'<button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;'
+            f'font-size:.85rem">Enable {flag}</button></form>')
+        rows.append(f"<li><strong>{flag}</strong>: {state}<br>"
+                    f'<span class="hint">{unlocks}</span>{action}</li>')
+    rate_card = ROOT / "pipeline" / "finance" / "rate-card.local.json"
+    profile = ROOT / "pipeline" / "user-context" / "creator-profile.local.json"
+    rc_state = ('<span class="check">found</span>' if rate_card.exists() else
+                '<strong style="color:#cc2222">missing</strong> &mdash; copy '
+                '<code>pipeline/finance/rate-card.template.json</code> to '
+                '<code>pipeline/finance/rate-card.local.json</code> and fill in your real rates '
+                '(gitignored; never committed)')
+    pf_state = ('<span class="check">found</span>' if profile.exists() else
+                '<strong style="color:#cc2222">missing</strong> &mdash; copy '
+                '<code>pipeline/user-context/creator-profile.template.json</code> to '
+                '<code>pipeline/user-context/creator-profile.local.json</code> (or run the ChatGPT '
+                'profile import) so contract drafts stop carrying placeholders for your legal name, '
+                'address, and governing-law state')
+    saved_html = f'<div class="success-box">{saved}</div>' if saved else ""
+    return _page("Brand Deals", f"""
+<h1>Brand-deal readiness</h1>
+<p>The <strong>pitch_triage</strong> flow (extract, fit-check, price floor, brief) always runs.
+These switches and files unlock the rest of the deal machinery. Everything here writes only to
+local gitignored files; your rates and legal details never reach GitHub.</p>
+{saved_html}
+<h2>Capability switches</h2>
+<ul class="steps">{''.join(rows)}</ul>
+<h2>Local files</h2>
+<ul class="steps">
+<li><strong>Personal rate card</strong>: {rc_state}</li>
+<li><strong>Creator profile</strong>: {pf_state}</li>
+</ul>
+<div class="note">Rates and profile data are decision inputs, never auto-quoted: the
+consequential-action gate (amount, counterparty, explicit yes) applies before any number reaches a
+brand, and contract drafts are plain-language, not-vetted, review-with-counsel.</div>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
 def _skill_modality_summary() -> dict:
     """Scan skills/*/SKILL.md for the '## Cross-modality' Class line. Returns {'A':[...], 'B':[...],
     'C':[...], 'unknown':[...]} of spoke names, so the wizard can say what runs where."""
@@ -956,6 +1040,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/publishing-setup/tiktok": _screen_publishing_tiktok(),
             "/publishing-setup/pinterest": _screen_publishing_pinterest(),
             "/freshness-setup": _screen_freshness(),
+            "/brand-deals": _screen_brand_deals(),
         }
         if path in routes:
             self._send(routes[path])
@@ -967,6 +1052,18 @@ publishing runs in manual mode for now. No action is needed here.</div>
 
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
+
+        if path == "/api/enable-capability":
+            data = self._read_form()
+            flag = data.get("flag", "").strip()
+            if flag not in _BRAND_DEAL_FLAGS:
+                self._send(_screen_brand_deals(saved=""), status=400)
+                return
+            _update_capability_flag(flag, {"enabled": True})
+            self._send(_screen_brand_deals(saved=(
+                f"<strong>{flag}</strong> enabled in creator-os-config.local.json (local only; "
+                "never committed). Restart any running MCP server to pick it up.")))
+            return
 
         if path == "/api/write-freshness":
             data = self._read_form()

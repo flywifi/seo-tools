@@ -122,7 +122,14 @@ assembly"), and tag the term with the source used:
   "recommend_counsel_reason": "string -- always set; a plain-language draft must be formalized with a qualified professional",
   "human_review_required": true,
   "ready_to_sign": false,
-  "retrieval_gaps": []
+  "retrieval_gaps": [],
+  "profile_gaps": [
+    {
+      "field": "string -- the creator-profile field left as a placeholder: e.g. legal_name, business_address, governing_law_state",
+      "placeholder_used": "string -- the placeholder text that appears in the draft",
+      "fix": "fill creator-profile.local.json under pipeline/user-context/ (profile import or the setup wizard's /brand-deals screen)"
+    }
+  ]
 }
 ```
 
@@ -136,6 +143,11 @@ Field rules:
 - `ready_to_sign` is always `false`; this atom drafts a starting point, it does not produce a signable
   agreement.
 - `recommend_counsel` is `true` and `human_review_required` is `true` on every output.
+- `profile_gaps` is MANDATORY on every output: one entry per placeholder the draft carries because
+  creator-profile.local.json is missing or incomplete (legal name, business address, governing-law
+  state, and any other party-identity field). An empty array means the profile supplied every
+  party-identity value. The draft is never blocked by profile gaps; the gaps travel with the
+  artifact through govern-artifact so the human sees exactly what to fill before formalizing.
 
 ## Do NOT use for
 
