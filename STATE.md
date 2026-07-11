@@ -2,8 +2,21 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P40 are complete. Drift guard exits 0 (30 invariants). Branch:
+P6 through P42 are complete. Drift guard exits 0 (31 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
+
+- P42: creator document templates. Block-structured reusable templates (contracts, rate-card
+  display docs, analytics overviews, terms/conditions) with swappable clause blocks: variant
+  groups for mutually exclusive alternatives, advisory conditions for the model, never_with and
+  requires enforced in code. Store `pipeline/templates/` gitignore-inverted (all-null committed
+  starters; attorney text only in gitignored .local files; invariant 31 enforces starter purity).
+  `tools/doctemplates.py` (26-check selftest incl. vetted-body byte-equality) assembles by
+  concatenation plus bracket fills from profile/deal/rate-card/export/manual sources, writes
+  gated by the `document_templates` flag. Atoms: `template-ingest` (proposal-only, exact-quote
+  bodies, human saves by hand) and `template-assemble` (model selects whole blocks with reasons,
+  code assembles; contract safety envelope preserved). Hub route `template_manage`;
+  contract-desk branches drafting to the vetted template when one exists. Scenario S8
+  regression-locks swap/exclude assembly. Runbook `docs/DOCUMENT-TEMPLATES.md`.
 
 - P40: brand-deal flow hardening, all 10 flaws from the CoolBreeze test run fixed. Finance core:
   rate-floor-only pricing (`no_cost_basis` gap) + `price_package` (unpriceable items excluded,

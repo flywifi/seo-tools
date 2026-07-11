@@ -73,10 +73,17 @@ only through a cited research pass.
 - **Private data stays local.** Rate cards, profiles, and deal records live in gitignored
   `.local.json` files; the pre-commit secret scan and drift invariants 19 to 21 fail closed in CI.
 
+## Reusable documents (P42)
+
+Rate cards, contracts, analytics overviews, and terms/conditions can be assembled from your own
+block-structured templates: upload an example, save the proposed template by hand, and future
+documents fill your brackets from the deal, the profile, and the rate card, with whole clause
+blocks swapped per situation. Runbook: `docs/DOCUMENT-TEMPLATES.md`.
+
 ## Verification
 
 ```bash
 python3 tools/finance.py --selftest      # includes the P40 pricing checks
-python3 tools/scenario_check.py          # S7-coolbreeze-pitch regression-locks the flow
-python3 tools/sync_check.py              # drift guard, 30 invariants
+python3 tools/scenario_check.py          # S7 pitch triage + S8 vetted-template assembly
+python3 tools/sync_check.py              # drift guard, 31 invariants
 ```

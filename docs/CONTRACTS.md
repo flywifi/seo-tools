@@ -54,6 +54,11 @@ watch your recent deals and nudge you ("you accepted this off-standard term in y
 update your default?"). It is proposal-only: it never writes your playbook. You confirm, edit, and
 save `deal-playbook.local.json` yourself.
 
+Beyond positions, your DOCUMENT can be reusable too (P42): an attorney-vetted base agreement can
+become a block-structured template with swappable clause blocks, assembled per deal with bracket
+fills and whole-block swaps only, the attorney's wording passing through verbatim. See
+`docs/DOCUMENT-TEMPLATES.md`.
+
 ## Where contracts live
 
 The contract itself is stored in `pipeline/contracts/` as a record linked to its deal. Only the
