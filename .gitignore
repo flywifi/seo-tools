@@ -31,6 +31,12 @@ pipeline/finance/*
 !pipeline/finance/*.template.json
 !pipeline/finance/*-schema.json
 
+# Document templates (P42): allowlist-invert. Creator templates and vetted contract/terms text
+# live ONLY in gitignored local files; only the all-null committed starters enter git.
+# Drift invariant 31 enforces starter purity (null bodies, no real provenance) as a second layer.
+pipeline/templates/*
+!pipeline/templates/*.template.json
+
 # Financial exports and statements: never committed, anywhere in the repo.
 pipeline/**/*.csv
 pipeline/**/*.xlsx

@@ -547,6 +547,10 @@ PIPELINE_TRACKED_ALLOWLIST = {
     "pipeline/finance/cost-estimate.template.json",
     "pipeline/finance/invoice.template.json",
     "pipeline/finance/rate-card.template.json",
+    "pipeline/templates/analytics-overview.template.json",
+    "pipeline/templates/contract-base.template.json",
+    "pipeline/templates/rate-card-display.template.json",
+    "pipeline/templates/terms-conditions.template.json",
     "pipeline/user-context/channel-context.json",
     "pipeline/user-context/content-calendar.json",
     "pipeline/user-context/creator-profile.template.json",
@@ -870,6 +874,45 @@ def check_implementation_schemas():
                 problem(f"implementation: {f.relative_to(ROOT)} is invalid YAML: {exc}")
 
 
+DOC_TEMPLATE_TYPES = {"contract", "rate_card", "analytics_overview", "terms_conditions"}
+
+
+def check_doc_template_starters():
+    """Invariant 31: committed doc-template starters are pure shape, never content (P42).
+
+    Every tracked pipeline/templates/*.template.json must parse, declare a doc_type from the
+    known set, and contain NO block body text, body_ref, or real provenance (body null, body_ref
+    null, provenance.source_ref null) and vetted must be false. Creator templates (including any
+    attorney-vetted contract text) live only in gitignored .local files; this guarantees no
+    legalese, real wording, or provenance ever enters git via a starter."""
+    tdir = ROOT / "pipeline" / "templates"
+    if not tdir.exists():
+        return
+    for f in sorted(tdir.glob("*.template.json")):
+        rel = f.relative_to(ROOT)
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"doc-template starter: {rel} is invalid JSON: {exc}")
+            continue
+        if data.get("doc_type") not in DOC_TEMPLATE_TYPES:
+            problem(f"doc-template starter: {rel} doc_type {data.get('doc_type')!r} not in "
+                    f"{sorted(DOC_TEMPLATE_TYPES)}")
+        if data.get("vetted") is not False:
+            problem(f"doc-template starter: {rel} must carry vetted: false (a committed starter "
+                    "is never a vetted document)")
+        for b in data.get("blocks", []):
+            bid = b.get("block_id", "<missing block_id>")
+            if b.get("body") is not None:
+                problem(f"doc-template starter: {rel} block {bid} has non-null body "
+                        "(starters are shape only; real text lives in gitignored .local files)")
+            if b.get("body_ref") is not None:
+                problem(f"doc-template starter: {rel} block {bid} has non-null body_ref")
+            if (b.get("provenance") or {}).get("source_ref") is not None:
+                problem(f"doc-template starter: {rel} block {bid} carries real provenance "
+                        "(source_ref must be null in a committed starter)")
+
+
 def check_currency_map():
     """Invariant 25: currency-map integrity (P36).
 
@@ -997,6 +1040,7 @@ def main():
     check_jurisdiction()
     check_cross_modality()
     check_implementation_schemas()
+    check_doc_template_starters()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
