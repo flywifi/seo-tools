@@ -198,7 +198,7 @@ def _page(title: str, body: str, dots: list[str] | None = None) -> str:
         ) + "</div>"
     return f"""<!DOCTYPE html><html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{title} — Creator OS Setup</title>
+<title>{title} - Creator OS Setup</title>
 <style>{_CSS}</style></head>
 <body>
 <div class="brand">Creator OS</div>
@@ -213,17 +213,21 @@ def _screen_welcome() -> str:
              "Claude Desktop does not appear to be installed on this computer."
     return _page("Welcome", f"""
 <h1>Welcome to Creator OS Setup</h1>
-<p>This wizard connects your Google and Microsoft accounts so Creator OS can read your
-calendar, emails from brands, planning docs, and analytics spreadsheets.</p>
+<p>This wizard sets up Creator OS for whichever AI you use, connects your Google and Microsoft
+accounts when you use Claude on this computer, and walks you through moving between AIs.</p>
 <p style="font-size:.9rem;color:#7a5a5a">Detected: <strong>{os_label}</strong>. {claude}</p>
+{_local_precondition_note()}
 <hr>
-<h2>How do you use Creator OS?</h2>
-<a class="btn btn-primary" href="/claudeai">I use it at <strong>claude.ai</strong> in my browser</a>
-<a class="btn btn-secondary" href="/desktop">I use <strong>Claude Desktop</strong> on this computer</a>
-<p class="hint">Not sure? If you have the Claude app installed on your computer, choose Desktop.
-If you go to claude.ai in a web browser, choose the first option.</p>
+<h2>Which AI do you use?</h2>
+<a class="btn btn-primary" href="/claudeai">Claude at <strong>claude.ai</strong> in my browser</a>
+<a class="btn btn-secondary" href="/desktop"><strong>Claude Desktop</strong> on this computer</a>
+<a class="btn btn-secondary" href="/chatgpt"><strong>ChatGPT</strong> (web chat, custom GPT, Projects, or the desktop app)</a>
+<a class="btn btn-secondary" href="/cross-modality?surface=gemini_gems"><strong>Gemini</strong> (Gems or the API)</a>
+<a class="btn btn-outline" href="/transitions">I use <strong>more than one</strong>, or I am switching</a>
+<p class="hint">Not sure? If you have the Claude app installed on your computer, choose Claude
+Desktop. If you chat in a web browser, pick the matching browser option.</p>
 <hr>
-<a class="btn btn-outline" href="/cross-modality">Use Creator OS on another AI (Custom GPT, Gemini, ...)</a>
+<a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
 """, dots=["active", "dot", "dot", "dot"])
 
@@ -261,6 +265,7 @@ def _screen_desktop(error: str = "") -> str:
     err_html = f'<div class="error-box">{error}</div>' if error else ""
     return _page("Claude Desktop Setup", f"""
 <h1>Claude Desktop Setup</h1>
+{_local_precondition_note()}
 <p>The wizard will update your Claude Desktop settings to add Google Workspace and Microsoft 365.
 You will restart Claude Desktop at the end and sign in when prompted.</p>
 {err_html}
@@ -292,6 +297,7 @@ def _screen_google(error: str = "") -> str:
         return _screen_google_done()
     return _page("Connect Google Workspace", f"""
 <h1>Connect Google Workspace</h1>
+{_local_precondition_note()}
 <p>Creator OS will be able to read your Gmail, Google Calendar, Google Drive, Docs, and Sheets.
 This is a <strong>one-time setup</strong> that takes about 5 minutes.</p>
 {err_html}
@@ -775,6 +781,7 @@ def _screen_freshness(saved: str = "") -> str:
     saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
     return _page("Freshness &amp; Data Store", f"""
 <h1>Keep your data fresh &mdash; your way</h1>
+{_local_precondition_note()}
 <p>Choose where your <strong>own</strong> refreshed reference data (platform specs, rates, API
 versions, code editions) is stored. Creator OS keeps it current on your machine and in the store you
 pick.</p>
@@ -874,6 +881,7 @@ def _screen_brand_deals(saved: str = "") -> str:
     saved_html = f'<div class="success-box">{saved}</div>' if saved else ""
     return _page("Brand Deals", f"""
 <h1>Brand-deal readiness</h1>
+{_local_precondition_note()}
 <p>The <strong>pitch_triage</strong> flow (extract, fit-check, price floor, brief) always runs.
 These switches and files unlock the rest of the deal machinery. Everything here writes only to
 local gitignored files; your rates and legal details never reach GitHub.</p>
@@ -921,34 +929,127 @@ def _skill_modality_summary() -> dict:
 
 
 # Per-surface wiring guidance (mirrors shared/cross-modality-engine.md packaging map).
+TRANSITIONS_PATH = ROOT / "shared" / "cross-modality" / "transitions.json"
+_TRANSITIONS_CACHE: dict = {}
+
+
+def _load_transitions() -> dict:
+    """The transition matrix (shared/cross-modality/transitions.json), cached. Returns {} when
+    absent so every screen still renders."""
+    if not _TRANSITIONS_CACHE:
+        try:
+            _TRANSITIONS_CACHE.update(json.loads(TRANSITIONS_PATH.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            return {}
+    return _TRANSITIONS_CACHE
+
+
+def _surface(sid: str) -> dict:
+    return (_load_transitions().get("surfaces") or {}).get(sid, {})
+
+
+def _repo_version() -> str:
+    try:
+        return (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "unknown"
+
+
+def _local_precondition_note() -> str:
+    """The banner explaining the wizard's local-machine precondition (E2)."""
+    return ('<div class="note"><strong>Where this wizard runs:</strong> on the computer where '
+            'you keep your Creator OS folder. Switches and files it writes affect this computer '
+            'and any tools you run from it. If you only use ChatGPT or claude.ai in a browser, '
+            'that is fine: the wizard just produces text and files for you to paste or upload; '
+            'nothing installs into your browser AI.</div>')
+
+
+# Per-surface wiring metadata. Labels and setup steps for the nine canonical surfaces come from
+# shared/cross-modality/transitions.json (single source of truth); this dict adds the wizard-only
+# (kind, availability) presentation strings, plus the human_curl extra that is not an AI surface.
 _SURFACES = {
-    "claude_desktop": ("Claude Desktop (local MCP)",
-        ["Add the MCP server from implementation/claude/desktop/claude_desktop_config_snippet.json.",
-         "Restart Claude Desktop. Tools like jurisdiction_resolve run offline; live lookups ask for consent."],
+    "claude_desktop": ("Claude Desktop (this computer)", None,
         "native", "Every class (A, B, C) runs natively."),
-    "claude_code": ("Claude Code / CLI",
-        ["Run the tools directly (python3 tools/...), or use the same MCP server."],
+    "claude_code": ("Claude Code / command line", None,
         "native", "Every class (A, B, C) runs natively."),
-    "claude_web": ("claude.ai web + mobile",
-        ["Host the remote MCP: python3 tools/mcp_server.py --serve-remote (reachable from Anthropic cloud).",
-         "In claude.ai, add it as a Custom Connector (remote MCP). One endpoint also serves ChatGPT + Gemini."],
-        "seam", "Class A native; B and C via the hosted remote-MCP connector."),
-    "custom_gpt": ("Custom GPT (OpenAI)",
-        ["In the GPT builder, add an Action and paste implementation/gpt/actions/*.yaml. Auth = None.",
-         "The GPT calls the public endpoints itself (server-side point-in-polygon)."],
-        "action", "Class A knowledge-only; B via a GPT Action; C only if you host the tool."),
-    "gemini_api": ("Gemini API (developer)",
-        ["Load implementation/gemini/*function-declarations.json as functionDeclarations.",
-         "When Gemini returns a call, YOUR app executes the HTTPS request and returns the result."],
+    "claude_web": ("claude.ai in a browser (web and mobile)", None,
+        "seam", "Class A native; B and C via a remote MCP connector that you or your developer "
+                "deploy behind HTTPS with authentication (the repo ships the server code and "
+                "runbook, not a hosted service)."),
+    "chatgpt_web_plain": ("ChatGPT web chat (plain chat at chatgpt.com)", None,
+        "none", "Class A only, via pasted custom instructions. No live tools, no flags."),
+    "chatgpt_custom_gpt": ("Custom GPT (built in the ChatGPT GPT builder)", None,
+        "action", "Class A via the knowledge pack; B via the public jurisdiction Action; C only "
+                  "via a deployed endpoint."),
+    "chatgpt_projects": ("ChatGPT Projects (a Project with files at chatgpt.com)", None,
+        "none", "Class A only, via Project instructions and files. No Actions, no tools."),
+    "chatgpt_desktop": ("ChatGPT desktop app", None,
+        "seam", "Class A via paste; B and C via a developer-mode MCP connector to a deployed "
+                "endpoint (plan availability needs verification)."),
+    "gemini_api": ("Gemini API (developer integration)", None,
         "action", "Class A knowledge-only; B and C via your backend executing the call."),
-    "gemini_gems": ("Gemini 'Gems' (consumer)",
-        ["Paste implementation/gemini/system-instruction.md into a Gem for the knowledge-only path.",
-         "Gems cannot call custom tools: paste a lon/lat yourself, or move to the Gemini API."],
-        "none", "Class A only. B and C are unavailable here (the one dead end)."),
+    "gemini_gems": ("Gemini Gems (consumer)", None,
+        "none", "Class A only. B and C are unavailable here."),
     "human_curl": ("Human (curl / browser, no AI)",
         ["python3 tools/geo_source_fetch.py resolve \"<address>\", or curl the public /query endpoints."],
         "curl", "Class B via curl; Class C by running the tool locally."),
 }
+
+_SURFACE_ALIASES = {"custom_gpt": "chatgpt_custom_gpt"}
+_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_custom_gpt", "chatgpt_projects", "chatgpt_desktop")
+
+
+def _surface_label(sid: str) -> str:
+    return _surface(sid).get("label") or _SURFACES.get(sid, ("?",))[0]
+
+
+def _surface_steps(sid: str) -> list:
+    steps = _surface(sid).get("setup_steps")
+    if steps:
+        return steps
+    return _SURFACES.get(sid, ("", [], "", ""))[1] or []
+
+
+def _screen_chatgpt(pick: str = "") -> str:
+    """The ChatGPT hub (E1/E3): pick your ChatGPT flavor, get numbered plain-language steps."""
+    if pick in _CHATGPT_SURFACES:
+        rec = _surface(pick)
+        steps_html = "".join(f"<li>{s}</li>" for s in _surface_steps(pick))
+        needs = rec.get("needs_verification") or []
+        needs_html = ("".join(f"<li>{n}</li>" for n in needs)) if needs else ""
+        needs_block = (f'<div class="note"><strong>Check against your ChatGPT plan:</strong>'
+                       f'<ul>{needs_html}</ul></div>') if needs_html else ""
+        return _page("ChatGPT Setup", f"""
+<h1>{_surface_label(pick)}</h1>
+<div class="note"><strong>Good to know:</strong> Creator OS capability switches are not enforced
+inside ChatGPT. They only take effect on a computer (or deployed connector endpoint) running the
+Creator OS tools.</div>
+<h2>Setup steps</h2>
+<ol class="steps">{steps_html}</ol>
+{needs_block}
+<p class="hint">Current Creator OS version: <strong>{_repo_version()}</strong>. Compare it with
+the "Packaging version" line at the top of anything you pasted earlier; if yours is lower,
+re-export and re-paste.</p>
+<a class="btn btn-outline" href="/transitions?frm=claude_desktop&to={pick}">What changes when I
+move here from my computer?</a>
+<a class="btn btn-outline" href="/chatgpt">Pick another ChatGPT option</a>
+<a class="btn btn-outline" href="/">Back to start</a>
+""")
+    picker = "".join(
+        f'<a class="btn btn-outline" href="/chatgpt?pick={sid}" '
+        f'style="display:block;margin:6px 0">{_surface_label(sid)}</a>'
+        for sid in _CHATGPT_SURFACES)
+    return _page("ChatGPT Setup", f"""
+<h1>Use Creator OS with ChatGPT</h1>
+<p>Pick how you use ChatGPT. Each option gets its own steps; they differ a lot.</p>
+{picker}
+<div class="note">Whichever you pick: your Creator OS files stay on your computer, capability
+switches are not enforced inside ChatGPT, and pasting private data (rates, contracts, personal
+details) is a deliberate decision. Read the paste-safety guidance before moving private data.</div>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/transitions">Moving between AIs?
+Open the transitions guide</a>
+<a class="btn btn-outline" href="/">Back to start</a></p>
+""")
 
 
 def _screen_cross_modality(surface: str = "") -> str:
@@ -956,8 +1057,8 @@ def _screen_cross_modality(surface: str = "") -> str:
     summ = _skill_modality_summary()
     picker = "".join(
         f'<a class="btn btn-outline" href="/cross-modality?surface={k}" '
-        f'style="display:block;margin:6px 0">{v[0]}</a>'
-        for k, v in _SURFACES.items())
+        f'style="display:block;margin:6px 0">{_surface_label(k)}</a>'
+        for k in _SURFACES)
     body = f"""
 <h1>Use Creator OS on any AI (or none)</h1>
 <p>Every skill declares where it can run outside Claude (see <code>shared/cross-modality-engine.md</code>).
@@ -969,8 +1070,11 @@ Your skills today: <strong>{len(summ['A'])}</strong> Class A, <strong>{len(summ[
 {picker}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
 """
+    surface = _SURFACE_ALIASES.get(surface, surface)
     if surface in _SURFACES:
-        label, steps, kind, avail = _SURFACES[surface]
+        _, _, kind, avail = _SURFACES[surface]
+        label = _surface_label(surface)
+        steps = _surface_steps(surface)
         steps_html = "".join(f"<li>{s}</li>" for s in steps)
         # which of the user's skills work here
         if kind in ("native", "seam", "action", "curl"):
@@ -1043,6 +1147,11 @@ publishing runs in manual mode for now. No action is needed here.</div>
             self._send(_screen_cross_modality(q.get("surface", [""])[0]))
             return
 
+        if path == "/chatgpt":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(_screen_chatgpt(q.get("pick", [""])[0]))
+            return
+
         routes: dict[str, str | None] = {
             "/": _screen_welcome(),
             "/cross-modality": _screen_cross_modality(),
@@ -1058,6 +1167,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/publishing-setup/pinterest": _screen_publishing_pinterest(),
             "/freshness-setup": _screen_freshness(),
             "/brand-deals": _screen_brand_deals(),
+            "/chatgpt": _screen_chatgpt(),
         }
         if path in routes:
             self._send(routes[path])
