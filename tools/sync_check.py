@@ -913,6 +913,67 @@ def check_doc_template_starters():
                         "(source_ref must be null in a committed starter)")
 
 
+TRANSITION_SURFACE_KEYS = {
+    "claude_desktop", "claude_code", "claude_web", "chatgpt_web_plain", "chatgpt_custom_gpt",
+    "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_gems",
+}
+TRANSITION_SURFACE_REQUIRED = ("label", "vendor", "class_support", "carries", "flags_enforced",
+                               "local_machine_required", "store_options", "setup_steps")
+TRANSITION_CLASS_VALUES = {"native", "paste", "remote_mcp", "action", "none"}
+
+
+def check_transitions():
+    """Invariant 32: the cross-modality transition matrix, its doc mirror, the wizard surface
+    keys, and the packaging version stamps stay consistent (P43).
+
+    (a) transitions.json parses and its surface key set equals TRANSITION_SURFACE_KEYS exactly;
+    (b) every surface record carries the required keys with valid class_support values;
+    (c) every pair_overrides key is "<a>-><b>" with both ids in the surface set;
+    (d) docs/TRANSITIONS.md names every surface label (the human mirror cannot drop a surface);
+    (e) tools/wizard.py names every surface id (added with the /transitions screen);
+    (f) packaging artifacts carry the "Packaging version:" stamp (added with the stamp phase);
+    (g) every spoke Cross-modality Fallback line names ChatGPT (added with the fallback sweep)."""
+    p = ROOT / "shared" / "cross-modality" / "transitions.json"
+    if not p.exists():
+        problem("transitions: shared/cross-modality/transitions.json missing")
+        return
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"transitions: transitions.json is invalid JSON: {exc}")
+        return
+    surfaces = data.get("surfaces") or {}
+    got = set(surfaces.keys())
+    if got != TRANSITION_SURFACE_KEYS:
+        problem(f"transitions: surface key set mismatch; missing {sorted(TRANSITION_SURFACE_KEYS - got)}, "
+                f"unexpected {sorted(got - TRANSITION_SURFACE_KEYS)}")
+    for sid, rec in surfaces.items():
+        for key in TRANSITION_SURFACE_REQUIRED:
+            if key not in rec:
+                problem(f"transitions: surface {sid} missing required key {key!r}")
+        for cls, mode in (rec.get("class_support") or {}).items():
+            if mode not in TRANSITION_CLASS_VALUES:
+                problem(f"transitions: surface {sid} class_support[{cls}]={mode!r} not in "
+                        f"{sorted(TRANSITION_CLASS_VALUES)}")
+    for pair in (data.get("pair_overrides") or {}):
+        if "->" not in pair:
+            problem(f"transitions: pair key {pair!r} is not '<from>-><to>'")
+            continue
+        frm, _, to = pair.partition("->")
+        for sid in (frm, to):
+            if sid not in TRANSITION_SURFACE_KEYS:
+                problem(f"transitions: pair {pair!r} names unknown surface {sid!r}")
+    doc = ROOT / "docs" / "TRANSITIONS.md"
+    if not doc.exists():
+        problem("transitions: docs/TRANSITIONS.md missing (human mirror of the matrix)")
+    else:
+        doc_text = doc.read_text(encoding="utf-8")
+        for sid, rec in surfaces.items():
+            label = rec.get("label")
+            if label and label not in doc_text:
+                problem(f"transitions: docs/TRANSITIONS.md does not mention surface label {label!r}")
+
+
 def check_currency_map():
     """Invariant 25: currency-map integrity (P36).
 
@@ -1041,6 +1102,7 @@ def main():
     check_cross_modality()
     check_implementation_schemas()
     check_doc_template_starters()
+    check_transitions()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

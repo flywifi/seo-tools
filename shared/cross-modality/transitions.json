@@ -1,0 +1,270 @@
+{
+  "_comment": "Single source of truth for AI surfaces and the transitions between them (P43). Consumed by tools/wizard.py (/chatgpt, /transitions, /cross-modality) and mirrored by docs/TRANSITIONS.md. Drift invariant 32 keeps the JSON, the doc, and the wizard surface keys consistent. Every OpenAI or Google product claim this repo cannot verify from cited research carries a literal [NEEDS VERIFICATION: ...] tag; treat those as things to check against your own plan, never as facts.",
+  "schema_version": 1,
+  "surfaces": {
+    "claude_desktop": {
+      "label": "Claude Desktop (this computer)",
+      "vendor": "anthropic",
+      "class_support": {"A": "native", "B": "native", "C": "native"},
+      "carries": ["local_files", "local_tools", "mcp_tools", "connectors", "flag_enforcement"],
+      "flags_enforced": true,
+      "local_machine_required": true,
+      "store_options": ["local_fs", "google_drive"],
+      "setup_steps": [
+        "Install Claude Desktop and keep your Creator OS folder on this computer.",
+        "Run the wizard (python3 tools/wizard.py) and pick Claude Desktop; it writes the MCP entries to your Claude Desktop config.",
+        "Restart Claude Desktop; the Creator OS tools appear automatically."
+      ],
+      "needs_verification": []
+    },
+    "claude_code": {
+      "label": "Claude Code / command line",
+      "vendor": "anthropic",
+      "class_support": {"A": "native", "B": "native", "C": "native"},
+      "carries": ["local_files", "local_tools", "mcp_tools", "connectors", "flag_enforcement"],
+      "flags_enforced": true,
+      "local_machine_required": true,
+      "store_options": ["local_fs", "google_drive"],
+      "setup_steps": [
+        "Open a terminal in your Creator OS folder.",
+        "Run tools directly (python3 tools/...), or use the same MCP server as Claude Desktop."
+      ],
+      "needs_verification": []
+    },
+    "claude_web": {
+      "label": "claude.ai in a browser (web and mobile)",
+      "vendor": "anthropic",
+      "class_support": {"A": "native", "B": "remote_mcp", "C": "remote_mcp"},
+      "carries": ["pasted_instructions", "knowledge_files", "remote_mcp_connectors"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["export_and_you_save", "google_drive"],
+      "setup_steps": [
+        "For knowledge-only use, add the Creator OS knowledge files to a claude.ai Project.",
+        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it in claude.ai as a custom connector."
+      ],
+      "needs_verification": []
+    },
+    "chatgpt_web_plain": {
+      "label": "ChatGPT web chat (plain chat at chatgpt.com)",
+      "vendor": "openai",
+      "class_support": {"A": "paste", "B": "none", "C": "none"},
+      "carries": ["pasted_instructions", "uploaded_files"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["export_and_you_save"],
+      "setup_steps": [
+        "Open ChatGPT Settings, then Personalization, then Custom Instructions.",
+        "Paste the two boxes from implementation/gpt/web/custom-instructions.md (the file tells you which text goes in which box).",
+        "This is knowledge-only mode: no live data, no local tools, no capability flags. Numbers you did not supply in the chat are never real Creator OS data.",
+        "At the start of a session, upload your latest dated export file if you keep one (see the read-back steps in docs/TRANSITIONS.md)."
+      ],
+      "needs_verification": []
+    },
+    "chatgpt_custom_gpt": {
+      "label": "Custom GPT (built in the ChatGPT GPT builder)",
+      "vendor": "openai",
+      "class_support": {"A": "paste", "B": "action", "C": "none"},
+      "carries": ["pasted_instructions", "knowledge_files", "actions"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["export_and_you_save"],
+      "setup_steps": [
+        "Ask Creator OS (on your computer) for a Custom GPT export; the export-gpt package gives you an instruction file and up to 20 knowledge files.",
+        "In the GPT builder, paste the instruction file and upload the knowledge files.",
+        "Optionally add the jurisdiction Action: paste implementation/gpt/actions/jurisdiction_overlay_action.yaml as an Action with authentication set to none.",
+        "Privacy note: an Action sends what you type (for example an address) to OpenAI and to the public endpoint it calls; the local ask-first consent step does not apply here (see docs/PASTE-SAFETY.md)."
+      ],
+      "needs_verification": ["knowledge file count and size limits in the GPT builder for your plan"]
+    },
+    "chatgpt_projects": {
+      "label": "ChatGPT Projects (a Project with files at chatgpt.com)",
+      "vendor": "openai",
+      "class_support": {"A": "paste", "B": "none", "C": "none"},
+      "carries": ["pasted_instructions", "knowledge_files"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["export_and_you_save"],
+      "setup_steps": [
+        "Create a Project in ChatGPT and set the Project instructions to the instruction file from a Custom GPT export (same pack works here).",
+        "Upload the knowledge files to the Project files area. [NEEDS VERIFICATION: Project file count and size limits for your plan]",
+        "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when to re-upload."
+      ],
+      "needs_verification": ["Project file count and size limits", "whether Project instructions have a length limit on your plan"]
+    },
+    "chatgpt_desktop": {
+      "label": "ChatGPT desktop app",
+      "vendor": "openai",
+      "class_support": {"A": "paste", "B": "remote_mcp", "C": "remote_mcp"},
+      "carries": ["pasted_instructions", "uploaded_files", "mcp_connectors_devmode"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["export_and_you_save", "google_drive_conditional"],
+      "setup_steps": [
+        "Install the ChatGPT desktop app and sign in.",
+        "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version.",
+        "For live Creator OS tools: open Settings, then Connectors, and enable developer mode if your plan offers it. [NEEDS VERIFICATION: developer-mode connector availability depends on your ChatGPT plan]",
+        "Add your deployed Creator OS remote MCP endpoint as a connector (implementation/gpt/mcp-connector/README.md). Without a deployed endpoint there are no live tools here.",
+        "Capability flags are not enforced on this surface; the connector endpoint enforces its own gates on the machine where it runs."
+      ],
+      "needs_verification": ["developer-mode MCP connector availability and plan gating", "connector file-access scope"]
+    },
+    "gemini_api": {
+      "label": "Gemini API (developer integration)",
+      "vendor": "google",
+      "class_support": {"A": "native", "B": "action", "C": "action"},
+      "carries": ["pasted_instructions", "function_declarations", "your_backend"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["google_drive", "export_and_you_save"],
+      "setup_steps": [
+        "Load implementation/gemini/*function-declarations.json as functionDeclarations in your app.",
+        "When Gemini returns a function call, YOUR app executes the HTTPS request and returns the result.",
+        "Flags are enforced only if your backend runs the Creator OS Python tools."
+      ],
+      "needs_verification": []
+    },
+    "gemini_gems": {
+      "label": "Gemini Gems (consumer)",
+      "vendor": "google",
+      "class_support": {"A": "paste", "B": "none", "C": "none"},
+      "carries": ["pasted_instructions"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["export_and_you_save", "google_drive"],
+      "setup_steps": [
+        "Paste implementation/gemini/system-instruction.md into a Gem.",
+        "Gems cannot call custom tools; this is knowledge-only. For live data, move to the Gemini API or a Claude surface."
+      ],
+      "needs_verification": []
+    }
+  },
+  "pair_overrides": {
+    "claude_desktop->chatgpt_web_plain": {
+      "travels_automatically": [],
+      "needs_export": ["the knowledge pack (custom-instructions.md, pasted into ChatGPT settings)", "your freshness or task data as a dated export file (export-and-you-save)"],
+      "stops_working": ["all Class C tools: finance math, document-template assembly, obligation date math, the deterministic quality score", "capability flag enforcement (nothing evaluates your local config there)", "all local stores: rate card, deals, contracts, templates, profile", "live connectors and publishing gates"],
+      "reimport_steps": ["paste the two custom-instruction boxes once", "at the start of each ChatGPT session, upload your latest dated export file if you want it considered"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": ["ALL capability flags: contract, finance, publishing, templates"],
+      "notes": ["Read docs/PASTE-SAFETY.md before pasting anything: rate card numbers, contract text, and personal identity details do not belong in a third-party chat without a deliberate decision."]
+    },
+    "claude_desktop->chatgpt_custom_gpt": {
+      "travels_automatically": [],
+      "needs_export": ["a Custom GPT package from export-gpt (instruction file + up to 20 knowledge files)", "optionally the jurisdiction Action YAML"],
+      "stops_working": ["all Class C tools", "capability flag enforcement", "local stores", "the local ask-first consent step for live lookups (the Action calls public endpoints from OpenAI's side)"],
+      "reimport_steps": ["paste the instruction file in the GPT builder", "upload the knowledge files", "re-export and re-upload when the packaging version changes"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": ["ALL capability flags"],
+      "notes": ["The Action privacy note applies: what you type into the GPT goes to OpenAI and to the public endpoint."]
+    },
+    "claude_desktop->chatgpt_projects": {
+      "travels_automatically": [],
+      "needs_export": ["the same Custom GPT package (instruction + knowledge files) reused as Project instructions + Project files"],
+      "stops_working": ["all Class C tools", "capability flag enforcement", "local stores"],
+      "reimport_steps": ["set Project instructions to the instruction file", "upload knowledge files to the Project", "re-upload when the packaging version changes"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": ["ALL capability flags"],
+      "notes": ["Project file and instruction limits vary by plan [NEEDS VERIFICATION: check your plan]."]
+    },
+    "claude_desktop->chatgpt_desktop": {
+      "travels_automatically": [],
+      "needs_export": ["the knowledge pack (paste path), OR nothing if you deploy the remote MCP connector"],
+      "stops_working": ["without a deployed connector: everything the plain-web transition loses", "with a deployed connector: nothing tool-wise, but flag enforcement happens on the machine running the endpoint, not inside ChatGPT"],
+      "reimport_steps": ["paste custom instructions for the knowledge baseline", "or deploy the remote MCP endpoint (implementation/gpt/mcp-connector/README.md) and add it as a developer-mode connector [NEEDS VERIFICATION: plan gating]"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": ["flags are evaluated by the deployed endpoint's machine, never by ChatGPT itself"],
+      "notes": ["This is the strongest ChatGPT surface for Creator OS because of the connector option."]
+    },
+    "claude_desktop->claude_web": {
+      "travels_automatically": [],
+      "needs_export": ["knowledge files into a claude.ai Project, OR deploy the remote MCP connector for live tools"],
+      "stops_working": ["without a connector: Class C tools, flags, local stores", "with a connector: nothing tool-wise; flags enforce on the endpoint's machine"],
+      "reimport_steps": ["upload the Project knowledge files", "or add the deployed endpoint as a claude.ai custom connector"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": ["without a connector: all flags"],
+      "notes": []
+    },
+    "claude_web->chatgpt_web_plain": {
+      "travels_automatically": [],
+      "needs_export": ["the ChatGPT knowledge pack (claude.ai Project files do not transfer; re-paste the ChatGPT custom instructions)"],
+      "stops_working": ["any remote MCP connector you used on claude.ai (plain ChatGPT web cannot use it)"],
+      "reimport_steps": ["paste custom-instructions.md into ChatGPT settings", "carry data across as dated export files you upload per session"],
+      "stays_authoritative": "google_drive",
+      "flags_unenforced": ["ALL capability flags on both surfaces"],
+      "notes": ["Neither surface can merge data files; the newest dated file wins. Your computer's tools merge properly when the files come home."]
+    },
+    "chatgpt_web_plain->claude_desktop": {
+      "travels_automatically": [],
+      "needs_export": ["your ChatGPT profile answers via the profile-import prompt (implementation/gpt/profile-import/PROMPT.md)", "any dated export files you accumulated"],
+      "stops_working": [],
+      "reimport_steps": ["run the profile-import prompt once per ChatGPT context (default chat, each Project, each custom GPT) and paste the JSON back home", "the profile-import atom proposes creator-profile.local.json with per-field provenance; you review and save it by hand", "drop dated export files into your store folder; the local tools union-merge them automatically"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": [],
+      "notes": ["Everything gains enforcement again on this transition: flags, consent gates, deterministic tools."]
+    },
+    "chatgpt_web_plain->chatgpt_custom_gpt": {
+      "travels_automatically": ["your ChatGPT account context (memory) may carry over [NEEDS VERIFICATION: memory behavior inside GPTs varies]"],
+      "needs_export": ["the Custom GPT package (instruction + knowledge files); custom instructions do not apply inside a GPT"],
+      "stops_working": [],
+      "reimport_steps": ["build the GPT from the export-gpt package", "re-run the profile-import prompt inside the GPT context if you rely on profile answers there"],
+      "stays_authoritative": "export_and_you_save",
+      "flags_unenforced": ["ALL capability flags on both surfaces"],
+      "notes": []
+    },
+    "chatgpt_custom_gpt->chatgpt_projects": {
+      "travels_automatically": [],
+      "needs_export": ["reuse the same instruction + knowledge files as Project instructions + files"],
+      "stops_working": ["Actions (Projects have no Actions; the jurisdiction lookup stops working)"],
+      "reimport_steps": ["create the Project, paste instructions, upload files"],
+      "stays_authoritative": "export_and_you_save",
+      "flags_unenforced": ["ALL capability flags on both surfaces"],
+      "notes": []
+    },
+    "chatgpt_web_plain->chatgpt_desktop": {
+      "travels_automatically": ["your ChatGPT account, chats, memory, and custom instructions (same account)"],
+      "needs_export": [],
+      "stops_working": [],
+      "reimport_steps": ["nothing for the knowledge baseline", "optionally add a deployed remote MCP connector in developer mode for live tools [NEEDS VERIFICATION: plan gating]"],
+      "stays_authoritative": "export_and_you_save",
+      "flags_unenforced": ["ALL capability flags unless a deployed connector enforces them on its own machine"],
+      "notes": ["This is the easiest upgrade: same account, plus the connector option."]
+    },
+    "chatgpt_desktop->claude_desktop": {
+      "travels_automatically": [],
+      "needs_export": ["profile answers via the profile-import prompt", "dated export files"],
+      "stops_working": [],
+      "reimport_steps": ["same as the plain-web return: profile-import proposal, hand-save, drop dated files into the store"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": [],
+      "notes": []
+    },
+    "claude_desktop->gemini_gems": {
+      "travels_automatically": [],
+      "needs_export": ["the Gem instruction pack (export-gem; 10-file knowledge limit)"],
+      "stops_working": ["all Class B and C capabilities (Gems cannot call custom tools)", "flags", "local stores"],
+      "reimport_steps": ["paste the Gem instruction", "re-paste when the packaging version changes"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": ["ALL capability flags"],
+      "notes": ["Gems are the most limited surface; only pure-reasoning skills work."]
+    },
+    "gemini_gems->chatgpt_custom_gpt": {
+      "travels_automatically": [],
+      "needs_export": ["the Custom GPT package (the Gem pack is Gemini-shaped; export fresh for the GPT builder)"],
+      "stops_working": [],
+      "reimport_steps": ["build the GPT from the export-gpt package; the jurisdiction Action becomes available again"],
+      "stays_authoritative": "export_and_you_save",
+      "flags_unenforced": ["ALL capability flags on both surfaces"],
+      "notes": []
+    },
+    "claude_code->claude_desktop": {
+      "travels_automatically": ["everything: same computer, same files, same tools, same flags"],
+      "needs_export": [],
+      "stops_working": [],
+      "reimport_steps": ["run the wizard once so Claude Desktop's config carries the MCP entries"],
+      "stays_authoritative": "local_fs",
+      "flags_unenforced": [],
+      "notes": []
+    }
+  }
+}
