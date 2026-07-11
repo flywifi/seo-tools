@@ -269,6 +269,11 @@
       "enabled": false,
       "description": "Feature 10. Render an .mlt timeline (or single-asset cut list) to a video file locally: melt when installed, ffmpeg concat encode as fallback. App-driving tier: also requires the video_editing_enabled master gate, like Compressor.",
       "requires": "video_editing_enabled plus this flag, and melt or ffmpeg on PATH. See requirements-videoedit.txt for the optional backends."
+    },
+    "document_templates": {
+      "enabled": false,
+      "description": "Master gate for the document-template lane (P42): the pipeline/templates/ store, tools/doctemplates.py writes, and the template-ingest / template-assemble atoms. Templates are block-structured (contracts, rate-card display docs, analytics overviews, terms/conditions) with swappable clause blocks. The system never authors block body text: vetted legalese enters only via creator upload and leaves only verbatim (bracket fills and whole-block include/exclude/swap). Read-only assemble/validate/list/diff always work without this flag; only persistence is gated.",
+      "requires": "Nothing external. Real templates live in gitignored pipeline/templates/*.local.json (the committed *.template.json starters are all-null shapes, drift invariant 31). Assembling a contract or terms/conditions document additionally requires contract_management and contract_drafting."
     }
   },
   "degraded_behavior": {
@@ -309,7 +314,8 @@
     "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior.",
     "finance_management_disabled": "finance_management is off. AR aging and invoice status remain fully readable (tools/finance.py --ar-scan and the invoice-status atom need no flag), and all money math still runs offline on request, but no invoice record, cost estimate, or cost actual is written to pipeline/finance/. Turn the flag on to persist records.",
     "invoice_generation_disabled": "invoice_generation is off. The system still computes what an invoice WOULD contain (line items, due date from structured terms, totals) and reports it for manual invoicing, but writes no invoice record and produces no invoice document.",
-    "cost_research_disabled": "cost_research is off. Cost estimates use only vendor quotes you provide, the local cost library, and labeled assumptions; no web research for prices is dispatched. Estimates remain honest: unknown costs are null and flagged, never guessed."
+    "cost_research_disabled": "cost_research is off. Cost estimates use only vendor quotes you provide, the local cost library, and labeled assumptions; no web research for prices is dispatched. Estimates remain honest: unknown costs are null and flagged, never guessed.",
+    "document_templates_disabled": "document_templates is off. tools/doctemplates.py still validates, lists, diffs, and COMPUTES an assembled document read-only (the result is returned with a _gate note), but nothing is written to disk. Template ingestion proposals still work (they never write anyway; the human saves the .local.json by hand). Turn the flag on in creator-os-config.local.json or one click at the setup wizard's /brand-deals screen to persist assembled documents. Contract and terms/conditions assembly additionally requires contract_management and contract_drafting; the system never emits binding contract language as if vetted, and assembled contracts are always ready_to_sign: false drafts for counsel."
   },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
 }
