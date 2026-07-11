@@ -1,5 +1,5 @@
 {
-  "_comment": "Creator OS connector registry + feature-flag contract. Each connector declares the normalized EVIDENCE it can provide so an atom can use whatever is available and DEGRADE via alternates when one is off. Offline contract only — we build NO provider auth/API clients here. Live retrieval is realized by the host AI's native integration (Claude / OpenAI / Gemini) when the deployment has connected it, or via manual_paste / uploaded_file. A deployment may RESTRICT specific evidence even when a connector is active (see per-deployment 'restricted_evidence' + reason); atoms then take what they can get and look elsewhere. Prose: connectors.md. Per-deployment flags: feature-flags.example.json.",
+  "_comment": "Creator OS connector registry + feature-flag contract. Each connector declares the normalized EVIDENCE it can provide so an atom can use whatever is available and DEGRADE via alternates when one is off. Offline contract only \u2014 we build NO provider auth/API clients here. Live retrieval is realized by the host AI's native integration (Claude / OpenAI / Gemini) when the deployment has connected it, or via manual_paste / uploaded_file. A deployment may RESTRICT specific evidence even when a connector is active (see per-deployment 'restricted_evidence' + reason); atoms then take what they can get and look elsewhere. Prose: connectors.md. Per-deployment flags: feature-flags.example.json.",
   "version": "0.2.0",
   "updated": "2026-07-03",
   "states": [
@@ -133,7 +133,7 @@
         "content_calendar"
       ],
       "privacy_sensitivity": "depends_on_content",
-      "auth_note": "none — creator pastes data directly into the conversation",
+      "auth_note": "none \u2014 creator pastes data directly into the conversation",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
         "option_b_claude_projects",
@@ -155,7 +155,7 @@
         "rate_benchmarks"
       ],
       "privacy_sensitivity": "depends_on_content",
-      "auth_note": "none — creator uploads .pdf/.docx/.csv/.xlsx; read via docintel-engine and parse_text.py",
+      "auth_note": "none \u2014 creator uploads .pdf/.docx/.csv/.xlsx; read via docintel-engine and parse_text.py",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
         "option_b_claude_projects",
@@ -177,7 +177,7 @@
         "rate_benchmarks"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — reads pipeline/user-context/*.local.json; gitignored, never committed. Created by tools/setup.py.",
+      "auth_note": "none \u2014 reads pipeline/user-context/*.local.json; gitignored, never committed. Created by tools/setup.py.",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
       ],
@@ -449,7 +449,7 @@
         "competitor_data"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — reads shared/cache/index.local.db (FTS5 keyword cache) and pipeline/competitor-snapshots/index.local.db (competitor metadata). Both gitignored. Built by tools/setup.py and tools/competitor_snapshot.py.",
+      "auth_note": "none \u2014 reads shared/cache/index.local.db (FTS5 keyword cache) and pipeline/competitor-snapshots/index.local.db (competitor metadata). Both gitignored. Built by tools/setup.py and tools/competitor_snapshot.py.",
       "requires_capability": "keyword_cache",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -467,7 +467,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes 8 tools: cache_query, competitor_scan, source_staleness, drift_check, quality_score, add_competitor, get_capabilities, get_connectors. Enable by setting mcp_server: true in creator-os-config.local.json.",
+      "auth_note": "none \u2014 stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes 8 tools: cache_query, competitor_scan, source_staleness, drift_check, quality_score, add_competitor, get_capabilities, get_connectors. Enable by setting mcp_server: true in creator-os-config.local.json.",
       "requires_capability": "mcp_server",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -501,7 +501,7 @@
         "trend_data"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — pip install -r requirements-crawl.txt + requirements-scraper.txt. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
+      "auth_note": "none \u2014 pip install -r requirements-crawl.txt + requirements-scraper.txt. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
       ],
@@ -535,7 +535,7 @@
         "content_calendar"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as gmail — both are enabled together by the google_workspace capability flag. The workspace-mcp server exposes Calendar read/write alongside Gmail and Drive.",
+      "auth_note": "Same auth as gmail \u2014 both are enabled together by the google_workspace capability flag. The workspace-mcp server exposes Calendar read/write alongside Gmail and Drive.",
       "requires_capability": "google_workspace",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
@@ -554,7 +554,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as gmail — Drive covers Docs and Sheets. Analytics tracking sheets and brand brief documents flow in as document_source and spreadsheet_data. Enabled via google_workspace capability flag.",
+      "auth_note": "Same auth as gmail \u2014 Drive covers Docs and Sheets. Analytics tracking sheets and brand brief documents flow in as document_source and spreadsheet_data. Enabled via google_workspace capability flag.",
       "requires_capability": "google_workspace",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
@@ -572,7 +572,7 @@
         "document_source"
       ],
       "privacy_sensitivity": "high",
-      "auth_note": "Enabled via the wizard (tools/wizard.py) for Claude Desktop. Uses Softeria ms-365-mcp-server (npx -y @softeria/ms-365-mcp-server). Device Code Flow: user visits microsoft.com/devicelogin and enters a short code — no redirect server or credentials to manage. Requires Node.js 20+. Set microsoft_365: true in creator-os-config.local.json after connecting.",
+      "auth_note": "Enabled via the wizard (tools/wizard.py) for Claude Desktop. Uses Softeria ms-365-mcp-server (npx -y @softeria/ms-365-mcp-server). Device Code Flow: user visits microsoft.com/devicelogin and enters a short code \u2014 no redirect server or credentials to manage. Requires Node.js 20+. Set microsoft_365: true in creator-os-config.local.json after connecting.",
       "requires_capability": "microsoft_365",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -589,7 +589,7 @@
         "content_calendar"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as microsoft_outlook_email — all Microsoft 365 services are enabled together by the microsoft_365 capability flag via the Softeria MCP server.",
+      "auth_note": "Same auth as microsoft_outlook_email \u2014 all Microsoft 365 services are enabled together by the microsoft_365 capability flag via the Softeria MCP server.",
       "requires_capability": "microsoft_365",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -607,7 +607,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as microsoft_outlook_email — the Softeria ms-365-mcp-server covers Excel, OneDrive, Outlook, Calendar, and 200+ Microsoft 365 tools from a single connection.",
+      "auth_note": "Same auth as microsoft_outlook_email \u2014 the Softeria ms-365-mcp-server covers Excel, OneDrive, Outlook, Calendar, and 200+ Microsoft 365 tools from a single connection.",
       "requires_capability": "microsoft_365",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -935,6 +935,50 @@
         "tiktok_publish_api",
         "pinterest_publish_api",
         "google_drive",
+        "gmail",
+        "google_calendar",
+        "google_docs_sheets",
+        "microsoft_outlook_email",
+        "microsoft_outlook_calendar",
+        "microsoft_excel_onedrive",
+        "wolfram_alpha_mcp",
+        "e2b_code_interpreter",
+        "stats_compass_mcp",
+        "duckdb_analytics_mcp",
+        "jupyter_notebook_mcp",
+        "r_statistics_mcp",
+        "monte_carlo_mcp",
+        "scikit_learn_mcp",
+        "fcpxml_interchange",
+        "resolve_api",
+        "compressor_cli",
+        "commandpost_bridge"
+      ]
+    },
+    "option_d2_chatgpt_connected": {
+      "label": "ChatGPT with connectors (Enterprise write actions or developer-mode MCP)",
+      "_note": "The connected variant of option D. Plain ChatGPT web (option D) stays paste/upload only; this variant exists for accounts where OpenAI-side connectors are available. Everything under connectors_conditional depends on the user's ChatGPT plan and must be verified against it, never assumed.",
+      "connectors_available_by_default": [
+        "manual_paste",
+        "uploaded_file"
+      ],
+      "connectors_conditional": {
+        "google_drive": "requires ChatGPT Enterprise write actions or a developer-mode Drive connector [NEEDS VERIFICATION: plan gating]",
+        "mcp_server": "requires a deployed Creator OS remote MCP endpoint added as a developer-mode connector (implementation/gpt/mcp-connector/README.md); flags and gates enforce on the machine running that endpoint"
+      },
+      "connectors_unsupported": [
+        "local_json_files",
+        "sqlite_cache",
+        "playwright_render",
+        "web_intel_crawl",
+        "youtube_data_api",
+        "instagram_graph_api",
+        "tiktok_api",
+        "pinterest_api",
+        "youtube_publish_api",
+        "instagram_publish_api",
+        "tiktok_publish_api",
+        "pinterest_publish_api",
         "gmail",
         "google_calendar",
         "google_docs_sheets",

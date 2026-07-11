@@ -41,8 +41,8 @@ value is aged and flagged, never silently trusted (no-fabrication).
 | Claude Desktop (any model) | `local_fs` via filesystem MCP | writes JSON in place (best fidelity) |
 | Cross-platform / multi-model | Google Drive + Docs/Sheets | append-new-dated-file; union-merge on read |
 | Gemini-first | Google Drive/Docs/Sheets (native) | Gemini appends rows/sections, auto-saves |
-| ChatGPT (Enterprise/Dev-mode) | connected Google Drive via MCP | server-stamped `as_of`, write-confirm gate |
-| claude.ai web / Custom GPT / Gem | export-and-you-save into Drive | agent emits a dated file; you file it |
+| ChatGPT (Enterprise/Dev-mode only; conditional, verify your plan) | connected Google Drive via MCP | server-stamped `as_of`, write-confirm gate |
+| ChatGPT plain web / Projects / Custom GPT / claude.ai web / Gem | export-and-you-save into Drive | agent emits a dated file; you file it (read-back steps: `docs/TRANSITIONS.md`) |
 
 Knowledge-only surfaces (Projects, GPT, Gemini) that can't run the tools stay fresh two ways: the
 **live path** (the surface reads your Drive overlay via its native connector) and the **static path**

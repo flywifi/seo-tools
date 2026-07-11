@@ -790,7 +790,7 @@ anything to GitHub. Downloading a newer shared baseline from the repo is always 
 make on your own &mdash; nobody sends you homework.</div>
 {saved_html}
 <form method="POST" action="/api/write-freshness">
-  <label>How do you mainly use Creator OS?</label>
+  <label>Where do you MOSTLY use Creator OS? (This only sets where this computer stores its files; if you use two AIs, pick cross platform.)</label>
   <select name="modality">{opts}</select>
   <label style="margin-top:12px">Check for updates every (days)</label>
   <input type="number" name="cadence_days" value="30" min="1" max="365" />
@@ -1464,8 +1464,8 @@ FRESHNESS_STORE_MATRIX = {
     },
     "chatgpt": {
         "store": "google_drive",
-        "why": "ChatGPT has no native writable dataset store; route writes to a connected Google Drive (Enterprise write actions or a Drive-write MCP in Developer Mode).",
-        "note": "Otherwise fall back to export-and-you-save: ChatGPT exports a dated file you file into Drive.",
+        "why": "ChatGPT has no native writable dataset store. On plain ChatGPT web the real store is export-and-you-save: ChatGPT gives you a dated file and you put it in your Drive folder yourself. Direct Drive writes need ChatGPT Enterprise write actions or a developer-mode Drive connector (check your plan; the connector registry lists these as conditional).",
+        "note": "This choice only sets where THIS computer stores its task and freshness files; nothing changes inside ChatGPT. Bringing dated files back: see the read-back steps in docs/TRANSITIONS.md.",
     },
     "web_only": {
         "store": "google_drive",
