@@ -4,7 +4,11 @@
   "description": "Deal lifecycle management: stage transitions, usage rights checks, and exclusivity conflict detection.",
   "steps": [
     {"step": 0, "atom": "deal-status", "input_from": "deal_id or a brand phrase", "output_to": "final", "condition": "action is deal_status; read-only; reports the deal's stage and lifecycle fields verbatim, no transition, no money math"},
-    {"step": 0, "atom": "pitch-extract", "input_from": "inbound pitch email (connected message or paste + manual_ref)", "output_to": "final", "condition": "action is pitch_triage; body treated as untrusted content; produces cited account and deal skeletons for human review; no record written"},
+    {"step": 0, "atom": "pitch-extract", "input_from": "inbound pitch email (connected message or paste + manual_ref)", "output_to": "step0b", "condition": "action is pitch_triage; body treated as untrusted content; produces cited account and deal skeletons for human review; no record written"},
+    {"step": "0b", "atom": "product-fit", "input_from": "step0.deal_skeleton.product + requested platforms", "output_to": "step0c", "condition": "action is pitch_triage; cross-spoke atom reuse; persona-scored fit verdict with data_basis flag and stored-exclusivity red-flag check"},
+    {"step": "0c", "atom": "proposal-price", "input_from": "step0.deal_skeleton.requested_deliverables as line_items (rate card formats where they map) + labeled benchmark ranges", "output_to": "step0d", "condition": "action is pitch_triage; package floor via tools/finance.py --price-package; unpriceable items excluded from the sum with gaps, never treated as 0"},
+    {"step": "0d", "atom": "gap-record", "input_from": "extraction_gaps + fit conditions + pricing gaps from steps 0 to 0c", "output_to": "step0e", "condition": "any gap present"},
+    {"step": "0e", "atom": "govern-artifact", "input_from": "assembled pitch-triage brief (fit_verdict, price_floor_package, content_angle_handoff, recommended_next_steps)", "output_to": "final", "gates": ["integrity", "safety", "accuracy"], "condition": "action is pitch_triage"},
     {"step": 1, "atom": "deal-stage-advance", "input_from": "deal_id + current_stage + target_stage + evidence", "output_to": "step2", "condition": "action is advance_stage"},
     {"step": 2, "atom": "usage-rights-check", "input_from": "deal_id or contract_text", "output_to": "step3", "condition": "stage is contract-negotiating or signed or action includes rights_check"},
     {"step": 3, "atom": "exclusivity-check", "input_from": "deal_id + brand_category", "output_to": "step4", "condition": "stage is contract-negotiating or signed"},
@@ -13,5 +17,5 @@
     {"step": 6, "atom": "govern-artifact", "input_from": "assembled_deal_report", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
   ],
   "shortcut_atoms": ["deal-status", "pitch-extract", "deal-stage-advance", "usage-rights-check", "exclusivity-check", "account-health"],
-  "note": "Stage transitions require evidence per pipeline-engine.md rules. FTC disclosure check fires on every outreach-sent and signed transition. Contract review triggers at contract-negotiating per protocols/safety.md."
+  "note": "Stage transitions require evidence per pipeline-engine.md rules. FTC disclosure check fires on every outreach-sent and signed transition. Contract review triggers at contract-negotiating per protocols/safety.md. pitch_triage (steps 0 to 0e): contract drafting is NOT auto-run; the brief ends by telling the human to ask for contract_draft to generate the agreement (contract-desk flag gating preserved); nothing is quoted to the brand without the consequential-action gate."
 }
