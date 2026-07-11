@@ -14,5 +14,6 @@
   "legal_name": null,
   "business_address": null,
   "governing_law_state": null,
-  "notes": "Fill in creator_name and document_author first — these are used in generated file metadata and planning-voice outputs. legal_name, business_address, and governing_law_state are the party-identity fields contract drafting and template assembly read; while null, drafts carry placeholders and a profile_gaps entry."
+  "provenance": {},
+  "notes": "Fill in creator_name and document_author first — these are used in generated file metadata and planning-voice outputs. legal_name, business_address, and governing_law_state are the party-identity fields contract drafting and template assembly read; while null, drafts carry placeholders and a profile_gaps entry. provenance is optional: per-field {source_context, source, confidence, verbatim_quote, imported_at} records written by the human when saving a profile-import proposal (implementation/gpt/profile-import/README.md)."
 }

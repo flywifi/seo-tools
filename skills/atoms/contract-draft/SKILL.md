@@ -127,7 +127,7 @@ assembly"), and tag the term with the source used:
     {
       "field": "string -- the creator-profile field left as a placeholder: e.g. legal_name, business_address, governing_law_state",
       "placeholder_used": "string -- the placeholder text that appears in the draft",
-      "fix": "fill creator-profile.local.json under pipeline/user-context/ (profile import or the setup wizard's /brand-deals screen)"
+      "fix": "fill creator-profile.local.json under pipeline/user-context/ (the profile-import atom merges ChatGPT exports from implementation/gpt/profile-import/PROMPT.md, or use the setup wizard's /brand-deals screen)"
     }
   ]
 }

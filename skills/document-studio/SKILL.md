@@ -21,7 +21,7 @@ All outputs are governed by the Quality Gates before delivery.
 |---|---|---|---|
 | `file_path` | string | conditional | Local path to the source file. Required if `source` is not provided. |
 | `source` | string | conditional | Cloud source identifier: `onedrive`, `google-drive`, `youtube`, or `instagram`. Required if `file_path` is not provided. Routed via `shared/integrations-engine.md`. |
-| `artifact_type` | string | required | One of: `project_brief`, `script`, `materials_list`, `caption_set`, `invoice`, `custom`, `template_proposal` (propose a block-structured doc-template from an uploaded example; proposal-only, the human saves the gitignored template file), `from_template` (assemble a saved rate-card, analytics-overview, or terms/conditions template; contract assembly routes to `contract-desk`). |
+| `artifact_type` | string | required | One of: `project_brief`, `script`, `materials_list`, `caption_set`, `invoice`, `custom`, `template_proposal` (propose a block-structured doc-template from an uploaded example; proposal-only, the human saves the gitignored template file), `from_template` (assemble a saved rate-card, analytics-overview, or terms/conditions template; contract assembly routes to `contract-desk`), `profile_proposal` (merge ChatGPT profile exports into a proposed creator profile with per-field provenance; proposal-only, the human saves the file). |
 | `output_format` | string | optional | One of: `docx`, `txt`, `json`. Defaults to `docx` if not specified. |
 
 Exactly one of `file_path` or `source` must be present. Providing both or neither is an input validation error.
@@ -49,7 +49,8 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 7. `pin-write` -- produces Pinterest pin copy when `artifact_type` is `caption_set` and the platform list includes Pinterest.
 8. `template-ingest` -- when `artifact_type` is `template_proposal`: proposes a block-structured doc-template from the ingested example (exact-quote bodies, bracketed fill fields, variant groups; `shared/doc-template-engine.md`). Proposal-only; the human saves the `.local.json` by hand.
 9. `template-assemble` -- when `artifact_type` is `from_template` (rate_card, analytics_overview, or terms_conditions): selects and swaps whole blocks per situation and delegates the mechanical bracket fill to `tools/doctemplates.py`; the system never authors block text.
-10. `govern-artifact` -- runs the Quality Gates checklist and returns `quality_gate_result`.
+10. `profile-import` -- when `artifact_type` is `profile_proposal`: merges ChatGPT profile exports (`implementation/gpt/profile-import/PROMPT.md`, one per ChatGPT context) into a proposed creator profile with per-field provenance and named conflicts; proposal-only, the human saves `creator-profile.local.json` by hand.
+11. `govern-artifact` -- runs the Quality Gates checklist and returns `quality_gate_result`.
 
 ## Engines required
 

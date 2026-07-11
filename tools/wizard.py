@@ -861,8 +861,9 @@ def _screen_brand_deals(saved: str = "") -> str:
                 '<strong style="color:#cc2222">missing</strong> &mdash; copy '
                 '<code>pipeline/user-context/creator-profile.template.json</code> to '
                 '<code>pipeline/user-context/creator-profile.local.json</code> (or run the ChatGPT '
-                'profile import) so contract drafts stop carrying placeholders for your legal name, '
-                'address, and governing-law state')
+                'profile import: <code>implementation/gpt/profile-import/PROMPT.md</code>, one run '
+                'per ChatGPT context, then ask Creator OS to merge the replies) so contract drafts '
+                'stop carrying placeholders for your legal name, address, and governing-law state')
     tmpl_rows = []
     for tf in sorted((ROOT / "pipeline" / "templates").glob("*.local.json")):
         try:
