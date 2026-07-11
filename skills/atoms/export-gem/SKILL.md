@@ -19,7 +19,10 @@ Gemini persona with uploaded knowledge files and a system instruction.
 
 The creator maintains parallel deployments of Creator OS across platforms. This atom handles the
 Gemini Gem target: it selects the most impactful knowledge files (constrained to Gemini's 10-file
-limit), merges and prioritizes engine content, generates a system instruction that works within
+limit), merges and prioritizes engine content, generates a system instruction (whose REQUIRED
+first line is the packaging stamp `Packaging version: <VERSION> (packaged <YYYY-MM-DD>)`,
+read from the repo `VERSION` file at export time; re-sync steps in `docs/TRANSITIONS.md`)
+that works within
 Gem's approximately 82% instruction adherence rate, and outputs the package ready for upload. It
 loads `shared/brand-engine.md` and `shared/voice-engine.md` to ensure brand and voice fidelity
 survive the export.

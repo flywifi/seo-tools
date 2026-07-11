@@ -886,6 +886,10 @@ def _screen_brand_deals(saved: str = "") -> str:
 <p>The <strong>pitch_triage</strong> flow (extract, fit-check, price floor, brief) always runs.
 These switches and files unlock the rest of the deal machinery. Everything here writes only to
 local gitignored files; your rates and legal details never reach GitHub.</p>
+<div class="note"><strong>Where these switches apply:</strong> Claude Desktop, Claude Code, and
+any remote MCP endpoint you deploy from this computer. They do NOT change anything inside
+claude.ai connectors-only use, ChatGPT, or Gemini; on those surfaces nothing evaluates the
+switches at all (see docs/CROSS-MODALITY.md).</div>
 {saved_html}
 <h2>Capability switches</h2>
 <ul class="steps">{''.join(rows)}</ul>
@@ -1275,7 +1279,8 @@ publishing runs in manual mode for now. No action is needed here.</div>
             _update_capability_flag(flag, {"enabled": True})
             self._send(_screen_brand_deals(saved=(
                 f"<strong>{flag}</strong> enabled in creator-os-config.local.json (local only; "
-                "never committed). Restart any running MCP server to pick it up.")))
+                "never committed). If you run an MCP server on this computer, restart it to "
+                "pick this up.")))
             return
 
         if path == "/api/write-freshness":

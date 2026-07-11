@@ -67,6 +67,20 @@ carries a block body, a body_ref, real provenance, or `vetted: true`. Written do
 `.local.` paths. The same layered guarantees as the rest of the pipeline store apply (pre-commit
 secret scan, invariants 19 to 21, CI fail-closed).
 
+## ChatGPT and templates (read before pasting)
+
+The template guarantees in this doc are CODE-enforced on your computer: byte-for-byte pass-through
+of vetted text, structural selection rules, null-and-flag fills. On ChatGPT (or any paste surface)
+none of that holds: the model there can rephrase, drop, or invent text, and nothing enforces the
+authorship boundary. Two consequences:
+
+- Pasting attorney-provided template text into ChatGPT means the P42 guarantees no longer apply to
+  whatever comes back, and your contract's confidentiality terms may forbid the paste at all. Read
+  `docs/PASTE-SAFETY.md` first.
+- The supported pattern away from home is export-and-review: assemble the document ON your
+  computer (or via a deployed remote MCP connector, which runs the tools at home), then carry the
+  finished draft with you. Do not rebuild templates inside a chat.
+
 ## Verification
 
 ```bash

@@ -23,3 +23,12 @@ endpoint itself. This is the "universal path" (see `docs/CROSS-MODALITY.md`).
 - Coverage of local historic/zoning here is City of Orlando; flood + geocoding are nationwide.
 - ADVISORY ONLY; not a legal/permitting/engineering determination. Setback numbers behind ToS-limited
   code portals are not returned; cite the ordinance and verify locally.
+
+## Consent asymmetry (read before adding the Action)
+
+On your computer, live jurisdiction lookups are gated by an ask-first consent step
+(`tools/geo_consent.py`); a headless run or a decline makes no network call. A GPT Action
+has no such seam: the GPT calls the public geocoder and GIS endpoints directly from
+OpenAI's infrastructure, so whatever the user types (for example a street address) goes to
+OpenAI and to those public endpoints with no local ask-first step. Say so in the GPT's
+description, and see docs/PASTE-SAFETY.md for what should never be typed into a GPT.

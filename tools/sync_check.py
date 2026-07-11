@@ -979,6 +979,17 @@ def check_transitions():
             if f'"{sid}"' not in wiz_text:
                 problem(f"transitions: tools/wizard.py does not name surface id {sid!r} "
                         "(the wizard pickers must cover every surface)")
+    # (f) packaging artifacts carry the version stamp so pasted packs can be compared with the
+    # repo VERSION and re-synced (E12).
+    ci = ROOT / "implementation" / "gpt" / "web" / "custom-instructions.md"
+    if ci.exists() and not ci.read_text(encoding="utf-8").startswith("Packaging version:"):
+        problem("transitions: implementation/gpt/web/custom-instructions.md must start with the "
+                "'Packaging version:' stamp line")
+    for exp in ("export-gpt", "export-gem"):
+        p_exp = ROOT / "skills" / "atoms" / exp / "SKILL.md"
+        if p_exp.exists() and "Packaging version:" not in p_exp.read_text(encoding="utf-8"):
+            problem(f"transitions: skills/atoms/{exp}/SKILL.md must require the "
+                    "'Packaging version:' stamp in its instruction template")
     # (g) every spoke's Cross-modality Fallback line names ChatGPT, so a reader on that surface
     # can see their own degradation path (the P43-7 sweep cannot silently regress).
     for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):

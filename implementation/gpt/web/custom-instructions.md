@@ -1,3 +1,4 @@
+Packaging version: 0.1.0 (packaged 2026-07-11). Compare with the version shown by your wizard; if lower, re-paste.
 _Data freshness: as of 2026-07-07 (Creator OS baseline 556c3c21). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # Creator OS — ChatGPT Custom Instructions

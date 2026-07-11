@@ -48,6 +48,15 @@ connector.
 - **A human:** `python3 tools/geo_source_fetch.py resolve "809 E Amelia St, Orlando FL 32803"`, or curl
   the endpoints directly.
 
+## Where capability flags are enforced (and where they are not)
+
+Capability flags (`creator-os-config` capabilities) are evaluated only where the Creator OS
+Python tools run: Claude Desktop/Code on your computer, your own Gemini API backend, or a
+deployed remote MCP endpoint (which enforces them on ITS machine). On ChatGPT (web, custom
+GPT, Projects, desktop without a connector) and Gemini Gems, nothing evaluates the flags:
+they are at best text the model has read. Treat every gate as advisory on those surfaces,
+and see docs/PASTE-SAFETY.md before moving private data there.
+
 ## Boundaries that hold on every surface
 - Every output carries the **advisory-not-legal-determination** boundary; genuine legal conflicts return
   `human_review_required` (a safety floor is never silently discarded).
