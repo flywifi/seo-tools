@@ -1,0 +1,71 @@
+[
+  {
+    "test_id": "product-fit-renter-strong",
+    "description": "portable AC pitch: The Renter scores strong with pain-point-tied reasoning; data_basis flags niche defaults",
+    "input": {
+      "product": {"name": "portable air conditioner", "category": "home appliance", "link_provided": true},
+      "requested_platforms": ["youtube", "tiktok"]
+    },
+    "expected_output_keys": ["product", "verdict", "persona_fit", "pillar_alignment", "seasonal_timing", "conditions", "red_flags", "data_basis", "human_review_required"],
+    "assertions": [
+      "persona_fit contains persona-renter with score strong and reasoning that references the stored rental pain point",
+      "every persona in personas.json appears exactly once in persona_fit",
+      "data_basis is niche_default_personas when no creator audience data exists, and the prose states it",
+      "human_review_required is true"
+    ]
+  },
+  {
+    "test_id": "product-fit-exclusivity-conflict",
+    "description": "a stored active exclusivity clause covering the product category produces a named red flag",
+    "input": {
+      "product": {"name": "cordless stick vacuum", "category": "home appliance", "link_provided": false},
+      "_fixture": "deal store contains an active account with a stored exclusivity clause covering home appliance"
+    },
+    "expected_output_keys": ["verdict", "red_flags", "data_basis"],
+    "assertions": [
+      "red_flags names the conflicting commitment from the stored exclusivity field",
+      "verdict is capped at conditional_fit or lower",
+      "the conflict is read from stored exclusivity fields, not inferred from brand names"
+    ]
+  },
+  {
+    "test_id": "product-fit-out-of-niche",
+    "description": "an out-of-niche product yields decline_recommended",
+    "input": {
+      "product": {"name": "gaming keyboard", "category": "gaming peripheral", "link_provided": true}
+    },
+    "expected_output_keys": ["verdict", "persona_fit"],
+    "assertions": [
+      "verdict is decline_recommended",
+      "persona scores are weak or poor with reasoning tied to each persona's stored wants",
+      "no fabricated audience data appears"
+    ]
+  },
+  {
+    "test_id": "product-fit-missing-product",
+    "description": "missing product name halts with a gap record",
+    "input": {
+      "product": {"name": null, "category": null, "link_provided": false}
+    },
+    "expected_output_keys": [],
+    "assertions": [
+      "a gap record is emitted and the atom halts",
+      "no persona is scored and no verdict is rendered",
+      "no fabricated fallback data"
+    ]
+  },
+  {
+    "test_id": "product-fit-seasonal-mismatch",
+    "description": "season-sensitive product proposed against the wrong window carries a timing caveat",
+    "input": {
+      "product": {"name": "vintage ornament collection", "category": "holiday decor", "link_provided": true},
+      "proposed_timing": "late January"
+    },
+    "expected_output_keys": ["seasonal_timing", "conditions"],
+    "assertions": [
+      "seasonal_timing.assessment states the mismatch against the publish-ahead window",
+      "seasonal_timing.source cites the seasonal record id from seasonal.json",
+      "the verdict prose carries the timing caveat"
+    ]
+  }
+]

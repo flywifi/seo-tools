@@ -5,9 +5,10 @@
   "steps": [
     {"step": 1, "atom": "ingest-route", "input_from": "analytics_or_comment_source", "output_to": "step2", "condition": "source is not null"},
     {"step": 2, "atom": "persona-map", "input_from": "step1.extracted_content + user request", "output_to": "step3"},
-    {"step": 3, "atom": "gap-record", "input_from": "missing data signals from step1 and step2", "output_to": "step4", "condition": "retrieval_gaps is not empty"},
-    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_audience_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
+    {"step": 3, "atom": "product-fit", "input_from": "pitched product + step2.persona_basis", "output_to": "step4", "condition": "the request asks whether a specific product fits the audience"},
+    {"step": 4, "atom": "gap-record", "input_from": "missing data signals from steps 1 to 3", "output_to": "step5", "condition": "retrieval_gaps is not empty"},
+    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_audience_report", "output_to": "final", "gates": ["integrity", "accuracy"]}
   ],
-  "shortcut_atoms": ["persona-map"],
+  "shortcut_atoms": ["persona-map", "product-fit"],
   "note": "Never fabricate comment text or demographic data. Present niche-typical persona defaults as defaults, not as the creator's measured data."
 }

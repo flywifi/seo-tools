@@ -142,9 +142,13 @@ Key output guarantees:
    Acquisition level starts at Level 2 and falls through per the web-intel escalation rules.
 3. persona-map: maps ingested content and observed themes to the five-persona model; returns primary
    and secondary personas per topic cluster surfaced in the data.
-4. gap-record: called for every field or retrieval path that returns no usable data. Produces an
+4. product-fit: conditional, when the request asks whether a specific pitched product fits the
+   audience; scores the product against every persona with pain-point-tied reasoning, checks pillar
+   alignment, seasonal timing, and stored exclusivity conflicts, and returns a structured verdict
+   with a mandatory `data_basis` flag (niche defaults versus measured audience data).
+5. gap-record: called for every field or retrieval path that returns no usable data. Produces an
    explicit gap object rather than a silent blank.
-5. govern-artifact: gates the completed audience profile through quality-review before it is
+6. govern-artifact: gates the completed audience profile through quality-review before it is
    returned to the user or a downstream spoke.
 
 ## Engines required
