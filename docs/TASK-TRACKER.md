@@ -139,7 +139,7 @@ canonical JSON schema, selected by the `task_store_backend` flag:
 |---|---|---|
 | `local_fs` (default) | gitignored `.local.json` on the Mac | Claude Desktop + MCP — full offline fidelity |
 | `google_drive` | a canonical JSON + a human-readable Sheets mirror in your Google Drive | **claude.ai web + mobile AND Desktop** via the native Google Drive/Sheets connector — no hosting |
-| `remote_mcp` | a hosted streamable-HTTP MCP endpoint (user/host provided) | Claude web/desktop/mobile **AND ChatGPT AND Gemini** — one custom connector |
+| `remote_mcp` | a streamable-HTTP MCP endpoint YOU deploy behind HTTPS + auth (`implementation/gpt/mcp-connector/README.md`; the repo ships code + runbook, no hosted service, no built-in auth) | Claude web/desktop/mobile, and CAN reach ChatGPT (developer mode; plan gating needs verification) and Gemini — one custom connector |
 
 **Why two surfaces can share the Drive store safely.** Because `history[]` is append-only and every
 event carries `(uid, seq, timestamp, actor)`, two surfaces editing the same file are reconciled by
@@ -199,8 +199,11 @@ on the calendar — no terminal, no hosting.
    The same store answers on web, desktop, and mobile.
 
 **Graduating to ChatGPT / Gemini (optional, later):** deploy the remote MCP (`tools/mcp_server.py
---serve-remote`) once and add it as one custom connector. Nothing in the data model changes — same
-canonical store, same exports. We ship the transport option and a runbook; we do not host a server.
+--serve-remote`) behind HTTPS with authentication (deployer-supplied; the server implements none)
+and add it as one custom connector per surface. ChatGPT requires developer-mode connectors, gated
+by plan (needs verification); registration steps live in
+`implementation/gpt/mcp-connector/README.md`. Nothing in the data model changes — same canonical
+store, same exports. We ship the server code and the runbook; we do not host a server.
 
 **A note on Skill sync:** per Anthropic, a Skill uploaded to claude.ai is a separate copy from the
 Desktop/Code one; there is no automatic sync. Re-upload after an update. The *data* stays continuous

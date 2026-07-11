@@ -34,8 +34,11 @@ connector.
   `jurisdiction_resolve(lon, lat, facts_json)` runs offline; the first live lookup in a session asks for
   consent (`geo_consent`), and a decline or headless run makes no call.
 - **claude.ai web/mobile:** deploy `python3 tools/mcp_server.py --serve-remote` somewhere reachable from
-  the provider cloud, then add it as a **custom connector** (remote MCP). One endpoint can also serve
-  ChatGPT and Gemini. The repo ships the transport + runbook but does not host a server.
+  the provider cloud, then add it as a **custom connector** (remote MCP). One deployed endpoint CAN
+  also serve ChatGPT (developer mode, web and desktop app) and Gemini, IF hosted behind HTTPS with
+  authentication; the repo ships the server code and the runbook
+  (`implementation/gpt/mcp-connector/README.md`), not a hosted service, and implements no
+  authentication itself. ChatGPT registration steps carry needs-verification tags (plan gating).
 - **Custom GPT:** in the GPT builder, add an **Action** and paste
   `implementation/gpt/actions/jurisdiction_overlay_action.yaml`. Auth = none (all endpoints are keyless).
   The GPT calls the public ArcGIS/FEMA/Census endpoints itself.

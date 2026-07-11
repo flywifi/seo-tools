@@ -46,8 +46,13 @@ B, and Class C where a runtime or a hosted seam exists.
 - **Claude Desktop / Code:** MCP tools in `tools/mcp_server.py` (+ `implementation/claude/`). Native
   Class C.
 - **claude.ai web/mobile + cross-AI:** the **remote MCP** transport (`tools/mcp_server.py
-  --serve-remote`) as one hosted custom connector serving Claude web/desktop/mobile, ChatGPT, and
-  Gemini. You host it; the repo ships the transport + runbook, not a running server.
+  --serve-remote`). One deployed endpoint CAN serve Claude web/desktop/mobile, ChatGPT (developer
+  mode, web and desktop app), and Gemini, IF you or your developer host it behind HTTPS with
+  authentication; the repo ships the server code and the runbook
+  (`implementation/gpt/mcp-connector/README.md`), not a hosted service, and implements no
+  authentication itself. ChatGPT-side registration steps carry needs-verification tags (plan
+  gating). Capability flags and consent gates enforce on the endpoint's machine, never inside the
+  connecting surface.
 - **Custom GPT:** a **GPT Action** OpenAPI schema under `implementation/gpt/actions/` targeting a
   public endpoint (Class B) or your hosted endpoint (Class C).
 - **Gemini API:** **function declarations** under `implementation/gemini/` (the model emits the call,

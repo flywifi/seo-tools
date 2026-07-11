@@ -122,7 +122,8 @@ P6 through P42 are complete. Drift guard exits 0 (31 invariants). Branch:
   Eight atoms compose the `task-desk` spoke, hub-routed as task_status/task_plan/coverage_check/
   shipment_update/milestone_bill; MCP tools and a dashboard tasks view added. Cross-surface continuity for a
   non-technical Mac user runs the same tasks on claude.ai web, the Claude desktop app, and mobile via the
-  Drive/Sheets store, with an optional remote-MCP transport unlocking ChatGPT/Gemini. Four config
+  Drive/Sheets store, with an optional remote-MCP transport that CAN reach ChatGPT/Gemini when
+  deployed behind HTTPS + auth (runbook: implementation/gpt/mcp-connector/README.md). Four config
   capabilities (task_tracking, shipment_tracking, coverage_verification, task_store_backend). Drift invariant
   24 enforces task-tracker integrity; the S6 creator-core scenario exercises a two-party ping-pong plus
   milestone, shipment, and coverage on fictional fixtures. Docs: `docs/TASK-TRACKER.md`. Ledger:

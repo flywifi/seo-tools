@@ -1492,11 +1492,15 @@ def milestone_status(schedule: dict, deliverable_id: str | None = None, event: s
 #
 # Transport (P35 cross-surface / cross-AI):
 #   default (no args)  -> stdio, for a local Claude Desktop MCP server (claude_desktop_config.json).
-#   --serve-remote     -> a remote streamable-HTTP MCP endpoint. Behind an HTTPS reverse proxy with OAuth,
-#                         this becomes ONE "custom connector" that works on claude.ai web + mobile AND, since
-#                         both vendors speak MCP, ChatGPT (apps/dev-mode) and Gemini (CLI / Agent Platform).
-#                         We ship the transport option and this runbook; we do not host a server. Deploy
-#                         runbook: docs/TASK-TRACKER.md. The same task tools serve every surface unchanged.
+#   --serve-remote     -> a remote streamable-HTTP MCP endpoint. IF you deploy it behind an HTTPS reverse
+#                         proxy with authentication (deployer-supplied; this server implements NONE and
+#                         binds plainly), one endpoint CAN serve claude.ai web + mobile AND, since both
+#                         vendors speak MCP, ChatGPT (developer mode, web and desktop app; plan gating
+#                         needs verification) and Gemini. We ship the server code and the runbooks; we do
+#                         not host a server. Deploy + per-surface registration runbook:
+#                         implementation/gpt/mcp-connector/README.md (also docs/TASK-TRACKER.md).
+#                         The same task tools serve every surface unchanged; capability flags and consent
+#                         gates enforce on THIS machine for every connected surface.
 
 if __name__ == "__main__":
     import argparse as _argparse
