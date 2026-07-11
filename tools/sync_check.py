@@ -972,6 +972,13 @@ def check_transitions():
             label = rec.get("label")
             if label and label not in doc_text:
                 problem(f"transitions: docs/TRANSITIONS.md does not mention surface label {label!r}")
+    wiz = ROOT / "tools" / "wizard.py"
+    if wiz.exists():
+        wiz_text = wiz.read_text(encoding="utf-8")
+        for sid in TRANSITION_SURFACE_KEYS:
+            if f'"{sid}"' not in wiz_text:
+                problem(f"transitions: tools/wizard.py does not name surface id {sid!r} "
+                        "(the wizard pickers must cover every surface)")
 
 
 def check_currency_map():

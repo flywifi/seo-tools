@@ -1010,6 +1010,85 @@ def _surface_steps(sid: str) -> list:
     return _SURFACES.get(sid, ("", [], "", ""))[1] or []
 
 
+def render_pair(frm: str, to: str, tj: dict) -> dict:
+    """Pure: the transition procedure for one from->to pair. Authored pair_overrides win; every
+    other pair derives honestly from the two surface records (never invents surface facts)."""
+    override = (tj.get("pair_overrides") or {}).get(f"{frm}->{to}")
+    if override:
+        return override
+    surfaces = tj.get("surfaces") or {}
+    a, b = surfaces.get(frm, {}), surfaces.get(to, {})
+    lost = sorted(set(a.get("carries") or []) - set(b.get("carries") or []))
+    stops = [f"capabilities carried by {c.replace('_', ' ')}" for c in lost]
+    if (b.get("class_support") or {}).get("C") in ("none", "paste", None):
+        stops.append("all Class C tools (local compute); outputs there are labeled provisional")
+    needs_export = ["the knowledge pack for the destination surface"]
+    if "export_and_you_save" in (b.get("store_options") or []):
+        needs_export.append("your data as a dated export file (export-and-you-save)")
+    reimport = list(b.get("setup_steps") or [])
+    flags = [] if b.get("flags_enforced") else \
+        ["ALL capability flags: nothing evaluates your local config on the destination surface"]
+    stays = "local_fs" if a.get("local_machine_required") else \
+        ((b.get("store_options") or ["export_and_you_save"])[0])
+    return {"travels_automatically": [], "needs_export": needs_export, "stops_working": stops,
+            "reimport_steps": reimport, "stays_authoritative": stays,
+            "flags_unenforced": flags,
+            "notes": ["This pair is derived from the surface records; the wizard shows the "
+                      "destination's own setup steps as the re-import path."]}
+
+
+def _screen_transitions(frm: str = "", to: str = "") -> str:
+    """The transitions guide (E17): pick where you are and where you are going; get the
+    what-travels / what-breaks / what-to-re-import procedure in plain language."""
+    tj = _load_transitions()
+    sids = [s for s in _SURFACES if s in (tj.get("surfaces") or {})] or list(_SURFACES)
+    def _opts(sel):
+        return "".join(f'<option value="{s}"{" selected" if s == sel else ""}>'
+                       f'{_surface_label(s)}</option>' for s in sids)
+    body = f"""
+<h1>Moving between AIs</h1>
+<p>Pick where you are today and where you want to work, and this screen tells you what travels,
+what stops working, and what to bring back. The same guide lives at docs/TRANSITIONS.md.</p>
+<form method="GET" action="/transitions">
+  <label>I work in</label><select name="frm">{_opts(frm)}</select>
+  <label style="margin-top:12px">I am moving to</label><select name="to">{_opts(to)}</select>
+  <button class="btn btn-primary" type="submit" style="margin-top:16px">Show me the steps</button>
+</form>
+"""
+    if frm in sids and to in sids and frm != to:
+        pair = render_pair(frm, to, tj)
+        def _ul(items, empty):
+            return ("<ul>" + "".join(f"<li>{i}</li>" for i in items) + "</ul>") if items \
+                else f'<p class="hint">{empty}</p>'
+        safety = ""
+        if (_surface(to).get("vendor") or "anthropic") != "anthropic":
+            safety = ('<div class="error-box"><strong>Before you paste anything private:</strong> '
+                      'rate card numbers, contract text, and personal identity details do not '
+                      'belong in a third-party chat without a deliberate decision. Read '
+                      'docs/PASTE-SAFETY.md first; the local redaction and privacy guarantees do '
+                      'not travel with you.</div>')
+        body += f"""
+<hr>
+<h2>{_surface_label(frm)} to {_surface_label(to)}</h2>
+{safety}
+<h2>What travels automatically</h2>{_ul(pair.get("travels_automatically"), "Nothing travels automatically.")}
+<h2>What you need to export</h2>{_ul(pair.get("needs_export"), "Nothing to export.")}
+<h2>What stops working</h2>{_ul(pair.get("stops_working"), "Nothing stops working.")}
+<h2>What to re-import (numbered)</h2>
+<ol class="steps">{"".join(f"<li>{s}</li>" for s in pair.get("reimport_steps") or []) or "<li>Nothing to re-import.</li>"}</ol>
+<h2>What stays authoritative</h2>
+<p>{ {"local_fs": "Your computer's files remain the source of truth.",
+      "google_drive": "Your Google Drive store remains the source of truth.",
+      "export_and_you_save": "Your saved dated export files are the record; the newest file wins away from home."}.get(pair.get("stays_authoritative"), pair.get("stays_authoritative") or "") }</p>
+<h2>Switches and tools that stop being enforced</h2>{_ul(pair.get("flags_unenforced"), "Enforcement is unchanged.")}
+{_ul(pair.get("notes"), "")}
+<p class="hint">Current Creator OS version: <strong>{_repo_version()}</strong>. If the pasted pack
+at your destination shows a lower "Packaging version" line, re-export it first.</p>
+"""
+    body += '<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>'
+    return _page("Transitions", body)
+
+
 def _screen_chatgpt(pick: str = "") -> str:
     """The ChatGPT hub (E1/E3): pick your ChatGPT flavor, get numbered plain-language steps."""
     if pick in _CHATGPT_SURFACES:
@@ -1152,6 +1231,11 @@ publishing runs in manual mode for now. No action is needed here.</div>
             self._send(_screen_chatgpt(q.get("pick", [""])[0]))
             return
 
+        if path == "/transitions":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(_screen_transitions(q.get("frm", [""])[0], q.get("to", [""])[0]))
+            return
+
         routes: dict[str, str | None] = {
             "/": _screen_welcome(),
             "/cross-modality": _screen_cross_modality(),
@@ -1168,6 +1252,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/freshness-setup": _screen_freshness(),
             "/brand-deals": _screen_brand_deals(),
             "/chatgpt": _screen_chatgpt(),
+            "/transitions": _screen_transitions(),
         }
         if path in routes:
             self._send(routes[path])
