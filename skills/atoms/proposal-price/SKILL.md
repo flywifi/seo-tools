@@ -65,6 +65,14 @@ per-item floors are summed into `package_floor`; an item with no computable floo
 `unpriceable_items` and EXCLUDED from the sum with a package-level gap (never treated as 0), so the
 package floor is explicitly an understatement until every item is priced.
 
+Brands ask for ANY combination of deliverables: posts, videos, story sets, scripts, ideation, UGC
+for the brand's own channel. The rate-card format vocabulary is open (add a row per deliverable
+type you sell). Map a requested deliverable to a format key ONLY when the mapping is unambiguous;
+otherwise omit `format` so the item lands in `unpriceable_items` with a named gap. Never force a
+script or ideation ask into a video format to make it priceable. A format with no card row emits
+one specific `no_rate_card_entry` gap (the generic `missing_input` gap is suppressed for that
+item, since the specific gap already names the fix).
+
 Present the floor(s), the inputs, and the flags; the consequential-action gate (amount,
 counterparty, explicit yes) applies before the human quotes anything externally.
 

@@ -138,6 +138,9 @@ Field rules:
   never framed as vetted or ready to sign.
 - `source_evidence` is quoted exactly from the source or null; never paraphrased into a quote and never
   invented. A `MISSING` term is `null` with the family listed in `missing_terms`, never a guessed value.
+- A multi-deliverable agreement (any mix of posts, videos, story sets, scripts, video ideas, UGC)
+  enumerates EVERY deliverable with its type and count from the agreed terms; deliverables are never
+  collapsed into a single line item or summarized away.
 - `source` is honest provenance: `deal_agreed` only for explicitly agreed terms, `playbook_standard` only
   when a real playbook supplies it, `generic_default` only in provisional mode.
 - `ready_to_sign` is always `false`; this atom drafts a starting point, it does not produce a signable

@@ -149,6 +149,9 @@ def check_assert(result, a: dict) -> str | None:
         return None if actual in value else f"{path}: {actual!r} not in {value!r}"
     if check == "matches":
         return None if re.search(value, str(actual)) else f"{path}: {actual!r} !~ /{value}/"
+    if check == "not_matches":
+        return None if not re.search(value, str(actual)) else \
+            f"{path}: unexpectedly matches /{value}/"
     return f"{path}: unknown check {check!r}"
 
 

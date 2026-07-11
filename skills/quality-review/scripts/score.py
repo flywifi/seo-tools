@@ -33,6 +33,10 @@ def evaluate(scores):
     missing = [d for d in DIMENSIONS if d not in scores]
     if missing:
         return {"error": f"missing dimensions: {missing}"}
+    unknown = sorted(k for k in scores if k not in DIMENSIONS)
+    if unknown:
+        return {"error": f"unknown dimensions: {unknown}; the nine dimensions are defined in "
+                         "protocols/quality-gates.md"}
     try:
         vals = {d: int(scores[d]) for d in DIMENSIONS}
     except (TypeError, ValueError):

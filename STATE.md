@@ -17,7 +17,11 @@ P6 through P40 are complete. Drift guard exits 0 (30 invariants). Branch:
   enable); degraded messages name the exact flag + wizard route; contract-draft output carries
   mandatory `profile_gaps[]`. Acceptance: 10/10 assertions on the live CLI + repo state (throwaway
   sandbox removed); scenario `S7-coolbreeze-pitch` regression-locks the flow (7/7 suite green).
-  Runbook: `docs/BRAND-DEALS.md`.
+  Runbook: `docs/BRAND-DEALS.md`. P41 follow-up: score.py rejects unknown dimension keys (S4 leg);
+  the specific `no_rate_card_entry` gap suppresses the generic `missing_input` twin in both pricing
+  paths; the rate-card format vocabulary is documented OPEN (posts, story sets, scripts, ideation,
+  UGC rows added, all null) and mixed-deliverable packages price item by item, never forced into a
+  video format (selftest 99/99, S7 extended to a 3-type package).
 
 - P39: audited + corrected the P38-7 cross-modality declarations against evidence. Full adversarial
   audit completed across three resumed runs: 23/23 classifiers + 23/23 skeptics (22 upheld, 1

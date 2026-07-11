@@ -365,14 +365,20 @@ def price_package(payload):
         label = li.get("label") or f"item_{i + 1}"
         rate_floor = li.get("rate_floor")
         rate_floor_source = "payload" if rate_floor is not None else None
+        format_missed = False
         if rate_floor is None and li.get("format"):
             rate_floor, rc_gap = rate_floor_for(card, li["format"])
             if rate_floor is not None:
                 rate_floor_source = "rate_card"
             elif rc_gap:
                 gaps.append({**rc_gap, "item": label})
+                format_missed = True
         res = proposal_price(cost_total=li.get("cost_total"), margin_percent=li.get("margin_percent"),
                              rate_floor=rate_floor, benchmark_range=li.get("benchmark_range"))
+        if format_missed:
+            # no_rate_card_entry already names the exact fix; the generic missing_input gap for the
+            # same item is noise, not information.
+            res["gaps"] = [g for g in res.get("gaps", []) if g.get("gap_type") != "missing_input"]
         for g in res.get("gaps", []):
             gaps.append({**g, "item": label})
         for tg in _tier_gaps(card, li.get("benchmark_range"), li.get("benchmark_tier")):
@@ -1140,6 +1146,34 @@ def selftest():
                     benchmark_tier="50k_to_100k")
     _check("tier: matching tier -> no gap", tg == [], f)
 
+    # P41: the specific no_rate_card_entry gap suppresses the generic missing_input twin, and a
+    # mixed open-vocabulary package (video + script + ideation) prices item by item.
+    with tempfile.TemporaryDirectory() as td:
+        fin = Path(td) / "pipeline" / "finance"
+        fin.mkdir(parents=True)
+        (fin / "rate-card.local.json").write_text(json.dumps({
+            "subscriber_tier": None,
+            "rates": [{"format": "youtube_dedicated_long_form", "base_rate": 600}]}),
+            encoding="utf-8")
+        _old_root = ROOT
+        try:
+            globals()["ROOT"] = Path(td)
+            pk = price_package({"line_items": [
+                {"label": "long-form video", "format": "youtube_dedicated_long_form"},
+                {"label": "script only", "format": "script_only"},
+                {"label": "video concept ideas"}]})
+        finally:
+            globals()["ROOT"] = _old_root
+        script_gaps = [g["gap_type"] for g in pk["gaps"] if g.get("item") == "script only"]
+        _check("gaps: format miss emits no_rate_card_entry and suppresses missing_input",
+               "no_rate_card_entry" in script_gaps and "missing_input" not in script_gaps, f)
+        ideas_gaps = [g["gap_type"] for g in pk["gaps"] if g.get("item") == "video concept ideas"]
+        _check("gaps: no-format no-input item still emits missing_input",
+               "missing_input" in ideas_gaps and "no_rate_card_entry" not in ideas_gaps, f)
+        _check("package: mixed deliverables price item by item, only the priced item sums",
+               pk["package_floor"] == "600.00"
+               and pk["unpriceable_items"] == ["script only", "video concept ideas"], f)
+
     payload = {"deal_id": "hearthline-2026-001", "brand_name": "Hearthline", "seq": 1,
                "line_items": [{"description": "dedicated video", "quantity": 1, "unit_price": 2500},
                               {"description": "usage rights addon", "amount": 500}],
@@ -1418,6 +1452,9 @@ def main(argv):
         res = proposal_price(p.get("cost_total"), p.get("margin_percent"),
                              rate_floor, p.get("benchmark_range"))
         res["rate_floor_source"] = rate_floor_source
+        if extra_gaps:
+            # no_rate_card_entry already names the exact fix; drop the generic missing_input twin.
+            res["gaps"] = [g for g in res.get("gaps", []) if g.get("gap_type") != "missing_input"]
         res["gaps"] = res.get("gaps", []) + extra_gaps + _tier_gaps(
             card, p.get("benchmark_range"), p.get("benchmark_tier"))
         print(json.dumps(res, indent=2))

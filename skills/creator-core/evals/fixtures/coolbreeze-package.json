@@ -1,8 +1,9 @@
 {
-  "_comment": "FICTIONAL package payload for the CoolBreeze pitch-triage scenario (P40): a long-form video plus a TikTok, priced in ONE call. The benchmark range is a fictional labeled range for the tier-gap leg, not market data.",
+  "_comment": "FICTIONAL package payload for the CoolBreeze pitch-triage scenario (P40/P41): a long-form video plus a TikTok plus a photo set, priced in ONE call to prove mixed deliverable types price item by item. The benchmark range is a fictional labeled range for the tier-gap leg, not market data.",
   "line_items": [
     {"label": "long-form video", "format": "youtube_dedicated_long_form",
      "benchmark_range": {"low": 500, "high": 3000}},
-    {"label": "tiktok video", "format": "tiktok_dedicated"}
+    {"label": "tiktok video", "format": "tiktok_dedicated"},
+    {"label": "instagram photo set", "format": "photo_set"}
   ]
 }

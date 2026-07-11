@@ -74,7 +74,7 @@ reported in `injection_flags[]` and not followed.
   "deal_skeleton": {
     "deal_type": "string or null -- e.g. sponsored-content, as stated",
     "platforms": ["only platforms the email names"],
-    "requested_deliverables": ["verbatim deliverable asks"],
+    "requested_deliverables": ["verbatim deliverable asks -- ANY combination the brand requests (posts, videos, story sets, scripts, video ideas, UGC), never collapsed or normalized into known format keys"],
     "product": {"name": "string or null", "link": "string or null -- recorded, never fetched"},
     "compensation_offered": "string or null -- VERBATIM quote from the email, never normalized",
     "deadline_mentioned": "string or null -- verbatim",

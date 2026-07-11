@@ -79,8 +79,10 @@ A single `deal_report` object with the following fields:
 
 An inbound brand pitch runs the conditional chain pitch-extract, then product-fit (cross-spoke atom
 reuse), then proposal-price (personal rate card plus the `--price-package` CLI for
-multi-deliverable asks), then gap-record, then govern-artifact. The chain produces a single
-**pitch-triage brief**:
+multi-deliverable asks), then gap-record, then govern-artifact. Brands request any combination of
+deliverables (posts, videos, story sets, scripts, video ideas, UGC): each extracted deliverable is
+mapped to a rate-card format key only when unambiguous, otherwise it is priced as unpriceable with
+a named gap, never forced into a video format. The chain produces a single **pitch-triage brief**:
 
 | Field | Description |
 |---|---|

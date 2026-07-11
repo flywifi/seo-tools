@@ -7,13 +7,20 @@
   "as_of": null,
   "subscriber_tier": null,
   "currency": "USD",
+  "_formats_note": "Format keys are OPEN vocabulary: brands ask for any combination of posts, videos, scripts, story sets, ideation, and more. Add a row for any deliverable type you sell; pricing null-flags any format without a row (no_rate_card_entry) and never guesses.",
   "rates": [
     {"format": "youtube_dedicated_long_form", "base_rate": null, "notes": null},
     {"format": "youtube_integration_60_90s", "base_rate": null, "notes": null},
+    {"format": "youtube_short", "base_rate": null, "notes": null},
     {"format": "tiktok_dedicated", "base_rate": null, "notes": null},
     {"format": "instagram_reel", "base_rate": null, "notes": null},
+    {"format": "instagram_post_static", "base_rate": null, "notes": null},
+    {"format": "instagram_story_set", "base_rate": null, "notes": "a multi-frame story sequence priced as one deliverable"},
     {"format": "pinterest_idea_pin", "base_rate": null, "notes": null},
-    {"format": "photo_set", "base_rate": null, "notes": null}
+    {"format": "photo_set", "base_rate": null, "notes": null},
+    {"format": "video_concept_ideas", "base_rate": null, "notes": "ideation only: pitched concepts without production"},
+    {"format": "script_only", "base_rate": null, "notes": "script writing without filming or editing"},
+    {"format": "ugc_video_brand_channel", "base_rate": null, "notes": "content produced for the brand's own channel, no posting on the creator's channels"}
   ],
   "uplifts": [
     {"lever": "paid_usage_30d", "policy": null, "notes": "set as a percent of base or a flat amount; null until the creator decides"},

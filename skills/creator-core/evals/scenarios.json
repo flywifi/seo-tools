@@ -532,6 +532,25 @@
                     ]
                 },
                 {
+                    "id": "quality-unknown-dimension",
+                    "op": "quality.evaluate",
+                    "with": {
+                        "fixture": "mediakit-scores.json",
+                        "key": "unknown_key"
+                    },
+                    "assert": [
+                        {
+                            "path": "error",
+                            "check": "matches",
+                            "value": "unknown dimensions.*emotional_impact"
+                        },
+                        {
+                            "path": "released",
+                            "check": "absent_key"
+                        }
+                    ]
+                },
+                {
                     "id": "benchmark-rows-structured",
                     "op": "json.load",
                     "with": {
@@ -1009,8 +1028,18 @@
                         },
                         {
                             "path": "unpriceable_items",
+                            "check": "len_eq",
+                            "value": 2
+                        },
+                        {
+                            "path": "unpriceable_items",
                             "check": "contains",
                             "value": "tiktok video"
+                        },
+                        {
+                            "path": "unpriceable_items",
+                            "check": "contains",
+                            "value": "instagram photo set"
                         },
                         {
                             "path": "gaps",
@@ -1021,6 +1050,11 @@
                             "path": "gaps",
                             "check": "matches",
                             "value": "benchmark_tier_assumed"
+                        },
+                        {
+                            "path": "gaps",
+                            "check": "not_matches",
+                            "value": "missing_input"
                         }
                     ]
                 },
