@@ -91,6 +91,10 @@ A single `deal_report` object with the following fields:
 - `shared/pipeline-engine.md` -- authoritative stage and transition rules
 - `protocols/safety.md` -- contract review triggers and FTC disclosure rules
 - `protocols/no-fabrication.md` -- no rates, terms, or brand data may be inferred or invented; null and flag instead
+- `canonical-sources/rate-benchmarks/benchmarks.json` -- pricing lever records exist for usage-rights
+  and exclusivity uplifts and for TikTok/Reel tier rates, but carry null values with
+  `needs_research: true` until a cited research pass fills them; pricing null-flags them by name
+  and never quotes an unresearched lever
 - `protocols/quality-gates.md` -- governs all writes; quality gate must pass before any record is updated
 
 ## Do NOT use for

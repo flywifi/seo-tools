@@ -41,7 +41,11 @@ Do NOT use for:
 (`rate-card.local.json` under pipeline/finance/, gitignored; template
 `pipeline/finance/rate-card.template.json`) or the playbook; `benchmark_range` from the structured rows in
 `canonical-sources/rate-benchmarks/benchmarks.json` (labeled benchmarks, verify-before-quoting
-caveat intact).
+caveat intact). Structure-only lever records exist there for usage-rights and exclusivity uplifts
+(`uplift-paid-usage-30d`, `uplift-paid-usage-90d`, `uplift-category-exclusivity-30d`) and for
+short-form tier rates (`rate-tiktok-dedicated-50-100k`, `rate-reel-50-100k`): all carry null values
+with `needs_research: true` until a cited research pass fills them, so pricing null-flags them by
+name instead of quoting a range.
 
 ## Core procedure
 Run `python3 tools/finance.py --price <payload.json>`:
