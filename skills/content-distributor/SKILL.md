@@ -143,5 +143,5 @@ When no connector is active, produces a full manual posting package (via publish
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: tools/publishing_compliance.py (FTC/AIGC/tier/credential gate) + the schedule/dashboard tools; connector calls are human-confirmed and gated (live_publishing_enabled default off); MCP schedule tools.
-Fallback: No runtime or hosted seam -> produce a confirmation summary for human review only; never post, never bypass the compliance gate, never fabricate a scheduled state.
+Fallback: No runtime or hosted seam -> produce a confirmation summary for human review only; never post, never bypass the compliance gate, never fabricate a scheduled state. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

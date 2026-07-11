@@ -81,5 +81,5 @@ report, a sourced cost estimate, or a price floor with its binding constraint na
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: tools/finance.py offline money math (invoices, cost estimates, proposal pricing, cash flow) over the private pipeline/finance store; MCP finance tools; redaction before figures leave.
-Fallback: No runtime or hosted seam -> reason over finance-engine.md formulas against pasted figures, show the math, flag unverified; never fabricate a dollar amount.
+Fallback: No runtime or hosted seam -> reason over finance-engine.md formulas against pasted figures, show the math, flag unverified; never fabricate a dollar amount. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

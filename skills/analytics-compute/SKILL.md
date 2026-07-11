@@ -98,5 +98,5 @@ interpretation suitable for the creator.
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: Delegates the statistics to a connected external compute MCP (E2B/scipy, Wolfram, DuckDB, R, ...) per shared/compute-engine.md; ships no tools/*.py of its own (mcp_server.py exposes only get_stats_tools discovery + configure_tool).
-Fallback: No compute MCP connected -> emit guidance-only output (the test/formula/assumptions + runnable Python/R) labelled computation_source=guidance_only; never use model arithmetic for tests/regression/forecasting, never fabricate a result.
+Fallback: No compute MCP connected -> emit guidance-only output (the test/formula/assumptions + runnable Python/R) labelled computation_source=guidance_only; never use model arithmetic for tests/regression/forecasting, never fabricate a result. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

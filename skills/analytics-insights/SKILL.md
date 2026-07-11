@@ -68,5 +68,5 @@ Returns an `insights_report` object with the following fields:
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: Local compute via composed atoms: ingest-route (shared/docintel CSV/screenshot parsing), benchmark-compare (canonical-sources/rate-benchmarks), roi-metric (CPM/CPC/effective-hourly money math), then the shared govern-artifact gate (score.py); no dedicated analytics MCP tool.
-Fallback: Off a runtime, the user must supply already-structured metrics (no CSV/screenshot parsing) and benchmark/ROI degrade to reasoning over cached benchmarks; flag unverified; never fabricate a computed metric.
+Fallback: Off a runtime, the user must supply already-structured metrics (no CSV/screenshot parsing) and benchmark/ROI degrade to reasoning over cached benchmarks; flag unverified; never fabricate a computed metric. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

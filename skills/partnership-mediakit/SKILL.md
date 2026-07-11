@@ -216,5 +216,5 @@ Output guarantees:
 Class: B.
 Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
 Mechanism: Reasoning over supplied real channel data, else labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json (pitch-paragraph, mediakit-section, rate-card-fill); the benchmark data is offloadable to any surface; no compute tool.
-Fallback: Off a runtime, the benchmark ranges are providable as knowledge; without real channel data cite labeled benchmark ranges only (never the creator's personal rates) and null-flag missing figures.
+Fallback: Off a runtime, the benchmark ranges are providable as knowledge; without real channel data cite labeled benchmark ranges only (never the creator's personal rates) and null-flag missing figures. On ChatGPT this runs knowledge-only from the pasted pack; the desktop app can reach live data via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

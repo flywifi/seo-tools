@@ -979,6 +979,19 @@ def check_transitions():
             if f'"{sid}"' not in wiz_text:
                 problem(f"transitions: tools/wizard.py does not name surface id {sid!r} "
                         "(the wizard pickers must cover every surface)")
+    # (g) every spoke's Cross-modality Fallback line names ChatGPT, so a reader on that surface
+    # can see their own degradation path (the P43-7 sweep cannot silently regress).
+    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        if skill_md.parent.name == "atoms":
+            continue
+        text = skill_md.read_text(encoding="utf-8")
+        if "## Cross-modality" not in text:
+            continue
+        seg = text.split("## Cross-modality", 1)[1]
+        fb = [ln for ln in seg.splitlines() if ln.startswith("Fallback:")]
+        if fb and "ChatGPT" not in fb[0]:
+            problem(f"transitions: {skill_md.relative_to(ROOT)} Fallback line does not name "
+                    "ChatGPT (every spoke states its ChatGPT degradation path)")
 
 
 def check_currency_map():

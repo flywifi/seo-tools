@@ -180,5 +180,5 @@ Key output guarantees:
 Class: B.
 Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
 Mechanism: Reasoning over the keyword library + scoop cache (keyword-cluster, long-tail-expand, search-intent, SERP/topical-authority mapping); no compute tool beyond the shared gate.
-Fallback: Off a runtime, provide the keyword/SERP data or use cached snapshots (flag as_of) and reason over what is supplied. No fabricated volumes.
+Fallback: Off a runtime, provide the keyword/SERP data or use cached snapshots (flag as_of) and reason over what is supplied. No fabricated volumes. On ChatGPT this runs knowledge-only from the pasted pack; the desktop app can reach live data via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

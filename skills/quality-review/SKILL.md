@@ -66,5 +66,5 @@ no downstream skill required.
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: skills/quality-review/scripts/score.py deterministic Quality-Gates scoring, invoked by every spoke's govern-artifact; MCP gate. A governance/meta capability.
-Fallback: No runtime or hosted seam -> the model scores under the quality-gates.md rubric explicitly labelled an estimate (not the deterministic score); never release on a hard-fail dimension.
+Fallback: No runtime or hosted seam -> the model scores under the quality-gates.md rubric explicitly labelled an estimate (not the deterministic score); never release on a hard-fail dimension. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

@@ -81,5 +81,5 @@ Tracks, plans, and reports cited tasks offline from the register, with no downst
 Class: C.
 Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: tools/tasks.py (scheduling, recurrence, date math), tools/shipments.py, tools/coverage_verify.py over the task store; MCP task tools; .ics export.
-Fallback: No runtime or hosted seam -> reason over the tasks-engine date rules against pasted tasks, flag unverified, name the command; never fabricate a schedule or a shipment status.
+Fallback: No runtime or hosted seam -> reason over the tasks-engine date rules against pasted tasks, flag unverified, name the command; never fabricate a schedule or a shipment status. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

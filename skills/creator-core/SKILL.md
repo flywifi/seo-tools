@@ -230,5 +230,5 @@ contract-desk       finance-desk       task-desk           quality-review
 Class: A.
 Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
 Mechanism: The hub/router: classifies a request into a lane and dispatches to a spoke (pure reasoning); runs no tool of its own. The spoke it routes to carries its own class.
-Fallback: Runs on every surface; if a routed spoke is Class C and the surface has no runtime or hosted seam, it hands off with that spoke's own fallback.
+Fallback: Runs on every surface; if a routed spoke is Class C and the surface has no runtime or hosted seam, it hands off with that spoke's own fallback. On ChatGPT (web, custom GPT, Projects, desktop app) this works by pasting the knowledge pack; re-paste when the packaging version changes.
 See `shared/cross-modality-engine.md`.
