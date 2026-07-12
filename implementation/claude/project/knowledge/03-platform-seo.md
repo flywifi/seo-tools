@@ -7,7 +7,7 @@ role: Source of truth for per-platform specs, what each algorithm rewards, and m
 load: when the request involves a specific platform, formatting, repurposing, or metric interpretation
 ---
 
-_Data freshness: as of 2026-07-07 (Creator OS baseline 556c3c21). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-12 (Creator OS baseline 3613a00f). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # Platform Engine
 
