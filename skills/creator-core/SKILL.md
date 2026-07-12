@@ -23,7 +23,7 @@ Classify every request, load the right context, enforce the protocols, and route
 
 ### Content lane
 Any request to plan, script, research, repurpose, or analyze content.
-Spokes: content-strategy, project-builder, construction-desk, jurisdiction-desk, video-development, shortform-repurposing, seo-keywords, analytics-insights, analytics-compute, audience-research, competitor-analysis, seasonal-trends.
+Spokes: content-strategy, project-builder, construction-desk, jurisdiction-desk, video-development, shortform-repurposing, seo-keywords, analytics-insights, analytics-compute, audience-research, competitor-analysis, seasonal-trends, content-library.
 
 ### Document lane
 Any request to create or edit a file: media kit, deliverable brief, invoice, PDF guide, content calendar, or brand one-pager.
@@ -87,6 +87,9 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `competitor_check` | Content | `competitor-analysis` | competitor channel analysis, gap finding |
 | `seasonal_planning` | Content | `seasonal-trends` | seasonal content calendar, trend timing |
 | `content_distribution` | Content | `content-distributor` | scheduling, posting, and queuing finalized content to social platforms |
+| `import_past_videos` | Content | `content-library` | import the creator's OWN past videos + metadata (stats, tags, retention, Studio-CSV revenue, transcripts) from an export bundle or optional flag-gated live API, across YouTube/Instagram/TikTok/Pinterest |
+| `analyze_back_catalog` | Content | `content-library` | analyze the creator's already-imported library: top tags, format/topic performance, transcript themes, retention insights (all cited to video_keys, unavailable data null-flagged) |
+| `most_watched_parts` | Content | `content-library` | which parts of the creator's OWN videos were most watched, with the transcript words spoken at each peak (YouTube retention x transcript join; null-flagged off YouTube) |
 | `document_create` | Document | `document-studio` | new document creation (media kit, brief, etc.) |
 | `document_edit` | Document | `document-studio` | editing an existing document |
 | `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
@@ -221,9 +224,10 @@ Stop after returning the human summary and routing object unless:
 content-strategy    project-builder    construction-desk    jurisdiction-desk    video-development
 shortform-repurposing
 seo-keywords        analytics-insights analytics-compute    audience-research
-competitor-analysis seasonal-trends    content-distributor  document-studio
+competitor-analysis seasonal-trends    content-distributor  content-library
 account-manager     deal-pipeline       deal-resourcing     partnership-mediakit
-contract-desk       finance-desk       task-desk           quality-review
+contract-desk       finance-desk       task-desk           document-studio
+quality-review
 ```
 
 ## Cross-modality

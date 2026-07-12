@@ -170,10 +170,65 @@ python3 shared/cache/cache.py --build   # only if canonical-sources/ changed
 
 ---
 
+## Local transcription / STT import (content-library)
+
+To import your OWN past videos and have Creator OS transcribe them on this computer (zero cloud, zero
+tokens; see `docs/CONTENT-IMPORT.md`), install a speech-to-text engine. Nothing here is required: with
+no engine the library is built metadata-only and each transcript is flagged as needing an engine, never
+faked.
+
+### Apple Silicon (M1 to M4) and Intel Macs
+
+The recommended engine is **whisper.cpp** (uses the Mac's Metal GPU on Apple Silicon):
+
+```bash
+brew install whisper-cpp ffmpeg
+```
+
+Homebrew bottles are notarized, so there is no Gatekeeper "unidentified developer" prompt. Download a
+model file once (a `ggml-<tier>.bin` from the whisper.cpp repository; tier by RAM: 8GB small, 16GB
+medium/turbo, 32GB large-v3) and point Creator OS at it:
+
+```bash
+export WHISPER_CPP_MODEL=/path/to/ggml-small.bin
+```
+
+Prefer Python instead? Use **faster-whisper**, which needs **no** system ffmpeg (it bundles PyAV):
+
+```bash
+brew install python && pip3 install faster-whisper
+```
+
+### macOS notes that trip people up
+
+- macOS ships **no usable `python3`**. Install it via Homebrew (`brew install python`) or the notarized
+  python.org universal2 `.pkg` (notarized, so no Gatekeeper prompt).
+- A **downloaded static ffmpeg** hits `com.apple.quarantine` ("cannot be opened because the developer
+  cannot be verified"). Clear it with `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or open it once
+  via System Settings &rarr; Privacy &amp; Security &rarr; Open Anyway (Sequoia removed the old
+  right-click-Open shortcut for unsigned binaries). `brew install` avoids quarantine entirely.
+- faster-whisper needs no system ffmpeg, so it is the escape hatch when a user cannot get a downloaded
+  ffmpeg past Gatekeeper.
+
+Verify what was found:
+
+```bash
+python3 tools/transcribe.py status          # backend + selection for this machine
+python3 tools/videoedit/preflight.py        # transcribe_media lane + probes
+```
+
+The setup wizard's **Import your past videos** screen (`python3 tools/wizard.py`, then the Import link)
+walks through this per-OS with the exact commands.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
+| `whisper.cpp needs a GGML model file` | Download a `ggml-<tier>.bin` and set `WHISPER_CPP_MODEL` to its path |
+| ffmpeg "cannot be opened, developer cannot be verified" | `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or use faster-whisper (no ffmpeg needed) |
+| No STT backend found on the Import screen | `brew install whisper-cpp ffmpeg` (Apple Silicon) or `pip3 install faster-whisper` |
 | `python3: command not found` | `brew install python@3.11` then add `/opt/homebrew/bin` to PATH |
 | `pip3: command not found` | Use `/opt/homebrew/bin/pip3` or `python3 -m pip` |
 | `playwright install` hangs | Check network; retry with `python3 -m playwright install chromium --force` |

@@ -271,6 +271,11 @@ python3 tools/competitor_snapshot.py --export-summary
 | Coverage verification (multi-transcript reconcile + cited points) | Yes (MCP) | Partial (lexical/model, abstains) | Partial | No | Partial |
 | Payment milestone billable-readiness into finance | Yes (MCP) | Partial | Partial | No | Partial |
 | .ics calendar export + reminders digest | Yes (local) | No | No | No | No |
+| Import own past videos + metadata (export bundle) | Yes (local) | Partial (paste stats) | Partial (upload export) | No (browser cannot read your folder) | No |
+| Live-API video import (flag-gated, revenue-never) | Yes (local + own OAuth) | No | Partial (key) | No | No |
+| Local transcription / STT import (whisper.cpp / faster-whisper) | Yes (local, on-device) | No | Partial (upload; backend may need install) | No | No |
+| Retention x transcript join (most-watched parts with words) | Yes (local, YouTube only) | Partial (model reasons over pasted data) | Partial | No | No |
+| Back-catalog analysis (top tags, retention cliffs, themes) | Yes (local) | Partial (paste library) | Partial | No | No |
 
 ---
 

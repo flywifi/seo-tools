@@ -369,6 +369,33 @@ def transcript_themes(con, top_n=25, min_len=4, platform=None):
     return {"themes": out[:top_n], "flag": None, "transcripts_analyzed": len(rows)}
 
 
+def import_status(con):
+    """A read-only completeness snapshot of the library: totals by platform and how many records
+    still lack a transcript, retention, or revenue. Drives the wizard/MCP import-status view."""
+    rows = con.execute("SELECT platform, transcript_text, retention_json, revenue_json FROM video_records").fetchall()
+    by_platform, total = {}, 0
+    with_transcript = with_retention = with_revenue = 0
+    for r in rows:
+        total += 1
+        by_platform[r["platform"]] = by_platform.get(r["platform"], 0) + 1
+        if r["transcript_text"]:
+            with_transcript += 1
+        if r["retention_json"]:
+            with_retention += 1
+        if r["revenue_json"]:
+            with_revenue += 1
+    return {
+        "total_records": total,
+        "by_platform": by_platform,
+        "with_transcript": with_transcript,
+        "missing_transcript": total - with_transcript,
+        "with_retention": with_retention,
+        "with_revenue": with_revenue,
+        "note": "Retention is YouTube-only; revenue is Studio-CSV-only; missing transcripts complete "
+                "on-device via library-complete (never fabricated).",
+    }
+
+
 def analyze(con, platform=None):
     """The full read-only analysis: top tags, retention insights, format performance, transcript
     themes. Every section cites video_keys and null-flags what a platform does not provide."""
@@ -484,7 +511,7 @@ def main(argv):
     sub = ap.add_argument_group("command")
     ap.add_argument("command", nargs="?",
                     choices=["init", "upsert", "upsert-batch", "get", "list", "query",
-                             "derive-most-watched", "analyze"])
+                             "derive-most-watched", "analyze", "status"])
     ap.add_argument("arg", nargs="?", help="video_key / fts query / batch file, per command")
     ap.add_argument("--record", help="(upsert) a normalized record as JSON, or - for stdin")
     ap.add_argument("--platform", choices=PLATFORMS)
@@ -536,6 +563,8 @@ def main(argv):
         print(json.dumps({"video_key": args.arg, "most_watched_segments": seg}, indent=2, ensure_ascii=False))
     elif args.command == "analyze":
         print(json.dumps(analyze(con, platform=args.platform), indent=2, ensure_ascii=False))
+    elif args.command == "status":
+        print(json.dumps(import_status(con), indent=2, ensure_ascii=False))
     con.close()
     return 0
 

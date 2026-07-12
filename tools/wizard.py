@@ -228,6 +228,7 @@ accounts when you use Claude on this computer, and walks you through moving betw
 Desktop. If you chat in a web browser, pick the matching browser option.</p>
 <hr>
 <a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
+<a class="btn btn-outline" href="/import">Import my past videos (build my content library)</a>
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
 <a class="btn btn-outline" href="/updates">Updates: am I on the latest version?</a>
 """, dots=["active", "dot", "dot", "dot"])
@@ -1229,6 +1230,125 @@ Class B: {', '.join(summ['B']) or 'none'}<br>Class C: {', '.join(summ['C']) or '
     return _page("Cross-Modality Setup", body)
 
 
+def _stt_backend_present() -> tuple:
+    """Which local STT backend, if any, is installed on this machine. Detection only; runs nothing.
+    Returns (backend_label_or_None, whisper_cpp_bin_or_None, faster_whisper_bool)."""
+    cpp = None
+    for name in ("whisper-cli", "whisper-cpp", "main"):
+        if shutil.which(name):
+            cpp = name
+            break
+    try:
+        import faster_whisper  # noqa: F401
+        fw = True
+    except Exception:  # noqa: BLE001
+        fw = False
+    if cpp:
+        return "whisper.cpp", cpp, fw
+    if fw:
+        return "faster-whisper", None, fw
+    return None, None, fw
+
+
+def _stt_install_block() -> str:
+    """The machine-correct STT install instructions, including the macOS Python/ffmpeg/Gatekeeper
+    notes. Non-technical, one copy-paste line per OS, per the P45 routing matrix."""
+    os_name = _os()
+    if os_name == "mac":
+        is_arm = platform.machine().lower() in ("arm64", "aarch64")
+        chip = "Apple Silicon (M1 to M4)" if is_arm else "Intel Mac"
+        return f"""
+<div class="note"><strong>Install a transcription engine ({chip}).</strong>
+The recommended engine is <strong>whisper.cpp</strong> (uses the Mac's Metal GPU). In Terminal:
+<pre>brew install whisper-cpp ffmpeg</pre>
+Homebrew bottles are notarized, so there is no "unidentified developer" Gatekeeper prompt. You then
+download a model file once (a ggml-*.bin from the whisper.cpp repo) and point Creator OS at it with
+<code>WHISPER_CPP_MODEL</code>.
+<br><br>Prefer Python instead? <pre>brew install python && pip3 install faster-whisper</pre>
+faster-whisper needs <strong>no</strong> system ffmpeg, which is the escape hatch if a downloaded
+ffmpeg gets blocked by Gatekeeper. Note: macOS ships no usable <code>python3</code>; install it via
+Homebrew (above) or the notarized python.org universal2 installer. If you ever download a static
+ffmpeg and macOS blocks it ("unidentified developer"), clear the quarantine with
+<pre>xattr -dr com.apple.quarantine /path/to/ffmpeg</pre>
+or open it once via System Settings &rarr; Privacy &amp; Security &rarr; Open Anyway.</div>"""
+    if os_name == "windows":
+        return """
+<div class="note"><strong>Install a transcription engine (Windows).</strong>
+Install Python from python.org, then in a terminal:
+<pre>pip install faster-whisper</pre>
+It needs no system ffmpeg. With an NVIDIA GPU it will use CUDA automatically; otherwise it runs on the
+CPU. SmartScreen may warn on the Python installer; choose Run anyway for the official python.org build.</div>"""
+    return """
+<div class="note"><strong>Install a transcription engine (Linux).</strong>
+<pre>pip install faster-whisper</pre>
+It needs no system ffmpeg and uses CUDA automatically when an NVIDIA GPU is present, otherwise the CPU.
+Or use your package manager for whisper.cpp: <pre>apt install whisper-cpp ffmpeg</pre></div>"""
+
+
+def _screen_import(saved: str = "") -> str:
+    """Guided, non-technical, end-to-end flow to import the creator's OWN past videos and build the
+    local library. Class C: everything runs on this computer; nothing leaves it (P45)."""
+    backend, cpp_bin, _fw = _stt_backend_present()
+    saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    if backend:
+        stt_status = (f'<div class="note" style="background:#eef7ee"><strong>Transcription engine found:'
+                      f'</strong> {backend}{" (" + cpp_bin + ")" if cpp_bin else ""}. Creator OS can '
+                      f'transcribe your videos on this computer.</div>')
+    else:
+        stt_status = ('<div class="note" style="background:#fff3e0"><strong>No transcription engine yet.'
+                      '</strong> You can still build a metadata-only library now; transcripts will be '
+                      'flagged as needing an engine (never faked). Install one below to transcribe on '
+                      'this computer.</div>' + _stt_install_block())
+    return _page("Import your past videos", f"""
+<h1>Import your past videos</h1>
+{_local_precondition_note()}
+<div class="note"><strong>Everything here runs on your computer.</strong> Your videos, stats, and
+transcripts never leave this machine. Creator OS proposes what it found; you decide what to save.</div>
+{saved_html}
+
+<h2>1. Get your data from each platform</h2>
+<ul>
+<li><strong>YouTube:</strong> Google Takeout (takeout.google.com &rarr; YouTube and YouTube Music) for
+your video files and metadata, PLUS YouTube Studio &rarr; Analytics &rarr; Advanced mode &rarr; Export
+&rarr; the .zip for your stats and (if monetized) revenue. Revenue comes only from this Studio export.</li>
+<li><strong>Instagram:</strong> Accounts Center &rarr; Your information and permissions &rarr; Download
+your information &rarr; choose your profile, JSON format.</li>
+<li><strong>TikTok:</strong> Profile &rarr; Settings and privacy &rarr; Account &rarr; Download your
+data &rarr; request, then download when ready.</li>
+<li><strong>Pinterest:</strong> Settings &rarr; Privacy and data &rarr; Request your data.</li>
+</ul>
+
+<h2>2. Point Creator OS at the unzipped folder</h2>
+<p>Unzip each export. In Claude Desktop or Claude Code, ask to import your library and give the folder
+path, or run it yourself:</p>
+<pre>python3 tools/import_parse.py   # parses the export into proposed records
+python3 tools/video_library.py upsert-batch &lt;records.json&gt;   # you save what you approve</pre>
+
+<h2>3. Build the library locally</h2>
+{stt_status}
+<p>Once an engine is present, Creator OS matches each downloaded video file to its record, transcribes
+what is missing on this computer, derives chapters and spoken keywords, and (for YouTube) joins the
+retention curve to the transcript so you can see the words spoken at your most-watched moments:</p>
+<pre>python3 tools/library_complete.py complete --export-dir &lt;your unzipped folder&gt;</pre>
+<div class="note">The first run downloads the speech model once (a few hundred MB). Nothing leaves your
+computer. If no engine is installed, the library is built metadata-only and each transcript is flagged
+as needing an engine, never faked.</div>
+
+<h2>4. Your library is ready</h2>
+<p>Analyze it: most-watched parts with the actual words, top tags, retention cliffs, and transcript
+themes:</p>
+<pre>python3 tools/video_library.py analyze</pre>
+
+<h2>Optional: live API import (advanced)</h2>
+<p>Instead of the export files, Creator OS can pull from each platform's API using your OWN developer
+credentials. This is off by default and never fetches revenue. Enable it only if you have set up OAuth:</p>
+<form method="POST" action="/api/enable-content-import">
+  <button class="btn btn-outline" type="submit">Enable live API import (content_import_live)</button>
+</form>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
 class _Handler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
@@ -1303,6 +1423,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/publishing-setup/pinterest": _screen_publishing_pinterest(),
             "/freshness-setup": _screen_freshness(),
             "/brand-deals": _screen_brand_deals(),
+            "/import": _screen_import(),
             "/chatgpt": _screen_chatgpt(),
             "/transitions": _screen_transitions(),
             "/updates": _screen_updates(),
@@ -1329,6 +1450,18 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 f"<strong>{flag}</strong> enabled in creator-os-config.local.json (local only; "
                 "never committed). If you run an MCP server on this computer, restart it to "
                 "pick this up.")))
+            return
+
+        if path == "/api/enable-content-import":
+            # Enable the live-API import master flag locally (per-platform read flags + your own
+            # OAuth credentials are still required before any network call is made). Default is off.
+            _update_capability_flag("content_import_live", {"enabled": True})
+            self._send(_screen_import(saved=(
+                "<strong>content_import_live</strong> enabled in creator-os-config.local.json (local "
+                "only; never committed). No network call happens yet: you still need to turn on each "
+                "platform's read flag and add your own OAuth credentials to "
+                "pipeline/user-context/api-credentials.local.json. The live importer never fetches "
+                "revenue. Prefer the export files above if you are not sure.")))
             return
 
         if path == "/api/enable-update-check":

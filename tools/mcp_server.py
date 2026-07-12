@@ -325,6 +325,43 @@ def freshness_refresh(overlay_path: str, source_id: str, field: str, value: str,
 
 
 @mcp.tool()
+def video_library_query(fts_query: str, limit: int = 20) -> str:
+    """Full-text search the creator's OWN imported video library (P45, read-only, local).
+
+    Searches titles, descriptions, tags, and transcripts in the local video-library store
+    (pipeline/video-library/index.local.db) built by the content-library spoke. Returns matching
+    records with their stats, retention, and most-watched segments. Reads only the local store; makes
+    no network call and never leaves the machine. Empty store or no match returns an empty list.
+
+    Args:
+        fts_query: An SQLite FTS5 query (e.g. "armoire", "patina OR wainscoting", "diy NEAR makeover").
+        limit: Maximum records to return (default 20).
+    """
+    if not fts_query:
+        return json.dumps({"error": "fts_query is required"})
+    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "video_library.py"),
+                         "query", fts_query, "--limit", str(limit)])
+    if rc != 0:
+        return json.dumps({"error": (err or out or "video_library query failed").strip()[:300]})
+    return out.strip() or "[]"
+
+
+@mcp.tool()
+def video_library_import_status() -> str:
+    """Report how complete the creator's imported video library is (P45, read-only, local).
+
+    Returns totals by platform and how many records still lack a transcript, retention, or revenue, so
+    the creator knows what is imported and what library-complete can still fill on-device. Retention is
+    YouTube-only and revenue is Studio-CSV-only; missing data is reported, never fabricated. Reads only
+    the local store; makes no network call.
+    """
+    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "video_library.py"), "status"])
+    if rc != 0:
+        return json.dumps({"error": (err or out or "video_library status failed").strip()[:300]})
+    return out.strip() or "{}"
+
+
+@mcp.tool()
 def get_server_info() -> str:
     """Report this Creator OS server's identity and installed version (read-only, P44).
 
