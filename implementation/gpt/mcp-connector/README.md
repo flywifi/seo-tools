@@ -12,7 +12,12 @@ the endpoint reads your private local stores (deals, rates, contracts, templates
    Creator OS folder on it.
 2. A public HTTPS hostname in front of it (a reverse proxy such as Caddy or nginx handling TLS).
 3. Authentication in front of the endpoint (an OAuth layer or at minimum a long random bearer
-   token enforced by the proxy). The MCP server itself binds plainly and trusts the proxy.
+   token enforced by the proxy). The MCP server itself binds plainly and trusts the proxy. If you
+   implement full OAuth to satisfy a provider's connector requirements, the current MCP spec
+   (2025-11-25, Authorization) expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
+   Metadata (RFC 9728), PKCE with S256, the RFC 8707 `resource` parameter, token-audience
+   validation, and HTTPS on every authorization endpoint. (Source:
+   modelcontextprotocol.io/specification/2025-11-25/basic/authorization.)
 
 ## Start the server (behind the proxy, never directly exposed)
 
@@ -40,6 +45,32 @@ gates are enforced HERE, on this machine, for every surface that connects.
 With a working connector, Class B and Class C capabilities run for that surface: the endpoint's
 machine executes the tools, enforces the capability flags, and applies the consent gates. Without
 a connector, every non-Anthropic surface is knowledge-only (Class A) via the pasted packs.
+
+## Keeping a connected setup current (the update story for this path)
+
+A connected setup is the only browser-AI path that gets true background updates: the AI calls your
+live endpoint, so the moment you update the endpoint machine, every connected session serves the new
+behavior on its next connect. To update: on the endpoint machine run `python3 tools/update.py` (or a
+pull), then restart the server. That is the whole update; connected clients need no rebuild.
+
+Two rules make this reliable, and one honest limit:
+
+- **Keep the tool set small and STABLE; push all evolving content through tool RESPONSES.** Add
+  capability by enriching what the existing tools return, not by adding or renaming tools. Neither
+  claude.ai nor ChatGPT reliably picks up a changed tool list (the tool *contract*) on a live
+  connection: claude.ai has served a stale cached tool list even across reconnect
+  (github.com/anthropics/claude-ai-mcp #137), and ChatGPT requires the user to click **Refresh** on
+  the connector in Settings after the tool list or descriptions change. If you must change the tool
+  contract, tell users to reconnect or Refresh. `[NEEDS VERIFICATION: mid-session
+  notifications/tools/list_changed and resources.updated honoring on claude.ai and ChatGPT.]`
+- **Bump `serverInfo.version` every deploy.** The MCP `initialize` handshake exchanges
+  `serverInfo {name, version}` at session start, so a version bump is the poll-able "this endpoint is
+  newer" signal. It is observed only on a new session (a poll), never pushed into a live one. The
+  `get_server_info` tool surfaces the running version so a client or a monitor can read it.
+- **Content modeled as MCP resources** can use `resources/subscribe` + `notifications/resources/updated`
+  for finer-grained refresh where the client supports it, but treat new-session re-fetch as the
+  dependable path. (Source: modelcontextprotocol.io/specification/2025-11-25/server/{tools,resources,
+  lifecycle}.)
 
 ## Security notes
 

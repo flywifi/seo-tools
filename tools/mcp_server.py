@@ -1549,6 +1549,12 @@ def milestone_status(schedule: dict, deliverable_id: str | None = None, event: s
 #                         implementation/gpt/mcp-connector/README.md (also docs/TASK-TRACKER.md).
 #                         The same task tools serve every surface unchanged; capability flags and consent
 #                         gates enforce on THIS machine for every connected surface.
+#   Updating a deployed endpoint (P44): update the endpoint machine (tools/update.py) and restart; every
+#   connected session serves the new behavior on its next connect. Keep the tool set SMALL and STABLE
+#   and push evolving content through tool RESPONSES: neither claude.ai nor ChatGPT reliably picks up a
+#   changed tool CONTRACT on a live connection (stale list caches / manual Refresh), so adding/renaming
+#   tools breaks the background promise. Bump the VERSION each deploy; get_server_info surfaces it as the
+#   poll-able currency signal (serverInfo.version is exchanged only at initialize, never pushed).
 
 if __name__ == "__main__":
     import argparse as _argparse

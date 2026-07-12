@@ -57,6 +57,23 @@ GPT, Projects, desktop without a connector) and Gemini Gems, nothing evaluates t
 they are at best text the model has read. Treat every gate as advisory on those surfaces,
 and see docs/PASTE-SAFETY.md before moving private data there.
 
+## Keeping a connected surface current (updates)
+A hosted remote-MCP connector is the only browser-AI path with true background updates: update the
+endpoint machine once (`tools/update.py` + restart) and every connected session serves the new
+behavior on its next connect. Two rules make this hold, and one is a hard limit:
+- Expose a **small, stable tool set** and push evolving content through tool **responses** (and MCP
+  resources), never by adding or renaming tools. Neither claude.ai nor ChatGPT reliably picks up a
+  changed tool contract mid-session: claude.ai has served a stale cached tool list even across
+  reconnect (anthropics/claude-ai-mcp #137), and ChatGPT requires the user to click "Refresh" on the
+  connector after the tool list changes. `[NEEDS VERIFICATION: mid-session list_changed /
+  resources.updated honoring on claude.ai and ChatGPT.]`
+- Bump the ecosystem VERSION each deploy; `serverInfo.version` (exchanged at MCP `initialize`, current
+  spec 2025-11-25) is a poll signal read on a new session, never pushed into a live one. The
+  `get_server_info` tool surfaces it.
+
+Knowledge-only surfaces (pasted packs, uploaded Project/GPT knowledge, Gems) never auto-update: the
+`Packaging version:` line is the only staleness signal, compared by hand. Full runbook: docs/UPDATING.md.
+
 ## Boundaries that hold on every surface
 - Every output carries the **advisory-not-legal-determination** boundary; genuine legal conflicts return
   `human_review_required` (a safety floor is never silently discarded).
