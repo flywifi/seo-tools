@@ -1,0 +1,57 @@
+[
+  {
+    "test_id": "library-complete-match-by-id",
+    "description": "A downloaded media file named with the platform video id is matched to its library record; an unmatched file is reported, not force-fit.",
+    "input": {"export_dir": "/tmp/export", "video_keys": null},
+    "expected_output_keys": ["proposals", "unmatched_media", "no_media", "save_note"],
+    "assertions": [
+      "the file whose name contains the platform_video_id maps to that video_key",
+      "a media file matching no record is listed under unmatched_media",
+      "nothing is written to the store"
+    ]
+  },
+  {
+    "test_id": "library-complete-fill-transcript",
+    "description": "For a record missing its transcript, local on-device STT fills it and the provenance (computed_by, backend_chain) is recorded.",
+    "input": {"export_dir": "/tmp/export", "video_keys": ["youtube:vidJoin"]},
+    "expected_output_keys": ["proposals"],
+    "assertions": [
+      "the proposal lists transcript under filled",
+      "provenance.transcript.computed_by names the STT backend",
+      "the transcript is never fabricated and stays on the machine"
+    ]
+  },
+  {
+    "test_id": "library-complete-retention-join",
+    "description": "The YouTube retention peak carries the transcript line spoken at that timestamp and the steepest-drop cliff line is identified.",
+    "input": {"export_dir": "/tmp/export", "video_keys": ["youtube:vidJoin"]},
+    "expected_output_keys": ["proposals"],
+    "assertions": [
+      "each most_watched segment carries at_seconds and the words spoken there",
+      "the cliff segment is labeled and carries its line",
+      "the timestamp is elapsed_ratio times duration_s, never invented"
+    ]
+  },
+  {
+    "test_id": "library-complete-no-backend-gap",
+    "description": "With no STT backend installed, the completion returns the run_local_stt gap with the per-OS install command, never a fabricated transcript.",
+    "input": {"export_dir": "/tmp/export", "video_keys": ["youtube:vidJoin"]},
+    "expected_output_keys": ["proposals"],
+    "assertions": [
+      "transcript is not listed under filled",
+      "a gap with recommended_action run_local_stt and an install command is returned",
+      "no transcript text is fabricated"
+    ]
+  },
+  {
+    "test_id": "library-complete-offplatform-retention-null",
+    "description": "An Instagram record has retention null-flagged while its transcript and topic themes are still delivered.",
+    "input": {"export_dir": "/tmp/export", "video_keys": ["instagram:reel_9"]},
+    "expected_output_keys": ["proposals"],
+    "assertions": [
+      "retention_available is false for the Instagram record",
+      "most_watched_segments is empty and a no_retention gap is surfaced",
+      "retention is null-flagged, never fabricated"
+    ]
+  }
+]

@@ -14,7 +14,11 @@
     "pinned_constraint": "",
     "validated_version": null,
     "extraction_hint": "SDK release notes for transport/auth and tool-registration API changes tracked to the MCP spec",
-    "used_by": ["tools/mcp_server.py", "mcp_server", "integrations-engine"],
+    "used_by": [
+      "tools/mcp_server.py",
+      "mcp_server",
+      "integrations-engine"
+    ],
     "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure"
   },
   {
@@ -31,7 +35,10 @@
     "pinned_constraint": ">=0.7,<0.8",
     "validated_version": "0.7",
     "extraction_hint": "ContentDetector / scene_manager API changes; the get_seconds()->seconds rename in 0.7",
-    "used_by": ["tools/videoedit/mediaprobe.py", "scene-scan"],
+    "used_by": [
+      "tools/videoedit/mediaprobe.py",
+      "scene-scan"
+    ],
     "_why": "pinned >=0.7,<0.8; a 0.8/major bump renames API (get_seconds->seconds shim precedent) and breaks scene detection"
   },
   {
@@ -48,7 +55,10 @@
     "pinned_constraint": ">=2,<3",
     "validated_version": "2.2.1",
     "extraction_hint": "breaking renames; removal of moviepy.editor; a v3 major",
-    "used_by": ["tools/videoedit/reframe.py", "shorts-reframe"],
+    "used_by": [
+      "tools/videoedit/reframe.py",
+      "shorts-reframe"
+    ],
     "_why": "pinned >=2,<3; v2 was a breaking rewrite (renamed methods, removed moviepy.editor). A v3 would break the shorts render lane"
   },
   {
@@ -65,7 +75,11 @@
     "pinned_constraint": "",
     "validated_version": "0.18.1",
     "extraction_hint": "schema version bumps; adapter packaging (adapters split into separate pip packages since 0.17/0.18)",
-    "used_by": ["tools/videoedit/otio_core.py", "edit-timeline-spec", "fcpxml-parse"],
+    "used_by": [
+      "tools/videoedit/otio_core.py",
+      "edit-timeline-spec",
+      "fcpxml-parse"
+    ],
     "_why": "the neutral timeline core round-trips through OTIO; a schema or adapter-packaging change breaks build/parse"
   },
   {
@@ -82,7 +96,10 @@
     "pinned_constraint": "",
     "validated_version": "1.0.0",
     "extraction_hint": "adapter API/compat with the installed opentimelineio core",
-    "used_by": ["tools/videoedit/otio_core.py", "fcpxml-parse"],
+    "used_by": [
+      "tools/videoedit/otio_core.py",
+      "fcpxml-parse"
+    ],
     "_why": "FCPXML round-trip depends on this adapter matching the OTIO core version"
   },
   {
@@ -99,7 +116,10 @@
     "pinned_constraint": "",
     "validated_version": "0.0.3",
     "extraction_hint": "early 0.0.x adapter; API is unstable, watch every release",
-    "used_by": ["tools/videoedit/otio_core.py", "tools/videoedit/mltxml.py"],
+    "used_by": [
+      "tools/videoedit/otio_core.py",
+      "tools/videoedit/mltxml.py"
+    ],
     "_why": "the MLT/Kdenlive read path uses this pre-1.0 adapter; any release can change the API"
   },
   {
@@ -116,8 +136,31 @@
     "pinned_constraint": "",
     "validated_version": "18.0.0",
     "extraction_hint": "libav/ffmpeg ABI compatibility; a major that drops an ffmpeg series",
-    "used_by": ["tools/videoedit/mediaprobe.py"],
+    "used_by": [
+      "tools/videoedit/mediaprobe.py"
+    ],
     "_why": "windowed-RMS silence backend; PyAV tracks the ffmpeg ABI, so an ffmpeg bump can force a PyAV bump"
+  },
+  {
+    "id": "dep-jiwer",
+    "name": "jiwer (WER/MER/WIL accuracy decomposition)",
+    "url": "https://pypi.org/project/jiwer/",
+    "category": "software-dependency",
+    "tier": "T3",
+    "check_interval_days": 60,
+    "staleness_threshold_days": 90,
+    "package": "jiwer",
+    "upstream_api": "pypi",
+    "check_url": "https://pypi.org/pypi/jiwer/json",
+    "pinned_constraint": ">=4.0",
+    "validated_version": "4.0.0",
+    "extraction_hint": "process_words/process_characters API; RapidFuzz backend changes",
+    "used_by": [
+      "requirements-transcribe.txt",
+      "transcription-engine",
+      "shared/docintel/wer.py"
+    ],
+    "_why": "optional accuracy-validation extra for local STT (P45); wer.py covers the stdlib floor, jiwer adds MER/WIL/WIP decomposition"
   },
   {
     "id": "dep-opencv-headless",
@@ -133,7 +176,9 @@
     "pinned_constraint": "",
     "validated_version": "5.0.0.93",
     "extraction_hint": "the backend PySceneDetect uses; a major that changes cv2 imports",
-    "used_by": ["tools/videoedit/mediaprobe.py"],
+    "used_by": [
+      "tools/videoedit/mediaprobe.py"
+    ],
     "_why": "PySceneDetect ContentDetector runs on OpenCV; an incompatible major breaks scene detection"
   },
   {
@@ -150,7 +195,10 @@
     "pinned_constraint": "",
     "validated_version": null,
     "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py",
-    "used_by": ["tools/acquire.py", "tools/competitor_snapshot.py"],
+    "used_by": [
+      "tools/acquire.py",
+      "tools/competitor_snapshot.py"
+    ],
     "_why": "JavaScript-render path for competitor snapshots; the Chromium bundle and API drift"
   },
   {
@@ -167,7 +215,10 @@
     "pinned_constraint": "",
     "validated_version": null,
     "extraction_hint": "stable HTTP client; only a major (3.x) matters",
-    "used_by": ["tools/fetch_resilient.py", "tools/acquire.py"],
+    "used_by": [
+      "tools/fetch_resilient.py",
+      "tools/acquire.py"
+    ],
     "_why": "HTTP client under the fetch stack; low churn, long interval"
   },
   {
@@ -184,7 +235,9 @@
     "pinned_constraint": "",
     "validated_version": null,
     "extraction_hint": "encoding detection used by the fetch stack; only a major matters",
-    "used_by": ["tools/fetch_resilient.py"],
+    "used_by": [
+      "tools/fetch_resilient.py"
+    ],
     "_why": "charset detection for fetched pages; low churn"
   },
   {
@@ -201,7 +254,10 @@
     "pinned_constraint": "",
     "validated_version": null,
     "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters",
-    "used_by": ["tools/parse_competitor_meta.py", "tools/fetch_diag.py"],
+    "used_by": [
+      "tools/parse_competitor_meta.py",
+      "tools/fetch_diag.py"
+    ],
     "_why": "parses competitor page HTML (SIGI_STATE, og tags); stable API, long interval"
   },
   {
@@ -218,7 +274,11 @@
     "pinned_constraint": "system (brew/apt or johnvansickle static)",
     "validated_version": "7.0.2-static",
     "extraction_hint": "silencedetect / scdet filter output format and flag names; a major that changes stderr shape",
-    "used_by": ["tools/videoedit/mediaprobe.py", "tools/videoedit/reframe.py", "tools/videoedit/compressor.py"],
+    "used_by": [
+      "tools/videoedit/mediaprobe.py",
+      "tools/videoedit/reframe.py",
+      "tools/videoedit/compressor.py"
+    ],
     "_why": "core media backend; the committed silencedetect/scdet stderr fixtures are parsed by regex, so a filter/flag change breaks detection. Not pip-installed; check the release page manually"
   },
   {
@@ -235,7 +295,9 @@
     "pinned_constraint": "system (Shotcut/Kdenlive bundle)",
     "validated_version": null,
     "extraction_hint": "MLT XML schema and melt CLI changes; new avformat/ffmpeg support",
-    "used_by": ["tools/videoedit/mltxml.py"],
+    "used_by": [
+      "tools/videoedit/mltxml.py"
+    ],
     "_why": "Shotcut/Kdenlive render lane; the MLT XML we emit and the melt CLI we shell out to can drift"
   },
   {
@@ -252,7 +314,9 @@
     "pinned_constraint": "Studio only; Python 3.10 to 3.12",
     "validated_version": null,
     "extraction_hint": "the in-install Developer/Scripting/README.txt; the supported Python interpreter range",
-    "used_by": ["tools/videoedit/resolve.py"],
+    "used_by": [
+      "tools/videoedit/resolve.py"
+    ],
     "_why": "Lane B (live Resolve control) is Studio-only and pins Python 3.10 to 3.12; a Resolve major that moves the interpreter breaks the fusionscript bridge"
   },
   {
@@ -269,7 +333,9 @@
     "pinned_constraint": "version read from the installed FCP DTD",
     "validated_version": null,
     "extraction_hint": "FCPXML version bumps (FCP 11 -> 1.13, 12.x -> ~1.14); DTD element changes",
-    "used_by": ["tools/videoedit/fcpxml.py"],
+    "used_by": [
+      "tools/videoedit/fcpxml.py"
+    ],
     "_why": "fcpxml.py reads the target version from the on-disk DTD; an FCP major bumps the FCPXML version and can change validation"
   },
   {
@@ -286,7 +352,9 @@
     "pinned_constraint": "macOS only",
     "validated_version": null,
     "extraction_hint": "the Compressor -batchname/-jobpath CLI flags",
-    "used_by": ["tools/videoedit/compressor.py"],
+    "used_by": [
+      "tools/videoedit/compressor.py"
+    ],
     "_why": "macOS batch-export lane; the CLI flag surface can change across Compressor versions"
   },
   {
@@ -303,7 +371,9 @@
     "pinned_constraint": "macOS only",
     "validated_version": null,
     "extraction_hint": "the Lua automation surface CommandPost exposes",
-    "used_by": ["tools/videoedit/commandpost.py"],
+    "used_by": [
+      "tools/videoedit/commandpost.py"
+    ],
     "_why": "the escape hatch for FCP UI-driven steps; its automation API can change"
   },
   {
@@ -320,7 +390,12 @@
     "pinned_constraint": "uvx workspace-mcp",
     "validated_version": null,
     "extraction_hint": "tool names, OAuth 2.1 scopes, and tool-tier flags used by the Google connectors and the wizard",
-    "used_by": ["gmail", "google_calendar", "google_docs_sheets", "tools/wizard.py"],
+    "used_by": [
+      "gmail",
+      "google_calendar",
+      "google_docs_sheets",
+      "tools/wizard.py"
+    ],
     "_why": "the actual server backing every Google Workspace connector; a tool-name or auth change breaks Gmail/Calendar/Drive setup"
   },
   {
@@ -337,7 +412,12 @@
     "pinned_constraint": "npx @softeria/ms-365-mcp-server",
     "validated_version": null,
     "extraction_hint": "device-code auth flow and tool names for Outlook/Calendar/Excel/OneDrive",
-    "used_by": ["microsoft_outlook_email", "microsoft_outlook_calendar", "microsoft_excel_onedrive", "tools/wizard.py"],
+    "used_by": [
+      "microsoft_outlook_email",
+      "microsoft_outlook_calendar",
+      "microsoft_excel_onedrive",
+      "tools/wizard.py"
+    ],
     "_why": "the server backing every Microsoft 365 connector; auth-flow or tool-name drift breaks Outlook/Excel/OneDrive setup"
   },
   {
@@ -354,7 +434,11 @@
     "pinned_constraint": "uvx mcp-wolfram-alpha + WOLFRAM_APP_ID",
     "validated_version": null,
     "extraction_hint": "tool names and the App ID auth; release page slug pending confirmation",
-    "used_by": ["wolfram_alpha_mcp", "shared/compute-engine.md", "hypothesis-test"],
+    "used_by": [
+      "wolfram_alpha_mcp",
+      "shared/compute-engine.md",
+      "hypothesis-test"
+    ],
     "_why": "exact symbolic computation lane; a tool-name change silently drops it to guidance-only"
   },
   {
@@ -371,7 +455,11 @@
     "pinned_constraint": "@e2b/mcp-server + E2B_API_KEY",
     "validated_version": null,
     "extraction_hint": "sandbox API and tool names; release page slug pending confirmation",
-    "used_by": ["e2b_code_interpreter", "shared/compute-engine.md", "data-query"],
+    "used_by": [
+      "e2b_code_interpreter",
+      "shared/compute-engine.md",
+      "data-query"
+    ],
     "_why": "sandboxed Python for statistical analysis; an API change drops the compute lane to guidance-only"
   },
   {
@@ -388,7 +476,11 @@
     "pinned_constraint": "pip install stats-compass-mcp",
     "validated_version": null,
     "extraction_hint": "the 50+ pandas tool names for t-tests/ANOVA/chi-square",
-    "used_by": ["stats_compass_mcp", "shared/compute-engine.md", "hypothesis-test"],
+    "used_by": [
+      "stats_compass_mcp",
+      "shared/compute-engine.md",
+      "hypothesis-test"
+    ],
     "_why": "the pandas hypothesis-testing lane; a tool-name change drops it to guidance-only"
   },
   {
@@ -405,7 +497,11 @@
     "pinned_constraint": "npx @motherduckdb/mcp-server-motherduck",
     "validated_version": null,
     "extraction_hint": "SQL tool names and local vs MotherDuck mode",
-    "used_by": ["duckdb_analytics_mcp", "shared/compute-engine.md", "data-query"],
+    "used_by": [
+      "duckdb_analytics_mcp",
+      "shared/compute-engine.md",
+      "data-query"
+    ],
     "_why": "analytical SQL over CSV/Parquet/JSON; a tool-name change drops the data-query lane"
   },
   {
@@ -422,7 +518,10 @@
     "pinned_constraint": "jupyter-mcp-server",
     "validated_version": null,
     "extraction_hint": "persistent-notebook tool names; release API pending confirmation",
-    "used_by": ["jupyter_notebook_mcp", "shared/compute-engine.md"],
+    "used_by": [
+      "jupyter_notebook_mcp",
+      "shared/compute-engine.md"
+    ],
     "_why": "persistent notebook sessions for multi-step computation; API drift drops the lane"
   },
   {
@@ -439,7 +538,10 @@
     "pinned_constraint": "R + rmcp",
     "validated_version": null,
     "extraction_hint": "the 52 R statistical tool names; release API/slug pending confirmation",
-    "used_by": ["r_statistics_mcp", "shared/compute-engine.md"],
+    "used_by": [
+      "r_statistics_mcp",
+      "shared/compute-engine.md"
+    ],
     "_why": "advanced R modeling lane; a tool-name change drops it to guidance-only"
   },
   {
@@ -456,7 +558,11 @@
     "pinned_constraint": "MCS-MCP",
     "validated_version": null,
     "extraction_hint": "simulation tool names; release API/slug pending confirmation",
-    "used_by": ["monte_carlo_mcp", "shared/compute-engine.md", "forecast"],
+    "used_by": [
+      "monte_carlo_mcp",
+      "shared/compute-engine.md",
+      "forecast"
+    ],
     "_why": "probabilistic modeling and revenue forecasting; an API change drops the lane"
   },
   {
@@ -473,7 +579,10 @@
     "pinned_constraint": "mcp-server-scikit-learn",
     "validated_version": null,
     "extraction_hint": "ML classification/regression/clustering tool names; release API/slug pending confirmation",
-    "used_by": ["scikit_learn_mcp", "shared/compute-engine.md"],
+    "used_by": [
+      "scikit_learn_mcp",
+      "shared/compute-engine.md"
+    ],
     "_why": "ML prediction lane for audience segmentation and trend prediction; API drift drops it to guidance-only"
   }
 ]

@@ -83,6 +83,11 @@ def preflight(config: dict | None = None) -> dict:
         "av": _importable("av"),
         "scenedetect": _importable("scenedetect"),
         "moviepy": _importable("moviepy"),
+        # Local STT backends (P45 completion layer): whisper.cpp CLI (renamed across versions,
+        # so probe all three names) or the faster-whisper Python package. Either lets the
+        # content-library complete missing transcripts on-device.
+        "whisper_cpp": bool(shutil.which("whisper-cli") or shutil.which("whisper-cpp") or shutil.which("main")),
+        "faster_whisper": _importable("faster_whisper"),
     }
     resolve = _resolve_present()
 
@@ -109,6 +114,10 @@ def preflight(config: dict | None = None) -> dict:
         # the transcript floor which is always available.
         "silence_scan_media": bool(tools["ffmpeg"] or tools["av"]),
         "scene_scan_media": bool(tools["scenedetect"] or tools["ffmpeg"]),
+        # Local STT for the content-import completion layer (P45): tool presence, no flag (it is
+        # on-device analysis of the creator's own file). Degrades to the run_local_stt gap when no
+        # backend is installed; faster-whisper needs no system ffmpeg (PyAV), so it stands alone.
+        "transcribe_media": bool(tools["whisper_cpp"] or tools["faster_whisper"]),
         # Reframe render needs the flag plus a backend; geometry itself is always available.
         "reframe_render": bool(flags["shorts_reframe"] and (tools["moviepy"] or tools["ffmpeg"])),
         # MLT export is a plain file-writing flag; melt render is app-driving (master gate).
@@ -135,6 +144,10 @@ def preflight(config: dict | None = None) -> dict:
         notes.append("shorts_reframe is on but no MoviePy or ffmpeg was found; crop parameters are emitted without a local render.")
     if flags["media_render"] and not flags["video_editing_enabled"]:
         notes.append("media_render is on but the video_editing_enabled master gate is off; no render will run.")
+    if not lanes["transcribe_media"]:
+        notes.append("No whisper.cpp and no faster-whisper: content-import transcript completion degrades to "
+                     "the run_local_stt gap (never a fabricated transcript). Install on Apple Silicon with "
+                     "'brew install whisper-cpp ffmpeg'; elsewhere 'pip install faster-whisper' (no system ffmpeg needed).")
 
     return {
         "os": plat,

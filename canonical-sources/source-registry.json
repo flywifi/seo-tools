@@ -4713,6 +4713,33 @@
       "pinned_constraint": "",
       "validated_version": null,
       "_why": "Preferred local STT backend on Apple Silicon (Metal); content-import completion"
+    },
+    {
+      "id": "dep-jiwer",
+      "name": "jiwer (WER/MER/WIL accuracy decomposition)",
+      "url": "https://pypi.org/project/jiwer/",
+      "category": "software-dependency",
+      "tier": "T3",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "process_words/process_characters API; RapidFuzz backend changes",
+      "used_by": [
+        "requirements-transcribe.txt",
+        "transcription-engine",
+        "shared/docintel/wer.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "package": "jiwer",
+      "upstream_api": "pypi",
+      "check_url": "https://pypi.org/pypi/jiwer/json",
+      "pinned_constraint": ">=4.0",
+      "validated_version": "4.0.0",
+      "_why": "optional accuracy-validation extra for local STT (P45); wer.py covers the stdlib floor, jiwer adds MER/WIL/WIP decomposition"
     }
   ]
 }

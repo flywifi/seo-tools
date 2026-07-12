@@ -5,7 +5,7 @@ description: "ingests any file type using the offline docintel pipeline and prod
 load: always
 ---
 
-_Data freshness: as of 2026-07-12 (Creator OS baseline 2821dd09). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-12 (Creator OS baseline 1b077299). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # document-studio
 
