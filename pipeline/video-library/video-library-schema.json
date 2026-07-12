@@ -1,0 +1,25 @@
+{
+  "_comment": "Field documentation for a video-library record (P45). Committed doc only; carries no real data. tools/video_library.py is the sole writer of the gitignored store.",
+  "schema_version": "0.1.0",
+  "fields": {
+    "video_key": "unique key '{platform}:{platform_video_id}'; the upsert key",
+    "platform": "youtube | instagram | tiktok | pinterest",
+    "platform_video_id": "the platform's own id for this video/pin",
+    "url": "canonical URL/permalink",
+    "title": "video title (untrusted content; injection-guarded on import)",
+    "description": "description/caption (untrusted content)",
+    "tags": "array of tags/keywords (YouTube snippet.tags is public; empty elsewhere)",
+    "category": "platform category string, or null",
+    "published_at": "ISO 8601 publish datetime",
+    "duration_s": "duration in seconds (int), or null",
+    "stats": "object {metric: {value, as_of, source_citation, publish_date}} via freshness_overlay.envelope; e.g. views, likes, comments, shares, saved, avg_watch_time",
+    "retention": "YouTube only: [{elapsed_ratio, watch_ratio, relative_perf}]; null on other platforms (not available)",
+    "revenue": "{estimated_revenue, currency, ...} null unless imported from a YouTube Studio CSV (never via API for a solo creator)",
+    "transcript_ref": "path to the gitignored transcript file, or null",
+    "transcript_text": "plain transcript text for FTS, or null (from local STT or a downloaded caption; never fabricated)",
+    "chapters": "[{start_s, title}] derived from the transcript or platform chapters",
+    "most_watched_segments": "[{start_ratio, end_ratio, label:'peak'|'cliff', text?}] derived from retention (+ transcript words on YouTube)",
+    "provenance": "per-field {source_mode, source_citation, imported_at}; source_mode in direct_connector|export_bundle|excerpt_only",
+    "source_mode": "the evidence-mode rung that produced this record"
+  }
+}

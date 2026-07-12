@@ -127,6 +127,15 @@
       "why_it_matters": "First tracked shape for your task register (the tasks, states, and due dates the tracker manages).",
       "concrete_impact": "No change to a saved task. States and dates are preserved exactly; newer optional fields read as null and are flagged.",
       "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/video-library/video-library.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for your imported past-video library (per-video stats, tags, retention, revenue, and transcript).",
+      "concrete_impact": "No change to an imported video record. Stats keep their provenance envelopes; fields a platform never provided (for example retention off YouTube, or revenue without a Studio CSV) stay null and flagged, never invented.",
+      "reversible": true
     }
   ]
 }

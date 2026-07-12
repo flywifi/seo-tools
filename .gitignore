@@ -56,6 +56,12 @@ traversal-visited.json
 # Competitor intelligence snapshots (raw HTML, screenshots, SQLite index)
 pipeline/competitor-snapshots/
 
+# P45: the creator's OWN past-video library (stats, revenue, transcripts) is private, never committed.
+# Only the all-null committed starters are allowlisted back in.
+pipeline/video-library/*
+!pipeline/video-library/video-library.template.json
+!pipeline/video-library/video-library-schema.json
+
 # P34: construction library, a local cache of downloaded public-domain/open assets
 # (DOE BASC, NREL, energycodes, Wikimedia). Fetched by tools/construction_fetch.py, never committed;
 # committed construction data is only the authored dictionary under canonical-sources/construction/.

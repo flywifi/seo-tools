@@ -562,6 +562,8 @@ PIPELINE_TRACKED_ALLOWLIST = {
     "pipeline/user-context/payment-schedule.template.json",
     "pipeline/user-context/setup-context.json",
     "pipeline/user-context/voice-profile.json",
+    "pipeline/video-library/video-library.template.json",
+    "pipeline/video-library/video-library-schema.json",
 }
 
 # Invariant 20 (second half): file types that must never be tracked anywhere in the repo

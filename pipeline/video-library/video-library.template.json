@@ -1,0 +1,23 @@
+{
+  "_comment": "Blank shape for ONE video-library record (P45). Real data lives in the gitignored pipeline/video-library/index.local.db and *.local.json and is never committed; this starter is all-null (drift invariant 34). See shared/content-import-engine.md and pipeline/video-library/video-library-schema.json.",
+  "schema_version": "0.1.0",
+  "video_key": null,
+  "platform": null,
+  "platform_video_id": null,
+  "url": null,
+  "title": null,
+  "description": null,
+  "tags": [],
+  "category": null,
+  "published_at": null,
+  "duration_s": null,
+  "stats": {},
+  "retention": null,
+  "revenue": null,
+  "transcript_ref": null,
+  "transcript_text": null,
+  "chapters": [],
+  "most_watched_segments": [],
+  "provenance": {},
+  "source_mode": null
+}
