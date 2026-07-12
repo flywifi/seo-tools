@@ -234,6 +234,154 @@ def query_fts(con, q, limit=20):
     return [get_record(con, r["video_key"]) for r in rows]
 
 
+# ── analytics over the store (read-only; cites video_keys; null-and-flags) ────
+# Every number is traceable to the video_keys it came from, and any field a platform does not
+# provide (retention off YouTube, an absent transcript) is flagged, never estimated.
+
+import re  # noqa: E402
+
+_STOPWORDS = {
+    "the", "and", "that", "this", "with", "your", "you", "have", "just", "like", "what", "when",
+    "then", "here", "there", "they", "them", "from", "into", "onto", "over", "very", "really",
+    "going", "gonna", "want", "will", "would", "could", "should", "about", "some", "these", "those",
+    "were", "been", "because", "which", "while", "their", "also", "gonna", "okay", "yeah", "know",
+}
+
+
+def _stat_value(stats, metric):
+    """Unwrap a freshness-envelope stat (or a raw value) to its number, else None."""
+    v = (stats or {}).get(metric)
+    if isinstance(v, dict):
+        return v.get("value")
+    return v
+
+
+def top_tags(con, platform=None, limit=20):
+    """Tag frequency across the library, weighted by total views, each tag citing its video_keys."""
+    where = "WHERE platform=?" if platform else ""
+    params = [platform] if platform else []
+    rows = con.execute(f"SELECT video_key, tags_json, stats_json FROM video_records {where}", params).fetchall()
+    agg = {}
+    for r in rows:
+        tags = json.loads(r["tags_json"] or "[]")
+        views = _stat_value(json.loads(r["stats_json"] or "{}"), "views") or 0
+        for t in tags:
+            key = str(t).strip().lower()
+            if not key:
+                continue
+            a = agg.setdefault(key, {"count": 0, "total_views": 0, "video_keys": []})
+            a["count"] += 1
+            a["total_views"] += views
+            a["video_keys"].append(r["video_key"])
+    out = [{"tag": k, **v} for k, v in agg.items()]
+    out.sort(key=lambda x: (-x["count"], -x["total_views"]))
+    return out[:limit]
+
+
+def retention_insights(con, limit=50):
+    """YouTube most-watched peaks + steepest-drop cliffs, carrying the transcript words at each moment
+    when the join has been run. Non-YouTube (or retention-less) records are null-flagged, not estimated."""
+    rows = con.execute("SELECT video_key, platform, most_watched_json, retention_json, transcript_text "
+                       "FROM video_records").fetchall()
+    insights, null_flagged = [], []
+    for r in rows:
+        if r["platform"] != "youtube" or not r["retention_json"]:
+            null_flagged.append(r["video_key"])
+            continue
+        mw = json.loads(r["most_watched_json"] or "[]")
+        peaks = [s for s in mw if s.get("label") == "peak"]
+        cliffs = [s for s in mw if s.get("label") == "cliff"]
+        insights.append({"video_key": r["video_key"], "peaks": peaks, "cliffs": cliffs,
+                         "words_joined": bool(r["transcript_text"])})
+    return {"insights": insights[:limit], "retention_unavailable": null_flagged,
+            "note": "Retention is a YouTube-only first-party signal; other platforms are null-flagged, "
+                    "not estimated. Peak/cliff words appear once library-complete has joined a transcript."}
+
+
+def _duration_bucket(seconds):
+    if seconds is None:
+        return "unknown"
+    s = float(seconds)
+    if s <= 60:
+        return "short (<=60s)"
+    if s <= 600:
+        return "mid (1 to 10 min)"
+    return "long (>10 min)"
+
+
+def format_performance(con, platform=None):
+    """Average views by duration bucket and by category, each cell citing its video_keys."""
+    where = "WHERE platform=?" if platform else ""
+    params = [platform] if platform else []
+    rows = con.execute(f"SELECT video_key, category, duration_s, stats_json FROM video_records {where}",
+                       params).fetchall()
+    by_bucket, by_category = {}, {}
+    for r in rows:
+        views = _stat_value(json.loads(r["stats_json"] or "{}"), "views")
+        bucket = _duration_bucket(r["duration_s"])
+        b = by_bucket.setdefault(bucket, {"count": 0, "views_sum": 0, "views_n": 0, "video_keys": []})
+        b["count"] += 1
+        b["video_keys"].append(r["video_key"])
+        if views is not None:
+            b["views_sum"] += views
+            b["views_n"] += 1
+        cat = r["category"] or "uncategorized"
+        c = by_category.setdefault(cat, {"count": 0, "views_sum": 0, "views_n": 0, "video_keys": []})
+        c["count"] += 1
+        c["video_keys"].append(r["video_key"])
+        if views is not None:
+            c["views_sum"] += views
+            c["views_n"] += 1
+
+    def _finish(d):
+        out = []
+        for k, v in d.items():
+            avg = round(v["views_sum"] / v["views_n"], 1) if v["views_n"] else None
+            out.append({"group": k, "video_count": v["count"], "avg_views": avg,
+                        "views_known_for": v["views_n"], "video_keys": v["video_keys"]})
+        out.sort(key=lambda x: (x["avg_views"] is None, -(x["avg_views"] or 0)))
+        return out
+    return {"by_duration": _finish(by_bucket), "by_category": _finish(by_category)}
+
+
+def transcript_themes(con, top_n=25, min_len=4, platform=None):
+    """Recurring spoken terms across the library's transcripts, each term citing its video_keys.
+    Empty (with a flag) when no transcripts are present; never invents themes from metadata."""
+    where = "WHERE transcript_text IS NOT NULL AND transcript_text<>''"
+    params = []
+    if platform:
+        where += " AND platform=?"
+        params.append(platform)
+    rows = con.execute(f"SELECT video_key, transcript_text FROM video_records {where}", params).fetchall()
+    if not rows:
+        return {"themes": [], "flag": "no_transcripts",
+                "note": "No transcripts in the library yet; run library-complete to add them on-device."}
+    freq = {}
+    for r in rows:
+        for w in re.findall(r"[a-z][a-z']{%d,}" % (min_len - 1), (r["transcript_text"] or "").lower()):
+            if w in _STOPWORDS:
+                continue
+            f = freq.setdefault(w, {"count": 0, "video_keys": set()})
+            f["count"] += 1
+            f["video_keys"].add(r["video_key"])
+    out = [{"term": k, "count": v["count"], "video_keys": sorted(v["video_keys"])} for k, v in freq.items()]
+    out.sort(key=lambda x: (-x["count"], x["term"]))
+    return {"themes": out[:top_n], "flag": None, "transcripts_analyzed": len(rows)}
+
+
+def analyze(con, platform=None):
+    """The full read-only analysis: top tags, retention insights, format performance, transcript
+    themes. Every section cites video_keys and null-flags what a platform does not provide."""
+    return {
+        "top_tags": top_tags(con, platform=platform),
+        "retention_insights": retention_insights(con),
+        "format_performance": format_performance(con, platform=platform),
+        "transcript_themes": transcript_themes(con, platform=platform),
+        "boundaries": "Retention is YouTube-only; revenue is Studio-CSV-only; transcripts come from "
+                      "on-device STT. Unavailable data is null-flagged, never estimated.",
+    }
+
+
 # ── selftest (temp DB; no real store touched) ────────────────────────────────
 
 def selftest():
@@ -277,14 +425,39 @@ def selftest():
 
         # an Instagram record has null retention + null revenue (not available)
         ig = normalize_record({
-            "platform_video_id": "reel_9", "title": "quick tour", "tags": [],
-            "stats": {"reach": 5000, "saved": 120}, "retention": None,
+            "platform_video_id": "reel_9", "title": "quick tour", "tags": ["diy", "armoire"],
+            "stats": {"reach": 5000, "saved": 120, "views": 5000}, "retention": None,
         }, platform="instagram", source_mode="direct_connector")
         _upsert(con, ig)
         igr = get_record(con, "instagram:reel_9")
         ok("instagram retention is null (not available)", igr["retention"] is None)
         ok("instagram most_watched empty", igr["most_watched_segments"] == [])
         ok("revenue null unless supplied", igr["revenue"] is None)
+
+        # analytics: top tags cite video_keys; retention insights are YouTube-only with IG null-flagged.
+        _upsert(con, yt)  # restore the full YouTube record (the yt2 re-import test stripped its tags/retention/duration)
+        tags = top_tags(con)
+        armoire = next((t for t in tags if t["tag"] == "armoire"), None)
+        ok("top_tags aggregates across records", armoire and armoire["count"] == 2)
+        ok("top_tags cites video_keys", armoire and "youtube:vid123" in armoire["video_keys"])
+        ri = retention_insights(con)
+        ok("retention insight only for youtube record", any(i["video_key"] == "youtube:vid123" for i in ri["insights"]))
+        ok("instagram retention null-flagged", "instagram:reel_9" in ri["retention_unavailable"])
+        fp = format_performance(con)
+        ok("format_performance buckets by duration with avg views",
+           any(g["group"].startswith("mid") for g in fp["by_duration"]) and
+           any(g["avg_views"] is not None for g in fp["by_duration"]))
+        tt = transcript_themes(con)
+        ok("transcript_themes flags empty library honestly", tt["flag"] == "no_transcripts" and tt["themes"] == [])
+        # add a transcript and re-check themes cite the video_key
+        con.execute("UPDATE video_records SET transcript_text=? WHERE video_key=?",
+                    ("today we restore an antique armoire with patina hardware and wainscoting panels", "youtube:vid123"))
+        con.commit()
+        tt2 = transcript_themes(con, min_len=5)
+        ok("transcript_themes surfaces a spoken term with its video_key",
+           any(t["term"] == "armoire" and "youtube:vid123" in t["video_keys"] for t in tt2["themes"]))
+        full = analyze(con)
+        ok("analyze returns all four sections", set(["top_tags", "retention_insights", "format_performance", "transcript_themes"]) <= set(full))
         con.close()
     finally:
         import shutil
@@ -310,7 +483,8 @@ def main(argv):
     ap = argparse.ArgumentParser(description="The creator's own past-video library (local, gitignored).")
     sub = ap.add_argument_group("command")
     ap.add_argument("command", nargs="?",
-                    choices=["init", "upsert", "upsert-batch", "get", "list", "query", "derive-most-watched"])
+                    choices=["init", "upsert", "upsert-batch", "get", "list", "query",
+                             "derive-most-watched", "analyze"])
     ap.add_argument("arg", nargs="?", help="video_key / fts query / batch file, per command")
     ap.add_argument("--record", help="(upsert) a normalized record as JSON, or - for stdin")
     ap.add_argument("--platform", choices=PLATFORMS)
@@ -360,6 +534,8 @@ def main(argv):
                     (json.dumps(seg, ensure_ascii=False), date.today().isoformat(), args.arg))
         con.commit()
         print(json.dumps({"video_key": args.arg, "most_watched_segments": seg}, indent=2, ensure_ascii=False))
+    elif args.command == "analyze":
+        print(json.dumps(analyze(con, platform=args.platform), indent=2, ensure_ascii=False))
     con.close()
     return 0
 
