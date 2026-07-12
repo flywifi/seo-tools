@@ -49,3 +49,7 @@ This page is the decision guide the wizard's transition screens summarize.
 
 When in doubt: keep the real number or name at home, paste a placeholder, and let the local tools
 fill the real value when the work comes back to your computer.
+
+## Related
+Updating a pasted pack (and why a live connector avoids the paste entirely): docs/UPDATING.md and
+docs/TRANSITIONS.md ("Updating by ChatGPT surface").
