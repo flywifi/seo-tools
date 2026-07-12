@@ -3,7 +3,7 @@ name: content-strategy
 description: generate content ideas, seasonal-aware idea clusters, pillar-aligned video concepts, and competitive positioning for the channel. Use when the user wants ideas, a content plan, what to make next, or how to position against a competitor. Do NOT use to develop one concept into a production package (use video-development) or to build a downloadable calendar file (use document-studio).
 ---
 
-_Data freshness: as of 2026-07-12 (Creator OS baseline 3613a00f). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-12 (Creator OS baseline 2821dd09). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # content-strategy
 

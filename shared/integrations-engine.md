@@ -125,6 +125,48 @@ If `captions.list` returns no tracks, return `metadata_only` with
 
 ---
 
+## YouTube Analytics API v2 (own-channel stats + audience retention)
+
+Distinct from the Data API. Host `https://youtubeanalytics.googleapis.com/v2/reports`. Read scope
+`yt-analytics.readonly` (own-channel analytics only; queries use `ids=channel==MINE`). This is the
+source for the creator's OWN performance data and for "which parts were most watched."
+
+### reports.query response envelope
+```json
+{
+  "kind": "youtubeAnalytics#resultTable",
+  "columnHeaders": [{ "name": "...", "columnType": "DIMENSION|METRIC", "dataType": "STRING|INTEGER|FLOAT" }],
+  "rows": [[ ... ]]
+}
+```
+`rows` is omitted entirely when there is no data. Parse by matching `columnHeaders[].name`, never by
+column position.
+
+### Audience retention ("which parts were most watched")
+- Dimension `elapsedVideoTimeRatio` (100 points, 0.01 to 1.0).
+- Metrics `audienceWatchRatio` (absolute watch ratio at that point) and `relativeRetentionPerformance`
+  (0 to 1, vs similar-length videos).
+- Required filter `filters=video==<VIDEO_ID>` (a SINGLE video id; no comma lists). Optional
+  `audienceType==ORGANIC` (values ORGANIC, AD_INSTREAM, AD_INDISPLAY), joined with `;`.
+- Example: `?ids=channel==MINE&startDate=2026-01-01&endDate=2026-07-01&dimensions=elapsedVideoTimeRatio&metrics=audienceWatchRatio,relativeRetentionPerformance&filters=video==VIDEO_ID`.
+
+### Core metrics (per video or channel)
+`views`, `estimatedMinutesWatched`, `averageViewDuration` (seconds), `averageViewPercentage`;
+dimensions for traffic (`insightTrafficSourceType`), demographics (`ageGroup`, `gender` with
+`viewerPercentage`), geography (`country`), device (`deviceType`, `operatingSystem`).
+
+### Revenue is NOT available here for a solo creator
+Estimated-revenue / ad-performance metrics (`estimatedRevenue`, `estimatedAdRevenue`, `grossRevenue`,
+`monetizedPlaybacks`, `playbackBasedCpm`, `cpm`, `adImpressions`) are supported only in **content-owner
+reports** (CMS / multi-channel-network context). They are not returned in channel reports, and the
+`yt-analytics-monetary.readonly` scope does not grant them there. A standalone YouTube Partner Program
+creator gets revenue ONLY from the YouTube Studio manual CSV export (see Owner self-export below).
+Creator OS never constructs a monetary Analytics API request.
+
+Sources: developers.google.com/youtube/analytics/{channel_reports,content_owner_reports,metrics,dimensions,reference/reports/query} (observed 2026-07-12).
+
+---
+
 ## Meta Graph API (Instagram)
 
 **Current version:** v25.0 (released February 18, 2026)
@@ -342,6 +384,69 @@ third-party ASR tool on the video file.
 - Captions as SEO: 84% of TikTok searches are exploration-phase; keywords in captions influence
   both FYP placement and search visibility. Treat every caption as a keyword field.
 - These are reference ranges from platform research; always flag as `source: platform_research`.
+
+---
+
+## Pinterest API v5 (own Pin analytics)
+
+Read scopes `pins:read` (+ `user_accounts:read` for the top-pins endpoints). Metric enum names are
+confirmed from Pinterest's own OpenAPI description (`pinterest/api-description`, `v5/openapi.yaml`).
+
+### GET /pins/{pin_id}/analytics
+Query: `start_date`, `end_date` (`YYYY-MM-DD`; `start_date` no more than 90 days back), `metric_types`
+(required; comma-separated), `app_types` (default `ALL`), `split_field` (default `NO_SPLIT`). Response
+is keyed by app type:
+```json
+{"ALL": {
+  "daily_metrics": [{"date": "YYYY-MM-DD", "metrics": {"<METRIC>": <number>}}],
+  "lifetime_metrics": {"TOTAL_COMMENTS": 0, "TOTAL_REACTIONS": 0},
+  "summary_metrics": {"IMPRESSION": 0, "SAVE": 0, "SAVE_RATE": 0.0, "PIN_CLICK": 0,
+                       "OUTBOUND_CLICK": 0, "VIDEO_MRC_VIEW": 0, "VIDEO_AVG_WATCH_TIME": 0,
+                       "VIDEO_V50_WATCH_TIME": 0, "QUARTILE_95_PERCENT_VIEW": 0,
+                       "VIDEO_10S_VIEW": 0, "VIDEO_START": 0}
+}}
+```
+
+### GET /user_account/analytics/top_video_pins
+Query: `start_date`, `end_date`, `sort_by` (required enum), optional `from_claimed_content`
+(`OTHER|CLAIMED|BOTH`), `metric_types`, `num_of_pins`. Response:
+`{"date_availability": {...}, "pins": [{"pin_id": "...", "metrics": {"<METRIC>": <number>}}], "sort_by": <enum>}`.
+
+Video metric meanings (spec-quoted): `VIDEO_MRC_VIEW` = video views; `VIDEO_V50_WATCH_TIME` = total
+play time. There is **no** per-second retention, **no** hashtag/tag analytics, and **no** original
+video-Pin file download via the API.
+
+Sources: developers.pinterest.com/docs/api/v5/{pins-analytics,multi_pins-analytics,user_account-analytics-top_video_pins} (the HTML renders nav-only; values from github.com/pinterest/api-description v5/openapi.yaml, observed 2026-07-12).
+
+---
+
+## Owner self-export (Takeout / Studio CSV / DYI / data-export)
+
+The non-developer path: the creator exports their own data in-account and Creator OS parses the files
+locally (`tools/import_parse.py`). See `shared/content-import-engine.md` for the step-by-step
+playbooks. Key facts the importer relies on:
+
+- **Google Takeout to "YouTube and YouTube Music"**: `video metadata/` (uploaded files + metadata),
+  `playlists/*.csv`, `subscriptions/subscriptions.csv`, history JSON. Data-portability only: **no
+  analytics, views, watch-time, or retention**.
+- **YouTube Studio Analytics, Advanced Mode, Export**: a .zip with `Table data.csv` (one row per
+  video), `Chart data.csv`, `Totals.csv`. Header-driven parse (map by column name, not position). The
+  **only** manual source of revenue columns and the retention report; note the roughly 500-row cap.
+  [NEEDS VERIFICATION: exact header strings and the cap were not confirmable from a rendered
+  first-party page.]
+- **Instagram "Download Your Information" (JSON)**: `posts_*.json` / `reels.json` with `uri`,
+  `creation_timestamp` (epoch seconds), `title`, `media[]`; **no insights, no transcripts**. [NEEDS
+  VERIFICATION: exact filenames vary by export vintage; glob `posts_*.json`/`reels.json` and check both
+  post-root and per-item levels.]
+- **TikTok "Download your data" (JSON/TXT)**: posted-video list + files; retention curve is UI-only and
+  not included. [NEEDS VERIFICATION: key casing, e.g. `Video`>`Videos`>`VideoList[]` with
+  `Date`/`Link`/`Likes` vs API snake_case; parse defensively.]
+
+Transcripts are not in any of these exports; Creator OS completes them with local STT on the
+downloaded files (`shared/transcription-engine.md`). No platform scraping (Terms prohibit unauthorized
+automated collection); operate only on the creator's own account and their own downloaded files.
+
+Sources: support.google.com/accounts/answer/3024190 (Takeout), support.google.com/youtube/answer/9002587 (Studio export), help.instagram.com/181231772500920 (IG DYI), support.tiktok.com data-request (observed 2026-07-12).
 
 ---
 

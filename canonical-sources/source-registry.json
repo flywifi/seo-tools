@@ -4523,6 +4523,196 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The current stable protocol revision underpinning every Tier-B background-update claim"
+    },
+    {
+      "id": "youtube-studio-analytics-export",
+      "name": "YouTube Studio Analytics export (Advanced Mode CSV)",
+      "url": "https://support.google.com/youtube/answer/9002587",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Advanced Mode Export current view CSV/Sheets; Table data.csv columns; the only solo-creator revenue + retention source; ~500-row cap",
+      "used_by": [
+        "tools/import_parse.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The single manual source of YouTube revenue + retention for a solo creator; import_parse parses its CSV"
+    },
+    {
+      "id": "google-takeout-youtube",
+      "name": "Google Takeout: YouTube and YouTube Music export",
+      "url": "https://support.google.com/accounts/answer/3024190",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "video metadata/, playlists/*.csv, subscriptions/subscriptions.csv, history JSON; original video files; NO analytics",
+      "used_by": [
+        "tools/import_parse.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The creator's own video files + metadata; import_parse reads the Takeout folder layout"
+    },
+    {
+      "id": "instagram-media-insights-ref",
+      "name": "Instagram Graph API media insights reference",
+      "url": "https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "data[].{name,period,total_value.value}; reels metrics reach/views/saved/shares/ig_reels_avg_watch_time/reels_skip_rate; NO retention, NO hashtag metric",
+      "used_by": [
+        "tools/importers/instagram_import.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Exact per-media insight field names for the live Instagram importer"
+    },
+    {
+      "id": "instagram-download-your-information",
+      "name": "Instagram: review and export your information (DYI)",
+      "url": "https://help.instagram.com/181231772500920",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "JSON export: posts_*.json / reels.json with uri, creation_timestamp, title, media[]; NO insights, NO transcripts; filenames vary by vintage",
+      "used_by": [
+        "tools/import_parse.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The Instagram export-bundle path; import_parse globs its JSON"
+    },
+    {
+      "id": "tiktok-display-video-object",
+      "name": "TikTok Display API v2 Video object",
+      "url": "https://developers.tiktok.com/doc/tiktok-api-v2-video-object",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "data.videos[] 15 fields (id, create_time, view_count, like_count, ...); scope video.list; NO retention/hashtag/file-url",
+      "used_by": [
+        "tools/importers/tiktok_import.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Exact TikTok Display API video fields for the live importer"
+    },
+    {
+      "id": "tiktok-data-request",
+      "name": "TikTok: requesting your data (in-app export)",
+      "url": "https://support.tiktok.com/en/account-and-privacy/personalized-ads-and-data/requesting-your-data",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "JSON/TXT export of posted-video list + files; retention curve UI-only, not in export; key casing varies",
+      "used_by": [
+        "tools/import_parse.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The TikTok export-bundle path; import_parse parses defensively"
+    },
+    {
+      "id": "pinterest-pin-analytics-v5",
+      "name": "Pinterest API v5 Pin analytics",
+      "url": "https://developers.pinterest.com/docs/api/v5/pins-analytics",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "keyed by app_type: summary_metrics{IMPRESSION,SAVE,VIDEO_MRC_VIEW,VIDEO_AVG_WATCH_TIME,...}; scopes pins:read; NO retention/transcript",
+      "used_by": [
+        "tools/importers/pinterest_import.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Exact Pinterest Pin-analytics metric enums for the live importer"
+    },
+    {
+      "id": "dep-faster-whisper",
+      "name": "faster-whisper (CTranslate2 STT backend)",
+      "url": "https://github.com/SYSTRAN/faster-whisper/releases",
+      "category": "software-dependency",
+      "tier": "T2",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "CPU/CUDA Whisper via CTranslate2; device=cpu|cuda only (no Apple GPU); needs no system ffmpeg (PyAV)",
+      "used_by": [
+        "tools/transcribe.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "package": "faster-whisper",
+      "upstream_api": "github_releases",
+      "check_url": "https://api.github.com/repos/SYSTRAN/faster-whisper/releases/latest",
+      "pinned_constraint": "",
+      "validated_version": null,
+      "_why": "Optional local STT backend for content-import completion; default on Windows/Linux and Intel Mac"
+    },
+    {
+      "id": "dep-whisper-cpp",
+      "name": "whisper.cpp (Metal/Core ML STT backend)",
+      "url": "https://github.com/ggml-org/whisper.cpp/releases",
+      "category": "software-dependency",
+      "tier": "T2",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Metal GPU on Apple Silicon; optional Core ML/ANE encoder; brew install whisper-cpp; CLI whisper-cli/whisper-cpp",
+      "used_by": [
+        "tools/transcribe.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "package": "whisper-cpp",
+      "upstream_api": "github_releases",
+      "check_url": "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest",
+      "pinned_constraint": "",
+      "validated_version": null,
+      "_why": "Preferred local STT backend on Apple Silicon (Metal); content-import completion"
     }
   ]
 }

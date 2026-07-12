@@ -5,7 +5,7 @@ description: "manages brand account records in pipeline/accounts/: health-check,
 load: always
 ---
 
-_Data freshness: as of 2026-07-12 (Creator OS baseline 3613a00f). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-12 (Creator OS baseline 2821dd09). Live updates come from your own store; see docs/FRESHNESS.md._
 
 # account-manager
 
