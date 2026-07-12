@@ -33,6 +33,7 @@ ALWAYS_ON = {"manual_paste", "uploaded_file"}
 # Maps creator-os-config.json capability flags -> connector IDs they enable
 CAPABILITY_TO_CONNECTOR = {
     "youtube_api": "youtube_data_api",
+    "youtube_analytics": "youtube_analytics_api",
     "instagram_api": "instagram_graph_api",
     "tiktok_api": "tiktok_api",
     "pinterest_api": "pinterest_api",

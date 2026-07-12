@@ -31,7 +31,9 @@
     "content_publishing",
     "edit_artifact",
     "shipment_tracking",
-    "task_store"
+    "task_store",
+    "retention",
+    "transcript"
   ],
   "evidence_modes": [
     {
@@ -341,6 +343,47 @@
       "api_reference": "shared/integrations-engine.md",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
+      ],
+      "status": "seed"
+    },
+    {
+      "id": "youtube_analytics_api",
+      "label": "YouTube Analytics API v2 (own-channel retention + stats)",
+      "vendor": "Google",
+      "default_flag": "not_installed",
+      "provides": [
+        "analytics",
+        "retention",
+        "channel_stats"
+      ],
+      "authoritative_for": [
+        "retention"
+      ],
+      "privacy_sensitivity": "medium",
+      "auth_note": "OAuth 2.0, scope yt-analytics.readonly, ids=channel==MINE. Read side for the creator's OWN audience-retention and stats (distinct from the youtube_data_api metadata connector). Revenue is NOT available here for a solo creator (content-owner reports only); use the YouTube Studio CSV export. Enable by setting youtube_analytics: true in creator-os-config.local.json plus the content_import_live master flag.",
+      "requires_capability": "youtube_analytics",
+      "api_reference": "shared/integrations-engine.md",
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_c_gpt_api"
+      ],
+      "status": "seed"
+    },
+    {
+      "id": "platform_data_export",
+      "label": "Platform data export bundle (Takeout / Studio CSV / DYI / data-export)",
+      "vendor": "(none)",
+      "default_flag": "available",
+      "provides": [
+        "analytics",
+        "channel_stats",
+        "transcript"
+      ],
+      "privacy_sensitivity": "depends_on_content",
+      "auth_note": "none -- the creator downloads their own export from their account and Creator OS parses it locally via tools/import_parse.py (the export_bundle evidence tier). Transcripts are completed by local STT on the downloaded files. No API keys.",
+      "deployment_support": [
+        "option_a_claude_desktop_mcp",
+        "option_c_gpt_api"
       ],
       "status": "seed"
     },

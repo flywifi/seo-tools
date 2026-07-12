@@ -1,0 +1,35 @@
+[
+  {
+    "test_id": "transcript-import-uploaded-caption",
+    "description": "A creator-uploaded YouTube caption track is parsed into normalized segments; no STT is run.",
+    "input": {"video_key": "youtube:abc123", "caption_track": "/tmp/abc123.srt"},
+    "expected_output_keys": ["video_key", "transcript_text", "segments", "source", "save_note"],
+    "assertions": [
+      "source is uploaded_caption",
+      "segments carry start_ms/end_ms/text",
+      "nothing is written to the store"
+    ]
+  },
+  {
+    "test_id": "transcript-import-local-stt",
+    "description": "With only a downloaded media file, local STT produces the transcript on-device; no network.",
+    "input": {"video_key": "tiktok:7300000000000000000", "media_path": "/tmp/clip.mp4"},
+    "expected_output_keys": ["transcript_text", "source", "backend"],
+    "assertions": [
+      "source is local_stt",
+      "the transcript is never fabricated",
+      "audio and transcript stay on the machine"
+    ]
+  },
+  {
+    "test_id": "transcript-import-no-backend-gap",
+    "description": "With no STT backend installed and no caption, return the run_local_stt gap with the per-OS install, never a fake transcript.",
+    "input": {"video_key": "youtube:def456", "media_path": "/tmp/def456.mp4"},
+    "expected_output_keys": ["gap", "transcript_text", "human_review_required"],
+    "assertions": [
+      "gap is run_local_stt with an install command",
+      "transcript_text is null (never fabricated)",
+      "no ASR caption is downloaded"
+    ]
+  }
+]
