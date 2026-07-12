@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-07",
+  "last_registry_update": "2026-07-12",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4279,6 +4279,250 @@
       "content_etag": "1000036456",
       "content_last_modified": "Tue, 14 Jan 2025 15:07:15 GMT",
       "min_recheck_at": 739804
+    },
+    {
+      "id": "creator-os-release",
+      "name": "Creator OS ecosystem releases (self-update target)",
+      "url": "https://github.com/flywifi/seo-tools/releases",
+      "category": "creator-os-release",
+      "tier": "T1",
+      "check_interval_days": 7,
+      "staleness_threshold_days": 7,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Latest published release tag vs the installed VERSION; drives tools/update_check.py",
+      "used_by": [
+        "tools/update_check.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "upstream_api": "github_releases",
+      "check_url": "https://api.github.com/repos/flywifi/seo-tools/releases/latest",
+      "pinned_constraint": "",
+      "validated_version": "0.1.0",
+      "_why": "The one currency lane that watches the ecosystem itself; a newer release upstream is what update_check reports"
+    },
+    {
+      "id": "claude-code-plugins-docs",
+      "name": "Claude Code plugins and marketplaces (auto-update mechanics)",
+      "url": "https://code.claude.com/docs/en/discover-plugins",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Plugin/marketplace auto-update defaults, extraKnownMarketplaces autoUpdate, /plugin commands, FORCE_AUTOUPDATE_PLUGINS",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Governs the true-background distribution channel for Claude Code; fast-moving per-version notes"
+    },
+    {
+      "id": "claude-code-setup-docs",
+      "name": "Claude Code advanced setup (CLI auto-updater)",
+      "url": "https://code.claude.com/docs/en/setup",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "claude update, native background updates, autoUpdatesChannel, DISABLE_AUTOUPDATER, DISABLE_UPDATES",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The CLI/native auto-update floor for a Claude Code install of Creator OS"
+    },
+    {
+      "id": "claude-cowork-architecture",
+      "name": "Claude Cowork architecture overview (ephemeral sandbox)",
+      "url": "https://support.claude.com/en/articles/14479288-claude-cowork-architecture-overview",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Per-session sandbox created at start and destroyed at end; sessions/files saved to account; local MCP servers do not run remotely",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The data-persistence boundary that makes Cowork always-latest for delivery but ephemeral for local .local data"
+    },
+    {
+      "id": "claude-cowork-plugins-org",
+      "name": "Manage Claude Cowork plugins for your organization",
+      "url": "https://support.claude.com/en/articles/13837433-manage-claude-cowork-plugins-for-your-organization",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Changes take effect on next session or plugin refresh; Sync automatically toggle; auto-sync fires only on a version-bump PR merge, not a direct push",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The claude.ai/Cowork equivalent of CLI marketplace auto-update; version-bump-PR-merge is a hard release constraint"
+    },
+    {
+      "id": "claude-cowork-changelog",
+      "name": "Claude Desktop / Cowork changelog",
+      "url": "https://claude.com/docs/cowork/changelog",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Dated fixes for plugin/skill persistence, marketplace auto-refresh, Desktop Extension gating",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Fast-moving dated signal; several update-relevant behaviors changed month to month in mid-2026"
+    },
+    {
+      "id": "claude-remote-mcp-docs",
+      "name": "Claude third-party connectors with remote MCP",
+      "url": "https://claude.com/docs/connectors/custom/remote-mcp",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Add-connector flow, plan gating, OAuth vs request-header auth, org vs individual add paths",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The best multi-surface true-background channel (a hosted remote MCP server) for claude.ai + Cowork"
+    },
+    {
+      "id": "claude-desktop-extensions-docs",
+      "name": "Claude Desktop extensions (MCPB) deployment",
+      "url": "https://claude.com/docs/connectors/custom/desktop-extensions",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "MCPB/.mcpb packaging, directory auto-update vs self-distributed manual reinstall, isDesktopExtensionEnabled gating",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The Desktop packaged-server update contract; directory bundles auto-update, self-distributed do not"
+    },
+    {
+      "id": "openai-developer-mode",
+      "name": "ChatGPT developer mode (full read/write MCP client)",
+      "url": "https://developers.openai.com/api/docs/guides/developer-mode",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Full read+write MCP client support, plan gating, SSE + streaming HTTP, write actions require confirmation (beta)",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "First-party (fetchable) source for the ChatGPT Tier-B connector path; replaces reliance on the 403-walled help page"
+    },
+    {
+      "id": "openai-connect-chatgpt",
+      "name": "Connect from ChatGPT (Apps SDK)",
+      "url": "https://developers.openai.com/apps-sdk/deploy/connect-chatgpt",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Manual Refresh metadata step, per-conversation write confirmation, all-plans support as of 2025-11-13",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The live-output-vs-refresh-contract nuance (R1) for ChatGPT MCP connectors/apps"
+    },
+    {
+      "id": "openai-responses-mcp",
+      "name": "MCP and connectors (OpenAI Responses API)",
+      "url": "https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "type:mcp remote tool: server_url, authorization, require_approval; tool list cached per conversation via mcp_list_tools",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The developer-API Tier-B path that reaches any public remote MCP server with full read/write"
+    },
+    {
+      "id": "mcp-spec-2025-11-25",
+      "name": "Model Context Protocol specification 2025-11-25 (stable)",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Streamable HTTP, OAuth 2.1 (RFC 9728/8707/PKCE), tools.listChanged, resources/subscribe, serverInfo.version at initialize; 2026-07-28 is RC only",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The current stable protocol revision underpinning every Tier-B background-update claim"
     }
   ]
 }

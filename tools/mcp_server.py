@@ -325,6 +325,54 @@ def freshness_refresh(overlay_path: str, source_id: str, field: str, value: str,
 
 
 @mcp.tool()
+def get_server_info() -> str:
+    """Report this Creator OS server's identity and installed version (read-only, P44).
+
+    Returns the installed ecosystem version (the same value stamped into a hosted endpoint's
+    serverInfo.version). A connected remote-MCP client observes a version bump only on a NEW session
+    (the version is exchanged at initialize; it is a poll signal, never pushed mid-session). Writes
+    nothing; makes no network call.
+    """
+    try:
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        version = None
+    ecosystem, skills, engines = None, None, None
+    try:
+        vj = json.loads((ROOT / "versions.json").read_text(encoding="utf-8"))
+        ecosystem = vj.get("ecosystem")
+        skills = len(vj.get("skills", {}))
+        engines = len(vj.get("engines", {}))
+    except (OSError, json.JSONDecodeError):
+        pass
+    return json.dumps({
+        "name": "creator-os",
+        "version": version,
+        "ecosystem_version": ecosystem,
+        "skills_tracked": skills,
+        "engines_tracked": engines,
+        "note": ("This version is the poll-able currency signal. A connected client sees a bump only "
+                 "on a new session; there is no server push that forces a live client to re-initialize."),
+    }, ensure_ascii=False)
+
+
+@mcp.tool()
+def update_check() -> str:
+    """Report whether a newer Creator OS release is available upstream (read-only, P44).
+
+    Polls the repo's public releases API and compares against the installed VERSION. It NEVER pulls,
+    never writes code, and never touches your .local data (rate card, deals, contracts, templates).
+    Applying an update stays your explicit `python3 tools/update.py` run. Returns status
+    current | behind | ahead | no_release | unreachable | unknown; only 'behind' means an update is
+    available.
+    """
+    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "update_check.py"), "report"])
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "update check failed"})
+    return out.strip()
+
+
+@mcp.tool()
 def jurisdiction_resolve(lon: float, lat: float, facts_json: str = "{}") -> str:
     """Resolve which advisory jurisdictional overlays apply to a project location (P37, optional).
 
