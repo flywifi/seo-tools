@@ -39,6 +39,12 @@ Two ways, both effectively hands-off once set up:
   in managed settings. New SKILL.md text hot-reloads within a session; changes to hooks/`.mcp.json`
   need `/reload-plugins` or a new session.
   (Source: code.claude.com/docs/en/discover-plugins.)
+  `[NEEDS VERIFICATION: whether Team/Enterprise admins can centrally provision custom Skills org-wide
+  is documented inconsistently: the Agent Skills overview says custom Skills "cannot be centrally
+  managed by admins," while support.claude.com/.../13119606 says Owners CAN provision org-wide and
+  scope via plugins. Distributing Creator OS as a plugin (this marketplace) sidesteps the conflict,
+  since plugins are the documented org-managed unit; re-check before relying on org-wide Skill
+  provisioning.]`
 - **As a git clone.** Run `python3 tools/update.py` (git pull + drift guard + cache rebuild; it never
   touches `*.local.json`), or a small pull cron. The CLI itself also auto-updates in the background
   unless `DISABLE_AUTOUPDATER` is set. (Source: code.claude.com/docs/en/setup.)

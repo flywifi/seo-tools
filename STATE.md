@@ -2,8 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P43 are complete. Drift guard exits 0 (32 invariants). Branch:
+P6 through P44 are complete. Drift guard exits 0 (33 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
+
+- P44: background updating for established users (Claude and ChatGPT). Answers "how do I update once
+  I have my own saved data?" without ever pushing, nagging, or pulling on the user's behalf.
+  tools/update_check.py is the token-free self-update poll (reuses dependency_currency; compares the
+  repo's own GitHub release tag against VERSION); tools/update_notify.py gates it behind the opt-in
+  background_update_check flag (off by default; headless run makes no network call when off) and
+  emits one passive notice only when behind, always pointing at the explicit tools/update.py. The
+  wizard gains an /updates screen; the MCP server gains get_server_info + update_check tools and a
+  quiet startup line. Data safety: tools/local_audit.py read-only schema audit + CHANGELOG.migrations.json
+  (human-authored why/impact, no-fabrication) + invariant 33; tools/migrate_local.py is the
+  consent-first, reversible, byte-for-byte migration (compat_view shim is the safe default; write is
+  opt-in per file/field with backup + rollback to gitignored .local logs). Distribution: the
+  git-backed .claude-plugin marketplace (Claude Code/Cowork auto-update; Cowork org "Sync
+  automatically" needs a version-bump PR merge; Cowork sandbox is ephemeral). Hosted remote-MCP is
+  the only true-background browser path: small stable tool set, content through responses,
+  serverInfo.version as the poll signal (list_changed unreliable mid-session). docs/UPDATING.md is
+  the per-surface runbook; TRANSITIONS/CROSS-MODALITY/PASTE-SAFETY/FRESHNESS reconcile the notice with
+  the never-nag rules. Every unverifiable OpenAI/Anthropic product claim is tagged NEEDS VERIFICATION.
 
 - P43: ChatGPT surfaces + transitions. A 17-error audit of ChatGPT web/desktop coverage is fully
   resolved: shared/cross-modality/transitions.json is the single source of truth for 9 surfaces
