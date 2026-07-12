@@ -153,6 +153,15 @@ Paste-and-go. No files to upload. Knowledge-only mode.
 
 See `implementation/gpt/web/README.md` for limitations and the capability comparison.
 
+More ChatGPT paths (P43): the setup wizard's `/chatgpt` screen walks plain web chat, a custom
+GPT, a ChatGPT Project, and the ChatGPT desktop app step by step, and `/transitions` walks any
+move between AIs (`docs/TRANSITIONS.md`). Bringing ChatGPT's knowledge of you home:
+`implementation/gpt/profile-import/README.md`. Live tools on ChatGPT require a deployed
+developer-mode MCP connector (`implementation/gpt/mcp-connector/README.md`; conditional
+connectors are registered as `option_d2_chatgpt_connected`). Before pasting private data into
+any third-party chat, read `docs/PASTE-SAFETY.md`. The custom-instructions file carries a
+"Packaging version" line; re-paste when it falls behind the repo `VERSION`.
+
 ---
 
 ## Option E -- Gemini (Gems or API)

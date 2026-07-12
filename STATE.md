@@ -2,8 +2,21 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P42 are complete. Drift guard exits 0 (31 invariants). Branch:
+P6 through P43 are complete. Drift guard exits 0 (32 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
+
+- P43: ChatGPT surfaces + transitions. A 17-error audit of ChatGPT web/desktop coverage is fully
+  resolved: shared/cross-modality/transitions.json is the single source of truth for 9 surfaces
+  (incl. ChatGPT plain web, custom GPT, Projects, desktop app) and transition pairs, mirrored by
+  docs/TRANSITIONS.md and enforced by invariant 32. The wizard asks which AI you use, walks each
+  ChatGPT flavor step by step (/chatgpt), and walks any between-AI move (/transitions: what
+  travels, what stops working, what to re-import), with a local-machine precondition banner and
+  needs-verification tags on unverifiable OpenAI product claims. Remote-MCP claims hedged to
+  CAN-serve-IF-deployed with the runbook at implementation/gpt/mcp-connector/README.md; the
+  ChatGPT profile import landed (prompt + proposal-only atom + provenance); connectors gained
+  option_d2_chatgpt_connected; docs/PASTE-SAFETY.md, packaging version stamps, the consent
+  asymmetry note, and the flags-enforcement map close the privacy/honesty gaps; all 23 spoke
+  Fallback lines name their ChatGPT degradation path.
 
 - P42: creator document templates. Block-structured reusable templates (contracts, rate-card
   display docs, analytics overviews, terms/conditions) with swappable clause blocks: variant

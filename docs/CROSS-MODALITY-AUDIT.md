@@ -58,3 +58,31 @@ P38-6 cited research and remain hedged in that doc's Caveats. No overstatement f
 Invariant 28: a spoke declaration must carry `Class:` (A/B/C) + `Runs on:` + `Mechanism:` +
 `Fallback:`; every atom carries an inherited one-line declaration (regenerated when a parent class
 changes).
+
+
+## P43 addendum: the ChatGPT-surface audit (E1 to E17) is resolved
+
+A follow-up audit walked ChatGPT web chat and the ChatGPT desktop app through the wizard and
+every transition and logged 17 errors. All are fixed in P43:
+
+- E1/E2/E3 wizard coverage: four-way welcome, /chatgpt hub (plain web, custom GPT, Projects,
+  desktop app), local-machine precondition banner, ChatGPT desktop named with developer-mode MCP
+  steps (tools/wizard.py; shared/cross-modality/transitions.json).
+- E4 remote-MCP honesty: every one-endpoint claim reworded to CAN-serve-IF-deployed with the
+  no-built-in-auth fact stated; deployer runbook at implementation/gpt/mcp-connector/README.md.
+- E5/E16/E10 freshness: connectors.json option_d2_chatgpt_connected (conditional Drive), honest
+  export-and-you-save wording, read-back procedure in docs/TRANSITIONS.md.
+- E6 profile import landed: implementation/gpt/profile-import/ + the proposal-only
+  profile-import atom + provenance fields in the profile template.
+- E7/E8 flags: enforcement map in docs/CROSS-MODALITY.md; /brand-deals names its surfaces.
+- E9 every spoke Fallback line names its ChatGPT degradation path (invariant 32 enforces it).
+- E11 ChatGPT Projects covered via the chatgpt_projects surface + TRANSITIONS packaging guidance.
+- E12 packaging version stamps + wizard version display + re-sync procedure.
+- E13/E14 docs/PASTE-SAFETY.md + the DOCUMENT-TEMPLATES ChatGPT section.
+- E15 consent asymmetry acknowledged in the Action README and this doc's flags section.
+- E17 the /transitions wizard screen + docs/TRANSITIONS.md, driven by the single-source matrix
+  shared/cross-modality/transitions.json (drift invariant 32 keeps matrix, doc, and wizard keys
+  consistent).
+
+Unverifiable OpenAI product claims (developer-mode plan gating, Projects limits, Enterprise
+Drive actions) are tagged [NEEDS VERIFICATION] wherever they appear, never asserted.
