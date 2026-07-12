@@ -1,0 +1,132 @@
+{
+  "_comment": "Append-only migration manifest (P44). Each entry maps a schema_version of a pipeline data shape to a HUMAN-AUTHORED plain-language why_it_matters + concrete_impact, so the local .local audit (tools/local_audit.py) and any future migration render the 'why this matters to your data' narration WITHOUT the model inventing impact (no-fabrication). Keyed by the ecosystem VERSION in which the shape reached that schema_version. Drift invariant 33 (tools/sync_check.py check_migration_manifest) requires an entry whose `to` equals the CURRENT committed schema_version for every pipeline/**/*.template.json, so any future schema_version bump must add an entry here. `from` is null for a shape's first tracked version. `reversible` is honest: true only when a downgrade loses nothing.",
+  "schema_version": 1,
+  "migrations": [
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/contracts/contract.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for a stored contract record. It defines where a contract's parties, dates, and clause references live in your local file.",
+      "concrete_impact": "No change to any contract you have saved. A contract file written before this version keeps every value it had; fields the newer shape adds simply read as null and are flagged, never guessed.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/finance/rate-card.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for your rate card: the pricing rows, tiers, and rate-history entries the finance tools read.",
+      "concrete_impact": "Your saved rates are untouched. This is your most sensitive local file; nothing here rewrites a number. Missing newer rows (for example a format you have not priced) read as null and are flagged so a price is never invented.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/editing/edit-package.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for a video edit package (the clips, order, and edit decisions handed to the editor).",
+      "concrete_impact": "No change to any edit package you have saved. Newer optional fields read as null; your existing decisions are preserved exactly.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/editing/render-manifest.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for a render manifest (what a render job should produce).",
+      "concrete_impact": "No change to a saved render manifest. Missing newer fields read as null and are flagged.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/templates/analytics-overview.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for an analytics-overview document template (the blocks and fill fields you assemble from).",
+      "concrete_impact": "No change to a template you saved. Any block or fill field the newer shape adds reads as null; your vetted block text is never altered.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/templates/contract-base.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for your contract document template: the clause blocks, variant groups, and fill fields.",
+      "concrete_impact": "No change to a saved template. Attorney-vetted block text is preserved verbatim; newer optional structural fields read as null. The system never rewrites your clause language.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/templates/rate-card-display.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for a rate-card display document template.",
+      "concrete_impact": "No change to a saved template. Newer optional fields read as null; your saved blocks are untouched.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/templates/terms-conditions.template.json",
+      "from": null,
+      "to": "1.0",
+      "why_it_matters": "First tracked shape for a terms-and-conditions document template.",
+      "concrete_impact": "No change to a saved template. Vetted block text is preserved verbatim; newer optional fields read as null.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/user-context/deal-playbook.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for your deal playbook (your standing negotiation preferences and defaults).",
+      "concrete_impact": "No change to your saved playbook. Newer optional preferences read as null and are flagged rather than assumed.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/user-context/obligation-register.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for your obligation register (contractual deadlines and deliverables the system tracks).",
+      "concrete_impact": "No change to a saved obligation. Dates and deliverables are preserved exactly; missing newer fields read as null. Deadline math never runs on a guessed value.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/user-context/payment-schedule.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for a payment schedule (milestones and due amounts).",
+      "concrete_impact": "No change to a saved schedule. Amounts and due dates are preserved; newer optional fields read as null and are flagged, never guessed.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/user-context/recurrence-rules.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for recurring-task rules.",
+      "concrete_impact": "No change to a saved rule. Newer optional fields read as null.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/user-context/shipments.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for shipment records (product-seeding tracking).",
+      "concrete_impact": "No change to a saved shipment. Tracking numbers and dates are preserved; newer optional fields read as null.",
+      "reversible": true
+    },
+    {
+      "ecosystem_version": "0.1.0",
+      "template": "pipeline/user-context/task-register.template.json",
+      "from": null,
+      "to": "0.1.0",
+      "why_it_matters": "First tracked shape for your task register (the tasks, states, and due dates the tracker manages).",
+      "concrete_impact": "No change to a saved task. States and dates are preserved exactly; newer optional fields read as null and are flagged.",
+      "reversible": true
+    }
+  ]
+}

@@ -1102,6 +1102,60 @@ def check_task_tracker():
                 problem(f"task-tracker: creator-os-config.json is missing the '{cap}' capability")
 
 
+def check_migration_manifest():
+    """Invariant 33: every pipeline data template's current schema_version has a migration-manifest
+    entry, so a schema bump cannot ship without a human-authored why/impact (P44).
+
+    For every tracked pipeline/**/*.template.json that carries a top-level schema_version, the
+    CHANGELOG.migrations.json must contain a migration entry whose `template` equals that path and
+    whose `to` equals the current schema_version (string compare). Each entry must carry non-empty
+    why_it_matters and concrete_impact (no-fabrication: the "why this matters to your data" text is
+    authored at ship time, never generated at read time) and a boolean reversible. This lets the
+    local .local audit (tools/local_audit.py) narrate impact and forces every future schema_version
+    bump to add an explaining entry here."""
+    man_path = ROOT / "CHANGELOG.migrations.json"
+    if not man_path.exists():
+        problem("migration-manifest: CHANGELOG.migrations.json is missing")
+        return
+    try:
+        man = json.loads(man_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"migration-manifest: CHANGELOG.migrations.json invalid JSON: {exc}")
+        return
+    by_key = {}
+    for m in man.get("migrations", []):
+        if not isinstance(m, dict):
+            problem("migration-manifest: a migration entry is not an object")
+            continue
+        tmpl = m.get("template", "<no template>")
+        for req in ("template", "to", "why_it_matters", "concrete_impact", "reversible"):
+            if req not in m:
+                problem(f"migration-manifest: entry {tmpl} is missing required key '{req}'")
+        if not str(m.get("why_it_matters") or "").strip():
+            problem(f"migration-manifest: entry {tmpl} has empty why_it_matters (must be human-authored)")
+        if not str(m.get("concrete_impact") or "").strip():
+            problem(f"migration-manifest: entry {tmpl} has empty concrete_impact")
+        if not isinstance(m.get("reversible"), bool):
+            problem(f"migration-manifest: entry {tmpl} 'reversible' must be a boolean")
+        by_key[(m.get("template"), str(m.get("to")))] = m
+    pdir = ROOT / "pipeline"
+    if not pdir.exists():
+        return
+    for f in sorted(pdir.rglob("*.template.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict) or "schema_version" not in data:
+            continue
+        rel = str(f.relative_to(ROOT))
+        sv = str(data["schema_version"])
+        if (rel, sv) not in by_key:
+            problem(f"migration-manifest: {rel} is at schema_version {sv} but CHANGELOG.migrations.json "
+                    f"has no entry with template={rel} and to={sv}; add one (with why_it_matters + "
+                    "concrete_impact) so the schema bump is explained to users")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -1134,6 +1188,7 @@ def main():
     check_implementation_schemas()
     check_doc_template_starters()
     check_transitions()
+    check_migration_manifest()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
