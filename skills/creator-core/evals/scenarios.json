@@ -1,1298 +1,1374 @@
 {
-    "suite": "creator-core-scenarios",
-    "_comment": "Realistic cross-lane scenario contract, run by tools/scenario_check.py. TEST-ONLY: it exercises what exists today and pins what does not (the gap_ledger). Findings-as-contract: the runner fails if a leg breaks, if a declared-absent classification appears in the hub routing table, OR if a gap probe stops observing its gap; either direction forces this file and docs/SCENARIOS.md to be updated deliberately. All fixture data is fictional.",
-    "schema_version": "0.1.0",
-    "pinned_today": "2026-09-15",
-    "defaults": {
-        "lead_days": 3
-    },
-    "gap_ledger": [],
-    "_closed_gaps": {
-        "G7": "Closed by P32: the mediakit-critique atom and the partnership-mediakit content_critique action critique the creator's own media kit against the market (benchmark-compare per metric plus a structural review), honestly degrading to structural_only when the benchmark rows are unsourced (null). quality-review stays the internal-Quality-Gates lens; the two do not overlap.",
-        "G3": "Closed by P32: the hub routing table gained account_read (account-manager, read-only account and contact lookup) and deal_status (deal-pipeline, read-only lifecycle status). S1 keeps crm_query and contact_lookup pinned absent deliberately: account_read subsumes them and contact_lookup is a spoke action, not a hub route (anti-synonym-bloat).",
-        "G1": "Closed by P32: the contact-lookup atom and the account-manager contact_lookup action resolve a brand phrase (account-resolve) then read the contact rows via tools/accounts.contacts(); the contact_lookup MCP tool exposes the same read. A person hint that matches nobody returns a gap naming the known contacts, never the wrong person; contact PII is masked when it leaves the machine.",
-        "G2": "Closed by P32: tools/accounts.py resolve() does tiered brand-phrase matching (exact, alias, substring, difflib fuzzy, brand-category term map) over an aliases[] field now in account-schema.json; the account-resolve atom wraps it and account-health delegates fuzzy resolution to it. Never auto-picks past a confident exact or alias match.",
-        "G4": "Closed by P32: account-schema.json v0.2.0 reconciled to shared/pipeline-engine.md (brand_category enum including lighting, secondary_contacts, relationship_health, channel_preferences, deal_history_summary, renewal_candidate); product_category kept deprecated for pre-v0.2.0 records.",
-        "G5": "Closed by P32: canonical-sources/seasonal-aesthetic.md now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 (frontmatter load refs) and canonical-sources in KNOWN_ROOTS close the scan hole that let the dangling ref escape.",
-        "G6": "Closed by P32: canonical-sources/seasonal-aesthetic/seasonal.json gained the seasonal-windows entry with resolved ISO dates for reference_year 2026 (annual recurrence stated); the engine table, seasonal-map table, and JSON are reconciled to the same eight windows.",
-        "G8": "Closed by P30: benchmarks.json rate rows gained structured low/high/unit/currency (parsed from their own prose) and benchmark-compare's 6 metric rows now exist with the low/high/unit schema, values sourced-or-null (null until verified against a registered rate-benchmark source; never estimated).",
-        "G9": "Closed by P28: shared/docintel/transcripts.py gap_metrics() and suggest_chapters() provide pause/silence and words_per_minute analysis from transcript timecodes.",
-        "G10": "Closed by P28: footage_breakdown classification routes to video-development (footage-analysis atom)."
-    },
-    "scenarios": [
+  "suite": "creator-core-scenarios",
+  "_comment": "Realistic cross-lane scenario contract, run by tools/scenario_check.py. TEST-ONLY: it exercises what exists today and pins what does not (the gap_ledger). Findings-as-contract: the runner fails if a leg breaks, if a declared-absent classification appears in the hub routing table, OR if a gap probe stops observing its gap; either direction forces this file and docs/SCENARIOS.md to be updated deliberately. All fixture data is fictional.",
+  "schema_version": "0.1.0",
+  "pinned_today": "2026-09-15",
+  "defaults": {
+    "lead_days": 3
+  },
+  "gap_ledger": [],
+  "_closed_gaps": {
+    "G7": "Closed by P32: the mediakit-critique atom and the partnership-mediakit content_critique action critique the creator's own media kit against the market (benchmark-compare per metric plus a structural review), honestly degrading to structural_only when the benchmark rows are unsourced (null). quality-review stays the internal-Quality-Gates lens; the two do not overlap.",
+    "G3": "Closed by P32: the hub routing table gained account_read (account-manager, read-only account and contact lookup) and deal_status (deal-pipeline, read-only lifecycle status). S1 keeps crm_query and contact_lookup pinned absent deliberately: account_read subsumes them and contact_lookup is a spoke action, not a hub route (anti-synonym-bloat).",
+    "G1": "Closed by P32: the contact-lookup atom and the account-manager contact_lookup action resolve a brand phrase (account-resolve) then read the contact rows via tools/accounts.contacts(); the contact_lookup MCP tool exposes the same read. A person hint that matches nobody returns a gap naming the known contacts, never the wrong person; contact PII is masked when it leaves the machine.",
+    "G2": "Closed by P32: tools/accounts.py resolve() does tiered brand-phrase matching (exact, alias, substring, difflib fuzzy, brand-category term map) over an aliases[] field now in account-schema.json; the account-resolve atom wraps it and account-health delegates fuzzy resolution to it. Never auto-picks past a confident exact or alias match.",
+    "G4": "Closed by P32: account-schema.json v0.2.0 reconciled to shared/pipeline-engine.md (brand_category enum including lighting, secondary_contacts, relationship_health, channel_preferences, deal_history_summary, renewal_candidate); product_category kept deprecated for pre-v0.2.0 records.",
+    "G5": "Closed by P32: canonical-sources/seasonal-aesthetic.md now exists (aesthetic profiles plus the reconciled eight-window timing table); drift invariant 22 (frontmatter load refs) and canonical-sources in KNOWN_ROOTS close the scan hole that let the dangling ref escape.",
+    "G6": "Closed by P32: canonical-sources/seasonal-aesthetic/seasonal.json gained the seasonal-windows entry with resolved ISO dates for reference_year 2026 (annual recurrence stated); the engine table, seasonal-map table, and JSON are reconciled to the same eight windows.",
+    "G8": "Closed by P30: benchmarks.json rate rows gained structured low/high/unit/currency (parsed from their own prose) and benchmark-compare's 6 metric rows now exist with the low/high/unit schema, values sourced-or-null (null until verified against a registered rate-benchmark source; never estimated).",
+    "G9": "Closed by P28: shared/docintel/transcripts.py gap_metrics() and suggest_chapters() provide pause/silence and words_per_minute analysis from transcript timecodes.",
+    "G10": "Closed by P28: footage_breakdown classification routes to video-development (footage-analysis atom)."
+  },
+  "scenarios": [
+    {
+      "id": "S1-contact-lookup",
+      "utterance": "what's the email for that guy from my Hearthline account?",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "account_read",
+            "spoke": "account-manager"
+          }
+        ],
+        "absent_classifications": [
+          "crm_query",
+          "contact_lookup"
+        ],
+        "note": "account_read (account-manager) resolves 'that guy' via account-resolve then contact-lookup. crm_query and contact_lookup stay pinned absent on purpose: account_read subsumes the read intent and contact_lookup is a spoke action, not a hub route."
+      },
+      "legs": [
         {
-            "id": "S1-contact-lookup",
-            "utterance": "what's the email for that guy from my Hearthline account?",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "account_read",
-                        "spoke": "account-manager"
-                    }
-                ],
-                "absent_classifications": [
-                    "crm_query",
-                    "contact_lookup"
-                ],
-                "note": "account_read (account-manager) resolves 'that guy' via account-resolve then contact-lookup. crm_query and contact_lookup stay pinned absent on purpose: account_read subsumes the read intent and contact_lookup is a spoke action, not a hub route."
+          "id": "account-record-shape",
+          "op": "json.load",
+          "with": {
+            "fixture": "hearthline-account.json"
+          },
+          "assert": [
+            {
+              "path": "primary_contact.email",
+              "check": "not_null"
             },
-            "legs": [
-                {
-                    "id": "account-record-shape",
-                    "op": "json.load",
-                    "with": {
-                        "fixture": "hearthline-account.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "primary_contact.email",
-                            "check": "not_null"
-                        },
-                        {
-                            "path": "primary_contact.name",
-                            "check": "eq",
-                            "value": "Marcus Webb"
-                        },
-                        {
-                            "path": "secondary_contacts",
-                            "check": "len_gte",
-                            "value": 1
-                        },
-                        {
-                            "path": "secondary_contacts[0].email",
-                            "check": "not_null"
-                        },
-                        {
-                            "path": "relationship_health",
-                            "check": "eq",
-                            "value": "warm"
-                        },
-                        {
-                            "path": "aliases",
-                            "check": "len_gte",
-                            "value": 1
-                        }
-                    ]
-                },
-                {
-                    "id": "hearthline-resolve",
-                    "op": "accounts.resolve",
-                    "with": {
-                        "fixture": "accounts-roster.json",
-                        "query": "hearthline"
-                    },
-                    "assert": [
-                        {
-                            "path": "resolved.account_id",
-                            "check": "eq",
-                            "value": "acct-hearthline-001"
-                        },
-                        {
-                            "path": "computed_by",
-                            "check": "eq",
-                            "value": "tools/accounts.py.resolve"
-                        }
-                    ]
-                },
-                {
-                    "id": "hearth-ambiguous",
-                    "op": "accounts.resolve",
-                    "with": {
-                        "fixture": "accounts-roster.json",
-                        "query": "hearth"
-                    },
-                    "assert": [
-                        {
-                            "path": "resolved",
-                            "check": "null"
-                        },
-                        {
-                            "path": "candidates",
-                            "check": "len_eq",
-                            "value": 2
-                        }
-                    ]
-                },
-                {
-                    "id": "that-guy-contact",
-                    "op": "accounts.contacts",
-                    "with": {
-                        "fixture": "accounts-roster.json",
-                        "query": "hearthline",
-                        "person": "marcus"
-                    },
-                    "assert": [
-                        {
-                            "path": "contacts",
-                            "check": "len_eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "contacts[0].name",
-                            "check": "eq",
-                            "value": "Marcus Webb"
-                        },
-                        {
-                            "path": "contacts[0].email",
-                            "check": "not_null"
-                        },
-                        {
-                            "path": "computed_by",
-                            "check": "eq",
-                            "value": "tools/accounts.py.contacts"
-                        }
-                    ]
-                },
-                {
-                    "id": "unknown-person-refused",
-                    "op": "accounts.contacts",
-                    "with": {
-                        "fixture": "accounts-roster.json",
-                        "query": "hearthline",
-                        "person": "nobody by this name"
-                    },
-                    "assert": [
-                        {
-                            "path": "contacts",
-                            "check": "len_eq",
-                            "value": 0
-                        },
-                        {
-                            "path": "gaps",
-                            "check": "len_gte",
-                            "value": 1
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
+            {
+              "path": "primary_contact.name",
+              "check": "eq",
+              "value": "Marcus Webb"
+            },
+            {
+              "path": "secondary_contacts",
+              "check": "len_gte",
+              "value": 1
+            },
+            {
+              "path": "secondary_contacts[0].email",
+              "check": "not_null"
+            },
+            {
+              "path": "relationship_health",
+              "check": "eq",
+              "value": "warm"
+            },
+            {
+              "path": "aliases",
+              "check": "len_gte",
+              "value": 1
+            }
+          ]
         },
         {
-            "id": "S2-lightbulb-contract",
-            "utterance": "where are we with that lightbulb company contract?",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "contract_obligations",
-                        "spoke": "contract-desk"
-                    },
-                    {
-                        "classification": "account_read",
-                        "spoke": "account-manager"
-                    },
-                    {
-                        "classification": "deal_status",
-                        "spoke": "deal-pipeline"
-                    }
-                ],
-                "absent_classifications": []
+          "id": "hearthline-resolve",
+          "op": "accounts.resolve",
+          "with": {
+            "fixture": "accounts-roster.json",
+            "query": "hearthline"
+          },
+          "assert": [
+            {
+              "path": "resolved.account_id",
+              "check": "eq",
+              "value": "acct-hearthline-001"
             },
-            "legs": [
-                {
-                    "id": "lumen-register",
-                    "op": "obligations.build_register",
-                    "with": {
-                        "fixture": "lumen-co-obligations.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "obligation_count",
-                            "check": "eq",
-                            "value": 3
-                        },
-                        {
-                            "path": "obligations[0].raw_date",
-                            "check": "eq",
-                            "value": "2026-09-26"
-                        },
-                        {
-                            "path": "obligations[0].effective_date",
-                            "check": "eq",
-                            "value": "2026-09-25"
-                        },
-                        {
-                            "path": "obligations[1].raw_date",
-                            "check": "eq",
-                            "value": "2026-10-26"
-                        },
-                        {
-                            "path": "obligations[1].provenance.derived_from.offset_days",
-                            "check": "eq",
-                            "value": 30
-                        }
-                    ]
-                },
-                {
-                    "id": "lumen-scan",
-                    "op": "obligations.scan",
-                    "with": {
-                        "fixture": "lumen-co-obligations.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "band_counts.red",
-                            "check": "eq",
-                            "value": 1,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "band_counts.orange",
-                            "check": "eq",
-                            "value": 1,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "band_counts.yellow",
-                            "check": "eq",
-                            "value": 1,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "action_queue[0].urgency_band",
-                            "check": "eq",
-                            "value": "red",
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "action_queue[0].send_by_date",
-                            "check": "eq",
-                            "value": "2026-09-23",
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "action_queue[1].send_by_date",
-                            "check": "eq",
-                            "value": "2026-10-23",
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "action_queue[2].send_by_date",
-                            "check": "eq",
-                            "value": "2026-12-10",
-                            "pinned_today_only": true
-                        }
-                    ]
-                },
-                {
-                    "id": "lightbulb-resolve",
-                    "op": "accounts.resolve",
-                    "with": {
-                        "fixture": "accounts-roster.json",
-                        "query": "that lightbulb company"
-                    },
-                    "assert": [
-                        {
-                            "path": "resolved",
-                            "check": "null"
-                        },
-                        {
-                            "path": "resolution",
-                            "check": "eq",
-                            "value": "category"
-                        },
-                        {
-                            "path": "candidates[0].brand_name",
-                            "check": "eq",
-                            "value": "Lumen & Co"
-                        },
-                        {
-                            "path": "computed_by",
-                            "check": "eq",
-                            "value": "tools/accounts.py.resolve"
-                        }
-                    ]
-                },
-                {
-                    "id": "lumen-deal-status",
-                    "op": "accounts.deal_status",
-                    "with": {
-                        "fixture": "accounts-roster.json",
-                        "deals": "lumen-co-deal.json",
-                        "deal_id": "deal-lumen-001"
-                    },
-                    "assert": [
-                        {
-                            "path": "deals",
-                            "check": "len_eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "deals[0].stage",
-                            "check": "eq",
-                            "value": "contract-negotiating"
-                        },
-                        {
-                            "path": "deals[0].latest_stage_event.date",
-                            "check": "eq",
-                            "value": "2026-09-10"
-                        },
-                        {
-                            "path": "deals[0].invoice_status",
-                            "check": "eq",
-                            "value": "draft"
-                        },
-                        {
-                            "path": "computed_by",
-                            "check": "eq",
-                            "value": "tools/accounts.py.deal_status"
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
+            {
+              "path": "computed_by",
+              "check": "eq",
+              "value": "tools/accounts.py.resolve"
+            }
+          ]
         },
         {
-            "id": "S3-seasonal-prep",
-            "utterance": "what's the market going to look like for the holiday season and what should I start doing to prepare?",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "seasonal_planning",
-                        "spoke": "seasonal-trends"
-                    }
-                ],
-                "absent_classifications": []
+          "id": "hearth-ambiguous",
+          "op": "accounts.resolve",
+          "with": {
+            "fixture": "accounts-roster.json",
+            "query": "hearth"
+          },
+          "assert": [
+            {
+              "path": "resolved",
+              "check": "null"
             },
-            "legs": [
-                {
-                    "id": "seasonal-register",
-                    "op": "obligations.build_register",
-                    "with": {
-                        "fixture": "seasonal-windows.json",
-                        "substitute_year": true
-                    },
-                    "assert": [
-                        {
-                            "path": "obligation_count",
-                            "check": "eq",
-                            "value": 16
-                        },
-                        {
-                            "path": "band_counts.unknown",
-                            "check": "absent_key"
-                        },
-                        {
-                            "path": "band_counts.overdue",
-                            "check": "eq",
-                            "value": 10,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "band_counts.orange",
-                            "check": "eq",
-                            "value": 3,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "band_counts.yellow",
-                            "check": "eq",
-                            "value": 2,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "band_counts.out_of_band",
-                            "check": "eq",
-                            "value": 1,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "obligations[4].send_by_date",
-                            "check": "eq",
-                            "value": "2026-11-06",
-                            "pinned_today_only": true
-                        }
-                    ]
-                },
-                {
-                    "id": "seasonal-scan",
-                    "op": "obligations.scan",
-                    "with": {
-                        "fixture": "seasonal-windows.json",
-                        "substitute_year": true
-                    },
-                    "assert": [
-                        {
-                            "path": "action_queue[0].urgency_band",
-                            "check": "eq",
-                            "value": "overdue",
-                            "pinned_today_only": true
-                        }
-                    ]
-                },
-                {
-                    "id": "seasonal-canonical-source",
-                    "op": "json.load",
-                    "with": {
-                        "fixture": "repo:canonical-sources/seasonal-aesthetic/seasonal.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "[4].id",
-                            "check": "eq",
-                            "value": "seasonal-windows"
-                        },
-                        {
-                            "path": "[4].reference_year",
-                            "check": "eq",
-                            "value": 2026
-                        },
-                        {
-                            "path": "[4].windows",
-                            "check": "len_eq",
-                            "value": 8
-                        },
-                        {
-                            "path": "[4].windows[0].youtube_publish_by",
-                            "check": "eq",
-                            "value": "2026-09-01"
-                        },
-                        {
-                            "path": "[4].windows[7].pinterest_pin_by",
-                            "check": "eq",
-                            "value": "2026-07-10"
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
+            {
+              "path": "candidates",
+              "check": "len_eq",
+              "value": 2
+            }
+          ]
         },
         {
-            "id": "S4-mediakit-critique",
-            "utterance": "here's my media kit, do market research and give me critiques",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "content_critique",
-                        "spoke": "partnership-mediakit"
-                    },
-                    {
-                        "classification": "media_kit",
-                        "spoke": "partnership-mediakit"
-                    },
-                    {
-                        "classification": "quality_check",
-                        "spoke": "quality-review"
-                    }
-                ],
-                "absent_classifications": []
+          "id": "that-guy-contact",
+          "op": "accounts.contacts",
+          "with": {
+            "fixture": "accounts-roster.json",
+            "query": "hearthline",
+            "person": "marcus"
+          },
+          "assert": [
+            {
+              "path": "contacts",
+              "check": "len_eq",
+              "value": 1
             },
-            "legs": [
-                {
-                    "id": "quality-releasable",
-                    "op": "quality.evaluate",
-                    "with": {
-                        "fixture": "mediakit-scores.json",
-                        "key": "releasable"
-                    },
-                    "assert": [
-                        {
-                            "path": "released",
-                            "check": "eq",
-                            "value": true
-                        },
-                        {
-                            "path": "composite",
-                            "check": "eq",
-                            "value": 4.44
-                        },
-                        {
-                            "path": "verdict",
-                            "check": "eq",
-                            "value": "Released"
-                        }
-                    ]
-                },
-                {
-                    "id": "quality-hard-fail",
-                    "op": "quality.evaluate",
-                    "with": {
-                        "fixture": "mediakit-scores.json",
-                        "key": "hard_fail"
-                    },
-                    "assert": [
-                        {
-                            "path": "hard_fail",
-                            "check": "eq",
-                            "value": true
-                        },
-                        {
-                            "path": "verdict",
-                            "check": "eq",
-                            "value": "Not released"
-                        },
-                        {
-                            "path": "reasons[0]",
-                            "check": "contains",
-                            "value": "critical-failure override"
-                        }
-                    ]
-                },
-                {
-                    "id": "quality-unknown-dimension",
-                    "op": "quality.evaluate",
-                    "with": {
-                        "fixture": "mediakit-scores.json",
-                        "key": "unknown_key"
-                    },
-                    "assert": [
-                        {
-                            "path": "error",
-                            "check": "matches",
-                            "value": "unknown dimensions.*emotional_impact"
-                        },
-                        {
-                            "path": "released",
-                            "check": "absent_key"
-                        }
-                    ]
-                },
-                {
-                    "id": "benchmark-rows-structured",
-                    "op": "json.load",
-                    "with": {
-                        "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "[0].id",
-                            "check": "eq",
-                            "value": "rate-dedicated-50-100k"
-                        },
-                        {
-                            "path": "[0].low",
-                            "check": "eq",
-                            "value": 500
-                        },
-                        {
-                            "path": "[0].high",
-                            "check": "eq",
-                            "value": 3000
-                        },
-                        {
-                            "path": "[0].unit",
-                            "check": "eq",
-                            "value": "USD_per_video"
-                        },
-                        {
-                            "path": "[1].id",
-                            "check": "eq",
-                            "value": "rate-format-50-100k"
-                        },
-                        {
-                            "path": "[2].metric",
-                            "check": "eq",
-                            "value": "ctr"
-                        },
-                        {
-                            "path": "[2].low",
-                            "check": "null"
-                        },
-                        {
-                            "path": "[7].metric",
-                            "check": "eq",
-                            "value": "rpm"
-                        },
-                        {
-                            "path": "[7].unit",
-                            "check": "eq",
-                            "value": "USD_per_1000_views"
-                        }
-                    ]
-                },
-                {
-                    "id": "critique-degrades-honestly",
-                    "op": "text.probe",
-                    "with": {
-                        "file": "skills/atoms/mediakit-critique/SKILL.md",
-                        "pattern": "structural_only",
-                        "expect": "present"
-                    },
-                    "assert": [
-                        {
-                            "path": "present",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
+            {
+              "path": "contacts[0].name",
+              "check": "eq",
+              "value": "Marcus Webb"
+            },
+            {
+              "path": "contacts[0].email",
+              "check": "not_null"
+            },
+            {
+              "path": "computed_by",
+              "check": "eq",
+              "value": "tools/accounts.py.contacts"
+            }
+          ]
         },
         {
-            "id": "S5-raw-footage",
-            "utterance": "here's raw footage, break it down: what should the chapters be and what should I cut?",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "footage_breakdown",
-                        "spoke": "video-development"
-                    }
-                ],
-                "absent_classifications": []
+          "id": "unknown-person-refused",
+          "op": "accounts.contacts",
+          "with": {
+            "fixture": "accounts-roster.json",
+            "query": "hearthline",
+            "person": "nobody by this name"
+          },
+          "assert": [
+            {
+              "path": "contacts",
+              "check": "len_eq",
+              "value": 0
             },
-            "legs": [
-                {
-                    "id": "footage-parse",
-                    "op": "transcripts.parse",
-                    "with": {
-                        "fixture": "workshop-footage.srt"
-                    },
-                    "assert": [
-                        {
-                            "path": "format",
-                            "check": "eq",
-                            "value": "srt"
-                        },
-                        {
-                            "path": "segment_count",
-                            "check": "eq",
-                            "value": 20
-                        },
-                        {
-                            "path": "duration_seconds",
-                            "check": "eq",
-                            "value": 420.0
-                        }
-                    ]
-                },
-                {
-                    "id": "footage-silences",
-                    "op": "transcripts.gap_metrics",
-                    "with": {
-                        "parsed": {
-                            "$from": "footage-parse"
-                        },
-                        "min_gap_seconds": 8.0
-                    },
-                    "assert": [
-                        {
-                            "path": "silences",
-                            "check": "len_eq",
-                            "value": 3
-                        },
-                        {
-                            "path": "silences[0].gap_seconds",
-                            "check": "eq",
-                            "value": 12.5
-                        },
-                        {
-                            "path": "silences[2].gap_seconds",
-                            "check": "eq",
-                            "value": 20.0
-                        },
-                        {
-                            "path": "computed_by",
-                            "check": "eq",
-                            "value": "shared/docintel/transcripts.gap_metrics"
-                        }
-                    ]
-                },
-                {
-                    "id": "authored-chapters-fanout",
-                    "op": "chapters.fan_out",
-                    "with": {
-                        "fixture": "workshop-chapters.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "chapter_count",
-                            "check": "eq",
-                            "value": 5
-                        },
-                        {
-                            "path": "youtube_description_timestamps",
-                            "check": "contains",
-                            "value": "0:00 Intro: the workshop tour begins"
-                        },
-                        {
-                            "path": "gaps",
-                            "check": "len_eq",
-                            "value": 0
-                        }
-                    ]
-                },
-                {
-                    "id": "authored-chapters-validate",
-                    "op": "chapters.validate",
-                    "with": {
-                        "fixture": "workshop-chapters.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "violations",
-                            "check": "len_eq",
-                            "value": 0
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
-        },
-        {
-            "id": "S6-task-tracker",
-            "utterance": "what am I waiting on from Northwind, and did my final cut cover the approved talking points?",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "task_status",
-                        "spoke": "task-desk"
-                    },
-                    {
-                        "classification": "coverage_check",
-                        "spoke": "task-desk"
-                    }
-                ],
-                "absent_classifications": [],
-                "note": "task_status (task-desk) answers 'what am I waiting on' via the waiting-on vs I-owe split; coverage_check (task-desk) verifies the final cut covered the approved talking points. Both route to task-desk (P35)."
-            },
-            "legs": [
-                {
-                    "id": "nw-task-scan",
-                    "op": "tasks.scan",
-                    "with": {
-                        "fixture": "northwind-tasks.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "waiting_on_counterparty",
-                            "check": "len_eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "i_owe",
-                            "check": "len_eq",
-                            "value": 2
-                        },
-                        {
-                            "path": "overdue",
-                            "check": "len_eq",
-                            "value": 1,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "due_soon",
-                            "check": "len_eq",
-                            "value": 1,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "waiting_on_counterparty[0].is_aging_wait",
-                            "check": "eq",
-                            "value": true,
-                            "pinned_today_only": true
-                        },
-                        {
-                            "path": "waiting_on_counterparty[0].responsible_party",
-                            "check": "eq",
-                            "value": "brand"
-                        },
-                        {
-                            "path": "human_review_required",
-                            "check": "eq",
-                            "value": true
-                        },
-                        {
-                            "path": "computed_by",
-                            "check": "eq",
-                            "value": "tools/tasks.py.scan"
-                        }
-                    ]
-                },
-                {
-                    "id": "nw-approval-loop",
-                    "op": "tasks.ping_pong",
-                    "with": {
-                        "fixture": "northwind-approval.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "final_status",
-                            "check": "eq",
-                            "value": "done"
-                        },
-                        {
-                            "path": "final_responsible_party",
-                            "check": "eq",
-                            "value": "creator"
-                        },
-                        {
-                            "path": "iteration",
-                            "check": "eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "billable_count",
-                            "check": "eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "billable_task_id",
-                            "check": "eq",
-                            "value": "bill_ms-final"
-                        },
-                        {
-                            "path": "billable_source_kind",
-                            "check": "eq",
-                            "value": "event_derived"
-                        },
-                        {
-                            "path": "billable_amount",
-                            "check": "eq",
-                            "value": 1200
-                        },
-                        {
-                            "path": "human_review_required",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                },
-                {
-                    "id": "nw-shipment-anchor",
-                    "op": "shipments.manual",
-                    "with": {
-                        "tracking_number": "9400100000000000000000",
-                        "carrier": "usps",
-                        "status": "delivered",
-                        "delivered_at": "2026-09-14",
-                        "deal_id": "deal-northwind-001",
-                        "source_ref": "user_stated"
-                    },
-                    "assert": [
-                        {
-                            "path": "shipment.status",
-                            "check": "eq",
-                            "value": "delivered"
-                        },
-                        {
-                            "path": "shipment.delivered_at",
-                            "check": "eq",
-                            "value": "2026-09-14"
-                        },
-                        {
-                            "path": "anchor.anchor",
-                            "check": "eq",
-                            "value": "2026-09-14"
-                        },
-                        {
-                            "path": "anchor.provisional",
-                            "check": "eq",
-                            "value": false
-                        },
-                        {
-                            "path": "anchor.basis",
-                            "check": "eq",
-                            "value": "delivered_checkpoint"
-                        }
-                    ]
-                },
-                {
-                    "id": "nw-coverage",
-                    "op": "coverage.verify",
-                    "with": {
-                        "fixture": "northwind-coverage.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "summary.total",
-                            "check": "eq",
-                            "value": 3
-                        },
-                        {
-                            "path": "summary.satisfied",
-                            "check": "eq",
-                            "value": 2
-                        },
-                        {
-                            "path": "summary.missing",
-                            "check": "eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "summary.abstained",
-                            "check": "eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "points[0].verdict",
-                            "check": "eq",
-                            "value": "satisfied"
-                        },
-                        {
-                            "path": "points[0].source_citations",
-                            "check": "len_eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "points[2].verdict",
-                            "check": "eq",
-                            "value": "missing"
-                        },
-                        {
-                            "path": "points[2].abstained",
-                            "check": "eq",
-                            "value": true
-                        },
-                        {
-                            "path": "reconciliation_conflicts",
-                            "check": "eq",
-                            "value": 1
-                        },
-                        {
-                            "path": "minority_report",
-                            "check": "len_gte",
-                            "value": 1
-                        },
-                        {
-                            "path": "human_review_required",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
-        },
-        {
-            "id": "S7-coolbreeze-pitch",
-            "utterance": "CoolBreeze emailed asking for a long-form video plus a TikTok about their portable AC; is it a fit and what should I charge?",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "pitch_triage",
-                        "spoke": "deal-pipeline"
-                    }
-                ],
-                "absent_classifications": [
-                    "brand_pitch",
-                    "pitch_review"
-                ],
-                "note": "One classification carries the whole inbound-pitch flow (P40 F1): pitch_triage (deal-pipeline) chains pitch-extract, product-fit, proposal-price, gap-record, govern-artifact. brand_pitch and pitch_review stay pinned absent: pitch_triage subsumes the intent."
-            },
-            "legs": [
-                {
-                    "id": "rate-floor-only-price",
-                    "op": "finance.price",
-                    "with": {
-                        "payload": {
-                            "rate_floor": 600
-                        }
-                    },
-                    "assert": [
-                        {
-                            "path": "price_floor",
-                            "check": "eq",
-                            "value": "600.00"
-                        },
-                        {
-                            "path": "bound",
-                            "check": "eq",
-                            "value": "negotiation_floor"
-                        },
-                        {
-                            "path": "gaps[0].gap_type",
-                            "check": "eq",
-                            "value": "no_cost_basis"
-                        },
-                        {
-                            "path": "rate_floor_source",
-                            "check": "eq",
-                            "value": "payload"
-                        }
-                    ]
-                },
-                {
-                    "id": "package-price-one-call",
-                    "op": "finance.price_package",
-                    "with": {
-                        "fixture": "coolbreeze-package.json",
-                        "rate_card_fixture": "coolbreeze-rate-card.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "package_floor",
-                            "check": "eq",
-                            "value": "600.00"
-                        },
-                        {
-                            "path": "items[0].rate_floor_source",
-                            "check": "eq",
-                            "value": "rate_card"
-                        },
-                        {
-                            "path": "unpriceable_items",
-                            "check": "len_eq",
-                            "value": 2
-                        },
-                        {
-                            "path": "unpriceable_items",
-                            "check": "contains",
-                            "value": "tiktok video"
-                        },
-                        {
-                            "path": "unpriceable_items",
-                            "check": "contains",
-                            "value": "instagram photo set"
-                        },
-                        {
-                            "path": "gaps",
-                            "check": "matches",
-                            "value": "unpriceable_items"
-                        },
-                        {
-                            "path": "gaps",
-                            "check": "matches",
-                            "value": "benchmark_tier_assumed"
-                        },
-                        {
-                            "path": "gaps",
-                            "check": "not_matches",
-                            "value": "missing_input"
-                        }
-                    ]
-                },
-                {
-                    "id": "product-fit-contract",
-                    "op": "text.probe",
-                    "with": {
-                        "file": "skills/atoms/product-fit/SKILL.md",
-                        "pattern": "data_basis"
-                    },
-                    "assert": [
-                        {
-                            "path": "present",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                },
-                {
-                    "id": "pitch-extract-contract",
-                    "op": "text.probe",
-                    "with": {
-                        "file": "skills/atoms/pitch-extract/SKILL.md",
-                        "pattern": "VERBATIM quote from the email"
-                    },
-                    "assert": [
-                        {
-                            "path": "present",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                },
-                {
-                    "id": "wizard-brand-deals-screen",
-                    "op": "text.probe",
-                    "with": {
-                        "file": "tools/wizard.py",
-                        "pattern": "_screen_brand_deals"
-                    },
-                    "assert": [
-                        {
-                            "path": "present",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                },
-                {
-                    "id": "contract-draft-profile-gaps",
-                    "op": "text.probe",
-                    "with": {
-                        "file": "skills/atoms/contract-draft/SKILL.md",
-                        "pattern": "profile_gaps"
-                    },
-                    "assert": [
-                        {
-                            "path": "present",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                },
-                {
-                    "id": "lever-records-null-flagged",
-                    "op": "json.load",
-                    "with": {
-                        "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "[8].id",
-                            "check": "eq",
-                            "value": "uplift-paid-usage-30d"
-                        },
-                        {
-                            "path": "[8].low",
-                            "check": "null"
-                        },
-                        {
-                            "path": "[8].needs_research",
-                            "check": "eq",
-                            "value": true
-                        },
-                        {
-                            "path": "[11].id",
-                            "check": "eq",
-                            "value": "rate-tiktok-dedicated-50-100k"
-                        },
-                        {
-                            "path": "[11].low",
-                            "check": "null"
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
-        },
-        {
-            "id": "S8-vetted-template-assembly",
-            "utterance": "draft the CoolBreeze agreement from my vetted template, paid usage this time, no exclusivity",
-            "routing": {
-                "mode": "present",
-                "present": [
-                    {
-                        "classification": "template_manage",
-                        "spoke": "document-studio"
-                    },
-                    {
-                        "classification": "contract_draft",
-                        "spoke": "contract-desk"
-                    }
-                ],
-                "absent_classifications": [
-                    "template_assemble",
-                    "document_template"
-                ],
-                "note": "template_manage (document-studio) covers ingest/list/diff of doc-templates; assembling the vetted CONTRACT template rides the existing contract_draft route to contract-desk, which branches to template-assemble when a vetted template exists. template_assemble and document_template stay pinned absent: assembly is not a hub route (anti-synonym-bloat)."
-            },
-            "legs": [
-                {
-                    "id": "vetted-template-validates",
-                    "op": "doctemplates.validate",
-                    "with": {
-                        "fixture": "coolbreeze-vetted-template.json"
-                    },
-                    "assert": [
-                        {
-                            "path": "errors",
-                            "check": "len_eq",
-                            "value": 0
-                        }
-                    ]
-                },
-                {
-                    "id": "assemble-swap-and-exclude",
-                    "op": "doctemplates.assemble",
-                    "with": {
-                        "fixture": "coolbreeze-vetted-template.json",
-                        "profile_fixture": "coolbreeze-profile.json",
-                        "selections": {
-                            "variants": {
-                                "usage_rights": "usage_organic_plus_paid"
-                            },
-                            "exclude": [
-                                "exclusivity"
-                            ],
-                            "reasons": {
-                                "exclusivity": "no exclusivity agreed in this deal"
-                            }
-                        },
-                        "fills": {
-                            "[BRAND_LEGAL_NAME]": "CoolBreeze Example Corp"
-                        }
-                    },
-                    "assert": [
-                        {
-                            "path": "document_text",
-                            "check": "matches",
-                            "value": "FIXTURE-USAGE-PAID"
-                        },
-                        {
-                            "path": "document_text",
-                            "check": "not_matches",
-                            "value": "FIXTURE-USAGE-ORGANIC:"
-                        },
-                        {
-                            "path": "document_text",
-                            "check": "not_matches",
-                            "value": "FIXTURE-EXCLUSIVITY"
-                        },
-                        {
-                            "path": "document_text",
-                            "check": "matches",
-                            "value": "^RESEARCH NOTES. NOT LEGAL ADVICE"
-                        },
-                        {
-                            "path": "document_text",
-                            "check": "matches",
-                            "value": "Fictional Creator LLC"
-                        },
-                        {
-                            "path": "document_text",
-                            "check": "matches",
-                            "value": "\\[GOVERNING_LAW_STATE\\]"
-                        },
-                        {
-                            "path": "ready_to_sign",
-                            "check": "eq",
-                            "value": false
-                        },
-                        {
-                            "path": "gaps",
-                            "check": "matches",
-                            "value": "governing_law_state"
-                        },
-                        {
-                            "path": "blocks_used[0].provenance_tag",
-                            "check": "eq",
-                            "value": "creator_vetted_text"
-                        },
-                        {
-                            "path": "human_review_required",
-                            "check": "eq",
-                            "value": true
-                        }
-                    ]
-                },
-                {
-                    "id": "both-variants-rejected",
-                    "op": "doctemplates.assemble",
-                    "with": {
-                        "fixture": "coolbreeze-vetted-template.json",
-                        "selections": {
-                            "include": [
-                                "usage_organic_plus_paid"
-                            ]
-                        }
-                    },
-                    "assert": [
-                        {
-                            "path": "selection_errors",
-                            "check": "len_gte",
-                            "value": 1
-                        },
-                        {
-                            "path": "selection_errors",
-                            "check": "matches",
-                            "value": "exactly one variant"
-                        },
-                        {
-                            "path": "document_text",
-                            "check": "null"
-                        }
-                    ]
-                }
-            ],
-            "known_gaps": []
+            {
+              "path": "gaps",
+              "check": "len_gte",
+              "value": 1
+            }
+          ]
         }
-    ]
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S2-lightbulb-contract",
+      "utterance": "where are we with that lightbulb company contract?",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "contract_obligations",
+            "spoke": "contract-desk"
+          },
+          {
+            "classification": "account_read",
+            "spoke": "account-manager"
+          },
+          {
+            "classification": "deal_status",
+            "spoke": "deal-pipeline"
+          }
+        ],
+        "absent_classifications": []
+      },
+      "legs": [
+        {
+          "id": "lumen-register",
+          "op": "obligations.build_register",
+          "with": {
+            "fixture": "lumen-co-obligations.json"
+          },
+          "assert": [
+            {
+              "path": "obligation_count",
+              "check": "eq",
+              "value": 3
+            },
+            {
+              "path": "obligations[0].raw_date",
+              "check": "eq",
+              "value": "2026-09-26"
+            },
+            {
+              "path": "obligations[0].effective_date",
+              "check": "eq",
+              "value": "2026-09-25"
+            },
+            {
+              "path": "obligations[1].raw_date",
+              "check": "eq",
+              "value": "2026-10-26"
+            },
+            {
+              "path": "obligations[1].provenance.derived_from.offset_days",
+              "check": "eq",
+              "value": 30
+            }
+          ]
+        },
+        {
+          "id": "lumen-scan",
+          "op": "obligations.scan",
+          "with": {
+            "fixture": "lumen-co-obligations.json"
+          },
+          "assert": [
+            {
+              "path": "band_counts.red",
+              "check": "eq",
+              "value": 1,
+              "pinned_today_only": true
+            },
+            {
+              "path": "band_counts.orange",
+              "check": "eq",
+              "value": 1,
+              "pinned_today_only": true
+            },
+            {
+              "path": "band_counts.yellow",
+              "check": "eq",
+              "value": 1,
+              "pinned_today_only": true
+            },
+            {
+              "path": "action_queue[0].urgency_band",
+              "check": "eq",
+              "value": "red",
+              "pinned_today_only": true
+            },
+            {
+              "path": "action_queue[0].send_by_date",
+              "check": "eq",
+              "value": "2026-09-23",
+              "pinned_today_only": true
+            },
+            {
+              "path": "action_queue[1].send_by_date",
+              "check": "eq",
+              "value": "2026-10-23",
+              "pinned_today_only": true
+            },
+            {
+              "path": "action_queue[2].send_by_date",
+              "check": "eq",
+              "value": "2026-12-10",
+              "pinned_today_only": true
+            }
+          ]
+        },
+        {
+          "id": "lightbulb-resolve",
+          "op": "accounts.resolve",
+          "with": {
+            "fixture": "accounts-roster.json",
+            "query": "that lightbulb company"
+          },
+          "assert": [
+            {
+              "path": "resolved",
+              "check": "null"
+            },
+            {
+              "path": "resolution",
+              "check": "eq",
+              "value": "category"
+            },
+            {
+              "path": "candidates[0].brand_name",
+              "check": "eq",
+              "value": "Lumen & Co"
+            },
+            {
+              "path": "computed_by",
+              "check": "eq",
+              "value": "tools/accounts.py.resolve"
+            }
+          ]
+        },
+        {
+          "id": "lumen-deal-status",
+          "op": "accounts.deal_status",
+          "with": {
+            "fixture": "accounts-roster.json",
+            "deals": "lumen-co-deal.json",
+            "deal_id": "deal-lumen-001"
+          },
+          "assert": [
+            {
+              "path": "deals",
+              "check": "len_eq",
+              "value": 1
+            },
+            {
+              "path": "deals[0].stage",
+              "check": "eq",
+              "value": "contract-negotiating"
+            },
+            {
+              "path": "deals[0].latest_stage_event.date",
+              "check": "eq",
+              "value": "2026-09-10"
+            },
+            {
+              "path": "deals[0].invoice_status",
+              "check": "eq",
+              "value": "draft"
+            },
+            {
+              "path": "computed_by",
+              "check": "eq",
+              "value": "tools/accounts.py.deal_status"
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S3-seasonal-prep",
+      "utterance": "what's the market going to look like for the holiday season and what should I start doing to prepare?",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "seasonal_planning",
+            "spoke": "seasonal-trends"
+          }
+        ],
+        "absent_classifications": []
+      },
+      "legs": [
+        {
+          "id": "seasonal-register",
+          "op": "obligations.build_register",
+          "with": {
+            "fixture": "seasonal-windows.json",
+            "substitute_year": true
+          },
+          "assert": [
+            {
+              "path": "obligation_count",
+              "check": "eq",
+              "value": 16
+            },
+            {
+              "path": "band_counts.unknown",
+              "check": "absent_key"
+            },
+            {
+              "path": "band_counts.overdue",
+              "check": "eq",
+              "value": 10,
+              "pinned_today_only": true
+            },
+            {
+              "path": "band_counts.orange",
+              "check": "eq",
+              "value": 3,
+              "pinned_today_only": true
+            },
+            {
+              "path": "band_counts.yellow",
+              "check": "eq",
+              "value": 2,
+              "pinned_today_only": true
+            },
+            {
+              "path": "band_counts.out_of_band",
+              "check": "eq",
+              "value": 1,
+              "pinned_today_only": true
+            },
+            {
+              "path": "obligations[4].send_by_date",
+              "check": "eq",
+              "value": "2026-11-06",
+              "pinned_today_only": true
+            }
+          ]
+        },
+        {
+          "id": "seasonal-scan",
+          "op": "obligations.scan",
+          "with": {
+            "fixture": "seasonal-windows.json",
+            "substitute_year": true
+          },
+          "assert": [
+            {
+              "path": "action_queue[0].urgency_band",
+              "check": "eq",
+              "value": "overdue",
+              "pinned_today_only": true
+            }
+          ]
+        },
+        {
+          "id": "seasonal-canonical-source",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:canonical-sources/seasonal-aesthetic/seasonal.json"
+          },
+          "assert": [
+            {
+              "path": "[4].id",
+              "check": "eq",
+              "value": "seasonal-windows"
+            },
+            {
+              "path": "[4].reference_year",
+              "check": "eq",
+              "value": 2026
+            },
+            {
+              "path": "[4].windows",
+              "check": "len_eq",
+              "value": 8
+            },
+            {
+              "path": "[4].windows[0].youtube_publish_by",
+              "check": "eq",
+              "value": "2026-09-01"
+            },
+            {
+              "path": "[4].windows[7].pinterest_pin_by",
+              "check": "eq",
+              "value": "2026-07-10"
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S4-mediakit-critique",
+      "utterance": "here's my media kit, do market research and give me critiques",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "content_critique",
+            "spoke": "partnership-mediakit"
+          },
+          {
+            "classification": "media_kit",
+            "spoke": "partnership-mediakit"
+          },
+          {
+            "classification": "quality_check",
+            "spoke": "quality-review"
+          }
+        ],
+        "absent_classifications": []
+      },
+      "legs": [
+        {
+          "id": "quality-releasable",
+          "op": "quality.evaluate",
+          "with": {
+            "fixture": "mediakit-scores.json",
+            "key": "releasable"
+          },
+          "assert": [
+            {
+              "path": "released",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "composite",
+              "check": "eq",
+              "value": 4.44
+            },
+            {
+              "path": "verdict",
+              "check": "eq",
+              "value": "Released"
+            }
+          ]
+        },
+        {
+          "id": "quality-hard-fail",
+          "op": "quality.evaluate",
+          "with": {
+            "fixture": "mediakit-scores.json",
+            "key": "hard_fail"
+          },
+          "assert": [
+            {
+              "path": "hard_fail",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "verdict",
+              "check": "eq",
+              "value": "Not released"
+            },
+            {
+              "path": "reasons[0]",
+              "check": "contains",
+              "value": "critical-failure override"
+            }
+          ]
+        },
+        {
+          "id": "quality-unknown-dimension",
+          "op": "quality.evaluate",
+          "with": {
+            "fixture": "mediakit-scores.json",
+            "key": "unknown_key"
+          },
+          "assert": [
+            {
+              "path": "error",
+              "check": "matches",
+              "value": "unknown dimensions.*emotional_impact"
+            },
+            {
+              "path": "released",
+              "check": "absent_key"
+            }
+          ]
+        },
+        {
+          "id": "benchmark-rows-structured",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json"
+          },
+          "assert": [
+            {
+              "path": "[0].id",
+              "check": "eq",
+              "value": "rate-dedicated-50-100k"
+            },
+            {
+              "path": "[0].low",
+              "check": "eq",
+              "value": 500
+            },
+            {
+              "path": "[0].high",
+              "check": "eq",
+              "value": 3000
+            },
+            {
+              "path": "[0].unit",
+              "check": "eq",
+              "value": "USD_per_video"
+            },
+            {
+              "path": "[1].id",
+              "check": "eq",
+              "value": "rate-format-50-100k"
+            },
+            {
+              "path": "[2].metric",
+              "check": "eq",
+              "value": "ctr"
+            },
+            {
+              "path": "[2].low",
+              "check": "null"
+            },
+            {
+              "path": "[7].metric",
+              "check": "eq",
+              "value": "rpm"
+            },
+            {
+              "path": "[7].unit",
+              "check": "eq",
+              "value": "USD_per_1000_views"
+            }
+          ]
+        },
+        {
+          "id": "critique-degrades-honestly",
+          "op": "text.probe",
+          "with": {
+            "file": "skills/atoms/mediakit-critique/SKILL.md",
+            "pattern": "structural_only",
+            "expect": "present"
+          },
+          "assert": [
+            {
+              "path": "present",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S5-raw-footage",
+      "utterance": "here's raw footage, break it down: what should the chapters be and what should I cut?",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "footage_breakdown",
+            "spoke": "video-development"
+          }
+        ],
+        "absent_classifications": []
+      },
+      "legs": [
+        {
+          "id": "footage-parse",
+          "op": "transcripts.parse",
+          "with": {
+            "fixture": "workshop-footage.srt"
+          },
+          "assert": [
+            {
+              "path": "format",
+              "check": "eq",
+              "value": "srt"
+            },
+            {
+              "path": "segment_count",
+              "check": "eq",
+              "value": 20
+            },
+            {
+              "path": "duration_seconds",
+              "check": "eq",
+              "value": 420.0
+            }
+          ]
+        },
+        {
+          "id": "footage-silences",
+          "op": "transcripts.gap_metrics",
+          "with": {
+            "parsed": {
+              "$from": "footage-parse"
+            },
+            "min_gap_seconds": 8.0
+          },
+          "assert": [
+            {
+              "path": "silences",
+              "check": "len_eq",
+              "value": 3
+            },
+            {
+              "path": "silences[0].gap_seconds",
+              "check": "eq",
+              "value": 12.5
+            },
+            {
+              "path": "silences[2].gap_seconds",
+              "check": "eq",
+              "value": 20.0
+            },
+            {
+              "path": "computed_by",
+              "check": "eq",
+              "value": "shared/docintel/transcripts.gap_metrics"
+            }
+          ]
+        },
+        {
+          "id": "authored-chapters-fanout",
+          "op": "chapters.fan_out",
+          "with": {
+            "fixture": "workshop-chapters.json"
+          },
+          "assert": [
+            {
+              "path": "chapter_count",
+              "check": "eq",
+              "value": 5
+            },
+            {
+              "path": "youtube_description_timestamps",
+              "check": "contains",
+              "value": "0:00 Intro: the workshop tour begins"
+            },
+            {
+              "path": "gaps",
+              "check": "len_eq",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "authored-chapters-validate",
+          "op": "chapters.validate",
+          "with": {
+            "fixture": "workshop-chapters.json"
+          },
+          "assert": [
+            {
+              "path": "violations",
+              "check": "len_eq",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S6-task-tracker",
+      "utterance": "what am I waiting on from Northwind, and did my final cut cover the approved talking points?",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "task_status",
+            "spoke": "task-desk"
+          },
+          {
+            "classification": "coverage_check",
+            "spoke": "task-desk"
+          }
+        ],
+        "absent_classifications": [],
+        "note": "task_status (task-desk) answers 'what am I waiting on' via the waiting-on vs I-owe split; coverage_check (task-desk) verifies the final cut covered the approved talking points. Both route to task-desk (P35)."
+      },
+      "legs": [
+        {
+          "id": "nw-task-scan",
+          "op": "tasks.scan",
+          "with": {
+            "fixture": "northwind-tasks.json"
+          },
+          "assert": [
+            {
+              "path": "waiting_on_counterparty",
+              "check": "len_eq",
+              "value": 1
+            },
+            {
+              "path": "i_owe",
+              "check": "len_eq",
+              "value": 2
+            },
+            {
+              "path": "overdue",
+              "check": "len_eq",
+              "value": 1,
+              "pinned_today_only": true
+            },
+            {
+              "path": "due_soon",
+              "check": "len_eq",
+              "value": 1,
+              "pinned_today_only": true
+            },
+            {
+              "path": "waiting_on_counterparty[0].is_aging_wait",
+              "check": "eq",
+              "value": true,
+              "pinned_today_only": true
+            },
+            {
+              "path": "waiting_on_counterparty[0].responsible_party",
+              "check": "eq",
+              "value": "brand"
+            },
+            {
+              "path": "human_review_required",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "computed_by",
+              "check": "eq",
+              "value": "tools/tasks.py.scan"
+            }
+          ]
+        },
+        {
+          "id": "nw-approval-loop",
+          "op": "tasks.ping_pong",
+          "with": {
+            "fixture": "northwind-approval.json"
+          },
+          "assert": [
+            {
+              "path": "final_status",
+              "check": "eq",
+              "value": "done"
+            },
+            {
+              "path": "final_responsible_party",
+              "check": "eq",
+              "value": "creator"
+            },
+            {
+              "path": "iteration",
+              "check": "eq",
+              "value": 1
+            },
+            {
+              "path": "billable_count",
+              "check": "eq",
+              "value": 1
+            },
+            {
+              "path": "billable_task_id",
+              "check": "eq",
+              "value": "bill_ms-final"
+            },
+            {
+              "path": "billable_source_kind",
+              "check": "eq",
+              "value": "event_derived"
+            },
+            {
+              "path": "billable_amount",
+              "check": "eq",
+              "value": 1200
+            },
+            {
+              "path": "human_review_required",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "nw-shipment-anchor",
+          "op": "shipments.manual",
+          "with": {
+            "tracking_number": "9400100000000000000000",
+            "carrier": "usps",
+            "status": "delivered",
+            "delivered_at": "2026-09-14",
+            "deal_id": "deal-northwind-001",
+            "source_ref": "user_stated"
+          },
+          "assert": [
+            {
+              "path": "shipment.status",
+              "check": "eq",
+              "value": "delivered"
+            },
+            {
+              "path": "shipment.delivered_at",
+              "check": "eq",
+              "value": "2026-09-14"
+            },
+            {
+              "path": "anchor.anchor",
+              "check": "eq",
+              "value": "2026-09-14"
+            },
+            {
+              "path": "anchor.provisional",
+              "check": "eq",
+              "value": false
+            },
+            {
+              "path": "anchor.basis",
+              "check": "eq",
+              "value": "delivered_checkpoint"
+            }
+          ]
+        },
+        {
+          "id": "nw-coverage",
+          "op": "coverage.verify",
+          "with": {
+            "fixture": "northwind-coverage.json"
+          },
+          "assert": [
+            {
+              "path": "summary.total",
+              "check": "eq",
+              "value": 3
+            },
+            {
+              "path": "summary.satisfied",
+              "check": "eq",
+              "value": 2
+            },
+            {
+              "path": "summary.missing",
+              "check": "eq",
+              "value": 1
+            },
+            {
+              "path": "summary.abstained",
+              "check": "eq",
+              "value": 1
+            },
+            {
+              "path": "points[0].verdict",
+              "check": "eq",
+              "value": "satisfied"
+            },
+            {
+              "path": "points[0].source_citations",
+              "check": "len_eq",
+              "value": 1
+            },
+            {
+              "path": "points[2].verdict",
+              "check": "eq",
+              "value": "missing"
+            },
+            {
+              "path": "points[2].abstained",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "reconciliation_conflicts",
+              "check": "eq",
+              "value": 1
+            },
+            {
+              "path": "minority_report",
+              "check": "len_gte",
+              "value": 1
+            },
+            {
+              "path": "human_review_required",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S7-coolbreeze-pitch",
+      "utterance": "CoolBreeze emailed asking for a long-form video plus a TikTok about their portable AC; is it a fit and what should I charge?",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "pitch_triage",
+            "spoke": "deal-pipeline"
+          }
+        ],
+        "absent_classifications": [
+          "brand_pitch",
+          "pitch_review"
+        ],
+        "note": "One classification carries the whole inbound-pitch flow (P40 F1): pitch_triage (deal-pipeline) chains pitch-extract, product-fit, proposal-price, gap-record, govern-artifact. brand_pitch and pitch_review stay pinned absent: pitch_triage subsumes the intent."
+      },
+      "legs": [
+        {
+          "id": "rate-floor-only-price",
+          "op": "finance.price",
+          "with": {
+            "payload": {
+              "rate_floor": 600
+            }
+          },
+          "assert": [
+            {
+              "path": "price_floor",
+              "check": "eq",
+              "value": "600.00"
+            },
+            {
+              "path": "bound",
+              "check": "eq",
+              "value": "negotiation_floor"
+            },
+            {
+              "path": "gaps[0].gap_type",
+              "check": "eq",
+              "value": "no_cost_basis"
+            },
+            {
+              "path": "rate_floor_source",
+              "check": "eq",
+              "value": "payload"
+            }
+          ]
+        },
+        {
+          "id": "package-price-one-call",
+          "op": "finance.price_package",
+          "with": {
+            "fixture": "coolbreeze-package.json",
+            "rate_card_fixture": "coolbreeze-rate-card.json"
+          },
+          "assert": [
+            {
+              "path": "package_floor",
+              "check": "eq",
+              "value": "600.00"
+            },
+            {
+              "path": "items[0].rate_floor_source",
+              "check": "eq",
+              "value": "rate_card"
+            },
+            {
+              "path": "unpriceable_items",
+              "check": "len_eq",
+              "value": 2
+            },
+            {
+              "path": "unpriceable_items",
+              "check": "contains",
+              "value": "tiktok video"
+            },
+            {
+              "path": "unpriceable_items",
+              "check": "contains",
+              "value": "instagram photo set"
+            },
+            {
+              "path": "gaps",
+              "check": "matches",
+              "value": "unpriceable_items"
+            },
+            {
+              "path": "gaps",
+              "check": "matches",
+              "value": "benchmark_tier_assumed"
+            },
+            {
+              "path": "gaps",
+              "check": "not_matches",
+              "value": "missing_input"
+            }
+          ]
+        },
+        {
+          "id": "product-fit-contract",
+          "op": "text.probe",
+          "with": {
+            "file": "skills/atoms/product-fit/SKILL.md",
+            "pattern": "data_basis"
+          },
+          "assert": [
+            {
+              "path": "present",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "pitch-extract-contract",
+          "op": "text.probe",
+          "with": {
+            "file": "skills/atoms/pitch-extract/SKILL.md",
+            "pattern": "VERBATIM quote from the email"
+          },
+          "assert": [
+            {
+              "path": "present",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "wizard-brand-deals-screen",
+          "op": "text.probe",
+          "with": {
+            "file": "tools/wizard.py",
+            "pattern": "_screen_brand_deals"
+          },
+          "assert": [
+            {
+              "path": "present",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "contract-draft-profile-gaps",
+          "op": "text.probe",
+          "with": {
+            "file": "skills/atoms/contract-draft/SKILL.md",
+            "pattern": "profile_gaps"
+          },
+          "assert": [
+            {
+              "path": "present",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "lever-records-null-flagged",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:canonical-sources/rate-benchmarks/benchmarks.json"
+          },
+          "assert": [
+            {
+              "path": "[8].id",
+              "check": "eq",
+              "value": "uplift-paid-usage-30d"
+            },
+            {
+              "path": "[8].low",
+              "check": "null"
+            },
+            {
+              "path": "[8].needs_research",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "[11].id",
+              "check": "eq",
+              "value": "rate-tiktok-dedicated-50-100k"
+            },
+            {
+              "path": "[11].low",
+              "check": "null"
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S8-vetted-template-assembly",
+      "utterance": "draft the CoolBreeze agreement from my vetted template, paid usage this time, no exclusivity",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "template_manage",
+            "spoke": "document-studio"
+          },
+          {
+            "classification": "contract_draft",
+            "spoke": "contract-desk"
+          }
+        ],
+        "absent_classifications": [
+          "template_assemble",
+          "document_template"
+        ],
+        "note": "template_manage (document-studio) covers ingest/list/diff of doc-templates; assembling the vetted CONTRACT template rides the existing contract_draft route to contract-desk, which branches to template-assemble when a vetted template exists. template_assemble and document_template stay pinned absent: assembly is not a hub route (anti-synonym-bloat)."
+      },
+      "legs": [
+        {
+          "id": "vetted-template-validates",
+          "op": "doctemplates.validate",
+          "with": {
+            "fixture": "coolbreeze-vetted-template.json"
+          },
+          "assert": [
+            {
+              "path": "errors",
+              "check": "len_eq",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "assemble-swap-and-exclude",
+          "op": "doctemplates.assemble",
+          "with": {
+            "fixture": "coolbreeze-vetted-template.json",
+            "profile_fixture": "coolbreeze-profile.json",
+            "selections": {
+              "variants": {
+                "usage_rights": "usage_organic_plus_paid"
+              },
+              "exclude": [
+                "exclusivity"
+              ],
+              "reasons": {
+                "exclusivity": "no exclusivity agreed in this deal"
+              }
+            },
+            "fills": {
+              "[BRAND_LEGAL_NAME]": "CoolBreeze Example Corp"
+            }
+          },
+          "assert": [
+            {
+              "path": "document_text",
+              "check": "matches",
+              "value": "FIXTURE-USAGE-PAID"
+            },
+            {
+              "path": "document_text",
+              "check": "not_matches",
+              "value": "FIXTURE-USAGE-ORGANIC:"
+            },
+            {
+              "path": "document_text",
+              "check": "not_matches",
+              "value": "FIXTURE-EXCLUSIVITY"
+            },
+            {
+              "path": "document_text",
+              "check": "matches",
+              "value": "^RESEARCH NOTES. NOT LEGAL ADVICE"
+            },
+            {
+              "path": "document_text",
+              "check": "matches",
+              "value": "Fictional Creator LLC"
+            },
+            {
+              "path": "document_text",
+              "check": "matches",
+              "value": "\\[GOVERNING_LAW_STATE\\]"
+            },
+            {
+              "path": "ready_to_sign",
+              "check": "eq",
+              "value": false
+            },
+            {
+              "path": "gaps",
+              "check": "matches",
+              "value": "governing_law_state"
+            },
+            {
+              "path": "blocks_used[0].provenance_tag",
+              "check": "eq",
+              "value": "creator_vetted_text"
+            },
+            {
+              "path": "human_review_required",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "both-variants-rejected",
+          "op": "doctemplates.assemble",
+          "with": {
+            "fixture": "coolbreeze-vetted-template.json",
+            "selections": {
+              "include": [
+                "usage_organic_plus_paid"
+              ]
+            }
+          },
+          "assert": [
+            {
+              "path": "selection_errors",
+              "check": "len_gte",
+              "value": 1
+            },
+            {
+              "path": "selection_errors",
+              "check": "matches",
+              "value": "exactly one variant"
+            },
+            {
+              "path": "document_text",
+              "check": "null"
+            }
+          ]
+        }
+      ],
+      "known_gaps": []
+    },
+    {
+      "id": "S9-content-library",
+      "utterance": "import my past YouTube and Instagram videos and show me which parts were most watched",
+      "routing": {
+        "mode": "present",
+        "present": [
+          {
+            "classification": "import_past_videos",
+            "spoke": "content-library"
+          },
+          {
+            "classification": "most_watched_parts",
+            "spoke": "content-library"
+          }
+        ],
+        "absent_classifications": [],
+        "note": "import_past_videos and most_watched_parts both route to content-library (the creator's OWN back catalog), distinct from content_distribution (posting) and competitor_check (others' channels)."
+      },
+      "legs": [
+        {
+          "id": "content-import-end-to-end",
+          "op": "content_import.analyze",
+          "with": {
+            "youtube_studio_csv": "video-library-youtube-studio.json",
+            "instagram_dyi": "video-library-instagram-dyi.json"
+          },
+          "assert": [
+            {
+              "path": "youtube_key",
+              "check": "eq",
+              "value": "youtube:ytVID001"
+            },
+            {
+              "path": "youtube_most_watched_count",
+              "check": "gte",
+              "value": 1
+            },
+            {
+              "path": "youtube_has_peak",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "youtube_revenue_present",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "instagram_revenue_present",
+              "check": "eq",
+              "value": false
+            },
+            {
+              "path": "instagram_retention_null",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "instagram_most_watched_count",
+              "check": "eq",
+              "value": 0
+            },
+            {
+              "path": "top_tags",
+              "check": "contains",
+              "value": "armoire"
+            },
+            {
+              "path": "retention_unavailable",
+              "check": "contains",
+              "value": "instagram:202605_reel_TOURXYZ"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

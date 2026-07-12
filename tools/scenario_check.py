@@ -377,6 +377,67 @@ def op_doctemplates_assemble(withp, clock, prior):
                              fills=withp.get("fills") or {})
 
 
+def op_content_import_analyze(withp, clock, prior):
+    """Delegates to the P45 content-import lane end to end on fictional fixtures, writing nothing to
+    disk (an in-memory SQLite store). Parses a YouTube Studio CSV (the ONLY revenue source) via
+    tools/import_parse.parse_youtube_studio_csv and an Instagram DYI export via parse_instagram_dyi,
+    attaches a synthetic YouTube retention array (representing the Analytics API leg) to the first YT
+    record, normalizes + upserts through tools/video_library, then runs analyze(). Returns compact
+    facts the scenario pins: most_watched derived from retention, tags surfaced, IG retention
+    null-flagged, and revenue present ONLY from the CSV."""
+    import import_parse as ip
+    import video_library as vl
+
+    # The Studio CSV content is embedded in a JSON fixture (no committed .csv per the data-at-rest policy).
+    yt_fixture = json.loads(_fixture_path(withp["youtube_studio_csv"]).read_text(encoding="utf-8"))
+    yt_records = ip.parse_youtube_studio_csv(yt_fixture["csv_text"])
+    ig_records = ip.parse_instagram_dyi(_fixture_path(withp["instagram_dyi"]))
+
+    # A synthetic retention curve (the Analytics API leg): a clear front peak and a mid cliff.
+    retention = [{"elapsed_ratio": round(i / 100, 2),
+                  "watch_ratio": (1.4 if i < 10 else (0.4 if i >= 60 else 0.9))}
+                 for i in range(0, 100, 2)]
+
+    con = vl._open_db(":memory:")  # in-memory: writes nothing to disk
+    yt_key = None
+    for idx, r in enumerate(yt_records):
+        r = dict(r)
+        r.setdefault("tags", ["armoire", "diy"] if idx == 0 else ["wainscoting", "diy"])
+        if idx == 0:
+            r["retention"] = retention  # only the first YT video carries a retention curve
+        rec = vl.normalize_record(r, platform="youtube", source_mode="export_bundle",
+                                  source_citation="studio_csv")
+        vl._upsert(con, rec)
+        if idx == 0:
+            yt_key = rec["video_key"]
+    ig_key = None
+    for r in ig_records:
+        r = dict(r)
+        r["tags"] = ["armoire"]
+        rec = vl.normalize_record(r, platform="instagram", source_mode="export_bundle")
+        vl._upsert(con, rec)
+        ig_key = rec["video_key"]
+
+    yt_rec = vl.get_record(con, yt_key)
+    ig_rec = vl.get_record(con, ig_key) if ig_key else None
+    analysis = vl.analyze(con)
+    con.close()
+
+    top_tag_names = [t["tag"] for t in analysis["top_tags"]]
+    return {
+        "youtube_key": yt_key,
+        "instagram_key": ig_key,
+        "youtube_most_watched_count": len(yt_rec.get("most_watched_segments") or []),
+        "youtube_has_peak": any(s.get("label") == "peak" for s in (yt_rec.get("most_watched_segments") or [])),
+        "youtube_revenue_present": bool(yt_rec.get("revenue")),
+        "instagram_revenue_present": bool(ig_rec and ig_rec.get("revenue")),
+        "instagram_retention_null": bool(ig_rec and ig_rec.get("retention") is None),
+        "instagram_most_watched_count": len((ig_rec or {}).get("most_watched_segments") or []),
+        "top_tags": top_tag_names,
+        "retention_unavailable": analysis["retention_insights"]["retention_unavailable"],
+    }
+
+
 def op_text_probe(withp, clock, prior):
     p = ROOT / withp["file"]
     if not p.exists():
@@ -409,6 +470,7 @@ OPS = {
     "finance.price_package": op_finance_price_package,
     "doctemplates.validate": op_doctemplates_validate,
     "doctemplates.assemble": op_doctemplates_assemble,
+    "content_import.analyze": op_content_import_analyze,
     "text.probe": op_text_probe,
     "path.probe": op_path_probe,
 }

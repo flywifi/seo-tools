@@ -879,6 +879,41 @@ def check_implementation_schemas():
 DOC_TEMPLATE_TYPES = {"contract", "rate_card", "analytics_overview", "terms_conditions"}
 
 
+def check_video_library_starter():
+    """Invariant 34: committed video-library starters are pure null shape, never a real video (P45).
+
+    Every tracked pipeline/video-library/*.template.json must parse and carry only null/empty data
+    fields: no real platform_video_id, title, url, stats, retention, revenue, or transcript. The
+    creator's own catalog (performance, revenue, transcripts) lives ONLY in the gitignored
+    index.local.db and *.local.json; this guarantees none of it ever enters git via a starter.
+    Mirrors invariant 31 for the content-import store."""
+    vdir = ROOT / "pipeline" / "video-library"
+    if not vdir.exists():
+        return
+    null_scalars = ("video_key", "platform", "platform_video_id", "url", "title", "description",
+                    "category", "published_at", "duration_s", "retention", "revenue",
+                    "transcript_ref", "transcript_text", "source_mode")
+    empty_containers = ("tags", "chapters", "most_watched_segments", "stats", "provenance")
+    for f in sorted(vdir.glob("*.template.json")):
+        rel = f.relative_to(ROOT)
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"video-library starter: {rel} is invalid JSON: {exc}")
+            continue
+        if not data.get("schema_version"):
+            problem(f"video-library starter: {rel} must declare a schema_version")
+        for k in null_scalars:
+            if data.get(k) is not None:
+                problem(f"video-library starter: {rel} field {k!r} must be null "
+                        "(a committed starter carries no real video data; real data is gitignored)")
+        for k in empty_containers:
+            v = data.get(k)
+            if v not in ([], {}):
+                problem(f"video-library starter: {rel} field {k!r} must be empty ([] or {{}}); "
+                        "real stats/tags/transcripts live only in the gitignored store")
+
+
 def check_doc_template_starters():
     """Invariant 31: committed doc-template starters are pure shape, never content (P42).
 
@@ -1191,6 +1226,7 @@ def main():
     check_doc_template_starters()
     check_transitions()
     check_migration_manifest()
+    check_video_library_starter()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:

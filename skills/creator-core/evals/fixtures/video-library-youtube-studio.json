@@ -1,0 +1,4 @@
+{
+  "_comment": "Synthetic YouTube Studio 'Table data.csv' content for the P45 content-import scenario, embedded as a string (no committed .csv export per the data-at-rest policy). Fictional; no real channel or revenue. csv_text is fed verbatim to tools/import_parse.parse_youtube_studio_csv.",
+  "csv_text": "Content,Video title,Video publish time,Views,Watch time (hours),Average view duration,Impressions,Impressions click-through rate (%),Estimated revenue (USD)\nytVID001,Restoring a farmhouse armoire,2026-03-01,\"48,000\",1820.5,0:06:40,\"420,000\",6.20,\"$310.40\"\nytVID002,Wainscoting a hallway,2026-04-02,\"22,500\",640.0,0:04:10,180000,4.10,\"$96.75\"\nTotal,,,\"70,500\",2460.5,,600000,,\"$407.15\"\n"
+}

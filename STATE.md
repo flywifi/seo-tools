@@ -2,8 +2,31 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P44 are complete. Drift guard exits 0 (33 invariants). Branch:
+P6 through P45 are complete. Drift guard exits 0 (34 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
+
+- P45: content import (the creator's OWN past videos + metadata). Import, complete, and analyze the
+  back catalog across YouTube/Instagram/TikTok/Pinterest, entirely on the creator's machine,
+  proposal-only. tools/video_library.py is the local gitignored SQLite+FTS5 store (upsert by
+  video_key, freshness-enveloped stats, retention null off YouTube, no committed summary) plus a
+  read-only analysis layer (top tags, YouTube retention peaks/cliffs, format performance, transcript
+  themes; every figure cites video_keys; unavailable data null-flagged). tools/import_parse.py reads
+  the four export bundles (revenue ONLY from the YouTube Studio CSV). tools/importers/* is the
+  flag-gated OAuth REST tier (content_import_live master + per-platform read flag + own creds; the
+  YouTube importer builds no monetary URL and skips ASR captions). Completion layer:
+  tools/transcribe.py is the OS/backend-aware on-device STT runner (whisper.cpp on Apple Silicon,
+  faster-whisper elsewhere; run_local_stt gap with per-OS install when no backend, never a fabricated
+  transcript) and tools/library_complete.py joins the YouTube retention curve to the transcript so
+  each most-watched moment carries the spoken words (elapsed_ratio x duration_s). Skills:
+  video-import, transcript-import, library-complete, library-analyze atoms + the content-library
+  spoke (Class C with the invariant-32 Fallback). Wiring: hub routes import_past_videos/
+  analyze_back_catalog/most_watched_parts; MCP video_library_query + video_library_import_status;
+  wizard /import guided flow with per-OS STT install + macOS Gatekeeper/Python notes. Governance:
+  drift invariant 34 (video-library starters are pure null shape), scenario S9, docs/CONTENT-IMPORT.md
+  + SETUP_MAC.md STT section + DEPLOYMENT.md matrix rows. Two corrected premises are load-bearing:
+  YouTube snippet.tags are PUBLIC, and revenue cannot come from the Analytics API (Studio-CSV only).
+  Retention is YouTube-only; transcripts are on-device STT or an uploaded caption (ASR not downloaded,
+  no scraping); all imported data is gitignored; the importer proposes and the human saves.
 
 - P44: background updating for established users (Claude and ChatGPT). Answers "how do I update once
   I have my own saved data?" without ever pushing, nagging, or pulling on the user's behalf.
