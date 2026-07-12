@@ -1560,6 +1560,14 @@ if __name__ == "__main__":
     _ap.add_argument("--port", type=int, default=8080)
     _args, _ = _ap.parse_known_args()
     _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
+    # One quiet, non-blocking startup notice (stderr only; stdout is the stdio protocol channel).
+    # No network call happens here: the update_check tool polls only when explicitly invoked.
+    try:
+        _v = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        print(f"[creator-os] version {_v}. Call the update_check tool any time to see if a newer "
+              f"release is published (read-only; it never pulls or changes anything).", file=sys.stderr)
+    except OSError:
+        pass
     if _transport != "stdio":
         try:
             mcp.settings.host = _args.host

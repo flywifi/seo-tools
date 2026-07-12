@@ -16,6 +16,20 @@ personal-freshness model, the overlay, the per-modality stores, and the source p
    through their own work. Any user may download those updates at their discretion. The system never
    prompts a pull.
 
+### The opt-in update notice (P44) and how it stays inside these rules
+The three rules above govern the **freshness** system, which never signals anything about repo
+versions. The separate P44 update check is the one place a version notice can appear, and it is built
+to honor the same spirit:
+- It is **off by default** and turned on only by the user (`background_update_check`, wizard `/updates`).
+  A notice the user explicitly asked to receive is a chosen setting, not an unsolicited nag.
+- When on, it produces **at most one passive line** ("a newer version is available; update when you
+  choose"), only when the user is behind, and only ever points at the user's own explicit
+  `python3 tools/update.py`. It never repeats itself into homework.
+- It still **never** pushes, opens a PR, requests review, or pulls on the user's behalf. The check is a
+  read-only poll of the public release page (nothing about the user's data leaves the machine), and
+  applying an update stays the user's decision. A data-format notice from the `.local` audit (P44)
+  behaves the same way: surfaced only when the user asks to see it, never acted on without consent.
+
 ## The overlay model
 `canonical-sources/**` (the registry + data) is a **read-only baseline** you downloaded. Your
 freshness state — last-checked dates, content hashes, change flags, and any refreshed values — is

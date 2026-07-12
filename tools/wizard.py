@@ -229,6 +229,7 @@ Desktop. If you chat in a web browser, pick the matching browser option.</p>
 <hr>
 <a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
+<a class="btn btn-outline" href="/updates">Updates: am I on the latest version?</a>
 """, dots=["active", "dot", "dot", "dot"])
 
 def _screen_claudeai() -> str:
@@ -1136,6 +1137,52 @@ Open the transitions guide</a>
 """)
 
 
+def _screen_updates(saved: str = "") -> str:
+    """Update status (P44): current version, the opt-in background check, and how each surface updates."""
+    cfg = _load_creator_config()
+    on = _flag_enabled(cfg, "background_update_check")
+    state = '<span class="check">ON</span>' if on else '<strong style="color:#cc2222">OFF</strong>'
+    enable = "" if on else (
+        '<form method="POST" action="/api/enable-update-check" style="margin-top:6px">'
+        '<button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;'
+        'font-size:.85rem">Turn on the background update check</button></form>')
+    saved_block = f'<div class="note">{saved}</div>' if saved else ""
+    return _page("Updates", f"""
+<h1>Keeping Creator OS up to date</h1>
+{saved_block}
+{_local_precondition_note()}
+<p>Current version on this computer: <strong>{_repo_version()}</strong>.</p>
+
+<h2>The background check (optional)</h2>
+<p>Background update check: {state}. When on, Creator OS quietly checks whether a newer version has
+been published and shows you one short notice only when you are behind. It reads a public release
+page; nothing about your data ever leaves this computer. It never installs or changes anything on
+its own.</p>
+{enable}
+<p class="hint">Check by hand any time: <code>python3 tools/update_check.py report</code> (read-only),
+or see the notice with <code>python3 tools/update_notify.py</code>.</p>
+
+<h2>Applying an update is always your choice</h2>
+<p>When you decide to update, run <code>python3 tools/update.py</code>. It pulls the new version and
+rebuilds the local index. It never touches your saved files (rate card, deals, contracts, templates):
+those live in local files that git leaves alone.</p>
+
+<h2>How each place you use Creator OS updates</h2>
+<ul>
+<li><strong>This computer (Claude Desktop, Claude Code):</strong> run <code>python3 tools/update.py</code>,
+or install Creator OS as a plugin so it updates on its own at the start of a session.</li>
+<li><strong>ChatGPT or claude.ai with pasted text or uploaded files:</strong> that is a frozen copy.
+Compare the "Packaging version" line at the top of what you pasted with the version above; if it is
+lower, re-export and paste again.</li>
+<li><strong>A connected setup (a remote MCP connector you or your developer host):</strong> update the
+computer that hosts it once, and every connected app is current on its next session.</li>
+</ul>
+<p class="hint">Full per-place runbook: docs/UPDATING.md.</p>
+
+<a class="btn btn-outline" href="/">Back to start</a>
+""")
+
+
 def _screen_cross_modality(surface: str = "") -> str:
     """Show, for the user's AI surface, exactly how to wire Creator OS capabilities + what runs there."""
     summ = _skill_modality_summary()
@@ -1258,6 +1305,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/brand-deals": _screen_brand_deals(),
             "/chatgpt": _screen_chatgpt(),
             "/transitions": _screen_transitions(),
+            "/updates": _screen_updates(),
         }
         if path in routes:
             self._send(routes[path])
@@ -1281,6 +1329,15 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 f"<strong>{flag}</strong> enabled in creator-os-config.local.json (local only; "
                 "never committed). If you run an MCP server on this computer, restart it to "
                 "pick this up.")))
+            return
+
+        if path == "/api/enable-update-check":
+            _update_capability_flag("background_update_check", {"enabled": True})
+            self._send(_screen_updates(saved=(
+                "<strong>background_update_check</strong> enabled in creator-os-config.local.json "
+                "(local only; never committed). Creator OS will now quietly check for a newer version "
+                "and show one short notice only when you are behind. It never applies anything on its "
+                "own; updating stays your explicit tools/update.py run.")))
             return
 
         if path == "/api/write-freshness":

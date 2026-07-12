@@ -1,6 +1,8 @@
 # P36 local freshness scheduler (examples). Runs the token-free detection on YOUR machine and writes
-# to YOUR own store overlay. Nothing here contacts GitHub, pushes, or nags. Copy the snippet that
-# fits your OS, set OVERLAY to your store path, and adjust the cadence.
+# to YOUR own store overlay. The freshness jobs never contact GitHub, push, or nag. (The optional
+# P44 update check below reads only GitHub's public release page, read-only, and only when you opt
+# in; it still never pushes and never applies anything.) Copy the snippet that fits your OS, set
+# OVERLAY to your store path, and adjust the cadence.
 #
 # The runtime is entirely local: reading public changelog/feed pages is downloading, never uploading.
 # See docs/FRESHNESS.md for the model.
@@ -10,6 +12,15 @@
 # 0 8 * * 1  cd /path/to/seo-tools && \
 #   python3 tools/source_currency.py check --detect-changes --apply --overlay "$HOME/CreatorOS/freshness.overlay.json" >/dev/null 2>&1 ; \
 #   python3 tools/source_currency.py dashboard --overlay "$HOME/CreatorOS/freshness.overlay.json" --out "$HOME/CreatorOS/currency-dashboard.md"
+
+# ---- Optional: background update check (P44; opt-in) ------------------------
+# Only runs when you have turned on the background_update_check capability (wizard /updates screen,
+# or creator-os-config.local.json). It is a READ-ONLY poll of the repo's public release page: it
+# reports whether a newer Creator OS version exists and prints ONE short notice when you are behind.
+# It never pulls, never changes code, and never touches your .local data. Applying an update stays
+# your explicit `python3 tools/update.py` run. With the flag off, this command does nothing and
+# makes no network call.
+# 0 9 * * 1  cd /path/to/seo-tools && python3 tools/update_notify.py >> "$HOME/CreatorOS/update-notice.txt" 2>&1
 
 # ---- macOS launchd (~/Library/LaunchAgents/com.creatoros.freshness.plist) ----
 # <?xml version="1.0" encoding="UTF-8"?>
