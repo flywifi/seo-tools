@@ -41,33 +41,39 @@ def revenue_note():
 
 # ── Data API: uploads + videos ───────────────────────────────────────────────
 
-def list_uploads(token, getter=C.http_get_json, max_videos=None):
-    """channels.list -> uploads playlist -> playlistItems.list (paginated) -> [video_id]. Returns
-    (ids, error)."""
+def list_uploads(token, getter=C.http_get_json, max_videos=None, max_pages=1000):
+    """channels.list -> uploads playlist -> playlistItems.list (paginated) -> (ids, error, truncated).
+
+    maxResults is 50 (the documented maximum) at 1 quota unit/call. playlistItems.list documents no
+    total-results cap (the ~500 cap is search.list only), so max_pages=1000 (~50,000 videos) is a
+    defensive backstop against a malformed/repeating nextPageToken; truncated=True means the cap was
+    hit with a next page still pending. Terminates on a missing or non-advancing nextPageToken."""
     ch, err = getter(f"{DATA}/channels?part=contentDetails&mine=true", _auth(token))
     if err:
-        return [], err
+        return [], err, False
     try:
         uploads = ch["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
     except (KeyError, IndexError):
-        return [], "no uploads playlist (is this the owner's token?)"
-    ids, page = [], None
-    while True:
+        return [], "no uploads playlist (is this the owner's token?)", False
+    ids, page, seen = [], None, set()
+    for _ in range(max_pages):
         url = f"{DATA}/playlistItems?part=contentDetails&playlistId={uploads}&maxResults=50"
         if page:
             url += f"&pageToken={page}"
         data, err = getter(url, _auth(token))
         if err:
-            return ids, err
+            return ids, err, False
         for it in data.get("items", []):
             vid = (it.get("contentDetails") or {}).get("videoId")
             if vid:
                 ids.append(vid)
         if max_videos and len(ids) >= max_videos:
-            return ids[:max_videos], None
+            return ids[:max_videos], None, False
         page = data.get("nextPageToken")
-        if not page:
-            return ids, None
+        if not page or page in seen:  # end of data, or a malformed/repeating token: stop
+            return ids, None, False
+        seen.add(page)
+    return ids, None, True  # hit the page cap with a next page still pending -> truncated
 
 
 def _iso8601_to_seconds(dur):
@@ -168,15 +174,20 @@ def import_channel(config, token=None, start="2020-01-01", end=None, max_videos=
         return {"gate": g, "error": "no youtube access_token in api-credentials.local.json", "records": []}
     from datetime import date
     end = end or date.today().isoformat()
-    ids, err = list_uploads(token, getter=getter, max_videos=max_videos)
+    ids, err, truncated = list_uploads(token, getter=getter, max_videos=max_videos)
     records = fetch_videos(ids, token, getter=getter)
     ana_flag = C.gate(config, "youtube_analytics")["proceed"]
     for rec in records:
         if ana_flag:
             pts, rerr = fetch_retention(rec["platform_video_id"], token, start, end, getter=getter)
             rec["retention"] = pts or None
-    return {"gate": g, "records": records, "retention_pulled": ana_flag,
-            "revenue_note": revenue_note(), "error": err}
+    res = {"gate": g, "records": records, "retention_pulled": ana_flag,
+           "revenue_note": revenue_note(), "error": err}
+    if truncated:
+        res["truncated"] = True
+        res["truncation_note"] = ("Stopped at the page safety cap; your YouTube library may be "
+                                  "incomplete. Re-run to continue.")
+    return res
 
 
 # ── selftest (injected getter; no network; revenue-never assertion) ──────────
@@ -221,8 +232,21 @@ def selftest():
                               {"id": "capReal", "snippet": {"trackKind": "standard"}}]}, None
         return None, "unmocked"
 
-    ids, err = list_uploads("tok", getter=fake_getter)
+    ids, err, truncated = list_uploads("tok", getter=fake_getter)
     ok("list_uploads paginates to ids", ids == ["vid1", "vid2"] and err is None)
+    ok("clean completion is not truncated", truncated is False)
+
+    # P46 fix 2: a runaway nextPageToken that never clears is bounded and flagged (no infinite loop).
+    rn = {"n": 0}
+
+    def fake_runaway(url, headers=None):
+        if "/channels" in url:
+            return {"items": [{"contentDetails": {"relatedPlaylists": {"uploads": "UUxx"}}}]}, None
+        rn["n"] += 1
+        return {"items": [{"contentDetails": {"videoId": f"v{rn['n']}"}}], "nextPageToken": f"tok{rn['n']}"}, None
+    rids, rerr, rtrunc = list_uploads("tok", getter=fake_runaway, max_pages=7)
+    ok("runaway paging bounded + truncated", rn["n"] == 7 and rtrunc is True and rerr is None)
+
     recs = fetch_videos(ids, "tok", getter=fake_getter)
     ok("fetch_videos normalizes stats", recs[0]["stats"]["views"] == 12000 and recs[0]["duration_s"] == 600)
     ok("fetch_videos tags public", recs[0]["tags"] == ["armoire"])

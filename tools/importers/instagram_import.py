@@ -19,7 +19,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import _common as C  # noqa: E402
 
-GRAPH = "https://graph.instagram.com"
+# Pin the API version explicitly. An unversioned graph.instagram.com call resolves to a
+# Meta-chosen default; v25.0 was released 2026-02-18 (Graph API changelog).
+GRAPH = "https://graph.instagram.com/v25.0"
 REELS_METRICS = ["reach", "views", "likes", "comments", "saved", "shares", "ig_reels_avg_watch_time"]
 
 
@@ -27,21 +29,32 @@ def _tok(url, token):
     return url + ("&" if "?" in url else "?") + f"access_token={token}"
 
 
-def list_media(ig_user_id, token, getter=C.http_get_json, limit=50):
-    """GET /{ig-user-id}/media (paginated via paging.cursors.after) -> [media object]."""
-    out, after = [], None
+def list_media(ig_user_id, token, getter=C.http_get_json, limit=50, max_pages=500):
+    """GET /{ig-user-id}/media (cursor paging) -> (media, error, truncated).
+
+    Meta's documented terminator is the ABSENCE of paging.next, NOT the after cursor (a cursor edge
+    can return `after` on the final page, which would loop forever). We stop when paging.next is gone,
+    when the after cursor does not advance, or at max_pages (a defensive backstop; Instagram documents
+    no per-edge limit maximum, so limit stays <=50). truncated=True means the cap was hit with a next
+    page still present."""
+    out, after, seen = [], None, set()
     fields = "id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count"
-    while True:
+    for _ in range(max_pages):
         url = _tok(f"{GRAPH}/{ig_user_id}/media?fields={fields}&limit={limit}", token)
         if after:
             url += f"&after={after}"
         data, err = getter(url)
         if err:
-            return out, err
+            return out, err, False
         out.extend(data.get("data", []))
-        after = ((data.get("paging") or {}).get("cursors") or {}).get("after")
-        if not after or not data.get("data"):
-            return out, None
+        paging = data.get("paging") or {}
+        if not paging.get("next") or not data.get("data"):  # documented end-of-data signal
+            return out, None, False
+        after = (paging.get("cursors") or {}).get("after")
+        if not after or after in seen:  # no/repeating cursor while next is present: stop, do not loop
+            return out, None, False
+        seen.add(after)
+    return out, None, True  # hit the page cap with paging.next still present -> truncated
 
 
 def fetch_insights(media_id, token, getter=C.http_get_json):
@@ -82,13 +95,18 @@ def import_account(config, token=None, ig_user_id=None, getter=C.http_get_json):
     ig_user_id = ig_user_id or creds.get("ig_user_id")
     if not token or not ig_user_id:
         return {"gate": g, "error": "missing instagram access_token / ig_user_id", "records": []}
-    media, err = list_media(ig_user_id, token, getter=getter)
+    media, err, truncated = list_media(ig_user_id, token, getter=getter)
     records = []
     for m in media:
         stats, _ = fetch_insights(m.get("id"), token, getter=getter)
         records.append(_normalize(m, stats))
-    return {"gate": g, "records": records, "error": err,
-            "note": "Instagram has no audience-retention or hashtag analytics; retention is null."}
+    res = {"gate": g, "records": records, "error": err,
+           "note": "Instagram has no audience-retention or hashtag analytics; retention is null."}
+    if truncated:
+        res["truncated"] = True
+        res["truncation_note"] = ("Stopped at the page safety cap; your Instagram library may be "
+                                  "incomplete. Re-run to continue.")
+    return res
 
 
 def selftest():
@@ -112,8 +130,27 @@ def selftest():
                              {"name": "saved", "total_value": {"value": 120}}]}, None
         return None, "unmocked"
 
-    media, err = list_media("ME", "tok", getter=fake)
+    media, err, truncated = list_media("ME", "tok", getter=fake)
     ok("list_media returns items", len(media) == 1 and err is None)
+    ok("no paging.next -> not truncated", truncated is False)
+
+    # P46 fix 2: an 'after' cursor that persists with no paging.next must still terminate (the docs'
+    # rule) rather than loop forever; and a genuinely non-terminating next is bounded + flagged.
+    def fake_after_no_next(url):
+        # returns an after cursor but NO paging.next: documented end-of-data, must stop.
+        return {"data": [{"id": "1", "timestamp": "2026-01-01T00:00:00Z"}],
+                "paging": {"cursors": {"after": "CURSOR"}}}, None
+    m2, e2, t2 = list_media("ME", "tok", getter=fake_after_no_next)
+    ok("terminates on paging.next absence despite an after cursor", len(m2) == 1 and t2 is False)
+
+    rn = {"n": 0}
+
+    def fake_runaway(url):
+        rn["n"] += 1
+        return {"data": [{"id": str(rn["n"]), "timestamp": "2026-01-01T00:00:00Z"}],
+                "paging": {"next": "http://x", "cursors": {"after": f"c{rn['n']}"}}}, None
+    m3, e3, t3 = list_media("ME", "tok", getter=fake_runaway, max_pages=6)
+    ok("runaway next bounded + truncated", rn["n"] == 6 and t3 is True and e3 is None)
     stats, _ = fetch_insights("17900", "tok", getter=fake)
     ok("insights read total_value.value", stats["reach"] == 5000 and stats["views"] == 8000)
     res = import_account(on, token="tok", ig_user_id="ME", getter=fake)
