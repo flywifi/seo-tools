@@ -22,12 +22,15 @@ Usage:
   python3 tools/transcribe.py --selftest
 """
 import argparse
+import hashlib
 import json
 import os
 import platform
 import shutil
+import ssl
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -38,6 +41,8 @@ import transcripts as _t  # noqa: E402
 import mediaprobe as _mp  # noqa: E402
 
 SUBPROCESS_TIMEOUT = 3600  # a long video can take a while; STT is the bottleneck, not the wall clock.
+CA_BUNDLE = os.environ.get("REQUESTS_CA_BUNDLE") or "/root/.ccr/ca-bundle.crt"
+MODEL_ALLOWLIST = ROOT / "canonical-sources" / "whisper-models.json"
 
 # whisper.cpp's CLI has been renamed across versions; probe all three.
 _WHISPER_CPP_BINS = ("whisper-cli", "whisper-cpp", "main")
@@ -269,6 +274,190 @@ def transcribe(media_path, model=None, initial_prompt=None, out_dir=None,
     return result
 
 
+# ── model allowlist + auto-download with integrity check ─────────────────────
+
+_HOMEBREW_INSTALL = '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+
+
+def load_model_allowlist(path=None):
+    """The committed sha256/size allowlist for whisper.cpp GGML models (canonical-sources/
+    whisper-models.json). Never raises; returns a minimal shape if absent."""
+    p = Path(path or MODEL_ALLOWLIST)
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"models": {}, "url_prefix": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"}
+
+
+def model_dir(explicit=None):
+    """Where downloaded whisper.cpp models live (gitignored, local). Overridable via WHISPER_MODEL_DIR."""
+    if explicit:
+        return Path(explicit)
+    env = os.environ.get("WHISPER_MODEL_DIR")
+    if env:
+        return Path(env)
+    return Path(os.environ.get("HOME") or str(HERE)) / ".creator-os" / "whisper-models"
+
+
+def _sha256_file(path, chunk=1 << 20):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(chunk), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _stream_download(url, dest, expected_size=None, progress=None, timeout=600):
+    """Stream a large file to disk with stdlib urllib (env proxy + CA bundle). Returns an error
+    string, or None on success. Writes to a .part temp then atomically renames; never raises."""
+    ctx = ssl.create_default_context()
+    if os.path.exists(CA_BUNDLE):
+        try:
+            ctx.load_verify_locations(CA_BUNDLE)
+        except Exception:  # noqa: BLE001
+            pass
+    req = urllib.request.Request(url, headers={"User-Agent": "creator-os-stt-doctor"})
+    tmp = Path(str(dest) + ".part")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r, open(tmp, "wb") as f:
+            done = 0
+            while True:
+                block = r.read(1 << 20)
+                if not block:
+                    break
+                f.write(block)
+                done += len(block)
+                if progress:
+                    progress(done, expected_size)
+        tmp.replace(dest)
+        return None
+    except Exception as exc:  # noqa: BLE001
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        return f"{type(exc).__name__}: {str(exc)[:160]}"
+
+
+def fetch_model(name, dest_dir=None, allowlist=None, downloader=None, progress=None):
+    """Download a whisper.cpp GGML model and verify it against the committed sha256 allowlist.
+
+    Returns {ok, path, model, verified, cached?, error?}. On a sha256 mismatch the partial file is
+    deleted and ok is False (never a fabricated success). `downloader` is injectable so the selftest
+    runs with no network. faster-whisper needs no manual model (it auto-downloads to the HF cache);
+    this path is for the whisper.cpp backend only."""
+    allowlist = allowlist or load_model_allowlist()
+    models = allowlist.get("models", {})
+    entry = models.get(name)
+    if not entry:
+        return {"ok": False, "model": name, "error": f"unknown model '{name}'; choices: {sorted(models)}"}
+    dest = model_dir(dest_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    out = dest / entry["file"]
+    url = allowlist.get("url_prefix", "") + entry["file"]
+    want = entry.get("sha256")
+    if out.exists() and want and _sha256_file(out) == want:
+        return {"ok": True, "path": str(out), "model": name, "verified": "sha256", "cached": True}
+    dl = downloader or _stream_download
+    err = dl(url, out, expected_size=entry.get("size_bytes"), progress=progress)
+    if err:
+        return {"ok": False, "model": name, "error": err, "install_hint": url}
+    if want:
+        got = _sha256_file(out)
+        if got != want:
+            try:
+                out.unlink()
+            except OSError:
+                pass
+            return {"ok": False, "model": name,
+                    "error": f"sha256 mismatch (got {got[:12]}..., want {want[:12]}...); deleted the file"}
+        return {"ok": True, "path": str(out), "model": name, "verified": "sha256"}
+    # No published hash: fall back to a size check (weaker, but honest about which check ran).
+    if entry.get("size_bytes") and out.stat().st_size != entry["size_bytes"]:
+        return {"ok": False, "model": name, "error": "downloaded size does not match the expected size"}
+    return {"ok": True, "path": str(out), "model": name, "verified": "size"}
+
+
+# ── doctor: a guided, non-technical setup checklist with a single next action ──
+
+def _find_whisper_cpp_model(explicit_dir=None):
+    env = os.environ.get("WHISPER_CPP_MODEL")
+    if env and Path(env).exists():
+        return env
+    d = model_dir(explicit_dir)
+    if d.exists():
+        found = sorted(d.glob("ggml-*.bin"))
+        if found:
+            return str(found[0])
+    return None
+
+
+def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_present=None, ram_gb=None):
+    """A plain-language readiness check for on-device transcription. Each step reports {ok,
+    what_it_is, next_command, why}; the result carries a green/amber/red verdict and the single next
+    action. Pure and injectable so the wizard and the selftest can simulate any machine."""
+    os_name = (os_name if os_name is not None else sys.platform).lower()
+    arch = (arch if arch is not None else platform.machine()).lower()
+    have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
+    is_mac = os_name == "darwin"
+    sel = select_backend(os_name=os_name, arch=arch, have=have)
+    steps = []
+
+    steps.append({"step": "computer", "ok": True,
+                  "what_it_is": f"{'macOS' if is_mac else ('Windows' if os_name.startswith('win') else os_name)} "
+                                f"({'Apple Silicon' if is_mac and arch in ('arm64', 'aarch64') else arch})",
+                  "why": "picks the right transcription engine for your machine"})
+
+    if sel["ok"]:
+        steps.append({"step": "engine", "ok": True, "what_it_is": sel["backend"],
+                      "why": "found a speech-to-text engine that runs on your computer"})
+    else:
+        steps.append({"step": "engine", "ok": False,
+                      "what_it_is": "a local speech-to-text engine (whisper.cpp or faster-whisper)",
+                      "next_command": _install_hint(os_name, arch),
+                      "why": "needed to turn your videos into transcripts on your own computer"})
+
+    if is_mac and not sel["ok"]:
+        hb = shutil.which("brew") is not None if brew_present is None else brew_present
+        if not hb:
+            steps.append({"step": "homebrew", "ok": False,
+                          "what_it_is": "Homebrew, the macOS installer used to add whisper.cpp",
+                          "next_command": _HOMEBREW_INSTALL,
+                          "why": "the easiest notarized way to install the engine (no Gatekeeper prompt)"})
+
+    # whisper.cpp needs a model FILE; faster-whisper auto-downloads its own on first run.
+    if sel.get("backend") == "whisper.cpp":
+        mp = _find_whisper_cpp_model(model_dir_override)
+        if mp:
+            steps.append({"step": "model", "ok": True, "what_it_is": f"speech model at {mp}",
+                          "why": "whisper.cpp has a model to transcribe with"})
+        else:
+            tier = default_model(ram_gb)
+            name = {"base": "base.en", "small": "small.en", "medium": "medium", "large-v3": "large-v3"}.get(tier, "small.en")
+            steps.append({"step": "model", "ok": False,
+                          "what_it_is": "a one-time speech model download (a few hundred MB)",
+                          "next_command": f"python3 tools/transcribe.py doctor --fetch-model {name}",
+                          "why": "whisper.cpp needs a model file; this downloads and verifies it for you"})
+    elif sel.get("backend") == "faster-whisper":
+        steps.append({"step": "model", "ok": True,
+                      "what_it_is": "faster-whisper downloads its model automatically on first use",
+                      "why": "no manual model step needed"})
+
+    reds = [s for s in steps if not s["ok"]]
+    if not reds:
+        verdict = "green"
+    elif any(s["step"] == "engine" for s in reds):
+        verdict = "red"
+    else:
+        verdict = "amber"
+    next_action = reds[0]["next_command"] if reds else None
+    return {"os": os_name, "arch": arch, "verdict": verdict, "backend": sel.get("backend"),
+            "steps": steps, "next_action": next_action,
+            "summary": {"green": "You are ready to transcribe on this computer.",
+                        "amber": "Almost ready: one optional step remains (see next_action).",
+                        "red": "Install a speech-to-text engine first (see next_action)."}[verdict]}
+
+
 # ── selftest (no network, no real backend needed) ───────────────────────────
 
 def selftest():
@@ -321,6 +510,50 @@ def selftest():
         parsed = _t.parse(str(srt))
         ok("canned SRT normalizes to 2 segments", parsed["segment_count"] == 2)
         ok("normalized text carries niche word", "armoire" in parsed["plain_text"])
+
+        # P46 doctor: verdicts for simulated machines (pure/injectable, no real hardware).
+        d_none = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": False, "faster_whisper": False})
+        ok("doctor red when no engine + mac install action", d_none["verdict"] == "red" and "brew install whisper-cpp" in (d_none["next_action"] or ""))
+        d_fw = doctor(os_name="linux", arch="x86_64", have={"whisper_cpp": False, "faster_whisper": True})
+        ok("doctor green with faster-whisper (auto model)", d_fw["verdict"] == "green" and d_fw["next_action"] is None)
+        d_cpp_nomodel = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": True, "faster_whisper": False},
+                               model_dir_override=str(tmp / "empty-models"))
+        ok("doctor amber when whisper.cpp present but no model", d_cpp_nomodel["verdict"] == "amber"
+           and "--fetch-model" in (d_cpp_nomodel["next_action"] or ""))
+        mdir = tmp / "models"
+        mdir.mkdir()
+        (mdir / "ggml-base.en.bin").write_bytes(b"x")
+        d_cpp_model = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": True, "faster_whisper": False},
+                             model_dir_override=str(mdir))
+        ok("doctor green when whisper.cpp + a model file", d_cpp_model["verdict"] == "green")
+
+        # P46 fetch_model: injected downloader + sha256 verify (no network).
+        payload = b"synthetic ggml model bytes"
+        digest = hashlib.sha256(payload).hexdigest()
+        allow = {"url_prefix": "https://example/", "models": {
+            "tiny.test": {"file": "ggml-tiny.test.bin", "size_bytes": len(payload), "sha256": digest}}}
+
+        def good_dl(url, dest, expected_size=None, progress=None):
+            Path(dest).write_bytes(payload)
+            return None
+        res = fetch_model("tiny.test", dest_dir=str(tmp / "dl"), allowlist=allow, downloader=good_dl)
+        ok("fetch_model verifies sha256", res["ok"] and res["verified"] == "sha256")
+        res2 = fetch_model("tiny.test", dest_dir=str(tmp / "dl"), allowlist=allow, downloader=good_dl)
+        ok("fetch_model uses the cached verified file", res2.get("cached") is True)
+
+        def bad_dl(url, dest, expected_size=None, progress=None):
+            Path(dest).write_bytes(b"corrupted bytes not matching the hash")
+            return None
+        res3 = fetch_model("tiny.test", dest_dir=str(tmp / "dl2"), allowlist=allow, downloader=bad_dl)
+        ok("fetch_model rejects a sha256 mismatch + deletes the file",
+           res3["ok"] is False and "mismatch" in res3["error"] and not (tmp / "dl2" / "ggml-tiny.test.bin").exists())
+        res4 = fetch_model("does.not.exist", dest_dir=str(tmp / "dl3"), allowlist=allow, downloader=good_dl)
+        ok("fetch_model errors on an unknown model", res4["ok"] is False and "unknown model" in res4["error"])
+
+        # The committed allowlist loads and carries all six models with sha256 + size.
+        real = load_model_allowlist()
+        ok("committed allowlist has 6 models with sha256",
+           len(real.get("models", {})) == 6 and all(m.get("sha256") and m.get("size_bytes") for m in real["models"].values()))
     finally:
         import shutil as _sh
         _sh.rmtree(tmp, ignore_errors=True)
@@ -336,6 +569,9 @@ def main(argv):
     ap = argparse.ArgumentParser(description="OS/backend-aware local STT runner (offline, zero-token).")
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("status")
+    dp = sub.add_parser("doctor", help="guided setup check + optional model download")
+    dp.add_argument("--fetch-model", help="download + verify a whisper.cpp model by name (e.g. base.en)")
+    dp.add_argument("--model-dir")
     rp = sub.add_parser("run")
     rp.add_argument("media")
     rp.add_argument("--model")
@@ -347,6 +583,17 @@ def main(argv):
         return selftest()
     if args.cmd == "status":
         print(json.dumps({"backends": detect_backends(), "selection": select_backend()}, indent=2))
+        return 0
+    if args.cmd == "doctor":
+        if args.fetch_model:
+            def _bar(done, total):
+                pct = (f"{100 * done // total}%" if total else f"{done // (1 << 20)} MB")
+                print(f"\r  downloading {args.fetch_model}: {pct}", end="", file=sys.stderr, flush=True)
+            res = fetch_model(args.fetch_model, dest_dir=args.model_dir, progress=_bar)
+            print("", file=sys.stderr)
+            print(json.dumps(res, indent=2))
+            return 0 if res.get("ok") else 1
+        print(json.dumps(doctor(model_dir_override=args.model_dir), indent=2))
         return 0
     if args.cmd == "run":
         print(json.dumps(transcribe(args.media, model=args.model, out_dir=args.out_dir,

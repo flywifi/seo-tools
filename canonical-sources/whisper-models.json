@@ -1,0 +1,14 @@
+{
+  "_comment": "Integrity allowlist for whisper.cpp GGML model files, used by tools/transcribe.py doctor --fetch-model to verify an auto-downloaded model on a non-technical user's machine. whisper.cpp publishes NO SHA256 manifest and its downloader does no integrity check, so these hashes are the authoritative Hugging Face git-LFS object ids (sha256), captured 2026-07-13 from the resolve endpoint's X-Linked-Etag/X-Linked-Size headers. Source: https://huggingface.co/ggerganov/whisper.cpp (resolve/main/<file>). Sizes are bytes. Update by re-reading the HEAD headers if upstream re-publishes a model.",
+  "source": "https://huggingface.co/ggerganov/whisper.cpp",
+  "url_prefix": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/",
+  "captured": "2026-07-13",
+  "models": {
+    "base.en": {"file": "ggml-base.en.bin", "size_bytes": 147964211, "sha256": "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002", "ram_tier": "8GB", "note": "fast, English-only; smallest sensible tier"},
+    "small.en": {"file": "ggml-small.en.bin", "size_bytes": 487614201, "sha256": "c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d", "ram_tier": "8GB", "note": "production English captions"},
+    "small": {"file": "ggml-small.bin", "size_bytes": 487601967, "sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b", "ram_tier": "8GB", "note": "production, multilingual"},
+    "medium": {"file": "ggml-medium.bin", "size_bytes": 1533763059, "sha256": "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208", "ram_tier": "16GB", "note": "higher accuracy"},
+    "large-v3": {"file": "ggml-large-v3.bin", "size_bytes": 3095033483, "sha256": "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2", "ram_tier": "32GB", "note": "accuracy-critical; large download"},
+    "large-v3-turbo": {"file": "ggml-large-v3-turbo.bin", "size_bytes": 1624555275, "sha256": "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69", "ram_tier": "16GB", "note": "near-large accuracy, ~half the size"}
+  }
+}
