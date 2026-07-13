@@ -490,6 +490,34 @@ def selftest():
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
 
+    # P46 fixes 5+6: the CLI returns a clean error + nonzero exit on bad input (no raw traceback),
+    # and a malformed FTS query exits nonzero rather than exit 0 with an error payload. Run main()
+    # against a temp store so the real gitignored store is never touched.
+    import io as _io
+    import contextlib as _cl
+    global DB_PATH
+    _saved_db = DB_PATH
+    tmp2 = Path(tempfile.mkdtemp(prefix="video_library_cli_"))
+    DB_PATH = tmp2 / "index.local.db"
+    try:
+        def _run_main(argv):
+            buf = _io.StringIO()
+            with _cl.redirect_stdout(buf):
+                rc = main(argv)
+            return rc, buf.getvalue()
+        rc, out = _run_main(["upsert", "--record", "this is not json"])
+        ok("cli: malformed json -> exit 1 + error dict", rc == 1 and '"error"' in out)
+        rc, out = _run_main(["upsert", "--record", '{"platform":"vimeo","platform_video_id":"1"}'])
+        ok("cli: unknown platform -> exit 1 + error dict", rc == 1 and "unknown platform" in out)
+        rc, out = _run_main(["query", "armoire OR (unbalanced"])
+        ok("cli: malformed FTS -> exit 1 (not 0)", rc == 1 and '"error"' in out)
+        rc, out = _run_main(["upsert", "--record", '{"platform":"youtube","platform_video_id":"cliok"}'])
+        ok("cli: valid upsert still exits 0", rc == 0 and "youtube:cliok" in out)
+    finally:
+        DB_PATH = _saved_db
+        import shutil as _sh
+        _sh.rmtree(tmp2, ignore_errors=True)
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -504,6 +532,16 @@ def _load_arg_json(val):
     if val == "-":
         return json.loads(sys.stdin.read())
     return json.loads(val)
+
+
+def _fail(msg, next_step=None):
+    """Emit a one-line JSON error (never a raw traceback) and signal a nonzero exit. Non-technical
+    users and agent tool wrappers get an actionable message instead of a Python stack dump."""
+    out = {"error": str(msg)}
+    if next_step:
+        out["next_step"] = next_step
+    print(json.dumps(out, ensure_ascii=False))
+    return 1
 
 
 def main(argv):
@@ -530,17 +568,32 @@ def main(argv):
     if args.command == "init":
         print(json.dumps({"initialized": str(DB_PATH)}))
     elif args.command == "upsert":
-        parsed = _load_arg_json(args.record if args.record is not None else (args.arg or "-"))
-        rec = normalize_record(parsed, platform=args.platform, source_mode=args.source_mode)
+        try:
+            parsed = _load_arg_json(args.record if args.record is not None else (args.arg or "-"))
+            rec = normalize_record(parsed, platform=args.platform, source_mode=args.source_mode)
+        except json.JSONDecodeError as exc:
+            con.close()
+            return _fail(f"the record is not valid JSON: {exc}", "pass a JSON object via --record or on stdin")
+        except ValueError as exc:
+            con.close()
+            return _fail(exc, "a record needs a known platform and a non-empty platform_video_id")
         print(json.dumps({"video_key": rec["video_key"], "status": _upsert(con, rec)}))
     elif args.command == "upsert-batch":
-        arr = json.loads(Path(args.arg).read_text(encoding="utf-8"))
+        try:
+            arr = json.loads(Path(args.arg).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            con.close()
+            return _fail(f"could not read the batch file as JSON: {exc}", "point at a JSON array of records")
         res = []
         for parsed in arr:
-            rec = normalize_record(parsed, platform=args.platform or parsed.get("platform"),
-                                   source_mode=args.source_mode or parsed.get("source_mode"))
+            try:
+                rec = normalize_record(parsed, platform=args.platform or parsed.get("platform"),
+                                       source_mode=args.source_mode or parsed.get("source_mode"))
+            except (ValueError, AttributeError) as exc:
+                res.append({"error": str(exc), "record": parsed})
+                continue
             res.append({"video_key": rec["video_key"], "status": _upsert(con, rec)})
-        print(json.dumps({"upserted": len(res), "results": res}, ensure_ascii=False))
+        print(json.dumps({"upserted": sum(1 for r in res if "status" in r), "results": res}, ensure_ascii=False))
     elif args.command == "get":
         print(json.dumps(get_record(con, args.arg), indent=2, ensure_ascii=False))
     elif args.command == "list":
@@ -550,7 +603,11 @@ def main(argv):
                            f"ORDER BY published_at DESC LIMIT ?", params).fetchall()
         print(json.dumps([dict(r) for r in rows], indent=2, ensure_ascii=False))
     elif args.command == "query":
-        print(json.dumps(query_fts(con, args.arg or "", limit=args.limit), indent=2, ensure_ascii=False))
+        result = query_fts(con, args.arg or "", limit=args.limit)
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        if isinstance(result, dict) and result.get("error"):
+            con.close()
+            return 1  # a malformed FTS query is a failure, not a success with an error payload
     elif args.command == "derive-most-watched":
         rec = get_record(con, args.arg)
         if not rec:

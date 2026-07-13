@@ -68,8 +68,22 @@ def _read_text(path_or_text):
     return s
 
 
+def _safe_zip(path):
+    """Open a zip, or return None if it is missing/unreadable/corrupt. Note: zipfile.BadZipFile is
+    NOT an OSError subclass (it derives directly from Exception), so both must be caught. This lets a
+    creator point the importer at a corrupt/partial .zip download and get a clean empty result plus a
+    gap, never a traceback."""
+    try:
+        return zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile):
+        return None
+
+
 def _zip_member_text(zip_path, name_contains):
-    with zipfile.ZipFile(zip_path) as z:
+    z = _safe_zip(zip_path)
+    if z is None:
+        return None
+    with z:
         for n in z.namelist():
             if name_contains.lower() in n.lower() and n.lower().endswith(".csv"):
                 return z.read(n).decode("utf-8", "replace")
@@ -147,13 +161,15 @@ def parse_youtube_studio_zip(zip_path):
     text = _zip_member_text(zip_path, "table data")
     if text is None:
         # fall back to any csv that has a "Content" header
-        with zipfile.ZipFile(zip_path) as z:
-            for n in z.namelist():
-                if n.lower().endswith(".csv"):
-                    t = z.read(n).decode("utf-8", "replace")
-                    if "content" in t.splitlines()[0].lower():
-                        text = t
-                        break
+        z = _safe_zip(zip_path)
+        if z is not None:
+            with z:
+                for n in z.namelist():
+                    if n.lower().endswith(".csv"):
+                        t = z.read(n).decode("utf-8", "replace")
+                        if t.splitlines() and "content" in t.splitlines()[0].lower():
+                            text = t
+                            break
     return parse_youtube_studio_csv(text) if text else []
 
 
@@ -186,10 +202,12 @@ def parse_youtube_takeout(path):
 
     texts = []
     if p.is_file() and p.suffix.lower() == ".zip":
-        with zipfile.ZipFile(p) as z:
-            for n in z.namelist():
-                if "video metadata" in n.lower() and n.lower().endswith(".csv"):
-                    texts.append(z.read(n).decode("utf-8", "replace"))
+        z = _safe_zip(p)
+        if z is not None:
+            with z:
+                for n in z.namelist():
+                    if "video metadata" in n.lower() and n.lower().endswith(".csv"):
+                        texts.append(z.read(n).decode("utf-8", "replace"))
     elif p.is_dir():
         for f in p.rglob("*.csv"):
             if "video metadata" in str(f).lower() or "video" in f.name.lower():
@@ -251,11 +269,13 @@ def parse_instagram_dyi(path):
     p = Path(str(path))
     texts = []
     if p.is_file() and p.suffix.lower() == ".zip":
-        with zipfile.ZipFile(p) as z:
-            for n in z.namelist():
-                b = Path(n).name.lower()
-                if n.lower().endswith(".json") and (b.startswith("posts_") or b in ("reels.json", "posts.json") or "reels" in b):
-                    texts.append(z.read(n).decode("utf-8", "replace"))
+        z = _safe_zip(p)
+        if z is not None:
+            with z:
+                for n in z.namelist():
+                    b = Path(n).name.lower()
+                    if n.lower().endswith(".json") and (b.startswith("posts_") or b in ("reels.json", "posts.json") or "reels" in b):
+                        texts.append(z.read(n).decode("utf-8", "replace"))
     elif p.is_dir():
         for f in list(p.rglob("posts_*.json")) + list(p.rglob("reels.json")) + list(p.rglob("posts.json")):
             texts.append(f.read_text(encoding="utf-8", errors="replace"))
@@ -452,6 +472,15 @@ def selftest():
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})
     ok("pinterest: id + metrics", pin[0]["platform_video_id"] == "998877" and pin[0]["stats"]["impression"] == 2400)
     ok("pinterest: retention null", pin[0]["retention"] is None)
+
+    # P46 fix 4: a corrupt / non-zip file degrades to [] (no BadZipFile traceback).
+    import tempfile as _tf
+    bad = Path(_tf.mkdtemp()) / "corrupt.zip"
+    bad.write_bytes(b"this is not a zip file at all")
+    ok("corrupt studio zip -> [] (no raise)", parse_youtube_studio_zip(bad) == [])
+    ok("corrupt takeout zip -> [] (no raise)", parse_youtube_takeout(bad) == [])
+    ok("corrupt instagram zip -> [] (no raise)", parse_instagram_dyi(bad) == [])
+    ok("missing zip path -> [] (no raise)", parse_youtube_studio_zip(Path(_tf.mkdtemp()) / "nope.zip") == [])
 
     # every parser output is normalize_record-ready
     sys.path.insert(0, str(Path(__file__).resolve().parent))
