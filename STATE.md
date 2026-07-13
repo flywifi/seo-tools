@@ -2,8 +2,28 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P45 are complete. Drift guard exits 0 (34 invariants). Branch:
+P6 through P46 are complete. Drift guard exits 0 (35 invariants). Branch:
 `claude/repo-access-confirm-wxe50a`.
+
+- P46: content-import hardening + non-technical onboarding. A read-only stress test of the P45 lane
+  (simulated MacBook Pro on Claude web/Cowork/Desktop) found 9 defects in the live importers and the
+  export-ZIP parser; all are fixed against cited platform behavior. Importers: TikTok create_time is
+  coerced defensively (a bad field no longer aborts the batch); YouTube/Instagram/TikTok pagination is
+  bounded by a max_pages backstop and returns a `truncated` sentinel instead of a silent partial
+  library; Instagram now terminates on the documented `paging.next` absence (not the `after` cursor)
+  and pins `/v25.0/`. Parser/CLI: import_parse guards every zipfile.ZipFile via `_safe_zip`
+  (BadZipFile is not an OSError subclass) so a corrupt export degrades to []; video_library's CLI
+  returns a clean JSON error + nonzero exit on bad upsert/FTS input. Analysis/completion:
+  derive_most_watched returns [] on a flat retention curve; library_complete joins whisper-JSON/SRT
+  transcripts to retention and flags an untimed transcript with a `no_timing` gap; `complete --write`
+  reports honest per-field counts. Non-technical layer: `tools/transcribe.py doctor` gives a
+  green/amber/red readiness verdict + the exact next command, and `--fetch-model` downloads a
+  whisper.cpp GGML model verified against a committed sha256 allowlist
+  (canonical-sources/whisper-models.json, from Hugging Face LFS object ids); the wizard adds a
+  /doctor screen with one-click model downloads and corrupt-export recovery copy; docs/SETUP_MAC.md
+  gains a doctor + Windows section. Drift invariant 35 (check_importer_robustness) locks the defect
+  class (no unbounded while-True pagination, zipfile inside a try, guarded create_time, truncation
+  signal preserved). All selftests green; scenarios 9/9; drift clean at 35 invariants.
 
 - P45: content import (the creator's OWN past videos + metadata). Import, complete, and analyze the
   back catalog across YouTube/Instagram/TikTok/Pinterest, entirely on the creator's machine,

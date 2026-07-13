@@ -914,6 +914,111 @@ def check_video_library_starter():
                         "real stats/tags/transcripts live only in the gitignored store")
 
 
+def check_importer_robustness():
+    """Invariant 35: the P46 content-import robustness guards stay in place (no silent regression).
+
+    (a) no unbounded `while True` pagination in tools/importers/*_import.py (loops must be bounded by
+        a max_pages / for-range backstop, so a malformed cursor cannot spin forever);
+    (b) every zipfile.ZipFile(...) in tools/import_parse.py is lexically inside a try (a corrupt export
+        must degrade, never raise BadZipFile);
+    (c) tools/importers/tiktok_import.py coerces create_time via _epoch_to_iso, never a raw
+        datetime.fromtimestamp(int(...)) that a bad field can crash;
+    (d) each paginating importer still surfaces a truncation signal (the token 'truncated') rather than
+        silently returning a partial library at its page cap."""
+    import ast
+    imp_dir = ROOT / "tools" / "importers"
+    if not imp_dir.exists():
+        return
+
+    # (a) no `while True` in any importer
+    for f in sorted(imp_dir.glob("*_import.py")):
+        try:
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError) as exc:
+            problem(f"importer-robustness: {f.name} failed to parse: {exc}")
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.While) and isinstance(node.test, ast.Constant) and node.test.value is True:
+                problem(f"importer-robustness: {f.name} has an unbounded 'while True' pagination loop "
+                        "(invariant 35: bound it with max_pages / for _ in range(...))")
+
+    # (d) truncation signal preserved in the paginating importers
+    for name in ("youtube_import.py", "instagram_import.py", "tiktok_import.py"):
+        p = imp_dir / name
+        if p.exists() and "truncated" not in p.read_text(encoding="utf-8"):
+            problem(f"importer-robustness: {name} no longer surfaces a truncation signal "
+                    "(invariant 35: return a truncated flag at the page cap, not a silent completion)")
+
+    # (b) zipfile.ZipFile() must be inside a try in import_parse.py
+    ip = ROOT / "tools" / "import_parse.py"
+    if ip.exists():
+        try:
+            iptree = ast.parse(ip.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError) as exc:
+            problem(f"importer-robustness: import_parse.py failed to parse: {exc}")
+            iptree = None
+        if iptree is not None:
+            bad = []
+
+            class _ZipVisitor(ast.NodeVisitor):
+                def __init__(self):
+                    self.try_depth = 0
+
+                def visit_Try(self, node):
+                    self.try_depth += 1
+                    for n in node.body:
+                        self.visit(n)
+                    self.try_depth -= 1
+                    for n in node.handlers + node.orelse + node.finalbody:
+                        self.visit(n)
+
+                def visit_Call(self, node):
+                    func = node.func
+                    if isinstance(func, ast.Attribute) and func.attr == "ZipFile" and self.try_depth == 0:
+                        bad.append(getattr(node, "lineno", "?"))
+                    self.generic_visit(node)
+
+            _ZipVisitor().visit(iptree)
+            if bad:
+                problem(f"importer-robustness: import_parse.py calls zipfile.ZipFile() outside a try at "
+                        f"line(s) {bad} (invariant 35: open zips via _safe_zip / try-except BadZipFile)")
+
+    # (c) create_time guard in tiktok: any fromtimestamp(...) must sit inside a try (the _epoch_to_iso
+    # guard), never a bare call a malformed field can crash.
+    tk = imp_dir / "tiktok_import.py"
+    if tk.exists():
+        try:
+            tktree = ast.parse(tk.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError) as exc:
+            problem(f"importer-robustness: tiktok_import.py failed to parse: {exc}")
+            tktree = None
+        if tktree is not None:
+            unguarded = []
+
+            class _FtsVisitor(ast.NodeVisitor):
+                def __init__(self):
+                    self.try_depth = 0
+
+                def visit_Try(self, node):
+                    self.try_depth += 1
+                    for n in node.body:
+                        self.visit(n)
+                    self.try_depth -= 1
+                    for n in node.handlers + node.orelse + node.finalbody:
+                        self.visit(n)
+
+                def visit_Call(self, node):
+                    func = node.func
+                    if isinstance(func, ast.Attribute) and func.attr == "fromtimestamp" and self.try_depth == 0:
+                        unguarded.append(getattr(node, "lineno", "?"))
+                    self.generic_visit(node)
+
+            _FtsVisitor().visit(tktree)
+            if unguarded:
+                problem(f"importer-robustness: tiktok_import.py calls datetime.fromtimestamp() outside a try "
+                        f"at line(s) {unguarded} (invariant 35: coerce create_time via the _epoch_to_iso guard)")
+
+
 def check_doc_template_starters():
     """Invariant 31: committed doc-template starters are pure shape, never content (P42).
 
@@ -1227,6 +1332,7 @@ def main():
     check_transitions()
     check_migration_manifest()
     check_video_library_starter()
+    check_importer_robustness()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
