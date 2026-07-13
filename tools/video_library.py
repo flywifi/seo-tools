@@ -88,7 +88,9 @@ def derive_most_watched(retention, peak_k=0.5, min_points=5):
     pts.sort(key=lambda x: x[0])
     ratios = [r for _, r in pts]
     mean = statistics.fmean(ratios)
-    sd = statistics.pstdev(ratios) or 0.0
+    sd = statistics.pstdev(ratios)
+    if sd == 0:
+        return []  # a perfectly flat curve has no most-watched region: every point equals the mean
     thr = mean + peak_k * sd
     segs = []
     run = None
@@ -426,6 +428,9 @@ def selftest():
     ok("most_watched finds a cliff", any(s["label"] == "cliff" for s in seg))
     ok("most_watched empty on too-few points", derive_most_watched([{"elapsed_ratio": 0.1, "watch_ratio": 1.0}]) == [])
     ok("most_watched empty on None", derive_most_watched(None) == [])
+    # P46 fix 7: a perfectly flat retention curve has no most-watched region (not a whole-video "peak").
+    flat = [{"elapsed_ratio": round(i / 10, 2), "watch_ratio": 0.8} for i in range(10)]
+    ok("most_watched empty on a flat curve", derive_most_watched(flat) == [])
 
     tmp = Path(tempfile.mkdtemp(prefix="video_library_selftest_"))
     try:

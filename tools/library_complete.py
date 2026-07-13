@@ -172,6 +172,23 @@ def join_retention_transcript(record, transcript_segments):
 
 # ── complete one worklist item (proposal-only) ───────────────────────────────
 
+def _segments_from_text(text):
+    """Parse a stored transcript string into timed segments, mirroring transcripts.parse() dispatch:
+    whisper-JSON (with timings) or SRT/VTT. Returns [] for plain/untimed text (no timestamps to join)
+    and never raises. This is what lets a pasted whisper-JSON transcript join to the retention curve."""
+    if not text:
+        return []
+    stripped = text.lstrip()
+    try:
+        if stripped.startswith(("{", "[")):
+            return _t.parse_json(text)
+        if "-->" in text or stripped.upper().startswith("WEBVTT"):
+            return _t.parse_srt_vtt(text)
+    except Exception:  # noqa: BLE001
+        return []
+    return []
+
+
 def complete_item(item, record, transcriber=None, out_dir=None):
     """Complete one video: local STT (if transcript missing) -> chapters -> retention join.
     `transcriber` is injectable (transcribe.transcribe) so the selftest needs no real backend.
@@ -187,7 +204,7 @@ def complete_item(item, record, transcriber=None, out_dir=None):
                           out_dir=out_dir)
         if res.get("transcript_text"):
             transcript_text = res["transcript_text"]
-            segments = res.get("segments") or []
+            segments = res.get("segments") or _segments_from_text(transcript_text)
             proposal["transcript_text"] = transcript_text
             proposal["transcript_ref"] = res.get("srt")
             proposal["filled"].append("transcript")
@@ -196,11 +213,8 @@ def complete_item(item, record, transcriber=None, out_dir=None):
         else:
             proposal["gaps"].extend(res.get("gaps") or [])
     elif transcript_text:
-        # transcript already present as text -> reparse to segments for the join/chapters
-        try:
-            segments = _t.parse_srt_vtt(transcript_text) if "-->" in transcript_text else None
-        except Exception:  # noqa: BLE001
-            segments = None
+        # transcript already present -> reparse to segments (JSON/SRT/VTT) for the join + chapters
+        segments = _segments_from_text(transcript_text)
 
     if segments:
         chapters = _t.suggest_chapters(segments)
@@ -210,6 +224,15 @@ def complete_item(item, record, transcriber=None, out_dir=None):
 
     join = join_retention_transcript(record, segments)
     if join["most_watched"]:
+        # A transcript that exists but has no timestamps cannot supply the words at each peak; say so
+        # explicitly instead of silently filling most-watched with null text.
+        if transcript_text and not segments:
+            proposal["gaps"].append({
+                "gap_type": "no_timing",
+                "description": "the transcript has no timestamps, so the words at each most-watched "
+                               "moment cannot be attached",
+                "impact": "peaks carry timestamps but null text",
+                "recommended_action": "provide a timed transcript (SRT/VTT or whisper JSON)"})
         proposal["most_watched_segments"] = join["most_watched"]
         proposal["filled"].append("most_watched")
     proposal["gaps"].extend(join.get("gaps") or [])
@@ -306,6 +329,29 @@ def selftest():
         ok("no-backend completion proposes no transcript", "transcript" not in p2["filled"])
         ok("no-backend completion surfaces run_local_stt gap",
            any(g.get("recommended_action") == "run_local_stt" for g in p2["gaps"]))
+
+        # P46 fix 8: a whisper-JSON transcript already on the record joins to retention (words attached).
+        import json as _json
+        json_rec = _vl.normalize_record({
+            "platform_video_id": "vidJSON", "title": "json transcript", "duration_s": 600,
+            "stats": {"views": 1}, "retention": retention,
+            "transcript_text": _json.dumps({"segments": segments}),
+        }, platform="youtube", source_mode="export_bundle")
+        pj = complete_item({"video_key": "youtube:vidJSON", "media_path": "/x.mp4", "missing": ["chapters"]}, json_rec)
+        ok("JSON transcript joins to retention (words attached)",
+           "most_watched" in pj["filled"] and any(s.get("text") for s in pj.get("most_watched_segments", [])))
+        ok("JSON transcript join has no no_timing gap", not any(g.get("gap_type") == "no_timing" for g in pj["gaps"]))
+
+        # P46 fix 8: a plain-text (untimed) transcript cannot join -> explicit no_timing gap, not silent null words.
+        plain_rec = _vl.normalize_record({
+            "platform_video_id": "vidPlain", "title": "plain transcript", "duration_s": 600,
+            "stats": {"views": 1}, "retention": retention,
+            "transcript_text": "this is a plain transcript with no timestamps whatsoever",
+        }, platform="youtube", source_mode="export_bundle")
+        pp = complete_item({"video_key": "youtube:vidPlain", "media_path": "/x.mp4", "missing": ["chapters"]}, plain_rec)
+        ok("untimed transcript surfaces a no_timing gap", any(g.get("gap_type") == "no_timing" for g in pp["gaps"]))
+        ok("untimed transcript peaks carry null words (not fabricated)",
+           all(s.get("text") is None for s in pp.get("most_watched_segments", [])))
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
@@ -344,7 +390,11 @@ def main(argv):
     m = match_media(args.export_dir, records)
     by_key = {r["video_key"]: r for r in records}
     proposals = complete(m["worklist"], by_key, out_dir=args.out_dir)
-    applied = 0
+    # Honest per-field write accounting: a video "completed" ONLY when a substantive field (its
+    # transcript) was actually added, so a no-backend item (which can still "fill" null-word retention
+    # peaks) is never miscounted as done. Gaps are surfaced in the summary, not swallowed.
+    wrote = {"transcript": 0, "chapters": 0, "most_watched": 0}
+    videos_completed = 0
     if getattr(args, "write", False):
         for p in proposals:
             rec = by_key.get(p["video_key"])
@@ -353,10 +403,16 @@ def main(argv):
             for field in ("transcript_text", "transcript_ref", "chapters", "most_watched_segments"):
                 if field in p:
                     rec[field] = p[field]
+            for key, flag in (("transcript", "transcript"), ("chapters", "chapters"),
+                              ("most_watched", "most_watched")):
+                if flag in p.get("filled", []):
+                    wrote[key] += 1
             _vl._upsert(con, rec)
-            applied += 1
-    print(json.dumps({"proposals": proposals, "applied": applied,
-                      "unmatched_media": m["unmatched_media"], "no_media": m["no_media"]},
+            if "transcript" in p.get("filled", []):
+                videos_completed += 1
+    gaps = [{"video_key": p["video_key"], "gaps": p["gaps"]} for p in proposals if p.get("gaps")]
+    print(json.dumps({"proposals": proposals, "videos_completed": videos_completed, "wrote": wrote,
+                      "gaps": gaps, "unmatched_media": m["unmatched_media"], "no_media": m["no_media"]},
                      indent=2, ensure_ascii=False))
     con.close()
     return 0
