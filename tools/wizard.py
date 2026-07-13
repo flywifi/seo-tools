@@ -1318,7 +1318,12 @@ data &rarr; request, then download when ready.</li>
 <li><strong>Pinterest:</strong> Settings &rarr; Privacy and data &rarr; Request your data.</li>
 </ul>
 
+<p><a class="btn btn-outline" href="/doctor">Check my setup (is transcription ready?)</a></p>
+
 <h2>2. Point Creator OS at the unzipped folder</h2>
+<div class="note"><strong>If a download will not open</strong> ("not a valid zip", "file is corrupt"):
+re-download the export from the platform (large exports sometimes arrive incomplete) and point Creator
+OS at the fresh .zip. Creator OS skips an unreadable file and tells you, rather than stopping.</div>
 <p>Unzip each export. In Claude Desktop or Claude Code, ask to import your library and give the folder
 path, or run it yourself:</p>
 <pre>python3 tools/import_parse.py   # parses the export into proposed records
@@ -1347,6 +1352,60 @@ credentials. This is off by default and never fetches revenue. Enable it only if
 </form>
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
 """)
+
+
+def _run_transcribe(args):
+    """Call tools/transcribe.py as a subprocess and parse its JSON. Keeps the wizard decoupled from
+    the STT module's imports. Returns a dict (with an 'error' key on failure)."""
+    try:
+        r = subprocess.run([sys.executable, str(ROOT / "tools" / "transcribe.py")] + list(args),
+                           capture_output=True, text=True, timeout=3600)
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"could not run the setup check: {exc}"}
+    try:
+        return json.loads(r.stdout or "{}")
+    except json.JSONDecodeError:
+        return {"error": (r.stderr or r.stdout or "no output").strip()[:300]}
+
+
+def _screen_doctor(saved: str = "") -> str:
+    """Guided STT readiness check: shows the green/amber/red verdict, the plain-language checklist, the
+    exact next command for this machine, and one-click model downloads (P46). All local."""
+    d = _run_transcribe(["doctor"])
+    saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    if d.get("error"):
+        return _page("Check my setup", f"""
+<h1>Check my setup</h1>
+{saved_html}
+<div class="note" style="background:#fff3e0">The setup check could not run: {d['error']}</div>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/import">Back to import</a></p>""")
+    color = {"green": "#eef7ee", "amber": "#fff3e0", "red": "#fdecea"}.get(d.get("verdict"), "#eee")
+    light = {"green": "Ready", "amber": "Almost ready", "red": "Action needed"}.get(d.get("verdict"), "")
+    rows = ""
+    for s in d.get("steps", []):
+        mark = "ok" if s.get("ok") else "needs setup"
+        rows += f"<li><strong>{s.get('what_it_is','')}</strong> &mdash; {mark}. <span style=\"color:#7a5a5a\">{s.get('why','')}</span>"
+        if not s.get("ok") and s.get("next_command"):
+            rows += f"<pre>{s['next_command']}</pre>"
+        rows += "</li>"
+    # One-click model download buttons (whisper.cpp path). faster-whisper needs none.
+    dl_buttons = ""
+    if any(s.get("step") == "model" and not s.get("ok") for s in d.get("steps", [])):
+        dl_buttons = ('<h2>Download a speech model</h2><p>One time, a few hundred MB. Creator OS verifies '
+                      'the download against a known checksum.</p>')
+        for tier, label in (("base.en", "Base (fastest, ~148 MB)"), ("small.en", "Small (recommended, ~488 MB)")):
+            dl_buttons += (f'<form method="POST" action="/api/fetch-model" style="display:inline">'
+                           f'<input type="hidden" name="model" value="{tier}">'
+                           f'<button class="btn btn-outline" type="submit">{label}</button></form> ')
+    return _page("Check my setup", f"""
+<h1>Check my setup</h1>
+{_local_precondition_note()}
+{saved_html}
+<div class="note" style="background:{color}"><strong>{light}.</strong> {d.get('summary','')}</div>
+<ol>{rows}</ol>
+{dl_buttons}
+<p style="margin-top:16px"><a class="btn btn-outline" href="/import">Back to import</a>
+<a class="btn btn-outline" href="/">Back to start</a></p>""")
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
@@ -1424,6 +1483,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/freshness-setup": _screen_freshness(),
             "/brand-deals": _screen_brand_deals(),
             "/import": _screen_import(),
+            "/doctor": _screen_doctor(),
             "/chatgpt": _screen_chatgpt(),
             "/transitions": _screen_transitions(),
             "/updates": _screen_updates(),
@@ -1462,6 +1522,22 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 "platform's read flag and add your own OAuth credentials to "
                 "pipeline/user-context/api-credentials.local.json. The live importer never fetches "
                 "revenue. Prefer the export files above if you are not sure.")))
+            return
+
+        if path == "/api/fetch-model":
+            # Download + verify a whisper.cpp speech model on THIS computer (local; nothing uploaded).
+            data = self._read_form()
+            model = (data.get("model") or "").strip()
+            res = _run_transcribe(["doctor", "--fetch-model", model]) if model else {"error": "no model chosen"}
+            if res.get("ok"):
+                msg = (f"Downloaded and verified <strong>{res.get('model')}</strong> "
+                       f"(checked by {res.get('verified')}). Saved to {res.get('path')}. You are ready to "
+                       "transcribe on this computer.")
+            else:
+                msg = (f"The model download did not complete: {res.get('error','unknown error')}. "
+                       "You can retry, or build a metadata-only library for now (transcripts stay flagged, "
+                       "never faked).")
+            self._send(_screen_doctor(saved=msg))
             return
 
         if path == "/api/enable-update-check":

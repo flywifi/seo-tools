@@ -79,12 +79,32 @@ the actual video files, Creator OS completes each record locally:
   (`elapsed_ratio x duration_s`). Off YouTube, retention is null-flagged and the transcript plus topic
   themes are still delivered.
 
-Install a backend (`docs/SETUP_MAC.md`, `requirements-transcribe.txt`), then:
+The easiest path is the guided doctor, which checks your machine, prints the exact next command, and
+downloads a checksum-verified model for you (also available in the wizard at **Check my setup**):
+
+```bash
+python3 tools/transcribe.py doctor                      # green / amber / red + the next command
+python3 tools/transcribe.py doctor --fetch-model base.en   # download + verify one model
+```
+
+Then complete the library (`docs/SETUP_MAC.md`, `requirements-transcribe.txt`):
 
 ```bash
 python3 tools/transcribe.py status                       # backend + selection for this machine
 python3 tools/library_complete.py complete --export-dir <unzipped folder>
 ```
+
+### If something goes wrong (no traceback, just a next step)
+- **A download will not open / "not a valid zip":** large platform exports sometimes arrive
+  incomplete. Re-download the `.zip` and point Creator OS at the fresh copy; the importer skips an
+  unreadable file and tells you rather than stopping.
+- **No transcription engine installed:** the library is still built metadata-only, and each transcript
+  is flagged `run_local_stt` with the exact per-OS install command, never faked. Run the doctor to fix.
+- **A very large TikTok / YouTube / Instagram library:** the live importer stops at a safety page cap
+  and reports `truncated: true` (re-run to continue) rather than silently returning a partial library.
+- **A transcript with no timestamps** (e.g. a plain-text paste): the retention peaks are still located
+  but their words cannot be attached; the completion surfaces a `no_timing` gap. Provide a timed
+  transcript (SRT/VTT or whisper JSON) to attach the spoken words.
 
 ### Cross-modality / OS reality
 

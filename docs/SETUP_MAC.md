@@ -210,6 +210,21 @@ brew install python && pip3 install faster-whisper
 - faster-whisper needs no system ffmpeg, so it is the escape hatch when a user cannot get a downloaded
   ffmpeg past Gatekeeper.
 
+### The guided doctor (recommended for non-technical users)
+
+Instead of running the steps by hand, run the doctor. It checks your computer, finds (or explains how
+to install) an engine, and downloads a verified model for you:
+
+```bash
+python3 tools/transcribe.py doctor                     # green / amber / red verdict + the next command
+python3 tools/transcribe.py doctor --fetch-model base.en   # download + checksum-verify one model
+```
+
+The download is verified against a known SHA256 (from `canonical-sources/whisper-models.json`); a
+corrupt download is deleted rather than used. Models land in `~/.creator-os/whisper-models/` (override
+with `WHISPER_MODEL_DIR`). The setup wizard exposes the same flow at `python3 tools/wizard.py` -> **Check
+my setup** (`/doctor`), with one-click model downloads.
+
 Verify what was found:
 
 ```bash
@@ -217,8 +232,20 @@ python3 tools/transcribe.py status          # backend + selection for this machi
 python3 tools/videoedit/preflight.py        # transcribe_media lane + probes
 ```
 
-The setup wizard's **Import your past videos** screen (`python3 tools/wizard.py`, then the Import link)
-walks through this per-OS with the exact commands.
+### Windows (second priority)
+
+Non-technical Windows path uses **faster-whisper** (no separate model step, no system ffmpeg):
+
+1. Install Python from python.org. The installer trips **SmartScreen** ("Windows protected your PC") --
+   click **More info -> Run anyway** (the installer is signed by the Python Software Foundation). During
+   install, check **"Add python.exe to PATH."**
+2. `pip install faster-whisper`. On first transcription it downloads its model automatically to
+   `%USERPROFILE%\.cache\huggingface\hub`. A CPU runs it out of the box; an NVIDIA GPU additionally needs
+   cuBLAS + cuDNN 9 for CUDA 12.
+3. Prefer whisper.cpp? Download `whisper-bin-x64.zip` from the whisper.cpp GitHub releases, extract it,
+   and add the folder to PATH (the binary is `whisper-cli.exe`); then fetch a model with the doctor.
+
+The doctor gives the machine-correct command on Windows too.
 
 ---
 
