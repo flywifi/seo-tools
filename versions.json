@@ -21,5 +21,25 @@
     "research-citation": "1.0.0",
     "formatting-metadata": "1.0.0"
   },
+  "_tracked_subset_allowlist": {
+    "_comment": "versions.json deliberately version-stamps only the routing hub, the governance skill, and the flat canonical engines/protocols. The engines below are secondary flat engines added by later phases that are intentionally NOT ecosystem-version-tracked here. Drift invariant 39 (advisory) surfaces any flat shared/ engine that is neither tracked above nor listed here, so a NEW top-level engine cannot go unnoticed.",
+    "engines": [
+      "compute-engine",
+      "construction-engine",
+      "content-import-engine",
+      "contract-engine",
+      "cross-modality-engine",
+      "doc-template-engine",
+      "docintel-engine",
+      "finance-engine",
+      "integrations-engine",
+      "research-orchestration-engine",
+      "seo-intelligence-engine",
+      "tasks-engine",
+      "transcription-engine",
+      "videoedit-engine",
+      "voice-engine"
+    ]
+  },
   "updated": "2026-06-30"
 }

@@ -74,6 +74,14 @@ Invariants enforced:
       category 'legal-authority'.
   38. Marketplace/plugin version equality (P47): marketplace.json metadata.version and every
       plugins[].version equal versions.json.ecosystem.
+  39. versions.json tree coverage (P47, advisory): tracked skills/engines/protocols resolve on disk,
+      and flat shared/ engines are either version-tracked or on _tracked_subset_allowlist.
+  40. Registry used_by path resolution (P47, advisory): path-like used_by tokens resolve under the
+      repo root or canonical-sources/.
+  41. Capability->connector target existence (P47, advisory): every CAPABILITY_TO_CONNECTOR target is
+      a connector defined in connectors.json.
+  42. Registry writer-count integrity (P47, advisory): exactly the five sanctioned tools reference the
+      registry writer.
 """
 import json
 import os
@@ -100,6 +108,16 @@ MERGED_INVARIANTS = {11}
 
 def problem(msg):
     PROBLEMS.append(msg)
+
+
+# Advisory notes are non-blocking: they print but never change the exit code (unlike problem()).
+# Used by the P47 diagnose-only invariants (coverage, used_by paths, capability->connector, writer
+# count) that surface likely-but-not-certain drift without failing the build.
+ADVISORIES = []
+
+
+def advisory(msg):
+    ADVISORIES.append(msg)
 
 
 def load_manifest():
@@ -1377,6 +1395,143 @@ def check_marketplace_version():
                     f"({p.get('version')!r}) != ecosystem ({eco!r})")
 
 
+def check_versions_coverage():
+    """Invariant 39 (advisory): versions.json tree coverage (P47, seams 1/6/8). Advisory, not a hard
+    gate. (a) Phantom: every skill/engine/protocol NAMED in versions.json resolves to a file on disk
+    (no stale version entry pointing at a deleted component). (b) Untracked flat engine: every flat
+    shared/*.md engine that versions.json does not track and that is not on versions.json's
+    _tracked_subset_allowlist.engines is surfaced, so a newly added top-level engine that nobody
+    version-stamped is noticed. Atoms and spokes are intentionally outside versions.json's curated
+    subset and are not flagged."""
+    vpath = ROOT / "versions.json"
+    if not vpath.exists():
+        return
+    try:
+        v = json.loads(vpath.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        advisory(f"versions-coverage: versions.json unreadable: {exc}")
+        return
+    skill_dirs = ({p.parent.name for p in (ROOT / "skills").rglob("SKILL.md")}
+                  if (ROOT / "skills").exists() else set())
+    for name in (v.get("skills") or {}):
+        if name not in skill_dirs:
+            advisory(f"versions-coverage: versions.json tracks skill {name!r} but no "
+                     f"skills/**/{name}/SKILL.md exists")
+    for name in (v.get("engines") or {}):
+        if not (ROOT / "shared" / f"{name}.md").exists():
+            advisory(f"versions-coverage: versions.json tracks engine {name!r} but shared/{name}.md "
+                     f"does not exist")
+    for name in (v.get("protocols") or {}):
+        if not (ROOT / "protocols" / f"{name}.md").exists():
+            advisory(f"versions-coverage: versions.json tracks protocol {name!r} but "
+                     f"protocols/{name}.md does not exist")
+    tracked = set(v.get("engines") or {})
+    allow = set((v.get("_tracked_subset_allowlist") or {}).get("engines") or [])
+    if (ROOT / "shared").exists():
+        for ef in sorted((ROOT / "shared").glob("*.md")):
+            if ef.stem not in tracked and ef.stem not in allow:
+                advisory(f"versions-coverage: flat engine shared/{ef.stem}.md is neither "
+                         f"version-tracked in versions.json.engines nor listed in "
+                         f"_tracked_subset_allowlist.engines")
+
+
+def check_used_by_paths():
+    """Invariant 40 (advisory): registry used_by path resolution (P47, seam 4). Advisory. Every
+    used_by token that looks like a file path (contains '/' or ends in a known extension) must resolve
+    on disk, relative to the repo root OR to canonical-sources/ (used_by mixes both bases). Catches a
+    used_by pointing at a renamed or deleted tool/engine/data file. Bare identifiers (skill, connector,
+    capability names) live in overlapping namespaces and are intentionally not checked here."""
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if not reg_path.exists():
+        return
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        advisory(f"used-by-paths: source-registry.json unreadable: {exc}")
+        return
+    exts = (".py", ".md", ".json", ".txt", ".js", ".yml", ".yaml")
+    tokens = {}
+    for s in reg.get("sources", []):
+        for u in (s.get("used_by") or []):
+            if ("/" in u or u.endswith(exts)) and u not in tokens:
+                tokens[u] = s.get("id")
+    for u, sid in sorted(tokens.items()):
+        if not ((ROOT / u).exists() or (ROOT / "canonical-sources" / u).exists()):
+            advisory(f"used-by-paths: used_by {u!r} (first seen on source {sid!r}) does not resolve "
+                     f"under the repo root or canonical-sources/")
+
+
+def check_capability_connector_exists():
+    """Invariant 41 (advisory): capability->connector target existence (P47, seam 10; the inverse of
+    invariant 18). Advisory. Every connector id on the right side of connectors.py
+    CAPABILITY_TO_CONNECTOR must exist as a connector in connectors.json, so a capability cannot map to
+    a connector that was renamed or removed."""
+    import ast
+
+    cpy = ROOT / "shared" / "connectors" / "connectors.py"
+    cjson = ROOT / "shared" / "connectors" / "connectors.json"
+    if not cpy.exists() or not cjson.exists():
+        return
+    try:
+        conns = json.loads(cjson.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        advisory(f"capability-connector: connectors.json unreadable: {exc}")
+        return
+    conn_ids = {c.get("id") for c in conns.get("connectors", []) if isinstance(c, dict)}
+    try:
+        tree = ast.parse(cpy.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        advisory(f"capability-connector: connectors.py unparseable: {exc}")
+        return
+    mapping = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "CAPABILITY_TO_CONNECTOR" for t in node.targets) \
+                and isinstance(node.value, ast.Dict):
+            for k, val in zip(node.value.keys, node.value.values):
+                if isinstance(k, ast.Constant) and isinstance(val, ast.Constant):
+                    mapping[k.value] = val.value
+    for cap, target in sorted(mapping.items()):
+        if target not in conn_ids:
+            advisory(f"capability-connector: capability {cap!r} maps to connector {target!r} which is "
+                     f"not defined in connectors.json")
+
+
+def check_registry_writer_count():
+    """Invariant 42 (advisory): registry writer-count integrity (P47, write path). Advisory. Exactly
+    five sanctioned tools may write source-registry.json: four import registry_io directly
+    (source_currency, traversal_engine, dependency_currency, update_check) and competitor_snapshot
+    writes through source_currency's re-exported save_registry. A new tool that references save_registry
+    (a new writer) or a vanished one is surfaced so the writer list in registry_io.py + CLAUDE.md stays
+    true."""
+    tools_dir = ROOT / "tools"
+    if not tools_dir.exists():
+        return
+    expected = {"source_currency", "traversal_engine", "dependency_currency", "update_check",
+                "competitor_snapshot"}
+    found = set()
+    imp_regio = re.compile(r"(?m)^\s*(import registry_io\b|from registry_io import)")
+    imp_sc = re.compile(r"\bimport source_currency\b")
+    names_save = re.compile(r"\bsave_registry\b")
+    for f in sorted(tools_dir.rglob("*.py")):
+        if f.stem == "registry_io":
+            continue
+        try:
+            txt = f.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if names_save.search(txt) and (imp_regio.search(txt) or imp_sc.search(txt)):
+            found.add(f.stem)
+    extra = sorted(found - expected)
+    missing = sorted(expected - found)
+    if extra:
+        advisory(f"registry-writers: unexpected tool(s) reference the registry writer: {extra}; if "
+                 f"legitimate, add them to the sanctioned writer list in registry_io.py + CLAUDE.md")
+    if missing:
+        advisory(f"registry-writers: expected registry writer(s) not detected: {missing}; the writer "
+                 f"list in registry_io.py + CLAUDE.md may be stale")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1495,7 +1650,16 @@ def main():
     check_importer_robustness()
     check_legal_source_category()
     check_marketplace_version()
+    check_versions_coverage()
+    check_used_by_paths()
+    check_capability_connector_exists()
+    check_registry_writer_count()
     check_invariant_catalog()
+    if ADVISORIES:
+        print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
+        for item in ADVISORIES:
+            print(f"  ~ {item}")
+        print()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
