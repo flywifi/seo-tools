@@ -70,6 +70,10 @@ Invariants enforced:
       stay in place (no silent regression).
   36. Invariant-catalog integrity (P47, keystone): every main()-registered check is labeled, labels
       are unique and contiguous (except the merged set), and this header documents them all.
+  37. Legal-source category correctness (P47): every source cited by legal-requirement-check carries
+      category 'legal-authority'.
+  38. Marketplace/plugin version equality (P47): marketplace.json metadata.version and every
+      plugins[].version equal versions.json.ecosystem.
 """
 import json
 import os
@@ -1323,6 +1327,56 @@ def check_migration_manifest():
                     "concrete_impact) so the schema bump is explained to users")
 
 
+def check_legal_source_category():
+    """Invariant 37: legal-source category correctness (P47, seam 12). Every registry source cited by
+    the legal-requirement-check atom (its id appears in that source's used_by) must carry category
+    'legal-authority'. A legal atom must not rest on a source mis-filed as seo-authority (or anything
+    else), which would let a legal claim cite a non-legal source. Re-tag a mis-filed source with
+    `python3 tools/source_currency.py update-source <id> --category legal-authority`."""
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if not reg_path.exists():
+        return
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"legal-source-category: source-registry.json unreadable: {exc}")
+        return
+    for s in reg.get("sources", []):
+        if "legal-requirement-check" in (s.get("used_by") or []):
+            cat = s.get("category")
+            if cat != "legal-authority":
+                problem(f"legal-source-category: source {s.get('id')!r} is cited by "
+                        f"legal-requirement-check but its category is {cat!r}, not 'legal-authority'; "
+                        f"re-tag it (tools/source_currency.py update-source {s.get('id')} "
+                        f"--category legal-authority)")
+
+
+def check_marketplace_version():
+    """Invariant 38: marketplace/plugin version equality (P47, seam 1/6/8; the error half of the
+    versions-coverage design). .claude-plugin/marketplace.json metadata.version and every
+    plugins[].version must equal versions.json.ecosystem, so a published marketplace card can never
+    advertise a version that has drifted from the ecosystem. version.py --check already ties VERSION
+    and plugin.json to the ecosystem; this closes the marketplace surface."""
+    vj_path = ROOT / "versions.json"
+    mp_path = ROOT / ".claude-plugin" / "marketplace.json"
+    if not vj_path.exists() or not mp_path.exists():
+        return
+    try:
+        eco = json.loads(vj_path.read_text(encoding="utf-8")).get("ecosystem")
+        mp = json.loads(mp_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"marketplace-version: unreadable version/marketplace file: {exc}")
+        return
+    meta_v = (mp.get("metadata") or {}).get("version")
+    if meta_v != eco:
+        problem(f"marketplace-version: marketplace.json metadata.version ({meta_v!r}) != versions.json "
+                f"ecosystem ({eco!r})")
+    for p in mp.get("plugins", []):
+        if p.get("version") != eco:
+            problem(f"marketplace-version: marketplace.json plugin {p.get('name')!r} version "
+                    f"({p.get('version')!r}) != ecosystem ({eco!r})")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1439,6 +1493,8 @@ def main():
     check_migration_manifest()
     check_video_library_starter()
     check_importer_robustness()
+    check_legal_source_category()
+    check_marketplace_version()
     check_invariant_catalog()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")

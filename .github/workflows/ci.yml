@@ -31,6 +31,12 @@ jobs:
           fi
       - name: Version consistency
         run: python3 tools/version.py --check
+      - name: Push-blocker predictor selftest
+        run: python3 tools/preflight_push.py --selftest
+      - name: Dependency currency selftest (read-only, offline)
+        run: python3 tools/dependency_currency.py --selftest
+      - name: Update-check selftest (read-only, offline)
+        run: python3 tools/update_check.py --selftest
       - name: Eval JSON validity
         run: |
           python3 - <<'PY'
@@ -88,5 +94,7 @@ jobs:
   # overlay (docs/FRESHNESS.md; tools/freshness_overlay.py). This keeps the freshness design with
   # ZERO GitHub coupling — no scheduled job reads or reports on the registry in CI. The guard job
   # above validates the dependency *registry* (invariant 23: every requirement and MCP connector has
-  # a source-registry entry); it does NOT execute dependency_currency --selftest (that runs on the
-  # user's machine). A read-only dependency_currency/update_check --selftest CI step is added in P47-2.
+  # a source-registry entry) and runs dependency_currency/update_check --selftest as read-only,
+  # offline steps that exercise the detection logic without any network call or registry write. The
+  # actual currency detection (which reaches PyPI/GitHub and writes the user's overlay) stays a
+  # per-user runtime; CI never fetches or reports on live source freshness.

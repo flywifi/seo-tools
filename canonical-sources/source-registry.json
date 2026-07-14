@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-12",
+  "last_registry_update": "2026-07-14",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -680,7 +680,7 @@
       "id": "ftc-disclosures-101",
       "name": "FTC: Disclosures 101 for Social Media Influencers",
       "url": "https://www.ftc.gov/business-guidance/resources/disclosures-101-social-media-influencers",
-      "category": "seo-authority",
+      "category": "legal-authority",
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 180,
@@ -704,7 +704,7 @@
       "id": "ftc-endorsement-guides",
       "name": "FTC: Endorsement Guides",
       "url": "https://www.ftc.gov/legal-library/browse/rules/endorsement-guides",
-      "category": "seo-authority",
+      "category": "legal-authority",
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 180,
