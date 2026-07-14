@@ -88,12 +88,15 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
 - `canonical-sources/source-registry.json` is written only through `tools/registry_io.py`
-  (`load_registry`/`save_registry`), the single shared write implementation. Three tools import it:
-  `tools/source_currency.py` (report/check/mark-checked/seed-sources/seed-partners/update-source/
-  remove-source), `tools/traversal_engine.py` (`accept`, which appends a graph-discovered source),
-  and `tools/dependency_currency.py` (`check --apply`, which stamps dependency freshness). Do not
-  edit source-registry.json by hand; use `seed-sources` for new sources, `update-source` for
-  corrections, and `accept` for traversal discoveries.
+  (`load_registry`/`save_registry`), the single shared write implementation. Five tools funnel
+  through it. Four import it directly: `tools/source_currency.py` (report/check/mark-checked/
+  seed-sources/seed-partners/update-source/remove-source), `tools/traversal_engine.py` (`accept`,
+  which appends a graph-discovered source), `tools/dependency_currency.py` (`check --apply`, which
+  stamps dependency freshness), and `tools/update_check.py` (`apply_stamp`, which stamps the
+  repo-self-update source). A fifth, `tools/competitor_snapshot.py` (`register-competitor`), writes
+  through `source_currency`'s re-exported `save_registry`. Do not edit source-registry.json by hand;
+  use `seed-sources` for new sources, `update-source` for corrections, and `accept` for traversal
+  discoveries.
 - `tools/dependency_currency.py` is the token-free version-drift checker for pip packages, system
   binaries, and MCP servers (categories `software-dependency`, `mcp-server`): it queries PyPI and
   GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and reconciles against

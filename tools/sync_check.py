@@ -52,6 +52,24 @@ Invariants enforced:
   23. Dependency registry: every pip package in a requirements-*.txt and every MCP-server-backed
       connector in connectors.json has a matching software-dependency / mcp-server entry in
       source-registry.json, so no dependency ships untracked by the currency system.
+  24. Task-tracker integrity (P35): tasks store schema/flags stay coherent.
+  25. Currency-map integrity (P36): the data-currency map parses and its sources resolve.
+  26. Knowledge-only-surface freshness projection (P36): the packaged freshness bundle stays
+      consistent with the registry digest.
+  27. Jurisdictional-overlay bucket integrity (P37, optional): overlay buckets are well-formed.
+  28. Cross-modality declarations (P38/P39): surface class/carries declarations parse.
+  29. Implementation schemas (P38): every packaged schema under implementation/ parses.
+  30. Construction dictionary integrity (P34): diagram-index licenses/ids, source_ids, code_ref
+      edition/section/url, and diagram_ref resolution.
+  31. Doc-template starters (P42): committed doc-template starters are pure shape, never content.
+  32. Cross-modality transition matrix (P43): matrix, its doc mirror, and the wizard surface agree.
+  33. Migration manifest (P44): every pipeline data template's current schema_version has a
+      matching CHANGELOG.migrations.json entry.
+  34. Video-library starter (P45): committed video-library starters are pure null shape.
+  35. Importer robustness (P46): the content-import pagination/zip/create_time/truncation guards
+      stay in place (no silent regression).
+  36. Invariant-catalog integrity (P47, keystone): every main()-registered check is labeled, labels
+      are unique and contiguous (except the merged set), and this header documents them all.
 """
 import json
 import os
@@ -69,6 +87,12 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent
 PROBLEMS = []
 
+# Invariant 11 was merged into invariant 5 (see the module docstring): its backticked-path check
+# was folded into check_references, so no check_* function carries the label "Invariant 11". Any
+# OTHER gap in the 1..N invariant sequence is drift, and Invariant 36 (catalog integrity) fails on
+# it. When an invariant is genuinely retired, add its number here with a one-line reason.
+MERGED_INVARIANTS = {11}
+
 
 def problem(msg):
     PROBLEMS.append(msg)
@@ -83,6 +107,7 @@ def load_manifest():
 
 
 def check_canonical(manifest):
+    """Invariant 1: every canonical engine and protocol named in tools/sync_manifest.json exists."""
     for rel in manifest.get("engines", []) + manifest.get("protocols", []):
         if not (ROOT / rel).exists():
             problem(f"canonical file missing: {rel}")
@@ -671,7 +696,7 @@ def check_secret_content():
 
 
 def check_construction():
-    """Invariant 22: construction dictionary integrity (P34).
+    """Invariant 30: construction dictionary integrity (P34).
 
     Every diagram-index entry carries a license and an id. Every construction dictionary record carries
     non-empty source_ids; any record that cites code carries the verify-locally boundary; every code_ref
@@ -1298,6 +1323,87 @@ def check_migration_manifest():
                     "concrete_impact) so the schema bump is explained to users")
 
 
+def check_invariant_catalog():
+    """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
+    (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
+    (b) no invariant number is claimed by two checks (catches the historical double-'Invariant 22'),
+    (c) the label set is contiguous from 1 to the highest label except for MERGED_INVARIANTS, and
+    (d) the module header 'Invariants enforced:' enumeration documents exactly the enforced numbers
+    plus the merged ones (catches the stale 'header lists 1-23 while code implements more' drift).
+    Keeps the invariant catalog a single source of truth: a mislabeled, unlabeled, or undocumented
+    check cannot slip in silently."""
+    import ast
+
+    try:
+        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        problem(f"invariant-catalog: sync_check.py could not be parsed: {exc}")
+        return
+
+    label_re = re.compile(r"^Invariants?\s+(\d+(?:\s*(?:,|and)\s*\d+)*)")
+    num_re = re.compile(r"\d+")
+
+    labels_by_func = {}
+    main_node = None
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name == "main":
+            main_node = node
+        if node.name.startswith("check_"):
+            m = label_re.match((ast.get_docstring(node) or "").strip())
+            labels_by_func[node.name] = [int(n) for n in num_re.findall(m.group(1))] if m else []
+
+    if main_node is None:
+        problem("invariant-catalog: could not locate main() to read the registered checks")
+        return
+
+    registered = [n.func.id for n in ast.walk(main_node)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                  and n.func.id.startswith("check_")]
+
+    owner = {}  # invariant number -> the check_* function that carries the label
+    for fn in registered:
+        nums = labels_by_func.get(fn, [])
+        if not nums:
+            problem(f"invariant-catalog: {fn}() is registered in main() but its docstring carries no "
+                    f"'Invariant N' label; every registered check must be labeled")
+            continue
+        for n in nums:
+            if n in owner:
+                problem(f"invariant-catalog: Invariant {n} is claimed by both {owner[n]}() and {fn}(); "
+                        f"each invariant number must be unique")
+            else:
+                owner[n] = fn
+
+    enforced = set(owner)
+    if not enforced:
+        return
+
+    highest = max(enforced)
+    missing = sorted((set(range(1, highest + 1)) - MERGED_INVARIANTS) - enforced)
+    if missing:
+        problem(f"invariant-catalog: the invariant sequence 1..{highest} is not contiguous; no check "
+                f"is labeled {missing} (if intentionally retired, add it to MERGED_INVARIANTS)")
+    reused = sorted(enforced & MERGED_INVARIANTS)
+    if reused:
+        problem(f"invariant-catalog: Invariant(s) {reused} are documented as merged/retired but a check "
+                f"claims the number; use the next free number instead")
+
+    header = ast.get_docstring(tree) or ""
+    if "Invariants enforced:" in header:
+        listed = {int(x) for x in re.findall(r"^\s*(\d+)\.\s", header.split("Invariants enforced:", 1)[1], re.M)}
+        documented = enforced | MERGED_INVARIANTS
+        undocumented = sorted(documented - listed)
+        if undocumented:
+            problem(f"invariant-catalog: the module header 'Invariants enforced:' list omits invariant(s) "
+                    f"{undocumented}; document every enforced/merged invariant in the header")
+        phantom = sorted(listed - documented)
+        if phantom:
+            problem(f"invariant-catalog: the module header lists invariant(s) {phantom} that no check "
+                    f"enforces and that are not in MERGED_INVARIANTS; correct the header enumeration")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -1333,6 +1439,7 @@ def main():
     check_migration_manifest()
     check_video_library_starter()
     check_importer_robustness()
+    check_invariant_catalog()
     if PROBLEMS:
         print(f"DRIFT GUARD: {len(PROBLEMS)} problem(s) found\n")
         for item in PROBLEMS:
