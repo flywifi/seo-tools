@@ -15,8 +15,9 @@ run the mundane parts token-free (as deterministic Python, without spending mode
 | **Dependencies** | pip packages, system binaries, MCP servers | `tools/dependency_currency.py` | fully |
 
 Both read the one registry, `canonical-sources/source-registry.json`, written only through
-`tools/registry_io.py` (imported by `source_currency.py`, `traversal_engine.py`, and
-`dependency_currency.py`). `canonical-sources/data-currency-map.json` says, for every canonical
+`tools/registry_io.py`. Five tools funnel through it: `source_currency.py`, `traversal_engine.py`,
+`dependency_currency.py`, and `update_check.py` import it directly, and `competitor_snapshot.py`
+writes through `source_currency`'s re-exported `save_registry`. `canonical-sources/data-currency-map.json` says, for every canonical
 data file, whether it is **watched** by a source, **static** (no upstream by design), **dated**
 (a calendar cadence, e.g. the seasonal windows), or **tool-managed**.
 
@@ -88,6 +89,36 @@ governs dependency freshness precisely (dependency_currency reads it directly).
 
 ## Weekly automation
 
-The `currency-report` CI job (`.github/workflows/ci.yml`, weekly + `workflow_dispatch`) runs both
-reports **read-only** and never writes the registry. Closing the loop (`mark-checked` / `--apply`)
-is an explicit local or cron step so a human always sees drift before a pin is bumped.
+The `currency-report` CI job was **retired in P36**: source/dependency freshness is now a fully
+local, per-user runtime (see `docs/FRESHNESS.md`) with **zero GitHub coupling**, so no scheduled job
+reads or reports on the registry. The only weekly CI job is `competitor-intel`. What CI does keep is
+read-only and offline: the `guard` job runs `dependency_currency.py --selftest` and
+`update_check.py --selftest` (P47-2), which exercise the detection logic without any network call or
+registry write. Closing the loop (`mark-checked` / `--apply`) stays an explicit local or cron step so
+a human always sees drift before a pin is bumped.
+
+## Push integrity, versioning, and release (P47)
+
+Detection and correction of currency/versioning/push drift, all diagnose-only (no auto-fixers):
+
+- **`tools/preflight_push.py`** predicts every push blocker before you push, read-only: drift,
+  version desync, an un-restamped freshness projection, and the commit-hygiene classes (a claude.ai
+  session trailer or personal email in the pending commit range, staged secrets, tracked-content
+  secrets). Advisory by default (always exit 0); `--strict` exits 1; `--json` for machines.
+- **`tools/release.py`** readies (does not fire) the baseline GitHub release so the self-update poll
+  (`tools/update_check.py`) stops reporting `no_release`. `--check` reports the release state,
+  `--plan` prints the exact `git tag` + `gh release create` commands, and `--execute --yes` cuts it
+  only where `gh` is authenticated. The `.github/workflows/release.yml` job does the same on manual
+  `workflow_dispatch` (never on push), gated on a green drift guard and a consistent version.
+- **New drift invariants (36 to 45).** 36 (catalog integrity, the keystone) keeps the invariant
+  catalog a single source of truth. 37 to 38 are errors (legal-source category correctness;
+  marketplace/plugin version equality). 39 to 45 are **advisory** (non-blocking notes that print but
+  never change the exit code): versions.json tree coverage, registry used_by path resolution,
+  capability to connector existence, registry writer-count integrity, the moving-date calendar,
+  degraded_behavior parity, and content-vs-digest silent staleness.
+- **Staged volatile backlog.** `canonical-sources/moving-dates.json` (moving legal dates as
+  machine-checkable JSON, read by invariant 43), `canonical-sources/volatile-corrections.2026-07-14.json`
+  (a prioritized, cited correction backlog with exact unexecuted apply commands, highest =
+  `requirements-mcp.txt` capping `mcp` below the breaking 2.x on PyPI), and
+  `canonical-sources/eu-ai-act-seed.json` (the one genuinely new source, staged not applied). Nothing
+  here is applied by committing it; each entry names the human command that would apply it.

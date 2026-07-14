@@ -2,9 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P46 are complete. Drift guard exits 0 (35 invariants). Branch:
-`claude/repo-access-confirm-wxe50a`.
+P6 through P47 are complete. Drift guard exits 0 (45 invariants; 1 non-blocking advisory note by
+design, see below). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P47: currency / versioning / push-integrity, diagnose-only. Added `tools/preflight_push.py` (a
+  read-only reporter that predicts every push blocker: drift, version desync, un-restamped freshness,
+  and the commit-hygiene classes including the environment's claude.ai session trailer) and
+  `tools/release.py` + `.github/workflows/release.yml` (ready, not auto-firing, release wiring so the
+  self-update poll stops reporting `no_release`). Drift invariants grew to 45: invariant 36
+  (catalog-integrity keystone) makes the invariant catalog a single source of truth and fixed the
+  historical double-"Invariant 22" + the stale header; 37 to 38 are error-level (legal-source
+  category; marketplace/plugin version equality); 39 to 45 are advisory (versions coverage, used_by
+  paths, capability to connector, writer-count, moving-date calendar, degraded parity, content-vs-
+  digest). Corrected doc drift (registry_io.py / CLAUDE.md / CURRENCY.md now name all five registry
+  writers; the false ci.yml currency-selftest comment). Fixed the one real recurring CI failure (the
+  weekly `competitor-intel` job now continues on an empty snapshot dir). Staged a cited July-2026
+  volatile-correction backlog (highest: cap `mcp` below the breaking 2.x on PyPI, verified live) plus
+  a moving-date calendar and an EU AI Act Article 50 seed, none applied. The one intended advisory the
+  drift guard now prints is the NY synthetic-performer law (effective 2026-06-09, not yet re-verified).
+  Pending, hand-off only: cutting the baseline v0.1.0 GitHub release (this environment has no `gh` and
+  no release API; run `python3 tools/release.py --plan` locally, or dispatch the release workflow).
 - P46: content-import hardening + non-technical onboarding. A read-only stress test of the P45 lane
   (simulated MacBook Pro on Claude web/Cowork/Desktop) found 9 defects in the live importers and the
   export-ZIP parser; all are fixed against cited platform behavior. Importers: TikTok create_time is

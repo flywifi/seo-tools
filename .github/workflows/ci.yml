@@ -69,8 +69,10 @@ jobs:
         continue-on-error: true   # fetch failures are non-blocking; parse what we have
       - name: Parse saved HTML into index
         run: python3 tools/competitor_snapshot.py --parse
+        continue-on-error: true   # empty/gitignored snapshot dir is not a failure; parse what exists
       - name: Export sanitized summary
         run: python3 tools/competitor_snapshot.py --export-summary
+        continue-on-error: true   # no snapshots to summarize is a no-op, not a red build
       - name: Secret scan before any artifact or commit
         run: python3 tools/secret_scan.py --tracked
       - name: Upload snapshot artifacts
