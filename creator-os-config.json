@@ -341,5 +341,10 @@
     "content_import_live_disabled": "content_import_live is off (the default). No live-API importer (tools/importers/) makes a network call. Use the export-bundle tier instead: download your own data (Takeout / YouTube Studio CSV / Instagram or TikTok data export / Pinterest), then import the folder. Turn the live tier on only after setting up per-platform OAuth read credentials for your own account.",
     "youtube_analytics_disabled": "youtube_analytics is off. Audience retention ('which parts were most watched') is not pulled live from the YouTube Analytics API. Retention still imports from a YouTube Studio retention CSV export (export_bundle tier). Off YouTube, retention is not available on any platform and is null-and-flagged, never fabricated."
   },
+  "update": {
+    "_comment": "Self-update channel (P48). 'stable' follows released versions (the main branch); 'nightly' follows an in-progress/experimental branch and may be rough. Override the channel (and, for nightly, its branch) in creator-os-config.local.json, or via the CREATOR_OS_UPDATE_CHANNEL / CREATOR_OS_UPDATE_BRANCH env vars. Until a GitHub release exists, tools/update_check.py compares your installed commit against the resolved branch and shows 'behind by N commits' only when you opt into the background check. Applying stays your explicit tools/update.py run.",
+    "channel": "stable",
+    "channels": { "stable": "main", "nightly": "main" }
+  },
   "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
 }
