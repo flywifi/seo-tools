@@ -29,6 +29,11 @@ to honor the same spirit:
   read-only poll of the public release page (nothing about the user's data leaves the machine), and
   applying an update stays the user's decision. A data-format notice from the `.local` audit (P44)
   behaves the same way: surfaced only when the user asks to see it, never acted on without consent.
+- The P48 **before-a-release fallback** stays inside the same rules. When no release is published, the
+  check compares the installed commit against the active channel's branch and can say "you are behind
+  by N commits on the <channel> channel." It is still one passive line, still only when the user is
+  behind, still only behind the opt-in flag, and still one read-only GET to the public compare API. It
+  disappears automatically once a release exists. See docs/UPDATING.md for the channel model.
 
 ## The overlay model
 `canonical-sources/**` (the registry + data) is a **read-only baseline** you downloaded. Your

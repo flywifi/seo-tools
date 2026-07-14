@@ -67,9 +67,11 @@ def plan(version=None):
 
 
 def check(getter=None, offline=False):
-    """Read-only: report the local version and whether a matching published release exists upstream."""
+    """Read-only: report the local version and whether a matching published RELEASE exists upstream.
+    This tool is about releases, so it isolates the release state (sha_getter="" disables the P48
+    branch-commit fallback); the branch fallback is tools/update_check.py's concern."""
     local = local_version()
-    kwargs = {"offline": offline}
+    kwargs = {"offline": offline, "sha_getter": lambda: ""}
     if getter is not None:
         kwargs["getter"] = getter
     report = update_check.build_report(local, **kwargs)

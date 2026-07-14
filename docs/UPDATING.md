@@ -24,6 +24,26 @@ reversible (see "Your data after an update" below).
   once, only when you are behind, and never applies anything. It honors the never-nag rule
   (docs/FRESHNESS.md).
 
+## Update channels: Stable vs Nightly (and the before-a-release fallback)
+Creator OS follows an **update channel**, set on your machine only (never committed):
+- **Stable** (the default) tracks released versions on the `main` branch.
+- **Nightly** tracks an in-progress / experimental branch and may be rough.
+
+Set it in the wizard's **Updates** screen, or in `creator-os-config.local.json`:
+```json
+"update": { "channel": "nightly", "channels": { "nightly": "your-branch-name" } }
+```
+or with environment variables: `CREATOR_OS_UPDATE_CHANNEL=nightly` (and `CREATOR_OS_UPDATE_BRANCH=your-branch`
+to point at a specific branch, which overrides everything).
+
+**Before a formal release is published**, the check still works. Instead of comparing published
+release versions, it compares your installed commit against the active channel's branch and reports
+"you are behind by N commits on the <channel> channel." It reads only the public compare API, never
+pulls, and (exactly like the release check) shows a passive line only when you opt into the background
+check. Applying stays your explicit `python3 tools/update.py`, which pulls the same branch the check
+compared against. Once a GitHub release is published, the check automatically returns to comparing
+release versions.
+
 ---
 
 ## Per-surface runbook

@@ -2,9 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P47 are complete. Drift guard exits 0 (45 invariants; 1 non-blocking advisory note by
+P6 through P48 are complete. Drift guard exits 0 (45 invariants; 1 non-blocking advisory note by
 design, see below). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P48: self-update channels + before-a-release fallback. `tools/update_check.py` now falls back, when
+  no GitHub release is published, to comparing the installed commit against a tracked branch (one
+  read-only GitHub compare call), so the self-update path is no longer inert. Adds a channel model
+  (`stable` -> main, `nightly` -> an experimental branch) resolved by `resolve_channel()` with
+  precedence `CREATOR_OS_UPDATE_BRANCH` > `CREATOR_OS_UPDATE_CHANNEL` > `creator-os-config` update.channel
+  > default stable; the same resolved branch feeds `tools/update.py`'s pull so check and apply agree.
+  New status `behind_unreleased` (the GitHub compare direction inverts: base=local, head=branch, so
+  "ahead" means the local copy is behind). The wizard `/updates` screen gains a channel selector
+  (`/api/set-update-channel` -> `creator-os-config.local.json`); `update_notify` phrases the no-release
+  case; the MCP `update_check` docstring documents it. Read-only, never-nag, opt-in gated; reverts to
+  release comparison automatically once a release is cut. Selftests: update_check 40/40, notify 15/15.
+  Note: `main` exists on GitHub (an earlier remark that it did not was wrong); the missing artifact is
+  the release/tag, not the branch.
 - P47: currency / versioning / push-integrity, diagnose-only. Added `tools/preflight_push.py` (a
   read-only reporter that predicts every push blocker: drift, version desync, un-restamped freshness,
   and the commit-hygiene classes including the environment's claude.ai session trailer) and
