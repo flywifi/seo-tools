@@ -1,0 +1,21 @@
+{
+  "_comment": "STAGED, NOT APPLIED. Proposed new registry source for EU AI Act Article 50 (transparency / AI-generated-content labelling), the one genuinely new source surfaced by the July-2026 verification. Applying it is a deliberate human step: it changes the set of source ids, which moves the freshness canonical_digest (build_freshness_bundle.py:49-66) and therefore requires a freshness re-stamp (invariant 26). It is staged as a sibling file so committing it does NOT trip invariant 26. Apply with the exact command in apply_command, then run build_freshness_bundle.py --apply.",
+  "status": "proposed",
+  "verified_on": "2026-07-14",
+  "citation_url": "https://artificialintelligenceact.eu/article/50/",
+  "notes": "Article 50 transparency obligations (including labelling of AI-generated / manipulated content) apply from 2026-08-02. Penalty exposure for non-compliance is up to EUR 15,000,000 or 3% of total worldwide annual turnover (Article 99). Relevant to the AIGC-labelling gate in tools/publishing_compliance.py and shared/contract-engine.md.",
+  "proposed_source": {
+    "id": "eu-ai-act-article-50",
+    "name": "EU AI Act (Regulation 2024/1689) Article 50: transparency obligations",
+    "url": "https://artificialintelligenceact.eu/article/50/",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "transparency + AI-generated-content labelling obligations for providers/deployers; applies 2026-08-02; penalties up to EUR 15M or 3% of worldwide turnover",
+    "used_by": ["legal-requirement-check", "publishing_compliance", "shared/contract-engine.md"]
+  },
+  "apply_command": "python3 tools/source_currency.py seed-sources canonical-sources/eu-ai-act-seed.json --key proposed_source && python3 tools/build_freshness_bundle.py --apply",
+  "apply_kind": "seed-new-source-then-restamp",
+  "apply_verification": "[NEEDS VERIFICATION at apply] confirm seed-sources accepts a --key selector; if not, extract proposed_source into a standalone seed array first. After applying, invariant 26 will require the freshness re-stamp."
+}

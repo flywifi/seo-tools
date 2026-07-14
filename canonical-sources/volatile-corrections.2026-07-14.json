@@ -1,0 +1,110 @@
+{
+  "_comment": "STAGED, DIAGNOSE-ONLY backlog of verified July-2026 volatile-domain deltas (P47). NOTHING here is applied by committing this file; each entry names the exact, unexecuted command a human runs to apply it. This file is a registry SIBLING, not the registry, so committing it does not change the freshness canonical_digest and does not trip invariant 26. Priority order: highest first. 'confidence' is verified_live (re-checked against the source on 2026-07-14), verified (checked in the July-2026 research pass), or needs_verification (carry the flag until re-checked at apply).",
+  "generated_on": "2026-07-14",
+  "corrections": [
+    {
+      "id": "vc-mcp-upper-bound",
+      "seam": "dependency-currency",
+      "priority": "highest",
+      "confidence": "verified_live",
+      "problem": "requirements-mcp.txt pins `mcp` with no upper bound while the breaking major mcp 2.x line (2.0.0a1..2.0.0b2) is published on PyPI; a future `mcp==2.0.0` stable would silently install and break the server.",
+      "citation_url": "https://pypi.org/pypi/mcp/json",
+      "evidence": "PyPI 2026-07-14: info.version=1.28.1 (latest stable); releases include 2.0.0a1, 2.0.0a2, 2.0.0a3, 2.0.0b1, 2.0.0b2.",
+      "target": "requirements-mcp.txt: change the `mcp` line to `mcp>=1.28,<2`",
+      "apply_command": "python3 - <<'PY'\nimport pathlib\np=pathlib.Path('requirements-mcp.txt'); t=p.read_text().splitlines()\nt=[('mcp>=1.28,<2' if l.strip()=='mcp' else l) for l in t]\np.write_text('\\n'.join(t)+'\\n')\nPY",
+      "apply_kind": "file-edit",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-dep-mcp-validated-version",
+      "seam": "dependency-currency",
+      "priority": "high",
+      "confidence": "verified_live",
+      "problem": "The registry source `dep-mcp` has validated_version=null (only latest_seen=1.28.1), so the drift checker has no known-good baseline to compare against.",
+      "citation_url": "https://pypi.org/pypi/mcp/json",
+      "target": "source-registry.json dep-mcp.validated_version = \"1.28.1\", pinned_constraint = \">=1.28,<2\"",
+      "apply_command": "python3 tools/dependency_currency.py check --apply --only dep-mcp   # after requirements-mcp.txt is pinned; then re-check that validated_version is populated",
+      "apply_kind": "registry-field-update",
+      "apply_verification": "[NEEDS VERIFICATION at apply] dependency_currency --apply stamps last_checked/latest_seen but may not write validated_version; if it does not, upsert the dep-mcp record via `source_currency.py seed-sources` with validated_version set. Never hand-edit the registry.",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-ny-synthetic-performer",
+      "seam": "moving-dates-legal",
+      "priority": "high",
+      "confidence": "verified",
+      "problem": "The New York synthetic-performer disclosure law (S8420-A) took effect 2026-06-09, but its registry source ny-synthetic-performer-law has last_checked=null (never re-verified since it took effect). Surfaced by drift invariant 43 and moving-dates.json.",
+      "citation_url": "https://www.nysenate.gov/legislation/bills/2025/S8420/amendment/A",
+      "target": "Re-verify the source, then mark it checked-and-changed so the affected atoms are flagged.",
+      "apply_command": "python3 tools/source_currency.py mark-checked ny-synthetic-performer-law --changed",
+      "apply_kind": "registry-mark-checked",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-tiktok-rate-limit",
+      "seam": "vendor-facts",
+      "priority": "medium",
+      "confidence": "verified",
+      "problem": "The TikTok importer + docs carry a [NEEDS VERIFICATION] on rate-limit / total-video ceiling; the documented limit is 600 requests/minute per endpoint with no published total-video cap, so the 250-page importer backstop is a defensive default, not a documented limit.",
+      "citation_url": "https://developers.tiktok.com/doc/tiktok-api-v2-rate-limit",
+      "target": "Resolve the [NEEDS VERIFICATION] note in tools/importers/tiktok_import.py and docs/CONTENT-IMPORT.md to state 600 req/min per endpoint, no documented total-video cap; the page cap stays a defensive backstop surfaced as truncation.",
+      "apply_command": "# doc/comment edit only: update the [NEEDS VERIFICATION] rate-limit note in tools/importers/tiktok_import.py and docs/CONTENT-IMPORT.md",
+      "apply_kind": "doc-comment-edit",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-eu-ai-act-article-50",
+      "seam": "new-source",
+      "priority": "medium",
+      "confidence": "verified",
+      "problem": "The EU AI Act Article 50 transparency / AIGC-labelling obligations apply 2026-08-02 and are not yet a tracked source. This is the only genuinely new source from the July-2026 verification.",
+      "citation_url": "https://artificialintelligenceact.eu/article/50/",
+      "target": "Seed the proposed source in canonical-sources/eu-ai-act-seed.json, then re-stamp the freshness baseline (adding a source id moves the digest).",
+      "apply_command": "see canonical-sources/eu-ai-act-seed.json apply_command (seed the source, then python3 tools/build_freshness_bundle.py --apply)",
+      "apply_kind": "seed-new-source-then-restamp",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-ca-sb942-phase2",
+      "seam": "moving-dates-legal",
+      "priority": "low",
+      "confidence": "verified",
+      "problem": "California SB 942 (amended by AB 853) operative date 2026-08-02 is confirmed; a phase-2 obligation set takes effect 2027-01-01 and was not separately tracked.",
+      "citation_url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB942",
+      "target": "Already captured as a phase_2 date in moving-dates.json (ca-ai-transparency-sb942); no registry change needed until 2026-08-02 approaches.",
+      "apply_command": "# no action until the operative date nears; moving-dates.json already tracks both dates",
+      "apply_kind": "already-staged",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-mcp-spec-version",
+      "seam": "vendor-facts",
+      "priority": "low",
+      "confidence": "verified",
+      "problem": "The current MCP specification revision is 2025-11-25; any reference to an older spec revision is stale.",
+      "citation_url": "https://modelcontextprotocol.io/specification/",
+      "target": "Update any MCP-spec revision reference to 2025-11-25 where one is cited.",
+      "apply_command": "# doc edit only where an MCP spec revision is referenced",
+      "apply_kind": "doc-comment-edit",
+      "status": "proposed"
+    },
+    {
+      "id": "vc-stamp-unchanged-batch",
+      "seam": "freshness",
+      "priority": "low",
+      "confidence": "verified",
+      "problem": "Several records verified as unchanged in July 2026 carry stale last_checked dates: whisper.cpp v1.9.1, faster-whisper 1.2.1, the three smaller GGML model hashes (byte-identical), Instagram Graph API v25.0, the YouTube Data/Analytics endpoints + retention dimensions, and Pinterest API v5.",
+      "citation_url": "https://pypi.org/pypi/faster-whisper/json",
+      "target": "mark-checked (WITHOUT --changed) each verified-unchanged source so its freshness clock resets without flagging downstream atoms.",
+      "apply_command": "# for each verified-unchanged source id: python3 tools/source_currency.py mark-checked <id>",
+      "apply_kind": "registry-mark-checked-batch",
+      "status": "proposed"
+    }
+  ],
+  "retained_needs_verification": [
+    {"item": "Instagram Graph API v26.0", "note": "a v26.0 may exist; v25.0 is the pinned, verified version. Secondary; re-check before relying.", "citation_url": "https://developers.facebook.com/docs/graph-api/changelog"},
+    {"item": "FTC ~May-2026 staff guidance", "note": "secondary source; not load-bearing. Re-check before citing.", "citation_url": "https://www.ftc.gov/news-events"},
+    {"item": "plan-gated ChatGPT / Claude / Gemini surface behaviors", "note": "surface capabilities are plan-gated and change without notice; treat as provisional.", "citation_url": null},
+    {"item": "the three large GGML hashes (medium, large-v3, large-v3-turbo)", "note": "not re-fetched this pass; the whisper-models.json values stand until re-verified.", "citation_url": "https://huggingface.co/ggerganov/whisper.cpp"}
+  ]
+}

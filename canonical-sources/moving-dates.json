@@ -1,0 +1,61 @@
+{
+  "_comment": "Machine-checkable calendar of moving legal/regulatory dates (P47). Mirrors the 'Known moving dates to watch' prose in docs/FRESHNESS.md as dated JSON. Drift invariant 43 (advisory) surfaces any date whose effective (or phase_2) has passed while verified_after < effective, so a took-effect-but-still-pending date can never sit silently. STAGED / diagnostic only: applying a correction is a separate human step recorded in volatile-corrections.2026-07-14.json. verified_after is the last date the corresponding registry source was confirmed AFTER the rule took effect (null = not yet re-verified since).",
+  "as_of": "2026-07-14",
+  "dates": [
+    {
+      "id": "ny-synthetic-performer-disclosure",
+      "jurisdiction": "US-NY",
+      "description": "New York synthetic-performer advertising disclosure law (S8420-A): in effect 2026-06-09.",
+      "registry_source_id": "ny-synthetic-performer-law",
+      "effective": "2026-06-09",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://www.nysenate.gov/legislation/bills/2025/S8420/amendment/A",
+      "confidence": "verified"
+    },
+    {
+      "id": "ca-ai-transparency-sb942",
+      "jurisdiction": "US-CA",
+      "description": "California AI Transparency Act (SB 942, amended by AB 853): operative 2026-08-02, with a phase-2 obligation set effective 2027-01-01.",
+      "registry_source_id": "ca-ai-transparency-sb942",
+      "effective": "2026-08-02",
+      "phase_2": "2027-01-01",
+      "verified_after": "2026-07-07",
+      "citation_url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB942",
+      "confidence": "verified"
+    },
+    {
+      "id": "eu-ai-act-article-50",
+      "jurisdiction": "EU",
+      "description": "EU AI Act Article 50 (transparency / AIGC labelling obligations): applies 2026-08-02. Proposed as a new registry source; see eu-ai-act-seed.json.",
+      "registry_source_id": null,
+      "effective": "2026-08-02",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://artificialintelligenceact.eu/article/50/",
+      "confidence": "verified"
+    },
+    {
+      "id": "fl-9th-edition-building-code",
+      "jurisdiction": "US-FL",
+      "description": "Florida 9th Edition (2026) Building Code adoption window closes 2026-12-31.",
+      "registry_source_id": "fl-statute-553-899-milestone",
+      "effective": "2026-12-31",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://www.floridabuilding.org/",
+      "confidence": "verified"
+    },
+    {
+      "id": "nc-2024-building-code",
+      "jurisdiction": "US-NC",
+      "description": "North Carolina 2024 Building Code expected effective circa 2027 (approximate; confirm the exact adoption date closer to the window).",
+      "registry_source_id": "nc-statute-113a-mrpa",
+      "effective": "2027-01-01",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://www.ncosfm.gov/engineering-and-codes",
+      "confidence": "approximate"
+    }
+  ]
+}

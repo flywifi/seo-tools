@@ -82,6 +82,12 @@ Invariants enforced:
       a connector defined in connectors.json.
   42. Registry writer-count integrity (P47, advisory): exactly the five sanctioned tools reference the
       registry writer.
+  43. Moving-date calendar (P47, advisory): any moving-dates.json date whose effective/phase_2 has
+      passed while verified_after < effective is surfaced.
+  44. degraded_behavior/capability parity (P47, advisory): every '<name>_disabled' key maps to a real
+      capability (or a documented shared key).
+  45. content-vs-digest silent staleness (P47, advisory, loud): registry sources re-verified after the
+      freshness baseline as_of are surfaced (the digest excludes content).
 """
 import json
 import os
@@ -1532,6 +1538,107 @@ def check_registry_writer_count():
                  f"list in registry_io.py + CLAUDE.md may be stale")
 
 
+def check_moving_dates():
+    """Invariant 43 (advisory): moving-date calendar (P47). Advisory. Reads
+    canonical-sources/moving-dates.json (the docs/FRESHNESS.md 'known moving dates' as dated JSON) and
+    surfaces any date whose effective (or phase_2) has passed while it has not been re-verified since it
+    took effect (verified_after missing or < effective). Would have caught the NY synthetic-performer
+    law sitting as pending after its 2026-06-09 effect date. Time-dependent by design: a future date
+    starts surfacing once it passes."""
+    import datetime
+
+    mpath = ROOT / "canonical-sources" / "moving-dates.json"
+    if not mpath.exists():
+        return
+    try:
+        data = json.loads(mpath.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        advisory(f"moving-dates: moving-dates.json unreadable: {exc}")
+        return
+    today = datetime.date.today().isoformat()
+    for d in data.get("dates", []):
+        va = d.get("verified_after")
+        for field in ("effective", "phase_2"):
+            eff = d.get(field)
+            if eff and eff <= today and (not va or va < eff):
+                advisory(f"moving-dates: {d.get('id')!r} {field} {eff} has passed but has not been "
+                         f"re-verified since (verified_after={va!r}); re-check the source and update "
+                         f"(staged fix in volatile-corrections.2026-07-14.json)")
+
+
+# degraded_behavior keys that cover several capabilities, or a renamed capability, so they are NOT of
+# the direct '<capability>_disabled' form. Invariant 44 skips these (e.g. api_disabled covers the
+# platform read APIs; publishing_disabled covers the per-platform publishing flags).
+SHARED_DEGRADED_KEYS = {
+    "api_disabled", "publishing_disabled", "per_platform_publishing_disabled",
+    "live_publishing_disabled", "duckdb_disabled", "e2b_disabled", "gem_export_disabled",
+    "gpt_export_disabled", "jupyter_disabled", "wolfram_disabled", "stats_general_disabled",
+    "video_editing_disabled", "playbook_bootstrap_disabled",
+}
+
+
+def check_degraded_orphans():
+    """Invariant 44 (advisory): degraded_behavior/capability parity (P47, seam 5). Advisory. Every
+    creator-os-config.json degraded_behavior key of the direct form '<name>_disabled' must correspond
+    to a real capability '<name>', UNLESS it is a shared/renamed key on SHARED_DEGRADED_KEYS (which
+    cover several capabilities). Surfaces a degraded_behavior entry orphaned by a capability
+    rename/removal. Low false-positive: shared keys are skipped, so no per-capability alias map is
+    needed."""
+    cfg = ROOT / "creator-os-config.json"
+    if not cfg.exists():
+        return
+    try:
+        c = json.loads(cfg.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        advisory(f"degraded-orphans: creator-os-config.json unreadable: {exc}")
+        return
+    caps = set(c.get("capabilities") or {})
+    for key in sorted(c.get("degraded_behavior") or {}):
+        if key in SHARED_DEGRADED_KEYS:
+            continue
+        if key.endswith("_disabled"):
+            cap = key[: -len("_disabled")]
+            if cap not in caps:
+                advisory(f"degraded-orphans: degraded_behavior key {key!r} has no matching capability "
+                         f"{cap!r} in creator-os-config.json (orphaned by a rename/removal, or add it "
+                         f"to SHARED_DEGRADED_KEYS if it deliberately covers several capabilities)")
+
+
+def check_content_vs_digest():
+    """Invariant 45 (advisory, loud): content-vs-digest silent-staleness (P47, seam 3). Advisory and
+    intentionally heuristic. The freshness digest is sha256(source ids + currency-map as_of); a real
+    upstream content change recorded as a source last_checked / last_changed is NOT a digest input, so
+    the packaged knowledge baseline can keep a stale date while invariant 26 still passes. This surfaces
+    (as one loud advisory) any registry source re-verified AFTER the freshness bundle's as_of, meaning
+    the downloadable baseline may lag detected content and should be re-stamped."""
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    fb_path = ROOT / "implementation" / "freshness-bundle.json"
+    if not reg_path.exists() or not fb_path.exists():
+        return
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+        fb = json.loads(fb_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        advisory(f"content-vs-digest: unreadable registry/freshness file: {exc}")
+        return
+    as_of = fb.get("as_of") or ""
+    if not as_of:
+        return
+    newer = []
+    for s in reg.get("sources", []):
+        for field in ("last_changed", "last_checked"):
+            d = s.get(field)
+            if d and d > as_of:
+                newer.append((d, s.get("id"), field))
+                break
+    if newer:
+        newer.sort(reverse=True)
+        sample = ", ".join(f"{sid} ({field} {d})" for d, sid, field in newer[:3])
+        advisory(f"content-vs-digest: {len(newer)} registry source(s) were re-verified after the "
+                 f"freshness baseline as_of {as_of} (e.g. {sample}); the packaged knowledge baseline "
+                 f"may lag detected content -> run tools/build_freshness_bundle.py --apply to re-stamp")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1654,6 +1761,9 @@ def main():
     check_used_by_paths()
     check_capability_connector_exists()
     check_registry_writer_count()
+    check_moving_dates()
+    check_degraded_orphans()
+    check_content_vs_digest()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
