@@ -1148,6 +1148,38 @@ def _screen_updates(saved: str = "") -> str:
         '<button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;'
         'font-size:.85rem">Turn on the background update check</button></form>')
     saved_block = f'<div class="note">{saved}</div>' if saved else ""
+    try:
+        from update_check import resolve_channel
+        channel, branch = resolve_channel()
+    except Exception:
+        channel, branch = "stable", "main"
+    try:
+        _cur = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(ROOT),
+                              capture_output=True, text=True, timeout=5)
+        cur_branch = _cur.stdout.strip() if _cur.returncode == 0 else ""
+    except Exception:
+        cur_branch = ""
+    ny_val = branch if channel == "nightly" else (cur_branch or "")
+    channel_block = f"""
+<h2>Update channel</h2>
+<p>Active channel: <strong>{channel}</strong> (branch <code>{branch}</code>). <strong>Stable</strong>
+follows released versions (the <code>main</code> branch). <strong>Nightly</strong> follows an
+in-progress branch and may be rough. Until a published release exists, Creator OS compares your
+installed commit against this branch and tells you (only if the background check below is on) when you
+are behind.</p>
+<form method="POST" action="/api/set-update-channel" style="margin-top:6px">
+<label>Channel:
+<select name="channel">
+<option value="stable"{' selected' if channel == 'stable' else ''}>Stable (released / main)</option>
+<option value="nightly"{' selected' if channel == 'nightly' else ''}>Nightly (experimental branch)</option>
+</select></label>
+<label style="margin-left:10px">Nightly branch:
+<input type="text" name="nightly_branch" value="{ny_val}" placeholder="{cur_branch or 'main'}" style="width:auto"></label>
+<button class="btn btn-secondary" type="submit" style="margin:0 0 0 10px;padding:8px 14px;width:auto;font-size:.85rem">Save channel</button>
+</form>
+<p class="hint">Saved locally in creator-os-config.local.json (never committed). Applying stays your
+explicit <code>python3 tools/update.py</code>, which pulls this same branch.</p>
+"""
     return _page("Updates", f"""
 <h1>Keeping Creator OS up to date</h1>
 {saved_block}
@@ -1162,7 +1194,7 @@ its own.</p>
 {enable}
 <p class="hint">Check by hand any time: <code>python3 tools/update_check.py report</code> (read-only),
 or see the notice with <code>python3 tools/update_notify.py</code>.</p>
-
+{channel_block}
 <h2>Applying an update is always your choice</h2>
 <p>When you decide to update, run <code>python3 tools/update.py</code>. It pulls the new version and
 rebuilds the local index. It never touches your saved files (rate card, deals, contracts, templates):
@@ -1549,6 +1581,23 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 "own; updating stays your explicit tools/update.py run.")))
             return
 
+        if path == "/api/set-update-channel":
+            data = self._read_form()
+            channel = data.get("channel", "stable")
+            if channel not in ("stable", "nightly"):
+                channel = "stable"
+            updates = {"channel": channel}
+            ny = (data.get("nightly_branch") or "").strip()
+            if channel == "nightly" and ny:
+                updates["channels"] = {"nightly": ny}
+            _update_config_section("update", updates)
+            where = (f"branch <code>{ny}</code>" if channel == "nightly" and ny else "the main branch")
+            self._send(_screen_updates(saved=(
+                f"Update channel set to <strong>{channel}</strong> ({where}) in "
+                "creator-os-config.local.json (local only; never committed). The update check and "
+                "tools/update.py now both follow this branch. Nothing is applied automatically.")))
+            return
+
         if path == "/api/write-freshness":
             data = self._read_form()
             rec = freshness_store_recommendation(data.get("modality", "cross_platform"))
@@ -1713,6 +1762,23 @@ def _update_capability_flag(key: str, value) -> None:
         local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     except Exception as exc:
         print(f"[wizard] Warning: could not update capability flag {key}: {exc}")
+
+
+def _update_config_section(section: str, updates: dict) -> None:
+    """Deep-merge `updates` into a top-level SECTION of creator-os-config.local.json (local only; never
+    GitHub). For non-capability settings like the P48 update channel."""
+    local_path = ROOT / "creator-os-config.local.json"
+    try:
+        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+        dest = cfg.setdefault(section, {})
+        for k, v in updates.items():
+            if k == "channels" and isinstance(v, dict) and isinstance(dest.get("channels"), dict):
+                dest["channels"].update(v)
+            else:
+                dest[k] = v
+        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    except Exception as exc:
+        print(f"[wizard] Warning: could not update config section {section}: {exc}")
 
 
 # ── P36 freshness / store orchestration ──────────────────────────────────────
