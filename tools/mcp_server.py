@@ -395,13 +395,15 @@ def get_server_info() -> str:
 
 @mcp.tool()
 def update_check() -> str:
-    """Report whether a newer Creator OS release is available upstream (read-only, P44).
+    """Report whether a newer Creator OS release is available upstream (read-only, P44/P48).
 
     Polls the repo's public releases API and compares against the installed VERSION. It NEVER pulls,
     never writes code, and never touches your .local data (rate card, deals, contracts, templates).
     Applying an update stays your explicit `python3 tools/update.py` run. Returns status
-    current | behind | ahead | no_release | unreachable | unknown; only 'behind' means an update is
-    available.
+    current | behind | ahead | no_release | unreachable | unknown. When no release is published yet, it
+    falls back to comparing the installed commit against the active update channel's branch (P48) and
+    may return status 'behind_unreleased' with annotation fields detection_method / channel /
+    tracked_branch / commits_behind. Both 'behind' and 'behind_unreleased' mean an update is available.
     """
     rc, out, err = _run([sys.executable, str(ROOT / "tools" / "update_check.py"), "report"])
     if rc != 0:

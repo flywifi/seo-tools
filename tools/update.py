@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Creator OS regular update — pull from main and rebuild if needed.
+"""Creator OS regular update — pull the active update channel's branch and rebuild if needed.
 
 Run this instead of bare `git pull` to get code updates, verify the drift
 guard, and rebuild the keyword cache automatically when canonical sources change.
+The branch is the active update channel's (stable -> main by default; see P48 /
+tools/update_check.py resolve_channel), so it always matches what the update check
+compared against.
 
 Your local data files (*.local.json, competitor snapshots, SQLite caches) are
 never touched by this script.
@@ -16,6 +19,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PYTHON = sys.executable
+
+sys.path.insert(0, str(ROOT / "tools"))
+from update_check import resolve_channel  # noqa: E402  (shared channel->branch resolution, P48)
 
 
 def _run(cmd: list, capture: bool = False) -> tuple:
@@ -33,11 +39,14 @@ def get_head_sha() -> str:
     return out.strip() if rc == 0 else ""
 
 
-def pull_from_main() -> bool:
-    """Pull from origin main. Returns True if new commits were pulled."""
+def pull_updates() -> bool:
+    """Pull from the active update channel's branch (P48). Returns True if new commits were pulled.
+    Default channel `stable` -> `main`, so the behavior is unchanged unless a channel/branch override
+    is set. This is the SAME branch tools/update_check.py compares against."""
+    channel, branch = resolve_channel()
     before = get_head_sha()
-    print("Pulling from origin main...", flush=True)
-    rc, _ = _run(["git", "pull", "origin", "main"])
+    print(f"Pulling from origin {branch} ({channel} channel)...", flush=True)
+    rc, _ = _run(["git", "pull", "origin", branch])
     if rc != 0:
         print("  [error] git pull failed. Check your network connection and try again.", flush=True)
         sys.exit(1)
@@ -90,7 +99,7 @@ def main() -> None:
     print("=" * 40, flush=True)
 
     before_sha = get_head_sha()
-    updated = pull_from_main()
+    updated = pull_updates()
     after_sha = get_head_sha()
 
     print("\nVerifying...", flush=True)

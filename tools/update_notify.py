@@ -51,6 +51,12 @@ def notice_line(report):
     """A single passive line, or None when there is nothing to say (R4: never a nag)."""
     if not report or not report.get("update_available"):
         return None
+    if report.get("detection_method") == "branch":
+        # No release yet: latest_seen is a commit sha, so phrase from the commit count + channel.
+        n = report.get("commits_behind", 0)
+        return (f"You are behind by {n} commit(s) on the {report.get('channel', 'nightly')} channel "
+                f"(branch {report.get('tracked_branch', '')}); no release cut yet. Update when you "
+                "choose: python3 tools/update.py (it never touches your saved data).")
     return (f"A newer Creator OS version ({report['latest_seen']}) is available; you are on "
             f"{report['local_version']}. Update when you choose: python3 tools/update.py "
             "(it never touches your saved data).")
@@ -111,6 +117,16 @@ def selftest():
         ok("notice_line None when no report", notice_line(None) is None)
         ok("notice_line None when not available",
            notice_line({"update_available": False, "latest_seen": "v0.1.0", "local_version": "0.1.0"}) is None)
+
+        # P48: branch-fallback notice (no release yet) reads commits_behind + channel + branch
+        branch_report = {"update_available": True, "detection_method": "branch", "commits_behind": 4,
+                         "channel": "nightly", "tracked_branch": "main", "latest_seen": "abc123def",
+                         "local_version": "0.1.0"}
+        bl = notice_line(branch_report)
+        ok("branch notice names commits + channel + branch",
+           "4 commit" in bl and "nightly" in bl and "main" in bl)
+        ok("branch notice has no em dash", "—" not in bl)
+        ok("branch notice points at explicit apply", "tools/update.py" in bl)
     finally:
         uc.local_version = real_local
 
