@@ -22,6 +22,86 @@
     "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure"
   },
   {
+    "id": "dep-python-dateutil",
+    "name": "python-dateutil (dateutil)",
+    "url": "https://pypi.org/project/python-dateutil/",
+    "category": "software-dependency",
+    "tier": "T3",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "package": "python-dateutil",
+    "upstream_api": "pypi",
+    "check_url": "https://pypi.org/pypi/python-dateutil/json",
+    "pinned_constraint": "",
+    "validated_version": null,
+    "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math",
+    "used_by": [
+      "tools/tasks.py",
+      "task-plan"
+    ],
+    "_why": "import-guarded in tools/tasks.py for recurrence and relative-date math; absent, task date math degrades to a stdlib approximation, so a bump is low-risk but tracked for the default install"
+  },
+  {
+    "id": "dep-numpy",
+    "name": "NumPy (numpy)",
+    "url": "https://pypi.org/project/numpy/",
+    "category": "software-dependency",
+    "tier": "T2",
+    "check_interval_days": 60,
+    "staleness_threshold_days": 60,
+    "package": "numpy",
+    "upstream_api": "pypi",
+    "check_url": "https://pypi.org/pypi/numpy/json",
+    "pinned_constraint": "",
+    "validated_version": "2.4.6",
+    "extraction_hint": "major dtype/API changes; NumPy 2.x ABI break vs opencv/moviepy wheels",
+    "used_by": [
+      "tools/videoedit/mediaprobe.py",
+      "silence-scan"
+    ],
+    "_why": "import-guarded in mediaprobe.py and pulled transitively by opencv/moviepy; pinning it explicitly keeps the videoedit stack ABI-consistent for the default install"
+  },
+  {
+    "id": "dep-sqlite-vec",
+    "name": "sqlite-vec",
+    "url": "https://pypi.org/project/sqlite-vec/",
+    "category": "software-dependency",
+    "tier": "T2",
+    "check_interval_days": 60,
+    "staleness_threshold_days": 60,
+    "package": "sqlite-vec",
+    "upstream_api": "pypi",
+    "check_url": "https://pypi.org/pypi/sqlite-vec/json",
+    "pinned_constraint": "",
+    "validated_version": null,
+    "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache",
+    "used_by": [
+      "shared/cache/semantic.py",
+      "web_intel"
+    ],
+    "_why": "import-guarded in shared/cache/semantic.py for vector search; absent, the scoop cache falls back to lexical match, so a bump is low-risk but tracked for the default install"
+  },
+  {
+    "id": "dep-pyyaml",
+    "name": "PyYAML (yaml)",
+    "url": "https://pypi.org/project/PyYAML/",
+    "category": "software-dependency",
+    "tier": "T2",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "package": "PyYAML",
+    "upstream_api": "pypi",
+    "check_url": "https://pypi.org/pypi/PyYAML/json",
+    "pinned_constraint": "",
+    "validated_version": null,
+    "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard",
+    "used_by": [
+      "tools/sync_check.py",
+      "mcp_server"
+    ],
+    "_why": "import-guarded in the drift guard (tools/sync_check.py) for SKILL.md frontmatter; absent, it falls back to a regex parse, so a bump is low-risk but tracked for the default install"
+  },
+  {
     "id": "dep-scenedetect",
     "name": "PySceneDetect (scenedetect)",
     "url": "https://pypi.org/project/scenedetect/",

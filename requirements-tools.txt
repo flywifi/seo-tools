@@ -1,0 +1,14 @@
+# Optional accelerators for internal Creator OS tooling. NOTHING here is required:
+# every consumer import-guards these and degrades to a stdlib fallback when absent.
+#   - python-dateutil (tools/tasks.py): recurrence + relative-date math; absent, task date
+#     math uses a stdlib approximation.
+#   - sqlite-vec (shared/cache/semantic.py): vector search for the scoop cache; absent, the
+#     cache falls back to lexical match.
+#   - PyYAML (tools/sync_check.py): SKILL.md frontmatter parsing in the drift guard; absent,
+#     it falls back to a regex parse.
+# The default installer (tools/setup.py) installs these so the accelerated paths are on by
+# default, but base function never depends on them.
+
+python-dateutil
+sqlite-vec
+PyYAML

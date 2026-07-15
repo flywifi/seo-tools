@@ -13,6 +13,9 @@ opencv-python-headless
 # In-process silence detection without an ffmpeg binary
 av
 
+# Frame-array math in mediaprobe (also pulled transitively by opencv/moviepy; pinned for ABI consistency)
+numpy
+
 # Local Shorts reframe rendering (crop geometry itself needs nothing)
 moviepy>=2,<3
 

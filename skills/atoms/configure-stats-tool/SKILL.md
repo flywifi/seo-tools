@@ -52,17 +52,22 @@ the correct Claude Desktop configuration block, and writing the enabled flag to
 
 ## Tool configurations
 
+The canonical transport for each server is `docs/STATISTICS.md` and
+`implementation/claude/desktop/claude_desktop_config_snippet.json`. The blocks below match those
+sources exactly. Do not substitute other package names.
+
 ### wolfram_alpha
-- Prerequisites: Wolfram Alpha API key (from developer.wolframalpha.com).
+- Prerequisites: uv (`pip install uv`, provides `uvx`), Wolfram Alpha API key (from
+  developer.wolframalpha.com; free tier 2,000 calls/month).
 - Env vars: `WOLFRAM_APP_ID`.
-- MCP server: `@anthropic/wolfram-alpha-mcp` (npm package).
+- MCP server: `mcp-wolfram-alpha` launched via `uvx` (Python, not npm).
 - Config block:
   ```json
   {
     "mcpServers": {
       "wolfram-alpha": {
-        "command": "npx",
-        "args": ["-y", "@anthropic/wolfram-alpha-mcp"],
+        "command": "uvx",
+        "args": ["mcp-wolfram-alpha"],
         "env": { "WOLFRAM_APP_ID": "<your_app_id>" }
       }
     }
@@ -70,45 +75,46 @@ the correct Claude Desktop configuration block, and writing the enabled flag to
   ```
 
 ### e2b_sandbox
-- Prerequisites: E2B API key (from e2b.dev), Node.js 18+.
+- Prerequisites: E2B API key (from e2b.dev), Node.js 20+.
 - Env vars: `E2B_API_KEY`.
-- MCP server: `@e2b/mcp-server` (npm package).
+- MCP server: `@e2b/mcp-server` via `npx -y` (npm package).
 - Pre-installed packages in sandbox: numpy, scipy, statsmodels, scikit-learn, pandas, matplotlib.
 
 ### duckdb_analytics
-- Prerequisites: DuckDB CLI or Python duckdb package.
+- Prerequisites: Node.js 20+.
 - Env vars: none.
-- MCP server: `@anthropic/duckdb-mcp` or community `duckdb-mcp-server`.
+- MCP server: `@motherduckdb/mcp-server-motherduck` via `npx -y` (npm package; local mode needs no key).
 - Config note: point the server at the creator's data directory for automatic file discovery.
 
 ### stats_compass
-- Prerequisites: Node.js 18+.
+- Prerequisites: Python 3.10+ with the `stats_compass_mcp` package installed (`pip install stats-compass-mcp`).
 - Env vars: none.
-- MCP server: `stats-compass-mcp` (npm package).
+- MCP server: `stats_compass_mcp` launched via `python3 -m` (Python module, not npm).
 - Supports: t-test, chi-square, ANOVA, Mann-Whitney U, proportion test, correlation, descriptive
   statistics.
 
 ### jupyter_notebook
-- Prerequisites: Python 3.10+, jupyter, ipykernel.
+- Prerequisites: Python 3.10+ with the `jupyter_mcp_server` package installed (`pip install jupyter-mcp-server`), jupyter, ipykernel.
 - Env vars: none.
-- MCP server: `jupyter-mcp-server`.
+- MCP server: `jupyter_mcp_server` launched via `python3 -m`.
 - Config note: the Jupyter server must be running before Claude Desktop connects.
 
 ### r_statistics
-- Prerequisites: R 4.0+, Rscript on PATH.
+- Prerequisites: R 4.0+, Rscript on PATH, and the `rmcp` package (`pip install rmcp`).
 - Env vars: none.
-- MCP server: `r-mcp-server`.
+- MCP server: `rmcp` (Python launcher that shells to R).
 - Pre-installed R packages recommended: stats (built-in), car, effectsize, ggplot2.
 
 ### monte_carlo
-- Prerequisites: Node.js 18+ or Python 3.10+.
+- Prerequisites: the `MCS-MCP` (Monte Carlo Simulator) server. Runtime `[NEEDS VERIFICATION]` — confirm
+  pip vs npm from the upstream project before writing the command; do not assume.
 - Env vars: none.
-- MCP server: `mcs-mcp` (Monte Carlo Simulator MCP).
+- MCP server: `MCS-MCP`.
 
 ### scikit_learn
 - Prerequisites: Python 3.10+, scikit-learn.
 - Env vars: none.
-- MCP server: `sklearn-mcp-server`.
+- MCP server: `mcp-server-scikit-learn`.
 
 ## Procedure
 
@@ -175,8 +181,8 @@ Provide a verification step the user can run to confirm the tool is working:
   "config_block": {
     "mcpServers": {
       "wolfram-alpha": {
-        "command": "npx",
-        "args": ["-y", "@anthropic/wolfram-alpha-mcp"],
+        "command": "uvx",
+        "args": ["mcp-wolfram-alpha"],
         "env": { "WOLFRAM_APP_ID": "<your_app_id>" }
       }
     }
@@ -184,7 +190,7 @@ Provide a verification step the user can run to confirm the tool is working:
   "env_vars_needed": {
     "WOLFRAM_APP_ID": "Wolfram Alpha App ID from developer.wolframalpha.com"
   },
-  "prerequisites": ["Node.js 18+", "Wolfram Alpha API key"],
+  "prerequisites": ["uv (pip install uv)", "Wolfram Alpha API key"],
   "prerequisites_met": true,
   "config_file_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
   "flag_enabled": true,
