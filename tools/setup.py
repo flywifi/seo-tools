@@ -113,9 +113,11 @@ def install_dependencies() -> list:
 
 
 def run_install_deps(as_json: bool = False) -> int:
-    """CLI entry for --install-deps. Prints per-item results; exit 0 unless a set hard-failed."""
-    _say("Installing Creator OS dependencies (free, cross-platform, no keys)...")
-    _say("This installs into your current Python environment. Base function never depends on it.\n")
+    """CLI entry for --install-deps. Prints per-item results; exit 0 unless a set hard-failed.
+    In --json mode stdout carries ONLY the JSON object (the wizard parses it), no preamble."""
+    if not as_json:
+        _say("Installing Creator OS dependencies (free, cross-platform, no keys)...")
+        _say("This installs into your current Python environment. Base function never depends on it.\n")
     results = install_dependencies()
     if as_json:
         print(json.dumps({"results": results}, indent=2))

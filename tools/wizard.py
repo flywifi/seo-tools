@@ -12,6 +12,7 @@ Usage:
   python3 tools/wizard.py
 """
 
+import html
 import http.server
 import json
 import os
@@ -223,7 +224,7 @@ def _screen_welcome() -> str:
 <a class="btn btn-primary" href="/claude"><strong>Claude</strong>{claude_hint}</a>
 <a class="btn btn-secondary" href="/chatgpt"><strong>ChatGPT</strong></a>
 <a class="btn btn-outline" href="/transitions">I use <strong>more than one</strong>, or I am switching</a>
-<p class="hint">Using <strong>Gemini</strong>? Choose "more than one" — the Gemini path is there. Not
+<p class="hint">Using <strong>Gemini</strong>? Choose "more than one" &mdash; the Gemini path is there. Not
 sure which you have? Pick the one whose name you recognize; you can change it later.</p>
 <hr>
 <h2>Set up this computer</h2>
@@ -485,13 +486,13 @@ sudo pacman -S nodejs npm</pre>"""
 <h1>Node.js is needed for Microsoft 365</h1>
 <p>The Microsoft 365 connector requires <strong>Node.js version 20 or higher</strong>. It is free and
 takes about 2 minutes to install. Google, Wolfram, and the rest of Creator OS do <strong>not</strong>
-need it — if you are only connecting Google you can skip this entirely.</p>
+need it &mdash; if you are only connecting Google you can skip this entirely.</p>
 {recheck_note}
 {node_install}
 <hr>
 <p>Once Node.js is installed, click below and the wizard will re-check automatically:</p>
 <form method="POST" action="/api/recheck-node">
-  <button class="btn btn-primary" type="submit">I've installed it — re-check</button>
+  <button class="btn btn-primary" type="submit">I've installed it &mdash; re-check</button>
 </form>
 <a class="btn btn-outline" href="/desktop">Back</a>
 """, dots=["done", "done", "active", "dot"])
@@ -1477,7 +1478,7 @@ def _screen_import(saved: str = "", preview_html: str = "", folder: str = "", er
                       '</strong> You can still build a metadata-only library now; transcripts will be '
                       'flagged as needing an engine (never faked). Install one below to transcribe on '
                       'this computer.</div>' + _stt_install_block())
-    fesc = folder.replace('"', "&quot;")
+    fesc = html.escape(folder)
     return _page("Import your past videos", f"""
 <h1>Import your past videos</h1>
 {_local_precondition_note()}
@@ -1839,7 +1840,8 @@ publishing runs in manual mode for now. No action is needed here.</div>
             parsed = urllib.parse.parse_qs(raw)
             action = parsed.get("action", ["scan"])[0]
             folder = (parsed.get("folder", [""])[0]).strip()
-            platforms = parsed.get("platforms", [])
+            # Whitelist platforms to the known set: drops anything unexpected (no reflected input).
+            platforms = [p for p in parsed.get("platforms", []) if p in _IMPORT_ATTEMPTS]
 
             if action == "approve":
                 batch = _get("import_batch_file")
@@ -1910,17 +1912,17 @@ publishing runs in manual mode for now. No action is needed here.</div>
             rows = ""
             for r in res.get("results", []):
                 if r.get("ok") is True:
-                    rows += f"<li>✓ <strong>{r.get('item')}</strong> — {r.get('desc','')}</li>"
+                    rows += f"<li>&#10003; <strong>{r.get('item')}</strong> &mdash; {r.get('desc','')}</li>"
                 elif r.get("ok") is None:
-                    rows += f"<li>• <strong>{r.get('item')}</strong> — skipped ({r.get('detail','')})</li>"
+                    rows += f"<li>&bull; <strong>{r.get('item')}</strong> &mdash; skipped ({r.get('detail','')})</li>"
                 else:
-                    rows += (f"<li>✗ <strong>{r.get('item')}</strong> — did not install. "
+                    rows += (f"<li>&#10007; <strong>{r.get('item')}</strong> &mdash; did not install. "
                              f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
             any_fail = any(r.get("ok") is False for r in res.get("results", []))
             head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
                     "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
                     if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
-                    "your operating system — see <a href=\"/doctor\">Check my setup</a>.")
+                    "your operating system &mdash; see <a href=\"/doctor\">Check my setup</a>.")
             self._send(_screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>"))
             return
 
@@ -1997,13 +1999,13 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 return
             if not os.path.isdir(expanded):
                 self._send(_screen_storage_folder(error=(
-                    f"That folder was not found: {folder}. Create it first (in Finder or File Explorer), "
-                    "then paste its full path.")))
+                    f"That folder was not found: {html.escape(folder)}. Create it first (in Finder or "
+                    "File Explorer), then paste its full path.")))
                 return
             try:
                 written = _write_storage_folder(expanded)
                 self._send(_screen_storage_folder(saved=(
-                    f"Done. Claude's filesystem connector is now scoped to <strong>{expanded}</strong> "
+                    f"Done. Claude's filesystem connector is now scoped to <strong>{html.escape(expanded)}</strong> "
                     f"and nothing outside it (written to {written}). Restart Claude Desktop to pick it up. "
                     "This choice is stored locally in creator-os-config.local.json and never committed.")))
             except Exception as exc:  # noqa: BLE001
