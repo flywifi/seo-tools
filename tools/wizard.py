@@ -1164,13 +1164,14 @@ def _write_storage_folder(folder: str) -> pathlib.Path:
     return written
 
 
-def _screen_storage_folder(saved: str = "", error: str = "") -> str:
-    """Item 7c: the folder-permission consent step. A validated text-path input registers a
-    filesystem MCP scoped to that folder. No native OS picker in a browser, so we validate the path."""
+def _screen_storage_folder(saved: str = "", error: str = "", folder: str = "") -> str:
+    """Item 7c: the folder-permission consent step. Registers a filesystem MCP scoped to that folder.
+    A native folder picker (Browse...) fills the path; the text field stays as the always-works floor."""
     os_name = _os()
     example = {"windows": r"C:\Users\you\CreatorOS", "mac": "/Users/you/CreatorOS"}.get(os_name, "/home/you/CreatorOS")
     saved_html = f'<div class="success-box">{saved}</div>' if saved else ""
     err_html = f'<div class="error-box">{error}</div>' if error else ""
+    fesc = html.escape(folder)
     node_note = "" if _node_ok() else ('<div class="note">This connector needs <strong>Node.js 20+</strong>, '
                                        'which is not detected yet. <a href="/microsoft">Install Node.js</a> '
                                        'first, then come back.</div>')
@@ -1183,13 +1184,18 @@ only; it cannot see anything outside it.</p>
 {saved_html}
 {err_html}
 {node_note}
+<form method="POST" action="/api/pick-folder" style="margin-bottom:8px">
+  <input type="hidden" name="target" value="storage">
+  <button class="btn btn-outline" type="submit">Browse&hellip; (open a folder picker)</button>
+</form>
 <form method="POST" action="/api/write-storage-folder">
   <label for="folder">Full path to your folder</label>
-  <input type="text" id="folder" name="folder" placeholder="{example}" required>
+  <input type="text" id="folder" name="folder" value="{fesc}" placeholder="{example}" required>
   <button class="btn btn-primary" type="submit" style="margin-top:12px">Allow this folder</button>
 </form>
-<div class="note">Make the folder first (in Finder or File Explorer), then paste its full path here.
-Keep it out of a continuously-synced folder (iCloud/Dropbox) to avoid sync conflicts.</div>
+<div class="note">Click <strong>Browse</strong> to pick the folder, or make it first (in Finder or
+File Explorer) and paste its full path. Keep it out of a continuously-synced folder (iCloud/Dropbox)
+to avoid sync conflicts.</div>
 <p style="margin-top:16px"><a class="btn btn-outline" href="/freshness-setup">Back</a></p>
 """)
 
@@ -1760,6 +1766,10 @@ data.</li>
 </ul>
 <p><strong>2. Scan your folder.</strong> Pick the platforms in it and paste the unzipped folder path.
 Creator OS shows you what it found first &mdash; nothing is saved until you approve.</p>
+<form method="POST" action="/api/pick-folder" style="margin-bottom:8px">
+  <input type="hidden" name="target" value="import">
+  <button class="btn btn-outline" type="submit">Browse&hellip; (open a folder picker)</button>
+</form>
 <form method="POST" action="/api/run-import">
   <input type="hidden" name="action" value="scan">
   <label>Which platforms are in this folder?</label>
@@ -2326,6 +2336,28 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             except Exception as exc:
                 self._send(_screen_microsoft(error=f"Could not update Claude Desktop config: {exc}"))
 
+        elif path == "/api/pick-folder":
+            # Item 10: open a native OS folder picker (runs locally on the user's machine) and prefill
+            # the path. The text field remains the always-works floor when no picker is available.
+            data = self._read_form()
+            target = data.get("target", "import")
+            picked = _pick_folder()
+            if target == "storage":
+                if picked:
+                    self._send(_screen_storage_folder(
+                        folder=picked, saved="Picked a folder. Check the path, then Allow this folder."))
+                else:
+                    self._send(_screen_storage_folder(
+                        error="No folder was chosen (or no picker is available here). Type the path instead."))
+            else:
+                if picked:
+                    self._send(_screen_import(
+                        folder=picked, saved="Picked a folder. Choose platforms, then Scan this folder."))
+                else:
+                    self._send(_screen_import(
+                        error="No folder was chosen (or no picker is available here). Type the path instead."))
+            return
+
         elif path == "/api/oauth-start":
             # Begin the loopback OAuth flow: generate PKCE + single-use state, open the platform's
             # authorization page in the browser, and wait for the callback. No token is created here.
@@ -2476,6 +2508,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
+def _pick_folder() -> str:
+    """Shell tools/pick_folder.py in its own subprocess (so Tk owns a main thread) and return the
+    chosen path, or '' if cancelled / no picker backend is available."""
+    try:
+        r = subprocess.run([sys.executable, str(ROOT / "tools" / "pick_folder.py")],
+                           capture_output=True, text=True, timeout=360)
+        return (r.stdout or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
 
 def _update_capability_flag(key: str, value) -> None:
     """Set a capability flag in creator-os-config.local.json (local only; never GitHub)."""
