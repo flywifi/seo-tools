@@ -12,7 +12,7 @@
 ## What works in ChatGPT Web
 
 - Full hub routing (Content / Document / Pipeline lanes)
-- All 14 spokes: video development, SEO keywords, project builder, competitor analysis,
+- All 22 spokes: video development, SEO keywords, project builder, competitor analysis,
   shortform repurposing, seasonal trends, audience research, analytics insights, document studio,
   account manager, deal pipeline, deal resourcing, partnership mediakit, quality review
 - Voice rules enforcement (no em dashes, no opener exclamations, object-first openings)

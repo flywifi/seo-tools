@@ -17,7 +17,7 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
 - `protocols/` the five governance protocols. `quality-gates.md` is authoritative.
 - `pipeline/` the CRM records store (`accounts/`, `deals/`). Source of truth for all CRM facts. Real
   data is gitignored; only schemas and blank structures are committed.
-- `skills/` flat. The hub `creator-core/`, the governance skill `quality-review/`, the 14 spokes, and
+- `skills/` flat. The hub `creator-core/`, the governance skill `quality-review/`, the 22 spokes, and
   `atoms/` (single-operation sub-skills).
 - `canonical-sources/` reference data the scoop cache indexes (keyword library, platform specs,
   personas, rate benchmarks, seasonal aesthetic).

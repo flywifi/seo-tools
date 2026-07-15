@@ -38,7 +38,7 @@ seo-tools/
   shared/           Flat canonical engines. Source of truth for all cross-cutting logic.
   protocols/        Five governance protocols. quality-gates.md is authoritative.
   pipeline/         CRM records store (accounts/, deals/). Real data is gitignored.
-  skills/           Hub, governance skill, 14 spokes, and atoms/ sub-skills.
+  skills/           Hub, governance skill, 22 spokes, and atoms/ sub-skills.
   canonical-sources/ Reference data the scoop cache indexes.
   tools/            Drift guard, scaffolder, versioner, packager, cache sync, template.
   implementation/   Platform packaging for Claude, GPT, and Gemini.
@@ -388,7 +388,7 @@ tools and APIs, search the web, and return structured findings. They never creat
 or delete files. They never commit or push. The main loop (or the user) is the only actor that
 modifies the repository.
 
-**Four agent roles:**
+**Five agent roles:**
 
 | Agent | Purpose | Scoped tools |
 |---|---|---|
@@ -396,6 +396,7 @@ modifies the repository.
 | competitor-analyst | Deep competitor intelligence, entity extraction, gap analysis | competitor_scan, cache_query, source_staleness, WebFetch |
 | content-writer | Script, caption, pin, and pitch drafting with full voice context | cache_query, quality_score |
 | deal-reviewer | Deal evidence audit, usage rights, exclusivity, quality scoring | quality_score |
+| cost-researcher | Vendor and product price research for cost estimates and proposals | cache_query, source_staleness, WebSearch, WebFetch |
 
 Agent definitions live in `.claude/agents/`. Each definition is a system prompt that includes
 the read-only operating rules, scoped engine and protocol lists, permitted data sources, and

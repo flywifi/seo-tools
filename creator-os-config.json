@@ -346,5 +346,5 @@
     "channel": "stable",
     "channels": { "stable": "main", "nightly": "main" }
   },
-  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
+  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 22 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
 }

@@ -78,7 +78,7 @@ You MAY:
 Return your findings as structured data. The main loop will decide what to do with them.
 ```
 
-### Four agent roles
+### Five agent roles
 
 Each role has a defined research scope, engine context, and output schema.
 

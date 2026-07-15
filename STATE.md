@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P48 are complete. Drift guard exits 0 (45 invariants; 1 non-blocking advisory note by
+P6 through P49 are complete. Drift guard exits 0 (48 invariants; 1 non-blocking advisory note by
 design, see below). Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P48: self-update channels + before-a-release fallback. `tools/update_check.py` now falls back, when

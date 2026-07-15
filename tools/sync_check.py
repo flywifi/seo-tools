@@ -92,6 +92,8 @@ Invariants enforced:
       host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host.
   47. Knowledge-pack projection staleness (P49 WS7, advisory): when a shared engine/protocol a knowledge
       file projects changes sha since the projection manifest was reconciled, the file is surfaced.
+  48. Doc-count truth (P49 WS2): live architecture/setup docs must state the true global totals
+      (spokes, invariants) computed by tools/count_truth.py; historical phase-logs are out of scope.
 """
 import json
 import os
@@ -1731,6 +1733,43 @@ def check_projection_staleness():
         advisory(msg + " (refresh the projection, then run tools/projection_manifest.py reconcile)")
 
 
+def check_doc_count_truth():
+    """Invariant 48: doc-count truth (P49 WS2). Recomputes the canonical global totals from the tree
+    (tools/count_truth.py) and fails when a live architecture/setup doc states a different number for a
+    global total (spokes, invariants). Scope is a CURATED list of files that only ever state global
+    totals -- STATE.md phase-logs, ledger entries, and per-spoke 'composes N atoms' claims are out of
+    scope (historical / local, not global totals), so they are never scanned."""
+    try:
+        import count_truth
+        truth = count_truth.counts(ROOT)
+    except Exception as exc:  # noqa: BLE001
+        problem(f"doc-count-truth: count_truth unavailable: {exc}")
+        return
+    # (relpath, count_key, keyword) -- each digit before <keyword> in <relpath> must equal truth[key].
+    checks = [
+        ("docs/ARCHITECTURE.md", "spokes", "spokes"),
+        ("CLAUDE.md", "spokes", "spokes"),
+        ("creator-os-config.json", "spokes", "spokes"),
+        ("implementation/gpt/web/README.md", "spokes", "spokes"),
+        ("implementation/claude/project/README.md", "spokes", "spokes"),
+        ("docs/BRAND-DEALS.md", "invariants", "invariants"),
+        ("docs/DOCUMENT-TEMPLATES.md", "invariants", "invariants"),
+        ("skills/atoms/post-status/MAINTAINER_README.md", "invariants", "invariants"),
+        ("skills/atoms/publish-draft/MAINTAINER_README.md", "invariants", "invariants"),
+        ("skills/atoms/schedule-post/MAINTAINER_README.md", "invariants", "invariants"),
+    ]
+    for rel, key, kw in checks:
+        p = ROOT / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8", errors="ignore")
+        for m in re.finditer(rf"(\d+)\s+{kw}\b", text):
+            n = int(m.group(1))
+            if n != truth[key]:
+                problem(f"doc-count-truth: {rel} states '{n} {kw}' but the tree has {truth[key]} "
+                        f"{kw}; correct the doc (counts are computed by tools/count_truth.py)")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1858,6 +1897,7 @@ def main():
     check_content_vs_digest()
     check_url_provenance()
     check_projection_staleness()
+    check_doc_count_truth()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
