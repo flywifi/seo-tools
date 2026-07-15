@@ -41,6 +41,101 @@ def _run(cmd: list) -> int:
     return result.returncode
 
 
+# ── Default dependency install (P50, item 11) ───────────────────────────────
+# The free, cross-platform, no-key pip sets. tools/setup.py --install-deps installs all of
+# them so the accelerated paths are on by default. Everything still degrades if a set fails;
+# base function is stdlib-only. Keyed/paid/native-runtime deps stay opt-in (see docs/DEPENDENCIES.md).
+REQUIREMENTS_SETS = [
+    ("requirements-crawl.txt", "Web fetch (requests, charset-normalizer)"),
+    ("requirements-scraper.txt", "HTML parsing (beautifulsoup4)"),
+    ("requirements-render.txt", "Headless browser (playwright)"),
+    ("requirements-mcp.txt", "Claude Desktop tool surface (mcp)"),
+    ("requirements-videoedit.txt", "Video analysis (scenedetect, av, moviepy, numpy)"),
+    ("requirements-transcribe.txt", "Local transcription (faster-whisper, jiwer)"),
+    ("requirements-tools.txt", "Tooling accelerators (python-dateutil, sqlite-vec, PyYAML)"),
+]
+
+
+def _pip_install(args: list) -> tuple:
+    """Run pip with the given args. Returns (ok, detail). Never raises."""
+    try:
+        r = subprocess.run(
+            [PYTHON, "-m", "pip", "install", *args],
+            capture_output=True, text=True, timeout=1800,
+        )
+        if r.returncode == 0:
+            return True, ""
+        return False, (r.stderr or r.stdout or "").strip()[-400:]
+    except Exception as exc:  # noqa: BLE001
+        return False, str(exc)
+
+
+def _install_playwright_browser() -> tuple:
+    """Fetch the Chromium binary Playwright needs (only if the package installed). (ok, detail)."""
+    try:
+        import importlib.util
+        if importlib.util.find_spec("playwright") is None:
+            return None, "playwright package not installed — skipped browser download"
+        r = subprocess.run(
+            [PYTHON, "-m", "playwright", "install", "chromium"],
+            capture_output=True, text=True, timeout=1800,
+        )
+        if r.returncode == 0:
+            return True, ""
+        return False, (r.stderr or r.stdout or "").strip()[-400:]
+    except Exception as exc:  # noqa: BLE001
+        return False, str(exc)
+
+
+def install_dependencies() -> list:
+    """Install every free, cross-platform pip set + uv + the Playwright browser. Returns a list of
+    per-item {item, desc, ok, detail} results; ok=None means skipped. Reports every outcome honestly,
+    never silently. System binaries (Node, ffmpeg) are NOT installed here — they need the user's shell
+    package manager and are handled by the launcher/doctor."""
+    results = []
+    for fname, desc in REQUIREMENTS_SETS:
+        p = ROOT / fname
+        if not p.exists():
+            results.append({"item": fname, "desc": desc, "ok": None, "detail": "file not found"})
+            continue
+        ok, detail = _pip_install(["-r", str(p)])
+        results.append({"item": fname, "desc": desc, "ok": ok, "detail": detail})
+    # uv: pip-installable, cross-platform, no sudo. Powers the Google/Wolfram uvx MCP servers.
+    if shutil.which("uv") is None:
+        ok, detail = _pip_install(["uv"])
+        results.append({"item": "uv", "desc": "uvx runtime for Google/Wolfram MCP servers", "ok": ok, "detail": detail})
+    else:
+        results.append({"item": "uv", "desc": "uvx runtime", "ok": None, "detail": "already installed"})
+    # Playwright browser binary (only if the package landed).
+    pw_ok, pw_detail = _install_playwright_browser()
+    results.append({"item": "playwright chromium", "desc": "Headless browser binary", "ok": pw_ok, "detail": pw_detail})
+    return results
+
+
+def run_install_deps(as_json: bool = False) -> int:
+    """CLI entry for --install-deps. Prints per-item results; exit 0 unless a set hard-failed."""
+    _say("Installing Creator OS dependencies (free, cross-platform, no keys)...")
+    _say("This installs into your current Python environment. Base function never depends on it.\n")
+    results = install_dependencies()
+    if as_json:
+        print(json.dumps({"results": results}, indent=2))
+    else:
+        for r in results:
+            if r["ok"] is True:
+                _ok(f"{r['item']} — {r['desc']}")
+            elif r["ok"] is None:
+                _skip(f"{r['item']} ({r['detail']})")
+            else:
+                _say(f"  [fail] {r['item']} — {r['desc']}")
+                if r["detail"]:
+                    _say(f"         {r['detail']}")
+        _say("\nSystem binaries (Node.js, ffmpeg) are NOT installed here — they need your OS package")
+        _say("manager. Run 'python3 tools/transcribe.py doctor' for the exact command for your machine,")
+        _say("or use the wizard's 'Set up my computer' screen (python3 tools/wizard.py).")
+    hard_fail = any(r["ok"] is False for r in results)
+    return 1 if hard_fail else 0
+
+
 def check_python() -> None:
     major, minor = sys.version_info[:2]
     if (major, minor) < (3, 11):
@@ -192,7 +287,12 @@ Next steps:
        pipeline/user-context/voice-profile.local.json     — add real phrases as you produce content
        pipeline/user-context/content-calendar.local.json  — add upcoming video entries
 
-  2. Enable capabilities as you set them up:
+  2. Install the optional dependencies (free, cross-platform, no keys):
+       python3 tools/setup.py --install-deps
+       (or use the wizard's "Set up my computer" screen: python3 tools/wizard.py)
+       For Node.js / ffmpeg (system binaries), run: python3 tools/transcribe.py doctor
+
+  3. Enable capabilities as you set them up:
        Edit creator-os-config.local.json and set "keyword_cache": true after building the cache.
        Set "mcp_server": true after configuring Claude Desktop.
        Each flag's "requires" field in creator-os-config.json explains what to install.
@@ -210,6 +310,11 @@ Next steps:
 
 
 def main() -> None:
+    argv = sys.argv[1:]
+    if "--install-deps" in argv:
+        # Standalone dependency install (also used by the wizard's "Set up my computer" screen).
+        sys.exit(run_install_deps(as_json="--json" in argv))
+
     _say("Creator OS — first-time setup")
     _say("=" * 40)
 

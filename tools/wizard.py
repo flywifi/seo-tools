@@ -386,21 +386,24 @@ After you restart Claude Desktop, it will walk you through signing in.</p>
 <a class="btn btn-outline" href="/desktop">Back</a>
 """, dots=["done", "done", "active", "dot"])
 
-def _screen_node_missing() -> str:
+def _screen_node_missing(rechecked: bool = False) -> str:
     os_name = _os()
     if os_name == "mac":
         node_install = """
 <p>Run this in Terminal to install Node.js:</p>
 <pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.9rem;
             overflow-x:auto;margin-bottom:14px">brew install node</pre>
-<p>If Homebrew is not installed, see <code>docs/SETUP_MAC.md</code>.</p>"""
+<p>No Homebrew yet? Paste this first (it is the standard macOS installer), then run the line above:</p>
+<pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.85rem;
+            overflow-x:auto;margin-bottom:14px">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</pre>"""
     elif os_name == "windows":
         node_install = """
 <p>Download and install Node.js from the official site:</p>
 <a class="btn btn-primary" href="https://nodejs.org/en/download"
    target="_blank" style="margin-bottom:14px">Open nodejs.org downloads</a>
-<p>Choose the <strong>LTS</strong> version (20 or higher). Run the installer and
-accept the defaults.</p>"""
+<p>Choose the <strong>LTS</strong> version (20 or higher). Run the installer and accept the defaults
+(keep "Add to PATH" checked). If Windows SmartScreen warns, click <strong>More info</strong> then
+<strong>Run anyway</strong>.</p>"""
     else:
         node_install = """
 <p>Install Node.js 20+ using your package manager:</p>
@@ -413,13 +416,21 @@ sudo dnf install -y nodejs
 
 # Arch
 sudo pacman -S nodejs npm</pre>"""
+    recheck_note = ('<div class="error-box">Still not detecting Node.js 20 or higher. Make sure the '
+                    'install finished, then try again. On Windows you may need to close and reopen '
+                    'this wizard so it sees the updated PATH.</div>') if rechecked else ""
     return _page("Node.js Required", f"""
 <h1>Node.js is needed for Microsoft 365</h1>
-<p>The Microsoft 365 connector requires <strong>Node.js version 20 or higher</strong>.
-It is free and takes about 2 minutes to install.</p>
+<p>The Microsoft 365 connector requires <strong>Node.js version 20 or higher</strong>. It is free and
+takes about 2 minutes to install. Google, Wolfram, and the rest of Creator OS do <strong>not</strong>
+need it — if you are only connecting Google you can skip this entirely.</p>
+{recheck_note}
 {node_install}
 <hr>
-<p>Once Node.js is installed, <a href="/microsoft">come back and click here</a> to continue.</p>
+<p>Once Node.js is installed, click below and the wizard will re-check automatically:</p>
+<form method="POST" action="/api/recheck-node">
+  <button class="btn btn-primary" type="submit">I've installed it — re-check</button>
+</form>
 <a class="btn btn-outline" href="/desktop">Back</a>
 """, dots=["done", "done", "active", "dot"])
 
@@ -1414,6 +1425,45 @@ def _run_transcribe(args):
         return {"error": (r.stderr or r.stdout or "no output").strip()[:300]}
 
 
+def _run_setup(args):
+    """Call tools/setup.py as a subprocess and parse its JSON. Used by the 'Set up my computer'
+    screen to install the free dependency sets. Returns a dict (with an 'error' key on failure)."""
+    try:
+        r = subprocess.run([sys.executable, str(ROOT / "tools" / "setup.py")] + list(args),
+                           capture_output=True, text=True, timeout=3600)
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"could not run the installer: {exc}"}
+    try:
+        return json.loads(r.stdout or "{}")
+    except json.JSONDecodeError:
+        return {"error": (r.stderr or r.stdout or "no output").strip()[:400]}
+
+
+def _screen_setup_computer(saved: str = "") -> str:
+    """Item 11: one consent button that installs every free, cross-platform, no-key dependency on THIS
+    computer. Reports every package outcome honestly. System binaries (Node/ffmpeg) route to /doctor."""
+    saved_html = ""
+    if saved:
+        saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>'
+    return _page("Set up my computer", f"""
+<h1>Set up my computer</h1>
+{_local_precondition_note()}
+{saved_html}
+<p>This installs the free tools Creator OS uses, into this computer's Python. They are all optional
+accelerators (web fetch, HTML parsing, the headless browser, local transcription, video analysis, and
+the Claude Desktop tool surface). Nothing here needs an account or an API key, and nothing is uploaded.
+Creator OS still works without them; they just turn on more features.</p>
+<form method="POST" action="/api/install-deps">
+  <button class="btn btn-primary" type="submit">Install the free tools now</button>
+</form>
+<div class="note">This can take a few minutes the first time (the headless browser is a larger
+download). You will see a result line for every package, including any that did not install.</div>
+<h2>Node.js and ffmpeg</h2>
+<p>Two tools are system programs, not Python packages, so they install through your operating system
+instead. <a href="/doctor">Check my setup</a> shows the exact one-line command for this machine.</p>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>""")
+
+
 def _screen_doctor(saved: str = "") -> str:
     """Guided STT readiness check: shows the green/amber/red verdict, the plain-language checklist, the
     exact next command for this machine, and one-click model downloads (P46). All local."""
@@ -1529,6 +1579,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/freshness-setup": _screen_freshness(),
             "/brand-deals": _screen_brand_deals(),
             "/import": _screen_import(),
+            "/setup-computer": _screen_setup_computer(),
             "/doctor": _screen_doctor(),
             "/chatgpt": _screen_chatgpt(),
             "/transitions": _screen_transitions(),
@@ -1568,6 +1619,40 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 "platform's read flag and add your own OAuth credentials to "
                 "pipeline/user-context/api-credentials.local.json. The live importer never fetches "
                 "revenue. Prefer the export files above if you are not sure.")))
+            return
+
+        if path == "/api/install-deps":
+            # Install every free, cross-platform, no-key pip set + uv + the Playwright browser on THIS
+            # computer (local; nothing uploaded). Reports every package outcome, never silently.
+            res = _run_setup(["--install-deps", "--json"])
+            if res.get("error"):
+                self._send(_screen_setup_computer(saved=(
+                    f"The installer could not run: {res['error']} You can also install from a terminal: "
+                    "<code>python3 tools/setup.py --install-deps</code>.")))
+                return
+            rows = ""
+            for r in res.get("results", []):
+                if r.get("ok") is True:
+                    rows += f"<li>✓ <strong>{r.get('item')}</strong> — {r.get('desc','')}</li>"
+                elif r.get("ok") is None:
+                    rows += f"<li>• <strong>{r.get('item')}</strong> — skipped ({r.get('detail','')})</li>"
+                else:
+                    rows += (f"<li>✗ <strong>{r.get('item')}</strong> — did not install. "
+                             f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
+            any_fail = any(r.get("ok") is False for r in res.get("results", []))
+            head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
+                    "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
+                    if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
+                    "your operating system — see <a href=\"/doctor\">Check my setup</a>.")
+            self._send(_screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>"))
+            return
+
+        if path == "/api/recheck-node":
+            # Item 11 recovery: re-detect Node after the user installs it, without leaving the wizard.
+            if _node_ok():
+                self._redirect("/microsoft")
+            else:
+                self._send(_screen_node_missing(rechecked=True))
             return
 
         if path == "/api/fetch-model":
