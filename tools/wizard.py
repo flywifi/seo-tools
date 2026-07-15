@@ -346,10 +346,27 @@ def _screen_google(error: str = "") -> str:
     return _page("Connect Google Workspace", f"""
 <h1>Connect Google Workspace</h1>
 {_local_precondition_note()}
-<p>Creator OS will be able to read your Gmail, Google Calendar, Google Drive, Docs, and Sheets.
-This is a <strong>one-time setup</strong> that takes about 5 minutes.</p>
-{err_html}
-<h2>Step 1 of 2 &mdash; Get your Google credentials (one time only)</h2>
+<p>Connect Google so Creator OS can see your Gmail, Google Calendar, Google Drive, Docs, and Sheets.
+{err_html}</p>
+<div class="success-box"><strong>Easiest way (recommended): the built-in Google connector.</strong>
+No Google Cloud setup, no copying keys. Turn it on inside Claude and sign in once.</div>
+<ol class="steps">
+  <li>In Claude, open <strong>Settings</strong> then <strong>Connectors</strong> (or
+      <strong>Integrations</strong>).</li>
+  <li>Find <strong>Google</strong> / <strong>Google Workspace</strong> and click <strong>Connect</strong>.</li>
+  <li>Sign in with your Google account and click <strong>Allow</strong>.</li>
+</ol>
+<a class="btn btn-primary" href="/done">I connected Google in Claude &mdash; show me what to try</a>
+<div class="note">The built-in connector covers Gmail, Calendar, and Drive/Docs/Sheets. It does not
+cover Microsoft/Outlook (use the Microsoft 365 step for that).</div>
+<hr>
+<details>
+<summary style="cursor:pointer;font-weight:600;color:#7c2d2d;margin-bottom:10px">Advanced: run
+Google locally on this computer (Google Cloud Console)</summary>
+<p>Only needed if you specifically want the Google MCP server running on this machine (for example,
+to script Google from local tools). It requires a one-time Google Cloud Console project. Most people
+should use the built-in connector above instead.</p>
+<h2>Step 1 &mdash; Get your Google credentials (one time only)</h2>
 <ol class="steps">
   <li>Open <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
       and sign in with your Google account.</li>
@@ -368,8 +385,7 @@ This is a <strong>one-time setup</strong> that takes about 5 minutes.</p>
 </ol>
 <div class="note">These credentials stay on your computer only. They are never sent to
 Creator OS servers or committed to git.</div>
-<hr>
-<h2>Step 2 of 2 &mdash; Paste your credentials</h2>
+<h2>Step 2 &mdash; Paste your credentials</h2>
 <form method="POST" action="/api/write-google">
   <label for="client_id">Google Client ID</label>
   <input type="text" id="client_id" name="client_id"
@@ -377,8 +393,9 @@ Creator OS servers or committed to git.</div>
   <label for="client_secret">Google Client Secret</label>
   <input type="password" id="client_secret" name="client_secret"
          placeholder="GOCSPX-..." required>
-  <button class="btn btn-primary" type="submit">Save Google Connection</button>
+  <button class="btn btn-outline" type="submit">Save local Google connection</button>
 </form>
+</details>
 <a class="btn btn-outline" href="/desktop">Back</a>
 """, dots=["done", "done", "active", "dot"])
 
@@ -860,7 +877,64 @@ make on your own &mdash; nobody sends you homework.</div>
   <input type="number" name="cadence_days" value="30" min="1" max="365" />
   <button class="btn" type="submit" style="margin-top:16px">Save my store choice</button>
 </form>
+<hr>
+<h2>Storing on this computer?</h2>
+<p>If you keep your data on this computer, you can tell Claude exactly which folder it may read and
+write. Nothing outside that one folder is ever touched.</p>
+<a class="btn btn-outline" href="/storage-folder">Choose my Creator OS folder</a>
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
+def _write_storage_folder(folder: str) -> pathlib.Path:
+    """Register a filesystem MCP scoped to one folder (Claude can read/write ONLY there) and record the
+    chosen path in creator-os-config.local.json. Reuses _write_claude_config (the MCP-entry primitive)."""
+    config = _read_claude_config()
+    config.setdefault("mcpServers", {})
+    config["mcpServers"]["filesystem"] = {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", folder],
+    }
+    written = _write_claude_config(config)
+    # Record the folder locally so the freshness/store runtime knows where to write.
+    local_path = ROOT / "creator-os-config.local.json"
+    try:
+        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+        cfg["storage"] = {"local_folder": folder,
+                          "_note": "The one folder Claude's filesystem connector may read and write."}
+        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[wizard] Warning: could not record storage folder: {exc}")
+    return written
+
+
+def _screen_storage_folder(saved: str = "", error: str = "") -> str:
+    """Item 7c: the folder-permission consent step. A validated text-path input registers a
+    filesystem MCP scoped to that folder. No native OS picker in a browser, so we validate the path."""
+    os_name = _os()
+    example = {"windows": r"C:\Users\you\CreatorOS", "mac": "/Users/you/CreatorOS"}.get(os_name, "/home/you/CreatorOS")
+    saved_html = f'<div class="success-box">{saved}</div>' if saved else ""
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    node_note = "" if _node_ok() else ('<div class="note">This connector needs <strong>Node.js 20+</strong>, '
+                                       'which is not detected yet. <a href="/microsoft">Install Node.js</a> '
+                                       'first, then come back.</div>')
+    return _page("Choose my Creator OS folder", f"""
+<h1>Choose the folder Creator OS may use</h1>
+{_local_precondition_note()}
+<p>Pick <strong>one</strong> folder on this computer for Creator OS to read and write &mdash; your
+exports, library, and refreshed data live here. Claude's filesystem connector is scoped to this folder
+only; it cannot see anything outside it.</p>
+{saved_html}
+{err_html}
+{node_note}
+<form method="POST" action="/api/write-storage-folder">
+  <label for="folder">Full path to your folder</label>
+  <input type="text" id="folder" name="folder" placeholder="{example}" required>
+  <button class="btn btn-primary" type="submit" style="margin-top:12px">Allow this folder</button>
+</form>
+<div class="note">Make the folder first (in Finder or File Explorer), then paste its full path here.
+Keep it out of a continuously-synced folder (iCloud/Dropbox) to avoid sync conflicts.</div>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/freshness-setup">Back</a></p>
 """)
 
 
@@ -1621,6 +1695,7 @@ publishing runs in manual mode for now. No action is needed here.</div>
             "/publishing-setup/tiktok": _screen_publishing_tiktok(),
             "/publishing-setup/pinterest": _screen_publishing_pinterest(),
             "/freshness-setup": _screen_freshness(),
+            "/storage-folder": _screen_storage_folder(),
             "/brand-deals": _screen_brand_deals(),
             "/import": _screen_import(),
             "/setup-computer": _screen_setup_computer(),
@@ -1751,6 +1826,30 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 f"<strong>{store}</strong>. {rec['why']} <br><em>{rec['note']}</em><br>"
                 f"{rec['guarantee']}"
             )))
+            return
+
+        if path == "/api/write-storage-folder":
+            # Item 7c: register a filesystem MCP scoped to ONE user-chosen folder. A browser cannot
+            # return a native path, so we validate the typed path with os.path.isdir before writing.
+            data = self._read_form()
+            folder = (data.get("folder") or "").strip()
+            expanded = os.path.expanduser(folder) if folder else ""
+            if not folder:
+                self._send(_screen_storage_folder(error="Please enter the full path to a folder."))
+                return
+            if not os.path.isdir(expanded):
+                self._send(_screen_storage_folder(error=(
+                    f"That folder was not found: {folder}. Create it first (in Finder or File Explorer), "
+                    "then paste its full path.")))
+                return
+            try:
+                written = _write_storage_folder(expanded)
+                self._send(_screen_storage_folder(saved=(
+                    f"Done. Claude's filesystem connector is now scoped to <strong>{expanded}</strong> "
+                    f"and nothing outside it (written to {written}). Restart Claude Desktop to pick it up. "
+                    "This choice is stored locally in creator-os-config.local.json and never committed.")))
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_storage_folder(error=f"Could not update the configuration: {exc}"))
             return
 
         if path == "/api/write-google":
