@@ -15,6 +15,7 @@ Tools (the docstrings below and tools/list are authoritative; the set has grown 
   schedule_post        Dispatch a post to the active publishing connector or return a manual plan.
   post_status          Check the status of a previously scheduled or published post.
   get_publishing_plan  Return which platforms have active publishing connectors and at what tier.
+  launch_setup         Open the setup wizard in the browser (local Desktop/Code only; no terminal).
 
 These are the capabilities above what vanilla Claude can do: live competitor
 tag extraction, offline FTS5 keyword lookups, source staleness detection, and
@@ -1571,6 +1572,35 @@ def milestone_status(schedule: dict, deliverable_id: str | None = None, event: s
         return json.dumps(_t.billable_scan(schedule), indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def launch_setup() -> str:
+    """Open the Creator OS setup wizard in the user's web browser (no terminal needed).
+
+    Spawns tools/wizard.py as a local background process; it serves a guided setup at
+    http://localhost:8765/ and opens the browser automatically. This works ONLY where Creator OS runs
+    as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code) — a hosted/remote
+    connector runs in the vendor's cloud and cannot open a browser or reach the user's computer.
+    Nothing is installed or changed by this call itself; the wizard asks for consent at each step."""
+    wizard = HERE / "wizard.py"
+    if not wizard.exists():
+        return json.dumps({"error": "wizard not found", "path": str(wizard)})
+    try:
+        kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        if os.name == "posix":
+            kwargs["start_new_session"] = True
+        subprocess.Popen([sys.executable, str(wizard)], **kwargs)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": f"could not start the wizard: {exc}",
+                           "manual": "Run: python3 tools/wizard.py"})
+    return json.dumps({
+        "result": "launching",
+        "url": "http://localhost:8765/",
+        "note": "The setup wizard is opening in your web browser. If it does not open, visit the URL "
+                "above. This works only when Creator OS runs locally (Claude Desktop or Claude Code), "
+                "not from a browser-only or hosted connector.",
+    }, indent=2)
 
 
 # ---------------------------------------------------------------------------
