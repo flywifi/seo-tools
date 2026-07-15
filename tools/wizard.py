@@ -560,57 +560,77 @@ will fall back to manual posting (copy-paste checklists).</div>
 def _screen_publishing_youtube(error: str = "") -> str:
     creds = _load_api_credentials()
     yt = creds.get("youtube") or {}
-    has_token = bool(yt.get("access_token") or yt.get("refresh_token"))
+    pub = yt.get("publish") or {}
+    has_token = bool(pub.get("refresh_token") or pub.get("access_token"))
+    has_app = bool(pub.get("client_id") and pub.get("client_secret"))
+    err_html = f'<div class="error-box">{html.escape(error)}</div>' if error else ""
+    testing_note = """<div class="note"><strong>About Google's 7-day sign-in limit.</strong> A local
+tool with no public website cannot move its Google sign-in screen to "Production" (Google requires a
+verified homepage and privacy-policy URL for that). So keep your OAuth app in <strong>Testing</strong>
+and add yourself as a <strong>Test user</strong>. Authorizations in Testing mode expire about every
+7 days, so you will click <strong>Connect</strong> again roughly once a week. This is a Google policy,
+not a bug. Uploads default to <strong>private</strong> so nothing goes public by accident.</div>"""
+
     if has_token:
-        return _page("YouTube Connected", """
+        return _page("YouTube Connected", f"""
 <h1><span class="check">&#10003;</span> YouTube Publishing Ready</h1>
-<div class="success-box">YouTube app credentials and a user access token are configured.
-Creator OS can upload and schedule videos via the YouTube Data API v3.</div>
-<p>To update your credentials, paste new values below and save again.</p>
-<hr>
-""" + _youtube_form() + """
-<a class="btn btn-outline" href="/publishing-setup">Back</a>
-""", dots=["done", "done", "done", "active"])
-    if yt:
-        # App credentials saved, but no user authorization token yet: not publish-ready.
-        return _page("YouTube App Registered", """
-<h1>YouTube App Registered</h1>
-<div class="note"><strong>One step remains.</strong> Your Google OAuth app credentials are
-saved, but YouTube publishing also needs user <em>authorization</em> (the sign-in that grants
-the <code>youtube.upload</code> permission and returns an access token). That authorization
-step is not wired up yet, so the <code>youtube_publishing</code> flag stays off and YouTube
-posts fall back to manual posting for now. Instagram, TikTok, and Pinterest collect a token
-directly and are publish-ready once saved.</div>
-<p>To update your app credentials, paste new values below and save again.</p>
-<hr>
-""" + _youtube_form() + """
+<div class="success-box">YouTube is connected and <code>youtube_publishing</code> is on. Creator OS
+can upload videos via the YouTube Data API v3 (behind the live-publishing switch, with your
+confirmation on each post).</div>
+{testing_note}
+<p>If uploads start failing with an authorization error, your weekly Testing-mode token expired.
+Just reconnect:</p>
+{_youtube_connect_button("Reconnect YouTube")}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
-    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if has_app:
+        return _page("YouTube: Authorize Upload", f"""
+<h1>One step left: authorize upload</h1>
+<div class="note">Your Google OAuth app is saved. Now grant Creator OS permission to upload to your
+channel. Click Connect, approve the <code>youtube.upload</code> permission in the browser, and you
+will be returned here.</div>
+{err_html}
+{_youtube_connect_button()}
+{testing_note}
+<p style="color:#555;font-size:0.9em">Redirect URL this uses (a Desktop OAuth client accepts it
+automatically): <code>{html.escape(oauth_flow.redirect_uri("youtube", PORT))}</code></p>
+<hr>
+<p>Need to update your app keys?</p>
+{_youtube_form()}
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
     return _page("YouTube Publishing", f"""
 <h1>Set Up YouTube Publishing</h1>
-<p>Creator OS uses the <strong>YouTube Data API v3</strong> to upload and schedule videos.
-You need a Google Cloud project with the YouTube Data API enabled.</p>
+<p>Creator OS uses the <strong>YouTube Data API v3</strong> to upload videos. You need a Google Cloud
+project with the YouTube Data API enabled, then you authorize your own channel.</p>
 {err_html}
 <ol class="steps">
   <li>Open <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>.
       Use the same project as Google Workspace, or create a new one.</li>
   <li>Go to <strong>APIs &amp; Services &rarr; Library</strong>. Search for
       <strong>YouTube Data API v3</strong> and click <strong>Enable</strong>.</li>
-  <li>Go to <strong>APIs &amp; Services &rarr; Credentials</strong>.
-      Click <strong>+ Create Credentials &rarr; OAuth client ID</strong>.
-      Application type: <strong>Desktop app</strong>.</li>
-  <li>Add the scope <code>https://www.googleapis.com/auth/youtube.upload</code>
-      to your OAuth consent screen.</li>
-  <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> below.</li>
+  <li>On the <strong>OAuth consent screen</strong>, choose <strong>External</strong>, keep it in
+      <strong>Testing</strong>, and add your own Google account under <strong>Test users</strong>.</li>
+  <li>Go to <strong>Credentials &rarr; + Create Credentials &rarr; OAuth client ID</strong>.
+      Application type: <strong>Desktop app</strong> (this type accepts the local redirect below
+      with no extra setup).</li>
+  <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> below, save, then click
+      <strong>Connect</strong> to authorize the <code>youtube.upload</code> permission.</li>
 </ol>
-<div class="note">If you already set up Google Workspace, you can reuse the same
-OAuth credentials. Just add the <code>youtube.upload</code> scope.</div>
+{testing_note}
 <hr>
-""" + _youtube_form() + """
+{_youtube_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
+
+
+def _youtube_connect_button(label: str = "Connect YouTube (authorize upload)") -> str:
+    return f"""<form method="POST" action="/api/oauth-start" style="margin:12px 0">
+  <input type="hidden" name="platform" value="youtube">
+  <button class="btn btn-primary" type="submit" style="background:#ff0000">{label}</button>
+</form>"""
 
 
 def _youtube_form() -> str:
