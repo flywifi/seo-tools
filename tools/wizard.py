@@ -21,6 +21,7 @@ import shutil
 import socketserver
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -122,6 +123,8 @@ _state: dict = {
     "microsoft_done": False,
     "uv_installing": False,
     "uv_error": "",
+    "import_batch_file": "",
+    "import_count": 0,
 }
 _lock = threading.Lock()
 
@@ -1458,11 +1461,13 @@ It needs no system ffmpeg and uses CUDA automatically when an NVIDIA GPU is pres
 Or use your package manager for whisper.cpp: <pre>apt install whisper-cpp ffmpeg</pre></div>"""
 
 
-def _screen_import(saved: str = "") -> str:
+def _screen_import(saved: str = "", preview_html: str = "", folder: str = "", error: str = "") -> str:
     """Guided, non-technical, end-to-end flow to import the creator's OWN past videos and build the
-    local library. Class C: everything runs on this computer; nothing leaves it (P45)."""
+    local library. Class C: everything runs on this computer; nothing leaves it (P45). Two modes:
+    conversational (ask Claude) and a wizard-guided form with a scan preview before any save (P50)."""
     backend, cpp_bin, _fw = _stt_backend_present()
     saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    err_html = f'<div class="error-box">{error}</div>' if error else ""
     if backend:
         stt_status = (f'<div class="note" style="background:#eef7ee"><strong>Transcription engine found:'
                       f'</strong> {backend}{" (" + cpp_bin + ")" if cpp_bin else ""}. Creator OS can '
@@ -1472,50 +1477,68 @@ def _screen_import(saved: str = "") -> str:
                       '</strong> You can still build a metadata-only library now; transcripts will be '
                       'flagged as needing an engine (never faked). Install one below to transcribe on '
                       'this computer.</div>' + _stt_install_block())
+    fesc = folder.replace('"', "&quot;")
     return _page("Import your past videos", f"""
 <h1>Import your past videos</h1>
 {_local_precondition_note()}
 <div class="note"><strong>Everything here runs on your computer.</strong> Your videos, stats, and
 transcripts never leave this machine. Creator OS proposes what it found; you decide what to save.</div>
 {saved_html}
+{err_html}
 
-<h2>1. Get your data from each platform</h2>
+<h2>Easiest: just ask Claude</h2>
+<p>In Claude Desktop or Claude Code, say: <em>"Import my video library from this folder: &lt;paste the
+folder path&gt;."</em> Claude runs the import on your computer, shows you what it found, and saves only
+what you approve.</p>
+
+<hr>
+<h2>Or do it here, step by step</h2>
+<p><a class="btn btn-outline" href="/doctor">First, check my setup (is transcription ready?)</a></p>
+<p><strong>1. Get your data.</strong> Download and unzip each export:</p>
 <ul>
 <li><strong>YouTube:</strong> Google Takeout (takeout.google.com &rarr; YouTube and YouTube Music) for
 your video files and metadata, PLUS YouTube Studio &rarr; Analytics &rarr; Advanced mode &rarr; Export
-&rarr; the .zip for your stats and (if monetized) revenue. Revenue comes only from this Studio export.</li>
+&rarr; the .zip for stats and (if monetized) revenue. Revenue comes only from this Studio export.</li>
 <li><strong>Instagram:</strong> Accounts Center &rarr; Your information and permissions &rarr; Download
 your information &rarr; choose your profile, JSON format.</li>
 <li><strong>TikTok:</strong> Profile &rarr; Settings and privacy &rarr; Account &rarr; Download your
-data &rarr; request, then download when ready.</li>
+data.</li>
 <li><strong>Pinterest:</strong> Settings &rarr; Privacy and data &rarr; Request your data.</li>
 </ul>
-
-<p><a class="btn btn-outline" href="/doctor">Check my setup (is transcription ready?)</a></p>
-
-<h2>2. Point Creator OS at the unzipped folder</h2>
+<p><strong>2. Scan your folder.</strong> Pick the platforms in it and paste the unzipped folder path.
+Creator OS shows you what it found first &mdash; nothing is saved until you approve.</p>
+<form method="POST" action="/api/run-import">
+  <input type="hidden" name="action" value="scan">
+  <label>Which platforms are in this folder?</label>
+  <div style="margin:6px 0 12px">
+    <label style="display:inline;font-weight:400"><input type="checkbox" name="platforms" value="youtube" checked> YouTube</label>
+    <label style="display:inline;font-weight:400;margin-left:14px"><input type="checkbox" name="platforms" value="instagram"> Instagram</label>
+    <label style="display:inline;font-weight:400;margin-left:14px"><input type="checkbox" name="platforms" value="tiktok"> TikTok</label>
+    <label style="display:inline;font-weight:400;margin-left:14px"><input type="checkbox" name="platforms" value="pinterest"> Pinterest</label>
+  </div>
+  <label for="folder">Full path to your unzipped export folder</label>
+  <input type="text" id="folder" name="folder" value="{fesc}" placeholder="/Users/you/Downloads/Takeout" required>
+  <button class="btn btn-primary" type="submit" style="margin-top:12px">Scan this folder</button>
+</form>
 <div class="note"><strong>If a download will not open</strong> ("not a valid zip", "file is corrupt"):
-re-download the export from the platform (large exports sometimes arrive incomplete) and point Creator
-OS at the fresh .zip. Creator OS skips an unreadable file and tells you, rather than stopping.</div>
-<p>Unzip each export. In Claude Desktop or Claude Code, ask to import your library and give the folder
-path, or run it yourself:</p>
-<pre>python3 tools/import_parse.py   # parses the export into proposed records
-python3 tools/video_library.py upsert-batch &lt;records.json&gt;   # you save what you approve</pre>
+re-download the export (large exports sometimes arrive incomplete) and scan the fresh copy. Creator OS
+skips an unreadable file and tells you, rather than stopping.</div>
+{preview_html}
 
 <h2>3. Build the library locally</h2>
 {stt_status}
-<p>Once an engine is present, Creator OS matches each downloaded video file to its record, transcribes
-what is missing on this computer, derives chapters and spoken keywords, and (for YouTube) joins the
-retention curve to the transcript so you can see the words spoken at your most-watched moments:</p>
-<pre>python3 tools/library_complete.py complete --export-dir &lt;your unzipped folder&gt;</pre>
-<div class="note">The first run downloads the speech model once (a few hundred MB). Nothing leaves your
-computer. If no engine is installed, the library is built metadata-only and each transcript is flagged
-as needing an engine, never faked.</div>
+<p>After you approve the import, Creator OS matches each downloaded video file to its record,
+transcribes what is missing on this computer, derives chapters and spoken keywords, and (for YouTube)
+joins the retention curve to the transcript so you see the words at your most-watched moments. The first
+run downloads the speech model once (a few hundred MB); nothing leaves your computer.</p>
 
-<h2>4. Your library is ready</h2>
-<p>Analyze it: most-watched parts with the actual words, top tags, retention cliffs, and transcript
-themes:</p>
-<pre>python3 tools/video_library.py analyze</pre>
+<details>
+<summary style="cursor:pointer;font-weight:600;color:#7c2d2d">Advanced: run it yourself in a terminal</summary>
+<pre>python3 tools/import_parse.py &lt;format&gt; &lt;path&gt;          # parse an export into proposed records
+python3 tools/video_library.py upsert-batch &lt;records.json&gt;  # save what you approve
+python3 tools/library_complete.py complete --export-dir &lt;folder&gt;  # transcribe + join retention
+python3 tools/video_library.py analyze                    # most-watched parts, tags, retention</pre>
+</details>
 
 <h2>Optional: live API import (advanced)</h2>
 <p>Instead of the export files, Creator OS can pull from each platform's API using your OWN developer
@@ -1525,6 +1548,75 @@ credentials. This is off by default and never fetches revenue. Enable it only if
 </form>
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
 """)
+
+
+# Item 10: per-platform parse attempts. Each entry is (import_parse format, target kind). "dir" passes
+# the folder itself; "zip"/"json"/"csv" glob those files inside it. We try each and aggregate what
+# parses, deduping by platform+id so a folder matched two ways does not double-count.
+_IMPORT_ATTEMPTS = {
+    "youtube": [("youtube-takeout", "dir"), ("youtube-studio-zip", "zip"), ("youtube-studio-csv", "csv")],
+    "instagram": [("instagram-dyi", "dir")],
+    "tiktok": [("tiktok-dyi", "json"), ("tiktok-studio-csv", "csv")],
+    "pinterest": [("pinterest", "json")],
+}
+
+
+def _import_targets(folder, kind):
+    """Resolve the file(s) to feed a parser for this target kind, within the export folder."""
+    import glob as _glob
+    if kind == "dir":
+        return [folder]
+    ext = {"zip": "*.zip", "json": "*.json", "csv": "*.csv"}.get(kind)
+    if not ext:
+        return []
+    # Non-recursive first (fast, typical export layout), then a bounded recursive sweep.
+    found = _glob.glob(os.path.join(folder, ext))
+    found += _glob.glob(os.path.join(folder, "**", ext), recursive=True)
+    # De-dup while preserving order; cap so a huge Takeout does not explode the preview.
+    seen, out = set(), []
+    for f in found:
+        if f not in seen:
+            seen.add(f)
+            out.append(f)
+    return out[:200]
+
+
+def _run_import_parse(fmt, path):
+    """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
+    attempt did not parse (wrong format for this folder, unreadable file). Never raises."""
+    try:
+        r = subprocess.run([sys.executable, str(ROOT / "tools" / "import_parse.py"), fmt, path],
+                           capture_output=True, text=True, timeout=900)
+        if r.returncode != 0:
+            return None
+        recs = json.loads(r.stdout or "[]")
+        return recs if isinstance(recs, list) else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _scan_import_folder(folder, platforms):
+    """Try each selected platform's parser against the folder. Returns (records, notes). Deduplicates
+    by video_key so a folder matched by two formats does not double-count. Nothing is saved here."""
+    records, seen, notes = [], set(), []
+    for plat in platforms:
+        got = 0
+        for fmt, kind in _IMPORT_ATTEMPTS.get(plat, []):
+            targets = _import_targets(folder, kind)
+            for tgt in targets:
+                recs = _run_import_parse(fmt, tgt)
+                if not recs:
+                    continue
+                for rec in recs:
+                    pid = rec.get("platform_video_id")
+                    key = (rec.get("platform"), pid) if pid else json.dumps(rec, sort_keys=True)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    records.append(rec)
+                    got += 1
+        notes.append(f"{plat}: {got} record(s)" if got else f"{plat}: no readable export found in this folder")
+    return records, notes
 
 
 def _run_transcribe(args):
@@ -1738,6 +1830,72 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 "platform's read flag and add your own OAuth credentials to "
                 "pipeline/user-context/api-credentials.local.json. The live importer never fetches "
                 "revenue. Prefer the export files above if you are not sure.")))
+            return
+
+        if path == "/api/run-import":
+            # Item 10: scan an export folder and PREVIEW what parses (no save), then save on approve.
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length).decode("utf-8")
+            parsed = urllib.parse.parse_qs(raw)
+            action = parsed.get("action", ["scan"])[0]
+            folder = (parsed.get("folder", [""])[0]).strip()
+            platforms = parsed.get("platforms", [])
+
+            if action == "approve":
+                batch = _get("import_batch_file")
+                if not batch or not os.path.isfile(batch):
+                    self._send(_screen_import(error="Nothing to approve yet. Scan a folder first."))
+                    return
+                try:
+                    r = subprocess.run(
+                        [sys.executable, str(ROOT / "tools" / "video_library.py"), "upsert-batch", batch],
+                        capture_output=True, text=True, timeout=1800)
+                    out = json.loads(r.stdout or "{}")
+                    n = out.get("upserted", 0)
+                except Exception as exc:  # noqa: BLE001
+                    self._send(_screen_import(error=f"Could not save the library: {exc}"))
+                    return
+                _set(import_count=n)
+                self._send(_screen_import(saved=(
+                    f"Saved <strong>{n}</strong> video record(s) to your local library (nothing left this "
+                    "computer). Next: <a href=\"/doctor\">check transcription</a>, then ask Claude to "
+                    "\"analyze my library\" for most-watched parts, top tags, and retention.")))
+                return
+
+            # action == scan
+            expanded = os.path.expanduser(folder) if folder else ""
+            if not folder or not os.path.isdir(expanded):
+                self._send(_screen_import(folder=folder,
+                    error="Please enter the full path to your unzipped export folder (it was not found)."))
+                return
+            if not platforms:
+                self._send(_screen_import(folder=folder, error="Pick at least one platform to scan for."))
+                return
+            records, notes = _scan_import_folder(expanded, platforms)
+            revenue = sum(1 for r in records if r.get("revenue"))
+            if not records:
+                preview = ('<div class="note" style="background:#fff3e0"><strong>No videos found in that '
+                           'folder.</strong> Make sure you pointed at the <em>unzipped</em> export and picked '
+                           'the right platforms.<ul><li>' + "</li><li>".join(notes) + "</li></ul></div>")
+                self._send(_screen_import(folder=folder, preview_html=preview))
+                return
+            # Stash the parsed records to a temp batch file for the approve step (local; user's data).
+            try:
+                fd, tmp = tempfile.mkstemp(prefix="creator-os-import-", suffix=".json")
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    json.dump(records, fh, ensure_ascii=False)
+                _set(import_batch_file=tmp)
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_import(folder=folder, error=f"Could not prepare the import: {exc}"))
+                return
+            preview = (f'<div class="success-box"><strong>Found {len(records)} video(s)</strong> '
+                       f'({revenue} with revenue). Nothing is saved yet &mdash; review and approve below.'
+                       f'<ul><li>' + "</li><li>".join(notes) + "</li></ul></div>"
+                       '<form method="POST" action="/api/run-import">'
+                       '<input type="hidden" name="action" value="approve">'
+                       '<button class="btn btn-success" type="submit">Approve and save to my library</button>'
+                       "</form>")
+            self._send(_screen_import(folder=folder, preview_html=preview))
             return
 
         if path == "/api/install-deps":
