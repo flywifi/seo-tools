@@ -3,7 +3,7 @@ name: creator-core
 description: routes every request to the right spoke by classifying it into one of three lanes (Content, Document, or Pipeline/CRM) and loading the correct shared engines and protocols. use when any request involves content planning, project building, video or short-form work, SEO, analytics, audience research, competitor analysis, seasonal planning, document creation, brand account management, deal lifecycle, production resourcing, media kit or outreach, or quality checking. do not use to generate the final deliverable; use to classify the situation and hand off to the appropriate spoke.
 ---
 
-_Data freshness: as of 2026-07-12 (Creator OS baseline 1b077299). Live updates come from your own store; see docs/FRESHNESS.md._
+_Data freshness: as of 2026-07-15 (Creator OS baseline 1b077299). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS Hub
 
