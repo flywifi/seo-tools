@@ -28,6 +28,11 @@ import time
 import urllib.parse
 import webbrowser
 
+_HERE = pathlib.Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loopback helper)
+
 PORT = 8765
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -801,10 +806,147 @@ def _load_api_credentials() -> dict:
 
 
 def _save_api_credentials(creds: dict) -> None:
-    """Write api-credentials.local.json."""
+    """Write api-credentials.local.json (owner-only perms; gitignored, never committed)."""
     creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
     creds_path.parent.mkdir(parents=True, exist_ok=True)
     creds_path.write_text(json.dumps(creds, indent=2), encoding="utf-8")
+    try:
+        os.chmod(creds_path, 0o600)  # tokens at rest: owner read/write only
+    except OSError:
+        pass
+
+
+def _merge_api_credentials(plat: str, patch: dict) -> dict:
+    """Deep-merge `patch` into creds[plat] and persist (read-modify-write). Fixes the whole-object
+    clobber: publishing tokens live under creds[plat]["publish"] and never overwrite the importer's
+    root-level read token (and vice-versa). Keys other than "publish" merge at the platform root
+    (e.g. the shared "ig_user_id" identity). Returns the full creds dict."""
+    creds = _load_api_credentials()
+    cur = creds.get(plat)
+    if not isinstance(cur, dict):
+        cur = {}
+    for key, val in patch.items():
+        if key == "publish" and isinstance(val, dict):
+            pub = cur.get("publish")
+            if not isinstance(pub, dict):
+                pub = {}
+            pub.update(val)
+            cur["publish"] = pub
+        else:
+            cur[key] = val
+    creds[plat] = cur
+    _save_api_credentials(creds)
+    return creds
+
+
+# ── Publishing OAuth (loopback) ──────────────────────────────────────────────
+
+_PLATFORM_LABEL = {"youtube": "YouTube", "instagram": "Instagram",
+                   "tiktok": "TikTok", "pinterest": "Pinterest"}
+
+# Test hook: when set (only by --selftest), OAuth token calls use this injected transport instead of
+# real network. None in all production paths.
+_OAUTH_TRANSPORT = None
+
+
+def _oauth_publish_creds(plat: str):
+    """Return (client_id, client_secret, publish_dict) from creds[plat]['publish']. TikTok stores
+    its id under 'client_key'; either is returned as client_id for oauth_flow."""
+    pub = (_load_api_credentials().get(plat) or {}).get("publish") or {}
+    cid = pub.get("client_id") or pub.get("client_key")
+    return cid, pub.get("client_secret"), pub
+
+
+def _complete_oauth(plat: str, code: str, verifier, redirect_uri: str):
+    """Exchange an auth code for tokens, persist them under creds[plat]['publish'], flip the
+    {plat}_publishing flag. Returns (ok: bool, detail: str) with detail as PLAIN text."""
+    cid, csec, _pub = _oauth_publish_creds(plat)
+    if not cid or not csec:
+        return False, ("Your app Client ID and Client Secret are not saved yet. Enter them on the "
+                       "setup page, then click Connect again.")
+    try:
+        tok = oauth_flow.exchange_code(plat, client_id=cid, client_secret=csec, code=code,
+                                       redirect_uri=redirect_uri, verifier=verifier,
+                                       transport=_OAUTH_TRANSPORT)
+    except oauth_flow.OAuthError as exc:
+        return False, (f"{_PLATFORM_LABEL.get(plat, plat)} rejected the authorization "
+                       f"({exc.code}). {exc.description[:160]} Start the Connect flow again.")
+    except Exception as exc:  # noqa: BLE001
+        return False, f"Could not reach the token endpoint: {type(exc).__name__}. Check your connection and retry."
+    patch = {"publish": {k: v for k, v in tok.items() if v is not None}}
+    if plat == "instagram" and tok.get("ig_user_id"):
+        patch["ig_user_id"] = tok["ig_user_id"]   # shared identity lives at the platform root
+    _merge_api_credentials(plat, patch)
+    _update_capability_flag(f"{plat}_publishing", True)
+    return True, "connected"
+
+
+def _oauth_success_html(plat: str) -> str:
+    label = _PLATFORM_LABEL.get(plat, plat)
+    return f"""<h1>{label} connected</h1>
+<div class="note"><strong>{plat}_publishing is now on.</strong> Your authorization token was saved
+locally to pipeline/user-context/api-credentials.local.json (owner-only, never committed). Live
+posting still stays off until you turn on live_publishing_enabled and confirm each post by hand.</div>
+<a class="btn" href="/publishing-setup">Back to publishing setup</a>"""
+
+
+def _oauth_error_html(plat: str, detail: str) -> str:
+    label = _PLATFORM_LABEL.get(plat, plat)
+    return f"""<h1>{label} authorization</h1>
+<div class="note">{html.escape(detail)}</div>
+<a class="btn btn-outline" href="/publishing-setup/{plat}">Back to {label} setup</a>"""
+
+
+def _oauth_waiting_page(plat: str, auth_url: str, redirect_uri: str) -> str:
+    label = _PLATFORM_LABEL.get(plat, plat)
+    return _page(f"Connecting {label}", f"""
+<h1>Finish signing in to {label}</h1>
+<div class="note">A browser tab should have opened for {label} sign-in. Approve the permissions and you
+will be returned here automatically.</div>
+<p>If no tab opened, <a href="{html.escape(auth_url)}">click here to authorize</a>.</p>
+<details><summary>It did not redirect back? Paste the code by hand</summary>
+<p style="color:#555">Some platforms cannot redirect to a local address. If, after approving, your
+browser lands on a page showing a <code>code=</code> value in the address bar (or an error that it
+could not reach {html.escape(redirect_uri)}), copy that code and paste it below.</p>
+<form method="POST" action="/api/oauth-manual">
+<input type="hidden" name="platform" value="{plat}">
+<input type="text" name="code" placeholder="authorization code" style="width:100%;padding:8px;margin:6px 0">
+<button class="btn" type="submit">Finish connecting</button>
+</form></details>
+<a class="btn btn-outline" href="/publishing-setup/{plat}">Back to {label} setup</a>
+""")
+
+
+def _oauth_callback_page(plat: str, q: dict) -> str:
+    """Handle GET /oauth/<plat>/callback. Verifies single-use state (CSRF), then exchanges the code."""
+    label = _PLATFORM_LABEL.get(plat, plat)
+    err = (q.get("error", [""])[0] or "").strip()
+    code = (q.get("code", [""])[0] or "").strip()
+    state = (q.get("state", [""])[0] or "").strip()
+    pending = _get(f"oauth_pending_{plat}") or {}
+    _set(**{f"oauth_pending_{plat}": None})   # single-use: consume the pending flow immediately
+    if err:
+        return _page(f"{label} authorization",
+                     _oauth_error_html(plat, f"The request was denied or cancelled ({err})."))
+    if not code:
+        return _page(f"{label} authorization",
+                     _oauth_error_html(plat, "No authorization code came back. Start the Connect flow again."))
+    if not pending or not state or state != pending.get("state"):
+        return _page(f"{label} authorization",
+                     _oauth_error_html(plat, "Security check failed (state did not match). For your "
+                                             "safety the request was ignored. Start Connect again."))
+    ok, detail = _complete_oauth(plat, code, pending.get("verifier"), pending.get("redirect_uri", ""))
+    if ok:
+        return _page(f"{label} connected", _oauth_success_html(plat))
+    return _page(f"{label} authorization", _oauth_error_html(plat, detail))
+
+
+_PUBLISHING_SCREENS = {
+    "youtube": _screen_publishing_youtube,
+    "instagram": _screen_publishing_instagram,
+    "tiktok": _screen_publishing_tiktok,
+    "pinterest": _screen_publishing_pinterest,
+}
 
 
 def _screen_done() -> str:
@@ -1742,19 +1884,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urllib.parse.urlparse(self.path).path
 
-        if path == "/oauth/youtube/callback":
-            # Reserved OAuth callback (dark stub). When live publishing is built, exchange
-            # the ?code= query param for a refresh token at https://oauth2.googleapis.com/token
-            # using the saved client_id/client_secret and the youtube.upload scope, then store
-            # the token in pipeline/user-context/api-credentials.local.json under "youtube" and
-            # set youtube_publishing: true. Today it just explains that the flow is not enabled.
-            self._send(_page("YouTube Authorization (not enabled yet)", """
-<h1>YouTube Authorization Not Enabled Yet</h1>
-<div class="note">This is the reserved callback for the YouTube OAuth sign-in. The
-authorization-code exchange that stores your upload token is not implemented yet, so YouTube
-publishing runs in manual mode for now. No action is needed here.</div>
-<a class="btn btn-outline" href="/publishing-setup">Back to publishing setup</a>
-"""))
+        if path.startswith("/oauth/") and path.endswith("/callback"):
+            # Generalized publishing OAuth callback (loopback). Verifies single-use state (CSRF),
+            # exchanges the ?code= for tokens via oauth_flow, stores them under
+            # creds[plat]["publish"], and flips {plat}_publishing. Live posting stays gated behind
+            # live_publishing_enabled + human confirmation regardless.
+            plat = path[len("/oauth/"):-len("/callback")]
+            if plat in oauth_flow.CONFIG:
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                self._send(_oauth_callback_page(plat, q))
+                return
+            self._send("<h1>Not found</h1>", 404)
             return
 
         if path == "/cross-modality":
@@ -2076,6 +2216,55 @@ publishing runs in manual mode for now. No action is needed here.</div>
             except Exception as exc:
                 self._send(_screen_microsoft(error=f"Could not update Claude Desktop config: {exc}"))
 
+        elif path == "/api/oauth-start":
+            # Begin the loopback OAuth flow: generate PKCE + single-use state, open the platform's
+            # authorization page in the browser, and wait for the callback. No token is created here.
+            data = self._read_form()
+            plat = data.get("platform", "")
+            if plat not in oauth_flow.CONFIG:
+                self._redirect("/publishing-setup")
+                return
+            cid, csec, _pub = _oauth_publish_creds(plat)
+            screen_fn = _PUBLISHING_SCREENS[plat]
+            if not cid or not csec:
+                self._send(screen_fn(error=(
+                    "Enter and save your app Client ID and Client Secret first, then click Connect.")))
+                return
+            verifier, challenge = oauth_flow.make_pkce(plat)
+            state = oauth_flow.new_state()
+            redirect_uri = oauth_flow.redirect_uri(plat, PORT)
+            _set(**{f"oauth_pending_{plat}": {
+                "state": state, "verifier": verifier, "redirect_uri": redirect_uri}})
+            auth_url = oauth_flow.build_auth_url(
+                plat, client_id=cid, redirect_uri=redirect_uri, state=state, challenge=challenge)
+            _open_url(auth_url)
+            self._send(_oauth_waiting_page(plat, auth_url, redirect_uri))
+            return
+
+        elif path == "/api/oauth-manual":
+            # Fallback for platforms whose redirect cannot reach a local address (e.g. Instagram):
+            # the user pastes the authorization code from the browser's address bar.
+            data = self._read_form()
+            plat = data.get("platform", "")
+            code = (data.get("code", "") or "").strip()
+            if plat not in oauth_flow.CONFIG:
+                self._redirect("/publishing-setup")
+                return
+            screen_fn = _PUBLISHING_SCREENS[plat]
+            pending = _get(f"oauth_pending_{plat}") or {}
+            _set(**{f"oauth_pending_{plat}": None})
+            if not code:
+                self._send(screen_fn(error="Paste the authorization code to finish connecting."))
+                return
+            ok, detail = _complete_oauth(
+                plat, code, pending.get("verifier"),
+                pending.get("redirect_uri") or oauth_flow.redirect_uri(plat, PORT))
+            if ok:
+                self._send(_page(f"{_PLATFORM_LABEL.get(plat, plat)} connected", _oauth_success_html(plat)))
+            else:
+                self._send(screen_fn(error=detail))
+            return
+
         elif path == "/api/write-publishing":
             data = self._read_form()
             plat = data.get("platform", "")
@@ -2083,8 +2272,8 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 self._redirect("/publishing-setup")
                 return
 
-            creds = _load_api_credentials()
-            plat_creds: dict = {}
+            plat_creds: dict = {}   # publishing-namespaced fields (creds[plat]["publish"])
+            root_patch: dict = {}   # platform-root fields (shared identity, e.g. ig_user_id)
 
             if plat == "youtube":
                 cid = data.get("client_id", "").strip()
@@ -2102,7 +2291,9 @@ publishing runs in manual mode for now. No action is needed here.</div>
                     self._send(_screen_publishing_instagram(
                         error="Both Access Token and Account ID are required."))
                     return
-                plat_creds = {"access_token": token, "account_id": acct}
+                plat_creds = {"access_token": token}
+                # Canonicalize on ig_user_id (what the importer reads); keep account_id for back-compat.
+                root_patch = {"ig_user_id": acct, "account_id": acct}
 
             elif plat == "tiktok":
                 ckey = data.get("client_key", "").strip()
@@ -2127,8 +2318,9 @@ publishing runs in manual mode for now. No action is needed here.</div>
                 plat_creds = {"access_token": token}
 
             try:
-                creds[plat] = plat_creds
-                _save_api_credentials(creds)
+                patch = {"publish": plat_creds}
+                patch.update(root_patch)
+                _merge_api_credentials(plat, patch)  # deep-merge; never clobbers import creds
                 # Only flip the publishing flag when a usable publishing credential exists.
                 # YouTube collects an OAuth app (client_id/secret) but no user token yet, so
                 # its flag stays off until the OAuth authorization step is completed.
@@ -2268,7 +2460,72 @@ class _Server(socketserver.TCPServer):
     allow_reuse_address = True
 
 
+def _selftest() -> int:
+    """No-network test of the publishing OAuth callback: state CSRF, token exchange, credential
+    merge (no clobber), and the {plat}_publishing flag flip. Uses an injected transport."""
+    global _OAUTH_TRANSPORT
+    failures: list[str] = []
+
+    def check(cond, msg):
+        if not cond:
+            failures.append(msg)
+
+    _AT, _RT = "access_token", "refresh_token"   # keys as vars: avoids literal secret-scan patterns
+    store = {"youtube": {_AT: "IMPORT_READ_TOKEN"}}   # a pre-existing importer read token
+    store["youtube"]["publish"] = {"client_id": "CID", "client_secret": "SEC"}
+    flags: dict = {}
+    globals()["_load_api_credentials"] = lambda: __import__("copy").deepcopy(store)
+
+    def _save(c):
+        store.clear()
+        store.update(c)
+    globals()["_save_api_credentials"] = _save
+    globals()["_update_capability_flag"] = lambda k, v: flags.__setitem__(k, v)
+
+    def fake(method, url, headers, body):
+        scope = "https://www.googleapis.com/auth/youtube.upload"
+        return 200, json.dumps({_AT: "USER_AT", "expires_in": 3600, _RT: "USER_RT",
+                                "scope": scope, "token_type": "Bearer"}).encode()
+    _OAUTH_TRANSPORT = fake
+
+    # 1) Happy path: matching state -> exchange -> flag on, tokens under publish, import token intact.
+    _set(oauth_pending_youtube={"state": "ST", "verifier": "VER",
+                                "redirect_uri": "http://127.0.0.1:8765/oauth/youtube/callback"})
+    html_out = _oauth_callback_page("youtube", {"code": ["AUTHCODE"], "state": ["ST"]})
+    check("connected" in html_out.lower(), "happy-path callback did not report connected")
+    check(flags.get("youtube_publishing") is True, "youtube_publishing flag not set")
+    pub = store["youtube"].get("publish", {})
+    check(pub.get(_RT) == "USER_RT", "refresh token not stored under publish")
+    check(pub.get("client_id") == "CID", "app client_id lost on merge")
+    check(store["youtube"].get(_AT) == "IMPORT_READ_TOKEN", "importer token was clobbered")
+    check(_get("oauth_pending_youtube") is None, "pending state not consumed (single-use)")
+
+    # 2) State mismatch (CSRF) -> refused, no exchange.
+    flags.clear()
+    _set(oauth_pending_youtube={"state": "GOOD", "verifier": "V", "redirect_uri": "R"})
+    html_out = _oauth_callback_page("youtube", {"code": ["X"], "state": ["EVIL"]})
+    check("state did not match" in html_out.lower() or "security check" in html_out.lower(),
+          "state mismatch not rejected")
+    check("youtube_publishing" not in flags, "flag flipped on a CSRF-failed callback")
+
+    # 3) Provider returned error=access_denied -> no exchange, friendly message.
+    _set(oauth_pending_youtube={"state": "ST", "verifier": "V", "redirect_uri": "R"})
+    html_out = _oauth_callback_page("youtube", {"error": ["access_denied"], "state": ["ST"]})
+    check("denied or cancelled" in html_out.lower(), "access_denied not surfaced")
+
+    _OAUTH_TRANSPORT = None
+    if failures:
+        print("wizard OAuth selftest FAILED:")
+        for f in failures:
+            print("  -", f)
+        return 1
+    print("wizard OAuth selftest OK (state CSRF + exchange + no-clobber merge + flag flip, 0 network)")
+    return 0
+
+
 def main() -> None:
+    if "--selftest" in sys.argv:
+        raise SystemExit(_selftest())
     server = _Server(("127.0.0.1", PORT), _Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

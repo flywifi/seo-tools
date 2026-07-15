@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "allowed": [
     {"host": "googleapis.com", "category": "platform-api", "reason": "YouTube Data/Analytics API + Google OAuth token endpoint (www.googleapis.com, youtubeanalytics.googleapis.com, oauth2.googleapis.com)"},
+    {"host": "google.com", "category": "oauth-endpoint", "reason": "Google OAuth 2.0 authorization endpoint for the publishing loopback flow (accounts.google.com/o/oauth2/v2/auth)"},
+    {"host": "tiktok.com", "category": "oauth-endpoint", "reason": "TikTok Login Kit authorization endpoint for the publishing loopback flow (www.tiktok.com/v2/auth/authorize)"},
     {"host": "youtube.com", "category": "platform-surface", "reason": "YouTube Studio + watch/channel URLs (studio.youtube.com, www.youtube.com)"},
     {"host": "youtu.be", "category": "platform-surface", "reason": "YouTube short-link host used when building a video permalink"},
     {"host": "instagram.com", "category": "platform-api", "reason": "Instagram Graph API + profile surface (graph.instagram.com, www.instagram.com)"},
