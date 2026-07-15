@@ -5,6 +5,22 @@ Live build status for Creator OS. Update at phase boundaries and after a skill s
 P6 through P49 are complete. Drift guard exits 0 (48 invariants; 1 non-blocking advisory note by
 design, see below). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P49: audit remediation across honesty, shareability, provenance, and doc-truth. **WS9 (block is not
+  gone):** `tools/source_currency.py` now classifies a bot-block (403/429/challenge, incl. a 200
+  interstitial) as `blocked` (never `changed`/stale/orphan), records a durable `last_block_detected`,
+  and excludes blocked sources from staleness/SLA; `traversal_engine` orphan-pruning and
+  `dependency_currency`/`update_check` distinguish a rate-limit from an absence; a human/browser
+  verification handoff (paste/upload on every surface, or `--resilient` retry via `fetch_resilient`)
+  and the `web-intel-engine` policy were added. **WS1:** YouTube `categoryId` decoded to a label at
+  import (`canonical-sources/youtube-video-categories.json`). **WS5/6:** a "Source and updates" way-home
+  line in every knowledge stamp + a single combined knowledge pack (`creator-os-combined.md`). **WS8:**
+  `docs/COMPLETENESS-CONTRACT.md` + softened overclaiming GPT Action strings. **WS4:**
+  `docs/PERSONA-AUDIT.md` + `tools/persona_audit.py` harness + first audit + low-risk wizard fixes.
+  Three new invariants took the count 45 -> 48: **46** URL provenance (ERROR, `operational-url-allowlist.json`),
+  **47** knowledge-pack projection staleness (advisory, `projection_manifest.py`), **48** doc-count truth
+  (ERROR, `count_truth.py`). Stale counts corrected (22 spokes, 5 agent roles, 48 invariants). Selftests:
+  source_currency 28/28, video_library 30/30, youtube_import 19/19, freshness_bundle 14/14, projection
+  6/6, persona 5/5; scenarios 9/9.
 - P48: self-update channels + before-a-release fallback. `tools/update_check.py` now falls back, when
   no GitHub release is published, to comparing the installed commit against a tracked branch (one
   read-only GitHub compare call), so the self-update path is no longer inert. Adds a channel model

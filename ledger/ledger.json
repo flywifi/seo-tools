@@ -256,7 +256,14 @@
       "decision": "Added a before-a-release fallback + channel model to the self-update lane. When no GitHub release is published, tools/update_check.py compares the installed commit against a tracked branch (one read-only GitHub compare call) and reports behind_unreleased/current/ahead. A named channel (stable->main, nightly->experimental branch) resolves to a branch via resolve_channel(); tools/update.py pulls the same resolved branch; the wizard /updates screen gained a channel selector writing creator-os-config.local.json.",
       "rationale": "The version 0.1.0 is stamped internally but no release/tag artifact exists yet, so the release-only poll returned no_release and the self-update path was inert. The user asked for a backup based on the most recent branch updates, framed as stable vs nightly channels. Read-only, never-nag, opt-in; reverts to release comparison automatically once a release is cut.",
       "verification": "update_check --selftest 40/40 (every edge case: identical/behind/ahead/diverged/compare-404/no-git/offline/truncated/release-exists, plus classify_compare + resolve_channel units); update_notify --selftest 15/15; wizard renders the selector and _update_config_section merges into .local.json; drift clean at 45 invariants; the GitHub compare-direction inversion (base=local, head=branch: 'ahead' => local behind => behind_unreleased) verified."
+    },
+    {
+      "id": "P49-audit-remediation",
+      "date": "2026-07-15",
+      "decision": "Remediated a full-repo audit across nine workstreams. WS9: a bot-blocked source is now classified 'blocked' (inconclusive), never demoted to stale/changed/gone/orphan; source_currency wires fetch_diag.classify_block, records durable last_block_detected, and excludes blocked sources from staleness/SLA; traversal orphan-pruning and dependency_currency/update_check distinguish a rate-limit from an absence; an all-surface human/browser verification handoff plus an opt-in --resilient retry were added. WS1 decodes YouTube categoryId to a label. WS5/6 add a way-home source URL to every knowledge stamp and a single combined knowledge pack. WS8 adds a completeness-contract doc and softens overclaiming GPT Action strings. WS4 adds a persona-audit protocol + read-only harness + first run + low-risk wizard fixes. Three new drift invariants took the count 45->48: 46 URL provenance (ERROR), 47 knowledge-pack projection staleness (advisory), 48 doc-count truth (ERROR). Stale doc counts corrected (22 spokes, 5 agent roles, 48 invariants).",
+      "rationale": "Match the Teacher OS discipline: known things are declared and the build fails on undeclared ones; outputs stay honest about coverage; a source that gets bot-blocked is not silently discarded; and doc counts cannot drift stale unnoticed.",
+      "verification": "sync_check clean at 48 invariants; scenario_check 9/9; selftests source_currency 28/28, video_library 30/30, youtube_import 19/19, freshness_bundle 14/14, projection 6/6, persona 5/5, dependency 21/21, update_check 40/40; negative tests confirm invariants 46/47/48 fire and clear."
     }
   ],
-  "updated": "2026-07-14"
+  "updated": "2026-07-15"
 }
