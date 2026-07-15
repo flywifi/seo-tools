@@ -711,64 +711,84 @@ def _instagram_form() -> str:
 
 def _screen_publishing_tiktok(error: str = "") -> str:
     creds = _load_api_credentials()
-    if creds.get("tiktok"):
-        return _page("TikTok Connected", """
+    pub = (creds.get("tiktok") or {}).get("publish") or {}
+    has_token = bool(pub.get("access_token") or pub.get("refresh_token"))
+    has_app = bool(pub.get("client_key") and pub.get("client_secret"))
+    err_html = f'<div class="error-box">{html.escape(error)}</div>' if error else ""
+    audit_note = """<div class="note"><strong>What TikTok lets an un-reviewed app do.</strong> Until
+TikTok <em>audits</em> your app for the Content Posting API, every post it makes is forced to
+<strong>private (visible to you only)</strong>, and only a handful of test users can post per day.
+Creator OS reads your allowed privacy levels from TikTok before each post and will refuse a public
+post your app is not cleared for, rather than silently posting it private. Public posting unlocks
+after TikTok approves your app. AI-generated or AI-edited videos are flagged with TikTok's
+<code>is_aigc</code> label automatically.</div>"""
+
+    if has_token:
+        return _page("TikTok Connected", f"""
 <h1><span class="check">&#10003;</span> TikTok Publishing Ready</h1>
-<div class="success-box">TikTok API credentials are configured. Creator OS can publish
-videos via the TikTok Content Posting API.</div>
-<div class="note">TikTok does not support scheduled publishing natively. The Scheduling
-Dashboard handles this with a background scheduler. Keep the dashboard running for
-scheduled posts to dispatch automatically.</div>
+<div class="success-box">TikTok is connected and <code>tiktok_publishing</code> is on. Creator OS can
+upload videos via the Content Posting API (behind the live-publishing switch, with your confirmation).</div>
+{audit_note}
+<div class="note">TikTok has no native scheduled publishing; the Scheduling Dashboard's background
+scheduler dispatches at the scheduled time, so keep it running for scheduled posts.</div>
 <hr>
-""" + _tiktok_form() + """
+{_tiktok_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
-    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if has_app:
+        return _page("TikTok: Authorize", f"""
+<h1>One step left: authorize TikTok</h1>
+<div class="note">Your TikTok app keys are saved. Click Connect to authorize the
+<code>video.publish</code> permission. TikTok tokens last 24 hours but refresh automatically for a
+year, so you should not need to reconnect often.</div>
+{err_html}
+{_oauth_connect_button("tiktok", "Connect TikTok", "#010101")}
+<p style="color:#555;font-size:0.9em">Register this exact redirect URL in your TikTok Login Kit
+settings: <code>{html.escape(oauth_flow.redirect_uri("tiktok", PORT))}</code></p>
+{audit_note}
+<hr>
+{_tiktok_form()}
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
     return _page("TikTok Publishing", f"""
 <h1>Set Up TikTok Publishing</h1>
-<p>Creator OS uses the <strong>TikTok Content Posting API</strong> to upload videos.
-You need a TikTok Developer account with the <code>video.publish</code> scope.</p>
+<p>Creator OS uses the <strong>TikTok Content Posting API</strong> to upload videos. You need a
+TikTok Developer app with the <code>video.publish</code> scope.</p>
 {err_html}
 <ol class="steps">
-  <li>Go to <a href="https://developers.tiktok.com" target="_blank">TikTok for Developers</a>
-      and sign in with your TikTok account.</li>
-  <li>Create a new app. Under <strong>Products</strong>, add
-      <strong>Content Posting API</strong> and <strong>Login Kit</strong>.</li>
-  <li>Set a redirect URI on the app (TikTok requires one). You can use any URL you
-      control, for example <code>https://example.com/callback</code> &mdash; you will
-      generate and paste the access token manually below, so the wizard does not capture
-      this callback.</li>
-  <li>Submit for review. Once approved, copy your <strong>Client Key</strong> and
-      <strong>Client Secret</strong>.</li>
-  <li>Generate a <strong>User Access Token</strong> using the Login Kit OAuth flow
-      with the <code>video.publish</code> scope.</li>
+  <li>Go to <a href="https://developers.tiktok.com" target="_blank">TikTok for Developers</a> and
+      sign in with your TikTok account.</li>
+  <li>Create an app. Under <strong>Products</strong>, add <strong>Content Posting API</strong> and
+      <strong>Login Kit</strong>; request the <code>video.publish</code> scope.</li>
+  <li>In Login Kit, add this redirect URL (TikTok allows localhost):
+      <code>{html.escape(oauth_flow.redirect_uri("tiktok", PORT))}</code></li>
+  <li>Copy your <strong>Client Key</strong> and <strong>Client Secret</strong> below, save, then
+      click <strong>Connect</strong> to authorize. Testing your own account works before the audit.</li>
 </ol>
-<div class="note">TikTok requires app review before you can publish via API. This can
-take 1 to 3 business days. In the meantime, use Manual mode (copy-paste checklists).</div>
+{audit_note}
 <hr>
-""" + _tiktok_form() + """
+{_tiktok_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
 
 def _tiktok_form() -> str:
     return """
-<h2>TikTok API Credentials</h2>
+<h2>TikTok App Credentials</h2>
 <form method="POST" action="/api/write-publishing">
   <input type="hidden" name="platform" value="tiktok">
   <label for="tt_client_key">TikTok Client Key</label>
-  <input type="text" id="tt_client_key" name="client_key"
-         placeholder="aw..." required>
+  <input type="text" id="tt_client_key" name="client_key" placeholder="aw..." required>
   <label for="tt_client_secret">TikTok Client Secret</label>
-  <input type="password" id="tt_client_secret" name="client_secret"
-         placeholder="..." required>
-  <label for="tt_access_token">TikTok Access Token</label>
-  <input type="text" id="tt_access_token" name="access_token"
-         placeholder="act...." required>
+  <input type="password" id="tt_client_secret" name="client_secret" placeholder="..." required>
   <button class="btn btn-primary" type="submit" style="background:#010101">
     Save TikTok Credentials</button>
-</form>"""
+</form>
+<p style="color:#777;font-size:0.85em">After saving, click <strong>Connect</strong> to authorize.
+TikTok access tokens only last 24 hours, so the wizard's Connect flow (which stores a
+long-lived refresh token) is the reliable way to publish.</p>"""
 
 
 def _screen_publishing_pinterest(error: str = "") -> str:
@@ -2356,15 +2376,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 ckey = data.get("client_key", "").strip()
                 csec = data.get("client_secret", "").strip()
                 token = data.get("access_token", "").strip()
-                if not ckey or not csec or not token:
+                if not ckey or not csec:
                     self._send(_screen_publishing_tiktok(
-                        error="Client Key, Client Secret, and Access Token are all required."))
+                        error="Client Key and Client Secret are required. After saving, click Connect "
+                              "to authorize (TikTok tokens last only 24 hours, so Connect is required)."))
                     return
-                plat_creds = {
-                    "client_key": ckey,
-                    "client_secret": csec,
-                    "access_token": token,
-                }
+                plat_creds = {"client_key": ckey, "client_secret": csec}
+                if token:
+                    plat_creds["access_token"] = token   # optional short-lived token
 
             elif plat == "pinterest":
                 cid = data.get("client_id", "").strip()
