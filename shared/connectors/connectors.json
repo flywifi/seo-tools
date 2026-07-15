@@ -338,7 +338,7 @@
         "content_publishing"
       ],
       "privacy_sensitivity": "high",
-      "auth_note": "Write side. OAuth 2.0 with the pins:write and boards:write scopes; write rate limit 100/min. Separate from the read-only pinterest_api flag. Enable by setting pinterest_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
+      "auth_note": "Write side. OAuth 2.0 with the pins:write and boards:read scopes (the wizard Connect flow captures a 30-day auto-refreshing token; a 24h test token also works); write rate limit 100/min. Trial access creates sandbox-only Pins visible to the creator until Standard access is granted. Separate from the read-only pinterest_api flag. Enable by setting pinterest_publishing: true in creator-os-config.local.json. Live network calls are gated behind live_publishing_enabled (tools/publishing/).",
       "requires_capability": "pinterest_publishing",
       "api_reference": "shared/integrations-engine.md",
       "deployment_support": [

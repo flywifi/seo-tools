@@ -704,6 +704,29 @@ and long-form.
 - **No fabricated IDs:** `post_id` and `permalink` are returned by the connector, never
   invented. If the connector returns no ID, `post_id: null`.
 
+### Publishing OAuth (loopback Connect flow, P51)
+
+Tokens are obtained in the setup wizard by a loopback OAuth flow (`tools/oauth_flow.py`); the wizard
+listens at `http://127.0.0.1:8765/oauth/<platform>/callback`, verifies a single-use `state`
+(RFC 6749 §10.12), exchanges the code, and stores the token under `creds[<platform>].publish` so it
+never clobbers the importer's read token. Live clients live in `tools/publishing/` and refresh via
+`oauth_flow.get_valid_access_token`. Per-platform reality (see `docs/PUBLISHING.md`):
+
+- **YouTube** — Google loopback OAuth, `youtube.upload` (PKCE S256 base64url). No website-free
+  Production path: keep the app in Testing, add yourself as a Test user, expect ~7-day re-auth.
+  Resumable upload defaults to `private`; the upload path never touches a monetary/analytics endpoint.
+- **TikTok** — Login Kit OAuth (**PKCE S256 hex**, not base64url; refresh token **rotates** — persist
+  it). Query `creator_info` first and refuse any privacy level the (possibly unaudited) app cannot use,
+  defaulting to `SELF_ONLY`. `FILE_UPLOAD` sends local bytes; `is_aigc` set before upload.
+- **Pinterest** — confidential OAuth (no PKCE, HTTP Basic token auth), fixed registered redirect port.
+  Image Pins upload base64 (no public URL). Trial access = sandbox Pins visible only to the creator.
+- **Instagram** — OAuth then short→long-lived (60-day) token; publish is container→poll→media_publish.
+  Two hard walls surfaced, never faked: media must be at a **public https URL** (no local upload), and
+  a professional account is required (App Review to post for others). Loopback redirect acceptance is
+  unverified, so a manual paste-the-code fallback is offered.
+
+Live network posting stays behind `live_publishing_enabled` (default off) plus human confirmation.
+
 ---
 
 ## Deprecated and discontinued services

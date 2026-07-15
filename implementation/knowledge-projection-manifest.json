@@ -45,7 +45,7 @@
         "shared/docintel-engine.md": "e3f413e2116df01cc6a9e085e6aec60c87df924e1ba6a06614a8902ada409e1c",
         "shared/injection-guard-engine.md": "7b51ff7ce6850f42f558ce94714224582148d80194562c554b73eeb666efeb01",
         "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
-        "shared/integrations-engine.md": "5b88740220826638a951c3df976d86a0bf591654a627f4d5e9d6e0e690d12f1e",
+        "shared/integrations-engine.md": "bf9356869a22a0c7e3124b2ba1354d81ec88052e3e2af6e03712f88ad721c1f4",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
         "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
@@ -110,7 +110,7 @@
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
         "shared/docintel-engine.md": "e3f413e2116df01cc6a9e085e6aec60c87df924e1ba6a06614a8902ada409e1c",
         "shared/injection-guard-engine.md": "7b51ff7ce6850f42f558ce94714224582148d80194562c554b73eeb666efeb01",
-        "shared/integrations-engine.md": "5b88740220826638a951c3df976d86a0bf591654a627f4d5e9d6e0e690d12f1e",
+        "shared/integrations-engine.md": "bf9356869a22a0c7e3124b2ba1354d81ec88052e3e2af6e03712f88ad721c1f4",
         "shared/method.md": "184403054c06eaafc9e2a17812e53e793fc7e0b4337b1fc91c14edab1a6cb539",
         "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
         "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",

@@ -117,7 +117,15 @@ def check(
     # AIGC flag applies only to TikTok (TikTok Content Posting API is_aigc).
     aigc_flag_set = bool(is_aigc) and plat == "tiktok"
 
-    has_credentials = bool(isinstance(credentials, dict) and credentials.get(plat))
+    # A usable publishing credential means a token exists -- under the publish namespace
+    # (creds[plat]["publish"], written by the wizard's Connect flow) or, for back-compat, at the
+    # platform root. Merely having imported read creds under creds[plat] does not count.
+    plat_creds = credentials.get(plat) if isinstance(credentials, dict) else None
+    pub_creds = plat_creds.get("publish") if isinstance(plat_creds, dict) else None
+    has_credentials = bool(
+        (isinstance(pub_creds, dict) and (pub_creds.get("access_token") or pub_creds.get("refresh_token")))
+        or (isinstance(plat_creds, dict) and (plat_creds.get("access_token") or plat_creds.get("refresh_token")))
+    )
 
     ok = True
     error = None
