@@ -656,57 +656,90 @@ def _youtube_form() -> str:
 
 def _screen_publishing_instagram(error: str = "") -> str:
     creds = _load_api_credentials()
-    if creds.get("instagram"):
-        return _page("Instagram Connected", """
+    ig = creds.get("instagram") or {}
+    pub = ig.get("publish") or {}
+    has_token = bool(pub.get("access_token") or pub.get("refresh_token"))
+    has_app = bool(pub.get("client_id") and pub.get("client_secret"))
+    err_html = f'<div class="error-box">{html.escape(error)}</div>' if error else ""
+    reality_note = """<div class="note"><strong>Two things Instagram requires that surprise people.</strong>
+<br>1) You need a <strong>professional</strong> (Business or Creator) Instagram account. Publishing on
+behalf of <em>other</em> people's accounts also needs Meta App Review; posting to your own works in
+your app's Development mode.
+<br>2) Instagram <strong>fetches your media from a public web address</strong> at post time. It cannot
+upload a file from your computer. So a post needs a public image or video URL. Creator OS will say so
+plainly and let you post by hand when a public URL is not available, rather than pretending it
+uploaded.</div>"""
+    loopback_note = f"""<p style="color:#555;font-size:0.9em">Redirect URL to register in your Meta app:
+<code>{html.escape(oauth_flow.redirect_uri("instagram", PORT))}</code>. If Meta rejects a local address,
+use Connect anyway and, on the page that opens, paste the <code>code</code> from your browser's address
+bar into the "paste the code by hand" box.</p>"""
+
+    if has_token:
+        return _page("Instagram Connected", f"""
 <h1><span class="check">&#10003;</span> Instagram Publishing Ready</h1>
-<div class="success-box">Instagram API credentials are configured. Creator OS can publish
-Reels and posts via the Instagram Graph API.</div>
+<div class="success-box">Instagram is connected and <code>instagram_publishing</code> is on. Creator OS
+can publish Reels and image posts via the Instagram Platform API (behind the live-publishing switch,
+with your confirmation, and from a public media URL).</div>
+{reality_note}
 <hr>
-""" + _instagram_form() + """
+{_instagram_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
-    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if has_app:
+        return _page("Instagram: Authorize", f"""
+<h1>One step left: authorize Instagram</h1>
+<div class="note">Your Instagram app keys are saved. Click Connect to sign in and grant the
+content-publishing permission. This returns a long-lived (about 60-day) token.</div>
+{err_html}
+{_oauth_connect_button("instagram", "Connect Instagram", "#e1306c")}
+{loopback_note}
+{reality_note}
+<hr>
+{_instagram_form()}
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
     return _page("Instagram Publishing", f"""
 <h1>Set Up Instagram Publishing</h1>
-<p>Creator OS uses the <strong>Instagram Graph API</strong> (v25.0) to publish Reels and posts.
-You need a Meta Developer App with Content Publishing API access.</p>
+<p>Creator OS uses the <strong>Instagram Platform</strong> content publishing API. You need a Meta
+app and a professional Instagram account.</p>
 {err_html}
 <ol class="steps">
-  <li>Go to <a href="https://developers.facebook.com" target="_blank">Meta for Developers</a>
-      and create an app (type: <strong>Business</strong>).</li>
-  <li>Under <strong>Add Products</strong>, add <strong>Instagram Graph API</strong>.</li>
-  <li>In <strong>App Review</strong>, request the <code>instagram_content_publish</code>
-      and <code>instagram_business_basic</code> permissions.</li>
-  <li>Link your Instagram Business or Creator account to a Facebook Page
-      in the app dashboard.</li>
-  <li>Generate a long-lived <strong>User Access Token</strong> with content publishing scope.</li>
-  <li>Find your <strong>Instagram Business Account ID</strong> from the API Explorer:
-      <code>GET /me/accounts</code> &rarr; get page ID &rarr;
-      <code>GET /{{page-id}}?fields=instagram_business_account</code></li>
+  <li>Go to <a href="https://developers.facebook.com" target="_blank">Meta for Developers</a> and
+      create an app; add the <strong>Instagram</strong> product (API with Instagram Login).</li>
+  <li>Request the <code>instagram_business_basic</code> and
+      <code>instagram_business_content_publish</code> permissions.</li>
+  <li>Add the redirect URL above under <strong>Valid OAuth Redirect URIs</strong>.</li>
+  <li>Copy your <strong>Instagram App ID</strong> and <strong>App Secret</strong> below, save, then
+      click <strong>Connect</strong>. Your account id is captured automatically during sign-in.</li>
 </ol>
-<div class="note">Instagram requires a Business or Creator account linked to a Facebook Page.
-Personal accounts cannot use the publishing API.</div>
+{reality_note}
+{loopback_note}
 <hr>
-""" + _instagram_form() + """
+{_instagram_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
 
 def _instagram_form() -> str:
     return """
-<h2>Instagram API Credentials</h2>
+<h2>Instagram App Credentials</h2>
 <form method="POST" action="/api/write-publishing">
   <input type="hidden" name="platform" value="instagram">
-  <label for="ig_access_token">Instagram Access Token</label>
-  <input type="text" id="ig_access_token" name="access_token"
-         placeholder="EAAx..." required>
-  <label for="ig_account_id">Instagram Business Account ID</label>
-  <input type="text" id="ig_account_id" name="account_id"
-         placeholder="17841400..." required>
+  <label for="ig_client_id">Instagram App ID (Client ID) &mdash; for the Connect flow</label>
+  <input type="text" id="ig_client_id" name="client_id" placeholder="1234567890">
+  <label for="ig_client_secret">Instagram App Secret</label>
+  <input type="password" id="ig_client_secret" name="client_secret" placeholder="app secret">
+  <label for="ig_account_id">Instagram account id (ig_user_id) &mdash; optional if you use Connect</label>
+  <input type="text" id="ig_account_id" name="account_id" placeholder="17841400...">
+  <label for="ig_access_token">Or paste a long-lived Access Token (with the account id above)</label>
+  <input type="text" id="ig_access_token" name="access_token" placeholder="IGAA...">
   <button class="btn btn-primary" type="submit" style="background:#e1306c">
     Save Instagram Credentials</button>
-</form>"""
+</form>
+<p style="color:#777;font-size:0.85em">Use App ID + Secret with Connect (recommended), or paste a
+long-lived token together with your account id. You do not need both.</p>"""
 
 
 def _screen_publishing_tiktok(error: str = "") -> str:
@@ -2362,15 +2395,29 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 plat_creds = {"client_id": cid, "client_secret": csec}
 
             elif plat == "instagram":
+                cid = data.get("client_id", "").strip()
+                csec = data.get("client_secret", "").strip()
                 token = data.get("access_token", "").strip()
-                acct = data.get("account_id", "").strip()
-                if not token or not acct:
+                acct = data.get("account_id", "").strip() or data.get("ig_user_id", "").strip()
+                if cid and csec:
+                    # OAuth app path: the account id is captured during Connect, so it is optional here.
+                    plat_creds = {"client_id": cid, "client_secret": csec}
+                    if token:
+                        plat_creds["access_token"] = token
+                elif token:
+                    if not acct:
+                        self._send(_screen_publishing_instagram(
+                            error="When pasting a token, the Instagram account id (ig_user_id) is required."))
+                        return
+                    plat_creds = {"access_token": token}
+                else:
                     self._send(_screen_publishing_instagram(
-                        error="Both Access Token and Account ID are required."))
+                        error="Enter your App ID + Secret (to use Connect), or paste an access token "
+                              "with your account id."))
                     return
-                plat_creds = {"access_token": token}
-                # Canonicalize on ig_user_id (what the importer reads); keep account_id for back-compat.
-                root_patch = {"ig_user_id": acct, "account_id": acct}
+                # Canonicalize on ig_user_id (what the importer + publisher read); keep account_id too.
+                if acct:
+                    root_patch = {"ig_user_id": acct, "account_id": acct}
 
             elif plat == "tiktok":
                 ckey = data.get("client_key", "").strip()
