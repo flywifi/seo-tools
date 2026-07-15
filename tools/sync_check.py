@@ -90,6 +90,8 @@ Invariants enforced:
       freshness baseline as_of are surfaced (the digest excludes content).
   46. URL provenance (P49 WS3): every http(s) literal in tools/**/*.py resolves to a source-registry
       host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host.
+  47. Knowledge-pack projection staleness (P49 WS7, advisory): when a shared engine/protocol a knowledge
+      file projects changes sha since the projection manifest was reconciled, the file is surfaced.
 """
 import json
 import os
@@ -1704,6 +1706,31 @@ def check_url_provenance():
                     f"with a reason), or it is a genuine placeholder that the exclusion rules should cover")
 
 
+def check_projection_staleness():
+    """Invariant 47 (advisory): knowledge-pack projection staleness (P49 WS7). The hand-authored
+    Claude/GPT/Gemini knowledge files project the shared/*.md engines and protocols/*.md. This advisory
+    recomputes each source engine's sha256 and, when one has moved since the projection manifest was last
+    reconciled, surfaces the projection files that may now lag their source (a staleness signal, not a
+    prose diff). Non-blocking: refresh the projection and run `tools/projection_manifest.py reconcile`."""
+    try:
+        import projection_manifest as pm
+    except Exception as exc:  # noqa: BLE001
+        advisory(f"projection-staleness: projection_manifest unimportable: {exc}")
+        return
+    for e in pm.check(ROOT):
+        note = e.get("note")
+        if note:
+            advisory(f"projection-staleness: {note}")
+            continue
+        changed = ", ".join(e.get("changed_sources", [])) or "-"
+        missing = e.get("missing_sources", [])
+        msg = (f"projection-staleness: {e.get('knowledge_file')} may be stale; source(s) changed since "
+               f"reconcile: {changed}")
+        if missing:
+            msg += f"; missing source(s): {', '.join(missing)}"
+        advisory(msg + " (refresh the projection, then run tools/projection_manifest.py reconcile)")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1830,6 +1857,7 @@ def main():
     check_degraded_orphans()
     check_content_vs_digest()
     check_url_provenance()
+    check_projection_staleness()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
