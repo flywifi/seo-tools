@@ -627,9 +627,14 @@ project with the YouTube Data API enabled, then you authorize your own channel.<
 
 
 def _youtube_connect_button(label: str = "Connect YouTube (authorize upload)") -> str:
+    return _oauth_connect_button("youtube", label, "#ff0000")
+
+
+def _oauth_connect_button(plat: str, label: str, color: str = "#111") -> str:
+    """A 'Connect' button that kicks off the loopback OAuth flow for one platform."""
     return f"""<form method="POST" action="/api/oauth-start" style="margin:12px 0">
-  <input type="hidden" name="platform" value="youtube">
-  <button class="btn btn-primary" type="submit" style="background:#ff0000">{label}</button>
+  <input type="hidden" name="platform" value="{plat}">
+  <button class="btn btn-primary" type="submit" style="background:{color}">{label}</button>
 </form>"""
 
 
@@ -768,50 +773,82 @@ def _tiktok_form() -> str:
 
 def _screen_publishing_pinterest(error: str = "") -> str:
     creds = _load_api_credentials()
-    if creds.get("pinterest"):
-        return _page("Pinterest Connected", """
+    pub = (creds.get("pinterest") or {}).get("publish") or {}
+    has_token = bool(pub.get("access_token") or pub.get("refresh_token"))
+    has_app = bool(pub.get("client_id") and pub.get("client_secret"))
+    err_html = f'<div class="error-box">{html.escape(error)}</div>' if error else ""
+    sandbox_note = """<div class="note"><strong>What Pinterest lets a new app do.</strong> With
+<strong>Trial</strong> access (the default for a new app), the Pins you create are
+<strong>sandbox Pins visible only to you</strong>. To make Pins publicly visible you must apply for
+<strong>Standard</strong> access, which requires recording a short video demo of your app's real
+Pinterest integration for Pinterest to review. Creator OS creates the Pin the same way either way;
+this is Pinterest's rule, stated up front so it is not a surprise.</div>"""
+
+    if has_token:
+        return _page("Pinterest Connected", f"""
 <h1><span class="check">&#10003;</span> Pinterest Publishing Ready</h1>
-<div class="success-box">Pinterest API credentials are configured. Creator OS can create
-pins and video pins via the Pinterest API v5.</div>
+<div class="success-box">Pinterest is connected and <code>pinterest_publishing</code> is on. Creator
+OS can create image Pins via the API v5 (behind the live-publishing switch, with your confirmation).</div>
+{sandbox_note}
 <hr>
-""" + _pinterest_form() + """
+{_pinterest_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
-    err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if has_app:
+        return _page("Pinterest: Authorize", f"""
+<h1>One step left: authorize Pinterest</h1>
+<div class="note">Your Pinterest app keys are saved. Click Connect to authorize the
+<code>pins:write</code> permission. This gives you a durable token (about 30 days, auto-refreshing).</div>
+{err_html}
+{_oauth_connect_button("pinterest", "Connect Pinterest", "#e60023")}
+<p style="color:#555;font-size:0.9em">Register this exact redirect URL in your Pinterest app:
+<code>{html.escape(oauth_flow.redirect_uri("pinterest", PORT))}</code></p>
+{sandbox_note}
+<hr>
+{_pinterest_form()}
+<a class="btn btn-outline" href="/publishing-setup">Back</a>
+""", dots=["done", "done", "done", "active"])
+
     return _page("Pinterest Publishing", f"""
 <h1>Set Up Pinterest Publishing</h1>
-<p>Creator OS uses the <strong>Pinterest API v5</strong> to create pins.
-You need a Pinterest Business account and a developer app.</p>
+<p>Creator OS uses the <strong>Pinterest API v5</strong> to create Pins. You need a Pinterest
+Business account and a developer app. Two ways to connect:</p>
 {err_html}
 <ol class="steps">
-  <li>Convert your Pinterest account to a
-      <a href="https://www.pinterest.com/business/create/" target="_blank">Business account</a>
-      (free).</li>
-  <li>Go to <a href="https://developers.pinterest.com" target="_blank">Pinterest Developers</a>
-      and create a new app.</li>
-  <li>Request the <code>pins:write</code> and <code>boards:write</code> scopes.</li>
-  <li>Generate an <strong>Access Token</strong> via the OAuth flow.</li>
+  <li>Convert your account to a
+      <a href="https://www.pinterest.com/business/create/" target="_blank">Business account</a> (free).</li>
+  <li>Go to <a href="https://developers.pinterest.com" target="_blank">Pinterest Developers</a> and
+      create an app; request the <code>pins:write</code> and <code>boards:read</code> scopes.</li>
+  <li><strong>Durable way:</strong> paste your app's <strong>Client ID + Secret</strong> below and
+      click Connect (30-day token that auto-refreshes). Register the redirect URL
+      <code>{html.escape(oauth_flow.redirect_uri("pinterest", PORT))}</code> in your app first.</li>
+  <li><strong>Quick trial:</strong> generate a <strong>24-hour test token</strong> in your app
+      dashboard and paste it below instead (handy for a one-off test; it expires the next day).</li>
 </ol>
-<div class="note">Pinterest developer apps start in sandbox mode. You can create pins
-immediately; they will be visible only to you until the app is approved for production.</div>
+{sandbox_note}
 <hr>
-""" + _pinterest_form() + """
+{_pinterest_form()}
 <a class="btn btn-outline" href="/publishing-setup">Back</a>
 """, dots=["done", "done", "done", "active"])
 
 
 def _pinterest_form() -> str:
     return """
-<h2>Pinterest API Credentials</h2>
+<h2>Pinterest App Credentials</h2>
 <form method="POST" action="/api/write-publishing">
   <input type="hidden" name="platform" value="pinterest">
-  <label for="pin_access_token">Pinterest Access Token</label>
-  <input type="text" id="pin_access_token" name="access_token"
-         placeholder="pina_..." required>
+  <label for="pin_client_id">App ID (Client ID) &mdash; for the durable Connect flow</label>
+  <input type="text" id="pin_client_id" name="client_id" placeholder="1234567">
+  <label for="pin_client_secret">App Secret (Client Secret)</label>
+  <input type="password" id="pin_client_secret" name="client_secret" placeholder="pinterest app secret">
+  <label for="pin_access_token">Or paste a 24-hour Access Token (quick trial)</label>
+  <input type="text" id="pin_access_token" name="access_token" placeholder="pina_...">
   <button class="btn btn-primary" type="submit" style="background:#e60023">
     Save Pinterest Credentials</button>
-</form>"""
+</form>
+<p style="color:#777;font-size:0.85em">Enter your App ID + Secret to use Connect, or paste a
+24-hour token for a quick one-off. You do not need both.</p>"""
 
 
 def _load_api_credentials() -> dict:
@@ -2330,12 +2367,19 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 }
 
             elif plat == "pinterest":
+                cid = data.get("client_id", "").strip()
+                csec = data.get("client_secret", "").strip()
                 token = data.get("access_token", "").strip()
-                if not token:
+                if cid and csec:
+                    plat_creds = {"client_id": cid, "client_secret": csec}
+                    if token:
+                        plat_creds["access_token"] = token   # optional 24h test token
+                elif token:
+                    plat_creds = {"access_token": token}
+                else:
                     self._send(_screen_publishing_pinterest(
-                        error="Access Token is required."))
+                        error="Enter your App ID + Secret (to use Connect), or paste a 24-hour test token."))
                     return
-                plat_creds = {"access_token": token}
 
             try:
                 patch = {"publish": plat_creds}
