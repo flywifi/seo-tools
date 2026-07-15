@@ -583,6 +583,23 @@ def _http_get_content(url, etag=None, last_modified=None, timeout=12):
                 "cache_control": None, "error": f"{type(exc).__name__}: {str(exc)[:140]}"}
 
 
+def _resilient_fetch(url):
+    """P49 WS9 opt-in: retry a blocked URL through tools/fetch_resilient.py (browser headers ->
+    real browser -> archive.org), mapped to the _http_get_content response shape. Returns None if
+    fetch_resilient (or its optional deps) is unavailable, so routine currency never depends on it."""
+    try:
+        import fetch_resilient as _fr
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        r = _fr.resilient_get(url, delay=0)
+    except Exception:  # noqa: BLE001
+        return None
+    return {"status": r.get("status"), "body": r.get("content") or b"", "headers": {},
+            "etag": None, "last_modified": None, "cache_control": None,
+            "error": None if r.get("ok") else r.get("note")}
+
+
 def _resp_block(resp):
     """Run the anti-bot classifier over a fetch response (P49 WS9). Decodes the body defensively."""
     body = resp.get("body")
@@ -621,7 +638,7 @@ def classify_content_change(entry, resp):
     return ("unchanged" if new_sha == prior else "changed"), new_sha
 
 
-def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_content):
+def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_content, resilient_getter=None):
     """Fetch each web-content source, detect change by sha256, and (with --apply) stamp last_checked
     token-free. Changed pages are flagged and queued for the user to interpret. With --overlay PATH,
     stamps are written to the USER'S OWN overlay store (never the repo registry, never GitHub); the
@@ -646,6 +663,14 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
     for e in detectable:
         resp = getter(e.get("url"), e.get("content_etag"), e.get("content_last_modified"))
         status, new_sha = classify_content_change(e, resp)
+        if status == "blocked" and getattr(args, "resilient", False):
+            # Opt-in: try to defeat the block (browser render / Wayback) before recording it.
+            rget = resilient_getter or _resilient_fetch
+            rr = rget(e.get("url"))
+            if rr:
+                rstatus, rsha = classify_content_change(e, rr)
+                if rstatus != "blocked":  # recovered -> treat as a normal result
+                    status, new_sha, resp = rstatus, rsha, rr
         buckets[status].append(e["id"])
         if status == "changed":
             changed_queue.append({
@@ -838,6 +863,30 @@ def selftest_detect():
     finally:
         globals()["save_registry"] = _saved_writer
 
+    # P49 WS9 --resilient: a source blocked on the primary getter recovers via the resilient retry.
+    class RArgs:
+        category = None
+        only = None
+        apply = False
+        resilient = True
+    rreg = {"sources": [{"id": "r1", "url": "https://x.example/r", "category": "seo-authority",
+                         "used_by": []}]}
+
+    def block_get(url, etag=None, last_modified=None):
+        return {"status": 403, "body": b"<html>cf</html>", "headers": {"cf-ray": "y"},
+                "etag": None, "last_modified": None, "error": None}
+
+    def resil_get(url):
+        return {"status": 200, "body": b"recovered content", "headers": {}, "etag": None,
+                "last_modified": None, "error": None}
+    rbuf = _io2.StringIO()
+    with _cl2.redirect_stdout(rbuf):
+        cmd_detect_changes(RArgs(), rreg, {}, getter=block_get, resilient_getter=resil_get)
+    rout = json.loads(rbuf.getvalue())
+    ok("--resilient recovers a blocked source (not counted blocked)", rout["summary"]["blocked"] == 0)
+    ok("--resilient recovery lands in a real bucket", rout["summary"]["first_seen"] == 1)
+    ok("--resilient recovery needs no human verification", rout["needs_human_verification"] == [])
+
     # end-to-end with an injected getter and a fake registry; apply=False must not write
     class Args:
         category = None
@@ -894,6 +943,9 @@ def main():
     p_check.add_argument("--apply", action="store_true",
                          help="(with --detect-changes) stamp freshness; writes to --overlay if given, else the working-copy registry")
     p_check.add_argument("--only", metavar="ID", help="Restrict --detect-changes to one source id")
+    p_check.add_argument("--resilient", action="store_true",
+                         help="(with --detect-changes) on a bot-block, retry once via tools/fetch_resilient.py "
+                              "(browser render + archive.org) before recording it blocked; opt-in, may use network")
 
     p_dash = sub.add_parser("dashboard", help="Render your personal Currency Dashboard (local view; never sent)")
     p_dash.add_argument("--category", help="Filter by category")

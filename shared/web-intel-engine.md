@@ -75,10 +75,16 @@ Polite crawl rules:
 - Accept headers should match what a real browser sends.
 - Maximum 10 pages per domain per spoke invocation.
 
-Hard stops at Level 3 (do not attempt Levels 4 or 5 for these):
-- CAPTCHA detected: record as `UNSUPPORTED`, surface to user, stop for this source.
-- All relevant paths record as `UNSUPPORTED`, move to Level 5 (user-provided).
-- Consistent 403 or 401 responses: record as `PERMISSION`, do not retry with more aggressive techniques.
+Block handling at Level 3 (a block is INCONCLUSIVE, not evidence the source is gone, changed, or stale):
+- A 403/401/406/451, a 429/503 throttle, or a detected anti-bot vendor/CAPTCHA means the bot was
+  refused, not that the resource disappeared. Record it as `blocked` (kind: `challenge`/`ip_block`/
+  `rate_limit`/`captcha` via `tools/fetch_diag.py::classify_block`) with a durable block marker, and
+  NEVER stamp the source stale, flag it "changed", or make it orphan-eligible on the strength of a block.
+- Escalate, do not stop: a plain `ip_block` or `rate_limit` may pass at Level 4 (user-agent rotation) or
+  via the real-browser render / archive.org prongs in `tools/fetch_resilient.py`; a CAPTCHA/managed
+  challenge will not yield to UA rotation, so skip Level 4 for those and go straight to Level 5.
+- If Levels 4 and the resilient prongs still fail, route to the Level 5 human handoff below. Only a
+  genuine `404`/`410` (no anti-bot signature) is treated as absent/unreachable.
 
 ### Level 4: user-agent rotation HTTP
 
@@ -181,7 +187,7 @@ Use BYPASSED circuit state when a level is intentionally skipped because a highe
 | Competitor channel data | 7 days |
 | Media kit or rate card content | 30 days |
 
-Data retrieved beyond these thresholds should be recorded with `ingestion_status` unchanged but with a freshness_note in the source_artifact. Do not treat stale as unavailable.
+Data retrieved beyond these thresholds should be recorded with `ingestion_status` unchanged but with a freshness_note in the source_artifact. Do not treat stale as unavailable. **A block is not evidence a source is gone, changed, or stale:** a bot-blocked-but-valid source keeps its last-known-good value and its freshness clock paused (it is reported as `blocked`, never demoted to stale/SLA-error/orphan) until a resilient retry or a human/browser verification resolves it.
 
 ## Ecosystem hardening
 

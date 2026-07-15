@@ -122,3 +122,29 @@ Detection and correction of currency/versioning/push drift, all diagnose-only (n
   `requirements-mcp.txt` capping `mcp` below the breaking 2.x on PyPI), and
   `canonical-sources/eu-ai-act-seed.json` (the one genuinely new source, staged not applied). Nothing
   here is applied by committing it; each entry names the human command that would apply it.
+
+## Blocked is not gone (P49 WS9)
+
+A fetch that an automated check receives as a 403/401/406/451, a 429/503 throttle, or a
+Cloudflare/CAPTCHA/DataDome challenge (even one served at HTTP 200) is bot-detection or a rate-limit,
+**not** evidence the source disappeared. `source_currency.py --detect-changes` runs
+`tools/fetch_diag.py::classify_block` over every response and classifies such a result as **`blocked`**,
+distinct from `unreachable`:
+
+- A `blocked` source is **never** stamped stale, **never** flagged `changed` (a 200 challenge page is
+  not hashed as content), and **never** made orphan-eligible. It keeps its last-known-good `content_sha256`
+  and records a durable `last_block_detected` / `block_kind` / `block_vendor` on the entry.
+- `compute_staleness` and the freshness SLA **skip** currently-blocked sources (they appear under a
+  `blocked` count, not `stale`/`error`); `traversal_engine prune-orphans` excludes them. A later
+  successful check clears the block automatically.
+- Only a genuine `404`/`410` (no anti-bot signature) is treated as `unreachable` (gone).
+- A GitHub/PyPI **403 rate-limit** in `dependency_currency.py` / `update_check.py` is reported as
+  `blocked` with a "set `GITHUB_TOKEN` and retry" hint, never conflated with "no upstream" / "no release".
+
+**Resolving a block (all surfaces).** Each blocked source is surfaced in `needs_human_verification` with
+a handoff that works everywhere: open the URL in a browser and paste the text (or upload a screenshot) —
+the always-available `manual_paste` / `uploaded_file` connectors carry this on claude.ai web, ChatGPT
+web, and Gemini as well as desktop — gated by `docs/PASTE-SAFETY.md`. Local-runtime users can instead run
+`python3 tools/fetch_resilient.py <url>` (browser render + archive.org), or pass `--resilient` to
+`--detect-changes` to attempt that retry automatically before recording a block (opt-in; may use network;
+degrades silently if the optional deps are absent). See `shared/web-intel-engine.md` Levels 3 to 6.
