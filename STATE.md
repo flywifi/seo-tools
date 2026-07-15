@@ -2,9 +2,27 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P50 are complete. Drift guard exits 0 (48 invariants; 1 non-blocking advisory note by
-design, see below). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P51 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P51: real publishing OAuth + live upload (persona-audit stumbles 8, 9) and a native folder picker
+  (10). **Shared OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
+  from research (PKCE base64url for Google, **hex** for TikTok, none for Pinterest/Instagram; Basic vs
+  body client auth; TikTok refresh-token rotation). Generalized wizard callback `/oauth/<platform>/
+  callback` with single-use `state` CSRF + `/api/oauth-start` + a manual paste-the-code fallback.
+  **Credential clobber fixed:** `_merge_api_credentials` deep-merges; publishing tokens live under
+  `creds[plat].publish` and never overwrite importer read tokens; Instagram `ig_user_id` canonicalized
+  at the root. **Live clients** (all gated behind `live_publishing_enabled`, default off, + human
+  confirm; all built on an injected transport with no-network selftests): YouTube resumable upload
+  (default-private, upload-only, no monetary endpoint); Pinterest base64 image Pin (no public URL);
+  TikTok creator_info→init→chunked FILE_UPLOAD→status (SELF_ONLY default, refuses unaudited public,
+  `is_aigc`); Instagram container→poll→media_publish (surfaces the public-URL wall + professional-
+  account requirement honestly, never faking a local upload). All four setup screens rewritten with a
+  Connect button + each platform's real wall stated. **Native folder picker** (`tools/pick_folder.py`):
+  tkinter-in-subprocess with osascript/PowerShell-STA/zenity/kdialog fallbacks + headless degrade; a
+  Browse button + `/api/pick-folder` on the import and storage-folder screens; text field stays the
+  floor. Compliance `has_credentials` tightened to the publish namespace. `docs/PUBLISHING.md` +
+  integrations-engine section + live-account verification checklist. New selftests: oauth_flow,
+  publishing/{youtube,pinterest,tiktok,instagram}, pick_folder, wizard OAuth callback.
 - P50: wizard onboarding remediation for the persona-audit structural stumbles 5, 6, 7, 10, 11.
   **No-terminal launch (5):** double-click `Start Creator OS Setup.command`/`.bat` at repo root
   (the `.command` carries the executable bit) + a `launch_setup` MCP tool. **First-screen IA (6):**
