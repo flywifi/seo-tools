@@ -175,6 +175,13 @@ def check_entries(entries, offline=False, getter=_http_get_json):
         res = classify_drift(e, latest, ldate)
         if err:
             res["fetch_error"] = err
+            # P49 WS9: a rate-limit/block on a REAL upstream is not "no upstream" -- drift is UNKNOWN,
+            # not current. Distinguish it so a GitHub 403 isn't read as an absent/binary source.
+            if e.get("upstream_api") in ("pypi", "github_releases") and \
+                    any(tok in err for tok in ("403", "429", "rate limit", "RateLimit", "rate_limit")):
+                res["blocked"] = True
+                res["note"] = ("upstream fetch was rate-limited or blocked (NOT absent); set GITHUB_TOKEN "
+                               "and retry, or check the URL by hand. Version drift is unknown, not current.")
         res["url"] = e.get("check_url") or e.get("url")
         res["used_by"] = e.get("used_by", [])
         results.append(res)

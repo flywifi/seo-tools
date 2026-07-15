@@ -387,9 +387,13 @@ def cmd_prune_orphans(registry: dict, config: dict) -> None:
             except ValueError:
                 pass
 
+        # P49 WS9: a blocked source (robots/bot-block) is inconclusive, not gone -- it must NOT be
+        # orphan-eligible just because the crawler could not verify it. Only deliberately-skipped,
+        # unused, long-unchecked sources are orphan candidates; a durable fetch-block also protects it.
         is_orphan = (
             not used_by
-            and traversal_status in ("skipped", "blocked")
+            and traversal_status == "skipped"
+            and not source.get("last_block_detected")
             and (days_since_check is None or days_since_check > 180)
         )
 
@@ -405,7 +409,7 @@ def cmd_prune_orphans(registry: dict, config: dict) -> None:
                 "traversal_status": traversal_status,
                 "last_checked": last_checked,
                 "days_since_check": days_since_check,
-                "reason": "no used_by entries, traversal blocked or skipped, checked more than 180 days ago"
+                "reason": "no used_by entries, traversal deliberately skipped (not blocked), checked more than 180 days ago"
             })
 
     print(json.dumps({

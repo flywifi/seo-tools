@@ -253,6 +253,13 @@ def build_report(local, offline=False, getter=_http_get_json, repo=None, branch=
                 latest, latest_date = fb["latest_seen"], fb["latest_seen_date"]
                 branch_extra = {k: fb[k] for k in ("detection_method", "channel", "tracked_branch",
                                                    "commits_behind", "installed_commit", "upstream_commit")}
+        elif err and any(tok in err for tok in ("403", "429", "rate limit", "RateLimit")):
+            # P49 WS9: a rate-limit/block is not "no release" -- update state is UNKNOWN, not current.
+            status = "unreachable"
+            note = ("The releases API rate-limited or blocked the check (not a missing release); set "
+                    "GITHUB_TOKEN and retry. No update state is implied.")
+            update_available = False
+            branch_extra["blocked"] = True
         else:
             status, note = "unreachable", "Could not reach the releases API; try again later."
             update_available = False

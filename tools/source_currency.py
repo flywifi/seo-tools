@@ -81,6 +81,48 @@ def get_threshold_for_source(source, traversal_config):
 
 from registry_io import load_registry, save_registry  # single sanctioned writer (shared)
 import freshness_overlay as _fo  # P36: per-user overlay; runtime writes here, never the repo registry
+from fetch_diag import classify_block  # P49 WS9: tell a bot-block apart from a genuinely-gone page
+
+
+def is_currently_blocked(source):
+    """True when the most recent signal on this source is a bot-block, not a successful check.
+    P49 WS9: a blocked-but-valid source must NOT be aged into stale/SLA-error on last_checked math.
+    A source is 'currently blocked' when last_block_detected is set and is at least as recent as
+    last_checked (a later successful check clears the block)."""
+    lbd = source.get("last_block_detected")
+    if not lbd:
+        return False
+    last = source.get("last_checked")
+    if not last:
+        return True
+    try:
+        # A successful check on/after the block clears it (>, so a same-day check counts as recovered).
+        return datetime.fromisoformat(lbd).date() > datetime.fromisoformat(last).date()
+    except ValueError:
+        return True
+
+
+def blocked_sources(sources, category=None):
+    """The currently-blocked sources, shaped for the report. Each is inconclusive (not gone/stale)
+    and carries a human-verification hint (P49 WS9)."""
+    out = []
+    for s in sources:
+        if category and s.get("category") != category:
+            continue
+        if not is_currently_blocked(s):
+            continue
+        out.append({
+            "id": s["id"], "name": s["name"], "url": s.get("url", ""),
+            "category": s.get("category", ""),
+            "block_kind": s.get("block_kind"), "block_vendor": s.get("block_vendor"),
+            "last_block_detected": s.get("last_block_detected"),
+            "last_verified": s.get("last_checked"),
+            "used_by": s.get("used_by", []),
+            "note": "the automated fetch was blocked (not gone); open the URL in a browser and paste "
+                    "the text, or run 'python3 tools/fetch_resilient.py <url>' to retry. See "
+                    "docs/PASTE-SAFETY.md.",
+        })
+    return out
 
 
 def _apply_overlay_if_any(registry, overlay_path):
@@ -116,6 +158,8 @@ def compute_staleness(sources, category=None, traversal_config=None):
     for s in sources:
         if category and s.get("category") != category:
             continue
+        if is_currently_blocked(s):
+            continue  # P49 WS9: a blocked source is inconclusive, never stale/never-checked
 
         last = s.get("last_checked")
         threshold = get_threshold_for_source(s, traversal_config)
@@ -169,19 +213,23 @@ def build_recommended_actions(stale, never_checked):
 
 def build_report(sources, category=None, include_refetch=False, traversal_config=None):
     stale, never_checked, up_to_date = compute_staleness(sources, category, traversal_config)
+    blocked = blocked_sources(sources, category)  # P49 WS9: inconclusive, not stale
     actions = build_recommended_actions(stale, never_checked)
 
     report = {
         "as_of": today_str(),
         "summary": {
-            "total_sources": len(sources) if not category else len(stale) + len(never_checked) + len(up_to_date),
+            "total_sources": len(sources) if not category else
+                             len(stale) + len(never_checked) + len(up_to_date) + len(blocked),
             "stale": len(stale),
             "never_checked": len(never_checked),
             "up_to_date": len(up_to_date),
+            "blocked": len(blocked),
         },
         "stale": stale,
         "never_checked": never_checked,
         "up_to_date": up_to_date,
+        "blocked": blocked,
         "recommended_actions": actions,
     }
 
@@ -214,8 +262,11 @@ def _sla_counts(sources, traversal_config):
     """Two-tier freshness SLA (dbt warn_after/error_after) over the sources: ok/warn/error counts,
     using the per-source threshold as warn_after and 3x as error_after (a stale source becomes an
     error once it is badly overdue). Read-only."""
-    counts = {"ok": 0, "warn": 0, "error": 0}
+    counts = {"ok": 0, "warn": 0, "error": 0, "blocked": 0}
     for s in sources:
+        if is_currently_blocked(s):
+            counts["blocked"] += 1  # P49 WS9: excluded from ok/warn/error; a block is not an SLA miss
+            continue
         warn_after = get_threshold_for_source(s, traversal_config or {})
         error_after = warn_after * 3 if warn_after else None
         age = days_since(s.get("last_checked"))
@@ -507,31 +558,63 @@ def _http_get_content(url, etag=None, last_modified=None, timeout=12):
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
             body = r.read()
             rh = r.headers
-            return {"status": r.status, "body": body,
+            # P49 WS9: keep the response headers so a 200-served challenge page can be detected.
+            return {"status": r.status, "body": body, "headers": dict(rh.items()),
                     "etag": rh.get("ETag"), "last_modified": rh.get("Last-Modified"),
                     "cache_control": rh.get("Cache-Control"), "error": None}
     except urllib.error.HTTPError as exc:
         if exc.code == 304:
-            return {"status": 304, "body": None, "etag": etag, "last_modified": last_modified,
-                    "cache_control": None, "error": None}
-        return {"status": exc.code, "body": None, "etag": None, "last_modified": None,
-                "cache_control": None, "error": f"HTTP {exc.code}"}
+            return {"status": 304, "body": None, "headers": {}, "etag": etag,
+                    "last_modified": last_modified, "cache_control": None, "error": None}
+        # P49 WS9: DO NOT discard the error body/headers -- classify_block needs them to tell a
+        # bot-block (403/429/challenge) apart from a genuinely-gone page (404/410).
+        try:
+            err_body = exc.read()
+        except Exception:  # noqa: BLE001
+            err_body = b""
+        try:
+            err_headers = dict(exc.headers.items()) if exc.headers else {}
+        except Exception:  # noqa: BLE001
+            err_headers = {}
+        return {"status": exc.code, "body": err_body, "headers": err_headers, "etag": None,
+                "last_modified": None, "cache_control": None, "error": f"HTTP {exc.code}"}
     except Exception as exc:  # noqa: BLE001
-        return {"status": None, "body": None, "etag": None, "last_modified": None,
+        return {"status": None, "body": None, "headers": {}, "etag": None, "last_modified": None,
                 "cache_control": None, "error": f"{type(exc).__name__}: {str(exc)[:140]}"}
+
+
+def _resp_block(resp):
+    """Run the anti-bot classifier over a fetch response (P49 WS9). Decodes the body defensively."""
+    body = resp.get("body")
+    try:
+        body_text = body.decode("utf-8", "ignore") if isinstance(body, (bytes, bytearray)) else (body or "")
+    except Exception:  # noqa: BLE001
+        body_text = ""
+    return classify_block(resp.get("status"), resp.get("headers"), body_text)
 
 
 def classify_content_change(entry, resp):
     """Deterministic change status for one source given a fetch response. Returns
-    (status, new_sha) where status is unchanged|first_seen|changed|unreachable. When the entry carries
-    a `content_selector`, only the text inside that region is hashed (nav/ads/timestamps outside it do
-    not create false 'changed' events)."""
+    (status, new_sha) where status is unchanged|first_seen|changed|unreachable|blocked. When the entry
+    carries a `content_selector`, only the text inside that region is hashed (nav/ads/timestamps outside
+    it do not create false 'changed' events).
+
+    P49 WS9 -- a bot-block is NOT evidence a source is gone or changed:
+      * a real anti-bot wall / throttle / CAPTCHA (403/429/challenge), OR a challenge interstitial served
+        at HTTP 200, returns 'blocked' and preserves the last-known-good sha (never hashed as 'changed');
+      * a genuinely-absent page (404/410) or a transient error/timeout returns 'unreachable';
+      * only a 2xx, non-challenge body is hashed for change detection."""
     prior = entry.get("content_sha256")
-    if resp.get("status") == 304:
+    status = resp.get("status")
+    if status == 304:
         return "unchanged", prior
     body = resp.get("body")
-    if body is None:
-        return "unreachable", None
+    block = _resp_block(resp)
+    if block.get("blocked"):
+        # Bot-block or challenge (incl. a 200 interstitial): inconclusive. Keep the prior sha.
+        return "blocked", prior
+    if status is None or status >= 400 or body is None:
+        return "unreachable", None  # genuinely gone (404/410) or transient; do not hash an error body
     new_sha = _fo.content_hash(body, entry.get("content_selector"))
     if not prior:
         return "first_seen", new_sha
@@ -555,8 +638,9 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
         and (not getattr(args, "only", None) or s.get("id") == args.only)
     ]
     today = today_str()
-    buckets = {"unchanged": [], "first_seen": [], "changed": [], "unreachable": []}
+    buckets = {"unchanged": [], "first_seen": [], "changed": [], "unreachable": [], "blocked": []}
     changed_queue = []
+    needs_human_verification = []  # P49 WS9: blocked-but-valid sources awaiting a human/browser check
     stamped = []
     apply = getattr(args, "apply", False)
     for e in detectable:
@@ -568,6 +652,29 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
                 "id": e["id"], "url": e.get("url"), "used_by": e.get("used_by", []),
                 "note": "content changed; review the page and update YOUR OWN copy of the data it feeds",
             })
+        if status == "blocked":
+            # P49 WS9: never stamp last_checked, never flag changed, never remove. Record a durable
+            # block state (so staleness/SLA/orphan math skips it) and offer a human-verification handoff.
+            blk = _resp_block(resp)
+            needs_human_verification.append({
+                "id": e["id"], "url": e.get("url"), "used_by": e.get("used_by", []),
+                "block_kind": blk.get("kind"), "block_vendor": blk.get("vendor"),
+                "retry_worthwhile": blk.get("retry_worthwhile"),
+                "note": "the automated fetch was BLOCKED, not gone. Open the URL in your browser and "
+                        "paste the text (or upload a screenshot), or run "
+                        "'python3 tools/fetch_resilient.py <url>' to retry with a real browser + Wayback. "
+                        "See docs/PASTE-SAFETY.md before pasting into a third-party chat.",
+            })
+            if apply:
+                bf = {"last_block_detected": today, "block_kind": blk.get("kind"),
+                      "block_vendor": blk.get("vendor")}
+                if overlay_path:
+                    _fo.stamp(overlay, e["id"], today, kind="block", **bf)
+                else:
+                    for k, v in bf.items():
+                        e[k] = v
+                stamped.append(e["id"])
+            continue
         if apply and status in ("unchanged", "first_seen", "changed"):
             fields = {"last_checked": today}
             if new_sha:
@@ -581,6 +688,9 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
                 fields["min_recheck_at"] = (date.today().toordinal() + max_age // 86400)
             if status == "changed":
                 fields["last_changed_detected"] = today
+            # P49 WS9: a successful check clears any prior block state (source recovered).
+            if e.get("last_block_detected"):
+                fields.update({"last_block_detected": None, "block_kind": None, "block_vendor": None})
             if overlay_path:
                 _fo.stamp(overlay, e["id"], today, kind="detect", **fields)
             else:
@@ -601,8 +711,11 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
                     ("registry" if apply else "nothing (read-only)"),
         "summary": {k: len(v) for k, v in buckets.items()},
         "changed_queue": changed_queue,
+        "needs_human_verification": needs_human_verification,
         "stamped": stamped if apply else [],
         "note": "unchanged/first_seen stamped token-free; changed entries need interpretation of the diff. "
+                "BLOCKED entries are inconclusive (bot-block, not gone): never stamped stale, never flagged "
+                "changed; resolve them via the human/browser handoff in needs_human_verification. "
                 "With --overlay, all writes go to your own store; nothing touches the repo or GitHub.",
     }, indent=2, ensure_ascii=False))
 
@@ -658,6 +771,72 @@ def selftest_detect():
        classify_content_change({"content_sha256": sha}, {"status": 304, "body": None}) == ("unchanged", sha))
     ok("unreachable when body None and not 304",
        classify_content_change({}, {"status": None, "body": None})[0] == "unreachable")
+
+    # P49 WS9: a bot-block is inconclusive, never 'changed'/'unreachable-as-gone'.
+    ok("403 -> blocked, prior sha preserved (not stale/gone)",
+       classify_content_change({"content_sha256": "keepme"},
+                               {"status": 403, "body": b"denied", "headers": {}}) == ("blocked", "keepme"))
+    ok("200 Cloudflare interstitial -> blocked, NOT changed",
+       classify_content_change({"content_sha256": "keepme"},
+                               {"status": 200, "body": b"<html>Just a moment...</html>",
+                                "headers": {"cf-ray": "abc123"}})[0] == "blocked")
+    ok("429 throttle -> blocked",
+       classify_content_change({}, {"status": 429, "body": b"slow down", "headers": {}})[0] == "blocked")
+    ok("genuine 404 -> unreachable (gone), not blocked",
+       classify_content_change({}, {"status": 404, "body": b"Not Found", "headers": {}})[0] == "unreachable")
+
+    # P49 WS9: a currently-blocked source is excluded from staleness (would otherwise be 'stale').
+    blocked_src = {"id": "s-blk", "name": "Blocked Co", "url": "https://x.example/z",
+                   "category": "seo-authority", "last_checked": "2000-01-01",
+                   "last_block_detected": today_str(), "block_kind": "challenge", "used_by": []}
+    st, nv, up = compute_staleness([blocked_src])
+    ok("blocked source not counted stale", "s-blk" not in [x["id"] for x in st])
+    ok("blocked source surfaced in blocked_sources", "s-blk" in [x["id"] for x in blocked_sources([blocked_src])])
+    ok("blocked excluded from SLA error", _sla_counts([blocked_src], {})["blocked"] == 1)
+    recovered = dict(blocked_src, last_checked=today_str())  # a later check clears the block
+    ok("recovered source (last_checked >= block) no longer blocked", not is_currently_blocked(recovered))
+
+    # P49 WS9 apply-path: a 403 records a durable block, does NOT stamp last_checked, and asks for a human.
+    class BArgs:
+        category = None
+        only = None
+        apply = True
+        overlay = None
+    breg = {"sources": [{"id": "b1", "url": "https://x.example/blocked", "category": "seo-authority",
+                         "content_sha256": "orig", "used_by": ["trend-check"]}]}
+
+    def blocking_getter(url, etag=None, last_modified=None):
+        return {"status": 403, "body": b"<html>cf-error</html>",
+                "headers": {"cf-ray": "z"}, "etag": None, "last_modified": None, "error": None}
+
+    def ok_getter(url, etag=None, last_modified=None):
+        return {"status": 200, "body": b"real content now", "headers": {}, "etag": None,
+                "last_modified": None, "error": None}
+    import io as _io2
+    import contextlib as _cl2
+    # apply=True triggers save_registry() on the working-copy registry; neutralize it so the test's
+    # fake registry never touches the real canonical-sources/source-registry.json file.
+    _saved_writer = globals().get("save_registry")
+    globals()["save_registry"] = lambda *a, **k: None
+    try:
+        b2 = _io2.StringIO()
+        with _cl2.redirect_stdout(b2):
+            cmd_detect_changes(BArgs(), breg, {}, getter=blocking_getter)
+        bout = json.loads(b2.getvalue())
+        e_b1 = breg["sources"][0]
+        ok("blocked apply records last_block_detected", e_b1.get("last_block_detected") == today_str())
+        ok("blocked apply does NOT stamp last_checked", "last_checked" not in e_b1)
+        ok("blocked apply preserves prior content sha", e_b1.get("content_sha256") == "orig")
+        ok("blocked surfaced for human verification", "b1" in [q["id"] for q in bout["needs_human_verification"]])
+        ok("blocked not in changed_queue", "b1" not in [q["id"] for q in bout["changed_queue"]])
+
+        b3 = _io2.StringIO()
+        with _cl2.redirect_stdout(b3):
+            cmd_detect_changes(BArgs(), breg, {}, getter=ok_getter)
+        ok("recovery clears the block state", e_b1.get("last_block_detected") is None)
+        ok("recovery stamps last_checked", e_b1.get("last_checked") == today_str())
+    finally:
+        globals()["save_registry"] = _saved_writer
 
     # end-to-end with an injected getter and a fake registry; apply=False must not write
     class Args:
