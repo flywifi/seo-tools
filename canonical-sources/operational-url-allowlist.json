@@ -1,0 +1,23 @@
+{
+  "_comment": "P49 WS3: operational-URL provenance sidecar. Drift invariant 46 (check_url_provenance) requires every http(s):// literal in tools/**/*.py to be accounted for by exactly one of: (a) a host in source-registry.json (data/reference sources), (b) a base domain listed here (infrastructure/plumbing endpoints), or (c) an excluded-by-rule host (example/placeholder/localhost/schema namespace). This file covers bucket (b): endpoints the code calls that are NOT re-checkable data sources. Entries are BASE DOMAINS; the invariant matches a host if it equals or is a subdomain of a listed domain. Add a new endpoint here (with a reason) rather than letting an undeclared URL ship. Doc bibliographies (docs/**, planning JSONs) are out of scope by rule -- the guard scans executable code only.",
+  "version": "0.1.0",
+  "allowed": [
+    {"host": "googleapis.com", "category": "platform-api", "reason": "YouTube Data/Analytics API + Google OAuth token endpoint (www.googleapis.com, youtubeanalytics.googleapis.com, oauth2.googleapis.com)"},
+    {"host": "youtube.com", "category": "platform-surface", "reason": "YouTube Studio + watch/channel URLs (studio.youtube.com, www.youtube.com)"},
+    {"host": "youtu.be", "category": "platform-surface", "reason": "YouTube short-link host used when building a video permalink"},
+    {"host": "instagram.com", "category": "platform-api", "reason": "Instagram Graph API + profile surface (graph.instagram.com, www.instagram.com)"},
+    {"host": "pinterest.com", "category": "platform-api", "reason": "Pinterest API v5 + pin/profile surface (api.pinterest.com, www.pinterest.com)"},
+    {"host": "tiktokapis.com", "category": "platform-api", "reason": "TikTok Content Posting / Display API (open.tiktokapis.com)"},
+    {"host": "tiktokv.com", "category": "platform-surface", "reason": "TikTok share-link host used in a sample parse path"},
+    {"host": "cloud.google.com", "category": "setup-console", "reason": "Google Cloud Console link shown in the wizard OAuth setup"},
+    {"host": "census.gov", "category": "geocoding", "reason": "US Census geocoder used by the offline jurisdiction geocoding seam"},
+    {"host": "easypost.com", "category": "carrier-api", "reason": "EasyPost shipment-tracking API (tasks/shipments lane)"},
+    {"host": "ship24.com", "category": "carrier-api", "reason": "Ship24 shipment-tracking API (tasks/shipments lane)"},
+    {"host": "archive.org", "category": "fallback-fetch", "reason": "Wayback Machine snapshot fallback in fetch_resilient / freshness overlay (archive.org, web.archive.org)"},
+    {"host": "githubusercontent.com", "category": "raw-asset", "reason": "raw.githubusercontent.com for the Homebrew install script and NREL openstudio-standards data files"},
+    {"host": "huggingface.co", "category": "model-download", "reason": "GGML whisper.cpp model download host (local STT doctor)"},
+    {"host": "brew.sh", "category": "install", "reason": "Homebrew homepage shown in the macOS setup path"},
+    {"host": "nodejs.org", "category": "install", "reason": "Node.js download link shown when the Microsoft 365 MCP needs Node"},
+    {"host": "claude.ai", "category": "product-surface", "reason": "claude.ai web surface referenced in the wizard; also appears in secret-scan selftest fixtures"}
+  ]
+}

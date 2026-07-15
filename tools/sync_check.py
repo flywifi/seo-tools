@@ -88,6 +88,8 @@ Invariants enforced:
       capability (or a documented shared key).
   45. content-vs-digest silent staleness (P47, advisory, loud): registry sources re-verified after the
       freshness baseline as_of are surfaced (the digest excludes content).
+  46. URL provenance (P49 WS3): every http(s) literal in tools/**/*.py resolves to a source-registry
+      host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host.
 """
 import json
 import os
@@ -1639,6 +1641,69 @@ def check_content_vs_digest():
                  f"may lag detected content -> run tools/build_freshness_bundle.py --apply to re-stamp")
 
 
+def check_url_provenance():
+    """Invariant 46: URL provenance (P49 WS3). Every http(s):// literal in tools/**/*.py must be
+    ACCOUNTED FOR by exactly one of: (a) a host in canonical-sources/source-registry.json (data/reference
+    sources), (b) a base domain in canonical-sources/operational-url-allowlist.json (infra/plumbing
+    endpoints, each with a written reason), or (c) an excluded-by-rule host (example/placeholder host,
+    localhost, or a schema/XML namespace). Anything else is an undeclared endpoint and fails the build,
+    so a typo'd or unvetted URL cannot ship silently. STATIC only: this never fetches a URL. Scope is
+    executable code (tools/**/*.py); doc bibliographies are out of scope by rule."""
+    import urllib.parse
+
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    allow_path = ROOT / "canonical-sources" / "operational-url-allowlist.json"
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        problem(f"url-provenance: source-registry.json unreadable: {exc}")
+        return
+    try:
+        allow_doc = json.loads(allow_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        problem(f"url-provenance: operational-url-allowlist.json unreadable: {exc}")
+        return
+
+    reg_hosts = set()
+    for s in reg.get("sources", []):
+        u = s.get("url") or ""
+        if u.startswith("http"):
+            reg_hosts.add(urllib.parse.urlparse(u).netloc.lower().split(":")[0])
+    allow_hosts = {e.get("host", "").lower() for e in allow_doc.get("allowed", []) if e.get("host")}
+    schema_hosts = {"www.w3.org", "w3.org", "www.opengis.net", "opengis.net",
+                    "schema.org", "json-schema.org", "www.google.com/recaptcha"}
+
+    def excluded(h):
+        # placeholder / sample / infra-local / schema-namespace hosts are not real endpoints
+        return (h in ("localhost", "127.0.0.1") or h.endswith(".") or "example" in h
+                or "." not in h or h in schema_hosts)
+
+    def covered(h, allowed):
+        return any(h == a or h.endswith("." + a) for a in allowed)
+
+    url_re = re.compile(r'https?://([^/\s"\'\\)>}]+)')
+    tools_dir = ROOT / "tools"
+    for py in sorted(tools_dir.rglob("*.py")):
+        if "__pycache__" in str(py):
+            continue
+        try:
+            text = py.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        seen = set()
+        for m in url_re.finditer(text):
+            host = m.group(1).split(":")[0].lower()
+            if host in seen:
+                continue
+            seen.add(host)
+            if excluded(host) or covered(host, reg_hosts) or covered(host, allow_hosts):
+                continue
+            problem(f"url-provenance: {py.relative_to(ROOT)} hardcodes an undeclared URL host "
+                    f"{host!r}; add it to source-registry.json (if it is a re-checkable data source) or "
+                    f"canonical-sources/operational-url-allowlist.json (if it is an operational endpoint, "
+                    f"with a reason), or it is a genuine placeholder that the exclusion rules should cover")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1764,6 +1829,7 @@ def main():
     check_moving_dates()
     check_degraded_orphans()
     check_content_vs_digest()
+    check_url_provenance()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
