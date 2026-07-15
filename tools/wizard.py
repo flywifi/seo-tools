@@ -230,6 +230,7 @@ Desktop. If you chat in a web browser, pick the matching browser option.</p>
 <a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
 <a class="btn btn-outline" href="/import">Import my past videos (build my content library)</a>
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
+<a class="btn btn-outline" href="/freshness-setup">Keep my data fresh (choose where refreshed info is saved)</a>
 <a class="btn btn-outline" href="/updates">Updates: am I on the latest version?</a>
 """, dots=["active", "dot", "dot", "dot"])
 
@@ -260,10 +261,10 @@ def _screen_claudeai() -> str:
 
 def _screen_desktop(error: str = "") -> str:
     uv_status = '<span class="check">&#10003;</span> uv is installed' if _has_uv() \
-                else '&#9744; uv not yet installed (wizard will install it automatically)'
+                else '&#9744; uv not yet installed (the wizard installs it for you &mdash; no action needed)'
     node_v = _node_version()
     node_status = f'<span class="check">&#10003;</span> Node.js {node_v} is installed' if _node_ok() \
-                  else '&#9744; Node.js 20+ not found (needed for Microsoft 365 only)'
+                  else '&#9744; Node.js 20+ not found (only needed for Microsoft 365; skip if you use Google)'
     err_html = f'<div class="error-box">{error}</div>' if error else ""
     return _page("Claude Desktop Setup", f"""
 <h1>Claude Desktop Setup</h1>
@@ -272,6 +273,9 @@ def _screen_desktop(error: str = "") -> str:
 You will restart Claude Desktop at the end and sign in when prompted.</p>
 {err_html}
 <h2>Prerequisites on this computer</h2>
+<p class="hint" style="margin-bottom:8px"><strong>uv</strong> and <strong>Node.js</strong> are free
+helper programs that let Claude Desktop run the connectors. You do not need to know what they are; the
+wizard handles them. A checkmark means you are ready.</p>
 <p style="margin-bottom:6px">{uv_status}</p>
 <p style="margin-bottom:16px">{node_status}</p>
 <hr>
@@ -775,9 +779,14 @@ To run the wizard again: <code>python3 tools/wizard.py</code></p>
 
 def _screen_freshness(saved: str = "") -> str:
     """Freshness / data-store setup: pick where your refreshed reference data lives. Local-only."""
+    # Plain-language labels so the dropdown never shows internal tokens (local_fs, cross_platform).
+    _MODALITY_LABEL = {"desktop": "Claude Desktop", "cross_platform": "More than one AI",
+                       "gemini": "Gemini", "chatgpt": "ChatGPT", "web_only": "A web browser only",
+                       "on_device": "This computer only"}
+    _STORE_LABEL = {"local_fs": "saved on this computer", "google_drive": "saved in your Google Drive"}
     opts = "".join(
-        f'<option value="{m}">{m.replace("_", " ").title()} '
-        f'&rarr; {FRESHNESS_STORE_MATRIX[m]["store"]}</option>'
+        f'<option value="{m}">{_MODALITY_LABEL.get(m, m.replace("_", " ").title())} '
+        f'&rarr; {_STORE_LABEL.get(FRESHNESS_STORE_MATRIX[m]["store"], FRESHNESS_STORE_MATRIX[m]["store"])}</option>'
         for m in ["desktop", "cross_platform", "gemini", "chatgpt", "web_only", "on_device"]
     )
     saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
@@ -829,12 +838,16 @@ def _flag_enabled(config: dict, name: str) -> bool:
     return bool(meta)
 
 
-# The three capability flags the brand-deals screen may enable, and what each unlocks.
+# The capability flags the brand-deals screen may enable: a plain-language name + what each unlocks.
 _BRAND_DEAL_FLAGS = {
-    "contract_management": "contract-desk review of an inbound brand contract (triage, clause findings, escalation brief)",
-    "contract_drafting": "plain-language draft agreements from the deal playbook (requires contract_management)",
-    "finance_management": "finance record writes: invoices, cost estimates, actuals under pipeline/finance/",
-    "document_templates": "the document-template lane: persist documents assembled from your saved block templates (contracts, rate cards, analytics overviews, terms); read-only assembly always works",
+    "contract_management": ("Review brand contracts",
+                            "contract-desk review of an inbound brand contract (triage, clause findings, escalation brief)"),
+    "contract_drafting": ("Draft agreements",
+                          "plain-language draft agreements from the deal playbook (requires Review brand contracts)"),
+    "finance_management": ("Track invoices and money",
+                           "finance record writes: invoices, cost estimates, actuals under pipeline/finance/"),
+    "document_templates": ("Save documents from templates",
+                           "the document-template lane: persist documents assembled from your saved block templates (contracts, rate cards, analytics overviews, terms); read-only assembly always works"),
 }
 
 
@@ -842,15 +855,16 @@ def _screen_brand_deals(saved: str = "") -> str:
     """Brand-deal readiness checklist: flag states, rate card + profile presence, one-click enable."""
     cfg = _load_creator_config()
     rows = []
-    for flag, unlocks in _BRAND_DEAL_FLAGS.items():
+    for flag, (name, unlocks) in _BRAND_DEAL_FLAGS.items():
         on = _flag_enabled(cfg, flag)
         state = '<span class="check">ON</span>' if on else '<strong style="color:#cc2222">OFF</strong>'
         action = "" if on else (
             f'<form method="POST" action="/api/enable-capability" style="margin-top:6px">'
             f'<input type="hidden" name="flag" value="{flag}">'
             f'<button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;'
-            f'font-size:.85rem">Enable {flag}</button></form>')
-        rows.append(f"<li><strong>{flag}</strong>: {state}<br>"
+            f'font-size:.85rem">Turn on {name}</button></form>')
+        rows.append(f"<li><strong>{name}</strong>: {state} "
+                    f'<span class="hint" style="opacity:.6">({flag})</span><br>'
                     f'<span class="hint">{unlocks}</span>{action}</li>')
     rate_card = ROOT / "pipeline" / "finance" / "rate-card.local.json"
     profile = ROOT / "pipeline" / "user-context" / "creator-profile.local.json"
