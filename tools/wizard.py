@@ -209,29 +209,71 @@ def _page(title: str, body: str, dots: list[str] | None = None) -> str:
 
 def _screen_welcome() -> str:
     os_label = _os_label()
-    claude = "Claude Desktop is installed on this computer." if _claude_installed() else \
-             "Claude Desktop does not appear to be installed on this computer."
+    claude_hint = " (detected on this computer)" if _claude_installed() else ""
     return _page("Welcome", f"""
 <h1>Welcome to Creator OS Setup</h1>
-<p>This wizard sets up Creator OS for whichever AI you use, connects your Google and Microsoft
-accounts when you use Claude on this computer, and walks you through moving between AIs.</p>
-<p style="font-size:.9rem;color:#7a5a5a">Detected: <strong>{os_label}</strong>. {claude}</p>
+<p>A short, guided setup. Start with one question and we tailor the rest to you.</p>
+<p style="font-size:.9rem;color:#7a5a5a">This computer: <strong>{os_label}</strong>.</p>
 {_local_precondition_note()}
 <hr>
 <h2>Which AI do you use?</h2>
-<a class="btn btn-primary" href="/claudeai">Claude at <strong>claude.ai</strong> in my browser</a>
-<a class="btn btn-secondary" href="/desktop"><strong>Claude Desktop</strong> on this computer</a>
-<a class="btn btn-secondary" href="/chatgpt"><strong>ChatGPT</strong> (web chat, custom GPT, Projects, or the desktop app)</a>
-<a class="btn btn-secondary" href="/cross-modality?surface=gemini_gems"><strong>Gemini</strong> (Gems or the API)</a>
+<a class="btn btn-primary" href="/claude"><strong>Claude</strong>{claude_hint}</a>
+<a class="btn btn-secondary" href="/chatgpt"><strong>ChatGPT</strong></a>
 <a class="btn btn-outline" href="/transitions">I use <strong>more than one</strong>, or I am switching</a>
-<p class="hint">Not sure? If you have the Claude app installed on your computer, choose Claude
-Desktop. If you chat in a web browser, pick the matching browser option.</p>
+<p class="hint">Using <strong>Gemini</strong>? Choose "more than one" — the Gemini path is there. Not
+sure which you have? Pick the one whose name you recognize; you can change it later.</p>
 <hr>
-<a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
+<h2>Set up this computer</h2>
+<a class="btn btn-outline" href="/setup-computer">Install the free tools (recommended)</a>
+<a class="btn btn-outline" href="/bring">Bring what I already have (another AI, Google Drive, or files)</a>
+<hr>
+<h2>Already set up? Jump to a task</h2>
 <a class="btn btn-outline" href="/import">Import my past videos (build my content library)</a>
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
 <a class="btn btn-outline" href="/freshness-setup">Keep my data fresh (choose where refreshed info is saved)</a>
 <a class="btn btn-outline" href="/updates">Updates: am I on the latest version?</a>
+<a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
+""", dots=["active", "dot", "dot", "dot"])
+
+def _screen_claude() -> str:
+    """One follow-up after picking Claude: browser (claude.ai) or the desktop app. Collapses the two
+    old Claude buttons into one primary choice and highlights the likely path from detection."""
+    installed = _claude_installed()
+    if installed:
+        rec = ('<div class="success-box">The Claude app looks installed on this computer. The app can '
+               'run Creator OS tools locally, so it gets the most features.</div>')
+        primary_href, primary_label = "/desktop", "The Claude app on this computer (recommended)"
+        second_href, second_label = "/claudeai", "Claude in my web browser (claude.ai)"
+    else:
+        rec = ('<div class="note">Tip: the Claude <strong>app</strong> (Claude Desktop) can run tools on '
+               'your computer, which unlocks the most features. The browser is simpler but more limited.</div>')
+        primary_href, primary_label = "/claudeai", "Claude in my web browser (claude.ai)"
+        second_href, second_label = "/desktop", "The Claude app on this computer (Claude Desktop)"
+    return _page("How do you use Claude?", f"""
+<h1>How do you use Claude?</h1>
+{rec}
+<a class="btn btn-primary" href="{primary_href}">{primary_label}</a>
+<a class="btn btn-secondary" href="{second_href}">{second_label}</a>
+<a class="btn btn-outline" href="/">Back</a>
+""", dots=["active", "dot", "dot", "dot"])
+
+def _screen_bring() -> str:
+    """Item 6c: one question — where does your existing info live? — routing each source to its
+    importer. Wires existing screens; nothing new is scraped and the human always confirms."""
+    return _page("Bring what you already have", f"""
+<h1>Bring what you already have</h1>
+<p>Already have a creator profile, documents, or a video library somewhere else? Point Creator OS at
+it instead of starting from scratch. Pick where your information lives.</p>
+<h2>From another AI (ChatGPT or Gemini)</h2>
+<p>Have a profile or notes built up in another assistant? Move it over in one paste.</p>
+<a class="btn btn-outline" href="/transitions">Move my profile from another AI</a>
+<h2>From Google Drive, Docs, or Sheets</h2>
+<p>Connect Google once and Creator OS can read what you already keep there.</p>
+<a class="btn btn-outline" href="/claude">Connect Google (through Claude)</a>
+<h2>From files or a folder on this computer</h2>
+<p>Point Creator OS at a folder of exports, documents, or downloaded videos.</p>
+<a class="btn btn-outline" href="/import">Import my past videos and exports</a>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>
 """, dots=["active", "dot", "dot", "dot"])
 
 def _screen_claudeai() -> str:
@@ -1566,6 +1608,8 @@ publishing runs in manual mode for now. No action is needed here.</div>
         routes: dict[str, str | None] = {
             "/": _screen_welcome(),
             "/cross-modality": _screen_cross_modality(),
+            "/claude": _screen_claude(),
+            "/bring": _screen_bring(),
             "/claudeai": _screen_claudeai(),
             "/desktop": _screen_desktop(),
             "/google": _screen_google(),
