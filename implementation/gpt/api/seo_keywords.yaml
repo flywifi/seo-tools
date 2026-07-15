@@ -1,12 +1,14 @@
 name: seo_keywords
 description: >
-  Full SEO keyword strategy spoke. Given a topic or pillar, runs a 9-step pipeline:
+  SEO keyword strategy spoke. Given a topic or pillar, runs a 9-step pipeline:
   keyword clustering, long-tail expansion, search intent classification, competitor
   scanning, entity extraction, SERP feature mapping, topical authority mapping, title
-  generation, and quality governance. Returns a complete keyword strategy with titles,
-  cross-platform verdicts, topical authority hub-and-cluster plan, and a quality score.
+  generation, and quality governance. Returns a keyword strategy with titles,
+  cross-platform verdicts, a topical authority hub-and-cluster plan, and a quality
+  score; volume figures are labeled [estimated] and anything that could not be
+  retrieved is surfaced in retrieval_gaps rather than invented.
 
-  Use when the creator needs a full SEO keyword deliverable ready to act on.
+  Use when the creator needs a keyword deliverable to act on.
   For quick cross-platform comparison only, use keyword_compare instead.
 parameters:
   type: object
