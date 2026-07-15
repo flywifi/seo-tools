@@ -1,7 +1,7 @@
 # Persona audit -- 2026-07-15 (first run)
 
 Persona: **Alex**, a non-technical YouTube creator. Protocol: `docs/PERSONA-AUDIT.md`. Harness:
-`tools/persona_audit.py` (19 screens, all green, 0 orphans, 0 token leaks after the fixes below).
+`tools/persona_audit.py` (23 screens after P50, all green, 0 orphans, 0 token leaks).
 
 This is the inaugural audit. It records the twelve stumbles the read-through surfaced, split into the
 low-risk ones fixed in this pass and the structural ones triaged to the maintainer (fixing them is a
@@ -31,6 +31,22 @@ deliberate decision rather than patched in a cosmetic pass:
 | 10 | The Import screen front-loads raw shell commands (`python3 tools/import_parse.py`, ...) | jargon | A guided file-picker UI is a larger build; a plain-language fallback already exists alongside the commands. |
 | 11 | Node.js-missing and Homebrew-missing paths point at `docs/SETUP_MAC.md` with no in-wizard recovery | required-install-no-fallback | An in-wizard installer/recovery is a bigger UX build. |
 | 12 | Picking "Gemini" lands on the cross-modality screen, which opens with A/B/C capability-class theory | decision overload | Needs a Gemini-specific entry screen. |
+
+## Update -- P50: structural stumbles 5, 6, 7, 10, 11 resolved
+
+The maintainer took five of the triaged structural stumbles and built them out (the remaining ones --
+8 YouTube OAuth, 9 platform developer-console walls, 12 Gemini entry -- are separate features):
+
+| # | Stumble | What shipped |
+|---|---|---|
+| 5 | wizard needs a terminal | Double-click launchers at repo root (`Start Creator OS Setup.command` with the executable bit + Gatekeeper note; `Start Creator OS Setup.bat` with the SmartScreen note), plus a `launch_setup` MCP tool so a user talking to Claude Desktop/Code can open the wizard by asking. |
+| 6 | ~9 first-screen branches | `_screen_welcome` collapsed to one primary question (Claude / ChatGPT / more-than-one); the two Claude buttons fold into a single `/claude` chooser; task shortcuts moved to their own "jump to a task" section; new "Bring what you already have" hub (`/bring`). |
+| 7 | Google Cloud OAuth wall | `_screen_google` now leads with the zero-config built-in Google connector and demotes the Cloud Console client-ID/secret flow to an advanced expander. New storage folder-permission step (`/storage-folder`) registers a filesystem connector scoped to one chosen folder. |
+| 10 | import screen front-loads shell commands | `_screen_import` reworked into "just ask Claude" + a guided form (platform checkboxes, folder path, Scan -> preview -> Approve via `/api/run-import`); raw commands demoted to an "Advanced" expander. |
+| 11 | Node/Homebrew-missing point at a doc with no in-wizard recovery | Default dependency installer (`tools/setup.py --install-deps` + the wizard "Set up my computer" screen) installs every free pip set + uv + Playwright's browser and reports each outcome; `_screen_node_missing` folds recovery inline with an "I've installed it -- re-check" button. |
+
+The four undeclared pip deps were declared and the `configure-stats-tool` atom was reconciled to the
+canonical registry (see `docs/DEPENDENCIES.md`) so the default installer is correct and honest.
 
 ## Harness result
 

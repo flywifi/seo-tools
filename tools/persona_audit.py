@@ -30,6 +30,10 @@ import wizard  # noqa: E402  (the module under audit; render functions only, no 
 # Route -> the render function that produces its HTML (all take optional args with safe defaults).
 ROUTES = {
     "/": "_screen_welcome",
+    "/claude": "_screen_claude",
+    "/bring": "_screen_bring",
+    "/setup-computer": "_screen_setup_computer",
+    "/storage-folder": "_screen_storage_folder",
     "/claudeai": "_screen_claudeai",
     "/desktop": "_screen_desktop",
     "/google": "_screen_google",

@@ -2,9 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P49 are complete. Drift guard exits 0 (48 invariants; 1 non-blocking advisory note by
+P6 through P50 are complete. Drift guard exits 0 (48 invariants; 1 non-blocking advisory note by
 design, see below). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P50: wizard onboarding remediation for the persona-audit structural stumbles 5, 6, 7, 10, 11.
+  **No-terminal launch (5):** double-click `Start Creator OS Setup.command`/`.bat` at repo root
+  (the `.command` carries the executable bit) + a `launch_setup` MCP tool. **First-screen IA (6):**
+  `_screen_welcome` collapsed to one primary question, a `/claude` browser-vs-desktop chooser, and a
+  `/bring` "bring what you already have" hub. **Native-first Google + storage (7):** `_screen_google`
+  leads with the built-in connector and demotes Cloud Console to an advanced expander; new
+  `/storage-folder` step registers a filesystem MCP scoped to one folder via `_write_claude_config`.
+  **Guided import (10):** `_screen_import` reworked into "ask Claude" + a Scan/preview/Approve form
+  (`/api/run-import`), commands demoted to an expander. **Default install (11):** `tools/setup.py
+  --install-deps` + a wizard "Set up my computer" screen install every free pip set + uv + Playwright's
+  browser, reporting each outcome; `_screen_node_missing` gains inline recovery + a re-check button.
+  Blockers fixed: `configure-stats-tool` reconciled to the canonical registry; numpy/python-dateutil/
+  sqlite-vec/PyYAML declared (numpy in requirements-videoedit, the rest in new requirements-tools.txt)
+  and seeded for invariant 23; new `docs/DEPENDENCIES.md`. Persona audit now 23 screens, all green,
+  0 orphans.
 - P49: audit remediation across honesty, shareability, provenance, and doc-truth. **WS9 (block is not
   gone):** `tools/source_currency.py` now classifies a bot-block (403/429/challenge, incl. a 200
   interstitial) as `blocked` (never `changed`/stale/orphan), records a durable `last_block_detected`,
