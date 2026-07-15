@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS video_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     video_key TEXT UNIQUE,
     platform TEXT, platform_video_id TEXT, url TEXT,
-    title TEXT, description TEXT, tags_json TEXT, category TEXT,
+    title TEXT, description TEXT, tags_json TEXT, category TEXT, category_code TEXT,
     published_at TEXT, duration_s INTEGER,
     stats_json TEXT, retention_json TEXT, revenue_json TEXT,
     transcript_ref TEXT, transcript_text TEXT,
@@ -71,6 +71,10 @@ def _open_db(db_path=None):
     con = sqlite3.connect(str(db_path))
     con.row_factory = sqlite3.Row
     con.executescript(_SCHEMA)
+    # Lightweight forward migration: add category_code to a pre-existing local DB (P49 WS1).
+    have = {r["name"] for r in con.execute("PRAGMA table_info(video_records)")}
+    if "category_code" not in have:
+        con.execute("ALTER TABLE video_records ADD COLUMN category_code TEXT")
     con.commit()
     return con
 
@@ -142,6 +146,7 @@ def normalize_record(parsed, platform=None, source_mode=None, source_citation=No
         "description": parsed.get("description"),
         "tags": parsed.get("tags") or [],
         "category": parsed.get("category"),
+        "category_code": parsed.get("category_code"),
         "published_at": parsed.get("published_at"),
         "duration_s": parsed.get("duration_s"),
         "stats": stats_env,
@@ -177,7 +182,8 @@ def _upsert(con, rec):
         "platform_video_id": rec["platform_video_id"], "url": rec.get("url"),
         "title": rec.get("title"), "description": rec.get("description"),
         "tags_json": json.dumps(rec.get("tags") or [], ensure_ascii=False),
-        "category": rec.get("category"), "published_at": rec.get("published_at"),
+        "category": rec.get("category"), "category_code": rec.get("category_code"),
+        "published_at": rec.get("published_at"),
         "duration_s": rec.get("duration_s"),
         "stats_json": json.dumps(rec.get("stats") or {}, ensure_ascii=False),
         "retention_json": json.dumps(rec["retention"], ensure_ascii=False) if rec.get("retention") is not None else None,
@@ -438,12 +444,13 @@ def selftest():
         yt = normalize_record({
             "platform_video_id": "vid123", "url": "https://youtu.be/vid123",
             "title": "Painting an armoire", "description": "diy makeover",
-            "tags": ["armoire", "patina", "diy"], "category": "Howto & Style",
+            "tags": ["armoire", "patina", "diy"], "category": "Howto & Style", "category_code": "26",
             "published_at": "2026-03-01", "duration_s": 600,
             "stats": {"views": 12000, "likes": 800, "comments": 60},
             "retention": retention,
         }, platform="youtube", source_mode="export_bundle", source_citation="studio_csv")
         ok("stats wrapped in envelope", yt["stats"]["views"]["value"] == 12000 and "as_of" in yt["stats"]["views"])
+        ok("category decoded label + raw code carried", yt["category"] == "Howto & Style" and yt["category_code"] == "26")
         ok("most_watched derived on normalize", len(yt["most_watched_segments"]) >= 1)
         ok("insert", _upsert(con, yt) == "inserted")
         yt2 = normalize_record({"platform_video_id": "vid123", "url": "https://youtu.be/vid123",
@@ -468,6 +475,9 @@ def selftest():
 
         # analytics: top tags cite video_keys; retention insights are YouTube-only with IG null-flagged.
         _upsert(con, yt)  # restore the full YouTube record (the yt2 re-import test stripped its tags/retention/duration)
+        ok("category_code round-trips through the store", get_record(con, "youtube:vid123").get("category_code") == "26")
+        ok("by_category groups by the decoded label",
+           any(g["group"] == "Howto & Style" for g in format_performance(con)["by_category"]))
         tags = top_tags(con)
         armoire = next((t for t in tags if t["tag"] == "armoire"), None)
         ok("top_tags aggregates across records", armoire and armoire["count"] == 2)

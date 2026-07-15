@@ -33,6 +33,31 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
+# ── Category decode (raw numeric categoryId -> human label) ──────────────────
+_CATEGORIES_PATH = HERE.parent.parent / "canonical-sources" / "youtube-video-categories.json"
+_CATEGORY_MAP = None
+
+
+def _category_map():
+    """Load the US categoryId->title map once; empty dict if the file is missing/unreadable."""
+    global _CATEGORY_MAP
+    if _CATEGORY_MAP is None:
+        try:
+            _CATEGORY_MAP = json.loads(_CATEGORIES_PATH.read_text(encoding="utf-8")).get("categories", {})
+        except (OSError, ValueError):
+            _CATEGORY_MAP = {}
+    return _CATEGORY_MAP
+
+
+def decode_category(category_id):
+    """Numeric categoryId (e.g. '26') -> human title ('Howto & Style'); unmapped/absent -> 'Unknown (<id>)'.
+    Never fabricates: an id with no entry is labeled explicitly so the user sees the raw code, not a guess."""
+    if category_id in (None, ""):
+        return None
+    key = str(category_id)
+    return _category_map().get(key, f"Unknown ({key})")
+
+
 def revenue_note():
     return ("Revenue is not available via the YouTube Analytics API for a solo creator (monetary "
             "metrics are content-owner reports only). Export it from YouTube Studio to Analytics to "
@@ -107,7 +132,9 @@ def fetch_videos(video_ids, token, getter=C.http_get_json):
                 "platform_video_id": v.get("id"),
                 "url": f"https://youtu.be/{v.get('id')}",
                 "title": sn.get("title"), "description": sn.get("description"),
-                "tags": sn.get("tags") or [], "category": sn.get("categoryId"),
+                "tags": sn.get("tags") or [],
+                "category": decode_category(sn.get("categoryId")),
+                "category_code": sn.get("categoryId"),
                 "published_at": sn.get("publishedAt"),
                 "duration_s": _iso8601_to_seconds(cd.get("duration")),
                 "stats": stats, "retention": None, "revenue": None,
@@ -251,6 +278,9 @@ def selftest():
     ok("fetch_videos normalizes stats", recs[0]["stats"]["views"] == 12000 and recs[0]["duration_s"] == 600)
     ok("fetch_videos tags public", recs[0]["tags"] == ["armoire"])
     ok("fetch_videos revenue null (never via API)", recs[0]["revenue"] is None)
+    ok("category decoded to label", recs[0]["category"] == "Howto & Style" and recs[0]["category_code"] == "26")
+    ok("unknown category id labeled, not fabricated", decode_category("9999") == "Unknown (9999)")
+    ok("absent category id -> None", decode_category(None) is None)
     pts, rerr = fetch_retention("vid1", "tok", "2026-01-01", "2026-07-01", getter=fake_getter)
     ok("retention parsed from resultTable", len(pts) == 3 and pts[0]["watch_ratio"] == 1.4)
     tracks, _ = list_captions("vid1", "tok", getter=fake_getter)
