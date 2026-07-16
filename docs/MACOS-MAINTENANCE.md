@@ -74,7 +74,41 @@ TCC folder prompts; Safari HTTPS-Only vs Chrome for the OAuth callback; Rosetta 
 whisper runtimes. These are the P53 hands-on checklist items; the code/copy here is verified by
 simulation + selftests.
 
+## Declared sources
+The external authorities the invariants above rest on, declared for the currency system. Every id
+below must exist in `canonical-sources/source-registry.json` with the same URL (drift-guard invariant
+52, fail-closed); `tools/source_sync.py reconcile` generates a seed file for any id declared here that
+is not yet registered, and the human runs `seed-sources` on it. Declaring a NEW source requires the
+full seed shape (`id`, `name`, `url`, `category`, `tier`); an already-registered id needs only
+`id` + `url`.
+
+```sources
+[
+  {"id": "pep-668-externally-managed", "url": "https://peps.python.org/pep-0668/"},
+  {"id": "homebrew-and-python", "url": "https://docs.brew.sh/Homebrew-and-Python"},
+  {"id": "homebrew-installation", "url": "https://docs.brew.sh/Installation"},
+  {"id": "python-using-on-mac", "url": "https://docs.python.org/3/using/mac.html"},
+  {"id": "apple-local-network-privacy-tn3179", "url": "https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy"},
+  {"id": "apple-local-network-privacy-faq", "url": "https://developer.apple.com/forums/thread/660260"},
+  {"id": "homebrew-formula-whisper-cpp", "url": "https://formulae.brew.sh/formula/whisper-cpp"},
+  {"id": "homebrew-formula-python-tk", "url": "https://formulae.brew.sh/formula/python-tk@3.13"},
+  {"id": "whisper-cpp-ggml-models-hf", "url": "https://huggingface.co/ggerganov/whisper.cpp"},
+  {"id": "mcp-connect-local-servers", "url": "https://modelcontextprotocol.io/docs/develop/connect-local-servers"},
+  {"id": "claude-desktop-local-mcp", "url": "https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop"},
+  {"id": "claude-code-mcp-docs", "url": "https://code.claude.com/docs/en/mcp"},
+  {"id": "claude-desktop-vs-web-connectors", "url": "https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors"}
+]
+```
+
+Claim-to-source notes: invariants 1 and 2 (`.venv`) rest on PEP 668 + Homebrew-and-Python; invariant 3
+(brew prefixes) on Homebrew Installation; invariant 4 (loopback bind) on TN3179 plus the DTS FAQ (the
+technote implies the loopback exemption by defining local-network addresses as broadcast-capable-interface
+addresses; only the FAQ states it explicitly); invariant 5 (absolute MCP command) on the MCP
+connect-local-servers doc; invariants 6 and 7 (whisper) on the whisper-cpp formula + the GGML model repo;
+invariant 10 (python stub) on the Python-on-macOS doc.
+
 ## When you change any of this
 Update `docs/SETUP_MAC.md` and this file in the same change (the CLAUDE.md docs-in-same-PR rule); keep
-the `verify:` markers pointing at real symbols; run `python3 tools/wizard.py --selftest`,
+the `verify:` markers pointing at real symbols and the `sources` block above in sync with the registry
+(`python3 tools/source_sync.py check`); run `python3 tools/wizard.py --selftest`,
 `tools/setup.py --selftest`, `tools/env_paths.py --selftest`, and `python3 tools/sync_check.py`.

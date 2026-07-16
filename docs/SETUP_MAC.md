@@ -277,3 +277,28 @@ The doctor gives the machine-correct command on Windows too.
 | `drift guard` reports issues after `git pull` | Run `python3 tools/sync_check.py` and read the report |
 | MCP tools not appearing in Claude Desktop | Restart Claude Desktop; check that the path in `claude_desktop_config.json` is absolute |
 | `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.11` then use `/opt/homebrew/bin/python3` |
+
+---
+
+## Declared sources (maintainers)
+
+The macOS facts this guide states (Gatekeeper/Open Anyway flow, Rosetta, Tahoe 26, Intel support,
+python.org installers, Homebrew, connectors) are tracked for staleness by the currency system. Every id
+below must exist in `canonical-sources/source-registry.json` with the same URL (drift-guard invariant
+52); run `python3 tools/source_sync.py check` after editing this block.
+
+```sources
+[
+  {"id": "apple-gatekeeper-runtime", "url": "https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web"},
+  {"id": "apple-open-anyway-flow", "url": "https://support.apple.com/en-us/102445"},
+  {"id": "apple-gatekeeper-sequoia-change", "url": "https://developer.apple.com/news/?id=saqachfa"},
+  {"id": "apple-tcc-file-access", "url": "https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web"},
+  {"id": "apple-rosetta", "url": "https://support.apple.com/en-us/102527"},
+  {"id": "apple-macos-tahoe-updates", "url": "https://support.apple.com/en-us/122868"},
+  {"id": "apple-macos-intel-support", "url": "https://support.apple.com/en-us/122867"},
+  {"id": "python-macos-downloads", "url": "https://www.python.org/downloads/macos/"},
+  {"id": "homebrew-installation", "url": "https://docs.brew.sh/Installation"},
+  {"id": "homebrew-formula-ffmpeg", "url": "https://formulae.brew.sh/formula/ffmpeg"},
+  {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"}
+]
+```
