@@ -19,6 +19,7 @@ import os
 import pathlib
 import platform
 import re
+import secrets
 import shutil
 import socketserver
 import subprocess
@@ -2263,6 +2264,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
             if action == "approve":
                 batch = _get("import_batch_file")
+                # A4d: the submitted token must match the batch this session last scanned, so two
+                # tabs cannot approve each other's parsed records into the library.
+                submitted_token = (parsed.get("batch_token", [""])[0]).strip()
+                if not submitted_token or submitted_token != _get("import_batch_token"):
+                    self._send(_screen_import(error=(
+                        "This approval did not match the last scan (did you scan again in another tab?). "
+                        "Please scan the folder again, then approve.")))
+                    return
                 if not batch or not os.path.isfile(batch):
                     self._send(_screen_import(error="Nothing to approve yet. Scan a folder first."))
                     return
@@ -2324,7 +2333,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 fd, tmp = tempfile.mkstemp(prefix="creator-os-import-", suffix=".json")
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
                     json.dump(records, fh, ensure_ascii=False)
-                _set(import_batch_file=tmp)
+                # A4d: tie this batch to a single-use token echoed in the approve form, so a second
+                # tab's scan (which overwrites the shared batch slot) cannot be approved by this tab.
+                batch_token = secrets.token_urlsafe(16)
+                _set(import_batch_file=tmp, import_batch_token=batch_token)
             except Exception as exc:  # noqa: BLE001
                 self._send(_screen_import(folder=folder, error=f"Could not prepare the import: {exc}"))
                 return
@@ -2333,6 +2345,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                        f'<ul><li>' + "</li><li>".join(notes) + "</li></ul></div>"
                        '<form method="POST" action="/api/run-import">'
                        '<input type="hidden" name="action" value="approve">'
+                       f'<input type="hidden" name="batch_token" value="{batch_token}">'
                        '<button class="btn btn-success" type="submit">Approve and save to my library</button>'
                        "</form>")
             self._send(_screen_import(folder=folder, preview_html=preview))
