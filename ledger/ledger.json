@@ -291,6 +291,21 @@
       ],
       "status": "shipped",
       "explicit_non_action": "seo-tools only (educator-tools-k12-public excluded entirely, no reads/edits); no product-code behavior changes (guards are new checks only); dated historical audits annotated, not rewritten; sweep prose edits applied only after review; staleness stamping labeled emerging-practice, not a standard; CODEOWNERS advisory (no branch-protection change)."
+    },
+    {
+      "id": "P54-macos-fixes-venv-and-path",
+      "date": "2026-07-16",
+      "decision": "Fixed the macOS issues found by the P53 stress test (code + copy; behavioral confirmation stays the hands-on checklist). Core mechanism: a private per-repo .venv (tools/env_paths.py app_python/which; setup.py ensure_venv installs deps there) resolves the PEP 668 installer break on Homebrew Python, the double-click GUI-PATH gap (brew prefixes prepended), and the Claude Desktop absolute-interpreter requirement together. Also: wizard _os()/_arch() sim seam, port-8765 friendly-exit (no traceback), _mcp_command absolute npx/uvx resolution + Quit-completely/log copy, launcher .command real-python probe + brew PATH + Tahoe Open-Anyway copy, arch-aware STT copy, TCC folder-denial message, DaVinci multi-path, Safari OAuth caveat. New --selftest guards: loopback-127.0.0.1 (G1), whisper 3-name probe (G2), macOS render, port collision.",
+      "rationale": "P53 confirmed two HIGH code defects (PEP 668 silently installs nothing on Homebrew Python; brew tools invisible under a double-click launch) plus F3-F16 code/copy gaps. The user chose the private-.venv approach, which is best-practice isolation and consolidates F1/F2/F3 under one mechanism with graceful fallback (no .venv == prior behavior).",
+      "evidence": [
+        "tools/env_paths.py --selftest (8/8)",
+        "tools/setup.py --selftest (venv creation + pip target, offline)",
+        "tools/wizard.py --selftest (macOS render seam + port-collision + loopback G1 + whisper G2)",
+        "sync_check.py clean; scenario_check 9/9; projection_manifest --check clean",
+        "full selftest battery green (env_paths/setup/wizard/transcribe/pick_folder/oauth_flow/publishing*)"
+      ],
+      "status": "shipped",
+      "explicit_non_action": "Cannot change macOS itself: real Gatekeeper/TCC/Homebrew-PEP668/Safari/Rosetta behavior stays the P53 hands-on checklist, verified here only at the mechanism level. .venv degrades to prior behavior when absent. seo-tools only; educator repo untouched. No product-logic change beyond launch/install/detect plumbing + copy."
     }
   ],
   "updated": "2026-07-16"

@@ -2,8 +2,27 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P52 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P54 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P54: fixed the macOS issues found by the P53 stress test (code + copy; behavioral confirmation stays
+  the hands-on checklist). New `tools/env_paths.py`: `app_python()` prefers a private repo `.venv`
+  interpreter (graceful fallback), `which()` prepends the Homebrew prefixes so a double-click launch
+  finds brew tools. `setup.py` installs deps into a `.venv` (`ensure_venv`), sidestepping Homebrew
+  Python's PEP 668 lock (`--break-system-packages` is a labeled fallback). Wizard routes tool
+  subprocesses + `_install_uv` through `app_python()`, detection through `env_paths.which()`, adds an
+  injectable `_os()/_arch()` sim seam, exits cleanly on a busy port 8765 (no traceback), resolves
+  wizard-written MCP `npx`/`uvx` to absolute (`_mcp_command`), and states Quit-completely + the mcp log
+  path. Launcher `.command` prefers `.venv`, probes for a real python3 (rejects the CLT stub, steers to
+  python.org), exports the brew PATH, and uses the current Tahoe Open-Anyway Gatekeeper copy. MCP
+  snippet's `creator-os` command -> absolute `.venv/bin/python3`. Arch-aware STT copy (no false Metal
+  claim on Intel), TCC folder-denial message, DaVinci multi-path (`preflight`), Safari OAuth caveat.
+  New `--selftest` guards: loopback-127.0.0.1 (G1), whisper 3-name probe (G2), macOS render, port
+  collision. Docs: `docs/MACOS-MAINTENANCE.md` (maintainer invariants), SETUP_MAC/DEPENDENCIES/
+  PUBLISHING/WIZARD updated. Diagnostics + hands-on checklist from P53 live in the session scratchpad
+  (not the repo).
+- P53: macOS stress test (diagnose-only; all artifacts in the scratchpad, nothing committed). Two-tier
+  method: OS-simulated + selftest coverage here, a 5W+H hands-on checklist for real hardware. Surfaced
+  16 findings (2 code-confirmed HIGH: PEP 668 installer break, double-click PATH gap) later fixed in P54.
 - P52: maintainer and doc-accuracy audit plus forward drift guards (seo-tools only). Extended the
   path-resolution check to `docs/*.md`/`README.md`; added a symbol-reference invariant
   (`<!-- verify: path::symbol -->` resolved against the AST, with `tools/doc-verify-allowlist.json`

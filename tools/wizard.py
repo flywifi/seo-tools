@@ -2782,6 +2782,9 @@ def _selftest() -> int:
     check(f'(("{_any_ip}"' not in src and f"(('{_any_ip}'" not in src,
           "wizard binds the all-interfaces address (loopback exemption lost)")
 
+    # 7) whisper.cpp CLI-rename resilience (G2): the detector must probe all three known binary names.
+    check('("whisper-cli", "whisper-cpp", "main")' in src, "whisper.cpp 3-name probe was narrowed")
+
     if failures:
         print("wizard selftest FAILED:")
         for f in failures:

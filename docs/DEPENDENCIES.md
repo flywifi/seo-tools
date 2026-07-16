@@ -9,9 +9,16 @@ scan of every `.py`, all `requirements-*.txt`, `shared/connectors/connectors.jso
 (routing, protocols, the CRM/pipeline stores, the drift guard's core, all offline math) runs on the
 Python standard library alone. Everything below is an accelerator that degrades honestly when absent.
 
-**Default install:** `tools/setup.py` installs the free, cross-platform, no-key pip set plus the
-uvx/Node/ffmpeg toolchain (see "Default-installable vs opt-in" at the end). Keyed, paid, macOS-only,
-and heavy native runtimes are opt-in and cannot be installed-and-working by default.
+**Default install:** `tools/setup.py --install-deps` installs the free, cross-platform, no-key pip set
+plus the uvx/Node/ffmpeg toolchain (see "Default-installable vs opt-in" at the end). Keyed, paid,
+macOS-only, and heavy native runtimes are opt-in and cannot be installed-and-working by default.
+
+**Where pip packages land (the private toolbox).** The installer creates a gitignored `.venv/` in the
+repo and installs every pip set into it (`setup.py::ensure_venv`), so a Homebrew Python's PEP 668
+"externally-managed" lock never silently blocks setup. The app runs heavy tools under that interpreter
+via `env_paths.app_python()`; with no `.venv` it falls back to the current interpreter (unchanged
+behavior). The Claude Desktop MCP `command` should therefore point at `.venv/bin/python3` (absolute).
+Maintainer detail: `docs/MACOS-MAINTENANCE.md`.
 
 ---
 

@@ -13,6 +13,14 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- macOS reliability fixes (from the P53 stress test): `tools/env_paths.py` (a private-`.venv`-aware
+  `app_python()` and a Homebrew-prefix-aware `which()`); a venv-first dependency install in
+  `tools/setup.py` that sidesteps a Homebrew Python's PEP 668 lock; a launcher that probes for a real
+  Python and steers to python.org when only the built-in stub exists; an injectable `_os()/_arch()`
+  simulation seam; a friendly exit on a busy port 8765; absolute Claude-Desktop MCP interpreter/command
+  resolution with Quit-and-reopen + log-location guidance; arch-aware transcription copy; a
+  folder-access-denied (TCC) message; DaVinci Resolve multi-path detection; a Safari OAuth caveat; and
+  `docs/MACOS-MAINTENANCE.md` capturing the macOS invariants.
 - Maintainer coverage for the `tools/` layer: `tools/publishing/MAINTAINER_README.md`
   documenting the publishing invariants, failure modes, dev-traps, and regression-to-selftest
   map, plus a drift check that requires and reference-checks maintainer docs for allowlisted
