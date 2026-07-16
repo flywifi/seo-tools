@@ -99,6 +99,9 @@ Invariants enforced:
       def/class/assignment or Class.method). Extends invariant 5 from paths to symbols.
   50. Tools-layer maintainer coverage (P52): each designated high-value tools subtree
       (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md (invariant 3 covers skills/ only).
+  51. Doc freshness (P52, advisory): when a code file a doc documents (tools/doc_freshness.py
+      DOC_SOURCES) changes sha since the doc-freshness manifest was reconciled, the doc is surfaced as
+      possibly stale (a content-hash signal, not a prose diff).
 """
 import json
 import os
@@ -1770,6 +1773,31 @@ def check_projection_staleness():
         advisory(msg + " (refresh the projection, then run tools/projection_manifest.py reconcile)")
 
 
+def check_doc_freshness():
+    """Invariant 51 (advisory): doc freshness (P52). High-value maintainer/docs are bound to the code
+    files they document (tools/doc_freshness.py DOC_SOURCES). When a bound source's sha256 has moved
+    since the doc-freshness manifest was last reconciled, this surfaces the doc as possibly stale (a
+    content-hash signal, not a prose diff). Non-blocking: re-read the doc, fix any drift, then run
+    `python3 tools/doc_freshness.py reconcile` to re-bless it."""
+    try:
+        import doc_freshness as df
+    except Exception as exc:  # noqa: BLE001
+        advisory(f"doc-freshness: doc_freshness unimportable: {exc}")
+        return
+    for e in df.check(ROOT):
+        note = e.get("note")
+        if note:
+            advisory(f"doc-freshness: {note}")
+            continue
+        changed = ", ".join(e.get("changed_sources", [])) or "-"
+        missing = e.get("missing_sources", [])
+        msg = (f"doc-freshness: {e.get('doc')} may be stale; documented source(s) changed since "
+               f"reconcile: {changed}")
+        if missing:
+            msg += f"; missing source(s): {', '.join(missing)}"
+        advisory(msg + " (re-read the doc, then run tools/doc_freshness.py reconcile)")
+
+
 def check_doc_count_truth():
     """Invariant 48: doc-count truth (P49 WS2). Recomputes the canonical global totals from the tree
     (tools/count_truth.py) and fails when a live architecture/setup doc states a different number for a
@@ -2017,6 +2045,7 @@ def main():
     check_doc_count_truth()
     check_doc_symbol_refs()
     check_tools_maintainer()
+    check_doc_freshness()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

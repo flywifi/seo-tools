@@ -1,0 +1,33 @@
+{
+  "_comment": "P52 doc-freshness signal: sha256 of each CODE file a doc documents, at the time the doc was last reconciled. If a bound source sha moves, drift invariant 51 (advisory) flags the doc as possibly stale. Re-read the doc, fix any drift, then run `python3 tools/doc_freshness.py reconcile` to re-bless it.",
+  "generated_by": "tools/doc_freshness.py",
+  "docs": {
+    "tools/publishing/MAINTAINER_README.md": {
+      "sources": {
+        "tools/publishing/__init__.py": "97491be631e83822bf4d6708754733f36659b544cc0da8f6e22387c8e3287425",
+        "tools/publishing/youtube.py": "b39c127eb2072e0ea20527e43dda9faec85f46e5444f6e681d4dbdc997a5ff3d",
+        "tools/publishing/instagram.py": "dec7594095f289a343f70a16ca981288ae1aefbbf5f08f0b4a4056ee7f3acf06",
+        "tools/publishing/tiktok.py": "29b4c6bbcbae245330e59db58422620fcd545df54b60fa3bbcfa2c9836a4fbe4",
+        "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
+        "tools/publishing/_http.py": "e4e0e3612c2d68956850f8de5d22f00760b9633b227edb4e3839f72f784e86d0",
+        "tools/oauth_flow.py": "42fd1386d29182058a8245068bf44f15beaa05427c6360aa16c2009df24b64cd",
+        "tools/publishing_compliance.py": "fb771b60f297497d0b274a0d1660ef9bc3951930d38c228be60d04ed08ef9edc"
+      }
+    },
+    "docs/PUBLISHING.md": {
+      "sources": {
+        "tools/publishing/youtube.py": "b39c127eb2072e0ea20527e43dda9faec85f46e5444f6e681d4dbdc997a5ff3d",
+        "tools/publishing/instagram.py": "dec7594095f289a343f70a16ca981288ae1aefbbf5f08f0b4a4056ee7f3acf06",
+        "tools/publishing/tiktok.py": "29b4c6bbcbae245330e59db58422620fcd545df54b60fa3bbcfa2c9836a4fbe4",
+        "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
+        "tools/oauth_flow.py": "42fd1386d29182058a8245068bf44f15beaa05427c6360aa16c2009df24b64cd"
+      }
+    },
+    "docs/WIZARD.md": {
+      "sources": {
+        "tools/wizard.py": "89c5592fafc4d6210143589ecea11d5a95b32f615554072cdb5bd76a1fcdf171",
+        "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
+      }
+    }
+  }
+}
