@@ -5,7 +5,8 @@
   "_config_path_linux": "~/.config/Claude/claude_desktop_config.json",
   "mcpServers": {
     "creator-os": {
-      "command": "python3",
+      "_comment": "Use an ABSOLUTE interpreter path. Claude Desktop launches this with its own (narrow) PATH, so a bare 'python3' can fail to start. After running setup, use the private toolbox interpreter created for you: REPLACE_WITH_ABSOLUTE_PATH/seo-tools/.venv/bin/python3 (if you did not run the dependency install, use your absolute python3 from `which python3`). Then completely Quit Claude Desktop (Cmd-Q) and reopen it; the config is only read at launch. Errors appear in ~/Library/Logs/Claude/mcp-server-creator-os.log.",
+      "command": "REPLACE_WITH_ABSOLUTE_PATH/seo-tools/.venv/bin/python3",
       "args": ["REPLACE_WITH_ABSOLUTE_PATH/seo-tools/tools/mcp_server.py"],
       "env": {
         "CREATOR_OS_ROOT": "REPLACE_WITH_ABSOLUTE_PATH/seo-tools"

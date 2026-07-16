@@ -57,6 +57,12 @@ def _os() -> str:
 def _arch() -> str:
     return (_ARCH_OVERRIDE or platform.machine()).lower()
 
+def _mcp_command(name: str) -> str:
+    """Resolve an MCP runtime command (npx/uvx) to an absolute path so Claude Desktop, which launches
+    servers with its own narrow PATH, can start it under a GUI launch. Falls back to the bare name
+    (Claude Desktop then tries its own PATH), so this is safe when the runtime is not yet installed."""
+    return env_paths.which(name) or name
+
 def _os_label() -> str:
     return {"mac": "macOS", "windows": "Windows", "linux": "Linux"}[_os()]
 
@@ -1105,8 +1111,10 @@ def _screen_done() -> str:
     if connected:
         connected_html = "<ul style='margin:0 0 16px 20px;line-height:1.8;color:#1a3d1a'>" + \
                          "".join(f"<li>{c}</li>" for c in connected) + "</ul>"
-        restart = """<div class="note"><strong>Restart Claude Desktop now.</strong>
-It will ask you to sign in to your connected accounts the first time you use them.</div>"""
+        restart = """<div class="note"><strong>Completely quit Claude Desktop and reopen it now.</strong>
+On a Mac use <strong>Cmd-Q</strong> (closing the window is not enough) &mdash; the config is only read
+when the app starts. It will ask you to sign in to your connected accounts the first time you use them.
+If a tool does not appear afterward, check <code>~/Library/Logs/Claude/mcp-server-&lt;name&gt;.log</code>.</div>"""
     else:
         connected_html = "<p>No services were connected in this session.</p>"
         restart = ""
@@ -1182,7 +1190,7 @@ def _write_storage_folder(folder: str) -> pathlib.Path:
     config = _read_claude_config()
     config.setdefault("mcpServers", {})
     config["mcpServers"]["filesystem"] = {
-        "command": "npx",
+        "command": _mcp_command("npx"),
         "args": ["-y", "@modelcontextprotocol/server-filesystem", folder],
     }
     written = _write_claude_config(config)
@@ -2330,7 +2338,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 config = _read_claude_config()
                 config.setdefault("mcpServers", {})
                 config["mcpServers"]["google-workspace"] = {
-                    "command": "uvx",
+                    "command": _mcp_command("uvx"),
                     "args": ["workspace-mcp"],
                     "env": {
                         "GOOGLE_OAUTH_CLIENT_ID": client_id,
@@ -2356,7 +2364,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 config = _read_claude_config()
                 config.setdefault("mcpServers", {})
                 config["mcpServers"]["microsoft-365"] = {
-                    "command": "npx",
+                    "command": _mcp_command("npx"),
                     "args": ["-y", "@softeria/ms-365-mcp-server"],
                 }
                 written = _write_claude_config(config)
