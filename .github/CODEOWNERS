@@ -1,0 +1,46 @@
+# CODEOWNERS for Creator OS (seo-tools)
+#
+# ADVISORY ONLY. This file records who owns each area so a pull request that
+# touches code also pulls in the owner of the matching maintainer/docs. It is
+# NOT backed by "Require review from Code Owners" branch protection: this is a
+# solo-maintainer project and a sole owner cannot approve their own PR, which
+# that setting would require. Real enforcement today is the local drift guard
+# and accuracy checks (tools/sync_check.py). When a second maintainer joins,
+# enabling code-owner review in the branch protection settings turns this file
+# into a hard gate. See docs/DOC-MAINTENANCE.md for the rationale and the
+# turn-it-on steps.
+#
+# @flywifi is a public GitHub handle, not personal contact information.
+
+# Default owner for everything.
+*                                   @flywifi
+
+# Governance and enforcement tooling (source + the docs that describe it).
+/tools/sync_check.py                @flywifi
+/tools/doc_freshness.py             @flywifi
+/tools/count_truth.py               @flywifi
+/tools/secret_scan.py               @flywifi
+/tools/preflight_push.py            @flywifi
+/docs/DOC-MAINTENANCE.md            @flywifi
+/docs/adr/                          @flywifi
+/CHANGELOG.md                       @flywifi
+
+# Publishing (the credentialed, security-sensitive layer) + its maintainer doc.
+/tools/publishing/                  @flywifi
+/tools/oauth_flow.py                @flywifi
+/tools/publishing_compliance.py     @flywifi
+
+# Engines and protocols (source of truth).
+/shared/                            @flywifi
+/protocols/                         @flywifi
+
+# Skills (hub, spokes, atoms) and their per-skill maintainer docs.
+/skills/                            @flywifi
+
+# Canonical reference data and the registry.
+/canonical-sources/                 @flywifi
+
+# Repo-wide conventions and status.
+/CLAUDE.md                          @flywifi
+/STATE.md                           @flywifi
+/ledger/                            @flywifi
