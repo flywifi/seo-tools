@@ -1877,6 +1877,24 @@ _IMPORT_ATTEMPTS = {
 }
 
 
+def _origin_allowed(origin, referer, port=PORT):
+    """P57 F5: decide whether a mutating POST is same-origin (CSRF defense).
+
+    A browser attaches an `Origin` header to a cross-site form POST; when it is absent it attaches
+    `Referer`. A cross-site attacker page (evil.example) therefore carries a foreign Origin/Referer
+    and is rejected; the wizard's own pages carry the loopback origin and pass. A non-browser local
+    caller (curl, a local script) sends neither and is allowed -- CSRF is a browser-driven cross-site
+    class, and a local process already has full filesystem access, so this adds no exposure. Pure and
+    unit-testable (the wizard selftest exercises it directly)."""
+    allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+    if origin is not None and origin != "":
+        return origin in allowed
+    if referer is not None and referer != "":
+        p = urllib.parse.urlparse(referer)
+        return f"{p.scheme}://{p.netloc}" in allowed
+    return True  # no Origin and no Referer -> not a browser cross-site POST
+
+
 def _confined_folder(folder, *, allow_home=False):
     """P57 F4/F6: resolve a user-typed folder and confine it to the user's home tree.
 
@@ -2152,6 +2170,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
+
+        # F5: reject cross-site POSTs. Every state-changing endpoint below writes config, credentials,
+        # an MCP root, or runs a subprocess; without this a website the user merely visits could
+        # auto-submit a form to http://127.0.0.1:8765/api/* and drive those side effects. The OAuth
+        # GET callback keeps its single-use `state` check; this covers the whole mutating POST surface.
+        if not _origin_allowed(self.headers.get("Origin"), self.headers.get("Referer")):
+            self._send("<h1>Blocked</h1><p>This request came from another website and was refused "
+                       "for your safety. Use the Creator OS setup page in your browser.</p>", status=403)
+            return
 
         if path == "/api/enable-capability":
             data = self._read_form()
@@ -2509,6 +2536,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             screen_fn = _PUBLISHING_SCREENS[plat]
             pending = _get(f"oauth_pending_{plat}") or {}
             _set(**{f"oauth_pending_{plat}": None})
+            # F5: require that THIS wizard started the flow (pending exists). The manual-paste path
+            # cannot verify the OAuth `state` (the user pastes only the code), so binding it to a
+            # locally-initiated pending flow stops an injected code from being exchanged.
+            if not pending:
+                self._send(screen_fn(error=(
+                    "Start the connection with the Connect button first, then paste the code. "
+                    "No pending authorization was found for this platform.")))
+                return
             if not code:
                 self._send(screen_fn(error="Paste the authorization code to finish connecting."))
                 return
@@ -2786,6 +2821,15 @@ def _selftest() -> int:
     check(pub.get("client_id") == "CID", "app client_id lost on merge")
     check(store["youtube"].get(_AT) == "IMPORT_READ_TOKEN", "importer token was clobbered")
     check(_get("oauth_pending_youtube") is None, "pending state not consumed (single-use)")
+
+    # 1b) F5: cross-site POST guard (_origin_allowed). A foreign Origin/Referer is refused; the
+    # wizard's own loopback origin passes; a non-browser caller with neither is allowed.
+    check(_origin_allowed(None, None) is True, "no-Origin/no-Referer should be allowed (local caller)")
+    check(_origin_allowed(f"http://127.0.0.1:{PORT}", None) is True, "same-origin 127.0.0.1 must pass")
+    check(_origin_allowed(f"http://localhost:{PORT}", None) is True, "same-origin localhost must pass")
+    check(_origin_allowed("https://evil.example", None) is False, "cross-site Origin must be refused")
+    check(_origin_allowed(None, "https://evil.example/x") is False, "cross-site Referer must be refused")
+    check(_origin_allowed("http://127.0.0.1:9999", None) is False, "wrong-port Origin must be refused")
 
     # 2) State mismatch (CSRF) -> refused, no exchange.
     flags.clear()
