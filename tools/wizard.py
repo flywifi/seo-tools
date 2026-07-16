@@ -36,6 +36,12 @@ import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loo
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 
 PORT = 8765
+_MAX_BODY = 5 * 1024 * 1024   # A4a: cap on any request body read into memory (forms are tiny)
+# Known STT model tiers the fetch-model button may request (A4c: reject anything else before shelling).
+_KNOWN_MODEL_TIERS = frozenset({
+    "tiny", "tiny.en", "base", "base.en", "small", "small.en",
+    "medium", "medium.en", "large-v3", "large-v3-turbo",
+})
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # ── OS helpers ─────────────────────────────────────────────────────────────
@@ -91,6 +97,20 @@ def _read_claude_config() -> dict:
 def _write_claude_config(config: dict) -> pathlib.Path:
     p = _claude_config_path()
     p.parent.mkdir(parents=True, exist_ok=True)
+    # A4b: never silently destroy an existing config we could not parse. _read_claude_config returns
+    # {} on a JSON error, so without this a corrupt file would be overwritten with only the new server
+    # key -- losing the user's other MCP servers. Back it up first so it is recoverable.
+    if p.exists():
+        try:
+            json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            try:
+                bak = p.with_name(p.name + ".corrupt.bak")
+                bak.write_text(p.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+                print(f"[wizard] Existing Claude config did not parse; backed it up to {bak} "
+                      "before writing the new one.")
+            except OSError:
+                pass
     p.write_text(json.dumps(config, indent=2), encoding="utf-8")
     return p
 
@@ -2113,10 +2133,23 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Location", location)
         self.end_headers()
 
+    def _read_body(self) -> str:
+        """Read the request body safely (P58 A4a): a malformed Content-Length degrades to empty (no
+        traceback), and no more than _MAX_BODY bytes are ever read into memory. Wizard forms are tiny,
+        so the cap is invisible to normal use and bounds a hostile oversized POST."""
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            return ""
+        if length <= 0:
+            return ""
+        try:
+            return self.rfile.read(min(length, _MAX_BODY)).decode("utf-8", "replace")
+        except Exception:  # noqa: BLE001
+            return ""
+
     def _read_form(self) -> dict:
-        length = int(self.headers.get("Content-Length", 0))
-        raw = self.rfile.read(length).decode("utf-8")
-        parsed = urllib.parse.parse_qs(raw)
+        parsed = urllib.parse.parse_qs(self._read_body())
         return {k: v[0] for k, v in parsed.items()}
 
     def do_GET(self) -> None:
@@ -2222,9 +2255,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/run-import":
             # Item 10: scan an export folder and PREVIEW what parses (no save), then save on approve.
-            length = int(self.headers.get("Content-Length", 0))
-            raw = self.rfile.read(length).decode("utf-8")
-            parsed = urllib.parse.parse_qs(raw)
+            parsed = urllib.parse.parse_qs(self._read_body())  # A4a: bounded + malformed-length safe
             action = parsed.get("action", ["scan"])[0]
             folder = (parsed.get("folder", [""])[0]).strip()
             # Whitelist platforms to the known set: drops anything unexpected (no reflected input).
@@ -2345,7 +2376,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             # Download + verify a whisper.cpp speech model on THIS computer (local; nothing uploaded).
             data = self._read_form()
             model = (data.get("model") or "").strip()
-            res = _run_transcribe(["doctor", "--fetch-model", model]) if model else {"error": "no model chosen"}
+            # A4c: only a known model tier may be shelled to transcribe.py (no arbitrary argv).
+            if model and model not in _KNOWN_MODEL_TIERS:
+                res = {"error": f"Unknown model tier '{html.escape(model)}'."}
+            elif model:
+                res = _run_transcribe(["doctor", "--fetch-model", model])
+            else:
+                res = {"error": "no model chosen"}
             if res.get("ok"):
                 msg = (f"Downloaded and verified <strong>{res.get('model')}</strong> "
                        f"(checked by {res.get('verified')}). Saved to {res.get('path')}. You are ready to "
@@ -2862,6 +2899,41 @@ def _selftest() -> int:
     check(not _valid_git_ref("--upload-pack=touch /tmp/x"), "leading-dash ref must be refused")
     check(not _valid_git_ref("a/../b") and not _valid_git_ref("x;rm -rf") and not _valid_git_ref(""),
           "traversal/metachar/empty refs must be refused")
+
+    # 1d) A4a: _read_body degrades a malformed Content-Length to empty and caps an oversized body.
+    import io as _io
+
+    class _FakeReq:
+        def __init__(self, length_hdr, nbytes):
+            self.headers = {"Content-Length": length_hdr}
+            self.rfile = _io.BytesIO(b"x" * nbytes)
+    check(_Handler._read_body(_FakeReq("not-a-number", 10)) == "", "malformed Content-Length must not crash")
+    check(len(_Handler._read_body(_FakeReq(str(_MAX_BODY + 999), _MAX_BODY + 999))) == _MAX_BODY,
+          "oversized body must be capped at _MAX_BODY")
+    check(_Handler._read_body(_FakeReq("5", 5)) == "xxxxx", "normal body reads exactly Content-Length")
+
+    # 1e) A4c: only a known STT model tier is accepted before shelling transcribe.py.
+    check("base.en" in _KNOWN_MODEL_TIERS and "small.en" in _KNOWN_MODEL_TIERS,
+          "known model tiers must be allowlisted")
+    check("../../etc/passwd" not in _KNOWN_MODEL_TIERS and "arbitrary" not in _KNOWN_MODEL_TIERS,
+          "arbitrary model strings must not be allowlisted")
+
+    # 1f) A4b: a corrupt Claude config is backed up, not destroyed, on the next write.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _cfg = pathlib.Path(_td) / "claude_desktop_config.json"
+        _cfg.write_text("{ this is not valid json ", encoding="utf-8")
+        _orig = globals()["_claude_config_path"]
+        globals()["_claude_config_path"] = lambda: _cfg
+        try:
+            _write_claude_config({"mcpServers": {"new": {"command": "x"}}})
+        finally:
+            globals()["_claude_config_path"] = _orig
+        _bak = _cfg.with_name(_cfg.name + ".corrupt.bak")
+        check(_bak.exists() and "not valid json" in _bak.read_text(encoding="utf-8"),
+              "corrupt config must be backed up before overwrite")
+        check(json.loads(_cfg.read_text(encoding="utf-8")).get("mcpServers", {}).get("new") is not None,
+              "new config must be written after backup")
 
     # 2) State mismatch (CSRF) -> refused, no exchange.
     flags.clear()

@@ -146,6 +146,9 @@ def check(
         "tier": tier,
         "connector": connector,
         "ftc_disclosure": ftc or None,
+        # A3 honesty: this means disclosure TEXT is present (supplied or prepended). It is NOT a
+        # content validation of the disclosure's adequacy. The key name is kept for schema/MCP
+        # back-compat; do not present it downstream as "the disclosure was verified."
         "ftc_disclosure_verified": bool(ftc),
         "ftc_prepended": ftc_prepended,
         "effective_caption": effective_caption,

@@ -62,7 +62,7 @@ For each platform in `platform_targets`:
 After all posts are queued, offer to run post-status for any post_id where the connector returned `status: processing`. Remind the creator to check back after processing completes.
 
 ### Step 5: Govern artifact
-Run govern-artifact with gates: integrity (FTC disclosures verified, AIGC flags applied), safety (no prohibited content patterns), brand_alignment (captions match voice and platform conventions).
+Run govern-artifact with gates: integrity (FTC disclosure text present, AIGC flags applied), safety (no prohibited content patterns), brand_alignment (captions match voice and platform conventions).
 
 ## Output contract
 

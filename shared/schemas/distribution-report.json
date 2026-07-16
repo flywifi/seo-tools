@@ -79,7 +79,7 @@
           },
           "ftc_disclosure_verified": {
             "type": "boolean",
-            "description": "True when ftc_disclosure was present in caption or was prepended."
+            "description": "True when ftc_disclosure TEXT was present in the caption or was prepended. This is a presence check, not a content validation of the disclosure's adequacy."
           },
           "aigc_flag_set": {
             "type": "boolean",
