@@ -553,6 +553,29 @@ def _save_publish_creds(platform, updated):
         pass
 
 
+def _apply_dispatch_result(pdata, res):
+    """Record a dispatch() result on the queue item honestly.
+
+    Success is keyed on res['ok'], not on status-string membership: the clients
+    return many ok=False refusals (empty_media, needs_public_url, upload_failed,
+    no_board, ...) and every one of them must land as 'failed' with its error,
+    never as 'published' with a null post_id.
+    """
+    status = res.get("status")
+    if status in ("gated", "unconfirmed", "auth_required"):
+        # Defense-in-depth refusal or a dead token: do not mark published.
+        pdata["status"] = "ready_to_post" if status != "auth_required" else "auth_required"
+        pdata["error"] = res.get("error")
+    elif res.get("ok"):
+        pdata["status"] = "published"
+        pdata["post_id"] = res.get("post_id")
+        pdata["permalink"] = res.get("permalink")
+        pdata["error"] = None
+    else:
+        pdata["status"] = "failed"
+        pdata["error"] = res.get("error") or status or "publish failed"
+
+
 def _scheduler_loop():
     """Advance due, human-confirmed posts.
 
@@ -603,16 +626,7 @@ def _scheduler_loop():
                                 config=config, allow_live=True, confirmed=True,
                                 persist=(lambda upd, _p=platform: _save_publish_creds(_p, upd)),
                             )
-                            status = res.get("status")
-                            if status in ("gated", "unconfirmed", "auth_required"):
-                                # Defense-in-depth refusal or a dead token: do not mark published.
-                                pdata["status"] = "ready_to_post" if status != "auth_required" else "auth_required"
-                                pdata["error"] = res.get("error")
-                            else:
-                                pdata["status"] = "published"
-                                pdata["post_id"] = res.get("post_id")
-                                pdata["permalink"] = res.get("permalink")
-                                pdata["error"] = None
+                            _apply_dispatch_result(pdata, res)
                         except NotImplementedError as exc:
                             pdata["status"] = "ready_to_post"
                             pdata["error"] = str(exc)
@@ -627,7 +641,44 @@ def _scheduler_loop():
                 _save_queue(queue)
 
 
+def _selftest() -> int:
+    """Offline: _apply_dispatch_result records every dispatch outcome honestly."""
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+
+    p = {}
+    _apply_dispatch_result(p, {"ok": True, "status": "published", "post_id": "X1", "permalink": "https://example/x1"})
+    ok("ok=True -> published with post_id", p["status"] == "published" and p["post_id"] == "X1" and p["error"] is None)
+
+    for refusal in ("empty_media", "needs_public_url", "upload_failed", "no_board", "privacy_not_allowed"):
+        p = {}
+        _apply_dispatch_result(p, {"ok": False, "status": refusal, "post_id": None,
+                                   "permalink": None, "error": f"{refusal} detail"})
+        ok(f"ok=False {refusal} -> failed, never published",
+           p["status"] == "failed" and p["error"] == f"{refusal} detail")
+
+    p = {}
+    _apply_dispatch_result(p, {"ok": False, "status": "gated", "error": "flag off"})
+    ok("gated -> ready_to_post", p["status"] == "ready_to_post")
+    p = {}
+    _apply_dispatch_result(p, {"ok": False, "status": "auth_required", "error": "reconnect"})
+    ok("auth_required kept as auth_required", p["status"] == "auth_required")
+    p = {}
+    _apply_dispatch_result(p, {"ok": False})
+    ok("statusless failure still carries an error string", p["status"] == "failed" and p["error"])
+
+    failed = [n for n, c in checks if not c]
+    for n, c in checks:
+        print(("ok   " if c else "FAIL ") + n)
+    print(f"dashboard selftest: {len(checks) - len(failed)}/{len(checks)} passed")
+    return 1 if failed else 0
+
+
 def main():
+    if "--selftest" in sys.argv[1:]:
+        raise SystemExit(_selftest())
     print("Creator OS Scheduling Dashboard")
     print(f"  URL: http://localhost:{PORT}")
     print(f"  Queue: {QUEUE_PATH}")
