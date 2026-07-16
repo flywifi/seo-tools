@@ -32,19 +32,30 @@ _HERE = pathlib.Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loopback helper)
+import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 
 PORT = 8765
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # ── OS helpers ─────────────────────────────────────────────────────────────
 
+# Test seams: set these to simulate a platform offline so the macOS/Windows screens can be rendered
+# and asserted without real hardware (mirrors transcribe.select_backend's injectable design).
+_OS_OVERRIDE = None    # "mac" | "windows" | "linux"
+_ARCH_OVERRIDE = None  # e.g. "arm64" | "x86_64"
+
 def _os() -> str:
+    if _OS_OVERRIDE:
+        return _OS_OVERRIDE
     s = platform.system()
     if s == "Darwin":
         return "mac"
     if s == "Windows":
         return "windows"
     return "linux"
+
+def _arch() -> str:
+    return (_ARCH_OVERRIDE or platform.machine()).lower()
 
 def _os_label() -> str:
     return {"mac": "macOS", "windows": "Windows", "linux": "Linux"}[_os()]
@@ -77,23 +88,46 @@ def _write_claude_config(config: dict) -> pathlib.Path:
     return p
 
 def _has_uv() -> bool:
-    return shutil.which("uv") is not None
+    # env_paths.which prepends the Homebrew prefixes so uv is found under a double-click launch
+    # (non-login zsh) where /opt/homebrew/bin is off PATH; also accept a uv inside the private .venv.
+    if env_paths.which("uv"):
+        return True
+    vp = env_paths.venv_python()
+    return bool(vp and (vp.parent / "uv").exists())
 
 def _install_uv() -> tuple[bool, str]:
+    # Install into the private .venv when present (env_paths.app_python); on a PEP 668 externally-
+    # managed Python with no .venv, retry with the sanctioned --break-system-packages override so a
+    # Homebrew Python does not silently block the install.
+    py = env_paths.app_python()
     try:
         r = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "uv"],
+            [py, "-m", "pip", "install", "uv"],
             capture_output=True, text=True, timeout=120,
         )
         if r.returncode == 0:
             return True, ""
-        return False, r.stderr.strip()
+        detail = (r.stderr or r.stdout or "").strip()
+        if "externally-managed-environment" in detail:
+            r2 = subprocess.run(
+                [py, "-m", "pip", "install", "--break-system-packages", "uv"],
+                capture_output=True, text=True, timeout=120,
+            )
+            if r2.returncode == 0:
+                return True, ""
+            return False, (r2.stderr or r2.stdout or "").strip()
+        return False, detail
     except Exception as exc:
         return False, str(exc)
 
 def _node_version() -> str | None:
+    # Resolve node with the Homebrew prefixes prepended so a double-click launch (bare PATH) still
+    # finds a brew-installed Node instead of reporting it missing.
+    node = env_paths.which("node")
+    if not node:
+        return None
     try:
-        r = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=5)
+        r = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=5)
         if r.returncode == 0:
             return r.stdout.strip()
     except Exception:
@@ -1670,7 +1704,7 @@ def _stt_backend_present() -> tuple:
     Returns (backend_label_or_None, whisper_cpp_bin_or_None, faster_whisper_bool)."""
     cpp = None
     for name in ("whisper-cli", "whisper-cpp", "main"):
-        if shutil.which(name):
+        if env_paths.which(name):  # brew-prefix-aware so a double-click launch still finds whisper-cli
             cpp = name
             break
     try:
@@ -1690,7 +1724,7 @@ def _stt_install_block() -> str:
     notes. Non-technical, one copy-paste line per OS, per the P45 routing matrix."""
     os_name = _os()
     if os_name == "mac":
-        is_arm = platform.machine().lower() in ("arm64", "aarch64")
+        is_arm = _arch() in ("arm64", "aarch64")
         chip = "Apple Silicon (M1 to M4)" if is_arm else "Intel Mac"
         return f"""
 <div class="note"><strong>Install a transcription engine ({chip}).</strong>
@@ -1848,7 +1882,7 @@ def _run_import_parse(fmt, path):
     """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
     attempt did not parse (wrong format for this folder, unreadable file). Never raises."""
     try:
-        r = subprocess.run([sys.executable, str(ROOT / "tools" / "import_parse.py"), fmt, path],
+        r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "import_parse.py"), fmt, path],
                            capture_output=True, text=True, timeout=900)
         if r.returncode != 0:
             return None
@@ -1886,7 +1920,7 @@ def _run_transcribe(args):
     """Call tools/transcribe.py as a subprocess and parse its JSON. Keeps the wizard decoupled from
     the STT module's imports. Returns a dict (with an 'error' key on failure)."""
     try:
-        r = subprocess.run([sys.executable, str(ROOT / "tools" / "transcribe.py")] + list(args),
+        r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "transcribe.py")] + list(args),
                            capture_output=True, text=True, timeout=3600)
     except Exception as exc:  # noqa: BLE001
         return {"error": f"could not run the setup check: {exc}"}
@@ -1900,7 +1934,7 @@ def _run_setup(args):
     """Call tools/setup.py as a subprocess and parse its JSON. Used by the 'Set up my computer'
     screen to install the free dependency sets. Returns a dict (with an 'error' key on failure)."""
     try:
-        r = subprocess.run([sys.executable, str(ROOT / "tools" / "setup.py")] + list(args),
+        r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "setup.py")] + list(args),
                            capture_output=True, text=True, timeout=3600)
     except Exception as exc:  # noqa: BLE001
         return {"error": f"could not run the installer: {exc}"}
@@ -2110,7 +2144,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                     return
                 try:
                     r = subprocess.run(
-                        [sys.executable, str(ROOT / "tools" / "video_library.py"), "upsert-batch", batch],
+                        [env_paths.app_python(), str(ROOT / "tools" / "video_library.py"), "upsert-batch", batch],
                         capture_output=True, text=True, timeout=1800)
                     out = json.loads(r.stdout or "{}")
                     n = out.get("upserted", 0)
@@ -2513,7 +2547,7 @@ def _pick_folder() -> str:
     """Shell tools/pick_folder.py in its own subprocess (so Tk owns a main thread) and return the
     chosen path, or '' if cancelled / no picker backend is available."""
     try:
-        r = subprocess.run([sys.executable, str(ROOT / "tools" / "pick_folder.py")],
+        r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "pick_folder.py")],
                            capture_output=True, text=True, timeout=360)
         return (r.stdout or "").strip()
     except Exception:  # noqa: BLE001
@@ -2687,19 +2721,67 @@ def _selftest() -> int:
     check("denied or cancelled" in html_out.lower(), "access_denied not surfaced")
 
     _OAUTH_TRANSPORT = None
+
+    # 4) macOS screens render offline via the _os()/_arch() seam (F9).
+    global _OS_OVERRIDE, _ARCH_OVERRIDE
+    _OS_OVERRIDE, _ARCH_OVERRIDE = "mac", "arm64"
+    try:
+        blk = _stt_install_block()
+        check("Apple Silicon" in blk and "whisper-cpp" in blk, "mac STT block did not render Apple Silicon copy")
+        _ARCH_OVERRIDE = "x86_64"
+        check("Intel Mac" in _stt_install_block(), "mac STT block did not render Intel copy")
+        cfg = str(_claude_config_path())
+        check("Library/Application Support/Claude" in cfg, "mac Claude config path wrong under _os override")
+    finally:
+        _OS_OVERRIDE, _ARCH_OVERRIDE = None, None
+
+    # 5) Port-collision mechanism (F6): a second bind on the same port raises OSError (the friendly
+    #    exit path in main() depends on this being catchable).
+    try:
+        s1 = _Server(("127.0.0.1", 0), _Handler)
+        busy_port = s1.server_address[1]
+        check(s1.server_address[0] == "127.0.0.1", "server did not bind loopback")
+        raised = False
+        try:
+            s2 = _Server(("127.0.0.1", busy_port), _Handler)
+            s2.server_close()
+        except OSError:
+            raised = True
+        check(raised, "second bind on a busy port did not raise OSError")
+        s1.server_close()
+    except Exception as exc:  # noqa: BLE001
+        check(False, f"port-collision check errored: {exc}")
+
+    # 6) Loopback-only guard (G1): main() must bind 127.0.0.1, never 0.0.0.0.
+    src = pathlib.Path(__file__).read_text(encoding="utf-8")
+    check('_Server(("127.0.0.1", PORT)' in src, "main() no longer binds 127.0.0.1:PORT")
+    _any_ip = ".".join(["0"] * 4)  # built dynamically so this guard line doesn't match itself
+    check(f'(("{_any_ip}"' not in src and f"(('{_any_ip}'" not in src,
+          "wizard binds the all-interfaces address (loopback exemption lost)")
+
     if failures:
-        print("wizard OAuth selftest FAILED:")
+        print("wizard selftest FAILED:")
         for f in failures:
             print("  -", f)
         return 1
-    print("wizard OAuth selftest OK (state CSRF + exchange + no-clobber merge + flag flip, 0 network)")
+    print("wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; port-collision; loopback guard; 0 network)")
     return 0
 
 
 def main() -> None:
     if "--selftest" in sys.argv:
         raise SystemExit(_selftest())
-    server = _Server(("127.0.0.1", PORT), _Handler)
+    # Bind loopback only (127.0.0.1): exempt from the macOS Application Firewall incoming-connection
+    # prompt AND the Sequoia/Tahoe local-network permission prompt (Apple TN3179). Never 0.0.0.0.
+    try:
+        server = _Server(("127.0.0.1", PORT), _Handler)
+    except OSError:
+        # Port 8765 is busy (a second launch, a lingering wizard, or another app). Keep the port
+        # fixed (OAuth redirect URIs are registered against it) and exit cleanly with a plain message
+        # instead of dumping a traceback into the Terminal window a non-technical user is watching.
+        print(f"\nCreator OS Setup is already running, or port {PORT} is in use.")
+        print(f"Open http://localhost:{PORT}/ in your browser, or close the other window and try again.")
+        raise SystemExit(1)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
