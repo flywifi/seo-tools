@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-15",
+  "last_registry_update": "2026-07-16",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4844,6 +4844,453 @@
       "pinned_constraint": "",
       "validated_version": null,
       "_why": "import-guarded in the drift guard (tools/sync_check.py) for SKILL.md frontmatter; absent, it falls back to a regex parse, so a bump is low-risk but tracked for the default install"
+    },
+    {
+      "id": "apple-gatekeeper-runtime",
+      "name": "Apple Platform Security - Gatekeeper and runtime protection in macOS",
+      "url": "https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Gatekeeper/quarantine/notarization model; confirm the first-run block behavior and any new checks.",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-open-anyway-flow",
+      "name": "Apple - Safely open apps on your Mac (Open Anyway flow)",
+      "url": "https://support.apple.com/en-us/102445",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 120,
+      "staleness_threshold_days": 120,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Current Open Anyway path (System Settings > Privacy and Security); confirm right-click>Open stays removed and the admin-auth step.",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-gatekeeper-sequoia-change",
+      "name": "Apple Developer News - Updates to runtime protection in macOS Sequoia",
+      "url": "https://developer.apple.com/news/?id=saqachfa",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Removal of Control-click>Open override; confirm still in force on the current macOS.",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-tcc-file-access",
+      "name": "Apple Platform Security - Controlling app access to files in macOS",
+      "url": "https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Files-and-Folders / Full Disk Access prompts; confirm the prompt attribution and any new permission category.",
+      "used_by": [
+        "docs/SETUP_MAC.md",
+        "content-library"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-local-network-privacy-tn3179",
+      "name": "Apple TN3179 - Understanding local network privacy",
+      "url": "https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Defines local-network addresses as addresses on broadcast-capable interfaces (Wi-Fi/Ethernet, not WWAN/VPN) plus multicast and IPv4 broadcast; loopback is excluded by this definition (implied, not stated on the page). Explicit loopback statement lives in apple-local-network-privacy-faq.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "tools/wizard.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-local-network-privacy-faq",
+      "name": "Apple DTS - Local Network Privacy FAQ (Developer Forums)",
+      "url": "https://developer.apple.com/forums/thread/660260",
+      "category": "os-platform",
+      "tier": "T2",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Apple DTS statement that traffic to localhost/loopback does not trigger the local-network permission prompt; the explicit companion to apple-local-network-privacy-tn3179.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "tools/wizard.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-rosetta",
+      "name": "Apple - Using Intel-based apps on a Mac with Apple silicon (Rosetta)",
+      "url": "https://support.apple.com/en-us/102527",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 120,
+      "staleness_threshold_days": 120,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "On-demand Rosetta install for x86_64 binaries on Apple Silicon; confirm availability/roadmap (limited to certain older games starting macOS 28).",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-macos-tahoe-updates",
+      "name": "Apple - What's new in the updates for macOS Tahoe 26",
+      "url": "https://support.apple.com/en-us/122868",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Current shipping macOS major version + latest point release (drives the Tahoe references in the docs).",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-macos-intel-support",
+      "name": "Apple - macOS Tahoe 26 compatible Mac models (Intel support)",
+      "url": "https://support.apple.com/en-us/122867",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Which Mac models/architectures the current macOS supports; the Intel-drop timeline (macOS 27).",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "python-using-on-mac",
+      "name": "Python docs - Using Python on macOS",
+      "url": "https://docs.python.org/3/using/mac.html",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Stock /usr/bin/python3 shim behavior, python.org universal2 installer, and that Tk ships with it.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "python-macos-downloads",
+      "name": "Python - Downloads for macOS",
+      "url": "https://www.python.org/downloads/macos/",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 120,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Current stable Python universal2 installer version to recommend.",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "pep-668-externally-managed",
+      "name": "PEP 668 - Marking Python base environments as externally managed",
+      "url": "https://peps.python.org/pep-0668/",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 365,
+      "staleness_threshold_days": 365,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "The externally-managed-environment rule + --break-system-packages; the load-bearing fact behind the .venv install.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "homebrew-installation",
+      "name": "Homebrew - Installation",
+      "url": "https://docs.brew.sh/Installation",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Prefix (/opt/homebrew vs /usr/local) and the shellenv/PATH requirement; drives the launcher PATH export.",
+      "used_by": [
+        "docs/SETUP_MAC.md",
+        "docs/MACOS-MAINTENANCE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "homebrew-and-python",
+      "name": "Homebrew - Homebrew and Python (PEP 668)",
+      "url": "https://docs.brew.sh/Homebrew-and-Python",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "That Homebrew Python is externally-managed; venv/pipx guidance.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "homebrew-formula-whisper-cpp",
+      "name": "Homebrew formula - whisper-cpp",
+      "url": "https://formulae.brew.sh/formula/whisper-cpp",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Formula version, the installed CLI name (whisper-cli), and Metal-default on Apple Silicon.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "content-library"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "homebrew-formula-ffmpeg",
+      "name": "Homebrew formula - ffmpeg",
+      "url": "https://formulae.brew.sh/formula/ffmpeg",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 90,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Formula version + notarized arm64 bottle (no quarantine).",
+      "used_by": [
+        "docs/SETUP_MAC.md",
+        "content-library"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "homebrew-formula-python-tk",
+      "name": "Homebrew formula - python-tk",
+      "url": "https://formulae.brew.sh/formula/python-tk@3.13",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 120,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "The separate tkinter formula for Homebrew Python (the folder-picker dependency) + version. URL is version-pinned; re-point when Homebrew's default Python moves past 3.13.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "whisper-cpp-ggml-models-hf",
+      "name": "Hugging Face - ggerganov/whisper.cpp GGML models",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 120,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "GGML model file names, sizes, and the LFS oid sha256 used for download integrity verification.",
+      "used_by": [
+        "content-library"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "mcp-connect-local-servers",
+      "name": "MCP docs - Connect to local MCP servers",
+      "url": "https://modelcontextprotocol.io/docs/develop/connect-local-servers",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Desktop config path, the command/args/env schema, the absolute-command rule, full-quit/restart, the mcp-server log location, and runtime PATH.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "creator-core"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-desktop-local-mcp",
+      "name": "Claude Support - Local MCP servers on Claude Desktop (.mcpb desktop extensions)",
+      "url": "https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Rewritten around .mcpb desktop-extension one-click installs (extension directory, settings, admin controls); the stdio command/args/env config now lives at mcp-connect-local-servers.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "creator-core"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-code-mcp-docs",
+      "name": "Claude Code docs - MCP",
+      "url": "https://code.claude.com/docs/en/mcp",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": ".mcp.json / claude mcp add; CLAUDE_PROJECT_DIR; roots behavior.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "creator-core"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-desktop-vs-web-connectors",
+      "name": "Claude Support - When to use desktop and web connectors",
+      "url": "https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Which surfaces can touch local files (Desktop/Code yes; web/mobile no); Cowork brokering.",
+      "used_by": [
+        "docs/MACOS-MAINTENANCE.md",
+        "creator-core"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-google-workspace-connectors",
+      "name": "Claude Support - Use Google Workspace connectors",
+      "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Native Google Workspace connector (no Cloud Console); Team/Enterprise admin gating.",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ]
 }
