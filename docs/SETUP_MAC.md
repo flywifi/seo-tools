@@ -201,14 +201,29 @@ brew install python && pip3 install faster-whisper
 
 ### macOS notes that trip people up
 
-- macOS ships **no usable `python3`**. Install it via Homebrew (`brew install python`) or the notarized
-  python.org universal2 `.pkg` (notarized, so no Gatekeeper prompt).
+- **`git clone`, don't Download-ZIP.** Files created by `git clone` are not quarantined and the
+  `Start Creator OS Setup.command` launcher just runs. A downloaded `.zip`, unzipped in Finder,
+  quarantines the launcher and Gatekeeper blocks the first double-click.
+- **Clearing a Gatekeeper block (the current flow).** Open System Settings &rarr; Privacy &amp;
+  Security, scroll to the Security section, click **Open Anyway**, and confirm with your admin
+  password. **Right-click &rarr; Open no longer works** &mdash; that shortcut was removed in macOS 15
+  Sequoia and is still gone in the current **macOS 26 (Tahoe)**.
+- macOS ships **no usable `python3`** (the built-in one is a stub that pops the "command line
+  developer tools" dialog). Install it via the notarized **python.org universal2 `.pkg`** (no
+  Gatekeeper prompt, Tk bundled) or Homebrew (`brew install python@3.13`). The setup wizard installs
+  Python dependencies into a private `.venv` toolbox, which sidesteps Homebrew Python's PEP 668
+  install lock.
 - A **downloaded static ffmpeg** hits `com.apple.quarantine` ("cannot be opened because the developer
-  cannot be verified"). Clear it with `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or open it once
-  via System Settings &rarr; Privacy &amp; Security &rarr; Open Anyway (Sequoia removed the old
-  right-click-Open shortcut for unsigned binaries). `brew install` avoids quarantine entirely.
+  cannot be verified"). Clear it with `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or Open Anyway
+  as above. `brew install ffmpeg` (a notarized bottle) avoids quarantine entirely.
 - faster-whisper needs no system ffmpeg, so it is the escape hatch when a user cannot get a downloaded
   ffmpeg past Gatekeeper.
+- **Local setup runs on this computer only.** The wizard, the folder import, transcription, and the
+  publishing OAuth loopback need Claude **Desktop** or **Claude Code** on this Mac. Claude in a browser
+  (claude.ai) and a remote Cowork session cannot reach your local files or `localhost` services.
+- **Dated context (as of 2026-07):** Homebrew disables Gatekeeper-failing casks from **2026-09-01**
+  (formula bottles like `ffmpeg`/`whisper-cpp` are unaffected); **macOS 27** (expected fall 2026) drops
+  Intel support, so Tahoe 26 is the last Intel release.
 
 ### The guided doctor (recommended for non-technical users)
 

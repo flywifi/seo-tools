@@ -30,6 +30,12 @@ the read-only tokens the import feature uses.
 If a platform refuses to redirect to a local address (see Instagram), the Connect page also lets you
 **paste the authorization code by hand**.
 
+**Safari note (macOS).** Safari's HTTPS-Only behavior can block or upgrade the plain-`http`
+`127.0.0.1` callback, so the code may not come back automatically. If Connect stalls in Safari, use
+**Chrome or Firefox** for the OAuth step, or fall back to the **paste-the-code-by-hand** box, which
+works in any browser. The redirect is registered against `127.0.0.1` (not `localhost`) to avoid
+IPv6/name-resolution edge cases.
+
 ---
 
 ## YouTube — the honest 7-day reality

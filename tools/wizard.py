@@ -1734,9 +1734,12 @@ def _stt_install_block() -> str:
     if os_name == "mac":
         is_arm = _arch() in ("arm64", "aarch64")
         chip = "Apple Silicon (M1 to M4)" if is_arm else "Intel Mac"
+        speed = ("uses the Mac's Metal GPU, so it is fast" if is_arm
+                 else "runs on the CPU on an Intel Mac (no Metal acceleration), so expect it to be "
+                      "noticeably slower")
         return f"""
 <div class="note"><strong>Install a transcription engine ({chip}).</strong>
-The recommended engine is <strong>whisper.cpp</strong> (uses the Mac's Metal GPU). In Terminal:
+The recommended engine is <strong>whisper.cpp</strong> (it {speed}). In Terminal:
 <pre>brew install whisper-cpp ffmpeg</pre>
 Homebrew bottles are notarized, so there is no "unidentified developer" Gatekeeper prompt. You then
 download a model file once (a ggml-*.bin from the whisper.cpp repo) and point Creator OS at it with
@@ -2169,13 +2172,25 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             # action == scan
             expanded = os.path.expanduser(folder) if folder else ""
             if not folder or not os.path.isdir(expanded):
+                hint = ""
+                # On macOS a Files-and-Folders (TCC) denial makes a real folder look "not found".
+                if _os() == "mac" and folder and os.path.exists(os.path.dirname(expanded) or "/"):
+                    hint = (" If the folder does exist, macOS may have blocked access: open System "
+                            "Settings &rarr; Privacy &amp; Security &rarr; Files and Folders (or Full Disk "
+                            "Access), allow Terminal, then try again.")
                 self._send(_screen_import(folder=folder,
-                    error="Please enter the full path to your unzipped export folder (it was not found)."))
+                    error="Please enter the full path to your unzipped export folder (it was not found)." + hint))
                 return
             if not platforms:
                 self._send(_screen_import(folder=folder, error="Pick at least one platform to scan for."))
                 return
-            records, notes = _scan_import_folder(expanded, platforms)
+            try:
+                records, notes = _scan_import_folder(expanded, platforms)
+            except PermissionError:
+                self._send(_screen_import(folder=folder, error=(
+                    "macOS blocked access to that folder. Open System Settings &rarr; Privacy &amp; "
+                    "Security &rarr; Files and Folders (or Full Disk Access), allow Terminal, then try again.")))
+                return
             revenue = sum(1 for r in records if r.get("revenue"))
             if not records:
                 preview = ('<div class="note" style="background:#fff3e0"><strong>No videos found in that '

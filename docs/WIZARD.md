@@ -44,7 +44,8 @@ A browser window opens automatically. The wizard:
 2. Asks which services you want to connect (Google, Microsoft, or both).
 3. Walks you through each connection step by step.
 4. Writes all configuration files automatically -- no JSON editing.
-5. Tells you when to restart Claude Desktop.
+5. Tells you when to fully quit and reopen Claude Desktop (Cmd-Q on macOS, not just closing the
+   window) so it reloads the config.
 
 ### Google Workspace (Gmail, Calendar, Drive, Docs, Sheets)
 

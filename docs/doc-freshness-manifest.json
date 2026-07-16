@@ -25,7 +25,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "89c5592fafc4d6210143589ecea11d5a95b32f615554072cdb5bd76a1fcdf171",
+        "tools/wizard.py": "26c46c4525bd314f308c036b88f338ee9564576127d510be27088fcee6178dc2",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     }

@@ -47,8 +47,18 @@ def _resolve_present() -> dict:
     lib = None
     app = None
     if plat == "darwin":
-        app = Path("/Applications/DaVinci Resolve/DaVinci Resolve.app")
-        lib = Path("/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so")
+        # Resolve installs to either /Applications/DaVinci Resolve.app (common) or a
+        # /Applications/DaVinci Resolve/ subfolder (older/some installers). Probe both.
+        for base in ("/Applications/DaVinci Resolve.app",
+                     "/Applications/DaVinci Resolve/DaVinci Resolve.app"):
+            cand_app = Path(base)
+            cand_lib = cand_app / "Contents" / "Libraries" / "Fusion" / "fusionscript.so"
+            if cand_app.exists():
+                app, lib = cand_app, cand_lib
+                break
+        if app is None:  # neither present: report the common path for guidance
+            app = Path("/Applications/DaVinci Resolve.app")
+            lib = app / "Contents" / "Libraries" / "Fusion" / "fusionscript.so"
     elif plat.startswith("win"):
         lib = Path(r"C:\Program Files\Blackmagic Design\DaVinci Resolve\fusionscript.dll")
     else:
