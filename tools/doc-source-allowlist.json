@@ -1,0 +1,7 @@
+{
+  "_comment": "Invariant 52 exemptions: source ids that appear in a doc's ```sources block or <!-- source: id --> marker as ILLUSTRATIVE examples, not real declarations. Each entry needs a written reason in _reasons. Never exempt a real source; seed it instead (tools/source_sync.py reconcile).",
+  "_reasons": {
+    "an-example-id": "The placeholder id used by docs/DOC-MAINTENANCE.md and docs/CURRENCY.md to illustrate the sources-block convention."
+  },
+  "exempt": ["an-example-id"]
+}

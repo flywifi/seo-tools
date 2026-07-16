@@ -102,6 +102,10 @@ Invariants enforced:
   51. Doc freshness (P52, advisory): when a code file a doc documents (tools/doc_freshness.py
       DOC_SOURCES) changes sha since the doc-freshness manifest was reconciled, the doc is surfaced as
       possibly stale (a content-hash signal, not a prose diff).
+  52. Doc-declared source registration (P55): every id a maintainer/SKILL/doc file declares in a
+      fenced ```sources block or an inline `<!-- source: id -->` marker must exist in
+      canonical-sources/source-registry.json with a matching url; unparseable blocks fail. Fail-closed
+      like invariant 23: a doc citation forces a tracked registry entry.
 """
 import json
 import os
@@ -1915,6 +1919,72 @@ def check_tools_maintainer():
             problem(f"{d}: missing MAINTAINER_README.md (required for a declared tools maintainer subtree)")
 
 
+SOURCES_BLOCK_RE = re.compile(r"^```sources[ \t]*\n(.*?)^```[ \t]*$", re.DOTALL | re.MULTILINE)
+SOURCE_MARKER_RE = re.compile(r"<!--\s*source:\s*([A-Za-z0-9][A-Za-z0-9_-]*)\s*-->")
+
+
+def check_doc_source_registry():
+    """Invariant 52: doc-declared source registration (P55). A maintainer/SKILL/doc file that declares
+    the external sources its claims rest on - a fenced ```sources block holding a JSON array of
+    {id, url, ...} objects, or an inline `<!-- source: id -->` marker tying one claim to one id -
+    asserts those sources are TRACKED: every declared id must exist in
+    canonical-sources/source-registry.json, and a declared url must equal the registry's url for that
+    id. An unparseable block is a failure too (a silent skip would defeat the trigger). Fail-closed
+    like invariant 23: citing a source in a doc forces the registry entry, so the currency system
+    freshness-checks it from then on. The assist tool is `tools/source_sync.py` (reconcile generates
+    the seed file; the human registers it via source_currency seed-sources). Enforcement is opt-in per
+    doc - a file with no block and no marker is unaffected. Exemptions for illustrative/example ids
+    live in tools/doc-source-allowlist.json ({"exempt": ["the-id", ...]}, each with a written reason
+    in _comments)."""
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    try:
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        problem(f"doc-source-registry: source-registry.json unreadable: {exc}")
+        return
+    registry = {s.get("id"): s.get("url") for s in reg.get("sources", []) if s.get("id")}
+    exempt = set()
+    ap = ROOT / "tools" / "doc-source-allowlist.json"
+    if ap.exists():
+        try:
+            exempt = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
+        except (OSError, json.JSONDecodeError):
+            exempt = set()
+    for target in _reference_scan_files():
+        rel = target.relative_to(ROOT)
+        text = target.read_text(encoding="utf-8")
+        for m in SOURCES_BLOCK_RE.finditer(text):
+            try:
+                data = json.loads(m.group(1))
+            except ValueError as exc:
+                problem(f"{rel}: unparseable ```sources block ({exc}); fix the JSON - a broken "
+                        f"declaration must not silently skip enforcement")
+                continue
+            if not isinstance(data, list):
+                problem(f"{rel}: ```sources block must be a JSON array of source objects")
+                continue
+            for item in data:
+                if not isinstance(item, dict) or not item.get("id"):
+                    problem(f"{rel}: ```sources block entry missing an id")
+                    continue
+                sid = item["id"]
+                if sid in exempt:
+                    continue
+                if sid not in registry:
+                    problem(f"{rel}: declared source id '{sid}' is not in source-registry.json; "
+                            f"run `python3 tools/source_sync.py reconcile` and seed the generated "
+                            f"file via source_currency seed-sources (or exempt an illustrative id "
+                            f"in tools/doc-source-allowlist.json with a reason)")
+                elif item.get("url") and item["url"] != registry[sid]:
+                    problem(f"{rel}: declared url for '{sid}' disagrees with the registry "
+                            f"(declared {item['url']!r}, registry {registry[sid]!r}); reconcile "
+                            f"whichever is stale (update-source for the registry side)")
+        for mid in SOURCE_MARKER_RE.findall(text):
+            if mid not in registry and mid not in exempt:
+                problem(f"{rel}: source marker references id '{mid}' which is not in "
+                        f"source-registry.json (seed it or exempt it with a reason)")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -2046,6 +2116,7 @@ def main():
     check_doc_symbol_refs()
     check_tools_maintainer()
     check_doc_freshness()
+    check_doc_source_registry()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
