@@ -29,6 +29,7 @@ import ssl
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 
 CA_BUNDLE = os.environ.get("REQUESTS_CA_BUNDLE") or "/root/.ccr/ca-bundle.crt"
 
@@ -320,6 +321,12 @@ def refresh(platform: str, *, client_id: str = "", client_secret: str = "",
         q = urllib.parse.urlencode({"grant_type": "ig_refresh_token", "access_token": access_token})
         status, obj = _request(transport, "GET", cfg["refresh_url"] + "?" + q,
                                {"Accept": "application/json"})
+        # A1c: Instagram has no refresh_token, so ANY refresh failure (expired/>60-day/revoked
+        # long-lived token) means the user must reconnect. Raise ReauthRequired (not the generic
+        # OAuthError _normalize would raise) so instagram.publish returns a clean auth_required.
+        if status >= 400 or (isinstance(obj, dict) and (obj.get("error") or obj.get("error_type"))):
+            code, desc = _err_code(obj if isinstance(obj, dict) else {}, status)
+            raise ReauthRequired(status, code, desc)
         return _normalize("instagram", status, obj, now)
 
     if not refresh_token:
@@ -334,7 +341,10 @@ def refresh(platform: str, *, client_id: str = "", client_secret: str = "",
     status, obj = _request(transport, "POST", cfg["token_url"], headers, form=form)
     if status >= 400 or (isinstance(obj, dict) and obj.get("error")):
         code, desc = _err_code(obj if isinstance(obj, dict) else {}, status)
-        if code in TERMINAL_REFRESH_CODES or status in (400, 401):
+        # A1b: only a terminal error code (invalid_grant, token-invalid) or a 401 means the grant is
+        # dead and the user must reconnect. A transient 400 (invalid_request, temporary validation,
+        # clock skew) is retryable and must NOT force a full re-auth.
+        if code in TERMINAL_REFRESH_CODES or status == 401:
             raise ReauthRequired(status, code, desc)
         raise OAuthError(status, code, desc)
     tok = _normalize(platform, status, obj, now)
@@ -489,6 +499,31 @@ def _selftest() -> int:
         pass
     except Exception as exc:  # noqa: BLE001
         check(False, f"dead refresh raised {type(exc).__name__}, want ReauthRequired")
+
+    # 3e-i) A1b: a transient 400 (non-terminal code) is retryable -> OAuthError, NOT ReauthRequired.
+    def fake_transient(method, url, headers, body):
+        return 400, json.dumps({"error": "invalid_request",
+                                "error_description": "temporary"}).encode()
+    try:
+        refresh("youtube", client_id="C", client_secret="S", refresh_token="x",
+                transport=fake_transient, now=fixed_now)
+        check(False, "transient 400 should raise")
+    except ReauthRequired:
+        check(False, "transient invalid_request must not force reauth (want OAuthError)")
+    except OAuthError:
+        pass
+    # 3e-ii) A1a: the real-transport error type resolves (module imports urllib.error explicitly).
+    check(hasattr(urllib.error, "HTTPError"), "urllib.error.HTTPError must be importable")
+    # 3e-iii) A1c: a dead Instagram long-lived token -> ReauthRequired (so publish() -> auth_required).
+    def fake_ig_dead(method, url, headers, body):
+        return 400, json.dumps({"error": {"message": "expired", "code": 190}}).encode()
+    try:
+        refresh("instagram", access_token="OLD", transport=fake_ig_dead, now=fixed_now)
+        check(False, "dead IG token should raise ReauthRequired")
+    except ReauthRequired:
+        pass
+    except Exception as exc:  # noqa: BLE001
+        check(False, f"dead IG refresh raised {type(exc).__name__}, want ReauthRequired")
 
     # 3f) Instagram two-step exchange: short -> long-lived 60d, ig_user_id captured.
     before = len(calls)
