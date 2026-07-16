@@ -86,10 +86,18 @@ stays as the always-works fallback when no picker is available (e.g. over SSH).
 
 ## What the wizard does behind the scenes (for Matt's reference)
 
-The wizard is a small Python script (`tools/wizard.py`) that runs a local web server on
-`http://localhost:8765` and opens your system browser. Nothing leaves your computer except
-the OAuth flows to the providers' own servers (Google, Microsoft, and -- during publishing setup --
-YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
+The wizard is a small Python script (`tools/wizard.py`) that runs a local web server bound to
+`http://127.0.0.1:8765` (loopback only, never `0.0.0.0`) and opens your system browser. Nothing
+leaves your computer except the OAuth flows to the providers' own servers (Google, Microsoft, and --
+during publishing setup -- YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
+
+**Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
+is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you
+type (import folder, Creator OS folder) are confined to your home directory after resolving
+symlinks; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
+Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being
+silently replaced; and the import scan/approve flow is tied to a single-use token so two open tabs
+cannot approve each other's scan.
 
 **Config files the wizard writes:**
 
