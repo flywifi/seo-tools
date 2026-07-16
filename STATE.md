@@ -2,8 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P55 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P57 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P56/P57: adversarial audit of the last-24h change set (P50 to P55) + remediation. The audit
+  (diagnose-first, sandboxed zero-network harnesses in the session scratchpad) confirmed 12 findings,
+  all behind `live_publishing_enabled=OFF` so no user was exposed. P57 fixed all of them, each with a
+  harness that flips from CONFIRMED to KILLED and the green baseline preserved. Publish path: the
+  dashboard passed the wrong creds shape to `dispatch` so the live path returned auth_required for
+  everyone (F1); `dispatch` now structurally enforces `live_publishing_enabled` + explicit human
+  confirm instead of trusting the caller (F2/F8); a `persist` callable is threaded through so a TikTok
+  refresh-token rotation is saved (F3); the scheduler dispatches only a `direct_api`-tier platform
+  (F7); add-to-queue strips caller-supplied control fields (F8). OAuth: Pinterest/Instagram redirect
+  host `localhost` to `127.0.0.1` (F9, `localhost` could resolve to IPv6 `::1` and lose the callback).
+  Wizard: home-tree path confinement on the import scan and the filesystem-MCP folder (F4/F6, was
+  `os.path.isdir` only), a cross-site Origin/Referer guard on every mutating POST (F5), and
+  `nightly_branch` git-ref validation + HTML escaping (F10/F11). Also added the missing
+  `publishing_compliance --selftest` (F12). The LOW hardening cluster is drafted-not-applied; a fresh
+  map of three audit surfaces not reached under a session limit (launch/install, the P52 guards, a P55
+  regression pass) is deferred. Full findings + harnesses live in the session scratchpad, not the repo.
 - P55: seeded the macOS/AI-surface research sources and made doc citations trigger registry tracking.
   Seeded 23 sources (registry 218 to 241): a new `os-platform` category (Apple Gatekeeper/Open-Anyway/
   TCC/TN3179 + DTS FAQ/Rosetta/Tahoe/Intel-support, python.org + PEP 668, Homebrew docs + formulae,

@@ -12,6 +12,19 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Security
+- Adversarial-audit remediation of the P50/P51 publishing + wizard code (all findings were behind
+  `live_publishing_enabled=OFF`, so no user was exposed): the publish `dispatch()` now structurally
+  enforces the live-publishing flag and an explicit human confirmation instead of trusting the caller,
+  the dashboard passes the full credentials map (the live path returned "reconnect" for everyone
+  before), a token-rotation `persist` callback is threaded through so a refreshed TikTok token is
+  saved, and the scheduler only dispatches a `direct_api`-tier platform. The setup wizard now confines
+  the import-scan folder and the filesystem-MCP folder to the user's home tree (was `os.path.isdir`
+  only), rejects cross-site POSTs with an Origin/Referer check, and validates + escapes the
+  `nightly_branch` value (which feeds `git pull`). Pinterest/Instagram OAuth redirect host moved from
+  `localhost` to `127.0.0.1` to avoid an IPv6 `::1` dead-end. Added the previously-missing
+  `publishing_compliance --selftest`.
+
 ### Added
 - Doc-declared source tracking: the 23 macOS/AI-surface research sources behind the stress-test
   fixes seeded into the source registry (new `os-platform` category; every URL fetch-verified first),
