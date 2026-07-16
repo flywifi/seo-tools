@@ -155,3 +155,83 @@ def check(
         "ok": ok,
         "error": error,
     }
+
+
+def _selftest() -> int:
+    """Offline test of the publishing gate (config + creds injected; no filesystem, no network).
+
+    Locks the safety-relevant contract the dashboard and MCP surfaces both depend on: the master flag
+    is OFF by default, an unknown platform and a direct_api tier without credentials both hard-fail,
+    a stored publish (or back-compat root) token is detected, human review is always required, the FTC
+    disclosure is prepended when missing, and the AIGC flag is TikTok-only. Added in P56 (the module
+    previously had no selftest, so `publishing_compliance.py --selftest` was a silent no-op)."""
+    failures: list[str] = []
+
+    def ok(cond, msg):
+        if not cond:
+            failures.append(msg)
+
+    ON = {"capabilities": {"live_publishing_enabled": True}}
+    YT_ON = {"capabilities": {"youtube_publishing": True}}
+
+    # 1) Master gate defaults OFF; explicit flag turns it on; flag accepts bool or {"enabled":...}.
+    ok(live_publishing_enabled({}) is False, "live_publishing_enabled default should be False")
+    ok(live_publishing_enabled(ON) is True, "live_publishing_enabled should honor the flag")
+    ok(flag_enabled({"capabilities": {"x": True}}, "x") is True, "flag_enabled bare bool")
+    ok(flag_enabled({"capabilities": {"x": {"enabled": True}}}, "x") is True, "flag_enabled object form")
+    ok(flag_enabled({"capabilities": {"x": {"enabled": False}}}, "x") is False, "flag_enabled disabled object")
+
+    # 2) Unknown platform hard-fails.
+    r = check("vimeo", config={}, creds={})
+    ok(r["ok"] is False and "Unknown platform" in (r["error"] or ""), "unknown platform must fail")
+
+    # 3) direct_api tier without credentials hard-fails; with a publish token it passes.
+    r = check("youtube", config=YT_ON, creds={})
+    ok(r["tier"] == "direct_api" and r["ok"] is False and "credentials" in (r["error"] or ""),
+       "direct_api without creds must fail")
+    r = check("youtube", config=YT_ON, creds={"youtube": {"publish": {"access_token": "t"}}})
+    ok(r["tier"] == "direct_api" and r["ok"] is True and r["has_credentials"] is True,
+       "direct_api with a publish token must pass")
+    # Back-compat: a root-level token also counts.
+    r = check("youtube", config=YT_ON, creds={"youtube": {"access_token": "t"}})
+    ok(r["has_credentials"] is True, "root-level token should count (back-compat)")
+
+    # 4) manual tier passes with no creds (documents F7: the network gate is separate from this tier gate).
+    r = check("youtube", config={}, creds={})
+    ok(r["tier"] == "manual" and r["ok"] is True and r["has_credentials"] is False,
+       "manual tier should pass with no creds")
+
+    # 5) human_review_required is always True.
+    ok(check("tiktok", config={}, creds={})["human_review_required"] is True,
+       "human_review_required must always be True")
+
+    # 6) FTC disclosure prepended when missing; not double-prepended when present.
+    r = check("youtube", caption="hello", ftc_disclosure="#ad", config={}, creds={})
+    ok(r["ftc_prepended"] is True and r["effective_caption"].startswith("#ad")
+       and r["ftc_disclosure_verified"] is True, "FTC disclosure should prepend when absent")
+    r = check("youtube", caption="#ad hello", ftc_disclosure="#ad", config={}, creds={})
+    ok(r["ftc_prepended"] is False, "FTC disclosure should not double-prepend")
+
+    # 7) AIGC flag is TikTok-only.
+    ok(check("tiktok", is_aigc=True, config={}, creds={})["aigc_flag_set"] is True, "tiktok AIGC on")
+    ok(check("youtube", is_aigc=True, config={}, creds={})["aigc_flag_set"] is False, "non-tiktok AIGC off")
+
+    for msg in failures:
+        print(f"FAIL {msg}")
+    n = 20
+    print(f"publishing_compliance selftest: {n - len(failures)}/{n} checks passed"
+          if not failures else f"publishing_compliance selftest FAILED ({len(failures)} of {n})")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    ap = argparse.ArgumentParser(description="Publishing compliance / tier gate.")
+    ap.add_argument("--selftest", action="store_true", help="run the offline gate selftest")
+    args = ap.parse_args()
+    if args.selftest:
+        sys.exit(_selftest())
+    ap.print_help()
+    sys.exit(0)
