@@ -100,3 +100,5 @@ editing-bucket.manifest.json
 __pycache__/
 *.pyc
 .pytest_cache/
+# The private toolbox: dependencies install here (never committed). See tools/env_paths.py.
+.venv/
