@@ -91,6 +91,11 @@ def publish(entry: dict, creds: dict, *, transport=None, token_transport=None,
         return {"ok": False, "status": "no_media", "post_id": None, "permalink": None,
                 "error": "No local video file was found for this entry (expected entry['media_path'])."}
     size = os.path.getsize(media)
+    # A2a: refuse an empty file BEFORE any network init. _chunk_plan(0) would otherwise build a
+    # malformed 'Content-Range: bytes 0--1/0' and PUT a zero-length chunk.
+    if size <= 0:
+        return {"ok": False, "status": "empty_media", "post_id": None, "permalink": None,
+                "error": "The video file is empty (0 bytes). Re-download or re-export it, then retry."}
 
     # 1) creator_info: which privacy levels is this (possibly unaudited) app/account allowed to use?
     st, _h, raw = transport("POST", CREATOR_INFO_URL, auth, b"{}")
@@ -226,6 +231,16 @@ def _selftest() -> int:
     # Dead token.
     res = publish({"media_path": vid.name}, {"tiktok": {"publish": {}}}, transport=fake, now=now)
     check(not res["ok"] and res["status"] == "auth_required", "no token not surfaced")
+
+    # A2a: a 0-byte file -> empty_media before any network init (no malformed 'bytes 0--1/0').
+    empty = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    empty.close()
+    seen = []
+    res = publish({"media_path": empty.name}, good, transport=(lambda m, u, h, b: seen.append(u) or (200, {}, b"{}")),
+                  now=now)
+    check(not res["ok"] and res["status"] == "empty_media", "0-byte file not refused")
+    check(not seen, "empty_media must not make any network call")
+    os.unlink(empty.name)
 
     os.unlink(vid.name)
     if failures:

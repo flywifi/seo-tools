@@ -60,7 +60,10 @@ def publish(entry: dict, creds: dict, *, transport=None, token_transport=None,
         return {"ok": False, "status": "auth_required", "post_id": None, "permalink": None,
                 "error": "No Instagram access token available. Reconnect Instagram in the setup wizard."}
 
-    ig_user_id = ig.get("ig_user_id") or pub.get("ig_user_id") or ig.get("account_id")
+    # A2c: require a real ig_user_id (the IG professional-account id). Do NOT fall back to account_id,
+    # which for Meta is typically the linked Facebook Page id -- posting /{page_id}/media targets the
+    # wrong object type and fails or misfires.
+    ig_user_id = ig.get("ig_user_id") or pub.get("ig_user_id")
     if not ig_user_id:
         return {"ok": False, "status": "no_account", "post_id": None, "permalink": None,
                 "error": "No Instagram professional account id (ig_user_id) is saved. Reconnect Instagram."}
@@ -190,6 +193,12 @@ def _selftest() -> int:
                   {"instagram": {"publish": {AT: "T", "expires_at": now + 9999}}},
                   transport=fake, now=now, sleep_fn=lambda _s: None)
     check(not res["ok"] and res["status"] == "no_account", "missing ig_user_id not caught")
+
+    # A2c: account_id alone (usually the Facebook Page id) is NOT accepted as ig_user_id.
+    res = publish({"image_url": "https://cdn.example.com/x.jpg"},
+                  {"instagram": {"account_id": "999", "publish": {AT: "T", "expires_at": now + 9999}}},
+                  transport=fake, now=now, sleep_fn=lambda _s: None)
+    check(not res["ok"] and res["status"] == "no_account", "account_id must not be used as ig_user_id")
 
     # Dead token.
     res = publish({"image_url": "https://cdn.example.com/x.jpg"},

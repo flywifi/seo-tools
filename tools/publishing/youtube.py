@@ -20,6 +20,7 @@ import json
 import os
 import pathlib
 import sys
+import urllib.parse
 
 _HERE = pathlib.Path(__file__).resolve().parent
 _TOOLS = _HERE.parent
@@ -84,6 +85,11 @@ def publish(entry: dict, creds: dict, *, transport=None, token_transport=None,
         return {"ok": False, "status": "no_media", "post_id": None, "permalink": None,
                 "error": "No local video file was found for this entry (expected entry['media_path'])."}
     size = os.path.getsize(media)
+    # A2a: refuse an empty file BEFORE any network init (a truncated download would otherwise send
+    # an INIT POST for zero bytes and return 'incomplete').
+    if size <= 0:
+        return {"ok": False, "status": "empty_media", "post_id": None, "permalink": None,
+                "error": "The video file is empty (0 bytes). Re-download or re-export it, then retry."}
     content_type = entry.get("content_type") or "video/*"
 
     # 3) Build the video resource. Default to PRIVATE; public requires an explicit entry choice.
@@ -115,6 +121,13 @@ def publish(entry: dict, creds: dict, *, transport=None, token_transport=None,
     if not session_uri:
         return {"ok": False, "status": "init_failed", "post_id": None, "permalink": None,
                 "error": "The upload session did not return a Location URL."}
+    # A2b: the bytes + Bearer token go to this server-supplied URI; pin it to the Google upload host
+    # so a spoofed/redirected init response cannot exfiltrate the authenticated upload off googleapis.
+    _host = (urllib.parse.urlparse(session_uri).hostname or "").lower()
+    if not (_host == "googleapis.com" or _host.endswith(".googleapis.com")):
+        return {"ok": False, "status": "init_failed", "post_id": None, "permalink": None,
+                "error": f"The upload session URL host {_host!r} is not a Google upload host; refusing "
+                         "to send the upload token there."}
 
     # 5) Upload the bytes in 256 KB-multiple chunks; honor 308 resume.
     uploaded = 0
@@ -220,6 +233,24 @@ def _selftest() -> int:
     # Missing media -> no_media.
     res = publish({"media_path": "/does/not/exist.mp4"}, fresh_creds, transport=fake, now=now)
     check(not res["ok"] and res["status"] == "no_media", "missing media not caught")
+
+    # A2a: a 0-byte file -> empty_media BEFORE any network init.
+    empty = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    empty.close()
+    calls_before = len(urls)
+    res = publish({"media_path": empty.name}, fresh_creds, transport=fake, now=now)
+    check(not res["ok"] and res["status"] == "empty_media", "0-byte file not refused")
+    check(len(urls) == calls_before, "empty_media must not make any network call")
+    os.unlink(empty.name)
+
+    # A2b: a spoofed init Location on a non-Google host -> refusal, no bytes/Bearer sent there.
+    def fake_evil_host(method, url, headers, body):
+        urls.append(url)
+        if method == "POST" and url == INIT_URL:
+            return 200, {"Location": "https://evil.example/upload?id=1"}, b""
+        raise AssertionError("must not PUT to the evil host")
+    res = publish({"media_path": tmp.name}, fresh_creds, transport=fake_evil_host, now=now)
+    check(not res["ok"] and res["status"] == "init_failed", "off-host upload URL not refused")
 
     os.unlink(tmp.name)
     if failures:
