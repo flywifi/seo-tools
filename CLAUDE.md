@@ -124,9 +124,12 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 When you change code, update its maintainer/SKILL/docs prose in the SAME change, never in a later
 cleanup pass. If you add or rename a symbol a doc names, update or add its `<!-- verify: path::symbol -->`
 marker; if you change a global count (a spoke, atom, invariant, scenario, agent role), fix every
-live-doc claim; add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an
-ADR in `docs/adr/`. The drift guard enforces path resolution, symbol references, count truth, and
-URL provenance, and stamps content-hash staleness. Full model and citations: `docs/DOC-MAINTENANCE.md`.
+live-doc claim; if the prose cites a new external authority, declare it in the doc's fenced `sources`
+block and seed it into the registry (`tools/source_sync.py reconcile` generates the seed; invariant 52
+fails the build on an undeclared-in-registry citation); add a `CHANGELOG.md` entry under Unreleased;
+record any architectural decision as an ADR in `docs/adr/`. The drift guard enforces path resolution,
+symbol references, count truth, URL provenance, and doc-declared source registration, and stamps
+content-hash staleness. Full model and citations: `docs/DOC-MAINTENANCE.md`.
 
 ## Commit and PR hygiene (non-negotiable, machine-enforced)
 Nothing leaves this machine that reveals more than the code change itself:

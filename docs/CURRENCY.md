@@ -73,6 +73,33 @@ Never hand-edit `source-registry.json`.
 - **A graph-discovered source**: `python3 tools/traversal_engine.py traverse[-all]` then
   `accept <url>`.
 
+## Doc-declared sources: the citation trigger (P55)
+
+A maintainer/SKILL/doc file whose claims rest on external authorities declares them in a fenced
+`sources` block (a JSON array; a registered id needs only `id` + `url`, a NEW source declares the full
+seed shape `id`/`name`/`url`/`category`/`tier`), or ties one claim to one id with an inline
+`<!-- source: an-example-id -->` marker. The declaration is both the generator input and the
+enforcement target, mirroring how invariant 23 makes a `requirements-*.txt` line force a registry
+entry:
+
+1. **Declare** the source in the doc that cites it (see `docs/MACOS-MAINTENANCE.md` and
+   `docs/SETUP_MAC.md` "Declared sources" for live examples).
+2. **Generate**: `python3 tools/source_sync.py reconcile` scans the doc corpus, diffs the declarations
+   against the registry, and writes a ready seed file (a `.local.` path, never committable) for any
+   declared-but-unregistered id. It never writes the registry and never invents fields: an incomplete
+   declaration is reported back to the doc author.
+3. **Enforce**: drift-guard **invariant 52** (fail-closed, like invariant 23) fails the build when a
+   declared id is missing from the registry, a declared URL disagrees with the registry's, or a
+   `sources` block does not parse. The human closes the loop with
+   `python3 tools/source_currency.py seed-sources <generated-file>` (the sanctioned writer set is
+   unchanged). Illustrative ids used in documentation examples are exempted in
+   `tools/doc-source-allowlist.json`, each with a written reason.
+
+The outcome: citing a source in a maintainer note is no longer inert prose. The citation forces a
+registry entry, and the registry entry puts the source on the freshness cadence below, so the fact the
+doc rests on gets re-checked on schedule from then on. `python3 tools/source_sync.py check` is the
+read-only report (also useful pre-commit).
+
 ## What updates what, and why
 
 Every entry's `used_by` names the atoms/engines/connectors it protects; `_why` (dependencies) or
@@ -83,9 +110,12 @@ content change fires, the `used_by` list is the review queue: those are the arti
 
 Per-category intervals live in `canonical-sources/traversal-config.json`
 (`per_category_overrides`). Current defaults: SEO authority 7d, platform spec / API changelog /
-tool-mcp 14d, niche authority 30d, mcp-server 30d, software-dependency 60d, rate-benchmark /
-cost-vendor 90d, legal-authority 180d, competitor-page 3d. A per-entry `check_interval_days`
-governs dependency freshness precisely (dependency_currency reads it directly).
+tool-mcp 14d, niche authority 30d, mcp-server 30d, ai-surface-spec 30d, software-dependency 60d,
+rate-benchmark / cost-vendor 90d, legal-authority 180d, competitor-page 3d. A category override wins
+over a per-entry value at seed time; `os-platform` (P55, the macOS/OS facts) deliberately has no
+override, so its per-entry `check_interval_days` values (60d for Homebrew formulae up to 365d for
+PEP 668) apply as declared. A per-entry `check_interval_days` also governs dependency freshness
+precisely (dependency_currency reads it directly).
 
 ## Weekly automation
 

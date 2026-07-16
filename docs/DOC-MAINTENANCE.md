@@ -45,6 +45,18 @@ symbol, path, or count is verifiable, so it is verified.
 6. **Tools-layer maintainer coverage.** Allowlisted `tools/` directories
    (`TOOLS_MAINTAINER_DIRS`) must each carry a `MAINTAINER_README.md`, and those files are
    reference-checked like skill maintainer docs.
+7. **Doc-declared source registration** (invariant "doc source registry", P55; fail-closed like
+   the dependency-registry invariant). A doc that cites external authorities declares them in a
+   fenced `sources` block (a JSON array; registered ids need `id` + `url`, new sources the full
+   seed shape `id`/`name`/`url`/`category`/`tier`) or an inline `<!-- source: an-example-id -->`
+   marker. Every declared id must exist in `canonical-sources/source-registry.json` with a
+   matching URL, and an unparseable block fails the build too, so a maintainer citation cannot
+   silently sit outside the freshness system. `tools/source_sync.py reconcile` (read-only) writes
+   the seed file for a new declaration; the human registers it with
+   `source_currency.py seed-sources`. Illustrative example ids are exempted in
+   `tools/doc-source-allowlist.json`, each with a written reason. Enforcement is opt-in per doc:
+   a file with no block and no marker is untouched. Full model: `docs/CURRENCY.md`
+   "Doc-declared sources".
 
 ## Process conventions
 
@@ -83,6 +95,9 @@ Do not present it as a cited industry standard.
 1. Update the maintainer/SKILL/docs prose in the same change.
 2. If you added or renamed a symbol a doc names, update or add its `verify:` marker.
 3. If you changed a global count (a spoke, atom, invariant, scenario), fix every live-doc claim.
-4. Run `python3 tools/sync_check.py` (and `tools/doc_freshness.py --check`); reconcile the
+4. If the prose cites a new external authority, declare it in the doc's `sources` block and seed it
+   (`python3 tools/source_sync.py reconcile`, then `source_currency.py seed-sources <generated>`,
+   then `build_freshness_bundle.py --apply` since new source ids move the freshness digest).
+5. Run `python3 tools/sync_check.py` (and `tools/doc_freshness.py --check`); reconcile the
    staleness manifests if a bound source legitimately changed.
-5. Add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an ADR.
+6. Add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an ADR.

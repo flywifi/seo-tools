@@ -1,5 +1,5 @@
 {
-  "_comment": "Machine-checkable calendar of moving legal/regulatory dates (P47). Mirrors the 'Known moving dates to watch' prose in docs/FRESHNESS.md as dated JSON. Drift invariant 43 (advisory) surfaces any date whose effective (or phase_2) has passed while verified_after < effective, so a took-effect-but-still-pending date can never sit silently. STAGED / diagnostic only: applying a correction is a separate human step recorded in volatile-corrections.2026-07-14.json. verified_after is the last date the corresponding registry source was confirmed AFTER the rule took effect (null = not yet re-verified since).",
+  "_comment": "Machine-checkable calendar of moving legal/regulatory/platform dates (P47; platform dates added P55). Mirrors the 'Known moving dates to watch' prose in docs/FRESHNESS.md as dated JSON. Platform entries use the platform name as the jurisdiction. Drift invariant 43 (advisory) surfaces any date whose effective (or phase_2) has passed while verified_after < effective, so a took-effect-but-still-pending date can never sit silently. STAGED / diagnostic only: applying a correction is a separate human step recorded in volatile-corrections.2026-07-14.json. verified_after is the last date the corresponding registry source was confirmed AFTER the rule took effect (null = not yet re-verified since).",
   "as_of": "2026-07-14",
   "dates": [
     {
@@ -55,6 +55,28 @@
       "phase_2": null,
       "verified_after": null,
       "citation_url": "https://www.ncosfm.gov/engineering-and-codes",
+      "confidence": "approximate"
+    },
+    {
+      "id": "homebrew-gatekeeper-failing-casks",
+      "jurisdiction": "macOS",
+      "description": "Homebrew disables Gatekeeper-failing casks from 2026-09-01 (formula bottles like ffmpeg/whisper-cpp are unaffected). Drives the docs/SETUP_MAC.md dated-context note.",
+      "registry_source_id": "homebrew-installation",
+      "effective": "2026-09-01",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://docs.brew.sh/Installation",
+      "confidence": "verified"
+    },
+    {
+      "id": "macos-27-intel-drop",
+      "jurisdiction": "macOS",
+      "description": "macOS 27 (expected fall 2026) drops Intel support; macOS 26 Tahoe is the last Intel release, and Rosetta narrows to certain older games starting macOS 28. Drives the Intel copy in docs/SETUP_MAC.md and the transcribe/arch-aware messaging.",
+      "registry_source_id": "apple-macos-intel-support",
+      "effective": "2026-10-01",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://support.apple.com/en-us/122867",
       "confidence": "approximate"
     }
   ]

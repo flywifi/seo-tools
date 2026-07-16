@@ -47,3 +47,4 @@ added beyond what those records state. New decisions get the next number via
 | [0036](0036-p51-publishing-oauth-live-upload.md) | P51 Publishing Oauth Live Upload | 2026-07-15 | Accepted |
 | [0037](0037-p52-maintainer-doc-accuracy-guards.md) | P52 Maintainer Doc Accuracy Guards | 2026-07-16 | Accepted |
 | [0038](0038-p54-macos-venv-and-path-fixes.md) | P54 macOS Venv And Path Fixes | 2026-07-16 | Accepted |
+| [0039](0039-p55-doc-source-trigger.md) | P55 Doc Source Trigger | 2026-07-16 | Accepted |

@@ -13,6 +13,14 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- Doc-declared source tracking: the 23 macOS/AI-surface research sources behind the stress-test
+  fixes seeded into the source registry (new `os-platform` category; every URL fetch-verified first),
+  fenced `sources` declaration blocks in the two macOS docs, `tools/source_sync.py` (a read-only
+  reconciler that generates the seed file for any doc-declared source not yet registered), drift
+  invariant 52 (`check_doc_source_registry`, fail-closed: an unregistered, URL-mismatched, or
+  unparseable doc declaration fails the build), `tools/doc-source-allowlist.json` for illustrative
+  ids, and two macOS platform dates (the Homebrew cask Gatekeeper change, the macOS 27 Intel drop)
+  in the moving-dates calendar.
 - macOS reliability fixes (from the P53 stress test): `tools/env_paths.py` (a private-`.venv`-aware
   `app_python()` and a Homebrew-prefix-aware `which()`); a venv-first dependency install in
   `tools/setup.py` that sidesteps a Homebrew Python's PEP 668 lock; a launcher that probes for a real

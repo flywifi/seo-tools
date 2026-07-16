@@ -2,8 +2,23 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P54 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P55 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P55: seeded the macOS/AI-surface research sources and made doc citations trigger registry tracking.
+  Seeded 23 sources (registry 218 to 241): a new `os-platform` category (Apple Gatekeeper/Open-Anyway/
+  TCC/TN3179 + DTS FAQ/Rosetta/Tahoe/Intel-support, python.org + PEP 668, Homebrew docs + formulae,
+  whisper.cpp GGML models) plus 5 `ai-surface-spec` entries (MCP local-servers, Claude Desktop/Code/
+  connectors docs); every URL fetch-verified before seeding, freshness bundle restamped. New
+  declare-generate-enforce loop: a doc declares its external authorities in a fenced ```sources block
+  (or `<!-- source: id -->` marker); `tools/source_sync.py` (read-only, 13-check selftest) reconciles
+  declarations against the registry and generates the seed file for anything unregistered; new
+  fail-closed drift invariant 52 (`check_doc_source_registry`, mirroring invariant 23) fails the build
+  on an unregistered/URL-mismatched/unparseable declaration, with illustrative-id exemptions in
+  `tools/doc-source-allowlist.json`. Declared-sources blocks live in `docs/MACOS-MAINTENANCE.md` and
+  `docs/SETUP_MAC.md`; the convention is documented in `docs/CURRENCY.md` + `docs/DOC-MAINTENANCE.md` +
+  CLAUDE.md. Two macOS platform dates (Homebrew cask Gatekeeper change 2026-09-01, macOS 27 Intel drop)
+  added to `canonical-sources/moving-dates.json`. The registry writer set is unchanged (source_sync
+  never writes it).
 - P54: fixed the macOS issues found by the P53 stress test (code + copy; behavioral confirmation stays
   the hands-on checklist). New `tools/env_paths.py`: `app_python()` prefers a private repo `.venv`
   interpreter (graceful fallback), `which()` prepends the Homebrew prefixes so a double-click launch
