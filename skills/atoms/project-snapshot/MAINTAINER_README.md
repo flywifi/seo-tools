@@ -34,6 +34,14 @@ Run evals with:
 Verify: no em dashes in output, all ranges use "to", no fabricated product names, pillar matches
 expected classification.
 
+## Regression cases to preserve
+Mapped to evals/evals.json (at least three):
+1. projectsnapshot-001 — a fully specified DIY project returns a complete snapshot (arc, pillar,
+   aesthetic grounding, angles).
+2. projectsnapshot-002 — project_idea only: optional fields default or flag as unspecified, never
+   fabricated.
+3. projectsnapshot-003 — a project touching electrical work triggers a safety flag.
+
 ## Updating
 
 If the creator's pillar definitions change, update shared/brand-engine.md (source of truth). This atom

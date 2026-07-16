@@ -40,7 +40,7 @@ trigger-based invoice schedule) with deal-resourcing. This spoke never sends any
    sandbox write and manifest-verify.
 4. Penalty accrual: full elapsed months past grace only, end-of-month clamped.
 5. Every action's artifact passes govern-artifact before release.
-Mapped to evals/evals.json and `python3 tools/finance.py --selftest` (44 checks).
+Mapped to evals/evals.json and `python3 tools/finance.py --selftest` (99 checks).
 
 ## Approval-gated changes
 The action set, atom composition order, the gate pairing, output schemas, and any change that
@@ -52,7 +52,7 @@ figures with sources and flag the divergence; never reconcile silently.
 
 ## Update checklist
 1. Edit SKILL.md / workflow.json / this file.
-2. `python3 tools/finance.py --selftest` passes 44 of 44.
+2. `python3 tools/finance.py --selftest` passes 99 of 99.
 3. `python3 tools/sync_check.py` exits 0 (hub downstream + routing rows + atom resolution).
 4. `python3 tools/scenario_check.py` exits 0.
 Verify all backticked path references in this file and SKILL.md resolve to real files on disk.

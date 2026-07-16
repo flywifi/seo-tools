@@ -1,6 +1,6 @@
 ---
 name: video-development
-description: "develop one video concept into a full production package: hook, title options, outline, thumbnail concept, SEO-aware description, and at least three short-form clip extractions. Use when the user has a concept and wants to build it out. Do NOT use to generate fresh ideas (use content-strategy) or to write the full word-for-word script (use script-writer when present)."
+description: "develop one video concept into a full production package: hook, title options, outline, thumbnail concept, SEO-aware description, and at least three short-form clip extractions. Use when the user has a concept and wants to build it out. Do NOT use to generate fresh ideas (use content-strategy) or to write the full word-for-word script yourself."
 ---
 
 # video-development
@@ -41,7 +41,7 @@ keyword-cluster, hook-write, title-generate, thumbnail-concept, short-extract, g
 can call hook-write, title-generate, or short-extract directly.
 
 ## Standalone usability
-Produces a complete production package even when shortform-repurposing or script-writer is not
+Produces a complete production package even when shortform-repurposing is not
 available; the clip list is usable on its own.
 
 ## Failure modes

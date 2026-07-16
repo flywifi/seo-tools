@@ -169,7 +169,7 @@ artifact.
 
 ## score.py design
 
-`scripts/score.py` is the deterministic scorer. Every verdict that quality-review emits comes
+`skills/quality-review/scripts/score.py` is the deterministic scorer. Every verdict that quality-review emits comes
 from this script, never from hand arithmetic.
 
 **Inputs:** nine integer scores passed as a JSON object via stdin or as a command-line argument.
@@ -177,7 +177,7 @@ from this script, never from hand arithmetic.
 ```bash
 echo '{"integrity":5,"accuracy":4,"brand_alignment":5,"audience_fit":4,
        "governance":5,"user_intent":4,"accessibility":4,
-       "professional_quality":4,"safety":5}' | python3 scripts/score.py
+       "professional_quality":4,"safety":5}' | python3 skills/quality-review/scripts/score.py
 ```
 
 **Outputs:** a verdict object.
@@ -228,7 +228,7 @@ before the artifact is released.
 2. Hands the artifact to `skills/quality-review/` with the routing context (persona targets,
    adaptation axes, platform targets, engines the spoke used).
 3. quality-review scores each of the nine dimensions with a one-line evidence note.
-4. quality-review calls `scripts/score.py` with the nine integer scores and receives the verdict
+4. quality-review calls `skills/quality-review/scripts/score.py` with the nine integer scores and receives the verdict
    object.
 5. govern-artifact returns the full verdict: per-dimension scores with evidence, the composite,
    the verdict string, the hard-fail flag, and the list of specific fixes for any failing dimension.
@@ -247,7 +247,7 @@ before the artifact is released.
   "verdict": "Released | Not released",
   "hard_fail": false,
   "fixes": ["specific fix for each dimension below threshold"],
-  "note": "verdict and arithmetic come from quality-review scripts/score.py"
+  "note": "verdict and arithmetic come from quality-review skills/quality-review/scripts/score.py"
 }
 ```
 

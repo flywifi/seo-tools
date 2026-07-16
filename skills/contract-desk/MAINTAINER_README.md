@@ -16,7 +16,7 @@ information only, never legal advice.
 - Composes contract-triage, contract-review, legal-requirement-check, escalation-brief, and reuses usage-rights-check, exclusivity-check, and govern-artifact.
 - Never rules on enforceability, drafts binding language, signs, or sends anything; escalation-brief output is draft-only (ready_to_send false).
 - No new connector: intake reuses the existing uploaded_file / google_drive document connectors.
-- Phase 2 (drafting, amendment tracing) and Phase 3 (obligation register) are not built; requests degrade honestly per creator-os-config.json.
+- Phase 2 (drafting, amendment tracing) and Phase 3 (obligation register) are built (`contract-draft`, `amendment-trace`, `obligation-extract` atoms plus `tools/obligations.py`); requests degrade honestly when the relevant flags are off, per creator-os-config.json.
 
 ## Known failure modes
 - Running when contract_management is off.

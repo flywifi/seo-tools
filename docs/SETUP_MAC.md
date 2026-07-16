@@ -102,7 +102,7 @@ python3 -m playwright install chromium   # downloads arm64 Chromium (~170 MB, on
 pip3 install -r requirements-mcp.txt
 ```
 
-Smoke test (should return 8 tool definitions):
+Smoke test (should return 56 tool definitions):
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py

@@ -2,8 +2,8 @@
 
 Canonical knowledge layer for the Creator OS video-editing bridge (P22). Loaded by the editing
 atoms (`edit-timeline-spec`, `fcpxml-parse`, `caption-bridge`, `shorts-reframe`, `chapter-map`,
-`silence-scan`, `scene-scan`, `compressor-preset`, `motion-fill`, `commandpost-macro`,
-`resolve-drive`) and realized by `tools/videoedit/`. Internal engine doc; may use em dashes freely.
+`silence-scan`, `scene-scan`) and realized by `tools/videoedit/` (which also carries compressor,
+commandpost, resolve, and MLT writers used by those atoms). Internal engine doc; may use em dashes freely.
 
 ## The design in one paragraph
 

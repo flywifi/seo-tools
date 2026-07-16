@@ -416,6 +416,7 @@ control flow (sequential dependencies, parallel fan-out, quality gate loops). Av
 | competitor-deep-dive.js | Multi-target competitor scanning with gap analysis |
 | seasonal-planning.js | Trend research, keyword expansion, and calendar assembly |
 | deal-review.js | Evidence audit, rights check, exclusivity check, and scoring |
+| content-distribution.js | Publishing plan resolution, per-platform scheduling, and status verification |
 
 **When to use agents.** Spawn agents only when: the research spans 3 or more sources, requires
 multi-platform comparison, involves deep competitor analysis, or follows a citation chain. Single
@@ -618,11 +619,11 @@ composite. The artifact is not released, not softened, and not partially shipped
 1. The generating spoke produces a draft using the shared engines.
 2. It self-checks against the nine dimensions.
 3. It hands off to quality-review via the govern-artifact atom.
-4. quality-review scores each dimension with a one-line evidence note and runs `scripts/score.py`.
+4. quality-review scores each dimension with a one-line evidence note and runs `skills/quality-review/scripts/score.py`.
 5. The spoke fixes and re-scores until it passes.
 6. Only a passing artifact is released. For CRM artifacts, the verdict is recorded alongside the
    record in `pipeline/`.
 
-**Deterministic scoring.** The arithmetic is always done by `scripts/score.py`, not by hand.
+**Deterministic scoring.** The arithmetic is always done by `skills/quality-review/scripts/score.py`, not by hand.
 The score.py script takes nine integer scores as JSON and returns a verdict object with the
 composite, the pass/fail decision, and the hard-fail flag.

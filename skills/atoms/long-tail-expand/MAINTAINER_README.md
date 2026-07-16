@@ -20,6 +20,14 @@ quality_gate_result: pass.
 - Live web checks (where applicable) depend on web-intel-engine Level 3 crawl succeeding.
   If blocked, falls back to static knowledge with retrieval_gap recorded.
 
+## Regression cases to preserve
+Mapped to evals/evals.json (at least three):
+1. lte-01 — platform-specific autocomplete expansion from a seasonal seed keeps volume figures
+   labeled [estimated, unverified].
+2. lte-02 — Pinterest expansion from a thrifting seed stays on-platform (no cross-platform bleed).
+3. lte-03 — Google expansion with a community-mining retrieval failure records a retrieval_gap and
+   never fabricates the blocked data.
+
 ## Update triggers
 - seo-intelligence-engine.md changes: review this atom's output format for compatibility.
 - source-registry.json: if a used_by source is marked changed, review this atom's data sections.

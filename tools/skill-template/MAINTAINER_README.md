@@ -21,7 +21,7 @@ The highest-impact ways this skill goes wrong.
 Degraded behaviors that are acceptable only when labeled, never silent.
 
 ## Regression cases to preserve
-Numbered, at least five, mapped to evals/evals.json.
+Numbered, at least three, mapped to evals/evals.json.
 
 ## Approval-gated changes
 Behavior-changing edits that need review (output schema, engine loading, atom wiring).

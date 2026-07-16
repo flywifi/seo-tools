@@ -62,7 +62,8 @@ data is null plus a gap naming the fix.
 
 ## Atoms used
 Composed: `invoice-generate`, `ar-review`, `cost-estimate`, `proposal-price`, `invoice-status`,
-`govern-artifact`. Callable directly as shortcuts (see `workflow.json`).
+`cashflow-view`, `payment-reconcile`, `dunning-draft`, `govern-artifact`. Callable directly as
+shortcuts (see `workflow.json`).
 
 ## Standalone usability
 Each action produces a complete artifact on its own: a reviewable invoice draft, an AR aging

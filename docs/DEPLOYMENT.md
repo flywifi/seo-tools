@@ -210,7 +210,7 @@ python3 tools/source_currency.py report
 
 # 5. (Claude Desktop only) MCP server self-test
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
-# Should return 10 tool definitions
+# Should return 56 tool definitions
 ```
 
 ---
