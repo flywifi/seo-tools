@@ -51,6 +51,10 @@ PATTERNS = [
     ("generic_sk_key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
     ("private_key_block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("bearer_header", re.compile(r"(?i)authorization:\s*bearer\s+[A-Za-z0-9._\-]{16,}")),
+    # DEV-TRAP: this flags a literal "access_token": "<8+ chars>" even in FAKE test fixtures (only
+    # REPLACE_/YOUR_/<...>-style placeholders are exempt). In tests bind the key to a variable
+    # (AT = "access_token"; {AT: "FAKE"}) rather than allowlisting a real-looking value. See
+    # tools/publishing/MAINTAINER_README.md "Contributor gotchas".
     ("credential_value", re.compile(
         r"\"(api_key|apikey|access_token|refresh_token|client_secret|client_id|password|token)\""
         r"\s*:\s*\"([^\"]{8,})\"")),

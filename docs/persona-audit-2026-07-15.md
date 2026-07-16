@@ -1,5 +1,11 @@
 # Persona audit -- 2026-07-15 (first run)
 
+> **Historical snapshot.** This audit reflects the pre-P51 state. The structural stumbles it triaged
+> to the maintainer -- notably #8 (YouTube publishing dead end), #9 (Instagram/TikTok/Pinterest setup),
+> and #10 (folder picker) -- were remediated in P51 (real publishing OAuth + live upload, gated) and
+> P50/P51 (the native folder picker). See `STATE.md` and `docs/PUBLISHING.md`. The body below is left
+> as-written as a point-in-time record; do not read its "not built / stub" language as current.
+
 Persona: **Alex**, a non-technical YouTube creator. Protocol: `docs/PERSONA-AUDIT.md`. Harness:
 `tools/persona_audit.py` (23 screens after P50, all green, 0 orphans, 0 token leaks).
 

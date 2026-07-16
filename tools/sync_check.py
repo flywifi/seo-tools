@@ -1652,7 +1652,12 @@ def check_url_provenance():
     endpoints, each with a written reason), or (c) an excluded-by-rule host (example/placeholder host,
     localhost, or a schema/XML namespace). Anything else is an undeclared endpoint and fails the build,
     so a typo'd or unvetted URL cannot ship silently. STATIC only: this never fetches a URL. Scope is
-    executable code (tools/**/*.py); doc bibliographies are out of scope by rule."""
+    executable code (tools/**/*.py); doc bibliographies are out of scope by rule.
+
+    DEV-TRAP: an inline f-string that builds a URL host from a cfg.get(...) call inside the braces
+    parses as an undeclared host (the static grep stops at the first quote, capturing a dotted token).
+    Compute the host into a plain variable FIRST, then interpolate just that variable, so the captured
+    token has no dot and is excluded. See tools/publishing/MAINTAINER_README.md "Contributor gotchas"."""
     import urllib.parse
 
     reg_path = ROOT / "canonical-sources" / "source-registry.json"

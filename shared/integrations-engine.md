@@ -590,7 +590,8 @@ platforms may have direct API credentials while others fall back to manual.
 ### Pinterest API v5
 
 **Base URL:** `https://api.pinterest.com/v5/`
-**Scope:** `pins:write`, `boards:read`, `boards:write`
+**Scope:** `pins:write`, `boards:read` (the wizard Connect flow requests exactly these; `boards:write`
+is only needed to create boards, which Creator OS does not do)
 **Rate limits:** Reads 1,000/min; Writes 100/min; Analytics 200/min
 
 **Create and schedule a pin:**

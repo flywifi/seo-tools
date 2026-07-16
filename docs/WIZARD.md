@@ -1,7 +1,9 @@
 # Setup Wizard
 
 `tools/wizard.py` is a browser-based guided setup wizard for Creator OS. It walks you through
-connecting Google and Microsoft services to Claude without any command-line configuration.
+connecting Google and Microsoft services to Claude, setting up **publishing** to YouTube, Instagram,
+TikTok, and Pinterest, importing your past videos, and choosing your Creator OS folder -- all without
+any command-line configuration.
 
 ---
 
@@ -60,13 +62,33 @@ prompt appears: Claude shows you a short code and a URL to visit
 (`microsoft.com/devicelogin`). You visit that URL, enter the code, sign in with your Microsoft
 account, and you are connected -- no credentials to paste anywhere.
 
+### Publishing setup (YouTube, Instagram, TikTok, Pinterest)
+
+From `/publishing-setup`, the wizard connects each platform with a **Connect** button that runs an
+in-browser sign-in (a loopback OAuth flow: the platform redirects back to
+`http://127.0.0.1:8765/oauth/<platform>/callback`, the wizard verifies a one-time `state` and stores
+the token locally). Each screen states the platform's real limits up front -- YouTube's ~7-day
+Testing-mode re-auth, TikTok's private-until-audit, Pinterest's sandbox-only Trial Pins, and
+Instagram's public-URL + professional-account requirements. Tokens are saved to
+`pipeline/user-context/api-credentials.local.json` (owner-only, gitignored). **Live posting stays off
+by default** (`live_publishing_enabled`), and every post needs your explicit confirmation. Full
+per-platform playbook: `docs/PUBLISHING.md`.
+
+### Choosing folders (Browse button)
+
+Where the wizard needs a folder path -- the import screen and the "Choose my Creator OS folder" step
+-- a **Browse...** button opens your operating system's native folder picker
+(`tools/pick_folder.py`: a tkinter dialog, with macOS/Windows/Linux fallbacks). The typed path field
+stays as the always-works fallback when no picker is available (e.g. over SSH).
+
 ---
 
 ## What the wizard does behind the scenes (for Matt's reference)
 
 The wizard is a small Python script (`tools/wizard.py`) that runs a local web server on
 `http://localhost:8765` and opens your system browser. Nothing leaves your computer except
-the OAuth flows to Google and Microsoft's own servers.
+the OAuth flows to the providers' own servers (Google, Microsoft, and -- during publishing setup --
+YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
 
 **Config files the wizard writes:**
 
