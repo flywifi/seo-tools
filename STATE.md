@@ -2,7 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P57 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P58 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P58: remediated the remaining P56 audit deficiencies (the LOW hardening cluster) and closed the
+  audit's own coverage gap (the three surfaces the P56 agents never mapped under a session limit).
+  OAuth: `import urllib.error` made explicit; `refresh()` maps a transient 400 to a retryable OAuthError
+  (only 401/terminal codes force reconnect); a dead Instagram long-lived token now raises ReauthRequired
+  (A1). Publishing clients: reject a 0-byte file before any network init; pin the YouTube resumable-PUT
+  to a googleapis host; Instagram requires a real `ig_user_id` (dropped the Facebook-Page-id fallback)
+  (A2). Honesty: `ftc_disclosure_verified` documented as a presence check, not content validation (A3).
+  Wizard: bounded + malformed-safe request-body read; a corrupt Claude config is backed up before any
+  overwrite; the fetch-model tier is allowlisted before shelling; the import batch is tied to a
+  single-use token so two tabs cannot cross-approve (A4a-d part 1). Deferred with a written rationale:
+  ThreadingMixIn (A4d part 2) would add concurrency to the unlocked config-file RMW paths P57 hardened
+  (MED, not exploitable). Track B (map + verify the launch/install, P52-guards-as-oracles, and P55
+  surfaces) found NO new issues: the installer is flag-gated + honest, the drift guards fire on genuinely
+  bad input, and P55 stays green. Every fix carries a selftest; the P57 harnesses still read KILLED.
 
 - P56/P57: adversarial audit of the last-24h change set (P50 to P55) + remediation. The audit
   (diagnose-first, sandboxed zero-network harnesses in the session scratchpad) confirmed 12 findings,

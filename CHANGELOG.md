@@ -13,6 +13,15 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Security
+- Audit-hardening pass (the LOW cluster the first remediation deferred): OAuth refresh distinguishes a
+  transient error from a dead grant and classifies a dead Instagram token as reconnect-required; the
+  publishing clients reject an empty media file before any network call, pin the YouTube resumable
+  upload to a Google host, and require a real Instagram account id; the setup wizard bounds the request
+  body, backs up a corrupt Claude Desktop config before overwriting it, allowlists the speech-model
+  tier before downloading, and ties an import batch to a single-use token so two browser tabs cannot
+  cross-approve. `ftc_disclosure_verified` is documented as a presence check, not content validation.
+  A map-and-verify pass over three previously-unaudited surfaces (installer, drift guards, source
+  trigger) found no new issues.
 - Adversarial-audit remediation of the P50/P51 publishing + wizard code (all findings were behind
   `live_publishing_enabled=OFF`, so no user was exposed): the publish `dispatch()` now structurally
   enforces the live-publishing flag and an explicit human confirmation instead of trusting the caller,
