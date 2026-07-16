@@ -1184,11 +1184,19 @@ write. Nothing outside that one folder is ever touched.</p>
 """)
 
 
-def _write_storage_folder(folder: str) -> pathlib.Path:
+def _write_storage_folder(folder: str):
     """Register a filesystem MCP scoped to one folder (Claude can read/write ONLY there) and record the
-    chosen path in creator-os-config.local.json. Reuses _write_claude_config (the MCP-entry primitive)."""
+    chosen path in creator-os-config.local.json. Reuses _write_claude_config (the MCP-entry primitive).
+
+    Returns (written_path, prior_folder) where prior_folder is the previous filesystem-MCP root if a
+    DIFFERENT one existed (so the caller can surface the replacement instead of silently clobbering it;
+    P57 F6). Callers must confine `folder` first with _confined_folder()."""
     config = _read_claude_config()
     config.setdefault("mcpServers", {})
+    prior_args = (config["mcpServers"].get("filesystem") or {}).get("args") or []
+    prior_folder = prior_args[-1] if prior_args else None
+    if prior_folder == folder:
+        prior_folder = None
     config["mcpServers"]["filesystem"] = {
         "command": _mcp_command("npx"),
         "args": ["-y", "@modelcontextprotocol/server-filesystem", folder],
@@ -1203,7 +1211,7 @@ def _write_storage_folder(folder: str) -> pathlib.Path:
         local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     except Exception as exc:  # noqa: BLE001
         print(f"[wizard] Warning: could not record storage folder: {exc}")
-    return written
+    return written, prior_folder
 
 
 def _screen_storage_folder(saved: str = "", error: str = "", folder: str = "") -> str:
@@ -1869,9 +1877,41 @@ _IMPORT_ATTEMPTS = {
 }
 
 
+def _confined_folder(folder, *, allow_home=False):
+    """P57 F4/F6: resolve a user-typed folder and confine it to the user's home tree.
+
+    Returns (ok, realpath, reason). A browser text field (or a CSRF POST) must not be
+    able to point the recursive import glob or the filesystem-MCP root at arbitrary
+    paths like '/', '/etc', or '~/.ssh'. We resolve symlinks (realpath) BEFORE the
+    containment test so '~/x/../../etc' cannot escape. reason is '' on success, else one
+    of: 'empty', 'not_dir', 'outside_home', 'home_root'.
+    """
+    if not folder:
+        return False, "", "empty"
+    real = os.path.realpath(os.path.expanduser(folder))
+    home = os.path.realpath(os.path.expanduser("~"))
+    if not os.path.isdir(real):
+        return False, real, "not_dir"
+    if real == home and not allow_home:
+        return False, real, "home_root"
+    try:
+        contained = os.path.commonpath([real, home]) == home
+    except ValueError:  # different drive / root on Windows
+        contained = False
+    if not contained:
+        return False, real, "outside_home"
+    return True, real, ""
+
+
 def _import_targets(folder, kind):
     """Resolve the file(s) to feed a parser for this target kind, within the export folder."""
     import glob as _glob
+    # F4 (defense in depth): never enumerate outside the user's home tree, even if a caller
+    # passed an unconfined path. The HTTP handler also gates with _confined_folder, but the
+    # recursive glob must not trust its caller. realpath resolves symlinks before the test.
+    ok_folder, _real, _why = _confined_folder(folder, allow_home=True)
+    if not ok_folder:
+        return []
     if kind == "dir":
         return [folder]
     ext = {"zip": "*.zip", "json": "*.json", "csv": "*.csv"}.get(kind)
@@ -2170,8 +2210,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 return
 
             # action == scan
-            expanded = os.path.expanduser(folder) if folder else ""
-            if not folder or not os.path.isdir(expanded):
+            # F4: confine the scan to the user's home tree (realpath, symlink-resolved). A folder
+            # field or CSRF POST must not drive a recursive read of /, /etc, ~/.ssh, etc.
+            ok_folder, expanded, why = _confined_folder(folder, allow_home=False)
+            if not ok_folder:
+                if why == "outside_home" or why == "home_root":
+                    self._send(_screen_import(folder=folder, error=(
+                        "For your safety, Creator OS only scans a folder inside your home directory. "
+                        "Move the unzipped export under your home folder (for example ~/Downloads/) "
+                        "and enter that path.")))
+                    return
                 hint = ""
                 # On macOS a Files-and-Folders (TCC) denial makes a real folder look "not found".
                 if _os() == "mac" and folder and os.path.exists(os.path.dirname(expanded) or "/"):
@@ -2306,25 +2354,34 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/write-storage-folder":
-            # Item 7c: register a filesystem MCP scoped to ONE user-chosen folder. A browser cannot
-            # return a native path, so we validate the typed path with os.path.isdir before writing.
+            # Item 7c: register a filesystem MCP scoped to ONE user-chosen folder.
+            # F6: confine to a real sub-folder of the user's home (never '/', $HOME itself, or a
+            # system dir) so the connector cannot be scoped to the whole disk, and surface (do not
+            # silently clobber) any pre-existing filesystem-MCP scope.
             data = self._read_form()
             folder = (data.get("folder") or "").strip()
-            expanded = os.path.expanduser(folder) if folder else ""
-            if not folder:
-                self._send(_screen_storage_folder(error="Please enter the full path to a folder."))
-                return
-            if not os.path.isdir(expanded):
-                self._send(_screen_storage_folder(error=(
-                    f"That folder was not found: {html.escape(folder)}. Create it first (in Finder or "
-                    "File Explorer), then paste its full path.")))
+            ok_folder, expanded, why = _confined_folder(folder, allow_home=False)
+            if not ok_folder:
+                if why == "empty":
+                    msg = "Please enter the full path to a folder."
+                elif why == "not_dir":
+                    msg = (f"That folder was not found: {html.escape(folder)}. Create it first (in Finder "
+                           "or File Explorer), then paste its full path.")
+                else:  # outside_home / home_root
+                    msg = ("Choose a specific folder inside your home directory (for example "
+                           "~/CreatorOS or ~/Documents/CreatorOS). Creator OS will not scope Claude's "
+                           "file access to your whole home folder, the system root, or a folder outside "
+                           "your home directory.")
+                self._send(_screen_storage_folder(folder=folder, error=msg))
                 return
             try:
-                written = _write_storage_folder(expanded)
+                written, prior = _write_storage_folder(expanded)
+                replaced = ("" if not prior else
+                            f" This replaced the previous scope <strong>{html.escape(str(prior))}</strong>.")
                 self._send(_screen_storage_folder(saved=(
                     f"Done. Claude's filesystem connector is now scoped to <strong>{html.escape(expanded)}</strong> "
-                    f"and nothing outside it (written to {written}). Restart Claude Desktop to pick it up. "
-                    "This choice is stored locally in creator-os-config.local.json and never committed.")))
+                    f"and nothing outside it (written to {written}).{replaced} Restart Claude Desktop to pick it "
+                    "up. This choice is stored locally in creator-os-config.local.json and never committed.")))
             except Exception as exc:  # noqa: BLE001
                 self._send(_screen_storage_folder(error=f"Could not update the configuration: {exc}"))
             return
