@@ -18,7 +18,7 @@ with its binding constraint named out. The human quotes; this atom informs.
 
 ## When to use this skill
 - "what should I charge for this", "price this proposal", "is 2000 enough for this scope",
-  "build the pricing for the pitch", routed as `proposal_price`. Output feeds
+  "build the pricing for the pitch", routed as `proposal_price`. Output feeds <!-- verify: tools/finance.py::proposal_price -->
   `pitch-paragraph`, `contract-draft`, and the playbook `pricing_and_rates` posture.
 
 Do NOT use for:

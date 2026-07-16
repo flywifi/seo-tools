@@ -37,8 +37,8 @@ flag an empty library honestly and surface real spoken terms once transcripts ex
 library returns every section empty with the boundary note, no fabricated figures.
 
 ## Approval-gated changes
-The output schema, the analyzer set (`top_tags`, `retention_insights`, `format_performance`,
-`transcript_themes`), the duration-bucket thresholds, and the YouTube-only retention boundary.
+The output schema, the analyzer set (`top_tags`, `retention_insights`, `format_performance`, <!-- verify: tools/video_library.py::retention_insights -->
+`transcript_themes`), the duration-bucket thresholds, and the YouTube-only retention boundary. <!-- verify: tools/video_library.py::transcript_themes -->
 
 ## Minority-report policy
 When a tag or theme could be attributed to multiple videos, cite every contributing `video_key` rather

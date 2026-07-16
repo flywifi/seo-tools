@@ -30,8 +30,8 @@ The deck-span rough ceiling is acceptable only when labeled non-authoritative wi
 it is never a substitute for the span table.
 
 ## Regression cases to preserve
-1. stair(total_rise=108) yields 14 risers at ~7.714 in, riser_ok true.
-2. egress(20x24) fails; egress(30x30) passes at 6.25 sq ft; at_grade uses the 5.0 sq ft minimum.
+1. stair(total_rise=108) yields 14 risers at ~7.714 in, riser_ok true. <!-- verify: tools/build_calc.py::stair -->
+2. egress(20x24) fails; egress(30x30) passes at 6.25 sq ft; at_grade uses the 5.0 sq ft minimum. <!-- verify: tools/build_calc.py::egress -->
 3. rvalue(ceiling, zone 2) returns "R30 to R49"; a county letter suffix like 4A normalizes to 4.
 4. box_fill([14,14,14], device, clamp, ground) returns 14.0 cubic inches.
 5. drain_slope(2 in, 20 ft) returns 5.0 in fall at 1/4 in per foot; 4 in uses 1/8 in per foot.

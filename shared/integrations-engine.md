@@ -741,7 +741,7 @@ request a replacement service decision from the creator.
 ## Task store adapter (P35): Google Drive + Sheets, read and write
 
 The task tracker (`shared/tasks-engine.md`) stores its register through a pluggable adapter in
-`tools/tasks.py` (`load_register`/`save_register`, backends `local_fs | google_drive | remote_mcp`). The
+`tools/tasks.py` (`load_register`/`save_register`, backends `local_fs | google_drive | remote_mcp`). The <!-- verify: tools/tasks.py::load_register --> <!-- verify: tools/tasks.py::save_register -->
 `google_drive` backend is what makes tasks continuous across Claude web, desktop, and mobile without any
 server to host, because Google Drive is the one substrate all of those surfaces reach natively and it is
 **read and write** (Claude can save files back to Drive).

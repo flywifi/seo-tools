@@ -51,7 +51,7 @@ Do NOT use for:
   "resolved": "the chosen account {account_id, brand_name, confidence, match_basis} or null",
   "resolution": "exact | alias | substring | fuzzy_high | fuzzy_low | category | none",
   "candidates": [{ "account_id": "", "brand_name": "", "confidence": 0.0, "match_basis": "" }],
-  "computed_by": "tools/accounts.py.resolve",
+  "computed_by": "tools/accounts.py.resolve", <!-- verify: tools/accounts.py::resolve -->
   "gaps": []
 }
 ```

@@ -37,7 +37,7 @@ Two overlay records (or their ids in `canonical-sources/jurisdiction/`), each ca
 `specificity_scope`.
 
 ## Core procedure
-Follow `shared/method.md`. Uses `tools/geo_overlay.py` `resolve_conflict`.
+Follow `shared/method.md`. Uses `tools/geo_overlay.py` `resolve_conflict`. <!-- verify: tools/geo_overlay.py::resolve_conflict -->
 
 ### Step 1: run the cascade
 Field/ceiling preemption -> higher jurisdiction governs. Floor + local authority -> most-stringent

@@ -47,7 +47,7 @@ Interpret the scan for the human: which follow-ups matter this week, which penal
 actually accrued under the terms, and which invoices are missing data (`gaps[]`).
 
 ## Output contract
-The `ar_scan` result verbatim (buckets, `bucket_totals`, `total_outstanding`, `per_brand`,
+The `ar_scan` result verbatim (buckets, `bucket_totals`, `total_outstanding`, `per_brand`, <!-- verify: tools/finance.py::ar_scan -->
 `action_queue`, `disputed`, `computed_by`, `gaps`) plus a short prose summary. Every figure is
 the tool's exact-decimal string; the model never re-adds or rounds. An empty book is reported
 honestly (zero totals, no fabricated pipeline).

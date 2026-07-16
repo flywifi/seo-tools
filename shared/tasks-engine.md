@@ -94,7 +94,7 @@ first-class state, not a label**:
 - `blocked` — the ball is in OUR court but gated by another of our tasks (an open `blocked_by`).
 - `not_started` / `in_progress` — act now.
 
-One `transition(task, to, by, note)` choke point validates the allowed-transition table, stamps
+One `transition(task, to, by, note)` choke point validates the allowed-transition table, stamps <!-- verify: tools/tasks.py::transition -->
 `updated_at`, and appends a `history[]` event. Transitions are human-gated. Guards: `done` is refused while
 any `blocked_by` is open; `deferred` requires a `defer_until`; reopening a closed task is an explicit,
 logged action. Allowed transitions:
@@ -126,7 +126,7 @@ approved `system:*` job may append (human-gated writes).
 `tools/tasks.py` treats the tasks of a project as a dependency DAG and runs the Critical Path Method:
 - **Forward pass** (schedule from the trigger event): early start/finish left to right.
 - **Backward pass** (schedule from a hard deadline): late start/finish right to left; slack = late minus
-  early. `reverse_plan(deadline)` runs the backward pass alone to answer "when must each upstream step
+  early. `reverse_plan(deadline)` runs the backward pass alone to answer "when must each upstream step <!-- verify: tools/tasks.py::reverse_plan -->
   start" (for example, when must the product ship to hit a fixed publish date).
 - **Feasibility**: any task with negative slack means the trigger happened too late for the deadline; this
   surfaces as a conflict, never silently.

@@ -16,7 +16,7 @@ the record. No arithmetic, no advancing, no interpretation.
 
 ## When to use this skill
 - "where are we with that lightbulb company contract?", "what stage is the Hearthline deal?",
-  "did we invoice Lumen yet?" reached through the deal-pipeline `deal_status` action.
+  "did we invoice Lumen yet?" reached through the deal-pipeline `deal_status` action. <!-- verify: tools/accounts.py::deal_status -->
 
 Do NOT use for:
 - Advancing or regressing a deal stage (that is `deal-stage-advance` in deal-pipeline, which is

@@ -40,7 +40,7 @@ publish date). For a reverse plan, the deadline task and its date.
 Follow `shared/method.md`. Call `tools/tasks.py` (`plan`) or the `task_plan` MCP tool.
 
 ### Step 1: forward or reverse
-Forward pass for earliest due dates from triggers; backward `reverse_plan` for the latest each upstream step
+Forward pass for earliest due dates from triggers; backward `reverse_plan` for the latest each upstream step <!-- verify: tools/tasks.py::reverse_plan -->
 must finish to hit a deadline. Unresolved triggers leave the due null and flagged, never guessed.
 
 ### Step 2: feasibility

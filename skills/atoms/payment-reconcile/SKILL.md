@@ -54,7 +54,7 @@ outside the repo it is simply read in place.
 4. Point at `ar-review` afterward for the updated book.
 
 ## Output contract
-The `reconcile` result verbatim: `proposals[]{row_index, row_date, row_amount, row_description,
+The `reconcile` result verbatim: `proposals[]{row_index, row_date, row_amount, row_description, <!-- verify: tools/finance.py::reconcile -->
 invoice_id, invoice_amount, brand_name, date_delta_days, confidence}`, `unmatched_rows`,
 `unmatched_invoices`, the proposal-only note, `computed_by`, `gaps[]` (unparseable rows named,
 never guessed). Plus the confirmation walk-through. Redact (`--redacted`) anything that will be

@@ -8,7 +8,7 @@ purpose: preserve the non-negotiable operating rules for contact-lookup so it st
 ## Purpose
 Resolve a brand phrase to one account and read the contact(s) on it, optionally filtered to a
 person hint. The resolution and read are `tools/accounts.py` (offline, deterministic); this atom
-is the thin contract around `contacts()`. It reads only.
+is the thin contract around `contacts()`. It reads only. <!-- verify: tools/accounts.py::contacts -->
 
 ## Non-negotiable invariants
 - Shared: references the pipeline (`shared/pipeline-engine.md`), obeys

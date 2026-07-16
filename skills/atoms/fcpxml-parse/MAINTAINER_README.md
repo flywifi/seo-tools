@@ -1,7 +1,7 @@
 # fcpxml-parse — maintainer notes
 
 **Feature:** P22 feature 4 (marker/keyword/role intelligence import; offline -> online handoff).
-Realized by `tools/videoedit/fcpxml.py:parse` + `validate`. Knowledge: `shared/videoedit-engine.md`.
+Realized by `tools/videoedit/fcpxml.py:parse` + `validate`. Knowledge: `shared/videoedit-engine.md`. <!-- verify: tools/videoedit/fcpxml.py::parse --> <!-- verify: tools/videoedit/fcpxml.py::validate -->
 
 ## Invariants
 - Emits only what the FCPXML contains. No invented markers, chapter titles, or timestamps.

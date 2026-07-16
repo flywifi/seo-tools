@@ -8,7 +8,7 @@ purpose: preserve the non-negotiable operating rules for conflict-check so it st
 ## Purpose
 Given two applicable ADVISORY jurisdictional overlays, determine which governs by the cited
 legal-precedence cascade, or flag a genuine conflict for human review. It uses
-`tools/geo_overlay.py` `resolve_conflict` and returns a W3C PROV audit of the decision. Its job ends
+`tools/geo_overlay.py` `resolve_conflict` and returns a W3C PROV audit of the decision. Its job ends <!-- verify: tools/geo_overlay.py::resolve_conflict -->
 at the precedence decision; finding which overlays apply in the first place is `overlay-resolve`.
 
 ## Non-negotiable invariants

@@ -89,7 +89,7 @@ transcripts never leave your machine."
   "human_review_required": true
 }
 ```
-The proposal's record shape is exactly the input shape of `tools/video_library.py` `normalize_record`
+The proposal's record shape is exactly the input shape of `tools/video_library.py` `normalize_record` <!-- verify: tools/video_library.py::normalize_record -->
 (documented in `pipeline/video-library/video-library-schema.json`).
 
 ## Standalone usability

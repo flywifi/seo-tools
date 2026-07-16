@@ -47,7 +47,7 @@ Follow `shared/method.md`, `shared/content-import-engine.md`, and `shared/transc
 Runs through `tools/library_complete.py`.
 
 ### Step 1: match
-`match_media(export_dir, records)` maps each downloaded file to a `video_key` by the platform video id
+`match_media(export_dir, records)` maps each downloaded file to a `video_key` by the platform video id <!-- verify: tools/library_complete.py::match_media -->
 in the filename, the DYI media uri recorded in provenance, or a title-plus-duration fallback via
 `mediaprobe`. Unmatched files and records with no local media are reported honestly, never force-fit.
 
@@ -60,7 +60,7 @@ keywords/topics (`shared/docintel/parse_text.py` + the scoop cache). If no backe
 the `run_local_stt` gap with the per-OS install command; never fabricate a transcript.
 
 ### Step 3: join retention to transcript (the payoff)
-`join_retention_transcript(record, segments)` maps each YouTube retention peak and the steepest-drop
+`join_retention_transcript(record, segments)` maps each YouTube retention peak and the steepest-drop <!-- verify: tools/library_complete.py::join_retention_transcript -->
 cliff to the transcript line at that absolute timestamp (`elapsed_ratio x duration_s`), so each
 most-watched moment carries the actual words spoken there. Off-YouTube (Instagram, TikTok, Pinterest)
 retention is null-flagged, and the transcript plus topic themes are still delivered.

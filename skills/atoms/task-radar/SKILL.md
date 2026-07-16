@@ -35,7 +35,7 @@ Do NOT use for:
 The task register (from the store), and optionally a deal id to scope the view and a date for the due bands.
 
 ## Core procedure
-Follow `shared/method.md`. Call `tools/tasks.py` (`scan`) / the `task_scan` MCP tool.
+Follow `shared/method.md`. Call `tools/tasks.py` (`scan`) / the `task_scan` MCP tool. <!-- verify: tools/tasks.py::scan -->
 
 ### Step 1: compute the derived views
 Read the register and compute (never store) the split: `waiting_on_counterparty` (status waiting_external),

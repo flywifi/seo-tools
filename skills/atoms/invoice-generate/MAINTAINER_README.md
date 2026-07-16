@@ -20,7 +20,7 @@ job ends at a reviewed draft; sending is the human's act, always.
   invoice says it is incomplete. No estimation, no benchmark substitution.
 - Writes require BOTH `finance_management` and `invoice_generation`; a refused write still
   returns the computed draft with the `_gate` reason. The gate is `tools/finance.py`'s
-  `_write_allowed`, never re-implemented here.
+  `_write_allowed`, never re-implemented here. <!-- verify: tools/finance.py::_write_allowed -->
 - Invoice ids are deterministic (`INV-<deal_id>-<seq:03d>`) and assigned by the tool.
 - `terms_snapshot` freezes the structured terms at issue; later deal edits never mutate an
   issued invoice's meaning.

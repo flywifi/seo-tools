@@ -44,7 +44,7 @@ register so deal writes stay governed.
 The tool stores coarse bands and derives everything else at read time (`is_overdue`, `is_due_soon`,
 `is_actionable`, `is_aging_wait`, urgency) — no stale computed fields on disk.
 
-**Seven states in two buckets**, one `transition()` choke point that validates the allowed-transition
+**Seven states in two buckets**, one `transition()` choke point that validates the allowed-transition <!-- verify: tools/tasks.py::transition -->
 table, stamps `updated_at`, and appends to the append-only `history[]`:
 
 - **Open:** `not_started`, `in_progress`, `waiting_external`, `blocked`, `deferred`
@@ -94,7 +94,7 @@ Three ways in, one schema:
   polled over stdlib `urllib` honoring the env proxy + CA bundle. The key comes from `EASYPOST_API_KEY`
   / `SHIP24_API_KEY` **only**; with no key and no injected getter, the tool returns a config gap and
   points to manual entry — never a surprise network call.
-- **Manual entry** is a first-class equal: `shipments.manual_shipment(...)` produces the identical
+- **Manual entry** is a first-class equal: `shipments.manual_shipment(...)` produces the identical <!-- verify: tools/shipments.py::manual_shipment -->
   record and the same `delivered_at` anchor.
 
 ## 6. Coverage verification (did the video cover a, b, c, d)

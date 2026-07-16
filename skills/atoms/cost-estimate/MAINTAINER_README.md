@@ -17,7 +17,7 @@ output. Actual spend is the cost-actuals record; pricing is `proposal-price`.
 - Every line names its source (`quote | cost_library | cost_research | assumption`);
   assumptions are labeled, cost_research findings are cited, and a cost nobody knows stays null
   with a gap. No figure is ever invented or presented above its evidence.
-- Totals come from `cost_rollup` only (exact Decimal, `computed_by`); nulls are excluded from
+- Totals come from `cost_rollup` only (exact Decimal, `computed_by`); nulls are excluded from <!-- verify: tools/finance.py::cost_rollup -->
   totals and said so, never guessed in.
 - Capex vs expense follows the engine taxonomy and is organizational, not a tax determination;
   the verbatim boundary line leads every output.

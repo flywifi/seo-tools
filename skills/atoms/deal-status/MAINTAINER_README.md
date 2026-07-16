@@ -8,7 +8,7 @@ purpose: preserve the non-negotiable operating rules for deal-status so it stays
 ## Purpose
 Report a deal's lifecycle status verbatim from the record: stage, latest stage_history event,
 payment_due_date, denormalized invoice.status. Resolution and the read are `tools/accounts.py`
-(`deal_status()`, offline, deterministic); this atom is the thin contract. It reads only.
+(`deal_status()`, offline, deterministic); this atom is the thin contract. It reads only. <!-- verify: tools/accounts.py::deal_status -->
 
 ## Non-negotiable invariants
 - Shared: references the pipeline (`shared/pipeline-engine.md`) and obeys

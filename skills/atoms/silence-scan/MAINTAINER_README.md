@@ -7,7 +7,7 @@ purpose: preserve the non-negotiable operating rules for silence-scan so it stay
 
 ## Purpose
 Single-operation silence detection over raw media or a transcript. All measurement is delegated
-to `tools/videoedit/mediaprobe.py` `detect_silence()`; this atom's job ends at the labeled cut
+to `tools/videoedit/mediaprobe.py` `detect_silence()`; this atom's job ends at the labeled cut <!-- verify: tools/videoedit/mediaprobe.py::detect_silence -->
 candidate list. Chapter naming, breakdown narrative, and clip selection belong to other atoms.
 
 ## Non-negotiable invariants

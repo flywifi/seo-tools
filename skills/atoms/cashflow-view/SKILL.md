@@ -49,7 +49,7 @@ output will leave the machine (a screenshot, a shared summary), use `redacted: t
 plus initials) per `shared/finance-engine.md`.
 
 ## Output contract
-The `cashflow` result verbatim: `weeks[]{week_start, inflow, outflow, net, running_net}`,
+The `cashflow` result verbatim: `weeks[]{week_start, inflow, outflow, net, running_net}`, <!-- verify: tools/finance.py::cashflow -->
 `totals{inflow, outflow, net_movement}`, `overdue_receivables`, `beyond_horizon`,
 `undated_outflows`, the movement-not-balance note, `computed_by`, `gaps[]`. Plus a short prose
 read. Every figure is the tool's; the model never re-buckets or re-adds.

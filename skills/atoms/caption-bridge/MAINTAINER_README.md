@@ -12,12 +12,12 @@
 
 ## Composition
 Populates the shared edit-package `timeline.captions[]`; merges via `tools/videoedit/otio_core.py`.
-`from_editor` output feeds SEO (keywords/description) alongside `fcpxml-parse`.
+`from_editor` output feeds SEO (keywords/description) alongside `fcpxml-parse`. <!-- verify: tools/videoedit/captions.py::from_editor -->
 
 ## Regression cases
 See `evals/evals.json`: (1) transcript -> SRT matches the docintel emitter; (2) transcript -> iTT is
 well-formed XML; (3) iTT/SRT -> captions[] -> SRT is stable (lossless round-trip).
 
 ## Update checklist
-- Keep `captions_to_segments`/`segments_to_captions` aligned with the edit-package schema.
+- Keep `captions_to_segments`/`segments_to_captions` aligned with the edit-package schema. <!-- verify: tools/videoedit/captions.py::captions_to_segments -->
 - Run `python3 tools/sync_check.py`.

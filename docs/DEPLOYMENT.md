@@ -357,7 +357,7 @@ Example `creator-os-config.local.json` after setting up the keyword cache:
 You only need to include the capabilities you want to change. Omitted keys inherit from
 the committed defaults (all false).
 
-The `get_capabilities` MCP tool reads both files, merges them, and overlays live checks
+The `get_capabilities` MCP tool reads both files, merges them, and overlays live checks <!-- verify: tools/mcp_server.py::get_capabilities -->
 (for example, it confirms the SQLite index actually exists before reporting `keyword_cache: true`).
 
 ---

@@ -132,7 +132,7 @@ you update that backend. See docs/CROSS-MODALITY.md.
 Most updates only add code and content and never touch your data shapes. When a data shape does gain a
 new version:
 1. **Old files keep working by default.** Missing new fields read as null and are flagged; nothing is
-   rewritten. This is `tools/migrate_local.py`'s `compat_view` behavior and the reason an update is
+   rewritten. This is `tools/migrate_local.py`'s `compat_view` behavior and the reason an update is <!-- verify: tools/migrate_local.py::compat_view -->
    safe to take without doing anything to your files.
 2. **See what changed, only if you want to.** `python3 tools/local_audit.py` prints one quiet line when
    a saved file uses an older format; `--details` shows which files and the human-written reason it

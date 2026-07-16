@@ -24,9 +24,9 @@ GENERAL CONSTRUCTION GUIDANCE, NOT ENGINEERING, CODE-COMPLIANCE, OR DESIGN ADVIC
 - Build and trade questions: "how do I attach a deck ledger", "max stair riser", "stud spacing",
   "common framing mistakes", "what is a soffit" (routed as `construction_question`).
 - Code and edition questions: "what does Florida code require for egress", "which residential code
-  edition is enforced in North Carolina", "what section covers this" (routed as `code_lookup`).
+  edition is enforced in North Carolina", "what section covers this" (routed as `code_lookup`). <!-- verify: tools/mcp_server.py::code_lookup -->
 - Calculations: "how many risers for a 9 foot rise", "is this window a legal egress opening", "what
-  R-value in Wake County", "box fill for these wires", "roof pitch angle" (routed as `build_calc`).
+  R-value in Wake County", "box fill for these wires", "roof pitch angle" (routed as `build_calc`). <!-- verify: tools/mcp_server.py::build_calc -->
 
 Do NOT use for:
 - Planning a whole DIY project (materials list, steps, styling, renter-safe version) end to end: that

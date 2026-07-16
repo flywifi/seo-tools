@@ -7,14 +7,14 @@ purpose: preserve the non-negotiable operating rules for payment-reconcile so it
 
 ## Purpose
 Bank-export-to-invoice matching, realized by `tools/finance.py reconcile` (proposal-only) and
-`mark_paid` (gated write after human confirmation). AR reporting stays with `ar-review`;
+`mark_paid` (gated write after human confirmation). AR reporting stays with `ar-review`; <!-- verify: tools/finance.py::mark_paid -->
 analytics CSVs with `data-query`.
 
 ## Non-negotiable invariants
 - Shared: references the pipeline (`shared/method.md`); self-checks against
   `protocols/quality-gates.md`; obeys `protocols/no-fabrication.md`, `protocols/safety.md`
   (financial boundary), and `protocols/formatting-metadata.md`.
-- STRUCTURAL: `_csv_rows` refuses any in-repo CSV whose name lacks `.local.` — this refusal is
+- STRUCTURAL: `_csv_rows` refuses any in-repo CSV whose name lacks `.local.` — this refusal is <!-- verify: tools/finance.py::_csv_rows -->
   the privacy boundary and is never weakened, worked around, or made optional.
 - Proposal-only: reconcile never changes a record. `mark_paid` runs only after an explicit
   human yes per invoice, and only with `finance_management` on.

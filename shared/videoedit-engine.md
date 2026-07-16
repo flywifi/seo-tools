@@ -74,7 +74,7 @@ FCPXML layer converts to rational time.
 FCP imports/exports **CEA-608 (.scc)**, **iTT (.itt)**, and **SRT (.srt)**; only CEA-608 embeds into
 the media. Reuse `shared/docintel/transcripts.py` (already parses/emits SRT/VTT) for the transcript
 ↔ caption conversion; convert its segments to the edit-package `captions[]` and back. Realized by
-`tools/videoedit/captions.py` (`to_editor` / `from_editor`): SRT/VTT via docintel, iTT (Apple TTML)
+`tools/videoedit/captions.py` (`to_editor` / `from_editor`): SRT/VTT via docintel, iTT (Apple TTML) <!-- verify: tools/videoedit/captions.py::to_editor -->
 added here, CEA-608 deferred and flagged (never faked).
 
 ## Chapters (feature 8)
@@ -110,7 +110,7 @@ into the shared edit-package as markers; pending titles are recorded in `gaps[]`
 `tools/videoedit/reframe.py` realizes the reframe in two halves. Geometry (always available, no
 flag, pure math): `crop_geometry` computes the centered or offset crop rectangle for the target
 aspect, returns exact and even-rounded dimensions (H.264 needs even sizes), and
-`reframe_package` emits the edit-package `reframe` block, which `otio_core.merge` adopts without
+`reframe_package` emits the edit-package `reframe` block, which `otio_core.merge` adopts without <!-- verify: tools/videoedit/reframe.py::reframe_package -->
 clobbering an existing enabled directive. Render (flag-gated on `shorts_reframe`): MoviePy v2
 when installed, else the ffmpeg crop filter, else an honest refusal whose `gaps[]` entry states
 the crop parameters remain valid for the editor to apply. Center-crop only; subject tracking is

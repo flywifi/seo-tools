@@ -255,7 +255,7 @@ effective date with a provenance tag, and:
 are the input to the offline compute lane; the register itself is the dated result. Record shape
 (`pipeline/user-context/obligation-register.template.json`; real data in the gitignored `.local.json`):
 `obligations[]` each carrying the extracted row plus the computed `raw_date`, `effective_date`,
-`send_by_date`, `urgency_band`, `provenance`, and `gaps`; plus `contract_ref`/`deal_id`,
+`send_by_date`, `urgency_band`, `provenance`, and `gaps`; plus `contract_ref`/`deal_id`, <!-- verify: tools/obligations.py::urgency_band -->
 `computed_as_of`, `lead_days`, `band_counts`, and `last_computed`. The register feeds the existing
 join points, never a parallel calendar: content-calendar (`entries[].publish_target_date`,
 `posts[].ftc_disclosure` via `linked_deal_id`), production-task (D-minus-N offsets from `send_by_date`),

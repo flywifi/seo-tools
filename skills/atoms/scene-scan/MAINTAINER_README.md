@@ -7,7 +7,7 @@ purpose: preserve the non-negotiable operating rules for scene-scan so it stays 
 
 ## Purpose
 Single-operation scene-change detection over raw media or a transcript. All measurement is
-delegated to `tools/videoedit/mediaprobe.py` `detect_scenes()`; this atom's job ends at the
+delegated to `tools/videoedit/mediaprobe.py` `detect_scenes()`; this atom's job ends at the <!-- verify: tools/videoedit/mediaprobe.py::detect_scenes -->
 boundary candidate list with null titles. Naming and narrative belong to `footage-analysis`;
 formatting belongs to `chapter-map`.
 

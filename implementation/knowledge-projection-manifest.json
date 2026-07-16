@@ -45,7 +45,7 @@
         "shared/docintel-engine.md": "e3f413e2116df01cc6a9e085e6aec60c87df924e1ba6a06614a8902ada409e1c",
         "shared/injection-guard-engine.md": "7b51ff7ce6850f42f558ce94714224582148d80194562c554b73eeb666efeb01",
         "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
-        "shared/integrations-engine.md": "7fa53652c2ebfac0593cd28e62358eb3192775f2fb8b5e5c4b008a9f6b2d716e",
+        "shared/integrations-engine.md": "42c9d24c1d7c06fdc632f7e1af307cea02bd468df6c7482511b08b313d800395",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
         "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
@@ -54,7 +54,7 @@
     "implementation/claude/project/knowledge/07-pipeline-spokes.md": {
       "sources": {
         "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
-        "shared/tasks-engine.md": "c015e4e37562af6b0dbde78de1c3c6a4ce15b206c45ab4f253644367c7c06f37",
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
@@ -87,7 +87,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
-        "shared/tasks-engine.md": "c015e4e37562af6b0dbde78de1c3c6a4ce15b206c45ab4f253644367c7c06f37"
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
       }
     },
     "implementation/gemini/system-instruction.md": {
@@ -96,7 +96,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
-        "shared/tasks-engine.md": "c015e4e37562af6b0dbde78de1c3c6a4ce15b206c45ab4f253644367c7c06f37"
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
       }
     },
     "implementation/claude/project/creator-os-combined.md": {
@@ -110,12 +110,12 @@
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
         "shared/docintel-engine.md": "e3f413e2116df01cc6a9e085e6aec60c87df924e1ba6a06614a8902ada409e1c",
         "shared/injection-guard-engine.md": "7b51ff7ce6850f42f558ce94714224582148d80194562c554b73eeb666efeb01",
-        "shared/integrations-engine.md": "7fa53652c2ebfac0593cd28e62358eb3192775f2fb8b5e5c4b008a9f6b2d716e",
+        "shared/integrations-engine.md": "42c9d24c1d7c06fdc632f7e1af307cea02bd468df6c7482511b08b313d800395",
         "shared/method.md": "184403054c06eaafc9e2a17812e53e793fc7e0b4337b1fc91c14edab1a6cb539",
         "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
         "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
-        "shared/tasks-engine.md": "c015e4e37562af6b0dbde78de1c3c6a4ce15b206c45ab4f253644367c7c06f37",
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b",
         "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "shared/web-intel-engine.md": "4043d8c4573504975dce33584ac5b69ac6165ef149178144d60f39155fdc69d6"

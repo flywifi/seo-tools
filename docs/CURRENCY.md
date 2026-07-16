@@ -17,7 +17,7 @@ run the mundane parts token-free (as deterministic Python, without spending mode
 Both read the one registry, `canonical-sources/source-registry.json`, written only through
 `tools/registry_io.py`. Five tools funnel through it: `source_currency.py`, `traversal_engine.py`,
 `dependency_currency.py`, and `update_check.py` import it directly, and `competitor_snapshot.py`
-writes through `source_currency`'s re-exported `save_registry`. `canonical-sources/data-currency-map.json` says, for every canonical
+writes through `source_currency`'s re-exported `save_registry`. `canonical-sources/data-currency-map.json` says, for every canonical <!-- verify: tools/registry_io.py::save_registry -->
 data file, whether it is **watched** by a source, **static** (no upstream by design), **dated**
 (a calendar cadence, e.g. the seasonal windows), or **tool-managed**.
 
@@ -134,7 +134,7 @@ distinct from `unreachable`:
 - A `blocked` source is **never** stamped stale, **never** flagged `changed` (a 200 challenge page is
   not hashed as content), and **never** made orphan-eligible. It keeps its last-known-good `content_sha256`
   and records a durable `last_block_detected` / `block_kind` / `block_vendor` on the entry.
-- `compute_staleness` and the freshness SLA **skip** currently-blocked sources (they appear under a
+- `compute_staleness` and the freshness SLA **skip** currently-blocked sources (they appear under a <!-- verify: tools/source_currency.py::compute_staleness -->
   `blocked` count, not `stale`/`error`); `traversal_engine prune-orphans` excludes them. A later
   successful check clears the block automatically.
 - Only a genuine `404`/`410` (no anti-bot signature) is treated as `unreachable` (gone).

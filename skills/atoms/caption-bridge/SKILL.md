@@ -25,11 +25,11 @@ captions back in for SEO," "turn my editor captions into chapters and keywords."
 ```
 
 ## Core procedure
-- `to_editor`: read the source with `tools/videoedit/captions.py` (which reuses
+- `to_editor`: read the source with `tools/videoedit/captions.py` (which reuses <!-- verify: tools/videoedit/captions.py::to_editor -->
   `shared/docintel/transcripts.py`), emit SRT/VTT via the shared emitter or iTT via the iTT writer.
   Return the caption file text. File writing drives no app, so it is allowed even while the master
   gate `video_editing_enabled` is off.
-- `from_editor`: parse the editor's caption file into edit-package `timeline.captions[]`
+- `from_editor`: parse the editor's caption file into edit-package `timeline.captions[]` <!-- verify: tools/videoedit/captions.py::from_editor -->
   (`{start_seconds, end_seconds, text}`). Empty files return a `gaps[]` note, never fabricated cues.
 
 ## Output contract

@@ -119,7 +119,7 @@ to one account (tiered exact/alias/substring/difflib/brand-category matching tha
 past a confident exact or alias match), read its contacts, and report a deal's lifecycle status
 verbatim. It is READ-ONLY (no write modes at all), CREATOR_OS_ROOT-sandboxed, carries `computed_by`
 and `gaps[]`, and degrades to an empty result plus a gap on a fresh clone. Contacts are PII, so the
-`contact_lookup` and `deal_status` MCP tools (and the `--redacted` CLI flag) mask names to initials
+`contact_lookup` and `deal_status` MCP tools (and the `--redacted` CLI flag) mask names to initials <!-- verify: tools/accounts.py::deal_status -->
 and emails to a stub for anything quoted off this machine; the raw result is for the human operator
 here.
 
@@ -163,7 +163,7 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
 4. **Redaction for anything leaving the machine.** `finance.redact()` bands amounts into ranges
    and reduces brand names to initials; the `--redacted` CLI flag and the `redacted` parameter
    on the finance MCP tools apply it. The dashboard stays raw because it is localhost-only.
-5. **Structural refusals.** `finance.reconcile()` refuses any CSV inside the repo tree unless the
+5. **Structural refusals.** `finance.reconcile()` refuses any CSV inside the repo tree unless the <!-- verify: tools/finance.py::reconcile -->
    filename contains `.local.`; dunning drafts are written only to gitignored `.local.md` paths
    and are never sent by the system.
 

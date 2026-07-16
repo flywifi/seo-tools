@@ -41,11 +41,11 @@ Follow `shared/method.md` and `shared/content-import-engine.md`. Runs `tools/vid
 which composes four read-only analyzers, each citing the `video_key`s behind every figure.
 
 ### Step 1: tags and formats
-`top_tags` ranks the catalog's tags by frequency and total views. `format_performance` reports average
+`top_tags` ranks the catalog's tags by frequency and total views. `format_performance` reports average <!-- verify: tools/video_library.py::top_tags -->
 views by duration bucket and by category. Both cite the contributing `video_key`s.
 
 ### Step 2: retention (YouTube only)
-`retention_insights` surfaces each video's most-watched peaks and its steepest-drop cliff. When
+`retention_insights` surfaces each video's most-watched peaks and its steepest-drop cliff. When <!-- verify: tools/video_library.py::retention_insights -->
 `library-complete` has joined a transcript, each moment carries the actual words spoken there, which is
 what answers "which parts were most watched" with what was said. Instagram, TikTok, and Pinterest have
 no first-party retention and are listed under `retention_unavailable`, null-flagged, never estimated.

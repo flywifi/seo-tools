@@ -45,7 +45,7 @@ master flag plus a per-platform read flag AND your own credentials, and it build
   metadata. No analytics or retention.
 - **YouTube Studio** -> Analytics -> Advanced mode -> Export -> `.zip`: `Table data.csv` carries your
   stats and, if monetized, `Estimated revenue (USD)`. This is the only revenue source.
-- Parsed by `tools/import_parse.py` (`parse_youtube_studio_csv` / `parse_youtube_takeout`).
+- Parsed by `tools/import_parse.py` (`parse_youtube_studio_csv` / `parse_youtube_takeout`). <!-- verify: tools/import_parse.py::parse_youtube_takeout --> <!-- verify: tools/import_parse.py::parse_youtube_studio_csv -->
 
 ### Instagram
 - Accounts Center -> Your information and permissions -> **Download your information** -> your profile,

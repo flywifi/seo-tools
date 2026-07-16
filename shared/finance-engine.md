@@ -183,7 +183,7 @@ consequential-action gate applies before any number goes to a brand.
 shape as `tools/obligations.py`: stdlib only, no network, `CREATOR_OS_ROOT` sandbox override,
 read-only scans always on, writes gated (`finance_management` for records, `invoice_generation`
 for invoice writes), sha256 bucket manifest over `pipeline/finance/*.local.json`, and a
-selftest. MCP tools (`finance_scan`, `invoice_build`, `cost_rollup`, `proposal_price`,
+selftest. MCP tools (`finance_scan`, `invoice_build`, `cost_rollup`, `proposal_price`, <!-- verify: tools/finance.py::proposal_price --> <!-- verify: tools/finance.py::cost_rollup -->
 `import_finance`) delegate to it so the model never does the arithmetic. `import_finance` fans
 results out to the existing join points: chase dates to the content calendar and production
 tasks, deposit due dates to deal-resourcing — never a parallel calendar.

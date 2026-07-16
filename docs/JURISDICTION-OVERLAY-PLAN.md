@@ -65,7 +65,7 @@ Not every overlay is a polygon. Three kinds:
   scope; (4) genuine legal conflict -> `human_review_required`, never auto-resolved. Each decision
   wrapped as a W3C PROV activity for audit.
 - **Flag-gated + drift-clean + consumer glue:** capability `jurisdictional_overlay` (default off,
-  master-gate pattern; read-only lookups degrade-not-fail); a sibling `check_jurisdiction()` drift
+  master-gate pattern; read-only lookups degrade-not-fail); a sibling `check_jurisdiction()` drift <!-- verify: tools/sync_check.py::check_jurisdiction -->
   invariant (invariant 22 is hard-coded to the construction path); a `jurisdiction-desk` spoke + atoms
   + MCP tools interoperating with construction-desk / code-lookup.
 

@@ -16,7 +16,7 @@ so the model never needs a local GIS engine. The offline `tools/geo_overlay.py` 
 
 | Surface | Runs the offline engine? | Reaches the answer? | Mechanism | Packaged |
 |---|---|---|---|---|
-| **Claude Desktop (local MCP)** | Yes | Yes | `tools/mcp_server.py` -> `jurisdiction_resolve` (offline) + consent-gated live | `implementation/claude/desktop/` |
+| **Claude Desktop (local MCP)** | Yes | Yes | `tools/mcp_server.py` -> `jurisdiction_resolve` (offline) + consent-gated live | `implementation/claude/desktop/` | <!-- verify: tools/mcp_server.py::jurisdiction_resolve -->
 | **Claude Code / CLI** | Yes | Yes | Runs the tools directly, or `geo_source_fetch.py resolve` | native |
 | **claude.ai web + mobile** | Sandbox-only | Yes | A hosted **remote-MCP** connector (`tools/mcp_server.py --serve-remote`) fronting the same tools | transport defined; you host it |
 | **Custom GPT (OpenAI)** | No | Yes | A **GPT Action** whose OpenAPI schema targets the public endpoints | `implementation/gpt/actions/jurisdiction_overlay_action.yaml` |
@@ -69,7 +69,7 @@ behavior on its next connect. Two rules make this hold, and one is a hard limit:
   resources.updated honoring on claude.ai and ChatGPT.]`
 - Bump the ecosystem VERSION each deploy; `serverInfo.version` (exchanged at MCP `initialize`, current
   spec 2025-11-25) is a poll signal read on a new session, never pushed into a live one. The
-  `get_server_info` tool surfaces it.
+  `get_server_info` tool surfaces it. <!-- verify: tools/mcp_server.py::get_server_info -->
 
 Knowledge-only surfaces (pasted packs, uploaded Project/GPT knowledge, Gems) never auto-update: the
 `Packaging version:` line is the only staleness signal, compared by hand. Full runbook: docs/UPDATING.md.
