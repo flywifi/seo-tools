@@ -39,7 +39,7 @@ analytics CSVs with `data-query`.
 3. One invoice, two candidate rows: single proposal, best tier wins.
 4. In-repo non-`.local.` CSV refused (PermissionError); outside-repo CSV allowed.
 5. mark_paid refused with the flag off, record untouched.
-Mapped to evals/evals.json and `python3 tools/finance.py --selftest` (71 checks).
+Mapped to evals/evals.json and `python3 tools/finance.py --selftest` (99 checks).
 
 ## Approval-gated changes
 The tier definitions, the greedy assignment rule, the structural CSV refusal, output schema,
@@ -51,6 +51,6 @@ list the alternative in the walk-through; the human picks, the tool never does.
 
 ## Update checklist
 1. Edit SKILL.md / this file.
-2. `python3 tools/finance.py --selftest` passes 71 of 71.
+2. `python3 tools/finance.py --selftest` passes 99 of 99.
 3. `python3 tools/sync_check.py` exits 0.
 Verify all backticked path references in this file and SKILL.md resolve to real files on disk.

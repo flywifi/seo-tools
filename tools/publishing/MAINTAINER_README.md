@@ -21,12 +21,18 @@ error}` result for one human-confirmed post." It never decides *whether* to post
    (`creds[plat] = {...}`) — deep-merge via `wizard._merge_api_credentials`, or you silently wipe the
    importer's token. `<!-- verify: tools/wizard.py::_merge_api_credentials -->`
 2. **Instagram identity key.** The IG account id is canonical at `creds["instagram"]["ig_user_id"]`
-   (platform root). The importer reads *only* `ig_user_id`; `account_id` is a write-time alias /
-   publisher fallback. Every new writer MUST set `ig_user_id`.
+   (platform root). The importer reads *only* `ig_user_id`, and since P58 (A2c) the publisher requires
+   a real `ig_user_id` too — it does NOT fall back to `account_id` (usually the linked Facebook Page
+   id, the wrong object type for `/{id}/media`). Every new writer MUST set `ig_user_id`.
    `<!-- verify: tools/importers/instagram_import.py -->`
-3. **Live gate + human confirm.** Clients do not self-check either gate; callers MUST gate on
-   `publishing_compliance.live_publishing_enabled(config)` and an explicit human-confirmation status
-   before `dispatch()`. Default is off; while off, no network call. `<!-- verify: tools/publishing_compliance.py::live_publishing_enabled -->`
+3. **Live gate + human confirm are structural.** Since P57 (F2/F8), `dispatch()` itself ENFORCES both
+   gates before touching any client: it refuses with `status:"gated"` unless
+   `publishing_compliance.live_publishing_enabled(config)` (or an explicit `allow_live=True`) holds,
+   and with `status:"unconfirmed"` unless the caller passes `confirmed=True` asserting a human
+   confirmed THIS entry. Callers still pass `config` and `confirmed=True` (the dashboard scheduler is
+   the only production caller); the in-dispatch check is defense in depth, not a license for callers to
+   skip their own gate. Default is off; while off, no network call.
+   `<!-- verify: tools/publishing_compliance.py::live_publishing_enabled -->`
 4. **YouTube = upload-only, default private.** The upload path constructs NO monetary/analytics
    endpoint (upload host only), and `status.privacyStatus` defaults to `private`; public requires an
    explicit entry choice. `<!-- verify: tools/publishing/youtube.py::publish -->`
