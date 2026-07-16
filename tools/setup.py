@@ -16,6 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import env_paths  # sibling in tools/: venv-aware interpreter + brew-PATH resolution
+
 ROOT = Path(__file__).resolve().parent.parent
 PYTHON = sys.executable
 
@@ -56,28 +58,66 @@ REQUIREMENTS_SETS = [
 ]
 
 
-def _pip_install(args: list) -> tuple:
-    """Run pip with the given args. Returns (ok, detail). Never raises."""
+def _pip_install(args: list, python: str | None = None, allow_break_system: bool = False) -> tuple:
+    """Run pip with the given args in the target interpreter. Returns (ok, detail). Never raises.
+    On a PEP 668 externally-managed interpreter, retries once with --break-system-packages only when
+    allow_break_system is set. The .venv path avoids PEP 668 entirely, so it never needs the override."""
+    py = python or PYTHON
     try:
         r = subprocess.run(
-            [PYTHON, "-m", "pip", "install", *args],
+            [py, "-m", "pip", "install", *args],
             capture_output=True, text=True, timeout=1800,
         )
         if r.returncode == 0:
             return True, ""
-        return False, (r.stderr or r.stdout or "").strip()[-400:]
+        detail = (r.stderr or r.stdout or "").strip()
+        if allow_break_system and "externally-managed-environment" in detail:
+            r2 = subprocess.run(
+                [py, "-m", "pip", "install", "--break-system-packages", *args],
+                capture_output=True, text=True, timeout=1800,
+            )
+            if r2.returncode == 0:
+                return True, "installed with --break-system-packages (no .venv available)"
+            return False, (r2.stderr or r2.stdout or "").strip()[-400:]
+        return False, detail[-400:]
     except Exception as exc:  # noqa: BLE001
         return False, str(exc)
 
 
-def _install_playwright_browser() -> tuple:
-    """Fetch the Chromium binary Playwright needs (only if the package installed). (ok, detail)."""
+def ensure_venv() -> tuple:
+    """Create or locate the repo .venv (the 'private toolbox'). Returns (python_path|None, note).
+    Isolating deps in .venv sidesteps PEP 668 on a Homebrew Python and gives the launcher and the
+    Claude MCP config a stable absolute interpreter. Creating a venv is allowed even from an
+    externally-managed base (PEP 668 only blocks pip into the base). If creation fails (e.g. a
+    stripped-down CLT-shim interpreter), returns (None, reason) and the caller does a system install."""
+    existing = env_paths.venv_python()
+    if existing:
+        return str(existing), "using existing .venv"
+    venv_dir = ROOT / ".venv"
     try:
-        import importlib.util
-        if importlib.util.find_spec("playwright") is None:
+        subprocess.run([PYTHON, "-m", "venv", str(venv_dir)],
+                       capture_output=True, text=True, timeout=300)
+    except Exception as exc:  # noqa: BLE001
+        return None, f"could not create .venv ({exc}); using the system Python"
+    created = env_paths.venv_python()
+    if created:
+        return str(created), "created .venv (private toolbox)"
+    return None, "could not create .venv; using the system Python"
+
+
+def _install_playwright_browser(python: str | None = None) -> tuple:
+    """Fetch the Chromium binary Playwright needs (only if the package installed in the target
+    interpreter). (ok, detail)."""
+    py = python or PYTHON
+    try:
+        probe = subprocess.run(
+            [py, "-c", "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('playwright') else 3)"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if probe.returncode == 3:
             return None, "playwright package not installed — skipped browser download"
         r = subprocess.run(
-            [PYTHON, "-m", "playwright", "install", "chromium"],
+            [py, "-m", "playwright", "install", "chromium"],
             capture_output=True, text=True, timeout=1800,
         )
         if r.returncode == 0:
@@ -88,26 +128,33 @@ def _install_playwright_browser() -> tuple:
 
 
 def install_dependencies() -> list:
-    """Install every free, cross-platform pip set + uv + the Playwright browser. Returns a list of
-    per-item {item, desc, ok, detail} results; ok=None means skipped. Reports every outcome honestly,
-    never silently. System binaries (Node, ffmpeg) are NOT installed here — they need the user's shell
-    package manager and are handled by the launcher/doctor."""
+    """Install every free, cross-platform pip set + uv + the Playwright browser into a private .venv
+    (the 'private toolbox'), so a Homebrew Python's PEP 668 lock never silently blocks the install.
+    Returns a list of per-item {item, desc, ok, detail} results; ok=None means skipped. Reports every
+    outcome honestly, never silently. System binaries (Node, ffmpeg) are NOT installed here — they need
+    the user's shell package manager and are handled by the launcher/doctor."""
     results = []
+    venv_py, venv_note = ensure_venv()
+    target = venv_py or PYTHON
+    allow_break = venv_py is None  # override PEP 668 only when we could not isolate into a .venv
+    results.append({"item": ".venv", "desc": "private dependency toolbox",
+                    "ok": venv_py is not None, "detail": venv_note})
     for fname, desc in REQUIREMENTS_SETS:
         p = ROOT / fname
         if not p.exists():
             results.append({"item": fname, "desc": desc, "ok": None, "detail": "file not found"})
             continue
-        ok, detail = _pip_install(["-r", str(p)])
+        ok, detail = _pip_install(["-r", str(p)], python=target, allow_break_system=allow_break)
         results.append({"item": fname, "desc": desc, "ok": ok, "detail": detail})
     # uv: pip-installable, cross-platform, no sudo. Powers the Google/Wolfram uvx MCP servers.
-    if shutil.which("uv") is None:
-        ok, detail = _pip_install(["uv"])
-        results.append({"item": "uv", "desc": "uvx runtime for Google/Wolfram MCP servers", "ok": ok, "detail": detail})
-    else:
+    venv_uv = Path(target).parent / "uv"
+    if venv_uv.exists() or env_paths.which("uv"):
         results.append({"item": "uv", "desc": "uvx runtime", "ok": None, "detail": "already installed"})
-    # Playwright browser binary (only if the package landed).
-    pw_ok, pw_detail = _install_playwright_browser()
+    else:
+        ok, detail = _pip_install(["uv"], python=target, allow_break_system=allow_break)
+        results.append({"item": "uv", "desc": "uvx runtime for Google/Wolfram MCP servers", "ok": ok, "detail": detail})
+    # Playwright browser binary (only if the package landed in the target interpreter).
+    pw_ok, pw_detail = _install_playwright_browser(target)
     results.append({"item": "playwright chromium", "desc": "Headless browser binary", "ok": pw_ok, "detail": pw_detail})
     return results
 
@@ -117,7 +164,8 @@ def run_install_deps(as_json: bool = False) -> int:
     In --json mode stdout carries ONLY the JSON object (the wizard parses it), no preamble."""
     if not as_json:
         _say("Installing Creator OS dependencies (free, cross-platform, no keys)...")
-        _say("This installs into your current Python environment. Base function never depends on it.\n")
+        _say("These install into a private .venv toolbox inside the repo (never committed), so a")
+        _say("Homebrew Python's install lock cannot block them. Base function never depends on it.\n")
     results = install_dependencies()
     if as_json:
         print(json.dumps({"results": results}, indent=2))
@@ -159,12 +207,13 @@ def check_platform() -> None:
         if result.stdout.strip() == "1":
             _say("  [warn] Python is running under Rosetta (x86_64 emulation on arm64 hardware).")
             _say("         For best performance, install a native arm64 Python via Homebrew:")
-            _say("           brew install python@3.11")
+            _say("           brew install python@3.13")
             _say("         Then rerun: /opt/homebrew/bin/python3 tools/setup.py")
             return
     _say("  macOS tips:")
-    _say("    If 'python3' is not found, install via Homebrew (https://brew.sh):")
-    _say("      brew install python@3.11")
+    _say("    If 'python3' is not found, install the python.org universal2 .pkg (notarized, Tk")
+    _say("    bundled), or via Homebrew (https://brew.sh):")
+    _say("      brew install python@3.13")
     _say("    After installing requirements-render.txt, run once to fetch arm64 Chromium:")
     _say("      python3 -m playwright install chromium")
 
@@ -311,8 +360,38 @@ Next steps:
 """)
 
 
+def _selftest() -> int:
+    """Offline checks for the venv-first install mechanism (no network, no real pip install)."""
+    import tempfile
+    checks = []
+
+    def ok(cond, msg):
+        checks.append((bool(cond), msg))
+
+    with tempfile.TemporaryDirectory() as td:
+        vd = Path(td) / ".venv"
+        r = subprocess.run([PYTHON, "-m", "venv", str(vd)], capture_output=True, text=True, timeout=300)
+        vpy = env_paths.venv_python(td)
+        ok(r.returncode == 0 and vpy is not None, "python -m venv creates a resolvable .venv (private toolbox)")
+        if vpy:
+            pv = subprocess.run([str(vpy), "-m", "pip", "--version"], capture_output=True, text=True, timeout=60)
+            ok(pv.returncode == 0, "the .venv has pip (a usable install target)")
+    # _pip_install never raises on a bad interpreter and reports failure honestly.
+    okf, _ = _pip_install(["x"], python="/nonexistent/python/xyz")
+    ok(okf is False, "_pip_install returns (False, detail) on a bad interpreter, never raises")
+
+    passed = sum(1 for c, _ in checks if c)
+    for c, m in checks:
+        if not c:
+            print(f"  [FAIL] {m}")
+    print(f"setup selftest: {passed}/{len(checks)} checks passed")
+    return 0 if passed == len(checks) else 1
+
+
 def main() -> None:
     argv = sys.argv[1:]
+    if "--selftest" in argv:
+        sys.exit(_selftest())
     if "--install-deps" in argv:
         # Standalone dependency install (also used by the wizard's "Set up my computer" screen).
         sys.exit(run_install_deps(as_json="--json" in argv))
