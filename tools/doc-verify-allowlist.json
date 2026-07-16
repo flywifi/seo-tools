@@ -1,0 +1,4 @@
+{
+  "_comment": "Invariant 49 (doc symbol references) exemptions. Add a `path::symbol` string to `exempt` only when a `<!-- verify: ... -->` marker legitimately names a dynamically-defined or optional symbol the AST scan cannot see (e.g. a symbol created via setattr or defined only under a runtime import). Prefer fixing the marker over exempting. Each entry should be obvious from context; keep the list short.",
+  "exempt": []
+}

@@ -44,7 +44,7 @@ This atom formats finalized content into a paste-ready manual posting package �
 When platform-engine.md and a more recent platform announcement disagree on a spec, the atom uses platform-engine.md and notes `[check platform-engine.md freshness — spec may have changed]` in `notes`. Run `python3 tools/source_currency.py --check --category platform-spec` to flag stale platform specs.
 
 ## Update checklist
-1. Run `python3 tools/sync_check.py` — all 48 invariants must pass.
+1. Run `python3 tools/sync_check.py` — all 50 invariants must pass.
 2. Verify all path references resolve: `shared/platform-engine.md`, `shared/brand-engine.md`, `protocols/safety.md`, `protocols/formatting-metadata.md`.
 3. After any platform character limit or hashtag cap change, update `shared/platform-engine.md` first, then update SKILL.md Inputs and evals.
 4. Update `evals/evals.json` if output schema changes.

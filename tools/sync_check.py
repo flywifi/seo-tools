@@ -94,6 +94,11 @@ Invariants enforced:
       file projects changes sha since the projection manifest was reconciled, the file is surfaced.
   48. Doc-count truth (P49 WS2): live architecture/setup docs must state the true global totals
       (spokes, invariants) computed by tools/count_truth.py; historical phase-logs are out of scope.
+  49. Doc symbol references (P52): a `<!-- verify: path[::symbol] -->` marker in a maintainer/SKILL/doc
+      file asserts the named code still exists (path resolves; a ::symbol must be a module-level
+      def/class/assignment or Class.method). Extends invariant 5 from paths to symbols.
+  50. Tools-layer maintainer coverage (P52): each designated high-value tools subtree
+      (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md (invariant 3 covers skills/ only).
 """
 import json
 import os
@@ -219,26 +224,53 @@ def check_formatting():
 PATH_RE = re.compile(r"`([A-Za-z0-9_.][A-Za-z0-9_./-]*\.(?:md|json|py|js))`")
 KNOWN_ROOTS = ("shared", "protocols", "skills", "pipeline", "tools", "docs", ".claude",
                "canonical-sources")
+# High-value tools subtrees required to carry a MAINTAINER_README.md (invariant 50). The skills-only
+# maintainer requirement (invariant 3) does not reach tools/, so these are declared explicitly.
+TOOLS_MAINTAINER_DIRS = ("tools/publishing",)
+
+
+def _reference_scan_files():
+    """The files whose backticked paths + verify markers the guard validates (invariants 5, 49):
+    every skills SKILL.md + MAINTAINER_README.md, docs/*.md, the root README.md, and each tools
+    maintainer README. (P52 expanded this from skills/ only to also cover docs and tools docs.)"""
+    files = []
+    skills = ROOT / "skills"
+    if skills.exists():
+        for skill_dir in sorted(skills.rglob("*")):
+            if not skill_dir.is_dir():
+                continue
+            for filename in ("SKILL.md", "MAINTAINER_README.md"):
+                target = skill_dir / filename
+                if target.exists():
+                    files.append(target)
+    docs = ROOT / "docs"
+    if docs.exists():
+        files.extend(sorted(docs.rglob("*.md")))
+    root_readme = ROOT / "README.md"
+    if root_readme.exists():
+        files.append(root_readme)
+    for d in TOOLS_MAINTAINER_DIRS:
+        target = ROOT / d / "MAINTAINER_README.md"
+        if target.exists():
+            files.append(target)
+    return files
 
 
 def check_references():
-    """Invariant 5 (expanded): scans SKILL.md and MAINTAINER_README.md; includes .claude root."""
-    skills = ROOT / "skills"
-    if not skills.exists():
-        return
-    for skill_dir in sorted(skills.rglob("*")):
-        if not skill_dir.is_dir():
-            continue
-        for filename in ("SKILL.md", "MAINTAINER_README.md"):
-            target = skill_dir / filename
-            if not target.exists():
+    """Invariant 5 (expanded): every backticked repo path in a SKILL.md / MAINTAINER_README.md,
+    docs/*.md, or README.md must resolve on disk. P52 widened the scope from skills/ only to also
+    include docs/ and the tools maintainer READMEs (a doc naming a removed file no longer ships)."""
+    for target in _reference_scan_files():
+        rel = target.relative_to(ROOT)
+        text = target.read_text(encoding="utf-8")
+        for match in PATH_RE.finditer(text):
+            ref = match.group(1)
+            # `.local.` files are gitignored runtime data (created per-user); a doc naming their
+            # location is correct even though the file is absent from the repo. Do not flag them.
+            if ".local." in ref:
                 continue
-            rel = target.relative_to(ROOT)
-            text = target.read_text(encoding="utf-8")
-            for match in PATH_RE.finditer(text):
-                ref = match.group(1)
-                if ref.split("/")[0] in KNOWN_ROOTS and not (ROOT / ref).exists():
-                    problem(f"{rel}: references missing path `{ref}`")
+            if ref.split("/")[0] in KNOWN_ROOTS and not (ROOT / ref).exists():
+                problem(f"{rel}: references missing path `{ref}`")
 
 
 def check_frontmatter_loads():
@@ -1775,6 +1807,86 @@ def check_doc_count_truth():
                         f"{kw}; correct the doc (counts are computed by tools/count_truth.py)")
 
 
+VERIFY_RE = re.compile(r"<!--\s*verify:\s*(\S+?)\s*-->")
+
+
+def _module_symbols(pyfile):
+    """Module-level symbol names defined in a .py file (def/class/assign) plus Class.method entries.
+    Returns None if the file cannot be parsed."""
+    import ast
+    try:
+        tree = ast.parse(pyfile.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return None
+    names = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name):
+                    names.add(tgt.id)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+        if isinstance(node, ast.ClassDef):
+            for sub in node.body:
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    names.add(f"{node.name}.{sub.name}")
+    return names
+
+
+def check_doc_symbol_refs():
+    """Invariant 49: doc symbol references (P52). A `<!-- verify: path[::symbol] -->` marker in a
+    maintainer/SKILL/doc file asserts the named code still exists: the path must resolve, and a
+    ::symbol must be a module-level def/class/assignment (or Class.method) in that .py module. This
+    extends the path-only check (invariant 5) to catch a renamed or removed symbol that prose still
+    names. Exemptions for dynamically-defined/optional symbols live in tools/doc-verify-allowlist.json
+    ({"exempt": ["path::symbol", ...]})."""
+    allow = set()
+    ap = ROOT / "tools" / "doc-verify-allowlist.json"
+    if ap.exists():
+        try:
+            allow = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
+        except (OSError, json.JSONDecodeError):
+            allow = set()
+    for target in _reference_scan_files():
+        rel = target.relative_to(ROOT)
+        for m in VERIFY_RE.finditer(target.read_text(encoding="utf-8")):
+            spec = m.group(1)
+            if spec in allow:
+                continue
+            path, _, symbol = spec.partition("::")
+            if path.split("/")[0] not in KNOWN_ROOTS:
+                problem(f"{rel}: verify marker `{spec}` path is not under a known repo root")
+                continue
+            resolved = ROOT / path
+            if not resolved.exists():
+                problem(f"{rel}: verify marker references missing path `{path}`")
+                continue
+            if symbol:
+                if resolved.suffix != ".py":
+                    problem(f"{rel}: verify marker `{spec}` names a symbol but `{path}` is not a .py file")
+                    continue
+                syms = _module_symbols(resolved)
+                if syms is None:
+                    problem(f"{rel}: verify marker `{spec}`: could not parse `{path}`")
+                elif symbol not in syms:
+                    problem(f"{rel}: verify marker `{spec}`: symbol `{symbol}` is not defined in `{path}`")
+
+
+def check_tools_maintainer():
+    """Invariant 50: tools-layer maintainer coverage (P52). Each designated high-value tools subtree
+    (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md. The skills-only maintainer requirement
+    (invariant 3) never reaches tools/, so the most security-sensitive code would otherwise have no
+    maintainer doc and no guard coverage."""
+    for d in TOOLS_MAINTAINER_DIRS:
+        base = ROOT / d
+        if not base.exists():
+            continue
+        if not (base / "MAINTAINER_README.md").exists():
+            problem(f"{d}: missing MAINTAINER_README.md (required for a declared tools maintainer subtree)")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -1903,6 +2015,8 @@ def main():
     check_url_provenance()
     check_projection_staleness()
     check_doc_count_truth()
+    check_doc_symbol_refs()
+    check_tools_maintainer()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
