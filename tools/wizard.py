@@ -18,6 +18,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import shutil
 import socketserver
 import subprocess
@@ -1591,7 +1592,7 @@ Open the transitions guide</a>
 """)
 
 
-def _screen_updates(saved: str = "") -> str:
+def _screen_updates(saved: str = "", error: str = "") -> str:
     """Update status (P44): current version, the opt-in background check, and how each surface updates."""
     cfg = _load_creator_config()
     on = _flag_enabled(cfg, "background_update_check")
@@ -1601,6 +1602,8 @@ def _screen_updates(saved: str = "") -> str:
         '<button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;'
         'font-size:.85rem">Turn on the background update check</button></form>')
     saved_block = f'<div class="note">{saved}</div>' if saved else ""
+    if error:
+        saved_block += f'<div class="error-box">{error}</div>'
     try:
         from update_check import resolve_channel
         channel, branch = resolve_channel()
@@ -1627,7 +1630,7 @@ are behind.</p>
 <option value="nightly"{' selected' if channel == 'nightly' else ''}>Nightly (experimental branch)</option>
 </select></label>
 <label style="margin-left:10px">Nightly branch:
-<input type="text" name="nightly_branch" value="{ny_val}" placeholder="{cur_branch or 'main'}" style="width:auto"></label>
+<input type="text" name="nightly_branch" value="{html.escape(ny_val)}" placeholder="{html.escape(cur_branch or 'main')}" style="width:auto"></label>
 <button class="btn btn-secondary" type="submit" style="margin:0 0 0 10px;padding:8px 14px;width:auto;font-size:.85rem">Save channel</button>
 </form>
 <p class="hint">Saved locally in creator-os-config.local.json (never committed). Applying stays your
@@ -1875,6 +1878,18 @@ _IMPORT_ATTEMPTS = {
     "tiktok": [("tiktok-dyi", "json"), ("tiktok-studio-csv", "csv")],
     "pinterest": [("pinterest", "json")],
 }
+
+
+def _valid_git_ref(ref):
+    """P57 F11: accept only a plain git branch/ref that cannot be read by git as an option or
+    traverse. Letters/digits/._/- , no leading dash, no '..', 1..200 chars. This value crosses into
+    `git pull origin <branch>` (tools/update.py) and into a rendered page, so a rejected value never
+    reaches the config or the network."""
+    if not ref or len(ref) > 200:
+        return False
+    if ref.startswith("-") or ".." in ref or ref.endswith("/") or ref.startswith("/"):
+        return False
+    return re.fullmatch(r"[A-Za-z0-9._/-]+", ref) is not None
 
 
 def _origin_allowed(origin, referer, port=PORT):
@@ -2358,10 +2373,21 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 channel = "stable"
             updates = {"channel": channel}
             ny = (data.get("nightly_branch") or "").strip()
+            # F11: this value is later passed to `git pull origin <branch>` (update.py). Reject anything
+            # that is not a plain git ref so it cannot be read by git as an option (leading '-') or
+            # traverse ('..'). F10: it is also reflected into the page, so a rejected value never
+            # reaches the config or the response.
             if channel == "nightly" and ny:
+                if not _valid_git_ref(ny):
+                    self._send(_screen_updates(error=(
+                        "That branch name is not valid. Use letters, numbers, and "
+                        "<code>. _ / -</code> only (for example <code>claude/my-branch</code>); it "
+                        "cannot start with a dash.")), status=400)
+                    return
                 updates["channels"] = {"nightly": ny}
             _update_config_section("update", updates)
-            where = (f"branch <code>{ny}</code>" if channel == "nightly" and ny else "the main branch")
+            where = (f"branch <code>{html.escape(ny)}</code>" if channel == "nightly" and ny
+                     else "the main branch")
             self._send(_screen_updates(saved=(
                 f"Update channel set to <strong>{channel}</strong> ({where}) in "
                 "creator-os-config.local.json (local only; never committed). The update check and "
@@ -2830,6 +2856,12 @@ def _selftest() -> int:
     check(_origin_allowed("https://evil.example", None) is False, "cross-site Origin must be refused")
     check(_origin_allowed(None, "https://evil.example/x") is False, "cross-site Referer must be refused")
     check(_origin_allowed("http://127.0.0.1:9999", None) is False, "wrong-port Origin must be refused")
+
+    # 1c) F11: nightly_branch git-ref validation (feeds `git pull origin <branch>`).
+    check(_valid_git_ref("claude/my-branch") and _valid_git_ref("main"), "valid refs must pass")
+    check(not _valid_git_ref("--upload-pack=touch /tmp/x"), "leading-dash ref must be refused")
+    check(not _valid_git_ref("a/../b") and not _valid_git_ref("x;rm -rf") and not _valid_git_ref(""),
+          "traversal/metachar/empty refs must be refused")
 
     # 2) State mismatch (CSRF) -> refused, no exchange.
     flags.clear()
