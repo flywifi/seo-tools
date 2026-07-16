@@ -72,7 +72,7 @@ you record a short video demo of your real integration for review.
 
 **Setup:** Pinterest Business account → developers.pinterest.com → create an app, request `pins:write`
 and `boards:read` → register the redirect URL the wizard shows
-(`http://localhost:8765/oauth/pinterest/callback`, exact match) → paste App ID + Secret → **Connect**.
+(`http://127.0.0.1:8765/oauth/pinterest/callback`, exact match) → paste App ID + Secret → **Connect**.
 A `board_id` is required to create a Pin. Video Pins are not supported yet (image Pins only).
 
 ---

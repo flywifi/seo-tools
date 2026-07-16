@@ -79,7 +79,9 @@ CONFIG: dict[str, dict] = {
         "client_id_param": "client_id",
         "extra_auth_params": {},
         "redirect_path": "/oauth/pinterest/callback",
-        "redirect_host": "localhost",   # Pinterest docs/quickstart register http://localhost
+        "redirect_host": "127.0.0.1",   # P57 F9: the wizard binds 127.0.0.1 only; localhost can
+                                        # resolve to IPv6 ::1 and lose the callback. Register
+                                        # http://127.0.0.1:8765/oauth/pinterest/callback.
         "rotates_refresh": True,       # continuous refresh token
     },
     "instagram": {
@@ -94,7 +96,9 @@ CONFIG: dict[str, dict] = {
         "client_id_param": "client_id",
         "extra_auth_params": {},
         "redirect_path": "/oauth/instagram/callback",
-        "redirect_host": "localhost",   # loopback acceptance UNVERIFIED; manual-code fallback exists
+        "redirect_host": "127.0.0.1",   # P57 F9: match the wizard's 127.0.0.1 bind (localhost may
+                                        # resolve to ::1). Loopback acceptance by Meta is still
+                                        # UNVERIFIED; the manual-code paste fallback exists.
         "rotates_refresh": False,      # refresh returns a fresh 60-day access token, no refresh_token
     },
 }
@@ -389,6 +393,12 @@ def _selftest() -> int:
     check(make_pkce("pinterest") == (None, None), "pinterest must not use PKCE")
     check(make_pkce("instagram") == (None, None), "instagram must not use PKCE")
 
+    # 1b) F9: every platform's redirect_uri is on the 127.0.0.1 loopback the wizard binds --
+    # `localhost` can resolve to IPv6 ::1 and lose the callback (Pinterest/Instagram regressed here).
+    for _p in ("youtube", "tiktok", "pinterest", "instagram"):
+        check(redirect_uri(_p, 8765).startswith("http://127.0.0.1:8765/"),
+              f"{_p} redirect_uri must use 127.0.0.1, not localhost")
+
     # 2) Authorization URLs carry the right params/scope/PKCE and client id param name.
     au_yt = build_auth_url("youtube", client_id="CID", redirect_uri="http://127.0.0.1:8765/oauth/youtube/callback",
                            state="ST", challenge=c_yt)
@@ -398,7 +408,7 @@ def _selftest() -> int:
     au_tt = build_auth_url("tiktok", client_id="CK", redirect_uri="http://127.0.0.1:8765/oauth/tiktok/callback",
                            state="ST", challenge=c_tt)
     check("client_key=CK" in au_tt and "client_id=" not in au_tt, "tiktok must use client_key")
-    au_pin = build_auth_url("pinterest", client_id="CID", redirect_uri="http://localhost:8765/oauth/pinterest/callback",
+    au_pin = build_auth_url("pinterest", client_id="CID", redirect_uri="http://127.0.0.1:8765/oauth/pinterest/callback",
                             state="ST")
     check("code_challenge" not in au_pin, "pinterest auth url must not carry PKCE")
     check("scope=pins%3Awrite%2Cboards%3Aread" in au_pin, "pinterest scope missing/mis-encoded")
