@@ -104,6 +104,25 @@ def _get_credentials_status():
     return {plat: bool(creds.get(plat)) for plat in PLATFORMS}
 
 
+# F8: control fields that ONLY the human Confirm path (_handle_schedule) or the
+# scheduler may set. Stripped from any add-to-queue / import payload so an injected
+# status='scheduled' (or a forged post_id/permalink/schedule) cannot masquerade as
+# human confirmation and get dispatched to the real API.
+_PROTECTED_PLATFORM_FIELDS = frozenset({
+    "status", "scheduled_datetime", "post_id", "permalink", "error",
+    "publishing_tier", "human_review_required", "ftc_prepended", "aigc_flag_set",
+})
+
+
+def _sanitize_platform_input(pdata):
+    """Return a copy of caller-supplied platform data with protected control fields
+    removed (P57 F8). Content fields (enabled, caption, ftc_disclosure, is_aigc, ...)
+    pass through; confirmation/scheduling state does not."""
+    if not isinstance(pdata, dict):
+        return {}
+    return {k: v for k, v in pdata.items() if k not in _PROTECTED_PLATFORM_FIELDS}
+
+
 def _new_platform_entry():
     return {
         "enabled": False,
@@ -293,14 +312,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                             continue
                         if plat not in plats:
                             plats[plat] = _new_platform_entry()
-                        plats[plat].update(pdata)
+                        plats[plat].update(_sanitize_platform_input(pdata))
             else:
                 platforms = {}
                 body_platforms = body.get("platforms") if isinstance(body.get("platforms"), dict) else {}
                 for plat in PLATFORMS:
                     entry = _new_platform_entry()
                     if isinstance(body_platforms.get(plat), dict):
-                        entry.update(body_platforms[plat])
+                        entry.update(_sanitize_platform_input(body_platforms[plat]))
                     platforms[plat] = entry
                 queue["queue"].append({
                     "id": item_id,
@@ -503,6 +522,37 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         self._json_response({"ok": True})
 
 
+def _save_publish_creds(platform, updated):
+    """Persist a client's refreshed/rotated publish-creds (P57 F3).
+
+    Called by a publishing client (via the persist callable threaded through
+    dispatch) when a token refresh occurred -- notably TikTok, whose refresh_token
+    ROTATES, so dropping the update would force a reconnect next cycle. Merges
+    `updated` under creds[platform]['publish'] and writes the gitignored
+    api-credentials.local.json. Best-effort: never raises into the scheduler.
+    """
+    if not isinstance(updated, dict) or not platform:
+        return
+    try:
+        current = {}
+        if CREDS_PATH.exists():
+            current = json.loads(CREDS_PATH.read_text(encoding="utf-8")) or {}
+        if not isinstance(current, dict):
+            current = {}
+        plat = current.setdefault(platform, {})
+        if not isinstance(plat, dict):
+            plat = current[platform] = {}
+        pub = plat.get("publish")
+        if isinstance(pub, dict):
+            pub.update(updated)
+        else:
+            plat["publish"] = dict(updated)
+        CREDS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        CREDS_PATH.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+    except (OSError, ValueError):
+        pass
+
+
 def _scheduler_loop():
     """Advance due, human-confirmed posts.
 
@@ -540,13 +590,29 @@ def _scheduler_loop():
                     if sched > now:
                         continue
                     # Due now, and the human already confirmed (status == 'scheduled').
-                    if live:
+                    # F7: only a direct_api-tier platform (its {platform}_publishing flag on) may
+                    # hit the network; a manual-tier item advances to ready_to_post even when the
+                    # global live flag is on -- the two gates must agree before a network call.
+                    tier_live = live and compliance.flag_enabled(config, f"{platform}_publishing")
+                    if tier_live:
                         try:
-                            res = publishing.dispatch(platform, pdata, creds.get(platform, {}))
-                            pdata["status"] = "published"
-                            pdata["post_id"] = res.get("post_id")
-                            pdata["permalink"] = res.get("permalink")
-                            pdata["error"] = None
+                            # F1: pass the FULL creds map (clients re-index creds[platform]['publish']).
+                            # F3: persist token rotation. F2/F8: dispatch re-checks the gate + confirm.
+                            res = publishing.dispatch(
+                                platform, pdata, creds,
+                                config=config, allow_live=True, confirmed=True,
+                                persist=(lambda upd, _p=platform: _save_publish_creds(_p, upd)),
+                            )
+                            status = res.get("status")
+                            if status in ("gated", "unconfirmed", "auth_required"):
+                                # Defense-in-depth refusal or a dead token: do not mark published.
+                                pdata["status"] = "ready_to_post" if status != "auth_required" else "auth_required"
+                                pdata["error"] = res.get("error")
+                            else:
+                                pdata["status"] = "published"
+                                pdata["post_id"] = res.get("post_id")
+                                pdata["permalink"] = res.get("permalink")
+                                pdata["error"] = None
                         except NotImplementedError as exc:
                             pdata["status"] = "ready_to_post"
                             pdata["error"] = str(exc)
