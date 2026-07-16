@@ -45,3 +45,4 @@ added beyond what those records state. New decisions get the next number via
 | [0034](0034-p49-audit-remediation.md) | P49 Audit Remediation | 2026-07-15 | Accepted |
 | [0035](0035-p50-onboarding-remediation.md) | P50 Onboarding Remediation | 2026-07-15 | Accepted |
 | [0036](0036-p51-publishing-oauth-live-upload.md) | P51 Publishing Oauth Live Upload | 2026-07-15 | Accepted |
+| [0037](0037-p52-maintainer-doc-accuracy-guards.md) | P52 Maintainer Doc Accuracy Guards | 2026-07-16 | Accepted |

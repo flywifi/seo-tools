@@ -2,8 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P51 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P52 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P52: maintainer and doc-accuracy audit plus forward drift guards (seo-tools only). Extended the
+  path-resolution check to `docs/*.md`/`README.md`; added a symbol-reference invariant
+  (`<!-- verify: path::symbol -->` resolved against the AST, with `tools/doc-verify-allowlist.json`
+  exemptions), a tools-layer maintainer-coverage invariant (`TOOLS_MAINTAINER_DIRS`), and
+  `tools/doc_freshness.py` content-hash staleness stamping (advisory). Created
+  `tools/publishing/MAINTAINER_README.md` (invariants, failure modes, dev-traps, regression map).
+  Ran a full multi-agent content-accuracy sweep; after review, applied the approved corrections
+  (publishing layer no longer "dark/stubs", Pinterest scope, finance-desk check counts,
+  contract-desk atoms, videoedit atom list, tool-count/script-path refs), lowered the skill-template
+  regression bar to three, and added Regression sections to five atom maintainer files. Broad
+  `verify:` marker retrofit (61 markers across 43 docs, each bound to a real top-level `tools/`
+  symbol). Process conventions: advisory `.github/CODEOWNERS` (@flywifi); `docs/adr/` (MADR, 5
+  foundational + 31 backfilled from the ledger); root `CHANGELOG.md` (Keep a Changelog + SemVer,
+  reconstructed from STATE + ledger); `docs/DOC-MAINTENANCE.md`; and a CLAUDE.md "docs change in the
+  same PR as the code" rule. Regression-probed: a bad marker and a reintroduced stale count each fail
+  the drift guard. Drift clean; scenarios 9/9; all publishing/oauth/picker selftests green.
 - P51: real publishing OAuth + live upload (persona-audit stumbles 8, 9) and a native folder picker
   (10). **Shared OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
   from research (PKCE base64url for Google, **hex** for TikTok, none for Pinterest/Instagram; Basic vs

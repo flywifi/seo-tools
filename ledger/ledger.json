@@ -275,7 +275,23 @@
       "id": "P51-publishing-oauth-live-upload",
       "date": "2026-07-15",
       "decision": "Built real publishing OAuth + gated live upload for all four platforms (persona-audit stumbles 8, 9) plus a native folder picker (10). Shared tools/oauth_flow.py runs a per-platform loopback OAuth flow capturing the researched divergences: PKCE base64url for Google, HEX for TikTok, none (confidential) for Pinterest/Instagram; body vs HTTP Basic client auth; TikTok refresh-token rotation persisted. Generalized wizard callback /oauth/<platform>/callback with single-use state CSRF, /api/oauth-start, and a manual paste-the-code fallback (Instagram loopback acceptance is unverified). Fixed the credential clobber: _merge_api_credentials deep-merges and publishing tokens live under creds[plat].publish so they never overwrite importer read tokens; Instagram ig_user_id canonicalized at the root. Live clients (tools/publishing/, all gated behind live_publishing_enabled default-off + human confirmation, all built on an injected transport with zero-network selftests): YouTube resumable upload (default-private, upload-only, provably no monetary/analytics endpoint); Pinterest base64 image Pin (no public URL); TikTok creator_info->init->chunked FILE_UPLOAD->status (SELF_ONLY default, refuses unaudited public, is_aigc); Instagram container->poll->media_publish surfacing the public-URL wall and professional-account requirement honestly instead of faking a local upload. Decision on YouTube: no website-free Production path exists, so the honest flow is Testing mode + ~7-day re-auth, stated on the screen. Native folder picker tools/pick_folder.py (tkinter-in-subprocess + osascript/PowerShell-STA/zenity/kdialog fallbacks + headless degrade) wired as a Browse button on the import and storage screens; the text field stays the floor. Deprecated OOB flow deliberately never implemented. Compliance has_credentials tightened to the publish namespace. Added docs/PUBLISHING.md, an integrations-engine section, and a live-account verification checklist. Drift clean; scenarios 9/9; persona audit 0 orphans, no token leaks."
+    },
+    {
+      "id": "P52-maintainer-doc-accuracy-guards",
+      "date": "2026-07-16",
+      "decision": "Closed the maintainer/doc accuracy blind spot in the drift guard (seo-tools only). Added forward guards so prose cannot silently diverge from code: extend the path-resolution check to docs/*.md and README.md; a symbol-reference invariant (<!-- verify: path::symbol --> resolved against the AST, allowlist for dynamic/optional symbols); a tools-layer maintainer-coverage invariant (TOOLS_MAINTAINER_DIRS); and tools/doc_freshness.py content-hash staleness stamping (advisory). Created tools/publishing/MAINTAINER_README.md. Ran a full multi-agent, cite-or-drop content-accuracy sweep and, after human review, applied only the approved corrections; lowered the skill-template regression bar to three and backfilled Regression sections on five atoms; retrofitted 61 verify: markers across 43 docs. Added process conventions: advisory .github/CODEOWNERS (@flywifi), docs/adr/ (MADR; 5 foundational + 31 reformatted from this ledger), root CHANGELOG.md (Keep a Changelog + SemVer, reconstructed from STATE + ledger), docs/DOC-MAINTENANCE.md, and a CLAUDE.md same-PR docs rule.",
+      "rationale": "The guard verified path resolution and integer counts but nothing checked that maintainer/SKILL/docs prose agreed with code behavior, so stale scopes, 'stub' claims, and endpoint drift shipped green. P51 both created an instance of that drift (the publishing __init__ docstring) and exposed the gap; the credentialed tools/ layer had zero maintainer or guard coverage.",
+      "evidence": [
+        "tools/sync_check.py (drift clean; new symbol-ref, tools-maintainer, path-to-docs checks)",
+        "tools/doc_freshness.py --selftest",
+        "tools/count_truth.py (22 spokes / 105 atoms / 129 skills / 51 invariants / 9 scenarios)",
+        "tools/scenario_check.py (9/9)",
+        "regression probe: a bad verify marker and a reintroduced '14 spokes' count each fail sync_check (exit 1); restore -> exit 0",
+        "oauth_flow/pick_folder/publishing_compliance and publishing/{youtube,pinterest,tiktok,instagram} selftests green"
+      ],
+      "status": "shipped",
+      "explicit_non_action": "seo-tools only (educator-tools-k12-public excluded entirely, no reads/edits); no product-code behavior changes (guards are new checks only); dated historical audits annotated, not rewritten; sweep prose edits applied only after review; staleness stamping labeled emerging-practice, not a standard; CODEOWNERS advisory (no branch-protection change)."
     }
   ],
-  "updated": "2026-07-15"
+  "updated": "2026-07-16"
 }
