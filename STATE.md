@@ -2,7 +2,29 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P58 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P59 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P59: currency/accuracy audit of four surfaces (versioning, maintainer files, README/docs, error
+  logs): every item verified current, brought current, or explicitly recorded as stale-by-decision.
+  Fixed: the `versions.json` `updated` stamp (lagged at 2026-06-30 across P52 to P58; nothing
+  validates it); the publishing maintainer invariants 2 and 3 (still described the pre-P57
+  caller-only gate and the pre-P58 `account_id` fallback); seven stale `finance.py --selftest`
+  pass-count claims across six finance atom docs (44/59/71, actual 99); `docs/WIZARD.md` (loopback
+  bind address + the P57/P58 request guards documented); `docs/ARCHITECTURE.md` (the atoms table
+  read as a complete inventory while listing 27 of the 105 installed atoms); and the dashboard
+  scheduler, which recorded any `ok:false` client refusal outside gated/unconfirmed/auth_required
+  as "published" with a null post id (now keyed on `ok` via `_apply_dispatch_result`, pinned by a
+  new dashboard `--selftest`, 9/9). The doc-freshness manifest was re-blessed (invariant 51 green)
+  and the finance docs are now bound to `finance.py` so the stale-count class is machine-caught.
+  Stale-by-decision (recorded in ADR 0042 with exact hand-off commands, not changed): the
+  CHANGELOG `[0.1.0]` heading vs the not-yet-published GitHub release (and `autoUpdate: true`),
+  the unstamped `creator-os-release` registry entry, and the staged volatile corrections (the NY
+  moving-date advisory, invariant 43, keeps firing by accepted choice; the EU AI Act seed stays
+  staged). `docs/PUBLISHING.md` re-verified against the current publishing/oauth code: no drift.
+
+- Pending, hand-off only: cutting the baseline v0.1.0 GitHub release (needs `gh`), stamping
+  `creator-os-release` (`python3 tools/update_check.py check --apply`), and the staged volatile
+  corrections (`mark-checked ny-synthetic-performer-law --changed`; the EU AI Act seed). See ADR 0042.
 
 - P58: remediated the remaining P56 audit deficiencies (the LOW hardening cluster) and closed the
   audit's own coverage gap (the three surfaces the P56 agents never mapped under a session limit).

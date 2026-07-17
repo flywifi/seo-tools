@@ -12,6 +12,18 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Fixed
+- Currency/accuracy audit across versioning, maintainer files, README/docs, and diagnostic surfaces:
+  the dashboard scheduler no longer records a failed platform publish (empty media, missing public
+  URL, upload failure, missing board, disallowed privacy) as "published" — success is keyed on the
+  client result's `ok` field and refusals land as "failed" with the client's error, pinned by a new
+  dashboard selftest. Corrected stale prose the guards could not see: the publishing maintainer
+  invariants (which still described the pre-P57 caller-only gate and the removed `account_id`
+  fallback), seven finance selftest pass-count claims, the wizard doc's bind address and missing
+  security-guard description, the architecture doc's atoms table (27 of 105 presented as complete),
+  and the `versions.json` `updated` stamp. The doc-freshness manifest was re-blessed and the finance
+  maintainer docs are now content-hash-bound to `tools/finance.py`.
+
 ### Security
 - Audit-hardening pass (the LOW cluster the first remediation deferred): OAuth refresh distinguishes a
   transient error from a dead grant and classifies a dead Instagram token as reconnect-required; the
