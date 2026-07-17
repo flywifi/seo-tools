@@ -24,6 +24,10 @@ Claude Project or ChatGPT custom instructions setup.
 
 Usage:
   python3 tools/mcp_server.py
+  python3 tools/mcp_server.py --selftest   # two tiers: package-independent checks always run
+                                           # (config deep-merge, both Transport C gate refusals,
+                                           # static tool count); with the mcp package installed the
+                                           # full tier also asserts live registered == static.
 
 Configure in Claude Desktop claude_desktop_config.json:
   See implementation/claude/desktop/claude_desktop_config_snippet.json
@@ -44,21 +48,13 @@ ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
 sys.path.insert(0, str(HERE))
 import publishing_compliance as compliance  # noqa: E402
 
-try:
-    from mcp.server.fastmcp import FastMCP
-except ImportError:
-    print(
-        "ERROR: 'mcp' package not installed.\n"
-        "Run: pip install -r requirements-mcp.txt",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-mcp = FastMCP("creator-os")
-
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
 
+
+# The two helpers below are defined ABOVE the mcp package import on purpose (P61 C19): they are
+# pure stdlib logic, and the --selftest package-independent tier must be able to exercise them in
+# a sandbox where the mcp package is not installed. The server-start path is unchanged.
 
 def _load_config() -> dict:
     """Load creator-os-config.json, then deep-merge creator-os-config.local.json over it.
@@ -79,6 +75,109 @@ def _load_config() -> dict:
         except (OSError, json.JSONDecodeError):
             pass
     return base
+
+
+def _handoff_gates() -> str | None:
+    """Both P60 Transport C gates must be on; returns a plain refusal string or None."""
+    from handoff import runner as _runner
+    if not _runner.capability_enabled("remote_compute_endpoint"):
+        return ("remote_compute_endpoint is off (the default). This tool is part of the opt-in "
+                "remote compute endpoint; enable the capability in creator-os-config.local.json "
+                "only on a deployment secured per implementation/gpt/mcp-connector/README.md.")
+    if not _runner.handoff_enabled():
+        return ("compute_handoff_enabled is off (the default). Turn it on at the setup wizard's "
+                "/compute screen before queueing jobs.")
+    return None
+
+
+def _selftest_static() -> tuple:
+    """P61 C19: the package-independent selftest tier. Runs with or without the mcp package;
+    a missing package reduces coverage HONESTLY (reported, never a silent pass -- the P56 4C
+    lesson). Returns (rc, static_tool_count)."""
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+        print(("ok   " if cond else "FAIL ") + name)
+
+    import re
+    src = Path(__file__).read_text(encoding="utf-8")
+    # Line-anchored so the count never matches a string literal that merely mentions the
+    # decorator (this file's own counting code included).
+    static_count = len(re.findall(r"(?m)^@mcp\.tool\(\)\s*$", src))
+    ok("static @mcp.tool decorators found in source", static_count > 0)
+
+    # The real config deep-merge, against temp files (globals rebound and restored).
+    import tempfile
+    global CONFIG_PATH, CONFIG_LOCAL_PATH
+    real_paths = (CONFIG_PATH, CONFIG_LOCAL_PATH)
+    td = Path(tempfile.mkdtemp(prefix="mcp-selftest-"))
+    try:
+        (td / "base.json").write_text(json.dumps(
+            {"capabilities": {"a": {"enabled": False}, "b": {"enabled": True}}}), encoding="utf-8")
+        (td / "local.json").write_text(json.dumps(
+            {"capabilities": {"a": {"enabled": True}}}), encoding="utf-8")
+        CONFIG_PATH, CONFIG_LOCAL_PATH = td / "base.json", td / "local.json"
+        merged = _load_config()
+        ok("local capability overrides the committed default",
+           merged["capabilities"]["a"]["enabled"] is True
+           and merged["capabilities"]["b"]["enabled"] is True)
+        CONFIG_LOCAL_PATH = td / "missing.json"
+        ok("missing local file leaves committed defaults intact",
+           _load_config()["capabilities"]["a"]["enabled"] is False)
+        (td / "corrupt.json").write_text("{nope", encoding="utf-8")
+        CONFIG_LOCAL_PATH = td / "corrupt.json"
+        ok("corrupt local file never crashes the merge",
+           _load_config()["capabilities"]["a"]["enabled"] is False)
+    finally:
+        CONFIG_PATH, CONFIG_LOCAL_PATH = real_paths
+
+    # Both Transport C refusal strings, flags off (the committed defaults are off).
+    from handoff import runner as _runner
+    g1 = _handoff_gates()
+    ok("gate 1: remote_compute_endpoint off -> its refusal string",
+       g1 is not None and "remote_compute_endpoint is off" in g1)
+    real_cap = _runner.capability_enabled
+    try:
+        _runner.capability_enabled = lambda name, config=None: name == "remote_compute_endpoint"
+        g2 = _handoff_gates()
+        ok("gate 2: compute_handoff_enabled off -> its refusal string",
+           g2 is not None and "compute_handoff_enabled is off" in g2)
+        _runner.capability_enabled = lambda name, config=None: True
+        ok("gates clear only when BOTH capabilities are on", _handoff_gates() is None)
+    finally:
+        _runner.capability_enabled = real_cap
+
+    failed = [n for n, c in checks if not c]
+    return (1 if failed else 0), static_count
+
+
+_SELFTEST = "--selftest" in sys.argv
+_RC_STATIC = 0
+if _SELFTEST:
+    _RC_STATIC, _STATIC_COUNT = _selftest_static()
+    try:
+        import mcp as _mcp_pkg  # noqa: F401
+    except ImportError:
+        print(f"mcp_server selftest: package-independent tier only "
+              f"({'PASS' if _RC_STATIC == 0 else 'FAIL'}; static tool count {_STATIC_COUNT}). "
+              f"The mcp package is not installed, so the live import + registered-tool count did "
+              f"NOT run. Install requirements-mcp.txt for the full check.")
+        sys.exit(_RC_STATIC)
+    # Package importable: fall through so the module registers every tool; the __main__ block
+    # finishes the full tier (live registered count == static source count).
+
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    print(
+        "ERROR: 'mcp' package not installed.\n"
+        "Run: pip install -r requirements-mcp.txt",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+mcp = FastMCP("creator-os")
 
 
 def _run(cmd: list, input_text: str | None = None) -> tuple:
@@ -1603,17 +1702,8 @@ def launch_setup() -> str:
     }, indent=2)
 
 
-def _handoff_gates() -> str | None:
-    """Both P60 Transport C gates must be on; returns a plain refusal string or None."""
-    from handoff import runner as _runner
-    if not _runner.capability_enabled("remote_compute_endpoint"):
-        return ("remote_compute_endpoint is off (the default). This tool is part of the opt-in "
-                "remote compute endpoint; enable the capability in creator-os-config.local.json "
-                "only on a deployment secured per implementation/gpt/mcp-connector/README.md.")
-    if not _runner.handoff_enabled():
-        return ("compute_handoff_enabled is off (the default). Turn it on at the setup wizard's "
-                "/compute screen before queueing jobs.")
-    return None
+# _handoff_gates moved above the mcp package import (P61 C19) so the package-independent
+# selftest tier can exercise both refusal strings without the package installed.
 
 
 @mcp.tool()
@@ -1702,6 +1792,29 @@ def job_status(job_id: str) -> str:
 #   poll-able currency signal (serverInfo.version is exchanged only at initialize, never pushed).
 
 if __name__ == "__main__":
+    if _SELFTEST:
+        # P61 C19 full tier: the package imported and every tool above registered live.
+        _live = None
+        try:
+            _live = len(mcp._tool_manager._tools)  # FastMCP's internal registry
+        except AttributeError:
+            try:
+                import asyncio as _asyncio
+                _live = len(_asyncio.run(mcp.list_tools()))
+            except Exception as _exc:  # noqa: BLE001
+                print(f"FAIL could not count live-registered tools: {_exc}")
+                sys.exit(1)
+        import re as _re
+        _src_count = len(_re.findall(r"(?m)^@mcp\.tool\(\)\s*$",
+                                     Path(__file__).read_text(encoding="utf-8")))
+        _match = _live == _src_count
+        print(("ok   " if _match else "FAIL ")
+              + f"live registered tool count {_live} == static source count {_src_count}")
+        _rc = 0 if (_match and _RC_STATIC == 0) else 1
+        print(f"mcp_server selftest: full tier {'PASS' if _rc == 0 else 'FAIL'} "
+              f"(package-independent tier {'PASS' if _RC_STATIC == 0 else 'FAIL'}, "
+              f"{_live} tools live)")
+        sys.exit(_rc)
     import argparse as _argparse
     _ap = _argparse.ArgumentParser(description="Creator OS MCP server")
     _ap.add_argument("--serve-remote", action="store_true",
