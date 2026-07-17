@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -144,6 +145,35 @@ JOB_BUILDERS = {
 }
 
 
+# P61 C18 (R7): report-style job types whose done result is ALSO delivered to <hub>/Outbox/ --
+# the documented "deliverables for the human" area that nothing wrote until now. transcribe_media
+# stays out (its artifact is the SRT under Jobs/results, C11); failed jobs never deliver.
+OUTBOX_TYPES = {"library_analyze", "finance_report", "inbox_scan", "import_parse_preview",
+                "keyword_offline", "transcript_normalize"}
+
+
+def _deliver_outbox(hub_root, job_type, stdout):
+    """Atomically write a done job's stdout JSON to <hub>/Outbox/<job_type>.<UTC>Z.mac.json (the
+    P60 dated naming rule). Returns the created name, or None when stdout is not valid JSON (the
+    Jobs/results .out.txt capture still holds it either way)."""
+    try:
+        json.loads(stdout)
+    except (ValueError, TypeError):
+        return None
+    stamp = q._utcnow().replace(":", "")
+    outbox = Path(hub_root) / "Outbox"
+    outbox.mkdir(parents=True, exist_ok=True)
+    name = f"{job_type}.{stamp}.mac.json"
+    n = 1
+    while (outbox / name).exists():
+        n += 1
+        name = f"{job_type}.{stamp}.{n}.mac.json"
+    tmp = outbox / (name + ".tmp")
+    tmp.write_text(stdout, encoding="utf-8")
+    os.replace(tmp, outbox / name)
+    return name
+
+
 def _tail(text, lines=12, limit=2000):
     if not text:
         return None
@@ -228,8 +258,13 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(stdout, encoding="utf-8")
         status = "done" if proc.returncode == 0 else "failed"
+        outputs = [f"{q.RESULTS_DIR}/{out_file.name}"]
+        if status == "done" and data.get("job_type") in OUTBOX_TYPES:
+            delivered = _deliver_outbox(hub_root, data["job_type"], stdout)
+            if delivered:
+                outputs.append(f"Outbox/{delivered}")
         q.write_result(hub_root, key, status, started_at=started, tool_version=_version(),
-                       outputs=[f"{q.RESULTS_DIR}/{out_file.name}"],
+                       outputs=outputs,
                        error=None if status == "done" else f"exit code {proc.returncode}",
                        log_tail=_tail(stdout if status == "done" else (proc.stderr or stdout)))
     except subprocess.TimeoutExpired:
@@ -300,6 +335,14 @@ def selftest() -> int:
     ok("exactly one subprocess", len(calls) == 1)
     ok("argv is the real tool, not a shell", calls[0][1].endswith("video_library.py"))
 
+    # P61 C18 (R7): a done report-type job ALSO delivers its stdout JSON to <hub>/Outbox/.
+    ob_files = sorted((hub / "Outbox").glob("library_analyze.*.mac.json"))
+    result_doc = json.loads(q.result_path(hub, t["job_id"]).read_text())
+    ok("done outbox-type job delivers to Outbox",
+       len(ob_files) == 1 and json.loads(ob_files[0].read_text()) == {"ok": True})
+    ok("result outputs list both files",
+       len(result_doc["outputs"]) == 2 and result_doc["outputs"][1] == f"Outbox/{ob_files[0].name}")
+
     # idempotency: same job_id delivered again is never re-run.
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "dup.json",
                          {**t})
@@ -347,6 +390,25 @@ def selftest() -> int:
     ok("timeout lands as failed", res[0]["status"] == "failed")
     ok("timeout result says so",
        "timed out" in json.loads(q.result_path(hub, t3["job_id"]).read_text())["error"])
+
+    # P61 C18: a failed job never delivers to Outbox, and non-JSON stdout is never delivered.
+    def fail_spawn(argv, **kw):
+        return types.SimpleNamespace(returncode=3, stdout='{"ok": false}', stderr="boom")
+    before_ob = len(list((hub / "Outbox").glob("*.json")))
+    q.submit(hub, "library_analyze")
+    res = run_pass(hub, spawn=fail_spawn, allow=True)
+    ok("failed job never delivers to Outbox",
+       res[0]["status"] == "failed" and
+       len(list((hub / "Outbox").glob("*.json"))) == before_ob)
+
+    def nonjson_spawn(argv, **kw):
+        return types.SimpleNamespace(returncode=0, stdout="plain text", stderr="")
+    t_nj = q.submit(hub, "library_analyze")
+    run_pass(hub, spawn=nonjson_spawn, allow=True)
+    r_nj = json.loads(q.result_path(hub, t_nj["job_id"]).read_text())
+    ok("non-JSON stdout: done, no Outbox delivery, single output",
+       r_nj["status"] == "done" and len(r_nj["outputs"]) == 1 and
+       len(list((hub / "Outbox").glob("*.json"))) == before_ob)
 
     # the master gate: nothing is read or run while the capability is off.
     q.submit(hub, "library_analyze")

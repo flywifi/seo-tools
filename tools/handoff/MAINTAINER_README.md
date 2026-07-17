@@ -101,6 +101,18 @@ free text is refused, never silently passed.
   proposal-only.
 - `transcribe_media`: the builder passes `--out-dir <hub>/Jobs/results` so the SRT lands beside the
   result, not inside `Inbox/Processed/`.
+- **Outbox delivery (P61, R7)**: a report-style job that finishes `done` (the `OUTBOX_TYPES` set)
+  also gets its stdout JSON delivered atomically to `<hub>/Outbox/<job_type>.<stamp>Z.mac.json`,
+  with `outputs[]` listing both files. Failed jobs and non-JSON stdout never deliver;
+  `transcribe_media` stays out (its artifact is the SRT). Transport B's `poll_once` uploads
+  staged Outbox artifacts too (create-only; a hub without an Outbox folder degrades to
+  results-only, never a failed pass).
+  `<!-- verify: tools/handoff/runner.py::_deliver_outbox -->`
+- **API-lane token refresh (P61, R6)**: `project_docs._api_token` now reuses the watcher's proven
+  refresh path (`oauth_flow.get_valid_access_token` + `_persist_publish_creds`) instead of reading
+  the stored access token verbatim, so the Docs lane no longer 401s an hour after connect. A dead
+  grant degrades to the honest "reconnect on /drive-hub" note.
+  `<!-- verify: tools/handoff/watcher.py::_persist_publish_creds -->`
 - `keyword_offline` (wired, P61 KW-FULL): the last allowlisted-but-refused type is now real —
   `tools/keyword_offline.py report` walks every committed keyword-library file plus the scoop cache,
   zero network. HONESTY IS STRUCTURAL: the report's `search_volumes` is always null and its

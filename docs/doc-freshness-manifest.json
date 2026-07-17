@@ -78,20 +78,20 @@
       "sources": {
         "shared/schemas/compute-job.json": "af0e13185a4bd7fe972f4abd25e79c57808b0ac206188c0411e802939349d459",
         "tools/handoff/queue.py": "36ba371a821bdf6feda88452dafbc66a6977297399fd31299a91e6c2306bdf28",
-        "tools/handoff/runner.py": "a28ded1fafefe65127296d0b7144153bb4de09441b52fe187ca6dae62df352cc",
+        "tools/handoff/runner.py": "b234dfc2f11b6a4313446fc9d19d0b67529756dc2a27e84ca3e9b5a058868f57",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
-        "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
+        "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "06b60a622c55793dc7083668ae4088041badc88c05e284501ecddb74968171bf",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "149b85fd18fcd2990b6d65a9abde3c5ff79a4d2acac14b70264dbba6b9fc866d"
+        "tools/project_docs.py": "31fcfa77a149f209d6b6b5cdc7e1f7e893f34171390b0cd25ffb6a9f336bc155"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "36ba371a821bdf6feda88452dafbc66a6977297399fd31299a91e6c2306bdf28",
-        "tools/handoff/runner.py": "a28ded1fafefe65127296d0b7144153bb4de09441b52fe187ca6dae62df352cc",
+        "tools/handoff/runner.py": "b234dfc2f11b6a4313446fc9d19d0b67529756dc2a27e84ca3e9b5a058868f57",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
-        "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
+        "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "06b60a622c55793dc7083668ae4088041badc88c05e284501ecddb74968171bf",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }

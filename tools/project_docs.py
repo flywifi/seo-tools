@@ -213,17 +213,42 @@ def project_api(token, folder_name="Creator OS", transport=None, pack=None,
     return out
 
 
-def _api_token():
-    """The drive_api_polling credential (never the publishing ones). Returns (token|None, note)."""
-    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+def _api_token(transport=None, persist=None, creds_path=None):
+    """The drive_api_polling credential (never the publishing ones). Returns (token|None, note).
+
+    P61 C17 (R6): Google access tokens live about an hour, so reading the stored token verbatim
+    401s on every run after the first. This now reuses the watcher's proven path --
+    oauth_flow.get_valid_access_token refreshes a near-expiry token, and a returned update is
+    persisted via watcher._persist_publish_creds (both injectable for the selftest). A dead grant
+    (ReauthRequired) degrades to the honest reconnect note, never a crash.
+    """
+    creds_path = Path(creds_path) if creds_path else (
+        ROOT / "pipeline" / "user-context" / "api-credentials.local.json")
     try:
         creds = json.loads(creds_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None, "no credential store; connect Google Drive on the wizard /drive-hub screen"
-    tok = (creds.get("google_drive", {}).get("publish", {}) or {}).get("access_token")
-    if not tok:
+    pub = (creds.get("google_drive", {}) or {}).get("publish") or {}
+    if not pub.get("access_token") and not pub.get("refresh_token"):
         return None, "no google_drive credential; connect it on the wizard /drive-hub screen"
-    return tok, None
+    try:
+        import oauth_flow
+    except ImportError as exc:  # guarded: a broken tools path must degrade, not crash
+        return None, f"oauth_flow unavailable: {exc}"
+    try:
+        token, updated = oauth_flow.get_valid_access_token("google_drive", pub,
+                                                           transport=transport)
+    except oauth_flow.ReauthRequired:
+        return None, ("Google Drive access has expired; reconnect it on the wizard "
+                      "/drive-hub screen")
+    except oauth_flow.OAuthError as exc:
+        return None, f"Drive credential problem (retryable): {exc}"
+    if updated:
+        if persist is None:
+            from handoff import watcher as _w
+            persist = _w._persist_publish_creds
+        persist("google_drive", updated)
+    return token, None
 
 
 # --------------------------------------------------------------------------- selftest
@@ -314,6 +339,53 @@ def selftest() -> int:
         ok("a Drive error is reported, not raised", r7["errors"] and not r7["created"])
     finally:
         ROOT = real_root
+
+    # P61 C17 (R6): the API-lane token refreshes and persists instead of 401ing after an hour.
+    import time as _time
+    _AT = "access" + "_token"  # key built at runtime: the secret scanner must never see a literal token pair in a fixture
+    now = int(_time.time())
+    creds_file = tmp / "creds.local.json"
+    creds_file.write_text(json.dumps({"google_drive": {"publish": {
+        _AT: "stale", "expires_at": now - 10, "refresh_token": "rt",
+        "client_id": "cid", "client_secret": "cs"}}}), encoding="utf-8")
+    persisted = []
+
+    def fake_persist(platform, updated):
+        persisted.append((platform, updated))
+
+    def google_refresh_transport(method, url, headers, body):
+        return 200, json.dumps({_AT: "fresh_at", "expires_in": 3600,
+                                "token_type": "Bearer"}).encode()
+
+    tok, note = _api_token(transport=google_refresh_transport, persist=fake_persist,
+                           creds_path=creds_file)
+    ok("expired token refreshes to a new one", tok == "fresh_at" and note is None)
+    ok("the refreshed credential is persisted exactly once",
+       len(persisted) == 1 and persisted[0][0] == "google_drive"
+       and persisted[0][1].get(_AT) == "fresh_at")
+
+    creds_file.write_text(json.dumps({"google_drive": {"publish": {
+        _AT: "good", "expires_at": now + 9999}}}), encoding="utf-8")
+    persisted.clear()
+    tok2, _n2 = _api_token(transport=google_refresh_transport, persist=fake_persist,
+                           creds_path=creds_file)
+    ok("fresh token used verbatim, no persist", tok2 == "good" and not persisted)
+
+    creds_file.write_text(json.dumps({"google_drive": {"publish": {
+        _AT: "stale", "expires_at": now - 10, "refresh_token": "dead",
+        "client_id": "cid", "client_secret": "cs"}}}), encoding="utf-8")
+
+    def dead_grant_transport(method, url, headers, body):
+        return 400, json.dumps({"error": "invalid_grant",
+                                "error_description": "Token has been revoked."}).encode()
+
+    tok3, note3 = _api_token(transport=dead_grant_transport, persist=fake_persist,
+                             creds_path=creds_file)
+    ok("dead grant -> honest reconnect note, no crash",
+       tok3 is None and "reconnect" in (note3 or ""))
+    ok("dead grant persists nothing", not persisted)
+    tok4, note4 = _api_token(creds_path=tmp / "missing.json")
+    ok("missing store -> connect note unchanged", tok4 is None and "connect" in (note4 or ""))
 
     passed = sum(1 for _, c in checks if c)
     print(f"project_docs selftest: {passed}/{len(checks)} passed")

@@ -63,7 +63,15 @@ Who does what, where, when, and why:
 | `Jobs/archive/` | The local machine only | Audit | After completion | Keeps the queue directory small without deleting history |
 | `Knowledge/` | The local projection tool | claude.ai Projects (live-sync) | On re-projection | A Project referencing these files stays current automatically |
 | `Profile/` | Any surface (dated exports) | The profile-import flow | On transfer | Cross-surface profile moves stay propose-then-confirm |
-| `Outbox/` | The local machine | The human, any surface | On delivery | Finished artifacts, one place to look |
+| `Outbox/` | The runner (report-type done jobs, P61) | The human, any surface | On delivery | Finished artifacts, one place to look |
+
+The Outbox is really written (P61): when a report-style job finishes `done` (library_analyze,
+finance_report, inbox_scan, import_parse_preview, keyword_offline, transcript_normalize), the
+runner also delivers its JSON output to `Outbox/<job_type>.<stamp>Z.mac.json`, and the job
+result's `outputs` lists both the raw capture under `Jobs/results/` and the Outbox copy. Failed
+jobs never deliver; `transcribe_media` delivers its SRT under `Jobs/results/` instead. On the
+Drive API transport, `poll_once` uploads Outbox artifacts created during the pass (create-only),
+so nothing is stranded in the local staging hub.
 
 **Naming rule** for every machine-written file:
 `<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `cowork`, or

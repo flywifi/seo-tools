@@ -83,6 +83,10 @@ def resolve_hub_folders(token, folder_name, transport):
         if err:
             return None, err
         ids[sub] = sid
+    # P61 C18: Outbox is a direct child of the hub root. A missing Outbox folder never fails the
+    # pass (older hubs may lack it); delivery just degrades to Jobs/results only.
+    ob_id, ob_err = find_folder(token, "Outbox", transport, parent_id=root_id)
+    ids["outbox"] = None if ob_err else ob_id
     return ids, None
 
 
@@ -154,6 +158,7 @@ def poll_once(staging_hub, token, folder_name, transport=_default_transport, run
         pulled.append(t)
     results = run(staging_hub)
     uploaded = 0
+    outbox_uploaded = 0
     if not (results and results[0].get("status") == "gated"):
         rdir = q.hub_paths(staging_hub)["results"]
         for rf in sorted(rdir.iterdir()):
@@ -162,9 +167,20 @@ def poll_once(staging_hub, token, folder_name, transport=_default_transport, run
                                         mime="application/json" if rf.suffix == ".json" else "text/plain")
                 if fid:
                     uploaded += 1
+        # P61 C18: Outbox artifacts written by the runner into the LOCAL staging hub would be
+        # stranded on this transport; upload them too (create-only, same rule as results).
+        ob_dir = Path(staging_hub) / "Outbox"
+        if ids.get("outbox") and ob_dir.is_dir():
+            for of in sorted(ob_dir.iterdir()):
+                if of.suffix == ".json" and not of.name.endswith(".tmp"):
+                    fid, uerr = upload_file(token, ids["outbox"], of.name, of.read_bytes(),
+                                            transport, mime="application/json")
+                    if fid:
+                        outbox_uploaded += 1
         for t in pulled:
             archive_remote(token, t["id"], ids["queue"], ids["archive"], transport)
-    return {"ok": True, "pulled": len(pulled), "ran": results, "uploaded": uploaded}
+    return {"ok": True, "pulled": len(pulled), "ran": results, "uploaded": uploaded,
+            "outbox_uploaded": outbox_uploaded}
 
 
 def selftest() -> int:
@@ -204,12 +220,19 @@ def selftest() -> int:
         for e in entries:
             q.write_result(hub, e["data"]["job_id"], "done", outputs=[])
             q.archive_ticket(hub, e["path"])
+        # P61 C18: the runner also writes Outbox deliverables into the staging hub; poll_once
+        # must upload them or they are stranded on this transport.
+        ob = Path(hub) / "Outbox"
+        ob.mkdir(parents=True, exist_ok=True)
+        (ob / "library_analyze.2026-07-17T000000Z.mac.json").write_text('{"ok": true}',
+                                                                       encoding="utf-8")
         return [{"job_id": ticket["job_id"], "status": "done"}]
 
     staging = tempfile.mkdtemp()
     out = poll_once(staging, "TOK", "Creator OS", transport=canned, run=fake_run)
     ok("poll pulls, runs, and reports ok", out["ok"] and out["pulled"] == 1)
     ok("result uploaded back to Drive", out["uploaded"] >= 1 and seen["uploads"])
+    ok("Outbox artifact uploaded too (create-only)", out.get("outbox_uploaded") == 1)
     ok("handled ticket archived remotely", len(seen["patches"]) == 1 and "removeParents=id-queue" in seen["patches"][0])
     ok("bearer never in a URL", all("TOK" not in u for _m, u in seen["urls"]))
     ok("only googleapis hosts called",
