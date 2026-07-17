@@ -10,7 +10,7 @@
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
         "tools/publishing/_http.py": "e4e0e3612c2d68956850f8de5d22f00760b9633b227edb4e3839f72f784e86d0",
-        "tools/oauth_flow.py": "ad8caa9fbfecd4f6c663661f33f66471d693b8339c99bf7d7548078dfb8a5a6b",
+        "tools/oauth_flow.py": "4f76142a9623c2c7c107c02d873592e012805b838dc5f695236eeb86e11e93f9",
         "tools/publishing_compliance.py": "f8f8a0551271a2b9ecca33b96426414d4c76e772244a974e90cc67f09f91bbfb"
       }
     },
@@ -20,12 +20,12 @@
         "tools/publishing/instagram.py": "dcf27cd8030ad18df8e3068040afd7e98f12416d0b9295f954ea734b5d8f7ca4",
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
-        "tools/oauth_flow.py": "ad8caa9fbfecd4f6c663661f33f66471d693b8339c99bf7d7548078dfb8a5a6b"
+        "tools/oauth_flow.py": "4f76142a9623c2c7c107c02d873592e012805b838dc5f695236eeb86e11e93f9"
       }
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "a855d5359efe234ce4ef3a5b78e19ea7cdce5d8ff91d38eafaa823f7219533a1",
+        "tools/wizard.py": "37f3ae9363c615a56231083e8ab5f7b33c916034b505616ddd5863f0497027a9",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -73,15 +73,17 @@
       "sources": {
         "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525",
         "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
-        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296",
-        "tools/handoff/watcher.py": "fd6d819b1cc49a74c63ee61fae064c246bbc9b041d931d8fa41ebe51c7adf9c5"
+        "tools/handoff/runner.py": "41c59948684553f06e816212737a3badd82056744d930bb05132e31729076d9b",
+        "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
+        "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
-        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296",
-        "tools/handoff/watcher.py": "fd6d819b1cc49a74c63ee61fae064c246bbc9b041d931d8fa41ebe51c7adf9c5"
+        "tools/handoff/runner.py": "41c59948684553f06e816212737a3badd82056744d930bb05132e31729076d9b",
+        "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
+        "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b"
       }
     }
   }

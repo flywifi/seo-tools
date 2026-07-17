@@ -101,6 +101,14 @@ structurally (not by convention):
 
 All three feed the same queue and the same runner; there is exactly one execution path to audit.
 
+**Transport B honest walls.** The polling credential is a Google OAuth *Desktop app* client with
+only the `drive.file` scope, which sees just the files this app created or that were opened with
+it: the watcher may report the hub folder "not found" until a file has been created in it through
+this credential at least once. Like the YouTube publishing credential, a Cloud Console app left in
+Testing mode expires its grants periodically, so an occasional reconnect on the wizard
+`/drive-hub` screen is expected. This credential is never used by the publishing path, and with
+Google Drive for desktop installed you do not need it at all.
+
 ## The drop folder ("divvy up")
 
 Drop any file into `Inbox/` from any device. On the next scan (a scheduled `inbox_scan` job or the

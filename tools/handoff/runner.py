@@ -112,8 +112,8 @@ def _version() -> str:
         return "unknown"
 
 
-def handoff_enabled(config=None) -> bool:
-    """Read the master gate from creator-os-config(.local).json; default OFF."""
+def capability_enabled(name: str, config=None) -> bool:
+    """Read one capability flag from creator-os-config(.local).json; default OFF."""
     try:
         base = json.loads((ROOT / "creator-os-config.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -127,8 +127,13 @@ def handoff_enabled(config=None) -> bool:
             pass
     if isinstance(config, dict):
         caps.update(config.get("capabilities", {}))
-    entry = caps.get("compute_handoff_enabled", {})
+    entry = caps.get(name, {})
     return bool(entry.get("enabled")) if isinstance(entry, dict) else bool(entry)
+
+
+def handoff_enabled(config=None) -> bool:
+    """The master gate for the compute hand-off; default OFF."""
+    return capability_enabled("compute_handoff_enabled", config)
 
 
 def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:

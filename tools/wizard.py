@@ -1016,7 +1016,8 @@ def _merge_api_credentials(plat: str, patch: dict) -> dict:
 # ── Publishing OAuth (loopback) ──────────────────────────────────────────────
 
 _PLATFORM_LABEL = {"youtube": "YouTube", "instagram": "Instagram",
-                   "tiktok": "TikTok", "pinterest": "Pinterest"}
+                   "tiktok": "TikTok", "pinterest": "Pinterest",
+                   "google_drive": "Google Drive"}
 
 # Test hook: when set (only by --selftest), OAuth token calls use this injected transport instead of
 # real network. None in all production paths.
@@ -1051,7 +1052,11 @@ def _complete_oauth(plat: str, code: str, verifier, redirect_uri: str):
     if plat == "instagram" and tok.get("ig_user_id"):
         patch["ig_user_id"] = tok["ig_user_id"]   # shared identity lives at the platform root
     _merge_api_credentials(plat, patch)
-    _update_capability_flag(f"{plat}_publishing", True)
+    if plat == "google_drive":
+        # P60 Transport B: this credential enables the watcher's Drive API polling, not publishing.
+        _update_capability_flag("drive_api_polling", True)
+    else:
+        _update_capability_flag(f"{plat}_publishing", True)
     return True, "connected"
 
 
@@ -1757,9 +1762,48 @@ copy lives:</p>
 </form>
 <p class="hint">Saved locally in creator-os-config.local.json (never committed). Credentials never
 go into the hub, and nothing posts from it; jobs are read-only compute with results you review.</p>
+{_drive_api_section()}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/compute">Next: let this computer run
 queued jobs</a> <a class="btn btn-outline" href="/">Back to start</a></p>
 """)
+
+
+def _drive_api_section() -> str:
+    """The opt-in Transport B block on /drive-hub: a Google OAuth desktop client for machines
+    without Google Drive for desktop. drive.file scope only (the hub, nothing else)."""
+    creds = _load_api_credentials()
+    pub = (creds.get("google_drive") or {}).get("publish") or {}
+    has_app = bool(pub.get("client_id") and pub.get("client_secret"))
+    has_token = bool(pub.get("access_token") or pub.get("refresh_token"))
+    cfg = _load_creator_config()
+    polling_on = _flag_enabled(cfg, "drive_api_polling")
+    state = ("connected, polling enabled" if (has_token and polling_on)
+             else "connected" if has_token else "not connected")
+    connect = ""
+    if has_app:
+        connect = ('<form method="POST" action="/api/oauth-start" style="margin:8px 0">'
+                   '<input type="hidden" name="platform" value="google_drive">'
+                   '<button class="btn btn-primary" type="submit" style="width:auto;padding:8px 14px">'
+                   'Connect Google Drive (API polling)</button></form>')
+    return f"""
+<h2>Advanced: no Google Drive for desktop? Use API polling</h2>
+<p>If you cannot install the Drive sync app, the watcher can poll the Drive API directly instead
+(status: <strong>{state}</strong>). This needs a free Google OAuth <em>Desktop app</em> client
+(the same 5-minute Cloud Console steps as YouTube publishing) with only the
+<code>drive.file</code> permission, which reaches the hub folder and nothing else in your Drive.</p>
+<form method="POST" action="/api/write-publishing">
+  <input type="hidden" name="platform" value="google_drive">
+  <label for="gd_client_id">Google OAuth Client ID</label>
+  <input type="text" id="gd_client_id" name="client_id" placeholder="123456789-abc...apps.googleusercontent.com" value="{html.escape(pub.get('client_id') or '')}">
+  <label for="gd_client_secret">Google OAuth Client Secret</label>
+  <input type="password" id="gd_client_secret" name="client_secret" placeholder="GOCSPX-...">
+  <button class="btn btn-secondary" type="submit" style="margin-top:8px;width:auto;padding:8px 14px">
+    Save Drive credentials</button>
+</form>
+{connect}
+<p class="hint">Connecting turns on the drive_api_polling capability; run a pass with
+<code>python3 tools/handoff/watcher.py --transport api</code>. The token is stored locally
+(owner-only, never committed) and is never used by the publishing path.</p>"""
 
 
 def _screen_compute(saved: str = "", error: str = "") -> str:
@@ -2734,7 +2778,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._redirect("/publishing-setup")
                 return
             cid, csec, _pub = _oauth_publish_creds(plat)
-            screen_fn = _PUBLISHING_SCREENS[plat]
+            screen_fn = _PUBLISHING_SCREENS.get(plat, _screen_drive_hub)
             if not cid or not csec:
                 self._send(screen_fn(error=(
                     "Enter and save your app Client ID and Client Secret first, then click Connect.")))
@@ -2785,6 +2829,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/write-publishing":
             data = self._read_form()
             plat = data.get("platform", "")
+            if plat == "google_drive":
+                # P60 Transport B: the Drive API polling credential (client id/secret only; the
+                # token arrives via the same loopback Connect flow the publishing platforms use).
+                cid = data.get("client_id", "").strip()
+                csec = data.get("client_secret", "").strip()
+                if not cid or not csec:
+                    self._send(_screen_drive_hub(error="Both Client ID and Client Secret are required."))
+                    return
+                _merge_api_credentials("google_drive", {"publish": {"client_id": cid, "client_secret": csec}})
+                self._send(_screen_drive_hub(saved=(
+                    "Google Drive credentials saved locally. Now click Connect to authorize.")))
+                return
             if plat not in ("youtube", "instagram", "tiktok", "pinterest"):
                 self._redirect("/publishing-setup")
                 return

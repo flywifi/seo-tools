@@ -50,6 +50,17 @@ confirms the path, and the wizard confines it to the home tree before saving.
 The schedule follows `tools/freshness-scheduler.example` (cron/launchd calling `--once`);
 `--watch` is a foreground convenience with a 30-second floor on the interval.
 
+## Transport B (drive_api.py, opt-in)
+Same queue, same runner: `poll_once` pulls tickets into a LOCAL staging hub, calls `run_pass` (the
+gate is re-checked there), uploads results, and archives handled tickets remotely. Rules: every
+HTTP call goes through an injectable transport (canned in the selftest, zero network); uploads are
+CREATE-only (the append-only rule holds on this transport too); the bearer token travels only in
+the Authorization header, never a URL; only `googleapis.com` hosts are ever called; a gated pass
+uploads and archives nothing. The OAuth entry is `google_drive` in `tools/oauth_flow.py`
+(`drive.file` scope only) and the credential lives beside the publishing ones in the gitignored
+store but is never read by the publishing path.
+`<!-- verify: tools/handoff/drive_api.py::poll_once -->`
+
 ## Known failure modes
 - **A schema/allowlist drift** (schema enum edited without `queue.ALLOWED_JOB_TYPES`, or vice
   versa) is caught by the first queue selftest check, which compares the two.

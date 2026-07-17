@@ -102,6 +102,24 @@ CONFIG: dict[str, dict] = {
                                         # UNVERIFIED; the manual-code paste fallback exists.
         "rotates_refresh": False,      # refresh returns a fresh 60-day access token, no refresh_token
     },
+    "google_drive": {
+        # P60 Transport B: the compute watcher's Drive API polling credential. Same Google Identity
+        # endpoints and PKCE as YouTube; the drive.file scope reaches ONLY files the app created or
+        # the user opened with it (the hub), never the whole Drive. Read-side polling only; this
+        # credential is never used by the publishing path.
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "scopes": ["https://www.googleapis.com/auth/drive.file"],
+        "scope_sep": " ",
+        "pkce": "s256_b64url",
+        "client_auth": "body",
+        "client_id_param": "client_id",
+        "extra_auth_params": {"access_type": "offline", "prompt": "consent",
+                              "include_granted_scopes": "true"},
+        "redirect_path": "/oauth/google_drive/callback",
+        "redirect_host": "127.0.0.1",
+        "rotates_refresh": False,
+    },
 }
 
 

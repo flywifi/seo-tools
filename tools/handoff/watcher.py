@@ -155,13 +155,61 @@ def selftest() -> int:
     return 1 if failed else 0
 
 
+def _persist_publish_creds(platform, updated) -> None:
+    """Deep-merge a refreshed token into creds[platform]['publish'] in the gitignored credential
+    store (the dashboard's _save_publish_creds model, kept local so the watcher never imports the
+    wizard)."""
+    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    try:
+        current = json.loads(creds_path.read_text(encoding="utf-8")) if creds_path.exists() else {}
+        if not isinstance(current, dict):
+            current = {}
+        plat = current.setdefault(platform, {})
+        pub = plat.get("publish")
+        if isinstance(pub, dict):
+            pub.update(updated)
+        else:
+            plat["publish"] = dict(updated)
+        creds_path.parent.mkdir(parents=True, exist_ok=True)
+        creds_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+    except (OSError, ValueError):
+        pass
+
+
+def api_once() -> dict:
+    """Transport B: one Drive API polling pass. Doubly gated (drive_api_polling AND the master
+    compute gate, which run_pass re-checks); returns an honest dict, never raises."""
+    if not runner.capability_enabled("drive_api_polling"):
+        return {"ok": False, "error": "drive_api_polling is off (the default); turn it on at the "
+                                      "wizard /drive-hub screen or use the Drive for desktop transport"}
+    import oauth_flow
+    from handoff import drive_api
+    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    try:
+        creds = json.loads(creds_path.read_text(encoding="utf-8")) if creds_path.exists() else {}
+    except (OSError, ValueError):
+        creds = {}
+    pub = (creds.get("google_drive") or {}).get("publish") or {}
+    if not pub:
+        return {"ok": False, "error": "no Google Drive credential is connected; use the wizard "
+                                      "/drive-hub screen to connect one"}
+    try:
+        token, updated = oauth_flow.get_valid_access_token("google_drive", pub)
+        if updated:
+            _persist_publish_creds("google_drive", updated)
+    except oauth_flow.OAuthError as exc:
+        return {"ok": False, "error": f"Drive credential problem: {exc}"}
+    staging = ROOT / "pipeline" / "inbox" / "api-staging-hub"
+    folder = load_hub_config().get("folder_name", "Creator OS")
+    return drive_api.poll_once(str(staging), token, folder)
+
+
 def main(argv) -> int:
     if "--selftest" in argv:
         return selftest()
     if "--transport" in argv and argv[argv.index("--transport") + 1] == "api":
-        print(json.dumps({"error": "the Drive API transport (drive_api_polling) is not wired in "
-                                   "this version; use the Drive for desktop sync transport"}))
-        return 1
+        print(json.dumps(api_once(), indent=2, default=str))
+        return 0
     arg_hub = argv[argv.index("--hub") + 1] if "--hub" in argv else None
     hub, note = resolve_hub(arg_hub)
     if hub is None:
