@@ -302,6 +302,8 @@ sure which you have? Pick the one whose name you recognize; you can change it la
 <a class="btn btn-outline" href="/import">Import my past videos (build my content library)</a>
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
 <a class="btn btn-outline" href="/freshness-setup">Keep my data fresh (choose where refreshed info is saved)</a>
+<a class="btn btn-outline" href="/drive-hub">My Google Drive hub (one shared folder for every surface)</a>
+<a class="btn btn-outline" href="/compute">Let this computer run big jobs queued from anywhere</a>
 <a class="btn btn-outline" href="/updates">Updates: am I on the latest version?</a>
 <a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
 """, dots=["active", "dot", "dot", "dot"])
@@ -1693,6 +1695,115 @@ computer that hosts it once, and every connected app is current on its next sess
 """)
 
 
+def _drive_hub_status() -> dict:
+    """Hub configuration + queue snapshot for the /drive-hub and /compute screens. Read-only;
+    degrades to plain notes when nothing is configured."""
+    try:
+        from handoff import watcher as _watcher
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"handoff tools unavailable: {exc}"}
+    hub, note = _watcher.resolve_hub(None)
+    out = {"hub": hub, "note": note, "candidates": _watcher.detect_mirror_candidates(),
+           "folder_name": _watcher.load_hub_config().get("folder_name", "Creator OS")}
+    if hub:
+        try:
+            out["status"] = _watcher.status(hub)
+        except Exception as exc:  # noqa: BLE001
+            out["status_error"] = str(exc)
+    return out
+
+
+def _screen_drive_hub(saved: str = "", error: str = "") -> str:
+    """The Google Drive hub (P60): one shared folder every surface reads and writes. This screen
+    points Creator OS at the locally synced copy and creates the folder skeleton."""
+    info = _drive_hub_status()
+    saved_block = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    if error:
+        saved_block += f'<div class="error-box">{error}</div>'
+    folder_name = html.escape(info.get("folder_name", "Creator OS"))
+    hub = info.get("hub")
+    current = (f'<div class="note">Connected: <code>{html.escape(hub)}</code></div>' if hub
+               else f'<div class="note">Not connected yet. {html.escape(info.get("note", ""))}</div>')
+    cand_block = ""
+    for c in info.get("candidates", [])[:3]:
+        cesc = html.escape(c)
+        cand_block += (f'<form method="POST" action="/api/set-drive-hub" style="margin:4px 0">'
+                       f'<input type="hidden" name="folder" value="{cesc}">'
+                       f'<button class="btn btn-outline" type="submit" style="width:auto;padding:8px 14px;'
+                       f'font-size:.85rem">Use detected folder: {cesc}</button></form>')
+    return _page("Google Drive hub", f"""
+<h1>Your Google Drive hub</h1>
+{saved_block}
+<p>The hub is one folder in your Google Drive (<strong>{folder_name}</strong>) that every surface
+shares: drop files in its <strong>Inbox</strong> from any device, read results in
+<strong>Outbox</strong>, and let this computer pick up queued jobs. Full model:
+<code>docs/DRIVE-HUB.md</code>.</p>
+<h2>Step 1: create the folder in Google Drive</h2>
+<p>In Google Drive (web or app), create a folder named <strong>{folder_name}</strong> in My Drive
+with these subfolders: <code>Inbox</code>, <code>Store</code>, <code>Jobs/queue</code>,
+<code>Jobs/results</code>, <code>Jobs/archive</code>, <code>Knowledge</code>, <code>Profile</code>,
+<code>Outbox</code>. (If you skip the subfolders, Creator OS creates the missing ones when you
+connect below.)</p>
+<h2>Step 2: sync it to this computer</h2>
+<p>Install <strong>Google Drive for desktop</strong> and sign in; for the hub folder, prefer
+<strong>mirror</strong> mode so it is always fully on disk. Then tell Creator OS where the synced
+copy lives:</p>
+{current}
+{cand_block}
+<form method="POST" action="/api/set-drive-hub">
+  <label for="folder">Full path to the synced "{folder_name}" folder</label>
+  <input type="text" id="folder" name="folder" placeholder="/Users/you/Library/CloudStorage/GoogleDrive-you@example.com/My Drive/{folder_name}" required>
+  <button class="btn btn-primary" type="submit" style="margin-top:12px">Connect this folder</button>
+</form>
+<p class="hint">Saved locally in creator-os-config.local.json (never committed). Credentials never
+go into the hub, and nothing posts from it; jobs are read-only compute with results you review.</p>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/compute">Next: let this computer run
+queued jobs</a> <a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
+def _screen_compute(saved: str = "", error: str = "") -> str:
+    """The compute hand-off toggle (P60): queued jobs from any surface run on this computer."""
+    cfg = _load_creator_config()
+    on = _flag_enabled(cfg, "compute_handoff_enabled")
+    state = '<span class="check">ON</span>' if on else '<strong style="color:#cc2222">OFF</strong>'
+    toggle_action = "off" if on else "on"
+    toggle_label = "Turn OFF the compute hand-off" if on else "Turn ON the compute hand-off"
+    saved_block = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    if error:
+        saved_block += f'<div class="error-box">{error}</div>'
+    info = _drive_hub_status()
+    st = info.get("status") or {}
+    queue_block = (
+        f'<div class="note">Queue: <strong>{st.get("pending", 0)}</strong> waiting, '
+        f'<strong>{st.get("results", 0)}</strong> results, {st.get("archived", 0)} archived '
+        f'(hub: <code>{html.escape(str(info.get("hub")))}</code>)</div>'
+        if info.get("hub") else
+        f'<div class="note">No hub connected yet: {html.escape(info.get("note", ""))} '
+        f'Set it up on the <a href="/drive-hub">Drive hub screen</a> first.</div>')
+    return _page("Compute hand-off", f"""
+<h1>Let this computer run big jobs</h1>
+{saved_block}
+<p>When this is on, jobs queued from any Claude surface (a ticket file in the hub's
+<code>Jobs/queue</code>) run here on a schedule: transcription, library analysis, import previews,
+finance reports. Only those allowlisted jobs can run; nothing can post, publish, or touch
+credentials from a job, and every result waits for your review.</p>
+<p>Compute hand-off is {state}.</p>
+<form method="POST" action="/api/enable-compute" style="margin-top:6px">
+<input type="hidden" name="state" value="{toggle_action}">
+<button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;
+font-size:.85rem">{toggle_label}</button></form>
+{queue_block}
+<h2>Run it on a schedule</h2>
+<p>One pass right now: <code>python3 tools/handoff/watcher.py --once</code>. To run every 10
+minutes automatically, copy the ready-made cron or launchd snippet from
+<code>tools/freshness-scheduler.example</code> (the "compute hand-off watcher" section). The
+computer must be awake for a pass to run; queued jobs simply wait otherwise.</p>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/drive-hub">Drive hub setup</a>
+<a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
 def _screen_cross_modality(surface: str = "") -> str:
     """Show, for the user's AI surface, exactly how to wire Creator OS capabilities + what runs there."""
     summ = _skill_modality_summary()
@@ -2208,6 +2319,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             "/chatgpt": _screen_chatgpt(),
             "/transitions": _screen_transitions(),
             "/updates": _screen_updates(),
+            "/drive-hub": _screen_drive_hub(),
+            "/compute": _screen_compute(),
         }
         if path in routes:
             self._send(routes[path])
@@ -2405,6 +2518,43 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                        "You can retry, or build a metadata-only library for now (transcripts stay flagged, "
                        "never faked).")
             self._send(_screen_doctor(saved=msg))
+            return
+
+        if path == "/api/set-drive-hub":
+            # P60: point Creator OS at the locally synced Drive hub folder. Same confinement rule
+            # as every other folder input (realpath under the home tree), then create the missing
+            # skeleton subfolders so the queue/results layout exists from minute one.
+            data = self._read_form()
+            folder = data.get("folder", "").strip()
+            ok_folder, realpath, why = _confined_folder(folder, allow_home=False)
+            if not ok_folder:
+                self._send(_screen_drive_hub(error=f"That folder cannot be used: {html.escape(why)}"),
+                           status=400)
+                return
+            try:
+                from handoff import queue as _hq
+                _hq.ensure_hub_dirs(realpath)
+                for sub in ("Inbox", "Store", "Knowledge", "Profile", "Outbox"):
+                    (pathlib.Path(realpath) / sub).mkdir(parents=True, exist_ok=True)
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_drive_hub(error=f"Could not create the hub folders: "
+                                                   f"{html.escape(str(exc))}"), status=500)
+                return
+            _update_config_section("drive_hub", {"local_mirror": realpath})
+            self._send(_screen_drive_hub(saved=(
+                f"Connected. The hub skeleton exists under <code>{html.escape(realpath)}</code> "
+                f"(saved locally in creator-os-config.local.json; never committed).")))
+            return
+
+        if path == "/api/enable-compute":
+            # P60: the compute hand-off master switch (local flag only; default off).
+            data = self._read_form()
+            turn_on = data.get("state", "on") == "on"
+            _update_capability_flag("compute_handoff_enabled", {"enabled": turn_on})
+            self._send(_screen_compute(saved=(
+                "Compute hand-off is now <strong>ON</strong>: the watcher will run allowlisted "
+                "jobs from the hub queue on its next pass." if turn_on else
+                "Compute hand-off is now <strong>OFF</strong>: no queued job will be read or run.")))
             return
 
         if path == "/api/enable-update-check":
@@ -3002,6 +3152,28 @@ def _selftest() -> int:
 
     # 7) whisper.cpp CLI-rename resilience (G2): the detector must probe all three known binary names.
     check('("whisper-cli", "whisper-cpp", "main")' in src, "whisper.cpp 3-name probe was narrowed")
+
+    # 8) P60 Drive hub screens render with a next action, and the hub folder input is confined.
+    try:
+        hub_html = _screen_drive_hub()
+        comp_html = _screen_compute()
+        check("Google Drive hub" in hub_html and "/api/set-drive-hub" in hub_html,
+              "/drive-hub screen lost its connect form")
+        check("/api/enable-compute" in comp_html and "watcher.py --once" in comp_html,
+              "/compute screen lost its toggle or run instructions")
+        ok_out, _rp, _why = _confined_folder("/etc", allow_home=False)
+        check(not ok_out, "set-drive-hub confinement accepts a system directory")
+        inside = tempfile.mkdtemp(dir=os.path.expanduser("~"))
+        ok_in, real_in, _ = _confined_folder(inside, allow_home=False)
+        check(ok_in, "set-drive-hub confinement rejects a home-tree folder")
+        if ok_in:
+            from handoff import queue as _hq
+            _hq.ensure_hub_dirs(real_in)
+            check((pathlib.Path(real_in) / "Jobs" / "queue").is_dir(),
+                  "hub skeleton not created under the connected folder")
+        shutil.rmtree(inside, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        check(False, f"drive-hub/compute screen check errored: {exc}")
 
     if failures:
         print("wizard selftest FAILED:")

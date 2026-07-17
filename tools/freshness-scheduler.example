@@ -43,3 +43,30 @@
 #   persisted. The detection core needs no keys.
 # - There is no scheduled GitHub job. Downloading a newer shared baseline (git pull) is a separate,
 #   manual choice you make when you want it.
+
+# ---- P60: compute hand-off watcher (opt-in) ---------------------------------
+# Runs ONLY when you have turned on the compute_handoff_enabled capability (wizard /compute
+# screen, or creator-os-config.local.json) AND configured the Drive hub mirror path (wizard
+# /drive-hub screen). Each pass reads job tickets from the locally synced
+# "Creator OS/Jobs/queue" folder, runs ONLY allowlisted local tools (never publishing, never
+# credentials), and writes results back for every surface to read. With the flag off this
+# command reads nothing and runs nothing.
+# Every 10 minutes:
+# */10 * * * *  cd /path/to/seo-tools && python3 tools/handoff/watcher.py --once >> "$HOME/CreatorOS/handoff.log" 2>&1
+#
+# macOS launchd (~/Library/LaunchAgents/com.creatoros.handoff.plist), every 600 seconds:
+# <?xml version="1.0" encoding="UTF-8"?>
+# <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+# <plist version="1.0"><dict>
+#   <key>Label</key><string>com.creatoros.handoff</string>
+#   <key>ProgramArguments</key><array>
+#     <string>/usr/bin/python3</string>
+#     <string>/path/to/seo-tools/tools/handoff/watcher.py</string>
+#     <string>--once</string>
+#   </array>
+#   <key>StartInterval</key><integer>600</integer>
+#   <key>StandardOutPath</key><string>/tmp/creatoros-handoff.log</string>
+#   <key>StandardErrorPath</key><string>/tmp/creatoros-handoff.log</string>
+# </dict></plist>
+# Note: the machine must be awake for a pass to run (queued jobs simply wait otherwise).
+# `caffeinate -s` or an Energy Saver schedule keeps a Mac awake for an overnight batch.

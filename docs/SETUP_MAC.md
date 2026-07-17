@@ -170,6 +170,28 @@ python3 shared/cache/cache.py --build   # only if canonical-sources/ changed
 
 ---
 
+## The Google Drive hub + overnight compute (optional, P60)
+
+To let this Mac pick up jobs queued from any Claude surface (web, phone, Cowork) and run them
+locally (transcription, library analysis, import previews, finance reports):
+
+1. Install **Google Drive for desktop** (google.com/drive/download) and sign in.
+2. Create the hub folder in My Drive (the wizard's `/drive-hub` screen walks you through it) and
+   prefer **mirror** mode for that folder so it is always fully on disk. Streaming mode (the
+   macOS File Provider mount under `~/Library/CloudStorage/`) also works, but a large queued media
+   file must download before a job can start.
+3. On the wizard `/drive-hub` screen, point Creator OS at the synced folder (it is usually
+   detected automatically), then turn the hand-off on at `/compute`.
+4. Schedule the watcher with the ready-made cron or launchd snippet in
+   `tools/freshness-scheduler.example` ("compute hand-off watcher" section).
+
+The Mac must be **awake** for a pass to run; queued jobs simply wait otherwise. For an overnight
+batch, `caffeinate -s` in a Terminal window, or System Settings, then Energy Saver, and a wake
+schedule, keeps it available. Only allowlisted read/compute jobs can run; nothing posts, publishes,
+or reads credentials from a job, and every result waits for your review (`docs/DRIVE-HUB.md`).
+
+---
+
 ## Local transcription / STT import (content-library)
 
 To import your OWN past videos and have Creator OS transcribe them on this computer (zero cloud, zero

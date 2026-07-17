@@ -75,6 +75,18 @@ Instagram's public-URL + professional-account requirements. Tokens are saved to
 by default** (`live_publishing_enabled`), and every post needs your explicit confirmation. Full
 per-platform playbook: `docs/PUBLISHING.md`.
 
+### The Google Drive hub and the compute hand-off (P60)
+
+Two screens make the cross-surface hub work without a terminal. **`/drive-hub`** explains the
+shared Drive folder ("Creator OS": Inbox, Store, Jobs, Knowledge, Profile, Outbox), detects the
+Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines any
+typed path to your home tree, creates the missing subfolders, and saves the location locally
+(`creator-os-config.local.json`). **`/compute`** is the one-click toggle for the
+`compute_handoff_enabled` capability (default off): when on, a scheduled watcher pass
+(`python3 tools/handoff/watcher.py --once`, snippet in `tools/freshness-scheduler.example`) runs
+allowlisted jobs queued in the hub from any surface and writes results back for review. Nothing can
+post, publish, or read credentials from a job. Full model: `docs/DRIVE-HUB.md`.
+
 ### Choosing folders (Browse button)
 
 Where the wizard needs a folder path -- the import screen and the "Choose my Creator OS folder" step

@@ -39,6 +39,17 @@ and write rules are `docs/DRIVE-HUB.md`.
    only the read-only reports (`ar-scan`, `cashflow`); the competitor builder runs the offline
    `--parse`, never the network fetch.
 
+## Transport A (watcher.py, the default)
+The watcher only decides WHERE the queue is and WHEN to look; every execution property above lives
+in `run_pass`. Hub resolution: `--hub` argument, else `drive_hub.local_mirror` (local config over
+committed), else an honest "not configured" note pointing at the wizard `/drive-hub` screen.
+`detect_mirror_candidates` probes the macOS File Provider mount
+(`~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>`) as a wizard convenience only; the user
+confirms the path, and the wizard confines it to the home tree before saving.
+`<!-- verify: tools/handoff/watcher.py::resolve_hub -->`
+The schedule follows `tools/freshness-scheduler.example` (cron/launchd calling `--once`);
+`--watch` is a foreground convenience with a 30-second floor on the interval.
+
 ## Known failure modes
 - **A schema/allowlist drift** (schema enum edited without `queue.ALLOWED_JOB_TYPES`, or vice
   versa) is caught by the first queue selftest check, which compares the two.

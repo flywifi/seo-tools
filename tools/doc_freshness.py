@@ -56,16 +56,17 @@ DOC_SOURCES = {
     "skills/atoms/invoice-generate/MAINTAINER_README.md": ["tools/finance.py"],
     "skills/atoms/payment-reconcile/MAINTAINER_README.md": ["tools/finance.py"],
     "skills/atoms/proposal-price/MAINTAINER_README.md": ["tools/finance.py"],
-    # P60: the Drive-hub spec is bound to the job contract and the handoff package it documents
-    # (watcher.py joins when it ships, P60-3).
+    # P60: the Drive-hub spec is bound to the job contract and the handoff package it documents.
     "docs/DRIVE-HUB.md": [
         "shared/schemas/compute-job.json",
         "tools/handoff/queue.py",
         "tools/handoff/runner.py",
+        "tools/handoff/watcher.py",
     ],
     "tools/handoff/MAINTAINER_README.md": [
         "tools/handoff/queue.py",
         "tools/handoff/runner.py",
+        "tools/handoff/watcher.py",
     ],
 }
 

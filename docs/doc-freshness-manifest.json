@@ -25,7 +25,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "4a938d836894b548ffd64516e1e2a76f9fa153b0c9695ceb87c886a8bacbcfa6",
+        "tools/wizard.py": "a855d5359efe234ce4ef3a5b78e19ea7cdce5d8ff91d38eafaa823f7219533a1",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -73,13 +73,15 @@
       "sources": {
         "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525",
         "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
-        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296"
+        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296",
+        "tools/handoff/watcher.py": "fd6d819b1cc49a74c63ee61fae064c246bbc9b041d931d8fa41ebe51c7adf9c5"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
-        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296"
+        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296",
+        "tools/handoff/watcher.py": "fd6d819b1cc49a74c63ee61fae064c246bbc9b041d931d8fa41ebe51c7adf9c5"
       }
     }
   }
