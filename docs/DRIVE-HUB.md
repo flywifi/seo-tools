@@ -91,6 +91,11 @@ structurally (not by convention):
 6. **Human review.** Results report; humans decide. Any result a downstream action could follow
    carries `human_review_required: true`.
 
+Every allowlisted job type is wired (P61): the last placeholder, `keyword_offline`, now runs the
+offline keyword report (`tools/keyword_offline.py`) over the committed keyword library and the
+scoop cache — library-derived only, with `search_volumes` always null in the result (live search
+volumes are never estimated offline).
+
 ### The three transports (how a ticket reaches the local machine)
 
 | Transport | How | Default? | Requirements | Trade-off |

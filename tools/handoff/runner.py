@@ -116,6 +116,17 @@ def _build_project_docs(params, inputs, hub_root):
     return [_tool("project_docs.py"), "project", "--hub", str(hub_root)], None
 
 
+def _build_keyword_offline(params, inputs, hub_root):
+    # P61 C16 (decision KW-FULL): the offline keyword report over the committed library + the
+    # scoop cache. Zero network, honesty envelope structural (search_volumes always null).
+    query = params.get("query")
+    if not isinstance(query, str) or not query.strip():
+        return None, "keyword_offline params.query must be a non-empty string"
+    if len(query) > 500:
+        return None, "keyword_offline params.query too long (max 500 chars)"
+    return [_tool("keyword_offline.py"), "report", "--query", query, "--json"], None
+
+
 # job_type -> (argv builder, timeout seconds). Builders return (argv, error). A job type that is
 # allowlisted in the schema but not yet wired here is refused honestly (see run_job), so the
 # schema can lead the implementation without ever silently no-opping.
@@ -129,7 +140,7 @@ JOB_BUILDERS = {
     "inbox_scan": (_build_inbox_scan, 10 * _MINUTE),
     "project_docs": (_build_project_docs, 10 * _MINUTE),
     "transcript_normalize": (_build_transcript_normalize, 10 * _MINUTE),
-    # "keyword_offline": wired in a later phase; refused until then.
+    "keyword_offline": (_build_keyword_offline, 10 * _MINUTE),
 }
 
 
@@ -307,15 +318,26 @@ def selftest() -> int:
        sorted(r["status"] for r in res) == ["done", "duplicate_skipped"])
 
     # structural refusals: disallowed type, unwired type, escaping ref, malformed json, bad params.
+    # P61 C16: every schema type now has a builder, so the unwired-refusal branch (kept for
+    # future types) is exercised by temporarily popping a wired key -- coverage without a
+    # permanently-unwired vehicle.
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad1.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "publish"})
-    q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad2.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "keyword_offline"})
+    q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad2.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "keyword_offline", "params": {"query": "decor"}})
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad3.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "input_refs": ["../../etc/passwd"]})
     (q.hub_paths(hub)["queue"] / "bad4.json").write_text("{nope", encoding="utf-8")
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad5.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "finance_report", "params": {"report": "mark-paid"}})
     before = len(calls)
-    res = run_pass(hub, spawn=fake_spawn, allow=True)
+    popped = JOB_BUILDERS.pop("keyword_offline")
+    try:
+        res = run_pass(hub, spawn=fake_spawn, allow=True)
+    finally:
+        JOB_BUILDERS["keyword_offline"] = popped
     ok("all five hostile tickets refused, zero spawns",
        len(calls) == before and all(r["status"] == "refused" for r in res) and len(res) == 5)
+    _result_errs = [json.loads(p.read_text()).get("error") or ""
+                    for p in q.hub_paths(hub)["results"].glob("*.status.json")]
+    ok("unwired type refused honestly (popped-copy vehicle)",
+       any("not wired" in e for e in _result_errs))
 
     # timeout -> honest failed result.
     def timeout_spawn(argv, **kw):
@@ -362,6 +384,24 @@ def selftest() -> int:
         ok("apply with the local capability adds --write", "--write" in argv_on)
     finally:
         globals()["capability_enabled"] = _orig_cap
+
+    # P61 C16: keyword_offline builds the real report argv; params are validated at the builder.
+    argv_k, err_k = _build_keyword_offline({"query": "dresser makeover"}, [], hub)
+    ok("keyword_offline builds the report argv",
+       err_k is None and argv_k[0].endswith("keyword_offline.py") and
+       argv_k[1] == "report" and "--json" in argv_k)
+    ok("keyword_offline refuses an empty query",
+       _build_keyword_offline({}, [], hub)[1] is not None and
+       _build_keyword_offline({"query": "  "}, [], hub)[1] is not None)
+    ok("keyword_offline refuses an oversize query",
+       _build_keyword_offline({"query": "x" * 501}, [], hub)[1] is not None)
+    # and the built argv actually runs clean against the committed library (zero network).
+    proc_k = subprocess.run([env_paths.app_python(str(ROOT))] + argv_k,
+                            capture_output=True, text=True, timeout=120, cwd=str(ROOT))
+    rep_k = json.loads(proc_k.stdout) if proc_k.returncode == 0 else {}
+    ok("keyword_offline argv runs clean with the honesty envelope",
+       proc_k.returncode == 0 and rep_k.get("search_volumes") is None and
+       rep_k.get("data_basis", "").startswith("local keyword library"))
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

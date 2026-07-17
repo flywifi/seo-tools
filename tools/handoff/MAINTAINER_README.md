@@ -101,6 +101,15 @@ free text is refused, never silently passed.
   proposal-only.
 - `transcribe_media`: the builder passes `--out-dir <hub>/Jobs/results` so the SRT lands beside the
   result, not inside `Inbox/Processed/`.
+- `keyword_offline` (wired, P61 KW-FULL): the last allowlisted-but-refused type is now real —
+  `tools/keyword_offline.py report` walks every committed keyword-library file plus the scoop cache,
+  zero network. HONESTY IS STRUCTURAL: the report's `search_volumes` is always null and its
+  `data_basis` names the local sources (live volumes are network-only by the seo-keywords spoke's
+  design and are never estimated). The builder validates `params.query` (non-empty string, max 500
+  chars). Because every schema type now has a builder, the runner selftest exercises the
+  not-wired refusal branch (kept for future types) by temporarily popping a key from
+  `JOB_BUILDERS` and restoring it.
+  `<!-- verify: tools/keyword_offline.py::report -->`
 
 ## Known failure modes
 - **A schema/allowlist drift** (schema enum edited without `queue.ALLOWED_JOB_TYPES`, or vice
