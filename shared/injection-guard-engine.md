@@ -220,6 +220,28 @@ The routing object must not reference any source with `quarantine_active: true`.
 }
 ```
 
+## Offline pattern tier (`tools/injection_scan.py`)
+
+This engine has two tiers. The full guard above is a Claude session running its judgment over
+retrieved content, and it is authoritative. The **offline pattern tier** is a stdlib program,
+`tools/injection_scan.py`, that implements the machine-scoreable half of this document verbatim:
+the eight categories, their per-match points, the SOCIAL co-occurrence rule, the score
+thresholds, and the scan-result record shape. It exists so the UNATTENDED Drive-hub surfaces (the
+Inbox scan, job tickets, import previews) get a screening buffer before any action, per the P60/P61
+Drive hub. Its verdict is carried in a field named `offline_pattern_scan`, never
+`injection_scan_result` (the session guard's field), so no surface can mistake the pattern tier for
+the full guard.
+
+What it catches and what it does not: it matches the known phrasings enumerated in the Detection
+targets above, so a reworded attack can still pass it; a QUARANTINE or BLOCK verdict from it is
+enough to seal a file or refuse a ticket, but a CLEAN verdict is not a guarantee, and content that
+reaches a session is still scanned by the full guard. The tool's selftest asserts its category set
+equals this document's `### <NAME>` headings, so the two cannot drift apart silently; changing a
+category here means updating the tool in the same change.
+
+<!-- verify: tools/injection_scan.py::scan_text -->
+<!-- verify: tools/injection_scan.py::scan_file -->
+
 ## Pattern maintenance
 
 Review patterns when:

@@ -45,6 +45,9 @@ DOC_SOURCES = {
         "tools/wizard.py",
         "tools/pick_folder.py",
     ],
+    # P61: the injection-guard engine doc's "Offline pattern tier" section describes the tool that
+    # implements its categories/scores verbatim; a tool change plausibly stales that section.
+    "shared/injection-guard-engine.md": ["tools/injection_scan.py"],
     # P59: the finance maintainer docs quote finance.py selftest pass-counts and behavior; a
     # finance.py change plausibly stales them (the P59 audit found seven stale counts this
     # binding would have flagged).

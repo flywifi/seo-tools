@@ -29,6 +29,11 @@
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
+    "shared/injection-guard-engine.md": {
+      "sources": {
+        "tools/injection_scan.py": "d95709c2ed44590f6c7ceab3dab9a0a7cbada3dc7640fb5970da83ef8287338c"
+      }
+    },
     "skills/finance-desk/MAINTAINER_README.md": {
       "sources": {
         "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
@@ -72,7 +77,7 @@
     "docs/DRIVE-HUB.md": {
       "sources": {
         "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525",
-        "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
+        "tools/handoff/queue.py": "1a38e8aff3aeffce84eae157d10395008fd62dc0893c79e1129c5b79ea3baa29",
         "tools/handoff/runner.py": "1969fcf7426a274c12dc6d5f4310e02dd2c78cd121dad268c77b90e9f4dbd9ec",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
@@ -83,7 +88,7 @@
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
-        "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
+        "tools/handoff/queue.py": "1a38e8aff3aeffce84eae157d10395008fd62dc0893c79e1129c5b79ea3baa29",
         "tools/handoff/runner.py": "1969fcf7426a274c12dc6d5f4310e02dd2c78cd121dad268c77b90e9f4dbd9ec",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",

@@ -77,6 +77,16 @@ surface; approval stays on the wizard `/inbox` screen with its single-use batch 
 `<!-- verify: tools/handoff/inbox.py::scan -->`
 `<!-- verify: tools/handoff/inbox.py::approve -->`
 
+## Free-text screening (P61, SEC-ALL)
+`validate_ticket` runs the offline injection pattern tier (`tools/injection_scan.py`) over every
+attacker-reachable free-text field in a ticket (`consent_note`, `requested_by`, and every string
+value nested in `params`). A QUARANTINE or BLOCK verdict is a validation error, so the runner
+refuses the ticket. This is DEFENSE IN DEPTH on the "tickets are data" rule and the lock that keeps
+the wizard's work-order amendment textarea (which lands in `consent_note`) from ever becoming an
+instruction channel. It FAILS CLOSED: if `injection_scan` cannot be imported, a ticket carrying
+free text is refused, never silently passed.
+`<!-- verify: tools/handoff/queue.py::_screen_free_text -->`
+
 ## Known failure modes
 - **A schema/allowlist drift** (schema enum edited without `queue.ALLOWED_JOB_TYPES`, or vice
   versa) is caught by the first queue selftest check, which compares the two.
