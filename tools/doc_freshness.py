@@ -45,6 +45,17 @@ DOC_SOURCES = {
         "tools/wizard.py",
         "tools/pick_folder.py",
     ],
+    # P59: the finance maintainer docs quote finance.py selftest pass-counts and behavior; a
+    # finance.py change plausibly stales them (the P59 audit found seven stale counts this
+    # binding would have flagged).
+    "skills/finance-desk/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/ar-review/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/cashflow-view/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/cost-estimate/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/dunning-draft/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/invoice-generate/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/payment-reconcile/MAINTAINER_README.md": ["tools/finance.py"],
+    "skills/atoms/proposal-price/MAINTAINER_README.md": ["tools/finance.py"],
 }
 
 

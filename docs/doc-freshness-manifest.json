@@ -28,6 +28,46 @@
         "tools/wizard.py": "4a938d836894b548ffd64516e1e2a76f9fa153b0c9695ceb87c886a8bacbcfa6",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
+    },
+    "skills/finance-desk/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/ar-review/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/cashflow-view/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/cost-estimate/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/dunning-draft/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/invoice-generate/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/payment-reconcile/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
+    },
+    "skills/atoms/proposal-price/MAINTAINER_README.md": {
+      "sources": {
+        "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
+      }
     }
   }
 }
