@@ -303,6 +303,7 @@ sure which you have? Pick the one whose name you recognize; you can change it la
 <a class="btn btn-outline" href="/brand-deals">Brand-deal readiness (contracts, rate card, pricing)</a>
 <a class="btn btn-outline" href="/freshness-setup">Keep my data fresh (choose where refreshed info is saved)</a>
 <a class="btn btn-outline" href="/drive-hub">My Google Drive hub (one shared folder for every surface)</a>
+<a class="btn btn-outline" href="/inbox">Sort my drop folder (scan what I dropped, approve where it goes)</a>
 <a class="btn btn-outline" href="/compute">Let this computer run big jobs queued from anywhere</a>
 <a class="btn btn-outline" href="/updates">Updates: am I on the latest version?</a>
 <a class="btn btn-outline" href="/cross-modality">All surfaces and what runs where</a>
@@ -1848,6 +1849,61 @@ computer must be awake for a pass to run; queued jobs simply wait otherwise.</p>
 """)
 
 
+def _screen_inbox(scan_result: dict | None = None, token: str = "",
+                  saved: str = "", error: str = "") -> str:
+    """The drop-folder screen (P60): scan the hub Inbox, preview where each file would go, approve
+    with a single-use token. Format-routable files (media, transcripts, export bundles) can be
+    approved here; document types wait for a Claude session running the inbox-routing atom."""
+    saved_block = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    if error:
+        saved_block += f'<div class="error-box">{error}</div>'
+    info = _drive_hub_status()
+    if not info.get("hub"):
+        body = (f"{saved_block}<p>No Drive hub is connected yet "
+                f"({html.escape(info.get('note', ''))}).</p>"
+                '<p><a class="btn btn-primary" href="/drive-hub">Set up the Drive hub first</a></p>')
+        return _page("Inbox", f"<h1>Your drop folder</h1>{body}")
+    preview = ""
+    if scan_result is not None:
+        rows = ""
+        for p in scan_result.get("proposals", []):
+            rows += (f"<tr><td><code>{html.escape(p['file'])}</code></td>"
+                     f"<td>{html.escape(str(p.get('classified_as')))}</td>"
+                     f"<td>{html.escape(str((p.get('route_to') or {}).get('handler')))}</td></tr>")
+        review = "".join(f"<li><code>{html.escape(e['file'])}</code>: {html.escape(e.get('note', ''))}</li>"
+                         for e in scan_result.get("needs_review", []))
+        unknown = "".join(f"<li><code>{html.escape(e['file'])}</code></li>"
+                          for e in scan_result.get("unknown", []))
+        approve = ""
+        if scan_result.get("proposals"):
+            approve = (f'<form method="POST" action="/api/inbox-approve" style="margin-top:10px">'
+                       f'<input type="hidden" name="token" value="{html.escape(token)}">'
+                       f'<button class="btn btn-primary" type="submit" style="width:auto;padding:8px 14px">'
+                       f'Approve these {len(scan_result["proposals"])} routing(s)</button></form>')
+        preview = f"""
+<h2>Scan result</h2>
+<p>{scan_result.get('already_handled', 0)} file(s) already handled earlier (skipped).</p>
+{'<table><tr><th>File</th><th>Looks like</th><th>Goes to</th></tr>' + rows + '</table>' if rows else '<p>Nothing new that can be routed from here.</p>'}
+{approve}
+{'<h3>Needs a Claude session first</h3><p>These documents must be read (with the injection guard) before a route is proposed; ask Claude to "sort my inbox".</p><ul>' + review + '</ul>' if review else ''}
+{'<h3>Unrecognized (left in place)</h3><ul>' + unknown + '</ul>' if unknown else ''}
+"""
+    return _page("Inbox", f"""
+<h1>Your drop folder</h1>
+{saved_block}
+<p>Drop anything into the hub's <strong>Inbox</strong> folder from any device. Scanning shows what
+is new and where each file would go; nothing is moved or saved until you approve. Media,
+transcripts, and platform export bundles route from here; contracts, pitches, and other documents
+are read in a Claude session first so the injection guard can inspect them.</p>
+<form method="POST" action="/api/inbox-scan">
+<button class="btn btn-secondary" type="submit" style="width:auto;padding:8px 14px">Scan my inbox</button>
+</form>
+{preview}
+<p style="margin-top:16px"><a class="btn btn-outline" href="/drive-hub">Drive hub setup</a>
+<a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
 def _screen_cross_modality(surface: str = "") -> str:
     """Show, for the user's AI surface, exactly how to wire Creator OS capabilities + what runs there."""
     summ = _skill_modality_summary()
@@ -2365,6 +2421,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             "/updates": _screen_updates(),
             "/drive-hub": _screen_drive_hub(),
             "/compute": _screen_compute(),
+            "/inbox": _screen_inbox(),
         }
         if path in routes:
             self._send(routes[path])
@@ -2588,6 +2645,50 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._send(_screen_drive_hub(saved=(
                 f"Connected. The hub skeleton exists under <code>{html.escape(realpath)}</code> "
                 f"(saved locally in creator-os-config.local.json; never committed).")))
+            return
+
+        if path == "/api/inbox-scan":
+            # P60: read-only scan of the hub Inbox; the proposal is stashed under a single-use
+            # token (the P58 batch-token model) so two tabs cannot approve each other's scan.
+            info = _drive_hub_status()
+            hub = info.get("hub")
+            if not hub:
+                self._send(_screen_inbox(error="Connect the Drive hub first (/drive-hub)."), status=400)
+                return
+            try:
+                from handoff import inbox as _inbox
+                result = _inbox.scan(hub)
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_inbox(error=f"Scan failed: {html.escape(str(exc))}"), status=500)
+                return
+            token = secrets.token_urlsafe(16)
+            _set(inbox_batch={"token": token, "hub": hub, "proposal": result})
+            self._send(_screen_inbox(scan_result=result, token=token))
+            return
+
+        if path == "/api/inbox-approve":
+            # P60: consume the single-use batch token, then move + ledger exactly what was shown.
+            data = self._read_form()
+            batch = _get("inbox_batch") or {}
+            _set(inbox_batch=None)
+            if not batch or data.get("token", "") != batch.get("token"):
+                self._send(_screen_inbox(error=(
+                    "This approval did not match the latest scan (stale tab or token). "
+                    "Scan again and approve the fresh result.")), status=409)
+                return
+            try:
+                from handoff import inbox as _inbox
+                out = _inbox.approve(batch["hub"], batch["proposal"])
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_inbox(error=f"Approve failed: {html.escape(str(exc))}"), status=500)
+                return
+            moved = len(out.get("moved", []))
+            refused = out.get("refused", [])
+            msg = f"Approved: {moved} file(s) routed and recorded in the inbox ledger."
+            if refused:
+                msg += " Not routed: " + "; ".join(
+                    f"{html.escape(r['file'])} ({html.escape(r['why'])})" for r in refused)
+            self._send(_screen_inbox(saved=msg))
             return
 
         if path == "/api/enable-compute":

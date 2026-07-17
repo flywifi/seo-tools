@@ -1625,6 +1625,8 @@ SHARED_DEGRADED_KEYS = {
     "live_publishing_disabled", "duckdb_disabled", "e2b_disabled", "gem_export_disabled",
     "gpt_export_disabled", "jupyter_disabled", "wolfram_disabled", "stats_general_disabled",
     "video_editing_disabled", "playbook_bootstrap_disabled",
+    # P60: covers the compute_handoff_enabled capability (named like live_publishing_enabled).
+    "compute_handoff_disabled",
 }
 
 

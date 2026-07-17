@@ -438,6 +438,22 @@ def op_content_import_analyze(withp, clock, prior):
     }
 
 
+def op_inbox_scan(withp, clock, prior):
+    """Runs the REAL offline drop-folder scan (tools/handoff/inbox.py, P60) on a temp hub built
+    from files declared in the scenario. The committed rules table (shared/docintel/inbox_rules.json)
+    is the routing authority; the ledger is passed empty so the leg is hermetic. Writes only to a
+    temp dir; the repo and the real inbox ledger are untouched."""
+    import tempfile
+
+    from handoff import inbox
+
+    hub = Path(tempfile.mkdtemp(prefix="s10-hub-"))
+    (hub / "Inbox").mkdir(parents=True)
+    for name, content in withp["files"].items():
+        (hub / "Inbox" / name).write_bytes(content.encode("utf-8"))
+    return inbox.scan(hub, ledger={})
+
+
 def op_text_probe(withp, clock, prior):
     p = ROOT / withp["file"]
     if not p.exists():
@@ -471,6 +487,7 @@ OPS = {
     "doctemplates.validate": op_doctemplates_validate,
     "doctemplates.assemble": op_doctemplates_assemble,
     "content_import.analyze": op_content_import_analyze,
+    "inbox.scan": op_inbox_scan,
     "text.probe": op_text_probe,
     "path.probe": op_path_probe,
 }
@@ -586,7 +603,12 @@ def selftest() -> int:
 
     clock = {"today": date(2026, 9, 15), "year": 2026, "lead_days": 3, "pinned": True}
     expect("routing.probe absent works", run_probe({"op": "routing.probe", "with": {"classification": "crm_query", "expect": "absent"}}, table, clock))
-    print(f"selftest: {'PASS' if not failures else 'FAIL'} ({12 - len(failures)} of 12 checks)")
+
+    scan = op_inbox_scan({"files": {"a.srt": "1\n00:00:01,000 --> 00:00:02,000\nx\n", "b.pdf": "%PDF-1.4 stub"}}, clock, {})
+    expect("inbox.scan op routes the srt by format and holds the pdf for review",
+           len(scan["proposals"]) == 1 and scan["proposals"][0]["route_to"]["handler"] == "transcript-import"
+           and len(scan["needs_review"]) == 1 and scan["needs_review"][0]["classified_as"] is None)
+    print(f"selftest: {'PASS' if not failures else 'FAIL'} ({13 - len(failures)} of 13 checks)")
     return 1 if failures else 0
 
 

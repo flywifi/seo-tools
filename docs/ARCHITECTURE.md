@@ -169,7 +169,7 @@ thing. Spokes compose atoms in sequence via `workflow.json` rather than embeddin
 
 Atoms can be called directly for one-off tasks without going through a full spoke workflow.
 
-105 atoms are installed in total; `skills/atoms/` is the authoritative inventory (one directory per
+106 atoms are installed in total; `skills/atoms/` is the authoritative inventory (one directory per
 atom, each with its own SKILL.md), and the drift guard verifies every atom a workflow names exists.
 The founding content/pipeline set below illustrates the shape; later phases added the video/media,
 finance, contract, task, jurisdiction, construction, and content-library atom families.

@@ -77,7 +77,7 @@ per-platform playbook: `docs/PUBLISHING.md`.
 
 ### The Google Drive hub and the compute hand-off (P60)
 
-Two screens make the cross-surface hub work without a terminal. **`/drive-hub`** explains the
+Three screens make the cross-surface hub work without a terminal. **`/drive-hub`** explains the
 shared Drive folder ("Creator OS": Inbox, Store, Jobs, Knowledge, Profile, Outbox), detects the
 Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines any
 typed path to your home tree, creates the missing subfolders, and saves the location locally
@@ -85,7 +85,12 @@ typed path to your home tree, creates the missing subfolders, and saves the loca
 `compute_handoff_enabled` capability (default off): when on, a scheduled watcher pass
 (`python3 tools/handoff/watcher.py --once`, snippet in `tools/freshness-scheduler.example`) runs
 allowlisted jobs queued in the hub from any surface and writes results back for review. Nothing can
-post, publish, or read credentials from a job. Full model: `docs/DRIVE-HUB.md`.
+post, publish, or read credentials from a job. **`/inbox`** sorts the drop folder: Scan lists what
+is new in the hub's `Inbox/` (the offline scan in `tools/handoff/inbox.py`; transcripts and media
+route by format, documents wait for a Claude session, unknowns are flagged in place), and Approve
+runs the batch with a single-use token (the import-screen pattern), moving handled files to
+`Inbox/Processed/<date>/` and recording them in the local inbox ledger so re-scans skip them.
+Nothing is written or moved until you approve. Full model: `docs/DRIVE-HUB.md`.
 
 ### Choosing folders (Browse button)
 

@@ -52,6 +52,9 @@ ROUTES = {
     "/transitions": "_screen_transitions",
     "/updates": "_screen_updates",
     "/cross-modality": "_screen_cross_modality",
+    "/drive-hub": "_screen_drive_hub",
+    "/compute": "_screen_compute",
+    "/inbox": "_screen_inbox",
 }
 
 # Internal store/path tokens that must never surface in VISIBLE user-facing text (they read as code).

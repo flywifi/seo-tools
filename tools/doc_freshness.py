@@ -63,12 +63,16 @@ DOC_SOURCES = {
         "tools/handoff/runner.py",
         "tools/handoff/watcher.py",
         "tools/handoff/drive_api.py",
+        "tools/handoff/inbox.py",
+        "shared/docintel/inbox_rules.json",
     ],
     "tools/handoff/MAINTAINER_README.md": [
         "tools/handoff/queue.py",
         "tools/handoff/runner.py",
         "tools/handoff/watcher.py",
         "tools/handoff/drive_api.py",
+        "tools/handoff/inbox.py",
+        "shared/docintel/inbox_rules.json",
     ],
 }
 

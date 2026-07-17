@@ -1369,6 +1369,164 @@
           ]
         }
       ]
+    },
+    {
+      "id": "S10-inbox-divvy",
+      "utterance": "I dropped a bunch of files in my Drive inbox, divvy them up",
+      "routing": {
+        "mode": "present",
+        "present": [],
+        "absent_classifications": [
+          "inbox_scan",
+          "inbox_routing"
+        ],
+        "note": "inbox-routing is a standalone atom (the profile-import precedent): it triggers on its own SKILL description and the hub table intentionally has no row for it (hub rows route to spokes). The absent pins make a future routing row a deliberate act: adding one fails this suite until scenarios.json and docs/SCENARIOS.md are updated together."
+      },
+      "legs": [
+        {
+          "id": "rules-table-shape",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:shared/docintel/inbox_rules.json"
+          },
+          "assert": [
+            {
+              "path": "schema_version",
+              "check": "eq",
+              "value": "0.1.0"
+            },
+            {
+              "path": "rules.transcript.handler",
+              "check": "eq",
+              "value": "transcript-import"
+            },
+            {
+              "path": "rules.transcript.category_source",
+              "check": "eq",
+              "value": "format"
+            },
+            {
+              "path": "rules.video_media.handler",
+              "check": "eq",
+              "value": "library-complete"
+            },
+            {
+              "path": "rules.brand_contract.handler",
+              "check": "eq",
+              "value": "contract-triage"
+            },
+            {
+              "path": "rules.brand_contract.category_source",
+              "check": "eq",
+              "value": "content"
+            },
+            {
+              "path": "rules.moodboard.handler",
+              "check": "null"
+            }
+          ]
+        },
+        {
+          "id": "offline-scan-live",
+          "op": "inbox.scan",
+          "with": {
+            "files": {
+              "studio-vlog-042.srt": "1\n00:00:01,000 --> 00:00:03,000\nfictional line\n",
+              "collab-agreement-draft.pdf": "%PDF-1.4 fictional stub",
+              "mystery-asset.xyz": "binary-ish stub"
+            }
+          },
+          "assert": [
+            {
+              "path": "proposals",
+              "check": "len_eq",
+              "value": 1
+            },
+            {
+              "path": "proposals[0].classified_as",
+              "check": "eq",
+              "value": "transcript"
+            },
+            {
+              "path": "proposals[0].route_to.handler",
+              "check": "eq",
+              "value": "transcript-import"
+            },
+            {
+              "path": "proposals[0].category_source",
+              "check": "eq",
+              "value": "format"
+            },
+            {
+              "path": "needs_review",
+              "check": "len_eq",
+              "value": 1
+            },
+            {
+              "path": "needs_review[0].classified_as",
+              "check": "null"
+            },
+            {
+              "path": "unknown",
+              "check": "len_eq",
+              "value": 1
+            },
+            {
+              "path": "human_review_required",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "atom-output-contract",
+          "op": "json.load",
+          "with": {
+            "fixture": "inbox-scan-proposal.json"
+          },
+          "assert": [
+            {
+              "path": "proposals",
+              "check": "len_eq",
+              "value": 2
+            },
+            {
+              "path": "proposals[0].injection_scan_result",
+              "check": "eq",
+              "value": "CLEAN"
+            },
+            {
+              "path": "proposals[0].route_to.handler",
+              "check": "eq",
+              "value": "transcript-import"
+            },
+            {
+              "path": "proposals[1].classified_as",
+              "check": "eq",
+              "value": "video_media"
+            },
+            {
+              "path": "needs_review[0].classified_as",
+              "check": "null"
+            },
+            {
+              "path": "quarantined[0].verdict",
+              "check": "eq",
+              "value": "QUARANTINE"
+            },
+            {
+              "path": "quarantined[0].note",
+              "check": "contains",
+              "value": "never routed"
+            },
+            {
+              "path": "human_review_required",
+              "check": "eq",
+              "value": true
+            }
+          ]
+        }
+      ]
     }
   ]
 }

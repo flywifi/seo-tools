@@ -61,6 +61,22 @@ uploads and archives nothing. The OAuth entry is `google_drive` in `tools/oauth_
 store but is never read by the publishing path.
 `<!-- verify: tools/handoff/drive_api.py::poll_once -->`
 
+## The drop folder (inbox.py, P60-6)
+The offline half of the `inbox-routing` atom. `scan` is READ-ONLY: it sha256-diffs `Inbox/`
+against the local ledger, classifies each new file by FORMAT (`shared/docintel/classify.py`), and
+proposes a route only for categories the rules table
+(`shared/docintel/inbox_rules.json`) marks `category_source: "format"` (transcripts, media,
+export archives). Content-gated categories (contracts, pitches, invoices) are listed as
+`needs_review` with `classified_as: null` — this tool never pretends to have read a document, and
+the injection guard runs only in a Claude session (the atom). `approve` is the ONLY writer: it
+re-verifies each sha256 (a file changed since its scan is refused), moves approved files to
+`Inbox/Processed/<date>/`, and appends to the gitignored ledger
+(`pipeline/inbox/inbox-ledger.local.json`) atomically. The `inbox_scan` job type wires the same
+scan into the runner (read-only; the proposal lands in the job result for review from any
+surface; approval stays on the wizard `/inbox` screen with its single-use batch token).
+`<!-- verify: tools/handoff/inbox.py::scan -->`
+`<!-- verify: tools/handoff/inbox.py::approve -->`
+
 ## Known failure modes
 - **A schema/allowlist drift** (schema enum edited without `queue.ALLOWED_JOB_TYPES`, or vice
   versa) is caught by the first queue selftest check, which compares the two.
@@ -82,6 +98,12 @@ store but is never read by the publishing path.
    runner selftest ("gate off -> gated, queue untouched").
 5. A timeout lands as an honest `failed` result naming the budget — runner selftest.
 6. The stdlib allowlist mirrors `shared/schemas/compute-job.json` — queue selftest first check.
+7. The offline scan never guesses a content category (a PDF lands in `needs_review` with
+   `classified_as` null) and never routes without a matching format rule —
+   `python3 tools/handoff/inbox.py --selftest` ("pdf is never guessed") and scenario S10.
+8. Approval refuses a file whose content changed since its scan (sha256 re-verify) and an
+   unchanged Inbox re-scan proposes nothing — inbox selftest ("changed-since-scan refused",
+   "idempotent re-scan"), mirrored in `skills/atoms/inbox-routing/evals/evals.json` case 3.
 
 ## Approval-gated changes
 Adding or removing a job type (schema enum + `JOB_BUILDERS` + this doc together); widening the

@@ -75,7 +75,7 @@ Returns one ingestion record per the `shared/docintel-engine.md` output spec.
     "segments": []
   },
   "injection_scan_result": "CLEAN | REVIEW | QUARANTINE | BLOCK",
-  "content_category": "brand_contract | media_kit | analytics | moodboard | transcript | unknown",
+  "content_category": "brand_contract | pitch_email | media_kit | analytics | analytics_export | platform_export | invoice_receipt | transcript | video_media | audio_media | profile_doc | template_doc | task_note | moodboard | unknown",
   "routing_hint": "deal-pipeline | analytics-insights | content-strategy | document-studio | unknown",
   "needs_more_info": null,
   "ran_locally": true,

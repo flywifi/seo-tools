@@ -41,13 +41,13 @@ def _tool(name: str) -> str:
     return str(ROOT / "tools" / name)
 
 
-def _build_transcribe(params, inputs):
+def _build_transcribe(params, inputs, hub_root):
     if len(inputs) != 1:
         return None, "transcribe_media needs exactly one input_ref (the media file)"
     return [_tool("transcribe.py"), "run", inputs[0]], None
 
 
-def _build_library_complete(params, inputs):
+def _build_library_complete(params, inputs, hub_root):
     command = params.get("command", "match")
     if command not in ("match", "complete"):
         return None, "library_complete params.command must be 'match' or 'complete'"
@@ -56,11 +56,11 @@ def _build_library_complete(params, inputs):
     return argv, None
 
 
-def _build_library_analyze(params, inputs):
+def _build_library_analyze(params, inputs, hub_root):
     return [_tool("video_library.py"), "analyze"], None
 
 
-def _build_import_parse(params, inputs):
+def _build_import_parse(params, inputs, hub_root):
     kinds = ("youtube-studio-csv", "youtube-studio-zip", "youtube-takeout",
              "instagram-dyi", "tiktok-dyi", "tiktok-studio-csv", "pinterest")
     kind = params.get("kind")
@@ -71,17 +71,23 @@ def _build_import_parse(params, inputs):
     return [_tool("import_parse.py"), kind, inputs[0]], None
 
 
-def _build_finance_report(params, inputs):
+def _build_finance_report(params, inputs, hub_root):
     report = params.get("report")
     if report not in ("ar-scan", "cashflow"):
         return None, "finance_report params.report must be 'ar-scan' or 'cashflow' (read-only reports only)"
     return [_tool("finance.py"), f"--{report}"], None
 
 
-def _build_competitor_refresh(params, inputs):
+def _build_competitor_refresh(params, inputs, hub_root):
     # Offline parse of already-fetched snapshots only; the network fetch stays a deliberate
     # local action, never a queued job.
     return [_tool("competitor_snapshot.py"), "--parse"], None
+
+
+def _build_inbox_scan(params, inputs, hub_root):
+    # Read-only scan of the hub's own Inbox; the proposal lands in the job's stdout result for
+    # review from any surface. Approval stays a human step (wizard /inbox).
+    return [str(ROOT / "tools" / "handoff" / "inbox.py"), "scan", "--hub", str(hub_root)], None
 
 
 # job_type -> (argv builder, timeout seconds). Builders return (argv, error). A job type that is
@@ -94,7 +100,8 @@ JOB_BUILDERS = {
     "import_parse_preview": (_build_import_parse, 10 * _MINUTE),
     "finance_report": (_build_finance_report, 10 * _MINUTE),
     "competitor_snapshot_refresh": (_build_competitor_refresh, 30 * _MINUTE),
-    # "keyword_offline", "project_docs", "inbox_scan": wired in later phases; refused until then.
+    "inbox_scan": (_build_inbox_scan, 10 * _MINUTE),
+    # "keyword_offline", "project_docs": wired in later phases; refused until then.
 }
 
 
@@ -167,7 +174,7 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
         return {"job_id": key, "status": "refused"}
 
     build, timeout = builder
-    argv, build_err = build(data.get("params", {}), inputs)
+    argv, build_err = build(data.get("params", {}), inputs, hub_root)
     if build_err:
         q.write_result(hub_root, key, "refused", error=build_err, tool_version=_version())
         q.archive_ticket(hub_root, ticket_path)
