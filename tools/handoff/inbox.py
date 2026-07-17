@@ -205,6 +205,55 @@ def sweep_quarantine(hub_root, scan_result, ledger_path=LEDGER_PATH, now=None) -
     return results
 
 
+# filename hints that resolve a platform-export bundle to an unambiguous import_parse kind. "dyi"
+# is deliberately excluded: it is ambiguous between instagram and tiktok, so it gets NO auto job.
+_EXPORT_KIND_HINTS = (
+    ("takeout", "youtube-takeout"),
+    ("studio", None),  # resolved below with the zip/csv suffix
+)
+
+
+def _export_kind(name: str) -> str | None:
+    low = name.lower()
+    if "takeout" in low:
+        return "youtube-takeout"
+    if "studio" in low:
+        if low.endswith(".zip"):
+            return "youtube-studio-zip"
+        if low.endswith(".csv"):
+            return "youtube-studio-csv"
+    return None  # "dyi" and everything else: ambiguous, no guess
+
+
+def plan_followups(moved_entries) -> list:
+    """P61 A-CONFIRM2: map each approved+moved file to the follow-up job the work-order screen
+    proposes (or an honest 'none'). Pure: data in, data out, no I/O. The input is the list of
+    approved proposal entries (each carries file, classified_as, and the Processed path). A file
+    whose export format is ambiguous ("dyi" = instagram or tiktok) gets NO job, never a guess."""
+    plan = []
+    for e in moved_entries:
+        cat = e.get("classified_as")
+        ref = e.get("processed_ref") or e.get("file")
+        name = (ref or "").rsplit("/", 1)[-1]
+        if cat in ("video_media", "audio_media"):
+            plan.append({"file": ref, "job_type": "transcribe_media", "input_ref": ref,
+                         "note": "transcribe on this computer; can take a while"})
+        elif cat == "transcript":
+            plan.append({"file": ref, "job_type": "transcript_normalize", "input_ref": ref,
+                         "note": "break into segments, silences, and suggested chapters"})
+        elif cat == "platform_export":
+            kind = _export_kind(name)
+            if kind:
+                plan.append({"file": ref, "job_type": "import_parse_preview", "input_ref": ref,
+                             "params": {"kind": kind}, "note": f"preview the {kind} export"})
+            else:
+                plan.append({"file": ref, "job_type": None,
+                             "note": "export format is ambiguous; pick it on the /import screen"})
+        else:
+            plan.append({"file": ref, "job_type": None, "note": "handled in a Claude session"})
+    return plan
+
+
 def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
     """The ONLY writer: move each approved entry to Inbox/Processed/<date>/ and record it in the
     ledger. Approves exactly what it is given (the human already reviewed); refuses entries whose
@@ -212,7 +261,9 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
     hub = Path(hub_root)
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     processed = hub / "Inbox" / "Processed" / stamp
-    results = {"moved": [], "refused": []}
+    # moved: the file paths (back-compat); moved_details: what plan_followups needs to build the
+    # work-order screen (the classified category + the new Processed path).
+    results = {"moved": [], "moved_details": [], "refused": []}
     try:
         data = json.loads(Path(ledger_path).read_text(encoding="utf-8")) if Path(ledger_path).exists() \
             else {"schema_version": "0.1.0", "entries": []}
@@ -252,6 +303,9 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
         })
         known.add(item["sha256"])
         results["moved"].append(item["file"])
+        results["moved_details"].append({
+            "file": item["file"], "classified_as": item.get("classified_as"),
+            "processed_ref": f"Inbox/Processed/{stamp}/{src.name}"})
     data["entries"] = entries
     Path(ledger_path).parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(str(ledger_path) + ".tmp")
@@ -335,6 +389,34 @@ def selftest() -> int:
 
     res4 = scan(Path(tempfile.mkdtemp()), ledger={})
     ok("missing Inbox is a plain error", "error" in res4 and "no Inbox folder" in res4["error"])
+
+    # P61 C8: plan_followups maps each category to the right follow-up job (or an honest none).
+    plan = plan_followups([
+        {"classified_as": "video_media", "processed_ref": "Inbox/Processed/d/clip.mp4"},
+        {"classified_as": "transcript", "processed_ref": "Inbox/Processed/d/talk.srt"},
+        {"classified_as": "platform_export", "processed_ref": "Inbox/Processed/d/takeout-2026.zip"},
+        {"classified_as": "platform_export", "processed_ref": "Inbox/Processed/d/my-dyi-export.zip"},
+        {"classified_as": None, "processed_ref": "Inbox/Processed/d/contract.pdf"}])
+    by_cat = {p["file"].rsplit("/", 1)[-1]: p for p in plan}
+    ok("video -> transcribe_media", by_cat["clip.mp4"]["job_type"] == "transcribe_media")
+    ok("transcript -> transcript_normalize", by_cat["talk.srt"]["job_type"] == "transcript_normalize")
+    ok("takeout export -> import_parse_preview with kind",
+       by_cat["takeout-2026.zip"]["job_type"] == "import_parse_preview" and
+       by_cat["takeout-2026.zip"]["params"]["kind"] == "youtube-takeout")
+    ok("ambiguous dyi export -> no job, never guessed",
+       by_cat["my-dyi-export.zip"]["job_type"] is None and "ambiguous" in by_cat["my-dyi-export.zip"]["note"])
+    ok("document -> no job (session work)", by_cat["contract.pdf"]["job_type"] is None)
+
+    # the after_approval promise is truthful: the proposal string proposes follow-up work, it no
+    # longer falsely claims the handler already ran.
+    demo = {"proposals": [], "needs_review": [], "unknown": [], "quarantined": []}
+    _ = demo  # (the string lives in scan()'s proposal entry; assert on a real scan result)
+    fresh_hub = Path(tempfile.mkdtemp())
+    (fresh_hub / "Inbox").mkdir()
+    (fresh_hub / "Inbox" / "x.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+    ap_str = scan(fresh_hub, ledger={})["proposals"][0]["after_approval"]
+    ok("after_approval promise is truthful",
+       "follow-up work is proposed" in ap_str and "handler runs" not in ap_str)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

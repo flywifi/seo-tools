@@ -115,7 +115,15 @@ Drop any file into `Inbox/` from any device. On the next scan (a scheduled `inbo
 wizard's Inbox screen), Creator OS classifies each new file (format first, then content category),
 runs the injection guard treating every dropped file as untrusted, and assembles ONE proposal
 batch: which file goes to which store or tool. Nothing is written to any store and nothing is moved
-until the human approves the batch. Unknown files are flagged and left in place, never guessed.
+until the human approves the batch. Approval is a **two-step work order** (P61): approving the
+batch files the approved items and records them in the ledger, then a second screen proposes the
+exact follow-up work (transcribe a dropped video via `transcribe_media`, normalize a dropped
+transcript via `transcript_normalize`, preview an export via `import_parse_preview`) with a
+per-item checkbox and an "Anything to change?" note, and a second click queues only the checked
+jobs. The note travels with the work as the ticket `consent_note` for human review; it is never
+parsed or executed. Jobs are proposal-only by default; a job writes to the library directly only
+when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
+AND its ticket asks. Unknown files are flagged and left in place, never guessed.
 Files that the injection guard quarantines are never routed. Approved files are recorded in the
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.

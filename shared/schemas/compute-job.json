@@ -38,7 +38,8 @@
             "keyword_offline",
             "competitor_snapshot_refresh",
             "project_docs",
-            "inbox_scan"
+            "inbox_scan",
+            "transcript_normalize"
           ],
           "description": "Hard allowlist. The runner refuses anything else. Publishing, posting, sending, credential access, and shell passthrough are structurally absent from this list and MUST NOT be added without an approval-gated change (see tools/handoff/MAINTAINER_README.md)."
         },

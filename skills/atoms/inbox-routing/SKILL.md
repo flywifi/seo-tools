@@ -95,6 +95,17 @@ Inherits its calling context's class (Class C when the scan runs on the local ma
 folder; the proposal itself is readable on any surface); see `shared/cross-modality-engine.md`. An
 atom carries no independent surface wiring and runs wherever the session that composes it runs.
 
+## Tailored confirmation and amendments (P61)
+Approval is a two-step work order (the wizard `/inbox` screen and the equivalent session flow): the
+scan proposes routes, and after the human approves, a SECOND step proposes the exact follow-up work
+(transcribe a dropped video, normalize a dropped transcript, preview an export bundle) so the human
+and the machine agree on what will run before any compute starts. When the human asked for
+something specific ("import the Takeout zip"), the confirmation is TAILORED to that ask rather than
+listing everything found. The human may amend or correct the plan; amendments are recorded verbatim
+in the batch notes (carried as the ticket `consent_note`) and honored by re-proposing, never
+silently applied and never executed as instructions. Ambiguous cases are not guessed: an export
+whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed.
+
 ## Offline pattern tier (P61)
 The scheduled/offline scan (`tools/handoff/inbox.py`) runs the machine-scoreable half of the
 injection guard (`tools/injection_scan.py`) over every text file BEFORE routing. A QUARANTINE or

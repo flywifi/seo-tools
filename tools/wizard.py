@@ -1871,6 +1871,7 @@ credentials from a job, and every result waits for your review.</p>
 <button class="btn btn-secondary" type="submit" style="margin:0;padding:8px 14px;width:auto;
 font-size:.85rem">{toggle_label}</button></form>
 {queue_block}
+{_direct_writes_section(cfg)}
 <h2>Run it on a schedule</h2>
 <p>One pass right now: <code>python3 tools/handoff/watcher.py --once</code>. To run every 10
 minutes automatically, copy the ready-made cron or launchd snippet from
@@ -1879,6 +1880,33 @@ computer must be awake for a pass to run; queued jobs simply wait otherwise.</p>
 <p style="margin-top:16px"><a class="btn btn-outline" href="/drive-hub">Drive hub setup</a>
 <a class="btn btn-outline" href="/">Back to start</a></p>
 """)
+
+
+def _direct_writes_section(cfg) -> str:
+    """P61 WRITE-OPTIN: the acknowledged toggle that lets queued jobs write results straight into
+    the library. Default off; enabling REQUIRES a checked acknowledgment (the POST refuses without
+    it). Even on, a job writes only if its ticket asks AND the runner re-reads this local flag."""
+    on = _flag_enabled(cfg, "job_store_writes_enabled")
+    if on:
+        return ('<h2>Direct saves to your library</h2>'
+                '<div class="note" style="background:#fff3e0"><strong>Direct saves are ON.</strong> '
+                'Jobs you queue may write their results straight into your library without a review '
+                'step. Turn this off to go back to proposals-only (the default).'
+                '<form method="POST" action="/api/set-job-writes" style="margin-top:8px">'
+                '<input type="hidden" name="state" value="off">'
+                '<button class="btn btn-secondary" type="submit" style="width:auto;padding:8px 14px">'
+                'Turn OFF direct saves</button></form></div>')
+    return ('<h2>Direct saves to your library (advanced, off by default)</h2>'
+            '<p>By default, jobs produce a <em>proposal</em> you review before anything lands in your '
+            'library. If you would rather let jobs save their results directly (no review step), turn '
+            'that on here. It is riskier: a background job could change your library while you are '
+            'away.</p>'
+            '<form method="POST" action="/api/set-job-writes">'
+            '<input type="hidden" name="state" value="on">'
+            '<label style="display:block;margin:6px 0"><input type="checkbox" name="ack" value="yes"> '
+            'I understand jobs will write results into my library without further review.</label>'
+            '<button class="btn btn-outline" type="submit" style="width:auto;padding:8px 14px">'
+            'Turn ON direct saves</button></form>')
 
 
 def _screen_inbox(scan_result: dict | None = None, token: str = "",
@@ -1933,6 +1961,7 @@ def _screen_inbox(scan_result: dict | None = None, token: str = "",
     return _page("Inbox", f"""
 <h1>Your drop folder</h1>
 {saved_block}
+{_compute_switch_banner()}
 <p>Drop anything into the hub's <strong>Inbox</strong> folder from any device. Scanning shows what
 is new and where each file would go; nothing is moved or saved until you approve. Media,
 transcripts, and platform export bundles route from here; contracts, pitches, and other documents
@@ -1943,6 +1972,55 @@ are read in a Claude session first so the injection guard can inspect them.</p>
 {preview}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/drive-hub">Drive hub setup</a>
 <a class="btn btn-outline" href="/">Back to start</a></p>
+""")
+
+
+def _compute_switch_on() -> bool:
+    """Is the compute hand-off master switch on? (local flag, default off)."""
+    return _flag_enabled(_load_creator_config(), "compute_handoff_enabled")
+
+
+def _compute_switch_banner() -> str:
+    """GATE-QUEUE: a one-line banner stating the compute switch state and how to change it.
+    Rendered on the work-order screen, /inbox, and beside the /compute readout so the on/off state
+    is never invisible."""
+    on = _compute_switch_on()
+    state = "ON" if on else "OFF"
+    bg = "#eef7ee" if on else "#fff3e0"
+    tail = ("Queued work runs on the next scheduled pass." if on else
+            "Queued work WAITS until you turn this on.")
+    return (f'<div class="note" style="background:{bg}"><strong>Background work: {state}.</strong> '
+            f'{tail} Change it any time on <a href="/compute">the compute screen</a>.</div>')
+
+
+def _screen_work_order(filed: str = "", followups=None, token: str = "") -> str:
+    """P61 A-CONFIRM2 step 2: after filing an approved batch, show the exact follow-up work with a
+    checkbox per job (default on), an amendment box, and a single-use token. Queuing is a SECOND,
+    deliberate click so the user and the machine agree on the work before any compute is committed."""
+    followups = followups or []
+    rows = ""
+    for i, f in enumerate(followups):
+        name = html.escape((f.get("input_ref") or f.get("file") or "").rsplit("/", 1)[-1])
+        note = html.escape(f.get("note", ""))
+        jt = html.escape(f.get("job_type", ""))
+        rows += (f'<tr><td><input type="checkbox" name="job_{i}" checked></td>'
+                 f'<td><code>{name}</code></td><td>{jt}</td><td>{note}</td></tr>')
+    return _page("Confirm the work", f"""
+<h1>Confirm the follow-up work</h1>
+<div class="note" style="background:#eef7ee">{filed}</div>
+{_compute_switch_banner()}
+<p>Here is the work this computer would do next for the files you just approved. Uncheck anything
+you do not want, add a note if you want to change or correct something, then queue it. Nothing runs
+until you click below, and your note travels with the work for review only: it never changes what
+the computer runs.</p>
+<form method="POST" action="/api/inbox-queue-work">
+<input type="hidden" name="token" value="{html.escape(token)}">
+<table><tr><th>Do it?</th><th>File</th><th>Work</th><th>What it does</th></tr>{rows}</table>
+<label for="amendment" style="margin-top:12px;display:block">Anything to change? (optional; a note for review, not a command)</label>
+<textarea id="amendment" name="amendment" rows="3" style="width:100%"></textarea>
+<button class="btn btn-primary" type="submit" style="margin-top:10px;width:auto;padding:8px 14px">Queue this work</button>
+</form>
+<p style="margin-top:16px"><a class="btn btn-outline" href="/inbox">Back to the inbox</a></p>
 """)
 
 
@@ -2772,7 +2850,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/inbox-approve":
-            # P60: consume the single-use batch token, then move + ledger exactly what was shown.
+            # P61 A-CONFIRM2 step 1: consume the single-use scan token, file + ledger the batch,
+            # then show the WORK-ORDER screen (the follow-up jobs, tailored, with a second token).
             data = self._read_form()
             batch = _get("inbox_batch") or {}
             _set(inbox_batch=None)
@@ -2784,15 +2863,60 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             try:
                 from handoff import inbox as _inbox
                 out = _inbox.approve(batch["hub"], batch["proposal"])
+                followups = _inbox.plan_followups(out.get("moved_details", []))
             except Exception as exc:  # noqa: BLE001
                 self._send(_screen_inbox(error=f"Approve failed: {html.escape(str(exc))}"), status=500)
                 return
             moved = len(out.get("moved", []))
             refused = out.get("refused", [])
-            msg = f"Approved: {moved} file(s) routed and recorded in the inbox ledger."
+            filed = f"Filed {moved} file(s) and recorded them in the inbox ledger."
             if refused:
-                msg += " Not routed: " + "; ".join(
+                filed += " Not routed: " + "; ".join(
                     f"{html.escape(r['file'])} ({html.escape(r['why'])})" for r in refused)
+            jobs = [f for f in followups if f.get("job_type")]
+            if not jobs:
+                self._send(_screen_inbox(saved=filed + " No background work to queue."))
+                return
+            token2 = secrets.token_urlsafe(16)
+            _set(inbox_work={"token": token2, "hub": batch["hub"], "followups": jobs})
+            self._send(_screen_work_order(filed=filed, followups=jobs, token=token2))
+            return
+
+        if path == "/api/inbox-queue-work":
+            # P61 A-CONFIRM2 step 2: queue ONLY the checked follow-up jobs. The "Anything to change?"
+            # note travels as ticket consent_note (data, never argv) and is screened at validation.
+            data = self._read_form()
+            work = _get("inbox_work") or {}
+            _set(inbox_work=None)
+            if not work or data.get("token", "") != work.get("token"):
+                self._send(_screen_inbox(error=(
+                    "This work order did not match (stale tab or token). Scan and approve again.")),
+                    status=409)
+                return
+            note = (data.get("amendment") or "").strip() or None
+            queued, skipped = [], []
+            try:
+                from handoff import queue as _q
+                for i, f in enumerate(work["followups"]):
+                    if data.get(f"job_{i}") != "on":
+                        skipped.append(f)
+                        continue
+                    res = _q.submit(work["hub"], f["job_type"], params=f.get("params"),
+                                    input_refs=[f["input_ref"]] if f.get("input_ref") else None,
+                                    origin="mac", consent_note=note)
+                    queued.append((f, res))
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_inbox(error=f"Could not queue the work: {html.escape(str(exc))}"),
+                           status=500)
+                return
+            on = _compute_switch_on()
+            tail = (" The compute switch is ON, so these run on the next scheduled pass." if on else
+                    " The compute switch is OFF, so these WAIT in line until you turn it on at "
+                    "<a href='/compute'>the compute screen</a>.")
+            msg = (f"Queued {len(queued)} job(s)" +
+                   (f", skipped {len(skipped)}." if skipped else ".") + tail)
+            if note:
+                msg += " Your note was attached to the work for review (it does not change what runs)."
             self._send(_screen_inbox(saved=msg))
             return
 
@@ -2805,6 +2929,24 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "Compute hand-off is now <strong>ON</strong>: the watcher will run allowlisted "
                 "jobs from the hub queue on its next pass." if turn_on else
                 "Compute hand-off is now <strong>OFF</strong>: no queued job will be read or run.")))
+            return
+
+        if path == "/api/set-job-writes":
+            # P61 WRITE-OPTIN: enabling requires an acknowledged risk checkbox; the POST refuses
+            # without it. The runner also re-reads this LOCAL flag at execution, so a ticket flag
+            # alone can never enable a store write.
+            data = self._read_form()
+            turn_on = data.get("state", "on") == "on"
+            if turn_on and data.get("ack") != "yes":
+                self._send(_screen_compute(error=(
+                    "To turn on direct saves you must check the box acknowledging that jobs will "
+                    "write to your library without review.")), status=400)
+                return
+            _update_capability_flag("job_store_writes_enabled", {"enabled": turn_on})
+            self._send(_screen_compute(saved=(
+                "Direct saves are now <strong>ON</strong>: a job may write its results into your "
+                "library when its ticket requests it." if turn_on else
+                "Direct saves are now <strong>OFF</strong>: jobs produce proposals you review.")))
             return
 
         if path == "/api/enable-update-check":
@@ -3466,6 +3608,29 @@ def _selftest() -> int:
               "import pattern summary did not flag exactly the poisoned record")
     except Exception as exc:  # noqa: BLE001
         check(False, f"import pattern summary errored: {exc}")
+
+    # 11) P61 A-CONFIRM2: the work-order screen renders the follow-ups + the switch banner; the
+    #     amendment textarea is present and no follow-up's argv-bearing field leaks into the page.
+    try:
+        wo = _screen_work_order(filed="Filed 2 files.", token="WOTOKEN", followups=[
+            {"job_type": "transcribe_media", "input_ref": "Inbox/Processed/d/clip.mp4",
+             "note": "transcribe on this computer"}])
+        check("Queue this work" in wo and "transcribe_media" in wo and "clip.mp4" in wo,
+              "work-order screen lost its job row")
+        check("Background work:" in wo and "/compute" in wo, "work-order screen lost the switch banner")
+        check('name="amendment"' in wo and 'name="token"' in wo, "work-order screen lost the amendment box or token")
+    except Exception as exc:  # noqa: BLE001
+        check(False, f"work-order screen errored: {exc}")
+
+    # 12) P61 WRITE-OPTIN: the /compute direct-saves toggle refuses to render 'on' semantics without
+    #     an acknowledgment, and the off-state section explains the risk.
+    try:
+        off_cfg = {"capabilities": {"job_store_writes_enabled": {"enabled": False}}}
+        sec = _direct_writes_section(off_cfg)
+        check("without further review" in sec and 'name="ack"' in sec,
+              "direct-saves section missing the acknowledgment gate")
+    except Exception as exc:  # noqa: BLE001
+        check(False, f"direct-saves section errored: {exc}")
 
     if failures:
         print("wizard selftest FAILED:")

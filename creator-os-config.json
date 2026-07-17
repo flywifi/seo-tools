@@ -300,6 +300,11 @@
       "description": "P60. Master switch for the async compute hand-off: the local machine's watcher/runner picks up job tickets from the Drive hub Jobs/queue and runs allowlisted local tools (transcription, library analysis, import previews, finance reports). Off by default; with it off, no watcher pass runs any job from any transport.",
       "requires": "The Drive hub folder configured (wizard /drive-hub) and one transport: Google Drive for desktop syncing the hub (default), the opt-in drive_api_polling capability, or the opt-in remote_compute_endpoint capability."
     },
+    "job_store_writes_enabled": {
+      "enabled": false,
+      "description": "P61. Allow queued compute jobs to WRITE their results directly into your library (e.g. library_complete --write) instead of only producing a reviewable proposal. Off by default; jobs are proposal-only unless you turn this on with an acknowledged warning on the wizard /compute screen. Even when on, a job writes only if its ticket explicitly requests it; a ticket flag alone can never enable a write.",
+      "requires": "compute_handoff_enabled + an acknowledged risk warning on the wizard /compute screen. Local-only (creator-os-config.local.json); each machine has its own setting."
+    },
     "drive_api_polling": {
       "enabled": false,
       "description": "P60 Transport B. Lets the watcher poll the Drive API directly (changes.list, drive.file scope) instead of reading a locally synced folder. Only needed when Google Drive for desktop is not installed.",
@@ -357,7 +362,8 @@
     "youtube_analytics_disabled": "youtube_analytics is off. Audience retention ('which parts were most watched') is not pulled live from the YouTube Analytics API. Retention still imports from a YouTube Studio retention CSV export (export_bundle tier). Off YouTube, retention is not available on any platform and is null-and-flagged, never fabricated.",
     "compute_handoff_disabled": "compute_handoff_enabled is off (the default). No job ticket is picked up or executed from any transport; the Drive hub Jobs folder is inert. Heavy compute (transcription, library analysis) runs only when you start it yourself in a local session. Turn it on in creator-os-config.local.json or one click at the setup wizard's /compute screen.",
     "drive_api_polling_disabled": "drive_api_polling is off (the default). The watcher reads only the locally synced Drive hub folder (Google Drive for desktop). If the sync app is not installed and this stays off, queued jobs wait untouched; nothing polls the Drive API and no OAuth token is used.",
-    "remote_compute_endpoint_disabled": "remote_compute_endpoint is off (the default). The remote MCP endpoint does not register the submit_compute_job / job_status tools, so cloud sessions cannot enqueue or track jobs over MCP; the Drive-file path (create a ticket in Jobs/queue) still works when compute_handoff_enabled is on."
+    "remote_compute_endpoint_disabled": "remote_compute_endpoint is off (the default). The remote MCP endpoint does not register the submit_compute_job / job_status tools, so cloud sessions cannot enqueue or track jobs over MCP; the Drive-file path (create a ticket in Jobs/queue) still works when compute_handoff_enabled is on.",
+    "job_store_writes_disabled": "Compute jobs never write to the library; they produce reviewable proposals only. Apply results yourself on the wizard /import screen or in a Claude session. This is the default and safest behavior."
   },
   "update": {
     "_comment": "Self-update channel (P48). 'stable' follows released versions (the main branch); 'nightly' follows an in-progress/experimental branch and may be rough. Override the channel (and, for nightly, its branch) in creator-os-config.local.json, or via the CREATOR_OS_UPDATE_CHANNEL / CREATOR_OS_UPDATE_BRANCH env vars. Until a GitHub release exists, tools/update_check.py compares your installed commit against the resolved branch and shows 'behind by N commits' only when you opt into the background check. Applying stays your explicit tools/update.py run.",

@@ -44,15 +44,34 @@ def _tool(name: str) -> str:
 def _build_transcribe(params, inputs, hub_root):
     if len(inputs) != 1:
         return None, "transcribe_media needs exactly one input_ref (the media file)"
-    return [_tool("transcribe.py"), "run", inputs[0]], None
+    # P61 D4: write the SRT under the hub results, not next to the input inside Inbox/Processed.
+    out_dir = str(Path(hub_root) / "Jobs" / "results")
+    return [_tool("transcribe.py"), "run", inputs[0], "--out-dir", out_dir], None
+
+
+def _build_transcript_normalize(params, inputs, hub_root):
+    # P61 C9: a dropped transcript has no library record to attach to (R3); normalizing it into
+    # segments + silence gaps + suggested chapters is the useful, fully-offline follow-up. Attaching
+    # to a library video_key stays session work.
+    if len(inputs) != 1:
+        return None, "transcript_normalize needs exactly one input_ref (the transcript file)"
+    return [str(ROOT / "shared" / "docintel" / "transcripts.py"), inputs[0],
+            "--json", "--gap-metrics", "--suggest-chapters"], None
 
 
 def _build_library_complete(params, inputs, hub_root):
+    # P61 C10 (R1 fix): the real CLI is `match|complete --export-dir DIR [--write]`, NOT positional
+    # inputs (the shipped builder produced an argparse error on every run). --write is appended ONLY
+    # when the ticket asks (params.apply) AND the LOCAL job_store_writes_enabled capability is on
+    # (decision WRITE-OPTIN); a forged ticket flag alone can never enable a store write.
     command = params.get("command", "match")
     if command not in ("match", "complete"):
         return None, "library_complete params.command must be 'match' or 'complete'"
-    argv = [_tool("library_complete.py"), command]
-    argv.extend(inputs)
+    if len(inputs) != 1:
+        return None, "library_complete needs exactly one input_ref (the export directory)"
+    argv = [_tool("library_complete.py"), command, "--export-dir", inputs[0]]
+    if command == "complete" and params.get("apply") and capability_enabled("job_store_writes_enabled"):
+        argv.append("--write")
     return argv, None
 
 
@@ -109,6 +128,7 @@ JOB_BUILDERS = {
     "competitor_snapshot_refresh": (_build_competitor_refresh, 30 * _MINUTE),
     "inbox_scan": (_build_inbox_scan, 10 * _MINUTE),
     "project_docs": (_build_project_docs, 10 * _MINUTE),
+    "transcript_normalize": (_build_transcript_normalize, 10 * _MINUTE),
     # "keyword_offline": wired in a later phase; refused until then.
 }
 
@@ -311,6 +331,37 @@ def selftest() -> int:
     res = run_pass(hub, spawn=fake_spawn, allow=False)
     ok("gate off -> gated, queue untouched",
        res[0]["status"] == "gated" and len(q.read_queue(hub)) == 1)
+
+    # P61 C11: the transcribe builder points the SRT at the hub results, not next to the input.
+    argv_t, _ = _build_transcribe({}, ["Inbox/Processed/2026-07-17/clip.mp4"], hub)
+    ok("transcribe writes under Jobs/results",
+       "--out-dir" in argv_t and argv_t[argv_t.index("--out-dir") + 1].endswith("Jobs/results"))
+
+    # P61 C9: transcript_normalize builds the real transcripts.py argv.
+    argv_n, err_n = _build_transcript_normalize({}, ["Inbox/Processed/2026-07-17/talk.srt"], hub)
+    ok("transcript_normalize builds the transcripts CLI argv",
+       err_n is None and argv_n[0].endswith("transcripts.py") and "--suggest-chapters" in argv_n)
+
+    # P61 C10 (R1 fix): the library_complete builder now passes --export-dir (the shipped builder
+    # produced an argparse error). Run the built argv against an empty temp dir: argparse must accept.
+    export_dir = tempfile.mkdtemp()
+    argv_lc, err_lc = _build_library_complete({"command": "match"}, [export_dir], hub)
+    ok("library_complete builds --export-dir argv", err_lc is None and "--export-dir" in argv_lc)
+    proc_lc = subprocess.run([env_paths.app_python(str(ROOT))] + argv_lc,
+                             capture_output=True, text=True, timeout=60, cwd=str(ROOT))
+    ok("library_complete argv is argparse-accepted (R1 can't recur)", proc_lc.returncode == 0)
+
+    # P61 C10 WRITE-OPTIN: --write appears only when the ticket asks AND the local capability is on.
+    _orig_cap = globals()["capability_enabled"]
+    try:
+        globals()["capability_enabled"] = lambda name, config=None: False
+        argv_off, _ = _build_library_complete({"command": "complete", "apply": True}, [export_dir], hub)
+        ok("apply without the local capability stays proposal-only", "--write" not in argv_off)
+        globals()["capability_enabled"] = lambda name, config=None: True
+        argv_on, _ = _build_library_complete({"command": "complete", "apply": True}, [export_dir], hub)
+        ok("apply with the local capability adds --write", "--write" in argv_on)
+    finally:
+        globals()["capability_enabled"] = _orig_cap
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

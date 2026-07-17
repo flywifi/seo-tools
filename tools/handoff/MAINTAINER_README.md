@@ -87,6 +87,21 @@ instruction channel. It FAILS CLOSED: if `injection_scan` cannot be imported, a 
 free text is refused, never silently passed.
 `<!-- verify: tools/handoff/queue.py::_screen_free_text -->`
 
+## Job builders (P61 additions and the R1 fix)
+- `transcript_normalize` (new): a dropped transcript has no library record to attach to, so the job
+  normalizes it into segments + silence gaps + suggested chapters via `shared/docintel/transcripts.py`.
+  Attaching to a library `video_key` stays session work (honest; the result copy says so).
+- `library_complete` (fixed): the shipped builder passed positional inputs, but the CLI requires
+  `--export-dir` and rejected them, so EVERY queued job of this type failed with an argparse error.
+  The builder now passes `--export-dir <inputs[0]>`. A runner selftest runs the built argv against
+  an empty temp dir and asserts argparse accepts it, so that failure can never silently recur.
+- **WRITE-OPTIN** (`library_complete --write`): a job writes to the store ONLY when its ticket sets
+  `params.apply` AND the runner confirms the LOCAL `job_store_writes_enabled` capability at build
+  time. A forged ticket flag alone can never enable a write (selftested both ways). Default is
+  proposal-only.
+- `transcribe_media`: the builder passes `--out-dir <hub>/Jobs/results` so the SRT lands beside the
+  result, not inside `Inbox/Processed/`.
+
 ## Known failure modes
 - **A schema/allowlist drift** (schema enum edited without `queue.ALLOWED_JOB_TYPES`, or vice
   versa) is caught by the first queue selftest check, which compares the two.

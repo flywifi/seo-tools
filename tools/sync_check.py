@@ -1627,6 +1627,8 @@ SHARED_DEGRADED_KEYS = {
     "video_editing_disabled", "playbook_bootstrap_disabled",
     # P60: covers the compute_handoff_enabled capability (named like live_publishing_enabled).
     "compute_handoff_disabled",
+    # P61: covers the job_store_writes_enabled capability (the *_disabled/_enabled naming split).
+    "job_store_writes_disabled",
 }
 
 

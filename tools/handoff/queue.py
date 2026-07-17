@@ -35,6 +35,7 @@ ALLOWED_JOB_TYPES = (
     "competitor_snapshot_refresh",
     "project_docs",
     "inbox_scan",
+    "transcript_normalize",
 )
 ALLOWED_ORIGINS = ("web", "desktop", "cowork", "mac", "other")
 _JOB_ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")

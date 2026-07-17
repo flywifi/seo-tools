@@ -89,9 +89,16 @@ copies the claude.ai knowledge pack into the hub's `Knowledge/` folder
 allowlisted jobs queued in the hub from any surface and writes results back for review. Nothing can
 post, publish, or read credentials from a job. **`/inbox`** sorts the drop folder: Scan lists what
 is new in the hub's `Inbox/` (the offline scan in `tools/handoff/inbox.py`; transcripts and media
-route by format, documents wait for a Claude session, unknowns are flagged in place), and Approve
-runs the batch with a single-use token (the import-screen pattern), moving handled files to
-`Inbox/Processed/<date>/` and recording them in the local inbox ledger so re-scans skip them.
+route by format, documents wait for a Claude session, unknowns are flagged in place, and any file
+whose text trips the offline injection pattern tier is sealed into `Inbox/Quarantine`). Approve is
+a **two-step work order** (P61): the first click files the batch and records it in the ledger, then
+a second screen lists the exact follow-up jobs with a checkbox each and an "Anything to change?"
+note, and a second click queues only the checked jobs. The note is attached to the work for review
+(the ticket `consent_note`); it never changes what runs. A **Background work: ON/OFF** banner on
+the work-order screen and beside `/inbox` shows the compute switch state and links to `/compute` to
+change it, so queued work that is waiting is never invisible. `/compute` also carries the
+default-off **direct saves** toggle (`job_store_writes_enabled`): enabling it requires an
+acknowledged risk checkbox, and even then a job writes to the library only when its ticket asks.
 Nothing is written or moved until you approve. Full model: `docs/DRIVE-HUB.md`.
 
 ### Choosing folders (Browse button)
