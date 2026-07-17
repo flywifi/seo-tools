@@ -1763,10 +1763,42 @@ copy lives:</p>
 </form>
 <p class="hint">Saved locally in creator-os-config.local.json (never committed). Credentials never
 go into the hub, and nothing posts from it; jobs are read-only compute with results you review.</p>
+{_project_pack_section(info)}
 {_drive_api_section()}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/compute">Next: let this computer run
 queued jobs</a> <a class="btn btn-outline" href="/">Back to start</a></p>
 """)
+
+
+def _project_pack_section(info: dict) -> str:
+    """The P60-7 Projects block on /drive-hub: put the knowledge pack in the hub's Knowledge
+    folder so a claude.ai Project stays current with it."""
+    hub = info.get("hub")
+    if not hub:
+        return ("<h2>Your knowledge pack in Drive (for claude.ai Projects)</h2>"
+                "<p class=\"hint\">Connect the hub folder above first; then this section can copy "
+                "the knowledge pack into its Knowledge folder.</p>")
+    try:
+        import project_docs as _pd
+        status = _pd.check()
+        stale = status["stale"]
+        line = ("Everything in Knowledge is current with the pack." if status["ok"] else
+                f"{stale} pack file(s) changed since the last copy; refresh below.")
+    except Exception:  # renders even if the tool cannot load; the button still explains itself
+        line = "Status unavailable; the Refresh button below runs the copy either way."
+    return f"""
+<h2>Your knowledge pack in Drive (for claude.ai Projects)</h2>
+<p>Creator OS can keep a copy of its knowledge pack (the same files you would upload to a Project)
+inside the hub's <strong>Knowledge</strong> folder. Any chat with the Google Drive connector then
+reads the current version at question time. {html.escape(line)}</p>
+<form method="POST" action="/api/project-docs">
+  <button class="btn btn-secondary" type="submit" style="width:auto;padding:8px 14px">
+    Refresh the Knowledge folder now</button>
+</form>
+<p class="hint">To make a claude.ai Project update itself: create a <strong>private</strong>
+Project, add the Knowledge files from Google Drive (Drive files can only join private projects),
+and paste the pack's system prompt as the project instructions. Details and the Google Docs
+option: <code>docs/DRIVE-HUB.md</code>.</p>"""
 
 
 def _drive_api_section() -> str:
@@ -2645,6 +2677,31 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._send(_screen_drive_hub(saved=(
                 f"Connected. The hub skeleton exists under <code>{html.escape(realpath)}</code> "
                 f"(saved locally in creator-os-config.local.json; never committed).")))
+            return
+
+        if path == "/api/project-docs":
+            # P60-7: copy the knowledge pack into <hub>/Knowledge/ (local lane; stamps preserved,
+            # atomic writes, nothing leaves the machine beyond the Drive sync the user set up).
+            info = _drive_hub_status()
+            hub = info.get("hub")
+            if not hub:
+                self._send(_screen_drive_hub(error="Connect the hub folder first, then refresh "
+                                                   "the Knowledge copy."), status=400)
+                return
+            try:
+                import project_docs as _pd
+                result = _pd.project_local(hub)
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_drive_hub(error=f"Projection failed: {html.escape(str(exc))}"),
+                           status=500)
+                return
+            if "error" in result:
+                self._send(_screen_drive_hub(error=html.escape(result["error"])), status=500)
+                return
+            wrote, same = len(result["written"]), len(result["unchanged"])
+            self._send(_screen_drive_hub(saved=(
+                f"Knowledge refreshed: {wrote} file(s) copied, {same} already current. A private "
+                f"claude.ai Project referencing these files reads the new copies from Drive.")))
             return
 
         if path == "/api/inbox-scan":

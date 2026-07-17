@@ -81,7 +81,9 @@ Three screens make the cross-surface hub work without a terminal. **`/drive-hub`
 shared Drive folder ("Creator OS": Inbox, Store, Jobs, Knowledge, Profile, Outbox), detects the
 Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines any
 typed path to your home tree, creates the missing subfolders, and saves the location locally
-(`creator-os-config.local.json`). **`/compute`** is the one-click toggle for the
+(`creator-os-config.local.json`); it also carries a "Refresh the Knowledge folder" button that
+copies the claude.ai knowledge pack into the hub's `Knowledge/` folder
+(`tools/project_docs.py`, the P60-7 Projects projection; recipe in `docs/DRIVE-HUB.md`). **`/compute`** is the one-click toggle for the
 `compute_handoff_enabled` capability (default off): when on, a scheduled watcher pass
 (`python3 tools/handoff/watcher.py --once`, snippet in `tools/freshness-scheduler.example`) runs
 allowlisted jobs queued in the hub from any surface and writes results back for review. Nothing can

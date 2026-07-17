@@ -69,6 +69,13 @@ automatically. Procedure:
 3. At the start of a session away from home, upload the newest dated file so the AI has it.
 4. When you are back on your computer, nothing to do: the tools fold the files in on read.
 
+One refinement for claude.ai web and mobile: with the Google Drive connector connected and file
+creation enabled, Claude can CREATE the dated export directly in your Drive folder (it still
+cannot edit or move files there), so step 2 happens in the chat instead of by hand. That is the
+same append-new-dated-file model the union-merge already expects; see `docs/DRIVE-HUB.md` for the
+shared hub folder built on it. (Source: the Claude Help Center article "Use Google Workspace
+connectors", checked 2026-07-16.)
+
 ## Keeping pasted packs fresh (the re-sync procedure)
 
 Every packaging artifact carries a first line reading `Packaging version: <version>`. The wizard

@@ -25,7 +25,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "23dd79b1dff37ab036428f9dc236632627455ebb67d28ee672a6285de0b3c049",
+        "tools/wizard.py": "d36d431621572b22b3373b8834fb54e908fde42efea5dfa758665d0072609db1",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -73,17 +73,18 @@
       "sources": {
         "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525",
         "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
-        "tools/handoff/runner.py": "0f4da0e076084fe4d4c444c244fc1d9c0147754e7a604387ec05a3bd3506c338",
+        "tools/handoff/runner.py": "1969fcf7426a274c12dc6d5f4310e02dd2c78cd121dad268c77b90e9f4dbd9ec",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
         "tools/handoff/inbox.py": "373be39c562200a27ed011de20006e69dc7bcce8e3e5a52fa3fc7f58cad1e4f9",
-        "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
+        "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
+        "tools/project_docs.py": "149b85fd18fcd2990b6d65a9abde3c5ff79a4d2acac14b70264dbba6b9fc866d"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
-        "tools/handoff/runner.py": "0f4da0e076084fe4d4c444c244fc1d9c0147754e7a604387ec05a3bd3506c338",
+        "tools/handoff/runner.py": "1969fcf7426a274c12dc6d5f4310e02dd2c78cd121dad268c77b90e9f4dbd9ec",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
         "tools/handoff/inbox.py": "373be39c562200a27ed011de20006e69dc7bcce8e3e5a52fa3fc7f58cad1e4f9",

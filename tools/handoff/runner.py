@@ -90,6 +90,13 @@ def _build_inbox_scan(params, inputs, hub_root):
     return [str(ROOT / "tools" / "handoff" / "inbox.py"), "scan", "--hub", str(hub_root)], None
 
 
+def _build_project_docs(params, inputs, hub_root):
+    # Local projection lane only: copies the knowledge pack into <hub>/Knowledge/ (stamps
+    # preserved). The Google-Docs API lane needs the drive_api_polling credential and stays a
+    # deliberate local action (wizard /drive-hub or the CLI), never a queued job.
+    return [_tool("project_docs.py"), "project", "--hub", str(hub_root)], None
+
+
 # job_type -> (argv builder, timeout seconds). Builders return (argv, error). A job type that is
 # allowlisted in the schema but not yet wired here is refused honestly (see run_job), so the
 # schema can lead the implementation without ever silently no-opping.
@@ -101,7 +108,8 @@ JOB_BUILDERS = {
     "finance_report": (_build_finance_report, 10 * _MINUTE),
     "competitor_snapshot_refresh": (_build_competitor_refresh, 30 * _MINUTE),
     "inbox_scan": (_build_inbox_scan, 10 * _MINUTE),
-    # "keyword_offline", "project_docs": wired in later phases; refused until then.
+    "project_docs": (_build_project_docs, 10 * _MINUTE),
+    # "keyword_offline": wired in a later phase; refused until then.
 }
 
 
@@ -280,7 +288,7 @@ def selftest() -> int:
 
     # structural refusals: disallowed type, unwired type, escaping ref, malformed json, bad params.
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad1.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "publish"})
-    q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad2.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "project_docs"})
+    q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad2.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "keyword_offline"})
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad3.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "input_refs": ["../../etc/passwd"]})
     (q.hub_paths(hub)["queue"] / "bad4.json").write_text("{nope", encoding="utf-8")
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad5.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "finance_report", "params": {"report": "mark-paid"}})

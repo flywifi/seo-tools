@@ -65,6 +65,7 @@ DOC_SOURCES = {
         "tools/handoff/drive_api.py",
         "tools/handoff/inbox.py",
         "shared/docintel/inbox_rules.json",
+        "tools/project_docs.py",
     ],
     "tools/handoff/MAINTAINER_README.md": [
         "tools/handoff/queue.py",

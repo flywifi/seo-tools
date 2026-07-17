@@ -120,6 +120,39 @@ Files that the injection guard quarantines are never routed. Approved files are 
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.
 
+## The Knowledge folder and claude.ai Projects (dual projection)
+
+`tools/project_docs.py` keeps the claude.ai knowledge pack (the eight knowledge files, the system
+prompt, and the combined pack, all guarded against their source engines by drift invariant 47)
+present in the hub's `Knowledge/` folder, two ways:
+
+- **Local lane (default, zero network):** `python3 tools/project_docs.py project --hub PATH` (or
+  the Refresh button on the wizard `/drive-hub` screen, or a queued `project_docs` job) copies
+  each pack file into `Knowledge/` with its freshness stamp intact. Any chat using the Google
+  Drive connector then reads the CURRENT copy at question time.
+- **Google Docs lane (opt-in, `--api`, needs the Drive API credential from `/drive-hub`):**
+  creates one real Google Doc per pack file via the Drive import conversion and, on every
+  re-projection, UPDATES the same Doc (the doc id is remembered locally), because Google Docs
+  added to a **private** Project sync live from Drive — so the Project updates itself with no
+  re-upload. This uses the local machine's own `drive.file` credential; the cloud-connector
+  create-only rule does not bind the local machine (same class as the ticket archive move).
+
+Setting up the self-updating Project, once:
+
+1. Run the projection (either lane) so `Knowledge/` is populated.
+2. On claude.ai, create a **private** Project (Drive files can only be added to private projects).
+3. Add the `Knowledge/` files from Google Drive to the project's knowledge.
+4. Paste `implementation/claude/project/system-prompt.md` as the project instructions.
+5. Done: past roughly 150K tokens of knowledge, Projects switch to retrieval mode automatically,
+   so a rich pack stays usable. (Source: the Claude Help Center articles "What are Projects" and
+   the Google Workspace connectors article above, checked 2026-07-16.)
+
+Staleness is split deliberately: engines to pack is drift invariant 47
+(`tools/projection_manifest.py`, runs in CI); pack to Drive is `python3 tools/project_docs.py
+check` (local state, surfaced on `/drive-hub`), because CI cannot see Drive and a fail-closed
+invariant must never depend on out-of-repo state. The static pack and its export path continue
+unchanged for non-Drive users and shared projects.
+
 ## Boundaries
 
 - **Credentials never enter the hub.** `api-credentials.local.json` and everything the secret
