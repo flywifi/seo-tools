@@ -172,8 +172,13 @@ def cmd_reconcile(root=ROOT, out=None):
     report = reconcile_data(root)
     out_path = root / (out or DEFAULT_OUT)
     wrote = write_seed(report["unregistered"], out_path) if report["unregistered"] else 0
-    summary = {**report, "seed_file": str(out_path.relative_to(root)) if wrote else None,
-               "seed_entries_written": wrote}
+    # An absolute --out outside the repo is fine (e.g. a scratch dir); fall back to the
+    # absolute string instead of crashing on relative_to.
+    try:
+        seed_ref = str(out_path.relative_to(root)) if wrote else None
+    except ValueError:
+        seed_ref = str(out_path) if wrote else None
+    summary = {**report, "seed_file": seed_ref, "seed_entries_written": wrote}
     print(json.dumps(summary, indent=2))
     if wrote:
         print(f"\nNext (human step): python3 tools/source_currency.py seed-sources {summary['seed_file']}",

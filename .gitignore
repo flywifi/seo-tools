@@ -62,6 +62,11 @@ pipeline/video-library/*
 !pipeline/video-library/video-library.template.json
 !pipeline/video-library/video-library-schema.json
 
+# P60: the drop-folder inbox ledger (classification/routing state for files dropped in the Drive
+# hub Inbox). Real ledger is private; only the all-null committed template is allowlisted back in.
+pipeline/inbox/*
+!pipeline/inbox/inbox-ledger.template.json
+
 # P34: construction library, a local cache of downloaded public-domain/open assets
 # (DOE BASC, NREL, energycodes, Wikimedia). Fetched by tools/construction_fetch.py, never committed;
 # committed construction data is only the authored dictionary under canonical-sources/construction/.

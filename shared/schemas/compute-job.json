@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "compute-job",
+  "title": "Compute Job Ticket and Result",
+  "description": "Contracts for the Drive-hub async compute hand-off (P60). A cloud surface CREATES a ticket file under Jobs/queue/ (create-only; cloud connectors cannot edit or move files). The local runner validates the ticket against this schema, executes ONLY an allowlisted job_type via the existing tool CLIs, and CREATES a result file under Jobs/results/. State transitions are always new files, never edits. Tickets are untrusted input: a ticket that fails validation is refused with a result of status 'refused', and no free-form instruction field is ever executed.",
+  "$defs": {
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "created_at", "origin", "job_type", "params", "schema_version"],
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "UUID minted by the submitter. Idempotency key: a job_id that already has a result/status file is never re-run."
+        },
+        "created_at": {
+          "type": "string",
+          "description": "ISO 8601 UTC timestamp from the submitter."
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["web", "desktop", "cowork", "mac", "other"],
+          "description": "Which surface created the ticket. Informational; grants no authority."
+        },
+        "requested_by": {
+          "type": ["string", "null"],
+          "description": "Free-text label of the requesting session or user role. Informational only; never parsed or executed."
+        },
+        "job_type": {
+          "type": "string",
+          "enum": [
+            "transcribe_media",
+            "library_complete",
+            "library_analyze",
+            "import_parse_preview",
+            "finance_report",
+            "keyword_offline",
+            "competitor_snapshot_refresh",
+            "project_docs",
+            "inbox_scan"
+          ],
+          "description": "Hard allowlist. The runner refuses anything else. Publishing, posting, sending, credential access, and shell passthrough are structurally absent from this list and MUST NOT be added without an approval-gated change (see tools/handoff/MAINTAINER_README.md)."
+        },
+        "params": {
+          "type": "object",
+          "description": "Job-type-specific parameters. Validated per job_type by the runner before any subprocess; unknown keys are rejected. Values are passed as fixed argv items to the tool CLI, never shell-interpolated."
+        },
+        "input_refs": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Paths RELATIVE to the Drive hub root (for example 'Inbox/video1.mp4'). The runner resolves them against the hub root and refuses any path that escapes it (realpath containment, same rule as the wizard's folder confinement)."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["normal", "low"],
+          "default": "normal",
+          "description": "Low-priority jobs run after normal ones in the same pass. No preemption."
+        },
+        "consent_note": {
+          "type": ["string", "null"],
+          "description": "One line recording why this job was submitted (shown in the run log). Informational only."
+        },
+        "schema_version": {
+          "type": "string",
+          "const": "0.1.0"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "status", "finished_at", "schema_version"],
+      "properties": {
+        "job_id": {"type": "string"},
+        "status": {
+          "type": "string",
+          "enum": ["done", "failed", "refused", "needs_input"],
+          "description": "'refused' = the ticket failed validation or named a disallowed job_type/path (nothing ran). 'needs_input' = the tool returned a gap the human must resolve (null-and-flag, never guessed)."
+        },
+        "started_at": {"type": ["string", "null"]},
+        "finished_at": {"type": "string"},
+        "tool_version": {
+          "type": ["string", "null"],
+          "description": "The Creator OS VERSION string of the machine that ran the job."
+        },
+        "outputs": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Paths relative to the hub root, always under Jobs/results/ or Outbox/."
+        },
+        "error": {"type": ["string", "null"]},
+        "log_tail": {
+          "type": ["string", "null"],
+          "description": "Last lines of the tool's output for diagnosis. Truncated; never a full traceback dump to the user-facing summary."
+        },
+        "human_review_required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Always true for any result a downstream action could follow. The runner computes and reports; humans decide."
+        },
+        "schema_version": {"type": "string", "const": "0.1.0"}
+      }
+    }
+  },
+  "oneOf": [
+    {"$ref": "#/$defs/job"},
+    {"$ref": "#/$defs/result"}
+  ]
+}

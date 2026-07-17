@@ -493,11 +493,16 @@ def check_agent_contracts():
 
 
 def check_schema_verification_fields():
-    """Invariant 15: agent output schemas have verification envelope fields."""
+    """Invariant 15: agent output schemas have verification envelope fields.
+
+    The skip set lists DATA CONTRACTS that live in shared/schemas/ but are not agent output
+    schemas: the envelope definitions themselves, and compute-job.json (the P60 job ticket/result
+    contract; tickets are validated inputs, not agent findings, so a verification envelope would
+    be meaningless on them)."""
     schemas_dir = ROOT / "shared" / "schemas"
     if not schemas_dir.exists():
         return
-    skip = {"verification-envelope.json", "verification-decision.json"}
+    skip = {"verification-envelope.json", "verification-decision.json", "compute-job.json"}
     required_props = ["minority_report", "confidence_evidence", "source_citations"]
     for schema_file in sorted(schemas_dir.glob("*.json")):
         if schema_file.name in skip:
@@ -662,6 +667,7 @@ PIPELINE_TRACKED_ALLOWLIST = {
     "pipeline/user-context/voice-profile.json",
     "pipeline/video-library/video-library.template.json",
     "pipeline/video-library/video-library-schema.json",
+    "pipeline/inbox/inbox-ledger.template.json",
 }
 
 # Invariant 20 (second half): file types that must never be tracked anywhere in the repo

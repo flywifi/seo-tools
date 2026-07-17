@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-16",
+  "last_registry_update": "2026-07-17",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5287,6 +5287,40 @@
       "used_by": [
         "docs/SETUP_MAC.md"
       ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-desktop-sync-modes",
+      "name": "Google Drive Help - Stream and mirror files with Drive for desktop",
+      "url": "https://support.google.com/drive/answer/13401938",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-desktop-macos",
+      "name": "Google Drive Help - Use Drive for desktop on macOS",
+      "url": "https://support.google.com/drive/answer/12178485",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later.",
+      "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",

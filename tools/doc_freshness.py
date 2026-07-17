@@ -56,6 +56,9 @@ DOC_SOURCES = {
     "skills/atoms/invoice-generate/MAINTAINER_README.md": ["tools/finance.py"],
     "skills/atoms/payment-reconcile/MAINTAINER_README.md": ["tools/finance.py"],
     "skills/atoms/proposal-price/MAINTAINER_README.md": ["tools/finance.py"],
+    # P60: the Drive-hub spec is bound to the job contract it documents; the tools/handoff
+    # sources join this list as they ship (P60-2/3).
+    "docs/DRIVE-HUB.md": ["shared/schemas/compute-job.json"],
 }
 
 

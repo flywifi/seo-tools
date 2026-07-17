@@ -12,6 +12,16 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Added
+- The Drive hub convention (`docs/DRIVE-HUB.md`): one Google Drive folder every surface shares,
+  with a fixed layout (Inbox, Store, Jobs, Knowledge, Profile, Outbox), an append-only/create-only
+  write rule, a dated-file naming convention, and the async compute-job contract
+  (`shared/schemas/compute-job.json`: allowlisted job types, idempotency by job id, hub-confined
+  input paths, honest failure results). Three opt-in capabilities scaffold the feature
+  (`compute_handoff_enabled`, `drive_api_polling`, `remote_compute_endpoint`, all default off with
+  degraded-behavior notes), plus the drop-folder inbox ledger template (`pipeline/inbox/`) and two
+  newly registered Google Drive for desktop reference sources.
+
 ### Fixed
 - Currency/accuracy audit across versioning, maintainer files, README/docs, and diagnostic surfaces:
   the dashboard scheduler no longer records a failed platform publish (empty media, missing public

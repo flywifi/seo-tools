@@ -68,6 +68,11 @@
       "sources": {
         "tools/finance.py": "b12170abd073a8ff90da76f781e457e5f5d74096e766c9dba2b88c809536f74c"
       }
+    },
+    "docs/DRIVE-HUB.md": {
+      "sources": {
+        "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525"
+      }
     }
   }
 }

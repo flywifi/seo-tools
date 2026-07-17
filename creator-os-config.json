@@ -294,13 +294,28 @@
       "enabled": false,
       "description": "Enables the YouTube Analytics API read connector (P45) for the creator's OWN audience-retention ('which parts were most watched') and channel stats, scope yt-analytics.readonly. Distinct from youtube_api (metadata/Data API). Gated additionally by content_import_live for any live call. Revenue is NOT available here for a solo creator (content-owner reports only); use the Studio CSV export.",
       "requires": "OAuth with the yt-analytics.readonly scope for the creator's own channel."
+    },
+    "compute_handoff_enabled": {
+      "enabled": false,
+      "description": "P60. Master switch for the async compute hand-off: the local machine's watcher/runner picks up job tickets from the Drive hub Jobs/queue and runs allowlisted local tools (transcription, library analysis, import previews, finance reports). Off by default; with it off, no watcher pass runs any job from any transport.",
+      "requires": "The Drive hub folder configured (wizard /drive-hub) and one transport: Google Drive for desktop syncing the hub (default), the opt-in drive_api_polling capability, or the opt-in remote_compute_endpoint capability."
+    },
+    "drive_api_polling": {
+      "enabled": false,
+      "description": "P60 Transport B. Lets the watcher poll the Drive API directly (changes.list, drive.file scope) instead of reading a locally synced folder. Only needed when Google Drive for desktop is not installed.",
+      "requires": "compute_handoff_enabled + a Google OAuth desktop client connected on the wizard /drive-hub screen (token stored locally, gitignored)."
+    },
+    "remote_compute_endpoint": {
+      "enabled": false,
+      "description": "P60 Transport C. Exposes submit_compute_job / job_status on the remote MCP endpoint so a cloud session can hand off and track jobs live. The endpoint itself must be deployed per implementation/gpt/mcp-connector/README.md (TLS reverse proxy + auth in front; never exposed bare).",
+      "requires": "compute_handoff_enabled + a deployed remote MCP endpoint behind HTTPS and authentication."
     }
   },
   "degraded_behavior": {
     "mcp_server_disabled": "All MCP tools (cache_query, competitor_scan, etc.) are unavailable. Use knowledge-only spokes. Competition estimates remain [estimated]. Source staleness cannot be checked automatically.",
     "competitor_snapshots_disabled": "deep-competitor-scan falls back to live web-intel-engine mode. No ytInitialPlayerResponse tag extraction. Output labeled [web-mode: no snapshot saved].",
     "keyword_cache_disabled": "keyword lookups use in-context knowledge from canonical-sources/ loaded into the system. Slower and token-intensive. Build the cache for faster results.",
-    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null \u2014 not provided]. Never fabricated.",
+    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null — not provided]. Never fabricated.",
     "voice_profile_disabled": "Scripts and captions use seed vocabulary from voice-engine.md. Personalized phrases from actual content are not available yet.",
     "channel_context_disabled": "Rate recommendations use industry benchmark ranges from canonical-sources/rate-benchmarks. Not grounded in actual channel performance.",
     "wolfram_disabled": "Exact computation unavailable. Arithmetic results are best-effort estimates labeled [estimated]. Never present unverified arithmetic as precise.",
@@ -339,12 +354,23 @@
     "background_update_check_disabled": "background_update_check is off (the default). No automated check for a newer Creator OS release runs and no background network call is made. You can still check by hand any time with `python3 tools/update_check.py report` or the update_check MCP tool. Turn it on in creator-os-config.local.json or one click at the setup wizard's /updates screen; once on, tools/update_notify.py runs a read-only release poll and shows one passive notice only when you are behind. Applying an update is always your explicit `python3 tools/update.py` run and never touches your .local data.",
     "content_import_disabled": "content_import is off (the default). Read-only parsing of a downloaded export (tools/import_parse.py) and the proposal-only video-import/transcript-import atoms still run, but the wizard /import flow and store persistence are not offered. Turn it on in creator-os-config.local.json or at the wizard /import screen. All imported data stays local and gitignored.",
     "content_import_live_disabled": "content_import_live is off (the default). No live-API importer (tools/importers/) makes a network call. Use the export-bundle tier instead: download your own data (Takeout / YouTube Studio CSV / Instagram or TikTok data export / Pinterest), then import the folder. Turn the live tier on only after setting up per-platform OAuth read credentials for your own account.",
-    "youtube_analytics_disabled": "youtube_analytics is off. Audience retention ('which parts were most watched') is not pulled live from the YouTube Analytics API. Retention still imports from a YouTube Studio retention CSV export (export_bundle tier). Off YouTube, retention is not available on any platform and is null-and-flagged, never fabricated."
+    "youtube_analytics_disabled": "youtube_analytics is off. Audience retention ('which parts were most watched') is not pulled live from the YouTube Analytics API. Retention still imports from a YouTube Studio retention CSV export (export_bundle tier). Off YouTube, retention is not available on any platform and is null-and-flagged, never fabricated.",
+    "compute_handoff_disabled": "compute_handoff_enabled is off (the default). No job ticket is picked up or executed from any transport; the Drive hub Jobs folder is inert. Heavy compute (transcription, library analysis) runs only when you start it yourself in a local session. Turn it on in creator-os-config.local.json or one click at the setup wizard's /compute screen.",
+    "drive_api_polling_disabled": "drive_api_polling is off (the default). The watcher reads only the locally synced Drive hub folder (Google Drive for desktop). If the sync app is not installed and this stays off, queued jobs wait untouched; nothing polls the Drive API and no OAuth token is used.",
+    "remote_compute_endpoint_disabled": "remote_compute_endpoint is off (the default). The remote MCP endpoint does not register the submit_compute_job / job_status tools, so cloud sessions cannot enqueue or track jobs over MCP; the Drive-file path (create a ticket in Jobs/queue) still works when compute_handoff_enabled is on."
   },
   "update": {
     "_comment": "Self-update channel (P48). 'stable' follows released versions (the main branch); 'nightly' follows an in-progress/experimental branch and may be rough. Override the channel (and, for nightly, its branch) in creator-os-config.local.json, or via the CREATOR_OS_UPDATE_CHANNEL / CREATOR_OS_UPDATE_BRANCH env vars. Until a GitHub release exists, tools/update_check.py compares your installed commit against the resolved branch and shows 'behind by N commits' only when you opt into the background check. Applying stays your explicit tools/update.py run.",
     "channel": "stable",
-    "channels": { "stable": "main", "nightly": "main" }
+    "channels": {
+      "stable": "main",
+      "nightly": "main"
+    }
   },
-  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 22 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance \u2014 without any local tools."
+  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 22 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools.",
+  "drive_hub": {
+    "_comment": "P60. The Google Drive hub: one folder every surface shares. folder_name is the folder Creator OS creates/expects in My Drive; local_mirror is the ABSOLUTE path of that folder as synced by Google Drive for desktop on this machine (set by the wizard /drive-hub screen, stored in creator-os-config.local.json, never committed). Subfolders are fixed by convention: Inbox, Store, Jobs/{queue,results,archive}, Knowledge, Profile, Outbox. See docs/DRIVE-HUB.md.",
+    "folder_name": "Creator OS",
+    "local_mirror": null
+  }
 }
