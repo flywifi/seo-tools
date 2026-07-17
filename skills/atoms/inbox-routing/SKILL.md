@@ -113,7 +113,13 @@ BLOCK verdict seals the file into `Inbox/Quarantine/<date>/` (never routed, find
 poisoned document is contained before anyone opens it. This is the pattern tier only, it catches
 the known phrasings; when this atom runs in a Claude session it applies the full injection guard,
 which stays authoritative. The offline verdict is carried as `offline_pattern_scan`, never as
-`injection_scan_result` (the session field).
+`injection_scan_result` (the session field). Fail-closed for text: a transcript the offline tier
+cannot read as text (a byte payload that trips the binary sniff, an oversize file, or the tool
+being unavailable) is NOT routed unscreened; it is held for a session, since a real transcript is
+text and an unreadable one is a screening-evasion signal. The two sanctioned writers never
+overwrite: a same-name file in a dated `Processed/` or `Quarantine/` folder is kept alongside as
+`name (2)`, and `approve` refuses any proposal path that resolves into the sealed area or outside
+the Inbox (realpath containment, robust to `..` and case-insensitive filesystems).
 
 ## Failure modes
 - Unreadable or encrypted file: listed with a gap note, left in place.

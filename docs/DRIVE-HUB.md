@@ -149,11 +149,16 @@ during the scan, so a booby-trapped document, one carrying hidden instructions a
 read, is caught before anyone opens it. A QUARANTINE or BLOCK verdict moves the file into a sealed
 `Inbox/Quarantine/<date>/` area (the `sweep_quarantine` writer) that the scan never re-reads and no
 route can ever reach, and records the exact matched phrases in the ledger for human review. Nothing
-is deleted; a false positive sits intact in Quarantine to review or move back. This is the pattern
+is deleted; a false positive sits intact in Quarantine to review or move back, and a same-name file
+never overwrites an already-sealed one (it is kept alongside as `name (2)`). This is the pattern
 tier only, the same offline check that screens job-ticket free text and import previews; the full
-injection guard still runs in a Claude session and remains authoritative. There are two sanctioned
-Inbox writers: approve (handled files to `Inbox/Processed/`) and the quarantine sweep (sealed files
-to `Inbox/Quarantine/`).
+injection guard still runs in a Claude session and remains authoritative. Because a transcript is a
+text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
+an oversize file, or the tool being unavailable) is held for a session rather than routed
+unscreened. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
+and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
+never overwrite a same-name file, and refuse any path that resolves into the sealed area or outside
+the Inbox.
 
 ## The Knowledge folder and claude.ai Projects (dual projection)
 

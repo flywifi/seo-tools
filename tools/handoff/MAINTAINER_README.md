@@ -67,15 +67,25 @@ against the local ledger, classifies each new file by FORMAT (`shared/docintel/c
 proposes a route only for categories the rules table
 (`shared/docintel/inbox_rules.json`) marks `category_source: "format"` (transcripts, media,
 export archives). Content-gated categories (contracts, pitches, invoices) are listed as
-`needs_review` with `classified_as: null` — this tool never pretends to have read a document, and
-the injection guard runs only in a Claude session (the atom). `approve` is the ONLY writer: it
-re-verifies each sha256 (a file changed since its scan is refused), moves approved files to
-`Inbox/Processed/<date>/`, and appends to the gitignored ledger
-(`pipeline/inbox/inbox-ledger.local.json`) atomically. The `inbox_scan` job type wires the same
-scan into the runner (read-only; the proposal lands in the job result for review from any
-surface; approval stays on the wizard `/inbox` screen with its single-use batch token).
+`needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
+FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
+(`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned
+writers, and both move by REALPATH containment (never a raw `hub / rel`, so `..`, symlinks, and a
+case-insensitive filesystem cannot escape or dodge the sealed area) and never overwrite a same-name
+file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
+- `approve` moves handled files to `Inbox/Processed/<date>/`, re-verifying each sha256 (a file
+  changed since its scan is refused) and refusing any path that resolves into `Inbox/Quarantine/`
+  or outside `Inbox/`; it appends to the gitignored ledger atomically.
+- `sweep_quarantine` seals QUARANTINE/BLOCK files into `Inbox/Quarantine/<date>/` with their
+  findings (the second writer; details under "The sealed Quarantine area" below).
+Fail-closed for text (P61 audit): a transcript the offline tier could not read as text (binary
+sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
+The `inbox_scan` job type wires the same scan into the runner (read-only; the proposal lands in the
+job result for review from any surface; approval stays on the wizard `/inbox` screen with its
+single-use batch token).
 `<!-- verify: tools/handoff/inbox.py::scan -->`
 `<!-- verify: tools/handoff/inbox.py::approve -->`
+`<!-- verify: tools/handoff/inbox.py::_confined_inbox_file -->`
 
 ## Free-text screening (P61, SEC-ALL)
 `validate_ticket` runs the offline injection pattern tier (`tools/injection_scan.py`) over every

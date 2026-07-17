@@ -78,6 +78,17 @@ work after the baseline sits under Unreleased.
   directly (append-only), so export-and-you-save is no longer the only web write path.
 
 ### Fixed
+- Adversarial audit of the P61 ingest-screening and quarantine code closed five confirmed defects,
+  each now pinned by an `inbox.py` selftest regression: a poisoned transcript that tripped the
+  binary sniff (a NUL or high-byte payload) was format-routed WITHOUT the offline screen -- a
+  text-format file the tier cannot read is now held for a session, never routed unscreened; the
+  quarantine sweep and the approve move overwrote a same-name file in a dated folder (destroying
+  a sealed false positive or an earlier approved file) -- both now keep a collision as `name (2)`
+  and never delete; `approve` moved a file by a raw `hub / rel` with no confinement (a `..`
+  proposal escaped the hub) and its Quarantine lock was a case-sensitive string match a lowercase
+  path could dodge on a case-insensitive filesystem -- both are now realpath containment; and the
+  screener degraded fail-OPEN (routing files when the tool could not load, contradicting its own
+  docstring) -- text-format routing is now fail-closed. Behavior-only hardening; counts unchanged.
 - The `library_complete` job builder passed positional arguments the CLI rejects, so every queued
   job of that type failed with an argparse error; it now passes `--export-dir`, pinned by a
   selftest that runs the built argv. The `transcribe_media` builder writes its SRT under
