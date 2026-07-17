@@ -46,6 +46,15 @@ With a working connector, Class B and Class C capabilities run for that surface:
 machine executes the tools, enforces the capability flags, and applies the consent gates. Without
 a connector, every non-Anthropic surface is knowledge-only (Class A) via the pasted packs.
 
+**Compute hand-off over this endpoint (P60 Transport C, opt-in).** When BOTH the
+`remote_compute_endpoint` and `compute_handoff_enabled` capabilities are on, the endpoint also
+registers `submit_compute_job` and `job_status`: a cloud session can queue an allowlisted local
+job (transcription, library analysis, import previews, read-only finance reports) and poll its
+result, live, without Drive latency. The same queue/runner as the Drive transports executes it, so
+the same guarantees hold: allowlist-only, idempotent by job id, hub-confined inputs, nothing posts
+or reads credentials from a job, results carry human_review_required. With either flag off, the
+tools refuse with a plain message. See `docs/DRIVE-HUB.md`.
+
 ## Keeping a connected setup current (the update story for this path)
 
 A connected setup is the only browser-AI path that gets true background updates: the AI calls your

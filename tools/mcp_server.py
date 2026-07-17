@@ -1603,6 +1603,82 @@ def launch_setup() -> str:
     }, indent=2)
 
 
+def _handoff_gates() -> str | None:
+    """Both P60 Transport C gates must be on; returns a plain refusal string or None."""
+    from handoff import runner as _runner
+    if not _runner.capability_enabled("remote_compute_endpoint"):
+        return ("remote_compute_endpoint is off (the default). This tool is part of the opt-in "
+                "remote compute endpoint; enable the capability in creator-os-config.local.json "
+                "only on a deployment secured per implementation/gpt/mcp-connector/README.md.")
+    if not _runner.handoff_enabled():
+        return ("compute_handoff_enabled is off (the default). Turn it on at the setup wizard's "
+                "/compute screen before queueing jobs.")
+    return None
+
+
+@mcp.tool()
+def submit_compute_job(job_type: str, params_json: str = "{}", input_refs_json: str = "[]") -> str:
+    """Queue an allowlisted compute job for the local machine (P60 Transport C, doubly gated).
+
+    Creates a validated ticket in the Drive hub's Jobs/queue via the local queue writer; the
+    scheduled watcher/runner executes it and writes a result to Jobs/results. Only the job types in
+    shared/schemas/compute-job.json can run (transcription, library analysis, import previews,
+    read-only finance reports, offline competitor parse, projections, inbox scan) — nothing can
+    post, publish, send, or read credentials from a job, and every result carries
+    human_review_required. Refuses unless BOTH remote_compute_endpoint and compute_handoff_enabled
+    are on and the Drive hub is configured (wizard /drive-hub). Returns the ticket JSON or a plain
+    error."""
+    gate = _handoff_gates()
+    if gate:
+        return json.dumps({"error": gate})
+    from handoff import queue as _hq
+    from handoff import watcher as _watcher
+    hub, note = _watcher.resolve_hub(None)
+    if hub is None:
+        return json.dumps({"error": note})
+    try:
+        params = json.loads(params_json or "{}")
+        input_refs = json.loads(input_refs_json or "[]")
+    except ValueError as exc:
+        return json.dumps({"error": f"params_json/input_refs_json is not valid JSON: {exc}"})
+    try:
+        ticket = _hq.submit(hub, job_type, params=params, input_refs=input_refs, origin="other",
+                            requested_by="remote-mcp")
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)})
+    return json.dumps({"result": "queued", "job_id": ticket["job_id"],
+                       "note": "The local watcher runs this on its next pass; check with "
+                               "job_status(job_id)."}, indent=2)
+
+
+@mcp.tool()
+def job_status(job_id: str) -> str:
+    """Report the state of a queued compute job (P60 Transport C, read-only, doubly gated).
+
+    Returns the result JSON from Jobs/results when the job has run, 'pending' while its ticket
+    waits in Jobs/queue, or 'unknown' if neither exists (never guessed)."""
+    gate = _handoff_gates()
+    if gate:
+        return json.dumps({"error": gate})
+    from handoff import queue as _hq
+    from handoff import watcher as _watcher
+    hub, note = _watcher.resolve_hub(None)
+    if hub is None:
+        return json.dumps({"error": note})
+    rp = _hq.result_path(hub, job_id)
+    if rp.exists():
+        try:
+            return rp.read_text(encoding="utf-8")
+        except OSError as exc:
+            return json.dumps({"error": f"result unreadable: {exc}"})
+    for entry in _hq.read_queue(hub):
+        if (entry["data"] or {}).get("job_id") == job_id:
+            return json.dumps({"job_id": job_id, "status": "pending",
+                               "note": "waiting for the local watcher's next pass"})
+    return json.dumps({"job_id": job_id, "status": "unknown",
+                       "note": "no ticket or result found for this id in the configured hub"})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
