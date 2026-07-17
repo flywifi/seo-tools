@@ -13,6 +13,39 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- The offline injection pattern tier (`tools/injection_scan.py`): a stdlib implementation of the
+  injection-guard engine's machine-scoreable spec (eight categories with per-match points, the
+  SOCIAL co-occurrence rule, the CLEAN/REVIEW/QUARANTINE/BLOCK thresholds, the engine's record
+  shape), with a category-sync selftest so the rulebook and the tool cannot drift. Wired as a
+  buffer on every unattended ingest surface: job-ticket free text is screened in
+  `queue.validate_ticket` (fail-closed), the offline inbox scan reads text files and seals
+  QUARANTINE/BLOCK verdicts into `Inbox/Quarantine/<date>/` via `sweep_quarantine` (the second
+  sanctioned Inbox writer; the sealed subtree is skipped by scan, refused by approve, unreachable
+  by follow-ups and rules), import previews carry a pattern summary, and the wizard renders each
+  finding's matched phrasing escaped for human review. The verdict travels as
+  `offline_pattern_scan`, never the session guard's field; the full guard in a session stays
+  authoritative. Scenario S10 runs a poisoned file through the live catch-and-seal chain.
+- The two-step work order: approving an inbox batch files it, then a second screen lists the
+  exact follow-up jobs (per-item checkboxes, an "Anything to change?" note carried verbatim as
+  the ticket `consent_note` -- data for review, never parsed or executed) and a second click
+  queues only the checked work. Background-work ON/OFF banners show the compute switch state and
+  where to change it on the work-order and inbox screens. New `transcript_normalize` job type
+  (segments, silence gaps, suggested chapters for a dropped transcript). Direct library saves
+  exist only behind the new default-off `job_store_writes_enabled` capability (62 capabilities,
+  47 degraded notes) whose wizard toggle requires an acknowledged risk warning; the runner
+  re-reads the LOCAL capability at build time, so a forged ticket flag alone can never enable a
+  write.
+- The offline keyword tool (`tools/keyword_offline.py`): one deterministic, zero-network report
+  over all eight committed keyword-library files plus the scoop cache, with a structural honesty
+  envelope (`search_volumes` always null, `data_basis` naming the local sources). The
+  `keyword_offline` job type is now wired -- every allowlisted job type runs (supersedes the
+  "remains refused" note recorded in ADR 0043).
+- Outbox delivery: report-style done jobs also write their JSON output to
+  `<hub>/Outbox/<job_type>.<stamp>Z.mac.json` (failed jobs never deliver), and the Drive API
+  transport uploads staged Outbox artifacts. A real two-tier `--selftest` for
+  `tools/mcp_server.py` (package-independent checks always; live registered-tool count == static
+  source count when the mcp package is installed -- first live-import proof: 58 tools).
+
 - The Drive hub convention (`docs/DRIVE-HUB.md`): one Google Drive folder every surface shares,
   with a fixed layout (Inbox, Store, Jobs, Knowledge, Profile, Outbox), an append-only/create-only
   write rule, a dated-file naming convention, and the async compute-job contract
@@ -45,6 +78,12 @@ work after the baseline sits under Unreleased.
   directly (append-only), so export-and-you-save is no longer the only web write path.
 
 ### Fixed
+- The `library_complete` job builder passed positional arguments the CLI rejects, so every queued
+  job of that type failed with an argparse error; it now passes `--export-dir`, pinned by a
+  selftest that runs the built argv. The `transcribe_media` builder writes its SRT under
+  `Jobs/results/` instead of littering `Inbox/Processed/`. The `project_docs` API lane read the
+  stored Google access token verbatim (401 after about an hour); it now refreshes and persists
+  via the watcher's proven oauth path, degrading to an honest reconnect note on a dead grant.
 - Currency/accuracy audit across versioning, maintainer files, README/docs, and diagnostic surfaces:
   the dashboard scheduler no longer records a failed platform publish (empty media, missing public
   URL, upload failure, missing board, disallowed privacy) as "published" — success is keyed on the

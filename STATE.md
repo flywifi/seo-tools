@@ -2,7 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P60 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P61 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P61: close the non-Mac gaps (ADR 0044). The offline injection pattern tier
+  (`tools/injection_scan.py`, the engine's machine-scoreable spec verbatim with a category-sync
+  selftest) screens every unattended ingest surface: ticket free text (fail-closed in
+  `validate_ticket`), the inbox scan (QUARANTINE/BLOCK files sealed into `Inbox/Quarantine/<date>/`
+  by `sweep_quarantine`, the second sanctioned writer, behind four resurrection locks), and import
+  previews; findings render escaped with the exact matched phrasing, and the verdict field is
+  `offline_pattern_scan` (the session guard stays authoritative). Approval became a two-step work
+  order (Approve files the batch; a second screen lists the exact follow-up jobs with checkboxes
+  and an amendment note carried as `consent_note` -- data, never argv), with GATE-QUEUE switch
+  banners at multiple points. New `transcript_normalize` job type; the broken `library_complete`
+  builder fixed (argparse-accepted proof case); transcribe output moved under `Jobs/results/`;
+  direct library saves gated behind the acknowledged local `job_store_writes_enabled` capability
+  (62 capabilities, 47 degraded notes) re-read by the runner at build time.
+  `tools/keyword_offline.py` makes the last refused job type real (all 8 library files + scoop
+  cache, `search_volumes` always null). The `project_docs` API lane refreshes and persists its
+  token; report-style done jobs deliver to the hub `Outbox/` (both transports).
+  `tools/mcp_server.py` gained its first selftest (two tiers; sandbox full-tier proof: 58 tools
+  live == static). Mac-dependent items stay on the ADR 0043 hands-on checklist untouched.
 
 - P60: the omnichannel Drive hub (ADR 0043). One shared Drive folder ("Creator OS": Inbox, Store,
   Jobs, Knowledge, Profile, Outbox; spec `docs/DRIVE-HUB.md`) with an append-only/create-only

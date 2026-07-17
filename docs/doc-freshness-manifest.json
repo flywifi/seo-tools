@@ -83,7 +83,7 @@
         "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "06b60a622c55793dc7083668ae4088041badc88c05e284501ecddb74968171bf",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "31fcfa77a149f209d6b6b5cdc7e1f7e893f34171390b0cd25ffb6a9f336bc155"
+        "tools/project_docs.py": "8a17ca6bad599bf573f366f3fb5da66d101b5625ed3cc89af485408e6a71e5f2"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {

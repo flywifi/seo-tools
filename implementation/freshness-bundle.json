@@ -25,7 +25,7 @@
     },
     {
       "file": "implementation/claude/project/knowledge/06-document-spoke.md",
-      "sha256": "cd98316ff72effdaa7ee0e22197d1778ee7e68e343804221c06e36effc84725c"
+      "sha256": "8c01a39f0c150e49981760d7b631578d55040d6ec84c0c1136f032537e1aca0b"
     },
     {
       "file": "implementation/claude/project/knowledge/07-pipeline-spokes.md",
@@ -41,7 +41,7 @@
     },
     {
       "file": "implementation/claude/project/creator-os-combined.md",
-      "sha256": "71cec84b397a34c9eba12a3ceb936d49b78f3207d5365a8ee59e969b300e748f"
+      "sha256": "4608f834a5bf46bf81ae5411914383ff3b52f5899731a5e18b120e55a5636cda"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",

@@ -54,7 +54,7 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 ## Engines required
 
 - `shared/docintel-engine.md` -- core document classification, parsing, and structured extraction. Required for all invocations.
-- `shared/injection-guard-engine.md` -- prompt injection scanning on all ingested content. Required for all invocations.
+- `shared/injection-guard-engine.md` -- prompt injection scanning on all ingested content. Required for all invocations. The engine also defines an offline pattern tier (its machine-scoreable categories, scores, and thresholds) that the local machine runs over dropped and queued text before any session opens it; that tier catches known phrasings only, and the full guard applied in a session stays authoritative.
 - `shared/transcription-engine.md` -- audio and video transcription to text before parse. Required only when the source file is audio or video (mp3, mp4, mov, wav, m4a, or similar).
 - `shared/integrations-engine.md` -- cloud source authentication and file retrieval. Required only when `source` is provided instead of `file_path`.
 
