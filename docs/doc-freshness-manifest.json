@@ -71,7 +71,15 @@
     },
     "docs/DRIVE-HUB.md": {
       "sources": {
-        "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525"
+        "shared/schemas/compute-job.json": "ba3153225b9962d7a4d892b16a3d436adbeb393cdb7ba909b9d680a4d6df2525",
+        "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
+        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296"
+      }
+    },
+    "tools/handoff/MAINTAINER_README.md": {
+      "sources": {
+        "tools/handoff/queue.py": "619ea8f3cd034db8a77a918391f4b80040a62156636b528857bb4041caa387f3",
+        "tools/handoff/runner.py": "ca04167093bf9497af95b708d1d19243d888c4e6c8a972a93a67fce8ca2c8296"
       }
     }
   }

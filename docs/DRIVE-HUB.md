@@ -79,7 +79,7 @@ structurally (not by convention):
 
 1. **Job-type allowlist.** Only the types enumerated in the schema run. Publishing, posting,
    sending, credential access, and shell passthrough are not job types and must never become ones
-   without an approval-gated change (recorded in the handoff maintainer doc when the runner ships).
+   without an approval-gated change (`tools/handoff/MAINTAINER_README.md`).
 2. **Idempotency.** A `job_id` that already has a result is never re-run, so duplicate deliveries
    and double-watchers are harmless.
 3. **Path confinement.** `input_refs` resolve inside the hub root only; anything that escapes is

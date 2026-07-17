@@ -233,7 +233,7 @@ KNOWN_ROOTS = ("shared", "protocols", "skills", "pipeline", "tools", "docs", ".c
                "canonical-sources")
 # High-value tools subtrees required to carry a MAINTAINER_README.md (invariant 50). The skills-only
 # maintainer requirement (invariant 3) does not reach tools/, so these are declared explicitly.
-TOOLS_MAINTAINER_DIRS = ("tools/publishing",)
+TOOLS_MAINTAINER_DIRS = ("tools/publishing", "tools/handoff")
 
 
 def _reference_scan_files():
