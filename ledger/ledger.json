@@ -334,7 +334,19 @@
       "decision": "Audited four surfaces (versioning, maintainer files, README/docs, error logs) for currency and accuracy, aggregating cited research from four read-only agents and re-verifying every load-bearing lead directly before acting. Fixed: the versions.json updated stamp (16 days stale, unvalidated by any guard); publishing maintainer invariants 2 and 3 (still described the pre-P57 caller-only gate and the pre-P58 account_id fallback); seven stale finance.py selftest pass-counts across six finance atom docs (44/59/71 vs the actual 99); docs/WIZARD.md (loopback bind + the P57/P58 request guards); docs/ARCHITECTURE.md (the atoms table presented 27 of 105 installed atoms as the full inventory); and the dashboard scheduler, which recorded any ok:false client refusal outside gated/unconfirmed/auth_required as published with a null post id (now keyed on ok via _apply_dispatch_result, pinned by a new dashboard --selftest). Re-blessed the doc-freshness manifest (invariant 51 green) and bound the finance docs to finance.py so the stale-count class is machine-caught. Recorded as stale-by-decision, unchanged: the CHANGELOG [0.1.0] heading vs the not-yet-published release (and autoUpdate), the unstamped creator-os-release registry entry, and the staged volatile corrections (invariant 43 keeps firing by accepted choice).",
       "rationale": "The automated guards check the version triple and global counts but are blind to dated stamps, selftest pass-counts quoted in prose, release-heading truth, and result-mapping honesty; two advisory signals were firing uncleared. Per review decisions, the release claim and the staged currency corrections stay as-is with documented hand-off commands rather than being changed in-environment.",
       "status": "shipped"
+    },
+    {
+      "id": "P60-omnichannel-drive-hub",
+      "date": "2026-07-17",
+      "decision": "Built the omnichannel Drive hub (ADR 0043): one shared Drive folder (Inbox, Store, Jobs, Knowledge, Profile, Outbox; spec docs/DRIVE-HUB.md) under an append-only/create-only write rule, with the async compute hand-off as ONE queue and runner (tools/handoff/: job-type allowlist, UUID idempotency, hub-confined input paths, per-type timeouts, honest failures) fed by three transports: the Drive-for-desktop watcher (default), opt-in Drive API polling (drive.file, create-only), and opt-in remote MCP submit_compute_job/job_status (58 tools). The drop folder ships as the inbox-routing atom (atoms 105 to 106) over the inbox_rules.json dispatch table and tools/handoff/inbox.py (scan read-only and never guesses content categories; approve is the sole writer with sha256 idempotency), the wizard /inbox flow, and scenario S10 (scenarios 9 to 10, routing pinned absent like profile-import). Projects get the dual projection (tools/project_docs.py): pack copies into Knowledge/ plus an opt-in Google Docs lane updating stable doc ids so a private Project live-syncs; engines-to-pack staleness stays invariant 47, pack-to-Drive is the tool's own check because CI cannot see Drive. All three hub capabilities default OFF; no job path can post, publish, or read credentials. Real-Mac behaviors are the ADR 0043 hands-on checklist, verified at mechanism level only.",
+      "alternatives_rejected": [
+        "Drive files.watch push notifications (needs a public webhook a local tool must not require)",
+        "a resident watcher daemon (the cron/launchd --once convention is the repo standard)",
+        "registering the Drive copies in PROJECTIONS/invariant 47 (CI cannot observe Drive)",
+        "a hub routing row for inbox-routing (standalone atoms trigger on their own descriptions)"
+      ],
+      "adr": "docs/adr/0043-p60-drive-hub-omnichannel.md"
     }
   ],
-  "updated": "2026-07-16"
+  "updated": "2026-07-17"
 }

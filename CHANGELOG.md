@@ -21,6 +21,28 @@ work after the baseline sits under Unreleased.
   (`compute_handoff_enabled`, `drive_api_polling`, `remote_compute_endpoint`, all default off with
   degraded-behavior notes), plus the drop-folder inbox ledger template (`pipeline/inbox/`) and two
   newly registered Google Drive for desktop reference sources.
+- The async compute hand-off itself (`tools/handoff/`): a transport-agnostic queue and runner
+  (atomic writes, duplicate and Drive-conflict-copy suppression, per-type timeouts, structural
+  refusal of anything outside the job-type allowlist, honest failure results) fed by three
+  ingresses — the Drive-for-desktop folder watcher (default; cron/launchd `--once` convention with
+  mirror-folder detection and the wizard `/drive-hub` and `/compute` screens), opt-in Drive API
+  polling (`drive.file` scope, create-only uploads, an injectable zero-network transport, a new
+  `google_drive` OAuth entry and `google_drive_hub` connector), and opt-in remote MCP tools
+  (`submit_compute_job` / `job_status`, doubly gated; the MCP server now exposes 58 tools).
+- The drop folder ("divvy up"): the `inbox-routing` atom (proposal-only, standalone; atoms
+  105 to 106) over the `shared/docintel/inbox_rules.json` dispatch table and the offline scanner
+  `tools/handoff/inbox.py` (scan is read-only and never guesses a content category; approve is the
+  sole writer with sha256 idempotency and a `Processed/<date>/` move), the wizard `/inbox`
+  scan-preview-approve flow with a single-use batch token, the `inbox_scan` job type, the expanded
+  `ingest-route` category taxonomy, and scenario S10 (scenarios 9 to 10) running the real scanner
+  with the routing pinned absent on purpose.
+- The Projects dual projection (`tools/project_docs.py`): a local lane copying the knowledge pack
+  into the hub's `Knowledge/` folder (freshness stamps preserved, pack-to-projection staleness
+  check, a Refresh button on `/drive-hub`, the `project_docs` job type) and an opt-in Google Docs
+  lane that creates real Docs via the Drive import conversion and updates the same doc id on
+  re-projection so a private claude.ai Project live-syncs; the static pack is unchanged. The
+  transitions doc records that web Claude with the Drive connector can create dated export files
+  directly (append-only), so export-and-you-save is no longer the only web write path.
 
 ### Fixed
 - Currency/accuracy audit across versioning, maintainer files, README/docs, and diagnostic surfaces:

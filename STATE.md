@@ -2,7 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P59 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P60 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P60: the omnichannel Drive hub (ADR 0043). One shared Drive folder ("Creator OS": Inbox, Store,
+  Jobs, Knowledge, Profile, Outbox; spec `docs/DRIVE-HUB.md`) with an append-only/create-only
+  write rule, and the async compute hand-off built as ONE queue and runner (`tools/handoff/`:
+  job-type allowlist, UUID idempotency, hub-confined input paths, per-type timeouts, honest
+  failures) behind three transports: the Drive-for-desktop folder watcher (default, cron/launchd
+  `--once`), opt-in Drive API polling (`drive.file` scope, create-only, injectable transport), and
+  opt-in remote MCP `submit_compute_job`/`job_status` (58 tools). The drop folder ships as the
+  `inbox-routing` atom (atoms 105 to 106) + the `inbox_rules.json` dispatch table + the offline
+  scanner `tools/handoff/inbox.py` (never guesses content categories; approve is the sole writer)
+  + the wizard `/inbox` flow, pinned by scenario S10 (scenarios 9 to 10, routing deliberately
+  absent). Projects get a dual projection (`tools/project_docs.py`): pack copies into the hub's
+  `Knowledge/` folder plus an opt-in Google Docs lane that updates stable doc ids so a private
+  Project live-syncs; engines-to-pack staleness stays invariant 47, pack-to-Drive is the tool's
+  own check. All three hub capabilities default OFF (61 capabilities, 46 degraded notes); nothing
+  in any job path can post, publish, or read credentials. Real-Mac behaviors (sync latency,
+  launchd, Docs conversion fidelity) are recorded as the ADR 0043 hands-on checklist, not claimed.
 
 - P59: currency/accuracy audit of four surfaces (versioning, maintainer files, README/docs, error
   logs): every item verified current, brought current, or explicitly recorded as stale-by-decision.

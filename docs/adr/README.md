@@ -51,3 +51,4 @@ added beyond what those records state. New decisions get the next number via
 | [0040](0040-p56-p57-publishing-wizard-audit.md) | P56 P57 Publishing Wizard Audit | 2026-07-16 | Accepted |
 | [0041](0041-p58-audit-hardening.md) | P58 Audit Hardening | 2026-07-16 | Accepted |
 | [0042](0042-p59-currency-accuracy-audit.md) | P59 Currency Accuracy Audit | 2026-07-16 | Accepted |
+| [0043](0043-p60-drive-hub-omnichannel.md) | P60 Omnichannel Drive Hub | 2026-07-17 | Accepted |
