@@ -25,7 +25,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "d36d431621572b22b3373b8834fb54e908fde42efea5dfa758665d0072609db1",
+        "tools/wizard.py": "db3ab77501badabaa2c12b4fe1fe573f048ee7f3577c2b39d79decae056f5e96",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -81,7 +81,7 @@
         "tools/handoff/runner.py": "1969fcf7426a274c12dc6d5f4310e02dd2c78cd121dad268c77b90e9f4dbd9ec",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
-        "tools/handoff/inbox.py": "373be39c562200a27ed011de20006e69dc7bcce8e3e5a52fa3fc7f58cad1e4f9",
+        "tools/handoff/inbox.py": "ee10e972ce3987f26abad04cee0d6374eed124ee2fdc75202bb59a8c39b37d5b",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
         "tools/project_docs.py": "149b85fd18fcd2990b6d65a9abde3c5ff79a4d2acac14b70264dbba6b9fc866d"
       }
@@ -92,7 +92,7 @@
         "tools/handoff/runner.py": "1969fcf7426a274c12dc6d5f4310e02dd2c78cd121dad268c77b90e9f4dbd9ec",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "063210e2b3de3f9635344d39544eff2772c83626969fcb264b4ffcc0e0949f2b",
-        "tools/handoff/inbox.py": "373be39c562200a27ed011de20006e69dc7bcce8e3e5a52fa3fc7f58cad1e4f9",
+        "tools/handoff/inbox.py": "ee10e972ce3987f26abad04cee0d6374eed124ee2fdc75202bb59a8c39b37d5b",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }

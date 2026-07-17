@@ -95,6 +95,15 @@ Inherits its calling context's class (Class C when the scan runs on the local ma
 folder; the proposal itself is readable on any surface); see `shared/cross-modality-engine.md`. An
 atom carries no independent surface wiring and runs wherever the session that composes it runs.
 
+## Offline pattern tier (P61)
+The scheduled/offline scan (`tools/handoff/inbox.py`) runs the machine-scoreable half of the
+injection guard (`tools/injection_scan.py`) over every text file BEFORE routing. A QUARANTINE or
+BLOCK verdict seals the file into `Inbox/Quarantine/<date>/` (never routed, findings logged), so a
+poisoned document is contained before anyone opens it. This is the pattern tier only, it catches
+the known phrasings; when this atom runs in a Claude session it applies the full injection guard,
+which stays authoritative. The offline verdict is carried as `offline_pattern_scan`, never as
+`injection_scan_result` (the session field).
+
 ## Failure modes
 - Unreadable or encrypted file: listed with a gap note, left in place.
 - No matching rule for a real category: listed as `unknown` with the category shown, so the rules

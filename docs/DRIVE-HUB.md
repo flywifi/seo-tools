@@ -120,6 +120,20 @@ Files that the injection guard quarantines are never routed. Approved files are 
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.
 
+### Ingest screening and the sealed Quarantine area (P61)
+
+Every text-decodable file in the Inbox is run through the offline injection pattern tier
+(`tools/injection_scan.py`, the machine-scoreable half of `shared/injection-guard-engine.md`)
+during the scan, so a booby-trapped document, one carrying hidden instructions aimed at a later AI
+read, is caught before anyone opens it. A QUARANTINE or BLOCK verdict moves the file into a sealed
+`Inbox/Quarantine/<date>/` area (the `sweep_quarantine` writer) that the scan never re-reads and no
+route can ever reach, and records the exact matched phrases in the ledger for human review. Nothing
+is deleted; a false positive sits intact in Quarantine to review or move back. This is the pattern
+tier only, the same offline check that screens job-ticket free text and import previews; the full
+injection guard still runs in a Claude session and remains authoritative. There are two sanctioned
+Inbox writers: approve (handled files to `Inbox/Processed/`) and the quarantine sweep (sealed files
+to `Inbox/Quarantine/`).
+
 ## The Knowledge folder and claude.ai Projects (dual projection)
 
 `tools/project_docs.py` keeps the claude.ai knowledge pack (the eight knowledge files, the system
