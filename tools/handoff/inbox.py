@@ -171,8 +171,12 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
             out["already_handled"] += 1
             continue
         info = _classify.classify(str(p))
+        # pass2_pending (P62): this offline scan is pass 1 only; the authoritative in-session
+        # semantic guard (pass 2) has NOT run on this content yet. A session that later reads the
+        # record runs pass 2 and clears this. A sealed (quarantined) file is terminal -> not pending.
         entry = {"file": f"Inbox/{p.name}", "sha256": digest,
-                 "format_family": info.get("family"), "ext": info.get("ext")}
+                 "format_family": info.get("family"), "ext": info.get("ext"),
+                 "pass2_pending": True}
 
         # SEC-ALL buffer: screen every text-decodable file BEFORE routing or proposing.
         screen_ran = False
@@ -186,6 +190,7 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                 if rec["risk_level"] in ("QUARANTINE", "BLOCK"):
                     entry["note"] = ("offline injection pattern tier flagged this file "
                                      f"({rec['risk_level']}); sealed, never routed")
+                    entry["pass2_pending"] = False  # sealed is terminal; no session pass 2 (SEAL-TERMINAL)
                     out["quarantined"].append(entry)
                     continue
 
@@ -525,6 +530,17 @@ def selftest() -> int:
     ok("F4: approve refuses a path escaping the Inbox, file untouched",
        not er["moved"] and secret.is_file() and
        any("escapes" in r["why"] for r in er["refused"]))
+
+    # P62 two-pass: a routed / needs-review record is pass2_pending (the in-session semantic guard
+    # has not run yet); a sealed file is terminal and never pending (SEAL-TERMINAL).
+    ph = Path(tempfile.mkdtemp()); (ph / "Inbox").mkdir()
+    (ph / "Inbox" / "clean.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\nhello there\n", encoding="utf-8")
+    (ph / "Inbox" / "bad.txt").write_text(poison, encoding="utf-8")
+    pr = scan(ph, ledger={})
+    ok("P62: routed record carries the offline prior and is pass2_pending",
+       all("offline_pattern_scan" in e and e.get("pass2_pending") is True for e in pr["proposals"]))
+    ok("P62: sealed record is terminal, not pass2_pending",
+       pr["quarantined"] and all(e.get("pass2_pending") is False for e in pr["quarantined"]))
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

@@ -80,6 +80,11 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   findings (the second writer; details under "The sealed Quarantine area" below).
 Fail-closed for text (P61 audit): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
+Two-pass handoff (P62): the offline verdict is pass 1. Every routed / needs-review record carries
+its `offline_pattern_scan` prior AND `pass2_pending: true`, so a Claude session that later reads the
+record runs the authoritative semantic guard (pass 2) with the prior as advisory input and writes a
+reconciled verdict. A sealed file is terminal (`pass2_pending: false`); the session never sees it.
+Model: `shared/injection-guard-engine.md` "Two-pass handoff" + `docs/INJECTION-TWO-PASS.md`.
 The `inbox_scan` job type wires the same scan into the runner (read-only; the proposal lands in the
 job result for review from any surface; approval stays on the wizard `/inbox` screen with its
 single-use batch token).
