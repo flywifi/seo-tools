@@ -82,6 +82,16 @@ Never fabricate the result of a step that did not run; null-and-flag and name th
 - No fabrication and no scraping of ToS-limited sources on any surface; ToS-limited values are
   null-flagged identically everywhere.
 - Nothing in the deployed product writes to GitHub for end users on any surface.
+- **Two-pass injection screening availability (P62).** Injection screening is a two-pass pipeline
+  (offline pattern pre-filter → authoritative in-session semantic guard;
+  `shared/injection-guard-engine.md`, `docs/INJECTION-TWO-PASS.md`). Which passes run depends on the
+  surface, recorded as `pass_coverage`: `both` (a local Claude session over hub files — offline
+  first, then the session reads the prior), `offline_only` (a headless runner pass; the record is
+  marked `pass2_pending` and a later session completes pass 2), or `session_only` (claude.ai
+  web/mobile with no local tool — the session guard runs without a prior). On ChatGPT and Gemini the
+  offline pre-filter runs ONLY where a local tool or a deployed MCP is connected, and pass 2 is that
+  engine's own judgment: Creator OS can INSTRUCT the untrusted-content envelope discipline in the
+  packaging but cannot enforce it, and the packaging says so.
 
 ## 6. The `## Cross-modality` declaration every skill carries
 Add this section to each `SKILL.md`. Keep it short; reference this engine for the mechanics.
