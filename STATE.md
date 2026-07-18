@@ -2,7 +2,20 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P61 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P62 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P62: two-pass injection screening (ADR 0045). The offline pattern tier now feeds the authoritative
+  in-session semantic guard: `injection_scan.render_prior` renders the offline verdict as an advisory
+  line, `shared/injection-guard-engine.md` defines the `<untrusted_content>` envelope + reconciliation
+  + fail-safe, drop-folder records carry the `offline_pattern_scan` prior + `pass2_pending`,
+  `inbox.reconcile` + `approve` persist the `{offline_pattern_scan, injection_scan_result,
+  reconciliation}` triple and refuse to route anything the offline tier sealed or the session
+  escalated (the session can never un-seal). New `shared/schemas/injection-scan.json`; the
+  ingest-route/inbox-routing atoms gained the prior + reconciliation contract; per-modality coverage
+  (`both`/`offline_only`/`session_only`) in `shared/cross-modality-engine.md`; ChatGPT/Gemini
+  packaging instruct the discipline (not enforce). `docs/INJECTION-TWO-PASS.md` documents the model;
+  its per-engine vendor-doc citations are research-pending (a research pass hit a session limit).
+  inbox 38/38, injection_scan 23/23, scenarios 10/10, drift clean at 52.
 
 - P61: close the non-Mac gaps (ADR 0044). The offline injection pattern tier
   (`tools/injection_scan.py`, the engine's machine-scoreable spec verbatim with a category-sync

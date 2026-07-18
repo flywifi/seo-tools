@@ -357,7 +357,18 @@
         "flag-in-place quarantine (rejected: a flagged trap left in the working folder can be re-scanned; the sealed area cannot)"
       ],
       "adr": "docs/adr/0044-p61-work-orders-and-ingest-screening.md"
+    },
+    {
+      "id": "P62-two-pass-injection-screening",
+      "date": "2026-07-18",
+      "decision": "Made the offline injection pattern tier a genuine FIRST pass whose verdict feeds the authoritative in-session semantic guard (ADR 0045). The offline result is an advisory prior rendered as category+score (never raw content), wrapped with the content in an <untrusted_content> envelope (data, not instructions); the session writes the authoritative injection_scan_result and a reconciliation {agreed, session_action: confirmed|escalated|downgraded, effective, pass_coverage, note}. approve persists the {offline_pattern_scan, injection_scan_result, reconciliation} triple and refuses to route anything the offline tier sealed (SEAL-TERMINAL) or the session escalated. Coverage varies by modality (both/offline_only/session_only); ChatGPT/Gemini packaging instructs the discipline, not enforces it. Decisions ENG-ALL, RECONCILE-FULL, SEAL-TERMINAL.",
+      "alternatives_rejected": [
+        "keeping the two tiers independent (status quo) -- rejected: the cheap layer never informed the authoritative one",
+        "AI auto-re-examination of sealed files -- rejected (SEAL-TERMINAL): releasing a false positive is a deliberate human move",
+        "treating a single pass as authoritative in isolation -- rejected per OWASP LLM01: no single pass is sufficient (regex misses rewordings; a model judging injected content is itself injectable)"
+      ],
+      "adr": "docs/adr/0045-p62-two-pass-injection-screening.md"
     }
   ],
-  "updated": "2026-07-17"
+  "updated": "2026-07-18"
 }

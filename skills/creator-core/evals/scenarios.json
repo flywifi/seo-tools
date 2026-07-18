@@ -1459,6 +1459,16 @@
               "value": "format"
             },
             {
+              "path": "proposals[0].pass2_pending",
+              "check": "eq",
+              "value": true
+            },
+            {
+              "path": "proposals[0].offline_pattern_scan.risk_level",
+              "check": "eq",
+              "value": "CLEAN"
+            },
+            {
               "path": "needs_review",
               "check": "len_eq",
               "value": 1

@@ -13,6 +13,21 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- Two-pass injection screening (ADR 0045): the offline pattern tier is now a genuine FIRST pass
+  whose verdict feeds the authoritative in-session semantic guard, which can catch reworded attacks
+  the regex misses. `injection_scan.render_prior` renders the offline verdict as a category+score
+  advisory line (never raw content); `shared/injection-guard-engine.md` defines the
+  `<untrusted_content>` envelope, the reconciliation model, and the fail-safe. Drop-folder records
+  carry the `offline_pattern_scan` prior and `pass2_pending`; `inbox.reconcile` combines the prior
+  with the authoritative session verdict, and `approve` persists the `{offline_pattern_scan,
+  injection_scan_result, reconciliation}` triple and refuses to route anything the offline tier
+  sealed (the session can never un-seal it) or the session escalated. Formalized in
+  `shared/schemas/injection-scan.json`; the ingest-route and inbox-routing atoms gained the prior
+  input, the reconciliation output, and the envelope discipline. Coverage varies by modality
+  (`both` / `offline_only` / `session_only`), recorded in `shared/cross-modality-engine.md`; the
+  ChatGPT and Gemini packaging instruct the same discipline as their own second pass (instruct, not
+  enforce). New `docs/INJECTION-TWO-PASS.md` documents the architecture, the availability matrix, and
+  the OWASP-grounded limits (its per-engine vendor-doc citations are research-pending).
 - The offline injection pattern tier (`tools/injection_scan.py`): a stdlib implementation of the
   injection-guard engine's machine-scoreable spec (eight categories with per-match points, the
   SOCIAL co-occurrence rule, the CLEAN/REVIEW/QUARANTINE/BLOCK thresholds, the engine's record
