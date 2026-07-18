@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://creator-os/schemas/injection-scan.json",
+  "title": "Injection scan record and two-pass reconciliation (P62)",
+  "description": "Data contract (NOT an agent output schema; exempt from invariant 15). Formalizes the offline pattern-tier scan record shape defined prose+example in shared/injection-guard-engine.md, and the two-pass reconciliation triple written into the inbox ledger by tools/handoff/inbox.py::approve. The session verdict is authoritative; the offline verdict is an advisory prior and can never un-seal a file the offline tier sealed (SEAL-TERMINAL).",
+  "type": "object",
+  "$defs": {
+    "risk_level": {
+      "type": "string",
+      "enum": ["CLEAN", "REVIEW", "QUARANTINE", "BLOCK"]
+    },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["category"],
+      "properties": {
+        "category": {"type": "string", "enum": ["OVERRIDE", "PERSONA", "AUTHORITY", "TEMPLATE", "EXFIL", "REDIRECT", "ENCODE", "SOCIAL"]},
+        "severity": {"type": "string"},
+        "description": {"type": "string"},
+        "match_count": {"type": "integer", "minimum": 0},
+        "points": {"type": "integer", "minimum": 0}
+      }
+    },
+    "offline_pattern_scan": {
+      "type": "object",
+      "description": "The offline (pass 1) advisory result. Carries NO raw content, so it can be embedded in a session prompt as data without smuggling an injection.",
+      "additionalProperties": true,
+      "required": ["risk_level", "total_score", "patterns_detected"],
+      "properties": {
+        "risk_level": {"$ref": "#/$defs/risk_level"},
+        "total_score": {"type": "integer", "minimum": 0},
+        "patterns_detected": {"type": "array", "items": {"$ref": "#/$defs/pattern"}}
+      }
+    },
+    "reconciliation": {
+      "type": "object",
+      "description": "How the authoritative in-session verdict related to the offline prior.",
+      "additionalProperties": false,
+      "required": ["agreed", "session_action", "effective", "pass_coverage", "note"],
+      "properties": {
+        "agreed": {"type": ["boolean", "null"], "description": "did the session match the prior's flagged/clean direction? null when pass 2 has not run"},
+        "session_action": {"type": ["string", "null"], "enum": ["confirmed", "escalated", "downgraded", null], "description": "escalated = the session found injection the pattern tier missed (the primary value)"},
+        "effective": {"$ref": "#/$defs/risk_level", "description": "the authoritative verdict: the session verdict when present, else the offline level"},
+        "pass_coverage": {"type": "string", "enum": ["both", "offline_only", "session_only"]},
+        "note": {"type": "string"}
+      }
+    },
+    "injection_review": {
+      "type": "object",
+      "description": "The two-pass triple persisted in the inbox ledger on an approved record.",
+      "additionalProperties": false,
+      "required": ["offline_pattern_scan", "injection_scan_result", "reconciliation"],
+      "properties": {
+        "offline_pattern_scan": {"oneOf": [{"$ref": "#/$defs/offline_pattern_scan"}, {"type": "null"}]},
+        "injection_scan_result": {"oneOf": [{"$ref": "#/$defs/risk_level"}, {"type": "null"}], "description": "the authoritative in-session (pass 2) verdict; null when pass 2 has not run"},
+        "reconciliation": {"$ref": "#/$defs/reconciliation"}
+      }
+    }
+  },
+  "properties": {
+    "injection_review": {"$ref": "#/$defs/injection_review"}
+  }
+}

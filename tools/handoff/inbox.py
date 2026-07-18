@@ -319,10 +319,36 @@ def plan_followups(moved_entries) -> list:
     return plan
 
 
+_RISK_RANK = {"CLEAN": 0, "REVIEW": 1, "QUARANTINE": 2, "BLOCK": 3}
+
+
+def reconcile(offline_prior, session_verdict) -> dict:
+    """P62 two-pass reconciliation (pure). Combine the offline advisory prior with the
+    AUTHORITATIVE in-session verdict. The session decides; the offline tier can only be MORE
+    cautious (a sealed file never reaches pass 2). Returns
+    {agreed, session_action, effective, pass_coverage, note}. `effective` is the authoritative
+    session verdict when present, else the offline level. `session_action` is confirmed/escalated/
+    downgraded; `escalated` (session found what the pattern tier missed) is the primary value."""
+    off = offline_prior.get("risk_level") if isinstance(offline_prior, dict) else offline_prior
+    off = (off or "CLEAN").upper()
+    sess = (session_verdict or "").upper()
+    if sess not in _RISK_RANK:
+        return {"agreed": None, "session_action": None, "effective": off,
+                "pass_coverage": "offline_only",
+                "note": "in-session semantic pass not yet run (pass2_pending)"}
+    o, s = _RISK_RANK.get(off, 0), _RISK_RANK[sess]
+    action = "escalated" if s > o else "downgraded" if s < o else "confirmed"
+    return {"agreed": (o >= 1) == (s >= 1), "session_action": action, "effective": sess,
+            "pass_coverage": "both", "note": f"offline {off} -> session {sess} ({action})"}
+
+
 def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
     """The ONLY writer: move each approved entry to Inbox/Processed/<date>/ and record it in the
     ledger. Approves exactly what it is given (the human already reviewed); refuses entries whose
-    file vanished or whose sha no longer matches (the file changed since the scan)."""
+    file vanished or whose sha no longer matches (the file changed since the scan). P62: refuses
+    any entry the OFFLINE prior sealed (SEAL-TERMINAL fail-safe -- the session can never un-seal it)
+    or the SESSION verdict escalated to QUARANTINE/BLOCK, and records the reconciled two-pass
+    triple `injection_review` in the ledger."""
     hub = Path(hub_root)
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     processed = hub / "Inbox" / "Processed" / stamp
@@ -352,6 +378,20 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
         if item["sha256"] in known:
             results["refused"].append({"file": item.get("file"), "why": "already in the ledger"})
             continue
+        # P62 two-pass fail-safes. offline_prior is the pass-1 advisory; injection_scan_result is
+        # the authoritative pass-2 verdict a session set (None if pass 2 has not run).
+        offline_prior = item.get("offline_pattern_scan")
+        off_level = (offline_prior or {}).get("risk_level") if isinstance(offline_prior, dict) else None
+        if off_level in ("QUARANTINE", "BLOCK"):
+            results["refused"].append({"file": item.get("file"),
+                                       "why": "offline tier sealed this; the session cannot un-seal it (SEAL-TERMINAL)"})
+            continue
+        review = reconcile(offline_prior, item.get("injection_scan_result"))
+        if review["effective"] in ("QUARANTINE", "BLOCK"):
+            results["refused"].append({"file": item.get("file"),
+                                       "why": f"in-session guard verdict {review['effective']} "
+                                              f"({review['session_action']}); not routed"})
+            continue
         processed.mkdir(parents=True, exist_ok=True)
         target = _unique_dest(processed, src.name)  # never overwrite an already-approved file
         os.replace(src, target)
@@ -360,6 +400,9 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
             "first_seen": item.get("first_seen") or stamp,
             "classified_as": item.get("classified_as"),
             "injection_scan_result": item.get("injection_scan_result"),
+            "injection_review": {"offline_pattern_scan": offline_prior,
+                                 "injection_scan_result": item.get("injection_scan_result"),
+                                 "reconciliation": review},
             "routed_to": item.get("route_to"),
             "status": "approved",
             "approved_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -541,6 +584,39 @@ def selftest() -> int:
        all("offline_pattern_scan" in e and e.get("pass2_pending") is True for e in pr["proposals"]))
     ok("P62: sealed record is terminal, not pass2_pending",
        pr["quarantined"] and all(e.get("pass2_pending") is False for e in pr["quarantined"]))
+
+    # P62 reconcile (pure): the authoritative session verdict escalates / downgrades / stays pending.
+    ok("P62 reconcile: offline CLEAN + session QUARANTINE -> escalated, effective QUARANTINE",
+       reconcile({"risk_level": "CLEAN"}, "QUARANTINE")["session_action"] == "escalated"
+       and reconcile({"risk_level": "CLEAN"}, "QUARANTINE")["effective"] == "QUARANTINE")
+    ok("P62 reconcile: offline REVIEW + session CLEAN -> downgraded",
+       reconcile({"risk_level": "REVIEW"}, "CLEAN")["session_action"] == "downgraded")
+    ok("P62 reconcile: no session verdict -> offline_only (pass 2 pending)",
+       reconcile({"risk_level": "CLEAN"}, None)["pass_coverage"] == "offline_only")
+
+    # P62 approve fail-safes, over real files (sha must match).
+    fh = Path(tempfile.mkdtemp()); (fh / "Inbox").mkdir(); fl = Path(tempfile.mkdtemp()) / "l.json"
+    for n in "abc":
+        (fh / "Inbox" / f"{n}.srt").write_text(f"1\n00:00:00,000 --> 00:00:01,000\n{n}\n", encoding="utf-8")
+    sh = {n: _sha256(fh / "Inbox" / f"{n}.srt") for n in "abc"}
+    out = approve(fh, {"proposals": [
+        {"file": "Inbox/a.srt", "sha256": sh["a"], "offline_pattern_scan": {"risk_level": "QUARANTINE"}},
+        {"file": "Inbox/b.srt", "sha256": sh["b"], "offline_pattern_scan": {"risk_level": "CLEAN"},
+         "injection_scan_result": "QUARANTINE"},
+        {"file": "Inbox/c.srt", "sha256": sh["c"], "offline_pattern_scan": {"risk_level": "CLEAN"},
+         "injection_scan_result": "CLEAN", "classified_as": "transcript"}]}, ledger_path=fl)
+    ok("P62 fail-safe: an offline-sealed proposal is refused (the session cannot un-seal it)",
+       any("SEAL-TERMINAL" in r["why"] for r in out["refused"] if r["file"].endswith("a.srt")))
+    ok("P62 fail-safe: a session-escalated proposal is refused, not routed",
+       any("in-session guard verdict QUARANTINE" in r["why"] for r in out["refused"] if r["file"].endswith("b.srt")))
+    ok("P62: a clean two-pass proposal routes and records the reconciliation triple",
+       out["moved"] == ["Inbox/c.srt"])
+    led = json.loads(fl.read_text(encoding="utf-8"))
+    rev = next(e["injection_review"] for e in led["entries"] if e["file_name"] == "c.srt")
+    ok("P62: ledger carries {offline_pattern_scan, injection_scan_result, reconciliation}",
+       set(rev) == {"offline_pattern_scan", "injection_scan_result", "reconciliation"}
+       and rev["reconciliation"]["session_action"] == "confirmed"
+       and rev["reconciliation"]["pass_coverage"] == "both")
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

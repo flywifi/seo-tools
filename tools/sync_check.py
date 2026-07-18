@@ -502,7 +502,8 @@ def check_schema_verification_fields():
     schemas_dir = ROOT / "shared" / "schemas"
     if not schemas_dir.exists():
         return
-    skip = {"verification-envelope.json", "verification-decision.json", "compute-job.json"}
+    skip = {"verification-envelope.json", "verification-decision.json", "compute-job.json",
+            "injection-scan.json"}  # P62 data contract: the two-pass scan/reconciliation record, not an agent output schema
     required_props = ["minority_report", "confidence_evidence", "source_citations"]
     for schema_file in sorted(schemas_dir.glob("*.json")):
         if schema_file.name in skip:
