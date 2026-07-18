@@ -26,8 +26,10 @@ work after the baseline sits under Unreleased.
   input, the reconciliation output, and the envelope discipline. Coverage varies by modality
   (`both` / `offline_only` / `session_only`), recorded in `shared/cross-modality-engine.md`; the
   ChatGPT and Gemini packaging instruct the same discipline as their own second pass (instruct, not
-  enforce). New `docs/INJECTION-TWO-PASS.md` documents the architecture, the availability matrix, and
-  the OWASP-grounded limits (its per-engine vendor-doc citations are research-pending).
+  enforce). New `docs/INJECTION-TWO-PASS.md` documents the architecture, the availability matrix, the
+  OWASP-grounded limits, and the per-engine command/trust posture with dated vendor-doc citations
+  (Anthropic mitigate-jailbreaks, OpenAI Model Spec 2025-12-18, Google/Gemini layered defense,
+  OWASP LLM01:2025), registered in the source registry via the sanctioned seed path.
 - The offline injection pattern tier (`tools/injection_scan.py`): a stdlib implementation of the
   injection-guard engine's machine-scoreable spec (eight categories with per-match points, the
   SOCIAL co-occurrence rule, the CLEAN/REVIEW/QUARANTINE/BLOCK thresholds, the engine's record
