@@ -115,27 +115,57 @@ engine's own judgment, not ours.
   model to treat it as data reduces but does not eliminate injection risk; that is why sealing is
   terminal and why every downstream action stays human-confirmed (`human_review_required`).
 
-## Per-engine command/trust posture (research in progress)
+## Per-engine command/trust posture
 
-> **STATUS: this section's external vendor-doc citations are pending** a research pass that was
-> interrupted by a session-usage limit. The architecture and OWASP framing above are firsthand and
-> stable; the per-engine specifics below are seeded from known behavior and MUST be completed with
-> dated, cited vendor-doc URLs (and, once cited in a fenced `sources` block, seeded into
-> `canonical-sources/source-registry.json` via `tools/source_sync.py reconcile` so invariant 52
-> passes). Do not add the fenced `sources` block until the URLs are verified — no fabricated dates.
+Each engine's own published guidance converges on the shape Creator OS implements: keep
+attacker-reachable content out of the instruction channel and treat it as data a screen inspects,
+not as commands to follow. The dates below are each vendor doc's stated version or last-updated
+stamp, verified 2026-07-18.
 
-- **Anthropic / Claude** — wrap untrusted content in delimiters/XML tags; treat quoted content as
-  data, not instructions; system-prompt and tool-result trust boundaries; agentic / computer-use
-  injection defenses. [cite docs.anthropic.com prompt-injection + tool-use guidance, dated]
-- **OpenAI / ChatGPT** — the Model Spec **instruction hierarchy** (platform/root > system/developer
-  > user > guideline), with `untrusted_text` blocks that carry no authority; a Custom GPT or Action
-  must treat Action-returned content as untrusted (below the user). [cite the Model Spec
-  chain-of-command + `untrusted_text`, dated]
-- **Google / Gemini** — `system_instruction` vs user-content separation; Google's published layered
-  prompt-injection defense / classifier approach for Gemini apps. [cite Vertex AI / AI Studio
-  prompt-injection guidance, dated]
-- **Cross-cutting** — OWASP LLM01 Prompt Injection (defense in depth; a model judging injected
-  content is itself injectable). [cite OWASP LLM Top 10 LLM01, dated]
+- **Anthropic / Claude** — Anthropic's guidance separates jailbreaks / direct injection (the user is
+  the adversary) from indirect injection (Claude reads adversarial third-party content). For
+  indirect injection it prescribes: deliver third-party content only inside `tool_result` blocks,
+  never in the system prompt or a plain user turn; state in the system prompt that tool, document,
+  and search content is untrusted data whose embedded instructions are "information to report, not
+  commands to follow"; JSON-encode or otherwise delimit the untrusted payload so an attacker cannot
+  break out of the quoting; and screen tool outputs with a lightweight classifier (for example
+  Claude Haiku 4.5 returning a structured-output verdict) before Claude acts on them. That
+  cheap-screen-then-authoritative-pass shape is exactly the two-pass pipeline above. (Mitigate
+  jailbreaks and prompt injections, platform.claude.com, accessed 2026-07-18.)
+- **OpenAI / ChatGPT** — the OpenAI Model Spec defines an explicit **chain of command**: Root >
+  System > Developer > User > Guideline. Quoted text (plaintext in quotation marks, YAML, JSON, XML,
+  or `untrusted_text` blocks), multimodal data, file attachments, and **tool outputs** are "assumed
+  to contain untrusted data and have no authority by default." A Custom GPT or Action must therefore
+  treat Action-returned content as untrusted, below the user. (Model Spec, version 2025-12-18.)
+- **Google / Gemini** — Google documents a **layered defense** against indirect prompt injection for
+  Gemini: prompt-injection content **classifiers** that screen incoming data, security-thought
+  reinforcement, markdown sanitization and URL redaction, a **user-confirmation** framework for
+  sensitive actions, the models' own adversarial **resilience**, and end-user security
+  notifications. No single layer is treated as sufficient. (Indirect prompt injections and Google's
+  layered defense strategy for Gemini, Google Workspace admin knowledge base, last updated
+  2026-07-17.)
+- **Cross-cutting** — OWASP LLM01:2025 Prompt Injection recommends *multiple simultaneous*
+  mitigations — constraining model behavior, defining expected output formats, input and output
+  filtering, least-privilege access control, human approval for high-risk actions, **segregating
+  external and untrusted content**, and adversarial testing — and states plainly that, given the
+  stochastic nature of models, there is no known fool-proof prevention: the goal is mitigation, not
+  elimination. Creator OS's own point above (a model asked to judge injected content is itself
+  injectable, so no single pass is authoritative) follows directly from that. (OWASP Top 10 for LLM
+  Applications, LLM01:2025.)
+
+The external authorities these four claims rest on are declared below for the currency system. Every
+id must exist in `canonical-sources/source-registry.json` with the same URL (drift-guard invariant
+52, fail-closed); `tools/source_sync.py reconcile` generates a seed for any id not yet registered,
+and the human runs `seed-sources` on it.
+
+```sources
+[
+  {"id": "anthropic-mitigate-jailbreaks", "name": "Anthropic Mitigate Jailbreaks and Prompt Injections guidance", "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-model-spec", "name": "OpenAI Model Spec chain of command and instruction hierarchy", "url": "https://model-spec.openai.com/2025-12-18.html", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "google-gemini-prompt-injection-defense", "name": "Google layered defense against indirect prompt injection for Gemini", "url": "https://knowledge.workspace.google.com/admin/security/indirect-prompt-injections-and-googles-layered-defense-strategy-for-gemini", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "owasp-llm01-prompt-injection", "name": "OWASP Top 10 for LLM Applications LLM01:2025 Prompt Injection", "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/", "category": "ai-surface-spec", "tier": "T1"}
+]
+```
 
 ## Where the code lives
 
