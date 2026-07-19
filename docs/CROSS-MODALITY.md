@@ -37,8 +37,10 @@ connector.
   the provider cloud, then add it as a **custom connector** (remote MCP). One deployed endpoint CAN
   also serve ChatGPT (developer mode, web and desktop app) and Gemini, IF hosted behind HTTPS with
   authentication; the repo ships the server code and the runbook
-  (`implementation/gpt/mcp-connector/README.md`), not a hosted service, and implements no
-  authentication itself. ChatGPT registration steps carry needs-verification tags (plan gating).
+  (`implementation/gpt/mcp-connector/README.md`), not a hosted service. The proxy is the auth
+  boundary, but the server backstops it (P67-B): `--serve-remote` refuses a non-loopback bind with
+  no `CREATOR_OS_MCP_TOKEN` and no `--insecure`, and enforces an in-process bearer gate when a
+  token is set. ChatGPT registration steps carry needs-verification tags (plan gating).
 - **Custom GPT:** in the GPT builder, add an **Action** and paste
   `implementation/gpt/actions/jurisdiction_overlay_action.yaml`. Auth = none (all endpoints are keyless).
   The GPT calls the public ArcGIS/FEMA/Census endpoints itself.

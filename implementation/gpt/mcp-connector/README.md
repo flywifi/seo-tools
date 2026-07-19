@@ -2,9 +2,21 @@
 
 Creator OS ships a remote MCP transport (`tools/mcp_server.py --serve-remote`) that CAN serve
 claude.ai, ChatGPT (developer mode), and Gemini from one deployed endpoint, IF you or your
-developer host it. **This repo ships the server code and this runbook, not a hosted service, and
-the server implements no authentication itself.** Never expose it without the protections below:
-the endpoint reads your private local stores (deals, rates, contracts, templates).
+developer host it. **This repo ships the server code and this runbook, not a hosted service.** The
+authentication boundary is your reverse proxy; the server adds two in-process backstops (P67-B) so
+a misconfiguration cannot silently expose an open endpoint, but it is NOT a substitute for the
+proxy. Never expose it without the protections below: the endpoint reads your private local stores
+(deals, rates, contracts, templates).
+
+**In-process backstops (defense in depth, not a replacement for the proxy):**
+- `--serve-remote` **refuses to start** when `--host` is a non-loopback interface and neither
+  `CREATOR_OS_MCP_TOKEN` (nor `remote_mcp_token` in `creator-os-config.local.json`) is set and
+  `--insecure` is not passed. This makes an accidental open, unauthenticated public bind impossible
+  without an explicit acknowledgement.
+- When a token IS set, the server enforces an **in-process bearer gate** (`Authorization: Bearer
+  <token>`, constant-time compared, 401 otherwise) in addition to whatever the proxy enforces.
+- A loopback bind (`--host 127.0.0.1`, the documented pattern) needs no token: the proxy in front
+  is the auth boundary.
 
 ## What YOU must provide
 
@@ -12,7 +24,9 @@ the endpoint reads your private local stores (deals, rates, contracts, templates
    Creator OS folder on it.
 2. A public HTTPS hostname in front of it (a reverse proxy such as Caddy or nginx handling TLS).
 3. Authentication in front of the endpoint (an OAuth layer or at minimum a long random bearer
-   token enforced by the proxy). The MCP server itself binds plainly and trusts the proxy. If you
+   token enforced by the proxy). The MCP server binds to loopback and trusts the proxy; optionally
+   set `CREATOR_OS_MCP_TOKEN` so it ALSO enforces the bearer token in-process (defense in depth).
+   If you
    implement full OAuth to satisfy a provider's connector requirements, the current MCP spec
    (2025-11-25, Authorization) expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
    Metadata (RFC 9728), PKCE with S256, the RFC 8707 `resource` parameter, token-audience

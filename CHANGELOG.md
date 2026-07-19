@@ -12,6 +12,15 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Security
+- Remote MCP endpoint (`tools/mcp_server.py --serve-remote`) gains two in-process backstops
+  (P67-B) behind the documented TLS+auth proxy: it refuses to bind a non-loopback `--host` when no
+  `CREATOR_OS_MCP_TOKEN` (or `remote_mcp_token` in `creator-os-config.local.json`) is set and
+  `--insecure` is not passed (no accidental open public endpoint), and enforces an in-process
+  bearer gate (constant-time compared, 401 otherwise) when a token is set. A loopback bind behind
+  the proxy is unchanged and needs no token. Package-independent selftest covers the serve
+  decision and the bearer gate; runbook and cross-modality docs reconciled.
+
 ### Changed
 - Invariants 14, 16, and 17 rebuilt from substring/marker tests into property checks (P67, closes
   the P65 guard-shallowness backlog): inv 14 requires a non-empty parsed Allowed-tools allowlist;

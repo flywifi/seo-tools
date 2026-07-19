@@ -36,6 +36,7 @@ Prerequisites:
   pip install -r requirements-mcp.txt
   python3 shared/cache/cache.py --build
 """
+import hmac
 import json
 import os
 import subprocess
@@ -88,6 +89,76 @@ def _handoff_gates() -> str | None:
         return ("compute_handoff_enabled is off (the default). Turn it on at the setup wizard's "
                 "/compute screen before queueing jobs.")
     return None
+
+
+# --- Remote endpoint auth (P67-B) -----------------------------------------------------------
+# Pure-stdlib, defined above the mcp import so --selftest exercises them without the package.
+# The server still binds to loopback and trusts a TLS+auth proxy by default (the documented
+# deployment); these add (a) a fail-safe that refuses to bind a NON-loopback interface with no
+# token and no explicit acknowledgement, and (b) an optional in-process bearer gate as defense in
+# depth when a token is configured.
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
+
+
+def _remote_auth_token() -> str | None:
+    """Bearer token for the remote MCP endpoint, or None. Env CREATOR_OS_MCP_TOKEN wins; then a
+    gitignored creator-os-config.local.json 'remote_mcp_token'. Never read from a committed file,
+    so a token can never be baked into the repo."""
+    tok = os.environ.get("CREATOR_OS_MCP_TOKEN", "").strip()
+    if tok:
+        return tok
+    try:
+        data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
+        v = str(data.get("remote_mcp_token", "")).strip()
+        return v or None
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+
+
+def _remote_serve_decision(host: str, token: str | None, insecure: bool) -> tuple:
+    """Fail-safe policy for --serve-remote. Returns (action, message):
+      'gated'  -> a token is configured; enforce the in-process bearer gate.
+      'open'   -> bind with no in-process gate (loopback proxy pattern, or explicit --insecure).
+      'refuse' -> do not start (non-loopback bind, no token, no --insecure): the foot-gun of an
+                  accidentally public, unauthenticated endpoint.
+    A token always wins (defense in depth even on loopback); loopback with no token stays
+    frictionless for the documented proxy deployment."""
+    is_loopback = (host or "").lower() in _LOOPBACK_HOSTS
+    if token:
+        return ("gated", f"in-process bearer gate enforced on {host}")
+    if is_loopback:
+        return ("open", f"loopback bind on {host}: put a TLS+auth proxy in front "
+                        f"(no in-process token set)")
+    if insecure:
+        return ("open", f"--insecure: binding {host} with NO authentication (explicitly "
+                        f"acknowledged)")
+    return ("refuse", f"refusing to bind non-loopback host {host!r} with no CREATOR_OS_MCP_TOKEN "
+                      f"and no --insecure")
+
+
+class _BearerAuthMiddleware:
+    """Minimal ASGI middleware: require 'Authorization: Bearer <token>' on every HTTP request,
+    constant-time compared; 401 otherwise. Wraps the FastMCP streamable-http app. Pure ASGI, no
+    FastMCP dependency, so it is unit-tested in the package-independent selftest tier."""
+
+    def __init__(self, app, token: str):
+        self.app = app
+        self._expected = f"Bearer {token}"
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers") or [])
+        presented = headers.get(b"authorization", b"").decode("latin-1")
+        if not (presented and hmac.compare_digest(presented, self._expected)):
+            await send({"type": "http.response.start", "status": 401,
+                        "headers": [(b"content-type", b"text/plain; charset=utf-8"),
+                                    (b"www-authenticate", b"Bearer")]})
+            await send({"type": "http.response.body", "body": b"401 Unauthorized"})
+            return
+        await self.app(scope, receive, send)
 
 
 def _selftest_static() -> tuple:
@@ -147,6 +218,40 @@ def _selftest_static() -> tuple:
         ok("gates clear only when BOTH capabilities are on", _handoff_gates() is None)
     finally:
         _runner.capability_enabled = real_cap
+
+    # Remote endpoint auth policy (P67-B), package-independent.
+    ok("serve decision: non-loopback + no token + no --insecure -> refuse",
+       _remote_serve_decision("0.0.0.0", None, False)[0] == "refuse")
+    ok("serve decision: loopback + no token -> open (proxy pattern)",
+       _remote_serve_decision("127.0.0.1", None, False)[0] == "open")
+    ok("serve decision: token set -> gated (even on non-loopback)",
+       _remote_serve_decision("0.0.0.0", "s3cret", False)[0] == "gated")
+    ok("serve decision: non-loopback + --insecure -> open (acknowledged)",
+       _remote_serve_decision("0.0.0.0", None, True)[0] == "open")
+
+    import asyncio as _asyncio
+
+    def _probe(authorization):
+        sent = []
+
+        async def _recv():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def _send(msg):
+            sent.append(msg)
+
+        async def _inner(scope, receive, send):  # the wrapped app; only reached when authorized
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+
+        hdrs = [(b"authorization", authorization.encode("latin-1"))] if authorization else []
+        mw = _BearerAuthMiddleware(_inner, "s3cret")
+        _asyncio.run(mw({"type": "http", "headers": hdrs}, _recv, _send))
+        return next(m["status"] for m in sent if m["type"] == "http.response.start")
+
+    ok("bearer gate: correct token -> 200", _probe("Bearer s3cret") == 200)
+    ok("bearer gate: wrong token -> 401", _probe("Bearer nope") == 401)
+    ok("bearer gate: missing header -> 401", _probe("") == 401)
 
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
@@ -1775,9 +1880,13 @@ def job_status(job_id: str) -> str:
 #
 # Transport (P35 cross-surface / cross-AI):
 #   default (no args)  -> stdio, for a local Claude Desktop MCP server (claude_desktop_config.json).
-#   --serve-remote     -> a remote streamable-HTTP MCP endpoint. IF you deploy it behind an HTTPS reverse
-#                         proxy with authentication (deployer-supplied; this server implements NONE and
-#                         binds plainly), one endpoint CAN serve claude.ai web + mobile AND, since both
+#   --serve-remote     -> a remote streamable-HTTP MCP endpoint. Deploy it behind an HTTPS reverse
+#                         proxy that terminates TLS + auth (the documented model). As of P67-B the
+#                         server adds two in-process protections: it REFUSES to bind a non-loopback
+#                         --host with no CREATOR_OS_MCP_TOKEN and no --insecure (no accidental open
+#                         public endpoint), and when a token IS set it enforces an in-process bearer
+#                         gate (defense in depth). Loopback binds behind the proxy need no token.
+#                         One endpoint CAN serve claude.ai web + mobile AND, since both
 #                         vendors speak MCP, ChatGPT (developer mode, web and desktop app; plan gating
 #                         needs verification) and Gemini. We ship the server code and the runbooks; we do
 #                         not host a server. Deploy + per-surface registration runbook:
@@ -1822,6 +1931,9 @@ if __name__ == "__main__":
     _ap.add_argument("--transport", choices=["stdio", "streamable-http", "sse"], default=None)
     _ap.add_argument("--host", default="127.0.0.1")
     _ap.add_argument("--port", type=int, default=8080)
+    _ap.add_argument("--insecure", action="store_true",
+                     help="acknowledge binding a non-loopback interface with NO in-process auth "
+                          "(only meaningful with --serve-remote and no token)")
     _args, _ = _ap.parse_known_args()
     _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
     # One quiet, non-blocking startup notice (stderr only; stdout is the stdio protocol channel).
@@ -1838,6 +1950,42 @@ if __name__ == "__main__":
             mcp.settings.port = _args.port
         except Exception:  # noqa: BLE001  (older FastMCP: host/port come from env or defaults)
             pass
+        if _args.serve_remote:
+            _token = _remote_auth_token()
+            _action, _msg = _remote_serve_decision(_args.host, _token, _args.insecure)
+            print(f"[creator-os] remote MCP: {_msg}", file=sys.stderr)
+            if _action == "refuse":
+                print("[creator-os] Set CREATOR_OS_MCP_TOKEN (or remote_mcp_token in "
+                      "creator-os-config.local.json) to enable the in-process bearer gate, bind "
+                      "--host 127.0.0.1 behind a TLS+auth proxy, or pass --insecure to acknowledge "
+                      "an open bind. See implementation/gpt/mcp-connector/README.md.",
+                      file=sys.stderr)
+                sys.exit(2)
+            if _action == "gated":
+                _app = None
+                _get_app = getattr(mcp, "streamable_http_app", None)
+                if _get_app is not None:
+                    try:
+                        _app = _get_app()
+                    except Exception as _exc:  # noqa: BLE001
+                        print(f"[creator-os] could not build the app for the bearer gate: {_exc}",
+                              file=sys.stderr)
+                try:
+                    import uvicorn as _uvicorn
+                except ImportError:
+                    _uvicorn = None
+                if _app is not None and _uvicorn is not None:
+                    _uvicorn.run(_BearerAuthMiddleware(_app, _token),
+                                 host=_args.host, port=_args.port)
+                    sys.exit(0)
+                # Fail closed: a token is configured but the in-process gate could not be
+                # installed. Never bind unprotected while implying the token is enforced.
+                print("[creator-os] a bearer token is configured but the in-process gate could not "
+                      "be installed (needs FastMCP.streamable_http_app + uvicorn). Refusing to bind "
+                      "unprotected; enforce the token at your proxy, install requirements-mcp.txt, "
+                      "or pass --insecure to override.", file=sys.stderr)
+                if not _args.insecure:
+                    sys.exit(2)
         mcp.run(transport=_transport)
     else:
         mcp.run()
