@@ -195,7 +195,9 @@ def fetch(tracking_number, carrier=None, provider="easypost", getter=None):
 def selftest():
     failures = []
 
+    ran = [0]
     def check(name, cond):
+        ran[0] += 1
         if not cond:
             failures.append(name)
 
@@ -241,7 +243,7 @@ def selftest():
     else:
         check("fetch-no-key", True)
 
-    n = 15
+    n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))

@@ -236,7 +236,9 @@ def deck_span_sanity(species, nominal, spacing_in=16.0):
 def selftest():
     failures = []
 
+    ran = [0]
     def check(name, cond):
+        ran[0] += 1
         if not cond:
             failures.append(name)
 
@@ -283,7 +285,7 @@ def selftest():
     for r in (s, e_ok, rvalue_zone("wall", 3), bf, ds, rp, board_foot(2, 4, 8), d):
         check("has-code-ref", "code_ref" in r and "boundary" in r)
 
-    n = 24
+    n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))

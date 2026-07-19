@@ -324,9 +324,13 @@ def to_edit_package(silence_result=None, scene_result=None, title=None):
 
 
 def _check(label, cond, failures):
+    _check.ran += 1
     print(f"  [{'ok' if cond else 'FAIL'}] {label}")
     if not cond:
         failures.append(label)
+
+
+_check.ran = 0
 
 
 def selftest():
@@ -393,7 +397,7 @@ def selftest():
     _check("chapter titles recorded as pending in gaps[]",
            any(g["gap_type"] == "chapter_titles_pending" for g in merged["gaps"]), failures)
 
-    n = 17
+    n = _check.ran
     print(f"selftest: {'PASS' if not failures else 'FAIL'} "
           f"({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1

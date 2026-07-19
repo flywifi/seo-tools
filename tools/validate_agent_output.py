@@ -54,14 +54,21 @@ def load_source_registry():
 
 
 def load_authority_allowlist():
+    """P66: a missing config file or key DISABLES the fabricated-URL rule, and that must be said
+    out loud, never silently returned as an empty list (the F-VALIDATE-ORPHAN finding)."""
     path = ROOT / "canonical-sources" / "traversal-config.json"
-    if not path.exists():
-        return []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"warning: authority allowlist unavailable ({exc}); "
+              f"the fabricated-URL rule is disabled for this run", file=sys.stderr)
         return []
-    return data.get("authority_domain_allowlist", [])
+    allow = data.get("authority_domain_allowlist")
+    if not allow:
+        print("warning: traversal-config.json carries no authority_domain_allowlist; "
+              "the fabricated-URL rule is disabled for this run", file=sys.stderr)
+        return []
+    return allow
 
 
 def check_source_citations(output, registry):
@@ -259,19 +266,88 @@ def validate(output, schema_name=None):
     }
 
 
+def selftest():
+    """Offline fixtures exercising every fabrication-detection rule (P66: the detector CLAUDE.md
+    relies on previously gated nothing; the CI selftest sweep now runs this on every push)."""
+    failures = []
+    ran = [0]
+
+    def check(label, cond):
+        ran[0] += 1
+        print(f"  [{'ok' if cond else 'FAIL'}] {label}")
+        if not cond:
+            failures.append(label)
+
+    reg = {"src-1": {"id": "src-1"}}
+    f = check_source_citations({"source_citations": [
+        {"source_id_or_url": "phantom-src", "in_source_registry": True},
+        {"source_id_or_url": "src-1", "in_source_registry": False},
+    ]}, reg)
+    check("citation claiming membership the registry lacks is flagged high",
+          any(x["rule"] == "source_citation_registry_mismatch" and x["severity"] == "high"
+              for x in f))
+    check("citation denying actual registry membership is also flagged",
+          sum(1 for x in f if x["rule"] == "source_citation_registry_mismatch") == 2)
+
+    f = check_confidence_tier_match({"confidence_evidence": {
+        "overall": "high", "source_tier_breakdown": {"t1_count": 0, "t3_count": 3}}})
+    check("high confidence without a T1 source is flagged",
+          any(x["rule"] == "confidence_tier_mismatch" for x in f))
+    check("high confidence WITH a T1 source is clean",
+          not check_confidence_tier_match({"confidence_evidence": {
+              "overall": "high", "source_tier_breakdown": {"t1_count": 1}}}))
+
+    f = check_unsourced_numbers({"keywords": [{"keyword": "views hit 120,000 last month"}],
+                                 "source_citations": []})
+    check("specific number without a matching citation is flagged",
+          any(x["rule"] == "unsourced_number" for x in f))
+    check("a number labeled [estimated] is excused",
+          not check_unsourced_numbers({"keywords": [{"keyword": "about 120,000 [estimated]"}],
+                                       "source_citations": []}))
+
+    f = check_fabricated_urls({"source_citations": [
+        {"source_id_or_url": "https://totally-made-up.example.net/p"}]}, ["youtube.com"])
+    check("citation URL off the authority allowlist is flagged",
+          any(x["rule"] == "unknown_domain_url" for x in f))
+
+    f = check_minority_report_completeness({"minority_report": None,
+                                            "retrieval_gaps": ["x"], "confidence": "low"})
+    check("null minority_report with gaps and low confidence is flagged twice", len(f) >= 2)
+
+    check("schema auto-detect: deal-review",
+          detect_schema({"deal_id": "d", "stage_ready": True}) == "deal-review")
+    check("schema auto-detect: seo-research", detect_schema({"keywords": []}) == "seo-research")
+
+    v = validate({"keywords": [{"keyword": "9,999 views uncited"}], "source_citations": [],
+                  "confidence_evidence": {"overall": "high", "source_tier_breakdown": {}}})
+    check("end-to-end validate fails and requires human review on a high-severity finding",
+          v["status"] == "fail" and v["human_review_required"] is True)
+
+    n = ran[0]
+    print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
+    return 0 if not failures else 1
+
+
 def _main():
     parser = argparse.ArgumentParser(
         description="Validate Creator OS agent output against fabrication detection rules."
     )
     parser.add_argument(
-        "--input", required=True,
+        "--input",
         help="Path to agent output JSON file"
     )
     parser.add_argument(
         "--schema", choices=sorted(SCHEMA_NAMES),
         help="Schema name (auto-detected if omitted)"
     )
+    parser.add_argument("--selftest", action="store_true",
+                        help="Run the offline fixture selftest")
     args = parser.parse_args()
+
+    if args.selftest:
+        return selftest()
+    if not args.input:
+        parser.error("--input is required (or use --selftest)")
 
     input_path = Path(args.input)
     if not input_path.exists():

@@ -170,7 +170,9 @@ def _selftest() -> int:
     previously had no selftest, so `publishing_compliance.py --selftest` was a silent no-op)."""
     failures: list[str] = []
 
+    ran = [0]
     def ok(cond, msg):
+        ran[0] += 1
         if not cond:
             failures.append(msg)
 
@@ -221,7 +223,7 @@ def _selftest() -> int:
 
     for msg in failures:
         print(f"FAIL {msg}")
-    n = 20
+    n = ran[0]
     print(f"publishing_compliance selftest: {n - len(failures)}/{n} checks passed"
           if not failures else f"publishing_compliance selftest FAILED ({len(failures)} of {n})")
     return 1 if failures else 0

@@ -140,9 +140,13 @@ def render(media_path, out_path, start_seconds, end_seconds, crop, config=None, 
 
 
 def _check(label, cond, failures):
+    _check.ran += 1
     print(f"  [{'ok' if cond else 'FAIL'}] {label}")
     if not cond:
         failures.append(label)
+
+
+_check.ran = 0
 
 
 def selftest():
@@ -190,7 +194,7 @@ def selftest():
     _check("unknown render backend refused honestly",
            not r["rendered"] and r["gaps"][0]["gap_type"] == "no_backend", failures)
 
-    n = 12
+    n = _check.ran
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1
 

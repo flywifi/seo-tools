@@ -574,8 +574,10 @@ def evaluate_scenario(sc: dict, table: dict, clock: dict) -> dict:
 
 def selftest() -> int:
     failures = []
+    ran = [0]
 
     def expect(name, cond):
+        ran[0] += 1
         if not cond:
             failures.append(name)
         print(f"  [{'ok' if cond else 'FAIL'}] {name}")
@@ -608,7 +610,8 @@ def selftest() -> int:
     expect("inbox.scan op routes the srt by format and holds the pdf for review",
            len(scan["proposals"]) == 1 and scan["proposals"][0]["route_to"]["handler"] == "transcript-import"
            and len(scan["needs_review"]) == 1 and scan["needs_review"][0]["classified_as"] is None)
-    print(f"selftest: {'PASS' if not failures else 'FAIL'} ({13 - len(failures)} of 13 checks)")
+    n = ran[0]
+    print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 1 if failures else 0
 
 
