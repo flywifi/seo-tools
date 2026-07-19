@@ -404,6 +404,20 @@ def selftest():
     ok("email masked", red["email"] == "m***@h***.example")
     ok("account_id stays clear", red["account_id"] == "acct-hearthline-001")
 
+    # P64 AUDIT-F2 boundary case: a >NAME_MAX (255-byte) --records arg must yield the clean
+    # envelope + exit 1, never a raw OSError traceback (the whole-path rule).
+    import io as _io
+    import contextlib as _cl
+    buf = _io.StringIO()
+    with _cl.redirect_stdout(buf):
+        rc_long = main(["--resolve", "x", "--records", "x" * 300])
+    try:
+        err_obj = json.loads(buf.getvalue().strip())
+    except json.JSONDecodeError:
+        err_obj = {}
+    ok("oversize --records arg -> clean envelope + exit 1",
+       rc_long == 1 and "error" in err_obj and "next_step" in err_obj)
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -438,8 +452,13 @@ def main(argv):
     if args.selftest:
         return selftest()
 
-    accts = _load_records_arg(args.records)
-    deals = _load_records_arg(args.deals)
+    try:
+        accts = _load_records_arg(args.records)
+        deals = _load_records_arg(args.deals)
+    except (OSError, json.JSONDecodeError) as exc:  # bad/oversize path or invalid JSON: clean envelope
+        print(json.dumps({"error": f"could not read records file: {exc}",
+                          "next_step": "pass a readable JSON file path"}))
+        return 1
 
     if args.resolve is not None:
         result = resolve(args.resolve, accts)

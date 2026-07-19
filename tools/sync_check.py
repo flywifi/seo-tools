@@ -2040,35 +2040,95 @@ def check_connector_resolver_smoke():
 
 
 def check_payload_loader_robustness():
-    """Invariant 54: the finance/obligations CLI payload loaders stay guarded (P63).
+    """Invariant 54: CLI filesystem touches on user-supplied paths stay guarded, whole-path (P63,
+    widened P64).
 
-    tools/finance.py::_read_json and tools/obligations.py::_load_json feed 10 CLI entry points
-    with user-supplied payload paths; before P63 they raised raw tracebacks on a bad path or
-    inline JSON (the F-SWEEP-1 defect), violating the P46 no-traceback posture. Invariant 35
-    covers only tools/importers + import_parse.py, so this sibling AST check asserts each named
-    loader's body contains a try/except — a regression that removes the guard fails the build.
-    Fail-closed like invariant 35."""
+    Layer 1 (P63): the named payload loaders keep a try/except in their body (the invariant-35
+    sibling). Widened in P64 to cover the loaders C4/C5 guarded in tasks.py and doctemplates.py,
+    plus a call-site rule for accounts.py (its guard lives at the caller).
+    Layer 2 (P64, the RC5 fix): inside tools/finance.py and tools/obligations.py main/_main, NO
+    argparse-derived value may reach exists()/read_text()/write_text()/open() outside a try —
+    the P63 guard protected two function bodies while the AUDIT-F2 crash lived one line upstream
+    in the dispatch (obligations --scan src.exists()); this layer guards the CLASS, not the line.
+    Fail-closed."""
     import ast
-    targets = [(ROOT / "tools" / "finance.py", "_read_json"),
-               (ROOT / "tools" / "obligations.py", "_load_json")]
-    for path, fname in targets:
-        if not path.exists():
-            problem(f"payload-loader: {path.name} is missing")
-            continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except SyntaxError as exc:
-            problem(f"payload-loader: {path.name} failed to parse: {exc}")
+    fs_calls = {"exists", "read_text", "write_text", "open", "is_file", "resolve"}
+    body_targets = [(ROOT / "tools" / "finance.py", "_read_json"),
+                    (ROOT / "tools" / "obligations.py", "_load_json"),
+                    (ROOT / "tools" / "tasks.py", "load_register"),
+                    (ROOT / "tools" / "doctemplates.py", "_probe_file"),
+                    (ROOT / "tools" / "doctemplates.py", "_load_local_json")]
+    trees = {}
+
+    def _tree(path):
+        if path not in trees:
+            try:
+                trees[path] = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError) as exc:
+                problem(f"payload-loader: {path.name} unreadable/unparseable: {exc}")
+                trees[path] = None
+        return trees[path]
+
+    for path, fname in body_targets:
+        tree = _tree(path)
+        if tree is None:
             continue
         fn = next((n for n in ast.walk(tree)
                    if isinstance(n, ast.FunctionDef) and n.name == fname), None)
         if fn is None:
             problem(f"payload-loader: {path.name} no longer defines {fname}() "
-                    f"(the guarded CLI payload loader); restore it or update invariant 54")
+                    f"(a guarded CLI loader); restore it or update invariant 54")
             continue
         if not any(isinstance(n, ast.Try) for n in ast.walk(fn)):
             problem(f"payload-loader: {path.name}::{fname} lost its try/except guard; a bad "
-                    f"payload path would raise a raw traceback again (P63 F-SWEEP-1 regression)")
+                    f"path would raise a raw traceback again")
+    # accounts.py guards at the call site: every _load_records_arg call must sit inside a try.
+    acc = _tree(ROOT / "tools" / "accounts.py")
+    if acc is not None:
+        for fn in (n for n in ast.walk(acc)
+                   if isinstance(n, ast.FunctionDef) and n.name == "main"):
+            spans = [(t.lineno, t.end_lineno) for t in ast.walk(fn) if isinstance(t, ast.Try)]
+            for node in ast.walk(fn):
+                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                        and node.func.id == "_load_records_arg"
+                        and not any(s <= node.lineno <= e for s, e in spans)):
+                    problem(f"payload-loader: accounts.py:{node.lineno} calls "
+                            f"_load_records_arg() outside a try; a bad --records/--deals path "
+                            f"would raise a raw traceback")
+    # Layer 2: the whole-path scan over finance/obligations dispatch (main/_main).
+    for path in (ROOT / "tools" / "finance.py", ROOT / "tools" / "obligations.py"):
+        tree = _tree(path)
+        if tree is None:
+            continue
+        for fn in (n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name in ("main", "_main")):
+            tainted = {"a", "args"}
+            for node in ast.walk(fn):
+                if isinstance(node, ast.Assign):
+                    mentioned = {x.id for x in ast.walk(node.value) if isinstance(x, ast.Name)}
+                    if mentioned & tainted:
+                        tainted.update(t.id for t in node.targets if isinstance(t, ast.Name))
+            spans = [(t.lineno, t.end_lineno) for t in ast.walk(fn) if isinstance(t, ast.Try)]
+
+            def _in_try(ln):
+                return any(s <= ln <= e for s, e in spans)
+
+            for node in ast.walk(fn):
+                if not isinstance(node, ast.Call) or _in_try(node.lineno):
+                    continue
+                if isinstance(node.func, ast.Attribute) and node.func.attr in fs_calls:
+                    if {x.id for x in ast.walk(node.func.value)
+                            if isinstance(x, ast.Name)} & tainted:
+                        problem(f"payload-loader: {path.name}:{node.lineno} "
+                                f".{node.func.attr}() on an argparse-derived value outside a "
+                                f"try (the AUDIT-F2 whole-path rule); wrap it so a bad or "
+                                f">255-byte path yields the clean envelope")
+                elif isinstance(node.func, ast.Name) and node.func.id == "open":
+                    if {x.id for arg in node.args for x in ast.walk(arg)
+                            if isinstance(x, ast.Name)} & tainted:
+                        problem(f"payload-loader: {path.name}:{node.lineno} open() on an "
+                                f"argparse-derived value outside a try (the AUDIT-F2 "
+                                f"whole-path rule)")
 
 
 def check_surface_origin_completeness():

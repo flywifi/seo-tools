@@ -786,7 +786,10 @@ def _csv_rows(source):
     import csv
     if isinstance(source, list):
         return source
-    p = Path(source).resolve()
+    try:
+        p = Path(source).resolve()
+    except OSError as exc:  # e.g. ENAMETOOLONG on a >255-byte inline "path"
+        raise PayloadError(f"could not read the CSV path: {exc}") from exc
     try:
         inside = p.is_relative_to(ROOT.resolve())
     except AttributeError:  # Python < 3.9 fallback (not expected)
@@ -796,8 +799,11 @@ def _csv_rows(source):
             f"refusing to read a CSV inside the repo without a .local. name: {p.name}. "
             "Save bank exports as pipeline/finance/<name>.local.csv (gitignored) or keep them "
             "outside the repo entirely (shared/finance-engine.md privacy boundary).")
-    with open(p, newline="", encoding="utf-8-sig") as fh:
-        return list(csv.DictReader(fh))
+    try:
+        with open(p, newline="", encoding="utf-8-sig") as fh:
+            return list(csv.DictReader(fh))
+    except OSError as exc:
+        raise PayloadError(f"could not read the CSV: {exc}") from exc
 
 
 def _pick_columns(rows, mapping=None):
@@ -986,7 +992,7 @@ def manifest(directory=None):
 
 
 def verify(manifest_path, directory=None):
-    want = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    want = _read_json(manifest_path)
     have = {e["file"]: e["sha256"] for e in manifest(directory)["files"]}
     problems = []
     for e in want.get("files", []):
@@ -1233,6 +1239,21 @@ def selftest():
         err_obj = {}
     _check("payload loader: inline JSON -> clean error dict + exit 1",
            rc_bad == 1 and "error" in err_obj and "next_step" in err_obj, f)
+    # P64 AUDIT-F2: a >NAME_MAX (255-byte) arg must yield the clean envelope on every
+    # path-taking lane (JSON payload, CSV reconcile, manifest verify) -- Path.resolve()/open()/
+    # read_text() raise ENAMETOOLONG that exists() pre-checks do not suppress.
+    long_arg = "x" * 300
+    for flag, name in (("--price", "oversize --price arg -> clean envelope"),
+                       ("--reconcile", "oversize --reconcile arg -> clean envelope"),
+                       ("--verify", "oversize --verify arg -> clean envelope")):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc_long = main([flag, long_arg])
+        try:
+            err_obj = json.loads(buf.getvalue().strip())
+        except json.JSONDecodeError:
+            err_obj = {}
+        _check(name, rc_long == 1 and "error" in err_obj and "next_step" in err_obj, f)
 
     ok, _ = _write_allowed({"capabilities": {}})
     _check("write gate: refused with finance_management off", ok is False, f)
@@ -1461,8 +1482,15 @@ def _main(argv):
         print(json.dumps(redact(result) if args.redacted else result, indent=2))
         return 0
     if args.reconcile:
-        result = reconcile(args.reconcile, None, args.window_days, args.amount_tolerance,
-                           today=today)
+        # The privacy boundary (_csv_rows refusing an in-repo CSV without a .local. name) stays a
+        # raise for library callers; at the CLI it becomes the clean envelope, never a traceback.
+        try:
+            result = reconcile(args.reconcile, None, args.window_days, args.amount_tolerance,
+                               today=today)
+        except PermissionError as exc:
+            return _fail(str(exc),
+                         "save bank exports as pipeline/finance/<name>.local.csv (gitignored) "
+                         "or keep them outside the repo")
         print(json.dumps(redact(result) if args.redacted else result, indent=2))
         return 0
     if args.mark_paid:
@@ -1478,10 +1506,13 @@ def _main(argv):
             if not ok:
                 inv["_gate"] = reason
             else:
-                FINANCE_DIR.mkdir(parents=True, exist_ok=True)
-                out = FINANCE_DIR / f"{inv['invoice_id']}.local.json"
-                out.write_text(json.dumps(inv, indent=2) + "\n", encoding="utf-8")
-                inv["_written_to"] = str(out)
+                try:
+                    FINANCE_DIR.mkdir(parents=True, exist_ok=True)
+                    out = FINANCE_DIR / f"{inv['invoice_id']}.local.json"
+                    out.write_text(json.dumps(inv, indent=2) + "\n", encoding="utf-8")
+                    inv["_written_to"] = str(out)
+                except OSError as exc:  # payload-derived filename (e.g. oversize deal_id)
+                    inv["_gate"] = f"refused: could not write the invoice file: {exc}"
         print(json.dumps(inv, indent=2))
         return 0
     if args.accrue:
@@ -1541,8 +1572,12 @@ def _main(argv):
         print(json.dumps(manifest(), indent=2))
         return 0
     if args.write_manifest:
-        Path(args.write_manifest).write_text(json.dumps(manifest(), indent=2) + "\n",
-                                             encoding="utf-8")
+        try:
+            Path(args.write_manifest).write_text(json.dumps(manifest(), indent=2) + "\n",
+                                                 encoding="utf-8")
+        except OSError as exc:
+            return _fail(f"could not write the manifest: {exc}",
+                         "pass a writable file path")
         print(f"wrote {args.write_manifest}")
         return 0
     if args.verify:

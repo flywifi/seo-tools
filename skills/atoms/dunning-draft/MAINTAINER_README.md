@@ -56,6 +56,6 @@ both and let the human address the letter; never guess the recipient.
 
 ## Update checklist
 1. Edit SKILL.md / this file.
-2. `python3 tools/finance.py --selftest` passes 102 of 102.
+2. `python3 tools/finance.py --selftest` passes 105 of 105.
 3. `python3 tools/sync_check.py` exits 0 (invariants 19/20 cover the draft path).
 Verify all backticked path references in this file and SKILL.md resolve to real files on disk.

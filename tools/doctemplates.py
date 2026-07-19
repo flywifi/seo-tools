@@ -61,14 +61,23 @@ def _read_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _probe_file(p):
+    """exists()+is_file() that treats an unprobeable path (e.g. a >255-byte component raising
+    ENAMETOOLONG) as absent instead of crashing -- Path.exists() does not suppress that errno."""
+    try:
+        return p.exists() and p.is_file()
+    except OSError:
+        return False
+
+
 def load_template(ref):
     """Resolve a template by path or id. Ids resolve local-first: pipeline/templates/<id>.local.json,
     then <id>.template.json. Returns (data, source_path_str). Raises FileNotFoundError."""
     p = Path(ref)
-    if p.exists() and p.is_file():
+    if _probe_file(p):
         return _read_json(p), str(p)
     for cand in (_templates_dir() / f"{ref}.local.json", _templates_dir() / f"{ref}.template.json"):
-        if cand.exists():
+        if _probe_file(cand):
             return _read_json(cand), str(cand)
     raise FileNotFoundError(f"no template at {ref!r} and no pipeline/templates/{ref}.local.json "
                             f"or .template.json")
@@ -211,10 +220,10 @@ def resolve_selection(template, selections):
 # --------------------------------------------------------------------------- fill sources
 
 def _load_local_json(path):
-    p = Path(path)
-    if not p.exists():
-        return None
     try:
+        p = Path(path)
+        if not p.exists():
+            return None
         return _read_json(p)
     except (OSError, json.JSONDecodeError):
         return None
@@ -579,6 +588,20 @@ def _selftest():
            resolve_source_path({"top": [{"t": "x"}]}, "top[0].t") == "x"
            and resolve_source_path({"top": []}, "top[0].t") is None)
 
+    # P64 AUDIT-F2 boundary case: a >NAME_MAX (255-byte) template ref must yield the clean
+    # envelope + exit 1 through the CLI dispatch, never a raw OSError traceback.
+    import io as _io
+    import contextlib as _cl
+    buf = _io.StringIO()
+    with _cl.redirect_stdout(buf):
+        rc_long = main(["validate", "x" * 300])
+    try:
+        err_obj = json.loads(buf.getvalue().strip())
+    except json.JSONDecodeError:
+        err_obj = {}
+    _check("oversize template ref -> clean envelope + exit 1",
+           rc_long == 1 and "error" in err_obj and "next_step" in err_obj)
+
     n, fails = checks["n"], checks["fail"]
     print(f"selftest: {'PASS' if not fails else 'FAIL'} ({n - fails} of {n} checks)")
     return 0 if not fails else 1
@@ -610,6 +633,20 @@ def main(argv=None):
 
     if args.selftest:
         return _selftest()
+    # Whole-path rule: every command below reads/writes CLI-supplied paths; an unreadable,
+    # missing, oversize, or non-JSON input yields the clean envelope, never a traceback.
+    try:
+        return _dispatch(args)
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a template id or a readable JSON file path"}))
+        return 1
+    except OSError as exc:
+        print(json.dumps({"error": str(exc), "next_step": "pass a readable file path"}))
+        return 1
+
+
+def _dispatch(args):
     if args.cmd == "validate":
         data, path = load_template(args.template)
         errors, warnings = validate_template(data, Path(path).name)
@@ -673,7 +710,7 @@ def main(argv=None):
         print(json.dumps(diff_templates(_read_json(args.proposed), _read_json(args.saved)),
                          indent=2))
         return 0
-    ap.print_help()
+    print(json.dumps({"error": "no command given", "next_step": "run with --help"}))
     return 2
 
 

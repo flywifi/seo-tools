@@ -321,7 +321,11 @@ def load_register(backend="local_fs", path=None, blob=None) -> dict:
     - remote_mcp: wired in the next chunk (a hosted endpoint serves the same tools)."""
     if backend == "local_fs":
         p = Path(path) if path else REGISTER_PATH
-        if not p.exists():
+        try:
+            found = p.exists()
+        except OSError as exc:  # e.g. ENAMETOOLONG: an unprobeable path is unreadable, not empty
+            raise ValueError(f"could not read task register: {exc}")
+        if not found:
             return _empty_register()
         try:
             return json.loads(p.read_text(encoding="utf-8"))
@@ -330,8 +334,12 @@ def load_register(backend="local_fs", path=None, blob=None) -> dict:
     if backend == "google_drive":
         if blob is not None:
             return deserialize_register(blob)
-        if path and Path(path).exists():
-            return json.loads(Path(path).read_text(encoding="utf-8"))
+        if path:
+            try:
+                if Path(path).exists():
+                    return json.loads(Path(path).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(f"could not read task register: {exc}")
         raise ValueError("google_drive backend needs the Drive file contents (blob=) or a synced path=; "
                          "the host's native Google Drive connector supplies them")
     if backend == "remote_mcp":
@@ -853,8 +861,10 @@ def make_task(id, title, source, project_id=None, contract_id=None, task_kind="n
 # ── selftest ──────────────────────────────────────────────────────────────────
 def selftest() -> int:
     failures = []
+    ran = [0]  # derived check count: the printed summary can never drift from reality
 
     def check(name, cond):
+        ran[0] += 1
         if not cond:
             failures.append(name)
 
@@ -1012,7 +1022,17 @@ def selftest() -> int:
     check("gd-roundtrip", reloaded["tasks"][0]["id"] == t["id"])
     check("gd-sheet-projection", saved["sheet_rows"][0][0] == "id" and len(saved["sheet_rows"]) == 2)
 
-    n = 46
+    # P64 AUDIT-F2 boundary case: a >NAME_MAX (255-byte) register path raises the documented
+    # ValueError (which the CLI translates to a clean envelope), never a raw OSError.
+    try:
+        load_register("local_fs", "x" * 300)
+        check("oversize-register-path-ValueError", False)
+    except ValueError:
+        check("oversize-register-path-ValueError", True)
+    except OSError:
+        check("oversize-register-path-ValueError", False)
+
+    n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))
@@ -1034,13 +1054,28 @@ def main(argv):
     args = ap.parse_args(argv)
     if args.selftest:
         return selftest()
+
+    def _reg_or_fail(path):
+        """CLI-side translation: a register load failure prints the clean envelope, never a
+        traceback (the whole-path rule; library callers still get the ValueError)."""
+        try:
+            return load_register("local_fs", path), 0
+        except ValueError as exc:
+            print(json.dumps({"error": str(exc),
+                              "next_step": "pass a readable task register JSON path"}))
+            return None, 1
+
     if args.cmd == "scan":
-        reg = load_register("local_fs", args.register)
+        reg, rc = _reg_or_fail(args.register)
+        if rc:
+            return rc
         today = _ob._parse_date(args.today) or date.today()
         print(json.dumps(scan(reg, today), indent=2))
         return 0
     if args.cmd == "plan":
-        reg = load_register("local_fs", args.register)
+        reg, rc = _reg_or_fail(args.register)
+        if rc:
+            return rc
         tasks = reg.get("tasks", [])
         events = {}
         if args.events:
@@ -1054,16 +1089,25 @@ def main(argv):
             print(json.dumps(forward_schedule(tasks, events), indent=2))
         return 0
     if args.cmd == "ics":
-        reg = load_register("local_fs", args.register)
+        reg, rc = _reg_or_fail(args.register)
+        if rc:
+            return rc
         ics = register_to_ics(reg)
         if args.out:
-            Path(args.out).write_text(ics, encoding="utf-8")
+            try:
+                Path(args.out).write_text(ics, encoding="utf-8")
+            except OSError as exc:
+                print(json.dumps({"error": f"could not write the calendar file: {exc}",
+                                  "next_step": "pass a writable --out path"}))
+                return 1
             print(json.dumps({"written": args.out, "events": ics.count("BEGIN:VEVENT")}))
         else:
             sys.stdout.write(ics)
         return 0
     if args.cmd == "reminders":
-        reg = load_register("local_fs", args.register)
+        reg, rc = _reg_or_fail(args.register)
+        if rc:
+            return rc
         today = _ob._parse_date(args.today) or date.today()
         print(json.dumps(reminders_digest(reg, today), indent=2))
         return 0

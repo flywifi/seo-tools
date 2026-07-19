@@ -36,42 +36,42 @@
     },
     "skills/finance-desk/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/ar-review/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/cashflow-view/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/cost-estimate/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/dunning-draft/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/invoice-generate/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/payment-reconcile/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "skills/atoms/proposal-price/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
+        "tools/finance.py": "38fc34a11a0903549fe39e7dd158bfae2c63a7f1b5cb0d4c44f31f6c979fd6e5"
       }
     },
     "docs/DRIVE-HUB.md": {

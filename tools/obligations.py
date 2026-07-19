@@ -312,7 +312,7 @@ def manifest() -> dict:
 
 
 def verify(manifest_path: str) -> dict:
-    m = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    m = _load_json(manifest_path)
     current = {r["path"]: r["sha256"] for r in manifest()["resources"]}
     ok, changed, missing = [], [], []
     for r in m.get("resources", []):
@@ -335,8 +335,10 @@ def selftest() -> int:
     """
     t = date(2026, 7, 2)
     failures = []
+    ran = [0]  # derived check count: the printed summary can never drift from reality
 
     def expect(name, cond):
+        ran[0] += 1
         if not cond:
             failures.append(name)
         print(f"  [{'ok' if cond else 'FAIL'}] {name}")
@@ -387,8 +389,23 @@ def selftest() -> int:
     expect("bad payload path -> clean error dict + exit 1",
            rc_bad == 1 and "error" in err_obj and "next_step" in err_obj)
 
+    # P64 AUDIT-F2: a >NAME_MAX (255-byte) arg must yield the clean envelope, never a raw
+    # OSError traceback -- Path.exists() does not suppress ENAMETOOLONG, so the dispatch-level
+    # probe needs its own guard (the whole-path rule; widened invariant 54 locks it).
+    long_arg = "x" * 300
+    for flag, name in (("--scan", "oversize --scan arg -> clean envelope"),
+                       ("--verify", "oversize --verify arg -> clean envelope")):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc_long = main([flag, long_arg, "--today", "2026-07-18"])
+        try:
+            err_obj = json.loads(buf.getvalue().strip())
+        except json.JSONDecodeError:
+            err_obj = {}
+        expect(name, rc_long == 1 and "error" in err_obj and "next_step" in err_obj)
+
     print(f"selftest: {'PASS' if not failures else 'FAIL'} "
-          f"({16 - len(failures)} of 16 checks)")
+          f"({ran[0] - len(failures)} of {ran[0]} checks)")
     return 1 if failures else 0
 
 
@@ -453,14 +470,22 @@ def _main(argv) -> int:
     if a.manifest or a.write_manifest:
         m = manifest()
         if a.write_manifest:
-            Path(a.write_manifest).write_text(json.dumps(m, indent=2) + "\n", encoding="utf-8")
+            try:
+                Path(a.write_manifest).write_text(json.dumps(m, indent=2) + "\n", encoding="utf-8")
+            except OSError as exc:
+                return _fail(f"could not write the manifest: {exc}",
+                             "pass a writable file path")
             print(f"wrote {a.write_manifest} ({m['resource_count']} resource(s))")
         else:
             print(json.dumps(m, indent=2))
         return 0
     if a.scan:
         src = REGISTER_PATH if a.scan == "__register__" else Path(a.scan)
-        if not src.exists():
+        try:
+            found = src.exists()
+        except OSError as exc:  # e.g. ENAMETOOLONG on a >255-byte inline-JSON "path"
+            raise PayloadError(f"could not read the payload path: {exc}") from exc
+        if not found:
             print(json.dumps({"error": "no_source",
                               "message": f"{src} not found; pass a rows file or build the register first"}))
             return 1
