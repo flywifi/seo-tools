@@ -34,6 +34,8 @@ non-Claude surfaces.
 | Claude Desktop (local MCP) | yes (MCP server) | yes | yes (MCP) | native | native |
 | Claude Code / CLI | yes | yes | yes | native | native |
 | claude.ai web/mobile | sandbox only | via connector/sandbox | yes (remote MCP connector) | via remote MCP | via remote MCP |
+| Claude Cowork local (VM on the user's machine) | yes (isolated VM, connected folders) | yes | yes (plugins + MCP) | native | native (if the VM carries the tool/backend) |
+| Claude Cowork remote (ephemeral sandbox) | yes (sandbox; destroyed at session end) | via connectors | yes (plugins + remote MCP connectors; no local stdio MCP) | via remote MCP | via remote MCP; nothing on its disk persists |
 | Custom GPT (OpenAI) | no | yes (Actions) | yes (Actions) | GPT Action -> public/hosted REST | only via a hosted endpoint |
 | Gemini API (developer) | your backend | your backend | yes (function calling) | function call -> your backend executes | your backend runs the tool |
 | Gemini "Gems" (consumer) | no | no | no | NO | NO |

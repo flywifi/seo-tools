@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P63 are complete. Drift guard exits 0 (54 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P63 are complete. Drift guard exits 0 (55 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P63: sweep remediation (ADR 0046). The four defects the 2026-07-18 diagnose-only Mac +
   cross-skill workflow sweep confirmed are fixed with proof mechanisms that fail on the old code:

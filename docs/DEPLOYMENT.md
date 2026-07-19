@@ -239,44 +239,52 @@ python3 tools/competitor_snapshot.py --export-summary
 
 ## Capability matrix
 
-| Capability | Claude Desktop | Claude Projects | GPT API | ChatGPT Web | Gemini |
-|---|---|---|---|---|---|
-| Full hub routing and all spokes | Yes | Yes | Partial | Partial | Partial |
-| SEO keyword strategy (knowledge-based) | Yes | Yes | Yes | Yes | Yes |
-| Video scripts, hooks, captions | Yes | Yes | Yes | Yes | Yes |
-| Google Workspace (Gmail, Calendar, Drive/Docs/Sheets) | Yes (wizard) | Yes (native connector) | No | No | No |
-| Microsoft 365 (Outlook, Calendar, Excel, OneDrive) | Yes (wizard) | No | No | No | No |
-| Competitor hidden video tags (ytInitialPlayerResponse) | Yes (MCP) | No | No | No | No |
-| Offline FTS5 keyword cache queries | Yes (MCP) | No | No | No | No |
-| Source staleness detection | Yes (MCP) | No | No | No | No |
-| Deterministic quality scoring | Yes (MCP) | No | No | No | No |
-| Statistical computation (hypothesis tests, regression) | Yes (MCP) | No | No | No | No |
-| SQL analytics (DuckDB over CSV/Parquet/JSON) | Yes (MCP) | No | No | No | No |
-| Jupyter notebook sessions | Yes (MCP) | No | No | No | No |
-| ML predictions (scikit-learn) | Yes (MCP) | No | No | No | No |
-| Gemini Gem export packaging | Yes | Yes | No | No | N/A |
-| Custom GPT export packaging | Yes | Yes | N/A | N/A | No |
-| Subagent workflows (content-pipeline, etc.) | Yes | No | No | No | No |
-| Agent orchestration (read-only research agents) | Yes | No | No | No | No |
-| Edit spec generation (markers, chapters, captions, presets) | Yes | Yes | Yes | Yes | Yes |
-| Build/parse FCPXML + OTIO files | Yes (local) | No | No | No | No |
-| DaVinci Resolve live control | Yes (local + Studio) | No | No | No | No |
-| Compressor export presets (macOS) | Yes (local + Mac) | No | No | No | No |
-| Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | Yes | No | No |
-| Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial | No | No |
-| Channel context from channel-context.json | Yes | Manual paste | Manual paste | No | No |
-| Task tracker (source-cited tasks, scheduling, waiting-on) | Yes (MCP) | Partial (model computes under tasks-engine) | Partial | No | Partial |
-| Cross-surface task store (Google Drive JSON + Sheets mirror) | Yes (wizard) | Yes (native connector) | No | No | Partial (Drive native) |
-| Live carrier shipment tracking (EasyPost/Ship24) | Yes (MCP + env key) | No | Partial (key) | No | No |
-| Manual shipment entry + delivered_at anchor | Yes | Yes | Yes | Yes | Yes |
-| Coverage verification (multi-transcript reconcile + cited points) | Yes (MCP) | Partial (lexical/model, abstains) | Partial | No | Partial |
-| Payment milestone billable-readiness into finance | Yes (MCP) | Partial | Partial | No | Partial |
-| .ics calendar export + reminders digest | Yes (local) | No | No | No | No |
-| Import own past videos + metadata (export bundle) | Yes (local) | Partial (paste stats) | Partial (upload export) | No (browser cannot read your folder) | No |
-| Live-API video import (flag-gated, revenue-never) | Yes (local + own OAuth) | No | Partial (key) | No | No |
-| Local transcription / STT import (whisper.cpp / faster-whisper) | Yes (local, on-device) | No | Partial (upload; backend may need install) | No | No |
-| Retention x transcript join (most-watched parts with words) | Yes (local, YouTube only) | Partial (model reasons over pasted data) | Partial | No | No |
-| Back-catalog analysis (top tags, retention cliffs, themes) | Yes (local) | Partial (paste library) | Partial | No | No |
+| Capability | Claude Desktop | Claude Projects | Cowork (remote) | GPT API | ChatGPT Web | Gemini |
+|---|---|---|---|---|---|---|
+| Full hub routing and all spokes | Yes | Yes | Yes (plugin skills) | Partial | Partial | Partial |
+| SEO keyword strategy (knowledge-based) | Yes | Yes | Yes | Yes | Yes | Yes |
+| Video scripts, hooks, captions | Yes | Yes | Yes | Yes | Yes | Yes |
+| Google Workspace (Gmail, Calendar, Drive/Docs/Sheets) | Yes (wizard) | Yes (native connector) | Not verified | No | No | No |
+| Microsoft 365 (Outlook, Calendar, Excel, OneDrive) | Yes (wizard) | No | No | No | No | No |
+| Competitor hidden video tags (ytInitialPlayerResponse) | Yes (MCP) | No | Via remote MCP | No | No | No |
+| Offline FTS5 keyword cache queries | Yes (MCP) | No | Via remote MCP | No | No | No |
+| Source staleness detection | Yes (MCP) | No | Via remote MCP | No | No | No |
+| Deterministic quality scoring | Yes (MCP) | No | Via remote MCP | No | No | No |
+| Statistical computation (hypothesis tests, regression) | Yes (MCP) | No | Via remote MCP | No | No | No |
+| SQL analytics (DuckDB over CSV/Parquet/JSON) | Yes (MCP) | No | Via remote MCP | No | No | No |
+| Jupyter notebook sessions | Yes (MCP) | No | Via remote MCP | No | No | No |
+| ML predictions (scikit-learn) | Yes (MCP) | No | Via remote MCP | No | No | No |
+| Gemini Gem export packaging | Yes | Yes | Yes (export and save it) | No | No | N/A |
+| Custom GPT export packaging | Yes | Yes | Yes (export and save it) | N/A | N/A | No |
+| Subagent workflows (content-pipeline, etc.) | Yes | No | Not verified | No | No | No |
+| Agent orchestration (read-only research agents) | Yes | No | Not verified | No | No | No |
+| Edit spec generation (markers, chapters, captions, presets) | Yes | Yes | Yes | Yes | Yes | Yes |
+| Build/parse FCPXML + OTIO files | Yes (local) | No | No (ephemeral sandbox) | No | No | No |
+| DaVinci Resolve live control | Yes (local + Studio) | No | No | No | No | No |
+| Compressor export presets (macOS) | Yes (local + Mac) | No | No | No | No | No |
+| Real YouTube Data API analytics | Yes (integrations-engine) | Setup required | No | Yes | No | No |
+| Voice profile from voice-profile.json | Yes | Partial (seed vocabulary) | Partial (connected files) | Partial | No | No |
+| Channel context from channel-context.json | Yes | Manual paste | Partial (connected files) | Manual paste | No | No |
+| Task tracker (source-cited tasks, scheduling, waiting-on) | Yes (MCP) | Partial (model computes under tasks-engine) | Via remote MCP | Partial | No | Partial |
+| Cross-surface task store (Google Drive JSON + Sheets mirror) | Yes (wizard) | Yes (native connector) | Partial (Drive) | No | No | Partial (Drive native) |
+| Live carrier shipment tracking (EasyPost/Ship24) | Yes (MCP + env key) | No | Via remote MCP | Partial (key) | No | No |
+| Manual shipment entry + delivered_at anchor | Yes | Yes | Yes | Yes | Yes | Yes |
+| Coverage verification (multi-transcript reconcile + cited points) | Yes (MCP) | Partial (lexical/model, abstains) | Via remote MCP | Partial | No | Partial |
+| Payment milestone billable-readiness into finance | Yes (MCP) | Partial | Via remote MCP | Partial | No | Partial |
+| .ics calendar export + reminders digest | Yes (local) | No | No (ephemeral sandbox) | No | No | No |
+| Import own past videos + metadata (export bundle) | Yes (local) | Partial (paste stats) | Partial (connected files) | Partial (upload export) | No (browser cannot read your folder) | No |
+| Live-API video import (flag-gated, revenue-never) | Yes (local + own OAuth) | No | No | Partial (key) | No | No |
+| Local transcription / STT import (whisper.cpp / faster-whisper) | Yes (local, on-device) | No | No (ephemeral sandbox; run at home) | Partial (upload; backend may need install) | No | No |
+| Retention x transcript join (most-watched parts with words) | Yes (local, YouTube only) | Partial (model reasons over pasted data) | Partial (connected files) | Partial | No | No |
+| Back-catalog analysis (top tags, retention cliffs, themes) | Yes (local) | Partial (paste library) | Partial (connected files) | Partial | No | No |
+
+Cowork (remote) column notes: a Cowork **local** session behaves like the Claude Desktop column
+(a hypervisor-isolated VM on your machine with your Creator OS folder connected). The remote
+column reflects the ephemeral Anthropic-hosted sandbox: plugin skills carry the knowledge tier
+natively; anything requiring local tools reaches the session only through a deployed remote MCP
+connector; the sandbox's disk is destroyed at session end, so nothing local persists; "Not
+verified" marks capabilities the vendor docs do not settle (see `docs/UPDATING.md` for the cited
+Cowork behavior).
 
 ---
 

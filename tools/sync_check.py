@@ -114,6 +114,12 @@ Invariants enforced:
       tools/obligations.py::_load_json keep their try/except guard so a bad CLI payload path or
       inline JSON yields the clean {"error","next_step"} envelope, never a raw traceback. The
       sibling of invariant 35 for the two offline money/legal CLIs.
+  55. Surface-origin completeness (P64): the compute-job origin vocabulary
+      (tools/handoff/queue.py ALLOWED_ORIGINS == the shared/schemas/compute-job.json enum) is
+      fully claimed by the cross-modality surface model — every origin appears in at least one
+      transitions.json surface's `origins` list or the documented _residual_origin_note. The
+      independent-oracle reconciliation that would have caught the missing Cowork surface the day
+      the cowork origin shipped.
 """
 import json
 import os
@@ -1169,11 +1175,12 @@ def check_doc_template_starters():
 
 
 TRANSITION_SURFACE_KEYS = {
-    "claude_desktop", "claude_code", "claude_web", "chatgpt_web_plain", "chatgpt_custom_gpt",
+    "claude_desktop", "claude_code", "claude_web", "cowork_local", "cowork_remote",
+    "chatgpt_web_plain", "chatgpt_custom_gpt",
     "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_gems",
 }
 TRANSITION_SURFACE_REQUIRED = ("label", "vendor", "class_support", "carries", "flags_enforced",
-                               "local_machine_required", "store_options", "setup_steps")
+                               "local_machine_required", "store_options", "origins", "setup_steps")
 TRANSITION_CLASS_VALUES = {"native", "paste", "remote_mcp", "action", "none"}
 
 
@@ -2064,6 +2071,73 @@ def check_payload_loader_robustness():
                     f"payload path would raise a raw traceback again (P63 F-SWEEP-1 regression)")
 
 
+def check_surface_origin_completeness():
+    """Invariant 55: every compute-job origin is claimed by the cross-modality surface model (P64).
+
+    tools/handoff/queue.py::ALLOWED_ORIGINS and the origin enum in
+    shared/schemas/compute-job.json are the independent oracle for "where work comes from";
+    shared/cross-modality/transitions.json is the model of "where Creator OS runs". AUDIT-F1
+    (the cowork origin shipping in P60 while the surface model went two days without a Cowork
+    row) happened because nothing reconciled them. This check asserts (a) the two enums are
+    identical, and (b) every enum value is claimed by at least one surface's `origins` list or
+    the documented `_residual_origin_note`. Fail-closed."""
+    import ast
+    qp = ROOT / "tools" / "handoff" / "queue.py"
+    if not qp.exists():
+        problem("origin-completeness: tools/handoff/queue.py is missing")
+        return
+    try:
+        tree = ast.parse(qp.read_text(encoding="utf-8"))
+    except SyntaxError as exc:
+        problem(f"origin-completeness: queue.py failed to parse: {exc}")
+        return
+    enum_code = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name) and tgt.id == "ALLOWED_ORIGINS":
+                    try:
+                        enum_code = tuple(ast.literal_eval(node.value))
+                    except (ValueError, SyntaxError):
+                        pass
+    if enum_code is None:
+        problem("origin-completeness: queue.py no longer defines a literal ALLOWED_ORIGINS tuple")
+        return
+    sp = ROOT / "shared" / "schemas" / "compute-job.json"
+    try:
+        schema = json.loads(sp.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"origin-completeness: compute-job.json unreadable: {exc}")
+        return
+    enum_schema = ((((schema.get("$defs") or {}).get("job") or {}).get("properties") or {})
+                   .get("origin") or {}).get("enum") or []
+    if set(enum_code) != set(enum_schema):
+        problem(f"origin-completeness: queue.py ALLOWED_ORIGINS {sorted(enum_code)} != "
+                f"compute-job.json origin enum {sorted(enum_schema)}")
+    tp = ROOT / "shared" / "cross-modality" / "transitions.json"
+    try:
+        data = json.loads(tp.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"origin-completeness: transitions.json unreadable: {exc}")
+        return
+    claimed = set()
+    for rec in (data.get("surfaces") or {}).values():
+        claimed.update(rec.get("origins") or [])
+    residual_note = data.get("_residual_origin_note") or ""
+    for origin in enum_code:
+        if origin in claimed:
+            continue
+        if f"'{origin}'" in residual_note:
+            continue
+        problem(f"origin-completeness: origin {origin!r} is in ALLOWED_ORIGINS but no "
+                f"transitions surface claims it (add it to a surface's 'origins' list or, for a "
+                f"deliberate residual, to _residual_origin_note)")
+    unknown = claimed - set(enum_code)
+    if unknown:
+        problem(f"origin-completeness: transitions surfaces claim origins {sorted(unknown)} "
+                f"that are not in ALLOWED_ORIGINS")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -2198,6 +2272,7 @@ def main():
     check_doc_source_registry()
     check_connector_resolver_smoke()
     check_payload_loader_robustness()
+    check_surface_origin_completeness()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

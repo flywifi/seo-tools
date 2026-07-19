@@ -46,7 +46,7 @@ This atom queues or schedules a single piece of finalized content to one social 
 When the connector returns ambiguous status (e.g., partial acceptance), the atom returns the conservative interpretation (failed) and surfaces the raw connector message in `error`.
 
 ## Update checklist
-1. Run `python3 tools/sync_check.py` — all 54 invariants must pass.
+1. Run `python3 tools/sync_check.py` — all 55 invariants must pass.
 2. Verify all path references in this file and SKILL.md resolve to real files on disk.
 3. After any platform API rate limit or endpoint change, update `shared/integrations-engine.md` first, then update the Failure modes section here.
 4. After any connector registry change, confirm `shared/connectors/connectors.py` CAPABILITY_TO_CONNECTOR is up to date.

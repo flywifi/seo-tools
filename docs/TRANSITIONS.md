@@ -7,13 +7,15 @@ renders any from/to pair from the same data (run `python3 tools/wizard.py` and p
 than one"). Anything tagged `[NEEDS VERIFICATION: ...]` depends on your ChatGPT or Gemini plan
 and must be checked against your own account; the repo does not assert it.
 
-## The nine surfaces
+## The eleven surfaces
 
 | Surface | What runs there | Flags enforced? |
 |---|---|---|
 | Claude Desktop (this computer) | everything (Class A, B, C native) | yes |
 | Claude Code / command line | everything | yes |
 | claude.ai in a browser (web and mobile) | knowledge natively; live tools via a deployed remote MCP connector | no (the endpoint's machine enforces) |
+| Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend) | yes |
+| Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect | no (a fresh sandbox has no local config) |
 | ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files) | no |
 | Custom GPT (built in the ChatGPT GPT builder) | knowledge pack + the public jurisdiction Action | no |
 | ChatGPT Projects (a Project with files at chatgpt.com) | knowledge pack as Project instructions + files | no |
@@ -27,6 +29,14 @@ Two facts hold on every non-local surface, and nothing there changes them:
 2. **Your local data does not follow you automatically.** Rate card, deals, contracts, templates,
    and profile live in gitignored local files; read `docs/PASTE-SAFETY.md` before pasting any of
    it into a third-party chat.
+
+One more fact specific to Cowork remote sessions: **the sandbox is ephemeral.** It is destroyed
+when the session ends, and nothing written to its local disk survives — including `.local` store
+files. Keep durable state in Google Drive or behind a hosted connector, and treat anything the
+sandbox produced as an export you save before the session closes (the same
+append-new-dated-file model as claude.ai web). A Cowork **local** session runs on your own
+computer and behaves like Claude Desktop, including local stores and flag enforcement; plugin
+updates for an organization sync only when a version-bump PR merges (see `docs/UPDATING.md`).
 
 ## The common transitions
 

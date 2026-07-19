@@ -1,6 +1,7 @@
 {
   "_comment": "Single source of truth for AI surfaces and the transitions between them (P43). Consumed by tools/wizard.py (/chatgpt, /transitions, /cross-modality) and mirrored by docs/TRANSITIONS.md. Drift invariant 32 keeps the JSON, the doc, and the wizard surface keys consistent. Every OpenAI or Google product claim this repo cannot verify from cited research carries a literal [NEEDS VERIFICATION: ...] tag; treat those as things to check against your own plan, never as facts.",
   "schema_version": 1,
+  "_residual_origin_note": "origin 'other' is the forward-compatibility residual in tools/handoff/queue.py ALLOWED_ORIGINS; it names no surface by design and is claimed here so invariant 55's origin-coverage check is total.",
   "surfaces": {
     "claude_desktop": {
       "label": "Claude Desktop (this computer)",
@@ -10,6 +11,7 @@
       "flags_enforced": true,
       "local_machine_required": true,
       "store_options": ["local_fs", "google_drive"],
+      "origins": ["desktop", "mac"],
       "setup_steps": [
         "Install Claude Desktop and keep your Creator OS folder on this computer.",
         "Run the wizard (python3 tools/wizard.py) and pick Claude Desktop; it writes the MCP entries to your Claude Desktop config.",
@@ -25,6 +27,7 @@
       "flags_enforced": true,
       "local_machine_required": true,
       "store_options": ["local_fs", "google_drive"],
+      "origins": ["desktop", "mac"],
       "setup_steps": [
         "Open a terminal in your Creator OS folder.",
         "Run tools directly (python3 tools/...), or use the same MCP server as Claude Desktop."
@@ -39,11 +42,50 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["export_and_you_save", "google_drive"],
+      "origins": ["web"],
       "setup_steps": [
         "For knowledge-only use, add the Creator OS knowledge files to a claude.ai Project.",
         "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it in claude.ai as a custom connector."
       ],
       "needs_verification": []
+    },
+    "cowork_local": {
+      "label": "Claude Cowork (local session on this computer)",
+      "vendor": "anthropic",
+      "class_support": {"A": "native", "B": "native", "C": "native"},
+      "carries": ["connected_files", "python_runtime", "remote_mcp_connectors", "plugin_skills", "flag_enforcement"],
+      "flags_enforced": true,
+      "local_machine_required": true,
+      "store_options": ["local_fs", "google_drive"],
+      "origins": ["cowork"],
+      "setup_steps": [
+        "Install Creator OS through the plugin marketplace.",
+        "Open the Desktop app's Cowork tab and choose a local session (a hypervisor-isolated VM on this computer).",
+        "Connect the Creator OS folder so the session can reach your files."
+      ],
+      "needs_verification": [
+        "STT backend presence inside the local VM (transcription is native only if a backend is installed)",
+        "connected-folder reliability for large media files"
+      ]
+    },
+    "cowork_remote": {
+      "label": "Claude Cowork (remote ephemeral sandbox)",
+      "vendor": "anthropic",
+      "class_support": {"A": "native", "B": "remote_mcp", "C": "remote_mcp"},
+      "carries": ["plugin_skills", "remote_mcp_connectors", "connected_files"],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": ["google_drive", "export_and_you_save"],
+      "origins": ["cowork"],
+      "setup_steps": [
+        "Install Creator OS through the plugin marketplace; an organization's plugin auto-sync fires only when a version-bump PR merges.",
+        "Reach stateful data through Google Drive or a hosted connector; the sandbox is destroyed at session end, so nothing written to its local disk (including .local store files) persists.",
+        "Local stdio MCP servers do not run here; connect capabilities as remote MCP connectors, and reach local files only through folders explicitly connected in the Desktop app."
+      ],
+      "needs_verification": [
+        "the exact remote-MCP attach transport",
+        "whether a repo clone behaves identically to Claude Code on the web"
+      ]
     },
     "chatgpt_web_plain": {
       "label": "ChatGPT web chat (plain chat at chatgpt.com)",
@@ -53,6 +95,7 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["export_and_you_save"],
+      "origins": [],
       "setup_steps": [
         "Open ChatGPT Settings, then Personalization, then Custom Instructions.",
         "Paste the two boxes from implementation/gpt/web/custom-instructions.md (the file tells you which text goes in which box).",
@@ -69,6 +112,7 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["export_and_you_save"],
+      "origins": [],
       "setup_steps": [
         "Ask Creator OS (on your computer) for a Custom GPT export; the export-gpt package gives you an instruction file and up to 20 knowledge files.",
         "In the GPT builder, paste the instruction file and upload the knowledge files.",
@@ -85,6 +129,7 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["export_and_you_save"],
+      "origins": [],
       "setup_steps": [
         "Create a Project in ChatGPT and set the Project instructions to the instruction file from a Custom GPT export (same pack works here).",
         "Upload the knowledge files to the Project files area. [NEEDS VERIFICATION: Project file count and size limits for your plan]",
@@ -100,6 +145,7 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["export_and_you_save", "google_drive_conditional"],
+      "origins": [],
       "setup_steps": [
         "Install the ChatGPT desktop app and sign in.",
         "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version.",
@@ -117,6 +163,7 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["google_drive", "export_and_you_save"],
+      "origins": [],
       "setup_steps": [
         "Load implementation/gemini/*function-declarations.json as functionDeclarations in your app.",
         "When Gemini returns a function call, YOUR app executes the HTTPS request and returns the result.",
@@ -132,6 +179,7 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": ["export_and_you_save", "google_drive"],
+      "origins": [],
       "setup_steps": [
         "Paste implementation/gemini/system-instruction.md into a Gem.",
         "Gems cannot call custom tools; this is knowledge-only. For live data, move to the Gemini API or a Claude surface."

@@ -1466,6 +1466,13 @@ _SURFACES = {
         "seam", "Class A native; B and C via a remote MCP connector that you or your developer "
                 "deploy behind HTTPS with authentication (the repo ships the server code and "
                 "runbook, not a hosted service)."),
+    "cowork_local": ("Claude Cowork (local session on this computer)", None,
+        "native", "Every class (A, B, C) runs natively inside a local VM with your Creator OS "
+                  "folder connected; transcription needs an STT backend inside the VM."),
+    "cowork_remote": ("Claude Cowork (remote ephemeral sandbox)", None,
+        "seam", "Class A native via plugin skills; B and C via remote MCP connectors. The "
+                "sandbox is destroyed at session end, so keep durable data in Drive; local "
+                "stdio MCP servers do not run here."),
     "chatgpt_web_plain": ("ChatGPT web chat (plain chat at chatgpt.com)", None,
         "none", "Class A only, via pasted custom instructions. No live tools, no flags."),
     "chatgpt_custom_gpt": ("Custom GPT (built in the ChatGPT GPT builder)", None,

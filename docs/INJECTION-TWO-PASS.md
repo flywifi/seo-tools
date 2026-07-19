@@ -93,7 +93,8 @@ cross-modality model (`shared/cross-modality-engine.md`, `shared/cross-modality/
 | Claude Desktop / Code (atoms over the hub) | runs | runs, reads the prior | `both` | the ideal informed second pass |
 | Headless runner (`inbox_scan` job) | runs | no AI in the loop | `offline_only` | record marked `pass2_pending`; a later session completes pass 2 |
 | claude.ai web / mobile | usually can't (no local Python) | runs | `session_only` | session guard runs without a prior |
-| Cowork remote sandbox | maybe (Python present; needs files connected) | runs | varies | as available |
+| Cowork local session (VM on this computer) | runs (VM Python over connected folders) | runs, reads the prior | `both` | behaves like Claude Desktop; folder must be connected |
+| Cowork remote sandbox (ephemeral) | only via a deployed MCP + connected files | runs | `session_only` unless the offline tier is reachable | the sandbox is destroyed at session end; nothing local persists |
 | ChatGPT custom GPT / Action / web | no (unless a deployed MCP is connected) | the engine's OWN handling | `session_only` | we INSTRUCT the envelope discipline; we cannot enforce it |
 | Gemini Gems / API | no | the engine's OWN handling | `session_only` | same — instruct, not enforce |
 
