@@ -106,6 +106,10 @@ Invariants enforced:
       fenced ```sources block or an inline `<!-- source: id -->` marker must exist in
       canonical-sources/source-registry.json with a matching url; unparseable blocks fail. Fail-closed
       like invariant 23: a doc citation forces a tracked registry entry.
+  53. Connector resolver smoke (P63): shared/connectors/connectors.py::resolve executes cleanly over
+      the committed connectors.json (resolve({}) — the pure default-flag path). Invariants 18/23/41
+      only inspect the registry statically; this one runs it, so a malformed entry the resolver
+      cannot process (e.g. a missing default_flag) fails the build instead of shipping.
 """
 import json
 import os
@@ -1996,6 +2000,34 @@ def check_doc_source_registry():
                         f"source-registry.json (seed it or exempt it with a reason)")
 
 
+def check_connector_resolver_smoke():
+    """Invariant 53: the connector resolver actually RUNS over the committed registry (P63).
+
+    Invariants 18/23/41 validate connectors.json statically but never execute
+    shared/connectors/connectors.py::resolve, which is how a malformed entry (google_drive_hub
+    shipping without default_flag, the P63 F-SWEEP-4 defect) crashed --plan/--list/--json and the
+    MCP get_connectors tool while the guard stayed green. This check dynamically imports the
+    resolver and calls resolve({}) — the pure default-flag path — so any entry the resolver cannot
+    process fails the build. Fail-closed: an exception of any kind is a problem, not an advisory."""
+    tool = ROOT / "shared" / "connectors" / "connectors.py"
+    if not tool.exists():
+        problem("connector-resolver: shared/connectors/connectors.py is missing")
+        return
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_connectors_smoke", tool)
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+        plan = mod.resolve({})
+    except Exception as exc:  # noqa: BLE001
+        problem(f"connector-resolver: resolve() failed over the committed registry: "
+                f"{type(exc).__name__}: {exc}")
+        return
+    if not isinstance(plan, dict) or "active" not in plan:
+        problem("connector-resolver: resolve({}) returned an unexpected shape "
+                f"({type(plan).__name__}); expected a plan dict with an 'active' key")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -2128,6 +2160,7 @@ def main():
     check_tools_maintainer()
     check_doc_freshness()
     check_doc_source_registry()
+    check_connector_resolver_smoke()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

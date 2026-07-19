@@ -131,7 +131,9 @@ def resolve(flags: dict, registry: dict | None = None) -> dict:
     restrictions: dict[str, dict] = {}
 
     for c in reg["connectors"]:
-        cid, default = c["id"], c["default_flag"]
+        # default_flag is required on every registry entry (drift invariant 53 executes this
+        # resolver over the committed registry); .get() keeps a malformed entry OFF, never crashing.
+        cid, default = c["id"], c.get("default_flag", "not_installed")
         st, restricted, reason = _flag_state(conf.get(cid, default))
         if cid in ALWAYS_ON and st != "disabled":
             st = "available"
@@ -197,7 +199,7 @@ def cmd_list() -> None:
     print(f"connector registry v{reg['version']} ({len(reg['connectors'])} connectors):")
     for c in reg["connectors"]:
         auth = "  AUTHORITATIVE for " + ", ".join(c["authoritative_for"]) if c.get("authoritative_for") else ""
-        print(f"  - {c['id']:22} [{c['default_flag']:16}] provides: {', '.join(c.get('provides', []))}{auth}")
+        print(f"  - {c['id']:22} [{c.get('default_flag', 'not_installed'):16}] provides: {', '.join(c.get('provides', []))}{auth}")
     print("\nstates:", " | ".join(reg["states"]))
     print("\nevidence types:", " | ".join(reg["evidence_types"]))
     print("\ndeployment modes:", " | ".join(reg["deployment_modes"].keys()))

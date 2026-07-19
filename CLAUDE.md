@@ -107,9 +107,13 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
   `traversal-visited.json`.
 - `shared/connectors/connectors.json` is the source of truth for the connector registry. The
-  resolver (`shared/connectors/connectors.py`) reads both this file and `creator-os-config.local.json`
-  to produce the active evidence plan. Per-deployment overrides go in `creator-os-connectors.local.json`
-  (gitignored); do not edit `connectors.json` for deployment-specific state changes.
+  resolver (`shared/connectors/connectors.py`) reads this file plus, automatically,
+  `creator-os-config.local.json` to produce the active evidence plan; a dedicated flags file
+  (copy `shared/connectors/feature-flags.example.json` to gitignored
+  `creator-os-connectors.local.json`) is consulted only when passed explicitly via `--flags`.
+  Do not edit `connectors.json` for deployment-specific state changes. Every registry entry
+  carries a `default_flag`; drift invariant 53 executes the resolver over the committed registry
+  so a malformed entry fails the build.
 - **Human confirmation required before every post.** `schedule-post` always sets
   `human_review_required: true`. No connector call is made, and no post is queued or published,
   without an explicit human confirmation step. Agents never post directly — they produce

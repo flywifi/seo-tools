@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P62 are complete. Drift guard exits 0 (52 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P62 are complete. Drift guard exits 0 (53 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P62: two-pass injection screening (ADR 0045). The offline pattern tier now feeds the authoritative
   in-session semantic guard: `injection_scan.render_prior` renders the offline verdict as an advisory

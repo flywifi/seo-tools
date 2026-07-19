@@ -835,6 +835,7 @@
       "id": "google_drive_hub",
       "label": "Google Drive hub (shared cross-surface folder + compute hand-off queue)",
       "vendor": "Google",
+      "default_flag": "not_installed",
       "requires_capability": "drive_api_polling",
       "provides": [
         "shared_store",
