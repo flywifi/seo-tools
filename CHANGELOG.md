@@ -13,6 +13,17 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Fixed
+- The ENAMETOOLONG traceback class (ADR 0047): `Path.exists()` does not suppress errno 36, so a
+  >255-byte CLI path argument crashed dispatch-level probes that sat upstream of the P63 loader
+  guards. Every filesystem touch reachable from a CLI argument now yields the clean
+  `{"error","next_step"}` envelope: obligations `--scan`/`--verify`/`--write-manifest`, finance
+  `--reconcile`/`--verify`/`--write-manifest` plus the payload-derived invoice-filename write,
+  and the accounts/tasks/doctemplates loaders (each in its tool-local error idiom; the finance
+  CSV privacy refusal still raises for library callers and is translated only at the CLI). Every
+  touched selftest gains a >255-byte boundary case.
+- Selftest summary counts that had silently drifted from reality: obligations printed "16 of 16"
+  while 18 checks ran, and tasks printed "46" over 45. Both summaries (and finance/accounts/
+  doctemplates, already derived) now compute the count from the checks that actually ran.
 - The connector resolver crashed on the committed registry (ADR 0046): the `google_drive_hub`
   entry (P60) shipped without `default_flag`, so `connectors.py --plan/--list/--json` raised
   `KeyError` and the MCP `get_connectors` tool returned an error instead of the evidence plan.
@@ -29,6 +40,24 @@ work after the baseline sits under Unreleased.
   non-dict `terms` value (`malformed_terms`) instead of crashing on a plain-English string.
 
 ### Added
+- Cowork as a first-class surface pair (ADR 0047): `shared/cross-modality/transitions.json` gains
+  `cowork_local` (a hypervisor-isolated VM on the user's machine: Class A/B/C native, flags
+  enforced, local stores) and `cowork_remote` (the ephemeral Anthropic-hosted sandbox: Class B/C
+  via remote MCP connectors only, no `local_fs` because nothing on the sandbox disk survives
+  session end), mirrored across TRANSITIONS.md (eleven surfaces), the wizard surface map, the
+  cross-modality engine matrix, the INJECTION-TWO-PASS availability rows, and a new DEPLOYMENT
+  capability-matrix column.
+- The `origins` field on every cross-modality surface row, mapping each surface to the
+  compute-job origin vocabulary, with origin `other` claimed by a documented residual note.
+- Drift invariant 55 (surface-origin completeness): `tools/handoff/queue.py ALLOWED_ORIGINS` must
+  equal the `compute-job.json` origin enum, and every origin must be claimed by a surface or the
+  residual note — the independent-oracle reconciliation that would have caught the missing Cowork
+  surface the day the `cowork` origin shipped. Fail-closed.
+- `docs/AUDIT-PROTOCOL.md`: the repeatable audit procedure — derived coverage sets (never
+  enumerated from memory), four input-boundary classes per exercised CLI (incl. >NAME_MAX),
+  per-surface empathy legs including both Cowork modes, harness-artifact re-verification, and a
+  mandatory closing list of everything the audit did NOT exercise. Scenario S10 gains a
+  `cowork-surface-model` leg executing the committed transitions matrix on every battery run.
 - `shared/docintel/transcripts.py --normalize`: one combined object (segments + silence gaps +
   suggested chapters) for the transcript_normalize job, additive beside the unchanged single-mode
   flags, plus the tool's first `--selftest`.
@@ -201,6 +230,11 @@ work after the baseline sits under Unreleased.
   this `CHANGELOG.md`, and `docs/DOC-MAINTENANCE.md`.
 
 ### Changed
+- Drift invariant 54 widened in place from "the two payload loader bodies contain a try" to the
+  whole-path rule (ADR 0047): the loader-body layer now also covers the tasks and doctemplates
+  loaders plus an accounts call-site rule, and a new AST layer scans finance/obligations
+  `main`/`_main` for any argparse-derived value reaching `exists`/`read_text`/`write_text`/`open`
+  outside a try. The widened check fails on the pre-fix tree naming the exact defect sites.
 - Corrected stale maintainer/SKILL/doc claims surfaced by a full content-accuracy sweep
   (publishing layer no longer described as "dark/stubs", Pinterest scope, finance-desk check
   counts, contract-desk atom availability, videoedit atom list, tool-count and script-path

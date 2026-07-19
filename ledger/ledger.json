@@ -379,7 +379,18 @@
         "selftests without the two drift invariants (no build-time lock on the defect classes)"
       ],
       "phase": "P63"
+    },
+    {
+      "id": "P64-cowork-surface-and-audit-completeness",
+      "date": "2026-07-19",
+      "decision": "Fixed the two open audit findings (AUDIT-F1 Cowork absent from the surface model; AUDIT-F2 the ENAMETOOLONG raw-traceback class) AND the six audit-methodology root causes that let them survive (RC1 circular oracle, RC2 vocabulary fragmentation, RC3 own-runtime blindness, RC4 test-input realism, RC5 narrow fix/narrow guard, RC6 no completeness critic), each closed by a machine-enforced mechanism (ADR 0047). (1) Cowork is modeled as TWO first-class surfaces, cowork_local (VM on the user's machine: Class A/B/C native, flags enforced, local_fs available) and cowork_remote (ephemeral Anthropic-hosted sandbox destroyed at session end: Class B/C via remote MCP only, flags not enforced, no local_fs store), each with vendor-cited field values and needs_verification entries where the docs are silent; five mirror sites (transitions.json, TRANSITION_SURFACE_KEYS, TRANSITIONS.md, wizard _SURFACES, cross-modality-engine matrix) moved in one commit, plus the INJECTION-TWO-PASS row split and a DEPLOYMENT capability-matrix Cowork column. (2) Origin coverage: every surface row carries an origins field and NEW invariant 55 (check_surface_origin_completeness, fail-closed) reconciles queue.py ALLOWED_ORIGINS == the compute-job schema enum AND requires every origin claimed by a surface or the documented _residual_origin_note; negative tests fired verbatim on cowork-unclaimed and a fake enum value. (3) Whole-path hardening: every filesystem touch reachable from a CLI arg in finance/obligations plus the accounts/tasks/doctemplates soft sites (and a bonus taint-scan find: the payload-derived invoice-filename write) returns the clean error envelope on a >255-byte path; invariant 54 widened IN PLACE to loader-body targets + an AST taint layer over main/_main that failed on the pre-fix tree naming the exact sites; every path-taking CLI selftest gained a >NAME_MAX boundary case; two lying summary literals replaced with derived counts. (4) docs/AUDIT-PROTOCOL.md pins the methodology: coverage sets DERIVED from the machine-checked model, four input-boundary classes, per-surface empathy legs, harness honesty, and the mandatory closing unexercised-list; scenario S10 gained the cowork-surface-model leg so the battery executes the Cowork model facts on every run. Invariants 54 to 55; selftests: finance 105/105, obligations 20/20 (derived), accounts 28/28, tasks 46/46 (derived), doctemplates 27/27; scenarios 10/10.",
+      "alternatives_rejected": [
+        "full capability rows for the mac/other origins (fabrication; mac is the local runner already served by claude_desktop/claude_code, other is a forward-compatibility residual -- both claimed via the origins field + residual note instead)",
+        "a new invariant number for the widened payload check (widening 54 in place keeps one-invariant-one-guarantee; a separate number would imply the old narrow guarantee still stands)",
+        "one merged cowork row (the local and remote modes genuinely diverge on every field the model exists to capture: flag enforcement, local_fs, stdio MCP, machine requirement)"
+      ],
+      "phase": "P64"
     }
   ],
-  "updated": "2026-07-18"
+  "updated": "2026-07-19"
 }

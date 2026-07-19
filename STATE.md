@@ -2,8 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P63 are complete. Drift guard exits 0 (55 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P64 are complete. Drift guard exits 0 (55 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P64: Cowork as a first-class surface + whole-path input hardening + audit-completeness
+  machinery (ADR 0047, 2026-07-19). The cross-modality surface model gained `cowork_local` and
+  `cowork_remote` rows (11 surfaces; honest, vendor-cited capability profiles with
+  `needs_verification` where the docs are silent), every surface row gained an `origins` field,
+  and NEW invariant 55 (`check_surface_origin_completeness`, fail-closed) reconciles the model
+  against the independent origin oracle (`tools/handoff/queue.py::ALLOWED_ORIGINS` == the
+  compute-job schema enum), so an origin no surface claims fails the build. The whole
+  ENAMETOOLONG class is fixed: every filesystem touch reachable from a CLI arg in
+  finance/obligations (plus accounts/tasks/doctemplates soft sites and a bonus payload-derived
+  invoice-filename write) returns the clean error envelope on a >255-byte path; invariant 54
+  widened in place to a two-layer loader-body + AST taint check that fails on the pre-fix tree;
+  every path-taking CLI selftest carries a >NAME_MAX boundary case; two lying selftest summary
+  literals (obligations "16 of 16" over 18, tasks "46" over 45) replaced with derived counts.
+  `docs/AUDIT-PROTOCOL.md` (six sections mapping root causes RC1 to RC6) makes audit coverage
+  derived-not-recalled, with the mandatory closing "Not exercised" list; scenario S10 gained the
+  `cowork-surface-model` leg so the battery executes the Cowork model facts on every run.
+  Selftests: finance 105/105, obligations 20/20, accounts 28/28, tasks 46/46, doctemplates
+  27/27; scenarios 10/10; drift clean at 55.
 - P63: sweep remediation (ADR 0046). The four defects the 2026-07-18 diagnose-only Mac +
   cross-skill workflow sweep confirmed are fixed with proof mechanisms that fail on the old code:
   the connector resolver no longer crashes on the committed registry (google_drive_hub gains
