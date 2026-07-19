@@ -31,12 +31,14 @@ jobs:
           fi
       - name: Version consistency
         run: python3 tools/version.py --check
-      - name: Push-blocker predictor selftest
-        run: python3 tools/preflight_push.py --selftest
-      - name: Dependency currency selftest (read-only, offline)
-        run: python3 tools/dependency_currency.py --selftest
-      - name: Update-check selftest (read-only, offline)
-        run: python3 tools/update_check.py --selftest
+      - name: Scenario suite (10 cross-skill behavioral scenarios)
+        run: python3 tools/scenario_check.py
+      - name: Count truth (live-doc claims vs machine-derived counts)
+        run: python3 tools/count_truth.py
+      - name: Doc freshness (content-hash staleness of bound docs)
+        run: python3 tools/doc_freshness.py --check
+      - name: Behavioral selftest sweep (scripted discovery of every CLI selftest; P66)
+        run: python3 tools/selftest_sweep.py
       - name: Eval JSON validity
         run: |
           python3 - <<'PY'
