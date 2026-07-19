@@ -2,7 +2,29 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P64 are complete. Drift guard exits 0 (55 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P66 are complete. Drift guard exits 0 (56 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P66: Remediation of the P65 full-system audit's fifteen findings (ADR 0048, 2026-07-19). The
+  three HIGH data-boundary gaps closed first: the generic sk- secret pattern matches current
+  hyphenated provider formats plus fine-grained github_pat_ tokens, the tracked-content scan
+  reads every tracked file behind a binary sniff instead of a suffix allowlist, and invariant
+  20's forbidden suffixes expanded to one shared tiered list (FORBIDDEN_DATA_SUFFIXES: financial
+  app files, credential/key stores, databases, backups, email/contacts, spreadsheets, columnar
+  exports, disk images, archives, office binaries, capture media) consumed by the guard, the
+  pre-commit gate, and CI. The invariant-36 keystone asserts a labeled check is registered in
+  main(); privacy invariants print a loud DID-NOT-RUN advisory in a non-git copy. Sixteen more
+  CLIs got the thin-main OSError boundary (invariant 54 Layer 3 guards the structure; per-tool
+  boundary cases in six selftests). CI gained the behavioral battery via tools/selftest_sweep.py
+  (scripted discovery, 63+ selftests) plus scenario_check/count_truth/doc_freshness. Invariant
+  55 origin claims became structured (explicit _residual_origins + a per-origin surface-affinity
+  table); four agent definitions gained the verification envelope with invariant 15 enforcing
+  the def prose; every selftest count in the tree is derived; validate_agent_output gained a
+  selftest and a loud degraded mode; NEW advisory invariant 56 (count 55 to 56) detects
+  out-of-band content edits to source-registry.json via the _content_digest that
+  registry_io.save_registry stamps; the competitor export screens every parsed-HTML free-text
+  field through the injection and secret/PII scanners before the committed summary (null-and-
+  flag). Guard-shallowness recipes against invariants 14/16/17 are a documented backlog in
+  docs/DOC-MAINTENANCE.md. Battery green end to end.
 
 - P64: Cowork as a first-class surface + whole-path input hardening + audit-completeness
   machinery (ADR 0047, 2026-07-19). The cross-modality surface model gained `cowork_local` and

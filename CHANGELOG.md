@@ -12,7 +12,59 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Added
+- Invariant 36 keystone assertion (ADR 0048): a `check_*` function carrying an `Invariant N`
+  docstring label but never called in `main()` now fails the guard, closing the audit-proven
+  hole where the top-numbered invariant could be silently dropped while every count stayed green.
+- Invariant 54 Layer 3: the sixteen CLIs the P65 audit caught raw-tracebacking on a >255-byte
+  path keep their thin-main OSError boundary structurally (fails on the pre-fix tree naming all
+  sixteen); the Layer 2 fs-call set gains `read_bytes`/`stat`/`glob`/`iterdir`/`unlink`.
+- Advisory invariant 56 (invariants 55 to 56): `registry_io.save_registry` stamps a
+  `_content_digest` over `sources[]` and the guard recomputes it, so an out-of-band in-place
+  edit to an existing registry entry — invisible to the id-level freshness digest — surfaces.
+- `tools/selftest_sweep.py`: scripted discovery of every CLI selftest under `tools/` and
+  `shared/` (argparse flag, argv probe, or subcommand; package entries via `-m`), run by the CI
+  guard job alongside `scenario_check`, `count_truth`, and `doc_freshness --check` — the
+  behavioral battery the audit found absent from CI. 63+ selftests, seconds of runtime, and a
+  new tool's selftest is CI-gated automatically.
+- `tools/validate_agent_output.py --selftest`: offline fixtures for all five fabrication rules,
+  schema auto-detect, and the end-to-end gate; the authority-allowlist loader now warns loudly
+  when its config is missing instead of silently disabling the fabricated-URL rule.
+- Competitor export screening: every free-text field parsed from competitor HTML is screened by
+  the offline injection scanner and the secret/PII scanner before it may enter the committed
+  `competitor-channels.json`; QUARANTINE/BLOCK or PII matches are nulled and flagged
+  (null-and-flag), REVIEW-level matches are flagged for the session tier.
+
 ### Fixed
+- The three HIGH data-boundary gaps from the P65 audit (ADR 0048): the generic `sk-` secret
+  pattern now matches current hyphenated provider key formats and fine-grained `github_pat_`
+  tokens; the tracked-content scan reads EVERY tracked file behind a binary sniff instead of a
+  suffix allowlist; and invariant 20's forbidden tracked suffixes expand to a single shared
+  tiered list (`FORBIDDEN_DATA_SUFFIXES`: spreadsheets, columnar exports, financial application
+  files, credential/key stores, databases, backups, email/contacts, disk images, archives,
+  office binaries, capture media) consumed by the drift guard, the pre-commit gate, and CI.
+- Privacy invariants 19/20/21 print a loud DID-NOT-RUN advisory in a non-git copy instead of
+  silently passing; inv 21's git-unavailable skip no longer reads as a pass.
+- Sixteen more CLIs raw-tracebacked on a >255-byte path argument (the class P64 fixed for two
+  files); each now returns the clean `{"error","next_step"}` envelope, `source_currency`
+  propagates its exit code, and the six with selftests carry a boundary case.
+- Invariant 55's residual-origin escape was a raw substring test and origin claims were not
+  surface-checked: claims are now reconciled against an explicit `_residual_origins` list and a
+  per-origin surface-affinity table (the audit's phantom-origin repro now fails).
+- Four agent definitions omitted the verification envelope their own schemas require;
+  invariant 15 now also asserts every definition's prose names all three envelope fields.
+- Nine selftest summaries printed hardcoded denominators (four already wrong: build_calc said
+  24 of 24 while 29 ran, publishing_compliance 20 over 15, mediaprobe 17 over 19,
+  scenario_check 13 over 14); every selftest count in the tree is now derived from a run counter.
+- Two prose-named symbols lacked verify markers (`sweep_quarantine`, `render_prior`);
+  `docs/CROSS-MODALITY-AUDIT.md` is headed as a historical P39 snapshot against the live
+  22-spoke tree.
+
+### Changed
+- The invariant-42 writer census is AST-level: only an actual `save_registry` import or
+  attribute use counts as a writer, so prose or a read-only import cannot false-positive it.
+- `docs/DOC-MAINTENANCE.md` records the known guard-shallowness backlog (invariants 14/16/17
+  substring recipes with drafted property-level fixes) as deliberate deferred work.
 - The ENAMETOOLONG traceback class (ADR 0047): `Path.exists()` does not suppress errno 36, so a
   >255-byte CLI path argument crashed dispatch-level probes that sat upstream of the P63 loader
   guards. Every filesystem touch reachable from a CLI argument now yields the clean

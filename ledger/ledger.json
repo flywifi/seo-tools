@@ -390,6 +390,12 @@
         "one merged cowork row (the local and remote modes genuinely diverge on every field the model exists to capture: flag enforcement, local_fs, stdio MCP, machine requirement)"
       ],
       "phase": "P64"
+    },
+    {
+      "id": "P66-audit-remediation",
+      "date": "2026-07-19",
+      "decision": "Remediated all fifteen findings of the P65 full-system audit under three approved defaults: security-first sequencing (the three HIGH data-boundary gaps plus the invariant-36 keystone shipped first), instances-plus-targeted-assertions for the guards (every verified concrete instance fixed; the designed-but-unverified invariant 14/16/17 substring recipes documented as a deliberate backlog in docs/DOC-MAINTENANCE.md rather than deep-rebuilt, to avoid a false-positive storm), and broaden-regex-plus-all-file-sniff for the secret scanner (no entropy tier this phase; the broadened sk- pattern, github_pat_, and the binary-sniff all-file scan closed the three verified bypasses with a clean full-repo false-positive pass). Structural additions: invariant 54 Layer 3 (sixteen thin-main OSError boundaries), invariant 55 affinity table + explicit _residual_origins, invariant 15 def-prose envelope enforcement, NEW advisory invariant 56 (registry _content_digest via registry_io.save_registry, count 55 to 56), the CI behavioral battery (tools/selftest_sweep.py scripted discovery plus scenario_check/count_truth/doc_freshness), derived selftest counts tree-wide, and injection/PII screening on the competitor export. Alternatives rejected: entropy-based secret scanning (tuning risk exceeds benefit while the placeholder allowlist and DEV-TRAP convention hold), a dedicated surface per origin (the origin-to-surface model is many-to-one by design), and immediate property-level rebuilds of invariants 14/16/17 (deferred with drafted fixes). Every fix is proven by a repro that failed on the pre-fix tree; the P65 deliverable in the session scratchpad is the evidence base.",
+      "adr": "docs/adr/0048-p66-audit-remediation.md"
     }
   ],
   "updated": "2026-07-19"

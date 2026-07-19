@@ -227,7 +227,9 @@ python3 tools/competitor_snapshot.py --fetch
 # Parse saved HTML for hidden video tags
 python3 tools/competitor_snapshot.py --parse
 
-# Export summary to canonical-sources (safe to commit, no raw HTML)
+# Export summary to canonical-sources (safe to commit, no raw HTML; every free-text field
+# parsed from competitor HTML is screened by the offline injection scanner and the secret/PII
+# scanner before write — a QUARANTINE/BLOCK or PII match is nulled and flagged, never committed)
 python3 tools/competitor_snapshot.py --export-summary
 
 # Query the local SQLite cache from Claude via MCP

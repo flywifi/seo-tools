@@ -56,3 +56,4 @@ added beyond what those records state. New decisions get the next number via
 | [0045](0045-p62-two-pass-injection-screening.md) | P62 Two-pass Injection Screening | 2026-07-18 | Accepted |
 | [0046](0046-p63-sweep-remediation.md) | P63 Sweep Remediation | 2026-07-18 | Accepted |
 | [0047](0047-p64-cowork-surface-and-audit-completeness.md) | P64 Cowork Surface and Audit Completeness | 2026-07-19 | Accepted |
+| [0048](0048-p66-audit-remediation.md) | P66 Remediation of the P65 Full-System Audit Findings | 2026-07-19 | Accepted |
