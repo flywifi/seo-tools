@@ -2,6 +2,12 @@
   "_comment": "P52 doc-freshness signal: sha256 of each CODE file a doc documents, at the time the doc was last reconciled. If a bound source sha moves, drift invariant 51 (advisory) flags the doc as possibly stale. Re-read the doc, fix any drift, then run `python3 tools/doc_freshness.py reconcile` to re-bless it.",
   "generated_by": "tools/doc_freshness.py",
   "docs": {
+    "docs/AUDIT-PROTOCOL.md": {
+      "sources": {
+        "tools/handoff/queue.py": "36ba371a821bdf6feda88452dafbc66a6977297399fd31299a91e6c2306bdf28",
+        "shared/cross-modality/transitions.json": "5f0419cad4a847c58bf5df678eb796dd62bef9bd52cdcf0515f06768d4d32b30"
+      }
+    },
     "tools/publishing/MAINTAINER_README.md": {
       "sources": {
         "tools/publishing/__init__.py": "d82eb23a9309b0301b62b6ea5be815274562fa46dd54a1a1f8c96e75938fec34",

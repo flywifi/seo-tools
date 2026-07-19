@@ -24,6 +24,10 @@ MANIFEST_PATH = ROOT / "docs" / "doc-freshness-manifest.json"
 # doc (repo-relative) -> the code files it documents. Keep bindings TIGHT (a change to a bound file
 # should plausibly require re-reading the doc); coarse bindings cause churn. Advisory only.
 DOC_SOURCES = {
+    "docs/AUDIT-PROTOCOL.md": [
+        "tools/handoff/queue.py",
+        "shared/cross-modality/transitions.json",
+    ],
     "tools/publishing/MAINTAINER_README.md": [
         "tools/publishing/__init__.py",
         "tools/publishing/youtube.py",

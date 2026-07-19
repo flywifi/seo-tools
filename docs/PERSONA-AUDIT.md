@@ -4,6 +4,11 @@ Creator OS is built for creators, not developers. This is the protocol for verif
 that a non-technical person can actually get through the setup wizard. It has two halves: a
 machine-checkable harness (`tools/persona_audit.py`) and a human walkthrough recorded in a dated log.
 
+**Scope, stated honestly:** this protocol covers the wizard's GET screens and the guided setup
+journey — nothing else. Auditing everything beyond the wizard (the eleven cross-modality surfaces
+including both Cowork modes, the CLI input-boundary classes, the per-surface empathy walkthroughs,
+and the mandatory "what was NOT exercised" closing step) is governed by `docs/AUDIT-PROTOCOL.md`.
+
 ## The persona
 
 **Alex** -- a YouTube creator. Comfortable in a browser and in creator dashboards; has never opened a

@@ -1546,6 +1546,50 @@
               "value": true
             }
           ]
+        },
+        {
+          "id": "cowork-surface-model",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:shared/cross-modality/transitions.json"
+          },
+          "assert": [
+            {
+              "path": "surfaces.cowork_remote.origins",
+              "check": "contains",
+              "value": "cowork"
+            },
+            {
+              "path": "surfaces.cowork_local.origins",
+              "check": "contains",
+              "value": "cowork"
+            },
+            {
+              "path": "surfaces.cowork_remote.flags_enforced",
+              "check": "eq",
+              "value": false
+            },
+            {
+              "path": "surfaces.cowork_remote.local_machine_required",
+              "check": "eq",
+              "value": false
+            },
+            {
+              "path": "surfaces.cowork_remote.store_options",
+              "check": "eq",
+              "value": ["google_drive", "export_and_you_save"]
+            },
+            {
+              "path": "surfaces.cowork_local.class_support.C",
+              "check": "eq",
+              "value": "native"
+            },
+            {
+              "path": "surfaces.cowork_local.flags_enforced",
+              "check": "eq",
+              "value": true
+            }
+          ]
         }
       ]
     }
