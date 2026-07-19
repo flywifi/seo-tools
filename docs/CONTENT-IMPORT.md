@@ -102,6 +102,9 @@ python3 tools/library_complete.py complete --export-dir <unzipped folder>
   is flagged `run_local_stt` with the exact per-OS install command, never faked. Run the doctor to fix.
 - **A very large TikTok / YouTube / Instagram library:** the live importer stops at a safety page cap
   and reports `truncated: true` (re-run to continue) rather than silently returning a partial library.
+  For TikTok specifically the cap is a defensive default, not a documented ceiling: the Display API
+  limits requests to 600/minute per endpoint (one-minute sliding window) and documents no total-video
+  cap (verified 2026-07-19, developers.tiktok.com/doc/tiktok-api-v2-rate-limit).
 - **A transcript with no timestamps** (e.g. a plain-text paste): the retention peaks are still located
   but their words cannot be attached; the completion surfaces a `no_timing` gap. Provide a timed
   transcript (SRT/VTT or whisper JSON) to attach the spoken words.

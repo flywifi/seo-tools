@@ -21,6 +21,15 @@ work after the baseline sits under Unreleased.
   the proxy is unchanged and needs no token. Package-independent selftest covers the serve
   decision and the bearer gate; runbook and cross-modality docs reconciled.
 
+### Fixed
+- Honesty (P67-C): the `live_publishing_disabled` degraded-behavior prose called the
+  `tools/publishing/` clients "stubs"; they are complete OAuth + upload REST clients gated off (no
+  network call while the flag is off), now stated correctly. Resolved the TikTok rate-limit
+  `[NEEDS VERIFICATION]`: the Display API documents 600 requests/minute per endpoint (one-minute
+  sliding window) and no total-video cap (verified 2026-07-19 against
+  developers.tiktok.com/doc/tiktok-api-v2-rate-limit); stated in the importer and CONTENT-IMPORT,
+  and the staged volatile-correction marked applied.
+
 ### Changed
 - Invariants 14, 16, and 17 rebuilt from substring/marker tests into property checks (P67, closes
   the P65 guard-shallowness backlog): inv 14 requires a non-empty parsed Allowed-tools allowlist;
@@ -31,6 +40,9 @@ work after the baseline sits under Unreleased.
   unchanged at 56.
 
 ### Added
+- `docs/ROADMAP.md` (P67-C): the single honest inventory of intentionally-gated integrations
+  (DaVinci Resolve/Compressor/CommandPost stubs, the `remote_mcp` store backend, the CEA-608 `.scc`
+  deferral) with verify markers, so unbuilt paths are documented, not silent.
 - Invariant 36 keystone assertion (ADR 0048): a `check_*` function carrying an `Invariant N`
   docstring label but never called in `main()` now fails the guard, closing the audit-proven
   hole where the top-numbered invariant could be silently dropped while every count stayed green.

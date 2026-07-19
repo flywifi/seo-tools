@@ -50,7 +50,8 @@
       "target": "Resolve the [NEEDS VERIFICATION] note in tools/importers/tiktok_import.py and docs/CONTENT-IMPORT.md to state 600 req/min per endpoint, no documented total-video cap; the page cap stays a defensive backstop surfaced as truncation.",
       "apply_command": "# doc/comment edit only: update the [NEEDS VERIFICATION] rate-limit note in tools/importers/tiktok_import.py and docs/CONTENT-IMPORT.md",
       "apply_kind": "doc-comment-edit",
-      "status": "proposed"
+      "status": "applied",
+      "applied_note": "P67-C: verified 600 req/min per endpoint (one-minute sliding window), no total-video cap, against developers.tiktok.com/doc/tiktok-api-v2-rate-limit on 2026-07-19; stated in tools/importers/tiktok_import.py and docs/CONTENT-IMPORT.md."
     },
     {
       "id": "vc-eu-ai-act-article-50",

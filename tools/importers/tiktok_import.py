@@ -26,10 +26,13 @@ FIELDS = ("id,create_time,cover_image_url,share_url,video_description,duration,h
 def list_videos(token, poster=C.http_post_json, max_pages=250):
     """POST /v2/video/list/ with cursor paging -> (videos, error, truncated).
 
-    max_count is 20 (the documented maximum), so max_pages=250 covers ~5,000 videos. TikTok documents
-    no total-video ceiling, so the page cap is a defensive backstop; truncated=True means has_more was
-    still set at the cap (the creator's library may be incomplete). Terminates on has_more==false; a
-    non-advancing or missing cursor while has_more is true stops paging rather than re-fetching page 1."""
+    max_count is 20 (the documented maximum), so max_pages=250 covers ~5,000 videos. TikTok's Display
+    API documents a 600-requests/minute-per-endpoint limit (one-minute sliding window; over it returns
+    HTTP 429 rate_limit_exceeded) and NO total-video ceiling (verified 2026-07-19 against
+    developers.tiktok.com/doc/tiktok-api-v2-rate-limit), so the page cap is a defensive backstop, not
+    a documented limit; truncated=True means has_more was still set at the cap (the creator's library
+    may be incomplete). Terminates on has_more==false; a non-advancing or missing cursor while
+    has_more is true stops paging rather than re-fetching page 1."""
     out, cursor, seen = [], None, set()
     for _ in range(max_pages):
         url = f"{VIDEO_LIST}?fields={FIELDS}"
