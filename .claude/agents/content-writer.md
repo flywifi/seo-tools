@@ -82,3 +82,9 @@ Return a JSON object with these fields:
 - `captions` — object keyed by platform with caption text (if applicable)
 - `self_assessment` — `{ voice_adherence, formatting_clean, flagged_issues }`
 - `retrieval_gaps` — anything missing that would improve the draft
+- `minority_report` — conflicting findings, blocked sources, and residual uncertainty
+- `confidence_evidence` — per-claim confidence tier with the evidence behind it
+- `source_citations` — registry-resolvable citations for every factual claim
+
+The last three fields are the verification envelope
+(`shared/schemas/verification-envelope.json`); every agent output carries them.

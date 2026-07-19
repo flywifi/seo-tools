@@ -507,7 +507,10 @@ def check_agent_contracts():
 
 
 def check_schema_verification_fields():
-    """Invariant 15: agent output schemas have verification envelope fields.
+    """Invariant 15: agent output schemas have verification envelope fields, and every agent
+    DEFINITION's prose names them too (P66: the schemas enforced the envelope while four agent
+    definitions' Output format sections omitted it, so an agent following its written contract
+    would emit output its own schema rejects — the P65 F-AGENT-ENVELOPE finding).
 
     The skip set lists DATA CONTRACTS that live in shared/schemas/ but are not agent output
     schemas: the envelope definitions themselves, and compute-job.json (the P60 job ticket/result
@@ -532,6 +535,19 @@ def check_schema_verification_fields():
         for field in required_props:
             if field not in props:
                 problem(f"{rel}: missing verification field '{field}' in properties")
+    agents_dir = ROOT / ".claude" / "agents"
+    if agents_dir.exists():
+        for def_file in sorted(agents_dir.glob("*.md")):
+            rel = def_file.relative_to(ROOT)
+            try:
+                text = def_file.read_text(encoding="utf-8")
+            except OSError as exc:
+                problem(f"{rel}: unreadable agent definition: {exc}")
+                continue
+            for field in required_props:
+                if f"`{field}`" not in text and f"`{field}[]`" not in text:
+                    problem(f"{rel}: the agent definition never names the verification envelope "
+                            f"field '{field}'; the def prose and the output schema must agree")
 
 
 def check_workflow_verification():
@@ -2248,18 +2264,52 @@ def check_surface_origin_completeness():
     except (OSError, json.JSONDecodeError) as exc:
         problem(f"origin-completeness: transitions.json unreadable: {exc}")
         return
+    # P66: the claim must be structured and RIGHT, not merely present. _residual_origins is an
+    # explicit id list (the old prose-substring escape let any note text green a phantom
+    # origin), and the affinity table pins WHICH surfaces may claim which origin — adding a new
+    # origin to the queue enum forces a deliberate entry here, so a phantom origin claimed on an
+    # unrelated surface (the P65 'slack' repro) fails instead of passing. Origin<->surface is
+    # many-to-one BY DESIGN in both directions (desktop and mac both run on the two local Claude
+    # apps; the cowork origin serves both Cowork modes); see shared/cross-modality/TRANSITIONS.md.
+    origin_surface_affinity = {
+        "web": {"claude_web"},
+        "desktop": {"claude_desktop", "claude_code"},
+        "mac": {"claude_desktop", "claude_code"},
+        "cowork": {"cowork_local", "cowork_remote"},
+        # 'other' is the forward-compatibility residual: no surface may claim it.
+        "other": set(),
+    }
     claimed = set()
-    for rec in (data.get("surfaces") or {}).values():
-        claimed.update(rec.get("origins") or [])
-    residual_note = data.get("_residual_origin_note") or ""
-    for origin in enum_code:
+    for surface, rec in (data.get("surfaces") or {}).items():
+        for origin in rec.get("origins") or []:
+            claimed.add(origin)
+            allowed_surfaces = origin_surface_affinity.get(origin)
+            if allowed_surfaces is None:
+                problem(f"origin-completeness: surface {surface!r} claims origin {origin!r} "
+                        f"which has no affinity entry in invariant 55; a new origin needs a "
+                        f"deliberate origin_surface_affinity mapping, not just an enum edit")
+            elif surface not in allowed_surfaces:
+                problem(f"origin-completeness: surface {surface!r} claims origin {origin!r} "
+                        f"but the affinity table binds that origin to "
+                        f"{sorted(allowed_surfaces) or '(no surface: residual)'}")
+    residual = data.get("_residual_origins")
+    if not isinstance(residual, list):
+        problem("origin-completeness: transitions.json must carry _residual_origins as an "
+                "explicit list of origin ids (prose in _residual_origin_note is not a claim)")
+        residual = []
+    for origin in residual:
+        if origin not in enum_code:
+            problem(f"origin-completeness: _residual_origins names {origin!r} which is not in "
+                    f"ALLOWED_ORIGINS (a residual claim for a nonexistent origin)")
         if origin in claimed:
-            continue
-        if f"'{origin}'" in residual_note:
+            problem(f"origin-completeness: {origin!r} is listed in _residual_origins but a "
+                    f"surface also claims it; residual means no surface, pick one")
+    for origin in enum_code:
+        if origin in claimed or origin in residual:
             continue
         problem(f"origin-completeness: origin {origin!r} is in ALLOWED_ORIGINS but no "
                 f"transitions surface claims it (add it to a surface's 'origins' list or, for a "
-                f"deliberate residual, to _residual_origin_note)")
+                f"deliberate residual, to the _residual_origins list)")
     unknown = claimed - set(enum_code)
     if unknown:
         problem(f"origin-completeness: transitions surfaces claim origins {sorted(unknown)} "

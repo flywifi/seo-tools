@@ -2,6 +2,7 @@
   "_comment": "Single source of truth for AI surfaces and the transitions between them (P43). Consumed by tools/wizard.py (/chatgpt, /transitions, /cross-modality) and mirrored by docs/TRANSITIONS.md. Drift invariant 32 keeps the JSON, the doc, and the wizard surface keys consistent. Every OpenAI or Google product claim this repo cannot verify from cited research carries a literal [NEEDS VERIFICATION: ...] tag; treat those as things to check against your own plan, never as facts.",
   "schema_version": 1,
   "_residual_origin_note": "origin 'other' is the forward-compatibility residual in tools/handoff/queue.py ALLOWED_ORIGINS; it names no surface by design and is claimed here so invariant 55's origin-coverage check is total.",
+  "_residual_origins": ["other"],
   "surfaces": {
     "claude_desktop": {
       "label": "Claude Desktop (this computer)",

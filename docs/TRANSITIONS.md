@@ -38,6 +38,14 @@ append-new-dated-file model as claude.ai web). A Cowork **local** session runs o
 computer and behaves like Claude Desktop, including local stores and flag enforcement; plugin
 updates for an organization sync only when a version-bump PR merges (see `docs/UPDATING.md`).
 
+Compute-job **origins** (the `origin` field on a queued job, enum in
+`tools/handoff/queue.py::ALLOWED_ORIGINS`) map to surfaces many-to-one in both directions by
+design: `desktop` and `mac` both belong to the two local Claude apps (Desktop and Code), the one
+`cowork` origin serves both Cowork modes, and `other` is a forward-compatibility residual no
+surface may claim (declared in `transitions.json` `_residual_origins`). Drift invariant 55
+reconciles the enum, the schema, and the surface claims against a per-origin affinity table, so
+adding a new origin requires a deliberate mapping edit, never just an enum append.
+
 ## The common transitions
 
 Each pair below is authored in the matrix; the wizard renders every other combination by deriving

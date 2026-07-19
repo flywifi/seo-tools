@@ -80,3 +80,9 @@ Return a JSON object with these fields:
 - `human_review_required` — boolean, always true when conflicts or ambiguous clauses exist
 - `sources_consulted` — array of file paths read
 - `retrieval_gaps` — anything that could not be verified
+- `minority_report` — conflicting findings, blocked sources, and residual uncertainty
+- `confidence_evidence` — per-claim confidence tier with the evidence behind it
+- `source_citations` — registry-resolvable citations for every factual claim
+
+The last three fields are the verification envelope
+(`shared/schemas/verification-envelope.json`); every agent output carries them.
