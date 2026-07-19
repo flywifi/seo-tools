@@ -488,6 +488,14 @@ def selftest():
     rec = VL.normalize_record(yt[0], source_mode="export_bundle")
     ok("output feeds normalize_record", rec["video_key"] == "youtube:abc123" and rec["revenue"]["estimated_revenue"] == 52.10)
 
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = main(["youtube-takeout", "x" * 300])
+    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
+       rc == 1 and "next_step" in buf.getvalue())
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -510,7 +518,7 @@ class _TmpFile:
         return str(self._p)
 
 
-def main(argv):
+def _main(argv):
     ap = argparse.ArgumentParser(description="Parse platform export bundles into normalized video records.")
     ap.add_argument("format", nargs="?", choices=list(PARSERS))
     ap.add_argument("path", nargs="?")
@@ -525,6 +533,17 @@ def main(argv):
     print(json.dumps(records, indent=2, ensure_ascii=False))
     return 0
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

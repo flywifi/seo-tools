@@ -94,7 +94,7 @@ def verify(manifest_path: str) -> dict:
             "missing": missing, "new_since_manifest": extra}
 
 
-def main(argv) -> int:
+def _main(argv) -> int:
     ap = argparse.ArgumentParser(description="Edit-artifact bucket manifest (sha256).")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--manifest", action="store_true")
@@ -117,6 +117,17 @@ def main(argv) -> int:
             print(f"  {r['kind']:16} {r['bytes']:>10}  {r['path']}")
     return 0
 
+
+def main(argv) -> int:
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))

@@ -2067,12 +2067,17 @@ def check_payload_loader_robustness():
     sibling). Widened in P64 to cover the loaders C4/C5 guarded in tasks.py and doctemplates.py,
     plus a call-site rule for accounts.py (its guard lives at the caller).
     Layer 2 (P64, the RC5 fix): inside tools/finance.py and tools/obligations.py main/_main, NO
-    argparse-derived value may reach exists()/read_text()/write_text()/open() outside a try —
-    the P63 guard protected two function bodies while the AUDIT-F2 crash lived one line upstream
-    in the dispatch (obligations --scan src.exists()); this layer guards the CLASS, not the line.
-    Fail-closed."""
+    argparse-derived value may reach a filesystem call (exists/read_text/write_text/open/
+    read_bytes/stat/glob/iterdir/unlink, widened P66 per the audit's FS_CALLS gap) outside a
+    try — the P63 guard protected two function bodies while the AUDIT-F2 crash lived one line
+    upstream in the dispatch; this layer guards the CLASS, not the line.
+    Layer 3 (P66): the sixteen CLIs the P65 audit caught raw-tracebacking on a >255-byte path
+    keep their thin-main boundary — main() must try-wrap the _main() dispatch with an OSError
+    handler. Behavior is proven by per-tool boundary probes; this guards the structure so the
+    wrapper cannot be silently removed. Fail-closed."""
     import ast
-    fs_calls = {"exists", "read_text", "write_text", "open", "is_file", "resolve"}
+    fs_calls = {"exists", "read_text", "write_text", "open", "is_file", "resolve",
+                "read_bytes", "stat", "glob", "iterdir", "unlink"}
     body_targets = [(ROOT / "tools" / "finance.py", "_read_json"),
                     (ROOT / "tools" / "obligations.py", "_load_json"),
                     (ROOT / "tools" / "tasks.py", "load_register"),
@@ -2149,6 +2154,49 @@ def check_payload_loader_robustness():
                         problem(f"payload-loader: {path.name}:{node.lineno} open() on an "
                                 f"argparse-derived value outside a try (the AUDIT-F2 "
                                 f"whole-path rule)")
+    # Layer 3: the P66 thin-main boundary on the sixteen P65-audited CLIs.
+    thin_main_files = [
+        ROOT / "tools" / "import_parse.py",
+        ROOT / "tools" / "library_complete.py",
+        ROOT / "tools" / "parse_competitor_meta.py",
+        ROOT / "tools" / "validate_agent_output.py",
+        ROOT / "tools" / "coverage_verify.py",
+        ROOT / "tools" / "sync_editing.py",
+        ROOT / "tools" / "source_currency.py",
+        ROOT / "shared" / "connectors" / "connectors.py",
+        ROOT / "shared" / "docintel" / "parse_text.py",
+        ROOT / "shared" / "docintel" / "wer.py",
+        ROOT / "shared" / "docintel" / "transcripts.py",
+        ROOT / "tools" / "videoedit" / "chapters.py",
+        ROOT / "tools" / "videoedit" / "fcpxml.py",
+        ROOT / "tools" / "videoedit" / "mltxml.py",
+        ROOT / "tools" / "videoedit" / "captions.py",
+        ROOT / "tools" / "videoedit" / "otio_core.py",
+    ]
+    for path in thin_main_files:
+        tree = _tree(path)
+        if tree is None:
+            continue
+        mfn = next((n for n in tree.body
+                    if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+        if mfn is None:
+            problem(f"payload-loader: {path.name} lost its thin main() CLI boundary "
+                    f"(P66 Layer 3); restore the main()->_main() OSError wrapper")
+            continue
+        wrapped = False
+        for t in (n for n in ast.walk(mfn) if isinstance(n, ast.Try)):
+            calls_dispatch = any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                                 and c.func.id == "_main"
+                                 for stmt in t.body for c in ast.walk(stmt))
+            handles_oserror = any(h.type is not None and "OSError" in ast.dump(h.type)
+                                  for h in t.handlers)
+            if calls_dispatch and handles_oserror:
+                wrapped = True
+                break
+        if not wrapped:
+            problem(f"payload-loader: {path.name}::main() no longer try-wraps _main() with an "
+                    f"OSError handler; a >255-byte or unreadable path argument would raise a "
+                    f"raw traceback again (P66 Layer 3)")
 
 
 def check_surface_origin_completeness():

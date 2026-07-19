@@ -400,7 +400,7 @@ def parse(html_path: Path, url: str = "", competitor_id: str = "") -> dict:
     return result
 
 
-def main(argv=None) -> int:
+def _main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("html_file", help="path to raw.html or rendered.html")
@@ -411,6 +411,17 @@ def main(argv=None) -> int:
     print(json.dumps(result, indent=2, default=str))
     return 0
 
+
+def main(argv=None) -> int:
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     raise SystemExit(main())

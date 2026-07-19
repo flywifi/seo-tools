@@ -303,9 +303,13 @@ def render(src, out_path, config=None, backend="auto"):
 
 
 def _check(label, cond, failures):
+    _check.ran += 1
     print(f"  [{'ok' if cond else 'FAIL'}] {label}")
     if not cond:
         failures.append(label)
+
+
+_check.ran = 0
 
 
 def selftest():
@@ -364,12 +368,20 @@ def selftest():
            not r["rendered"] and r["backend_chain"][0]["backend"] == "melt"
            and r["backend_chain"][0]["ok"] is False, failures)
 
-    n = 13
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = main(["parse", "x" * 300])
+    _check(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
+           rc == 1 and "next_step" in buf.getvalue(), failures)
+
+    n = _check.ran
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1
 
 
-def main(argv):
+def _main(argv):
     if argv and argv[0] == "--selftest":
         argv = ["selftest"]
     ap = argparse.ArgumentParser(description="Creator OS MLT XML writer/parser (Lane A)")
@@ -401,6 +413,17 @@ def main(argv):
         return selftest()
     return 0
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

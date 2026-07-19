@@ -194,7 +194,7 @@ def parse(path):
                       needs={"reason": "parse_error", "what_to_provide": "a non-corrupt copy or the text"})
 
 
-def main(argv):
+def _main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline text extractor")
     ap.add_argument("path")
     ap.add_argument("--max-chars", type=int, default=4000)
@@ -208,6 +208,17 @@ def main(argv):
           f"{out['file_type']} | {out['ingestion_status']} | {out['char_count']} chars | {out['notes']}\n\n{out['text'][:args.max_chars]}")
     return 0
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

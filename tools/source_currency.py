@@ -915,6 +915,17 @@ def selftest_detect():
     ok("dependency entry not fetched (only 2 web sources touched)",
        out["summary"]["changed"] + out["summary"]["first_seen"] + out["summary"]["unchanged"] + out["summary"]["unreachable"] == 2)
 
+    buf = io.StringIO()
+    old_argv = sys.argv
+    sys.argv = ["source_currency.py", "seed-sources", "x" * 300]
+    try:
+        with contextlib.redirect_stdout(buf):
+            rc = main()
+    finally:
+        sys.argv = old_argv
+    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
+       rc == 1 and "next_step" in buf.getvalue())
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -923,7 +934,7 @@ def selftest_detect():
     return 0 if passed == total else 1
 
 
-def main():
+def _main():
     parser = argparse.ArgumentParser(
         description="Creator OS source registry staleness tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1017,5 +1028,16 @@ def main():
         cmd_update_source(args, registry)
 
 
+def main():
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main()
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

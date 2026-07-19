@@ -356,6 +356,14 @@ def selftest():
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
 
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = main(["match", "--export-dir", "x" * 300])
+    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
+       rc == 1 and "next_step" in buf.getvalue())
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -363,7 +371,7 @@ def selftest():
     return 0 if passed == len(checks) else 1
 
 
-def main(argv):
+def _main(argv):
     ap = argparse.ArgumentParser(description="Complete the library from downloaded media (local, zero-token).")
     sub = ap.add_subparsers(dest="cmd")
     for name in ("match", "complete"):
@@ -417,6 +425,17 @@ def main(argv):
     con.close()
     return 0
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

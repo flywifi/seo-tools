@@ -252,12 +252,21 @@ def _selftest():
        shared["min_gap_seconds"] == 12.0
        and shared["silences"] == gap_metrics(parsed["segments"], 12.0)["silences"]
        and shared["chapters"] == suggest_chapters(parsed["segments"], 12.0))
+
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = main(["x" * 300])
+    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
+       rc == 1 and "next_step" in buf.getvalue())
+
     passed = sum(1 for _, c in checks if c)
     print(f"selftest: {'PASS' if passed == len(checks) else 'FAIL'} ({passed} of {len(checks)} checks)")
     return 0 if passed == len(checks) else 1
 
 
-def main(argv):
+def _main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline transcript and caption tool")
     ap.add_argument("path", nargs="?")
     ap.add_argument("--emit", choices=["srt", "vtt", "text"])
@@ -290,6 +299,17 @@ def main(argv):
               f"duration={parsed['duration_seconds']}s\n\n{parsed['plain_text'][:1000]}")
     return 0
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

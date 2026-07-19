@@ -242,8 +242,10 @@ def _load_source(path):
 
 def selftest():
     failures = []
+    ran = [0]
 
     def check(name, cond):
+        ran[0] += 1
         if not cond:
             failures.append(name)
 
@@ -299,7 +301,14 @@ def selftest():
     cov5 = verify_coverage(canon, ["price"], reconciliation=diff)
     check("cov-minority-passthrough", len(cov5["minority_report"]) >= 1)
 
-    n = 18
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = main(["reconcile", "--files", "x" * 300])
+    check("oversize-path-clean-envelope", rc == 1 and "next_step" in buf.getvalue())
+
+    n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     if failures:
         print("failed:", ", ".join(failures))
@@ -307,7 +316,7 @@ def selftest():
     return 0
 
 
-def main(argv):
+def _main(argv):
     ap = argparse.ArgumentParser(description="Creator OS coverage verification")
     ap.add_argument("--selftest", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
@@ -333,6 +342,17 @@ def main(argv):
     ap.print_help()
     return 2
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

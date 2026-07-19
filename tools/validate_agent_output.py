@@ -259,7 +259,7 @@ def validate(output, schema_name=None):
     }
 
 
-def main():
+def _main():
     parser = argparse.ArgumentParser(
         description="Validate Creator OS agent output against fabrication detection rules."
     )
@@ -288,6 +288,17 @@ def main():
     print(json.dumps(result, indent=2))
     return 0 if result["status"] == "pass" else 1
 
+
+def main():
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main()
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
