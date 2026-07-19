@@ -104,8 +104,12 @@ free text is refused, never silently passed.
 
 ## Job builders (P61 additions and the R1 fix)
 - `transcript_normalize` (new): a dropped transcript has no library record to attach to, so the job
-  normalizes it into segments + silence gaps + suggested chapters via `shared/docintel/transcripts.py`.
-  Attaching to a library `video_key` stays session work (honest; the result copy says so).
+  normalizes it into segments + silence gaps + suggested chapters via
+  `shared/docintel/transcripts.py --normalize` (the ONE combined object; P63 — the earlier
+  three-flag argv silently collapsed to gap metrics because the CLI modes are mutually exclusive).
+  The runner selftest RUNS the built argv on a committed fixture and asserts all three keys in the
+  output, so the shortfall cannot silently recur. Attaching to a library `video_key` stays session
+  work (honest; the result copy says so).
 - `library_complete` (fixed): the shipped builder passed positional inputs, but the CLI requires
   `--export-dir` and rejected them, so EVERY queued job of this type failed with an argparse error.
   The builder now passes `--export-dir <inputs[0]>`. A runner selftest runs the built argv against

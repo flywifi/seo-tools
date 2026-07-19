@@ -53,11 +53,14 @@ def _build_transcribe(params, inputs, hub_root):
 def _build_transcript_normalize(params, inputs, hub_root):
     # P61 C9: a dropped transcript has no library record to attach to (R3); normalizing it into
     # segments + silence gaps + suggested chapters is the useful, fully-offline follow-up. Attaching
-    # to a library video_key stays session work.
+    # to a library video_key stays session work. P63 F-SWEEP-3: the tool's --normalize flag emits
+    # the ONE combined object (the previous three-flag argv silently collapsed to gap-metrics only
+    # because the CLI modes were mutually exclusive); the selftest RUNS this argv and asserts all
+    # three keys so the shortfall cannot recur.
     if len(inputs) != 1:
         return None, "transcript_normalize needs exactly one input_ref (the transcript file)"
     return [str(ROOT / "shared" / "docintel" / "transcripts.py"), inputs[0],
-            "--json", "--gap-metrics", "--suggest-chapters"], None
+            "--normalize"], None
 
 
 def _build_library_complete(params, inputs, hub_root):
@@ -421,10 +424,23 @@ def selftest() -> int:
     ok("transcribe writes under Jobs/results",
        "--out-dir" in argv_t and argv_t[argv_t.index("--out-dir") + 1].endswith("Jobs/results"))
 
-    # P61 C9: transcript_normalize builds the real transcripts.py argv.
+    # P61 C9 + P63 F-SWEEP-3: transcript_normalize builds the transcripts.py --normalize argv,
+    # and the argv is RUN against a committed fixture with the output shape asserted (the shipped
+    # three-flag argv passed an argv-string check while silently delivering gap metrics only).
     argv_n, err_n = _build_transcript_normalize({}, ["Inbox/Processed/2026-07-17/talk.srt"], hub)
     ok("transcript_normalize builds the transcripts CLI argv",
-       err_n is None and argv_n[0].endswith("transcripts.py") and "--suggest-chapters" in argv_n)
+       err_n is None and argv_n[0].endswith("transcripts.py") and "--normalize" in argv_n)
+    fixture_srt = ROOT / "skills" / "creator-core" / "evals" / "fixtures" / "workshop-footage.srt"
+    argv_nf, _ = _build_transcript_normalize({}, [str(fixture_srt)], hub)
+    proc_n = subprocess.run([env_paths.app_python(str(ROOT))] + argv_nf,
+                            capture_output=True, text=True, timeout=60, cwd=str(ROOT))
+    try:
+        norm_out = json.loads(proc_n.stdout)
+    except (json.JSONDecodeError, ValueError):
+        norm_out = {}
+    ok("transcript_normalize RUN delivers segments + silences + chapters (F-SWEEP-3 can't recur)",
+       proc_n.returncode == 0 and norm_out.get("segments") and norm_out.get("silences")
+       and norm_out.get("chapters"))
 
     # P61 C10 (R1 fix): the library_complete builder now passes --export-dir (the shipped builder
     # produced an argparse error). Run the built argv against an empty temp dir: argparse must accept.

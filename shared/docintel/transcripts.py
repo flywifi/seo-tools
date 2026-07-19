@@ -16,6 +16,10 @@ Usage:
   python3 shared/docintel/transcripts.py <file> --emit text            # plain transcript
   python3 shared/docintel/transcripts.py <file> --gap-metrics          # inter-segment silences
   python3 shared/docintel/transcripts.py <file> --suggest-chapters     # chapter suggestions
+  python3 shared/docintel/transcripts.py <file> --normalize            # ONE combined object:
+                                                                       #   segments + silences + chapters
+                                                                       #   (what transcript_normalize jobs use)
+  python3 shared/docintel/transcripts.py --selftest                    # offline self-checks
 """
 import argparse
 import json
@@ -190,17 +194,88 @@ def suggest_chapters(segments, min_gap_seconds=8.0, min_chapter_seconds=30.0):
     return chapters
 
 
+def normalize(parsed, min_gap_seconds=None):
+    """One combined object for the transcript_normalize job (P63 F-SWEEP-3): the parse payload
+    plus silence gaps plus suggested chapters, in a single dict. The single-mode CLI arms below
+    stay untouched (the footage-analysis atom runs them as separate calls); this is the additive
+    path a headless job uses so its Outbox artifact carries everything the docs promise.
+    min_gap_seconds applies to BOTH consumers when given; otherwise each keeps its own default
+    (silences 5.0, chapters 8.0 — the same defaults as the standalone modes)."""
+    gap_min = 5.0 if min_gap_seconds is None else min_gap_seconds
+    chap_min = 8.0 if min_gap_seconds is None else min_gap_seconds
+    gm = gap_metrics(parsed["segments"], gap_min)
+    return {
+        "format": parsed["format"],
+        "segment_count": parsed["segment_count"],
+        "duration_seconds": parsed["duration_seconds"],
+        "segments": parsed["segments"],
+        "silences": gm["silences"],
+        "min_gap_seconds": gm["min_gap_seconds"],
+        "chapters": suggest_chapters(parsed["segments"], chap_min),
+        "ran_locally": True,
+    }
+
+
+def _selftest():
+    """Offline checks: the combined --normalize payload carries all three analysis products for a
+    timecoded fixture, and the single-mode outputs are unchanged by its existence."""
+    import tempfile
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+
+    srt = ("1\n00:00:01,000 --> 00:00:04,000\nWelcome to the workshop.\n\n"
+           "2\n00:00:06,000 --> 00:00:10,000\nFirst we sand the panel.\n\n"
+           "3\n00:00:25,000 --> 00:00:30,000\nNow the stain goes on.\n\n"
+           "4\n00:01:20,000 --> 00:01:26,000\nThe final reveal.\n")
+    with tempfile.NamedTemporaryFile("w", suffix=".srt", delete=False) as fh:
+        fh.write(srt)
+        path = fh.name
+    parsed = parse(path)
+    combined = normalize(parsed)
+    ok("normalize: segments present and non-empty",
+       combined["segments"] and combined["segment_count"] == 4)
+    ok("normalize: silences detected (15s and 50s gaps at the 5.0 default)",
+       len(combined["silences"]) == 2)
+    ok("normalize: chapters suggested for the timecoded fixture",
+       isinstance(combined["chapters"], list) and len(combined["chapters"]) >= 1)
+    ok("normalize: single-mode outputs unchanged (silences == gap_metrics arm)",
+       combined["silences"] == gap_metrics(parsed["segments"], 5.0)["silences"])
+    ok("normalize: single-mode outputs unchanged (chapters == suggest_chapters arm)",
+       combined["chapters"] == suggest_chapters(parsed["segments"], 8.0))
+    ok("normalize: per-mode min-gap defaults preserved (5.0 silences / 8.0 chapters)",
+       combined["min_gap_seconds"] == 5.0)
+    shared = normalize(parsed, min_gap_seconds=12.0)
+    ok("normalize: explicit --min-gap-seconds applies to both consumers",
+       shared["min_gap_seconds"] == 12.0
+       and shared["silences"] == gap_metrics(parsed["segments"], 12.0)["silences"]
+       and shared["chapters"] == suggest_chapters(parsed["segments"], 12.0))
+    passed = sum(1 for _, c in checks if c)
+    print(f"selftest: {'PASS' if passed == len(checks) else 'FAIL'} ({passed} of {len(checks)} checks)")
+    return 0 if passed == len(checks) else 1
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline transcript and caption tool")
-    ap.add_argument("path")
+    ap.add_argument("path", nargs="?")
     ap.add_argument("--emit", choices=["srt", "vtt", "text"])
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--gap-metrics", action="store_true")
     ap.add_argument("--suggest-chapters", action="store_true")
+    ap.add_argument("--normalize", action="store_true")
     ap.add_argument("--min-gap-seconds", type=float, default=None)
+    ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args(argv)
+    if args.selftest:
+        return _selftest()
+    if not args.path:
+        ap.error("path is required (or pass --selftest)")
     parsed = parse(args.path)
-    if args.gap_metrics:
+    if args.normalize:
+        print(json.dumps(normalize(parsed, args.min_gap_seconds), indent=2))
+    elif args.gap_metrics:
         min_gap = 5.0 if args.min_gap_seconds is None else args.min_gap_seconds
         print(json.dumps(gap_metrics(parsed["segments"], min_gap), indent=2))
     elif args.suggest_chapters:

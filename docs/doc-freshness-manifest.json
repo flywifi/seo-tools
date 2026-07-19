@@ -36,49 +36,49 @@
     },
     "skills/finance-desk/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/ar-review/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/cashflow-view/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/cost-estimate/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/dunning-draft/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/invoice-generate/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/payment-reconcile/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "skills/atoms/proposal-price/MAINTAINER_README.md": {
       "sources": {
-        "tools/finance.py": "29c49c0969dbc4faeb7868e066d87c8f054b3f3610fccc81d923536ee878aac0"
+        "tools/finance.py": "f3937a0aacbb191c21bd9ccb6af89ad8b429d3787165b0095de2dfec513e0948"
       }
     },
     "docs/DRIVE-HUB.md": {
       "sources": {
         "shared/schemas/compute-job.json": "af0e13185a4bd7fe972f4abd25e79c57808b0ac206188c0411e802939349d459",
         "tools/handoff/queue.py": "36ba371a821bdf6feda88452dafbc66a6977297399fd31299a91e6c2306bdf28",
-        "tools/handoff/runner.py": "b234dfc2f11b6a4313446fc9d19d0b67529756dc2a27e84ca3e9b5a058868f57",
+        "tools/handoff/runner.py": "f419d5963d5cec1b9e4ca425d37fbf7476ab6f4e43f54f7ac975438868415bfc",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "839f2b19325c42785c49e81c57db7c969e35de792cf370c663c3403887601365",
@@ -89,7 +89,7 @@
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "36ba371a821bdf6feda88452dafbc66a6977297399fd31299a91e6c2306bdf28",
-        "tools/handoff/runner.py": "b234dfc2f11b6a4313446fc9d19d0b67529756dc2a27e84ca3e9b5a058868f57",
+        "tools/handoff/runner.py": "f419d5963d5cec1b9e4ca425d37fbf7476ab6f4e43f54f7ac975438868415bfc",
         "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
         "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "839f2b19325c42785c49e81c57db7c969e35de792cf370c663c3403887601365",

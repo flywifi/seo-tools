@@ -600,7 +600,9 @@ def ar_scan(invoices=None, today=None):
 def cashflow(invoices=None, scheduled=None, estimates=None, horizon_days=90, today=None):
     """Deterministic cash view over the horizon: expected inflows from open invoice due dates,
     planned inflows from scheduled invoice rows (deal-resourcing triggers already mapped to
-    dates), and outflows from cost estimates. Weekly buckets. This is MOVEMENT, not a bank
+    dates), and outflows from cost estimates. Weekly buckets. Note the horizon comes from the
+    horizon_days ARG (the CLI --horizon-days flag); a horizon_days key inside the --cashflow
+    payload JSON is ignored. This is MOVEMENT, not a bank
     balance (no opening balance is known here); overdue receivables and undated outflows are
     reported separately with gaps, never guessed into a week."""
     today = today or date.today()
