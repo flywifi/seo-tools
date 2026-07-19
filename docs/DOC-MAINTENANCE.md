@@ -102,27 +102,31 @@ Do not present it as a cited industry standard.
    staleness manifests if a bound source legitimately changed.
 6. Add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an ADR.
 
-## Known guard-shallowness backlog (P65 audit, documented deliberately, not yet rebuilt)
+## Guard-shallowness backlog (P65 audit) — closed in P67
 
-The P65 full-system audit designed (but did not individually verify) false-negative recipes
-against three agent-contract invariants whose checks are marker- or substring-based. They are
-recorded here with drafted property-level fixes rather than rebuilt now: deepening all three at
-once risks a false-positive storm against a green tree, and none is reachable by accident today
-(the P66 remediation closed every VERIFIED instance; invariants 15/36/54/55 were hardened for
-real). Pick these up as a dedicated hardening phase, tuning each against pre/post trees:
+The P65 full-system audit designed false-negative recipes against three agent-contract invariants
+whose checks were marker- or substring-based. P66 hardened invariants 15/36/54/55 for real and
+closed every VERIFIED instance; these three were deferred (deepening all at once risked a
+false-positive storm against a green tree). **P67 rebuilt all three as property checks**, each
+tuned against the real tree (5 agent defs, 5 workflows stay green) with a crafted-bad proof:
 
-- **Invariant 14 (agent-definition sections).** Presence of the `## Forbidden tools` /
-  `## Allowed tools` headers plus tool-name substrings is enough to pass; a definition could
-  carry the headers with an empty or contradictory body. *Drafted fix:* parse the section body
-  and require at least one list item per section, and assert the allow/forbid sets are disjoint.
-- **Invariant 16 (workflow adversarial step).** A marker string (for example `adversarial-verify`)
-  anywhere in the workflow file passes — including inside a comment — without a real second-agent
-  step. *Drafted fix:* AST-parse the workflow script and require an `agent()` call whose prompt
-  consumes the primary agent's output variable after the primary call.
-- **Invariant 17 (read-only mandate marker).** The mandate marker is a substring test; a
-  definition could quote the marker while granting write tools. *Drafted fix:* cross-check the
-  marker against the definition's Allowed-tools list (no Write/Edit/Bash-mutation tool may
-  appear).
+- **Invariant 14 (agent-definition sections)** — `check_agent_contracts`. Now parses the
+  `## Allowed tools (explicit allowlist)` body (via `_allowed_tool_tokens`) and requires at least
+  one `- <Tool>` item; a header with an empty/placeholder body now fails. (A generic allow/forbid
+  *disjointness* check would be unsound: `Bash` legitimately appears in both the Allowed
+  (read-only) and Forbidden (writes) sections, so the read-only property is enforced on inv 17
+  instead of via set-disjointness.)
+- **Invariant 16 (workflow adversarial step)** — `check_workflow_verification`. The marker check
+  is retained AND a structural check (`_workflow_consumes_agent_output`) now requires some
+  `agent()` call to interpolate a value derived from an earlier agent/parallel/pipeline result
+  (derivations grown to a fixpoint, so `usageRights = auditResults[0]` and
+  `validProfiles = profiles.filter(Boolean)` are followed). A marker sitting only in a comment,
+  with no consuming second agent, now fails. Regex heuristic over JS (not a full parser),
+  deliberately paired with the marker so both must hold.
+- **Invariant 17 (read-only mandate marker)** — `check_readonly_mandate`. The mandate substring
+  is retained AND the Allowed-tools list is cross-checked against the write vocabulary
+  (`Write`/`Edit`/`NotebookEdit`); a def that quotes "READ-ONLY" while listing a mutation tool as
+  allowed now fails.
 
 The class rule going forward (from the audit): a guard must verify the PROPERTY it protects, not
 the presence of a token that usually accompanies the property.

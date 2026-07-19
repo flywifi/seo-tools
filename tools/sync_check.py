@@ -482,6 +482,75 @@ def check_routing_table():
         problem(f"hub SKILL.md: request_classification '{val}' not mapped in routing table")
 
 
+def _md_section_body(text, header):
+    """Body of a '## header' section up to the next '## ' header, or '' if the header is absent.
+    Shared by invariants 14 and 17 so the allowlist is parsed one way in one place."""
+    if header not in text:
+        return ""
+    body = text.split(header, 1)[1]
+    nxt = body.find("\n## ")
+    return body[:nxt] if nxt >= 0 else body
+
+
+def _allowed_tool_tokens(text):
+    """Leading tool token of each '- ' bullet in the Allowed-tools allowlist body (e.g. 'Read'
+    from '- Read — read files', 'MCP' from '- MCP tools: ...'). Used to prove the allowlist is
+    non-empty (inv 14) and free of mutation tools (inv 17). Bash legitimately appears in BOTH the
+    Allowed (read-only) and Forbidden (writes) sections, so a generic allow/forbid disjointness
+    check would be unsound; the sound property is 'no mutation tool in the allowlist'."""
+    body = _md_section_body(text, "## Allowed tools (explicit allowlist)")
+    tokens = []
+    for line in body.splitlines():
+        m = re.match(r"\s*-\s+([A-Za-z_][\w]*)", line)
+        if m:
+            tokens.append(m.group(1))
+    return tokens
+
+
+def _workflow_consumes_agent_output(text):
+    """True iff some agent() call's prompt interpolates a value derived from an EARLIER agent/
+    parallel/pipeline result. This is the structural heart of invariant 16: an adversarial step
+    only exists if a later agent actually consumes a prior agent's output. Names flow through
+    derivations (usageRights = auditResults[0], validProfiles = profiles.filter(Boolean)), so the
+    derived set is grown to a fixpoint before checking interpolation. Heuristic (regex over JS,
+    not a full parser), deliberately paired with the marker check so both must hold."""
+    # Seed: names bound directly from an agent/parallel/pipeline await.
+    derived = {}  # name -> earliest binding offset
+    for m in re.finditer(r"(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*await\s+(?:agent|parallel|pipeline)\s*\(", text):
+        name = m.group(1)
+        derived.setdefault(name, m.start())
+    # Grow: any `const/let/var Y = <expr>` whose single-line RHS references a derived name.
+    assigns = [(am.group(1), am.group(2), am.start())
+               for am in re.finditer(r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n;]+)", text)]
+    for _ in range(8):  # fixpoint; 8 passes is far more than any real derivation chain needs
+        changed = False
+        for name, rhs, off in assigns:
+            if name in derived:
+                continue
+            if any(re.search(r"\b" + re.escape(d) + r"\b", rhs) for d in derived):
+                derived[name] = off
+                changed = True
+        if not changed:
+            break
+    if not derived:
+        return False
+    # Check: an agent() call whose first template-literal argument interpolates a derived name
+    # bound before that call.
+    for call in re.finditer(r"\bagent\s*\(", text):
+        start = call.end()
+        bt = text.find("`", start)
+        if bt < 0:
+            continue
+        end = text.find("`", bt + 1)
+        if end < 0:
+            continue
+        prompt = text[bt + 1:end]
+        for name, off in derived.items():
+            if off < call.start() and re.search(r"\$\{[^`]*?\b" + re.escape(name) + r"\b", prompt):
+                return True
+    return False
+
+
 def check_agent_contracts():
     """Invariant 14: agent definitions have required contract sections."""
     agents_dir = ROOT / ".claude" / "agents"
@@ -508,6 +577,12 @@ def check_agent_contracts():
             for tool_name in forbidden_tools_must_list:
                 if tool_name not in forbidden_block:
                     problem(f"{rel}: Forbidden tools section missing '{tool_name}'")
+        # Property (P67): the allowlist must actually list something. A header with no parseable
+        # '- Tool' bullets is an empty allowlist that grants nothing and defeats the contract; the
+        # bare section-present check above would pass it.
+        if "## Allowed tools (explicit allowlist)" in text and not _allowed_tool_tokens(text):
+            problem(f"{rel}: Allowed tools section has no parseable '- <Tool>' items "
+                    f"(an empty allowlist defeats the explicit-allowlist contract)")
 
 
 def check_schema_verification_fields():
@@ -572,6 +647,12 @@ def check_workflow_verification():
         text = js.read_text(encoding="utf-8")
         if not any(m in text for m in markers):
             problem(f"{rel}: no adversarial verification marker found")
+        # Property (P67): the marker above passes even when it only appears in a comment with no
+        # actual second agent. Require the structural fact that makes verification real: some
+        # agent() call consumes an earlier agent/parallel/pipeline result. Both must hold.
+        elif not _workflow_consumes_agent_output(text):
+            problem(f"{rel}: has a verification marker but no agent() step consumes an earlier "
+                    f"agent result (the adversarial verification step is structurally absent)")
 
 
 def check_readonly_mandate():
@@ -585,6 +666,13 @@ def check_readonly_mandate():
         text = md.read_text(encoding="utf-8")
         if mandate not in text:
             problem(f"{rel}: missing READ-ONLY mandate marker")
+        # Property (P67): the mandate marker means nothing if the allowlist grants a mutation
+        # tool. Cross-check the Allowed-tools list against the write vocabulary so a def cannot
+        # quote "READ-ONLY" while listing Write/Edit/NotebookEdit as allowed.
+        leaked = sorted({"Write", "Edit", "NotebookEdit"} & set(_allowed_tool_tokens(text)))
+        if leaked:
+            problem(f"{rel}: READ-ONLY agent lists mutation tool(s) {', '.join(leaked)} in its "
+                    f"Allowed allowlist, contradicting the read-only mandate")
 
 
 def check_connector_capability_mapping():

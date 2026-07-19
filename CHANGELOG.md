@@ -12,6 +12,15 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Changed
+- Invariants 14, 16, and 17 rebuilt from substring/marker tests into property checks (P67, closes
+  the P65 guard-shallowness backlog): inv 14 requires a non-empty parsed Allowed-tools allowlist;
+  inv 16 additionally requires an `agent()` call to consume an earlier agent/parallel/pipeline
+  result (marker-in-a-comment with no second agent now fails); inv 17 additionally forbids any
+  mutation tool (Write/Edit/NotebookEdit) in a read-only agent's allowlist. Each tuned against the
+  real tree (5 agent defs, 5 workflows stay green) with a crafted-bad proof. Invariant count
+  unchanged at 56.
+
 ### Added
 - Invariant 36 keystone assertion (ADR 0048): a `check_*` function carrying an `Invariant N`
   docstring label but never called in `main()` now fails the guard, closing the audit-proven
