@@ -101,3 +101,28 @@ Do not present it as a cited industry standard.
 5. Run `python3 tools/sync_check.py` (and `tools/doc_freshness.py --check`); reconcile the
    staleness manifests if a bound source legitimately changed.
 6. Add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an ADR.
+
+## Known guard-shallowness backlog (P65 audit, documented deliberately, not yet rebuilt)
+
+The P65 full-system audit designed (but did not individually verify) false-negative recipes
+against three agent-contract invariants whose checks are marker- or substring-based. They are
+recorded here with drafted property-level fixes rather than rebuilt now: deepening all three at
+once risks a false-positive storm against a green tree, and none is reachable by accident today
+(the P66 remediation closed every VERIFIED instance; invariants 15/36/54/55 were hardened for
+real). Pick these up as a dedicated hardening phase, tuning each against pre/post trees:
+
+- **Invariant 14 (agent-definition sections).** Presence of the `## Forbidden tools` /
+  `## Allowed tools` headers plus tool-name substrings is enough to pass; a definition could
+  carry the headers with an empty or contradictory body. *Drafted fix:* parse the section body
+  and require at least one list item per section, and assert the allow/forbid sets are disjoint.
+- **Invariant 16 (workflow adversarial step).** A marker string (for example `adversarial-verify`)
+  anywhere in the workflow file passes — including inside a comment — without a real second-agent
+  step. *Drafted fix:* AST-parse the workflow script and require an `agent()` call whose prompt
+  consumes the primary agent's output variable after the primary call.
+- **Invariant 17 (read-only mandate marker).** The mandate marker is a substring test; a
+  definition could quote the marker while granting write tools. *Drafted fix:* cross-check the
+  marker against the definition's Allowed-tools list (no Write/Edit/Bash-mutation tool may
+  appear).
+
+The class rule going forward (from the audit): a guard must verify the PROPERTY it protects, not
+the presence of a token that usually accompanies the property.

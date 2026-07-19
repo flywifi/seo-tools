@@ -1,5 +1,10 @@
 # Cross-Modality Correctness Audit (P39)
 
+> **Historical snapshot (P39, 2026-06).** The tallies below (23 classifiers/skeptics, per-spoke
+> counts) reflect the tree as it stood at P39; the live tree carries 22 spokes — see `STATE.md`
+> for current counts and `docs/CROSS-MODALITY.md` for the live surface matrix. This record is not
+> re-derived; it documents the method and findings of that audit.
+
 Audit of the `## Cross-modality` declarations added in P38-7 (assigned by heuristic), corrected in two
 passes: a deterministic evidence pass, then the full adversarial multi-agent audit. See
 `shared/cross-modality-engine.md` for the class model and `docs/CROSS-MODALITY.md` for the surface

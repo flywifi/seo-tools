@@ -85,5 +85,5 @@ blocks swapped per situation. Runbook: `docs/DOCUMENT-TEMPLATES.md`.
 ```bash
 python3 tools/finance.py --selftest      # includes the P40 pricing checks
 python3 tools/scenario_check.py          # S7 pitch triage + S8 vetted-template assembly
-python3 tools/sync_check.py              # drift guard, 55 invariants
+python3 tools/sync_check.py              # drift guard, 56 invariants
 ```

@@ -147,7 +147,8 @@ Every text-decodable file in the Inbox is run through the offline injection patt
 (`tools/injection_scan.py`, the machine-scoreable half of `shared/injection-guard-engine.md`)
 during the scan, so a booby-trapped document, one carrying hidden instructions aimed at a later AI
 read, is caught before anyone opens it. A QUARANTINE or BLOCK verdict moves the file into a sealed
-`Inbox/Quarantine/<date>/` area (the `sweep_quarantine` writer) that the scan never re-reads and no
+`Inbox/Quarantine/<date>/` area (the `sweep_quarantine` writer
+<!-- verify: tools/handoff/inbox.py::sweep_quarantine -->) that the scan never re-reads and no
 route can ever reach, and records the exact matched phrases in the ledger for human review. Nothing
 is deleted; a false positive sits intact in Quarantine to review or move back, and a same-name file
 never overwrites an already-sealed one (it is kept alongside as `name (2)`). This is the pattern

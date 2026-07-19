@@ -15,11 +15,21 @@ No other tool writes the registry; canonical data files stay read-only from tool
 
 Stdlib only, no side effects on import.
 """
+import hashlib
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT / "canonical-sources" / "source-registry.json"
+
+
+def content_digest(data: dict) -> str:
+    """sha256 over the canonical dump of sources[] (P66). The sanctioned write path stamps this
+    into `_content_digest` on every save, so an out-of-band in-place edit to an EXISTING entry's
+    content — which changes no source id and therefore slips past the id-level freshness digest —
+    leaves the stamp stale and trips drift invariant 56 (advisory)."""
+    payload = json.dumps(data.get("sources", []), sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def load_registry(path: Path = REGISTRY_PATH) -> dict:
@@ -31,5 +41,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> dict:
 
 
 def save_registry(data: dict, path: Path = REGISTRY_PATH) -> None:
-    """Write the registry with the canonical formatting both writers must produce byte-identically."""
+    """Write the registry with the canonical formatting both writers must produce byte-identically.
+    Stamps `_content_digest` (see content_digest) so hand edits are detectable."""
+    data["_content_digest"] = content_digest(data)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

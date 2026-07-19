@@ -114,12 +114,16 @@ Invariants enforced:
       tools/obligations.py::_load_json keep their try/except guard so a bad CLI payload path or
       inline JSON yields the clean {"error","next_step"} envelope, never a raw traceback. The
       sibling of invariant 35 for the two offline money/legal CLIs.
-  55. Surface-origin completeness (P64): the compute-job origin vocabulary
+  55. Surface-origin completeness (P64, hardened P66): the compute-job origin vocabulary
       (tools/handoff/queue.py ALLOWED_ORIGINS == the shared/schemas/compute-job.json enum) is
-      fully claimed by the cross-modality surface model — every origin appears in at least one
-      transitions.json surface's `origins` list or the documented _residual_origin_note. The
-      independent-oracle reconciliation that would have caught the missing Cowork surface the day
-      the cowork origin shipped.
+      fully claimed by the cross-modality surface model — every origin appears in a
+      transitions.json surface's `origins` list or the explicit _residual_origins list, and only
+      on a surface the per-origin affinity table permits. The independent-oracle reconciliation
+      that would have caught the missing Cowork surface the day the cowork origin shipped.
+  56. Registry content integrity (P66, advisory): the `_content_digest` stamped by
+      tools/registry_io.py::save_registry (the single sanctioned write path) matches a recompute
+      over sources[]. An out-of-band in-place edit to an existing entry changes no source id, so
+      the id-level freshness digest (invariant 26) cannot see it; this advisory can.
 """
 import json
 import os
@@ -1619,6 +1623,7 @@ def check_registry_writer_count():
     expected = {"source_currency", "traversal_engine", "dependency_currency", "update_check",
                 "competitor_snapshot"}
     found = set()
+    import ast as _ast
     imp_regio = re.compile(r"(?m)^\s*(import registry_io\b|from registry_io import)")
     imp_sc = re.compile(r"\bimport source_currency\b")
     names_save = re.compile(r"\bsave_registry\b")
@@ -1629,8 +1634,26 @@ def check_registry_writer_count():
             txt = f.read_text(encoding="utf-8")
         except OSError:
             continue
-        if names_save.search(txt) and (imp_regio.search(txt) or imp_sc.search(txt)):
-            found.add(f.stem)
+        if not (imp_regio.search(txt) or imp_sc.search(txt)):
+            continue
+        # P66: a WRITER imports or attribute-uses save_registry itself; a docstring merely
+        # naming it (or a read-only import like content_digest) is not a writer. AST-level so
+        # prose can never false-positive the writer census.
+        try:
+            tree = _ast.parse(txt)
+        except SyntaxError:
+            if names_save.search(txt):
+                found.add(f.stem)
+            continue
+        for node in _ast.walk(tree):
+            if isinstance(node, _ast.ImportFrom) and node.module in ("registry_io",
+                                                                     "source_currency"):
+                if any(a.name == "save_registry" for a in node.names):
+                    found.add(f.stem)
+                    break
+            elif isinstance(node, _ast.Attribute) and node.attr == "save_registry":
+                found.add(f.stem)
+                break
     extra = sorted(found - expected)
     missing = sorted(expected - found)
     if extra:
@@ -2316,6 +2339,40 @@ def check_surface_origin_completeness():
                 f"that are not in ALLOWED_ORIGINS")
 
 
+def check_registry_content_digest():
+    """Invariant 56 (advisory): source-registry.json content matches the digest its sanctioned
+    writer stamped (P66). CLAUDE.md's "written only through registry_io" was machine-enforced
+    for ADD/REMOVE of ids (the invariant-26 freshness digest) but purely conventional for an
+    in-place content edit to an existing entry — the P65 F-REGISTRY-HANDEDIT repro changed a
+    source's name by hand and every check stayed green. save_registry now stamps
+    `_content_digest` over sources[]; this advisory recomputes it. Advisory, not fail-closed:
+    the registry is data reviewed by humans, and a stale digest most often means a hand edit to
+    REVERT or RE-SAVE through the sanctioned path, not a broken build."""
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if not reg_path.exists():
+        return
+    try:
+        data = json.loads(reg_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"registry-digest: source-registry.json unreadable: {exc}")
+        return
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        from registry_io import content_digest
+    except ImportError as exc:
+        problem(f"registry-digest: tools/registry_io.py unavailable: {exc}")
+        return
+    stamped = data.get("_content_digest")
+    if stamped is None:
+        advisory("registry-digest: source-registry.json carries no _content_digest stamp; "
+                 "re-save once through a sanctioned writer (e.g. source_currency) to stamp it")
+        return
+    if stamped != content_digest(data):
+        advisory("registry-digest: source-registry.json content does not match its "
+                 "_content_digest stamp — an out-of-band edit bypassed registry_io.save_registry; "
+                 "revert the hand edit or re-apply it through the sanctioned writer")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -2461,6 +2518,7 @@ def main():
     check_connector_resolver_smoke()
     check_payload_loader_robustness()
     check_surface_origin_completeness()
+    check_registry_content_digest()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")
