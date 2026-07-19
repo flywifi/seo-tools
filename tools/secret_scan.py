@@ -45,10 +45,14 @@ EMAIL_ALLOW_RE = re.compile(
 
 PATTERNS = [
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
-    ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}")),
+    # Classic gh?_ prefixes plus fine-grained github_pat_ tokens.
+    ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,}")),
     ("slack_token", re.compile(r"xox[abpr]-[A-Za-z0-9-]{10,}")),
     ("stripe_key", re.compile(r"[sp]k_live_[A-Za-z0-9]{16,}")),
-    ("generic_sk_key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
+    # The body allows - and _ so the CURRENT provider formats match: OpenAI sk-proj-/sk-svcacct-/
+    # sk-admin- and Anthropic sk-ant-api03-/sk-ant-oat01- keys are base64url with hyphenated
+    # prefixes; the old alnum-only class missed every one of them.
+    ("generic_sk_key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
     ("private_key_block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("bearer_header", re.compile(r"(?i)authorization:\s*bearer\s+[A-Za-z0-9._\-]{16,}")),
     # DEV-TRAP: this flags a literal "access_token": "<8+ chars>" even in FAKE test fixtures (only
@@ -65,8 +69,53 @@ PATTERNS = [
 # Dollar figures are suspect ONLY inside committed pipeline/ files (blank templates by contract).
 AMOUNT_RE = re.compile(r"\$\s?[0-9][0-9,]{2,}(\.[0-9]{2})?")
 
-TEXT_SUFFIXES = (".md", ".json", ".py", ".js", ".txt", ".yml", ".yaml", ".html", ".css",
-                 ".svg", ".toml", ".cfg", ".ini", ".sh", ".srt", ".vtt", ".mlt", ".xml")
+# Data-at-rest forbidden tracked suffixes. The SINGLE shared list consumed by three enforcement
+# points so they can never drift apart: sync_check invariant 20 (tracked files), the --staged
+# pre-commit gate below, and CI. Tiered rationale (what each class carries and why it can never
+# be tracked) lives in docs/DOC-MAINTENANCE.md and ADR 0048. Matching is case-insensitive
+# (callers lowercase the basename first); dotfile names like .netrc match whole-basename via
+# endswith. The gitignore is the first line; this list is the fail-closed backstop that catches
+# force-adds and path gaps.
+FORBIDDEN_DATA_SUFFIXES = (
+    # Spreadsheets (rows of PII/financial data; .xlsm carries VBA macros, .xlsb is binary)
+    ".xls", ".xlsx", ".xlsm", ".xlsb", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".numbers",
+    # Delimited / columnar data exports (bank, analytics, CRM dumps)
+    ".csv", ".tsv", ".parquet", ".feather", ".arrow", ".avro", ".orc",
+    # Financial application files (OFX/QFX statements, QuickBooks, Quicken, TurboTax, YNAB, Money)
+    ".ofx", ".qfx", ".qbo", ".qbw", ".qba", ".qbb", ".qbm", ".qbx", ".qby", ".qif", ".iif",
+    ".qdf", ".qel", ".qph", ".tax", ".tax2022", ".tax2023", ".tax2024", ".tax2025", ".tax2026",
+    ".ynab4", ".mny",
+    # Credential / key material and credential stores (private keys, cert bundles, password
+    # manager databases, Apple Keychain/.p8/provisioning, PuTTY, PGP, tool credential dotfiles)
+    ".pem", ".key", ".p12", ".pfx", ".pkcs12", ".jks", ".keystore", ".bks", ".ppk",
+    ".kdbx", ".kdb", ".1pif", ".opvault", ".agilekeychain", ".keychain", ".keychain-db",
+    ".p8", ".mobileprovision", ".provisionprofile", ".cer", ".crt", ".der", ".csr",
+    ".gpg", ".pgp", ".asc", ".netrc", ".pgpass", ".htpasswd", ".npmrc", ".pypirc",
+    # Databases (on-device stores that hold real CRM/finance rows) and backups/dumps
+    ".sqlite", ".sqlite3", ".db", ".db3", ".mdb", ".accdb", ".sdf", ".realm", ".gdb", ".nsf",
+    ".frm", ".myd", ".bak", ".bkp", ".backup", ".dump", ".sql", ".bson", ".ldf", ".mdf",
+    # Email / PIM / contacts (mailboxes, messages, .vcf contact cards are PII)
+    ".pst", ".ost", ".mbox", ".eml", ".emlx", ".msg", ".vcf", ".vcard", ".olm",
+    # Disk / container images (can carry an entire home directory)
+    ".dmg", ".vmdk", ".vdi", ".ova",
+    # Archives: opaque to the content scanner, so a tracked one smuggles unscannable data
+    ".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".zst",
+    # Office / document binaries: media kits, contracts, proposals carry PII and the content
+    # scanner cannot read them (.docx/.pptx are zip-XML, .pdf is binary)
+    ".doc", ".docx", ".dot", ".dotx", ".ppt", ".pptx", ".rtf", ".pages", ".pdf", ".odt", ".odp",
+    # Capture media (EXIF/GPS/device metadata in photos, footage, audio). Web graphics
+    # (.png/.gif/.webp/.svg/.ico) stay ALLOWED as legitimate committed assets.
+    ".jpg", ".jpeg", ".heic", ".heif", ".tiff", ".tif", ".raw", ".cr2", ".cr3", ".nef",
+    ".arw", ".dng", ".mov", ".mp4", ".m4v", ".avi", ".mkv", ".mp3", ".m4a", ".wav",
+    ".aac", ".flac",
+)
+
+
+def _is_probably_text(data):
+    """Binary sniff: NUL byte in the head means binary (the injection_scan convention). The
+    tracked-content scan reads EVERY tracked file and skips only true binaries, so a credential
+    in secrets.conf or an extensionless 'credentials' file is no longer suffix-invisible."""
+    return b"\x00" not in data[:8192]
 
 
 def _load_allowlist():
@@ -118,14 +167,19 @@ def scan_tracked(allowlist):
     findings = []
     for path in listing.splitlines():
         path = path.strip()
-        if not path or not path.lower().endswith(TEXT_SUFFIXES):
+        if not path:
             continue
         if path == "tools/secret_scan.py":
             continue  # this file defines the patterns; its selftest fixtures are concatenated
         try:
-            text = (ROOT / path).read_text(encoding="utf-8", errors="replace")
+            data = (ROOT / path).read_bytes()
         except OSError:
             continue
+        # Every tracked file is content-scanned unless it is a true binary: suffix-gating let a
+        # credential file with an unlisted extension sail through invisible to this scan.
+        if not _is_probably_text(data):
+            continue
+        text = data.decode("utf-8", errors="replace")
         findings.extend(scan_text(text, path, allowlist))
     return findings
 
@@ -141,8 +195,7 @@ def scan_staged(allowlist):
         if not path:
             continue
         base = path.rsplit("/", 1)[-1].lower()
-        if re.search(r"\.local(\.|$)", base) or base.endswith((".csv", ".xlsx", ".xls",
-                                                               ".ofx", ".qfx", ".pem", ".key")) \
+        if re.search(r"\.local(\.|$)", base) or base.endswith(FORBIDDEN_DATA_SUFFIXES) \
                 or re.match(r"^\.env(\.|$)", base):
             findings.append({"path": path, "pattern_id": "forbidden_staged_file",
                              "match": base})
@@ -193,7 +246,8 @@ def scan_commit_messages(rng, allowlist):
     return findings
 
 
-def _check(label, cond, failures):
+def _check(label, cond, failures, ran):
+    ran[0] += 1
     print(f"  [{'ok' if cond else 'FAIL'}] {label}")
     if not cond:
         failures.append(label)
@@ -201,11 +255,16 @@ def _check(label, cond, failures):
 
 def selftest():
     f = []
+    ran = [0]
     al = {"entries": [{"path": "x.md", "pattern_id": "session_link", "reason": "test"}]}
     # Fixtures concatenated so this file never contains a real-looking token at rest.
     aws = "AK" + "IA" + "ABCDEFGHIJKLMNOP"
     gh = "gh" + "p_" + "a" * 36
+    gh_pat = "github_" + "pat_" + "a" * 22
     slack = "xo" + "xb-" + "1234567890-abc"
+    sk_classic = "sk" + "-" + "a" * 24
+    sk_proj = "sk" + "-proj-" + "a" * 20
+    sk_ant = "sk" + "-ant-api03-" + "a" * 20
     pem = "-----BEGIN " + "RSA PRIVATE KEY-----"
     bearer = "Authorization: " + "Bearer " + "t" * 24
     sess = "https://claude." + "ai/code/session_" + "abc123XYZ"
@@ -214,41 +273,67 @@ def selftest():
     email = "someone" + "@gmail.com"
 
     _check("aws key detected", any(x["pattern_id"] == "aws_access_key"
-                                   for x in scan_text(aws, "a.md", al)), f)
+                                   for x in scan_text(aws, "a.md", al)), f, ran)
     _check("github token detected", any(x["pattern_id"] == "github_token"
-                                        for x in scan_text(gh, "a.md", al)), f)
+                                        for x in scan_text(gh, "a.md", al)), f, ran)
+    _check("fine-grained github_pat_ token detected",
+           any(x["pattern_id"] == "github_token"
+               for x in scan_text(gh_pat, "a.md", al)), f, ran)
     _check("slack token detected", any(x["pattern_id"] == "slack_token"
-                                       for x in scan_text(slack, "a.md", al)), f)
+                                       for x in scan_text(slack, "a.md", al)), f, ran)
+    _check("classic sk- key detected", any(x["pattern_id"] == "generic_sk_key"
+                                           for x in scan_text(sk_classic, "a.md", al)), f, ran)
+    _check("modern hyphenated sk-proj- key detected (current OpenAI format)",
+           any(x["pattern_id"] == "generic_sk_key"
+               for x in scan_text(sk_proj, "a.md", al)), f, ran)
+    _check("hyphenated sk-ant- key detected (current Anthropic format)",
+           any(x["pattern_id"] == "generic_sk_key"
+               for x in scan_text(sk_ant, "a.md", al)), f, ran)
+    _check("hyphen-embedded prose word (desk-...) is NOT an sk- finding",
+           not scan_text("a desk-mounted-microphone-arm-for-recording setup", "a.md", al), f, ran)
     _check("private key block detected", any(x["pattern_id"] == "private_key_block"
-                                             for x in scan_text(pem, "a.md", al)), f)
+                                             for x in scan_text(pem, "a.md", al)), f, ran)
     _check("bearer header detected", any(x["pattern_id"] == "bearer_header"
-                                         for x in scan_text(bearer, "a.md", al)), f)
+                                         for x in scan_text(bearer, "a.md", al)), f, ran)
     _check("session link detected", any(x["pattern_id"] == "session_link"
-                                        for x in scan_text(sess, "a.md", al)), f)
+                                        for x in scan_text(sess, "a.md", al)), f, ran)
     _check("credential value detected", any(x["pattern_id"] == "credential_value"
-                                            for x in scan_text(cred, "a.json", al)), f)
+                                            for x in scan_text(cred, "a.json", al)), f, ran)
     _check("placeholder credential value is NOT a finding",
            not any(x["pattern_id"] == "credential_value"
-                   for x in scan_text(placeholder, "a.json", al)), f)
+                   for x in scan_text(placeholder, "a.json", al)), f, ran)
     _check("personal email detected", any(x["pattern_id"] == "email_address"
-                                          for x in scan_text(email, "a.md", al)), f)
+                                          for x in scan_text(email, "a.md", al)), f, ran)
     _check("noreply email is NOT a finding",
-           not scan_text("noreply@anthropic.com", "a.md", al), f)
+           not scan_text("noreply@anthropic.com", "a.md", al), f, ran)
     _check("github noreply email is NOT a finding",
-           not scan_text("12345+user@users.noreply.github.com", "a.md", al), f)
+           not scan_text("12345+user@users.noreply.github.com", "a.md", al), f, ran)
     _check("allowlisted path+pattern is exempt",
            not any(x["pattern_id"] == "session_link"
-                   for x in scan_text(sess, "x.md", al)), f)
+                   for x in scan_text(sess, "x.md", al)), f, ran)
     _check("dollar amount in pipeline/ file detected",
            any(x["pattern_id"] == "pipeline_amount"
-               for x in scan_text("fee is $2,500.00", "pipeline/deals/x.json", al)), f)
+               for x in scan_text("fee is $2,500.00", "pipeline/deals/x.json", al)), f, ran)
     _check("dollar amount OUTSIDE pipeline/ is NOT a finding",
            not any(x["pattern_id"] == "pipeline_amount"
-                   for x in scan_text("fee is $2,500.00", "docs/x.md", al)), f)
+                   for x in scan_text("fee is $2,500.00", "docs/x.md", al)), f, ran)
     _check("clean text yields no findings",
-           not scan_text("a perfectly ordinary sentence", "a.md", al), f)
+           not scan_text("a perfectly ordinary sentence", "a.md", al), f, ran)
+    _check("binary sniff: plain text is scannable",
+           _is_probably_text(b"just ordinary text\nwith lines"), f, ran)
+    _check("binary sniff: NUL-bearing bytes are skipped as binary",
+           not _is_probably_text(b"PK\x03\x04\x00binaryblob"), f, ran)
+    _check("forbidden suffixes cover the audited leak classes",
+           all(s in FORBIDDEN_DATA_SUFFIXES
+               for s in (".xlsm", ".kdbx", ".sqlite", ".vcf", ".qbw", ".pst", ".zip", ".pdf",
+                         ".heic", ".pem", ".key", ".csv")), f, ran)
+    _check("dotfile credential names match via endswith (.netrc as whole basename)",
+           ".netrc".endswith(FORBIDDEN_DATA_SUFFIXES), f, ran)
+    _check("allowed web-graphic and text suffixes are NOT forbidden",
+           not any(s in FORBIDDEN_DATA_SUFFIXES
+                   for s in (".png", ".svg", ".md", ".json", ".py", ".srt", ".mlt")), f, ran)
 
-    n = 15
+    n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
 

@@ -153,8 +153,14 @@ Nothing leaves this machine that reveals more than the code change itself:
 - Verified false positives are exempted only in `tools/secret-scan-allowlist.json`, each with a
   written reason. Never exempt a real secret; fix the file instead.
 - Data at rest: drift invariants 19 (no tracked `.local.` files), 20 (tracked files under
-  `pipeline/` must be on the explicit allowlist; no tracked CSV/XLSX/OFX/QFX/PEM/KEY/.env
-  anywhere), and 21 (content scan) fail the build on violation and fail closed in CI.
+  `pipeline/` must be on the explicit allowlist; no tracked sensitive-format file anywhere —
+  spreadsheets, CSV/columnar exports, financial app files (QBW/QIF/OFX/QFX/TAX), credential/key
+  stores (PEM/KEY/P12/KDBX/keychain), databases, backups, email/contacts (PST/MBOX/VCF), archives,
+  office binaries, capture media, or `.env*`; the single list is
+  `tools/secret_scan.py::FORBIDDEN_DATA_SUFFIXES`, shared by the drift guard, the pre-commit hook,
+  and CI), and 21 (content scan of EVERY tracked text file, binary-sniffed rather than
+  suffix-gated) fail the build on violation and fail closed in CI. In a non-git copy all three
+  print a loud DID-NOT-RUN advisory instead of silently passing.
 
 ## Commit messages
 Keep them short: a few sentences at most, describing only what was added or changed and the

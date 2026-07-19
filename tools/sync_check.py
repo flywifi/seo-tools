@@ -685,9 +685,17 @@ PIPELINE_TRACKED_ALLOWLIST = {
     "pipeline/inbox/inbox-ledger.template.json",
 }
 
-# Invariant 20 (second half): file types that must never be tracked anywhere in the repo
-# (financial exports, spreadsheets, secrets, key material).
-FORBIDDEN_TRACKED_SUFFIXES = (".csv", ".xlsx", ".xls", ".ofx", ".qfx", ".pem", ".key")
+# Invariant 20 (second half): file types that must never be tracked anywhere in the repo.
+# The list itself lives in tools/secret_scan.py (FORBIDDEN_DATA_SUFFIXES) so the drift guard,
+# the --staged pre-commit gate, and CI enforce ONE list that cannot drift apart. It covers
+# spreadsheets, delimited/columnar exports, financial application files, credential/key stores,
+# databases, backups, email/PIM/contacts, disk images, archives, office binaries, and capture
+# media; tiered rationale in ADR 0048.
+try:
+    from secret_scan import FORBIDDEN_DATA_SUFFIXES as FORBIDDEN_TRACKED_SUFFIXES
+except ImportError:  # imported as a module with tools/ not on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from secret_scan import FORBIDDEN_DATA_SUFFIXES as FORBIDDEN_TRACKED_SUFFIXES
 FORBIDDEN_TRACKED_BASENAMES = re.compile(r"^\.env(\.|$)")
 
 
@@ -710,7 +718,13 @@ def _privacy_git_unavailable(invariant):
     if os.environ.get("CI"):
         problem(f"privacy: git unavailable in CI; invariant {invariant} cannot run (fail closed)")
     else:
-        print(f"  [warn] git unavailable; privacy invariant {invariant} skipped (local run)")
+        # A silent skip on the highest-severity invariants would report "clean" while the
+        # data-at-rest and secret boundaries got ZERO enforcement (a downloaded non-git copy of
+        # the repo hits this path). Say so loudly; CI=1 turns the same condition into a failure.
+        print(f"  [ADVISORY] privacy invariant {invariant} DID NOT RUN: git is unavailable "
+              f"(not a git checkout, or git is not installed). Data-at-rest and secret "
+              f"enforcement is OFF in this run; work inside the git repo, or set CI=1 to make "
+              f"this condition fail closed.")
 
 
 def check_local_privacy():
@@ -787,6 +801,12 @@ def check_secret_content():
                 problem(f"secret content: {line.strip()[2:]}")
         if not any(line.strip().startswith("- ") for line in out.stdout.splitlines()):
             problem(f"privacy: secret scan exited {out.returncode}: {out.stdout.strip()[-300:]}")
+        return
+    # The scanner exits 0 both when clean AND when it skipped because git is unavailable
+    # (a non-git copy of the repo). The skip must not read as a pass here: surface the same
+    # loud advisory the filename invariants use, so all three privacy layers report honestly.
+    if "git unavailable" in out.stdout:
+        _privacy_git_unavailable(21)
 
 
 def check_construction():
@@ -2202,9 +2222,12 @@ def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
     (b) no invariant number is claimed by two checks (catches the historical double-'Invariant 22'),
-    (c) the label set is contiguous from 1 to the highest label except for MERGED_INVARIANTS, and
+    (c) the label set is contiguous from 1 to the highest label except for MERGED_INVARIANTS,
     (d) the module header 'Invariants enforced:' enumeration documents exactly the enforced numbers
-    plus the merged ones (catches the stale 'header lists 1-23 while code implements more' drift).
+    plus the merged ones (catches the stale 'header lists 1-23 while code implements more' drift),
+    and (e) every check_* function that CARRIES an 'Invariant N' label is actually called in
+    main() — without (e) the top-numbered invariant could be silently dropped from main() while
+    its dead docstring keeps every count reading correct (the P65 keystone finding).
     Keeps the invariant catalog a single source of truth: a mislabeled, unlabeled, or undocumented
     check cannot slip in silently."""
     import ast
@@ -2236,6 +2259,13 @@ def check_invariant_catalog():
     registered = [n.func.id for n in ast.walk(main_node)
                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
                   and n.func.id.startswith("check_")]
+
+    registered_set = set(registered)
+    for fn, nums in sorted(labels_by_func.items()):
+        if nums and fn not in registered_set:
+            problem(f"invariant-catalog: {fn}() carries 'Invariant {', '.join(map(str, nums))}' "
+                    f"but is never called in main(); a labeled check that is not registered is a "
+                    f"silently disabled invariant (delete the function or register it)")
 
     owner = {}  # invariant number -> the check_* function that carries the label
     for fn in registered:

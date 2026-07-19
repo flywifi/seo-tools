@@ -150,12 +150,19 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    `*.template.json` and `*-schema.json` are allowlisted back in), plus all CSV/XLSX/PDF exports
    under `pipeline/`, `.env*`, key material, and common bank-export filename patterns. Drift
    invariant 20 verifies that every git-tracked file under `pipeline/` is on an explicit
-   allowlist and that no CSV/XLSX/OFX/QFX/PEM/KEY/.env file is tracked anywhere; invariant 19
-   keeps `.local.` files untracked. Both fail closed in CI.
-2. **Content scanning.** `tools/secret_scan.py` (stdlib, offline) scans all tracked content for
-   key material, credential values, session links, personal emails, and amount-plus-brand pairs
-   in pipeline files. Wired as drift invariant 21 and a CI step. Verified false positives go in
-   `tools/secret-scan-allowlist.json` with a written reason.
+   allowlist and that no sensitive-format file is tracked anywhere in the repo: the shared
+   `tools/secret_scan.py::FORBIDDEN_DATA_SUFFIXES` list covers spreadsheets (XLS/XLSM/XLSB/ODS/
+   Numbers), delimited and columnar exports (CSV/TSV/Parquet), financial application files
+   (OFX/QFX/QBW/QBB/QIF/TAX), credential and key stores (PEM/KEY/P12/KDBX/keychain/.p8), databases
+   and backups (SQLite/MDB/BAK/SQL dumps), email and contacts (PST/MBOX/EML/VCF), archives,
+   office binaries (DOCX/PDF), and GPS-bearing capture media; invariant 19 keeps `.local.` files
+   untracked. Both fail closed in CI, and print a loud DID-NOT-RUN advisory in a non-git copy.
+2. **Content scanning.** `tools/secret_scan.py` (stdlib, offline) scans EVERY tracked file that
+   passes a binary sniff (no suffix gate, so a stray `secrets.conf` or extensionless credential
+   file is covered) for key material — including current hyphenated `sk-` provider key formats
+   and fine-grained GitHub tokens — credential values, session links, personal emails, and
+   amount figures in pipeline files. Wired as drift invariant 21 and a CI step. Verified false
+   positives go in `tools/secret-scan-allowlist.json` with a written reason.
 3. **Commit hygiene.** `python3 tools/install_hooks.py` installs a pre-commit hook (scans staged
    content) and a commit-msg hook (rejects messages carrying session links, emails, or secret
    patterns). CI re-checks commit messages and author emails after the policy boundary SHA in
