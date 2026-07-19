@@ -368,6 +368,17 @@
         "treating a single pass as authoritative in isolation -- rejected per OWASP LLM01: no single pass is sufficient (regex misses rewordings; a model judging injected content is itself injectable)"
       ],
       "adr": "docs/adr/0045-p62-two-pass-injection-screening.md"
+    },
+    {
+      "id": "P63-sweep-remediation",
+      "date": "2026-07-18",
+      "decision": "Fixed the four defects the 2026-07-18 diagnose-only sweep confirmed, each locked by a proof mechanism that fails on the pre-fix code (ADR 0046). (1) Connector resolver: google_drive_hub gains default_flag not_installed (the only 1 of 39 without it; every requires_capability peer uses that default) and resolve()/cmd_list() read the key via .get() so a malformed entry degrades to off; NEW invariant 53 executes resolve() over the committed registry, fail-closed. (2) transcript_normalize: the runner's three-flag argv silently collapsed to gap metrics (the transcripts CLI modes are mutually exclusive); a new ADDITIVE --normalize mode emits the one combined object (segments + silences + chapters, per-mode min-gap defaults preserved) and the runner selftest now RUNS the built argv on the committed workshop-footage fixture asserting all three keys; single-mode arms byte-unchanged for the footage-analysis atom (decision TRANS-FLAG; rejected: combined-on-multi-flag, runner-merges-3-calls). (3) finance/obligations error posture: both payload loaders raise a tagged PayloadError that main() converts to the {error,next_step} envelope with exit 1 across all ten payload entry points, and build_invoice gap-flags a non-dict terms as malformed_terms; NEW invariant 54 AST-asserts both guards stay (decision GUARD-BOTH). Invariants 52 to 54; counts otherwise unchanged. Selftests: transcripts 7/7 (new), runner 27/27, finance 102/102, obligations 16/16. Negative tests confirmed both new invariants fire on the pre-fix tree.",
+      "alternatives_rejected": [
+        "combined-output-on-multi-flag for transcripts.py (implicit contract keyed to flag count)",
+        "runner merges three subprocess calls (3x process cost + merge logic outside the tool)",
+        "selftests without the two drift invariants (no build-time lock on the defect classes)"
+      ],
+      "phase": "P63"
     }
   ],
   "updated": "2026-07-18"

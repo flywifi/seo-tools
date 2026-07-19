@@ -12,7 +12,32 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Fixed
+- The connector resolver crashed on the committed registry (ADR 0046): the `google_drive_hub`
+  entry (P60) shipped without `default_flag`, so `connectors.py --plan/--list/--json` raised
+  `KeyError` and the MCP `get_connectors` tool returned an error instead of the evidence plan.
+  The entry gains `default_flag: not_installed` (matching every `requires_capability` peer) and
+  `resolve()`/`cmd_list()` read the key defensively, defaulting a malformed future entry to off.
+- `transcript_normalize` jobs silently delivered only gap metrics: the runner passed
+  `--json --gap-metrics --suggest-chapters` but the transcripts CLI modes are mutually exclusive,
+  so segments and suggested chapters never reached the job result or the Outbox artifact. The
+  runner now uses the new combined `--normalize` mode and its selftest runs the built argv on a
+  committed fixture asserting all three keys.
+- `tools/finance.py` and `tools/obligations.py` dumped raw Python tracebacks when a CLI payload
+  argument was a bad path or inline JSON; both now return the clean `{"error","next_step"}`
+  envelope with exit 1 across all ten payload entry points, and `build_invoice` gap-flags a
+  non-dict `terms` value (`malformed_terms`) instead of crashing on a plain-English string.
+
 ### Added
+- `shared/docintel/transcripts.py --normalize`: one combined object (segments + silence gaps +
+  suggested chapters) for the transcript_normalize job, additive beside the unchanged single-mode
+  flags, plus the tool's first `--selftest`.
+- Drift invariant 53 (connector resolver smoke): executes `resolve()` over the committed
+  `connectors.json` so an entry the resolver cannot process fails the build (invariants 18/23/41
+  are static and missed the P60 defect). Fail-closed.
+- Drift invariant 54 (payload-loader robustness): AST-asserts the finance/obligations payload
+  loaders keep their try/except guard (the invariant-35 sibling for the offline money/legal CLIs).
+  Fail-closed.
 - Two-pass injection screening (ADR 0045): the offline pattern tier is now a genuine FIRST pass
   whose verdict feeds the authoritative in-session semantic guard, which can catch reworded attacks
   the regex misses. `injection_scan.render_prior` renders the offline verdict as a category+score

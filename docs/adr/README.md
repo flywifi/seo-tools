@@ -54,3 +54,4 @@ added beyond what those records state. New decisions get the next number via
 | [0043](0043-p60-drive-hub-omnichannel.md) | P60 Omnichannel Drive Hub | 2026-07-17 | Accepted |
 | [0044](0044-p61-work-orders-and-ingest-screening.md) | P61 Work Orders and Ingest Screening | 2026-07-17 | Accepted |
 | [0045](0045-p62-two-pass-injection-screening.md) | P62 Two-pass Injection Screening | 2026-07-18 | Accepted |
+| [0046](0046-p63-sweep-remediation.md) | P63 Sweep Remediation | 2026-07-18 | Accepted |

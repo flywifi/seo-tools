@@ -2,8 +2,21 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P62 are complete. Drift guard exits 0 (54 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P63 are complete. Drift guard exits 0 (54 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P63: sweep remediation (ADR 0046). The four defects the 2026-07-18 diagnose-only Mac +
+  cross-skill workflow sweep confirmed are fixed with proof mechanisms that fail on the old code:
+  the connector resolver no longer crashes on the committed registry (google_drive_hub gains
+  `default_flag: not_installed`; `resolve()`/`cmd_list()` harden with `.get()`; NEW invariant 53
+  executes the resolver over the committed registry, fail-closed); `transcript_normalize` jobs
+  deliver the full documented output via the new additive `transcripts.py --normalize` combined
+  mode (segments + silences + chapters in one object; the runner selftest now RUNS the built argv
+  on a committed fixture and asserts all three keys; single-mode arms byte-unchanged for the
+  footage-analysis atom); finance/obligations CLIs return the clean `{"error","next_step"}`
+  envelope instead of raw tracebacks on bad payload paths (tagged PayloadError + local `_fail`;
+  `build_invoice` gap-flags a non-dict `terms` as `malformed_terms`; NEW invariant 54 AST-asserts
+  both loader guards stay, fail-closed). Invariants 52 to 54; selftests grow: transcripts 7/7
+  (new), runner 27/27, finance 102/102, obligations 16/16.
 - P62: two-pass injection screening (ADR 0045). The offline pattern tier now feeds the authoritative
   in-session semantic guard: `injection_scan.render_prior` renders the offline verdict as an advisory
   line, `shared/injection-guard-engine.md` defines the `<untrusted_content>` envelope + reconciliation
