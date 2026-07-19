@@ -1,32 +1,56 @@
 [
   {
-    "test_id": "task-radar-happy-path",
-    "description": "happy path with full inputs",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-radar-waiting-vs-owe",
+    "description": "outstanding tasks split into waiting-on-the-brand versus creator I-owe, each citing its source and due date",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "as_of": "2026-07-15"
+    },
+    "expected_output_keys": [
+      "waiting_on",
+      "i_owe",
+      "due_soon"
+    ],
     "assertions": [
-      "output contains expected keys",
-      "no fabricated data"
+      "tasks where the brand owes the next action appear under waiting_on",
+      "tasks where the creator owes the next action appear under i_owe",
+      "every item carries its due date, responsible party, and source citation",
+      "the atom is read-only and creates no tasks"
     ]
   },
   {
-    "test_id": "task-radar-minimal-input",
-    "description": "minimal required inputs with defaults applied",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-radar-overdue-aging",
+    "description": "tasks past their due date surface under overdue with aging",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "as_of": "2026-07-30"
+    },
+    "expected_output_keys": [
+      "overdue",
+      "aging_followups"
+    ],
     "assertions": [
-      "defaults are applied correctly",
-      "output is valid"
+      "a task past its due date appears under overdue",
+      "each overdue item reports how many days it has aged",
+      "aging is computed from the cited due date, not estimated"
     ]
   },
   {
-    "test_id": "task-radar-edge-case",
-    "description": "edge case or error condition",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-radar-nothing-outstanding",
+    "description": "a deal with no outstanding tasks returns an honest empty split",
+    "input": {
+      "deal_id": "deal-fictional-closed-2026",
+      "as_of": "2026-07-15"
+    },
+    "expected_output_keys": [
+      "waiting_on",
+      "i_owe",
+      "note"
+    ],
     "assertions": [
-      "error is handled gracefully",
-      "no fabricated fallback data"
+      "waiting_on and i_owe are both empty when nothing is outstanding",
+      "the note states there is nothing outstanding",
+      "no placeholder or invented task fills the empty result"
     ]
   }
 ]

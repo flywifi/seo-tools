@@ -40,6 +40,13 @@ work after the baseline sits under Unreleased.
   unchanged at 56.
 
 ### Added
+- `tools/eval_lint.py` (P67-D): an offline structural linter for every `skills/**/evals/evals.json`,
+  CI-wired (replacing the bare `json.loads` step) and discovered by `selftest_sweep`. It requires
+  each case to have a unique id and either a non-empty input or a concrete expectation; a no-input
+  refusal case is valid, an empty scaffold fails. It surfaced 27 hollow scaffold cases across 9
+  skills (the P30/P35 task and finance atoms plus task-desk), all now authored into real,
+  fabrication-aware eval cases. Behavioral eval execution is documented in `docs/DOC-MAINTENANCE.md`
+  as an intentional opt-in maintainer step, not a push gate.
 - `docs/ROADMAP.md` (P67-C): the single honest inventory of intentionally-gated integrations
   (DaVinci Resolve/Compressor/CommandPost stubs, the `remote_mcp` store backend, the CEA-608 `.scc`
   deferral) with verify markers, so unbuilt paths are documented, not silent.

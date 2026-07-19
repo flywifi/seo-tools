@@ -1,32 +1,61 @@
 [
   {
-    "test_id": "shipment-track-happy-path",
-    "description": "happy path with full inputs",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "shipment-track-manual-delivered",
+    "description": "a manual delivered entry sets the delivered_at anchor that starts backwards planning",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "carrier": "manual",
+      "status": "delivered",
+      "delivered_on": "2026-07-10"
+    },
+    "expected_output_keys": [
+      "shipment",
+      "delivered_at",
+      "anchor_source"
+    ],
     "assertions": [
-      "output contains expected keys",
-      "no fabricated data"
+      "delivered_at equals the delivered checkpoint date",
+      "anchor_source names the delivered checkpoint, not an estimate",
+      "no downstream tasks are planned (that is task-plan)"
     ]
   },
   {
-    "test_id": "shipment-track-minimal-input",
-    "description": "minimal required inputs with defaults applied",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "shipment-track-in-transit-no-anchor",
+    "description": "an in-transit shipment with only an estimate yields no delivered_at anchor",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "carrier": "manual",
+      "status": "in_transit",
+      "estimated_delivery": "2026-07-18"
+    },
+    "expected_output_keys": [
+      "shipment",
+      "delivered_at"
+    ],
     "assertions": [
-      "defaults are applied correctly",
-      "output is valid"
+      "delivered_at is null while the shipment is in transit",
+      "the estimate is never used as the delivered_at anchor",
+      "the record still stores the estimate for reference"
     ]
   },
   {
-    "test_id": "shipment-track-edge-case",
-    "description": "edge case or error condition",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "shipment-track-live-flag-off",
+    "description": "a live carrier lookup is requested while the flag is off; it degrades to manual with no network call",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "carrier": "ups",
+      "tracking_number": "1Z-FICTIONAL",
+      "request_live": true
+    },
+    "expected_output_keys": [
+      "shipment",
+      "degraded",
+      "note"
+    ],
     "assertions": [
-      "error is handled gracefully",
-      "no fabricated fallback data"
+      "no network call is made when live tracking is flag-gated off",
+      "the atom degrades to manual entry and says so",
+      "the API key is only ever read from the environment, never echoed"
     ]
   }
 ]

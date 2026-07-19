@@ -1,32 +1,71 @@
 [
   {
-    "test_id": "task-extract-happy-path",
-    "description": "happy path with full inputs",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-extract-contract-obligations",
+    "description": "signed contract obligation rows become source-cited task rows",
+    "input": {
+      "source_type": "contract",
+      "deal_id": "deal-fictional-brand-2026",
+      "obligations": [
+        {
+          "clause": "3.2",
+          "text": "Creator delivers first cut within 10 business days of product receipt.",
+          "responsible": "creator"
+        },
+        {
+          "clause": "4.1",
+          "text": "Brand approves or requests changes within 5 business days of delivery.",
+          "responsible": "brand"
+        }
+      ]
+    },
+    "expected_output_keys": [
+      "tasks",
+      "citations"
+    ],
     "assertions": [
-      "output contains expected keys",
-      "no fabricated data"
+      "each task cites its originating contract clause (3.2, 4.1)",
+      "each task records who is responsible, its trigger, and its due basis",
+      "no task is created that cannot cite a clause (anti-phantom)",
+      "no schedule dates are computed here (that is task-plan)"
     ]
   },
   {
-    "test_id": "task-extract-minimal-input",
-    "description": "minimal required inputs with defaults applied",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-extract-refuses-phantom",
+    "description": "a vague statement with no anchorable source produces no task",
+    "input": {
+      "source_type": "statement",
+      "deal_id": "deal-fictional-brand-2026",
+      "text": "we should probably follow up sometime"
+    },
+    "expected_output_keys": [
+      "tasks",
+      "gaps"
+    ],
     "assertions": [
-      "defaults are applied correctly",
-      "output is valid"
+      "no task is created for an unanchorable statement (anti-phantom rule)",
+      "gaps explains that no citable trigger or source was found",
+      "nothing is fabricated to fill the empty result"
     ]
   },
   {
-    "test_id": "task-extract-edge-case",
-    "description": "edge case or error condition",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-extract-email-source",
+    "description": "a brand message with a Message-ID becomes a cited task",
+    "input": {
+      "source_type": "email",
+      "deal_id": "deal-fictional-brand-2026",
+      "message": {
+        "message_id": "<mx789.shoot-date.example-brand.test>",
+        "body": "Please confirm the shoot date by end of week."
+      }
+    },
+    "expected_output_keys": [
+      "tasks",
+      "citations"
+    ],
     "assertions": [
-      "error is handled gracefully",
-      "no fabricated fallback data"
+      "the task cites the RFC 5322 Message-ID as its source",
+      "the responsible party and due basis are recorded",
+      "the citation is code-stamped from the envelope"
     ]
   }
 ]

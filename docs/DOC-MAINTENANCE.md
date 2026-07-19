@@ -130,3 +130,21 @@ tuned against the real tree (5 agent defs, 5 workflows stay green) with a crafte
 
 The class rule going forward (from the audit): a guard must verify the PROPERTY it protects, not
 the presence of a token that usually accompanies the property.
+
+## Eval testing model (P67-D)
+
+Every skill carries `evals/evals.json`. Two layers guard them, and one layer is deliberately NOT a
+push gate:
+
+- **Structure (push gate):** `tools/eval_lint.py` runs in CI (the "Eval structural lint" step) and
+  is discovered by `selftest_sweep`. It checks that every case is a real case, not a scaffold: a
+  non-empty id (unique within the file), and either a non-empty input or a concrete expectation
+  (`expect`/`expected`/`expected_output_keys`). A no-input refusal case (empty input with a real
+  expectation) is valid; the empty `new_skill.py` scaffold (empty input AND empty expectation, only
+  boilerplate assertions) fails. This replaced the old bare `json.loads` step, which passed hollow
+  scaffolds. Invariant 9 separately enforces the atom minimum-case-count.
+- **Behavior (intentional opt-in, NOT a push gate):** actually EXECUTING an eval is an LLM
+  judgment and needs model calls, so it does not run in CI. It is the skill-creator inner loop
+  (draft, run evals, iterate), run by a maintainer when authoring or changing a skill. This absence
+  is deliberate and recorded here so it is not a silent QA hole: CI proves the evals are
+  well-formed and non-hollow; a human proves they pass behaviorally.

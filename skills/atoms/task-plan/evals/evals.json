@@ -1,32 +1,86 @@
 [
   {
-    "test_id": "task-plan-happy-path",
-    "description": "happy path with full inputs",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-plan-forward-from-trigger",
+    "description": "forward scheduling from a product-receipt trigger computes each due date cited to a rule and anchor",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "mode": "forward",
+      "anchor_event": {
+        "type": "product_received",
+        "date": "2026-07-01"
+      },
+      "tasks": [
+        {
+          "id": "first-cut",
+          "rule": "draft due 7 business days after product receipt"
+        }
+      ]
+    },
+    "expected_output_keys": [
+      "scheduled_tasks",
+      "computed_by"
+    ],
     "assertions": [
-      "output contains expected keys",
-      "no fabricated data"
+      "the first-cut due date is 7 business days after 2026-07-01",
+      "each date cites its rule and anchor event",
+      "all date math is offline (computed_by names tools/tasks.py)",
+      "weekends are excluded from the business-day count"
     ]
   },
   {
-    "test_id": "task-plan-minimal-input",
-    "description": "minimal required inputs with defaults applied",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-plan-backward-from-deadline",
+    "description": "backward scheduling from a hard publish date yields the latest start for each upstream step",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "mode": "backward",
+      "deadline": {
+        "type": "publish",
+        "date": "2026-08-01"
+      },
+      "chain": [
+        "shoot",
+        "edit",
+        "brand_review",
+        "final"
+      ]
+    },
+    "expected_output_keys": [
+      "scheduled_tasks",
+      "computed_by"
+    ],
     "assertions": [
-      "defaults are applied correctly",
-      "output is valid"
+      "each upstream step has a latest-start date that keeps the publish date reachable",
+      "the chain is walked backward from the publish date",
+      "dates are cited to the rule and the publish anchor"
     ]
   },
   {
-    "test_id": "task-plan-edge-case",
-    "description": "edge case or error condition",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-plan-infeasible-negative-slack",
+    "description": "a chain that cannot fit the deadline flags a negative-slack conflict rather than inventing a fit",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "mode": "backward",
+      "deadline": {
+        "type": "publish",
+        "date": "2026-07-05"
+      },
+      "chain": [
+        "shoot",
+        "edit",
+        "brand_review",
+        "final"
+      ],
+      "today": "2026-07-01"
+    },
+    "expected_output_keys": [
+      "scheduled_tasks",
+      "feasibility",
+      "conflicts"
+    ],
     "assertions": [
-      "error is handled gracefully",
-      "no fabricated fallback data"
+      "feasibility is infeasible when the chain cannot fit before the deadline",
+      "the negative-slack conflict is reported with the shortfall",
+      "no dates are silently compressed to force a fit"
     ]
   }
 ]

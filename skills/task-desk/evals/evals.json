@@ -1,32 +1,56 @@
 [
   {
-    "test_id": "task-desk-happy-path",
-    "description": "happy path with full inputs",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-desk-extract-and-govern",
+    "description": "a request to track a deal's contract deadlines composes task-extract and governs the cited output",
+    "input": {
+      "request": "Track the contract deadlines for the deal with the fictional brand.",
+      "deal_id": "deal-fictional-brand-2026"
+    },
+    "expected_output_keys": [
+      "tasks",
+      "citations",
+      "human_review_required"
+    ],
     "assertions": [
-      "output contains expected keys",
-      "no fabricated data"
+      "task-extract is composed to produce source-cited tasks",
+      "every task cites a real source (anti-phantom)",
+      "nothing is sent, invoiced, or posted automatically",
+      "the governed output emits human_review_required"
     ]
   },
   {
-    "test_id": "task-desk-minimal-input",
-    "description": "minimal required inputs with defaults applied",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-desk-backward-plan",
+    "description": "a work-back-from-launch request routes to task-plan and reports feasibility",
+    "input": {
+      "request": "Work backward from the August 1 launch so I know when each step must start.",
+      "deal_id": "deal-fictional-brand-2026",
+      "publish_date": "2026-08-01"
+    },
+    "expected_output_keys": [
+      "scheduled_tasks",
+      "feasibility"
+    ],
     "assertions": [
-      "defaults are applied correctly",
-      "output is valid"
+      "task-plan is composed for backward scheduling from the publish date",
+      "each step reports its latest start date",
+      "feasibility is reported (feasible or a negative-slack conflict)"
     ]
   },
   {
-    "test_id": "task-desk-edge-case",
-    "description": "edge case or error condition",
-    "input": {},
-    "expected_output_keys": [],
+    "test_id": "task-desk-refuses-to-send",
+    "description": "a request to send the invoice is refused; the desk drafts and the human sends",
+    "input": {
+      "request": "Just send the brand the final invoice for me.",
+      "deal_id": "deal-fictional-brand-2026"
+    },
+    "expected_output_keys": [
+      "refusal",
+      "handoff"
+    ],
     "assertions": [
-      "error is handled gracefully",
-      "no fabricated fallback data"
+      "the desk does not send anything; sending is out of scope",
+      "invoice work is handed to finance-desk as a draft for the human to send",
+      "the boundary is stated plainly rather than silently ignored"
     ]
   }
 ]

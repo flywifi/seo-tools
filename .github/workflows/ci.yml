@@ -39,19 +39,8 @@ jobs:
         run: python3 tools/doc_freshness.py --check
       - name: Behavioral selftest sweep (scripted discovery of every CLI selftest; P66)
         run: python3 tools/selftest_sweep.py
-      - name: Eval JSON validity
-        run: |
-          python3 - <<'PY'
-          import json, pathlib, sys
-          bad = 0
-          for p in pathlib.Path("skills").rglob("evals/evals.json"):
-              try:
-                  json.loads(p.read_text(encoding="utf-8"))
-              except Exception as exc:
-                  print("invalid", p, exc)
-                  bad += 1
-          sys.exit(1 if bad else 0)
-          PY
+      - name: Eval structural lint (shape of every case, not just JSON validity; P67-D)
+        run: python3 tools/eval_lint.py
       - name: Packaging
         run: python3 tools/package_skill.py --all
 

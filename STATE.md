@@ -2,8 +2,24 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P66 are complete. Drift guard exits 0 (56 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P67 are complete. Drift guard exits 0 (56 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P67: Production-readiness hardening (ADR 0049, 2026-07-19), three in-repo slices chosen by the
+  user (release-cutting and live-surface validation stay a hand-off). (A) Guard-shallowness
+  backlog closed: invariants 14/16/17 rebuilt from substring/marker tests into property checks
+  (non-empty parsed allowlist; a workflow agent() must consume an earlier agent/parallel/pipeline
+  result, not just carry a marker; no mutation tool in a read-only agent's allowlist), each tuned
+  against the green tree with a crafted-bad proof; count unchanged at 56. (B) The remote MCP
+  endpoint (`--serve-remote`) gained fail-safe auth: it refuses a non-loopback bind with no
+  CREATOR_OS_MCP_TOKEN and no --insecure, and enforces an in-process bearer gate when a token is
+  set (package-independent selftest covers both). (C) Honesty truth-up: the degraded-behavior
+  prose calling the publishing clients "stubs" corrected (they are gated-off REST clients),
+  docs/ROADMAP.md added inventorying the genuine NotImplementedError stubs, and the TikTok
+  rate-limit [NEEDS VERIFICATION] resolved to the documented 600 req/min per endpoint. (D) Eval
+  testing model: tools/eval_lint.py (offline structural linter, CI-wired, swept selftest) replaced
+  the bare json.loads CI step and surfaced 27 hollow scaffold cases across 9 skills, all authored
+  into real eval cases; behavioral eval execution documented as an intentional opt-in (not a push
+  gate).
 - P66: Remediation of the P65 full-system audit's fifteen findings (ADR 0048, 2026-07-19). The
   three HIGH data-boundary gaps closed first: the generic sk- secret pattern matches current
   hyphenated provider formats plus fine-grained github_pat_ tokens, the tracked-content scan
