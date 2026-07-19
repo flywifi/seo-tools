@@ -110,6 +110,10 @@ Invariants enforced:
       the committed connectors.json (resolve({}) — the pure default-flag path). Invariants 18/23/41
       only inspect the registry statically; this one runs it, so a malformed entry the resolver
       cannot process (e.g. a missing default_flag) fails the build instead of shipping.
+  54. Payload-loader robustness (P63): tools/finance.py::_read_json and
+      tools/obligations.py::_load_json keep their try/except guard so a bad CLI payload path or
+      inline JSON yields the clean {"error","next_step"} envelope, never a raw traceback. The
+      sibling of invariant 35 for the two offline money/legal CLIs.
 """
 import json
 import os
@@ -2028,6 +2032,38 @@ def check_connector_resolver_smoke():
                 f"({type(plan).__name__}); expected a plan dict with an 'active' key")
 
 
+def check_payload_loader_robustness():
+    """Invariant 54: the finance/obligations CLI payload loaders stay guarded (P63).
+
+    tools/finance.py::_read_json and tools/obligations.py::_load_json feed 10 CLI entry points
+    with user-supplied payload paths; before P63 they raised raw tracebacks on a bad path or
+    inline JSON (the F-SWEEP-1 defect), violating the P46 no-traceback posture. Invariant 35
+    covers only tools/importers + import_parse.py, so this sibling AST check asserts each named
+    loader's body contains a try/except — a regression that removes the guard fails the build.
+    Fail-closed like invariant 35."""
+    import ast
+    targets = [(ROOT / "tools" / "finance.py", "_read_json"),
+               (ROOT / "tools" / "obligations.py", "_load_json")]
+    for path, fname in targets:
+        if not path.exists():
+            problem(f"payload-loader: {path.name} is missing")
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError as exc:
+            problem(f"payload-loader: {path.name} failed to parse: {exc}")
+            continue
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == fname), None)
+        if fn is None:
+            problem(f"payload-loader: {path.name} no longer defines {fname}() "
+                    f"(the guarded CLI payload loader); restore it or update invariant 54")
+            continue
+        if not any(isinstance(n, ast.Try) for n in ast.walk(fn)):
+            problem(f"payload-loader: {path.name}::{fname} lost its try/except guard; a bad "
+                    f"payload path would raise a raw traceback again (P63 F-SWEEP-1 regression)")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -2161,6 +2197,7 @@ def main():
     check_doc_freshness()
     check_doc_source_registry()
     check_connector_resolver_smoke()
+    check_payload_loader_robustness()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

@@ -451,7 +451,16 @@ def build_invoice(payload, today):
         total += a
         adjustments.append({"description": adj.get("description", ""), "amount": _mstr(a)})
 
-    terms = payload.get("terms") or {}
+    raw_terms = payload.get("terms")
+    terms = raw_terms if isinstance(raw_terms, dict) else {}
+    if raw_terms and not isinstance(raw_terms, dict):
+        # "nulls become gaps" applies to malformed values too: a plain-English string like
+        # "net-30" is flagged, never crashed on and never parsed into numbers.
+        gaps.append({"gap_type": "malformed_terms",
+                     "description": f"terms was not a structured object (got {type(raw_terms).__name__})",
+                     "impact": "payment_due_date not derived",
+                     "recommended_next_step": "pass terms as a payment_terms_structured object "
+                                              "per shared/finance-engine.md"})
     invoice_date = _parse_date(payload.get("invoice_date")) or today
     due = None
     net_days = terms.get("net_days")
@@ -1194,6 +1203,34 @@ def selftest():
     _check("invoice: missing figures become gaps, never estimates",
            any(g["gap_type"] == "missing_amount" for g in inv2["gaps"])
            and any(g["gap_type"] == "missing_terms" for g in inv2["gaps"]), f)
+    # P63 F-SWEEP-2: a plain-English terms string must gap-flag, never crash (AttributeError).
+    try:
+        inv3 = build_invoice({"deal_id": "d", "terms": "net-30",
+                              "line_items": [{"description": "x", "unit_price": "100.00"}]}, t)
+        _check("invoice: string terms -> malformed_terms gap, no crash",
+               any(g["gap_type"] == "malformed_terms" for g in inv3["gaps"])
+               and inv3["total"] == "100.00", f)
+    except Exception:  # noqa: BLE001
+        _check("invoice: string terms -> malformed_terms gap, no crash", False, f)
+    # P63 F-SWEEP-1: a bad payload path raises the tagged PayloadError (never a raw OSError),
+    # and main() converts it to the clean {"error","next_step"} envelope with exit 1.
+    try:
+        _read_json("/nonexistent/payload.json")
+        _check("payload loader: bad path raises PayloadError", False, f)
+    except PayloadError:
+        _check("payload loader: bad path raises PayloadError", True, f)
+    except Exception:  # noqa: BLE001
+        _check("payload loader: bad path raises PayloadError", False, f)
+    import io, contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc_bad = main(["--price", '{"inline": "json"}'])
+    try:
+        err_obj = json.loads(buf.getvalue().strip())
+    except json.JSONDecodeError:
+        err_obj = {}
+    _check("payload loader: inline JSON -> clean error dict + exit 1",
+           rc_bad == 1 and "error" in err_obj and "next_step" in err_obj, f)
 
     ok, _ = _write_allowed({"capabilities": {}})
     _check("write gate: refused with finance_management off", ok is False, f)
@@ -1348,11 +1385,38 @@ def selftest():
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
+class PayloadError(Exception):
+    """A CLI payload argument could not be read as a JSON file (bad path, inline JSON, bad JSON)."""
+
+
 def _read_json(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    """Load a CLI payload path as JSON. Never leaks a raw traceback: a missing/unreadable path or
+    invalid JSON raises PayloadError, which main() turns into the repo's clean {"error","next_step"}
+    envelope (the P46 posture; drift invariant 54 keeps this guard in place)."""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PayloadError(f"could not read the payload as a JSON file: {exc}") from exc
+
+
+def _fail(msg, next_step=None):
+    """Emit a one-line JSON error (never a raw traceback) and signal a nonzero exit. Non-technical
+    users and agent tool wrappers get an actionable message instead of a Python stack dump."""
+    out = {"error": str(msg)}
+    if next_step:
+        out["next_step"] = next_step
+    print(json.dumps(out, ensure_ascii=False))
+    return 1
 
 
 def main(argv):
+    try:
+        return _main(argv)
+    except PayloadError as exc:
+        return _fail(exc, "pass a path to a JSON payload file (not inline JSON)")
+
+
+def _main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline finance math")
     ap.add_argument("--ar-scan", nargs="?", const="__local__", metavar="INVOICES_JSON")
     ap.add_argument("--cashflow", nargs="?", const="__local__", metavar="INPUTS_JSON")

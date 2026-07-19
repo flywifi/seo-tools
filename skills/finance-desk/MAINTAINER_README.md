@@ -52,7 +52,7 @@ figures with sources and flag the divergence; never reconcile silently.
 
 ## Update checklist
 1. Edit SKILL.md / workflow.json / this file.
-2. `python3 tools/finance.py --selftest` passes 99 of 99.
+2. `python3 tools/finance.py --selftest` passes 102 of 102.
 3. `python3 tools/sync_check.py` exits 0 (hub downstream + routing rows + atom resolution).
 4. `python3 tools/scenario_check.py` exits 0.
 Verify all backticked path references in this file and SKILL.md resolve to real files on disk.

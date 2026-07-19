@@ -373,8 +373,22 @@ def selftest() -> int:
     expect("boolean offset_days rejected (no sneaky True==1)", o["raw_date"] is None)
     expect("non-dict rows skipped", len(compute(["junk", 42], t, 3)) == 0)
 
+    # P63 F-SWEEP-1: a bad payload path yields the clean {"error","next_step"} envelope + exit 1,
+    # never a raw traceback (main() catches the tagged PayloadError from _load_json).
+    import io
+    import contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc_bad = main(["--build", '[{"inline": "json"}]', "--today", "2026-07-18"])
+    try:
+        err_obj = json.loads(buf.getvalue().strip())
+    except json.JSONDecodeError:
+        err_obj = {}
+    expect("bad payload path -> clean error dict + exit 1",
+           rc_bad == 1 and "error" in err_obj and "next_step" in err_obj)
+
     print(f"selftest: {'PASS' if not failures else 'FAIL'} "
-          f"({15 - len(failures)} of 15 checks)")
+          f"({16 - len(failures)} of 16 checks)")
     return 1 if failures else 0
 
 
@@ -385,11 +399,37 @@ def _today(arg: str | None) -> date:
     return d or date.today()
 
 
+class PayloadError(Exception):
+    """A CLI payload argument could not be read as a JSON file (bad path, inline JSON, bad JSON)."""
+
+
 def _load_json(path: str):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    """Load a CLI payload path as JSON. Never leaks a raw traceback: a missing/unreadable path or
+    invalid JSON raises PayloadError, which main() turns into the clean {"error","next_step"}
+    envelope (the P46 posture; drift invariant 54 keeps this guard in place)."""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PayloadError(f"could not read the payload as a JSON file: {exc}") from exc
+
+
+def _fail(msg, next_step=None) -> int:
+    """Emit a one-line JSON error (never a raw traceback) and signal a nonzero exit."""
+    out = {"error": str(msg)}
+    if next_step:
+        out["next_step"] = next_step
+    print(json.dumps(out, ensure_ascii=False))
+    return 1
 
 
 def main(argv) -> int:
+    try:
+        return _main(argv)
+    except PayloadError as exc:
+        return _fail(exc, "pass a path to a JSON payload file (not inline JSON)")
+
+
+def _main(argv) -> int:
     ap = argparse.ArgumentParser(description="Offline obligation date-math + register builder.")
     ap.add_argument("--build", metavar="ROWS_JSON", help="obligation rows to compute into a register")
     ap.add_argument("--scan", nargs="?", const="__register__", metavar="ROWS_OR_REGISTER",
