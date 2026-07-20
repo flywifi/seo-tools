@@ -77,6 +77,11 @@ step that converts "117 PASS" from a numerator into a coverage statement, and it
 that would have surfaced the Cowork gap on its own: an honest closing list on 2026-07-18 would
 have had to say "origin `cowork`: not exercised".
 
+The committed home for the Mac hands-on unexercised list is `docs/MAC-VALIDATION.md` — a local-only,
+two-phase runbook with a results-log template in this same shape. Its closing "Not exercised" line
+records the deferred real-account tiers (OAuth/publishing, Drive hub, remote-MCP connector) so a
+green local pass reads as coverage, not a bare pass.
+
 ## 6. Deliverable shape (resumable by a cold session)
 
 The notes format proven by `scratchpad/mac-sweep-2026-07-18.md` and
