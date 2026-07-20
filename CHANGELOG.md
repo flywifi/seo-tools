@@ -40,6 +40,13 @@ work after the baseline sits under Unreleased.
   and the staged volatile-correction marked applied.
 
 ### Changed
+- Invariants 14, 16, 17 hardened again (P68-D) against the false-positive and false-negative cases
+  the P67 audit found: inv 16 counts a consuming reference only inside a real `${...}` interpolation
+  or as a bare/derived `agent()` argument (a prose mention no longer passes) and accepts
+  variable-built and destructured agent results; inv 17 rejects an unqualified `- Bash` allow bullet
+  (a bare shell can mutate the filesystem); inv 14 rejects a placeholder-only allowlist (`- none`).
+  Re-tuned against the 5 real defs and 5 real workflows (still green) and red-teamed. Nine eval
+  files' `expected_output_keys` corrected to real tool keys (P68-A). Invariant count 56 to 57.
 - Invariants 14, 16, and 17 rebuilt from substring/marker tests into property checks (P67, closes
   the P65 guard-shallowness backlog): inv 14 requires a non-empty parsed Allowed-tools allowlist;
   inv 16 additionally requires an `agent()` call to consume an earlier agent/parallel/pipeline
@@ -49,6 +56,17 @@ work after the baseline sits under Unreleased.
   unchanged at 56.
 
 ### Added
+- Eval output-key truth guard (P68-A): `tools/eval_key_manifest.json` + drift invariant 57
+  (`check_eval_output_keys`). It AST-extracts the literal dict keys each skill's named emitter
+  function(s) emit and enforces that every eval case key is in the skill's authoritative set AND
+  that the set is itself a subset of the emitted code keys, so a prose-invented key (the P67-D audit
+  found eight in zero tool code) is a build failure and the manifest cannot drift into fiction
+  either. Skills with no deterministic emitter mark each case `spec_only`. Complements eval_lint.py
+  (structure) and invariant 9 (case count) with content-truth.
+- Argv-level remote-MCP selftest (P68-B): package-independent cases in `mcp_server.py --selftest`
+  assert the auth decision fires for every network transport (`--serve-remote`, bare
+  `--transport streamable-http`/`sse`) and not for stdio, plus the transport-to-app-builder match.
+  `docs/AUDIT-PROTOCOL.md` gains section 7 (independent, code-checked close-out + red-team-per-guard).
 - `tools/eval_lint.py` (P67-D): an offline structural linter for every `skills/**/evals/evals.json`,
   CI-wired (replacing the bare `json.loads` step) and discovered by `selftest_sweep`. It requires
   each case to have a unique id and either a non-empty input or a concrete expectation; a no-input

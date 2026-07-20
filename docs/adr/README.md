@@ -58,3 +58,4 @@ added beyond what those records state. New decisions get the next number via
 | [0047](0047-p64-cowork-surface-and-audit-completeness.md) | P64 Cowork Surface and Audit Completeness | 2026-07-19 | Accepted |
 | [0048](0048-p66-audit-remediation.md) | P66 Remediation of the P65 Full-System Audit Findings | 2026-07-19 | Accepted |
 | [0049](0049-p67-production-hardening.md) | P67 Production-readiness hardening (in-repo slices) | 2026-07-19 | Accepted |
+| [0050](0050-p68-verification-hardening.md) | P68 Verification hardening (why nine defects survived) | 2026-07-20 | Accepted |

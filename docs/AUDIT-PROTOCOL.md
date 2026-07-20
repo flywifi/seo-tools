@@ -90,6 +90,32 @@ The notes format proven by `scratchpad/mac-sweep-2026-07-18.md` and
 5. Notes live in the scratchpad, never committed; findings that become work get a plan with the
    repo's resume-protocol + change-ledger structure.
 
+## 7. Independent adversarial close-out (claims checked against code, not prose) — P68
+
+Sections 1 to 6 give an audit a machine-checked denominator and an honest unexercised list, and
+section 4 makes the auditor re-verify a finding against the harness. What they did NOT require is
+the step that would have caught the P67 defects: a check of the phase's own claims against
+**ground-truth code**, by a reader who did not write them. The P67-D eval cases asserted output
+keys authored from SKILL.md *prose* (`coverage_summary`, `billable_milestones`, `nudge_date`), and
+the same-author close-out re-confirmed them against the same mental model; the P67-B auth fail-safe
+was reasoned about only through its documented entry point (`--serve-remote`), not the full argv
+surface. A green battery and a self-review passed both. Therefore:
+
+- A phase is not "closed" until an **independent** pass — a fresh-context subagent, or a distinct
+  reading that deliberately does not trust the phase's prose — re-derives each material claim from
+  the authoritative artifact: the tool's actual `return {...}` for an output-shape claim, the real
+  argv/branch behavior for an entry-point claim, the emitted keys for an eval assertion. "The docs
+  say X" is never the evidence; "the code does X, read here" is.
+- Every guard or fail-safe a phase adds must ship with a **red-team proof**: run it against the
+  pre-change tree and show it FAILS on the exact defect it targets, then against the fixed tree and
+  show it passes. A guard never shown catching its own target is unverified code (the P67-B gated
+  path shipped with a "covered by selftest" claim that covered only the pieces that could run).
+- This composes with the existing close-out discipline recorded in the ledger — "a proof that
+  fails on the pre-change tree, the full battery green after, docs changed in the same commit" —
+  and with the runtime analog already in `CLAUDE.md` (every workflow's adversarial verification
+  step) and `shared/schemas/verification-envelope.json`. The difference is that section 7 applies
+  it to the phase close-out itself, not only to research workflows.
+
 ```sources
 []
 ```

@@ -2,7 +2,23 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P67 are complete. Drift guard exits 0 (56 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P68 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P68: Verification hardening (ADR 0050, 2026-07-20). Remediated the nine defects an adversarial
+  audit of the P67 commits found, and closed the five process gaps that let them survive P65/P66
+  and a green battery. (A) The most serious: eval cases asserted `expected_output_keys` authored
+  from SKILL.md prose, eight of them present in zero tool code. New `tools/eval_key_manifest.json`
+  + drift invariant 57 (`check_eval_output_keys`) AST-extracts each skill emitter's real dict keys
+  and enforces both that every case key is authoritative AND that the authoritative set is grounded
+  in code (so the manifest cannot invent either); nine eval files corrected; spec_only skills mark
+  each case. Run against the pre-fix tree it flagged all eight invented keys. (B) The remote-MCP
+  fail-safe, gated on `--serve-remote`, was bypassable via `--transport streamable-http|sse`; the
+  auth decision now fires for any non-stdio transport and the gated path serves the transport-matched
+  app, with an argv-level selftest proven to fail on the pre-fix wiring. (C) `docs/AUDIT-PROTOCOL.md`
+  §7 now requires an independent, fresh-context close-out check against code plus a red-team proof
+  per guard; ADR 0049-B coverage claim narrowed. (D) inv 14/16/17 hardened against the audit's
+  false-positive/negative cases, coverage-verify fixtures created, TikTok rate-limit citation
+  registered. Count 56 to 57. No launch flag flipped or tag cut.
 
 - P67: Production-readiness hardening (ADR 0049, 2026-07-19), three in-repo slices chosen by the
   user (release-cutting and live-surface validation stay a hand-off). (A) Guard-shallowness
