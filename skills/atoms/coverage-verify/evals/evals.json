@@ -15,7 +15,7 @@
     },
     "expected_output_keys": [
       "points",
-      "coverage_summary",
+      "summary",
       "minority_report"
     ],
     "assertions": [
@@ -39,7 +39,7 @@
     },
     "expected_output_keys": [
       "points",
-      "coverage_summary"
+      "summary"
     ],
     "assertions": [
       "the weakly-implied point is marked unsure, not covered",

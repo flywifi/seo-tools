@@ -86,5 +86,5 @@ authorship boundary. Two consequences:
 ```bash
 python3 tools/doctemplates.py --selftest     # 26 checks incl. vetted-body byte-equality
 python3 tools/scenario_check.py              # S8 regression-locks swap/exclude assembly
-python3 tools/sync_check.py                  # 56 invariants incl. starter purity
+python3 tools/sync_check.py                  # 57 invariants incl. starter purity
 ```

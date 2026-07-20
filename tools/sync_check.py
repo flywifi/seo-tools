@@ -124,7 +124,15 @@ Invariants enforced:
       tools/registry_io.py::save_registry (the single sanctioned write path) matches a recompute
       over sources[]. An out-of-band in-place edit to an existing entry changes no source id, so
       the id-level freshness digest (invariant 26) cannot see it; this advisory can.
+  57. Eval output-key truth (P68): every eval case's `expected_output_keys` are REAL keys the
+      skill's backing tool actually emits, not prose-derived inventions. tools/eval_key_manifest.json
+      names each skill's emitter function(s); the guard AST-extracts the literal dict keys those
+      functions emit and asserts (a) each case key is in the skill's authoritative set and (b) the
+      authoritative set is itself a subset of the extracted code keys. spec_only skills (no backing
+      tool) must mark each case `"spec_only": true`. Closes the hole invariant 9 (case count) and
+      eval_lint.py (case structure) leave open: a well-formed case with a fabricated key.
 """
+import ast
 import json
 import os
 import re
@@ -2461,6 +2469,120 @@ def check_registry_content_digest():
                  "revert the hand edit or re-apply it through the sanctioned writer")
 
 
+def _dict_keys_in_function(py_path, func_name):
+    """Every literal string key of every dict literal that appears anywhere inside the named
+    function (returns, assignments, nested). AST-only, executes nothing. Returns (keys_set, found).
+    `found` is False when the file/function/AST cannot be resolved, so the caller fails loudly
+    rather than treating an unresolved emitter as 'emits nothing' (which would pass a bad manifest).
+    Capturing nested keys too keeps the extractor simple and robust to the `task = {..}; return
+    fold_task(task)` pattern; it means the guard proves a key is emitted SOMEWHERE by the emitter,
+    not necessarily at top level (top-level-vs-nested precision lives in each case's prose)."""
+    p = ROOT / py_path
+    if not p.exists():
+        return set(), False
+    try:
+        tree = ast.parse(p.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return set(), False
+    target = None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == func_name:
+            target = node
+            break
+    if target is None:
+        return set(), False
+    keys = set()
+    for node in ast.walk(target):
+        if isinstance(node, ast.Dict):
+            for k in node.keys:
+                if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                    keys.add(k.value)
+    return keys, True
+
+
+def check_eval_output_keys():
+    """Invariant 57: eval output-key truth (P68). Every eval case's `expected_output_keys` must be
+    a key the skill's backing tool actually emits, not a prose-derived invention. The P67-D audit
+    found eight eval keys (coverage_summary, anchor_source, aging_followups, invoice_task_draft,
+    billable_milestones, scheduled_tasks, untrusted_body_handled, injection_flag) that appear in
+    zero tool code -- structurally valid cases with fabricated expectations that invariant 9 (case
+    count) and eval_lint.py (case structure) both pass. tools/eval_key_manifest.json names each
+    skill's emitter function(s); this guard AST-extracts the literal dict keys those functions emit
+    and enforces two properties: (a) every case key is in the skill's declared authoritative set,
+    and (b) for a code-backed skill, the authoritative set is itself a subset of the extracted code
+    keys (so the manifest cannot drift into fiction either). spec_only skills (no deterministic
+    emitter -- pure LLM orchestration) must mark every case `"spec_only": true`; their keys are a
+    declared prescriptive envelope, checked against the manifest but not against code."""
+    manifest_path = ROOT / "tools" / "eval_key_manifest.json"
+    if not manifest_path.exists():
+        problem("eval-key-truth: tools/eval_key_manifest.json is missing (invariant 57 cannot run)")
+        return
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")).get("skills", {})
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"eval-key-truth: eval_key_manifest.json unreadable: {exc}")
+        return
+
+    # Locate each skill's evals/evals.json (atoms live under skills/atoms/, spokes under skills/).
+    def _evals_path(skill):
+        for cand in (ROOT / "skills" / "atoms" / skill / "evals" / "evals.json",
+                     ROOT / "skills" / skill / "evals" / "evals.json"):
+            if cand.exists():
+                return cand
+        return None
+
+    for skill, spec in sorted(manifest.items()):
+        ev_path = _evals_path(skill)
+        if ev_path is None:
+            problem(f"eval-key-truth: manifest names skill '{skill}' but its evals/evals.json is missing")
+            continue
+        try:
+            doc = json.loads(ev_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            problem(f"eval-key-truth: {skill}/evals.json unreadable: {exc}")
+            continue
+        cases = doc if isinstance(doc, list) else doc.get("cases", doc.get("evals", []))
+        authoritative = set(spec.get("authoritative_keys", []))
+        key_map = spec.get("code_key_map", {})
+        spec_only = bool(spec.get("spec_only", False))
+
+        # Property (b): for a code-backed skill, the authoritative set must be grounded in real
+        # emitted keys. Extract the union of literal dict keys across the declared emitters.
+        if not spec_only:
+            emitted = set()
+            for emitter in spec.get("emitters", []):
+                if ":" not in emitter:
+                    problem(f"eval-key-truth: {skill}: malformed emitter '{emitter}' (want 'file.py:function')")
+                    continue
+                fpath, fname = emitter.split(":", 1)
+                ks, found = _dict_keys_in_function(fpath, fname)
+                if not found:
+                    problem(f"eval-key-truth: {skill}: emitter '{emitter}' could not be resolved "
+                            f"(missing file/function or unparseable) -- fix the manifest")
+                    continue
+                emitted |= ks
+            for a in sorted(authoritative):
+                real = key_map.get(a, a)
+                if real not in emitted:
+                    problem(f"eval-key-truth: {skill}: authoritative key '{a}'"
+                            + (f" (maps to '{real}')" if real != a else "")
+                            + " is emitted by no declared emitter -- the manifest itself is wrong")
+
+        # Property (a): every case's expected_output_keys are in the authoritative set, and
+        # spec_only skills mark every case.
+        for case in cases if isinstance(cases, list) else []:
+            if not isinstance(case, dict):
+                continue
+            cid = case.get("test_id") or case.get("id") or case.get("name") or "?"
+            if spec_only and case.get("spec_only") is not True:
+                problem(f"eval-key-truth: {skill}/{cid}: spec_only skill but case lacks "
+                        f'`"spec_only": true` (declare that its keys are a prescriptive spec, not code)')
+            for k in case.get("expected_output_keys", []) or []:
+                if k not in authoritative:
+                    problem(f"eval-key-truth: {skill}/{cid}: expected_output_key '{k}' is not in the "
+                            f"authoritative output set {sorted(authoritative)} -- fabricated or renamed key")
+
+
 def check_invariant_catalog():
     """Invariant 36: invariant-catalog integrity (the keystone, P47). Parses this file and asserts
     (a) every check_* function registered in main() carries an 'Invariant N' docstring label,
@@ -2607,6 +2729,7 @@ def main():
     check_payload_loader_robustness()
     check_surface_origin_completeness()
     check_registry_content_digest()
+    check_eval_output_keys()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

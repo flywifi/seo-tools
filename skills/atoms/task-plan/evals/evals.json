@@ -17,13 +17,13 @@
       ]
     },
     "expected_output_keys": [
-      "scheduled_tasks",
-      "computed_by"
+      "due",
+      "gaps"
     ],
     "assertions": [
       "the first-cut due date is 7 business days after 2026-07-01",
       "each date cites its rule and anchor event",
-      "all date math is offline (computed_by names tools/tasks.py)",
+      "all date math is offline (cited to tools/tasks.py)",
       "weekends are excluded from the business-day count"
     ]
   },
@@ -45,8 +45,9 @@
       ]
     },
     "expected_output_keys": [
-      "scheduled_tasks",
-      "computed_by"
+      "feasible",
+      "conflicts",
+      "reverse"
     ],
     "assertions": [
       "each upstream step has a latest-start date that keeps the publish date reachable",
@@ -73,8 +74,7 @@
       "today": "2026-07-01"
     },
     "expected_output_keys": [
-      "scheduled_tasks",
-      "feasibility",
+      "feasible",
       "conflicts"
     ],
     "assertions": [

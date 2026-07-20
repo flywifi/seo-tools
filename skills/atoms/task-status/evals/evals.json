@@ -10,8 +10,8 @@
       "source": "submitted the first cut to the brand"
     },
     "expected_output_keys": [
-      "task",
-      "history_entry"
+      "status",
+      "history"
     ],
     "assertions": [
       "the task moves to waiting_external",
@@ -30,12 +30,11 @@
       "waiting_since": "2026-07-15"
     },
     "expected_output_keys": [
-      "task",
-      "nudge_date",
-      "escalate_date"
+      "status",
+      "handoff"
     ],
     "assertions": [
-      "nudge_date and escalate_date are computed from waiting_since",
+      "the handoff carries nudge_at and escalate_at computed from waiting_since",
       "only a nudge is prepared as a draft; nothing is sent",
       "the dates are offline-computed"
     ]
@@ -52,12 +51,12 @@
     },
     "expected_output_keys": [
       "error",
-      "allowed_transitions"
+      "refused"
     ],
     "assertions": [
       "an illegal transition (cancelled -> in_progress) is refused",
       "the append-only history is not mutated on a rejected change",
-      "the error names the allowed transitions from the current state"
+      "the refusal (refused=true) reports the illegal transition in the error message"
     ]
   }
 ]

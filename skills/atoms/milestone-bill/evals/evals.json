@@ -11,9 +11,8 @@
       }
     },
     "expected_output_keys": [
-      "billable_milestones",
-      "invoice_task_draft",
-      "citations"
+      "newly_billable",
+      "human_review_required"
     ],
     "assertions": [
       "the milestone whose trigger matches the approval event is marked billable",
@@ -34,12 +33,12 @@
       }
     },
     "expected_output_keys": [
-      "billable_milestones",
-      "note"
+      "newly_billable",
+      "human_review_required"
     ],
     "assertions": [
       "no milestone is flipped when the event matches no trigger",
-      "billable_milestones is empty",
+      "newly_billable is empty",
       "no invoice task is fabricated for an unmatched event"
     ]
   },
@@ -58,8 +57,8 @@
       }
     },
     "expected_output_keys": [
-      "billable_milestones",
-      "note"
+      "newly_billable",
+      "human_review_required"
     ],
     "assertions": [
       "an already-billed milestone is not flipped billable again",

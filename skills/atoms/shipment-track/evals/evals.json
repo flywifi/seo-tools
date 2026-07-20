@@ -11,11 +11,11 @@
     "expected_output_keys": [
       "shipment",
       "delivered_at",
-      "anchor_source"
+      "basis"
     ],
     "assertions": [
       "delivered_at equals the delivered checkpoint date",
-      "anchor_source names the delivered checkpoint, not an estimate",
+      "the anchor's basis names the delivered checkpoint, not an estimate",
       "no downstream tasks are planned (that is task-plan)"
     ]
   },
@@ -49,8 +49,7 @@
     },
     "expected_output_keys": [
       "shipment",
-      "degraded",
-      "note"
+      "anchor"
     ],
     "assertions": [
       "no network call is made when live tracking is flag-gated off",

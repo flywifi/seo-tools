@@ -27,7 +27,8 @@
       "each task records who is responsible, its trigger, and its due basis",
       "no task is created that cannot cite a clause (anti-phantom)",
       "no schedule dates are computed here (that is task-plan)"
-    ]
+    ],
+    "spec_only": true
   },
   {
     "test_id": "task-extract-refuses-phantom",
@@ -45,7 +46,8 @@
       "no task is created for an unanchorable statement (anti-phantom rule)",
       "gaps explains that no citable trigger or source was found",
       "nothing is fabricated to fill the empty result"
-    ]
+    ],
+    "spec_only": true
   },
   {
     "test_id": "task-extract-email-source",
@@ -66,6 +68,7 @@
       "the task cites the RFC 5322 Message-ID as its source",
       "the responsible party and due basis are recorded",
       "the citation is code-stamped from the envelope"
-    ]
+    ],
+    "spec_only": true
   }
 ]

@@ -7,7 +7,7 @@
       "as_of": "2026-07-15"
     },
     "expected_output_keys": [
-      "waiting_on",
+      "waiting_on_counterparty",
       "i_owe",
       "due_soon"
     ],
@@ -27,7 +27,7 @@
     },
     "expected_output_keys": [
       "overdue",
-      "aging_followups"
+      "aging_waits"
     ],
     "assertions": [
       "a task past its due date appears under overdue",
@@ -43,12 +43,11 @@
       "as_of": "2026-07-15"
     },
     "expected_output_keys": [
-      "waiting_on",
-      "i_owe",
-      "note"
+      "waiting_on_counterparty",
+      "i_owe"
     ],
     "assertions": [
-      "waiting_on and i_owe are both empty when nothing is outstanding",
+      "waiting_on_counterparty and i_owe are both empty when nothing is outstanding",
       "the note states there is nothing outstanding",
       "no placeholder or invented task fills the empty result"
     ]

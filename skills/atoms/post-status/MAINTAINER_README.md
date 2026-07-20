@@ -43,7 +43,7 @@ This atom checks the current status of a single previously scheduled post via th
 If the connector returns a status that does not map cleanly to the vocabulary (e.g., "pending_review" on TikTok), map to the nearest safe value (`processing`) and include the raw connector status string in `notes`. Never invent a new status value without an approval-gated change.
 
 ## Update checklist
-1. Run `python3 tools/sync_check.py` — all 56 invariants must pass.
+1. Run `python3 tools/sync_check.py` — all 57 invariants must pass.
 2. Verify path references: `shared/integrations-engine.md`, `protocols/no-fabrication.md`.
 3. After any Instagram Graph API version change (e.g., metric deprecations), update the Failure modes section and `shared/integrations-engine.md` first.
 4. After any platform permalink URL format change, update the Core procedure Step 4 in SKILL.md.

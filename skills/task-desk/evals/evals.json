@@ -16,7 +16,8 @@
       "every task cites a real source (anti-phantom)",
       "nothing is sent, invoiced, or posted automatically",
       "the governed output emits human_review_required"
-    ]
+    ],
+    "spec_only": true
   },
   {
     "test_id": "task-desk-backward-plan",
@@ -27,14 +28,15 @@
       "publish_date": "2026-08-01"
     },
     "expected_output_keys": [
-      "scheduled_tasks",
-      "feasibility"
+      "due",
+      "feasible"
     ],
     "assertions": [
       "task-plan is composed for backward scheduling from the publish date",
       "each step reports its latest start date",
       "feasibility is reported (feasible or a negative-slack conflict)"
-    ]
+    ],
+    "spec_only": true
   },
   {
     "test_id": "task-desk-refuses-to-send",
@@ -51,6 +53,7 @@
       "the desk does not send anything; sending is out of scope",
       "invoice work is handed to finance-desk as a draft for the human to send",
       "the boundary is stated plainly rather than silently ignored"
-    ]
+    ],
+    "spec_only": true
   }
 ]
