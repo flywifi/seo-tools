@@ -20,6 +20,15 @@ work after the baseline sits under Unreleased.
   bearer gate (constant-time compared, 401 otherwise) when a token is set. A loopback bind behind
   the proxy is unchanged and needs no token. Package-independent selftest covers the serve
   decision and the bearer gate; runbook and cross-modality docs reconciled.
+- Remote MCP bind-surface bypass (P68-B): the P67-B refuse/gate was reached only via
+  `--serve-remote`, but a bare `--transport streamable-http` (or `sse`) hit the same network bind
+  and skipped it, so `--transport streamable-http --host 0.0.0.0` could bind an unauthenticated
+  public endpoint the P67-B prose called impossible. The decision now fires for ANY non-stdio
+  transport, and the token-gated path serves the transport-matched app (`sse_app` vs
+  `streamable_http_app`) rather than always streamable-http. Argv-level selftest cases exercise the
+  gate-fires wiring and were confirmed to fail on the pre-fix code; ADR 0049-B narrows its coverage
+  claim to what the selftest actually proves (the `uvicorn.run` bind wiring needs `mcp`/`uvicorn`
+  and is verified by reading only).
 
 ### Fixed
 - Honesty (P67-C): the `live_publishing_disabled` degraded-behavior prose called the

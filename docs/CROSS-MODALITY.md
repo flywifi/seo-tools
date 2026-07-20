@@ -38,7 +38,8 @@ connector.
   also serve ChatGPT (developer mode, web and desktop app) and Gemini, IF hosted behind HTTPS with
   authentication; the repo ships the server code and the runbook
   (`implementation/gpt/mcp-connector/README.md`), not a hosted service. The proxy is the auth
-  boundary, but the server backstops it (P67-B): `--serve-remote` refuses a non-loopback bind with
+  boundary, but the server backstops it (P67-B, generalized P68-B): any network bind
+  (`--serve-remote` or a bare `--transport streamable-http`/`sse`) refuses a non-loopback bind with
   no `CREATOR_OS_MCP_TOKEN` and no `--insecure`, and enforces an in-process bearer gate when a
   token is set. ChatGPT registration steps carry needs-verification tags (plan gating).
 - **Custom GPT:** in the GPT builder, add an **Action** and paste

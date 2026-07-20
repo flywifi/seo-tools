@@ -9,10 +9,12 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
 (deals, rates, contracts, templates).
 
 **In-process backstops (defense in depth, not a replacement for the proxy):**
-- `--serve-remote` **refuses to start** when `--host` is a non-loopback interface and neither
-  `CREATOR_OS_MCP_TOKEN` (nor `remote_mcp_token` in `creator-os-config.local.json`) is set and
-  `--insecure` is not passed. This makes an accidental open, unauthenticated public bind impossible
-  without an explicit acknowledgement.
+- Any network bind (`--serve-remote`, or a bare `--transport streamable-http`/`sse`) **refuses to
+  start** when `--host` is a non-loopback interface and neither `CREATOR_OS_MCP_TOKEN` (nor
+  `remote_mcp_token` in `creator-os-config.local.json`) is set and `--insecure` is not passed. This
+  makes an accidental open, unauthenticated public bind impossible without an explicit
+  acknowledgement, on every transport (P68-B closed a bypass where `--transport streamable-http`
+  without `--serve-remote` skipped the check).
 - When a token IS set, the server enforces an **in-process bearer gate** (`Authorization: Bearer
   <token>`, constant-time compared, 401 otherwise) in addition to whatever the proxy enforces.
 - A loopback bind (`--host 127.0.0.1`, the documented pattern) needs no token: the proxy in front

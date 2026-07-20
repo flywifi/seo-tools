@@ -95,8 +95,9 @@ def _handoff_gates() -> str | None:
 # Pure-stdlib, defined above the mcp import so --selftest exercises them without the package.
 # The server still binds to loopback and trusts a TLS+auth proxy by default (the documented
 # deployment); these add (a) a fail-safe that refuses to bind a NON-loopback interface with no
-# token and no explicit acknowledgement, and (b) an optional in-process bearer gate as defense in
-# depth when a token is configured.
+# token and no explicit acknowledgement -- for ANY network transport (--serve-remote OR a bare
+# --transport streamable-http/sse), not just --serve-remote (P68-B) -- and (b) an optional
+# in-process bearer gate as defense in depth when a token is configured.
 
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
 
@@ -159,6 +160,27 @@ class _BearerAuthMiddleware:
             await send({"type": "http.response.body", "body": b"401 Unauthorized"})
             return
         await self.app(scope, receive, send)
+
+
+def _resolve_transport(transport_arg: str | None, serve_remote: bool) -> str:
+    """The transport __main__ actually binds, as a pure function of the two argv inputs. Mirrors the
+    one line that computes it so the selftest can reason about every argv without launching."""
+    return transport_arg or ("streamable-http" if serve_remote else "stdio")
+
+
+def _auth_gate_fires(transport_arg: str | None, serve_remote: bool) -> bool:
+    """Whether the remote-endpoint auth decision (refuse / gated / open) runs for this argv. It MUST
+    fire for ANY non-stdio (network) bind -- the P67-B bug was gating it on serve_remote alone, so
+    `--transport streamable-http` (or sse) with no --serve-remote bound an unauthenticated public
+    endpoint and skipped the gate entirely. The correct condition is simply: a network transport."""
+    return _resolve_transport(transport_arg, serve_remote) != "stdio"
+
+
+def _gate_app_builder_name(transport: str) -> str:
+    """The FastMCP app-builder attribute to wrap with the bearer gate, matched to the transport so a
+    token-gated `--transport sse` serves the sse app, not the streamable-http app (the P67-B gated
+    path always built streamable_http_app regardless of transport)."""
+    return "sse_app" if transport == "sse" else "streamable_http_app"
 
 
 def _selftest_static() -> tuple:
@@ -228,6 +250,21 @@ def _selftest_static() -> tuple:
        _remote_serve_decision("0.0.0.0", "s3cret", False)[0] == "gated")
     ok("serve decision: non-loopback + --insecure -> open (acknowledged)",
        _remote_serve_decision("0.0.0.0", None, True)[0] == "open")
+
+    # Argv-level wiring (P68-B): the auth decision must be REACHED for any network bind, not just
+    # --serve-remote. These are the cases the P67-B fix missed -- a bare --transport streamable-http
+    # or sse (no --serve-remote) bound an open endpoint and skipped the gate. Fail here if the gate
+    # is ever re-gated on serve_remote alone.
+    ok("argv gate: --serve-remote -> gate fires", _auth_gate_fires(None, True) is True)
+    ok("argv gate: --transport streamable-http (no --serve-remote) -> gate fires",
+       _auth_gate_fires("streamable-http", False) is True)
+    ok("argv gate: --transport sse (no --serve-remote) -> gate fires",
+       _auth_gate_fires("sse", False) is True)
+    ok("argv gate: no args (stdio) -> gate does NOT fire", _auth_gate_fires(None, False) is False)
+    ok("argv gate: --transport stdio -> gate does NOT fire", _auth_gate_fires("stdio", False) is False)
+    ok("gate app: sse transport wraps the sse app", _gate_app_builder_name("sse") == "sse_app")
+    ok("gate app: streamable-http transport wraps the streamable-http app",
+       _gate_app_builder_name("streamable-http") == "streamable_http_app")
 
     import asyncio as _asyncio
 
@@ -1881,11 +1918,13 @@ def job_status(job_id: str) -> str:
 # Transport (P35 cross-surface / cross-AI):
 #   default (no args)  -> stdio, for a local Claude Desktop MCP server (claude_desktop_config.json).
 #   --serve-remote     -> a remote streamable-HTTP MCP endpoint. Deploy it behind an HTTPS reverse
-#                         proxy that terminates TLS + auth (the documented model). As of P67-B the
-#                         server adds two in-process protections: it REFUSES to bind a non-loopback
-#                         --host with no CREATOR_OS_MCP_TOKEN and no --insecure (no accidental open
-#                         public endpoint), and when a token IS set it enforces an in-process bearer
-#                         gate (defense in depth). Loopback binds behind the proxy need no token.
+#                         proxy that terminates TLS + auth (the documented model). The server adds
+#                         two in-process protections that fire for ANY network transport -- both
+#                         --serve-remote and a bare --transport streamable-http/sse (P68-B): it
+#                         REFUSES to bind a non-loopback --host with no CREATOR_OS_MCP_TOKEN and no
+#                         --insecure (no accidental open public endpoint), and when a token IS set it
+#                         enforces an in-process bearer gate (defense in depth). Loopback binds need
+#                         no token.
 #                         One endpoint CAN serve claude.ai web + mobile AND, since both
 #                         vendors speak MCP, ChatGPT (developer mode, web and desktop app; plan gating
 #                         needs verification) and Gemini. We ship the server code and the runbooks; we do
@@ -1933,7 +1972,8 @@ if __name__ == "__main__":
     _ap.add_argument("--port", type=int, default=8080)
     _ap.add_argument("--insecure", action="store_true",
                      help="acknowledge binding a non-loopback interface with NO in-process auth "
-                          "(only meaningful with --serve-remote and no token)")
+                          "(applies to any network transport: --serve-remote or --transport "
+                          "streamable-http/sse, when no token is set)")
     _args, _ = _ap.parse_known_args()
     _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
     # One quiet, non-blocking startup notice (stderr only; stdout is the stdio protocol channel).
@@ -1950,10 +1990,12 @@ if __name__ == "__main__":
             mcp.settings.port = _args.port
         except Exception:  # noqa: BLE001  (older FastMCP: host/port come from env or defaults)
             pass
-        if _args.serve_remote:
+        # P68-B: the auth decision fires for ANY network bind, not only --serve-remote. A bare
+        # `--transport streamable-http|sse` reaches this branch too and must not skip the gate.
+        if _auth_gate_fires(_args.transport, _args.serve_remote):
             _token = _remote_auth_token()
             _action, _msg = _remote_serve_decision(_args.host, _token, _args.insecure)
-            print(f"[creator-os] remote MCP: {_msg}", file=sys.stderr)
+            print(f"[creator-os] remote MCP ({_transport}): {_msg}", file=sys.stderr)
             if _action == "refuse":
                 print("[creator-os] Set CREATOR_OS_MCP_TOKEN (or remote_mcp_token in "
                       "creator-os-config.local.json) to enable the in-process bearer gate, bind "
@@ -1963,7 +2005,7 @@ if __name__ == "__main__":
                 sys.exit(2)
             if _action == "gated":
                 _app = None
-                _get_app = getattr(mcp, "streamable_http_app", None)
+                _get_app = getattr(mcp, _gate_app_builder_name(_transport), None)
                 if _get_app is not None:
                     try:
                         _app = _get_app()
@@ -1980,10 +2022,10 @@ if __name__ == "__main__":
                     sys.exit(0)
                 # Fail closed: a token is configured but the in-process gate could not be
                 # installed. Never bind unprotected while implying the token is enforced.
-                print("[creator-os] a bearer token is configured but the in-process gate could not "
-                      "be installed (needs FastMCP.streamable_http_app + uvicorn). Refusing to bind "
-                      "unprotected; enforce the token at your proxy, install requirements-mcp.txt, "
-                      "or pass --insecure to override.", file=sys.stderr)
+                print(f"[creator-os] a bearer token is configured but the in-process gate could not "
+                      f"be installed (needs FastMCP.{_gate_app_builder_name(_transport)} + uvicorn). "
+                      f"Refusing to bind unprotected; enforce the token at your proxy, install "
+                      f"requirements-mcp.txt, or pass --insecure to override.", file=sys.stderr)
                 if not _args.insecure:
                     sys.exit(2)
         mcp.run(transport=_transport)

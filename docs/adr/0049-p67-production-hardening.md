@@ -39,6 +39,17 @@ bearer gate (constant-time, 401) when a token is set. A loopback bind behind the
 unchanged. Coverage is a package-independent selftest (serve decision + ASGI bearer gate), since
 the `mcp` package is not installed in the sandbox.
 
+_Correction (P68-B)._ The P67-B block was gated on `--serve-remote` alone, but a bare
+`--transport streamable-http` (or `sse`) reaches the same network bind and skipped the refuse/gate
+entirely -- an accidentally-open unauthenticated endpoint the prose above called impossible. The
+decision now fires for ANY non-stdio transport (`_auth_gate_fires`), and the token-gated path
+serves the transport-matched app (`sse_app` vs `streamable_http_app`), not always streamable-http.
+Coverage boundary, stated precisely: the serve decision, the argv-to-gate wiring
+(`_auth_gate_fires`), the app-builder selection, and the ASGI bearer middleware are all covered by
+the package-independent selftest; the full `uvicorn.run` bind wiring is NOT exercised in the
+sandbox (no `mcp`/`uvicorn`) and is verified only by reading. The selftest was written to fail on
+the pre-fix (serve-remote-only) wiring before the fix landed.
+
 **C. Doc + honesty truth-up.** The `live_publishing_disabled` degraded-behavior prose called the
 `tools/publishing/` clients "stubs"; they are complete OAuth + upload REST clients gated off, now
 stated correctly. `docs/ROADMAP.md` inventories the genuine `NotImplementedError` stubs (DaVinci
