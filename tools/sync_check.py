@@ -516,18 +516,28 @@ def _allowed_tool_tokens(text):
 
 
 def _workflow_consumes_agent_output(text):
-    """True iff some agent() call's prompt interpolates a value derived from an EARLIER agent/
-    parallel/pipeline result. This is the structural heart of invariant 16: an adversarial step
-    only exists if a later agent actually consumes a prior agent's output. Names flow through
-    derivations (usageRights = auditResults[0], validProfiles = profiles.filter(Boolean)), so the
-    derived set is grown to a fixpoint before checking interpolation. Heuristic (regex over JS,
-    not a full parser), deliberately paired with the marker check so both must hold."""
-    # Seed: names bound directly from an agent/parallel/pipeline await.
+    """True iff some agent() call actually CONSUMES a value derived from an EARLIER agent/parallel/
+    pipeline result. The structural heart of invariant 16: an adversarial step only exists if a
+    later agent uses a prior agent's output. Heuristic (regex over JS, not a full parser),
+    deliberately paired with the marker check so both must hold.
+
+    P68-D tightened both directions the P67-A version got wrong:
+    - Precision: consumption is counted only when a derived name sits INSIDE an actual `${...}`
+      interpolation of a template-literal first argument, or IS the bare first argument itself --
+      not merely mentioned as prose anywhere after a `${` (the old `\\$\\{[^`]*?name` matched a
+      name in plain prose).
+    - Acceptance: a prompt built in a variable (`agent(promptVar, ...)`) and a destructured binding
+      (`const {a, b} = await agent(...)`) now count, so a legitimate workflow is not false-failed.
+    """
     derived = {}  # name -> earliest binding offset
+    # Seed: simple binding `X = await agent/parallel/pipeline(...)`.
     for m in re.finditer(r"(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*await\s+(?:agent|parallel|pipeline)\s*\(", text):
-        name = m.group(1)
-        derived.setdefault(name, m.start())
-    # Grow: any `const/let/var Y = <expr>` whose single-line RHS references a derived name.
+        derived.setdefault(m.group(1), m.start())
+    # Seed: destructured binding `const {a, b} = await ...` / `const [a, b] = await ...`.
+    for m in re.finditer(r"(?:const|let|var)\s*[\{\[]([^}\]]*)[\}\]]\s*=\s*await\s+(?:agent|parallel|pipeline)\s*\(", text):
+        for nm in re.findall(r"[A-Za-z_$][\w$]*", m.group(1)):
+            derived.setdefault(nm, m.start())
+    # Grow: any `const/let/var Y = <single-line expr referencing a derived name>`.
     assigns = [(am.group(1), am.group(2), am.start())
                for am in re.finditer(r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n;]+)", text)]
     for _ in range(8):  # fixpoint; 8 passes is far more than any real derivation chain needs
@@ -542,20 +552,26 @@ def _workflow_consumes_agent_output(text):
             break
     if not derived:
         return False
-    # Check: an agent() call whose first template-literal argument interpolates a derived name
-    # bound before that call.
     for call in re.finditer(r"\bagent\s*\(", text):
-        start = call.end()
-        bt = text.find("`", start)
-        if bt < 0:
+        arg = call.end()
+        # (1) bare-identifier first argument: agent(promptVar, ...) or agent(promptVar).
+        m_id = re.match(r"\s*([A-Za-z_$][\w$]*)\s*[,)]", text[arg:arg + 120])
+        if m_id and m_id.group(1) in derived and derived[m_id.group(1)] < call.start():
+            return True
+        # (2) template-literal first argument: agent(`... ${derived} ...`, ...). Require the
+        # backtick to BE the first argument (only whitespace between '(' and it), and match the
+        # derived name only inside a real ${...} expression.
+        bt = text.find("`", arg)
+        if bt < 0 or text[arg:bt].strip() != "":
             continue
         end = text.find("`", bt + 1)
         if end < 0:
             continue
         prompt = text[bt + 1:end]
-        for name, off in derived.items():
-            if off < call.start() and re.search(r"\$\{[^`]*?\b" + re.escape(name) + r"\b", prompt):
-                return True
+        for expr in re.findall(r"\$\{([^}]*)\}", prompt):
+            for name, off in derived.items():
+                if off < call.start() and re.search(r"\b" + re.escape(name) + r"\b", expr):
+                    return True
     return False
 
 
@@ -585,12 +601,16 @@ def check_agent_contracts():
             for tool_name in forbidden_tools_must_list:
                 if tool_name not in forbidden_block:
                     problem(f"{rel}: Forbidden tools section missing '{tool_name}'")
-        # Property (P67): the allowlist must actually list something. A header with no parseable
-        # '- Tool' bullets is an empty allowlist that grants nothing and defeats the contract; the
-        # bare section-present check above would pass it.
-        if "## Allowed tools (explicit allowlist)" in text and not _allowed_tool_tokens(text):
-            problem(f"{rel}: Allowed tools section has no parseable '- <Tool>' items "
-                    f"(an empty allowlist defeats the explicit-allowlist contract)")
+        # Property (P67, hardened P68): the allowlist must actually list a real tool. A header with
+        # no parseable '- Tool' bullets is an empty allowlist that grants nothing; a bullet that is
+        # only a placeholder ('- none', '- n/a', '- TBD', '- see above') is an empty allowlist
+        # dressed as a full one. The bare section-present check above would pass both.
+        if "## Allowed tools (explicit allowlist)" in text:
+            _placeholders = {"none", "na", "n", "tbd", "todo", "see", "above", "below", "pending"}
+            _real = [t for t in _allowed_tool_tokens(text) if t.lower() not in _placeholders]
+            if not _real:
+                problem(f"{rel}: Allowed tools section lists no real tool (empty or placeholder-only "
+                        f"allowlist defeats the explicit-allowlist contract)")
 
 
 def check_schema_verification_fields():
@@ -681,6 +701,16 @@ def check_readonly_mandate():
         if leaked:
             problem(f"{rel}: READ-ONLY agent lists mutation tool(s) {', '.join(leaked)} in its "
                     f"Allowed allowlist, contradicting the read-only mandate")
+        # Property (P68-D): Bash is write-capable, so a read-only agent may allow it only if the
+        # bullet qualifies it as read-only. A bare '- Bash' grant is an unrestricted shell that
+        # defeats the mandate as surely as Write/Edit; require an explicit read-only qualifier.
+        _allowed_body = _md_section_body(text, "## Allowed tools (explicit allowlist)")
+        for _line in _allowed_body.splitlines():
+            if re.match(r"\s*-\s+Bash\b", _line) and not re.search(r"read[\s-]?only", _line, re.I):
+                problem(f"{rel}: READ-ONLY agent allows Bash without a read-only qualifier "
+                        f"('{_line.strip()}') -- a bare shell grant can mutate the filesystem; "
+                        f"restrict the bullet to read-only commands")
+                break
 
 
 def check_connector_capability_mapping():

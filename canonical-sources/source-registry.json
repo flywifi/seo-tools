@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-18",
+  "last_registry_update": "2026-07-20",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5393,7 +5393,24 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "tiktok-api-rate-limit",
+      "name": "TikTok API v2 rate limit reference",
+      "url": "https://developers.tiktok.com/doc/tiktok-api-v2-rate-limit",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "4d6dd99cac8aeb96260f04a95ae359895db21638bd42d673aac53b78b1af0797"
+  "_content_digest": "2ddccd56b010ef5d3d02a19d0da55d741474e1115e914e9f85e3de1187247c2a"
 }

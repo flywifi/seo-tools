@@ -150,3 +150,14 @@ files; there is no committed summary export. The committed starters
 Untrusted title/description/transcript text runs through `shared/injection-guard-engine.md`. The
 importer proposes; you save. No posting (that is `content-distributor`). No competitor scanning (that
 is `competitor-analysis`).
+
+## Sources
+
+The external authority behind the TikTok rate-limit figure cited above is declared here so drift
+invariant 52 tracks its registration and the currency system freshness-checks it.
+
+```sources
+[
+  {"id": "tiktok-api-rate-limit", "name": "TikTok API v2 rate limit reference", "url": "https://developers.tiktok.com/doc/tiktok-api-v2-rate-limit", "category": "api-changelog", "tier": "T1"}
+]
+```

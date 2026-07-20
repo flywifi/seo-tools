@@ -55,8 +55,8 @@
         "states the final price"
       ],
       "transcripts": [
-        "transcript-cut-a.srt",
-        "transcript-cut-b.srt"
+        "skills/creator-core/evals/fixtures/transcript-cut-a.srt",
+        "skills/creator-core/evals/fixtures/transcript-cut-b.srt"
       ],
       "canonical_source": "the approved talking-points brief"
     },
