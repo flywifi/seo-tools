@@ -84,9 +84,20 @@ Phase 1 leaves operator-specific local state. Before the real user starts, reset
 profile and config begin at null. There is no committed teardown tool (verified), so this is a
 manual delete plus a re-run of setup.
 
-**Recommended (cleanest): a separate macOS user account for the real user.** Their own macOS login
-gives a fresh home directory, a fresh clone, and a separate `~/.creator-os/`, so there is zero
-cross-contamination and the operator's Phase-1 install stays intact for re-testing.
+**System prereqs vs the app (who needs admin):** install Python (the python.org `.pkg`) and any
+optional Homebrew/ffmpeg **once from an admin account** — they are system-wide and every login on the
+Mac can then use them. The app itself — the git clone, `.venv`, `pipeline/**/*.local.*`, and
+`~/.creator-os/` — lives inside one user's home folder, is **per-user, and needs no admin**. On a
+personal single-owner laptop the owner's account is usually the admin, so you install Python from it
+and run everything there.
+
+**Recommended (cleanest): a separate _Standard_ macOS user account for the real user** (System
+Settings -> Users & Groups -> Add Account -> "Standard"). Their own login gives a fresh home
+directory, a fresh clone, and a separate `~/.creator-os/`, so there is zero cross-contamination and
+the operator's Phase-1 install stays intact for re-testing. **Do NOT use the Guest account** — its
+home folder is erased on every logout (the clone, `.venv`, and downloaded model would vanish) and it
+cannot install software. On a single-owner laptop you can skip a second account entirely and just use
+the "same folder reset" below after the Phase-1 pass.
 
 **Or, same folder reset (delete the gitignored local state, then rebuild the null starters):**
 
