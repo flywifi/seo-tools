@@ -40,16 +40,16 @@ echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv)"
 ```
 
-### Step 2 -- Install Python 3.11 and Git
+### Step 2 -- Install Python and Git
 
 ```bash
-brew install python@3.11 git
+brew install python@3.13 git
 ```
 
 Verify:
 
 ```bash
-python3 --version   # should show 3.11.x or later
+python3 --version   # should show 3.11 or later (3.13 recommended)
 git --version
 ```
 
@@ -243,7 +243,7 @@ brew install python && pip3 install faster-whisper
 - **Local setup runs on this computer only.** The wizard, the folder import, transcription, and the
   publishing OAuth loopback need Claude **Desktop** or **Claude Code** on this Mac. Claude in a browser
   (claude.ai) and a remote Cowork session cannot reach your local files or `localhost` services.
-- **Dated context (as of 2026-07):** Homebrew disables Gatekeeper-failing casks from **2026-09-01**
+- **Dated context (as of 2026-08):** Homebrew disables Gatekeeper-failing casks from **2026-09-01**
   (formula bottles like `ffmpeg`/`whisper-cpp` are unaffected); **macOS 27** (expected fall 2026) drops
   Intel support, so Tahoe 26 is the last Intel release.
 
@@ -293,12 +293,12 @@ The doctor gives the machine-correct command on Windows too.
 | `whisper.cpp needs a GGML model file` | Download a `ggml-<tier>.bin` and set `WHISPER_CPP_MODEL` to its path |
 | ffmpeg "cannot be opened, developer cannot be verified" | `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or use faster-whisper (no ffmpeg needed) |
 | No STT backend found on the Import screen | `brew install whisper-cpp ffmpeg` (Apple Silicon) or `pip3 install faster-whisper` |
-| `python3: command not found` | `brew install python@3.11` then add `/opt/homebrew/bin` to PATH |
+| `python3: command not found` | `brew install python@3.13` then add `/opt/homebrew/bin` to PATH |
 | `pip3: command not found` | Use `/opt/homebrew/bin/pip3` or `python3 -m pip` |
 | `playwright install` hangs | Check network; retry with `python3 -m playwright install chromium --force` |
 | `drift guard` reports issues after `git pull` | Run `python3 tools/sync_check.py` and read the report |
 | MCP tools not appearing in Claude Desktop | Restart Claude Desktop; check that the path in `claude_desktop_config.json` is absolute |
-| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.11` then use `/opt/homebrew/bin/python3` |
+| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.13` then use `/opt/homebrew/bin/python3` |
 
 ---
 

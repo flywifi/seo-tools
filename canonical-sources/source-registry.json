@@ -4891,7 +4891,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Removal of Control-click>Open override; confirm still in force on the current macOS.",
       "used_by": [
@@ -5046,7 +5046,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Current stable Python universal2 installer version to recommend.",
       "used_by": [
@@ -5084,7 +5084,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Prefix (/opt/homebrew vs /usr/local) and the shellenv/PATH requirement; drives the launcher PATH export.",
       "used_by": [
@@ -5412,5 +5412,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "2ddccd56b010ef5d3d02a19d0da55d741474e1115e914e9f85e3de1187247c2a"
+  "_content_digest": "9b8b9724b62816032bb06dc1dba1c0f4e5112cc7dc47158559dd20d49726e02b"
 }
