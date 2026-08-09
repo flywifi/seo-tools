@@ -52,7 +52,7 @@ confirmation is the hands-on checklist.
    <!-- verify: tools/wizard.py::_os -->
 9. **The folder picker degrades, and reads fail loudly.** `pick_folder._os_command("mac")` builds the
    `osascript 'choose folder'` command; the chain is tkinter → osascript → text field. On a macOS TCC
-   denial the import surfaces a plain "Privacy & Security → Files and Folders" message, not a bare
+   denial the import surfaces a plain "Privacy & Security → Files & Folders" message, not a bare
    "not found."
    <!-- verify: tools/pick_folder.py::_os_command -->
 10. **Never assume `python3` works on a fresh Mac.** The built-in `/usr/bin/python3` is a stub that
@@ -106,6 +106,30 @@ technote implies the loopback exemption by defining local-network addresses as b
 addresses; only the FAQ states it explicitly); invariant 5 (absolute MCP command) on the MCP
 connect-local-servers doc; invariants 6 and 7 (whisper) on the whisper-cpp formula + the GGML model repo;
 invariant 10 (python stub) on the Python-on-macOS doc.
+
+## Re-verification status (P69 audit, 2026-08-09)
+
+Ten of the 26 macOS-relevant registry sources were re-fetched and stamped in the P69 audit; before it,
+every one of them sat at `last_checked: null`. Stamped: the Sequoia Gatekeeper announcement, Homebrew
+Installation, the Homebrew 5.0.0 cask-policy announcement, python.org macOS downloads, PEP 668, the
+TCC Files and Folders guide, the MCP connect-local-servers doc, the GGML model repo, and both Google
+Drive desktop pages.
+
+The other 16 were NOT re-fetched and their `last_checked` deliberately remains null rather than being
+stamped on an assumption. Two notes on that, so the gap is not mistaken for a verified state:
+
+- `apple-open-anyway-flow` (support.apple.com/en-us/102445) was attempted twice and both fetches
+  returned truncated content. It is unverified, not confirmed-unchanged. The claim it backs (the
+  Open Anyway path, with Control-click removed) is independently carried by
+  `apple-gatekeeper-sequoia-change`, which WAS fetched in full, so the guidance itself is sourced.
+- `apple-macos-intel-support` was read through Apple search results rather than a full page fetch;
+  the Intel and Rosetta statements matched, but the page itself is not stamped.
+
+The remainder (the Gatekeeper security guide, TN3179 and the DTS FAQ, Rosetta, Tahoe updates, the
+Python-on-macOS doc, Homebrew-and-Python, the three formula pages, and the optional video-tool
+dependencies) are lower-risk or advisory, and are due on their normal `check_interval_days`. Treat
+this list as the honest denominator for the next currency pass, not as a backlog that was silently
+cleared.
 
 ## When you change any of this
 Update `docs/SETUP_MAC.md` and this file in the same change (the CLAUDE.md docs-in-same-PR rule); keep

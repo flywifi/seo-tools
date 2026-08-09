@@ -2669,7 +2669,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 # On macOS a Files-and-Folders (TCC) denial makes a real folder look "not found".
                 if _os() == "mac" and folder and os.path.exists(os.path.dirname(expanded) or "/"):
                     hint = (" If the folder does exist, macOS may have blocked access: open System "
-                            "Settings &rarr; Privacy &amp; Security &rarr; Files and Folders (or Full Disk "
+                            "Settings &rarr; Privacy &amp; Security &rarr; Files &amp; Folders (or Full Disk "
                             "Access), allow Terminal, then try again.")
                 self._send(_screen_import(folder=folder,
                     error="Please enter the full path to your unzipped export folder (it was not found)." + hint))
@@ -2682,7 +2682,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             except PermissionError:
                 self._send(_screen_import(folder=folder, error=(
                     "macOS blocked access to that folder. Open System Settings &rarr; Privacy &amp; "
-                    "Security &rarr; Files and Folders (or Full Disk Access), allow Terminal, then try again.")))
+                    "Security &rarr; Files &amp; Folders (or Full Disk Access), allow Terminal, then try again.")))
                 return
             revenue = sum(1 for r in records if r.get("revenue"))
             if not records:

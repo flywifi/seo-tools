@@ -4910,7 +4910,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Files-and-Folders / Full Disk Access prompts; confirm the prompt attribution and any new permission category.",
       "used_by": [
@@ -5065,7 +5065,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "The externally-managed-environment rule + --break-system-packages; the load-bearing fact behind the .venv install.",
       "used_by": [
@@ -5182,7 +5182,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "GGML model file names, sizes, and the LFS oid sha256 used for download integrity verification.",
       "used_by": [
@@ -5201,7 +5201,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Desktop config path, the command/args/env schema, the absolute-command rule, full-quit/restart, the mcp-server log location, and runtime PATH.",
       "used_by": [
@@ -5300,7 +5300,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies.",
       "used_by": [],
@@ -5317,7 +5317,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-09",
       "last_changed_detected": null,
       "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later.",
       "used_by": [],
@@ -5429,5 +5429,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "b9028f7993a17c48277cc9011c99803bbcdc22e0dfea851bf8e55741c969c4f4"
+  "_content_digest": "fc1fa602754a391adde05c8f1892447d37fe8bdc52f401874039cc9b69750097"
 }

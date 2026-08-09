@@ -36,6 +36,14 @@ work after the baseline sits under Unreleased.
   that does not state the claim and now cites the announcement that does.
 
 ### Changed
+- macOS source currency (P69, completed sweep): ten of the 26 macOS-relevant registry sources are
+  now re-fetched and stamped, up from four, covering the TCC Files and Folders guide, the MCP
+  connect-local-servers doc (newly seeded), the GGML model repo, both Google Drive desktop pages,
+  and PEP 668. The whisper model pins were checked against the live model repo and all six still
+  match on filename and size. The wizard's file-access hint and the maintenance doc now use Apple's
+  actual sidebar label, Files & Folders. `docs/MACOS-MAINTENANCE.md` records which 16 sources were
+  deliberately NOT re-fetched and why, including the one page that truncated on both attempts, so
+  the gap reads as an honest denominator rather than a cleared backlog.
 - macOS source currency (P69): the Apple, Homebrew, and python.org authorities behind the macOS
   surface were re-verified against upstream and the reachable ones stamped; the knowledge
   freshness bundle was restamped to match.
