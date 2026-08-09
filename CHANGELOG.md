@@ -12,6 +12,26 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Added
+- macOS surface completeness gate (P69): `tools/mac_surface_manifest.py` derives the macOS
+  surface mechanically from a signal sweep over every tracked text file, and
+  `canonical-sources/mac-surface-manifest.json` records the sha256 each audited file was blessed
+  at (71 at baseline) plus an exclusion map with written reasons. Drift invariant 58
+  (`check_mac_surface_completeness`) fails closed in both directions: a new file carrying macOS
+  behavior is unaudited until reviewed, and an audited file whose bytes move is changed until
+  re-blessed. Both directions are covered by the tool's offline selftest.
+
+### Fixed
+- macOS setup guidance (P69): `docs/SETUP_MAC.md` installed a Homebrew Python formula that is now
+  deprecated upstream, and named a different version than the launcher did; the install target is
+  standardized with 3.11 kept as the support floor. The Homebrew cask moving date cited a page
+  that does not state the claim and now cites the announcement that does.
+
+### Changed
+- macOS source currency (P69): the Apple, Homebrew, and python.org authorities behind the macOS
+  surface were re-verified against upstream and the reachable ones stamped; the knowledge
+  freshness bundle was restamped to match.
+
 ### Security
 - Remote MCP endpoint (`tools/mcp_server.py --serve-remote`) gains two in-process backstops
   (P67-B) behind the documented TLS+auth proxy: it refuses to bind a non-loopback `--host` when no

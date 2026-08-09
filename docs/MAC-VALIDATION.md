@@ -140,4 +140,9 @@ V4 MCP surface          : PASS / BLOCKED / NOT-RUN   tool count: ____  notes: __
 V5 offline engines      : PASS / BLOCKED / NOT-RUN   notes: ____
 
 Not exercised (deferred, real-account tiers): OAuth/publishing, Drive hub, remote-MCP connector.
+Not exercised (needs real Mac hardware; verified only against vendor documentation in the
+P69 audit, never run): the Gatekeeper block-and-Open-Anyway dialog, the TCC permission
+prompt on a protected folder, Rosetta translation on Intel, live Homebrew behavior after
+the 2026-09-01 cask change, a real Claude Desktop MCP spawn, and Drive-for-desktop mirror
+materialization latency.
 ```
