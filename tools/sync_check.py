@@ -131,6 +131,10 @@ Invariants enforced:
       authoritative set is itself a subset of the extracted code keys. spec_only skills (no backing
       tool) must mark each case `"spec_only": true`. Closes the hole invariant 9 (case count) and
       eval_lint.py (case structure) leave open: a well-formed case with a fabricated key.
+  58. Mac-surface completeness (P69): every tracked file carrying a macOS signal is either
+      audited in canonical-sources/mac-surface-manifest.json at a recorded sha256, or
+      listed in its `excluded` map with a reason. Two-way: a new Mac surface fails as
+      unaudited; an edited audited surface fails as changed. tools/mac_surface_manifest.py.
 """
 import ast
 import json
@@ -2704,6 +2708,37 @@ def check_invariant_catalog():
                     f"enforces and that are not in MERGED_INVARIANTS; correct the header enumeration")
 
 
+
+def check_mac_surface_completeness():
+    """Invariant 58: Mac-surface completeness (P69). The macOS audit's coverage guarantee, enforced.
+    tools/mac_surface_manifest.py derives the Mac surface mechanically (a token sweep over every
+    tracked text file) rather than trusting a memorized list, and every derived match must resolve
+    to EITHER canonical-sources/mac-surface-manifest.json's `files` map (audited, at a recorded
+    sha256) OR its `excluded` map (judged not-a-Mac-surface, with a written reason). This guard
+    fails the build in both directions: a NEW file carrying Mac behavior is `unaudited` until a
+    human audits it, and an ALREADY-AUDITED file whose bytes moved is `changed` until it is
+    re-audited. Without it, "every Mac surface was checked" decays into an unverifiable claim the
+    moment the next commit lands. Fails closed: a non-git copy reports DID-NOT-RUN loudly rather
+    than passing silently."""
+    try:
+        import mac_surface_manifest as msm
+    except ImportError:
+        problem("invariant 58: tools/mac_surface_manifest.py is missing (Mac-surface gate cannot run)")
+        return
+    res = msm.check(ROOT)
+    if res.get("note"):
+        advisory(f"mac-surface completeness DID NOT RUN: {res['note']}")
+        return
+    for rel in res["unaudited"]:
+        problem(f"mac-surface: unaudited Mac surface {rel} (audit it, then "
+                f"`python3 tools/mac_surface_manifest.py reconcile`)")
+    for rel in res["changed"]:
+        problem(f"mac-surface: {rel} changed since the macOS audit blessed it (re-audit, then "
+                f"`python3 tools/mac_surface_manifest.py reconcile`)")
+    for rel in res["missing"]:
+        problem(f"mac-surface: audited file {rel} is missing (deleted or moved); reconcile the manifest")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -2753,6 +2788,7 @@ def main():
     check_doc_count_truth()
     check_doc_symbol_refs()
     check_tools_maintainer()
+    check_mac_surface_completeness()
     check_doc_freshness()
     check_doc_source_registry()
     check_connector_resolver_smoke()
