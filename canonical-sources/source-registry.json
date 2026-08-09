@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-07-20",
+  "last_registry_update": "2026-08-09",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5410,7 +5410,24 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "homebrew-5-cask-gatekeeper",
+      "name": "Homebrew 5.0.0 release notes (cask Gatekeeper policy)",
+      "url": "https://brew.sh/2025/11/12/homebrew-5.0.0/",
+      "category": "os-platform",
+      "tier": "primary",
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "last_checked": "2026-08-09",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "9b8b9724b62816032bb06dc1dba1c0f4e5112cc7dc47158559dd20d49726e02b"
+  "_content_digest": "b9028f7993a17c48277cc9011c99803bbcdc22e0dfea851bf8e55741c969c4f4"
 }

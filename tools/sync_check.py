@@ -2717,8 +2717,11 @@ def check_mac_surface_completeness():
     sha256) OR its `excluded` map (judged not-a-Mac-surface, with a written reason). This guard
     fails the build in both directions: a NEW file carrying Mac behavior is `unaudited` until a
     human audits it, and an ALREADY-AUDITED file whose bytes moved is `changed` until it is
-    re-audited. Without it, "every Mac surface was checked" decays into an unverifiable claim the
-    moment the next commit lands. Fails closed: a non-git copy reports DID-NOT-RUN loudly rather
+    re-audited. A third property closes the hole the P69 adversarial pass found in the first cut of
+    this guard: the deriver is pinned (module + signal-set sha256) and every audited file must STILL
+    derive, so narrowing the signal vocabulary -- which would otherwise shrink the denominator while
+    the guard reported "complete" -- fails here instead. Without all three, "every Mac surface was
+    checked" decays into an unverifiable claim the moment the next commit lands. Fails closed: a non-git copy reports DID-NOT-RUN loudly rather
     than passing silently."""
     try:
         import mac_surface_manifest as msm
@@ -2737,6 +2740,12 @@ def check_mac_surface_completeness():
                 f"`python3 tools/mac_surface_manifest.py reconcile`)")
     for rel in res["missing"]:
         problem(f"mac-surface: audited file {rel} is missing (deleted or moved); reconcile the manifest")
+    for rel in res.get("undetectable", []):
+        problem(f"mac-surface: {rel} is audited but no longer derives -- the signal set narrowed and "
+                f"coverage shrank silently; restore the signal or re-bless deliberately")
+    for msg in res.get("deriver_drift", []):
+        problem(f"mac-surface: {msg}; the denominator changed, so re-audit and "
+                f"`python3 tools/mac_surface_manifest.py reconcile`")
 
 
 def main():

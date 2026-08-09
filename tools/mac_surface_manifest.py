@@ -15,6 +15,12 @@ NOT a Mac surface, each with a written reason). Drift invariant 58 then enforces
                build until a human audits it and re-blesses the manifest.
   integrity -- every manifest path still exists and still hashes to its recorded sha256. Editing an
                audited Mac file fails the build until it is re-audited and re-blessed.
+  denominator -- the deriver itself is pinned (module sha256 + a sha over MAC_SIGNALS), and every
+               audited file must STILL derive. Weakening the signal set is the one attack that would
+               otherwise leave the gate green while shrinking what it looks at: drop a token and the
+               files that token used to catch stop deriving, which fails here rather than silently
+               narrowing coverage. Found by the P69 adversarial pass, which proved the unpinned
+               version stayed green after three tokens were deleted.
 
 Two-way, fail-closed, so "nothing was missed" stops being a claim and becomes a build property.
 
@@ -58,6 +64,7 @@ MAC_SIGNALS = (
     r"\brosetta\b",
     r"universal2",
     r"Compressor\.app",
+    r"Final Cut",  # macOS-exclusive app; integration files surface via `excluded` if inert
     r"Blackmagic",
     r"sys\.platform",
     r"platform\.machine",
@@ -66,24 +73,33 @@ MAC_SIGNALS = (
 )
 SIGNAL_RE = re.compile("|".join(MAC_SIGNALS), re.IGNORECASE)
 
-# Paths whose Mac hits are records of past work, not a live Mac surface to audit. These are
-# append-only history/telemetry files; auditing them would churn the manifest on every commit.
+# Self-reference and append-only-record skips ONLY. Everything else that a human judged "not a Mac
+# surface" belongs in the manifest's `excluded` map, with its reason written down, so the decision is
+# reviewable. (The P69 adversarial pass caught an earlier version of this tuple carrying three
+# video-tooling evidence files under a stated "append-only telemetry" rationale that was factually
+# false -- each has a single commit -- so they are audited normally now.)
 SKIP_PREFIXES = (
-    "canonical-sources/mac-surface-manifest.json",  # this manifest quotes the signals themselves
-    "tools/mac_surface_manifest.py",                # ditto: the deriver contains every token
-    "tools/sync_check.py",                          # invariant 58's own prose quotes the signals
+    # Self-reference: these three quote the signal tokens themselves, so they always match and could
+    # never stabilize. The deriver and the guard are covered instead by the `deriver` pin below.
+    "canonical-sources/mac-surface-manifest.json",
+    "tools/mac_surface_manifest.py",
+    "tools/sync_check.py",
+    # Genuinely append-only records of past work, rewritten on essentially every commit.
     "STATE.md",
     "CHANGELOG.md",
     "ledger/ledger.json",
-    "canonical-sources/source-registry.json",
-    "docs/video-tooling-scores.json",
-    "docs/video-tooling-spike-evidence.json",
-    "docs/video-tooling-integration-evidence.json",
+    "canonical-sources/source-registry.json",       # restamped by every currency run
 )
 
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def signals_sha() -> str:
+    """Hash of the signal vocabulary. Changing MAC_SIGNALS changes the audit's denominator, so it
+    must force an explicit re-bless rather than silently narrowing what the gate inspects."""
+    return hashlib.sha256("\n".join(MAC_SIGNALS).encode("utf-8")).hexdigest()
 
 
 def tracked_files(root: Path = ROOT) -> list:
@@ -148,6 +164,13 @@ def reconcile(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
                     "an audited file's sha moved (an audited surface changed). Re-bless with "
                     "`python3 tools/mac_surface_manifest.py reconcile` ONLY after re-auditing.",
         "generated_by": "tools/mac_surface_manifest.py",
+        "deriver": {
+            "path": "tools/mac_surface_manifest.py",
+            "module_sha256": _sha(Path(__file__).resolve()),
+            "signals_sha256": signals_sha(),
+            "_why": "The denominator is part of the guarantee. If either hash moves, the audited set "
+                    "was computed by a different rule than the one that blessed this manifest.",
+        },
         "files": dict(sorted(files.items())),
         "excluded": dict(sorted(excluded.items())),
     }
@@ -160,7 +183,8 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     """Two-way result: {'unaudited': [...], 'changed': [...], 'missing': [...], 'note': str|None}.
     All-empty == the audited set still equals the live Mac surface. Never raises."""
     manifest_path = manifest_path or MANIFEST_PATH
-    empty = {"unaudited": [], "changed": [], "missing": [], "note": None}
+    empty = {"unaudited": [], "changed": [], "missing": [], "undetectable": [],
+             "deriver_drift": [], "note": None}
     if not manifest_path.exists():
         return dict(empty, note="manifest missing; run 'python3 tools/mac_surface_manifest.py reconcile'")
     try:
@@ -181,8 +205,23 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
             missing.append(rel)
         elif _sha(p) != sha:
             changed.append(rel)
+    # Denominator integrity: an audited file that no longer derives means the signal set lost the
+    # token that used to catch it -- coverage narrowed without a single file "changing".
+    derived_set = set(derived)
+    undetectable = [r for r in files if r not in derived_set and (root / r).exists()]
+    pin = manifest.get("deriver", {})
+    deriver_drift = []
+    if pin:
+        if pin.get("signals_sha256") != signals_sha():
+            deriver_drift.append("MAC_SIGNALS changed since this manifest was blessed")
+        mod = Path(__file__).resolve()
+        if pin.get("module_sha256") and mod.exists() and pin["module_sha256"] != _sha(mod):
+            deriver_drift.append("tools/mac_surface_manifest.py changed since this manifest was blessed")
+    else:
+        deriver_drift.append("manifest records no deriver pin; re-bless to pin the denominator")
     return {"unaudited": sorted(unaudited), "changed": sorted(changed),
-            "missing": sorted(missing), "note": None}
+            "missing": sorted(missing), "undetectable": sorted(undetectable),
+            "deriver_drift": deriver_drift, "note": None}
 
 
 def selftest() -> int:
@@ -248,6 +287,20 @@ def selftest() -> int:
         _rec()
         ok("integrity: clean after re-bless", not _chk()["changed"])
 
+        # DIRECTION 3 (denominator): an audited file that stops deriving must be caught. This is the
+        # P69 adversarial finding: without it, deleting a signal token silently shrinks coverage.
+        g = globals()  # patch THIS module's global, not a re-imported copy (run as __main__)
+        saved = g["SIGNAL_RE"]
+        try:
+            g["SIGNAL_RE"] = re.compile(r"__no_such_token__")
+            der_now = set(derive(root, paths))
+            audited = set(json.loads(mpath.read_text())["files"])
+            ok("denominator: audited file stops deriving when a signal is removed",
+               bool(audited - der_now))
+        finally:
+            g["SIGNAL_RE"] = saved
+        ok("signals_sha is stable and hex", len(signals_sha()) == 64)
+
         # Deleting an audited file is reported, not crashed on.
         mac.unlink()
         ok("missing audited file reported", "tools/macish.py" in _chk()["missing"])
@@ -275,7 +328,8 @@ def main(argv=None) -> int:
     if res["note"]:
         print(f"mac-surface: {res['note']}")
         return 0
-    if not (res["unaudited"] or res["changed"] or res["missing"]):
+    if not (res["unaudited"] or res["changed"] or res["missing"]
+            or res["undetectable"] or res["deriver_drift"]):
         man = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
         print(f"mac-surface: complete ({len(man.get('files', {}))} audited, "
               f"{len(man.get('excluded', {}))} excluded); no unaudited or changed surface")
@@ -286,6 +340,10 @@ def main(argv=None) -> int:
         print(f"  CHANGED since audit (re-audit, then reconcile): {rel}")
     for rel in res["missing"]:
         print(f"  MISSING audited file (deleted or moved): {rel}")
+    for rel in res["undetectable"]:
+        print(f"  NO LONGER DERIVES (signal set narrowed?): {rel}")
+    for msg in res["deriver_drift"]:
+        print(f"  DERIVER DRIFT: {msg}")
     return 1
 
 

@@ -2114,7 +2114,7 @@ The recommended engine is <strong>whisper.cpp</strong> (it {speed}). In Terminal
 Homebrew bottles are notarized, so there is no "unidentified developer" Gatekeeper prompt. You then
 download a model file once (a ggml-*.bin from the whisper.cpp repo) and point Creator OS at it with
 <code>WHISPER_CPP_MODEL</code>.
-<br><br>Prefer Python instead? <pre>brew install python && pip3 install faster-whisper</pre>
+<br><br>Prefer Python instead? <pre>brew install python@3.13 && pip3 install faster-whisper</pre>
 faster-whisper needs <strong>no</strong> system ffmpeg, which is the escape hatch if a downloaded
 ffmpeg gets blocked by Gatekeeper. Note: macOS ships no usable <code>python3</code>; install it via
 Homebrew (above) or the notarized python.org universal2 installer. If you ever download a static

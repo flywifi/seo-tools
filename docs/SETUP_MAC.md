@@ -218,7 +218,7 @@ export WHISPER_CPP_MODEL=/path/to/ggml-small.bin
 Prefer Python instead? Use **faster-whisper**, which needs **no** system ffmpeg (it bundles PyAV):
 
 ```bash
-brew install python && pip3 install faster-whisper
+brew install python@3.13 && pip3 install faster-whisper
 ```
 
 ### macOS notes that trip people up

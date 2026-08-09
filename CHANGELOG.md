@@ -16,12 +16,20 @@ work after the baseline sits under Unreleased.
 - macOS surface completeness gate (P69): `tools/mac_surface_manifest.py` derives the macOS
   surface mechanically from a signal sweep over every tracked text file, and
   `canonical-sources/mac-surface-manifest.json` records the sha256 each audited file was blessed
-  at (71 at baseline) plus an exclusion map with written reasons. Drift invariant 58
+  at (87 at baseline) plus an exclusion map with written reasons. Drift invariant 58
   (`check_mac_surface_completeness`) fails closed in both directions: a new file carrying macOS
   behavior is unaudited until reviewed, and an audited file whose bytes move is changed until
   re-blessed. Both directions are covered by the tool's offline selftest.
 
 ### Fixed
+- macOS completeness gate self-defect (P69, found by the mandated independent adversarial pass):
+  the deriver sat in its own skip list and nothing hashed it, so deleting tokens from the signal
+  vocabulary shrank the audited set while invariant 58 still reported complete. The manifest now
+  pins the deriver (module and signal-set sha256) and the guard fails when an audited file stops
+  deriving, so a narrowed denominator is a build failure instead of a silent gap. The same pass
+  found three video-tooling evidence files skipped under a false append-only rationale (one commit
+  each); they are audited normally now, and a macOS moving date still resolved its registry source
+  to the page that does not carry the claim, now seeded and repointed.
 - macOS setup guidance (P69): `docs/SETUP_MAC.md` installed a Homebrew Python formula that is now
   deprecated upstream, and named a different version than the launcher did; the install target is
   standardized with 3.11 kept as the support floor. The Homebrew cask moving date cited a page

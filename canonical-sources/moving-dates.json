@@ -61,7 +61,7 @@
       "id": "homebrew-gatekeeper-failing-casks",
       "jurisdiction": "macOS",
       "description": "Homebrew disables Gatekeeper-failing casks from 2026-09-01 (formula bottles like ffmpeg/whisper-cpp are unaffected). Drives the docs/SETUP_MAC.md dated-context note.",
-      "registry_source_id": "homebrew-installation",
+      "registry_source_id": "homebrew-5-cask-gatekeeper",
       "effective": "2026-09-01",
       "phase_2": null,
       "verified_after": null,
