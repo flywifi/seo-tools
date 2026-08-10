@@ -22,6 +22,18 @@ work after the baseline sits under Unreleased.
   re-blessed. Both directions are covered by the tool's offline selftest.
 
 ### Fixed
+- Correction to a P69 rationale (P70): the Homebrew Python change was justified by calling the old
+  formula deprecated upstream. Re-fetching the formula API shows every `python@N` carries that same
+  flag with a scheduled end-of-life date (3.11 in 2027, 3.13 in 2029, 3.14 in 2030), so it is
+  Homebrew's EOL calendar rather than a present-tense defect, and it does not distinguish the old
+  version from the one adopted. The change itself stands on the accurate reasons: one guide named
+  two different versions, and the old one has the nearest end of life. Recorded here rather than by
+  rewriting the landed commit.
+- macOS surface manifest semantics (P70): the tool recorded every derived path automatically while
+  the manifest and ADR called those files audited and claimed each carried an explicit decision.
+  `reconcile` now refuses a path nobody has ruled on unless `--accept-new` is passed, the signal
+  token `Final Cut` is narrowed to `Final Cut Pro` (it had matched eight files where the phrase
+  means the edited video), and the wording throughout says recorded rather than audited.
 - macOS completeness gate self-defect (P69, found by the mandated independent adversarial pass):
   the deriver sat in its own skip list and nothing hashed it, so deleting tokens from the signal
   vocabulary shrank the audited set while invariant 58 still reported complete. The manifest now
