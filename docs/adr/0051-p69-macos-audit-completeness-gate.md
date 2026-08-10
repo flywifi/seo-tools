@@ -65,7 +65,7 @@ The audit closes with a build-enforced gate rather than a document.
 
 ## Consequences
 
-- Editing any of the 87 audited macOS files now requires re-blessing the manifest
+- Editing any macOS file the manifest records now requires re-blessing it
   (`python3 tools/mac_surface_manifest.py reconcile`). That friction is the point: it forces a
   human decision at exactly the moment a macOS surface changes.
 - Adding a file that mentions macOS incidentally will trip the gate once, and is resolved by either

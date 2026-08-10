@@ -35,9 +35,20 @@ def counts(root=ROOT):
                           .read_text(encoding="utf-8")).get("scenarios", [])
     except (OSError, ValueError):
         scen = []
+    # macOS surface files recorded in the P69/P70 completeness manifest (drift invariant 58). Kept
+    # here so the number is always derivable from the tree instead of being restated in prose, which
+    # is how the earlier 71-vs-72 drift happened.
+    try:
+        mac = json.loads((root / "canonical-sources" / "mac-surface-manifest.json")
+                         .read_text(encoding="utf-8"))
+        mac_recorded = len(mac.get("files", {}))
+        mac_excluded = len(mac.get("excluded", {}))
+    except (OSError, ValueError):
+        mac_recorded = mac_excluded = 0
     return {"spokes": len(spokes), "atoms": len(atoms), "skills": len(all_skills),
             "protocols": len(protocols), "engines": len(engines), "agent_roles": len(roles),
-            "invariants": invariants, "scenarios": len(scen)}
+            "invariants": invariants, "scenarios": len(scen),
+            "mac_surface_files": mac_recorded, "mac_surface_excluded": mac_excluded}
 
 
 def main(argv):
