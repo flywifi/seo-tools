@@ -26,7 +26,7 @@
     "docs/DRIVE-HUB.md": "6d4e0a31c1308d235c0762f1dfd58368771e3c85dc997eb59bae1c85af911a37",
     "docs/FRESHNESS.md": "e93fc803ac6652658f18c000d4674fd0cb7dae982d36e040fca98b3d0fc935cd",
     "docs/MAC-VALIDATION.md": "77be746de6e364c9d52f7fea7d16983eb4cdb880d948c560ae6ebde44c3ae470",
-    "docs/MACOS-MAINTENANCE.md": "2ace54c7207d4b7365b00d83b4dde7a806b01a452f71db2fbe53faebf05a0c07",
+    "docs/MACOS-MAINTENANCE.md": "80066ba0fa8a9414f2c32924681977a9215975a4fd1e0053635c8981a134b184",
     "docs/PUBLISHING.md": "f0766d7cd42e5c119a844c7bb5c1f33875171996ff7fefc8b6f467fd6ef9337b",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
     "docs/SETUP_MAC.md": "57546ef7205addd40a50df6f19881012fc68b2787b9bd82bd9b47bbbe2903b7a",
@@ -87,7 +87,7 @@
     "tools/videoedit/fcpxml.py": "b73c16ae8575eef5e38c6b428de7544384fe252e53896b0e489747e3afa10c3c",
     "tools/videoedit/preflight.py": "f984ee5fbd88348cf385189daba005925546667b97050c409ba10603efbbc516",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "c5f3ac5b94f009b13995b55e6fa83b350ac9742b21eb5aa449c67108a0178b25"
+    "tools/wizard.py": "140c3b6e369b7c0ae408c2fe928abbe6d68b5d5cc6efeccda65c87be873b6e1a"
   },
   "excluded": {}
 }

@@ -3651,8 +3651,12 @@ def _selftest() -> int:
 def main() -> None:
     if "--selftest" in sys.argv:
         raise SystemExit(_selftest())
-    # Bind loopback only (127.0.0.1): exempt from the macOS Application Firewall incoming-connection
-    # prompt AND the Sequoia/Tahoe local-network permission prompt (Apple TN3179). Never 0.0.0.0.
+    # Bind loopback only (127.0.0.1). Primary reason: the wizard has no reason to be reachable from
+    # the network, so it should not listen on an external interface. Apple's TN3179 defines a local
+    # network as one on a broadcast-capable interface (Wi-Fi/Ethernet), which excludes loopback by
+    # construction, so the Sequoia/Tahoe local-network prompt should not apply -- an inference from
+    # that definition, not an Apple statement about loopback, and unconfirmed on real hardware.
+    # Never 0.0.0.0.
     try:
         server = _Server(("127.0.0.1", PORT), _Handler)
     except OSError:

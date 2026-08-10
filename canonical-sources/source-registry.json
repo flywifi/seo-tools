@@ -4930,9 +4930,9 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
-      "extraction_hint": "Defines local-network addresses as addresses on broadcast-capable interfaces (Wi-Fi/Ethernet, not WWAN/VPN) plus multicast and IPv4 broadcast; loopback is excluded by this definition (implied, not stated on the page). Explicit loopback statement lives in apple-local-network-privacy-faq.",
+      "extraction_hint": "Defines a local network as an IP network on a broadcast-capable interface (Wi-Fi/Ethernet, not cellular/VPN); loopback falls outside that definition by construction. The technote never mentions loopback explicitly, so cite it as a definition-based inference. Body is fetchable via the /tutorials/data/documentation/...json endpoint.",
       "used_by": [
         "docs/MACOS-MAINTENANCE.md",
         "tools/wizard.py"
@@ -4952,7 +4952,7 @@
       "staleness_threshold_days": 180,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "Apple DTS statement that traffic to localhost/loopback does not trigger the local-network permission prompt; the explicit companion to apple-local-network-privacy-tn3179.",
+      "extraction_hint": "Apple DTS (Quinn) on BSD-sockets code that listens on UDP and never sends not triggering the local-network alert. NOTE: verified 2026-08-10 that this thread does NOT mention loopback, localhost, or 127.0.0.1; do not cite it for a loopback exemption. Behind a verify-human redirect, so not programmatically re-fetchable.",
       "used_by": [
         "docs/MACOS-MAINTENANCE.md",
         "tools/wizard.py"
@@ -5429,5 +5429,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "57248c0d72ab4b2b820e5c8eacb7956628b77a228b2bbb95ac2a3e20b57938aa"
+  "_content_digest": "3ddecb96849e926115de7d7b3daac57e69b19cf2d6c2d768a76768f5e0fc0f9f"
 }

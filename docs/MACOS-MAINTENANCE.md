@@ -101,13 +101,20 @@ full seed shape (`id`, `name`, `url`, `category`, `tier`); an already-registered
 ```
 
 Claim-to-source notes: invariants 1 and 2 (`.venv`) rest on PEP 668 + Homebrew-and-Python; invariant 3
-(brew prefixes) on Homebrew Installation; invariant 4 (loopback bind) on TN3179 plus the DTS FAQ, with a
-caveat added in P70: the technote only *implies* the loopback exemption, the explicit statement comes
-from a tier-2 forum thread, and neither could be re-fetched on 2026-08-09 (the technote body renders
-client-side). Developer reports also describe localhost traffic triggering the prompt in some
-configurations. Treat the exemption as probable, not established. **The invariant does not depend on
-it**: binding 127.0.0.1 is correct because the wizard has no reason to listen on an external
-interface, and that argument stands whatever the prompt semantics turn out to be; invariant 5 (absolute MCP command) on the MCP
+(brew prefixes) on Homebrew Installation; invariant 4 (loopback bind) on TN3179's own definition,
+retrieved in full on 2026-08-10: *"A local network is an IP network associated with a
+broadcast-capable network interface. Such interfaces include Wi-Fi and Ethernet, but not cellular
+(WWAN) or VPN. A local network address is any address on a local network."* Loopback is not a
+broadcast-capable interface, so it falls outside that definition by construction. **State this as a
+documented-definition inference, never as an Apple statement about loopback:** TN3179 does not use
+the words loopback, localhost, or 127.0.0.1 anywhere. Two earlier versions of this note were wrong
+and are corrected here. The first attributed an explicit loopback exemption to the DTS forum thread;
+that thread addresses BSD-sockets code listening on UDP without sending and says nothing about
+loopback. The second said the technote could not be re-fetched; its body is reachable through the
+`developer.apple.com/tutorials/data/documentation/...json` endpoint even though the HTML shell
+renders client-side. **The invariant does not depend on the inference**: binding 127.0.0.1 is correct
+because the wizard has no reason to listen on an external interface, and that stands whatever the
+prompt semantics turn out to be; invariant 5 (absolute MCP command) on the MCP
 connect-local-servers doc; invariants 6 and 7 (whisper) on the whisper-cpp formula + the GGML model repo;
 invariant 9 (TCC folder denial) on the Apple file-access guide, which is where the
 "Privacy & Security -> Files & Folders" wording comes from; invariant 10 (python stub) on the
@@ -134,9 +141,10 @@ stamped on an assumption. Two notes on that, so the gap is not mistaken for a ve
 The remainder is NOT uniformly low-risk, and an earlier version of this section wrongly said it was.
 Ranked by what actually rests on them:
 
-- **`apple-local-network-privacy-tn3179` + `apple-local-network-privacy-faq`** are the sole backing for
-  invariant 4, a network-binding boundary, and the explicit half is a tier-2 forum thread. Both fetches
-  failed on 2026-08-09. Highest-priority re-verification, and see the caveat recorded above.
+- **`apple-local-network-privacy-faq`** sits behind a verify-human redirect and cannot be fetched
+  programmatically from any headless environment. It is retained as a real authority for a different
+  fact (UDP listen-without-send), NOT for the loopback claim it was previously miscited for. TN3179
+  itself is now fetched and stamped, so invariant 4 rests on a quoted primary-source definition.
 - **`homebrew-formula-whisper-cpp`** is the sole backing for the Metal-on-Apple-Silicon / not-on-Intel
   half of invariants 6 and 7. The verified GGML repo covers model checksums, not build-flag defaults,
   so that claim is currently unverified.
