@@ -1,32 +1,38 @@
 #!/usr/bin/env python3
 """Mac-surface completeness manifest (P69).
 
-The macOS audit's completeness guarantee, made machine-checkable. The problem this solves: an
-audit that says "I checked every Mac surface" is an assertion. Nothing stops a NEW file carrying
-Mac-specific behavior from landing next week and never being audited, and nothing stops an
-already-audited file from being rewritten after the audit signed off on it.
+Tracks the macOS surface so coverage claims are checkable. The problem this solves: "I checked
+every Mac surface" is an assertion. Nothing stops a NEW file carrying Mac-specific behavior from
+landing next week unnoticed, and nothing stops a file from being rewritten after someone reviewed it.
 
-So the audited set is DERIVED, never memorized (docs/AUDIT-PROTOCOL.md section 1). `derive()` scans
-every tracked text file for a Mac-signal token set; each match must resolve to EITHER the manifest
-(a file audited at a recorded sha256) OR the manifest's `excluded` map (a match the audit judged
-NOT a Mac surface, each with a written reason). Drift invariant 58 then enforces two properties:
+BE PRECISE ABOUT WHAT THIS PROVES. A recorded sha256 proves the bytes have not moved since a human
+blessed that path. It does NOT prove anyone re-read the file today, and this tool cannot know that.
+It is a change-detector on a mechanically derived set, and the `--accept-new` gate is what keeps a
+path from entering the set by inaction. Say "recorded", not "audited", when describing its output.
+
+The set is DERIVED, never memorized (docs/AUDIT-PROTOCOL.md section 1). `derive()` scans every
+tracked text file for a Mac-signal token set; each match must resolve to EITHER the manifest's
+`files` map (recorded at a sha256) OR its `excluded` map (a human ruled it not a Mac surface, with
+a written reason). Drift invariant 58 then enforces:
 
   coverage  -- every derived match is in `files` or `excluded`. A new Mac-surface file fails the
-               build until a human audits it and re-blesses the manifest.
-  integrity -- every manifest path still exists and still hashes to its recorded sha256. Editing an
-               audited Mac file fails the build until it is re-audited and re-blessed.
+               build until a human rules on it and re-blesses the manifest.
+  integrity -- every manifest path still exists and still hashes to its recorded sha256. Editing a
+               recorded Mac file fails the build until it is re-reviewed and re-blessed.
   denominator -- the deriver itself is pinned (module sha256 + a sha over MAC_SIGNALS), and every
-               audited file must STILL derive. Weakening the signal set is the one attack that would
+               recorded file must STILL derive. Weakening the signal set is the one attack that would
                otherwise leave the gate green while shrinking what it looks at: drop a token and the
                files that token used to catch stop deriving, which fails here rather than silently
                narrowing coverage. Found by the P69 adversarial pass, which proved the unpinned
                version stayed green after three tokens were deleted.
 
-Two-way, fail-closed, so "nothing was missed" stops being a claim and becomes a build property.
+Fail-closed in every direction, so "no macOS file changed unnoticed" is a build property
+rather than a claim. Human review remains a human act; this only makes skipping it visible.
 
 CLI:
   python3 tools/mac_surface_manifest.py               # --check (report; exit 1 on drift)
-  python3 tools/mac_surface_manifest.py reconcile     # re-bless: rewrite the manifest from the tree
+  python3 tools/mac_surface_manifest.py reconcile     # re-bless files already ruled on
+  python3 tools/mac_surface_manifest.py reconcile --accept-new   # also record newly-seen paths
   python3 tools/mac_surface_manifest.py --selftest    # offline proof of both directions
 """
 import hashlib
@@ -64,7 +70,11 @@ MAC_SIGNALS = (
     r"\brosetta\b",
     r"universal2",
     r"Compressor\.app",
-    r"Final Cut",  # macOS-exclusive app; integration files surface via `excluded` if inert
+    # "Final Cut Pro" in full, never bare "Final Cut": in this domain "the final cut" means the
+    # edited video, and the bare token false-positived on 8 of 12 files (scenario prose, eval
+    # fixtures, task-desk copy) that have nothing to do with the macOS app. Token-class noise
+    # belongs in this vocabulary, not in `excluded`.
+    r"Final Cut Pro",
     r"Blackmagic",
     r"sys\.platform",
     r"platform\.machine",
@@ -90,6 +100,14 @@ SKIP_PREFIXES = (
     "ledger/ledger.json",
     "canonical-sources/source-registry.json",       # restamped by every currency run
 )
+
+
+class PendingReview(Exception):
+    """Raised when reconcile would record paths nobody has ruled on. Carries the path list."""
+
+    def __init__(self, paths):
+        self.paths = list(paths)
+        super().__init__(f"{len(self.paths)} unreviewed path(s)")
 
 
 def _sha(path: Path) -> str:
@@ -137,38 +155,52 @@ def derive(root: Path = ROOT, paths: list | None = None) -> list:
     return sorted(hits)
 
 
-def reconcile(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
-    """Re-bless: record the sha256 of every currently-audited Mac file, preserving exclusion
-    reasons. A derived path with no prior decision lands in `files` (audited at this sha)."""
+def reconcile(root: Path = ROOT, manifest_path: Path | None = None, accept_new: bool = False,
+              paths: list | None = None) -> dict:
+    """Re-bless the manifest. Records the current sha256 of every derived file that already has a
+    decision, and PRESERVES `excluded`.
+
+    A path nobody has ruled on before is NOT recorded unless `accept_new` is set. That gate is the
+    difference between "recorded" and "reviewed": without it a file entered the manifest by inaction,
+    which let 15 files land in one command during P69 -- 8 of them false positives nobody had read.
+    Bootstrapping (no manifest yet) is exempt, since there is no prior decision to respect.
+
+    Raises PendingReview when new paths need a human. The caller reports them; nothing is written."""
     manifest_path = manifest_path or MANIFEST_PATH
-    prior = {}
-    excluded = {}
+    prior, excluded, bootstrap = {}, {}, True
     if manifest_path.exists():
         try:
             old = json.loads(manifest_path.read_text(encoding="utf-8"))
             prior = old.get("files", {})
             excluded = old.get("excluded", {})
+            bootstrap = False
         except (OSError, ValueError):
             pass
-    derived = derive(root)
+    derived = derive(root, paths)
+    known = set(prior) | set(excluded)
+    new = [rel for rel in derived if rel not in known]
+    if new and not accept_new and not bootstrap:
+        raise PendingReview(new)
     files = {}
     for rel in derived:
         if rel in excluded:
             continue
         files[rel] = _sha(root / rel)
     manifest = {
-        "_comment": "P69 macOS audit completeness gate. `files` = every Mac-surface file audited, at "
-                    "its sha256 when the audit blessed it. `excluded` = a derived match the audit "
-                    "judged NOT a Mac surface, with the reason. Drift invariant 58 fails the build "
-                    "when a derived match is in neither (an unaudited Mac surface appeared) or when "
-                    "an audited file's sha moved (an audited surface changed). Re-bless with "
-                    "`python3 tools/mac_surface_manifest.py reconcile` ONLY after re-auditing.",
+        "_comment": "P69/P70 macOS surface completeness gate. `files` = the macOS surface this repo "
+                    "tracks, each recorded at the sha256 it carried when a human last blessed it; the "
+                    "hash proves the bytes have not moved since, not that anyone re-read them today. "
+                    "`excluded` = a derived match a human ruled NOT a macOS surface, with the reason. "
+                    "Adding a path nobody has ruled on requires `reconcile --accept-new`, so entering "
+                    "this file is an act rather than a default. Drift invariant 58 fails the build "
+                    "when a derived match is in neither map, when a recorded file's sha moves, when a "
+                    "recorded file stops deriving, or when the deriver itself changes.",
         "generated_by": "tools/mac_surface_manifest.py",
         "deriver": {
             "path": "tools/mac_surface_manifest.py",
             "module_sha256": _sha(Path(__file__).resolve()),
             "signals_sha256": signals_sha(),
-            "_why": "The denominator is part of the guarantee. If either hash moves, the audited set "
+            "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set "
                     "was computed by a different rule than the one that blessed this manifest.",
         },
         "files": dict(sorted(files.items())),
@@ -301,6 +333,21 @@ def selftest() -> int:
             g["SIGNAL_RE"] = saved
         ok("signals_sha is stable and hex", len(signals_sha()) == 64)
 
+        # DIRECTION 4 (the review gate): a path nobody has ruled on must NOT enter by inaction.
+        gate_m = root / "gate.json"
+        gate_m.write_text(json.dumps({"files": {}, "excluded": {}}), encoding="utf-8")
+        try:
+            reconcile(root, gate_m, accept_new=False, paths=paths)
+            ok("gate: bare reconcile refuses an unruled path", False)
+        except PendingReview as pending:
+            ok("gate: bare reconcile refuses an unruled path", bool(pending.paths))
+        ok("gate: refusal wrote nothing", not json.loads(gate_m.read_text())["files"])
+        m2 = reconcile(root, gate_m, accept_new=True, paths=paths)
+        ok("gate: --accept-new records them", bool(m2["files"]))
+        m3 = reconcile(root, gate_m, accept_new=False, paths=paths)
+        ok("gate: known paths re-bless without the flag", bool(m3["files"]))
+        ok("gate: manifest pins the deriver", bool(m3["deriver"]["signals_sha256"]))
+
         # Deleting an audited file is reported, not crashed on.
         mac.unlink()
         ok("missing audited file reported", "tools/macish.py" in _chk()["missing"])
@@ -320,8 +367,15 @@ def main(argv=None) -> int:
     if "--selftest" in argv:
         return selftest()
     if argv and argv[0] == "reconcile":
-        m = reconcile()
-        print(f"mac-surface manifest: {len(m['files'])} audited file(s), "
+        try:
+            m = reconcile(accept_new="--accept-new" in argv)
+        except PendingReview as pending:
+            print("mac-surface: refusing to record path(s) nobody has ruled on yet.")
+            print("Read each one, then re-run with --accept-new (or add it to `excluded` with a reason):")
+            for rel in pending.paths:
+                print(f"  NEW {rel}")
+            return 1
+        print(f"mac-surface manifest: {len(m['files'])} recorded file(s), "
               f"{len(m['excluded'])} excluded -> {MANIFEST_PATH.relative_to(ROOT)}")
         return 0
     res = check()
@@ -331,15 +385,15 @@ def main(argv=None) -> int:
     if not (res["unaudited"] or res["changed"] or res["missing"]
             or res["undetectable"] or res["deriver_drift"]):
         man = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-        print(f"mac-surface: complete ({len(man.get('files', {}))} audited, "
-              f"{len(man.get('excluded', {}))} excluded); no unaudited or changed surface")
+        print(f"mac-surface: complete ({len(man.get('files', {}))} recorded, "
+              f"{len(man.get('excluded', {}))} excluded); nothing unrecorded or changed")
         return 0
     for rel in res["unaudited"]:
-        print(f"  UNAUDITED Mac surface (not in manifest or exclusions): {rel}")
+        print(f"  UNRECORDED Mac surface (not in manifest or exclusions): {rel}")
     for rel in res["changed"]:
-        print(f"  CHANGED since audit (re-audit, then reconcile): {rel}")
+        print(f"  CHANGED since it was blessed (re-review, then reconcile): {rel}")
     for rel in res["missing"]:
-        print(f"  MISSING audited file (deleted or moved): {rel}")
+        print(f"  MISSING recorded file (deleted or moved): {rel}")
     for rel in res["undetectable"]:
         print(f"  NO LONGER DERIVES (signal set narrowed?): {rel}")
     for msg in res["deriver_drift"]:

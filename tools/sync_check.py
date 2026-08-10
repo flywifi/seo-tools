@@ -2710,7 +2710,12 @@ def check_invariant_catalog():
 
 
 def check_mac_surface_completeness():
-    """Invariant 58: Mac-surface completeness (P69). The macOS audit's coverage guarantee, enforced.
+    """Invariant 58: Mac-surface completeness (P69, semantics corrected P70). What this proves is
+    change-detection over a mechanically derived set, NOT that a human re-read anything today: a
+    recorded sha256 means the bytes have not moved since someone blessed that path. Entering the
+    manifest requires `reconcile --accept-new`, so a path cannot join the tracked set by inaction --
+    the P70 review found 15 files had done exactly that in one command, 8 of them false positives
+    nobody had read. The macOS audit's coverage guarantee, enforced.
     tools/mac_surface_manifest.py derives the Mac surface mechanically (a token sweep over every
     tracked text file) rather than trusting a memorized list, and every derived match must resolve
     to EITHER canonical-sources/mac-surface-manifest.json's `files` map (audited, at a recorded
@@ -2733,15 +2738,15 @@ def check_mac_surface_completeness():
         advisory(f"mac-surface completeness DID NOT RUN: {res['note']}")
         return
     for rel in res["unaudited"]:
-        problem(f"mac-surface: unaudited Mac surface {rel} (audit it, then "
-                f"`python3 tools/mac_surface_manifest.py reconcile`)")
+        problem(f"mac-surface: unrecorded Mac surface {rel} (review it, then "
+                f"`python3 tools/mac_surface_manifest.py reconcile --accept-new`)")
     for rel in res["changed"]:
-        problem(f"mac-surface: {rel} changed since the macOS audit blessed it (re-audit, then "
+        problem(f"mac-surface: {rel} changed since it was blessed (re-review, then "
                 f"`python3 tools/mac_surface_manifest.py reconcile`)")
     for rel in res["missing"]:
-        problem(f"mac-surface: audited file {rel} is missing (deleted or moved); reconcile the manifest")
+        problem(f"mac-surface: recorded file {rel} is missing (deleted or moved); reconcile the manifest")
     for rel in res.get("undetectable", []):
-        problem(f"mac-surface: {rel} is audited but no longer derives -- the signal set narrowed and "
+        problem(f"mac-surface: {rel} is recorded but no longer derives -- the signal set narrowed and "
                 f"coverage shrank silently; restore the signal or re-bless deliberately")
     for msg in res.get("deriver_drift", []):
         problem(f"mac-surface: {msg}; the denominator changed, so re-audit and "
