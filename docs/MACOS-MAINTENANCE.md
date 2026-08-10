@@ -120,42 +120,42 @@ invariant 9 (TCC folder denial) on the Apple file-access guide, which is where t
 "Privacy & Security -> Files & Folders" wording comes from; invariant 10 (python stub) on the
 Python-on-macOS doc.
 
-## Re-verification status (P69 audit, 2026-08-09)
+## Re-verification status (P69 to P71, current 2026-08-10)
 
-Ten of the 26 macOS-relevant registry sources were re-fetched and stamped in the P69 audit; before it,
-every one of them sat at `last_checked: null`. Stamped: the Sequoia Gatekeeper announcement, Homebrew
-Installation, the Homebrew 5.0.0 cask-policy announcement, python.org macOS downloads, PEP 668, the
-TCC Files and Folders guide, the MCP connect-local-servers doc, the GGML model repo, and both Google
-Drive desktop pages.
+**23 of the 27** macOS-relevant registry sources now carry a `last_checked` date. Before P69 every one
+of them was `null`.
 
-The other 16 were NOT re-fetched and their `last_checked` deliberately remains null rather than being
-stamped on an assumption. Two notes on that, so the gap is not mistaken for a verified state:
+Only four remain unstamped, each for a stated mechanical reason rather than neglect:
 
-- `apple-open-anyway-flow` (support.apple.com/en-us/102445) was attempted twice and both fetches
-  returned truncated content. It is unverified, not confirmed-unchanged. The claim it backs (the
-  Open Anyway path, with Control-click removed) is independently carried by
-  `apple-gatekeeper-sequoia-change`, which WAS fetched in full, so the guidance itself is sourced.
-- `apple-macos-intel-support` was read through Apple search results rather than a full page fetch;
-  the Intel and Rosetta statements matched, but the page itself is not stamped.
+- `apple-local-network-privacy-faq` -- `developer.apple.com/forums/thread/660260` redirects to a
+  verify-human challenge, so it cannot be fetched from any headless environment. It is retained as a
+  real authority for the fact it does state (UDP listen-without-send), and is explicitly NOT the
+  source for the loopback claim it was once miscited for; see the claim-to-source notes above.
+- `dep-whisper-cpp` and `dep-faster-whisper` -- GitHub Releases rate-limited the unauthenticated
+  check, which `tools/dependency_currency.py` correctly reports as `blocked: true` (blocked is not
+  absent, so it refuses to stamp). Re-run with `GITHUB_TOKEN` set to clear these.
+- `dep-apple-compressor` -- `upstream_api: manual`, advisory by construction; no tool will ever stamp
+  it, and that is the intended design.
 
-The remainder is NOT uniformly low-risk, and an earlier version of this section wrongly said it was.
-Ranked by what actually rests on them:
+**Two corrections to what earlier versions of this section claimed.** Both were wrong in the same
+direction, calling an environment limitation a property of the source:
 
-- **`apple-local-network-privacy-faq`** sits behind a verify-human redirect and cannot be fetched
-  programmatically from any headless environment. It is retained as a real authority for a different
-  fact (UDP listen-without-send), NOT for the loopback claim it was previously miscited for. TN3179
-  itself is now fetched and stamped, so invariant 4 rests on a quoted primary-source definition.
-- **`homebrew-formula-whisper-cpp`** is the sole backing for the Metal-on-Apple-Silicon / not-on-Intel
-  half of invariants 6 and 7. The verified GGML repo covers model checksums, not build-flag defaults,
-  so that claim is currently unverified.
-- **`apple-open-anyway-flow`** truncated on both attempts; the claim it backs is independently carried
-  by the fully-fetched Sequoia announcement, so the guidance itself is sourced.
-- **`apple-macos-intel-support`** was read through Apple search results rather than a full page fetch.
-- The rest (the Gatekeeper security guide, Rosetta, Tahoe updates, the two other formula pages, and the
-  optional video-tool dependencies) are genuinely advisory and are due on their normal
-  `check_interval_days`.
+- It said `apple-open-anyway-flow` "was attempted twice and both fetches returned truncated content."
+  That was a truncation artifact in the fetch tooling, not the page. Retrieved directly it returns
+  ~1.15 MB and states the current flow verbatim: "Open System Settings. Click Privacy & Security,
+  scroll down, and click the Open Anyway button." It contains no Control-click or right-click
+  instruction, which independently corroborates the removal this guide documents. Now stamped.
+- It implied the technote body was unreachable. The HTML shell renders client-side, but the body is
+  served as JSON from `developer.apple.com/tutorials/data/documentation/<path>.json`. Now stamped.
 
-Treat this as the honest denominator for the next currency pass, not as a backlog that was cleared.
+**Model integrity pins re-verified 2026-08-10.** All six entries in
+`canonical-sources/whisper-models.json` match upstream on both sha256 and byte size. The check is
+cheap and does not require downloading the weights: issue a HEAD to the Hugging Face `resolve` URL and
+read `X-Linked-Etag` / `X-Linked-Size` from the **302 response itself**. Do not follow the redirect --
+the CDN returns a different Xet content hash that will not match the pin and looks like a failure.
+Note the guarantee's shape: this confirms the pin equals the LFS object id the repository declares,
+which is the same assurance any whisper.cpp user gets, not an independent re-hash of the bytes. An
+earlier note claiming these hashes could not be verified without downloading gigabytes was wrong.
 
 ## When you change any of this
 Update `docs/SETUP_MAC.md` and this file in the same change (the CLAUDE.md docs-in-same-PR rule); keep

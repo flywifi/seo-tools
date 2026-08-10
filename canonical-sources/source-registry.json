@@ -1441,7 +1441,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "SDK release notes for transport/auth and tool-registration API changes tracked to the MCP spec",
       "used_by": [
@@ -1459,8 +1459,8 @@
       "pinned_constraint": "",
       "validated_version": null,
       "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure",
-      "latest_seen": "1.28.1",
-      "latest_seen_date": "2026-06-26"
+      "latest_seen": "2.0.0",
+      "latest_seen_date": "2026-07-28"
     },
     {
       "id": "dep-scenedetect",
@@ -1470,8 +1470,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-10",
+      "last_changed_detected": "2026-08-10",
       "extraction_hint": "ContentDetector / scene_manager API changes; the get_seconds()->seconds rename in 0.7",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
@@ -1487,8 +1487,8 @@
       "pinned_constraint": ">=0.7,<0.8",
       "validated_version": "0.7",
       "_why": "pinned >=0.7,<0.8; a 0.8/major bump renames API (get_seconds->seconds shim precedent) and breaks scene detection",
-      "latest_seen": "0.7",
-      "latest_seen_date": "2026-05-03"
+      "latest_seen": "0.7.1",
+      "latest_seen_date": "2026-07-22"
     },
     {
       "id": "dep-moviepy",
@@ -1498,7 +1498,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "breaking renames; removal of moviepy.editor; a v3 major",
       "used_by": [
@@ -1526,7 +1526,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "schema version bumps; adapter packaging (adapters split into separate pip packages since 0.17/0.18)",
       "used_by": [
@@ -1555,7 +1555,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "adapter API/compat with the installed opentimelineio core",
       "used_by": [
@@ -1583,7 +1583,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "early 0.0.x adapter; API is unstable, watch every release",
       "used_by": [
@@ -1611,7 +1611,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "libav/ffmpeg ABI compatibility; a major that drops an ffmpeg series",
       "used_by": [
@@ -1638,7 +1638,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "the backend PySceneDetect uses; a major that changes cv2 imports",
       "used_by": [
@@ -1665,7 +1665,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py",
       "used_by": [
@@ -1682,8 +1682,8 @@
       "pinned_constraint": "",
       "validated_version": null,
       "_why": "JavaScript-render path for competitor snapshots; the Chromium bundle and API drift",
-      "latest_seen": "1.61.0",
-      "latest_seen_date": "2026-06-29"
+      "latest_seen": "1.62.0",
+      "latest_seen_date": "2026-07-31"
     },
     {
       "id": "dep-requests",
@@ -1693,7 +1693,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "stable HTTP client; only a major (3.x) matters",
       "used_by": [
@@ -1721,7 +1721,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "encoding detection used by the fetch stack; only a major matters",
       "used_by": [
@@ -1737,8 +1737,8 @@
       "pinned_constraint": "",
       "validated_version": null,
       "_why": "charset detection for fetched pages; low churn",
-      "latest_seen": "3.4.7",
-      "latest_seen_date": "2026-04-02"
+      "latest_seen": "3.4.9",
+      "latest_seen_date": "2026-07-07"
     },
     {
       "id": "dep-beautifulsoup4",
@@ -1748,7 +1748,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters",
       "used_by": [
@@ -2038,7 +2038,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-07-04",
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "the 50+ pandas tool names for t-tests/ANOVA/chi-square",
       "used_by": [
@@ -2056,8 +2056,8 @@
       "pinned_constraint": "pip install stats-compass-mcp",
       "validated_version": null,
       "_why": "the pandas hypothesis-testing lane; a tool-name change drops it to guidance-only",
-      "latest_seen": "0.3.22",
-      "latest_seen_date": "2026-06-30"
+      "latest_seen": "0.3.23",
+      "latest_seen_date": "2026-07-30"
     },
     {
       "id": "mcp-duckdb",
@@ -4722,7 +4722,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "process_words/process_characters API; RapidFuzz backend changes",
       "used_by": [
@@ -4739,7 +4739,9 @@
       "check_url": "https://pypi.org/pypi/jiwer/json",
       "pinned_constraint": ">=4.0",
       "validated_version": "4.0.0",
-      "_why": "optional accuracy-validation extra for local STT (P45); wer.py covers the stdlib floor, jiwer adds MER/WIL/WIP decomposition"
+      "_why": "optional accuracy-validation extra for local STT (P45); wer.py covers the stdlib floor, jiwer adds MER/WIL/WIP decomposition",
+      "latest_seen": "4.0.0",
+      "latest_seen_date": "2025-06-19"
     },
     {
       "id": "dep-python-dateutil",
@@ -4749,7 +4751,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math",
       "used_by": [
@@ -4765,7 +4767,9 @@
       "check_url": "https://pypi.org/pypi/python-dateutil/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "import-guarded in tools/tasks.py for recurrence and relative-date math; absent, task date math degrades to a stdlib approximation, so a bump is low-risk but tracked for the default install"
+      "_why": "import-guarded in tools/tasks.py for recurrence and relative-date math; absent, task date math degrades to a stdlib approximation, so a bump is low-risk but tracked for the default install",
+      "latest_seen": "2.9.0.post0",
+      "latest_seen_date": "2024-03-01"
     },
     {
       "id": "dep-numpy",
@@ -4775,8 +4779,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
-      "last_changed_detected": null,
+      "last_checked": "2026-08-10",
+      "last_changed_detected": "2026-08-10",
       "extraction_hint": "major dtype/API changes; NumPy 2.x ABI break vs opencv/moviepy wheels",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
@@ -4791,7 +4795,9 @@
       "check_url": "https://pypi.org/pypi/numpy/json",
       "pinned_constraint": "",
       "validated_version": "2.4.6",
-      "_why": "import-guarded in mediaprobe.py and pulled transitively by opencv/moviepy; pinning it explicitly keeps the videoedit stack ABI-consistent for the default install"
+      "_why": "import-guarded in mediaprobe.py and pulled transitively by opencv/moviepy; pinning it explicitly keeps the videoedit stack ABI-consistent for the default install",
+      "latest_seen": "2.5.2",
+      "latest_seen_date": "2026-08-09"
     },
     {
       "id": "dep-sqlite-vec",
@@ -4801,7 +4807,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache",
       "used_by": [
@@ -4817,7 +4823,9 @@
       "check_url": "https://pypi.org/pypi/sqlite-vec/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "import-guarded in shared/cache/semantic.py for vector search; absent, the scoop cache falls back to lexical match, so a bump is low-risk but tracked for the default install"
+      "_why": "import-guarded in shared/cache/semantic.py for vector search; absent, the scoop cache falls back to lexical match, so a bump is low-risk but tracked for the default install",
+      "latest_seen": "0.1.9",
+      "latest_seen_date": "2026-03-31"
     },
     {
       "id": "dep-pyyaml",
@@ -4827,7 +4835,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard",
       "used_by": [
@@ -4843,7 +4851,9 @@
       "check_url": "https://pypi.org/pypi/PyYAML/json",
       "pinned_constraint": "",
       "validated_version": null,
-      "_why": "import-guarded in the drift guard (tools/sync_check.py) for SKILL.md frontmatter; absent, it falls back to a regex parse, so a bump is low-risk but tracked for the default install"
+      "_why": "import-guarded in the drift guard (tools/sync_check.py) for SKILL.md frontmatter; absent, it falls back to a regex parse, so a bump is low-risk but tracked for the default install",
+      "latest_seen": "6.0.3",
+      "latest_seen_date": "2025-09-25"
     },
     {
       "id": "apple-gatekeeper-runtime",
@@ -4853,7 +4863,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Gatekeeper/quarantine/notarization model; confirm the first-run block behavior and any new checks.",
       "used_by": [
@@ -4872,7 +4882,7 @@
       "tier": "T1",
       "check_interval_days": 120,
       "staleness_threshold_days": 120,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Current Open Anyway path (System Settings > Privacy and Security); confirm right-click>Open stays removed and the admin-auth step.",
       "used_by": [
@@ -4970,7 +4980,7 @@
       "tier": "T1",
       "check_interval_days": 120,
       "staleness_threshold_days": 120,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "On-demand Rosetta install for x86_64 binaries on Apple Silicon; confirm availability/roadmap (limited to certain older games starting macOS 28).",
       "used_by": [
@@ -4989,7 +4999,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Current shipping macOS major version + latest point release (drives the Tahoe references in the docs).",
       "used_by": [
@@ -5008,7 +5018,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Which Mac models/architectures the current macOS supports; the Intel-drop timeline (macOS 27).",
       "used_by": [
@@ -5123,7 +5133,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Formula version, the installed CLI name (whisper-cli), and Metal-default on Apple Silicon.",
       "used_by": [
@@ -5143,7 +5153,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Formula version + notarized arm64 bottle (no quarantine).",
       "used_by": [
@@ -5163,7 +5173,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "The separate tkinter formula for Homebrew Python (the folder-picker dependency) + version. URL is version-pinned; re-point when Homebrew's default Python moves past 3.13.",
       "used_by": [
@@ -5221,7 +5231,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Rewritten around .mcpb desktop-extension one-click installs (extension directory, settings, admin controls); the stdio command/args/env config now lives at mcp-connect-local-servers.",
       "used_by": [
@@ -5429,5 +5439,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "3ddecb96849e926115de7d7b3daac57e69b19cf2d6c2d768a76768f5e0fc0f9f"
+  "_content_digest": "e576ae418dfe234d402409b764b145a0d1c7991e2d583f5e95d2a8272da0e6d0"
 }
