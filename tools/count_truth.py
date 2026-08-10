@@ -35,6 +35,14 @@ def counts(root=ROOT):
                           .read_text(encoding="utf-8")).get("scenarios", [])
     except (OSError, ValueError):
         scen = []
+    # MCP tool definitions the server exposes, counted the same way tools/mcp_server.py counts them
+    # for its own selftest. Docs quote this number in smoke-test instructions, so it needs a source
+    # of truth; without one it drifts silently the way the macOS file count did.
+    try:
+        mcp_src = (root / "tools" / "mcp_server.py").read_text(encoding="utf-8")
+        mcp_tools = len(re.findall(r"(?m)^@mcp\.tool\(\)\s*$", mcp_src))
+    except OSError:
+        mcp_tools = 0
     # macOS surface files recorded in the P69/P70 completeness manifest (drift invariant 58). Kept
     # here so the number is always derivable from the tree instead of being restated in prose, which
     # is how the earlier 71-vs-72 drift happened.
@@ -48,7 +56,8 @@ def counts(root=ROOT):
     return {"spokes": len(spokes), "atoms": len(atoms), "skills": len(all_skills),
             "protocols": len(protocols), "engines": len(engines), "agent_roles": len(roles),
             "invariants": invariants, "scenarios": len(scen),
-            "mac_surface_files": mac_recorded, "mac_surface_excluded": mac_excluded}
+            "mac_surface_files": mac_recorded, "mac_surface_excluded": mac_excluded,
+            "mcp_tools": mcp_tools}
 
 
 def main(argv):

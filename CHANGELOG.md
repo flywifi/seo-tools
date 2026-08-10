@@ -13,6 +13,9 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- MCP tool-count truth (P71): `tools/count_truth.py` gains an `mcp_tools` key counting the tool
+  definitions the server registers, and drift invariant 48 now checks the smoke-test counts quoted
+  in the setup and deployment guides against it, so that number cannot drift silently.
 - macOS surface completeness gate (P69): `tools/mac_surface_manifest.py` derives the macOS
   surface mechanically from a signal sweep over every tracked text file, and
   `canonical-sources/mac-surface-manifest.json` records the sha256 each audited file was blessed
@@ -22,6 +25,18 @@ work after the baseline sits under Unreleased.
   re-blessed. Both directions are covered by the tool's offline selftest.
 
 ### Fixed
+- macOS source provenance (P71): the loopback-bind justification cited an Apple forum thread as
+  explicitly stating that loopback traffic does not trigger the local network prompt. The thread
+  says nothing about loopback; it answers a different question about sockets that listen on UDP
+  without sending. The claim now rests on the technote's own definition of a local network as one
+  on a broadcast-capable interface, quoted where the claim is made and labelled as an inference
+  from that definition rather than an Apple statement about loopback. Both registry hints are
+  corrected and the technote is stamped.
+- Two environment limitations had been recorded as facts about sources (P71): the Apple support
+  pages were said to return truncated content, and the whisper model hashes were said to be
+  unverifiable without downloading gigabytes. Both were wrong. The pages return over a megabyte
+  when retrieved directly, and the hashes verify from the redirect response headers; all six pins
+  match upstream on hash and size.
 - Correction to a P69 rationale (P70): the Homebrew Python change was justified by calling the old
   formula deprecated upstream. Re-fetching the formula API shows every `python@N` carries that same
   flag with a scheduled end-of-life date (3.11 in 2027, 3.13 in 2029, 3.14 in 2030), so it is
