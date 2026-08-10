@@ -25,9 +25,18 @@ See `docs/DEPLOYMENT.md` Option B for the full walkthrough. No Homebrew, no Pyth
 This enables the competitor intelligence extraction, offline keyword cache, source staleness
 detection, and deterministic quality scoring via the MCP server.
 
+### Which macOS you need
+
+Creator OS itself only needs **Python 3.11 or later** (`tools/setup.py` enforces that floor), and it
+does not check your macOS version. The practical floor comes from **Homebrew**, whose documentation
+states it supports **macOS Sonoma (14) or later** on officially supported hardware; 10.15 to 13 are
+unsupported but may still work, and 10.14 and older will not run it. So on macOS 13 or earlier, expect
+the Homebrew steps below to be unsupported-tier or to fail, and prefer the notarized python.org
+universal2 `.pkg`, which needs no Homebrew at all. This guide targets macOS 26 (Tahoe) and 15 (Sequoia).
+
 ### Step 1 -- Install Homebrew
 
-If not already installed:
+If not already installed (see the version note above):
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -53,8 +62,9 @@ python3 --version   # should show 3.11 or later (3.13 recommended)
 git --version
 ```
 
-If `python3` still points to the system Python (3.9 on older macOS), use the full path:
-`/opt/homebrew/bin/python3`.
+If `python3` still points to Apple's stock interpreter, use the full path:
+`/opt/homebrew/bin/python3`. (Apple's `/usr/bin/python3` is described by the Python docs as an older,
+incomplete build shipped for Xcode's own use; never modify or remove it, just do not build on it.)
 
 ### Step 3 -- Clone the repository
 

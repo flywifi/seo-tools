@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-08-09",
+  "last_registry_update": "2026-08-10",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5027,7 +5027,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "Stock /usr/bin/python3 shim behavior, python.org universal2 installer, and that Tk ships with it.",
       "used_by": [
@@ -5086,7 +5086,7 @@
       "staleness_threshold_days": 180,
       "last_checked": "2026-08-09",
       "last_changed_detected": null,
-      "extraction_hint": "Prefix (/opt/homebrew vs /usr/local) and the shellenv/PATH requirement; drives the launcher PATH export.",
+      "extraction_hint": "Prefix (/opt/homebrew vs /usr/local), the shellenv/PATH requirement, AND the Requirements section (minimum supported macOS); drives the launcher PATH export and the macOS floor stated in docs/SETUP_MAC.md.",
       "used_by": [
         "docs/SETUP_MAC.md",
         "docs/MACOS-MAINTENANCE.md"
@@ -5099,12 +5099,12 @@
     {
       "id": "homebrew-and-python",
       "name": "Homebrew - Homebrew and Python (PEP 668)",
-      "url": "https://docs.brew.sh/Homebrew-and-Python",
+      "url": "https://docs.brew.sh/Language-Runtimes-and-Packages",
       "category": "os-platform",
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-10",
       "last_changed_detected": null,
       "extraction_hint": "That Homebrew Python is externally-managed; venv/pipx guidance.",
       "used_by": [
@@ -5429,5 +5429,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "fc1fa602754a391adde05c8f1892447d37fe8bdc52f401874039cc9b69750097"
+  "_content_digest": "57248c0d72ab4b2b820e5c8eacb7956628b77a228b2bbb95ac2a3e20b57938aa"
 }

@@ -85,7 +85,7 @@ full seed shape (`id`, `name`, `url`, `category`, `tier`); an already-registered
 ```sources
 [
   {"id": "pep-668-externally-managed", "url": "https://peps.python.org/pep-0668/"},
-  {"id": "homebrew-and-python", "url": "https://docs.brew.sh/Homebrew-and-Python"},
+  {"id": "homebrew-and-python", "url": "https://docs.brew.sh/Language-Runtimes-and-Packages"},
   {"id": "homebrew-installation", "url": "https://docs.brew.sh/Installation"},
   {"id": "python-using-on-mac", "url": "https://docs.python.org/3/using/mac.html"},
   {"id": "apple-local-network-privacy-tn3179", "url": "https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy"},
@@ -101,11 +101,17 @@ full seed shape (`id`, `name`, `url`, `category`, `tier`); an already-registered
 ```
 
 Claim-to-source notes: invariants 1 and 2 (`.venv`) rest on PEP 668 + Homebrew-and-Python; invariant 3
-(brew prefixes) on Homebrew Installation; invariant 4 (loopback bind) on TN3179 plus the DTS FAQ (the
-technote implies the loopback exemption by defining local-network addresses as broadcast-capable-interface
-addresses; only the FAQ states it explicitly); invariant 5 (absolute MCP command) on the MCP
+(brew prefixes) on Homebrew Installation; invariant 4 (loopback bind) on TN3179 plus the DTS FAQ, with a
+caveat added in P70: the technote only *implies* the loopback exemption, the explicit statement comes
+from a tier-2 forum thread, and neither could be re-fetched on 2026-08-09 (the technote body renders
+client-side). Developer reports also describe localhost traffic triggering the prompt in some
+configurations. Treat the exemption as probable, not established. **The invariant does not depend on
+it**: binding 127.0.0.1 is correct because the wizard has no reason to listen on an external
+interface, and that argument stands whatever the prompt semantics turn out to be; invariant 5 (absolute MCP command) on the MCP
 connect-local-servers doc; invariants 6 and 7 (whisper) on the whisper-cpp formula + the GGML model repo;
-invariant 10 (python stub) on the Python-on-macOS doc.
+invariant 9 (TCC folder denial) on the Apple file-access guide, which is where the
+"Privacy & Security -> Files & Folders" wording comes from; invariant 10 (python stub) on the
+Python-on-macOS doc.
 
 ## Re-verification status (P69 audit, 2026-08-09)
 
@@ -125,11 +131,23 @@ stamped on an assumption. Two notes on that, so the gap is not mistaken for a ve
 - `apple-macos-intel-support` was read through Apple search results rather than a full page fetch;
   the Intel and Rosetta statements matched, but the page itself is not stamped.
 
-The remainder (the Gatekeeper security guide, TN3179 and the DTS FAQ, Rosetta, Tahoe updates, the
-Python-on-macOS doc, Homebrew-and-Python, the three formula pages, and the optional video-tool
-dependencies) are lower-risk or advisory, and are due on their normal `check_interval_days`. Treat
-this list as the honest denominator for the next currency pass, not as a backlog that was silently
-cleared.
+The remainder is NOT uniformly low-risk, and an earlier version of this section wrongly said it was.
+Ranked by what actually rests on them:
+
+- **`apple-local-network-privacy-tn3179` + `apple-local-network-privacy-faq`** are the sole backing for
+  invariant 4, a network-binding boundary, and the explicit half is a tier-2 forum thread. Both fetches
+  failed on 2026-08-09. Highest-priority re-verification, and see the caveat recorded above.
+- **`homebrew-formula-whisper-cpp`** is the sole backing for the Metal-on-Apple-Silicon / not-on-Intel
+  half of invariants 6 and 7. The verified GGML repo covers model checksums, not build-flag defaults,
+  so that claim is currently unverified.
+- **`apple-open-anyway-flow`** truncated on both attempts; the claim it backs is independently carried
+  by the fully-fetched Sequoia announcement, so the guidance itself is sourced.
+- **`apple-macos-intel-support`** was read through Apple search results rather than a full page fetch.
+- The rest (the Gatekeeper security guide, Rosetta, Tahoe updates, the two other formula pages, and the
+  optional video-tool dependencies) are genuinely advisory and are due on their normal
+  `check_interval_days`.
+
+Treat this as the honest denominator for the next currency pass, not as a backlog that was cleared.
 
 ## When you change any of this
 Update `docs/SETUP_MAC.md` and this file in the same change (the CLAUDE.md docs-in-same-PR rule); keep
