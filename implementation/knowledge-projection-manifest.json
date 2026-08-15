@@ -90,6 +90,21 @@
         "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
       }
     },
+    "implementation/gpt/web/custom-instructions-compact.md": {
+      "sources": {
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae"
+      }
+    },
+    "implementation/gpt/project/project-instructions.md": {
+      "sources": {
+        "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
+      }
+    },
     "implementation/gemini/system-instruction.md": {
       "sources": {
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
