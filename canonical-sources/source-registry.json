@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-08-10",
+  "last_registry_update": "2026-08-15",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5437,7 +5437,92 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "openai-custom-instructions-caps",
+      "name": "ChatGPT custom instructions (help center)",
+      "url": "https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-projects-help",
+      "name": "Projects in ChatGPT (help center)",
+      "url": "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-gpt-creation-policy",
+      "name": "Creating and editing GPTs (help center)",
+      "url": "https://help.openai.com/en/articles/8554397-creating-and-editing-gpts",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-migrate-to-responses",
+      "name": "OpenAI: migrate to the Responses API",
+      "url": "https://developers.openai.com/api/docs/guides/migrate-to-responses",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-08-15",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-work-with-apps",
+      "name": "Work with Apps on macOS (help center)",
+      "url": "https://help.openai.com/en/articles/10119604-work-with-apps-on-macos",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "e576ae418dfe234d402409b764b145a0d1c7991e2d583f5e95d2a8272da0e6d0"
+  "_content_digest": "2f88c09895e57d75e9efcc1417154749a37b9d9ea69b5a1e2e7905433ccd4b02"
 }

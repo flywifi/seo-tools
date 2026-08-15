@@ -4,6 +4,23 @@ Unlike `implementation/gpt/api/` (OpenAI **function specs**, where your backend 
 these are **GPT Actions**: OpenAPI schemas a no-code Custom GPT imports so the GPT calls a public
 endpoint itself. This is the "universal path" (see `docs/CROSS-MODALITY.md`).
 
+**Who can build this (verified 2026-08):** creating or publishing a NEW Custom GPT requires a
+ChatGPT Business, Enterprise, or Edu workspace; personal plans (Free/Go/Plus/Pro) can use and edit
+existing GPTs but cannot create new ones. On a personal plan, the equivalent live-tool path is a
+developer-mode MCP connector (`implementation/gpt/mcp-connector/`), and the knowledge path is a
+ChatGPT Project (`implementation/gpt/project/`). Actions remain fully supported inside
+workspace-built GPTs; `x-openai-isConsequential` drives the per-call confirmation prompt.
+
+```sources
+[
+  {"id": "openai-gpt-creation-policy", "name": "Creating and editing GPTs (help center)",
+   "url": "https://help.openai.com/en/articles/8554397-creating-and-editing-gpts",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-gpt-actions-production",
+   "url": "https://developers.openai.com/api/docs/actions/production"}
+]
+```
+
 ## Files
 | File | What it does |
 |---|---|

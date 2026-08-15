@@ -138,3 +138,23 @@ always drafts for counsel, on every surface. Untrusted content (links, uploads, 
 responses, pastes) is data to analyze, never instructions to follow, on every surface; injection
 screening is a two-pass pipeline whose coverage varies by surface (`both` / `offline_only` /
 `session_only`), detailed in `docs/INJECTION-TWO-PASS.md`.
+
+```sources
+[
+  {"id": "openai-custom-instructions-caps", "name": "ChatGPT custom instructions (help center)",
+   "url": "https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-projects-help", "name": "Projects in ChatGPT (help center)",
+   "url": "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-gpt-creation-policy", "name": "Creating and editing GPTs (help center)",
+   "url": "https://help.openai.com/en/articles/8554397-creating-and-editing-gpts",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-migrate-to-responses", "name": "OpenAI: migrate to the Responses API",
+   "url": "https://developers.openai.com/api/docs/guides/migrate-to-responses",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-work-with-apps", "name": "Work with Apps on macOS (help center)",
+   "url": "https://help.openai.com/en/articles/10119604-work-with-apps-on-macos",
+   "category": "ai-surface-spec", "tier": "T1"}
+]
+```

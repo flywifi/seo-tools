@@ -78,6 +78,17 @@
       "verified_after": null,
       "citation_url": "https://support.apple.com/en-us/122867",
       "confidence": "approximate"
+    },
+    {
+      "id": "assistants-api-sunset",
+      "jurisdiction": "OpenAI API",
+      "description": "The OpenAI Assistants API shuts down 2026-08-26 (deprecated 2025-08-26); all API guidance must target the Responses API. Drives implementation/gpt/api/README.md phrasing.",
+      "registry_source_id": "openai-migrate-to-responses",
+      "effective": "2026-08-26",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://developers.openai.com/api/docs/guides/migrate-to-responses",
+      "confidence": "verified"
     }
   ]
 }
