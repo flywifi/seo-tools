@@ -42,6 +42,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from pathlib import Path as pathlib_Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
@@ -51,6 +52,122 @@ import publishing_compliance as compliance  # noqa: E402
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
+
+_CACHE_DB = ROOT / "shared" / "cache" / "index.local.db"
+
+
+def _cache_conn():
+    """Read-only connection to the scoop cache index (mode=ro so a hosted endpoint cannot write)."""
+    import sqlite3
+    return sqlite3.connect(f"file:{_CACHE_DB}?mode=ro", uri=True)
+
+
+def _record_url(source: str) -> str:
+    """Provenance URL for a knowledge record (connector citations require a non-empty url;
+    developers.openai.com/api/docs/mcp). Canonical-source records have no public page, so the
+    repo blob path is the honest pointer."""
+    return f"https://github.com/flywifi/seo-tools/blob/main/canonical-sources/{source}"
+
+
+def _search_impl(query: str, db_path=None) -> dict:
+    """Pure connector-contract search over the cache index (stdlib only, testable without the
+    mcp package -- the P61 C19 pattern). Returns {"results": [{"id","title","url"}]}."""
+    import sqlite3
+    db = pathlib_Path(db_path) if db_path else _CACHE_DB
+    if not db.exists():
+        return {"results": [], "note": "cache not built; run: python3 shared/cache/cache.py --build"}
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        fts = conn.execute("SELECT v FROM meta WHERE k='fts5'").fetchone()[0] == "1"
+        rows = []
+        if fts:
+            try:
+                rows = conn.execute(
+                    "SELECT source, id, title FROM records WHERE records MATCH ? "
+                    "ORDER BY bm25(records) LIMIT 8", (query,)).fetchall()
+            except Exception:  # noqa: BLE001 -- FTS5 syntax errors on hostile input -> LIKE
+                rows = []
+        if not rows:
+            like = f"%{query}%"
+            rows = conn.execute(
+                "SELECT source, id, title FROM records WHERE text LIKE ? OR title LIKE ? LIMIT 8",
+                (like, like)).fetchall()
+    finally:
+        conn.close()
+    return {"results": [{"id": f"{s}::{i}", "title": ti or i, "url": _record_url(s)}
+                        for s, i, ti in rows if ".local." not in s]}
+
+
+def _fetch_impl(record_id: str, db_path=None) -> dict:
+    """Pure connector-contract fetch by "source::record" id. Refuses .local. sources so a hosted
+    endpoint can never serve records that are not committed content."""
+    import sqlite3
+    source, _, rec = record_id.partition("::")
+    db = pathlib_Path(db_path) if db_path else _CACHE_DB
+    if ".local." in source or not db.exists():
+        return {"error": "unknown id"}
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        row = conn.execute(
+            "SELECT source, id, title, text FROM records WHERE source=? AND id=?",
+            (source, rec)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return {"error": "unknown id"}
+    s, i, ttl, text = row
+    return {"id": f"{s}::{i}", "title": ttl or i, "text": text,
+            "url": _record_url(s), "metadata": {"source_file": s}}
+
+
+# Tool safety classification (P72). Pure data above the import guard so the completeness gate
+# runs in the package-independent selftest tier (CI does not install the mcp package). Every
+# tool body was read for real side effects: only _WRITE_TOOLS mutate state or launch anything;
+# _READ_DESPITE_NAME are mutation-NAMED tools verified pure (edit_build_* return XML strings the
+# caller persists; import_* parse and propose; update_check runs "report"; payment_reconcile and
+# build_calc compute). A mutation-signal name in neither map fails the selftest.
+_WRITE_TOOLS = {
+    "add_competitor":    {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
+    "configure_tool":    {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "schedule_post":     {"readOnlyHint": False, "destructiveHint": True,  "openWorldHint": True},
+    "obligation_build":  {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "invoice_build":     {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "freshness_refresh": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "launch_setup":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "submit_compute_job": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+}
+_READ_DESPITE_NAME = {
+    "update_check", "import_edit_artifact", "import_obligations", "import_finance",
+    "payment_reconcile", "edit_build_fcpxml", "edit_build_mlt", "build_calc",
+    "video_library_import_status",  # status READ; "import" names what it reports on
+}
+_DEFAULT_READONLY = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
+_MUTATION_SIGNALS = ("add_", "configure_", "schedule_", "import_", "submit_",
+                     "update_", "refresh", "reconcile", "build")
+
+
+def _static_tool_names(src: str) -> list:
+    """Tool function names in source order, from the same bare-decorator convention the static
+    count uses."""
+    import re as _re2
+    return _re2.findall(r"(?m)^@mcp\.tool\(\)\s*\ndef (\w+)\(", src)
+
+
+def _classification_problems(src: str) -> list:
+    """The completeness gate, package-independent: every mutation-signal tool NAME in the source
+    must be classified in _WRITE_TOOLS or _READ_DESPITE_NAME."""
+    problems = []
+    names = _static_tool_names(src)
+    for n in names:
+        if n in _WRITE_TOOLS or n in _READ_DESPITE_NAME:
+            continue
+        if any(s in n for s in _MUTATION_SIGNALS):
+            problems.append(f"{n}: mutation-signal name unclassified "
+                            f"(read its body, then add to _WRITE_TOOLS or _READ_DESPITE_NAME)")
+    for n in list(_WRITE_TOOLS) + sorted(_READ_DESPITE_NAME):
+        if n not in names:
+            problems.append(f"{n}: classified but no such tool in source (stale entry)")
+    return problems
 
 
 # The two helpers below are defined ABOVE the mcp package import on purpose (P61 C19): they are
@@ -199,6 +316,39 @@ def _selftest_static() -> tuple:
     # decorator (this file's own counting code included).
     static_count = len(re.findall(r"(?m)^@mcp\.tool\(\)\s*$", src))
     ok("static @mcp.tool decorators found in source", static_count > 0)
+
+    # P72: connector-contract impls + classification completeness, all package-independent.
+    probs = _classification_problems(src)
+    ok(f"every mutation-signal tool name classified ({len(probs)} problem(s))", not probs)
+    for pb in probs:
+        print(f"       {pb}")
+    import sqlite3, tempfile, os
+    with tempfile.TemporaryDirectory() as td:
+        db = os.path.join(td, "idx.db")
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE records(source TEXT, id TEXT, title TEXT, text TEXT)")
+        conn.execute("CREATE TABLE meta(k TEXT, v TEXT)")
+        conn.execute("INSERT INTO meta VALUES('fts5','0')")
+        conn.executemany("INSERT INTO records VALUES(?,?,?,?)", [
+            ("keyword-library.json", "kw1", "Fall decor keywords", "fall decor keyword list"),
+            ("seed.local.json", "sec", "Should never surface", "gitignored local record"),
+        ])
+        conn.commit(); conn.close()
+        sr = _search_impl("keyword", db_path=db)
+        ok("search returns the connector contract shape",
+           isinstance(sr.get("results"), list) and sr["results"]
+           and set(sr["results"][0]) == {"id", "title", "url"} and sr["results"][0]["url"])
+        ok("search never serves .local. records",
+           all(".local." not in r["id"] for r in sr["results"]))
+        fr = _fetch_impl(sr["results"][0]["id"], db_path=db)
+        ok("fetch round-trips a search id with contract fields",
+           {"id", "title", "text", "url", "metadata"} <= set(fr))
+        ok("fetch refuses a .local. source",
+           _fetch_impl("seed.local.json::sec", db_path=db).get("error") == "unknown id")
+        ok("hostile FTS input survives (falls back, no raise)",
+           isinstance(_search_impl('a AND ("', db_path=db).get("results"), list))
+        ok("missing db degrades to empty results with a note",
+           _search_impl("x", db_path=os.path.join(td, "absent.db")).get("results") == [])
 
     # The real config deep-merge, against temp files (globals rebound and restored).
     import tempfile
@@ -1911,6 +2061,58 @@ def job_status(job_id: str) -> str:
                        "note": "no ticket or result found for this id in the configured hub"})
 
 
+@mcp.tool()
+def search(query: str) -> str:
+    """Search the Creator OS knowledge base (the canonical-sources cache index).
+
+    ChatGPT-connector-shaped (P72): returns {"results": [{"id", "title", "url"}]} so this server
+    satisfies the plain-connector contract (ChatGPT without developer mode, and deep research,
+    require exactly-shaped search + fetch tools; developers.openai.com/api/docs/mcp). Read-only.
+
+    Args:
+        query: Full-text search query (e.g. "seasonal pinterest lead times").
+    """
+    return json.dumps(_search_impl(query))
+
+
+@mcp.tool()
+def fetch(id: str) -> str:
+    """Fetch one knowledge record by a search result id ("source::record").
+
+    ChatGPT-connector-shaped (P72): returns {"id", "title", "text", "url", "metadata"} per the
+    plain-connector contract (developers.openai.com/api/docs/mcp). Read-only; refuses gitignored
+    .local. sources.
+
+    Args:
+        id: A result id exactly as returned by search, "source-file::record-id".
+    """
+    return json.dumps(_fetch_impl(id))
+
+
+# ---------------------------------------------------------------------------
+# Tool annotations (P72): classification data lives above the import guard (package-independent
+# tier checks completeness); this applies it to the live registry. Decorators stay bare
+# @mcp.tool() because the static count matches that exact spelling.
+# ---------------------------------------------------------------------------
+
+def _apply_annotations() -> tuple:
+    """Attach ToolAnnotations to every registered tool; return (applied, problems)."""
+    try:
+        from mcp.types import ToolAnnotations
+    except ImportError:
+        return 0, ["mcp.types.ToolAnnotations unavailable; annotations skipped (old mcp package)"]
+    problems = _classification_problems(Path(__file__).read_text(encoding="utf-8"))
+    applied = 0
+    for name, tool in mcp._tool_manager._tools.items():
+        ann = _WRITE_TOOLS.get(name, _DEFAULT_READONLY)
+        try:
+            tool.annotations = ToolAnnotations(**ann)
+            applied += 1
+        except (AttributeError, TypeError) as exc:
+            problems.append(f"{name}: annotation attach failed ({exc})")
+    return applied, problems
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -1958,11 +2160,40 @@ if __name__ == "__main__":
         _match = _live == _src_count
         print(("ok   " if _match else "FAIL ")
               + f"live registered tool count {_live} == static source count {_src_count}")
-        _rc = 0 if (_match and _RC_STATIC == 0) else 1
+        # P72: annotations complete + connector contract shapes.
+        _applied, _ann_problems = _apply_annotations()
+        _ann_ok = not _ann_problems and _applied == _live
+        print(("ok   " if _ann_ok else "FAIL ")
+              + f"annotations applied to {_applied}/{_live} tools, {len(_ann_problems)} problem(s)")
+        for _pb in _ann_problems:
+            print(f"       {_pb}")
+        _shape_ok = True
+        _sr = json.loads(search("keyword"))
+        if "results" not in _sr or not isinstance(_sr["results"], list):
+            _shape_ok = False
+        for _r in _sr["results"]:
+            if set(_r) != {"id", "title", "url"} or not _r["url"]:
+                _shape_ok = False
+        _fr = json.loads(fetch(_sr["results"][0]["id"])) if _sr["results"] else {"error": "empty"}
+        if _sr["results"] and not {"id", "title", "text", "url"} <= set(_fr):
+            _shape_ok = False
+        _loc = json.loads(fetch("x.local.json::anything"))
+        if "error" not in _loc:
+            _shape_ok = False
+        _hostile = json.loads(search('a AND ("'))  # FTS syntax bomb -> must not raise
+        if "results" not in _hostile:
+            _shape_ok = False
+        print(("ok   " if _shape_ok else "FAIL ")
+              + "search/fetch match the ChatGPT connector contract shapes; .local refused; "
+              + "hostile FTS input survives")
+        _rc = 0 if (_match and _ann_ok and _shape_ok and _RC_STATIC == 0) else 1
         print(f"mcp_server selftest: full tier {'PASS' if _rc == 0 else 'FAIL'} "
               f"(package-independent tier {'PASS' if _RC_STATIC == 0 else 'FAIL'}, "
               f"{_live} tools live)")
         sys.exit(_rc)
+    _ann_applied, _ann_probs = _apply_annotations()
+    for _pb in _ann_probs:
+        print(f"[mcp-server] annotation problem: {_pb}", file=sys.stderr)
     import argparse as _argparse
     _ap = _argparse.ArgumentParser(description="Creator OS MCP server")
     _ap.add_argument("--serve-remote", action="store_true",

@@ -69,7 +69,7 @@ Run each, compare against "expected", and record the outcome in the results log 
     off for store-write, so no test data lands in the pipeline store.
 - **V4 — Claude Desktop MCP surface.**
   `echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py`
-  - Expected: a JSON-RPC response listing the tool definitions (58 at the time of writing; the exact
+  - Expected: a JSON-RPC response listing the tool definitions (60 at the time of writing; the exact
     figure is whatever `python3 tools/mcp_server.py --selftest` reports for this checkout). Then in
     Claude Desktop, confirm the server spawns and one read-only tool (for example a task scan) returns.
 - **V5 — Offline engines (optional, high value).** Run a couple of the pure-offline CLIs the way the

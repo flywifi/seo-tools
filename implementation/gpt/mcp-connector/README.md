@@ -103,3 +103,75 @@ Two rules make this reliable, and one honest limit:
 - The endpoint can read your gitignored local stores; treat its credentials like your own.
 - Revoke the connector on the surface AND rotate the token when a device is lost.
 - This runbook does not change the repo's rule: end-user deployments never touch GitHub.
+
+
+## Per-client connection cards (P72; every OpenAI client, one server)
+
+Deploying a NEW tool set? Connected clients cache the tool contract: after any deploy that adds or
+renames tools, use each client's "Refresh" on the connector (or remove and re-add it) or the new
+tools stay invisible. Bump VERSION so `get_server_info` reflects the deploy.
+
+### ChatGPT (her door: web, Plus/Pro)
+Two tiers, same server:
+- **Without developer mode (chat + deep research):** this server ships connector-contract `search`
+  and `fetch` tools over the knowledge cache, which is the exact pair ChatGPT requires from a
+  plain connector (developers.openai.com/api/docs/mcp). Add the connector by URL
+  `https://YOUR-HOST/mcp`.
+- **Developer mode (full tool set):** Settings -> Apps (Connectors) -> enable Developer mode
+  (available on Pro/Plus/Business/Enterprise/Edu on the web; help.openai.com article 12584461,
+  excerpt confidence) -> add `https://YOUR-HOST/mcp`. Write tools carry accurate
+  `destructiveHint`/`readOnlyHint` annotations, so ChatGPT prompts for confirmation on
+  `schedule_post` and friends -- that is the Creator OS human-confirmation invariant surfacing in
+  ChatGPT's own UX.
+
+### OpenAI Responses API (maintainer automation)
+```json
+{"model": "gpt-5.6", "input": "...",
+ "tools": [{"type": "mcp", "server_label": "creator-os",
+            "server_url": "https://YOUR-HOST/mcp",
+            "allowed_tools": ["search", "fetch", "cache_query", "quality_score"],
+            "require_approval": "always",
+            "authorization": "Bearer <token>"}]}
+```
+`require_approval: "always"` maps the human-confirmation invariant onto the API: the model emits
+`mcp_approval_request` and nothing runs until your code replies with an approval
+(developers.openai.com/api/docs/guides/tools-connectors-mcp). The token is resent per request and
+never stored by OpenAI. No fee beyond tokens.
+
+### OpenAI Agents SDK
+```python
+from agents import HostedMCPTool
+tool = HostedMCPTool(tool_config={
+    "server_label": "creator-os", "server_url": "https://YOUR-HOST/mcp",
+    "require_approval": "always"})
+```
+(openai.github.io/openai-agents-python/mcp/)
+
+### Codex (CLI, desktop app, IDE -- one shared config)
+`~/.codex/config.toml` (or project-scoped `.codex/config.toml`;
+learn.chatgpt.com/docs/extend/mcp):
+```toml
+# local stdio -- the SAME server Claude Desktop runs, no hosting needed:
+[mcp_servers.creator-os]
+command = "/ABSOLUTE/PATH/seo-tools/.venv/bin/python3"
+args = ["/ABSOLUTE/PATH/seo-tools/tools/mcp_server.py"]
+
+# or remote:
+# [mcp_servers.creator-os]
+# url = "https://YOUR-HOST/mcp"
+# bearer_token_env_var = "CREATOR_OS_MCP_TOKEN"
+```
+Or: `codex mcp add creator-os -- /ABSOLUTE/PATH/.venv/bin/python3 /ABSOLUTE/PATH/tools/mcp_server.py`
+
+```sources
+[
+  {"id": "openai-connector-contract", "name": "Connect ChatGPT to MCP servers (search/fetch contract)",
+   "url": "https://developers.openai.com/api/docs/mcp",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "codex-mcp-config", "name": "Codex MCP configuration (config.toml)",
+   "url": "https://learn.chatgpt.com/docs/extend/mcp",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-responses-mcp",
+   "url": "https://developers.openai.com/api/docs/guides/tools-connectors-mcp"}
+]
+```

@@ -5522,7 +5522,41 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "openai-connector-contract",
+      "name": "Connect ChatGPT to MCP servers (search/fetch contract)",
+      "url": "https://developers.openai.com/api/docs/mcp",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-08-15",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "codex-mcp-config",
+      "name": "Codex MCP configuration (config.toml)",
+      "url": "https://learn.chatgpt.com/docs/extend/mcp",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-08-15",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "2f88c09895e57d75e9efcc1417154749a37b9d9ea69b5a1e2e7905433ccd4b02"
+  "_content_digest": "2cc97b86df1e3fd4fa6f28f906b045fed3bdf1be61f8bf68fbd4ed2d2314b560"
 }

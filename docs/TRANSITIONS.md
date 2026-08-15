@@ -155,6 +155,12 @@ screening is a two-pass pipeline whose coverage varies by surface (`both` / `off
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "openai-work-with-apps", "name": "Work with Apps on macOS (help center)",
    "url": "https://help.openai.com/en/articles/10119604-work-with-apps-on-macos",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-connector-contract", "name": "Connect ChatGPT to MCP servers (search/fetch contract)",
+   "url": "https://developers.openai.com/api/docs/mcp",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "codex-mcp-config", "name": "Codex MCP configuration (config.toml)",
+   "url": "https://learn.chatgpt.com/docs/extend/mcp",
    "category": "ai-surface-spec", "tier": "T1"}
 ]
 ```
