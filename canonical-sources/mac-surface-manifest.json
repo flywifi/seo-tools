@@ -8,6 +8,7 @@
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
   "files": {
+    "AGENTS.md": "8c56c0a3568641e1346e10d98edd4726b375d53c96b1396122a3181abc2b662b",
     "Start Creator OS Setup.bat": "07aadbcc8c91b73b5689ceee0b3a4c640812a7612c86397772a030990aef3f7a",
     "Start Creator OS Setup.command": "946cc79626df870b7127580ca8eedbc278820fa225767a9d55d9f0db614a8c87",
     "canonical-sources/dependency-sources-seed.json": "53237bd235a9c24dbea32259a732a192300e819146e0757ea4c74cd4efe54ce4",
@@ -30,7 +31,7 @@
     "docs/PUBLISHING.md": "f0766d7cd42e5c119a844c7bb5c1f33875171996ff7fefc8b6f467fd6ef9337b",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
     "docs/SETUP_MAC.md": "678224e1b8b63dde76b5727f8e916e00e8c9df051184119082ff6edbb05b1858",
-    "docs/TRANSITIONS.md": "b95e346c9b64ddc18b989c8f806f04d39112a0723445d951e09b852928694df2",
+    "docs/TRANSITIONS.md": "d03e3777f3a527ea1d4bc9081712964b63b7d9ae5d1f109a964356a4badbde6a",
     "docs/VIDEO_EDITING.md": "8d8ac2383d7b1920aaa1e4b0366cb43eed932ebea46a06c0a9d6493ce29f0ca7",
     "docs/VIDEO_TOOLING_EVAL.md": "b9207405b3ab9b540e31812e92ebec57ef88adb2956dc62011c88240ec8ea4f7",
     "docs/WIZARD.md": "cf63ba664cf77c0d25f4aa4869587f64d8c565eca23810b4adcc80d763b40c1b",
@@ -45,7 +46,7 @@
     "docs/adr/0044-p61-work-orders-and-ingest-screening.md": "238a4b4c3fb51b9203449641cddc7ae7987a5291257f427617df8e8959074700",
     "docs/adr/0048-p66-audit-remediation.md": "bd2e8e75d647db9bb1fd892feb6c565fceb11ec25f0cc6db9bcddd7ccd54ecae",
     "docs/adr/0051-p69-macos-audit-completeness-gate.md": "bc1ac29fbc0c52475c1a74e302dc7dfad885043647f8277049fcae2dba946a56",
-    "docs/adr/README.md": "859794625db0d798c5dbcc889795078b86213372a9f26ed1ceadd02886ecab4e",
+    "docs/adr/README.md": "ae8c54f41ae299754c1f869d4d68cdaeeb5b0876332ab9b8aa4eae5320e3fe0d",
     "docs/persona-audit-2026-07-15.md": "e97a68e156c8c8c7300f9ba5e31fc93b17166fb75fad2e5faaa47108f182c56e",
     "docs/video-tooling-integration-evidence.json": "588d2eefd8027d5a92da98466648ffc6f460fe828fdbe1a3f5c9d4400f1a783e",
     "docs/video-tooling-scores.json": "f9c1e67806d21d60a8e65ab9e5c8172604573b4caeb944c3f2bcd9ceb88e7655",

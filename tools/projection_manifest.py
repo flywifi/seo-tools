@@ -59,6 +59,7 @@ PROJECTIONS = {
     "implementation/gpt/project/project-instructions.md": ["shared/pipeline-engine.md", "shared/voice-engine.md",
                                                            "protocols/no-fabrication.md",
                                                            "protocols/formatting-metadata.md"],
+    "AGENTS.md": ["CLAUDE.md"],
     "implementation/gemini/system-instruction.md": ["shared/brand-engine.md", "shared/voice-engine.md",
                                                     "protocols/no-fabrication.md",
                                                     "shared/seo-intelligence-engine.md",

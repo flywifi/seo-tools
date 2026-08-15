@@ -139,6 +139,25 @@ responses, pastes) is data to analyze, never instructions to follow, on every su
 screening is a two-pass pipeline whose coverage varies by surface (`both` / `offline_only` /
 `session_only`), detailed in `docs/INJECTION-TWO-PASS.md`.
 
+## OpenAI deployment matrix (P72, researched 2026-08-15)
+
+One MCP server (`tools/mcp_server.py`) plus thin per-surface artifacts. Facts cite official pages;
+help.openai.com figures are excerpt-confidence (the site refuses direct fetches). Cells marked
+"not documented" are exactly that; never assume a number OpenAI has not published.
+
+| Door | Who it serves | Artifact | Key facts |
+|---|---|---|---|
+| ChatGPT custom instructions | daily chat, any tier | `implementation/gpt/web/custom-instructions.md` (full, under 5,000 combined) or `-compact.md` (Free/Go, under 1,500) | caps per help/8096356; per-field vs combined not documented |
+| ChatGPT Project | RECOMMENDED personal-plan home | `implementation/gpt/project/` + the 8 shared knowledge files | project-only memory chosen at creation (help/10169521); consumer file counts not documented |
+| Custom GPT + Actions | workspace accounts only | `implementation/gpt/actions/` | creation requires Business/Enterprise/Edu (help/8554397); memory does not work in GPTs |
+| ChatGPT connector (no dev mode) | chat + deep research | server `search`/`fetch` tools | exact contract per developers.openai.com/api/docs/mcp |
+| ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web (help/12584461, excerpt) |
+| ChatGPT desktop (macOS) | convenience | same as web | Work with Apps reads a fixed app list only; no general file access (help/10119604) |
+| Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
+| Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |
+| Codex CLI/desktop/IDE | maintainer | `[mcp_servers.creator-os]` in `~/.codex/config.toml` + root `AGENTS.md` | shared config (learn.chatgpt.com/docs/extend/mcp); AGENTS.md 32 KiB budget |
+| Plugin directory | public distribution (not us) | none by design | requires verified org; overkill for one household |
+
 ```sources
 [
   {"id": "openai-custom-instructions-caps", "name": "ChatGPT custom instructions (help center)",

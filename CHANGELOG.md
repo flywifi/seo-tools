@@ -13,6 +13,21 @@ work after the baseline sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- OpenAI parity (P72): connector-contract `search`/`fetch` tools and post-registration MCP tool
+  annotations with a classification completeness gate (60 tools; eight write, `schedule_post`
+  destructive-hinted); a ChatGPT Projects bundle (`implementation/gpt/project/`) reusing the eight
+  shared knowledge files; a compact custom-instructions variant for Free/Go; per-client connection
+  cards (ChatGPT with and without developer mode, Responses API, Agents SDK, Codex config.toml);
+  a root `AGENTS.md` projected from CLAUDE.md for Codex; `tools/surface_budgets.py` enforcing
+  documented external caps; and the OpenAI deployment matrix in `docs/TRANSITIONS.md`.
+
+### Fixed
+- OpenAI surface truth (P72): Custom GPT creation is workspace-only now and the docs say so; the
+  Assistants API sunset is a tracked moving date; the desktop app's Work with Apps limits are
+  stated; the never-paste-validated custom instructions are trimmed under the 5,000-character
+  combined cap and machine-checked.
+
+### Added
 - MCP tool-count truth (P71): `tools/count_truth.py` gains an `mcp_tools` key counting the tool
   definitions the server registers, and drift invariant 48 now checks the smoke-test counts quoted
   in the setup and deployment guides against it, so that number cannot drift silently.

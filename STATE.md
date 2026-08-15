@@ -2,7 +2,7 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P71 are complete. Drift guard exits 0 (58 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P72 are complete. Drift guard exits 0 (58 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P68: Verification hardening (ADR 0050, 2026-07-20). Remediated the nine defects an adversarial
   audit of the P67 commits found, and closed the five process gaps that let them survive P65/P66

@@ -105,6 +105,11 @@
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
       }
     },
+    "AGENTS.md": {
+      "sources": {
+        "CLAUDE.md": "35b3b11cb1c5fef3d62794ce27d4a7dd46d8443d7e60ab80066543ece7f7979e"
+      }
+    },
     "implementation/gemini/system-instruction.md": {
       "sources": {
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",

@@ -60,3 +60,4 @@ added beyond what those records state. New decisions get the next number via
 | [0049](0049-p67-production-hardening.md) | P67 Production-readiness hardening (in-repo slices) | 2026-07-19 | Accepted |
 | [0050](0050-p68-verification-hardening.md) | P68 Verification hardening (why nine defects survived) | 2026-07-20 | Accepted |
 | [0051](0051-p69-macos-audit-completeness-gate.md) | P69 macOS audit closes with a derived completeness gate | 2026-08-09 | Accepted |
+| [0052](0052-p72-openai-parity.md) | P72 OpenAI parity: one MCP server plus thin per-surface doors | 2026-08-15 | Accepted |
