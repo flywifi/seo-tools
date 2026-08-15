@@ -74,8 +74,8 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 
 ## Knowledge-only mode note
 
-In Claude Projects (web/mobile) mode, `document-studio` produces structured project snapshots,
+In knowledge-only (Projects) mode, on any surface,, `document-studio` produces structured project snapshots,
 materials lists, step sequences, and caption sets directly from the user's description without
 requiring a file upload. The `ingest-route` and `transcription-engine` steps are skipped when no
 file is provided. The output follows the same artifact schema; `injection_scan_result` is set to
-`SKIPPED_NO_FILE`. This is the default behavior in Claude Projects mode.
+`SKIPPED_NO_FILE`. This is the default behavior in knowledge-only Projects mode.

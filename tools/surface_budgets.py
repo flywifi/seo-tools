@@ -64,7 +64,11 @@ def check(root: Path = ROOT) -> list:
                             f"combined cap (help/8096356, worst reading)")
     for rel, cap, why in FILE_BUDGETS:
         p = root / rel
-        if p.exists() and len(p.read_bytes()) > cap:
+        if not p.exists():
+            # P72 D6: a budgeted artifact that vanished must not pass silently.
+            problems.append(f"{rel}: missing (budgeted artifact; deleted or moved)")
+            continue
+        if len(p.read_bytes()) > cap:
             problems.append(f"{rel}: {len(p.read_bytes())} bytes > {cap} ({why})")
     return problems
 

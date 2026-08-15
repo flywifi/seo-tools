@@ -116,6 +116,12 @@ def check(root=ROOT):
                  "note": f"manifest unreadable: {exc}"}]
     recorded = manifest.get("projections", {})
     stale = []
+    # P72 D6: a projection file that has been DELETED must not pass silently -- the manifest
+    # records it, so its absence is staleness of the strongest kind.
+    for kf in _projections(root):
+        if not (root / kf).exists():
+            stale.append({"knowledge_file": kf, "changed_sources": [], "missing_sources": [],
+                          "note": "projection file missing (deleted or moved)"})
     for kf, sources in _projections(root).items():
         rec = recorded.get(kf, {}).get("sources", {})
         changed, missing = [], []

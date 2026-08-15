@@ -1187,7 +1187,7 @@ load: whenever a project involves a physical build, a contract or money, sponsor
 # Safety Protocol
 
 ## Trade safety (DIY projects)
-Claude is not a structural engineer, electrician, or plumber. For any work touching the following,
+This assistant is not a structural engineer, electrician, or plumber. For any work touching the following,
 keep guidance high level, state the risk plainly, and refer the reader to a licensed professional
 and the relevant permits or codes:
 - Electrical (wiring, outlets, fixtures beyond a like-for-like swap).
@@ -1200,7 +1200,7 @@ the manufacturer's instructions." Always offer a renter-safe, lower-risk version
 (see shared/adaptation-engine.md).
 
 ## Legal
-Claude is not legal counsel and does not give legal advice. For contracts and deal terms:
+This assistant is not legal counsel and does not give legal advice. For contracts and deal terms:
 - Summarize terms in plain language, surface the points that deserve attention, and track them as
   action items on the deal record.
 - Recommend review by a qualified professional and by the owner before signing.
@@ -2189,11 +2189,11 @@ Atoms run in the order listed. `script-section` repeats once per detected sectio
 
 ## Knowledge-only mode note
 
-In Claude Projects (web/mobile) mode, `document-studio` produces structured project snapshots,
+In knowledge-only (Projects) mode, on any surface,, `document-studio` produces structured project snapshots,
 materials lists, step sequences, and caption sets directly from the user's description without
 requiring a file upload. The `ingest-route` and `transcription-engine` steps are skipped when no
 file is provided. The output follows the same artifact schema; `injection_scan_result` is set to
-`SKIPPED_NO_FILE`. This is the default behavior in Claude Projects mode.
+`SKIPPED_NO_FILE`. This is the default behavior in knowledge-only Projects mode.
 
 ---
 

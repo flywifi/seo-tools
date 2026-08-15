@@ -55,8 +55,9 @@ it from the two surface records.
   `implementation/gpt/web/custom-instructions.md` into ChatGPT settings) and carry data as dated
   export files. Everything computed locally stops: finance math, template assembly, obligation
   dates, the deterministic quality score, flag enforcement. Your computer stays authoritative.
-- **Claude Desktop to a Custom GPT:** run the export-gpt package (instruction + up to 20
-  knowledge files); optionally add the jurisdiction Action. The Action sends what you type to
+- **Claude Desktop to a Custom GPT** (workspace accounts only; as of 2026-08 personal plans cannot
+  create new GPTs -- use a ChatGPT Project instead): run the export-gpt package (instruction + up
+  to 20 knowledge files); optionally add the jurisdiction Action. The Action sends what you type to
   OpenAI and the public endpoint; the local ask-first consent step does not apply there.
 - **Claude Desktop to ChatGPT Projects:** reuse the same package as Project instructions +
   files. Limits vary by plan [NEEDS VERIFICATION: check your plan].

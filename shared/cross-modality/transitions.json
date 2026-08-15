@@ -370,7 +370,7 @@
         "the local ask-first consent step for live lookups (the Action calls public endpoints from OpenAI's side)"
       ],
       "reimport_steps": [
-        "paste the instruction file in the GPT builder",
+        "If your plan can build GPTs (Business/Enterprise/Edu workspaces only as of 2026-08; personal plans cannot create new GPTs -- use a ChatGPT Project instead): paste the instruction file in the GPT builder",
         "upload the knowledge files",
         "re-export and re-upload when the packaging version changes"
       ],

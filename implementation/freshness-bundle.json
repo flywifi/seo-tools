@@ -17,7 +17,7 @@
     },
     {
       "file": "implementation/claude/project/knowledge/04-protocols.md",
-      "sha256": "b38c037938498c5e9a1226518083c77f89c21ffb3f595859d27deba4e7756c95"
+      "sha256": "e73c44bc4911806930dfbd3a1ca4853605b6f58fb3bf449d2ad357cb60c316ee"
     },
     {
       "file": "implementation/claude/project/knowledge/05-content-spokes.md",
@@ -25,7 +25,7 @@
     },
     {
       "file": "implementation/claude/project/knowledge/06-document-spoke.md",
-      "sha256": "fb57b513e023979782d9ac66392e046280c37fc8665802e672a03bba42b148a5"
+      "sha256": "9499bd65ccd5d3cf820f478e9c4452688c315ae05ca074ad90c008c62068af49"
     },
     {
       "file": "implementation/claude/project/knowledge/07-pipeline-spokes.md",
@@ -41,7 +41,7 @@
     },
     {
       "file": "implementation/claude/project/creator-os-combined.md",
-      "sha256": "a7986dc22274d2c027f43cd3340de3bdb43ca2aeb3259274e5efccab1b4f93d7"
+      "sha256": "2647a1ef5c3d6d934f00649da7b4f1fd12225f89444d8545e07febb9ddc89aab"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",

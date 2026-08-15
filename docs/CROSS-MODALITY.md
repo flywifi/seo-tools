@@ -42,7 +42,7 @@ connector.
   (`--serve-remote` or a bare `--transport streamable-http`/`sse`) refuses a non-loopback bind with
   no `CREATOR_OS_MCP_TOKEN` and no `--insecure`, and enforces an in-process bearer gate when a
   token is set. ChatGPT registration steps carry needs-verification tags (plan gating).
-- **Custom GPT:** in the GPT builder, add an **Action** and paste
+- **Custom GPT** (building requires a Business/Enterprise/Edu workspace as of 2026-08): in the GPT builder, add an **Action** and paste
   `implementation/gpt/actions/jurisdiction_overlay_action.yaml`. Auth = none (all endpoints are keyless).
   The GPT calls the public ArcGIS/FEMA/Census endpoints itself.
 - **Gemini API:** load `implementation/gemini/jurisdiction-function-declarations.json` as

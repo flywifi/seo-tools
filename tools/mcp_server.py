@@ -64,9 +64,11 @@ def _cache_conn():
 
 def _record_url(source: str) -> str:
     """Provenance URL for a knowledge record (connector citations require a non-empty url;
-    developers.openai.com/api/docs/mcp). Canonical-source records have no public page, so the
-    repo blob path is the honest pointer."""
-    return f"https://github.com/flywifi/seo-tools/blob/main/canonical-sources/{source}"
+    developers.openai.com/api/docs/mcp). The cache stores `source` REPO-RELATIVE (it already
+    starts with canonical-sources/; shared/cache/cache.py::str(jf.relative_to(ROOT))), so no
+    prefix is added here -- the P72 adversarial pass caught the doubled-segment 404 this
+    comment now guards against."""
+    return f"https://github.com/flywifi/seo-tools/blob/main/{source}"
 
 
 def _search_impl(query: str, db_path=None) -> dict:
@@ -84,14 +86,15 @@ def _search_impl(query: str, db_path=None) -> dict:
             try:
                 rows = conn.execute(
                     "SELECT source, id, title FROM records WHERE records MATCH ? "
-                    "ORDER BY bm25(records) LIMIT 8", (query,)).fetchall()
+                    "AND source NOT LIKE '%.local.%' ORDER BY bm25(records) LIMIT 8",
+                    (query,)).fetchall()
             except Exception:  # noqa: BLE001 -- FTS5 syntax errors on hostile input -> LIKE
                 rows = []
         if not rows:
             like = f"%{query}%"
             rows = conn.execute(
-                "SELECT source, id, title FROM records WHERE text LIKE ? OR title LIKE ? LIMIT 8",
-                (like, like)).fetchall()
+                "SELECT source, id, title FROM records WHERE (text LIKE ? OR title LIKE ?) "
+                "AND source NOT LIKE '%.local.%' LIMIT 8", (like, like)).fetchall()
     finally:
         conn.close()
     return {"results": [{"id": f"{s}::{i}", "title": ti or i, "url": _record_url(s)}
@@ -135,6 +138,10 @@ _WRITE_TOOLS = {
     "freshness_refresh": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "launch_setup":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "submit_compute_job": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    # Writes a caller-supplied overlay path via source_currency check --apply; the wrapper's
+    # overlay_path-required guard is the ONLY thing keeping it off the repo registry (P72 D3) --
+    # that guard is load-bearing, do not remove it.
+    "currency_detect_changes": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
 }
 _READ_DESPITE_NAME = {
     "update_check", "import_edit_artifact", "import_obligations", "import_finance",
@@ -143,7 +150,7 @@ _READ_DESPITE_NAME = {
 }
 _DEFAULT_READONLY = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
 _MUTATION_SIGNALS = ("add_", "configure_", "schedule_", "import_", "submit_",
-                     "update_", "refresh", "reconcile", "build")
+                     "update_", "refresh", "reconcile", "build", "detect", "apply")
 
 
 def _static_tool_names(src: str) -> list:
@@ -330,8 +337,10 @@ def _selftest_static() -> tuple:
         conn.execute("CREATE TABLE meta(k TEXT, v TEXT)")
         conn.execute("INSERT INTO meta VALUES('fts5','0')")
         conn.executemany("INSERT INTO records VALUES(?,?,?,?)", [
-            ("keyword-library.json", "kw1", "Fall decor keywords", "fall decor keyword list"),
-            ("seed.local.json", "sec", "Should never surface", "gitignored local record"),
+            ("canonical-sources/keyword-library.json", "kw1", "Fall decor keywords",
+             "fall decor keyword list"),
+            ("canonical-sources/seed.local.json", "sec", "Should never surface",
+             "gitignored local record"),
         ])
         conn.commit(); conn.close()
         sr = _search_impl("keyword", db_path=db)
@@ -341,10 +350,14 @@ def _selftest_static() -> tuple:
         ok("search never serves .local. records",
            all(".local." not in r["id"] for r in sr["results"]))
         fr = _fetch_impl(sr["results"][0]["id"], db_path=db)
-        ok("fetch round-trips a search id with contract fields",
-           {"id", "title", "text", "url", "metadata"} <= set(fr))
+        ok("fetch returns EXACTLY the contract fields",
+           set(fr) == {"id", "title", "text", "url", "metadata"})
+        ok("citation url is repo-relative once, never doubled (P72 D1)",
+           sr["results"][0]["url"].endswith("/canonical-sources/keyword-library.json")
+           and "canonical-sources/canonical-sources" not in sr["results"][0]["url"])
         ok("fetch refuses a .local. source",
-           _fetch_impl("seed.local.json::sec", db_path=db).get("error") == "unknown id")
+           _fetch_impl("canonical-sources/seed.local.json::sec", db_path=db).get("error")
+           == "unknown id")
         ok("hostile FTS input survives (falls back, no raise)",
            isinstance(_search_impl('a AND ("', db_path=db).get("results"), list))
         ok("missing db degrades to empty results with a note",
@@ -670,6 +683,9 @@ def currency_detect_changes(overlay_path: str, apply: bool = False, category: st
         category: Optional category filter.
         only: Optional single source id.
     """
+    # LOAD-BEARING guard (P72 D3): without overlay_path the underlying CLI would stamp the
+    # committed source registry itself. This check is what confines a hosted endpoint's writes
+    # to the caller's own store; treat any refactor of it as a security change.
     if not overlay_path:
         return json.dumps({"error": "overlay_path is required so all writes stay in your own store"})
     cmd = [sys.executable, str(ROOT / "tools" / "source_currency.py"), "check",
