@@ -15,7 +15,7 @@
     "canonical-sources/dependency-sources-seed.json": "53237bd235a9c24dbea32259a732a192300e819146e0757ea4c74cd4efe54ce4",
     "canonical-sources/moving-dates.json": "2cf2f3bcbff933fa6862b4e141398afaf17c8ffd25738dddc27fc4d4ba58bc84",
     "canonical-sources/operational-url-allowlist.json": "799eed2d9612ea707d7fb9f4a4e382c2046122caf12f95290006a94221ab6abd",
-    "canonical-sources/volatile-corrections.2026-07-14.json": "dd6255e211471340cc7ac2c32386a1615816f0b68f3189e00f79363c446bf742",
+    "canonical-sources/volatile-corrections.2026-07-14.json": "01f5c205dad9eb490a15988e0f1c24968f0b6e0b55181649899ffbc94d5029d0",
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
     "creator-os-config.json": "93085246edba933742de04ebce830e4aece40f37370c40b2aef659ef74711676",
     "docs/ARCHITECTURE.md": "4ef2af9196bf985947e07c611fbafb8b01adad1b6e0ab24ef30d9aff73a83003",

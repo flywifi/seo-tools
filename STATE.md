@@ -2,7 +2,21 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P72 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P73 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P73: Production-readiness audit (ADR 0053, 2026-08-16). Six dimension audits (integrity,
+  completeness, accuracy, truthfulness, consistency, adaptability) run as monitored waves, each
+  finding triaged and reproduced by the main loop before it was accepted. Two safety defects led:
+  the MCP annotation gate classified tools by name signal, so an unanticipated write tool inherited
+  `readOnlyHint: True` (the hint clients use to skip confirmation), and `configure_tool` overwrote
+  an unparseable local config, destroying the publishing flags and remote token in a gitignored
+  file. Both are fixed fail-closed with permanent selftest cases. Three guards were given
+  forward-coverage so they detect the next drift rather than the last: count-truth enrolment is now
+  swept rather than curated (it caught two unguarded claims immediately, one added earlier in the
+  same audit), citation registration recognises shorthand, and the Mac vocabulary proposes unknown
+  macOS concepts for review. Four single points of failure were fixed with the recovery
+  documentation each lacked. The audit also corrected its own regressions: a ChatGPT-web prose fix
+  from earlier in the phase had changed the docs without the data model.
 
 - P68: Verification hardening (ADR 0050, 2026-07-20). Remediated the nine defects an adversarial
   audit of the P67 commits found, and closed the five process gaps that let them survive P65/P66

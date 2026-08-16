@@ -13,7 +13,8 @@
       "target": "requirements-mcp.txt: change the `mcp` line to `mcp>=1.28,<2`",
       "apply_command": "python3 - <<'PY'\nimport pathlib\np=pathlib.Path('requirements-mcp.txt'); t=p.read_text().splitlines()\nt=[('mcp>=1.28,<2' if l.strip()=='mcp' else l) for l in t]\np.write_text('\\n'.join(t)+'\\n')\nPY",
       "apply_kind": "file-edit",
-      "status": "proposed"
+      "status": "applied",
+      "applied_note": "P73: applied 2026-08-16. requirements-mcp.txt pins `mcp>=1.28,<2`. The risk this entry staged as future had already materialized: mcp 2.0.0 stable shipped 2026-07-28 (dep-mcp.latest_seen), so an unbounded pin would have installed a breaking major on any fresh setup."
     },
     {
       "id": "vc-dep-mcp-validated-version",
@@ -26,7 +27,8 @@
       "apply_command": "python3 tools/dependency_currency.py check --apply --only dep-mcp   # after requirements-mcp.txt is pinned; then re-check that validated_version is populated",
       "apply_kind": "registry-field-update",
       "apply_verification": "[NEEDS VERIFICATION at apply] dependency_currency --apply stamps last_checked/latest_seen but may not write validated_version; if it does not, upsert the dep-mcp record via `source_currency.py seed-sources` with validated_version set. Never hand-edit the registry.",
-      "status": "proposed"
+      "status": "proposed",
+      "blocked_note": "P73, 2026-08-16: still open, and BLOCKED on a missing tool capability rather than on effort. dep-mcp.validated_version is null and pinned_constraint is empty, so the drift checker has no baseline to compare 2.0.0 against even though requirements-mcp.txt now bounds the install. No sanctioned CLI can set these two fields: source_currency update-source handles url/category/name/tier/extraction-hint/used-by only, and dependency_currency --apply stamps last_checked/latest_seen. Hand-editing source-registry.json is forbidden. The fix is a verb on dependency_currency (for example `set-baseline <id> --validated-version X --pin Y`) writing through registry_io; until it exists this entry cannot be applied without violating the single-writer rule."
     },
     {
       "id": "vc-ny-synthetic-performer",
@@ -38,7 +40,8 @@
       "target": "Re-verify the source, then mark it checked-and-changed so the affected atoms are flagged.",
       "apply_command": "python3 tools/source_currency.py mark-checked ny-synthetic-performer-law --changed",
       "apply_kind": "registry-mark-checked",
-      "status": "proposed"
+      "status": "overdue",
+      "overdue_note": "P73, 2026-08-16: The New York synthetic-performer disclosure law took effect 2026-06-09. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral."
     },
     {
       "id": "vc-tiktok-rate-limit",
@@ -63,7 +66,8 @@
       "target": "Seed the proposed source in canonical-sources/eu-ai-act-seed.json, then re-stamp the freshness baseline (adding a source id moves the digest).",
       "apply_command": "see canonical-sources/eu-ai-act-seed.json apply_command (seed the source, then python3 tools/build_freshness_bundle.py --apply)",
       "apply_kind": "seed-new-source-then-restamp",
-      "status": "proposed"
+      "status": "overdue",
+      "overdue_note": "P73, 2026-08-16: EU AI Act Article 50 obligations became applicable 2026-08-02. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral."
     },
     {
       "id": "vc-ca-sb942-phase2",
@@ -75,7 +79,8 @@
       "target": "Already captured as a phase_2 date in moving-dates.json (ca-ai-transparency-sb942); no registry change needed until 2026-08-02 approaches.",
       "apply_command": "# no action until the operative date nears; moving-dates.json already tracks both dates",
       "apply_kind": "already-staged",
-      "status": "proposed"
+      "status": "overdue",
+      "overdue_note": "P73, 2026-08-16: California SB 942 phase 2 became operative 2026-08-02. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral."
     },
     {
       "id": "vc-mcp-spec-version",
@@ -87,7 +92,8 @@
       "target": "Update any MCP-spec revision reference to 2025-11-25 where one is cited.",
       "apply_command": "# doc edit only where an MCP spec revision is referenced",
       "apply_kind": "doc-comment-edit",
-      "status": "proposed"
+      "status": "no-op",
+      "applied_note": "P73: verified 2026-08-16 that no stale MCP spec revision is cited anywhere. Every live reference already reads 2025-11-25 (implementation/gpt/mcp-connector/README.md, docs/CROSS-MODALITY.md, the registry entry). Nothing to change; kept as a record so the check is not repeated."
     },
     {
       "id": "vc-stamp-unchanged-batch",
@@ -103,9 +109,25 @@
     }
   ],
   "retained_needs_verification": [
-    {"item": "Instagram Graph API v26.0", "note": "a v26.0 may exist; v25.0 is the pinned, verified version. Secondary; re-check before relying.", "citation_url": "https://developers.facebook.com/docs/graph-api/changelog"},
-    {"item": "FTC ~May-2026 staff guidance", "note": "secondary source; not load-bearing. Re-check before citing.", "citation_url": "https://www.ftc.gov/news-events"},
-    {"item": "plan-gated ChatGPT / Claude / Gemini surface behaviors", "note": "surface capabilities are plan-gated and change without notice; treat as provisional.", "citation_url": null},
-    {"item": "the three large GGML hashes (medium, large-v3, large-v3-turbo)", "note": "not re-fetched this pass; the whisper-models.json values stand until re-verified.", "citation_url": "https://huggingface.co/ggerganov/whisper.cpp"}
+    {
+      "item": "Instagram Graph API v26.0",
+      "note": "a v26.0 may exist; v25.0 is the pinned, verified version. Secondary; re-check before relying.",
+      "citation_url": "https://developers.facebook.com/docs/graph-api/changelog"
+    },
+    {
+      "item": "FTC ~May-2026 staff guidance",
+      "note": "secondary source; not load-bearing. Re-check before citing.",
+      "citation_url": "https://www.ftc.gov/news-events"
+    },
+    {
+      "item": "plan-gated ChatGPT / Claude / Gemini surface behaviors",
+      "note": "surface capabilities are plan-gated and change without notice; treat as provisional.",
+      "citation_url": null
+    },
+    {
+      "item": "the three large GGML hashes (medium, large-v3, large-v3-turbo)",
+      "note": "not re-fetched this pass; the whisper-models.json values stand until re-verified.",
+      "citation_url": "https://huggingface.co/ggerganov/whisper.cpp"
+    }
   ]
 }

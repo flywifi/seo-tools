@@ -12,6 +12,57 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Security
+- MCP tool annotations are fail-closed (P73): every tool must be explicitly classified as a write,
+  a mutation-sounding non-persisting call, or a verified read. Classification previously keyed off
+  a mutation-signal name list, so a tool the list did not anticipate silently inherited
+  `readOnlyHint: True` -- the hint clients use to skip a confirmation prompt -- while complete
+  OAuth upload clients sit behind `live_publishing_enabled` waiting to be ungated. An unclassified
+  tool now fails the selftest, proven by a permanent synthetic case whose name matches no signal.
+- `configure_tool` no longer destroys a malformed local config (P73). An unparseable
+  `creator-os-config.local.json` was treated as an empty file and overwritten, discarding the
+  publishing flags, remote token and update channel in a gitignored file with no recovery. The
+  bytes are backed up before any write, the tool refuses if the backup fails, and the loader that
+  silently reverted every capability to committed defaults now warns.
+
+### Added
+- Forward-coverage for three guards (P73): the count-truth invariant sweeps every tracked document
+  for a global count claim and fails when one is stated outside the enrolled set (it caught two
+  unguarded claims on its first run); the source-registration invariant recognises scheme-less
+  shorthand citations, scanning the tracked file list rather than the narrower reference set that
+  excludes the tool whose enforced size caps depend on those citations; and the Mac signal
+  vocabulary gains a candidate sweep that proposes files using macOS concepts the vocabulary has
+  never learned, so the completeness gate cannot report complete while blind to a new category.
+- The projection manifest pins each projection's own bytes (P73), so a projection hand-edited into
+  disagreement with its source is detected. Only source hashes were recorded before, which is how
+  `AGENTS.md` carried a narrowed version of the registry single-writer rule for a full phase.
+- `CREATOR_OS_WIZARD_PORT` overrides the wizard port for a collision (P73), keeping 8765 as the
+  default because the registered OAuth redirect URIs embed it.
+
+### Fixed
+- The launcher probes the private `.venv` instead of trusting it to exist (P73). A Homebrew Python
+  upgrade relocates the framework the venv links against, leaving an interpreter that still passes
+  an executable test but cannot run, so the working fallbacks were skipped and the user saw a dyld
+  traceback instead of the install instructions.
+- Registry writes are atomic (P73): serialize in full, write a sibling temp file, rename into
+  place. A bare write truncated the destination first, so an interrupt could leave the registry
+  half written with no backup.
+- The plain ChatGPT web surface no longer contradicts the packaging docs (P73). The transitions
+  data, wizard copy and docs agreed that live tools were impossible there while three other
+  locations documented a developer-mode connector reaching them; all four now say this is a limit
+  of plain chat, not of ChatGPT. The workspace-only Custom GPT warning was restored on the two
+  upgrade paths that had lost it, and the macOS-only Work with Apps limit is scoped.
+- `AGENTS.md` states the registry single-writer rule at full strength (P73), naming the shared
+  write implementation and all five sanctioned verbs rather than two, and carries the agent output
+  contract, the Quality Gates release bar, and the traversal and connector writer rules it omitted.
+- The verification battery lives in `CLAUDE.md` and `README.md` (P73). It previously existed only
+  in `AGENTS.md`, which is a projection and must not be hand-edited, so re-projecting would have
+  deleted it. README's Validation block was a three-command subset that included a step writing
+  `dist/`, and the setup, deployment and wizard docs plus the one-time hook install were
+  unreachable from the entry point.
+- A corrupt cache index returns the rebuild hint the absent case already gave, rather than a raw
+  sqlite error (P73). `README.md` lists all 22 spokes instead of 14.
+
 ### Added
 - OpenAI parity (P72): connector-contract `search`/`fetch` tools and post-registration MCP tool
   annotations with a classification completeness gate (60 tools; eight write, `schedule_post`
@@ -72,10 +123,10 @@ work after the baseline sits under Unreleased.
   found three video-tooling evidence files skipped under a false append-only rationale (one commit
   each); they are audited normally now, and a macOS moving date still resolved its registry source
   to the page that does not carry the claim, now seeded and repointed.
-- macOS setup guidance (P69): `docs/SETUP_MAC.md` installed a Homebrew Python formula that is now
-  deprecated upstream, and named a different version than the launcher did; the install target is
-  standardized with 3.11 kept as the support floor. The Homebrew cask moving date cited a page
-  that does not state the claim and now cites the announcement that does.
+- macOS setup guidance (P69): `docs/SETUP_MAC.md` named a different Python version than the
+  launcher did, and the version it named has the nearest Homebrew end-of-life date; the install
+  target is standardized with 3.11 kept as the support floor. The Homebrew cask moving date cited
+  a page that does not state the claim and now cites the announcement that does.
 
 ### Changed
 - macOS source currency (P69, completed sweep): ten of the 26 macOS-relevant registry sources are
@@ -86,10 +137,6 @@ work after the baseline sits under Unreleased.
   actual sidebar label, Files & Folders. `docs/MACOS-MAINTENANCE.md` records which 16 sources were
   deliberately NOT re-fetched and why, including the one page that truncated on both attempts, so
   the gap reads as an honest denominator rather than a cleared backlog.
-- macOS source currency (P69): the Apple, Homebrew, and python.org authorities behind the macOS
-  surface were re-verified against upstream and the reachable ones stamped; the knowledge
-  freshness bundle was restamped to match.
-
 ### Security
 - Remote MCP endpoint (`tools/mcp_server.py --serve-remote`) gains two in-process backstops
   (P67-B) behind the documented TLS+auth proxy: it refuses to bind a non-loopback `--host` when no
@@ -205,8 +252,9 @@ work after the baseline sits under Unreleased.
 ### Changed
 - The invariant-42 writer census is AST-level: only an actual `save_registry` import or
   attribute use counts as a writer, so prose or a read-only import cannot false-positive it.
-- `docs/DOC-MAINTENANCE.md` records the known guard-shallowness backlog (invariants 14/16/17
-  substring recipes with drafted property-level fixes) as deliberate deferred work.
+- `docs/DOC-MAINTENANCE.md` recorded the guard-shallowness backlog (invariants 14/16/17 substring
+  recipes with drafted property-level fixes) as deliberate deferred work. That backlog was
+  subsequently closed in P67 by rebuilding the three invariants into property checks, listed above.
 - The ENAMETOOLONG traceback class (ADR 0047): `Path.exists()` does not suppress errno 36, so a
   >255-byte CLI path argument crashed dispatch-level probes that sat upstream of the P63 loader
   guards. Every filesystem touch reachable from a CLI argument now yields the clean
@@ -258,9 +306,11 @@ work after the baseline sits under Unreleased.
 - Drift invariant 53 (connector resolver smoke): executes `resolve()` over the committed
   `connectors.json` so an entry the resolver cannot process fails the build (invariants 18/23/41
   are static and missed the P60 defect). Fail-closed.
-- Drift invariant 54 (payload-loader robustness): AST-asserts the finance/obligations payload
-  loaders keep their try/except guard (the invariant-35 sibling for the offline money/legal CLIs).
-  Fail-closed.
+- Drift invariant 54 (payload-loader robustness): AST-asserts that the finance, obligations, tasks
+  and doctemplates payload loaders keep their try/except guard, plus an accounts call-site rule and
+  an AST layer scanning finance/obligations `main`/`_main` for any argparse-derived value reaching
+  `exists`/`read_text`/`write_text`/`open` outside a try (the invariant-35 sibling for the offline
+  money/legal CLIs). Fail-closed.
 - Two-pass injection screening (ADR 0045): the offline pattern tier is now a genuine FIRST pass
   whose verdict feeds the authoritative in-session semantic guard, which can catch reworded attacks
   the regex misses. `injection_scan.render_prior` renders the offline verdict as a category+score
@@ -424,11 +474,6 @@ work after the baseline sits under Unreleased.
   this `CHANGELOG.md`, and `docs/DOC-MAINTENANCE.md`.
 
 ### Changed
-- Drift invariant 54 widened in place from "the two payload loader bodies contain a try" to the
-  whole-path rule (ADR 0047): the loader-body layer now also covers the tasks and doctemplates
-  loaders plus an accounts call-site rule, and a new AST layer scans finance/obligations
-  `main`/`_main` for any argparse-derived value reaching `exists`/`read_text`/`write_text`/`open`
-  outside a try. The widened check fails on the pre-fix tree naming the exact defect sites.
 - Corrected stale maintainer/SKILL/doc claims surfaced by a full content-accuracy sweep
   (publishing layer no longer described as "dark/stubs", Pinterest scope, finance-desk check
   counts, contract-desk atom availability, videoedit atom list, tool-count and script-path
