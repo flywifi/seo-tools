@@ -454,6 +454,16 @@
       "evidence": "Fail-closed MCP classification with a synthetic unclassified-tool selftest case; local-config backup path with three cases; projection self-hash with four cases including a no-false-positive case; count-truth reverse sweep, shorthand-citation recognition and Mac vocabulary candidate sweep, each red-teamed to fail then restored; atomic registry write; launcher venv probe verified in both directions. Battery green at each stage: drift clean at 57 invariants, 69/69 selftests, 10/10 scenarios, 60 MCP tools.",
       "explicit_non_action": "Did NOT cut a release. VERSION stays 0.1.0 and no tag was created: `release.py --plan` would tag v0.1.0 for a tree carrying 80 unreleased bullets above an already-dated 0.1.0 section, so the CHANGELOG roll-up and the version bump are presented for the maintainer's decision rather than executed. Did NOT write selftests for all 37 uncovered tools; that class is scoped as a guard plus targeted coverage, not a rebuild. Did NOT install the currency scheduler, which is a maintenance-cadence decision rather than an audit repair.",
       "status": "accepted"
+    },
+    {
+      "id": "P75-repair-og-metadata",
+      "date": "2026-08-16",
+      "phase": "P75",
+      "decision": "Repaired the stored competitor metadata corrupted by the P74-0 extractor defect by making the parser version part of the row identity, rather than by running a one-off cleanup script.",
+      "rationale": "A cleanup script would have repaired today's damage and left the next extractor fix with the identical trap: `_upsert_page` skipped on content_hash, which answers 'is this the same page?' and never 'is this the same reading of the page?'. Tracing the damage also corrected the record twice -- `title` is corrupted too (it is assigned from og_title), and which wrong value lands depends on the page's meta-tag order -- and revealed that some rows are permanently unrepairable because snapshots are overwritten rather than kept as history.",
+      "evidence": "End-to-end proof on the worst case (og:image before og:title): title held an image URL, detection reported 1 repairable, --parse superseded it, title became the real title, detection returned 0, row count stayed 1. Fourteen new selftest cases cover the migration's idempotence, supersede-not-duplicate, the no-op re-run, a genuinely new snapshot, a legitimately equal description not being flagged, and a non-UTF-8 fixture proving the snapshot hash reproduces parse()'s decode-then-encode rather than hashing raw bytes.",
+      "explicit_non_action": "Did NOT delete unrepairable rows: their platform columns (video tags, hashtags, chapters, dates) are clean and still useful, and they are not consumed by the summary export. Did NOT wire or drop competitor_pages_fts, which is created and never written to or queried anywhere -- a real finding, but folding an unrelated schema change into a data repair is how repairs go wrong. Did NOT re-fetch anything: the saved HTML is sufficient and is the more faithful input.",
+      "status": "accepted"
     }
   ],
   "updated": "2026-08-16"

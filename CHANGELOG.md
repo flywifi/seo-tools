@@ -12,7 +12,32 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- Repaired the competitor metadata the P74-0 defect corrupted (P75). Fixing the extractor did not
+  fix the rows it had already written, and the obvious remedy did nothing: `_upsert_page` skipped
+  whenever `(competitor_id, content_hash)` already existed, and the HTML had not changed — only
+  the parser had. Rows now carry a `parser_version`, so the same page read by a newer parser is
+  superseded in place, which repairs the existing damage and means any future extractor fix
+  repairs its own historical rows instead of silently leaving them wrong.
+- Corrected the record of what the defect damaged (P75). It was described as affecting the `og_*`
+  columns; it also corrupts `title`, which is assigned from `og_title` rather than extracted
+  separately and is the most user-visible column, plus `canonical_url` on pages with no
+  `<link rel="canonical">`. Which wrong value appears depends on the page's meta-tag order: when
+  `og:image` comes first, `title` holds an image URL. The platform fields — video tags, hashtags,
+  chapter markers, category, dates — come from a different extractor and were never affected.
+- `competitor_scan` returned a counter while its docstring promised metadata (P75). It shelled
+  `--parse` and returned that process's stdout, which is `{"parsed": N, "skipped": []}`; the
+  per-row detail goes to stderr. It now reads the stored row back and returns it, matching the
+  contract the tool description and the deep-competitor-scan atom already stated.
+
+### Added
+- `competitor_snapshot.py --check-og` reports rows carrying the P74-0 corruption (P75), split into
+  repairable and unrepairable. Snapshots are overwritten per competitor rather than kept as dated
+  history, so once a newer fetch lands, an older row's source HTML is gone and re-parsing cannot
+  reach it. Those rows are reported separately and `--mark-unrepairable` stamps them so a
+  known-wrong row is never mistaken for a repaired one; they are not deleted, because their
+  platform columns are clean, and they are not consumed by `--export-summary`, which takes the
+  most recent row per competitor.
 
 ## [0.2.0] - 2026-08-16
 
@@ -41,7 +66,6 @@ Nothing yet.
   phases in a module nothing ever executed. Coverage is still not enforced — a new tool can still
   ship with no selftest and nothing will notice — and that gap is recorded as an open finding in
   the audit report rather than closed here.
-
 - `docs/production-readiness-2026-08-16.md` (P73): the committed six-dimension audit report,
   its PASS ledger, the guard red-team results, the not-exercised boundary, and the release
   preparation left for the maintainer's decision. ADR 0053 records the method.

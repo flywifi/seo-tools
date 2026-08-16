@@ -753,7 +753,36 @@ def competitor_scan(competitor_id: str) -> str:
             "error": err.strip() or "parse failed",
             "hint": "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch",
         })
-    return out.strip() or json.dumps({"result": "no data found", "competitor_id": competitor_id})
+    # P75: this used to return the subprocess stdout, which is cmd_parse's COUNTER
+    # ({"parsed": 1, "skipped": []}) -- the per-row detail goes to stderr. So the tool promised
+    # metadata and delivered a tally. Read the stored row back and return that instead, which is
+    # the contract this docstring and skills/atoms/deep-competitor-scan already describe.
+    try:
+        parse_summary = json.loads(out.strip() or "{}")
+    except json.JSONDecodeError:
+        parse_summary = {}
+    db = ROOT / "pipeline" / "competitor-snapshots" / "index.local.db"
+    if not db.exists():
+        return json.dumps({"result": "no data found", "competitor_id": competitor_id,
+                           "hint": "Run: python3 tools/competitor_snapshot.py --fetch"})
+    import sqlite3 as _sq
+    con = _sq.connect(f"file:{db}?mode=ro", uri=True)
+    con.row_factory = _sq.Row
+    try:
+        row = con.execute(
+            "SELECT competitor_id, platform, url, title, og_description, video_tags, hashtags, "
+            "chapter_markers, category, publish_date, upload_date, is_shorts_eligible, "
+            "canonical_url, confidence, snapshot_date, parse_notes, parser_version "
+            "FROM competitor_pages WHERE competitor_id=? "
+            "ORDER BY snapshot_date DESC, id DESC LIMIT 1", (competitor_id,)).fetchone()
+    finally:
+        con.close()
+    if row is None:
+        return json.dumps({"result": "no data found", "competitor_id": competitor_id,
+                           "parse": parse_summary})
+    data = dict(row)
+    data["parse"] = parse_summary
+    return json.dumps(data, indent=2, default=str)
 
 
 # ---------------------------------------------------------------------------

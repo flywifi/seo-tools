@@ -40,6 +40,18 @@ import re
 from pathlib import Path
 from typing import Any
 
+# P75: the parser's own version, stored on every row it produces.
+#
+# `content_hash` answers "is this the same page?". Nothing answered "is this the same READING of
+# the page?", so when P74-0 fixed the OG extractor, re-parsing skipped every existing row as
+# "unchanged" -- the HTML had not moved, only the parser had -- and the corrupted rows survived a
+# fix that was supposed to repair them.
+#
+# BUMP THIS whenever extraction behaviour changes. competitor_snapshot.py compares it against the
+# stored value and supersedes rows parsed by an older version, so a future extractor fix repairs
+# its own historical rows instead of silently leaving them wrong.
+PARSER_VERSION = "2026-08-16.1"
+
 
 # ---- YouTube extraction from ytInitialPlayerResponse -------------------------
 
@@ -401,6 +413,7 @@ def parse(html_path: Path, url: str = "", competitor_id: str = "") -> dict:
         "content_hash": content_hash,
         "confidence": platform_data.get("confidence", "low"),
         "parse_notes": platform_data.get("note"),
+        "parser_version": PARSER_VERSION,
     }
 
     return result
