@@ -8,7 +8,7 @@
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
   "files": {
-    "AGENTS.md": "8c56c0a3568641e1346e10d98edd4726b375d53c96b1396122a3181abc2b662b",
+    "AGENTS.md": "3806614677c7c95988964ccbfc18d2e6638b4bc94b8d2ac8471846f810dfe2f7",
     "Start Creator OS Setup.bat": "07aadbcc8c91b73b5689ceee0b3a4c640812a7612c86397772a030990aef3f7a",
     "Start Creator OS Setup.command": "946cc79626df870b7127580ca8eedbc278820fa225767a9d55d9f0db614a8c87",
     "canonical-sources/dependency-sources-seed.json": "53237bd235a9c24dbea32259a732a192300e819146e0757ea4c74cd4efe54ce4",
@@ -27,7 +27,7 @@
     "docs/DRIVE-HUB.md": "6d4e0a31c1308d235c0762f1dfd58368771e3c85dc997eb59bae1c85af911a37",
     "docs/FRESHNESS.md": "e93fc803ac6652658f18c000d4674fd0cb7dae982d36e040fca98b3d0fc935cd",
     "docs/MAC-VALIDATION.md": "b969fd2d473c4e5a8543b8a52ed583c094a3f6efb261d163c7c7906afafbdbe7",
-    "docs/MACOS-MAINTENANCE.md": "0bf4a7c060224928fe3eb3e25ad8cd60ad42416287f120f71b3e9cd4a5b31f32",
+    "docs/MACOS-MAINTENANCE.md": "8cd9cddca1c572cfa1eead1fcd6c34ac1d7c059965eb4564a5d6ee455bc6c0b9",
     "docs/PUBLISHING.md": "f0766d7cd42e5c119a844c7bb5c1f33875171996ff7fefc8b6f467fd6ef9337b",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
     "docs/SETUP_MAC.md": "678224e1b8b63dde76b5727f8e916e00e8c9df051184119082ff6edbb05b1858",
@@ -72,7 +72,7 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "4e87fcde95a22a258002b673e0d5065ee3c40acef994a86626bbcb21524c6fb8",
     "tools/acquire.py": "a37ac480a88ebc8da389535c9a056a3ccc5f45e75427f7af691031d945c46f5b",
-    "tools/count_truth.py": "00b65f0b2f46d05bf22b6c9c4555cc676db4207778878cbb0d2bcb1e2f90fda0",
+    "tools/count_truth.py": "993c5932892d5c39b0d8a45867b29ef04650703348a7e8d4c16625c400273748",
     "tools/env_paths.py": "8a630effb4def0855721ee08d2216e71170238e18e9ee9be9767de9022a20f4b",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "79d5067f4e456d2411b51361b0a7775fb869a971be3f3d6dcb01cb1ab6a533bd",

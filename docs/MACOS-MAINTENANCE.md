@@ -122,10 +122,14 @@ Python-on-macOS doc.
 
 ## Re-verification status (P69 to P71, current 2026-08-10)
 
-**23 of the 27** macOS-relevant registry sources now carry a `last_checked` date. Before P69 every one
-of them was `null`.
+Every source this document **declares** (the `sources` block above, 13 entries) now carries a
+`last_checked` date except the ones named below. That denominator is deliberately the doc's own
+declared set, which is reproducible by reading the block; an earlier version cited "23 of 27
+macOS-relevant sources", a set no field in the registry marks and no tool derives, and which
+`CHANGELOG.md` separately called 26 (P73 D2-1/D2-2).
 
-Only four remain unstamped, each for a stated mechanical reason rather than neglect:
+Of the declared set, only `apple-local-network-privacy-faq` remains unstamped. These are the
+mechanical reasons, covering both the declared set and the adjacent dependency entries:
 
 - `apple-local-network-privacy-faq` -- `developer.apple.com/forums/thread/660260` redirects to a
   verify-human challenge, so it cannot be fetched from any headless environment. It is retained as a

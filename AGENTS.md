@@ -11,7 +11,7 @@ social media creators. Read `docs/ARCHITECTURE.md` for design, `STATE.md` for li
 ## Build, verify, and the battery
 Every change must leave the battery green before commit:
 ```bash
-python3 tools/sync_check.py          # drift guard; must exit 0 (58 invariants)
+python3 tools/sync_check.py          # drift guard; must exit 0 (57 invariants)
 python3 tools/scenario_check.py      # 10/10 scenarios
 python3 tools/selftest_sweep.py      # every tool selftest
 python3 tools/doc_freshness.py --check

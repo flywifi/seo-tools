@@ -2041,6 +2041,9 @@ def check_doc_count_truth():
         ("skills/atoms/post-status/MAINTAINER_README.md", "invariants", "invariants"),
         ("skills/atoms/publish-draft/MAINTAINER_README.md", "invariants", "invariants"),
         ("skills/atoms/schedule-post/MAINTAINER_README.md", "invariants", "invariants"),
+        # P73 D1-3: AGENTS.md states the invariant count but was unguarded, so it could drift
+        # exactly the way the four guarded docs could not.
+        ("AGENTS.md", "invariants", "invariants"),
         ("docs/SETUP_MAC.md", "mcp_tools", "tool definitions"),
         ("docs/DEPLOYMENT.md", "mcp_tools", "tool definitions"),
     ]

@@ -17,6 +17,34 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _enforced_invariants(root=ROOT) -> int:
+    """Count of invariant numbers the drift guard enforces, using the same rule its own catalog
+    check applies: labeled in a check_* docstring AND registered in main(). Retired/merged numbers
+    are reserved for contiguity but are not enforced, so they are not counted."""
+    import ast
+    try:
+        src = (root / "tools" / "sync_check.py").read_text(encoding="utf-8")
+        tree = ast.parse(src)
+    except (OSError, SyntaxError):
+        return 0
+    label_re = re.compile(r"^Invariants?\s+(\d+(?:\s*(?:,|and)\s*\d+)*)")
+    labels_by_func, main_node = {}, None
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name == "main":
+            main_node = node
+        if node.name.startswith("check_"):
+            m = label_re.match((ast.get_docstring(node) or "").strip())
+            labels_by_func[node.name] = [int(n) for n in re.findall(r"\d+", m.group(1))] if m else []
+    if main_node is None:
+        return 0
+    registered = {n.func.id for n in ast.walk(main_node)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                  and n.func.id.startswith("check_")}
+    return len({n for fn in registered for n in labels_by_func.get(fn, [])})
+
+
 def counts(root=ROOT):
     skills = root / "skills"
     top = [d for d in skills.iterdir() if d.is_dir()] if skills.exists() else []
@@ -26,10 +54,12 @@ def counts(root=ROOT):
     protocols = list((root / "protocols").glob("*.md"))
     engines = list((root / "shared").glob("*-engine.md"))
     roles = list((root / ".claude" / "agents").glob("*.md"))
-    # invariants: the highest 'Invariant N' label declared in the drift guard's check docstrings.
-    sc = (root / "tools" / "sync_check.py").read_text(encoding="utf-8")
-    labels = [int(n) for n in re.findall(r"Invariant\s+(\d+)", sc)]
-    invariants = max(labels) if labels else 0
+    # invariants: how many the drift guard actually ENFORCES. Derived exactly the way the guard's
+    # own catalog check (invariant 36) derives it -- a number is enforced when a check_* function
+    # both CARRIES the label and is REGISTERED in main(). Counting the highest label instead
+    # inflated every doc claim by the retired numbers in MERGED_INVARIANTS (P73 D1-1: reported 58,
+    # enforced 57, so a doc correctly stating 57 would have FAILED invariant 48).
+    invariants = _enforced_invariants(root)
     try:
         scen = json.loads((root / "skills" / "creator-core" / "evals" / "scenarios.json")
                           .read_text(encoding="utf-8")).get("scenarios", [])

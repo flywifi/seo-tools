@@ -5251,7 +5251,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": ".mcp.json / claude mcp add; CLAUDE_PROJECT_DIR; roots behavior.",
       "used_by": [
@@ -5271,7 +5271,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "Which surfaces can touch local files (Desktop/Code yes; web/mobile no); Cowork brokering.",
       "used_by": [
@@ -5558,5 +5558,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "2cc97b86df1e3fd4fa6f28f906b045fed3bdf1be61f8bf68fbd4ed2d2314b560"
+  "_content_digest": "de6dde66017ce088956e1862805ec19f8b315fbd6c55e157a761be7500ff57ca"
 }
