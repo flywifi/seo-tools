@@ -169,7 +169,8 @@ in this repo, and rewriting one to match a later understanding would defeat thei
 
 ## 3. PASS ledger
 
-Every tool below ran clean at HEAD `7a85936`, so the next audit need not redo it blindly.
+Every tool below ran clean at HEAD `15e7353` (tree clean, equal to origin), so the next
+audit need not redo it blindly.
 
 | tool + verb | result |
 |---|---|
@@ -177,7 +178,7 @@ Every tool below ran clean at HEAD `7a85936`, so the next audit need not redo it
 | `scenario_check.py` | 10/10 scenarios, 0 open gaps |
 | `selftest_sweep.py` | 69/69 |
 | `doc_freshness.py --check` | all bound docs current |
-| `count_truth.py` | 22 spokes / 106 atoms / 57 invariants / 60 MCP tools / 84 mac-surface files |
+| `count_truth.py` | 22 spokes / 106 atoms / 57 invariants / 60 MCP tools / 85 mac-surface files |
 | `projection_manifest.py --check` | no stale projections |
 | `surface_budgets.py --selftest` | 0 violations |
 | `version.py --check` | consistent at 0.1.0 |
