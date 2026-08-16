@@ -456,6 +456,16 @@
       "status": "accepted"
     },
     {
+      "id": "P74-remediate-open-audit-findings",
+      "date": "2026-08-16",
+      "phase": "P74",
+      "decision": "Closed most of the open findings from the P73 audit, and deliberately left two of them open rather than implementing a mechanism or a policy the maintainer had not chosen. Made the standard for planning itself a committed repo convention so it stops being restated.",
+      "rationale": "The audit's residue was three different things and only one was genuine scope: two findings were BLOCKED on a missing tool capability rather than on effort, one cluster had been scoped out as a unit, and the release was a decision the maintainer had not yet made. Treating them as one 'deferred' pile hid that distinction. Planning the work by executing its own example code found a live production defect (P74-0) and nine function contracts that differed from their obvious reading, which is the argument for the planning-depth convention now in CLAUDE.md. Two findings were then re-scoped as maintainer decisions rather than repairs: enforcing selftest enrolment adds a build-failing gate and an exemption list, and re-banding 63 currency intervals picks a cadence policy. Both are defensible; neither is a defect the audit was authorised to fix on its own, so each stays a named finding with the evidence behind it.",
+      "evidence": "OG extractor fixed with a regression selftest that fails on the previous pattern; selftest sweep 70 to 85 across fifteen untrusted-input-first modules; source_currency update-source gained the three fields with no new save_registry writer, keeping invariant 42 at five, and dependency_currency now reports real breaking drift for dep-mcp against 2.0.0; CI range fix verified by simulating a direct main push (old form scanned 0 commits and passed); release preconditions each with a selftest case; version check widened from three to five locations after the drift guard caught the disagreement; the packaging stamp check now compares the stamped version against versions.json rather than only asserting the line exists, red-teamed in both directions. Battery green at each stage: drift clean at 57 invariants, 85/85 selftests, 10/10 scenarios, version consistent at 0.2.0.",
+      "explicit_non_action": "Did NOT create or push a v0.2.0 tag: the roll-up and bump are prepared and release.py --plan proposes it, but tagging is outward-facing and remains the maintainer's Tier-A decision. Did NOT enforce selftest enrolment: a gate that fails the build plus a 24-entry exemption list is a policy the maintainer chooses, so the fifteen tests shipped and the unenforced-enrolment gap stays an open finding in the report. Did NOT re-band the 63 currency intervals that have never once been met; docs/CURRENCY.md records the finding and the two honest resolutions instead of picking a number that silences the advisory. Did NOT wire handoff_sim into the sweep (PRE-3): its write phases need their sandbox redirect reviewed first. Did NOT promote the capability-parity check from advisory to blocking. Did NOT rewrite ADR 0043, which states an old understanding; ADRs are immutable records here.",
+      "status": "accepted"
+    },
+    {
       "id": "P75-repair-og-metadata",
       "date": "2026-08-16",
       "phase": "P75",

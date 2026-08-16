@@ -42,6 +42,11 @@ work after the baseline sits under Unreleased.
 ## [0.2.0] - 2026-08-16
 
 ### Added
+- ADR 0054 records the P74 method: "executed on some path" is not coverage, a missing sanctioned
+  writer is a finding rather than a chore, and planning depth as a repo convention. It also records
+  the two findings left deliberately open — unenforced selftest enrolment, and 63 currency
+  intervals that have never once been met — under the rule that an advisory telling the truth
+  should not be silenced by changing the data it describes.
 - Planning depth is a repo convention (P74): `CLAUDE.md` and `AGENTS.md` now require who/what/
   when/where/why/how per work package, risks with mitigations, citable evidence, and code that has
   been executed rather than code that looks plausible. The standard had been stated repeatedly in

@@ -2,7 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P73 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P74 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P74/P75: Remediation of the open P73 findings (ADR 0054, 2026-08-16), and the data repair that
+  followed. Planning the work found a live defect the audit itself had missed: the OG-tag
+  extractor's regex left a character class unterminated, so every og_* field received the first
+  meta tag's content and the competitor snapshot index recorded a competitor's image URL as their
+  title. It survived because nothing had ever executed that module. Fixing the parser did not fix
+  the rows it had already written, so P75 made the parser version part of the row identity: a page
+  re-read by a newer parser is superseded in place, and any future extractor fix repairs its own
+  historical rows. Fifteen tools gained real coverage (sweep 70 to 85), chosen untrusted-input
+  first. Three registry fields gained a sanctioned writer, which unblocked a correction that was
+  unapplicable rather than unstarted, giving the dependency checker a real mcp baseline. Two
+  documented controls were made real (the CI scan range was empty on a direct main push; the
+  commit-msg hook lacked the author-email half). The release path gained preconditions, the
+  changelog rolled up to a single 0.2.0 section, and the version bumped across all five locations
+  that carry it, including the pasted ChatGPT pack whose stale stamp had made the wizard's
+  re-export advice unterminating. No tag was created: that stays the maintainer's decision.
+  Two findings were deliberately left open rather than closed by a mechanism or a policy the
+  maintainer had not chosen: selftest enrolment is still unenforced, and the 63 currency intervals
+  that have never once been met are still declared as written.
 
 - P73: Production-readiness audit (ADR 0053, 2026-08-16). Six dimension audits (integrity,
   completeness, accuracy, truthfulness, consistency, adaptability) run as monitored waves, each
