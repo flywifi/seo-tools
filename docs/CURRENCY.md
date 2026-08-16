@@ -201,3 +201,33 @@ If `git checkout` reports no changes but the drift guard still complains about
 `_content_digest`, the file was edited in place and committed: run any sanctioned write verb (for
 example `python3 tools/dependency_currency.py check --apply`) to re-stamp the digest through the
 single write path. Do not edit the digest by hand.
+
+## Interval banding (what a cadence promises, P74)
+
+A `check_interval_days` value is a promise that the clock actually runs. Today it does not.
+**66 sources declare a sub-monthly cadence and 64 of them have never been checked once**, because
+P36 retired the weekly CI job and made stamping an explicit local or cron step that no committed
+doc installs. Only two sub-30-day entries have ever been polled: `google-drive-desktop-sync-modes`
+and `google-drive-desktop-macos`. A 7-day interval that has never fired is not diligence, it is a
+number that makes the registry look better maintained than it is.
+
+This is recorded as an open finding, not a fixed one. **The bands have not been re-banded**, because
+what a source's cadence should be is a maintenance-policy decision for the maintainer, not a number
+a tool should quietly rewrite to silence its own advisory. The two honest resolutions are:
+
+- **Install the cadence.** `tools/freshness-scheduler.example` exists and nothing installs it. A
+  real cron job that runs `dependency_currency.py check --apply` and `source_currency.py check`
+  makes the declared intervals true, and no re-banding is needed.
+- **Or re-band to what will actually run.** If the answer to "what polls this?" is "someone
+  remembering", the honest value is 30 — the monthly currency pass is a real ritual. Note that
+  `creator-os-release` legitimately keeps 7 days either way: `tools/update_check.py` polls it
+  token-free and stamps it automatically through `apply_stamp`.
+
+Whichever is chosen, do it through the sanctioned writer, never by hand:
+
+```bash
+python3 tools/source_currency.py update-source <id> --check-interval-days 30
+```
+
+Longer bands (60, 90, 120, 180, 365, for progressively more stable authorities) are unaffected by
+this finding; they are met by the monthly pass.

@@ -27,8 +27,8 @@
       "apply_command": "python3 tools/dependency_currency.py check --apply --only dep-mcp   # after requirements-mcp.txt is pinned; then re-check that validated_version is populated",
       "apply_kind": "registry-field-update",
       "apply_verification": "[NEEDS VERIFICATION at apply] dependency_currency --apply stamps last_checked/latest_seen but may not write validated_version; if it does not, upsert the dep-mcp record via `source_currency.py seed-sources` with validated_version set. Never hand-edit the registry.",
-      "status": "proposed",
-      "blocked_note": "P73, 2026-08-16: still open, and BLOCKED on a missing tool capability rather than on effort. dep-mcp.validated_version is null and pinned_constraint is empty, so the drift checker has no baseline to compare 2.0.0 against even though requirements-mcp.txt now bounds the install. No sanctioned CLI can set these two fields: source_currency update-source handles url/category/name/tier/extraction-hint/used-by only, and dependency_currency --apply stamps last_checked/latest_seen. Hand-editing source-registry.json is forbidden. The fix is a verb on dependency_currency (for example `set-baseline <id> --validated-version X --pin Y`) writing through registry_io; until it exists this entry cannot be applied without violating the single-writer rule."
+      "status": "applied",
+      "applied_note": "P74, 2026-08-16: applied. dep-mcp.validated_version='1.28' and pinned_constraint='>=1.28,<2' set through `source_currency update-source`, which gained --validated-version/--pinned-constraint/--check-interval-days for exactly this reason: the fields previously had NO sanctioned writer, so the correction was unapplicable rather than merely unstarted. dependency_currency now computes real drift for it (major-drift, breaking, baseline 1.28 vs latest_seen 2.0.0) instead of having no baseline to compare against."
     },
     {
       "id": "vc-ny-synthetic-performer",

@@ -757,7 +757,11 @@ def cmd_update_source(args, registry):
     changed = []
     for field, val in (("url", args.url), ("category", args.category),
                        ("name", args.name), ("tier", args.tier),
-                       ("extraction_hint", args.extraction_hint)):
+                       ("extraction_hint", args.extraction_hint),
+                       # P74 WP1: see the argparse block for why these live here.
+                       ("check_interval_days", getattr(args, "check_interval_days", None)),
+                       ("validated_version", getattr(args, "validated_version", None)),
+                       ("pinned_constraint", getattr(args, "pinned_constraint", None))):
         if val is not None and entry.get(field) != val:
             entry[field] = val
             changed.append(field)
@@ -985,6 +989,18 @@ def _main():
     p_upd.add_argument("--tier", help="Corrected tier (T1|T2|T3)")
     p_upd.add_argument("--extraction-hint", dest="extraction_hint", help="Corrected extraction hint")
     p_upd.add_argument("--add-used-by", dest="add_used_by", help="Comma-separated atoms/engines to union into used_by")
+    # P74 WP1: these three had NO sanctioned writer, so two recorded corrections were physically
+    # unapplicable -- re-banding an unmeetable check cadence, and giving dependency_currency a
+    # baseline to compare against. Hand-editing source-registry.json is forbidden, and a new
+    # writer script would become a sixth save_registry reference and trip invariant 42, so the
+    # capability belongs on this existing sanctioned verb.
+    p_upd.add_argument("--check-interval-days", dest="check_interval_days", type=int,
+                       help="Corrected check cadence in days (an interval is a promise: set what "
+                            "will actually be run, not what sounds diligent)")
+    p_upd.add_argument("--validated-version", dest="validated_version",
+                       help="Dependency baseline: the version this repo is known to work against")
+    p_upd.add_argument("--pinned-constraint", dest="pinned_constraint",
+                       help="Dependency pin as written in requirements (e.g. '>=1.28,<2')")
 
     args = parser.parse_args()
 

@@ -1456,8 +1456,8 @@
       "package": "mcp",
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/mcp/json",
-      "pinned_constraint": "",
-      "validated_version": null,
+      "pinned_constraint": ">=1.28,<2",
+      "validated_version": "1.28",
       "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure",
       "latest_seen": "2.0.0",
       "latest_seen_date": "2026-07-28"
@@ -5575,5 +5575,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "ef1210869f020c139c7fa04c98bee6cffa5d067e2901f20b873d13b3a6504993"
+  "_content_digest": "557ef32783b2df866380e04f6745ab3d040211500e795d8fdb6458796f0e21fa"
 }

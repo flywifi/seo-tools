@@ -12,6 +12,28 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Added
+- Planning depth is a repo convention (P74): `CLAUDE.md` and `AGENTS.md` now require who/what/
+  when/where/why/how per work package, risks with mitigations, citable evidence, and code that has
+  been executed rather than code that looks plausible. The standard had been stated repeatedly in
+  conversation and never written down.
+- `source_currency.py update-source` gains `--check-interval-days`, `--validated-version` and
+  `--pinned-constraint` (P74). These three registry fields had no sanctioned writer, so two
+  recorded corrections were physically unapplicable: hand-editing the registry is forbidden and a
+  new writer script would become a sixth `save_registry` reference and trip invariant 42. The
+  capability therefore belongs on the existing sanctioned verb.
+
+### Changed
+- `dep-mcp` has a version baseline (P74): `validated_version` 1.28 with the `>=1.28,<2` pin, so
+  the dependency checker computes real drift against the 2.0.0 release instead of having nothing
+  to compare. The backlog entry moves from proposed to applied.
+- `docs/CURRENCY.md` records the interval-banding finding (P74): 66 sources declare a sub-monthly
+  cadence and 64 have never been checked once, because P36 retired the weekly job and stamping
+  became a manual step no committed doc installs. The intervals are deliberately left as declared
+  — what a cadence should be is the maintainer's call, not a number a tool rewrites to silence its
+  own advisory — and the doc states the two honest resolutions (install the scheduler, or re-band
+  through the sanctioned writer).
+
 ### Fixed
 - Competitor OG metadata was extracted wrong for every property (P74). The regex in
   `tools/parse_competitor_meta.py::_extract_og_tags` built its quote group as `["\'{prop}["\']`,
