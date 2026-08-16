@@ -281,10 +281,16 @@ def _extract_og_tags(html: str) -> dict:
     for prop, key in [("og:title", "og_title"), ("og:description", "og_description"),
                       ("og:image", "og_image"), ("og:url", "og_url"),
                       ("og:type", "og_type"), ("og:video:tag", "og_video_tags_raw")]:
-        m = re.search(rf'<meta[^>]+property=["\'{prop}["\'][^>]*content=["\']([^"\']+)["\']',
+        # P74-0: the quote group MUST close before the property name. The previous spelling was
+        # ["\'{prop}["\'] -- one unterminated character class that swallowed the property name, so
+        # it matched a SINGLE character and every og_* key received the first meta tag's content
+        # (og_image held the title, and so on, straight into the competitor snapshot DB).
+        # re.escape because og:video:tag and any future property must be matched literally.
+        p = re.escape(prop)
+        m = re.search(rf'<meta[^>]+property=["\']{p}["\'][^>]*content=["\']([^"\']+)["\']',
                       html, re.I)
         if not m:
-            m = re.search(rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\'{prop}["\']',
+            m = re.search(rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']{p}["\']',
                           html, re.I)
         if m:
             og[key] = m.group(1)
@@ -400,13 +406,78 @@ def parse(html_path: Path, url: str = "", competitor_id: str = "") -> dict:
     return result
 
 
+def selftest() -> int:
+    """Offline proof over synthetic HTML. No network, no files, no repo mutation.
+
+    Exists because P74-0 shipped: _extract_og_tags copied ONE meta tag's content into all six
+    og_* keys for an unknown number of phases, and those keys are persisted by
+    competitor_snapshot.py and surfaced by the deep-competitor-scan atom. Nothing executed this
+    module's logic, so nothing caught it. The first two cases are that regression.
+    """
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    html = ('<meta property="og:title" content="REAL TITLE">'
+            '<meta property="og:image" content="https://example.com/img.jpg">'
+            '<meta property="og:type" content="video.other">')
+    og = _extract_og_tags(html)
+    ok("og properties map to their OWN content (P74-0 regression)",
+       og.get("og_title") == "REAL TITLE" and og.get("og_image") == "https://example.com/img.jpg"
+       and og.get("og_type") == "video.other")
+    ok("an absent og property stays absent, never copied from a sibling (P74-0 regression)",
+       "og_title" not in _extract_og_tags('<meta property="og:image" content="i.jpg">'))
+    ok("reversed attribute order still matches",
+       _extract_og_tags('<meta content="Rev" property="og:title">').get("og_title") == "Rev")
+    ok("a colon-heavy property matches literally",
+       _extract_og_tags('<meta property="og:video:tag" content="diy">').get("og_video_tags_raw") == "diy")
+    ok("empty html yields no tags and never raises", _extract_og_tags("") == {})
+
+    ok("canonical link extracted",
+       _extract_canonical('<link rel="canonical" href="https://example.com/a">') == "https://example.com/a")
+    _, types = _extract_json_ld('<script type="application/ld+json">'
+                                '{"@type":"VideoObject","name":"n"}</script>')
+    ok("json-ld @type surfaced", "VideoObject" in types)
+    ok("truncated json-ld degrades to a tuple, never a crash",
+       isinstance(_extract_json_ld('<script type="application/ld+json">{"@ty'), tuple))
+
+    ok("absent ytInitialPlayerResponse -> {} (not None, not an exception)",
+       _extract_yt_player_response("<html></html>") == {})
+    pr = _extract_yt_player_response(
+        '<html>var ytInitialPlayerResponse = {"videoDetails":{"keywords":["a","b"]}};</script>')
+    ok("ytInitialPlayerResponse parsed when terminated by </script>",
+       isinstance(pr, dict) and pr.get("videoDetails", {}).get("keywords") == ["a", "b"])
+
+    found = []
+    _find_in_dict({"a": [{"t": 1}, {"b": {"t": 2}}]}, "t", found)
+    ok("_find_in_dict recurses lists and nested dicts", found == [1, 2])
+    shallow = []
+    _find_in_dict({"a": [{"t": 1}]}, "t", shallow, 1)
+    ok("_find_in_dict honours its depth bound (untrusted JSON cannot force unbounded recursion)",
+       shallow == [])
+    ok("_try_get returns None on a bad path", _try_get({"a": {"b": 1}}, "a", "zz") is None)
+    ok("platform detected from url", _detect_platform("https://www.youtube.com/watch?v=1", "") == "youtube")
+
+    print(f"parse_competitor_meta selftest: {'PASS' if not failures else 'FAIL'} "
+          f"({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 def _main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("html_file", help="path to raw.html or rendered.html")
+    ap.add_argument("--selftest", action="store_true", help="offline proof over synthetic HTML")
+    ap.add_argument("html_file", nargs="?", help="path to raw.html or rendered.html")
     ap.add_argument("--url", default="", help="original URL (for platform detection)")
     ap.add_argument("--id", default="", dest="competitor_id", help="competitor ID")
     a = ap.parse_args(argv)
+    if a.selftest:
+        return selftest()
+    if not a.html_file:
+        ap.error("html_file is required (or pass --selftest)")
     result = parse(Path(a.html_file), url=a.url, competitor_id=a.competitor_id)
     print(json.dumps(result, indent=2, default=str))
     return 0

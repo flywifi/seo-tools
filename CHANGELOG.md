@@ -12,6 +12,19 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Fixed
+- Competitor OG metadata was extracted wrong for every property (P74). The regex in
+  `tools/parse_competitor_meta.py::_extract_og_tags` built its quote group as `["\'{prop}["\']`,
+  an unterminated character class that swallowed the property name, so the pattern matched a
+  single character and every `og_*` field received the FIRST meta tag's content: `og_image` held
+  the title, `og_type` held the title, and so on. Both the primary and the reversed-attribute
+  fallback carried the defect, so nothing rescued it. Those columns are persisted by
+  `competitor_snapshot.py` and surfaced by the deep-competitor-scan atom, which made it a wrong
+  fact presented as a fact. The property name is now matched literally via `re.escape`, and the
+  module gained a selftest whose first two cases are that regression. Rows written before this
+  fix have unreliable `og_*` values; the atom's maintainer README says so and recommends a re-scan
+  rather than a comparison.
+
 ### Added
 - `docs/production-readiness-2026-08-16.md` (P73): the committed six-dimension audit report,
   its PASS ledger, the guard red-team results, the not-exercised boundary, and the release

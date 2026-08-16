@@ -78,6 +78,18 @@ json_ld, schema_types (JSON), canonical_url, content_hash,
 confidence, parse_notes, inserted_at
 ```
 
+**Rows written before P74 have unreliable `og_*` columns.** A regex defect in
+`tools/parse_competitor_meta.py::_extract_og_tags` (an unterminated character class that swallowed
+the property name) made every `og_*` field receive the FIRST matching meta tag's content, so
+`og_image` typically held the title, `og_type` held the title, and so on. Only the `og_*` columns
+are affected; `title`, `video_tags`, `hashtags`, `json_ld`, `canonical_url` and the platform-specific
+fields come from different extractors and are unaffected.
+
+Treat pre-P74 `og_*` values as unverified rather than deleting them: re-run the scan for any
+competitor whose OG data you intend to rely on, and the corrected values overwrite the old row.
+Do not compare a pre-P74 `og_*` value against a post-P74 one and read the difference as the
+competitor having changed something.
+
 Keyed on `(competitor_id, content_hash)` — re-parsing the same HTML snapshot (same hash) is a
 no-op. New snapshots of the same competitor accumulate as new rows, enabling change detection.
 
