@@ -43,6 +43,26 @@ def main(argv):
             problems.append(
                 f"plugin.json version ({plugin.get('version')}) != ecosystem ({ecosystem})"
             )
+        # P74: this check reported "consistent" while marketplace.json disagreed in TWO places,
+        # because it only ever read three of the five locations that carry the version. The drift
+        # guard caught it, which means the two guards disagreed about what consistency means --
+        # and the release preconditions trusted the narrower one.
+        mkt_path = ROOT / ".claude-plugin" / "marketplace.json"
+        if mkt_path.exists():
+            try:
+                mkt = json.loads(mkt_path.read_text(encoding="utf-8"))
+            except ValueError as exc:
+                problems.append(f"marketplace.json unreadable ({exc})")
+            else:
+                mkt_meta = (mkt.get("metadata") or {}).get("version")
+                if mkt_meta != ecosystem:
+                    problems.append(
+                        f"marketplace.json metadata.version ({mkt_meta}) != ecosystem ({ecosystem})")
+                for entry in mkt.get("plugins") or []:
+                    if entry.get("version") != ecosystem:
+                        problems.append(
+                            f"marketplace.json plugin {entry.get('name')!r} version "
+                            f"({entry.get('version')}) != ecosystem ({ecosystem})")
         if problems:
             print("VERSION CHECK: drift")
             for item in problems:

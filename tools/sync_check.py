@@ -1414,9 +1414,28 @@ def check_transitions():
     # (f) packaging artifacts carry the version stamp so pasted packs can be compared with the
     # repo VERSION and re-synced (E12).
     ci = ROOT / "implementation" / "gpt" / "web" / "custom-instructions.md"
-    if ci.exists() and not ci.read_text(encoding="utf-8").startswith("Packaging version:"):
-        problem("transitions: implementation/gpt/web/custom-instructions.md must start with the "
-                "'Packaging version:' stamp line")
+    if ci.exists():
+        ci_first = ci.read_text(encoding="utf-8").split("\n", 1)[0]
+        if not ci_first.startswith("Packaging version:"):
+            problem("transitions: implementation/gpt/web/custom-instructions.md must start with the "
+                    "'Packaging version:' stamp line")
+        else:
+            # P76: the stamp existing is not enough -- it must MATCH the ecosystem version. The
+            # wizard tells the reader to re-export whenever the pasted pack shows a lower version,
+            # so a stamp left behind by a version bump sends them round a loop with no exit: they
+            # re-paste, the file still reads low, the wizard still says stale.
+            m_ci = re.match(r"Packaging version:\s*([0-9]+\.[0-9]+\.[0-9]+)", ci_first)
+            try:
+                eco = json.loads((ROOT / "versions.json").read_text(encoding="utf-8"))["ecosystem"]
+            except (OSError, ValueError, KeyError):
+                eco = None
+            if not m_ci:
+                problem("transitions: implementation/gpt/web/custom-instructions.md stamp carries no "
+                        "parseable version (expected 'Packaging version: X.Y.Z')")
+            elif eco and m_ci.group(1) != eco:
+                problem(f"transitions: implementation/gpt/web/custom-instructions.md is stamped "
+                        f"{m_ci.group(1)} but versions.json ecosystem is {eco}. Re-export the pack "
+                        f"and update the stamp, or the wizard's re-paste advice never terminates.")
     for exp in ("export-gpt", "export-gem"):
         p_exp = ROOT / "skills" / "atoms" / exp / "SKILL.md"
         if p_exp.exists() and "Packaging version:" not in p_exp.read_text(encoding="utf-8"):

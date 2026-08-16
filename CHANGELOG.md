@@ -12,6 +12,10 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-08-16
+
 ### Added
 - Planning depth is a repo convention (P74): `CLAUDE.md` and `AGENTS.md` now require who/what/
   when/where/why/how per work package, risks with mitigations, citable evidence, and code that has
@@ -22,19 +26,6 @@ work after the baseline sits under Unreleased.
   recorded corrections were physically unapplicable: hand-editing the registry is forbidden and a
   new writer script would become a sixth `save_registry` reference and trip invariant 42. The
   capability therefore belongs on the existing sanctioned verb.
-
-### Changed
-- `dep-mcp` has a version baseline (P74): `validated_version` 1.28 with the `>=1.28,<2` pin, so
-  the dependency checker computes real drift against the 2.0.0 release instead of having nothing
-  to compare. The backlog entry moves from proposed to applied.
-- `docs/CURRENCY.md` records the interval-banding finding (P74): 66 sources declare a sub-monthly
-  cadence and 64 have never been checked once, because P36 retired the weekly job and stamping
-  became a manual step no committed doc installs. The intervals are deliberately left as declared
-  — what a cadence should be is the maintainer's call, not a number a tool rewrites to silence its
-  own advisory — and the doc states the two honest resolutions (install the scheduler, or re-band
-  through the sanctioned writer).
-
-### Added
 - Selftest coverage for fifteen previously unexercised tools (P74), taking the sweep from 70 to
   85. The seven with no runner at all now have one: the citation-graph URL and authority filters
   (including that a suffix lookalike is refused), the per-host rate governor's key derivation and
@@ -51,56 +42,9 @@ work after the baseline sits under Unreleased.
   ship with no selftest and nothing will notice — and that gap is recorded as an open finding in
   the audit report rather than closed here.
 
-### Fixed
-- The commit-hygiene backstop scanned an empty range on a direct push to main (P74). CI used
-  `origin/main..HEAD`, which is empty once such a push lands, so the step reported success having
-  examined nothing; the policy boundary SHA was recorded but never used to bound the range. CI now
-  prefers the branch range when it is non-empty, falls back to the boundary, and **fails closed**
-  when neither resolves rather than passing silently. Verified by simulating a direct main push:
-  the old form scanned 0 commits and passed, the new form refuses.
-- The commit-msg hook now enforces the author-email rule (P74). ADR 0015 states the rule is
-  enforced by the hook and the CI backstop; the hook half did not exist, and the CI half was the
-  empty range above, so a documented control was fictional in both directions at once. The rule is
-  imported from `secret_scan` rather than restated, so hook and backstop cannot drift. The hook
-  also no longer inserts a `sys.path` entry derived from `__file__`, which is `"<stdin>"` inside
-  the heredoc and resolved to a path that does not exist.
-- Capability parity is bidirectional (P74). The check only walked degraded entries back to
-  capabilities, so a disabled capability with no degraded entry was invisible while the gate's
-  refusal string still cited a `degraded_behavior` key that did not exist. Name-matching alone
-  reports 17 false positives, because several degraded keys deliberately cover a fan-out of
-  capabilities, so the reverse loop carries an explicit map; it reports zero on the current tree
-  and fires on a synthetic capability added without an entry.
-- Competitor OG metadata was extracted wrong for every property (P74). The regex in
-  `tools/parse_competitor_meta.py::_extract_og_tags` built its quote group as `["\'{prop}["\']`,
-  an unterminated character class that swallowed the property name, so the pattern matched a
-  single character and every `og_*` field received the FIRST meta tag's content: `og_image` held
-  the title, `og_type` held the title, and so on. Both the primary and the reversed-attribute
-  fallback carried the defect, so nothing rescued it. Those columns are persisted by
-  `competitor_snapshot.py` and surfaced by the deep-competitor-scan atom, which made it a wrong
-  fact presented as a fact. The property name is now matched literally via `re.escape`, and the
-  module gained a selftest whose first two cases are that regression. Rows written before this
-  fix have unreliable `og_*` values; the atom's maintainer README says so and recommends a re-scan
-  rather than a comparison.
-
-### Added
 - `docs/production-readiness-2026-08-16.md` (P73): the committed six-dimension audit report,
   its PASS ledger, the guard red-team results, the not-exercised boundary, and the release
   preparation left for the maintainer's decision. ADR 0053 records the method.
-
-### Security
-- MCP tool annotations are fail-closed (P73): every tool must be explicitly classified as a write,
-  a mutation-sounding non-persisting call, or a verified read. Classification previously keyed off
-  a mutation-signal name list, so a tool the list did not anticipate silently inherited
-  `readOnlyHint: True` -- the hint clients use to skip a confirmation prompt -- while complete
-  OAuth upload clients sit behind `live_publishing_enabled` waiting to be ungated. An unclassified
-  tool now fails the selftest, proven by a permanent synthetic case whose name matches no signal.
-- `configure_tool` no longer destroys a malformed local config (P73). An unparseable
-  `creator-os-config.local.json` was treated as an empty file and overwritten, discarding the
-  publishing flags, remote token and update channel in a gitignored file with no recovery. The
-  bytes are backed up before any write, the tool refuses if the backup fails, and the loader that
-  silently reverted every capability to committed defaults now warns.
-
-### Added
 - Forward-coverage for three guards (P73): the count-truth invariant sweeps every tracked document
   for a global count claim and fails when one is stated outside the enrolled set (it caught two
   unguarded claims on its first run); the source-registration invariant recognises scheme-less
@@ -113,42 +57,6 @@ work after the baseline sits under Unreleased.
   `AGENTS.md` carried a narrowed version of the registry single-writer rule for a full phase.
 - `CREATOR_OS_WIZARD_PORT` overrides the wizard port for a collision (P73), keeping 8765 as the
   default because the registered OAuth redirect URIs embed it.
-
-### Fixed
-- The launcher probes the private `.venv` instead of trusting it to exist (P73). A Homebrew Python
-  upgrade relocates the framework the venv links against, leaving an interpreter that still passes
-  an executable test but cannot run, so the working fallbacks were skipped and the user saw a dyld
-  traceback instead of the install instructions.
-- Registry writes are atomic (P73): serialize in full, write a sibling temp file, rename into
-  place. A bare write truncated the destination first, so an interrupt could leave the registry
-  half written with no backup.
-- The plain ChatGPT web surface no longer contradicts the packaging docs (P73). The transitions
-  data, wizard copy and docs agreed that live tools were impossible there while three other
-  locations documented a developer-mode connector reaching them; all four now say this is a limit
-  of plain chat, not of ChatGPT. The workspace-only Custom GPT warning was restored on the two
-  upgrade paths that had lost it, and the macOS-only Work with Apps limit is scoped.
-- `AGENTS.md` states the registry single-writer rule at full strength (P73), naming the shared
-  write implementation and all five sanctioned verbs rather than two, and carries the agent output
-  contract, the Quality Gates release bar, and the traversal and connector writer rules it omitted.
-- The verification battery lives in `CLAUDE.md` and `README.md` (P73). It previously existed only
-  in `AGENTS.md`, which is a projection and must not be hand-edited, so re-projecting would have
-  deleted it. README's Validation block was a three-command subset that included a step writing
-  `dist/`, and the setup, deployment and wizard docs plus the one-time hook install were
-  unreachable from the entry point.
-- A corrupt cache index returns the rebuild hint the absent case already gave, rather than a raw
-  sqlite error (P73). `README.md` lists all 22 spokes instead of 14.
-- Honest scope on two overclaiming docs (P73): `post_status` said it read the connector and mapped
-  engagement, when it reads one flag and makes no connector call, and its reserved
-  `include_engagement_snapshot` parameter now says it has no effect rather than implying one;
-  `docs/LOCAL_CONTEXT.md` said a stray `git add -A` "cannot" commit personal data, when prevention
-  needs the hook installed and the invariant is detection after the fact.
-- The six disabled capabilities with no `degraded_behavior` entry now have one (P73):
-  `playwright`, `google_workspace`, `microsoft_365`, `task_tracking`, `shipment_tracking`,
-  `coverage_verification`. The parity check remains one-directional and advisory.
-- `docs/AUDIT-PROTOCOL.md` gains section 8 defining the plan structure section 6 referenced (P73).
-  The pointer had exactly one occurrence in the tree and no definition anywhere.
-
-### Added
 - OpenAI parity (P72): connector-contract `search`/`fetch` tools and post-registration MCP tool
   annotations with a classification completeness gate (60 tools; eight write, `schedule_post`
   destructive-hinted); a ChatGPT Projects bundle (`implementation/gpt/project/`) reusing the eight
@@ -156,14 +64,6 @@ work after the baseline sits under Unreleased.
   cards (ChatGPT with and without developer mode, Responses API, Agents SDK, Codex config.toml);
   a root `AGENTS.md` projected from CLAUDE.md for Codex; `tools/surface_budgets.py` enforcing
   documented external caps; and the OpenAI deployment matrix in `docs/TRANSITIONS.md`.
-
-### Fixed
-- OpenAI surface truth (P72): Custom GPT creation is workspace-only now and the docs say so; the
-  Assistants API sunset is a tracked moving date; the desktop app's Work with Apps limits are
-  stated; the never-paste-validated custom instructions are trimmed under the 5,000-character
-  combined cap and machine-checked.
-
-### Added
 - MCP tool-count truth (P71): `tools/count_truth.py` gains an `mcp_tools` key counting the tool
   definitions the server registers, and drift invariant 48 now checks the smoke-test counts quoted
   in the setup and deployment guides against it, so that number cannot drift silently.
@@ -174,98 +74,6 @@ work after the baseline sits under Unreleased.
   (`check_mac_surface_completeness`) fails closed in both directions: a new file carrying macOS
   behavior is unaudited until reviewed, and an audited file whose bytes move is changed until
   re-blessed. Both directions are covered by the tool's offline selftest.
-
-### Fixed
-- macOS source provenance (P71): the loopback-bind justification cited an Apple forum thread as
-  explicitly stating that loopback traffic does not trigger the local network prompt. The thread
-  says nothing about loopback; it answers a different question about sockets that listen on UDP
-  without sending. The claim now rests on the technote's own definition of a local network as one
-  on a broadcast-capable interface, quoted where the claim is made and labelled as an inference
-  from that definition rather than an Apple statement about loopback. Both registry hints are
-  corrected and the technote is stamped.
-- Two environment limitations had been recorded as facts about sources (P71): the Apple support
-  pages were said to return truncated content, and the whisper model hashes were said to be
-  unverifiable without downloading gigabytes. Both were wrong. The pages return over a megabyte
-  when retrieved directly, and the hashes verify from the redirect response headers; all six pins
-  match upstream on hash and size.
-- Correction to a P69 rationale (P70): the Homebrew Python change was justified by calling the old
-  formula deprecated upstream. Re-fetching the formula API shows every `python@N` carries that same
-  flag with a scheduled end-of-life date (3.11 in 2027, 3.13 in 2029, 3.14 in 2030), so it is
-  Homebrew's EOL calendar rather than a present-tense defect, and it does not distinguish the old
-  version from the one adopted. The change itself stands on the accurate reasons: one guide named
-  two different versions, and the old one has the nearest end of life. Recorded here rather than by
-  rewriting the landed commit.
-- macOS surface manifest semantics (P70): the tool recorded every derived path automatically while
-  the manifest and ADR called those files audited and claimed each carried an explicit decision.
-  `reconcile` now refuses a path nobody has ruled on unless `--accept-new` is passed, the signal
-  token `Final Cut` is narrowed to `Final Cut Pro` (it had matched eight files where the phrase
-  means the edited video), and the wording throughout says recorded rather than audited.
-- macOS completeness gate self-defect (P69, found by the mandated independent adversarial pass):
-  the deriver sat in its own skip list and nothing hashed it, so deleting tokens from the signal
-  vocabulary shrank the audited set while invariant 58 still reported complete. The manifest now
-  pins the deriver (module and signal-set sha256) and the guard fails when an audited file stops
-  deriving, so a narrowed denominator is a build failure instead of a silent gap. The same pass
-  found three video-tooling evidence files skipped under a false append-only rationale (one commit
-  each); they are audited normally now, and a macOS moving date still resolved its registry source
-  to the page that does not carry the claim, now seeded and repointed.
-- macOS setup guidance (P69): `docs/SETUP_MAC.md` named a different Python version than the
-  launcher did, and the version it named has the nearest Homebrew end-of-life date; the install
-  target is standardized with 3.11 kept as the support floor. The Homebrew cask moving date cited
-  a page that does not state the claim and now cites the announcement that does.
-
-### Changed
-- macOS source currency (P69, completed sweep): ten of the 26 macOS-relevant registry sources are
-  now re-fetched and stamped, up from four, covering the TCC Files and Folders guide, the MCP
-  connect-local-servers doc (newly seeded), the GGML model repo, both Google Drive desktop pages,
-  and PEP 668. The whisper model pins were checked against the live model repo and all six still
-  match on filename and size. The wizard's file-access hint and the maintenance doc now use Apple's
-  actual sidebar label, Files & Folders. `docs/MACOS-MAINTENANCE.md` records which 16 sources were
-  deliberately NOT re-fetched and why, including the one page that truncated on both attempts, so
-  the gap reads as an honest denominator rather than a cleared backlog.
-### Security
-- Remote MCP endpoint (`tools/mcp_server.py --serve-remote`) gains two in-process backstops
-  (P67-B) behind the documented TLS+auth proxy: it refuses to bind a non-loopback `--host` when no
-  `CREATOR_OS_MCP_TOKEN` (or `remote_mcp_token` in `creator-os-config.local.json`) is set and
-  `--insecure` is not passed (no accidental open public endpoint), and enforces an in-process
-  bearer gate (constant-time compared, 401 otherwise) when a token is set. A loopback bind behind
-  the proxy is unchanged and needs no token. Package-independent selftest covers the serve
-  decision and the bearer gate; runbook and cross-modality docs reconciled.
-- Remote MCP bind-surface bypass (P68-B): the P67-B refuse/gate was reached only via
-  `--serve-remote`, but a bare `--transport streamable-http` (or `sse`) hit the same network bind
-  and skipped it, so `--transport streamable-http --host 0.0.0.0` could bind an unauthenticated
-  public endpoint the P67-B prose called impossible. The decision now fires for ANY non-stdio
-  transport, and the token-gated path serves the transport-matched app (`sse_app` vs
-  `streamable_http_app`) rather than always streamable-http. Argv-level selftest cases exercise the
-  gate-fires wiring and were confirmed to fail on the pre-fix code; ADR 0049-B narrows its coverage
-  claim to what the selftest actually proves (the `uvicorn.run` bind wiring needs `mcp`/`uvicorn`
-  and is verified by reading only).
-
-### Fixed
-- Honesty (P67-C): the `live_publishing_disabled` degraded-behavior prose called the
-  `tools/publishing/` clients "stubs"; they are complete OAuth + upload REST clients gated off (no
-  network call while the flag is off), now stated correctly. Resolved the TikTok rate-limit
-  `[NEEDS VERIFICATION]`: the Display API documents 600 requests/minute per endpoint (one-minute
-  sliding window) and no total-video cap (verified 2026-07-19 against
-  developers.tiktok.com/doc/tiktok-api-v2-rate-limit); stated in the importer and CONTENT-IMPORT,
-  and the staged volatile-correction marked applied.
-
-### Changed
-- Invariants 14, 16, 17 hardened again (P68-D) against the false-positive and false-negative cases
-  the P67 audit found: inv 16 counts a consuming reference only inside a real `${...}` interpolation
-  or as a bare/derived `agent()` argument (a prose mention no longer passes) and accepts
-  variable-built and destructured agent results; inv 17 rejects an unqualified `- Bash` allow bullet
-  (a bare shell can mutate the filesystem); inv 14 rejects a placeholder-only allowlist (`- none`).
-  Re-tuned against the 5 real defs and 5 real workflows (still green) and red-teamed. Nine eval
-  files' `expected_output_keys` corrected to real tool keys (P68-A). Invariant count 56 to 57.
-- Invariants 14, 16, and 17 rebuilt from substring/marker tests into property checks (P67, closes
-  the P65 guard-shallowness backlog): inv 14 requires a non-empty parsed Allowed-tools allowlist;
-  inv 16 additionally requires an `agent()` call to consume an earlier agent/parallel/pipeline
-  result (marker-in-a-comment with no second agent now fails); inv 17 additionally forbids any
-  mutation tool (Write/Edit/NotebookEdit) in a read-only agent's allowlist. Each tuned against the
-  real tree (5 agent defs, 5 workflows stay green) with a crafted-bad proof. Invariant count
-  unchanged at 56.
-
-### Added
 - Eval output-key truth guard (P68-A): `tools/eval_key_manifest.json` + drift invariant 57
   (`check_eval_output_keys`). It AST-extracts the literal dict keys each skill's named emitter
   function(s) emit and enforces that every eval case key is in the skill's authoritative set AND
@@ -308,65 +116,6 @@ work after the baseline sits under Unreleased.
   the offline injection scanner and the secret/PII scanner before it may enter the committed
   `competitor-channels.json`; QUARANTINE/BLOCK or PII matches are nulled and flagged
   (null-and-flag), REVIEW-level matches are flagged for the session tier.
-
-### Fixed
-- The three HIGH data-boundary gaps from the P65 audit (ADR 0048): the generic `sk-` secret
-  pattern now matches current hyphenated provider key formats and fine-grained `github_pat_`
-  tokens; the tracked-content scan reads EVERY tracked file behind a binary sniff instead of a
-  suffix allowlist; and invariant 20's forbidden tracked suffixes expand to a single shared
-  tiered list (`FORBIDDEN_DATA_SUFFIXES`: spreadsheets, columnar exports, financial application
-  files, credential/key stores, databases, backups, email/contacts, disk images, archives,
-  office binaries, capture media) consumed by the drift guard, the pre-commit gate, and CI.
-- Privacy invariants 19/20/21 print a loud DID-NOT-RUN advisory in a non-git copy instead of
-  silently passing; inv 21's git-unavailable skip no longer reads as a pass.
-- Sixteen more CLIs raw-tracebacked on a >255-byte path argument (the class P64 fixed for two
-  files); each now returns the clean `{"error","next_step"}` envelope, `source_currency`
-  propagates its exit code, and the six with selftests carry a boundary case.
-- Invariant 55's residual-origin escape was a raw substring test and origin claims were not
-  surface-checked: claims are now reconciled against an explicit `_residual_origins` list and a
-  per-origin surface-affinity table (the audit's phantom-origin repro now fails).
-- Four agent definitions omitted the verification envelope their own schemas require;
-  invariant 15 now also asserts every definition's prose names all three envelope fields.
-- Nine selftest summaries printed hardcoded denominators (four already wrong: build_calc said
-  24 of 24 while 29 ran, publishing_compliance 20 over 15, mediaprobe 17 over 19,
-  scenario_check 13 over 14); every selftest count in the tree is now derived from a run counter.
-- Two prose-named symbols lacked verify markers (`sweep_quarantine`, `render_prior`);
-  `docs/CROSS-MODALITY-AUDIT.md` is headed as a historical P39 snapshot against the live
-  22-spoke tree.
-
-### Changed
-- The invariant-42 writer census is AST-level: only an actual `save_registry` import or
-  attribute use counts as a writer, so prose or a read-only import cannot false-positive it.
-- `docs/DOC-MAINTENANCE.md` recorded the guard-shallowness backlog (invariants 14/16/17 substring
-  recipes with drafted property-level fixes) as deliberate deferred work. That backlog was
-  subsequently closed in P67 by rebuilding the three invariants into property checks, listed above.
-- The ENAMETOOLONG traceback class (ADR 0047): `Path.exists()` does not suppress errno 36, so a
-  >255-byte CLI path argument crashed dispatch-level probes that sat upstream of the P63 loader
-  guards. Every filesystem touch reachable from a CLI argument now yields the clean
-  `{"error","next_step"}` envelope: obligations `--scan`/`--verify`/`--write-manifest`, finance
-  `--reconcile`/`--verify`/`--write-manifest` plus the payload-derived invoice-filename write,
-  and the accounts/tasks/doctemplates loaders (each in its tool-local error idiom; the finance
-  CSV privacy refusal still raises for library callers and is translated only at the CLI). Every
-  touched selftest gains a >255-byte boundary case.
-- Selftest summary counts that had silently drifted from reality: obligations printed "16 of 16"
-  while 18 checks ran, and tasks printed "46" over 45. Both summaries (and finance/accounts/
-  doctemplates, already derived) now compute the count from the checks that actually ran.
-- The connector resolver crashed on the committed registry (ADR 0046): the `google_drive_hub`
-  entry (P60) shipped without `default_flag`, so `connectors.py --plan/--list/--json` raised
-  `KeyError` and the MCP `get_connectors` tool returned an error instead of the evidence plan.
-  The entry gains `default_flag: not_installed` (matching every `requires_capability` peer) and
-  `resolve()`/`cmd_list()` read the key defensively, defaulting a malformed future entry to off.
-- `transcript_normalize` jobs silently delivered only gap metrics: the runner passed
-  `--json --gap-metrics --suggest-chapters` but the transcripts CLI modes are mutually exclusive,
-  so segments and suggested chapters never reached the job result or the Outbox artifact. The
-  runner now uses the new combined `--normalize` mode and its selftest runs the built argv on a
-  committed fixture asserting all three keys.
-- `tools/finance.py` and `tools/obligations.py` dumped raw Python tracebacks when a CLI payload
-  argument was a bad path or inline JSON; both now return the clean `{"error","next_step"}`
-  envelope with exit 1 across all ten payload entry points, and `build_invoice` gap-flags a
-  non-dict `terms` value (`malformed_terms`) instead of crashing on a plain-English string.
-
-### Added
 - Cowork as a first-class surface pair (ADR 0047): `shared/cross-modality/transitions.json` gains
   `cowork_local` (a hypervisor-isolated VM on the user's machine: Class A/B/C native, flags
   enforced, local stores) and `cowork_remote` (the ephemeral Anthropic-hosted sandbox: Class B/C
@@ -445,7 +194,6 @@ work after the baseline sits under Unreleased.
   transport uploads staged Outbox artifacts. A real two-tier `--selftest` for
   `tools/mcp_server.py` (package-independent checks always; live registered-tool count == static
   source count when the mcp package is installed -- first live-import proof: 58 tools).
-
 - The Drive hub convention (`docs/DRIVE-HUB.md`): one Google Drive folder every surface shares,
   with a fixed layout (Inbox, Store, Jobs, Knowledge, Profile, Outbox), an append-only/create-only
   write rule, a dated-file naming convention, and the async compute-job contract
@@ -476,59 +224,6 @@ work after the baseline sits under Unreleased.
   re-projection so a private claude.ai Project live-syncs; the static pack is unchanged. The
   transitions doc records that web Claude with the Drive connector can create dated export files
   directly (append-only), so export-and-you-save is no longer the only web write path.
-
-### Fixed
-- Adversarial audit of the P61 ingest-screening and quarantine code closed five confirmed defects,
-  each now pinned by an `inbox.py` selftest regression: a poisoned transcript that tripped the
-  binary sniff (a NUL or high-byte payload) was format-routed WITHOUT the offline screen -- a
-  text-format file the tier cannot read is now held for a session, never routed unscreened; the
-  quarantine sweep and the approve move overwrote a same-name file in a dated folder (destroying
-  a sealed false positive or an earlier approved file) -- both now keep a collision as `name (2)`
-  and never delete; `approve` moved a file by a raw `hub / rel` with no confinement (a `..`
-  proposal escaped the hub) and its Quarantine lock was a case-sensitive string match a lowercase
-  path could dodge on a case-insensitive filesystem -- both are now realpath containment; and the
-  screener degraded fail-OPEN (routing files when the tool could not load, contradicting its own
-  docstring) -- text-format routing is now fail-closed. Behavior-only hardening; counts unchanged.
-- The `library_complete` job builder passed positional arguments the CLI rejects, so every queued
-  job of that type failed with an argparse error; it now passes `--export-dir`, pinned by a
-  selftest that runs the built argv. The `transcribe_media` builder writes its SRT under
-  `Jobs/results/` instead of littering `Inbox/Processed/`. The `project_docs` API lane read the
-  stored Google access token verbatim (401 after about an hour); it now refreshes and persists
-  via the watcher's proven oauth path, degrading to an honest reconnect note on a dead grant.
-- Currency/accuracy audit across versioning, maintainer files, README/docs, and diagnostic surfaces:
-  the dashboard scheduler no longer records a failed platform publish (empty media, missing public
-  URL, upload failure, missing board, disallowed privacy) as "published" — success is keyed on the
-  client result's `ok` field and refusals land as "failed" with the client's error, pinned by a new
-  dashboard selftest. Corrected stale prose the guards could not see: the publishing maintainer
-  invariants (which still described the pre-P57 caller-only gate and the removed `account_id`
-  fallback), seven finance selftest pass-count claims, the wizard doc's bind address and missing
-  security-guard description, the architecture doc's atoms table (27 of 105 presented as complete),
-  and the `versions.json` `updated` stamp. The doc-freshness manifest was re-blessed and the finance
-  maintainer docs are now content-hash-bound to `tools/finance.py`.
-
-### Security
-- Audit-hardening pass (the LOW cluster the first remediation deferred): OAuth refresh distinguishes a
-  transient error from a dead grant and classifies a dead Instagram token as reconnect-required; the
-  publishing clients reject an empty media file before any network call, pin the YouTube resumable
-  upload to a Google host, and require a real Instagram account id; the setup wizard bounds the request
-  body, backs up a corrupt Claude Desktop config before overwriting it, allowlists the speech-model
-  tier before downloading, and ties an import batch to a single-use token so two browser tabs cannot
-  cross-approve. `ftc_disclosure_verified` is documented as a presence check, not content validation.
-  A map-and-verify pass over three previously-unaudited surfaces (installer, drift guards, source
-  trigger) found no new issues.
-- Adversarial-audit remediation of the P50/P51 publishing + wizard code (all findings were behind
-  `live_publishing_enabled=OFF`, so no user was exposed): the publish `dispatch()` now structurally
-  enforces the live-publishing flag and an explicit human confirmation instead of trusting the caller,
-  the dashboard passes the full credentials map (the live path returned "reconnect" for everyone
-  before), a token-rotation `persist` callback is threaded through so a refreshed TikTok token is
-  saved, and the scheduler only dispatches a `direct_api`-tier platform. The setup wizard now confines
-  the import-scan folder and the filesystem-MCP folder to the user's home tree (was `os.path.isdir`
-  only), rejects cross-site POSTs with an Origin/Referer check, and validates + escapes the
-  `nightly_branch` value (which feeds `git pull`). Pinterest/Instagram OAuth redirect host moved from
-  `localhost` to `127.0.0.1` to avoid an IPv6 `::1` dead-end. Added the previously-missing
-  `publishing_compliance --selftest`.
-
-### Added
 - Doc-declared source tracking: the 23 macOS/AI-surface research sources behind the stress-test
   fixes seeded into the source registry (new `os-platform` category; every URL fetch-verified first),
   fenced `sources` declaration blocks in the two macOS docs, `tools/source_sync.py` (a read-only
@@ -559,14 +254,300 @@ work after the baseline sits under Unreleased.
   this `CHANGELOG.md`, and `docs/DOC-MAINTENANCE.md`.
 
 ### Changed
+- `dep-mcp` has a version baseline (P74): `validated_version` 1.28 with the `>=1.28,<2` pin, so
+  the dependency checker computes real drift against the 2.0.0 release instead of having nothing
+  to compare. The backlog entry moves from proposed to applied.
+- `docs/CURRENCY.md` records the interval-banding finding (P74): 66 sources declare a sub-monthly
+  cadence and 64 have never been checked once, because P36 retired the weekly job and stamping
+  became a manual step no committed doc installs. The intervals are deliberately left as declared
+  — what a cadence should be is the maintainer's call, not a number a tool rewrites to silence its
+  own advisory — and the doc states the two honest resolutions (install the scheduler, or re-band
+  through the sanctioned writer).
+- macOS source currency (P69, completed sweep): ten of the 26 macOS-relevant registry sources are
+  now re-fetched and stamped, up from four, covering the TCC Files and Folders guide, the MCP
+  connect-local-servers doc (newly seeded), the GGML model repo, both Google Drive desktop pages,
+  and PEP 668. The whisper model pins were checked against the live model repo and all six still
+  match on filename and size. The wizard's file-access hint and the maintenance doc now use Apple's
+  actual sidebar label, Files & Folders. `docs/MACOS-MAINTENANCE.md` records which 16 sources were
+  deliberately NOT re-fetched and why, including the one page that truncated on both attempts, so
+  the gap reads as an honest denominator rather than a cleared backlog.
+- Invariants 14, 16, 17 hardened again (P68-D) against the false-positive and false-negative cases
+  the P67 audit found: inv 16 counts a consuming reference only inside a real `${...}` interpolation
+  or as a bare/derived `agent()` argument (a prose mention no longer passes) and accepts
+  variable-built and destructured agent results; inv 17 rejects an unqualified `- Bash` allow bullet
+  (a bare shell can mutate the filesystem); inv 14 rejects a placeholder-only allowlist (`- none`).
+  Re-tuned against the 5 real defs and 5 real workflows (still green) and red-teamed. Nine eval
+  files' `expected_output_keys` corrected to real tool keys (P68-A). Invariant count 56 to 57.
+- Invariants 14, 16, and 17 rebuilt from substring/marker tests into property checks (P67, closes
+  the P65 guard-shallowness backlog): inv 14 requires a non-empty parsed Allowed-tools allowlist;
+  inv 16 additionally requires an `agent()` call to consume an earlier agent/parallel/pipeline
+  result (marker-in-a-comment with no second agent now fails); inv 17 additionally forbids any
+  mutation tool (Write/Edit/NotebookEdit) in a read-only agent's allowlist. Each tuned against the
+  real tree (5 agent defs, 5 workflows stay green) with a crafted-bad proof. Invariant count
+  unchanged at 56.
+- The invariant-42 writer census is AST-level: only an actual `save_registry` import or
+  attribute use counts as a writer, so prose or a read-only import cannot false-positive it.
+- `docs/DOC-MAINTENANCE.md` recorded the guard-shallowness backlog (invariants 14/16/17 substring
+  recipes with drafted property-level fixes) as deliberate deferred work. That backlog was
+  subsequently closed in P67 by rebuilding the three invariants into property checks, listed above.
+- The ENAMETOOLONG traceback class (ADR 0047): `Path.exists()` does not suppress errno 36, so a
+  >255-byte CLI path argument crashed dispatch-level probes that sat upstream of the P63 loader
+  guards. Every filesystem touch reachable from a CLI argument now yields the clean
+  `{"error","next_step"}` envelope: obligations `--scan`/`--verify`/`--write-manifest`, finance
+  `--reconcile`/`--verify`/`--write-manifest` plus the payload-derived invoice-filename write,
+  and the accounts/tasks/doctemplates loaders (each in its tool-local error idiom; the finance
+  CSV privacy refusal still raises for library callers and is translated only at the CLI). Every
+  touched selftest gains a >255-byte boundary case.
+- Selftest summary counts that had silently drifted from reality: obligations printed "16 of 16"
+  while 18 checks ran, and tasks printed "46" over 45. Both summaries (and finance/accounts/
+  doctemplates, already derived) now compute the count from the checks that actually ran.
+- The connector resolver crashed on the committed registry (ADR 0046): the `google_drive_hub`
+  entry (P60) shipped without `default_flag`, so `connectors.py --plan/--list/--json` raised
+  `KeyError` and the MCP `get_connectors` tool returned an error instead of the evidence plan.
+  The entry gains `default_flag: not_installed` (matching every `requires_capability` peer) and
+  `resolve()`/`cmd_list()` read the key defensively, defaulting a malformed future entry to off.
+- `transcript_normalize` jobs silently delivered only gap metrics: the runner passed
+  `--json --gap-metrics --suggest-chapters` but the transcripts CLI modes are mutually exclusive,
+  so segments and suggested chapters never reached the job result or the Outbox artifact. The
+  runner now uses the new combined `--normalize` mode and its selftest runs the built argv on a
+  committed fixture asserting all three keys.
+- `tools/finance.py` and `tools/obligations.py` dumped raw Python tracebacks when a CLI payload
+  argument was a bad path or inline JSON; both now return the clean `{"error","next_step"}`
+  envelope with exit 1 across all ten payload entry points, and `build_invoice` gap-flags a
+  non-dict `terms` value (`malformed_terms`) instead of crashing on a plain-English string.
 - Corrected stale maintainer/SKILL/doc claims surfaced by a full content-accuracy sweep
   (publishing layer no longer described as "dark/stubs", Pinterest scope, finance-desk check
   counts, contract-desk atom availability, videoedit atom list, tool-count and script-path
   references). The skill-template regression bar was lowered from five to three cases.
 
 ### Fixed
+- The release path had no preconditions (P74). `release.py execute()` checked only that `gh`
+  existed and that `--yes` was passed, so it would tag a tree whose version files disagreed, whose
+  CHANGELOG had no section for the version being cut, where the tag already existed, or with
+  uncommitted changes. Each is now a refusal with a stated reason, and each has a selftest case
+  that exercises it with no git side effects.
+- Every release after the first was going to be annotated "baseline release" (P74), in both the
+  copyable plan commands and the tag `execute()` writes. The descriptor and the notes now depend
+  on the version, and a non-baseline release points at its own CHANGELOG section.
+- `version.py --check` read three of the five places that carry the version (P74), so it reported
+  "consistent" while `marketplace.json` disagreed in two fields and only the drift guard noticed.
+  The two guards now agree on what consistency means, which matters because the new release
+  preconditions were trusting the narrower one.
+- The pasted ChatGPT instruction pack is re-stamped with the version it ships against, and the
+  drift guard now compares the two. The wizard tells the reader to re-export whenever the pasted
+  pack shows a lower Packaging version than the wizard does, so a bump that left the stamp behind
+  sent them round a loop with no exit: re-paste, still stale, re-paste again. The stamp check only
+  asserted the line existed and never read the number, which is the unguarded-agreement-point
+  class the audit was built around. Red-teamed in both directions.
+- The commit-hygiene backstop scanned an empty range on a direct push to main (P74). CI used
+  `origin/main..HEAD`, which is empty once such a push lands, so the step reported success having
+  examined nothing; the policy boundary SHA was recorded but never used to bound the range. CI now
+  prefers the branch range when it is non-empty, falls back to the boundary, and **fails closed**
+  when neither resolves rather than passing silently. Verified by simulating a direct main push:
+  the old form scanned 0 commits and passed, the new form refuses.
+- The commit-msg hook now enforces the author-email rule (P74). ADR 0015 states the rule is
+  enforced by the hook and the CI backstop; the hook half did not exist, and the CI half was the
+  empty range above, so a documented control was fictional in both directions at once. The rule is
+  imported from `secret_scan` rather than restated, so hook and backstop cannot drift. The hook
+  also no longer inserts a `sys.path` entry derived from `__file__`, which is `"<stdin>"` inside
+  the heredoc and resolved to a path that does not exist.
+- Capability parity is bidirectional (P74). The check only walked degraded entries back to
+  capabilities, so a disabled capability with no degraded entry was invisible while the gate's
+  refusal string still cited a `degraded_behavior` key that did not exist. Name-matching alone
+  reports 17 false positives, because several degraded keys deliberately cover a fan-out of
+  capabilities, so the reverse loop carries an explicit map; it reports zero on the current tree
+  and fires on a synthetic capability added without an entry.
+- Competitor OG metadata was extracted wrong for every property (P74). The regex in
+  `tools/parse_competitor_meta.py::_extract_og_tags` built its quote group as `["\'{prop}["\']`,
+  an unterminated character class that swallowed the property name, so the pattern matched a
+  single character and every `og_*` field received the FIRST meta tag's content: `og_image` held
+  the title, `og_type` held the title, and so on. Both the primary and the reversed-attribute
+  fallback carried the defect, so nothing rescued it. Those columns are persisted by
+  `competitor_snapshot.py` and surfaced by the deep-competitor-scan atom, which made it a wrong
+  fact presented as a fact. The property name is now matched literally via `re.escape`, and the
+  module gained a selftest whose first two cases are that regression. Rows written before this
+  fix have unreliable `og_*` values; the atom's maintainer README says so and recommends a re-scan
+  rather than a comparison.
+- The launcher probes the private `.venv` instead of trusting it to exist (P73). A Homebrew Python
+  upgrade relocates the framework the venv links against, leaving an interpreter that still passes
+  an executable test but cannot run, so the working fallbacks were skipped and the user saw a dyld
+  traceback instead of the install instructions.
+- Registry writes are atomic (P73): serialize in full, write a sibling temp file, rename into
+  place. A bare write truncated the destination first, so an interrupt could leave the registry
+  half written with no backup.
+- The plain ChatGPT web surface no longer contradicts the packaging docs (P73). The transitions
+  data, wizard copy and docs agreed that live tools were impossible there while three other
+  locations documented a developer-mode connector reaching them; all four now say this is a limit
+  of plain chat, not of ChatGPT. The workspace-only Custom GPT warning was restored on the two
+  upgrade paths that had lost it, and the macOS-only Work with Apps limit is scoped.
+- `AGENTS.md` states the registry single-writer rule at full strength (P73), naming the shared
+  write implementation and all five sanctioned verbs rather than two, and carries the agent output
+  contract, the Quality Gates release bar, and the traversal and connector writer rules it omitted.
+- The verification battery lives in `CLAUDE.md` and `README.md` (P73). It previously existed only
+  in `AGENTS.md`, which is a projection and must not be hand-edited, so re-projecting would have
+  deleted it. README's Validation block was a three-command subset that included a step writing
+  `dist/`, and the setup, deployment and wizard docs plus the one-time hook install were
+  unreachable from the entry point.
+- A corrupt cache index returns the rebuild hint the absent case already gave, rather than a raw
+  sqlite error (P73). `README.md` lists all 22 spokes instead of 14.
+- Honest scope on two overclaiming docs (P73): `post_status` said it read the connector and mapped
+  engagement, when it reads one flag and makes no connector call, and its reserved
+  `include_engagement_snapshot` parameter now says it has no effect rather than implying one;
+  `docs/LOCAL_CONTEXT.md` said a stray `git add -A` "cannot" commit personal data, when prevention
+  needs the hook installed and the invariant is detection after the fact.
+- The six disabled capabilities with no `degraded_behavior` entry now have one (P73):
+  `playwright`, `google_workspace`, `microsoft_365`, `task_tracking`, `shipment_tracking`,
+  `coverage_verification`. The parity check remains one-directional and advisory.
+- `docs/AUDIT-PROTOCOL.md` gains section 8 defining the plan structure section 6 referenced (P73).
+  The pointer had exactly one occurrence in the tree and no definition anywhere.
+- OpenAI surface truth (P72): Custom GPT creation is workspace-only now and the docs say so; the
+  Assistants API sunset is a tracked moving date; the desktop app's Work with Apps limits are
+  stated; the never-paste-validated custom instructions are trimmed under the 5,000-character
+  combined cap and machine-checked.
+- macOS source provenance (P71): the loopback-bind justification cited an Apple forum thread as
+  explicitly stating that loopback traffic does not trigger the local network prompt. The thread
+  says nothing about loopback; it answers a different question about sockets that listen on UDP
+  without sending. The claim now rests on the technote's own definition of a local network as one
+  on a broadcast-capable interface, quoted where the claim is made and labelled as an inference
+  from that definition rather than an Apple statement about loopback. Both registry hints are
+  corrected and the technote is stamped.
+- Two environment limitations had been recorded as facts about sources (P71): the Apple support
+  pages were said to return truncated content, and the whisper model hashes were said to be
+  unverifiable without downloading gigabytes. Both were wrong. The pages return over a megabyte
+  when retrieved directly, and the hashes verify from the redirect response headers; all six pins
+  match upstream on hash and size.
+- Correction to a P69 rationale (P70): the Homebrew Python change was justified by calling the old
+  formula deprecated upstream. Re-fetching the formula API shows every `python@N` carries that same
+  flag with a scheduled end-of-life date (3.11 in 2027, 3.13 in 2029, 3.14 in 2030), so it is
+  Homebrew's EOL calendar rather than a present-tense defect, and it does not distinguish the old
+  version from the one adopted. The change itself stands on the accurate reasons: one guide named
+  two different versions, and the old one has the nearest end of life. Recorded here rather than by
+  rewriting the landed commit.
+- macOS surface manifest semantics (P70): the tool recorded every derived path automatically while
+  the manifest and ADR called those files audited and claimed each carried an explicit decision.
+  `reconcile` now refuses a path nobody has ruled on unless `--accept-new` is passed, the signal
+  token `Final Cut` is narrowed to `Final Cut Pro` (it had matched eight files where the phrase
+  means the edited video), and the wording throughout says recorded rather than audited.
+- macOS completeness gate self-defect (P69, found by the mandated independent adversarial pass):
+  the deriver sat in its own skip list and nothing hashed it, so deleting tokens from the signal
+  vocabulary shrank the audited set while invariant 58 still reported complete. The manifest now
+  pins the deriver (module and signal-set sha256) and the guard fails when an audited file stops
+  deriving, so a narrowed denominator is a build failure instead of a silent gap. The same pass
+  found three video-tooling evidence files skipped under a false append-only rationale (one commit
+  each); they are audited normally now, and a macOS moving date still resolved its registry source
+  to the page that does not carry the claim, now seeded and repointed.
+- macOS setup guidance (P69): `docs/SETUP_MAC.md` named a different Python version than the
+  launcher did, and the version it named has the nearest Homebrew end-of-life date; the install
+  target is standardized with 3.11 kept as the support floor. The Homebrew cask moving date cited
+  a page that does not state the claim and now cites the announcement that does.
+- Honesty (P67-C): the `live_publishing_disabled` degraded-behavior prose called the
+  `tools/publishing/` clients "stubs"; they are complete OAuth + upload REST clients gated off (no
+  network call while the flag is off), now stated correctly. Resolved the TikTok rate-limit
+  `[NEEDS VERIFICATION]`: the Display API documents 600 requests/minute per endpoint (one-minute
+  sliding window) and no total-video cap (verified 2026-07-19 against
+  developers.tiktok.com/doc/tiktok-api-v2-rate-limit); stated in the importer and CONTENT-IMPORT,
+  and the staged volatile-correction marked applied.
+- The three HIGH data-boundary gaps from the P65 audit (ADR 0048): the generic `sk-` secret
+  pattern now matches current hyphenated provider key formats and fine-grained `github_pat_`
+  tokens; the tracked-content scan reads EVERY tracked file behind a binary sniff instead of a
+  suffix allowlist; and invariant 20's forbidden tracked suffixes expand to a single shared
+  tiered list (`FORBIDDEN_DATA_SUFFIXES`: spreadsheets, columnar exports, financial application
+  files, credential/key stores, databases, backups, email/contacts, disk images, archives,
+  office binaries, capture media) consumed by the drift guard, the pre-commit gate, and CI.
+- Privacy invariants 19/20/21 print a loud DID-NOT-RUN advisory in a non-git copy instead of
+  silently passing; inv 21's git-unavailable skip no longer reads as a pass.
+- Sixteen more CLIs raw-tracebacked on a >255-byte path argument (the class P64 fixed for two
+  files); each now returns the clean `{"error","next_step"}` envelope, `source_currency`
+  propagates its exit code, and the six with selftests carry a boundary case.
+- Invariant 55's residual-origin escape was a raw substring test and origin claims were not
+  surface-checked: claims are now reconciled against an explicit `_residual_origins` list and a
+  per-origin surface-affinity table (the audit's phantom-origin repro now fails).
+- Four agent definitions omitted the verification envelope their own schemas require;
+  invariant 15 now also asserts every definition's prose names all three envelope fields.
+- Nine selftest summaries printed hardcoded denominators (four already wrong: build_calc said
+  24 of 24 while 29 ran, publishing_compliance 20 over 15, mediaprobe 17 over 19,
+  scenario_check 13 over 14); every selftest count in the tree is now derived from a run counter.
+- Two prose-named symbols lacked verify markers (`sweep_quarantine`, `render_prior`);
+  `docs/CROSS-MODALITY-AUDIT.md` is headed as a historical P39 snapshot against the live
+  22-spoke tree.
+- Adversarial audit of the P61 ingest-screening and quarantine code closed five confirmed defects,
+  each now pinned by an `inbox.py` selftest regression: a poisoned transcript that tripped the
+  binary sniff (a NUL or high-byte payload) was format-routed WITHOUT the offline screen -- a
+  text-format file the tier cannot read is now held for a session, never routed unscreened; the
+  quarantine sweep and the approve move overwrote a same-name file in a dated folder (destroying
+  a sealed false positive or an earlier approved file) -- both now keep a collision as `name (2)`
+  and never delete; `approve` moved a file by a raw `hub / rel` with no confinement (a `..`
+  proposal escaped the hub) and its Quarantine lock was a case-sensitive string match a lowercase
+  path could dodge on a case-insensitive filesystem -- both are now realpath containment; and the
+  screener degraded fail-OPEN (routing files when the tool could not load, contradicting its own
+  docstring) -- text-format routing is now fail-closed. Behavior-only hardening; counts unchanged.
+- The `library_complete` job builder passed positional arguments the CLI rejects, so every queued
+  job of that type failed with an argparse error; it now passes `--export-dir`, pinned by a
+  selftest that runs the built argv. The `transcribe_media` builder writes its SRT under
+  `Jobs/results/` instead of littering `Inbox/Processed/`. The `project_docs` API lane read the
+  stored Google access token verbatim (401 after about an hour); it now refreshes and persists
+  via the watcher's proven oauth path, degrading to an honest reconnect note on a dead grant.
+- Currency/accuracy audit across versioning, maintainer files, README/docs, and diagnostic surfaces:
+  the dashboard scheduler no longer records a failed platform publish (empty media, missing public
+  URL, upload failure, missing board, disallowed privacy) as "published" — success is keyed on the
+  client result's `ok` field and refusals land as "failed" with the client's error, pinned by a new
+  dashboard selftest. Corrected stale prose the guards could not see: the publishing maintainer
+  invariants (which still described the pre-P57 caller-only gate and the removed `account_id`
+  fallback), seven finance selftest pass-count claims, the wizard doc's bind address and missing
+  security-guard description, the architecture doc's atoms table (27 of 105 presented as complete),
+  and the `versions.json` `updated` stamp. The doc-freshness manifest was re-blessed and the finance
+  maintainer docs are now content-hash-bound to `tools/finance.py`.
 - `tools/publishing/__init__.py` docstrings now describe the four real clients, the
   `creds[plat].publish` token model, and the `live_publishing_enabled` + human-confirm gate.
+
+### Security
+- MCP tool annotations are fail-closed (P73): every tool must be explicitly classified as a write,
+  a mutation-sounding non-persisting call, or a verified read. Classification previously keyed off
+  a mutation-signal name list, so a tool the list did not anticipate silently inherited
+  `readOnlyHint: True` -- the hint clients use to skip a confirmation prompt -- while complete
+  OAuth upload clients sit behind `live_publishing_enabled` waiting to be ungated. An unclassified
+  tool now fails the selftest, proven by a permanent synthetic case whose name matches no signal.
+- `configure_tool` no longer destroys a malformed local config (P73). An unparseable
+  `creator-os-config.local.json` was treated as an empty file and overwritten, discarding the
+  publishing flags, remote token and update channel in a gitignored file with no recovery. The
+  bytes are backed up before any write, the tool refuses if the backup fails, and the loader that
+  silently reverted every capability to committed defaults now warns.
+- Remote MCP endpoint (`tools/mcp_server.py --serve-remote`) gains two in-process backstops
+  (P67-B) behind the documented TLS+auth proxy: it refuses to bind a non-loopback `--host` when no
+  `CREATOR_OS_MCP_TOKEN` (or `remote_mcp_token` in `creator-os-config.local.json`) is set and
+  `--insecure` is not passed (no accidental open public endpoint), and enforces an in-process
+  bearer gate (constant-time compared, 401 otherwise) when a token is set. A loopback bind behind
+  the proxy is unchanged and needs no token. Package-independent selftest covers the serve
+  decision and the bearer gate; runbook and cross-modality docs reconciled.
+- Remote MCP bind-surface bypass (P68-B): the P67-B refuse/gate was reached only via
+  `--serve-remote`, but a bare `--transport streamable-http` (or `sse`) hit the same network bind
+  and skipped it, so `--transport streamable-http --host 0.0.0.0` could bind an unauthenticated
+  public endpoint the P67-B prose called impossible. The decision now fires for ANY non-stdio
+  transport, and the token-gated path serves the transport-matched app (`sse_app` vs
+  `streamable_http_app`) rather than always streamable-http. Argv-level selftest cases exercise the
+  gate-fires wiring and were confirmed to fail on the pre-fix code; ADR 0049-B narrows its coverage
+  claim to what the selftest actually proves (the `uvicorn.run` bind wiring needs `mcp`/`uvicorn`
+  and is verified by reading only).
+- Audit-hardening pass (the LOW cluster the first remediation deferred): OAuth refresh distinguishes a
+  transient error from a dead grant and classifies a dead Instagram token as reconnect-required; the
+  publishing clients reject an empty media file before any network call, pin the YouTube resumable
+  upload to a Google host, and require a real Instagram account id; the setup wizard bounds the request
+  body, backs up a corrupt Claude Desktop config before overwriting it, allowlists the speech-model
+  tier before downloading, and ties an import batch to a single-use token so two browser tabs cannot
+  cross-approve. `ftc_disclosure_verified` is documented as a presence check, not content validation.
+  A map-and-verify pass over three previously-unaudited surfaces (installer, drift guards, source
+  trigger) found no new issues.
+- Adversarial-audit remediation of the P50/P51 publishing + wizard code (all findings were behind
+  `live_publishing_enabled=OFF`, so no user was exposed): the publish `dispatch()` now structurally
+  enforces the live-publishing flag and an explicit human confirmation instead of trusting the caller,
+  the dashboard passes the full credentials map (the live path returned "reconnect" for everyone
+  before), a token-rotation `persist` callback is threaded through so a refreshed TikTok token is
+  saved, and the scheduler only dispatches a `direct_api`-tier platform. The setup wizard now confines
+  the import-scan folder and the filesystem-MCP folder to the user's home tree (was `os.path.isdir`
+  only), rejects cross-site POSTs with an Origin/Referer check, and validates + escapes the
+  `nightly_branch` value (which feeds `git pull`). Pinterest/Instagram OAuth redirect host moved from
+  `localhost` to `127.0.0.1` to avoid an IPv6 `::1` dead-end. Added the previously-missing
+  `publishing_compliance --selftest`.
 
 ## [0.1.0] - 2026-07-14
 
