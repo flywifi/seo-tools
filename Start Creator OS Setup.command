@@ -20,10 +20,23 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 # Choose an interpreter: prefer the private .venv toolbox (created during setup); otherwise find a
 # real, working python3 (the built-in /usr/bin/python3 is only a stub until the Command Line Tools
 # are installed). We probe each candidate with a tiny import to confirm it actually works.
+#
+# The .venv is probed like every other candidate, NOT trusted for existing. A Homebrew python
+# upgrade (python@3.13 -> python@3.14) relocates the framework the venv symlinks into: the
+# interpreter still exists and is still executable, so an -x test passes while the interpreter
+# is dead. Trusting -x meant PY was set to a broken interpreter, the working fallbacks were
+# never tried, and the user got a dyld / "No module named encodings" traceback instead of the
+# install instructions below -- defeating the entire point of this launcher (P73 D6-F10).
 PY=""
-if [ -x ".venv/bin/python3" ]; then
+if [ -x ".venv/bin/python3" ] && .venv/bin/python3 -c 'import sys' >/dev/null 2>&1; then
   PY=".venv/bin/python3"
 else
+  if [ -x ".venv/bin/python3" ]; then
+    echo "Note: the private .venv toolbox is present but its interpreter does not run"
+    echo "(usually a Homebrew Python upgrade moved it). Falling back to a system Python."
+    echo "To rebuild it: rm -rf .venv && python3 tools/setup.py --install-deps"
+    echo ""
+  fi
   for c in /opt/homebrew/bin/python3 /usr/local/bin/python3 \
            /Library/Frameworks/Python.framework/Versions/Current/bin/python3 \
            "$(command -v python3 2>/dev/null)"; do

@@ -117,6 +117,17 @@ The wizard is a small Python script (`tools/wizard.py`) that runs a local web se
 leaves your computer except the OAuth flows to the providers' own servers (Google, Microsoft, and --
 during publishing setup -- YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
 
+If port 8765 is already taken, set `CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable
+or out of range falls back to 8765 with a printed note):
+
+```bash
+CREATOR_OS_WIZARD_PORT=8790 python3 tools/wizard.py
+```
+
+Only do this deliberately. The OAuth redirect URIs you register with each provider embed the
+port and are matched exactly, so changing it breaks every already-connected platform until you
+update the registered URI in that provider's console. Details in `docs/PUBLISHING.md`.
+
 **Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
 is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you
 type (import folder, Creator OS folder) are confined to your home directory after resolving

@@ -17,6 +17,7 @@ Stdlib only, no side effects on import.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +43,20 @@ def load_registry(path: Path = REGISTRY_PATH) -> dict:
 
 def save_registry(data: dict, path: Path = REGISTRY_PATH) -> None:
     """Write the registry with the canonical formatting both writers must produce byte-identically.
-    Stamps `_content_digest` (see content_digest) so hand edits are detectable."""
+    Stamps `_content_digest` (see content_digest) so hand edits are detectable.
+
+    The write is ATOMIC: serialize in full, write to a temp file in the same directory, then
+    os.replace onto the target. A bare write_text truncates the destination first, so an
+    interrupt (Ctrl-C, a crash, a full disk) mid-write left a 5,500-line registry truncated with
+    no backup and no recovery path. os.replace is atomic within a filesystem, so a reader either
+    sees the whole old file or the whole new one, never a half-written one (P73 D6-F8).
+    """
     data["_content_digest"] = content_digest(data)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    blob = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    tmp = path.with_name(path.name + f".tmp{os.getpid()}")
+    try:
+        tmp.write_text(blob, encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()

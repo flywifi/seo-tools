@@ -166,3 +166,30 @@ Update `docs/SETUP_MAC.md` and this file in the same change (the CLAUDE.md docs-
 the `verify:` markers pointing at real symbols and the `sources` block above in sync with the registry
 (`python3 tools/source_sync.py check`); run `python3 tools/wizard.py --selftest`,
 `tools/setup.py --selftest`, `tools/env_paths.py --selftest`, and `python3 tools/sync_check.py`.
+
+## Troubleshooting: the launcher, the .venv, and the cache
+
+**"No module named encodings" or a dyld error when double-clicking the launcher.**
+Cause: the private `.venv` was built against a Homebrew Python that has since moved
+(`brew upgrade python@3.13` to `python@3.14` relocates the framework the venv symlinks into).
+The interpreter file still exists and is still executable, so an existence test cannot detect
+this. `Start Creator OS Setup.command` therefore *probes* `.venv/bin/python3` with a real import
+before trusting it, and falls through to a working system Python with a printed note when the
+probe fails. Rebuild the toolbox at your convenience:
+
+```bash
+rm -rf .venv && python3 tools/setup.py --install-deps
+```
+
+**A cache tool reports "Cache index is unreadable (the database file is corrupt)".**
+Cause: usually an interrupted `cache.py --build` (power loss, a killed terminal). The file exists
+and is non-empty, so it is not the "not found" case. The index is fully regenerable from
+`canonical-sources/`, so deleting it is safe and loses nothing:
+
+```bash
+rm shared/cache/index.local.db && python3 shared/cache/cache.py --build
+```
+
+**The wizard will not start because port 8765 is in use.** See the port-override section in
+`docs/PUBLISHING.md` — and note that changing the port invalidates any OAuth redirect URIs you
+already registered with a platform.

@@ -36,7 +36,30 @@ if str(_HERE) not in sys.path:
 import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loopback helper)
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 
-PORT = 8765
+# P73 D6-F9: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
+# derived from this port and docs/PUBLISHING.md tells you to register
+# http://127.0.0.1:8765/oauth/<platform>/callback with Google, Meta, TikTok and Pinterest as an
+# EXACT match. Changing the port therefore breaks every already-registered redirect URI until you
+# re-register it with each provider -- so this is an escape hatch for a port collision, not a
+# setting to tune. An unparseable or out-of-range value falls back to the default rather than
+# crashing the one tool a non-technical user runs.
+def _wizard_port(default: int = 8765) -> int:
+    raw = os.environ.get("CREATOR_OS_WIZARD_PORT")
+    if not raw:
+        return default
+    try:
+        val = int(raw)
+    except ValueError:
+        print(f"[wizard] CREATOR_OS_WIZARD_PORT={raw!r} is not a number; using {default}.")
+        return default
+    if not (1024 <= val <= 65535):
+        print(f"[wizard] CREATOR_OS_WIZARD_PORT={val} is out of range (1024-65535); "
+              f"using {default}.")
+        return default
+    return val
+
+
+PORT = _wizard_port()
 _MAX_BODY = 5 * 1024 * 1024   # A4a: cap on any request body read into memory (forms are tiny)
 # Known STT model tiers the fetch-model button may request (A4c: reject anything else before shelling).
 _KNOWN_MODEL_TIERS = frozenset({

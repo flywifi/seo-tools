@@ -269,6 +269,30 @@ def _read_local_config_for_write(path) -> tuple:
         return {}, str(bak), None
 
 
+_CACHE_REBUILD_HINT = "Run: python3 shared/cache/cache.py --build"
+_CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
+                       "databaseerror", "file is encrypted or is not a database")
+
+
+def _cache_failure(err: str) -> dict:
+    """Shape a failed cache subprocess into a tool result.
+
+    P73 D6-F11: an ABSENT index already returned a clear error plus a rebuild hint, but a CORRUPT
+    one (power loss mid `cache.py --build`) passed the .exists() guard and surfaced a raw
+    sqlite3.DatabaseError traceback into the MCP result, with no hint that rebuilding fixes it.
+    Corruption is the case where the user most needs to be told what to do.
+
+    Above the mcp package import (P61 C19) so the package-independent selftest tier can reach it.
+    """
+    msg = (err or "").strip()
+    if any(m in msg.lower() for m in _CORRUPT_DB_MARKERS):
+        return {"error": "Cache index is unreadable (the database file is corrupt).",
+                "hint": f"Delete it and rebuild: rm shared/cache/index.local.db && "
+                        f"{_CACHE_REBUILD_HINT}",
+                "detail": msg}
+    return {"error": msg or "cache query failed"}
+
+
 def _handoff_gates() -> str | None:
     """Both P60 Transport C gates must be on; returns a plain refusal string or None."""
     from handoff import runner as _runner
@@ -429,6 +453,13 @@ def _selftest_static() -> tuple:
         _cfg3, _bak3, _err3 = _read_local_config_for_write(Path(_td) / "absent.json")
         ok("an absent local config is an empty dict, not an error",
            _err3 is None and _bak3 is None and _cfg3 == {})
+    # P73 D6-F11: a corrupt cache DB must get the rebuild hint, not a bare traceback.
+    _corrupt = _cache_failure("sqlite3.DatabaseError: file is not a database")
+    ok("a corrupt cache index returns a rebuild hint",
+       "hint" in _corrupt and "index.local.db" in _corrupt["hint"])
+    _other = _cache_failure("some unrelated failure")
+    ok("an unrelated cache failure is NOT mislabelled as corruption",
+       "hint" not in _other and _other["error"] == "some unrelated failure")
     import sqlite3, tempfile, os
     with tempfile.TemporaryDirectory() as td:
         db = os.path.join(td, "idx.db")
@@ -631,7 +662,7 @@ def cache_query(query: str, limit: int = 5) -> str:
         "--json",
     ])
     if rc != 0:
-        return json.dumps({"error": err.strip() or "cache query failed"})
+        return json.dumps(_cache_failure(err))
     return out.strip() or json.dumps([])
 
 
@@ -643,7 +674,7 @@ def _construction_query(query, limit):
     rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
                          "--limit", str(max(limit * 5, 20)), "--json"])
     if rc != 0:
-        return None, {"error": err.strip() or "cache query failed"}
+        return None, _cache_failure(err)
     try:
         data = json.loads(out or "{}")
     except json.JSONDecodeError:

@@ -150,3 +150,22 @@ it on your own machine when you set up real publishing:
   Publishing Authorization can still block publishing.
 - Pinterest tier/rate numbers and the exact test-token dashboard steps come from Pinterest docs that
   render as a single-page app; reconfirm against your live dashboard.
+
+## If port 8765 is already in use
+
+The wizard binds `8765`, and the OAuth redirect URIs you registered above embed that exact port.
+If another app holds it, set the override and restart the wizard:
+
+```bash
+CREATOR_OS_WIZARD_PORT=8790 python3 tools/wizard.py
+```
+
+Read this before you do it: the redirect URI is matched **exactly** by every provider. Changing
+the port means the URIs registered with Google, Meta, TikTok, and Pinterest no longer match, and
+each OAuth flow will fail with a redirect-mismatch error until you edit the registered URI in
+that provider's console to the new port. If you have not connected any platform yet, changing the
+port costs nothing. If you already have, prefer freeing 8765 (quit the other app) over changing
+the port.
+
+The override accepts 1024 to 65535; anything unparseable or out of range falls back to 8765 with
+a printed note rather than failing to start.

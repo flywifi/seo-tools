@@ -178,3 +178,26 @@ web, and Gemini as well as desktop — gated by `docs/PASTE-SAFETY.md`. Local-ru
 `python3 tools/fetch_resilient.py <url>` (browser render + archive.org), or pass `--resilient` to
 `--detect-changes` to attempt that retry automatically before recording a block (opt-in; may use network;
 degrades silently if the optional deps are absent). See `shared/web-intel-engine.md` Levels 3 to 6.
+
+## If the registry is damaged (recovery)
+
+`canonical-sources/source-registry.json` is written atomically by
+`tools/registry_io.py::save_registry` (serialize in full, write a sibling temp file, then
+`os.replace`), so an interrupted write leaves either the whole old file or the whole new one.
+A reader never sees a half-written registry.
+
+If the file is damaged anyway (a hand edit, a bad merge, a disk fault):
+
+```bash
+git checkout canonical-sources/source-registry.json
+```
+
+That restores the committed structure. What you lose is any local stamping done since the last
+commit: `last_checked` / `latest_seen` dates written by `source_currency.py mark-checked` or
+`dependency_currency.py check --apply`. Re-run those and they re-stamp. Nothing else in the
+registry is local-only, so there is no unrecoverable state here.
+
+If `git checkout` reports no changes but the drift guard still complains about
+`_content_digest`, the file was edited in place and committed: run any sanctioned write verb (for
+example `python3 tools/dependency_currency.py check --apply`) to re-stamp the digest through the
+single write path. Do not edit the digest by hand.
