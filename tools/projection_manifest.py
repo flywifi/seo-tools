@@ -89,7 +89,12 @@ def reconcile(root=ROOT):
         for s in sources:
             p = root / s
             rec[s] = _sha(p) if p.exists() else None
-        out[kf] = {"sources": rec}
+        # P73 D6-F6: also pin the projection's OWN bytes. Recording only the sources meant a
+        # projection hand-edited into disagreement with its source was undetectable: the source
+        # sha had not moved, so nothing flagged it. AGENTS.md carried a narrowed version of the
+        # registry single-writer rule for a whole phase for exactly this reason.
+        pp = root / kf
+        out[kf] = {"sources": rec, "projection": _sha(pp) if pp.exists() else None}
     manifest = {"_comment": "P49 WS7 staleness signal: sha256 of each shared engine/protocol at the time "
                             "its prose projection was last reconciled. If a source sha moves, drift "
                             "invariant 47 (advisory) flags the projection files that may now be stale. "
@@ -123,7 +128,8 @@ def check(root=ROOT):
             stale.append({"knowledge_file": kf, "changed_sources": [], "missing_sources": [],
                           "note": "projection file missing (deleted or moved)"})
     for kf, sources in _projections(root).items():
-        rec = recorded.get(kf, {}).get("sources", {})
+        entry = recorded.get(kf, {})
+        rec = entry.get("sources", {})
         changed, missing = [], []
         for s in sources:
             p = root / s
@@ -132,8 +138,20 @@ def check(root=ROOT):
                 continue
             if rec.get(s) != _sha(p):
                 changed.append(s)
-        if changed or missing:
-            stale.append({"knowledge_file": kf, "changed_sources": changed, "missing_sources": missing})
+        # P73 D6-F6: a projection edited by hand, away from its source, is staleness too. Only
+        # report it when the sources are unchanged -- if a source moved, the projection is
+        # SUPPOSED to be rewritten, and flagging both would just be noise.
+        pp = root / kf
+        edited = False
+        if pp.exists() and not changed and not missing:
+            pinned = entry.get("projection")
+            edited = pinned is not None and pinned != _sha(pp)
+        if changed or missing or edited:
+            row = {"knowledge_file": kf, "changed_sources": changed, "missing_sources": missing}
+            if edited:
+                row["note"] = ("projection edited by hand since reconcile while its sources were "
+                               "unchanged (re-project from the source, or reconcile to re-bless)")
+            stale.append(row)
     return stale
 
 
@@ -168,6 +186,26 @@ def selftest(root=ROOT):
     ok("a projection that does not map brand-engine is NOT flagged", _K + "04-protocols.md" not in flagged)
     reconcile(d)
     ok("reconcile re-blesses and clears the signal", check(d) == [])
+
+    # P73 D6-F6: hand-editing a projection while its sources are untouched must be caught.
+    target = _K + "04-protocols.md"
+    (d / target).write_text("projection\nHAND EDITED, contradicts the source\n", encoding="utf-8")
+    stale = check(d)
+    row = next((e for e in stale if e["knowledge_file"] == target), None)
+    ok("hand-editing a projection is flagged even though no source moved",
+       row is not None and row.get("changed_sources") == [] and "edited by hand" in row.get("note", ""))
+    ok("an untouched projection is NOT flagged by the self-hash",
+       all(e["knowledge_file"] != _K + "02-brand-voice.md" for e in stale))
+    reconcile(d)
+    ok("reconcile re-blesses a deliberately rewritten projection", check(d) == [])
+    # A moved source must not ALSO report a hand-edit: the projection is meant to be rewritten.
+    (d / "shared" / "brand-engine.md").write_text("# changed again\nNEWER\n", encoding="utf-8")
+    (d / (_K + "02-brand-voice.md")).write_text("rewritten for the new source\n", encoding="utf-8")
+    row2 = next((e for e in check(d) if e["knowledge_file"] == _K + "02-brand-voice.md"), None)
+    ok("a moved source reports the source, not a spurious hand-edit",
+       row2 is not None and row2["changed_sources"] == ["shared/brand-engine.md"]
+       and "note" not in row2)
+    reconcile(d)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

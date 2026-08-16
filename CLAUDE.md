@@ -28,6 +28,21 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
   API credential configuration.
 - `implementation/` platform packaging (claude, gpt, gemini). `docs/`, `ledger/`, `examples/`.
 
+## Build, verify, and the battery
+Every change must leave the battery green before commit:
+```bash
+python3 tools/sync_check.py          # drift guard; must exit 0 (57 invariants)
+python3 tools/scenario_check.py      # 10/10 scenarios
+python3 tools/selftest_sweep.py      # every tool selftest
+python3 tools/doc_freshness.py --check
+python3 tools/count_truth.py         # canonical counts (never restate counts by hand)
+python3 tools/preflight_push.py
+```
+`tools/package_skill.py --all` is a BUILD step that writes `dist/`, not a validation step; CI runs
+it separately. Rituals: if you edit a macOS-relevant file, re-bless it with
+`python3 tools/mac_surface_manifest.py reconcile` (a NEW file needs `--accept-new` after review);
+if you stamp any registry source, run `python3 tools/build_freshness_bundle.py --apply`.
+
 ## Branching and git
 - Develop on the feature branch (currently `claude/repo-access-confirm-wxe50a`). Never push to `main`.
 - Push with `git push -u origin <branch>`; retry network failures with backoff.
