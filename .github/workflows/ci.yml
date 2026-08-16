@@ -23,12 +23,30 @@ jobs:
         run: python3 tools/secret_scan.py --tracked
       - name: Commit hygiene backstop (messages + author emails after the policy boundary)
         run: |
+          # P74 D1-4: origin/main..HEAD is EMPTY once a push to main lands, so on a direct main
+          # push this step scanned nothing while still reporting success. The policy boundary SHA
+          # has always been recorded but was never used to bound the range. Prefer the branch
+          # range when it is non-empty; otherwise fall back to the boundary. scan_commit_messages
+          # already skips commits at or before the boundary internally, so the wider range does
+          # not re-litigate history.
           git fetch origin main --depth=200 || true
-          if git rev-parse origin/main >/dev/null 2>&1; then
-            python3 tools/secret_scan.py --commit-messages origin/main..HEAD
-          else
-            python3 tools/secret_scan.py --commit-messages HEAD~20..HEAD
+          BOUNDARY=$(python3 -c "import json;print(json.load(open('tools/secret-scan-allowlist.json')).get('commit_policy_boundary',''))")
+          RANGE=""
+          if git rev-parse origin/main >/dev/null 2>&1 \
+             && [ -n "$(git rev-list --count origin/main..HEAD 2>/dev/null | tr -d 0)" ]; then
+            RANGE="origin/main..HEAD"
+          elif [ -n "$BOUNDARY" ] && git cat-file -e "$BOUNDARY^{commit}" 2>/dev/null; then
+            RANGE="$BOUNDARY..HEAD"
           fi
+          if [ -z "$RANGE" ]; then
+            # Fail closed: a hygiene backstop that cannot determine what to scan must not pass.
+            # Reachable if the checkout is shallow past the boundary; fix with fetch-depth: 0.
+            echo "commit hygiene: cannot resolve a scan range (boundary '$BOUNDARY' unreachable"
+            echo "and origin/main absent or already merged). Refusing to report success."
+            exit 1
+          fi
+          echo "commit hygiene: scanning $RANGE"
+          python3 tools/secret_scan.py --commit-messages "$RANGE"
       - name: Version consistency
         run: python3 tools/version.py --check
       - name: Scenario suite (10 cross-skill behavioral scenarios)

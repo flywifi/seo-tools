@@ -35,6 +35,24 @@ work after the baseline sits under Unreleased.
   through the sanctioned writer).
 
 ### Fixed
+- The commit-hygiene backstop scanned an empty range on a direct push to main (P74). CI used
+  `origin/main..HEAD`, which is empty once such a push lands, so the step reported success having
+  examined nothing; the policy boundary SHA was recorded but never used to bound the range. CI now
+  prefers the branch range when it is non-empty, falls back to the boundary, and **fails closed**
+  when neither resolves rather than passing silently. Verified by simulating a direct main push:
+  the old form scanned 0 commits and passed, the new form refuses.
+- The commit-msg hook now enforces the author-email rule (P74). ADR 0015 states the rule is
+  enforced by the hook and the CI backstop; the hook half did not exist, and the CI half was the
+  empty range above, so a documented control was fictional in both directions at once. The rule is
+  imported from `secret_scan` rather than restated, so hook and backstop cannot drift. The hook
+  also no longer inserts a `sys.path` entry derived from `__file__`, which is `"<stdin>"` inside
+  the heredoc and resolved to a path that does not exist.
+- Capability parity is bidirectional (P74). The check only walked degraded entries back to
+  capabilities, so a disabled capability with no degraded entry was invisible while the gate's
+  refusal string still cited a `degraded_behavior` key that did not exist. Name-matching alone
+  reports 17 false positives, because several degraded keys deliberately cover a fan-out of
+  capabilities, so the reverse loop carries an explicit map; it reports zero on the current tree
+  and fires on a synthetic capability added without an entry.
 - Competitor OG metadata was extracted wrong for every property (P74). The regex in
   `tools/parse_competitor_meta.py::_extract_og_tags` built its quote group as `["\'{prop}["\']`,
   an unterminated character class that swallowed the property name, so the pattern matched a

@@ -1863,6 +1863,40 @@ def check_degraded_orphans():
                          f"{cap!r} in creator-os-config.json (orphaned by a rename/removal, or add it "
                          f"to SHARED_DEGRADED_KEYS if it deliberately covers several capabilities)")
 
+    # P74 WP5: the reverse direction. P73 filled six missing degraded entries but left this check
+    # one-directional, so the same gap reopened the moment a default-off capability was added --
+    # and the gate's refusal string cites `degraded_behavior.<feature>_disabled` even when that key
+    # does not exist, so the creator sees a pointer to nothing. Name-matching alone is NOT enough:
+    # several degraded keys deliberately cover a fan-out of capabilities, and a naive loop reports
+    # 17 false positives on a clean tree. The map below is what makes it report zero.
+    deg = set(c.get("degraded_behavior") or {})
+    covered_by = {
+        **{f"{p}_api": "api_disabled" for p in ("instagram", "pinterest", "tiktok", "youtube")},
+        **{f"{p}_publishing": "per_platform_publishing_disabled"
+           for p in ("instagram", "pinterest", "tiktok", "youtube")},
+        **{k: "stats_general_disabled" for k in ("r_statistics", "monte_carlo", "scikit_learn")},
+        "wolfram_alpha": "wolfram_disabled", "e2b_sandbox": "e2b_disabled",
+        "duckdb_analytics": "duckdb_disabled", "jupyter_notebook": "jupyter_disabled",
+        "gemini_gem_export": "gem_export_disabled", "custom_gpt_export": "gpt_export_disabled",
+    }
+
+    def _has_degraded(name):
+        if f"{name}_disabled" in deg:
+            return True
+        base = name[: -len("_enabled")] if name.endswith("_enabled") else name
+        if f"{base}_disabled" in deg:
+            return True
+        return covered_by.get(name) in deg
+
+    for name, meta in sorted((c.get("capabilities") or {}).items()):
+        if not isinstance(meta, dict) or meta.get("enabled") is not False:
+            continue
+        if not _has_degraded(name):
+            advisory(f"degraded-orphans: capability {name!r} is disabled but has no "
+                     f"degraded_behavior entry, so nothing states what the system does instead. "
+                     f"Add '{name}_disabled' to degraded_behavior in creator-os-config.json (or "
+                     f"map it to a shared key if an existing entry already covers it).")
+
 
 def check_content_vs_digest():
     """Invariant 45 (advisory, loud): content-vs-digest silent-staleness (P47, seam 3). Advisory and

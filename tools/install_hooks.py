@@ -39,19 +39,42 @@ COMMIT_MSG = """#!/bin/sh
 # messages carrying session links, personal emails, or secret patterns.
 python3 - "$1" <<'PY'
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve()))
 import subprocess
+from pathlib import Path
+# P74: the previous version also inserted str(Path(__file__).resolve()) here. Inside this heredoc
+# __file__ is "<stdin>", so that resolved to <cwd>/<stdin> -- a path that does not exist. Harmless
+# but wrong, and import-order sensitive if anything ever shadowed a stdlib name from cwd.
 top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
                      text=True).stdout.strip()
 sys.path.insert(0, top + "/tools")
 import secret_scan
+allowlist = secret_scan._load_allowlist()
+problems = []
+
 msg = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
-findings = secret_scan.scan_text(msg, "commit-message", secret_scan._load_allowlist())
-if findings:
-    print("commit-msg hook: message rejected (commit and PR hygiene, CLAUDE.md):")
-    for f in findings:
+problems += secret_scan.scan_text(msg, "commit-message", allowlist)
+
+# P74 D1-5: the author-email rule. ADR 0015 says it is enforced by this hook AND the CI backstop;
+# this half simply did not exist, so a personal address could enter git metadata locally and only
+# be caught after the fact (and the CI half scans an empty range on a direct main push). The rule
+# is IMPORTED from secret_scan rather than restated, so the hook and the backstop cannot drift.
+author = subprocess.run(["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True,
+                        text=True).stdout.strip()
+email = author.partition("<")[2].partition(">")[0].strip() if "<" in author else ""
+if not email:
+    email = subprocess.run(["git", "config", "user.email"], capture_output=True,
+                           text=True).stdout.strip()
+if email and not secret_scan.EMAIL_ALLOW_RE.search(email) \\
+        and not secret_scan._allowed(allowlist, "commit-message", "author_email"):
+    problems.append({"pattern_id": "author_email", "match": email})
+
+if problems:
+    print("commit-msg hook: commit rejected (commit and PR hygiene, CLAUDE.md):")
+    for f in problems:
         print(f"  - {f['pattern_id']}: {f['match']}")
+    if any(f["pattern_id"] == "author_email" for f in problems):
+        print("  Set the repo-local noreply address:")
+        print("    git config user.email '<your-github-noreply-address>'")
     sys.exit(1)
 PY
 """
