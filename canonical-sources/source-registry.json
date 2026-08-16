@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-08-15",
+  "last_registry_update": "2026-08-16",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5448,7 +5448,7 @@
       "staleness_threshold_days": 30,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: custom-instructions fields cap at 1,500 characters on Free/Go and 5,000 on Plus and above; whether the cap is per-field or combined is NOT documented, so packaged artifacts are sized against the combined reading (tools/surface_budgets.py). Re-verify by browser when possible.",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
@@ -5482,7 +5482,7 @@
       "staleness_threshold_days": 30,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: creating and publishing NEW Custom GPTs requires a Business, Enterprise or Edu workspace; personal plans (Free/Go/Plus/Pro) can use and edit existing GPTs but cannot create new ones. Re-verify by browser when possible.",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
@@ -5556,7 +5556,24 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "openai-chatgpt-developer-mode-help",
+      "name": "Developer mode and MCP apps in ChatGPT (help center)",
+      "url": "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: developer mode with custom MCP connectors is available on Pro, Plus, Business, Enterprise and Edu on the web; write-action MCP apps are beta on Business/Enterprise/Edu; custom connectors are unverified by OpenAI and carry a prompt-injection warning. Re-verify by browser when possible.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "de6dde66017ce088956e1862805ec19f8b315fbd6c55e157a761be7500ff57ca"
+  "_content_digest": "292607c6f8da0fa2a301c88d60de0c025817e66a3ca2edf039c9d2d3ebc9d908"
 }

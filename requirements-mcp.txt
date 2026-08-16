@@ -1,1 +1,4 @@
-mcp
+# Upper-bounded: mcp 2.x is a breaking major and went stable 2026-07-28. The server is
+# built and validated against the 1.x API (see canonical-sources/volatile-corrections
+# .2026-07-14.json::vc-mcp-upper-bound). Raise the bound only with a validated 2.x port.
+mcp>=1.28,<2

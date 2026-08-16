@@ -26,7 +26,12 @@ Final Cut Pro has no automation API, so FCP is always reached through files, nev
 
 Two master switches plus one per feature. Turn on only what you want; any combination is safe.
 
-- `video_editing_enabled` — master gate for writing editor files / driving apps.
+- `video_editing_enabled` — master gate for **driving an editor app** (Resolve scripting,
+  Compressor, CommandPost, Motion) and for **local rendering** (`media_render`). It does NOT
+  gate writing interchange files: FCPXML/OTIO/MLT and caption files are the deliverable and
+  are always written. Verified callers of the gate are `tools/videoedit/__init__.py`,
+  `mltxml.py` (media_render) and `reframe.py` (shorts_reframe); the other feature switches are
+  reported by `tools/videoedit/preflight.py` as capability signals and do not block a write.
 - `resolve_scripting` — the live DaVinci Resolve lane (Studio only).
 - `fcpxml_timeline_export`, `caption_roundtrip`, `shorts_reframe`, `marker_intel_import`,
   `compressor_presets`, `motion_template_fill`, `commandpost_macros`, `chapter_sync` — the eight
@@ -40,8 +45,9 @@ availability is just which tools are installed (see `requirements-videoedit.txt`
 the transcript floor.
 
 With everything off, the system still writes out the *plan* (markers, chapters, captions, export
-specs); it just does not touch an app. Each switch has a `*_disabled` note in
-`creator-os-config.json` explaining the fallback.
+specs) AND the interchange files; it just does not touch an app or render. Most switches have a
+`*_disabled` note in `creator-os-config.json` explaining the fallback; a few capabilities do not
+yet carry one (P73 D4).
 
 ## What runs where
 

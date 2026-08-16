@@ -4,10 +4,14 @@
 Both the atom/MCP surface (which reports) and the local realization tools (which enforce)
 import this. It answers two questions:
 
-  1. Is a given realization ALLOWED right now? SPEC generation is always allowed and never calls
-     this. FILE generation (FCPXML/OTIO) needs that feature's own flag. Driving an editor app
-     additionally needs the master flag `video_editing_enabled`.
-     `realization_allowed(feature, config)` returns (ok, reason).
+  1. Is a given realization ALLOWED right now? `realization_allowed(feature, config)` returns
+     (ok, reason): the feature's own flag must be on, and APP_DRIVING features additionally need
+     the master flag `video_editing_enabled`.
+     IMPORTANT -- what actually CALLS this: the app-driving lane (videoedit/__init__.py), the
+     local renderer (mltxml.py::media_render) and reframe.py::shorts_reframe. Interchange writers
+     (fcpxml.py, captions.py) do NOT consult it: those files are the deliverable and are always
+     written. Do not describe this helper as gating file generation in general (P73 D4 -- an
+     earlier docstring said exactly that, correcting prose without adding a mechanism).
   2. Is a generated FCPXML VALID? `validate_fcpxml(...)` delegates to tools/videoedit/fcpxml.py
      (DTD-valid when a DTD is found, else well-formed) and returns the ok/level/errors contract.
 
@@ -126,14 +130,23 @@ def _selftest() -> int:
     # 1) The gate. App-driving features need the master flag; pure file/spec features never do.
     off = {"capabilities": {"video_editing_enabled": False}}
     for feature in sorted(APP_DRIVING):
-        allowed, reason = realization_allowed(feature, off)
-        ok(f"gate refuses {feature} with the master flag off", allowed is False and bool(reason))
+        # Feature flag ON, master OFF -> this is the ONLY fixture that reaches the master-gate
+        # branch. Omitting the feature flag short-circuits on the earlier check and leaves the
+        # master gate untested while the label claims otherwise (P73 D4, on this file's own
+        # first version).
+        cfg = {"capabilities": {"video_editing_enabled": False, feature: True}}
+        allowed, reason = realization_allowed(feature, cfg)
+        ok(f"master gate alone refuses {feature} (its own flag is ON)",
+           allowed is False and "video_editing_enabled" in reason)
+        allowed_off, reason_off = realization_allowed(feature, off)
+        ok(f"{feature} with its own flag off refuses earlier, citing the feature",
+           allowed_off is False and feature in reason_off)
     on_no_master = {"capabilities": {"video_editing_enabled": False, "timeline_spec": True}}
     allowed, _ = realization_allowed("timeline_spec", on_no_master)
     ok("non-app-driving feature realizes on its own flag, master not required", allowed is True)
     refused, why = realization_allowed("timeline_spec", off)
-    ok("...but is refused when its own flag is off, with the degraded-behavior pointer",
-       refused is False and "timeline_spec" in why)
+    ok("...but is refused when its own flag is off, citing the feature and its fallback key",
+       refused is False and "timeline_spec" in why and "degraded_behavior" in why)
     unknown, reason = realization_allowed("no_such_feature_xyz", off)
     ok("unknown feature is answered, not crashed", isinstance(unknown, bool) and bool(reason))
 

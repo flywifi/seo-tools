@@ -223,7 +223,10 @@ def _handoff_gates() -> str | None:
 # --transport streamable-http/sse), not just --serve-remote (P68-B) -- and (b) an optional
 # in-process bearer gate as defense in depth when a token is configured.
 
-_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
+# NOTE: the empty string is deliberately NOT here. Python's socket layer treats host="" as
+# ALL interfaces, so accepting it as loopback let `--host ""` (or a wrapper doing --host "$H"
+# with H unset) bind publicly with no token and no --insecure (P73 D4).
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
 def _remote_auth_token() -> str | None:
@@ -413,6 +416,12 @@ def _selftest_static() -> tuple:
        _remote_serve_decision("0.0.0.0", "s3cret", False)[0] == "gated")
     ok("serve decision: non-loopback + --insecure -> open (acknowledged)",
        _remote_serve_decision("0.0.0.0", None, True)[0] == "open")
+    # P73 D4: host="" binds ALL interfaces in Python's socket layer, so it must be treated as
+    # non-loopback. It was previously allowlisted, which let an unset --host bind publicly.
+    ok("serve decision: EMPTY host + no token -> refuse (binds all interfaces)",
+       _remote_serve_decision("", None, False)[0] == "refuse")
+    ok("serve decision: empty host + token -> gated",
+       _remote_serve_decision("", "s3cret", False)[0] == "gated")
 
     # Argv-level wiring (P68-B): the auth decision must be REACHED for any network bind, not just
     # --serve-remote. These are the cases the P67-B fix missed -- a bare --transport streamable-http

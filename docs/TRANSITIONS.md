@@ -181,6 +181,9 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "codex-mcp-config", "name": "Codex MCP configuration (config.toml)",
    "url": "https://learn.chatgpt.com/docs/extend/mcp",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-chatgpt-developer-mode-help", "name": "Developer mode and MCP apps in ChatGPT (help center)",
+   "url": "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt",
    "category": "ai-surface-spec", "tier": "T1"}
 ]
 ```

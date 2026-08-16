@@ -28,19 +28,25 @@ project-only memory, on every tier.
 - SEO SERP feature map and seasonal lead times (from knowledge only)
 - Deal lifecycle management (9 stages, evidence-gated)
 
-## What does NOT work in ChatGPT Web
+## What does NOT work in plain ChatGPT Web (pasted instructions only)
 
-| Feature | Why not available | Upgrade path |
+These are unavailable when Creator OS is only two pasted instruction boxes. Since P72 there are
+TWO upgrade routes, not one: the local computer setup, or a deployed MCP connector that ChatGPT
+itself can reach.
+
+| Feature | Why not available here | Upgrade path |
 |---|---|---|
-| Competitor video tag extraction | Requires local HTML snapshots + ytInitialPlayerResponse parsing | Claude Desktop + MCP |
-| FTS5 keyword cache queries | Requires local SQLite index | Claude Desktop + MCP |
-| Source staleness detection | Requires local source-registry + Python tooling | Claude Desktop + MCP |
-| Deterministic quality scoring | Requires score.py execution | Claude Desktop + MCP |
-| YouTube / Instagram / TikTok API data | Requires OAuth credentials + local tooling | Claude Desktop + integrations-engine |
+| Competitor video tag extraction | Requires local HTML snapshots + ytInitialPlayerResponse parsing | Claude Desktop + MCP, **or** a deployed connector (`competitor_scan`) |
+| FTS5 keyword cache queries | Requires the local SQLite index | Claude Desktop + MCP, **or** a deployed connector (`cache_query`; also reachable via the `search`/`fetch` pair with no developer mode) |
+| Source staleness detection | Requires the local source-registry + Python tooling | Claude Desktop + MCP, **or** a deployed connector (`source_staleness`) |
+| Deterministic quality scoring | Requires score.py execution | Claude Desktop + MCP, **or** a deployed connector (`quality_score`) |
+| YouTube / Instagram / TikTok API data | Requires OAuth credentials + local tooling | Claude Desktop + integrations-engine (credentials stay on your machine) |
 | Voice profile personalization | Requires voice-profile.json populated locally | Claude Desktop |
 
-For full capability, use Claude Desktop with the MCP server.
-See `implementation/claude/desktop/README.md` and `docs/DEPLOYMENT.md`.
+For full capability without leaving ChatGPT, deploy the MCP connector and add it in developer
+mode: `implementation/gpt/mcp-connector/README.md`. For the local route, see
+`implementation/claude/desktop/README.md` and `docs/DEPLOYMENT.md`. For a richer knowledge-only
+setup on a personal plan, use a ChatGPT Project: `implementation/gpt/project/README.md`.
 
 ```sources
 [
