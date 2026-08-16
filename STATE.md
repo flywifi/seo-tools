@@ -2,7 +2,20 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P74 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P76 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P76: Rebuilt the P74/P75 branch history (2026-08-16). Nine commits had been pushed without an
+  approved plan; a tool error and a harness state change were read as approval. The maintainer
+  reviewed each commit and decided it individually, and the branch was reset to the last approved
+  commit and rebuilt as eight commits reflecting those verdicts. Most of the work was re-approved
+  and shipped unchanged. Two changes were dropped as maintainer decisions rather than repairs: the
+  re-band of 63 currency check intervals, and the selftest enrolment gate with its exemption list.
+  The fifteen selftests those two shipped alongside were kept, so the sweep is unchanged at 85. Two
+  additions the original lacked shipped with the version bump: the pasted ChatGPT pack was
+  re-stamped to 0.2.0, and the packaging-stamp invariant now compares that stamp against the
+  ecosystem version instead of only asserting the line exists, which closes a re-paste loop the
+  bump would otherwise have created. Nothing at or before the last approved commit was rewritten,
+  and no tag existed at any point.
 
 - P74/P75: Remediation of the open P73 findings (ADR 0054, 2026-08-16), and the data repair that
   followed. Planning the work found a live defect the audit itself had missed: the OG-tag
