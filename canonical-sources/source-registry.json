@@ -1441,7 +1441,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "SDK release notes for transport/auth and tool-registration API changes tracked to the MCP spec",
       "used_by": [
@@ -1470,8 +1470,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
-      "last_changed_detected": "2026-08-10",
+      "last_checked": "2026-08-16",
+      "last_changed_detected": "2026-08-16",
       "extraction_hint": "ContentDetector / scene_manager API changes; the get_seconds()->seconds rename in 0.7",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
@@ -1498,7 +1498,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "breaking renames; removal of moviepy.editor; a v3 major",
       "used_by": [
@@ -1526,7 +1526,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "schema version bumps; adapter packaging (adapters split into separate pip packages since 0.17/0.18)",
       "used_by": [
@@ -1555,7 +1555,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "adapter API/compat with the installed opentimelineio core",
       "used_by": [
@@ -1583,7 +1583,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "early 0.0.x adapter; API is unstable, watch every release",
       "used_by": [
@@ -1611,8 +1611,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-16",
+      "last_changed_detected": "2026-08-16",
       "extraction_hint": "libav/ffmpeg ABI compatibility; a major that drops an ffmpeg series",
       "used_by": [
         "tools/videoedit/mediaprobe.py"
@@ -1627,8 +1627,8 @@
       "pinned_constraint": "",
       "validated_version": "18.0.0",
       "_why": "windowed-RMS silence backend; PyAV tracks the ffmpeg ABI, so an ffmpeg bump can force a PyAV bump",
-      "latest_seen": "18.0.0",
-      "latest_seen_date": "2026-07-02"
+      "latest_seen": "18.1.0",
+      "latest_seen_date": "2026-08-12"
     },
     {
       "id": "dep-opencv-headless",
@@ -1638,7 +1638,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "the backend PySceneDetect uses; a major that changes cv2 imports",
       "used_by": [
@@ -1665,7 +1665,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py",
       "used_by": [
@@ -1693,7 +1693,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "stable HTTP client; only a major (3.x) matters",
       "used_by": [
@@ -1721,7 +1721,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "encoding detection used by the fetch stack; only a major matters",
       "used_by": [
@@ -1737,8 +1737,8 @@
       "pinned_constraint": "",
       "validated_version": null,
       "_why": "charset detection for fetched pages; low churn",
-      "latest_seen": "3.4.9",
-      "latest_seen_date": "2026-07-07"
+      "latest_seen": "3.5.1",
+      "latest_seen_date": "2026-08-15"
     },
     {
       "id": "dep-beautifulsoup4",
@@ -1748,7 +1748,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters",
       "used_by": [
@@ -2038,7 +2038,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "the 50+ pandas tool names for t-tests/ANOVA/chi-square",
       "used_by": [
@@ -4722,7 +4722,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "process_words/process_characters API; RapidFuzz backend changes",
       "used_by": [
@@ -4751,7 +4751,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math",
       "used_by": [
@@ -4779,8 +4779,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
-      "last_changed_detected": "2026-08-10",
+      "last_checked": "2026-08-16",
+      "last_changed_detected": "2026-08-16",
       "extraction_hint": "major dtype/API changes; NumPy 2.x ABI break vs opencv/moviepy wheels",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
@@ -4807,7 +4807,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache",
       "used_by": [
@@ -4835,7 +4835,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-16",
       "last_changed_detected": null,
       "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard",
       "used_by": [
@@ -5575,5 +5575,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "292607c6f8da0fa2a301c88d60de0c025817e66a3ca2edf039c9d2d3ebc9d908"
+  "_content_digest": "ef1210869f020c139c7fa04c98bee6cffa5d067e2901f20b873d13b3a6504993"
 }

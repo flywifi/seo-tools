@@ -253,9 +253,13 @@ brew install python@3.13 && pip3 install faster-whisper
 - **Local setup runs on this computer only.** The wizard, the folder import, transcription, and the
   publishing OAuth loopback need Claude **Desktop** or **Claude Code** on this Mac. Claude in a browser
   (claude.ai) and a remote Cowork session cannot reach your local files or `localhost` services.
-- **Dated context (as of 2026-08):** Homebrew disables Gatekeeper-failing casks from **2026-09-01**
-  (formula bottles like `ffmpeg`/`whisper-cpp` are unaffected); **macOS 27** (expected fall 2026) drops
-  Intel support, so Tahoe 26 is the last Intel release.
+- **Dated context (as of 2026-08):** Homebrew's 5.0.0 announcement says casks that fail Gatekeeper
+  are disabled from **September 2026** (the post states the month, not a specific day, and hedges
+  the related changes as "September or later"). The same announcement moves **Intel to Tier 3 from
+  September 2026 and stops building new Intel bottles**, so on an Intel Mac expect `ffmpeg` and
+  `whisper-cpp` to build from source rather than install prebuilt. Separately, **macOS 27**
+  (expected fall 2026) drops Intel support, so Tahoe 26 is the last Intel release; that is a later
+  and independent cutoff from the Homebrew tier change.
 
 ### The guided doctor (recommended for non-technical users)
 

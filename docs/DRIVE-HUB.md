@@ -189,7 +189,8 @@ Setting up the self-updating Project, once:
    the Google Workspace connectors article above, checked 2026-07-16.)
 
 Staleness is split deliberately: engines to pack is drift invariant 47
-(`tools/projection_manifest.py`, runs in CI); pack to Drive is `python3 tools/project_docs.py
+(`tools/projection_manifest.py`, runs in CI as an ADVISORY: it reports a stale projection without
+failing the build); pack to Drive is `python3 tools/project_docs.py
 check` (local state, surfaced on `/drive-hub`), because CI cannot see Drive and a fail-closed
 invariant must never depend on out-of-repo state. The static pack and its export path continue
 unchanged for non-Drive users and shared projects.

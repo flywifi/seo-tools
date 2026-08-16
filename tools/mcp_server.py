@@ -1313,7 +1313,7 @@ def schedule_post(
     ftc_disclosure: str = "",
     board_name: str = "",
 ) -> str:
-    """Dispatch a single post to the active publishing connector or return a manual plan.
+    """Build a confirmation plan for a single post. Never publishes; a human confirms first.
 
     Checks which content_publishing connector is active (per-platform direct API >
     manual fallback), enforces FTC disclosure and AIGC flag rules, then returns a

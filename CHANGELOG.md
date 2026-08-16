@@ -12,6 +12,11 @@ work after the baseline sits under Unreleased.
 
 ## [Unreleased]
 
+### Added
+- `docs/production-readiness-2026-08-16.md` (P73): the committed six-dimension audit report,
+  its PASS ledger, the guard red-team results, the not-exercised boundary, and the release
+  preparation left for the maintainer's decision. ADR 0053 records the method.
+
 ### Security
 - MCP tool annotations are fail-closed (P73): every tool must be explicitly classified as a write,
   a mutation-sounding non-persisting call, or a verified read. Classification previously keyed off
