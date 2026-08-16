@@ -377,5 +377,42 @@ def main(argv) -> int:
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+
+def selftest() -> int:
+    """Offline proof of the time conversion and build/validate round-trip. No Final Cut required:
+    validate() degrades to well-formedness when no DTD is present (P74 WP4)."""
+    import xml.etree.ElementTree as _ET
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    ok("seconds round-trip through rational time at 30fps",
+       abs(time_to_sec(sec_to_time(1.0, 30), 30) - 1.0) < 1e-6)
+    ok("seconds round-trip at 24fps",
+       abs(time_to_sec(sec_to_time(2.5, 24), 24) - 2.5) < 1e-6)
+    ok("zero seconds round-trips", abs(time_to_sec(sec_to_time(0.0, 30), 30)) < 1e-6)
+    ok("rational time is emitted in FCPXML's N/Ds form", sec_to_time(1.0, 30).endswith("s"))
+
+    pkg = {"timeline": {"clips": [{"name": "a", "start_seconds": 0, "duration_seconds": 5}]}}
+    x = build(pkg)
+    ok("build() returns an XML document", isinstance(x, str) and x.startswith("<?xml"))
+    ok("build() output is well-formed", _ET.fromstring(x) is not None)
+    v = validate(x)
+    ok("validate() accepts what build() produced", isinstance(v, dict) and v.get("ok") is True)
+    ok("validate() reports the level it actually achieved, not a blanket pass",
+       v.get("level") in ("well_formed", "dtd_valid"))
+    bad = validate("<fcpxml><unclosed></fcpxml>")
+    ok("malformed FCPXML is refused rather than accepted",
+       isinstance(bad, dict) and bad.get("ok") is False)
+
+    print(f"fcpxml selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))

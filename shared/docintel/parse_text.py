@@ -220,5 +220,59 @@ def main(argv):
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+
+def selftest() -> int:
+    """Offline proof over synthetic documents built in a temp dir. No network, no real user files.
+
+    This is the offline, zero-token extractor the document lane depends on, and its honest-
+    degradation contract (never a traceback, never a fabricated value) is the load-bearing part
+    (P74 WP4)."""
+    import tempfile, zipfile
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    ok("strip_tags removes markup and keeps the text", "Hello" in strip_tags("<p>Hello</p>"))
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        csv_p = d / "a.csv"
+        csv_p.write_text("name,qty\nlamp,2\n", encoding="utf-8")
+        r = parse(str(csv_p))
+        ok("csv is ingested", r["ingestion_status"] == "content_ingested")
+        ok("csv rows become a table", r["tables"] == [["name", "qty"], ["lamp", "2"]])
+        ok("parsing spends zero tokens and runs locally (the offline guarantee)",
+           r["tokens_spent_on_parse"] == 0 and r["ran_locally"] is True)
+
+        dx = d / "b.docx"
+        with zipfile.ZipFile(dx, "w") as z:
+            z.writestr("word/document.xml",
+                       '<?xml version="1.0"?><w:document xmlns:w="x"><w:body><w:p><w:r>'
+                       '<w:t>Invoice total</w:t></w:r></w:p></w:body></w:document>')
+        r2 = parse(str(dx))
+        ok("docx is ingested and its run text extracted",
+           r2["ingestion_status"] == "content_ingested" and "Invoice total" in r2["text"])
+
+        r3 = parse(str(d / "missing.csv"))
+        ok("an absent file is 'referenced', never an exception",
+           r3["ingestion_status"] == "referenced")
+        ok("an absent file names what to provide instead of inventing content",
+           isinstance(r3["needs_more_info"], dict)
+           and r3["needs_more_info"].get("reason") == "missing_file")
+
+        bad = d / "c.docx"
+        bad.write_bytes(b"not a zip at all")
+        r4 = parse(str(bad))
+        ok("a corrupt docx degrades to metadata_only with empty text, no traceback",
+           r4["ingestion_status"] == "metadata_only" and r4["text"] == "")
+
+    print(f"parse_text selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        sys.exit(selftest())
     sys.exit(main(sys.argv[1:]))

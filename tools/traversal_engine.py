@@ -480,5 +480,44 @@ def main():
         sys.exit(1)
 
 
+
+def selftest() -> int:
+    """Offline proof of the pure URL/authority/scoring seams. No network, no registry writes.
+
+    These functions decide which outlinks enter the citation graph, so a defect here silently
+    widens or narrows what the traversal trusts. Nothing executed them before (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    ok("normalize_url strips utm/ref/fbclid/gclid but keeps real params",
+       normalize_url("https://EXAMPLE.com/a/?utm_source=x&id=7&fbclid=z") == "https://example.com/a?id=7")
+    ok("normalize_url drops the fragment and trailing slash, lowercases the host",
+       normalize_url("HTTPS://WWW.Example.com/path/#frag") == "https://www.example.com/path")
+    ok("normalize_url gives a bare domain the root path",
+       normalize_url("https://example.com") == "https://example.com/")
+    ok("is_authority_domain matches the domain exactly",
+       is_authority_domain("https://example.com/x", ["example.com"]))
+    ok("is_authority_domain matches a subdomain",
+       is_authority_domain("https://docs.example.com/x", ["example.com"]))
+    ok("is_authority_domain REFUSES a suffix lookalike (notexample.com is not example.com)",
+       not is_authority_domain("https://notexample.com/x", ["example.com"]))
+    ok("score_niche_relevance counts distinct terms, case-insensitively",
+       score_niche_relevance("Fall DECOR and lighting", ["decor", "lighting"]) == 2)
+    ok("score_niche_relevance caps at 5",
+       score_niche_relevance("a b c d e f g", list("abcdefg")) == 5)
+    ok("score_niche_relevance returns 0 for empty context",
+       score_niche_relevance("", ["x"]) == 0)
+
+    print(f"traversal_engine selftest: {'PASS' if not failures else 'FAIL'} "
+          f"({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     main()

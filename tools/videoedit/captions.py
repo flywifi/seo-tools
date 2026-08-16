@@ -153,5 +153,39 @@ def main(argv) -> int:
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+
+def selftest() -> int:
+    """Offline proof of the iTT emit/parse round-trip. Pure strings; no files, no network.
+
+    The round-trip is the property that matters: captions leave Creator OS as iTT and come back
+    from the editor, so a lossy or malformed emitter silently corrupts a deliverable (P74 WP4)."""
+    import xml.etree.ElementTree as _ET
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    segs = [{"start": 0.0, "end": 2.5, "text": "Hello there"},
+            {"start": 2.5, "end": 5.0, "text": "Second line"}]
+    itt = _emit_itt(segs)
+    ok("the emitted document is well-formed XML", _ET.fromstring(itt) is not None)
+    back = _parse_itt(itt)
+    ok("emit -> parse preserves the segment count", len(back) == len(segs))
+    ok("emit -> parse preserves the text",
+       [s["text"] for s in back] == ["Hello there", "Second line"])
+    ok("emit -> parse preserves timings",
+       abs(back[0]["start"] - 0.0) < 0.01 and abs(back[1]["end"] - 5.0) < 0.01)
+    ok("an empty caption document parses to no segments rather than raising",
+       _parse_itt("<tt></tt>") == [])
+    ok("a single segment round-trips", len(_parse_itt(_emit_itt(segs[:1]))) == 1)
+
+    print(f"captions selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))

@@ -134,5 +134,37 @@ def main(argv) -> int:
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+
+def selftest() -> int:
+    """Offline proof of normalize/merge. Never calls to_otio(): that requires the OTIO package,
+    which is an optional dependency and must not be a hard test requirement (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    n = normalize({})
+    ok("normalize({}) yields a well-formed package with a timeline",
+       isinstance(n, dict) and "timeline" in n)
+    ok("normalize invents no content for an empty package",
+       not (n.get("timeline", {}).get("clips") or []))
+    withclip = normalize({"timeline": {"clips": [{"name": "a"}]}})
+    ok("normalize preserves clips it was given",
+       len(withclip["timeline"].get("clips") or []) == 1)
+    merged = merge(withclip, normalize({"timeline": {"clips": [{"name": "b"}]}}))
+    ok("merge composes without clobbering the base",
+       len(merged["timeline"].get("clips") or []) >= 1)
+    ok("merging an empty package changes nothing structurally",
+       isinstance(merge(withclip, normalize({})), dict))
+    ok("otio_available() answers with a bool", isinstance(otio_available(), bool))
+
+    print(f"otio_core selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))

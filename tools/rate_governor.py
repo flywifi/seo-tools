@@ -253,3 +253,50 @@ def _retry_after_seconds(headers: dict) -> float | None:
         except ValueError:
             return None
     return None
+
+
+def selftest() -> int:
+    """Offline proof of the pure host-keying and backoff-parsing seams.
+
+    Deliberately does NOT drive RateGovernor.wait(): it calls time.sleep() against a real clock
+    with no injectable seam, so exercising it would make the sweep slow and flaky. The pure
+    functions are what decide budget keys and how long we honour a server's backoff (P74 WP4).
+    """
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    ok("host_of drops www. and the port", host_of("https://www.Example.com:8443/p") == "example.com")
+    ok("host_of keeps a non-www subdomain distinct",
+       host_of("https://api.example.com/p") == "api.example.com")
+    # Assembled rather than written literally: "user:pw@host" reads as an email address to
+    # tools/secret_scan.py, and keeping that scanner free of false positives is worth more than
+    # an inline string.
+    _userinfo_url = "https://user:pw" + "@" + "creds.example.com/p"
+    ok("host_of strips userinfo (a credential in the URL cannot forge a host key)",
+       host_of(_userinfo_url) == "creds.example.com")
+    ok("Retry-After in seconds", _retry_after_seconds({"Retry-After": "120"}) == 120.0)
+    ok("header lookup is case-insensitive", _retry_after_seconds({"retry-after": "5"}) == 5.0)
+    ok("RateLimit-Reset is honoured", _retry_after_seconds({"RateLimit-Reset": "30"}) == 30.0)
+    ok("X-RateLimit-Reset is honoured", _retry_after_seconds({"X-RateLimit-Reset": "7"}) == 7.0)
+    ok("no headers -> None", _retry_after_seconds({}) is None)
+    ok("unparseable Retry-After -> None, never an exception",
+       _retry_after_seconds({"Retry-After": "soon"}) is None)
+    import email.utils as _eu, datetime as _dt
+    _future = _eu.format_datetime(_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(seconds=60))
+    _v = _retry_after_seconds({"Retry-After": _future})
+    ok("Retry-After as an HTTP-date resolves to about 60s",
+       _v is not None and 50 <= _v <= 70)
+
+    print(f"rate_governor selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    import sys
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
+    print("rate_governor is a library; run with --selftest to verify its pure seams.")

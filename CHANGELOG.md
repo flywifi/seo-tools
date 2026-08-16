@@ -34,6 +34,23 @@ work after the baseline sits under Unreleased.
   own advisory — and the doc states the two honest resolutions (install the scheduler, or re-band
   through the sanctioned writer).
 
+### Added
+- Selftest coverage for fifteen previously unexercised tools (P74), taking the sweep from 70 to
+  85. The seven with no runner at all now have one: the citation-graph URL and authority filters
+  (including that a suffix lookalike is refused), the per-host rate governor's key derivation and
+  backoff parsing, the offline document extractor's honest-degradation contract, the data-at-rest
+  classifier's positive and negative cases, the default-off semantic tier's state reporting, and
+  the two spec-only video export surfaces. Eight more cover the highest-risk executed-but-
+  unasserted modules: the YouTube chapter rules, an iTT caption emit/parse round-trip, FCPXML time
+  conversion and build/validate, edit-package normalize/merge, the video preflight report, the
+  anti-bot classifier in both directions, the two-flag import gate, and the editing manifest.
+  These fifteen were chosen untrusted-input-first rather than by size: the modules that parse
+  competitor pages, third-party editor files and remote responses are where a silent defect
+  reaches the creator as a fact, which is what the OG-extractor regex did for an unknown number of
+  phases in a module nothing ever executed. Coverage is still not enforced — a new tool can still
+  ship with no selftest and nothing will notice — and that gap is recorded as an open finding in
+  the audit report rather than closed here.
+
 ### Fixed
 - The commit-hygiene backstop scanned an empty range on a direct push to main (P74). CI used
   `origin/main..HEAD`, which is empty once such a push lands, so the step reported success having

@@ -147,5 +147,53 @@ def main(argv) -> int:
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+
+def selftest() -> int:
+    """Offline proof of the YouTube chapter rules. Pure; no files, no network (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    ok("timestamps under an hour render as M:SS", _fmt_ts(75) == "1:15")
+    ok("timestamps over an hour render as H:MM:SS", _fmt_ts(3675) == "1:01:15")
+    ok("_normalize maps the timestamp_seconds/chapter_topic aliases",
+       _normalize([{"timestamp_seconds": 30, "chapter_topic": "B"}])
+       == [{"start_seconds": 30.0, "title": "B"}])
+    ok("_normalize sorts by start time",
+       [c["start_seconds"] for c in _normalize([{"start_seconds": 9, "title": "b"},
+                                                {"start_seconds": 0, "title": "a"}])] == [0.0, 9.0])
+    ok("_normalize reads chapters out of a full edit-package",
+       _normalize({"timeline": {"chapters": [{"start_seconds": 0, "title": "I"}]}})
+       == [{"start_seconds": 0.0, "title": "I"}])
+
+    compliant = _normalize([{"start_seconds": 0, "title": "Intro"},
+                            {"start_seconds": 40, "title": "Body"},
+                            {"start_seconds": 90, "title": "End"}])
+    ok("a compliant set reports no gaps", validate(compliant) == [])
+    ok("no chapters at all is reported as no_chapters",
+       validate([])[0]["gap_type"] == "no_chapters")
+    ok("a first chapter after 0:00 is flagged (YouTube ignores the track otherwise)",
+       any(g["gap_type"] == "first_not_zero" for g in validate(
+           _normalize([{"start_seconds": 5, "title": "a"}, {"start_seconds": 50, "title": "b"},
+                       {"start_seconds": 100, "title": "c"}]))))
+    ok("too few chapters is flagged",
+       any(g["gap_type"] == "too_few_chapters" for g in validate(
+           _normalize([{"start_seconds": 0, "title": "a"}, {"start_seconds": 60, "title": "b"}]))))
+    ok("chapters closer together than the minimum are flagged",
+       any(g["gap_type"] == "chapter_too_short" for g in validate(
+           _normalize([{"start_seconds": 0, "title": "a"}, {"start_seconds": 3, "title": "b"},
+                       {"start_seconds": 6, "title": "c"}]))))
+    ok("every gap names an impact and a next step, never a bare complaint",
+       all({"impact", "recommended_next_step"} <= set(g) for g in validate([])))
+
+    print(f"chapters selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))

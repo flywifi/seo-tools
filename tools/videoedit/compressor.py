@@ -54,6 +54,37 @@ def run(job_path: str, setting_path: str, out_path: str, batch_name: str = "crea
     )
 
 
+
+def selftest() -> int:
+    """Offline proof of the spec-only surface. NEVER calls run(): that shells out to Compressor,
+    which does not exist off macOS and must not be invoked from a test (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    yt = presets_for(["youtube"])
+    ok("a known platform returns at least one export spec", bool(yt))
+    ok("specs are keyed by preset, and youtube yields its long-form and short presets",
+       set(yt) == {"youtube_longform", "youtube_short"})
+    ok("every spec carries the fields an export needs",
+       all({"container", "resolution", "fps", "codec", "aspect"} <= set(v) for v in yt.values()))
+    ok("an unknown platform returns nothing rather than an invented preset",
+       presets_for(["nonesuch"]) == {})
+    multi = presets_for(["youtube", "tiktok"])
+    ok("asking for two platforms is a superset of asking for one",
+       set(yt) < set(multi) and "tiktok" in multi)
+    ok("no filter means every preset, not an empty result",
+       set(presets_for([])) >= set(multi))
+
+    print(f"compressor selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     targets = sys.argv[1:] or ["youtube", "instagram", "tiktok", "pinterest"]
     print(json.dumps(presets_for(targets), indent=2, ensure_ascii=False))

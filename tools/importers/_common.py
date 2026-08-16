@@ -116,3 +116,49 @@ def load_config():
         except (OSError, json.JSONDecodeError):
             pass
     return base
+
+
+def selftest() -> int:
+    """Offline proof of the two-flag import gate. No network, no credentials required (P74 WP4).
+
+    gate() returns a dict, and it is what stands between a default-off config and a live API
+    call, so each refusal path is asserted by its code rather than by truthiness."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    def cfg(master, platform):
+        return {"capabilities": {"content_import_live": {"enabled": master},
+                                 "youtube_api": {"enabled": platform}}}
+
+    off = gate(cfg(False, True), "youtube")
+    ok("the master flag alone can refuse", off["proceed"] is False and off["code"] == "master_off")
+    ok("a refusal explains itself and names the alternative", "export" in off["reason"].lower())
+
+    plat = gate(cfg(True, False), "youtube")
+    ok("the per-platform flag alone can refuse",
+       plat["proceed"] is False and plat["code"] == "platform_off")
+
+    on = gate(cfg(True, True), "youtube")
+    ok("both flags on is the ONLY path that proceeds",
+       on["proceed"] is True and on["code"] == "ok")
+
+    ok("an unknown platform does not accidentally proceed",
+       gate(cfg(True, True), "nonesuch")["proceed"] is False)
+    ok("an empty config refuses rather than defaulting open",
+       gate({}, "youtube")["proceed"] is False)
+    ok("absent credentials give an empty dict, never an exception",
+       isinstance(load_credentials(), dict))
+
+    print(f"importers/_common selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    import sys
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
+    print("importers/_common is a library; run with --selftest to verify the import gate.")

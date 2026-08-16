@@ -129,5 +129,30 @@ def main(argv) -> int:
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+
+def selftest() -> int:
+    """Offline proof of the manifest/verify pair over the real artifact set (read-only, P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    m = manifest()
+    ok("manifest() returns the documented shape",
+       isinstance(m, dict) and {"name", "version", "resources", "resource_count"} <= set(m))
+    ok("the recorded count matches the recorded resources",
+       m["resource_count"] == len(m["resources"]))
+    ok("every resource carries a hash, so verify has something to compare",
+       all(r.get("sha256") for r in m["resources"]) if m["resources"] else True)
+    ok("hashing is stable across two calls", manifest()["resources"] == m["resources"])
+
+    print(f"sync_editing selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))

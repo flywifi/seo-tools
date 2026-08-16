@@ -146,5 +146,36 @@ def main(argv) -> int:
     return 0
 
 
+
+def selftest() -> int:
+    """Offline proof of the data-at-rest classifier. Read-only; touches no user file.
+
+    This is the P31 boundary: it answers which of the creator's files are machine-only and
+    whether git is tracking anything it must not. The POSITIVE case matters as much as the
+    negative, because a classifier that never flags anything looks identical to a clean tree
+    (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    r = report()
+    ok("report() returns the documented shape",
+       isinstance(r, dict) and {"ok", "git_checked", "local_only_files", "tracked_exports"} <= set(r))
+    ok("no tracked paths means no flagged exports", _tracked_exports([]) == [])
+    ok("a tracked spreadsheet export IS flagged",
+       bool(_tracked_exports(["pipeline/deals/export.csv"])))
+    ok("an ordinary markdown file is not flagged",
+       _tracked_exports(["docs/README.md"]) == [])
+    ok("this repo currently tracks no export material", r.get("tracked_exports") == [])
+
+    print(f"local_privacy selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))

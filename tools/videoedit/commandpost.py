@@ -34,5 +34,29 @@ def trigger(action: str, params: dict | None = None) -> dict:
     )
 
 
+
+def selftest() -> int:
+    """Offline proof that emit() produces a snippet without driving anything. NEVER calls
+    trigger(): that would attempt to drive a real macOS app (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    lua = emit("apply-brand-lut", {"lut": "moody-vintage"})
+    ok("emit returns a non-empty snippet", isinstance(lua, str) and lua.strip() != "")
+    ok("the snippet carries the action name", "apply-brand-lut" in lua)
+    ok("the snippet carries the parameter value", "moody-vintage" in lua)
+    ok("an unknown action still yields a string rather than raising",
+       isinstance(emit("no-such-action", {}), str))
+
+    print(f"commandpost selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     print(emit(sys.argv[1] if len(sys.argv) > 1 else "apply-brand-lut", {"lut": "moody-vintage"}))

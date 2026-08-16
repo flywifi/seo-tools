@@ -180,5 +180,34 @@ def main(argv) -> int:
     return 0
 
 
+
+def selftest() -> int:
+    """Offline proof that preflight reports environment state without requiring any of it.
+
+    It runs on a machine with no Resolve, no OTIO and no Final Cut, so the contract is that it
+    describes what is missing rather than failing (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    p = preflight({"capabilities": {}})
+    ok("preflight returns a report with no config present", isinstance(p, dict))
+    ok("the report covers python, os, tools, lanes and flags",
+       {"python", "os", "tools", "lanes", "flags"} <= set(p))
+    ok("_importable answers False for a package that cannot exist",
+       _importable("definitely_not_a_real_module_name_xyz") is False)
+    ok("_importable answers True for the standard library", _importable("json") is True)
+    ok("python_ok_for_resolve is a bool, not a guess",
+       isinstance(p.get("python_ok_for_resolve"), bool))
+
+    print(f"preflight selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     raise SystemExit(main(sys.argv[1:]))
