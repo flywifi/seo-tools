@@ -16,7 +16,7 @@ and must be checked against your own account; the repo does not assert it.
 | claude.ai in a browser (web and mobile) | knowledge natively; live tools via a deployed remote MCP connector | no (the endpoint's machine enforces) |
 | Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend) | yes |
 | Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect | no (a fresh sandbox has no local config) |
-| ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files) | no |
+| ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files); live tools need a developer-mode MCP connector, which is a separate setup and not "plain" chat | no |
 | Custom GPT (built in the ChatGPT GPT builder) | knowledge pack + the public jurisdiction Action | no |
 | ChatGPT Projects (a Project with files at chatgpt.com) | knowledge pack as Project instructions + files | no |
 | ChatGPT desktop app | knowledge paste; live tools via a developer-mode MCP connector to a deployed endpoint | no (the endpoint's machine enforces) |
@@ -153,7 +153,7 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | Custom GPT + Actions | workspace accounts only | `implementation/gpt/actions/` | creation requires Business/Enterprise/Edu (help/8554397); memory does not work in GPTs |
 | ChatGPT connector (no dev mode) | chat + deep research | server `search`/`fetch` tools | exact contract per developers.openai.com/api/docs/mcp |
 | ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web (help/12584461, excerpt) |
-| ChatGPT desktop (macOS) | convenience | same as web | Work with Apps reads a fixed app list only; no general file access (help/10119604) |
+| ChatGPT desktop | convenience | same as web | Work with Apps is macOS-only and reads a fixed app list; no general file access (help/10119604) |
 | Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
 | Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |
 | Codex CLI/desktop/IDE | maintainer | `[mcp_servers.creator-os]` in `~/.codex/config.toml` + root `AGENTS.md` | shared config (learn.chatgpt.com/docs/extend/mcp); AGENTS.md 32 KiB budget |

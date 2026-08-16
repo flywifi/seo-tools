@@ -31,7 +31,7 @@
     "docs/PUBLISHING.md": "f0766d7cd42e5c119a844c7bb5c1f33875171996ff7fefc8b6f467fd6ef9337b",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
     "docs/SETUP_MAC.md": "678224e1b8b63dde76b5727f8e916e00e8c9df051184119082ff6edbb05b1858",
-    "docs/TRANSITIONS.md": "8ff6f8c66f5563b72622ba363062f5e80c972be8f6cb712d5011451d35d5d1a5",
+    "docs/TRANSITIONS.md": "b340078f9abeff75354875571d3803c53b7047f37d9366c0bffe40af34dff717",
     "docs/VIDEO_EDITING.md": "b6b58fb59582d04f95462daa15f9f4190e5208155fa863ca0779b36c6b28347a",
     "docs/VIDEO_TOOLING_EVAL.md": "b9207405b3ab9b540e31812e92ebec57ef88adb2956dc62011c88240ec8ea4f7",
     "docs/WIZARD.md": "cf63ba664cf77c0d25f4aa4869587f64d8c565eca23810b4adcc80d763b40c1b",
@@ -59,6 +59,7 @@
     "requirements-videoedit.txt": "ef90dd4cddc7eed3fd94e7aca36367b5a1f70e4cd4b729271fa138c98505b370",
     "shared/connectors/connectors.json": "56e9905f4e2d35da39a1f1927e764bc6288d56e98c9c14b97d537875478d33c7",
     "shared/content-import-engine.md": "a5c793c7c19bf1ced0a31ea8983e4dc0245a98b3b3b4ccb6e5faa391c55bec74",
+    "shared/cross-modality/transitions.json": "c1a04ce3a9faa0194591b9246f9aaac8c1204ab7d7bfb0eed12444b29e8496e0",
     "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
     "shared/videoedit-engine.md": "c807c3206e491ce0e7368852290d081baa26f7a1e910475f7f1824b914c6cf4f",
     "shared/web-intel-engine.md": "4043d8c4573504975dce33584ac5b69ac6165ef149178144d60f39155fdc69d6",
@@ -89,7 +90,7 @@
     "tools/videoedit/fcpxml.py": "b73c16ae8575eef5e38c6b428de7544384fe252e53896b0e489747e3afa10c3c",
     "tools/videoedit/preflight.py": "f984ee5fbd88348cf385189daba005925546667b97050c409ba10603efbbc516",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "140c3b6e369b7c0ae408c2fe928abbe6d68b5d5cc6efeccda65c87be873b6e1a"
+    "tools/wizard.py": "a6f114ad0969a44766e045435dc1a47f56cb7ed9900775cfe742f9178f992e54"
   },
   "excluded": {}
 }

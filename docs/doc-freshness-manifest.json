@@ -5,7 +5,7 @@
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "36ba371a821bdf6feda88452dafbc66a6977297399fd31299a91e6c2306bdf28",
-        "shared/cross-modality/transitions.json": "3d99e22fe5986f6be6e3de564b5a375cffc4e0baa99d96ad7054cb1f9abd190d"
+        "shared/cross-modality/transitions.json": "c1a04ce3a9faa0194591b9246f9aaac8c1204ab7d7bfb0eed12444b29e8496e0"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -31,7 +31,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "140c3b6e369b7c0ae408c2fe928abbe6d68b5d5cc6efeccda65c87be873b6e1a",
+        "tools/wizard.py": "a6f114ad0969a44766e045435dc1a47f56cb7ed9900775cfe742f9178f992e54",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },

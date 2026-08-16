@@ -147,10 +147,32 @@ _READ_DESPITE_NAME = {
     "update_check", "import_edit_artifact", "import_obligations", "import_finance",
     "payment_reconcile", "edit_build_fcpxml", "edit_build_mlt", "build_calc",
     "video_library_import_status",  # status READ; "import" names what it reports on
+    # Computes the next task state and returns it; tasks.transition() appends to the history list
+    # in memory and re-folds, but NEVER calls save_register -- persisting is a separate,
+    # human-confirmed step. Mutation-sounding, non-persisting (P73 D6-F4).
+    "task_transition",
+}
+# Every remaining tool, each read as a pure read. Enrolment is explicit BECAUSE the old default
+# was silent: these 41 inherited readOnlyHint=True without anyone recording that they had been
+# checked. Adding a tool here is an assertion that you read its body.
+_VERIFIED_READS = {
+    "cache_query", "cashflow_view", "chapter_map", "code_lookup", "competitor_scan",
+    "construction_lookup", "contact_lookup", "cost_rollup", "coverage_verify", "currency_scan",
+    "deal_status", "drift_check", "edit_captions", "edit_parse_fcpxml", "edit_preflight",
+    "fetch", "finance_scan", "get_capabilities", "get_connectors", "get_publishing_plan",
+    "get_server_info", "get_stats_tools", "job_status", "jurisdiction_resolve",
+    "milestone_status", "obligation_scan", "overlay_conflict", "post_status", "proposal_price",
+    "quality_score", "reframe_shorts", "resolve_status", "scene_scan", "search",
+    "shipment_track", "silence_scan", "source_staleness", "task_ics_export", "task_plan",
+    "task_scan", "video_library_query",
 }
 _DEFAULT_READONLY = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
-_MUTATION_SIGNALS = ("add_", "configure_", "schedule_", "import_", "submit_",
-                     "update_", "refresh", "reconcile", "build", "detect", "apply")
+# Kept only to make the error message concrete. It is NO LONGER what the gate tests: matching a
+# signal is not what makes a tool a write, and failing to match one never again makes it a read.
+_MUTATION_SIGNALS = ("add_", "configure_", "schedule_", "import_", "submit_", "update_",
+                     "refresh", "reconcile", "build", "detect", "apply", "publish", "delete_",
+                     "save_", "write_", "seed_", "mark_", "enable_", "disable_", "set_",
+                     "sync_", "remove_", "create_", "post_", "send_", "upload_")
 
 
 def _static_tool_names(src: str) -> list:
@@ -161,17 +183,28 @@ def _static_tool_names(src: str) -> list:
 
 
 def _classification_problems(src: str) -> list:
-    """The completeness gate, package-independent: every mutation-signal tool NAME in the source
-    must be classified in _WRITE_TOOLS or _READ_DESPITE_NAME."""
+    """The completeness gate, package-independent: EVERY tool name in the source must be
+    explicitly classified. There is no silent default.
+
+    This gate used to demand classification only for names matching _MUTATION_SIGNALS, so a tool
+    the list did not anticipate -- publish_draft, delete_*, save_*, set_* -- inherited
+    _DEFAULT_READONLY, i.e. readOnlyHint=True. MCP clients use readOnlyHint to decide whether to
+    skip the confirmation prompt, and tools/publishing/ already holds complete OAuth upload
+    clients waiting to be ungated, so the fail-open default sat one plausible tool name away from
+    a live upload running unconfirmed. Fail closed instead (P73 D6-F4).
+    """
     problems = []
     names = _static_tool_names(src)
     for n in names:
-        if n in _WRITE_TOOLS or n in _READ_DESPITE_NAME:
+        if n in _WRITE_TOOLS or n in _READ_DESPITE_NAME or n in _VERIFIED_READS:
             continue
-        if any(s in n for s in _MUTATION_SIGNALS):
-            problems.append(f"{n}: mutation-signal name unclassified "
-                            f"(read its body, then add to _WRITE_TOOLS or _READ_DESPITE_NAME)")
-    for n in list(_WRITE_TOOLS) + sorted(_READ_DESPITE_NAME):
+        hint = (" Its name carries a mutation signal, so _WRITE_TOOLS is the likely home."
+                if any(s in n for s in _MUTATION_SIGNALS) else "")
+        problems.append(
+            f"{n}: UNCLASSIFIED. Read its body, then add it to _WRITE_TOOLS (it mutates state), "
+            f"_READ_DESPITE_NAME (mutation-sounding but non-persisting), or _VERIFIED_READS "
+            f"(pure read).{hint}")
+    for n in list(_WRITE_TOOLS) + sorted(_READ_DESPITE_NAME) + sorted(_VERIFIED_READS):
         if n not in names:
             problems.append(f"{n}: classified but no such tool in source (stale entry)")
     return problems
@@ -197,9 +230,43 @@ def _load_config() -> dict:
             local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
             for key, val in local.get("capabilities", {}).items():
                 base.setdefault("capabilities", {})[key] = val
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, json.JSONDecodeError) as exc:
+            # P73 D6-F12 precursor: swallowing this silently reverted EVERY capability to the
+            # committed defaults with no signal, so a user whose local config had one bad comma
+            # saw features quietly turn themselves off. stderr, never stdout: stdout is the
+            # stdio JSON-RPC channel and printing there corrupts the protocol (P61 C19).
+            print(f"[creator-os] WARNING: {CONFIG_LOCAL_PATH} did not parse ({exc}); falling back "
+                  f"to committed defaults. Your local capability flags are NOT in effect.",
+                  file=sys.stderr)
     return base
+
+
+def _read_local_config_for_write(path) -> tuple:
+    """Read the gitignored local config for a read-modify-write cycle. Returns
+    (config_dict, backup_path_or_None, error_or_None).
+
+    P73 D6-F12: the previous inline version treated a JSONDecodeError as "empty file" and then
+    overwrote it, destroying remote_mcp_token, live_publishing_enabled, the workspace flags and
+    the update channel. That file is gitignored, so nothing could restore it. Back the bytes up
+    before the caller writes, mirroring tools/wizard.py::_write_claude_config, and refuse
+    outright if even the backup fails -- losing the data is worse than refusing the toggle.
+
+    Lives above the mcp package import (P61 C19) so the package-independent selftest tier can
+    exercise it in a sandbox where the mcp package is not installed.
+    """
+    if not path.exists():
+        return {}, None, None
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        return json.loads(raw), None, None
+    except (OSError, json.JSONDecodeError):
+        bak = path.with_name(path.name + ".corrupt.bak")
+        try:
+            bak.write_text(raw, encoding="utf-8")
+        except OSError as exc:
+            return {}, None, (f"{path} did not parse and could not be backed up ({exc}). "
+                              f"Refusing to overwrite it.")
+        return {}, str(bak), None
 
 
 def _handoff_gates() -> str | None:
@@ -329,9 +396,39 @@ def _selftest_static() -> tuple:
 
     # P72: connector-contract impls + classification completeness, all package-independent.
     probs = _classification_problems(src)
-    ok(f"every mutation-signal tool name classified ({len(probs)} problem(s))", not probs)
+    ok(f"every tool name explicitly classified ({len(probs)} problem(s))", not probs)
     for pb in probs:
         print(f"       {pb}")
+    # P73 D6-F4: prove the gate is fail-CLOSED, not merely quiet. A tool whose name matches no
+    # mutation signal must still be refused when unclassified -- that is the whole defect.
+    # The decorator is assembled rather than written literally: a newline escape immediately
+    # followed by the decorator reads as an email address to tools/secret_scan.py, and keeping
+    # that scanner free of false positives is worth more than a one-line string.
+    _deco = "@" + "mcp.tool()"
+    _fake = src + "\n" + _deco + '\ndef publish_draft() -> str:\n    """x"""\n    return "x"\n'
+    _fake_probs = _classification_problems(_fake)
+    ok("an UNCLASSIFIED tool is refused even with no mutation-signal match",
+       any("publish_draft" in p and "UNCLASSIFIED" in p for p in _fake_probs))
+    _stale = _classification_problems(src.replace("def post_status(", "def post_status_renamed("))
+    ok("a classified-but-missing tool is reported as a stale entry",
+       any("post_status" in p and "stale entry" in p for p in _stale))
+    # P73 D6-F12: a malformed local config must be preserved, never clobbered.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _p = Path(_td) / "creator-os-config.local.json"
+        _original = '{"capabilities": {"live_publishing_enabled": true},, "remote_mcp_token": "x"}'
+        _p.write_text(_original, encoding="utf-8")
+        _cfg, _bak, _err = _read_local_config_for_write(_p)
+        ok("a malformed local config is backed up, not destroyed",
+           _err is None and _bak and Path(_bak).read_text(encoding="utf-8") == _original)
+        _p2 = Path(_td) / "good.json"
+        _p2.write_text('{"capabilities": {"a": true}}', encoding="utf-8")
+        _cfg2, _bak2, _err2 = _read_local_config_for_write(_p2)
+        ok("a valid local config parses with no backup churn",
+           _err2 is None and _bak2 is None and _cfg2["capabilities"]["a"] is True)
+        _cfg3, _bak3, _err3 = _read_local_config_for_write(Path(_td) / "absent.json")
+        ok("an absent local config is an empty dict, not an error",
+           _err3 is None and _bak3 is None and _cfg3 == {})
     import sqlite3, tempfile, os
     with tempfile.TemporaryDirectory() as td:
         db = os.path.join(td, "idx.db")
@@ -1137,12 +1234,10 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
                     "gemini_gem_export", "custom_gpt_export").
         enabled: True to enable the capability, False to disable it.
     """
-    local: dict = {}
-    if CONFIG_LOCAL_PATH.exists():
-        try:
-            local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            local = {}
+    local, backup, err = _read_local_config_for_write(CONFIG_LOCAL_PATH)
+    if err:
+        return json.dumps({"error": err, "refused": True,
+                           "hint": "Fix the JSON by hand, then re-run this tool."})
 
     local.setdefault("capabilities", {})[capability] = enabled
 
@@ -1150,12 +1245,19 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
         json.dumps(local, indent=2) + "\n", encoding="utf-8"
     )
 
-    return json.dumps({
+    result = {
         "result": "ok",
         "capability": capability,
         "enabled": enabled,
         "file": str(CONFIG_LOCAL_PATH),
-    })
+    }
+    if backup:
+        result["warning"] = (
+            f"The existing local config did not parse as JSON. It was backed up to {backup} and "
+            f"the file has been rewritten with only this capability. Any other local settings "
+            f"(publishing flags, remote_mcp_token, update channel) must be restored from that "
+            f"backup by hand.")
+    return json.dumps(result)
 
 
 # ---------------------------------------------------------------------------

@@ -1474,7 +1474,9 @@ _SURFACES = {
                 "sandbox is destroyed at session end, so keep durable data in Drive; local "
                 "stdio MCP servers do not run here."),
     "chatgpt_web_plain": ("ChatGPT web chat (plain chat at chatgpt.com)", None,
-        "none", "Class A only, via pasted custom instructions. No live tools, no flags."),
+        "none", "Class A only, via pasted custom instructions. No live tools, no flags. That is "
+                "a limit of PLAIN chat, not of ChatGPT: a deployed MCP connector added in "
+                "developer mode gives B and C on web or desktop (a separate setup)."),
     "chatgpt_custom_gpt": ("Custom GPT (built in the ChatGPT GPT builder)", None,
         "action", "Class A via the knowledge pack; B via the public jurisdiction Action; C only "
                   "via a deployed endpoint."),
@@ -1482,7 +1484,8 @@ _SURFACES = {
         "none", "Class A only, via Project instructions and files. No Actions, no tools."),
     "chatgpt_desktop": ("ChatGPT desktop app", None,
         "seam", "Class A via paste; B and C via a developer-mode MCP connector to a deployed "
-                "endpoint (plan availability needs verification)."),
+                "endpoint (the same connector works on ChatGPT web; plan availability needs "
+                "verification)."),
     "gemini_api": ("Gemini API (developer integration)", None,
         "action", "Class A knowledge-only; B and C via your backend executing the call."),
     "gemini_gems": ("Gemini Gems (consumer)", None,
