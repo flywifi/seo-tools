@@ -67,6 +67,16 @@ work after the baseline sits under Unreleased.
   unreachable from the entry point.
 - A corrupt cache index returns the rebuild hint the absent case already gave, rather than a raw
   sqlite error (P73). `README.md` lists all 22 spokes instead of 14.
+- Honest scope on two overclaiming docs (P73): `post_status` said it read the connector and mapped
+  engagement, when it reads one flag and makes no connector call, and its reserved
+  `include_engagement_snapshot` parameter now says it has no effect rather than implying one;
+  `docs/LOCAL_CONTEXT.md` said a stray `git add -A` "cannot" commit personal data, when prevention
+  needs the hook installed and the invariant is detection after the fact.
+- The six disabled capabilities with no `degraded_behavior` entry now have one (P73):
+  `playwright`, `google_workspace`, `microsoft_365`, `task_tracking`, `shipment_tracking`,
+  `coverage_verification`. The parity check remains one-directional and advisory.
+- `docs/AUDIT-PROTOCOL.md` gains section 8 defining the plan structure section 6 referenced (P73).
+  The pointer had exactly one occurrence in the tree and no definition anywhere.
 
 ### Added
 - OpenAI parity (P72): connector-contract `search`/`fetch` tools and post-registration MCP tool

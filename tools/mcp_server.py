@@ -1396,12 +1396,17 @@ def post_status(
     post_id: str,
     include_engagement_snapshot: bool = False,
 ) -> str:
-    """Check the current status of a previously scheduled or published post.
+    """Report what is known about a previously scheduled post, and where to check it by hand.
 
-    Reads the active publishing connector for the platform and maps its native
-    status codes to the Creator OS vocabulary: published, scheduled, processing,
-    failed, draft, unknown. When no connector is active, returns status: unknown
-    with a manual check URL pattern for the platform.
+    HONEST SCOPE (P73 D4-5): this reads the per-platform publishing FLAG only. It does not call a
+    connector, so it never returns a live status. When the flag is off it returns status: unknown
+    with a manual check URL for the platform; when the flag is on it names the connector that
+    would be responsible. The Creator OS status vocabulary (published, scheduled, processing,
+    failed, draft, unknown) is what a live implementation would map onto; today only `unknown` is
+    ever produced from a real lookup.
+
+    `include_engagement_snapshot` is accepted and currently has NO effect: no connector call is
+    made, so no engagement numbers exist to return. It is not silently zero-filled.
 
     Never fabricates status, permalink, or engagement numbers — all unavailable
     fields are returned as null, not zero-filled.
@@ -1409,7 +1414,8 @@ def post_status(
     Args:
         platform: One of: instagram, tiktok, pinterest, youtube.
         post_id: The post_id returned by schedule-post when the post was queued.
-        include_engagement_snapshot: If True and connector supports it, return
+        include_engagement_snapshot: Reserved; has no effect today (see the scope note above).
+                                     When implemented: if True and the connector supports it, return
                                      current views/likes/saves/shares. Defaults False.
     """
     config = _load_config()

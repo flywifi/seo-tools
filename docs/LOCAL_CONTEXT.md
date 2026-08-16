@@ -39,7 +39,11 @@ updating Creator OS never overwrites or exposes your data.
 ### The guarantee is enforced, not just promised
 
 - **Drift-guard invariant 19** (`tools/sync_check.py`) fails the build if git is ever found tracking a
-  `*.local.*` file. A stray `git add -A` cannot slip your personal data into a commit.
+  `*.local.*` file. Two things then guard a stray `git add -A`: the pre-commit hook refuses to
+  commit a `.local.` file, and drift invariant 19 fails the build if one is ever tracked. The hook
+  is prevention but only after you have run `python3 tools/install_hooks.py` once; the invariant is
+  detection and always runs. Run the hook installer after cloning so the first line of defence is
+  the one that stops the commit rather than the one that reports it.
 - **`python3 tools/local_privacy.py`** prints, in plain English, which files live only on your machine
   and confirms none are tracked. Run it any time you want reassurance.
 

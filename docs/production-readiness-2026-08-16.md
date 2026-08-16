@@ -22,7 +22,7 @@ shape (§6), and an independent close-out (§7).
 | D5-5 | MED | `README.md` and the ChatGPT packaging README enumerated 14 spokes while claiming 22 | fixed |
 | D5-6 / F14 | MED | P73's own commits shipped with no CHANGELOG, STATE or ledger entry | fixed |
 | D5-7 | MED | Unreleased CHANGELOG carried two contradictions, a duplicate, and a never-shipped intermediate state | fixed |
-| D5-8 / D4-8 | MED | Six disabled capabilities had no `degraded_behavior` entry; parity check is one-directional | open (see §2) |
+| D5-8 / D4-8 | MED | Six disabled capabilities had no `degraded_behavior` entry; parity check is one-directional | fixed (entries); check still one-directional |
 | D5-10 | LOW | `chatgpt_desktop` "Work with Apps" limit stated unconditionally though the feature is macOS-only | fixed |
 | F1 | MED | 64 of 66 sources promising a sub-30-day cadence have never been checked once | partially fixed, then blocked |
 | F2 | MED | Three divergent "batteries"; the entry-point doc carried none of them and included a build step | fixed |
@@ -34,7 +34,7 @@ shape (§6), and an independent close-out (§7).
 | F9 | MED | Wizard port hardcoded, coupled to registered OAuth redirect URIs, no override | fixed |
 | F10 | MED | Launcher trusted a `.venv` that exists but cannot run | fixed |
 | F11 | LOW | Corrupt cache index returned a raw traceback instead of the rebuild hint | fixed |
-| F13 / PRE-4 | LOW | `docs/AUDIT-PROTOCOL.md` referenced a plan structure defined nowhere | open (see §2) |
+| F13 / PRE-4 | LOW | `docs/AUDIT-PROTOCOL.md` referenced a plan structure defined nowhere | fixed |
 | F15 | MED | Highest-priority backlog item marked proposed after being applied; three deferrals described passed dates as future | fixed |
 | D5-9 | LOW | Nine of 52 ledger decisions carry no `rationale` | accepted, deliberately |
 | PRE-1 | MED | `release.py execute()` has no preconditions | open (see §2) |
@@ -61,9 +61,9 @@ shape (§6), and an independent close-out (§7).
 | D4-2 | HIGH | Four video flags gated nothing; docs (and my own fix) overclaimed | fixed |
 | D4-3 | MED | A selftest label claimed to cover a gate branch it never executed | fixed |
 | D4-4 | MED | ChatGPT web "what does NOT work" table predated the connector routes | fixed |
-| D4-5 | MED | `post_status` docstring promises engagement mapping its body never performs | open (see §2) |
+| D4-5 | MED | `post_status` docstring promises engagement mapping its body never performs | fixed |
 | D4-6 | LOW | `schedule_post` docstring opened with "Dispatch" | fixed |
-| D4-7 | LOW | `LOCAL_CONTEXT` claimed a stray `git add -A` "cannot" commit personal data | open (see §2) |
+| D4-7 | LOW | `LOCAL_CONTEXT` claimed a stray `git add -A` "cannot" commit personal data | fixed |
 
 ## 2. Findings detail
 
@@ -71,7 +71,7 @@ Findings that are fixed are described in the CHANGELOG entry for this phase and 
 from the commits listed in §3. This section details what is **not** closed, because that is the
 part a reader cannot reconstruct from a green build.
 
-### D5-8 / D4-8 — six disabled capabilities have no degraded behavior — MED — open
+### D5-8 / D4-8 — six disabled capabilities have no degraded behavior — MED — partially fixed
 - Claim: `creator-os-config.json` has 62 capabilities (59 disabled) and 47 `degraded_behavior`
   entries. After resolving every fan-out and rename key, exactly six disabled capabilities have no
   degraded entry: `playwright`, `google_workspace`, `microsoft_365`, `task_tracking`,
@@ -79,10 +79,12 @@ part a reader cannot reconstruct from a green build.
 - Reproduction: `check_degraded_orphans` (`tools/sync_check.py`) iterates
   `degraded_behavior` and reports keys with no capability. There is no loop in the other
   direction, and the check is `advisory(...)`, not blocking.
-- Why still open: writing the six entries is trivial; making the check bidirectional would turn an
-  advisory into a build failure across a config surface this audit did not otherwise touch.
-  Deferred deliberately rather than half-done. The exact six are named above so the fix is
-  mechanical.
+- Fixed: all six now carry a `degraded_behavior` entry stating what the system does instead and
+  what it must not imply.
+- Still open: `check_degraded_orphans` remains one-directional and advisory. Making it
+  bidirectional and blocking would turn an advisory into a build failure across a config surface
+  this audit did not otherwise touch, and the six concrete gaps it would have caught are now
+  closed, so the remaining risk is a future capability added without a degraded entry.
 
 ### F1 — the currency cadence is a promise nothing keeps — MED — partially fixed, then blocked
 - Claim: 66 registry sources declare a check interval under 30 days; 64 of them have
@@ -135,22 +137,24 @@ part a reader cannot reconstruct from a green build.
   exemption list, plus targeted coverage for the five above, all of which parse untrusted or
   external input.
 
-### D4-5, D4-7 — docstring and prose overclaims — MED/LOW — open
-- D4-5: `post_status`'s docstring promises live connector status and engagement mapping; the body
-  reads one flag and returns a constant envelope, never referencing `include_engagement_snapshot`.
-  Fixing the docstring is easy; deciding whether the parameter should work at all is a product
-  question, so it is left for the maintainer rather than silently removed.
-- D4-7: `docs/LOCAL_CONTEXT.md` says a stray `git add -A` "cannot" commit personal data. Invariant
-  19 is post-hoc detection; prevention requires the pre-commit hook, which requires
-  `install_hooks.py` to have been run. The sentence needs weakening to match the mechanism.
+### D4-5, D4-7 — docstring and prose overclaims — MED/LOW — fixed
+- D4-5: `post_status`'s docstring promised live connector status and engagement mapping; the body
+  reads one flag and returns a constant envelope. The docstring now states its real scope, and
+  says plainly that `include_engagement_snapshot` has no effect today and is not zero-filled. The
+  parameter was kept rather than removed, because whether it should eventually work is a product
+  decision, not an audit one.
+- D4-7: `docs/LOCAL_CONTEXT.md` claimed a stray `git add -A` "cannot" commit personal data. It now
+  distinguishes the two mechanisms honestly: the pre-commit hook prevents but only after
+  `install_hooks.py` has been run, and invariant 19 always detects but only after the fact.
 
-### F13 / PRE-4 — dangling plan-structure pointer — LOW — open
+### F13 / PRE-4 — dangling plan-structure pointer — LOW — fixed
 - `docs/AUDIT-PROTOCOL.md` tells a maintainer that findings which become work "get a plan with the
   repo's resume-protocol + change-ledger structure". `grep -rn "resume-protocol|change-ledger" .`
   returns exactly one hit: that line. Neither structure is defined anywhere.
-- Recommended fix, from the adaptability pass and adopted here: add a `## 8. Plan structure`
-  section to `AUDIT-PROTOCOL.md` itself. Explicitly do **not** create a new standalone
-  resume-protocol document — README could not reach it, which is the problem F2 describes.
+- Fixed as the adaptability pass recommended: `AUDIT-PROTOCOL.md` gained a `## 8. Plan structure`
+  section defining the six parts a remediation plan carries, including the change-ledger row
+  lifecycle and the explicit non-action list. Deliberately not a new standalone document — README
+  could not reach it, which is the problem F2 describes.
 
 ### D5-9 — nine ledger decisions lack `rationale` — LOW — accepted, deliberately
 Those nine use `why`, `adr`, or `alternatives_rejected` to carry the same information, and

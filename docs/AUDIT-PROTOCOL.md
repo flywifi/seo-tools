@@ -124,3 +124,37 @@ surface. A green battery and a self-review passed both. Therefore:
 ```sources
 []
 ```
+
+## 8. Plan structure (what section 6 part 5 refers to)
+
+Section 6 says findings that become work "get a plan with the repo's resume-protocol and
+change-ledger structure". That structure is defined here, because it was previously named without
+being written down anywhere.
+
+A working plan for audit remediation is a single file that is simultaneously the plan and the
+record. It carries:
+
+1. **A resume protocol, first.** Where the work is (repo, branch, HEAD at plan time), what the
+   task is in two sentences, and the exact first commands a session with zero memory should run.
+   State explicitly that the ledger outranks any recollection, and that git outranks the ledger:
+   if a row disagrees with the tree, trust the tree and fix the row.
+2. **A persistence contract.** What is written where, and when. Findings are written the moment
+   they are confirmed, never batched to the end. Fixes are committed and pushed per stage, so an
+   interruption loses at most one stage. Conclusions end up in a committed artifact, because an
+   uncommitted plan file does not survive the machine.
+3. **The baseline battery**, with the numbers expected at the start, so a later session can tell a
+   regression from a pre-existing state.
+4. **A change ledger**: an append-only table of findings, one row each, carrying an id, the
+   dimension, a severity, the claim with its `file:line`, and a status that moves through
+   REPORTED to VERIFIED or KILLED, then FIXED at a commit, then REPLAYED where a guard was
+   touched. Strike rows through; never delete them. A killed finding keeps the reproduction
+   attempt that killed it.
+5. **Remediation rules chosen before the findings arrive**, so severity does not get negotiated
+   after the fact: what must be fixed in the same checkpoint, what may be accepted with a written
+   reason, and the scope brake that turns a rebuild into a recommendation.
+6. **An explicit non-action list.** What the phase deliberately did not do, and why. This is the
+   field that is most often lost and least reconstructible from a diff.
+
+The ledger rows and the non-action list are what later phases actually read. A plan that records
+only the intended work, and not what happened to each finding, is a to-do list rather than a
+change ledger.
