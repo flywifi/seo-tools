@@ -46,7 +46,7 @@ shape (§6), and an independent close-out (§7).
 | D1-3 | MED | `AGENTS.md` invariant count was unguarded | fixed |
 | D1-4 | MED | CI commit-message backstop scans an empty range on direct main pushes | open (see §2) |
 | D1-5 | MED | commit-msg hook omits the author-email rule ADR 0015 says it enforces | open (see §2) |
-| D1-6 | MED | 37 of 103 tools have no selftest and no runner coverage | open, scoped (see §2) |
+| D1-6 | MED | tool selftest coverage: the "37 of 103" figure was wrong (34), and the flat count conflated three tiers | corrected; coverage in progress (see §2) |
 | D1-7 | LOW | Two prose sites presented advisory invariant 47 as CI-enforced | fixed (live doc) |
 | D1-8 | LOW | Installed commit-msg hook prepends a bogus `sys.path` entry | open (see §2) |
 | D1-9 | LOW | `videoedit_validate` module docstring overclaimed | fixed |
@@ -129,13 +129,41 @@ part a reader cannot reconstruct from a green build.
 - Why open: all three sit in the commit/CI boundary. They are a coherent unit of work and were
   scoped out rather than partially patched.
 
-### D1-6 — 37 of 103 tools have no selftest — MED — open, scoped
-- Largest uncovered: `traversal_engine` (484 lines), `parse_competitor_meta` (427),
-  `videoedit/fcpxml` (381), `acquire` (359), `rate_governor` (255).
-- Scoped deliberately: writing 37 selftests is a rebuild, not a repair. The recommended close is a
-  guard requiring every new `tools/*.py` to either wire a `--selftest` or appear on a reasoned
-  exemption list, plus targeted coverage for the five above, all of which parse untrusted or
-  external input.
+### D1-6 — tool selftest coverage — MED — figure corrected, coverage in progress
+
+**This finding's own number was wrong.** The report said "37 of 103". Re-derived with the sweep's
+own discovery rule (`tools/selftest_sweep.py:28-31`: an argparse `--selftest`, an argv probe, or a
+`selftest` subparser) the figure is **34 of 103** tracked `tools/**/*.py`. Across `tools/` and
+`shared/` together: 110 files, 70 covered, 40 uncovered. A miscounted denominator inside a
+coverage finding is the same defect class as D1-1, so it is recorded here rather than quietly
+edited.
+
+**The flat count also conflated three different situations**, which made the gap look both larger
+and more uniform than it is. Import analysis alone is misleading, because guards execute some
+modules dynamically — `sync_check.py:2286` loads `shared/connectors/connectors.py` through
+`importlib` and calls `resolve({})` (invariant 53), and `selftest_sweep.py:62-64` runs
+`tools/publishing` as `python -m publishing --selftest`. Neither is visible to a plain import
+graph. The honest split:
+
+- **Tier A — no selftest and no runner (7).** The real gaps: `traversal_engine` (484 lines),
+  `rate_governor` (255), `shared/docintel/parse_text` (224), `local_privacy` (150),
+  `shared/cache/semantic` (65), `videoedit/compressor` (59), `videoedit/commandpost` (38).
+- **Tier B — no selftest, but executed on some path (23).** Being imported proves a module loads,
+  **not** that its logic is asserted. P74-0 — the OG extractor that returned one value for every
+  property — lived in a Tier B file and survived anyway, which is the proof that Tier B is not
+  coverage. Highest-risk members all parse external or untrusted input:
+  `parse_competitor_meta` (427), `videoedit/fcpxml` (381), `acquire` (359), `fetch_diag` (236),
+  `shared/cache/cache` (204), `fetch_resilient` (203), `geo_source_fetch` (186).
+- **Tier C — is itself a battery runner (10).** `sync_check` (2906), `handoff_sim`,
+  `geo_e2e_proof`, `count_truth`, `version`, `package_skill`, `registry_io`, `sync_cache`,
+  `new_skill`, `update`. Running these IS the test; a `--selftest` would be ceremony. Counting
+  `sync_check.py` as untested debt would inflate the gap as dishonestly as hiding one.
+
+**Status.** `parse_competitor_meta` now has a selftest (added with the P74-0 fix; the sweep rose
+from 69 to 70). The remaining top-20 — all of Tier A plus the highest-risk Tier B files — are being
+covered, after which an enrolment guard requires every new tool to wire a `--selftest` or land on a
+reasoned exemption list, and the residue is named in a "still needs a selftest" table rather than
+left as a silent gap. Writing all 34 by hand was rejected as a rebuild rather than a repair.
 
 ### D4-5, D4-7 — docstring and prose overclaims — MED/LOW — fixed
 - D4-5: `post_status`'s docstring promised live connector status and engagement mapping; the body

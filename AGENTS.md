@@ -49,6 +49,13 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
 - Docs change in the SAME commit as the code they describe; new external citations go in a
   fenced `sources` block and get seeded into the registry.
 
+## Planning depth
+Plan far enough that implementation holds no surprises. Any non-trivial plan carries who/what/
+when/where/why/how per work package, risks with concrete mitigations, citable evidence
+(`file:line`, real command output, or a URL), and **code you have actually executed and seen
+pass** — not code that looks plausible. A guessed contract is a defect in the plan. Verify by
+running it: doing so is what catches the bug that reading would have missed.
+
 ## Agent conduct in this repo
 - Research subagents are read-only: they read, search, and return structured findings; they never
   create, edit, write, or delete files, and never commit or push. The main loop makes changes.

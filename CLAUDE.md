@@ -139,6 +139,23 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   off, the dashboard schedules and advances items to `ready_to_post` for manual posting and makes
   no network call.
 
+## Planning depth (a plan is finished when execution holds no surprises)
+Plan before you build, and plan far enough that the implementation is a formality. A plan for
+anything beyond a trivial edit carries all of:
+- **who / what / when / where / why / how** for every work package, not just a task list.
+- **Risks with concrete mitigations**, each tied to a real failure this repo can have, not generic
+  caution.
+- **Citable evidence**: a `file:line`, a command's actual output, or a URL. An assertion with no
+  pointer is not evidence.
+- **Code that has been executed and shown to pass**, not code that looks plausible. Import the
+  module, call the function, paste what it returned.
+
+If a contract was guessed rather than verified, that is a defect in the plan, not a surprise to
+discover mid-implementation. Verifying beats assuming every time: the P74 planning pass ran its own
+example assertions and found a live regex defect that had been silently corrupting competitor
+metadata, plus nine function contracts that differed from their obvious reading. The planning phase
+is expected to be the majority of the work.
+
 ## Documentation truth (docs change in the same PR as the code)
 When you change code, update its maintainer/SKILL/docs prose in the SAME change, never in a later
 cleanup pass. If you add or rename a symbol a doc names, update or add its `<!-- verify: path::symbol -->`

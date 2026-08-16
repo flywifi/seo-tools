@@ -119,9 +119,9 @@
     },
     "AGENTS.md": {
       "sources": {
-        "CLAUDE.md": "eec4761fd387fbda75f4822d4efe6dc8a02453e106378d07c63350e659537491"
+        "CLAUDE.md": "506784ecfe638028831a290b42ffd955f4404722c7956482d4b7207ed6fb7bb1"
       },
-      "projection": "a45ba7e092f179534e21bf5075d7c073ba042f39f8178e03b10ca0f3a7360622"
+      "projection": "a8b35047bf331b335f8b8b12a963cb56f724c69d9ff3a39bd9bb94f9e28ea20f"
     },
     "implementation/gemini/system-instruction.md": {
       "sources": {
