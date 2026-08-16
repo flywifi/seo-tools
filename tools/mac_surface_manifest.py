@@ -83,6 +83,32 @@ MAC_SIGNALS = (
 )
 SIGNAL_RE = re.compile("|".join(MAC_SIGNALS), re.IGNORECASE)
 
+# P73 D6-F3: MAC_SIGNALS is pinned against NARROWING (signals_sha + the deriver-drift check), so
+# deleting a token fails the build. Nothing fired in the other direction: a new file using a
+# macOS concept this vocabulary has never heard of simply never enters the denominator, and the
+# completeness gate reports "complete" while being blind to it. These are macOS-specific concepts
+# that are NOT in MAC_SIGNALS; a file matching one of them but no signal is a candidate for
+# widening the vocabulary. Advisory by design -- it proposes a review, it does not guess.
+CANDIDATE_SIGNALS = (
+    r"\bcodesign\b",
+    r"\bspctl\b",
+    r"\bnotarytool\b",
+    r"\bnotariz",
+    r"\bplutil\b",
+    r"\bdefaults write\b",
+    r"Library/Containers",
+    r"\bpmset\b",
+    r"\bdiskutil\b",
+    r"\bhdiutil\b",
+    r"\blaunchctl\b",
+    r"\bsw_vers\b",
+    r"\bTCC\b",
+    r"\bkeychain access\b",
+    r"\bInfo\.plist\b",
+    r"\bDMG\b",
+)
+CANDIDATE_RE = re.compile("|".join(CANDIDATE_SIGNALS), re.IGNORECASE)
+
 # Self-reference and append-only-record skips ONLY. Everything else that a human judged "not a Mac
 # surface" belongs in the manifest's `excluded` map, with its reason written down, so the decision is
 # reviewable. (The P69 adversarial pass caught an earlier version of this tuple carrying three
@@ -216,7 +242,7 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     All-empty == the audited set still equals the live Mac surface. Never raises."""
     manifest_path = manifest_path or MANIFEST_PATH
     empty = {"unaudited": [], "changed": [], "missing": [], "undetectable": [],
-             "deriver_drift": [], "note": None}
+             "deriver_drift": [], "vocabulary_candidates": [], "note": None}
     if not manifest_path.exists():
         return dict(empty, note="manifest missing; run 'python3 tools/mac_surface_manifest.py reconcile'")
     try:
@@ -241,6 +267,23 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     # token that used to catch it -- coverage narrowed without a single file "changing".
     derived_set = set(derived)
     undetectable = [r for r in files if r not in derived_set and (root / r).exists()]
+    # P73 D6-F3: files carrying a macOS concept the vocabulary has never heard of. Not coverage
+    # failures -- proposals to widen MAC_SIGNALS, surfaced so the vocabulary gets reviewed when
+    # macOS grows a new concept rather than only when someone happens to notice.
+    candidates = []
+    for rel in tracked:
+        # Same skips derive() applies: the self-referential files quote these tokens by nature,
+        # and the append-only records quote every concept the repo has ever discussed.
+        if rel in derived_set or rel in excluded or rel.startswith(SKIP_PREFIXES):
+            continue
+        p = root / rel
+        try:
+            text = p.read_text(encoding="utf-8", errors="ignore")
+        except (OSError, UnicodeDecodeError):
+            continue
+        m = CANDIDATE_RE.search(text)
+        if m:
+            candidates.append(f"{rel} (matched {m.group(0)!r})")
     pin = manifest.get("deriver", {})
     deriver_drift = []
     if pin:
@@ -253,7 +296,8 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
         deriver_drift.append("manifest records no deriver pin; re-bless to pin the denominator")
     return {"unaudited": sorted(unaudited), "changed": sorted(changed),
             "missing": sorted(missing), "undetectable": sorted(undetectable),
-            "deriver_drift": deriver_drift, "note": None}
+            "deriver_drift": deriver_drift, "vocabulary_candidates": sorted(candidates),
+            "note": None}
 
 
 def selftest() -> int:
@@ -281,6 +325,14 @@ def selftest() -> int:
         ok("derive finds the darwin file", "tools/macish.py" in d)
         ok("derive skips a non-Mac file", "plain.py" not in d)
         ok("derive ignores QUARANTINE/args.command false positives", "noisy.py" not in d)
+
+        # P73 D6-F3: the widening trigger. A file using a macOS concept the vocabulary has never
+        # learned must be PROPOSED for review, not silently left out of the denominator.
+        ok("a notarization file does not derive (the vocabulary gap is real)",
+           derive(root, ["tools/macish.py"]) and not CANDIDATE_RE.search("x = 1") and
+           bool(CANDIDATE_RE.search('subprocess.run(["xcrun", "notarytool", "submit"])')))
+        ok("candidate sweep ignores a file with no macOS concept at all",
+           not CANDIDATE_RE.search('QUARANTINE = "high"\nargs.command\n'))
 
         # Reconcile blesses it, then check is clean.
         def _rec():

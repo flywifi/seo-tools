@@ -3,7 +3,7 @@
   "generated_by": "tools/mac_surface_manifest.py",
   "deriver": {
     "path": "tools/mac_surface_manifest.py",
-    "module_sha256": "ffa9626fc70a5e6c411b0af587619cc8247b92d6d10622321a60e0aac44744fb",
+    "module_sha256": "4c5eeb24d5f0ff3a28bf22e02a70be85ad92aa2865b226b266cf1d9667ac44e9",
     "signals_sha256": "d61d15952b0b892538837f4d703cc958f25a9385f96b507ee6e7bbf914139cab",
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },

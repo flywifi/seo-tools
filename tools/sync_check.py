@@ -2044,6 +2044,9 @@ def check_doc_count_truth():
         # P73 D1-3: AGENTS.md states the invariant count but was unguarded, so it could drift
         # exactly the way the four guarded docs could not.
         ("AGENTS.md", "invariants", "invariants"),
+        # Found by the reverse sweep below on its first run (P73 D6-F5), which is the point:
+        # enrolment is no longer a thing anyone has to remember.
+        ("README.md", "spokes", "spokes"),
         ("docs/SETUP_MAC.md", "mcp_tools", "tool definitions"),
         ("docs/DEPLOYMENT.md", "mcp_tools", "tool definitions"),
     ]
@@ -2057,6 +2060,37 @@ def check_doc_count_truth():
             if n != truth[key]:
                 problem(f"doc-count-truth: {rel} states '{n} {kw}' but the tree has {truth[key]} "
                         f"{kw}; correct the doc (counts are computed by tools/count_truth.py)")
+
+    # P73 D6-F5: the list above is curated, and curation has already been forgotten once --
+    # AGENTS.md shipped in P72 stating the invariant count with no guard, and only a hand audit
+    # caught it. Enrolment must not depend on remembering. Sweep every tracked doc for a global
+    # count claim and require that the file be enrolled above.
+    enrolled = {rel for rel, _, _ in checks}
+    keywords = {"spokes": "spokes", "invariants": "invariants", "tool definitions": "mcp_tools",
+                "atoms": "atoms", "scenarios": "scenarios"}
+    # Historical records legitimately quote the counts that were true when they were written.
+    # This mirrors the scoping the curated list already assumes (see this check's docstring).
+    skip_prefixes = ("docs/adr/", "ledger/", "CHANGELOG.md", "STATE.md", "docs/ROADMAP.md",
+                     "examples/", "docs/production-readiness-",
+                     # A dated audit record: its body quotes the counts that were true at P39 and
+                     # it says so in its own opening line. Same class as an ADR.
+                     "docs/CROSS-MODALITY-AUDIT.md")
+    for rel in (_git_ls_files() or []):
+        if rel in enrolled or rel.startswith(skip_prefixes) or not rel.endswith(".md"):
+            continue
+        p = ROOT / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8", errors="ignore")
+        for kw, key in keywords.items():
+            for m in re.finditer(rf"(\d+)\s+{re.escape(kw)}\b", text):
+                if int(m.group(1)) == truth[key]:
+                    problem(
+                        f"doc-count-truth: {rel} states '{m.group(1)} {kw}' but is NOT enrolled in "
+                        f"the count-truth list, so it can drift silently. Add "
+                        f"(\"{rel}\", \"{key}\", \"{kw}\") to checks[] in check_doc_count_truth, or "
+                        f"reword the sentence so it does not state a global count.")
+                    break
 
 
 VERIFY_RE = re.compile(r"<!--\s*verify:\s*(\S+?)\s*-->")
@@ -2203,6 +2237,36 @@ def check_doc_source_registry():
             if mid not in registry and mid not in exempt:
                 problem(f"{rel}: source marker references id '{mid}' which is not in "
                         f"source-registry.json (seed it or exempt it with a reason)")
+
+    # P73 D6-F7: this invariant only ever saw a fenced block or an explicit marker, and
+    # invariant 46 only ever matched a full https:// URL. A shorthand citation -- "help/12584461",
+    # "help.openai.com/en/articles/8096356" -- was therefore invisible to BOTH, which is how a
+    # load-bearing plan-eligibility claim shipped in two live docs with no registry entry. The
+    # caps enforced by tools/surface_budgets.py rest on exactly this citation shape, so an
+    # unregistered one means a guard enforcing a number nothing is watching. Cite in any form and
+    # the registry entry is required.
+    known_articles = {m for url in registry.values() if url
+                      for m in re.findall(r"/articles/(\d{4,})", url)}
+    shorthand = re.compile(r"(?:help\.openai\.com/en/articles/|\bhelp/)(\d{4,})")
+    # Deliberately NOT _reference_scan_files(): that set excludes tools/*.py and the packaging
+    # READMEs, which is where two thirds of these citations actually live -- including
+    # tools/surface_budgets.py, whose enforced caps depend on them. Scanning the narrower set
+    # would have closed the class on paper while staying blind to the real instances.
+    for rel in (_git_ls_files() or []):
+        if not rel.endswith((".md", ".py")) or rel.startswith("canonical-sources/"):
+            continue
+        target = ROOT / rel
+        if not target.exists():
+            continue
+        seen = set()
+        for art in shorthand.findall(target.read_text(encoding="utf-8", errors="ignore")):
+            if art in known_articles or art in seen:
+                continue
+            seen.add(art)
+            problem(f"{rel}: cites help.openai.com article {art} in shorthand, but no registry "
+                    f"source has that article id. A scheme-less citation is still a citation: "
+                    f"seed it (tools/source_sync.py reconcile, then source_currency seed-sources) "
+                    f"so the currency system tracks it.")
 
 
 def check_connector_resolver_smoke():
@@ -2756,6 +2820,14 @@ def check_mac_surface_completeness():
     for msg in res.get("deriver_drift", []):
         problem(f"mac-surface: {msg}; the denominator changed, so re-audit and "
                 f"`python3 tools/mac_surface_manifest.py reconcile`")
+    # P73 D6-F3: the widening trigger. The checks above all guard against the denominator
+    # SHRINKING; this one notices a file using a macOS concept the vocabulary never learned, so
+    # the gate cannot report "complete" while being blind to a new category. Advisory: it is a
+    # prompt to review the vocabulary, not a verdict about the file.
+    for entry in res.get("vocabulary_candidates", []):
+        advisory(f"mac-surface: {entry} carries a macOS concept that no MAC_SIGNALS token matches, "
+                 f"so it is NOT in the coverage denominator. Review it: either add the token to "
+                 f"MAC_SIGNALS (then re-bless) or confirm the file is not a Mac surface.")
 
 
 def main():
