@@ -381,7 +381,11 @@ Steps 1 to 3 were carried out in P74. What remains is step 4, which is the maint
 1. **Done.** The Unreleased blocks are merged into one `## [0.2.0] - 2026-08-16` section. The four
    roll-up hazards this audit found (a retracted justification, a superseded duplicate, a closed
    backlog described as deferred, an invariant scope that never shipped) were resolved first, so
-   the merge was mechanical. PRE-5's per-phase block repetition is gone with it.
+   the merge was mechanical. PRE-5's per-phase block repetition is gone with it. P75 and P76 landed
+   after that merge and were folded in afterwards, so the section describes the whole tree and
+   `[Unreleased]` is empty — a tag cut from here cannot misdescribe what it points at. Note the
+   guard's limit: `preconditions()` checks that a section for the version *exists*, not that it is
+   complete, so this remains a thing to check by eye at tag time.
 2. **Done.** The version is bumped and `python3 tools/version.py --check` reports
    `consistent at 0.2.0` — now across all five locations that carry it, not the three it used to
    read. The pasted ChatGPT pack was re-stamped in the same change, and the drift guard now

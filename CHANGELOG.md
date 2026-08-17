@@ -6,38 +6,13 @@ All notable changes to Creator OS are documented here. The format follows
 
 This history was reconstructed from `STATE.md` and `ledger/ledger.json`; it records only
 what those sources state. Per-phase detail lives in `STATE.md`; the reasoning behind major
-decisions lives in `docs/adr/`. Only one version has been released so far (`0.1.0`, the
-baseline release cut in P47), so all pre-release development is folded into that entry;
-work after the baseline sits under Unreleased.
+decisions lives in `docs/adr/`. `0.1.0` (the baseline cut in P47) is the only version tagged so
+far, so all pre-release development is folded into that entry. `0.2.0` is prepared and dated: it
+describes everything in the tree above the baseline, and the tag itself is still pending.
 
 ## [Unreleased]
 
-### Fixed
-- Repaired the competitor metadata the P74-0 defect corrupted (P75). Fixing the extractor did not
-  fix the rows it had already written, and the obvious remedy did nothing: `_upsert_page` skipped
-  whenever `(competitor_id, content_hash)` already existed, and the HTML had not changed — only
-  the parser had. Rows now carry a `parser_version`, so the same page read by a newer parser is
-  superseded in place, which repairs the existing damage and means any future extractor fix
-  repairs its own historical rows instead of silently leaving them wrong.
-- Corrected the record of what the defect damaged (P75). It was described as affecting the `og_*`
-  columns; it also corrupts `title`, which is assigned from `og_title` rather than extracted
-  separately and is the most user-visible column, plus `canonical_url` on pages with no
-  `<link rel="canonical">`. Which wrong value appears depends on the page's meta-tag order: when
-  `og:image` comes first, `title` holds an image URL. The platform fields — video tags, hashtags,
-  chapter markers, category, dates — come from a different extractor and were never affected.
-- `competitor_scan` returned a counter while its docstring promised metadata (P75). It shelled
-  `--parse` and returned that process's stdout, which is `{"parsed": N, "skipped": []}`; the
-  per-row detail goes to stderr. It now reads the stored row back and returns it, matching the
-  contract the tool description and the deep-competitor-scan atom already stated.
-
-### Added
-- `competitor_snapshot.py --check-og` reports rows carrying the P74-0 corruption (P75), split into
-  repairable and unrepairable. Snapshots are overwritten per competitor rather than kept as dated
-  history, so once a newer fetch lands, an older row's source HTML is gone and re-parsing cannot
-  reach it. Those rows are reported separately and `--mark-unrepairable` stamps them so a
-  known-wrong row is never mistaken for a repaired one; they are not deleted, because their
-  platform columns are clean, and they are not consumed by `--export-summary`, which takes the
-  most recent row per competitor.
+Nothing yet.
 
 ## [0.2.0] - 2026-08-16
 
@@ -281,6 +256,13 @@ work after the baseline sits under Unreleased.
   names a concrete top-level `tools/` symbol.
 - Process conventions: `.github/CODEOWNERS` (advisory), `docs/adr/` (MADR, backfilled),
   this `CHANGELOG.md`, and `docs/DOC-MAINTENANCE.md`.
+- `competitor_snapshot.py --check-og` reports rows carrying the P74-0 corruption (P75), split into
+  repairable and unrepairable. Snapshots are overwritten per competitor rather than kept as dated
+  history, so once a newer fetch lands, an older row's source HTML is gone and re-parsing cannot
+  reach it. Those rows are reported separately and `--mark-unrepairable` stamps them so a
+  known-wrong row is never mistaken for a repaired one; they are not deleted, because their
+  platform columns are clean, and they are not consumed by `--export-summary`, which takes the
+  most recent row per competitor.
 
 ### Changed
 - `dep-mcp` has a version baseline (P74): `validated_version` 1.28 with the `>=1.28,<2` pin, so
@@ -348,6 +330,7 @@ work after the baseline sits under Unreleased.
   (publishing layer no longer described as "dark/stubs", Pinterest scope, finance-desk check
   counts, contract-desk atom availability, videoedit atom list, tool-count and script-path
   references). The skill-template regression bar was lowered from five to three cases.
+- The branch history for this version was rebuilt (P76). Nine commits had been pushed without an approved plan; each was reviewed individually and the branch was reset to the last approved commit and rebuilt from those verdicts. Most of the work was re-approved and ships here unchanged. Two changes were dropped as maintainer decisions rather than repairs and are therefore **not** in this version: the selftest enrolment gate with its exemption list, and the re-band of 63 currency check intervals. The fifteen selftests the first of those shipped alongside were kept. `ledger/ledger.json` and `STATE.md` carry the full record.
 
 ### Fixed
 - The release path had no preconditions (P74). `release.py execute()` checked only that `gh`
@@ -528,6 +511,22 @@ work after the baseline sits under Unreleased.
   maintainer docs are now content-hash-bound to `tools/finance.py`.
 - `tools/publishing/__init__.py` docstrings now describe the four real clients, the
   `creds[plat].publish` token model, and the `live_publishing_enabled` + human-confirm gate.
+- Repaired the competitor metadata the P74-0 defect corrupted (P75). Fixing the extractor did not
+  fix the rows it had already written, and the obvious remedy did nothing: `_upsert_page` skipped
+  whenever `(competitor_id, content_hash)` already existed, and the HTML had not changed — only
+  the parser had. Rows now carry a `parser_version`, so the same page read by a newer parser is
+  superseded in place, which repairs the existing damage and means any future extractor fix
+  repairs its own historical rows instead of silently leaving them wrong.
+- Corrected the record of what the defect damaged (P75). It was described as affecting the `og_*`
+  columns; it also corrupts `title`, which is assigned from `og_title` rather than extracted
+  separately and is the most user-visible column, plus `canonical_url` on pages with no
+  `<link rel="canonical">`. Which wrong value appears depends on the page's meta-tag order: when
+  `og:image` comes first, `title` holds an image URL. The platform fields — video tags, hashtags,
+  chapter markers, category, dates — come from a different extractor and were never affected.
+- `competitor_scan` returned a counter while its docstring promised metadata (P75). It shelled
+  `--parse` and returned that process's stdout, which is `{"parsed": N, "skipped": []}`; the
+  per-row detail goes to stderr. It now reads the stored row back and returns it, matching the
+  contract the tool description and the deep-competitor-scan atom already stated.
 
 ### Security
 - MCP tool annotations are fail-closed (P73): every tool must be explicitly classified as a write,
