@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-08-16",
+  "last_registry_update": "2026-08-30",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -25,7 +25,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "youtube-creator-blog",
@@ -35,7 +38,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Look for algorithm changes affecting discovery, Shorts monetization updates, chapter and timestamps spec changes, and creator program policy updates.",
       "used_by": [
@@ -48,7 +51,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "2c393f7197b8ccf89eb24420412501516f030b51d9404baaf0809910382f2af1"
     },
     {
       "id": "google-search-status",
@@ -58,7 +62,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Check for active or recent incidents that could explain ranking flux. Flag to seo-keywords when an incident is active.",
       "used_by": [
@@ -68,7 +72,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "ec5a0ed588b156ef3667b020d8a66d0fd11c3d8037d83739f2fe1218c9431e00"
     },
     {
       "id": "search-engine-journal",
@@ -78,7 +83,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Scan for algorithm update coverage, YouTube SEO guides, and home decor content strategy articles. Flag T3 confidence on any data cited from here.",
       "used_by": [
@@ -89,7 +94,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "a282133e99297a1325387a5af2057402d958ea50aca8a05b4ab9306df5b1ed3d",
+      "content_last_modified": "Sat, 29 Aug 2026 20:25:16 GMT"
     },
     {
       "id": "search-engine-roundtable",
@@ -108,7 +115,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "youtube-help-video-specs",
@@ -118,7 +128,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Check for changes to: accepted file formats, resolution limits, aspect ratio specs, upload size limits, Shorts length limits.",
       "used_by": [
@@ -129,7 +139,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "c62528bd9d148bbf76c876dd99ffae29ff08c66263e6945e142a3fdc010ca955"
     },
     {
       "id": "youtube-help-metadata",
@@ -171,7 +182,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "tiktok-creator-portal",
@@ -192,7 +206,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "pinterest-business-specs",
@@ -212,7 +229,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "youtube-api-changelog",
@@ -222,7 +242,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Look for deprecated fields or endpoints (especially captions.list, videos.list, search.list), quota changes, and new scopes or parameters.",
       "used_by": [
@@ -231,7 +251,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "f5e0faf48920f29fe6706b100ee00de9ed4dd0b061b6ae7acf0d013f119ab710",
+      "content_last_modified": "Thu, 27 Aug 2026 16:05:12 GMT"
     },
     {
       "id": "meta-graph-api-changelog",
@@ -250,7 +272,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "tiktok-api-changelog",
@@ -269,7 +294,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "microsoft-graph-changelog",
@@ -288,7 +316,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "anthropic-release-notes",
@@ -308,7 +339,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "influencer-hub-benchmark",
@@ -328,7 +362,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "later-creator-economy-report",
@@ -338,7 +375,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: Instagram Reel sponsored rate ranges by follower tier, engagement rate benchmarks by niche, brand deal structure trends.",
       "used_by": [
@@ -348,7 +385,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "e03058c0dd699465ac67c7e344e1812b3a39e231535c2ab1b7c0b81ad13139a2",
+      "content_etag": "\"adca61cccb0a3130d697283a748fd9eb-ssl\""
     },
     {
       "id": "linqia-state-of-influencer",
@@ -368,7 +407,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "creatoriq-benchmark",
@@ -387,7 +429,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-code-release-notes",
@@ -406,7 +451,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "mcp-specification",
@@ -426,7 +474,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "google-drive-mcp-docs",
@@ -446,7 +497,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "youtube-help-recommendations",
@@ -477,7 +531,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: metric definitions (CTR, AVD, impressions, watch time), how to read the traffic sources report, click-through benchmarks, audience retention curve interpretation.",
       "used_by": [
@@ -488,7 +542,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "034d5ee066090af62f121ed3d2a2269954751b592dd5f8e035ce479c6022524f"
     },
     {
       "id": "youtube-creator-academy",
@@ -498,7 +553,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Scan for new lessons on thumbnail strategy, title optimization, end screen and card best practices, Shorts growth guidance. Traversal depth 2 to capture linked studies.",
       "used_by": [
@@ -509,7 +564,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "86252238a6dfc719986f84470f1ad33809560e9f93ba210123f01fe8ac9dff6e"
     },
     {
       "id": "google-seo-starter-guide",
@@ -519,7 +575,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: title tag best practices, meta description guidance, structured data recommendations, mobile-first indexing requirements. Traversal finds linked technical documentation.",
       "used_by": [
@@ -530,7 +586,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "37d7f8ff3db3da5bba6522fbc567a1bcc9c3fef1225c6c4d7600cffd595d0864",
+      "content_last_modified": "Wed, 10 Dec 2025 18:38:05 GMT"
     },
     {
       "id": "google-video-best-practices",
@@ -540,7 +598,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: VideoObject schema requirements, video sitemap specs, thumbnail requirements for video rich results, key moments / chapter markup.",
       "used_by": [
@@ -550,7 +608,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "56ad5f8cf10b4cbcda4c01cc2e863423d87b607d8f44fdbe1480d92ee65ce02b",
+      "content_last_modified": "Thu, 18 Dec 2025 08:35:01 GMT"
     },
     {
       "id": "google-structured-data-video",
@@ -560,7 +620,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: required and recommended VideoObject properties, Clip and SeekToAction markup for chapter links, testing tool URL. Changes here affect how videos appear in Google Search.",
       "used_by": [
@@ -570,7 +630,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "f6ce1d48570c992e8b9719142c899a8d2bfaf78c47be964f0b61ae7977de4c6c",
+      "content_last_modified": "Fri, 13 Feb 2026 13:21:37 GMT"
     },
     {
       "id": "google-eeeat-guidelines",
@@ -580,7 +642,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: E-E-A-T signals (Experience, Expertise, Authoritativeness, Trustworthiness), helpful content criteria, what qualifies as low-quality or thin content. Crucial for content strategy quality gates.",
       "used_by": [
@@ -591,7 +653,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "b25f21b173336e23703cea6b66f36a0278733e08ff9a81d59e1fcddfdf429674",
+      "content_last_modified": "Wed, 10 Dec 2025 18:38:05 GMT"
     },
     {
       "id": "pinterest-creator-hub-seo",
@@ -613,7 +677,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "pinterest-newsroom",
@@ -633,7 +700,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "tiktok-fyp-guide",
@@ -654,7 +724,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "tiktok-newsroom",
@@ -674,7 +747,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "ftc-disclosures-101",
@@ -684,7 +760,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: required disclosure language, placement requirements (beginning of description, verbal in video), what counts as a material connection. Changes here affect safety.md and deal contract templates.",
       "used_by": [
@@ -698,7 +774,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "94a8936f28036aa5ab0276765e7afc336524ad61debebc020ecd634e5dec5910",
+      "content_etag": "\"1788048660\"",
+      "content_last_modified": "Sun, 30 Aug 2026 00:11:00 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "ftc-endorsement-guides",
@@ -741,7 +821,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "ahrefs-blog-video-seo",
@@ -762,7 +845,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "vidiq-creator-academy",
@@ -783,7 +869,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "rate_limit",
+      "block_vendor": null
     },
     {
       "id": "the-spruce-home-decor",
@@ -805,7 +894,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "apartment-therapy",
@@ -815,7 +907,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Scan for renter-friendly DIY coverage, small-space organization, vintage and thrifting trend articles. Strong overlap with The Renter and Vintage Hunter personas. High editorial authority.",
       "used_by": [
@@ -827,7 +919,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "2b2f4020162d0f3c2703b244afc231e9895d03cbe4ef88caa61eecf607506210",
+      "content_etag": "\"42hlmyt4gwa3nq\""
     },
     {
       "id": "hgtv-decorating",
@@ -848,7 +942,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "bhg-decorating",
@@ -869,7 +966,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "sprout-social-stats",
@@ -879,7 +979,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: engagement rate benchmarks by platform and industry (home/lifestyle niche), best posting times, reach benchmarks. Note report date and sample size if stated.",
       "used_by": [
@@ -889,7 +989,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "fd396dd655c863940b4d8821548daac5146e95fca0e4f70486efac01e45dd480"
     },
     {
       "id": "buffer-state-of-social",
@@ -909,7 +1010,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "tiktok-content-posting-api",
@@ -929,7 +1033,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "tiktok-research-api",
@@ -949,7 +1056,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "tiktok-display-api",
@@ -968,7 +1078,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "tiktok-login-kit",
@@ -987,7 +1100,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "tiktok-newsroom-algorithm",
@@ -1008,7 +1124,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "instagram-graph-api-docs",
@@ -1018,7 +1137,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Check for: new media_type values, new post_info fields (trial_params added December 2025), metric deprecations (impressions deprecated April 2025, replaced by views), scope name changes (instagram_business_basic is current). Note API version.",
       "used_by": [
@@ -1027,7 +1146,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "e7c05771e16094413c2f9f982aab2e1a01b2591e7676be71985455e56666ba18"
     },
     {
       "id": "instagram-help-algorithm",
@@ -1048,7 +1168,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "pinterest-api-v5-docs",
@@ -1068,7 +1191,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "youtube-shorts-help",
@@ -1078,7 +1204,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Check for changes to: maximum Shorts length (3 minutes as of Oct 2024), YPP Shorts eligibility thresholds (1,000 subs + 10M views in 90 days), revenue share percentages, and any changes to how Shorts are identified.",
       "used_by": [
@@ -1089,7 +1215,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "7aa5d53a2be4cba368e7b6b4794d707884a4e80ad0d7f209c71c5ef8d5f34baa"
     },
     {
       "id": "youtube-help-shorts-algorithm",
@@ -1120,7 +1247,7 @@
       "tier": "T2",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Use gprop='youtube' parameter for YouTube-specific trend data. Check home decor and DIY seasonal patterns. Breakout keywords (>5000% growth) signal emerging demand before it appears in autocomplete. All volume data labeled [estimated, unverified].",
       "used_by": [
@@ -1131,7 +1258,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "8960310e79c64acc4d038d9d479a9dbda1eda598d64684d0652b142c847a902f"
     },
     {
       "id": "sprout-social-insights",
@@ -1141,7 +1269,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Extract: engagement rate benchmarks by platform and industry vertical (home/lifestyle), optimal posting frequency data, reach benchmarks for micro-creators. Note report date and methodology.",
       "used_by": [
@@ -1151,7 +1279,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "e66a7abba46b841abc25adf65b19030279e28f26b7667df69825aabb991bfcb6"
     },
     {
       "id": "vidiq-shorts-guide",
@@ -1171,7 +1300,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "rate_limit",
+      "block_vendor": null
     },
     {
       "id": "tubebuddy-blog",
@@ -1191,7 +1323,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "pinterest-api-v5-pin-creation",
@@ -1211,7 +1346,10 @@
       "depth": 1,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "youtube-api-upload-video",
@@ -1221,7 +1359,7 @@
       "tier": "T2",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "resumable upload endpoint, quota cost, required scopes; watch for quota changes",
       "used_by": [
@@ -1230,7 +1368,9 @@
       "depth": 1,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "7b8f5e70482c0bfcdcaf4b3e02e7a7307d217218e6fcafba0b83dca2141c1569",
+      "content_last_modified": "Wed, 08 Jul 2026 03:27:57 GMT"
     },
     {
       "id": "instagram-content-publishing-api-docs",
@@ -1240,7 +1380,7 @@
       "tier": "T2",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "two-step container then media_publish flow; rate limits; trial_params; watch for Graph API version sunsets",
       "used_by": [
@@ -1250,7 +1390,8 @@
       "depth": 1,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "6798a3b146622d6b199e4ea71051b7d40c742d87a18b0b7766068086d69279d1"
     },
     {
       "id": "ftc-endorsements-faq",
@@ -1260,8 +1401,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "practical dos and don'ts on disclosure placement, wording, and platform tools; answers common creator questions",
       "used_by": [
         "legal-requirement-check",
@@ -1271,10 +1412,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "4128e82b64ec6dc59302df4ce8c1d6f65e16422877e8bdc9e54fece6aacae0e6",
-      "content_etag": "\"1783401750\"",
-      "content_last_modified": "Tue, 07 Jul 2026 05:22:30 GMT",
-      "min_recheck_at": 739804
+      "content_sha256": "ed2d58c07ec7b62e3d4f4fb224b92ef6ad6bda4ba8a93f1d20aaa91c2aa85387",
+      "content_etag": "\"1788048640\"",
+      "content_last_modified": "Sun, 30 Aug 2026 00:10:40 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "ftc-endorsements-hub",
@@ -1284,8 +1425,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "landing page linking current FTC endorsement guidance and enforcement updates for influencers",
       "used_by": [
         "legal-requirement-check"
@@ -1294,10 +1435,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "52c4d0bc35bf38df3f772a235679a934586296607c0877e4f1e29af966a3ec45",
-      "content_etag": "\"1783401749\"",
-      "content_last_modified": "Tue, 07 Jul 2026 05:22:29 GMT",
-      "min_recheck_at": 739804
+      "content_sha256": "7ca5815704ad21bd9dd399699f3e781485c51ba93b7f8624e1906a942e5a4f30",
+      "content_etag": "\"1788048535\"",
+      "content_last_modified": "Sun, 30 Aug 2026 00:08:55 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "us-copyright-basics",
@@ -1320,7 +1461,10 @@
       "child_source_ids": [],
       "content_sha256": "e176d4f919b0971e0530e8a564b88eb6e63388de6b3c9e3e6768c4e32e4c56ca",
       "content_last_modified": "Thu, 18 Jun 2026 07:03:52 GMT",
-      "min_recheck_at": 739804
+      "min_recheck_at": 739804,
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "cornell-wex-contract",
@@ -1330,8 +1474,8 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "plain-language definition of contract terms and formation; general reference only, not case law",
       "used_by": [
         "contract-review",
@@ -1341,10 +1485,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "2053f9af7c4daa9e5797e12b99bab4c49827ead8a058ea572471c784c7a52388",
-      "content_etag": "\"6a3e4de2-9390\"",
-      "content_last_modified": "Fri, 26 Jun 2026 10:01:06 GMT",
-      "min_recheck_at": 739805
+      "content_sha256": "f4f68662c87516e74a28fe6f48878e6e28a45a8f5a4cd6cdaf2c64f4efc722eb",
+      "content_etag": "\"6a92ade8-9390\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:01:12 GMT",
+      "min_recheck_at": 739859
     },
     {
       "id": "cornell-wex-license",
@@ -1354,8 +1498,8 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "plain-language definition of a license and its scope; supports usage-rights and licensing clause review",
       "used_by": [
         "contract-review",
@@ -1365,10 +1509,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "453629c3d444f9b05d984b3890a04a41f91814547fa810ab83e09e0e3c2e8ed6",
-      "content_etag": "\"6a3e4fc2-6edb\"",
-      "content_last_modified": "Fri, 26 Jun 2026 10:09:06 GMT",
-      "min_recheck_at": 739805
+      "content_sha256": "945ee565089059ce750772c2821f2032856c6beb723231bf478fb754dfcd3eb6",
+      "content_etag": "\"6a92afc5-6edb\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:09:09 GMT",
+      "min_recheck_at": 739859
     },
     {
       "id": "ftc-soliciting-reviews-marketers",
@@ -1378,8 +1522,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "rules on paid and incentivized reviews and endorsements; relevant to gifted and affiliate deal terms",
       "used_by": [
         "legal-requirement-check"
@@ -1388,10 +1532,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "7048055242e56942e4c46f830efae710d7f4e537feef12bcccc79722beccb36d",
-      "content_etag": "\"1783401728\"",
-      "content_last_modified": "Tue, 07 Jul 2026 05:22:08 GMT",
-      "min_recheck_at": 739804
+      "content_sha256": "37c8dd08bbb4bfcd1347858ec78df334a17300b56a7c76329b999a0cef9bcd55",
+      "content_etag": "\"1788048780\"",
+      "content_last_modified": "Sun, 30 Aug 2026 00:13:00 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "homedepot-materials-pricing",
@@ -1411,7 +1555,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "lowes-materials-pricing",
@@ -1431,7 +1578,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "dep-mcp",
@@ -1441,8 +1591,8 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "SDK release notes for transport/auth and tool-registration API changes tracked to the MCP spec",
       "used_by": [
         "tools/mcp_server.py",
@@ -1459,8 +1609,8 @@
       "pinned_constraint": ">=1.28,<2",
       "validated_version": "1.28",
       "_why": "the local MCP server (tools/mcp_server.py) is built on this SDK; a transport or tool-schema change in lockstep with the MCP spec breaks tool exposure",
-      "latest_seen": "2.0.0",
-      "latest_seen_date": "2026-07-28"
+      "latest_seen": "2.1.1",
+      "latest_seen_date": "2026-08-25"
     },
     {
       "id": "dep-scenedetect",
@@ -1470,8 +1620,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
-      "last_changed_detected": "2026-08-16",
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "ContentDetector / scene_manager API changes; the get_seconds()->seconds rename in 0.7",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
@@ -1498,7 +1648,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "breaking renames; removal of moviepy.editor; a v3 major",
       "used_by": [
@@ -1526,7 +1676,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "schema version bumps; adapter packaging (adapters split into separate pip packages since 0.17/0.18)",
       "used_by": [
@@ -1555,7 +1705,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "adapter API/compat with the installed opentimelineio core",
       "used_by": [
@@ -1583,7 +1733,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "early 0.0.x adapter; API is unstable, watch every release",
       "used_by": [
@@ -1611,8 +1761,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
-      "last_changed_detected": "2026-08-16",
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "libav/ffmpeg ABI compatibility; a major that drops an ffmpeg series",
       "used_by": [
         "tools/videoedit/mediaprobe.py"
@@ -1638,7 +1788,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "the backend PySceneDetect uses; a major that changes cv2 imports",
       "used_by": [
@@ -1665,7 +1815,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py",
       "used_by": [
@@ -1693,7 +1843,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "stable HTTP client; only a major (3.x) matters",
       "used_by": [
@@ -1721,7 +1871,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "encoding detection used by the fetch stack; only a major matters",
       "used_by": [
@@ -1748,7 +1898,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters",
       "used_by": [
@@ -2038,7 +2188,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "the 50+ pandas tool names for t-tests/ANOVA/chi-square",
       "used_by": [
@@ -2056,8 +2206,8 @@
       "pinned_constraint": "pip install stats-compass-mcp",
       "validated_version": null,
       "_why": "the pandas hypothesis-testing lane; a tool-name change drops it to guidance-only",
-      "latest_seen": "0.3.23",
-      "latest_seen_date": "2026-07-30"
+      "latest_seen": "0.3.28",
+      "latest_seen_date": "2026-08-25"
     },
     {
       "id": "mcp-duckdb",
@@ -2212,7 +2362,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "853f81515aadd8552a4bed2b7e399b7dfcca7d27fa84f2cae294a2b4bb527454"
+      "content_sha256": "853f81515aadd8552a4bed2b7e399b7dfcca7d27fa84f2cae294a2b4bb527454",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "amazon-materials-pricing",
@@ -2222,7 +2375,7 @@
       "tier": "T3",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "list price for a named product/model at fetch time; cite the URL and date, never a remembered price",
       "used_by": [
@@ -2232,7 +2385,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "5fe85e956bd19cbb26f44511c29d22ded1b1dda433db0c746a7f50234e5ac806"
     },
     {
       "id": "rustoleum-paint-pricing",
@@ -2252,7 +2406,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "michaels-craft-pricing",
@@ -2272,7 +2429,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "github-seo-oss-methodology",
@@ -2293,7 +2453,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "fl-building-code-portal",
@@ -2303,7 +2466,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "adopted edition banner (2023 FBC 8th Edition, 2021 I-Codes + ASCE 7-22); watch for the 9th Edition (2026) transition; single statewide code with local amendments",
       "used_by": [
@@ -2315,7 +2478,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "2779bb7020307202bde20e378fcc7728d75821899b4bbdf58a79ebce1107df9d"
     },
     {
       "id": "fl-code-amendments-search",
@@ -2325,7 +2489,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "statewide amendments, errata, and declaratory statements between code cycles",
       "used_by": [
@@ -2336,7 +2500,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "c083ece87cc22e14caf7332c52135745186f752fbf8eda0c2bc3b8b8a8bb1c6e"
     },
     {
       "id": "fl-residential-code-icc",
@@ -2357,7 +2522,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "fl-product-approval",
@@ -2367,7 +2535,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "statewide product approval; HVHZ requires a Miami-Dade NOA; wind-borne debris opening protection",
       "used_by": [
@@ -2378,7 +2546,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "92e06bb28ff678ddffc90c498a526f1eeb0f2258915c4882ca1cdec67c2ec25f"
     },
     {
       "id": "miami-dade-noa-hvhz",
@@ -2399,7 +2568,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "fl-statutes-ch553",
@@ -2409,7 +2581,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "statutory basis for the FBC; public domain state statute (may be cited and quoted)",
       "used_by": [
@@ -2420,7 +2592,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "44074a2cc1b1bacc756ea5e543089be405ca3677b9cbd2b18a24a73fa23fc5c4"
     },
     {
       "id": "nc-osfm-codes",
@@ -2430,7 +2603,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "2018 NC Residential Code (2015 IRC) is enforced now; 2024 NC RC (2021 IRC) adopted but effective date postponed (earliest ~2027)",
       "used_by": [
@@ -2442,7 +2615,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "c4237ed2e37cd044a8bd9099b1e53412ebcc0228253b2c47b6ce150c0af39a8b",
+      "content_etag": "\"1787875169:dtagent10343260715123811Fhpe\"",
+      "content_last_modified": "Thu, 27 Aug 2026 23:59:28 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "nc-building-code-council",
@@ -2473,7 +2650,7 @@
       "tier": "T2",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "official announcements of code edition transitions and effective dates",
       "used_by": [
@@ -2484,7 +2661,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "7aefe49c26f7f1046e812351f9d17004e168607c1c92ce997825134e2733a0d7",
+      "content_etag": "\"1787875328:dtagent10343260715123811Fhpe\"",
+      "content_last_modified": "Fri, 28 Aug 2026 00:02:07 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "nc-residential-code-icc",
@@ -2505,7 +2686,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "nc-oah-rulemaking",
@@ -2515,7 +2699,7 @@
       "tier": "T2",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "administrative rule adoptions affecting code effective dates; public-domain state records",
       "used_by": [
@@ -2526,7 +2710,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "d8a0b0bebc145349370de425af5cce0d433068f3c9e3325619952a76194d9b77",
+      "content_etag": "\"1787936262:dtagent10343260715123811exnr\"",
+      "content_last_modified": "Fri, 28 Aug 2026 16:57:41 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "icc-irc-2021",
@@ -2548,7 +2736,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "icc-iecc-2021",
@@ -2569,7 +2760,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "icc-ipc-imc-ifgc",
@@ -2590,7 +2784,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "icc-codes-landing",
@@ -2611,7 +2808,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "nfpa-nec-free-access",
@@ -2633,7 +2833,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "fl-upcodes",
@@ -2643,7 +2846,7 @@
       "tier": "T2",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "secondary free viewer for FL adopted codes and amendments; cross-check against the official portal",
       "used_by": [
@@ -2653,7 +2856,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "b5ef1e8cf6fa56b80bb2df384682bc7ccd9b9afc137ab12ee11a1095f9c98e75",
+      "content_etag": "\"134mp69hit6qr3\""
     },
     {
       "id": "nc-upcodes",
@@ -2663,7 +2868,7 @@
       "tier": "T2",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "secondary free viewer for NC adopted codes; confirm the enforced edition against OSFM",
       "used_by": [
@@ -2673,7 +2878,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "f9b0127febb9d268813a64a8de7a412e123e84108b00e3963d5663512a46ace4",
+      "content_etag": "\"enrwg2hiv648t7\""
     },
     {
       "id": "awc-dca6-deck",
@@ -2695,7 +2902,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "awc-wfcm",
@@ -2716,7 +2926,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "awc-span-calculator",
@@ -2737,7 +2950,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "apa-resource-library",
@@ -2757,7 +2973,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only-no-ai-training"
+      "_license": "cite-only-no-ai-training",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "acca-manual-jsd",
@@ -2767,7 +2986,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Manual J load, Manual S equipment selection, Manual D duct design; ACCA-copyrighted, cite the standard, never size by rule of thumb",
       "used_by": [
@@ -2778,7 +2997,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "a9b5fbd60ff3b22f4e4bda46effb607d408188890052bf6d3f039df3c32c7b60"
     },
     {
       "id": "building-science-corp",
@@ -2798,7 +3018,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "gypsum-ga216",
@@ -2808,7 +3031,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "drywall fastener spacing, fire-rated assemblies; cite GA-216 by section",
       "used_by": [
@@ -2818,7 +3041,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cite-only"
+      "_license": "cite-only",
+      "content_sha256": "492331d54fa64d9eeb33eb8a48e44ec7bc66316f64f0d01e9a8c4417468c5de4"
     },
     {
       "id": "doe-basc",
@@ -2828,7 +3052,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "public-domain step-by-step trade guides and diagrams (PNNL/DOE); per-image credit lines mark third-party images; A-Z index at ?items_per_page=All",
       "used_by": [
@@ -2839,7 +3063,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "c345e35b791a4aa0aa7150209d549a68799a93dc7fbda46c755ddd3b28584458"
     },
     {
       "id": "doe-basc-insulation-table",
@@ -2849,7 +3074,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "public-domain R-value-by-climate-zone restatement of IECC/IRC Table R402.1.2; authoritative source for insulation.json and build_calc rvalue_zone",
       "used_by": [
@@ -2860,7 +3085,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "8847ecac030bd2a3f57510e4f264fb615fa1a8a22935b8a89e875303a4956e9c"
     },
     {
       "id": "doe-energycodes-county-zone",
@@ -2870,7 +3096,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "public-domain county-to-IECC-climate-zone table for FL and NC; PDF at osti.gov/servlets/purl/1893981; feeds fl-nc-specifics.json",
       "used_by": [
@@ -2881,7 +3107,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "057a44cefa2074b6361b4bb3ff6be45db40282a1cbb004a2c33c4f6a44b9a883"
     },
     {
       "id": "osha-1926-ecfr",
@@ -2901,7 +3128,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "fema-residential",
@@ -2922,7 +3152,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "cpsc-safety",
@@ -2942,7 +3175,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "usda-fpl-wood-handbook",
@@ -2952,7 +3188,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "public-domain wood mechanical properties and PS 20 nominal-vs-actual lumber sizing basis",
       "used_by": [
@@ -2963,7 +3199,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "95be2ea53b7bb0b077eb01fac08bec7aff050051a9c88005266949cd9943fd60",
+      "content_etag": "\"1787965214\"",
+      "content_last_modified": "Sat, 29 Aug 2026 01:00:14 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "hud-user",
@@ -2983,7 +3223,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "AWS WAF"
     },
     {
       "id": "fl-fdacs-termite",
@@ -2993,7 +3236,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Florida subterranean termite soil treatment and Certificate of Compliance context for FRC R318",
       "used_by": [
@@ -3004,7 +3247,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "public-domain"
+      "_license": "public-domain",
+      "content_sha256": "b46005935f7a397d60559620ce81c244747154f4c74fac9db157d29912630251",
+      "content_etag": "\"sdaqexa79upzq\""
     },
     {
       "id": "nrel-openstudio-standards",
@@ -3025,7 +3270,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "bsd-3-attribution"
+      "_license": "bsd-3-attribution",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "wikidata-construction",
@@ -3045,7 +3293,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "cc0"
+      "_license": "cc0",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "hCaptcha"
     },
     {
       "id": "wikimedia-construction-diagrams",
@@ -3065,7 +3316,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_license": "per-file-cc-or-pd"
+      "_license": "per-file-cc-or-pd",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "hCaptcha"
     },
     {
       "id": "gmail-release-notes-feed",
@@ -3075,7 +3329,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "new dated entries: quota-model changes, deprecations, new endpoints; the feed's newest pubDate is the freshness signal",
       "used_by": [
@@ -3087,7 +3341,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "rss"
+      "_signal": "rss",
+      "content_sha256": "2becb6b67b254d5e108e23c36da68cc00b636de035933dad02f123435561dbed",
+      "content_last_modified": "Thu, 27 Aug 2026 20:31:19 GMT"
     },
     {
       "id": "google-drive-release-notes",
@@ -3152,7 +3408,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "git-atom"
+      "_signal": "git-atom",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "msgraph-metadata-commits",
@@ -3174,7 +3433,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "git-atom"
+      "_signal": "git-atom",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "easypost-node-releases",
@@ -3196,7 +3458,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "git-atom"
+      "_signal": "git-atom",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "ship24-openapi-spec",
@@ -3206,7 +3471,7 @@
       "tier": "T2",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Ship24 publishes no changelog; sha256 the OpenAPI YAML to detect endpoint/field changes (the only reliable signal)",
       "used_by": [
@@ -3218,7 +3483,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "6a360a6d599bbbd6509c90a9210bd69de3a5c8b2de1b0ea1b9d7217fdc58f7c0",
+      "content_etag": "\"7cb404113fe20f04316655065c985141\"",
+      "content_last_modified": "Tue, 25 Aug 2026 08:33:11 GMT"
     },
     {
       "id": "youtube-analytics-revision-feed",
@@ -3228,7 +3496,7 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "report-version bumps and metric changes (engaged_views, Shorts view redefinition); dated structured entries",
       "used_by": [
@@ -3239,7 +3507,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "rss"
+      "_signal": "rss",
+      "content_sha256": "4958166298dcd4d79de45e674f0b02b1a350404e6373a0728b7e6ffc3ecd8fee",
+      "content_last_modified": "Thu, 27 Aug 2026 16:02:22 GMT"
     },
     {
       "id": "mcp-protocol-releases",
@@ -3261,7 +3531,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "git-atom"
+      "_signal": "git-atom",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "mcpb-manifest-spec",
@@ -3282,7 +3555,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "git-file-sha256"
+      "_signal": "git-file-sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "anthropic-skills-commits",
@@ -3303,7 +3579,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "git-atom"
+      "_signal": "git-atom",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": null
     },
     {
       "id": "agentskills-specification",
@@ -3325,7 +3604,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-apps-release-notes",
@@ -3346,7 +3628,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-apps-sdk-changelog",
@@ -3356,7 +3641,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "the newer ChatGPT app packaging surface (built on MCP); _meta.ui contract, widget MIME, structuredContent",
       "used_by": [
@@ -3367,7 +3652,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "11b170bba2c23e066ee9ea58118159ebe84a6e7fbf2433a64bc36c41c8378953",
+      "content_etag": "\"5a6edcb1531a0a96e66f3db5d8b232dd\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:29:54 GMT"
     },
     {
       "id": "openai-gpt-actions-production",
@@ -3377,7 +3665,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "hard caps that silently truncate/reject exports: endpoint/param descriptions 300/700 chars, payloads <100k chars, 45s timeout, no custom headers",
       "used_by": [
@@ -3388,7 +3676,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "cde78995bfe0cb46b8efc5012fe676a8fd84666d808c30b35a2942054714a986",
+      "content_etag": "\"c9781aa0d966edbbbae0f383207f9a59\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:10:20 GMT"
     },
     {
       "id": "gemini-api-changelog",
@@ -3398,7 +3689,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "plain-text mirror; cheapest reliable sha256 diff of any surface; tool/agent packaging changes",
       "used_by": [
@@ -3409,7 +3700,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "08186bb9b8099491fa6a2217d91cb3520453257f8ebaa220b16033504a05fbd5"
     },
     {
       "id": "gemini-deprecations",
@@ -3419,7 +3711,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "model retirement dates; any pinned model id in an export fails after its shutdown date",
       "used_by": [
@@ -3430,7 +3722,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "ae14b3f86df9c5f2286d3235ba71fc11dcd2e5190537e69b6313fedb2b6fb43b",
+      "content_last_modified": "Thu, 27 Aug 2026 15:51:02 GMT"
     },
     {
       "id": "google-search-central-feed",
@@ -3440,7 +3734,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "core-update announcements and SEO best-practice changes; newest pubDate/guid is the signal; verified valid RSS 2.0",
       "used_by": [
@@ -3452,7 +3746,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "rss"
+      "_signal": "rss",
+      "content_sha256": "98355fe11f8eafa60d67f729893a7efb7e0543dd5126a92ea9baf6539fb75905",
+      "content_last_modified": "Fri, 28 Aug 2026 05:02:49 GMT"
     },
     {
       "id": "google-search-status-dashboard",
@@ -3462,7 +3758,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "authoritative record of core/ranking-update rollouts with timestamps; exposes both RSS and a JSON history endpoint",
       "used_by": [
@@ -3473,7 +3769,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "rss-json"
+      "_signal": "rss-json",
+      "content_sha256": "93c192889cf664b7b07d99e2aaebbce10751c2511dc7c8fad902f3071a25af99"
     },
     {
       "id": "google-trends-api",
@@ -3483,7 +3780,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "first sanctioned programmatic Trends access; JSON, consistent cross-request scaling, ~5yr window to T-2 days; monitor alpha->GA via the Search Central feed",
       "used_by": [
@@ -3495,7 +3792,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "adbfce66845df441156612708ab2dc8ccf2398ef1f57d66e70e291672a194748",
+      "content_last_modified": "Tue, 02 Jun 2026 08:54:06 GMT"
     },
     {
       "id": "sprout-social-image-sizes",
@@ -3505,7 +3804,7 @@
       "tier": "T2",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "self-describes 'Last Updated: <date>'; the change-alarm for platform specs -> when it moves, re-read the OFFICIAL platform help page to confirm before updating specs.json",
       "used_by": [
@@ -3516,7 +3815,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "242ed9f213103d7bb7a8ceb4951989addf7343e5762ca3ffdd49cbf7dd3e3342"
     },
     {
       "id": "hootsuite-image-sizes",
@@ -3537,7 +3837,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "imh-benchmark-report",
@@ -3559,7 +3862,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "hypeauditor-state-of-influencer",
@@ -3580,7 +3886,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "shopify-retail-holiday-calendar",
@@ -3602,7 +3911,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "ftc-ecfr-16-cfr-465",
@@ -3626,7 +3938,10 @@
       "child_source_ids": [],
       "check_url": "https://www.ecfr.gov/api/versioner/v1/full/current/title-16.xml?part=465",
       "_signal": "ecfr-api",
-      "content_sha256": "fec4ad516c222243b60237b880dee53fe019c2a752b7c8fd50e39825b69ffcf4"
+      "content_sha256": "fec4ad516c222243b60237b880dee53fe019c2a752b7c8fd50e39825b69ffcf4",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "ftc-press-release-feed",
@@ -3636,8 +3951,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "the primary FTC change signal; filter items for endorsement/reviews/AI/influencer; announces new AI-endorsement actions",
       "used_by": [
         "shared/contract-engine.md",
@@ -3648,10 +3963,10 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "rss",
-      "content_sha256": "313fee77f2c9d9493e95445efec95cfd994179ad32023d55bc49cb7f04510a00",
-      "content_etag": "\"1783401774\"",
-      "content_last_modified": "Tue, 07 Jul 2026 05:22:54 GMT",
-      "min_recheck_at": 739804
+      "content_sha256": "fe5fef7149268a8e932a63a02a4e77487dc6f0038b186f686cb4f73ebb0023c7",
+      "content_etag": "\"1788048633\"",
+      "content_last_modified": "Sun, 30 Aug 2026 00:10:33 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "federal-register-ftc-api",
@@ -3661,8 +3976,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "JSON, no key; newest document_number for CFR title 16 FTC actions on Part 255/465",
       "used_by": [
         "shared/contract-engine.md",
@@ -3673,7 +3988,7 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "json",
-      "content_sha256": "1dd7a506fb24f9d1ad3b389415c7f37758f6b73d757472336d47e1c1073c392d"
+      "content_sha256": "26dd2ef33ba44ccf9d863dc378966384a847c7bb3461a898a0fdfca989e4680f"
     },
     {
       "id": "us-copyright-fedreg-rss",
@@ -3694,7 +4009,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "rss"
+      "_signal": "rss",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "ny-synthetic-performer-law",
@@ -3716,7 +4034,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "ca-ai-transparency-sb942",
@@ -3726,8 +4047,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "provenance/disclosure duties for large GenAI providers; effective 2026-08-02 (delayed by AB 853); watch for further amending bills",
       "used_by": [
         "shared/contract-engine.md",
@@ -3738,7 +4059,7 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "content_sha256": "981331ce6db8f6c54349b79c570c3c0e1f27d7a960e16224ce354ccf337ff694"
+      "content_sha256": "eafa62cbb638a73eeabbecae08d3cb8c09b8703426b638e60f9f32cb5840d59c"
     },
     {
       "id": "doe-iecc-state-certifications",
@@ -3748,7 +4069,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "DOE 2024 IECC determination; residential certification deadline 2026-12-30; cache adoption status/dates (facts), never the IECC text",
       "used_by": [
@@ -3760,7 +4081,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_signal": "sha256"
+      "_signal": "sha256",
+      "content_sha256": "49e585b94519eb29c55f75a74575c6be9c94f131e47082c8136b1ff3d79c0932"
     },
     {
       "id": "icc-code-adoption-map",
@@ -3791,7 +4113,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "point flood-zone query on layer 28 (FLD_ZONE, SFHA_TF, STATIC_BFE) in inSR=4326; layer 28 has no editingInfo, so poll the LOMRs layer 1 for change",
       "used_by": [
@@ -3807,7 +4129,7 @@
       "_license": "US federal work, public domain (17 USC 105); not the legally authoritative FIRM",
       "_signal": "arcgis-rest",
       "content_sha256": "1f2526ca852a6c78850b70a06df4ffedb618634aec1c2c5707b84ae9634e5144",
-      "content_etag": "\"82ba7590\""
+      "content_etag": "\"3ff88bd4\""
     },
     {
       "id": "fema-nfhl-lomrs",
@@ -3817,7 +4139,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "LOMR effective/case dates; the regulatory-change signal for NFHL since layer 28 lacks editingInfo",
       "used_by": [
@@ -3832,7 +4154,7 @@
       "_license": "US federal work, public domain",
       "_signal": "arcgis-rest",
       "content_sha256": "3c451157c434472f9a768427d641343e3f52a0030646b20ccf5d00341672366c",
-      "content_etag": "\"8cdf3448\""
+      "content_etag": "\"97577274\""
     },
     {
       "id": "sfwmd-open-data-gis",
@@ -3842,8 +4164,8 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "district/basin boundaries + ERP layers; ArcGIS Hub item modified date / REST lastEditDate",
       "used_by": [
         "jurisdiction-desk",
@@ -3855,8 +4177,8 @@
       "child_source_ids": [],
       "_license": "FL public agency open data; per-item license, generally open/public-domain",
       "_signal": "arcgis-rest",
-      "content_sha256": "ba77674419958b96a7aa18037060b62afc66a0c00069ee0dc6fb24f677b6bf4f",
-      "content_etag": "W/\"1c7e2-oshdHC6hIdk3bG7tuzbO6dYl96M\""
+      "content_sha256": "bb132dcc6e278a062e7491404a003ab7e76993cced44acce55bc6458c82bd537",
+      "content_etag": "W/\"105ee-7xMvJCI7Kv9fgRSuWNKjgo5KSBE\""
     },
     {
       "id": "miami-historic-districts-gis",
@@ -3866,8 +4188,8 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "local historic-district boundary polygons (design-review trigger); Hub item modified / REST lastEditDate",
       "used_by": [
         "jurisdiction-desk",
@@ -3879,8 +4201,8 @@
       "child_source_ids": [],
       "_license": "municipal public records / open data; per-item license",
       "_signal": "arcgis-rest",
-      "content_sha256": "8b4f7b4141105cde6b04c3e7e6c3d0a85cf133c1aa69c532c62398320c6977e2",
-      "content_etag": "W/\"b011-5ctVgkBZ9YojiaDQL7gFQILh0WM\""
+      "content_sha256": "5935dfd532844714aa9079120bb5b4306251bfa6b7a500d56251a3c96f95bcba",
+      "content_etag": "W/\"a31e-oqU6op9gZQXf08RKJ2e9Thl3DuI\""
     },
     {
       "id": "fl-statute-553-899-milestone",
@@ -3890,8 +4212,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "condo/co-op >=3 stories, milestone by year building turns 30 then every 10y; the year in the URL path is the codification-change signal",
       "used_by": [
         "shared/construction-engine.md",
@@ -3904,7 +4226,7 @@
       "child_source_ids": [],
       "_license": "government edict, public domain",
       "_signal": "sha256",
-      "content_sha256": "fa9a6a632bba8937ee19ad971cd1dcfd0d0b7d1855c6d9fa379c00d901e336b0"
+      "content_sha256": "77a3d12cabbd0bf5e092913feca07146b5d6e2fecca0a0d2d2812df371ec7d5a"
     },
     {
       "id": "fl-statute-553-842-product-approval",
@@ -3914,8 +4236,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "statewide product evaluation/approval; underpins HVHZ product control (Miami-Dade NOA / TAS)",
       "used_by": [
         "jurisdiction-desk",
@@ -3927,7 +4249,7 @@
       "child_source_ids": [],
       "_license": "government edict, public domain",
       "_signal": "sha256",
-      "content_sha256": "4d9214e83384667e38eee6cc4b9ddcee012c39f5c0fe37ee34c0b3e1d9aec66e"
+      "content_sha256": "3b822dacca00be9c76fe82f943bc68dd60280d090b924447434b9f8d556cf783"
     },
     {
       "id": "seflcompact-slr-projection",
@@ -3937,7 +4259,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "the regional SLR projection edition (2019 current, ~5yr revision); the value informs local freeboard ordinances; watch the edition year",
       "used_by": [
@@ -3963,7 +4285,7 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "statewide protected-ridge lines (topo-map digitized, SCREENING ONLY); static unless the MRPA is amended; the FeatureServer editingInfo/item modified is the freshness signal",
       "used_by": [
@@ -3990,8 +4312,8 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "layer 7 Protected Ridges, layer 20 County Zoning Overlay, Slope Stability Index Map; steep-slope % itself is DEM-derived (no slope-percent layer)",
       "used_by": [
         "jurisdiction-desk",
@@ -4004,7 +4326,7 @@
       "check_url": "https://gis.buncombecounty.org/arcgis/rest/services/bcmap_vt/MapServer?f=json",
       "_license": "county public records / open GIS; standard accuracy disclaimer; attribute to Buncombe County GIS",
       "_signal": "arcgis-rest",
-      "content_sha256": "04503975d02c8dc2888ffeaa1d72d4f037492fa7628b839d5252c492d4e87d5e"
+      "content_sha256": "0eede32d1cbe5d683975a5b3205e8617b23dab3d160490866b7168c631f374e2"
     },
     {
       "id": "rutherford-gis-reference",
@@ -4014,7 +4336,7 @@
       "tier": "T3",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "parcels + flood zones only; Rutherford has NO countywide zoning and NO steep-slope ordinance, so slope must be DEM-derived",
       "used_by": [
@@ -4037,7 +4359,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "protected ridge = elevation >= 3,000 ft AND >= 500 ft above the adjacent valley; tall building > 40 ft; counties/cities opt in",
       "used_by": [
@@ -4061,7 +4383,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Sec. 78-644 Steep Slope/High Elevation (above 2,500 ft, slope <= 35%); Sec. 78-645 Protected Ridge (above 3,000 ft); geotech trigger at existing grade >= 36% or mapped hazard",
       "used_by": [
@@ -4108,8 +4430,8 @@
       "tier": "T2",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "NC DEQ water-supply-watershed (WS) protection overlays + major river basins (French Broad, Broad); ArcGIS REST / Hub modified date",
       "used_by": [
         "jurisdiction-desk",
@@ -4121,8 +4443,8 @@
       "child_source_ids": [],
       "_license": "NC OneMap open data; public",
       "_signal": "arcgis-rest",
-      "content_sha256": "8e6c4dcc9babc4410f93f107f9f9ef325214bdc6cd94f1efe6c98bcc178ff827",
-      "content_etag": "W/\"15802-+P96s1La6nkz6M6R4engKJUoeyo\""
+      "content_sha256": "1584c0c8f51248858a4f6b9acb8b5c0ab3f719e1d5e657de5df1f8e1bb86d5a6",
+      "content_etag": "W/\"14b35-daYHa+BYxloH2nV8gzrqKOQGSGA\""
     },
     {
       "id": "orlando-historic-districts-gis",
@@ -4132,8 +4454,8 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "point-in-polygon on HistoricDistricts; watch editingInfo.lastEditDate for boundary change; re-run tools/geo_source_fetch.py --cache-orlando to refresh cached polygons",
       "used_by": [
         "jurisdiction-desk",
@@ -4146,10 +4468,10 @@
       "check_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0?f=json",
       "_license": "City of Orlando open data / public records; City disclaims legal-boundary accuracy ('not legally binding','spatially inaccurate'); advisory only",
       "_signal": "arcgis-rest",
-      "content_sha256": "1b4422df3ed563518b8093a3e9e170b1fd5447f402c37296731175bfab98d466",
-      "content_etag": "1929016645",
-      "content_last_modified": "Sun, 28 Jun 2026 06:31:46 GMT",
-      "min_recheck_at": 739804
+      "content_sha256": "bd8b481f463129984497c383de671dd8ec802c3a6dfcdcf924a16c5dc84ba071",
+      "content_etag": "906198009",
+      "content_last_modified": "Mon, 24 Aug 2026 15:33:05 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "orlando-zoning-gis",
@@ -4159,8 +4481,8 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "point-in-polygon on Zoning + OverlayA-D; watch editingInfo.lastEditDate; setback NUMBERS live in Ch.58 code (not scraped)",
       "used_by": [
         "jurisdiction-desk",
@@ -4173,10 +4495,10 @@
       "check_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0?f=json",
       "_license": "City of Orlando open data / public records; advisory only",
       "_signal": "arcgis-rest",
-      "content_sha256": "02854b38059c878694c27896816edb47a916c2481dee7e1d7500e2b9e1a5bdf2",
-      "content_etag": "1331430813",
-      "content_last_modified": "Sun, 28 Jun 2026 06:33:56 GMT",
-      "min_recheck_at": 739804
+      "content_sha256": "b541e361914284498ab964d652aefd1f1959ae91aebc05be290038f8a52e890c",
+      "content_etag": "-850919119",
+      "content_last_modified": "Mon, 24 Aug 2026 15:40:55 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "orlando-city-code-ch62",
@@ -4186,8 +4508,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "cite adopted section (62.200 COA required) + district list; monitor the City page (code text on Municode is ToS-limited, not scraped)",
       "used_by": [
         "jurisdiction-desk",
@@ -4200,8 +4522,8 @@
       "check_url": "https://www.orlando.gov/Our-Government/History/Historic-Preservation-Districts",
       "_license": "public ordinance (Georgia v. Public.Resource.Org); cite the section, do not reproduce Municode text",
       "_signal": "sha256",
-      "content_sha256": "035f46522314788bdb99b2d476c07b58ef65eb487da7462fe6f2ed412de915d2",
-      "min_recheck_at": 739804
+      "content_sha256": "71fd0d9c2ecf3025eaca6fcfe3a96ef2a720b01cc09d99b747452780eda7e5c6",
+      "min_recheck_at": 739858
     },
     {
       "id": "orlando-ldc-traditional-city",
@@ -4211,8 +4533,8 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
-      "last_changed_detected": null,
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "cite Traditional City section range + overlay legend; setback values live in Ch.58 tables (Municode, not scraped) -> null-flagged",
       "used_by": [
         "jurisdiction-desk",
@@ -4225,8 +4547,8 @@
       "check_url": "https://www.orlando.gov/Building-Development/Planning-Zoning-Approvals/Residential-Development-Standards-Guide",
       "_license": "public ordinance; cite section, do not reproduce code text",
       "_signal": "sha256",
-      "content_sha256": "d9801b538c80964316e9b227f58ed49cd60ccf04f330cfc3d7bcc655027242a6",
-      "min_recheck_at": 739804
+      "content_sha256": "e898d21da4e0f1d0dd88739e63ffb38bdea06d937ae33c12cc8b4b1388d9d1fe",
+      "min_recheck_at": 739858
     },
     {
       "id": "asce7-hazard-tool",
@@ -4236,7 +4558,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "authoritative point Vult (Fig. 1609.3(2)) + WBDR determination; values null-flagged in records until a point query is run",
       "used_by": [
@@ -4261,7 +4583,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-07-07",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "point-in-polygon NAME (SJRWMD) + Major_Drainage_Basin_24K_2013 basin; Orange is a split county (south = SFWMD)",
       "used_by": [
@@ -4288,7 +4610,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Latest published release tag vs the installed VERSION; drives tools/update_check.py",
       "used_by": [
@@ -4302,7 +4624,9 @@
       "check_url": "https://api.github.com/repos/flywifi/seo-tools/releases/latest",
       "pinned_constraint": "",
       "validated_version": "0.1.0",
-      "_why": "The one currency lane that watches the ecosystem itself; a newer release upstream is what update_check reports"
+      "_why": "The one currency lane that watches the ecosystem itself; a newer release upstream is what update_check reports",
+      "content_sha256": "dbc004cd9ae24d1c7276ce49ecc5b04d3a4861f14849ce2c43ff7343b362e820",
+      "content_etag": "W/\"dbc004cd9ae24d1c7276ce49ecc5b04d\""
     },
     {
       "id": "claude-code-plugins-docs",
@@ -4322,7 +4646,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "Governs the true-background distribution channel for Claude Code; fast-moving per-version notes"
+      "_why": "Governs the true-background distribution channel for Claude Code; fast-moving per-version notes",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-code-setup-docs",
@@ -4342,7 +4669,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The CLI/native auto-update floor for a Claude Code install of Creator OS"
+      "_why": "The CLI/native auto-update floor for a Claude Code install of Creator OS",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-cowork-architecture",
@@ -4362,7 +4692,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The data-persistence boundary that makes Cowork always-latest for delivery but ephemeral for local .local data"
+      "_why": "The data-persistence boundary that makes Cowork always-latest for delivery but ephemeral for local .local data",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-cowork-plugins-org",
@@ -4382,7 +4715,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The claude.ai/Cowork equivalent of CLI marketplace auto-update; version-bump-PR-merge is a hard release constraint"
+      "_why": "The claude.ai/Cowork equivalent of CLI marketplace auto-update; version-bump-PR-merge is a hard release constraint",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-cowork-changelog",
@@ -4402,7 +4738,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "Fast-moving dated signal; several update-relevant behaviors changed month to month in mid-2026"
+      "_why": "Fast-moving dated signal; several update-relevant behaviors changed month to month in mid-2026",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-remote-mcp-docs",
@@ -4422,7 +4761,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The best multi-surface true-background channel (a hosted remote MCP server) for claude.ai + Cowork"
+      "_why": "The best multi-surface true-background channel (a hosted remote MCP server) for claude.ai + Cowork",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-desktop-extensions-docs",
@@ -4442,7 +4784,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The Desktop packaged-server update contract; directory bundles auto-update, self-distributed do not"
+      "_why": "The Desktop packaged-server update contract; directory bundles auto-update, self-distributed do not",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-developer-mode",
@@ -4452,7 +4797,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Full read+write MCP client support, plan gating, SSE + streaming HTTP, write actions require confirmation (beta)",
       "used_by": [
@@ -4462,7 +4807,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "First-party (fetchable) source for the ChatGPT Tier-B connector path; replaces reliance on the 403-walled help page"
+      "_why": "First-party (fetchable) source for the ChatGPT Tier-B connector path; replaces reliance on the 403-walled help page",
+      "content_sha256": "12aee11918fec862191522dae9ca0f6bd5921ecf8bb4278a32d104ee8c8a48dd",
+      "content_etag": "\"946d98a88769f8e4eef33439b0c9c32c\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:11:58 GMT"
     },
     {
       "id": "openai-connect-chatgpt",
@@ -4472,7 +4820,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Manual Refresh metadata step, per-conversation write confirmation, all-plans support as of 2025-11-13",
       "used_by": [
@@ -4482,7 +4830,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The live-output-vs-refresh-contract nuance (R1) for ChatGPT MCP connectors/apps"
+      "_why": "The live-output-vs-refresh-contract nuance (R1) for ChatGPT MCP connectors/apps",
+      "content_sha256": "4fdd80d7612ceff48106f03f82b3d6498f816d8a4b2be920fd4fecb4fe18f313",
+      "content_etag": "\"c8d0a46ae72ea63072f446abec15c712\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:06:39 GMT"
     },
     {
       "id": "openai-responses-mcp",
@@ -4492,7 +4843,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "type:mcp remote tool: server_url, authorization, require_approval; tool list cached per conversation via mcp_list_tools",
       "used_by": [
@@ -4502,7 +4853,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The developer-API Tier-B path that reaches any public remote MCP server with full read/write"
+      "_why": "The developer-API Tier-B path that reaches any public remote MCP server with full read/write",
+      "content_sha256": "0d3150a69779294f24b089ff92b99c007394c2783e6ba924abb174c8d671f1cc",
+      "content_etag": "\"45b099e286257979198540dc4516d2b4\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:15:11 GMT"
     },
     {
       "id": "mcp-spec-2025-11-25",
@@ -4522,7 +4876,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The current stable protocol revision underpinning every Tier-B background-update claim"
+      "_why": "The current stable protocol revision underpinning every Tier-B background-update claim",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "youtube-studio-analytics-export",
@@ -4532,7 +4889,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Advanced Mode Export current view CSV/Sheets; Table data.csv columns; the only solo-creator revenue + retention source; ~500-row cap",
       "used_by": [
@@ -4542,7 +4899,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The single manual source of YouTube revenue + retention for a solo creator; import_parse parses its CSV"
+      "_why": "The single manual source of YouTube revenue + retention for a solo creator; import_parse parses its CSV",
+      "content_sha256": "d0b8ba51c2db8d4d03cc908f38f9cd094fc66c18ea517ef3df21f16f41f411f5"
     },
     {
       "id": "google-takeout-youtube",
@@ -4552,7 +4910,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "video metadata/, playlists/*.csv, subscriptions/subscriptions.csv, history JSON; original video files; NO analytics",
       "used_by": [
@@ -4562,7 +4920,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The creator's own video files + metadata; import_parse reads the Takeout folder layout"
+      "_why": "The creator's own video files + metadata; import_parse reads the Takeout folder layout",
+      "content_sha256": "faeb9cf3b2e4e114ef56af4bdc8d150129a7790dcc11f5541bb3f0ac9334b268"
     },
     {
       "id": "instagram-media-insights-ref",
@@ -4572,7 +4931,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "data[].{name,period,total_value.value}; reels metrics reach/views/saved/shares/ig_reels_avg_watch_time/reels_skip_rate; NO retention, NO hashtag metric",
       "used_by": [
@@ -4582,7 +4941,8 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "Exact per-media insight field names for the live Instagram importer"
+      "_why": "Exact per-media insight field names for the live Instagram importer",
+      "content_sha256": "a54b094b53833406351a7de7b3d9bd8ff5518b1ca8c33012ccd60b29f4306bc9"
     },
     {
       "id": "instagram-download-your-information",
@@ -4602,7 +4962,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The Instagram export-bundle path; import_parse globs its JSON"
+      "_why": "The Instagram export-bundle path; import_parse globs its JSON",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "tiktok-display-video-object",
@@ -4622,7 +4985,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "Exact TikTok Display API video fields for the live importer"
+      "_why": "Exact TikTok Display API video fields for the live importer",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "tiktok-data-request",
@@ -4642,7 +5008,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "The TikTok export-bundle path; import_parse parses defensively"
+      "_why": "The TikTok export-bundle path; import_parse parses defensively",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "pinterest-pin-analytics-v5",
@@ -4662,7 +5031,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "_why": "Exact Pinterest Pin-analytics metric enums for the live importer"
+      "_why": "Exact Pinterest Pin-analytics metric enums for the live importer",
+      "last_block_detected": "2026-08-30",
+      "block_kind": "captcha",
+      "block_vendor": "reCAPTCHA"
     },
     {
       "id": "dep-faster-whisper",
@@ -4722,7 +5094,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "process_words/process_characters API; RapidFuzz backend changes",
       "used_by": [
@@ -4751,7 +5123,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math",
       "used_by": [
@@ -4779,8 +5151,8 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
-      "last_changed_detected": "2026-08-16",
+      "last_checked": "2026-08-30",
+      "last_changed_detected": "2026-08-30",
       "extraction_hint": "major dtype/API changes; NumPy 2.x ABI break vs opencv/moviepy wheels",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
@@ -4807,7 +5179,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache",
       "used_by": [
@@ -4835,7 +5207,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-16",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard",
       "used_by": [
@@ -4872,7 +5244,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "apple-open-anyway-flow",
@@ -4891,7 +5266,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "apple-gatekeeper-sequoia-change",
@@ -4901,7 +5279,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Removal of Control-click>Open override; confirm still in force on the current macOS.",
       "used_by": [
@@ -4910,7 +5288,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "de7a66d20213c57fbc93b7cc17647a46e5ea5580039eb196b6e9fa9ad4966ce5",
+      "content_last_modified": "Sun, 30 Aug 2026 00:15:15 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "apple-tcc-file-access",
@@ -4930,7 +5311,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "apple-local-network-privacy-tn3179",
@@ -4940,7 +5324,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Defines a local network as an IP network on a broadcast-capable interface (Wi-Fi/Ethernet, not cellular/VPN); loopback falls outside that definition by construction. The technote never mentions loopback explicitly, so cite it as a definition-based inference. Body is fetchable via the /tutorials/data/documentation/...json endpoint.",
       "used_by": [
@@ -4950,7 +5334,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "fe4f86547238e3a2b0fd424b669602738f70edbbaf51c470eee12c3ff9441381",
+      "content_etag": "\"44b9-65a04799219fd\"",
+      "content_last_modified": "Thu, 27 Aug 2026 10:05:26 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "apple-local-network-privacy-faq",
@@ -4960,7 +5348,7 @@
       "tier": "T2",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Apple DTS (Quinn) on BSD-sockets code that listens on UDP and never sends not triggering the local-network alert. NOTE: verified 2026-08-10 that this thread does NOT mention loopback, localhost, or 127.0.0.1; do not cite it for a loopback exemption. Behind a verify-human redirect, so not programmatically re-fetchable.",
       "used_by": [
@@ -4970,7 +5358,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "239efd645fae36e90c1a1bfea925ac6c820b55d6d7e37027d8778ecac7692366",
+      "content_etag": "\"6a757bd4-317a5\"",
+      "content_last_modified": "Fri, 07 Aug 2026 06:31:48 GMT"
     },
     {
       "id": "apple-rosetta",
@@ -4989,7 +5380,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "apple-macos-tahoe-updates",
@@ -5008,7 +5402,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "apple-macos-intel-support",
@@ -5027,7 +5424,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "python-using-on-mac",
@@ -5037,7 +5437,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Stock /usr/bin/python3 shim behavior, python.org universal2 installer, and that Tk ships with it.",
       "used_by": [
@@ -5046,7 +5446,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "e984d2a4e0c43234ae625563d246df5e71d5b1e3f0dfc0c542ba7c6630135e4c",
+      "content_etag": "\"6a934962-c658\"",
+      "content_last_modified": "Sat, 29 Aug 2026 21:04:34 GMT"
     },
     {
       "id": "python-macos-downloads",
@@ -5056,7 +5459,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Current stable Python universal2 installer version to recommend.",
       "used_by": [
@@ -5065,7 +5468,9 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "ed4e9d304cfb6e003ad7f3dcb58f32f453a400697dfaaa084a8ffebe5927393a",
+      "min_recheck_at": 739865
     },
     {
       "id": "pep-668-externally-managed",
@@ -5075,7 +5480,7 @@
       "tier": "T1",
       "check_interval_days": 365,
       "staleness_threshold_days": 365,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "The externally-managed-environment rule + --break-system-packages; the load-bearing fact behind the .venv install.",
       "used_by": [
@@ -5084,7 +5489,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "08fc71ac37e5e393b640c221ae664b769ed68d70f5688809cf825a294e829289",
+      "content_etag": "\"6a927c04-185a0\"",
+      "content_last_modified": "Sat, 29 Aug 2026 06:28:20 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "homebrew-installation",
@@ -5094,7 +5503,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Prefix (/opt/homebrew vs /usr/local), the shellenv/PATH requirement, AND the Requirements section (minimum supported macOS); drives the launcher PATH export and the macOS floor stated in docs/SETUP_MAC.md.",
       "used_by": [
@@ -5104,7 +5513,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "d74c127c811618ee7c773654adbdfdfc53e243a04f1ca4ecd6e02d23eef1c7d4",
+      "content_etag": "\"6a936ddd-427e\"",
+      "content_last_modified": "Sat, 29 Aug 2026 23:40:13 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "homebrew-and-python",
@@ -5114,7 +5527,7 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "That Homebrew Python is externally-managed; venv/pipx guidance.",
       "used_by": [
@@ -5123,7 +5536,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "7cdb20dbbdb8c981b323784d0ff95ed637671e23f8ac84a768e3c8fc28ef851f",
+      "content_etag": "\"6a936ddc-45c3\"",
+      "content_last_modified": "Sat, 29 Aug 2026 23:40:12 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "homebrew-formula-whisper-cpp",
@@ -5133,7 +5550,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Formula version, the installed CLI name (whisper-cli), and Metal-default on Apple Silicon.",
       "used_by": [
@@ -5143,7 +5560,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "dd33013217dcede5fd6f2654ea3fb3346af5392197269468cba4296c4f180b03",
+      "content_etag": "\"6a93725e-2a30\"",
+      "content_last_modified": "Sat, 29 Aug 2026 23:59:26 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "homebrew-formula-ffmpeg",
@@ -5153,7 +5574,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Formula version + notarized arm64 bottle (no quarantine).",
       "used_by": [
@@ -5163,7 +5584,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "ab607649d323531f62d5575de6dee4ca3935e28c0e986f6819d8e0b85d62326a",
+      "content_etag": "\"6a93725e-3170\"",
+      "content_last_modified": "Sat, 29 Aug 2026 23:59:26 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "homebrew-formula-python-tk",
@@ -5173,7 +5598,7 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
-      "last_checked": "2026-08-10",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "The separate tkinter formula for Homebrew Python (the folder-picker dependency) + version. URL is version-pinned; re-point when Homebrew's default Python moves past 3.13.",
       "used_by": [
@@ -5182,7 +5607,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "99ee9551bd6c2ce9fb609876cc3cf14e2b34f6e0d209084b58b838a2e4453b1c",
+      "content_etag": "\"6a93725d-2ab1\"",
+      "content_last_modified": "Sat, 29 Aug 2026 23:59:25 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "whisper-cpp-ggml-models-hf",
@@ -5201,7 +5630,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "AWS WAF"
     },
     {
       "id": "mcp-connect-local-servers",
@@ -5221,7 +5653,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-desktop-local-mcp",
@@ -5241,7 +5676,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-code-mcp-docs",
@@ -5261,7 +5699,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-desktop-vs-web-connectors",
@@ -5281,7 +5722,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "claude-google-workspace-connectors",
@@ -5300,7 +5744,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "google-drive-desktop-sync-modes",
@@ -5310,14 +5757,15 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies.",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "c16026e545779b74a74746747c03ad3a772c9d1b2b14056d3d2d292727a16ab3"
     },
     {
       "id": "google-drive-desktop-macos",
@@ -5327,14 +5775,15 @@
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later.",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "b3c6dfcecc25e8c9d162b6c87b9b7a375a74b4e986dcc49961d26681c9c1e9a7"
     },
     {
       "id": "anthropic-mitigate-jailbreaks",
@@ -5351,7 +5800,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-model-spec",
@@ -5361,14 +5813,18 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "c53e75cb6770829c79f62bd45788dfbd6bfc9d953cc2206a2e387c942aecf986",
+      "content_etag": "\"6a843b0d-283acd\"",
+      "content_last_modified": "Tue, 18 Aug 2026 10:59:25 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "google-gemini-prompt-injection-defense",
@@ -5378,14 +5834,16 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "b7b058be1f8cc70826c4b71bbcb6d15117fcc230c594237c6cba5102b94e667b",
+      "content_last_modified": "Wed, 26 Aug 2026 23:31:34 GMT"
     },
     {
       "id": "owasp-llm01-prompt-injection",
@@ -5402,7 +5860,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "rate_limit",
+      "block_vendor": null
     },
     {
       "id": "tiktok-api-rate-limit",
@@ -5419,7 +5880,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "ip_block",
+      "block_vendor": "Akamai Bot Manager"
     },
     {
       "id": "homebrew-5-cask-gatekeeper",
@@ -5429,14 +5893,18 @@
       "tier": "primary",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
-      "last_checked": "2026-08-09",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "7f8c42bd01c9706b851a1e199bed3490f7b51e10004862a50d30bdf2581ce00d",
+      "content_etag": "\"6a9144f4-52fe\"",
+      "content_last_modified": "Fri, 28 Aug 2026 08:21:08 GMT",
+      "min_recheck_at": 739858
     },
     {
       "id": "openai-custom-instructions-caps",
@@ -5453,7 +5921,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-projects-help",
@@ -5470,7 +5941,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-gpt-creation-policy",
@@ -5487,7 +5961,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-migrate-to-responses",
@@ -5497,14 +5974,17 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-15",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "48b6ae35b3a1ddf988dea756cc2e7b9e3ebef43ef3b4c66166ca43f40b5fbc16",
+      "content_etag": "\"babb99e4fb4cebd2675c99e527e142c1\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:08:33 GMT"
     },
     {
       "id": "openai-work-with-apps",
@@ -5521,7 +6001,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     },
     {
       "id": "openai-connector-contract",
@@ -5531,14 +6014,17 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-15",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "3507195b3817351ce546ab73a183495761ec4e2cc37e7ef6b0c3abf5f1ec7343",
+      "content_etag": "\"f4a8e1dababb3d978e969810af37c938\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:09:00 GMT"
     },
     {
       "id": "codex-mcp-config",
@@ -5548,14 +6034,17 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-15",
+      "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "9dc1aac9055bf4a770525da70273db73c3e45580ce95f2b9074384815f85d5ed",
+      "content_etag": "\"27b86eed4130614b332068934f9f6285\"",
+      "content_last_modified": "Sat, 29 Aug 2026 10:11:55 GMT"
     },
     {
       "id": "openai-chatgpt-developer-mode-help",
@@ -5572,8 +6061,11 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "last_block_detected": "2026-08-30",
+      "block_kind": "challenge",
+      "block_vendor": "Cloudflare"
     }
   ],
-  "_content_digest": "557ef32783b2df866380e04f6745ab3d040211500e795d8fdb6458796f0e21fa"
+  "_content_digest": "3e4072aab6517f6e783670fa57dbe6f62ea2511cfd0471ac5c22da5a45b5b3ac"
 }
