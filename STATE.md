@@ -2,7 +2,19 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P76 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P78 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P78: SHA-256 verified integrity and currency audit (2026-08-30,
+  docs/integrity-currency-audit-2026-08-30.md). Every stored hash recomputed from bytes rather
+  than trusted: four manifests and the registry digest verify; one freshness-bundle hash was
+  stale because its checker never recompares its own strongest field; all fourteen GIS boundary
+  hashes never matched any committed byte because the writer hashes one serialization and writes
+  another (data intact, fix named, not applied by scope decision). First complete source sweep:
+  213 entries stamped through the sanctioned writers, 18 changed sources queued for human review
+  with their consumers named, 110 bot-blocked entries got the first real durable block records,
+  and the changed queue edited no downstream data. Scope held to the maintainer's four decisions:
+  report only for verification gaps and guard behavior, full sweep for sources, nothing changed
+  for dependencies.
 
 - P76: Rebuilt the P74/P75 branch history (2026-08-16). Nine commits had been pushed without an
   approved plan; a tool error and a harness state change were read as approval. The maintainer

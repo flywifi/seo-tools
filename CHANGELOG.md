@@ -12,7 +12,18 @@ describes everything in the tree above the baseline, and the tag itself is still
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- First complete currency sweep and a SHA-256 verified integrity census (P78), recorded in
+  `docs/integrity-currency-audit-2026-08-30.md`. Every stored hash in the tree was recomputed
+  from bytes: the mac-surface, projection, and doc-freshness manifests and the registry digest
+  all verify; the freshness bundle held one stale per-file hash that its own checker never
+  recompares; and all fourteen GIS boundary hashes turned out to describe a serialization that
+  was never written to disk (data intact, root cause proven, fix named but deliberately not
+  applied). The web sweep stamped 213 registry entries through the sanctioned writers with
+  content hashes and conditional-request state: 18 sources changed since their last reading and
+  are queued for human review, 110 are bot-blocked at this environment's egress and now carry
+  the first real durable block records, and blocked was never conflated with stale. Dependency
+  drift and every deliberately-unchanged control are recorded in the report as findings.
 
 ## [0.2.0] - 2026-08-16
 
