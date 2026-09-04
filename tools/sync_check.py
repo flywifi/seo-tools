@@ -90,7 +90,7 @@ Invariants enforced:
       freshness baseline as_of are surfaced (the digest excludes content).
   46. URL provenance (P49 WS3): every http(s) literal in tools/**/*.py resolves to a source-registry
       host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host.
-  47. Knowledge-pack projection staleness (P49 WS7, advisory): when a shared engine/protocol a knowledge
+  47. Knowledge-pack projection staleness (P49 WS7; blocking since P79): when a shared engine/protocol a knowledge
       file projects changes sha since the projection manifest was reconciled, the file is surfaced.
   48. Doc-count truth (P49 WS2): live architecture/setup docs must state the true global totals
       (spokes, invariants) computed by tools/count_truth.py; historical phase-logs are out of scope.
@@ -99,7 +99,7 @@ Invariants enforced:
       def/class/assignment or Class.method). Extends invariant 5 from paths to symbols.
   50. Tools-layer maintainer coverage (P52): each designated high-value tools subtree
       (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md (invariant 3 covers skills/ only).
-  51. Doc freshness (P52, advisory): when a code file a doc documents (tools/doc_freshness.py
+  51. Doc freshness (P52; blocking since P79): when a code file a doc documents (tools/doc_freshness.py
       DOC_SOURCES) changes sha since the doc-freshness manifest was reconciled, the doc is surfaced as
       possibly stale (a content-hash signal, not a prose diff).
   52. Doc-declared source registration (P55): every id a maintainer/SKILL/doc file declares in a
@@ -120,7 +120,7 @@ Invariants enforced:
       transitions.json surface's `origins` list or the explicit _residual_origins list, and only
       on a surface the per-origin affinity table permits. The independent-oracle reconciliation
       that would have caught the missing Cowork surface the day the cowork origin shipped.
-  56. Registry content integrity (P66, advisory): the `_content_digest` stamped by
+  56. Registry content integrity (P66; blocking since P79): the `_content_digest` stamped by
       tools/registry_io.py::save_registry (the single sanctioned write path) matches a recompute
       over sources[]. An out-of-band in-place edit to an existing entry changes no source id, so
       the id-level freshness digest (invariant 26) cannot see it; this advisory can.
@@ -1956,7 +1956,10 @@ def check_degraded_orphans():
 
 
 def check_content_vs_digest():
-    """Invariant 45 (advisory, loud): content-vs-digest silent-staleness (P47, seam 3). Advisory and
+    """Invariant 45 (advisory, loud): content-vs-digest silent-staleness (P47, seam 3). P79 kept this one
+    advisory by decision: it is a date heuristic that fires on every routine mark-checked until the
+    bundle is re-stamped, so promoting it would turn normal currency work into a two-step build break;
+    only its unreadable-file branch was made blocking. Advisory and
     intentionally heuristic. The freshness digest is sha256(source ids + currency-map as_of); a real
     upstream content change recorded as a source last_checked / last_changed is NOT a digest input, so
     the packaged knowledge baseline can keep a stale date while invariant 26 still passes. This surfaces
@@ -1970,7 +1973,7 @@ def check_content_vs_digest():
         reg = json.loads(reg_path.read_text(encoding="utf-8"))
         fb = json.loads(fb_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        advisory(f"content-vs-digest: unreadable registry/freshness file: {exc}")
+        problem(f"content-vs-digest: unreadable registry/freshness file: {exc}")
         return
     as_of = fb.get("as_of") or ""
     if not as_of:
@@ -2059,20 +2062,20 @@ def check_url_provenance():
 
 
 def check_projection_staleness():
-    """Invariant 47 (advisory): knowledge-pack projection staleness (P49 WS7). The hand-authored
+    """Invariant 47 (blocking since P79; advisory P49-P78): knowledge-pack projection staleness (P49 WS7). The hand-authored
     Claude/GPT/Gemini knowledge files project the shared/*.md engines and protocols/*.md. This advisory
     recomputes each source engine's sha256 and, when one has moved since the projection manifest was last
     reconciled, surfaces the projection files that may now lag their source (a staleness signal, not a
-    prose diff). Non-blocking: refresh the projection and run `tools/projection_manifest.py reconcile`."""
+    prose diff). Blocking: refresh the projection and run `tools/projection_manifest.py reconcile`."""
     try:
         import projection_manifest as pm
     except Exception as exc:  # noqa: BLE001
-        advisory(f"projection-staleness: projection_manifest unimportable: {exc}")
+        problem(f"projection-staleness: projection_manifest unimportable: {exc}")
         return
     for e in pm.check(ROOT):
         note = e.get("note")
         if note:
-            advisory(f"projection-staleness: {note}")
+            problem(f"projection-staleness: {note}")
             continue
         changed = ", ".join(e.get("changed_sources", [])) or "-"
         missing = e.get("missing_sources", [])
@@ -2080,24 +2083,24 @@ def check_projection_staleness():
                f"reconcile: {changed}")
         if missing:
             msg += f"; missing source(s): {', '.join(missing)}"
-        advisory(msg + " (refresh the projection, then run tools/projection_manifest.py reconcile)")
+        problem(msg + " (refresh the projection, then run tools/projection_manifest.py reconcile)")
 
 
 def check_doc_freshness():
-    """Invariant 51 (advisory): doc freshness (P52). High-value maintainer/docs are bound to the code
+    """Invariant 51 (blocking since P79; advisory P52-P78): doc freshness (P52). High-value maintainer/docs are bound to the code
     files they document (tools/doc_freshness.py DOC_SOURCES). When a bound source's sha256 has moved
     since the doc-freshness manifest was last reconciled, this surfaces the doc as possibly stale (a
-    content-hash signal, not a prose diff). Non-blocking: re-read the doc, fix any drift, then run
+    content-hash signal, not a prose diff). Blocking: re-read the doc, fix any drift, then run
     `python3 tools/doc_freshness.py reconcile` to re-bless it."""
     try:
         import doc_freshness as df
     except Exception as exc:  # noqa: BLE001
-        advisory(f"doc-freshness: doc_freshness unimportable: {exc}")
+        problem(f"doc-freshness: doc_freshness unimportable: {exc}")
         return
     for e in df.check(ROOT):
         note = e.get("note")
         if note:
-            advisory(f"doc-freshness: {note}")
+            problem(f"doc-freshness: {note}")
             continue
         changed = ", ".join(e.get("changed_sources", [])) or "-"
         missing = e.get("missing_sources", [])
@@ -2105,7 +2108,7 @@ def check_doc_freshness():
                f"reconcile: {changed}")
         if missing:
             msg += f"; missing source(s): {', '.join(missing)}"
-        advisory(msg + " (re-read the doc, then run tools/doc_freshness.py reconcile)")
+        problem(msg + " (re-read the doc, then run tools/doc_freshness.py reconcile)")
 
 
 def check_doc_count_truth():
@@ -2630,12 +2633,14 @@ def check_surface_origin_completeness():
 
 
 def check_registry_content_digest():
-    """Invariant 56 (advisory): source-registry.json content matches the digest its sanctioned
+    """Invariant 56 (blocking since P79; advisory P66-P78): source-registry.json content matches the digest its sanctioned
     writer stamped (P66). CLAUDE.md's "written only through registry_io" was machine-enforced
     for ADD/REMOVE of ids (the invariant-26 freshness digest) but purely conventional for an
     in-place content edit to an existing entry — the P65 F-REGISTRY-HANDEDIT repro changed a
     source's name by hand and every check stayed green. save_registry now stamps
-    `_content_digest` over sources[]; this advisory recomputes it. Advisory, not fail-closed:
+    `_content_digest` over sources[]; this check recomputes it. Blocking since P79 (the traversal
+    tool no longer instructs hand edits, so every legitimate write has a sanctioned path). Recovery
+    when it fires: `git checkout` the file, or re-apply the edit through a sanctioned writer. Previously:
     the registry is data reviewed by humans, and a stale digest most often means a hand edit to
     REVERT or RE-SAVE through the sanctioned path, not a broken build."""
     reg_path = ROOT / "canonical-sources" / "source-registry.json"
@@ -2654,11 +2659,11 @@ def check_registry_content_digest():
         return
     stamped = data.get("_content_digest")
     if stamped is None:
-        advisory("registry-digest: source-registry.json carries no _content_digest stamp; "
+        problem("registry-digest: source-registry.json carries no _content_digest stamp; "
                  "re-save once through a sanctioned writer (e.g. source_currency) to stamp it")
         return
     if stamped != content_digest(data):
-        advisory("registry-digest: source-registry.json content does not match its "
+        problem("registry-digest: source-registry.json content does not match its "
                  "_content_digest stamp — an out-of-band edit bypassed registry_io.save_registry; "
                  "revert the hand edit or re-apply it through the sanctioned writer")
 
