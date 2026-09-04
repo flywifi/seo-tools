@@ -392,10 +392,28 @@ def _find_whisper_cpp_model(explicit_dir=None):
     return None
 
 
-def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_present=None, ram_gb=None):
+def _verify_found_model(mp, allow):
+    """P79 WP-G: a discovered model file must match its committed pin. Returns (ok, note). Before
+    this, doctor accepted any file matching ggml-*.bin -- the selftest itself proved it with a
+    one-byte fixture reported green -- so a corrupt or swapped model was invisible until whisper.cpp
+    crashed or mis-transcribed. Streams the file in 1 MiB chunks (multi-hundred-MB models)."""
+    name = os.path.basename(str(mp))
+    entry = next((m for m in (allow.get("models") or {}).values() if m.get("file") == name), None)
+    if entry is None:
+        return False, f"{name} is not in the pinned allowlist (canonical-sources/whisper-models.json)"
+    got = _sha256_file(mp)
+    if got != entry.get("sha256"):
+        return False, f"{name} sha256 mismatch vs its pin (have {got[:12]}..., pin {str(entry.get('sha256'))[:12]}...)"
+    return True, f"{name} verified against its pin"
+
+
+def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_present=None, ram_gb=None,
+           verify_model=False, allowlist_path=None):
     """A plain-language readiness check for on-device transcription. Each step reports {ok,
     what_it_is, next_command, why}; the result carries a green/amber/red verdict and the single next
-    action. Pure and injectable so the wizard and the selftest can simulate any machine."""
+    action. Pure and injectable so the wizard and the selftest can simulate any machine. With
+    verify_model=True (the CLI path) a discovered whisper.cpp model is hashed against the committed
+    pins; library callers keep the fast existence-only default."""
     os_name = (os_name if os_name is not None else sys.platform).lower()
     arch = (arch if arch is not None else platform.machine()).lower()
     have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
@@ -428,12 +446,21 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
     # whisper.cpp needs a model FILE; faster-whisper auto-downloads its own on first run.
     if sel.get("backend") == "whisper.cpp":
         mp = _find_whisper_cpp_model(model_dir_override)
-        if mp:
-            steps.append({"step": "model", "ok": True, "what_it_is": f"speech model at {mp}",
+        tier = default_model(ram_gb)
+        name = {"base": "base.en", "small": "small.en", "medium": "medium", "large-v3": "large-v3"}.get(tier, "small.en")
+        if mp and verify_model:
+            ok_m, note = _verify_found_model(mp, load_model_allowlist(allowlist_path))
+            step = {"step": "model", "ok": ok_m, "what_it_is": f"speech model at {mp} ({note})",
+                    "why": ("the model matches its committed integrity pin" if ok_m else
+                            "a model that fails its integrity pin must not be transcribed with; re-fetch it")}
+            if not ok_m:
+                step["next_command"] = f"python3 tools/transcribe.py doctor --fetch-model {name}"
+            steps.append(step)
+        elif mp:
+            steps.append({"step": "model", "ok": True,
+                          "what_it_is": f"speech model at {mp} (existence only; the CLI doctor verifies the hash)",
                           "why": "whisper.cpp has a model to transcribe with"})
         else:
-            tier = default_model(ram_gb)
-            name = {"base": "base.en", "small": "small.en", "medium": "medium", "large-v3": "large-v3"}.get(tier, "small.en")
             steps.append({"step": "model", "ok": False,
                           "what_it_is": "a one-time speech model download (a few hundred MB)",
                           "next_command": f"python3 tools/transcribe.py doctor --fetch-model {name}",
@@ -526,6 +553,28 @@ def selftest():
         d_cpp_model = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": True, "faster_whisper": False},
                              model_dir_override=str(mdir))
         ok("doctor green when whisper.cpp + a model file", d_cpp_model["verdict"] == "green")
+        # P79 WP-G: the same one-byte fixture must FAIL once the hash is verified (the historical gap).
+        d_fake = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": True, "faster_whisper": False},
+                        model_dir_override=str(mdir), verify_model=True)
+        m_step = next(s for s in d_fake["steps"] if s["step"] == "model")
+        ok("doctor with verify_model flags a model that fails its pin (amber, re-fetch action)",
+           d_fake["verdict"] == "amber" and m_step["ok"] is False and "--fetch-model" in (d_fake["next_action"] or ""))
+        # a fixture whose bytes match a temp allowlist pin passes verification (never the committed pins)
+        good = mdir / "ggml-small.en.bin"
+        good.write_bytes(b"fixture-model-bytes")
+        import hashlib as _h
+        allow_p = tmp / "pins.json"
+        allow_p.write_text(json.dumps({"models": {"small.en": {"file": "ggml-small.en.bin",
+                           "sha256": _h.sha256(b"fixture-model-bytes").hexdigest(), "size_bytes": 19}}}))
+        os.environ["WHISPER_CPP_MODEL"] = str(good)          # exercises the previously untested env branch
+        try:
+            d_good = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": True, "faster_whisper": False},
+                            model_dir_override=str(mdir), verify_model=True, allowlist_path=str(allow_p))
+        finally:
+            os.environ.pop("WHISPER_CPP_MODEL", None)
+        ok("doctor green when the discovered model matches its pin (via WHISPER_CPP_MODEL)",
+           d_good["verdict"] == "green" and "verified against its pin" in
+           next(s for s in d_good["steps"] if s["step"] == "model")["what_it_is"])
 
         # P46 fetch_model: injected downloader + sha256 verify (no network).
         payload = b"synthetic ggml model bytes"
@@ -593,7 +642,7 @@ def main(argv):
             print("", file=sys.stderr)
             print(json.dumps(res, indent=2))
             return 0 if res.get("ok") else 1
-        print(json.dumps(doctor(model_dir_override=args.model_dir), indent=2))
+        print(json.dumps(doctor(model_dir_override=args.model_dir, verify_model=True), indent=2))
         return 0
     if args.cmd == "run":
         print(json.dumps(transcribe(args.media, model=args.model, out_dir=args.out_dir,

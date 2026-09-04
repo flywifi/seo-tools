@@ -86,7 +86,7 @@
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/secret_scan.py": "c67959af4970f7ac00c365fc23b8978f55a585eef9a5921454d1b4e98fb0466d",
     "tools/setup.py": "f3561de677e8452c12a3294d738f5f961c1c1635d5471c967b62c0ed1a36c1da",
-    "tools/transcribe.py": "5bd921f18fddac1960c97559566bf1242b2a758ada641d806b3eaea8c82b9f39",
+    "tools/transcribe.py": "795177f4b2e88dc40bbce16fc0a9e3fe832ae166782bb86243057c76efb338a0",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
     "tools/videoedit/compressor.py": "5aee181e13c1870836d3f17546c06efb23b299eb1162ce49f12eefbdf51f012f",
