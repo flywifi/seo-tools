@@ -148,3 +148,48 @@ push gate:
   (draft, run evals, iterate), run by a maintainer when authoring or changing a skill. This absence
   is deliberate and recorded here so it is not a silent QA hole: CI proves the evals are
   well-formed and non-hollow; a human proves they pass behaviorally.
+
+## Selftest enrolment and the named residue (P74, re-landed P79)
+
+Every tracked `tools/**/*.py` and `shared/**/*.py` must either expose a `--selftest` that
+`tools/selftest_sweep.py` discovers, or appear in `tools/selftest-exemption.json` with a written
+reason. The sweep enforces this on every run and in CI (the "Behavioral selftest sweep" step), so
+the uncovered count cannot grow by inattention.
+
+This exists because discovery was scripted while **enrolment was not**. A tool could ship with no
+selftest and nothing noticed — which is exactly how a regex defect in the OG-tag extractor copied
+one meta tag's content into all six `og_*` fields, persisted it to the competitor index, and
+surfaced it to the creator for an unknown number of phases. Nothing had ever executed that
+module's logic.
+
+The gate rejects four things: a tool with neither a selftest nor an exemption; an exemption whose
+reason is too short to review; an exemption for a file that has since gained a selftest; and an
+exemption for a file that is no longer tracked. All four are permanent cases in the sweep's own
+`--selftest` (the pure core `_enrolment_problems_for` takes the tracked, discovered, and exempt sets
+as arguments), and the live tree is asserted clean in the same run. Outside a git checkout the gate
+prints a DID-NOT-RUN line and fails rather than passing silently.
+
+**The residue is named, not hidden.** The exemption file lists every remaining file with its
+reason, in four honest groups:
+
+- **Battery runners** (`sync_check`, `geo_e2e_proof`, `count_truth`, `version`, `update`,
+  `sync_cache`, `new_skill`, `registry_io`): the battery executes them on every change, so running
+  them IS the test. Counting these as untested debt would inflate the gap as dishonestly as hiding
+  one. (`package_skill` left this group in P79 when it gained `--selftest` for its manifest verbs.)
+- **Package markers and re-export shims** (`videoedit/__init__`, `handoff/__init__`,
+  `importers/__init__`, `publishing/__init__`, `publishing/_http`): no independent logic, and the
+  publishing pair is exercised by the sweep's `python -m publishing --selftest` entry.
+- **Covered by a closer runner** (`shared/connectors/connectors.py` via drift invariant 53, which
+  executes the resolver against the committed registry; `shared/docintel/wer.py` via
+  `coverage_verify`; `shared/docintel/classify.py` via `handoff/inbox`; `shared/cache/cache.py`
+  via the mcp_server synthetic index).
+- **Network-bound** (`acquire`, `fetch_resilient`, `fetch_cache`) and **not-yet-implemented**
+  (`videoedit/resolve.py`, whose functions raise `NotImplementedError`). `geo_source_fetch` left
+  this group in P79 when its writer gained an offline selftest.
+
+**Two entries are deferred work, not permanent exemptions**, and say so in the file:
+`tools/handoff_sim.py` (a 38-check end-to-end runner whose write phases need their sandbox
+redirect reviewed before it runs unattended) and `shared/cache/cache.py` (a direct selftest needs
+a temp SQLite index and must never touch the real `index.local.db`). The right way to close the
+network-bound group is to factor their pure seams into helpers that can be tested offline, not to
+pretend a network tool is offline-testable.

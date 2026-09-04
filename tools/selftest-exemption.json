@@ -1,0 +1,28 @@
+{
+  "_comment": "P74 WP4, re-landed P79 WP-C against the finished P79 tree. Every tracked tools/**/*.py and shared/**/*.py must either expose a --selftest that tools/selftest_sweep.py can discover, or appear here with a written reason. This list is the named residue of the coverage work: it exists so the uncovered count cannot grow silently, which is how the OG-extractor defect (P74-0) survived. Adding an entry is a deliberate act that a reviewer can argue with; forgetting to write a selftest is not.",
+  "_review": "Revisit when a file here gains real logic. 'Runner' and 'package marker' entries are permanent by nature; 'network-bound' entries become testable the day their pure seams are factored out, and that refactor is the right way to close them.",
+  "exempt": {
+    "tools/sync_check.py": "The drift guard itself. The battery runs it on every change, so executing it IS its test; a --selftest would be ceremony wrapped around the thing already under test.",
+    "tools/handoff_sim.py": "A 10-phase / 38-check end-to-end runner. Wiring it into the sweep is tracked separately (PRE-3) because its write phases need their sandbox redirect reviewed before it runs unattended.",
+    "tools/geo_e2e_proof.py": "Itself an end-to-end proof runner (17 checks) executed in the battery.",
+    "tools/count_truth.py": "A runner whose entire output is the assertion; the battery runs it and invariant 48 checks its numbers against live docs.",
+    "tools/version.py": "A runner: `version.py --check` is the assertion, and CI runs it.",
+    "tools/registry_io.py": "A 62-line single-writer shim. Its behaviour is asserted by source_currency's selftest (29 checks) and by drift invariants 42 and 56, which is closer coverage than a self-test of two functions.",
+    "tools/new_skill.py": "A scaffolder whose output is validated by the drift guard the moment a skill is created.",
+    "tools/update.py": "A runner; its logic is covered by update_check.py, which has its own selftest.",
+    "tools/sync_cache.py": "A runner over the cache index; exercised by the cache build path and the setup flow.",
+    "shared/connectors/connectors.py": "Executed on every drift-guard run by invariant 53, which imports the resolver and calls resolve({}) over the committed registry. That is stronger than a selftest because it runs against real data.",
+    "shared/cache/cache.py": "Exercised by mcp_server's selftest (synthetic index), keyword_offline and setup. A direct selftest would need to build a temp SQLite index; worth doing, but it must never run against the real index.local.db, so it is deliberately deferred rather than rushed.",
+    "tools/acquire.py": "Every entry point performs network or browser I/O. Its pure seams (_links, _same_domain) are small; the honest close is to factor them into a helper module with its own selftest rather than pretend a network tool is offline-testable.",
+    "tools/fetch_resilient.py": "All four prongs perform real network requests; only _robots_ok has a pure short-circuit. Same close as acquire.py.",
+    "tools/fetch_cache.py": "A single _root() path helper with no branching logic.",
+    "tools/videoedit/resolve.py": "A stub surface: its functions raise NotImplementedError pending the Resolve integration, so there is no behaviour to assert yet.",
+    "tools/publishing/__init__.py": "Exercised by the sweep's package entry, `python -m publishing --selftest`.",
+    "tools/publishing/_http.py": "Covered by the same package entry; its callers are the four platform clients, each of which has a selftest.",
+    "tools/videoedit/__init__.py": "Package marker and re-export shim; no independent logic.",
+    "tools/handoff/__init__.py": "Package marker; 13 lines, no logic.",
+    "tools/importers/__init__.py": "Package marker; 9 lines, no logic.",
+    "shared/docintel/wer.py": "A pure word-error-rate helper fully exercised by coverage_verify's selftest (19 checks), which is its only caller.",
+    "shared/docintel/classify.py": "Exercised by handoff/inbox.py, whose own selftest drives classification end to end."
+  }
+}
