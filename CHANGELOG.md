@@ -25,6 +25,51 @@ describes everything in the tree above the baseline, and the tag itself is still
   the first real durable block records, and blocked was never conflated with stale. Dependency
   drift and every deliberately-unchanged control are recorded in the report as findings.
 
+- P79 remediation (2026-09-04, `docs/remediation-2026-09-04.md`): `tools/hash_audit.py`, one verb that
+  recomputes every stored hash in the tree (tracked stores gate, gitignored stores report only);
+  `implementation/skill-package-manifest.json`, a mtime-free sha256 per skill source tree with
+  `package_skill.py --check-manifest` in CI; the selftest enrolment gate re-landed in the sweep with its
+  four branches as permanent selftest cases and a 22-entry `tools/selftest-exemption.json`; a
+  `--rehash-from-disk` verb and an offline selftest on the boundary-cache fetcher; sanctioned writers for
+  `content_selector`, `excerpt_confidence`, and `excerpt_verified_at`; the projection-staleness CI step;
+  six new registry sources for the authorities the remediation rests on (the Commission's Article 50
+  guidelines and Code of Practice, the numpy, PyAV, and PySceneDetect release pages, the MCP SDK
+  migration guide).
+
+### Fixed
+- The GIS boundary writer hashed one serialization and wrote another, so all fourteen stored hashes
+  described bytes that never existed; it now serializes once and hashes what it writes, the hashes were
+  re-stamped from disk, and the vertex counter counts every ring (the zoning polygon's hole ring was
+  uncounted).
+- The freshness bundle's per-file sha256 values were written and never recompared; `check()` now compares
+  them inside blocking invariant 26.
+- `doc_freshness.py --check` returned 0 when stale and on any unrecognized flag; it exits 1 and 2.
+- The whisper doctor accepted any file with a pinned model's name; on the CLI path it now verifies the
+  sha256 against the pin, and the one-byte fixture that used to pass reports amber.
+- One registry entry carried tier `primary`; corrected to T1, and the T1/T2/T3 vocabulary is enforced.
+- The traversal tool's next-step text told operators to hand-edit the registry, and named a flag form
+  that does not exist; it now prints the sanctioned `update-source` and `mark-checked` verbs.
+- Two skill directories with the same leaf name would silently overwrite one archive in `dist/`;
+  packaging refuses instead.
+- `implementation/gpt/api/README.md` said the Assistants API "sunsets"; it was sunset on 2026-08-26 and
+  the replacement pair is the Responses and Conversations APIs.
+
+### Changed
+- Invariants 47 (projection staleness), 51 (doc freshness), and 56 (registry content digest) now fail
+  the build instead of warning, including their import-failure branches; invariant 45 stays advisory
+  by recorded decision, with its unreadable-input branch now blocking.
+- The currency map gained 26 file entries and a schema plus coverage check inside invariant 25, so a
+  tracked canonical file with no freshness class fails the build.
+- Five moving dates re-verified against primary law and stamped (NY Chapter 617, CA SB 942 with its
+  2028 capture-device phase now described, EU Article 50 with the Commission instruments cited, the
+  Assistants sunset in past tense, Homebrew casks at month precision); three staged corrections
+  executed and marked applied; two FL statute URLs moved to the 2026 codification.
+- The three FTC HTML sources hash only `main#main-content`, ending a false-changed class caused by
+  per-request page tokens.
+- Seven dependency entries gained validated baselines after the full battery ran green with those
+  versions installed in a scratch venv; `requirements-videoedit.txt` pins numpy below 2.5 because 2.5
+  drops the Python 3.11 the video tooling was validated on.
+
 ## [0.2.0] - 2026-08-16
 
 ### Added

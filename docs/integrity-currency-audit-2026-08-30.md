@@ -16,18 +16,21 @@ other perfectly and had never matched a byte on disk.
 
 | id | sev | one line | status |
 |---|---|---|---|
-| F1 | MED | Freshness-bundle per-file hashes are stored but never recompared; one was stale in the live tree | instance cured by the mandated ritual; class open, recorded |
-| F2 | HIGH | All 14 GIS boundary hashes (manifest + provenance) never matched the committed bytes — the writer hashes one serialization and writes another | root-caused, proven, data intact; fix named, not applied (scope decision) |
-| F3 | MED | 110 of 222 web sources are bot-blocked at this environment's egress and cannot be verified from here | enumerated; each carries a durable block record; Mac re-run list |
-| F4 | MED | 18 sources changed content since their last reading, including the FTC endorsement cluster and 10 jurisdiction/GIS authorities | queued for human review with consumers named; no data edited |
-| F5 | MED | Four moving dates have passed; two never re-verified after their effective date (`eu-ai-act-article-50`, `assistants-api-sunset`), one verified before it (`ca-ai-transparency-sb942`), one blocked (`ny-synthetic-performer-disclosure`) | recorded; staged fixes remain the maintainer's |
-| F6 | MED | Integrity controls that observe but never refuse: registry digest, projection staleness, and doc-freshness checks are advisory; the doc-freshness CI step exits 0 even when stale; the projection check is not in CI | recorded (scope decision) |
-| F7 | MED | Dependency drift: 1 breaking (mcp 2.0.0, install-safe behind the `<2` pin), 3 minor (numpy, av, scenedetect), 8 previously had no baseline | recorded; nothing changed (scope decision) |
-| F8 | LOW | Written-never-read hash stores: video library rows, construction-library manifest, GIS manifest (F2's enabler), bucket manifests with no scheduled verifier | recorded with per-item commands |
-| F9 | LOW | Registry hygiene: one entry carries tier `primary` instead of a `T*` value; 42 tracked canonical files are absent from the currency map; the map's own as-of is 2026-07-07; excerpt-confidence is a free-text convention, not a field | recorded |
-| F10 | LOW | The whisper model pins verify byte-exact upstream today, but verification happens only at download; a swapped file after download is not detected, and the pins file is itself unpinned | recorded |
-| F11 | LOW | The packaged plugin artifacts carry no content hashes; packaging integrity rests on version equality alone | recorded |
-| F12 | LOW | The self-release entry cannot be stamped from this environment (releases API unreachable through the proxy); it stays honestly unstamped | recorded |
+| F1 | MED | Freshness-bundle per-file hashes are stored but never recompared; one was stale in the live tree | closed P79-2: `check()` now recompares every stored per-file sha inside blocking invariant 26 |
+| F2 | HIGH | All 14 GIS boundary hashes (manifest + provenance) never matched the committed bytes — the writer hashes one serialization and writes another | closed P79-1: the writer hashes the bytes it writes; all 14 hashes re-stamped from disk; `tools/hash_audit.py` recomputes them clean |
+| F3 | MED | 110 of 222 web sources are bot-blocked at this environment's egress and cannot be verified from here | still the Mac re-run queue (110 entries; each carries a durable block record); see the P79 record, section 7 |
+| F4 | MED | 18 sources changed content since their last reading, including the FTC endorsement cluster and 10 jurisdiction/GIS authorities | closed P79-3 as churn: all 18 pages read to the operative text, zero downstream corrections; selector-scoped hashing on the three FTC pages ends the class |
+| F5 | MED | Four moving dates have passed; two never re-verified after their effective date (`eu-ai-act-article-50`, `assistants-api-sunset`), one verified before it (`ca-ai-transparency-sb942`), one blocked (`ny-synthetic-performer-disclosure`) | closed P79-3: all four verified against primary law and stamped; the Art. 50 source seeded; the staged corrections applied |
+| F6 | MED | Integrity controls that observe but never refuse: registry digest, projection staleness, and doc-freshness checks are advisory; the doc-freshness CI step exits 0 even when stale; the projection check is not in CI | closed P79-2 and P79-5: doc-freshness exit-coded, projection step added to CI, invariants 47, 51, and 56 blocking; 45 stays advisory by recorded decision |
+| F7 | MED | Dependency drift: 1 breaking (mcp 2.0.0, install-safe behind the `<2` pin), 3 minor (numpy, av, scenedetect), 8 previously had no baseline | P79-9: seven no-baseline entries validated by battery and stamped; numpy pinned to its validated ceiling; av and scenedetect stay Mac-side; mcp 2.0 deferred with a port checklist |
+| F8 | LOW | Written-never-read hash stores: video library rows, construction-library manifest, GIS manifest (F2's enabler), bucket manifests with no scheduled verifier | closed P79-8: `tools/hash_audit.py` gives every stored hash a reader; tracked stores gate the exit code, local stores report |
+| F9 | LOW | Registry hygiene: one entry carries tier `primary` instead of a `T*` value; 42 tracked canonical files are absent from the currency map; the map's own as-of is 2026-07-07; excerpt-confidence is a free-text convention, not a field | closed P79-4: tier datum fixed and the vocabulary enforced; 26 files mapped with a coverage check; excerpt-confidence structured; map as-of 2026-09-04 |
+| F10 | LOW | The whisper model pins verify byte-exact upstream today, but verification happens only at download; a swapped file after download is not detected, and the pins file is itself unpinned | closed P79-6: doctor verifies a discovered model against its pin on the CLI path |
+| F11 | LOW | The packaged plugin artifacts carry no content hashes; packaging integrity rests on version equality alone | closed P79-7: per-skill source-tree manifest with a CI check |
+| F12 | LOW | The self-release entry cannot be stamped from this environment (releases API unreachable through the proxy); it stays honestly unstamped | still unstampable from this egress; Mac runbook in the P79 record |
+
+Status column updated 2026-09-04 by P79 (`docs/remediation-2026-09-04.md`); the rest of this report is the
+2026-08-30 record and is unchanged.
 
 ## 2. The hash census — recomputed, both passes
 

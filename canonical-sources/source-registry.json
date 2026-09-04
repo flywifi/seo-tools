@@ -6101,7 +6101,148 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "eu-ai-act-article-50-guidelines",
+      "name": "European Commission - Guidelines on transparency obligations for AI-generated content (AI Act Article 50)",
+      "url": "https://digital-strategy.ec.europa.eu/en/policies/guidelines-transparency-ai-generated-content",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": "2026-09-04",
+      "last_changed_detected": null,
+      "extraction_hint": "Commission guidelines for Article 50 transparency obligations; states 'Article 50 of the AI Act applies from 2 August 2026'; watch for adoption-date and scope changes; reachable from cloud egress while EUR-Lex is not",
+      "used_by": [
+        "tools/publishing_compliance.py",
+        "shared/contract-engine.md",
+        "legal-requirement-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "content_sha256": "25f686b8d6b100abb72cc46570b752f82db0601f9d4abc4e2095f20c9dfeaf60",
+      "content_etag": "W/\"1788555718-gzip\"",
+      "content_last_modified": "Fri, 04 Sep 2026 21:01:58 GMT",
+      "min_recheck_at": 739863
+    },
+    {
+      "id": "eu-ai-act-aigc-code-of-practice",
+      "name": "European Commission - Code of Practice on marking and labelling AI-generated content (published 2026-06-10)",
+      "url": "https://digital-strategy.ec.europa.eu/en/news/commission-publishes-code-practice-marking-and-labelling-ai-generated-content",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": "2026-09-04",
+      "last_changed_detected": null,
+      "extraction_hint": "voluntary Code of Practice giving practical steps for providers and deployers of generative AI to meet Article 50 marking and labelling duties; watch for a successor edition",
+      "used_by": [
+        "tools/publishing_compliance.py",
+        "shared/contract-engine.md",
+        "legal-requirement-check"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "content_sha256": "cce03a667613c2a98e47412567a226a7ed0be222900880296a944c7733bccda6",
+      "content_etag": "W/\"1788555880-gzip\"",
+      "content_last_modified": "Fri, 04 Sep 2026 21:04:40 GMT",
+      "min_recheck_at": 739863
+    },
+    {
+      "id": "numpy-release-notes",
+      "name": "NumPy release notes (stable)",
+      "url": "https://numpy.org/doc/stable/release.html",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "per-release deprecations, expirations, and the supported Python range; 2.5.0 dropped Python 3.11, which is why requirements-videoedit.txt pins numpy below 2.5",
+      "used_by": [
+        "tools/videoedit/mediaprobe.py",
+        "requirements-videoedit.txt"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "last_block_detected": "2026-09-04",
+      "block_kind": "ip_block",
+      "block_vendor": "Cloudflare"
+    },
+    {
+      "id": "pyav-releases",
+      "name": "PyAV GitHub releases",
+      "url": "https://github.com/PyAV-Org/PyAV/releases",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "per-release feature and fix list; the repo's audio-only decode path (av.open, decode, AudioResampler) is what matters; wheel FFmpeg series",
+      "used_by": [
+        "tools/videoedit/mediaprobe.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "last_block_detected": "2026-09-04",
+      "block_kind": "ip_block",
+      "block_vendor": null
+    },
+    {
+      "id": "pyscenedetect-releases",
+      "name": "PySceneDetect GitHub releases",
+      "url": "https://github.com/Breakthrough/PySceneDetect/releases",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "detect() and ContentDetector API changes and the default backend; cross-check against the scenedetect.com changelog",
+      "used_by": [
+        "tools/videoedit/mediaprobe.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "last_block_detected": "2026-09-04",
+      "block_kind": "ip_block",
+      "block_vendor": null
+    },
+    {
+      "id": "mcp-python-sdk-migration",
+      "name": "MCP Python SDK v2 migration guide",
+      "url": "https://py.sdk.modelcontextprotocol.io/migration/",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-09-04",
+      "last_changed_detected": null,
+      "extraction_hint": "the FastMCP to MCPServer rename, the mcp-types package split, transport and env-var changes; the checklist for the deferred mcp 2.x port of tools/mcp_server.py",
+      "used_by": [
+        "tools/mcp_server.py",
+        "requirements-mcp.txt"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "content_sha256": "75b3b586dacd0fdb1badba2b80c23230bd0aebc6ba799d6957a8e57da4ebf849",
+      "content_etag": "\"6a9b19e3-774ae\"",
+      "content_last_modified": "Fri, 04 Sep 2026 19:20:03 GMT",
+      "min_recheck_at": 739863
     }
   ],
-  "_content_digest": "6502f9359e557e15d1ad7b7d5790a50a2d98921f68c5ce7bea4e5274085b6bbe"
+  "_content_digest": "45cf4cb7d36baadb72c4652edc5613b433c38b44cf408f066d6b6c1ce3b24294"
 }

@@ -494,7 +494,17 @@
       "evidence": "Census pass A at 61dd921: mac-surface 85/85, registry digest match, projection 94/94, doc-freshness 40/40, bundle 11/12 (the stale one named), GIS 14/14 mismatch with 7/7 matching the never-written serialization, git fsck clean, whisper pins 6/6 byte-exact upstream. Sweep: 222 web sources fetched, buckets 9 unchanged / 76 first_seen / 18 changed / 9 unreachable / 110 blocked; 213 stamped; the registry diff machine-audited as field-additions only; census pass B re-verified the digest and the cured bundle. Dependency pass stamped 18 with drift flagged on four.",
       "explicit_non_action": "Did NOT fix the GIS serializer defect, add any verifier for the written-never-read hash stores, promote any advisory control, or repair the doc-freshness exit code: all four are maintainer decisions recorded as findings. Did NOT touch any dependency pin or baseline. Did NOT edit any data file downstream of a changed source; the eighteen changed pages are a human review queue. Did NOT use archive or browser-render recovery on blocked sources, because an archive body's hash would pollute the change-detection baseline. Did NOT stamp anything unreachable or blocked as checked.",
       "status": "accepted"
+    },
+    {
+      "id": "P79-remediation",
+      "date": "2026-09-04",
+      "phase": "P79",
+      "decision": "Closed every non-Mac finding of the P78 integrity and currency audit in ten code commits and one records commit, including the three maintainer reversals of P76 decisions (advisory integrity checks made blocking, the selftest enrolment gate re-landed, packaging content hashes added), and applied the cited data corrections after five read-only researchers verified each against primary sources.",
+      "rationale": "P78 proved that stored hashes nothing recomputes are not evidence, and that advisory guards do not guard. The plan was rejected twice for insufficient depth and approved only when every sub-item carried who/what/when/where/why/how, a mitigation tied to a real repo failure, and code that had already been executed against the live tree. Data changed only where a primary source was read and quoted; the 18 changed pages were all boilerplate or metadata churn and no consumer document was edited on a hash alone.",
+      "evidence": "hash_audit PASS with all seven tracked stores recomputed clean (GIS 14 of 14 mismatch before P79-1, ok after); every promoted or new guard red-teamed to fail then pass with the tree restored; dependency validation ran the full selftest sweep (88 of 88) and the drift guard under a scratch venv holding the seven stamped versions, with sqlite-vec loaded and a real Chromium launched; enrolment gate: 111 tracked, 87 discovered, 22 exempt with reasons, 0 stale; battery green at every commit, gated on exit codes.",
+      "explicit_non_action": "Did NOT run the Mac-only items (the 110 blocked-source re-sweep, av and scenedetect media validation, the P75 competitor index repair, the scoop cache baseline rebuild, the scheduler install); they are a runbook in the record. Did NOT promote invariant 45 (a date comparison that would break every routine stamp). Did NOT port to mcp 2.0 (checklist recorded, pin stands). Did NOT add any new numbered invariant. Did NOT edit consumer docs for the two FTC enforcement items (recorded as watch-notes). Did NOT correct the CLAUDE.md sentence that overstates what dependency_currency reads (recorded as a new finding for the maintainer, since CLAUDE.md is a projection source outside this plan's authorization). No tag, no PR.",
+      "status": "accepted"
     }
   ],
-  "updated": "2026-08-30"
+  "updated": "2026-09-04"
 }

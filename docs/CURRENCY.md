@@ -179,6 +179,15 @@ web, and Gemini as well as desktop — gated by `docs/PASTE-SAFETY.md`. Local-ru
 `--detect-changes` to attempt that retry automatically before recording a block (opt-in; may use network;
 degrades silently if the optional deps are absent). See `shared/web-intel-engine.md` Levels 3 to 6.
 
+**Structured fields (P79).** Two conventions that used to live only in prose are now registry fields
+with sanctioned writers. `excerpt_confidence: true` plus `excerpt_verified_at` (set with
+`update-source <id> --excerpt-confidence --excerpt-verified-at YYYY-MM-DD`) is the machine form of the
+EXCERPT-CONFIDENCE hint prefix: the prose prefix stays as the human explanation, the fields are what
+tooling reads. `content_selector` (set with `update-source <id> --content-selector 'main#main-content'`)
+scopes change detection to one region of the page so per-request chrome cannot produce a false
+`changed`; it falls back to the whole body when the selector matches nothing, so a redesign degrades to
+noisier, never to blind. The three FTC HTML sources use it.
+
 ## If the registry is damaged (recovery)
 
 `canonical-sources/source-registry.json` is written atomically by

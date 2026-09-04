@@ -2,7 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P78 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P79 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P79: Remediation of the P78 findings (2026-09-04, docs/remediation-2026-09-04.md). Ten code
+  commits, each planned to the point of executed proof before it was written: the GIS writer now
+  hashes the bytes it writes and its fourteen hashes were re-stamped from disk; the freshness
+  bundle recompares its own per-file hashes; doc-freshness is exit-coded and the projection check
+  runs in CI; three advisory integrity invariants became blocking while invariant 45 stays advisory
+  by recorded decision; the whisper doctor verifies a found model against its pin; skill packages
+  have a source-tree hash manifest checked in CI; hash_audit recomputes every stored hash in one
+  command; seven dependency baselines were validated by running the battery under the installed
+  versions; the selftest enrolment gate re-landed with a 22-entry exemption list. Five researchers
+  crawled the 18 changed sources and the four passed moving dates to primary text: every changed
+  page was token or metadata churn with zero downstream corrections, and every date was confirmed
+  and stamped. Mac-only items (the 110 blocked sources, the av and scenedetect media validation,
+  the P75 index repair, the cache baseline rebuild) are a runbook in the record, not silently
+  skipped.
 
 - P78: SHA-256 verified integrity and currency audit (2026-08-30,
   docs/integrity-currency-audit-2026-08-30.md). Every stored hash recomputed from bytes rather
