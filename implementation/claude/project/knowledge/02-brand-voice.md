@@ -6,7 +6,7 @@ role: Source of truth for brand identity, aesthetic, and voice. Read by the hub 
 load: always
 ---
 
-_Data freshness: as of 2026-09-04 (Creator OS baseline 974b05ac). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-09-04 (Creator OS baseline b17d8b83). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Brand Engine
 

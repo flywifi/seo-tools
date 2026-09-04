@@ -764,7 +764,11 @@ def cmd_update_source(args, registry):
                        ("pinned_constraint", getattr(args, "pinned_constraint", None)),
                        # P79 E6: scoped hashing region; the read path already exists at
                        # classify_content_change (content_hash(body, entry.get("content_selector"))).
-                       ("content_selector", getattr(args, "content_selector", None))):
+                       ("content_selector", getattr(args, "content_selector", None)),
+                       # P79 F3: structured form of the EXCERPT-CONFIDENCE prose convention. Tri-state:
+                       # an un-passed flag is None and therefore a no-op in this loop.
+                       ("excerpt_confidence", getattr(args, "excerpt_confidence", None)),
+                       ("excerpt_verified_at", getattr(args, "excerpt_verified_at", None))):
         if val is not None and entry.get(field) != val:
             entry[field] = val
             changed.append(field)
@@ -989,7 +993,7 @@ def _main():
     p_upd.add_argument("--url", help="Corrected URL")
     p_upd.add_argument("--category", help="Corrected category")
     p_upd.add_argument("--name", help="Corrected human-readable name")
-    p_upd.add_argument("--tier", help="Corrected tier (T1|T2|T3)")
+    p_upd.add_argument("--tier", choices=["T1", "T2", "T3"], help="Corrected tier")
     p_upd.add_argument("--extraction-hint", dest="extraction_hint", help="Corrected extraction hint")
     p_upd.add_argument("--add-used-by", dest="add_used_by", help="Comma-separated atoms/engines to union into used_by")
     # P74 WP1: these three had NO sanctioned writer, so two recorded corrections were physically
@@ -1005,6 +1009,12 @@ def _main():
                             "false 'changed' verdicts from per-request page chrome; consumed by check "
                             "--detect-changes via freshness_overlay.content_hash. Falls back to the "
                             "whole body if the selector matches nothing.")
+    p_upd.add_argument("--excerpt-confidence", dest="excerpt_confidence", action="store_const",
+                       const=True, default=None,
+                       help="Mark the entry's facts as taken from search excerpts because the page refuses "
+                            "direct fetches (the structured form of the EXCERPT-CONFIDENCE hint prefix)")
+    p_upd.add_argument("--excerpt-verified-at", dest="excerpt_verified_at",
+                       help="Date (YYYY-MM-DD) the excerpt facts were last re-confirmed")
     p_upd.add_argument("--validated-version", dest="validated_version",
                        help="Dependency baseline: the version this repo is known to work against")
     p_upd.add_argument("--pinned-constraint", dest="pinned_constraint",

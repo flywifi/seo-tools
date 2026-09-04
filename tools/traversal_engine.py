@@ -362,8 +362,9 @@ def cmd_accept(args, registry: dict, config: dict) -> None:
         "depth": depth,
         "parent_source_id": parent_id,
         "next_steps": [
-            f"python3 tools/source_currency.py --mark-checked {custom_id}",
-            "Edit 'name' and 'extraction_hint' in source-registry.json for this entry (the only manual edit permitted after --accept).",
+            f"python3 tools/source_currency.py mark-checked {custom_id}",
+            f"python3 tools/source_currency.py update-source {custom_id} --name '<human-readable name>' "
+            f"--extraction-hint '<what to watch on this page>'   # never edit source-registry.json by hand",
             "Add this source to the 'used_by' list of any atoms or engines that depend on it."
         ]
     }, indent=2))
@@ -451,7 +452,7 @@ def main():
     accept_p.add_argument("url")
     accept_p.add_argument("--id", help="Custom registry id (auto-generated if omitted)")
     accept_p.add_argument("--category", help="Override inferred category")
-    accept_p.add_argument("--tier", help="T1, T2, or T3 (default T2)")
+    accept_p.add_argument("--tier", choices=["T1", "T2", "T3"], help="T1, T2, or T3 (default T2)")
     accept_p.add_argument("--name", help="Human-readable name for the entry")
 
     # --prune-orphans

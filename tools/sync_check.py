@@ -1465,7 +1465,11 @@ def check_currency_map():
     embedded_fact_files entry must name a file that exists on disk and carry at least one watched_by.
     And the P36 highest-value embedded-fact artifacts (the connector registry and the integrations
     engine) must be present in embedded_fact_files, so the facts duplicated in prose/config stay tied
-    to their upstream source. No-op when the currency map or registry is absent."""
+    to their upstream source. P79 widened it in place (no new invariant number): every registry tier is
+    in T1|T2|T3; every files[] entry has a known status, exists on disk, and carries the fields its
+    class requires (watched->watched_by, dated->review_cadence_days, tool-managed->managed_by); and
+    every tracked canonical-sources file is either mapped or excused in _infrastructure. No-op when the
+    currency map or registry is absent."""
     cmap_path = ROOT / "canonical-sources" / "data-currency-map.json"
     reg_path = ROOT / "canonical-sources" / "source-registry.json"
     if not cmap_path.exists() or not reg_path.exists():
@@ -1499,6 +1503,40 @@ def check_currency_map():
     for required in ("shared/connectors/connectors.json", "shared/integrations-engine.md"):
         if required not in tracked:
             problem(f"currency-map: required embedded-fact artifact '{required}' is not in embedded_fact_files")
+    # P79 F1: tier vocabulary. The field was validated nowhere (argparse help text only), and one
+    # entry carried "primary" -- neither T1 nor T3, so citation grading could not place it.
+    for s in reg.get("sources", []):
+        if isinstance(s, dict) and s.get("tier") not in ("T1", "T2", "T3"):
+            problem(f"currency-map: source '{s.get('id')}' has tier {s.get('tier')!r}; the vocabulary "
+                    f"is T1|T2|T3 (fix via source_currency update-source --tier)")
+    # P79 F2: the six blind spots of the original check (P78 audit F9). Same invariant, wider.
+    valid_status = {"watched", "dated", "static", "tool-managed"}
+    base = ROOT / "canonical-sources"
+    for e in cmap.get("files", []):
+        if not isinstance(e, dict):
+            continue
+        f, st = e.get("file", "<no file>"), e.get("status")
+        if st not in valid_status:
+            problem(f"currency-map: files '{f}' has unknown status {st!r} (watched|dated|static|tool-managed)")
+        if not (base / f).exists():
+            problem(f"currency-map: files '{f}' does not exist on disk; drop the entry or restore the file")
+        if st == "watched" and not e.get("watched_by"):
+            problem(f"currency-map: files '{f}' is watched but names no watched_by source")
+        if st == "dated" and not e.get("review_cadence_days"):
+            problem(f"currency-map: files '{f}' is dated but has no review_cadence_days")
+        if st == "tool-managed" and not e.get("managed_by"):
+            problem(f"currency-map: files '{f}' is tool-managed but names no managed_by tool")
+    # coverage: every tracked canonical file is mapped or explicitly excused in _infrastructure
+    mapped = {e.get("file") for e in cmap.get("files", []) if isinstance(e, dict)}
+    infra = set(cmap.get("_infrastructure", []))
+    tracked_canon = _git_ls_files() or []
+    for rel in tracked_canon:
+        if not rel.startswith("canonical-sources/"):
+            continue
+        sub = rel[len("canonical-sources/"):]
+        if sub not in mapped and sub not in infra:
+            problem(f"currency-map: {rel} is tracked but neither mapped in files[] nor excused in "
+                    f"_infrastructure; classify it (watched|dated|static|tool-managed)")
 
 
 def check_task_tracker():

@@ -5893,13 +5893,15 @@
       "name": "Homebrew 5.0.0 release notes (cask Gatekeeper policy)",
       "url": "https://brew.sh/2025/11/12/homebrew-5.0.0/",
       "category": "os-platform",
-      "tier": "primary",
+      "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 90,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "",
-      "used_by": [],
+      "extraction_hint": "Homebrew 5.0.0 release notes: casks that fail Gatekeeper checks are disabled from September 2026 (month precision in the source); formula bottles such as ffmpeg and whisper-cpp are unaffected",
+      "used_by": [
+        "docs/SETUP_MAC.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -5927,7 +5929,9 @@
       "child_source_ids": [],
       "last_block_detected": "2026-08-30",
       "block_kind": "challenge",
-      "block_vendor": "Cloudflare"
+      "block_vendor": "Cloudflare",
+      "excerpt_confidence": true,
+      "excerpt_verified_at": "2026-08-16"
     },
     {
       "id": "openai-projects-help",
@@ -5947,7 +5951,9 @@
       "child_source_ids": [],
       "last_block_detected": "2026-08-30",
       "block_kind": "challenge",
-      "block_vendor": "Cloudflare"
+      "block_vendor": "Cloudflare",
+      "excerpt_confidence": true,
+      "excerpt_verified_at": "2026-08-15"
     },
     {
       "id": "openai-gpt-creation-policy",
@@ -5967,7 +5973,9 @@
       "child_source_ids": [],
       "last_block_detected": "2026-08-30",
       "block_kind": "challenge",
-      "block_vendor": "Cloudflare"
+      "block_vendor": "Cloudflare",
+      "excerpt_confidence": true,
+      "excerpt_verified_at": "2026-08-16"
     },
     {
       "id": "openai-migrate-to-responses",
@@ -6007,7 +6015,9 @@
       "child_source_ids": [],
       "last_block_detected": "2026-08-30",
       "block_kind": "challenge",
-      "block_vendor": "Cloudflare"
+      "block_vendor": "Cloudflare",
+      "excerpt_confidence": true,
+      "excerpt_verified_at": "2026-08-15"
     },
     {
       "id": "openai-connector-contract",
@@ -6067,7 +6077,9 @@
       "child_source_ids": [],
       "last_block_detected": "2026-08-30",
       "block_kind": "challenge",
-      "block_vendor": "Cloudflare"
+      "block_vendor": "Cloudflare",
+      "excerpt_confidence": true,
+      "excerpt_verified_at": "2026-08-16"
     },
     {
       "id": "eu-ai-act-article-50",
@@ -6091,5 +6103,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "769dabc9eb4fc92710c6b6f82da88870a03f6df500579349a1462f6d48162d9e"
+  "_content_digest": "4bc5a0b41f7a50dc15e8c70061d231c0a1b1999a1755e5736454fee05ffa4d12"
 }
