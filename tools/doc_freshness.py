@@ -4,12 +4,13 @@
 Mirrors tools/projection_manifest.py, but binds prose DOCS to the CODE they describe (not shared engines
 to their projections). Each high-value doc is mapped to the source files it documents; `reconcile` stamps
 the sha256 of each source into a manifest, and `check` re-flags a doc as "may be stale" when a bound
-source changes. Drift invariant 51 (advisory, non-blocking) surfaces the signal.
+source changes. Drift invariant 51 surfaces the signal inside the guard, and `--check` exits 1 on a
+stale doc (P79), so the CI step is a real gate.
 
 This is a STALENESS SIGNAL, not a prose diff: a moved source means the doc *might* now lag, so a human
 should re-read it and re-bless it with `reconcile`. Emerging practice (content-hash binding), adopted
 here as sound engineering and modeled on the repo's own invariant-47 precedent -- not an external
-standard. Stdlib only; never raises on check.
+standard. Stdlib only; never raises on check (it exit-codes instead).
 """
 from __future__ import annotations
 
@@ -197,13 +198,19 @@ def main(argv) -> int:
         m = reconcile()
         print(f"doc_freshness: reconciled {len(m['docs'])} doc(s) -> {MANIFEST_PATH.relative_to(ROOT)}")
         return 0
-    # default / --check
+    # P79 A3: --check is the only remaining verb, and a stale result is a FAILURE (exit 1). The
+    # previous form fell through on ANY argv and returned 0 even after printing ok:false, so the CI
+    # step could never fail and a mistyped flag silently reported success (P78 audit F6).
+    extra = [a for a in argv[1:] if a != "--check"] if argv and argv[0] == "--check" else [a for a in argv if a != "--check"]
+    if extra:
+        print(f"doc_freshness: unrecognized argument(s) {extra}; use --check, reconcile, or --selftest")
+        return 2
     stale = check()
     if not stale:
         print("doc_freshness: all bound docs current")
         return 0
     print(json.dumps({"ok": False, "stale": stale}, indent=2))
-    return 0
+    return 1
 
 
 if __name__ == "__main__":

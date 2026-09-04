@@ -153,8 +153,9 @@ def apply(root=ROOT, as_of=None):
 
 def check(root=ROOT):
     """Return (ok, problems). Fails when: the manifest is missing; a managed file lacks a freshness
-    marker; a managed file is missing; or the manifest's canonical_digest no longer matches canonical
-    (the baseline drifted from the data and needs a re-stamp)."""
+    marker; a managed file is missing; a managed file's bytes no longer match the sha256 recorded for
+    it (P79); or the manifest's canonical_digest no longer matches canonical (the baseline drifted
+    from the data and needs a re-stamp)."""
     problems = []
     mpath = root / "implementation" / "freshness-bundle.json"
     if not mpath.exists():
@@ -164,7 +165,8 @@ def check(root=ROOT):
     except (OSError, json.JSONDecodeError) as exc:
         return False, [f"manifest unreadable: {exc}"]
     files = managed_files(root)
-    listed = {m["file"] for m in manifest.get("managed_files", [])}
+    recorded = {m["file"]: m for m in manifest.get("managed_files", [])}
+    listed = set(recorded)
     for f in files:
         rel = str(f.relative_to(root))
         txt = f.read_text(encoding="utf-8")
@@ -172,6 +174,15 @@ def check(root=ROOT):
             problems.append(f"{rel}: missing freshness marker (run --apply)")
         if rel not in listed:
             problems.append(f"{rel}: not recorded in the projection manifest")
+        # P79 A2: the per-file sha256 this manifest stores was write-only (P78 audit F1); a managed
+        # file edited after the last --apply kept its stale hash and nothing noticed. Recompute with
+        # the writer's own recipe (sha256 of the utf-8 text) and refuse on disagreement.
+        rec = recorded.get(rel)
+        if rec and rec.get("sha256"):
+            cur = hashlib.sha256(txt.encode("utf-8")).hexdigest()
+            if cur != rec["sha256"]:
+                problems.append(f"{rel}: content changed since the last --apply (stored sha256 no "
+                                f"longer matches the file); run --apply to re-stamp")
     cur = canonical_digest(root)
     if manifest.get("canonical_digest") != cur:
         problems.append("canonical data changed since the last projection; re-run --apply so the "
@@ -242,6 +253,15 @@ def selftest():
     ok("digest drift fails check", ok_ is False and any("re-run --apply" in p for p in probs))
     apply(d, as_of="2026-07-06")
     ok("re-apply clears the drift", check(d)[0] is True)
+
+    # P79 A2: a managed file edited BELOW its marker (marker intact, digest intact) must fail on
+    # the stored per-file sha -- the exact F1 class the P78 audit found live.
+    kf.write_text(kf.read_text(encoding="utf-8") + "\nquiet edit after apply\n", encoding="utf-8")
+    ok_, probs = check(d)
+    ok("per-file sha desync fails check (F1 class)",
+       ok_ is False and any("stored sha256 no longer matches" in p for p in probs))
+    apply(d, as_of="2026-07-06")
+    ok("re-apply re-stamps the per-file sha and clears it", check(d)[0] is True)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

@@ -55,6 +55,8 @@ jobs:
         run: python3 tools/count_truth.py
       - name: Doc freshness (content-hash staleness of bound docs)
         run: python3 tools/doc_freshness.py --check
+      - name: Projection staleness (knowledge projections vs their sources; exits 1 when stale)
+        run: python3 tools/projection_manifest.py --check
       - name: Behavioral selftest sweep (scripted discovery of every CLI selftest; P66)
         run: python3 tools/selftest_sweep.py
       - name: Eval structural lint (shape of every case, not just JSON validity; P67-D)
