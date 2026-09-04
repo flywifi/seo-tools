@@ -1820,7 +1820,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py",
+      "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv), plus a real Chromium launch and page render via executable_path (the bundled build revision was not preinstalled)",
       "used_by": [
         "tools/acquire.py",
         "tools/competitor_snapshot.py"
@@ -1833,7 +1833,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/playwright/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "1.62.0",
       "_why": "JavaScript-render path for competitor snapshots; the Chromium bundle and API drift",
       "latest_seen": "1.62.0",
       "latest_seen_date": "2026-07-31"
@@ -1848,7 +1848,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "stable HTTP client; only a major (3.x) matters",
+      "extraction_hint": "stable HTTP client; only a major (3.x) matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
       "used_by": [
         "tools/fetch_resilient.py",
         "tools/acquire.py"
@@ -1861,7 +1861,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/requests/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "2.34.2",
       "_why": "HTTP client under the fetch stack; low churn, long interval",
       "latest_seen": "2.34.2",
       "latest_seen_date": "2026-05-14"
@@ -1876,7 +1876,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "encoding detection used by the fetch stack; only a major matters",
+      "extraction_hint": "encoding detection used by the fetch stack; only a major matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
       "used_by": [
         "tools/fetch_resilient.py"
       ],
@@ -1888,7 +1888,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/charset-normalizer/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "3.5.1",
       "_why": "charset detection for fetched pages; low churn",
       "latest_seen": "3.5.1",
       "latest_seen_date": "2026-08-15"
@@ -1903,7 +1903,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters",
+      "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
       "used_by": [
         "tools/parse_competitor_meta.py",
         "tools/fetch_diag.py"
@@ -1916,7 +1916,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/beautifulsoup4/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "4.15.0",
       "_why": "parses competitor page HTML (SIGI_STATE, og tags); stable API, long interval",
       "latest_seen": "4.15.0",
       "latest_seen_date": "2026-06-07"
@@ -5128,7 +5128,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math",
+      "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
       "used_by": [
         "tools/tasks.py",
         "task-plan"
@@ -5141,7 +5141,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/python-dateutil/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "2.9.0.post0",
       "_why": "import-guarded in tools/tasks.py for recurrence and relative-date math; absent, task date math degrades to a stdlib approximation, so a bump is low-risk but tracked for the default install",
       "latest_seen": "2.9.0.post0",
       "latest_seen_date": "2024-03-01"
@@ -5168,7 +5168,7 @@
       "package": "numpy",
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/numpy/json",
-      "pinned_constraint": "",
+      "pinned_constraint": ">=2.4,<2.5",
       "validated_version": "2.4.6",
       "_why": "import-guarded in mediaprobe.py and pulled transitively by opencv/moviepy; pinning it explicitly keeps the videoedit stack ABI-consistent for the default install",
       "latest_seen": "2.5.2",
@@ -5184,7 +5184,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache",
+      "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv), extension loaded and vec_version() answered",
       "used_by": [
         "shared/cache/semantic.py",
         "web_intel"
@@ -5197,7 +5197,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/sqlite-vec/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "0.1.9",
       "_why": "import-guarded in shared/cache/semantic.py for vector search; absent, the scoop cache falls back to lexical match, so a bump is low-risk but tracked for the default install",
       "latest_seen": "0.1.9",
       "latest_seen_date": "2026-03-31"
@@ -5212,7 +5212,7 @@
       "staleness_threshold_days": 60,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard",
+      "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
       "used_by": [
         "tools/sync_check.py",
         "mcp_server"
@@ -5225,7 +5225,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/PyYAML/json",
       "pinned_constraint": "",
-      "validated_version": null,
+      "validated_version": "6.0.3",
       "_why": "import-guarded in the drift guard (tools/sync_check.py) for SKILL.md frontmatter; absent, it falls back to a regex parse, so a bump is low-risk but tracked for the default install",
       "latest_seen": "6.0.3",
       "latest_seen_date": "2025-09-25"
@@ -6103,5 +6103,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "4bc5a0b41f7a50dc15e8c70061d231c0a1b1999a1755e5736454fee05ffa4d12"
+  "_content_digest": "6502f9359e557e15d1ad7b7d5790a50a2d98921f68c5ce7bea4e5274085b6bbe"
 }

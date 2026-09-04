@@ -59,7 +59,7 @@
     "implementation/claude/desktop/README.md": "b98cf5db47705b882974b3f45a35cc74976177a0f05741c109ad95cc1992a220",
     "implementation/claude/desktop/claude_desktop_config_snippet.json": "af2413d458f36b690dbdcefe322191c655ea24a01e12382f31142e40ead1f711",
     "requirements-transcribe.txt": "2c24e96a6c1dc7983f08928bf5beea407752e07d36af28a628ce50835a097c48",
-    "requirements-videoedit.txt": "ef90dd4cddc7eed3fd94e7aca36367b5a1f70e4cd4b729271fa138c98505b370",
+    "requirements-videoedit.txt": "0c8ecfd6823c9fbfb5bc8a2114efe91769e95ff5f4d395a91123f904c3372d62",
     "shared/connectors/connectors.json": "56e9905f4e2d35da39a1f1927e764bc6288d56e98c9c14b97d537875478d33c7",
     "shared/content-import-engine.md": "a5c793c7c19bf1ced0a31ea8983e4dc0245a98b3b3b4ccb6e5faa391c55bec74",
     "shared/cross-modality/transitions.json": "c1a04ce3a9faa0194591b9246f9aaac8c1204ab7d7bfb0eed12444b29e8496e0",
