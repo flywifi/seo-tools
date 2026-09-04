@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-08-30",
+  "last_registry_update": "2026-09-04",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -1415,7 +1415,8 @@
       "content_sha256": "ed2d58c07ec7b62e3d4f4fb224b92ef6ad6bda4ba8a93f1d20aaa91c2aa85387",
       "content_etag": "\"1788048640\"",
       "content_last_modified": "Sun, 30 Aug 2026 00:10:40 GMT",
-      "min_recheck_at": 739858
+      "min_recheck_at": 739858,
+      "content_selector": "main#main-content"
     },
     {
       "id": "ftc-endorsements-hub",
@@ -1438,7 +1439,8 @@
       "content_sha256": "7ca5815704ad21bd9dd399699f3e781485c51ba93b7f8624e1906a942e5a4f30",
       "content_etag": "\"1788048535\"",
       "content_last_modified": "Sun, 30 Aug 2026 00:08:55 GMT",
-      "min_recheck_at": 739858
+      "min_recheck_at": 739858,
+      "content_selector": "main#main-content"
     },
     {
       "id": "us-copyright-basics",
@@ -1535,7 +1537,8 @@
       "content_sha256": "37c8dd08bbb4bfcd1347858ec78df334a17300b56a7c76329b999a0cef9bcd55",
       "content_etag": "\"1788048780\"",
       "content_last_modified": "Sun, 30 Aug 2026 00:13:00 GMT",
-      "min_recheck_at": 739858
+      "min_recheck_at": 739858,
+      "content_selector": "main#main-content"
     },
     {
       "id": "homedepot-materials-pricing",
@@ -4022,8 +4025,8 @@
       "tier": "T1",
       "check_interval_days": 180,
       "staleness_threshold_days": 180,
-      "last_checked": null,
-      "last_changed_detected": null,
+      "last_checked": "2026-09-04",
+      "last_changed_detected": "2026-09-04",
       "extraction_hint": "first-in-nation ad rule (effective 2026-06-09): conspicuous disclosure when an ad uses a synthetic performer; hash the bill status page or use the NY Senate JSON API",
       "used_by": [
         "shared/contract-engine.md",
@@ -4207,7 +4210,7 @@
     {
       "id": "fl-statute-553-899-milestone",
       "name": "Florida Statute 553.899 - Milestone structural inspections (SB 4D)",
-      "url": "https://www.flsenate.gov/Laws/Statutes/2025/553.899",
+      "url": "https://www.flsenate.gov/Laws/Statutes/2026/553.899",
       "category": "legal-authority",
       "tier": "T1",
       "check_interval_days": 180,
@@ -4231,7 +4234,7 @@
     {
       "id": "fl-statute-553-842-product-approval",
       "name": "Florida Statute 553.842 - Statewide product approval (HVHZ authority)",
-      "url": "https://www.flsenate.gov/Laws/Statutes/2025/553.842",
+      "url": "https://www.flsenate.gov/Laws/Statutes/2026/553.842",
       "category": "legal-authority",
       "tier": "T1",
       "check_interval_days": 180,
@@ -4314,7 +4317,7 @@
       "staleness_threshold_days": 90,
       "last_checked": "2026-08-30",
       "last_changed_detected": "2026-08-30",
-      "extraction_hint": "layer 7 Protected Ridges, layer 20 County Zoning Overlay, Slope Stability Index Map; steep-slope % itself is DEM-derived (no slope-percent layer)",
+      "extraction_hint": "layer 7 Protected Ridges, layer 20 County Zoning Overlay, layer 35 Stability Index Map; PERCENT SLOPE exists as raster layer 43 (still DEM-derived, not a point-queryable vector overlay); steep-slope % thresholds come from buncombe-zoning-ordinance",
       "used_by": [
         "jurisdiction-desk",
         "canonical-sources/jurisdiction/nc-overlays.json"
@@ -6065,7 +6068,28 @@
       "last_block_detected": "2026-08-30",
       "block_kind": "challenge",
       "block_vendor": "Cloudflare"
+    },
+    {
+      "id": "eu-ai-act-article-50",
+      "name": "EU AI Act (Regulation 2024/1689) Article 50: transparency obligations",
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "category": "legal-authority",
+      "tier": "T1",
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "transparency + AI-generated-content labelling obligations for providers/deployers; applies 2026-08-02; penalties up to EUR 15M or 3% of worldwide turnover; verified 2026-09-04: Art. 113 confirms application from 2 August 2026; the Commission's Article 50 transparency guidelines and the 2026-06-10 Code of Practice on marking and labelling AI-generated content are in force (digital-strategy.ec.europa.eu/en/policies/guidelines-transparency-ai-generated-content; .../news/commission-publishes-code-practice-marking-and-labelling-ai-generated-content). EUR-Lex primary (CELEX 32024R1689) is fetch-blocked from cloud egress; this url is the verbatim explorer fallback",
+      "used_by": [
+        "legal-requirement-check",
+        "publishing_compliance",
+        "shared/contract-engine.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "3e4072aab6517f6e783670fa57dbe6f62ea2511cfd0471ac5c22da5a45b5b3ac"
+  "_content_digest": "769dabc9eb4fc92710c6b6f82da88870a03f6df500579349a1462f6d48162d9e"
 }

@@ -40,8 +40,9 @@
       "target": "Re-verify the source, then mark it checked-and-changed so the affected atoms are flagged.",
       "apply_command": "python3 tools/source_currency.py mark-checked ny-synthetic-performer-law --changed",
       "apply_kind": "registry-mark-checked",
-      "status": "overdue",
-      "overdue_note": "P73, 2026-08-16: The New York synthetic-performer disclosure law took effect 2026-06-09. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral."
+      "status": "applied",
+      "overdue_note": "P73, 2026-08-16: The New York synthetic-performer disclosure law took effect 2026-06-09. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral.",
+      "applied_note": "P79, 2026-09-04: applied. Chaptered text re-verified on the NY Senate site (Chapter 617; effective 2026-06-09; GBL 396-b disclosure duty) and the apply command was executed: mark-checked ny-synthetic-performer-law --changed."
     },
     {
       "id": "vc-tiktok-rate-limit",
@@ -66,8 +67,9 @@
       "target": "Seed the proposed source in canonical-sources/eu-ai-act-seed.json, then re-stamp the freshness baseline (adding a source id moves the digest).",
       "apply_command": "see canonical-sources/eu-ai-act-seed.json apply_command (seed the source, then python3 tools/build_freshness_bundle.py --apply)",
       "apply_kind": "seed-new-source-then-restamp",
-      "status": "overdue",
-      "overdue_note": "P73, 2026-08-16: EU AI Act Article 50 obligations became applicable 2026-08-02. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral."
+      "status": "applied",
+      "overdue_note": "P73, 2026-08-16: EU AI Act Article 50 obligations became applicable 2026-08-02. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral.",
+      "applied_note": "P79, 2026-09-04: applied. Source seeded as eu-ai-act-article-50 via a standalone array seed (seed-sources has no --key); freshness bundle re-stamped in the same commit."
     },
     {
       "id": "vc-ca-sb942-phase2",
@@ -79,8 +81,9 @@
       "target": "Already captured as a phase_2 date in moving-dates.json (ca-ai-transparency-sb942); no registry change needed until 2026-08-02 approaches.",
       "apply_command": "# no action until the operative date nears; moving-dates.json already tracks both dates",
       "apply_kind": "already-staged",
-      "status": "overdue",
-      "overdue_note": "P73, 2026-08-16: California SB 942 phase 2 became operative 2026-08-02. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral."
+      "status": "applied",
+      "overdue_note": "P73, 2026-08-16: California SB 942 phase 2 became operative 2026-08-02. This entry was written while that date was in the future and its text still reads that way; the trigger has fired. Drift invariant 43 raises an advisory for it on every run. Re-verify the source and stamp it, or record why the obligation does not apply -- do not let the passed date sit as a deferral.",
+      "applied_note": "P79, 2026-09-04: applied. moving-dates.json ca-ai-transparency-sb942 re-verified against the codified text and now records the phase-2 dual obligation set and the 2028-01-01 phase-3 capture-device set; no registry change was needed."
     },
     {
       "id": "vc-mcp-spec-version",

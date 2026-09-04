@@ -28,8 +28,9 @@ functions = [
 
 client = openai.OpenAI()
 
-# Responses API (the current primary API; the Assistants API sunsets 2026-08-26 and
-# chat.completions remains supported but is not where OpenAI's tooling investment goes).
+# Responses API (the current primary API; the Assistants API was sunset on 2026-08-26 and its
+# replacement is the Responses API plus the Conversations API; chat.completions remains
+# supported but is not where OpenAI's tooling investment goes).
 response = client.responses.create(
     model="gpt-5.6",
     instructions=Path("implementation/gpt/web/custom-instructions.md").read_text(),

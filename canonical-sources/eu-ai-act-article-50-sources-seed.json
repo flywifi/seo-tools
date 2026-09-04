@@ -1,0 +1,17 @@
+[
+  {
+    "id": "eu-ai-act-article-50",
+    "name": "EU AI Act (Regulation 2024/1689) Article 50: transparency obligations",
+    "url": "https://artificialintelligenceact.eu/article/50/",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "transparency + AI-generated-content labelling obligations for providers/deployers; applies 2026-08-02; penalties up to EUR 15M or 3% of worldwide turnover; verified 2026-09-04: Art. 113 confirms application from 2 August 2026; the Commission's Article 50 transparency guidelines and the 2026-06-10 Code of Practice on marking and labelling AI-generated content are in force (digital-strategy.ec.europa.eu/en/policies/guidelines-transparency-ai-generated-content; .../news/commission-publishes-code-practice-marking-and-labelling-ai-generated-content). EUR-Lex primary (CELEX 32024R1689) is fetch-blocked from cloud egress; this url is the verbatim explorer fallback",
+    "used_by": [
+      "legal-requirement-check",
+      "publishing_compliance",
+      "shared/contract-engine.md"
+    ]
+  }
+]

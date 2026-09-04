@@ -5,33 +5,33 @@
     {
       "id": "ny-synthetic-performer-disclosure",
       "jurisdiction": "US-NY",
-      "description": "New York synthetic-performer advertising disclosure law (S8420-A): in effect 2026-06-09.",
+      "description": "New York synthetic-performer advertising disclosure law (S8420-A): in effect 2026-06-09. Verified 2026-09-04 against the chaptered text on the NY Senate site: Chapter 617, signed 2025-12-11, effective on the 180th day (2026-06-09); GBL 396-b conspicuous-disclosure duty where the advertiser has actual knowledge; $1,000 first / $5,000 subsequent violation.",
       "registry_source_id": "ny-synthetic-performer-law",
       "effective": "2026-06-09",
       "phase_2": null,
-      "verified_after": null,
+      "verified_after": "2026-09-04",
       "citation_url": "https://www.nysenate.gov/legislation/bills/2025/S8420/amendment/A",
       "confidence": "verified"
     },
     {
       "id": "ca-ai-transparency-sb942",
       "jurisdiction": "US-CA",
-      "description": "California AI Transparency Act (SB 942, amended by AB 853): operative 2026-08-02, with a phase-2 obligation set effective 2027-01-01.",
+      "description": "California AI Transparency Act (SB 942, Ch. 291, amended by AB 853, Ch. 674): operative 2026-08-02; phase-2 obligations effective 2027-01-01 cover large online platforms AND generative-AI hosting platforms; a phase-3 capture-device manufacturer set is effective 2028-01-01 (not a separate field here). Covered provider: >1,000,000 monthly visitors/users, publicly accessible in California. Verified 2026-09-04 against the codified BPC div. 8 ch. 25 text on leginfo; no further amending bill found.",
       "registry_source_id": "ca-ai-transparency-sb942",
       "effective": "2026-08-02",
       "phase_2": "2027-01-01",
-      "verified_after": "2026-07-07",
+      "verified_after": "2026-09-04",
       "citation_url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB942",
       "confidence": "verified"
     },
     {
       "id": "eu-ai-act-article-50",
       "jurisdiction": "EU",
-      "description": "EU AI Act Article 50 (transparency / AIGC labelling obligations): applies 2026-08-02. Proposed as a new registry source; see eu-ai-act-seed.json.",
-      "registry_source_id": null,
+      "description": "EU AI Act Article 50 (transparency / AIGC labelling obligations): applies 2026-08-02 (Art. 113). Verified 2026-09-04: the Commission's Article 50 transparency guidelines and the 2026-06-10 Code of Practice on marking and labelling AI-generated content are in force (digital-strategy.ec.europa.eu); EUR-Lex itself is fetch-blocked from cloud egress, so the registry source uses the verbatim explorer text as its fallback. Seeded as registry source eu-ai-act-article-50 on 2026-09-04.",
+      "registry_source_id": "eu-ai-act-article-50",
       "effective": "2026-08-02",
       "phase_2": null,
-      "verified_after": null,
+      "verified_after": "2026-09-04",
       "citation_url": "https://artificialintelligenceact.eu/article/50/",
       "confidence": "verified"
     },
@@ -60,11 +60,11 @@
     {
       "id": "homebrew-gatekeeper-failing-casks",
       "jurisdiction": "macOS",
-      "description": "Homebrew disables Gatekeeper-failing casks from 2026-09-01 (formula bottles like ffmpeg/whisper-cpp are unaffected). Drives the docs/SETUP_MAC.md dated-context note.",
+      "description": "Homebrew disables Gatekeeper-failing casks from 2026-09-01 (formula bottles like ffmpeg/whisper-cpp are unaffected). Drives the docs/SETUP_MAC.md dated-context note. Verified 2026-09-04 against the release post: 'We will disable all Homebrew/homebrew-cask casks that fail Gatekeeper checks in September 2026' (month precision; formula bottles unaffected).",
       "registry_source_id": "homebrew-5-cask-gatekeeper",
       "effective": "2026-09-01",
       "phase_2": null,
-      "verified_after": null,
+      "verified_after": "2026-09-04",
       "citation_url": "https://brew.sh/2025/11/12/homebrew-5.0.0/",
       "confidence": "verified"
     },
@@ -82,11 +82,11 @@
     {
       "id": "assistants-api-sunset",
       "jurisdiction": "OpenAI API",
-      "description": "The OpenAI Assistants API shuts down 2026-08-26 (deprecated 2025-08-26); all API guidance must target the Responses API. Drives implementation/gpt/api/README.md phrasing.",
+      "description": "The OpenAI Assistants API was shut down on 2026-08-26 (deprecated 2025-08-26; the deprecations page states it was 'officially sunset ... and is no longer available', verified 2026-09-04). API guidance targets the Responses API and the Conversations API. Drives implementation/gpt/api/README.md phrasing.",
       "registry_source_id": "openai-migrate-to-responses",
       "effective": "2026-08-26",
       "phase_2": null,
-      "verified_after": null,
+      "verified_after": "2026-09-04",
       "citation_url": "https://developers.openai.com/api/docs/guides/migrate-to-responses",
       "confidence": "verified"
     }

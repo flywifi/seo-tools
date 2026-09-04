@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-08-30 (Creator OS baseline e202dd58). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-09-04 (Creator OS baseline 974b05ac). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS — Gemini System Instruction
 

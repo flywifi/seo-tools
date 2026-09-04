@@ -761,7 +761,10 @@ def cmd_update_source(args, registry):
                        # P74 WP1: see the argparse block for why these live here.
                        ("check_interval_days", getattr(args, "check_interval_days", None)),
                        ("validated_version", getattr(args, "validated_version", None)),
-                       ("pinned_constraint", getattr(args, "pinned_constraint", None))):
+                       ("pinned_constraint", getattr(args, "pinned_constraint", None)),
+                       # P79 E6: scoped hashing region; the read path already exists at
+                       # classify_content_change (content_hash(body, entry.get("content_selector"))).
+                       ("content_selector", getattr(args, "content_selector", None))):
         if val is not None and entry.get(field) != val:
             entry[field] = val
             changed.append(field)
@@ -997,6 +1000,11 @@ def _main():
     p_upd.add_argument("--check-interval-days", dest="check_interval_days", type=int,
                        help="Corrected check cadence in days (an interval is a promise: set what "
                             "will actually be run, not what sounds diligent)")
+    p_upd.add_argument("--content-selector", dest="content_selector",
+                       help="Hash only the text inside this region (e.g. 'main#main-content'). Kills "
+                            "false 'changed' verdicts from per-request page chrome; consumed by check "
+                            "--detect-changes via freshness_overlay.content_hash. Falls back to the "
+                            "whole body if the selector matches nothing.")
     p_upd.add_argument("--validated-version", dest="validated_version",
                        help="Dependency baseline: the version this repo is known to work against")
     p_upd.add_argument("--pinned-constraint", dest="pinned_constraint",
