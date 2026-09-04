@@ -18,6 +18,8 @@ public-records government GIS; every output carries the advisory-not-legal-deter
 Usage:
   python3 tools/geo_source_fetch.py resolve "809 E Amelia St, Orlando FL 32803"   # universal-path demo
   python3 tools/geo_source_fetch.py --cache-orlando                               # cache all boundaries
+  python3 tools/geo_source_fetch.py --rehash-from-disk    # re-stamp MANIFEST/provenance sha256 from disk bytes
+  python3 tools/geo_source_fetch.py --selftest            # offline
 """
 from __future__ import annotations
 
@@ -93,12 +95,37 @@ def _slug(s):
     return "".join(c if c.isalnum() else "_" for c in (s or "").lower()).strip("_")
 
 
+def _vertex_count(geometry_or_fc):
+    """Total coordinate pairs across ALL rings/polygons. P79 A1c: the previous
+    len(coordinates[0]) counted the outer ring only, so a polygon with a hole under-reported
+    (the zoning cache recorded 128 for a [128, 5]-ring polygon = 133 pairs)."""
+    g = geometry_or_fc
+    if g.get("type") == "FeatureCollection":
+        g = (g.get("features") or [{}])[0].get("geometry") or {}
+    elif g.get("type") == "Feature":
+        g = g.get("geometry") or {}
+    t, c = g.get("type"), g.get("coordinates") or []
+    if t == "Polygon":
+        return sum(len(r) for r in c)
+    if t == "MultiPolygon":
+        return sum(len(r) for poly in c for r in poly)
+    if t in ("LineString", "MultiPoint"):
+        return len(c)
+    if t == "MultiLineString":
+        return sum(len(l) for l in c)
+    return 1 if t == "Point" else 0
+
+
 def _write_geojson(name, feature_collection, source_url, license_str, extra=None):
     os.makedirs(CACHE_DIR, exist_ok=True)
-    body = json.dumps(feature_collection, sort_keys=True).encode("utf-8")
-    sha = hashlib.sha256(body).hexdigest()
+    # P79 A1a: serialize ONCE, hash the written bytes, write the hashed bytes. The previous form
+    # hashed a sort_keys-compact dump but wrote an indent=2 dump, so no stored sha ever matched
+    # a file on disk (P78 audit F2, 14/14). indent=2 without sort_keys reproduces the existing
+    # cache byte-for-byte, so this is byte-compatible with every committed boundary file.
+    body = json.dumps(feature_collection, indent=2)
+    sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
     with open(os.path.join(CACHE_DIR, name + ".geojson"), "w", encoding="utf-8") as f:
-        json.dump(feature_collection, f, indent=2)
+        f.write(body)
     prov = {"file": name + ".geojson", "source_url": source_url, "license": license_str,
             "fetched_at": datetime.now(timezone.utc).isoformat(), "sha256": sha, "boundary": ADVISORY}
     if extra:
@@ -121,7 +148,7 @@ def cache_orlando():
     for feat in feats:
         district = (feat.get("properties") or {}).get("HistoricDistricts", "district")
         one = {"type": "FeatureCollection", "features": [feat]}
-        vtx = len((feat.get("geometry") or {}).get("coordinates", [[]])[0])
+        vtx = _vertex_count(feat)
         m = _write_geojson("hist_" + _slug(district), one, HISTORIC_LAYER, HISTORIC_LICENSE,
                            extra={"district": district, "vertices": vtx, "layer": "OrlandoHistoricLocalDistricts/0"})
         m["district"] = district
@@ -136,7 +163,7 @@ def cache_orlando():
     if zfc.get("features"):
         z = zfc["features"][0]
         zoning = (z.get("properties") or {}).get("Zoning", "zoning")
-        vtx = len((z.get("geometry") or {}).get("coordinates", [[]])[0])
+        vtx = _vertex_count(z)
         m = _write_geojson("zoning_" + _slug(zoning) + "_lake_eola",
                            {"type": "FeatureCollection", "features": [z]}, ZONING_LAYER, ZONING_LICENSE,
                            extra={"zoning": zoning, "vertices": vtx, "at_point": [lon, lat],
@@ -171,7 +198,98 @@ def resolve(address):
             print(f"[{label}] query failed: {type(exc).__name__}: {exc}")
 
 
+def rehash_from_disk(cache_dir=None):
+    """P79 A1b: repair the F2 defect. Re-stamp MANIFEST.json + every provenance sidecar from the
+    bytes actually on disk (and re-count vertices with _vertex_count). No network. Returns the
+    number of files re-stamped."""
+    cache_dir = cache_dir or CACHE_DIR
+    man_path = os.path.join(cache_dir, "MANIFEST.json")
+    with open(man_path, encoding="utf-8") as f:
+        man = json.load(f)
+    for rec in man.get("files", []):
+        gj = os.path.join(cache_dir, rec["name"] + ".geojson")
+        with open(gj, "rb") as f:
+            raw = f.read()
+        rec["sha256"] = hashlib.sha256(raw).hexdigest()
+        rec["vertices"] = _vertex_count(json.loads(raw.decode("utf-8")))
+        prov_path = os.path.join(cache_dir, rec["name"] + ".provenance.json")
+        if os.path.exists(prov_path):
+            with open(prov_path, encoding="utf-8") as f:
+                prov = json.load(f)
+            prov["sha256"] = rec["sha256"]
+            prov["vertices"] = rec["vertices"]
+            prov["rehashed_from_disk"] = datetime.now(timezone.utc).date().isoformat()
+            with open(prov_path, "w", encoding="utf-8") as f:
+                json.dump(prov, f, indent=2)
+    man["rehashed_from_disk"] = datetime.now(timezone.utc).date().isoformat()
+    with open(man_path, "w", encoding="utf-8") as f:
+        json.dump(man, f, indent=2)
+    return len(man.get("files", []))
+
+
+def selftest():
+    """Offline. Proves the writer's stored sha is the sha of the file it wrote (fails on the
+    pre-P79 writer by construction), that _vertex_count counts every ring, and that
+    rehash_from_disk restores agreement after a corrupted sidecar."""
+    import tempfile
+    global CACHE_DIR
+    checks = []
+    ok = lambda name, cond: checks.append((name, bool(cond)))
+    ring_outer = [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]
+    ring_hole = [[0.2, 0.2], [0.2, 0.4], [0.4, 0.4], [0.2, 0.2]]
+    fc = {"type": "FeatureCollection", "features": [{"type": "Feature",
+          "properties": {"HistoricDistricts": "Fixture"},
+          "geometry": {"type": "Polygon", "coordinates": [ring_outer, ring_hole]}}]}
+    ok("_vertex_count counts every ring (5 + 4 = 9)", _vertex_count(fc) == 9)
+    ok("_vertex_count handles MultiPolygon", _vertex_count(
+        {"type": "MultiPolygon", "coordinates": [[ring_outer], [ring_outer, ring_hole]]}) == 14)
+    ok("_vertex_count degrades to 0 on an empty geometry", _vertex_count({}) == 0)
+    saved = CACHE_DIR
+    with tempfile.TemporaryDirectory() as td:
+        CACHE_DIR = td
+        try:
+            m = _write_geojson("fixture", fc, "https://example.com/layer/0", "fixture license",
+                               extra={"vertices": _vertex_count(fc)})
+            with open(os.path.join(td, "fixture.geojson"), "rb") as f:
+                disk = f.read()
+            ok("stored sha == sha256 of the written file bytes",
+               m["sha256"] == hashlib.sha256(disk).hexdigest())
+            with open(os.path.join(td, "fixture.provenance.json"), encoding="utf-8") as f:
+                prov = json.load(f)
+            ok("provenance sidecar carries the same sha", prov["sha256"] == m["sha256"])
+            # corrupt the sidecar + manifest, then repair from disk
+            prov["sha256"] = "0" * 64
+            with open(os.path.join(td, "fixture.provenance.json"), "w", encoding="utf-8") as f:
+                json.dump(prov, f)
+            with open(os.path.join(td, "MANIFEST.json"), "w", encoding="utf-8") as f:
+                json.dump({"files": [{"name": "fixture", "sha256": "0" * 64, "vertices": 1}]}, f)
+            n = rehash_from_disk(td)
+            with open(os.path.join(td, "MANIFEST.json"), encoding="utf-8") as f:
+                man = json.load(f)
+            with open(os.path.join(td, "fixture.provenance.json"), encoding="utf-8") as f:
+                prov2 = json.load(f)
+            ok("rehash_from_disk re-stamps the manifest sha from disk bytes",
+               n == 1 and man["files"][0]["sha256"] == hashlib.sha256(disk).hexdigest())
+            ok("rehash_from_disk re-stamps the sidecar sha", prov2["sha256"] == man["files"][0]["sha256"])
+            ok("rehash_from_disk re-counts vertices with every ring", man["files"][0]["vertices"] == 9)
+            ok("selftest wrote nothing outside the tempdir",
+               not os.path.exists(os.path.join(saved, "fixture.geojson")))
+        finally:
+            CACHE_DIR = saved
+    passed = sum(1 for _, c in checks if c)
+    for name, c in checks:
+        print(f"  [{'ok' if c else 'FAIL'}] {name}")
+    print(f"geo_source_fetch selftest: {'PASS' if passed == len(checks) else 'FAIL'} ({passed} of {len(checks)} checks)")
+    return 0 if passed == len(checks) else 1
+
+
 def main(argv):
+    if "--selftest" in argv:
+        return selftest()
+    if "--rehash-from-disk" in argv:
+        n = rehash_from_disk()
+        print(json.dumps({"rehashed_from_disk": n, "cache_dir": CACHE_DIR}))
+        return 0
     if "--cache-orlando" in argv:
         cache_orlando()
         return 0
