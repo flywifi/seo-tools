@@ -512,7 +512,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes 8 tools: cache_query, competitor_scan, source_staleness, drift_check, quality_score, add_competitor, get_capabilities, get_connectors. Enable by setting mcp_server: true in creator-os-config.local.json.",
+      "auth_note": "none — stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes the full tool set (count_truth.py mcp_tools; every tool carries readOnlyHint/destructiveHint annotations). Runs on the mcp 2.x SDK and still starts on an existing 1.x install. Enable by setting mcp_server: true in creator-os-config.local.json.",
       "requires_capability": "mcp_server",
       "deployment_support": [
         "option_a_claude_desktop_mcp"

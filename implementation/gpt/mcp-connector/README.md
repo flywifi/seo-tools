@@ -19,6 +19,9 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
   <token>`, constant-time compared, 401 otherwise) in addition to whatever the proxy enforces.
 - A loopback bind (`--host 127.0.0.1`, the documented pattern) needs no token: the proxy in front
   is the auth boundary.
+- A loopback bind behind a proxy DOES need `--allowed-host YOUR-HOST` (or `remote_mcp_allowed_hosts`
+  in the local config): the SDK's DNS-rebinding protection otherwise rejects the proxied Host header
+  with 421. See "Start the server" below.
 
 ## What YOU must provide
 
@@ -38,8 +41,15 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
 ## Start the server (behind the proxy, never directly exposed)
 
 ```bash
-python3 tools/mcp_server.py --serve-remote --host 127.0.0.1 --port 8080
+python3 tools/mcp_server.py --serve-remote --host 127.0.0.1 --port 8080 --allowed-host YOUR-HOST
 ```
+
+`--allowed-host` (repeatable) or `remote_mcp_allowed_hosts` (a list) in `creator-os-config.local.json`
+names the public hostname your proxy forwards in the Host header. The MCP SDK (1.28 onwards and 2.x
+alike) enables DNS-rebinding protection for a loopback bind and allow-lists only loopback, so without
+this every proxied request is answered `421 Invalid Host header` after the bearer gate has passed.
+The server prints a warning at startup when no allowed host is configured. Direct loopback clients
+keep working either way.
 
 The proxy terminates TLS and auth, then forwards to 127.0.0.1:8080. Capability flags and consent
 gates are enforced HERE, on this machine, for every surface that connects.
