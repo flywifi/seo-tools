@@ -641,7 +641,7 @@
         "dep-moviepy",
         "dep-opencv-headless"
       ],
-      "reason": "P36: validated tool versions reconciled by dependency_currency.py but not previously on the currency map; review on a dependency major bump"
+      "reason": "P36: the validated-run record; its versions are transcribed by hand into the registry's validated_version (dependency_currency reads the registry, not this file); review on a dependency major bump"
     },
     {
       "file": "docs/video-tooling-scores.json",

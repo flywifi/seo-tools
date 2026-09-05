@@ -53,8 +53,11 @@ baseline and the exact check URL) and exit 0 — they never fabricate a version 
 - **GitHub-hosted tool / MCP server** -> GitHub Releases API (`api.github.com/repos/<o>/<r>/releases/latest`): tag + publish date. Uses `GITHUB_TOKEN` when present.
 - **system binary / no feed** (ffmpeg, Resolve, Compressor, CommandPost, Apple FCPXML) -> advisory: the entry records the validated version, the pinned constraint, and the release URL to check by hand.
 
-Baselines come from `requirements-*.txt` (the pin), `docs/video-tooling-integration-evidence.json`
-(the validated version), and `shared/connectors/connectors.json` (the MCP servers).
+Baselines live in the registry: `pinned_constraint` is transcribed from `requirements-*.txt` and
+`validated_version` from the last validated run (`docs/video-tooling-integration-evidence.json`),
+both via `source_currency update-source`. The checker reads only those two registry fields; drift
+invariant 25 keeps `pinned_constraint` equal to the requirements specifier.
+`shared/connectors/connectors.json` supplies the connector ids an MCP entry protects, never versions.
 
 ## Adding a new source or dependency
 
@@ -114,8 +117,9 @@ tool-mcp 14d, niche authority 30d, mcp-server 30d, ai-surface-spec 30d, software
 rate-benchmark / cost-vendor 90d, legal-authority 180d, competitor-page 3d. A category override wins
 over a per-entry value at seed time; `os-platform` (P55, the macOS/OS facts) deliberately has no
 override, so its per-entry `check_interval_days` values (60d for Homebrew formulae up to 365d for
-PEP 668) apply as declared. A per-entry `check_interval_days` also governs dependency freshness
-precisely (dependency_currency reads it directly).
+PEP 668) apply as declared. Dependency entries are checked on every `dependency_currency` run
+regardless of `check_interval_days`; the interval governs only the generic `source_currency` report
+grouping.
 
 ## Weekly automation
 

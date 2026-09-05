@@ -114,9 +114,12 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   discoveries.
 - `tools/dependency_currency.py` is the token-free version-drift checker for pip packages, system
   binaries, and MCP servers (categories `software-dependency`, `mcp-server`): it queries PyPI and
-  GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and reconciles against
-  `requirements-*.txt`, the validated versions in `docs/video-tooling-integration-evidence.json`,
-  and `shared/connectors/connectors.json`. `report`/`check` are read-only; `check --apply` stamps
+  GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and computes drift from each
+  registry entry's own `validated_version` and `pinned_constraint`. Those two fields are the only
+  baselines it reads; they are transcribed by hand from `requirements-*.txt` and from the
+  validated-run record `docs/video-tooling-integration-evidence.json` via `source_currency
+  update-source`, and drift invariant 25 fails the build when a requirements specifier and the
+  registry pin disagree. `report`/`check` are read-only; `check --apply` stamps
   `last_checked`/`latest_seen` for reachable entries via `registry_io` so routine currency
   maintenance runs with no model tokens. Binary/manual entries degrade to advisory.
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and

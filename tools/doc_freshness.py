@@ -29,6 +29,10 @@ DOC_SOURCES = {
         "tools/handoff/queue.py",
         "shared/cross-modality/transitions.json",
     ],
+    "docs/CURRENCY.md": [   # P80 A4: the dependency-checker contract drifted from this doc for a full year unnoticed
+        "tools/dependency_currency.py",
+        "tools/source_currency.py",
+    ],
     "tools/publishing/MAINTAINER_README.md": [
         "tools/publishing/__init__.py",
         "tools/publishing/youtube.py",

@@ -8,6 +8,12 @@
         "shared/cross-modality/transitions.json": "c1a04ce3a9faa0194591b9246f9aaac8c1204ab7d7bfb0eed12444b29e8496e0"
       }
     },
+    "docs/CURRENCY.md": {
+      "sources": {
+        "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
+        "tools/source_currency.py": "cbbd2f7e784aa107aee6bae4f438fc5ea4ba5fafc41a9a197883e6f500adc190"
+      }
+    },
     "tools/publishing/MAINTAINER_README.md": {
       "sources": {
         "tools/publishing/__init__.py": "d82eb23a9309b0301b62b6ea5be815274562fa46dd54a1a1f8c96e75938fec34",

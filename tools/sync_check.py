@@ -53,7 +53,7 @@ Invariants enforced:
       connector in connectors.json has a matching software-dependency / mcp-server entry in
       source-registry.json, so no dependency ships untracked by the currency system.
   24. Task-tracker integrity (P35): tasks store schema/flags stay coherent.
-  25. Currency-map integrity (P36): the data-currency map parses and its sources resolve.
+  25. Currency-map integrity (P36): the data-currency map parses and its sources resolve; tier vocabulary, files[] schema and coverage (P79); requirements pin equals registry pin (P80).
   26. Knowledge-only-surface freshness projection (P36): the packaged freshness bundle stays
       consistent with the registry digest.
   27. Jurisdictional-overlay bucket integrity (P37, optional): overlay buckets are well-formed.
@@ -741,6 +741,21 @@ def check_connector_capability_mapping():
                 f"requires_capability '{cap}' is not mapped in connectors.py "
                 f"CAPABILITY_TO_CONNECTOR"
             )
+
+
+def _requirement_lines():
+    """name -> (file:line, specifier) for every non-comment line of requirements-*.txt. P80 A2:
+    the specifier IS the pin as written; invariant 23 reads names only, this reads the rest."""
+    out = {}
+    for f in sorted(ROOT.glob("requirements-*.txt")):
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            s = line.split("#", 1)[0].strip()
+            if not s or s.startswith("-"):
+                continue
+            m = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*(.*)$", s)
+            if m:
+                out[m.group(1).lower().replace("_", "-")] = (f"{f.name}:{i}", m.group(3).replace(" ", ""))
+    return out
 
 
 def check_dependency_registry():
@@ -1468,8 +1483,10 @@ def check_currency_map():
     to their upstream source. P79 widened it in place (no new invariant number): every registry tier is
     in T1|T2|T3; every files[] entry has a known status, exists on disk, and carries the fields its
     class requires (watched->watched_by, dated->review_cadence_days, tool-managed->managed_by); and
-    every tracked canonical-sources file is either mapped or excused in _infrastructure. No-op when the
-    currency map or registry is absent."""
+    every tracked canonical-sources file is either mapped or excused in _infrastructure. P80 widened it
+    again in place: every software-dependency entry's pinned_constraint equals the specifier on its
+    requirements-*.txt line (dependency_currency reads only that field, so a divergent pin silently
+    disables out-of-pin detection). No-op when the currency map or registry is absent."""
     cmap_path = ROOT / "canonical-sources" / "data-currency-map.json"
     reg_path = ROOT / "canonical-sources" / "source-registry.json"
     if not cmap_path.exists() or not reg_path.exists():
@@ -1509,6 +1526,21 @@ def check_currency_map():
         if isinstance(s, dict) and s.get("tier") not in ("T1", "T2", "T3"):
             problem(f"currency-map: source '{s.get('id')}' has tier {s.get('tier')!r}; the vocabulary "
                     f"is T1|T2|T3 (fix via source_currency update-source --tier)")
+    # P80 A2: the pin chain. dependency_currency reads ONLY the entry's pinned_constraint (never the
+    # requirements files), so a specifier the registry does not mirror silently disables out-of-pin
+    # detection for that package. Data fix: source_currency update-source --pinned-constraint.
+    reqs = _requirement_lines()
+    for s in reg.get("sources", []):
+        if not isinstance(s, dict) or s.get("category") != "software-dependency" or not s.get("package"):
+            continue
+        hit = reqs.get(str(s["package"]).lower().replace("_", "-"))
+        if hit is None:
+            continue
+        loc, spec = hit
+        pin = (s.get("pinned_constraint") or "").replace(" ", "")
+        if spec != pin:
+            problem(f"currency-map: dependency '{s['id']}' pinned_constraint {pin!r} disagrees with {loc} "
+                    f"({spec!r}); fix via source_currency update-source {s['id']} --pinned-constraint '{spec}'")
     # P79 F2: the six blind spots of the original check (P78 audit F9). Same invariant, wider.
     valid_status = {"watched", "dated", "static", "tool-managed"}
     base = ROOT / "canonical-sources"

@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-04",
+  "last_registry_update": "2026-09-05",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5060,7 +5060,7 @@
       "package": "faster-whisper",
       "upstream_api": "github_releases",
       "check_url": "https://api.github.com/repos/SYSTRAN/faster-whisper/releases/latest",
-      "pinned_constraint": "",
+      "pinned_constraint": ">=1.0",
       "validated_version": null,
       "_why": "Optional local STT backend for content-import completion; default on Windows/Linux and Intel Mac"
     },
@@ -6244,5 +6244,5 @@
       "min_recheck_at": 739863
     }
   ],
-  "_content_digest": "45cf4cb7d36baadb72c4652edc5613b433c38b44cf408f066d6b6c1ce3b24294"
+  "_content_digest": "327a78bf4100d3a30321c902eff3b4f44ab923e46122d555b5dac7abaaffbf8a"
 }

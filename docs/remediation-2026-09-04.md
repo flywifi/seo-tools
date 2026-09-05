@@ -185,9 +185,9 @@ hint records the validation scope in words.
 - No new numbered invariants; no interval re-band; no tag; no PR; no edits to any data file downstream
   of a changed source (every changed page was read and verdicted instead).
 - Invariant 45 stays advisory (section 3).
-- The mcp 2.0 port is deferred with its checklist (section 4.2).
+- The mcp 2.0 port is planned as P80 with its checklist corrected: verified against the SDK source, `mcp.types` is a permanent alias and camelCase kwargs still construct, and `_tool_manager._tools` is unchanged; the real breaks are the `settings.host/port` assignment (swallowed by a bare except) and the app factory's DNS-rebinding default (421 to a proxied Host header).
 - `mcp-stats-compass` stays without a baseline, with the reason recorded on the entry.
-- **New finding, recorded for the maintainer:** `CLAUDE.md` (and its projection `AGENTS.md`) state that
+- **New finding, recorded for the maintainer (closed in P80):** `CLAUDE.md` states (AGENTS.md narrows the same block and never carried the sentence) that
   `tools/dependency_currency.py` reconciles against the requirements files, the evidence file, and the
   connector registry. The tool reads only the registry's own `validated_version` and `pinned_constraint`
   fields; it opens none of those three files. The registry fields are therefore the single source of
