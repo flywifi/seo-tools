@@ -70,6 +70,46 @@ describes everything in the tree above the baseline, and the tag itself is still
   versions installed in a scratch venv; `requirements-videoedit.txt` pins numpy below 2.5 because 2.5
   drops the Python 3.11 the video tooling was validated on.
 
+- P80 (`docs/adr/0055-p80-python-312-and-mcp-dual-major.md`): drift invariant 25 fails the build when a
+  `requirements-*.txt` specifier and the registry entry's `pinned_constraint` disagree, so the dependency
+  checker's out-of-pin math can no longer be silently disabled by an unmirrored pin. `tools/mcp_server.py`
+  gained `--allowed-host` (and `remote_mcp_allowed_hosts` in the local config) for proxied deployments, a
+  `revalidations` record in `docs/video-tooling-integration-evidence.json`, a registry source for the
+  Homebrew `python@3.12` formula, and a doc-freshness binding for `docs/CURRENCY.md`.
+
+### Fixed
+- Three live sentences said `tools/dependency_currency.py` reconciles against the requirements files, the
+  evidence file, and the connector registry, or reads `check_interval_days`; it reads only the registry's
+  `validated_version` and `pinned_constraint`. CLAUDE.md, docs/CURRENCY.md, and traversal-config.json now
+  say what the tool does. The P79 record wrongly said AGENTS.md carried the sentence and wrongly listed
+  `mcp.types` and `_tool_manager._tools` as mcp 2.x breaks.
+- `dep-faster-whisper` carried an empty pin while requirements-transcribe.txt says `>=1.0`.
+- CI had been red on every run since 2026-08-16: the fcpxml selftest accepted only xmllint's validation
+  levels, and the GitHub runner has no xmllint. It now expects the level the installed tool can reach.
+- The skill-package manifest hashed gitignored `__pycache__` output, so running a skill's script under a
+  second interpreter moved a hash with no source change; it hashes tracked files.
+- The macOS launcher accepted any interpreter that could `import sys`; it requires 3.12 or newer and
+  falls through to the install instructions otherwise. `tools/setup.py` enforces the same floor.
+- The MCP server discarded `--host` and `--port` under the 2.x SDK (a bare except swallowed the settings
+  assignment); host and port now reach `run()` explicitly in both majors.
+- The documented proxied MCP deployment (loopback bind behind a reverse proxy) was answered 421 by the
+  SDK's DNS-rebinding protection, on the shipped 1.x pin as well as 2.x; the new allow-list surface fixes
+  it in both, verified by a live bind in each.
+- The connector registry described the MCP server as exposing eight tools; the count is delegated to
+  count_truth.
+- `tools/sync_check.py` passed `maxsplit` positionally to `re.split` (a DeprecationWarning on 3.13).
+
+### Changed
+- Python floor is 3.12 and the recommended Homebrew formula is `python@3.12`: numpy 2.5 dropped 3.11, and
+  DaVinci Resolve's scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on. The
+  video tooling was re-validated on 3.12 against the P26 goldens (numpy 2.5.2, av 18.1.0, scenedetect
+  0.7.1) after a control run on the original versions reproduced the synthetic media byte for byte;
+  `requirements-videoedit.txt` pins `numpy>=2.5,<3` and `av>=18,<19`.
+- `tools/mcp_server.py` runs on the mcp 2.x SDK (`MCPServer`) while still starting under an existing 1.x
+  install (`FastMCP`); six file-writing tools are serialised behind one lock because 2.x runs synchronous
+  handlers on worker threads, and `configure_tool` writes the local config atomically.
+  `requirements-mcp.txt` pins `mcp>=2,<3`.
+
 ## [0.2.0] - 2026-08-16
 
 ### Added

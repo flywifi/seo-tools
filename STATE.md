@@ -2,7 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P79 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P80 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P80: Remediation of the P79 residue (2026-09-05, docs/adr/0055-p80-python-312-and-mcp-dual-major.md).
+  Three researchers crawled the dependency checker, the Python version surface, and the MCP SDK
+  source before a line changed, and two proofs ran in memory for every code block. The checker docs
+  now say what the tool reads, and the pin chain they described is enforced by the drift guard (one
+  live disagreement found and fixed). The Python floor moved to 3.12 with the video tooling
+  re-validated against the P26 goldens on the new numpy, av, and scenedetect after a control run on
+  the original versions reproduced the media byte for byte; the Mac install instructions, the
+  launcher probe, and the setup floor moved together. The MCP server was ported to the 2.x SDK as a
+  dual-capable module: two silent breaks a naive rename would have shipped (host and port discarded;
+  proxied requests answered 421) were proven with a live bind in both SDK majors, and executing the
+  port showed the 421 had been there on the shipped 1.x pin all along. Executing also found and fixed
+  the reason CI had been red since 2026-08-16 (a selftest that assumed xmllint) and a package
+  manifest that hashed interpreter cache files. Not done, by decision: Python 3.13 (Resolve caps at
+  3.12), tag, PR.
 
 - P79: Remediation of the P78 findings (2026-09-04, docs/remediation-2026-09-04.md). Ten code
   commits, each planned to the point of executed proof before it was written: the GIS writer now

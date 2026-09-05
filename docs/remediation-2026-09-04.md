@@ -174,7 +174,7 @@ hint records the validation scope in words.
 | item | command on the machine that has the data or the egress |
 |---|---|
 | the 110 bot-blocked sources | `python3 tools/source_currency.py check --detect-changes --apply` from residential egress; a success clears each block record automatically |
-| av and scenedetect baselines | re-run the golden-cut check from `docs/video-tooling-integration-evidence.json` with real media (expects cuts at 60.0, 150.0, 240.0, 330.0), then `update-source dep-av --validated-version 18.1.0` and `update-source dep-scenedetect --validated-version 0.7.1` |
+| av and scenedetect baselines | done in P80 from the sandbox: the synthetic-media recipe reproduced the 2026-07-03 encode byte for byte, and the golden probes passed on av 18.1.0 and scenedetect 0.7.1 under Python 3.12 (`revalidations` in the evidence file); both stamped |
 | scoop cache baseline | `python3 tools/hash_audit.py` reports the local baseline as report-only MISMATCH (entries legitimately changed since the last build); `python3 shared/cache/cache.py --build` re-baselines |
 | competitor index repair (P75) | `python3 tools/competitor_snapshot.py --check-og`, then `--parse`, then `--check-og` again |
 | self-release stamp | `python3 tools/update_check.py check --apply` (the releases API is blocked through this proxy) |
