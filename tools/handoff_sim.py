@@ -227,9 +227,12 @@ def main(argv) -> int:
                 return deco
             def run(self, *a, **k): pass
         fake_fast.FastMCP = FastMCP
-        fake_srv = types.ModuleType("mcp.server"); fake_srv.fastmcp = fake_fast
+        # P80: mcp_server tries the 2.x name first (mcp.server.mcpserver.MCPServer); stub both arms.
+        fake_mcps = types.ModuleType("mcp.server.mcpserver"); fake_mcps.MCPServer = FastMCP
+        fake_srv = types.ModuleType("mcp.server"); fake_srv.fastmcp = fake_fast; fake_srv.mcpserver = fake_mcps
         fake_mcp = types.ModuleType("mcp"); fake_mcp.server = fake_srv
-        sys.modules.update({"mcp": fake_mcp, "mcp.server": fake_srv, "mcp.server.fastmcp": fake_fast})
+        sys.modules.update({"mcp": fake_mcp, "mcp.server": fake_srv, "mcp.server.fastmcp": fake_fast,
+                            "mcp.server.mcpserver": fake_mcps})
         ms = importlib.import_module("mcp_server")
         out = json.loads(ms.obligation_build({"obligations": ROWS_A}, today=TODAY))
         check("H1 MCP obligation_build returns computed register (no write by default)", out["obligation_count"] == 3 and "_written" not in out)
