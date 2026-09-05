@@ -19,7 +19,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # Choose an interpreter: prefer the private .venv toolbox (created during setup); otherwise find a
 # real, working python3 (the built-in /usr/bin/python3 is only a stub until the Command Line Tools
-# are installed). We probe each candidate with a tiny import to confirm it actually works.
+# are installed). We probe each candidate with a tiny import to confirm it actually works and
+# that it is Python 3.12 or newer (the repo floor since P80: numpy 2.5 dropped 3.11, and the
+# DaVinci Resolve scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on).
 #
 # The .venv is probed like every other candidate, NOT trusted for existing. A Homebrew python
 # upgrade (python@3.13 -> python@3.14) relocates the framework the venv symlinks into: the
@@ -28,7 +30,7 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 # never tried, and the user got a dyld / "No module named encodings" traceback instead of the
 # install instructions below -- defeating the entire point of this launcher (P73 D6-F10).
 PY=""
-if [ -x ".venv/bin/python3" ] && .venv/bin/python3 -c 'import sys' >/dev/null 2>&1; then
+if [ -x ".venv/bin/python3" ] && .venv/bin/python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 12) else 1)' >/dev/null 2>&1; then
   PY=".venv/bin/python3"
 else
   if [ -x ".venv/bin/python3" ]; then
@@ -40,7 +42,7 @@ else
   for c in /opt/homebrew/bin/python3 /usr/local/bin/python3 \
            /Library/Frameworks/Python.framework/Versions/Current/bin/python3 \
            "$(command -v python3 2>/dev/null)"; do
-    if [ -n "$c" ] && [ -x "$c" ] && "$c" -c 'import sys' >/dev/null 2>&1; then
+    if [ -n "$c" ] && [ -x "$c" ] && "$c" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 12) else 1)' >/dev/null 2>&1; then
       PY="$c"
       break
     fi
@@ -51,11 +53,12 @@ if [ -n "$PY" ]; then
   "$PY" tools/wizard.py
 else
   echo ""
-  echo "Python 3 is not installed on this Mac (the built-in 'python3' is only a stub)."
+  echo "Python 3.12 or newer was not found on this Mac (the built-in 'python3' is only a stub,"
+  echo "and an older Python is skipped on purpose: Creator OS needs 3.12)."
   echo "Install it once, then double-click this file again:"
   echo "  - Easiest: the notarized python.org universal2 installer (no security prompt):"
   echo "      https://www.python.org/downloads/macos/"
-  echo "  - Or install Homebrew (https://brew.sh), then run: brew install python@3.13"
+  echo "  - Or install Homebrew (https://brew.sh), then run: brew install python@3.12"
   echo ""
   read -n 1 -s -r -p "Press any key to close this window."
 fi

@@ -1594,8 +1594,8 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": "2026-08-30",
+      "last_checked": "2026-09-05",
+      "last_changed_detected": "2026-09-05",
       "extraction_hint": "SDK release notes for transport/auth and tool-registration API changes tracked to the MCP spec",
       "used_by": [
         "tools/mcp_server.py",
@@ -1623,7 +1623,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": "2026-08-30",
       "extraction_hint": "ContentDetector / scene_manager API changes; the get_seconds()->seconds rename in 0.7",
       "used_by": [
@@ -1638,7 +1638,7 @@
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/scenedetect/json",
       "pinned_constraint": ">=0.7,<0.8",
-      "validated_version": "0.7",
+      "validated_version": "0.7.1",
       "_why": "pinned >=0.7,<0.8; a 0.8/major bump renames API (get_seconds->seconds shim precedent) and breaks scene detection",
       "latest_seen": "0.7.1",
       "latest_seen_date": "2026-07-22"
@@ -1651,7 +1651,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "breaking renames; removal of moviepy.editor; a v3 major",
       "used_by": [
@@ -1679,7 +1679,7 @@
       "tier": "T1",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "schema version bumps; adapter packaging (adapters split into separate pip packages since 0.17/0.18)",
       "used_by": [
@@ -1708,7 +1708,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "adapter API/compat with the installed opentimelineio core",
       "used_by": [
@@ -1736,7 +1736,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "early 0.0.x adapter; API is unstable, watch every release",
       "used_by": [
@@ -1764,7 +1764,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": "2026-08-30",
       "extraction_hint": "libav/ffmpeg ABI compatibility; a major that drops an ffmpeg series",
       "used_by": [
@@ -1777,8 +1777,8 @@
       "package": "av",
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/av/json",
-      "pinned_constraint": "",
-      "validated_version": "18.0.0",
+      "pinned_constraint": ">=18,<19",
+      "validated_version": "18.1.0",
       "_why": "windowed-RMS silence backend; PyAV tracks the ffmpeg ABI, so an ffmpeg bump can force a PyAV bump",
       "latest_seen": "18.1.0",
       "latest_seen_date": "2026-08-12"
@@ -1791,7 +1791,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "the backend PySceneDetect uses; a major that changes cv2 imports",
       "used_by": [
@@ -1818,9 +1818,9 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv), plus a real Chromium launch and page render via executable_path (the bundled build revision was not preinstalled)",
+      "extraction_hint": "bundled Chromium version and the sync API surface used by acquire.py; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv), plus a real Chromium launch and page render via executable_path (the bundled build revision was not preinstalled); re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "tools/acquire.py",
         "tools/competitor_snapshot.py"
@@ -1846,9 +1846,9 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "stable HTTP client; only a major (3.x) matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
+      "extraction_hint": "stable HTTP client; only a major (3.x) matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv); re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "tools/fetch_resilient.py",
         "tools/acquire.py"
@@ -1874,9 +1874,9 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "encoding detection used by the fetch stack; only a major matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
+      "extraction_hint": "encoding detection used by the fetch stack; only a major matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv); re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "tools/fetch_resilient.py"
       ],
@@ -1901,9 +1901,9 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
+      "extraction_hint": "HTML parse API used by the competitor metadata parser; only a major matters; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv); re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "tools/parse_competitor_meta.py",
         "tools/fetch_diag.py"
@@ -2191,7 +2191,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "the 50+ pandas tool names for t-tests/ANOVA/chi-square",
       "used_by": [
@@ -5097,7 +5097,7 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
       "extraction_hint": "process_words/process_characters API; RapidFuzz backend changes",
       "used_by": [
@@ -5126,9 +5126,9 @@
       "tier": "T3",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
+      "extraction_hint": "relativedelta / rrule API changes affecting recurrence and due-date math; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv); re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "tools/tasks.py",
         "task-plan"
@@ -5154,7 +5154,7 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": "2026-08-30",
       "extraction_hint": "major dtype/API changes; NumPy 2.x ABI break vs opencv/moviepy wheels",
       "used_by": [
@@ -5168,8 +5168,8 @@
       "package": "numpy",
       "upstream_api": "pypi",
       "check_url": "https://pypi.org/pypi/numpy/json",
-      "pinned_constraint": ">=2.4,<2.5",
-      "validated_version": "2.4.6",
+      "pinned_constraint": ">=2.5,<3",
+      "validated_version": "2.5.2",
       "_why": "import-guarded in mediaprobe.py and pulled transitively by opencv/moviepy; pinning it explicitly keeps the videoedit stack ABI-consistent for the default install",
       "latest_seen": "2.5.2",
       "latest_seen_date": "2026-08-09"
@@ -5182,9 +5182,9 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv), extension loaded and vec_version() answered",
+      "extraction_hint": "vec0 virtual-table / loadable-extension API changes affecting the semantic cache; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv), extension loaded and vec_version() answered; re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "shared/cache/semantic.py",
         "web_intel"
@@ -5210,9 +5210,9 @@
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-05",
       "last_changed_detected": null,
-      "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv)",
+      "extraction_hint": "safe_load / loader API changes affecting SKILL.md frontmatter parsing in the drift guard; validated 2026-09-04: full selftest sweep and drift guard green under this version (Python 3.11.15, scratch venv); re-validated 2026-09-05 under Python 3.12.3 (P80 B2 sweep)",
       "used_by": [
         "tools/sync_check.py",
         "mcp_server"
@@ -5596,14 +5596,14 @@
     {
       "id": "homebrew-formula-python-tk",
       "name": "Homebrew formula - python-tk",
-      "url": "https://formulae.brew.sh/formula/python-tk@3.13",
+      "url": "https://formulae.brew.sh/formula/python-tk@3.12",
       "category": "os-platform",
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
-      "extraction_hint": "The separate tkinter formula for Homebrew Python (the folder-picker dependency) + version. URL is version-pinned; re-point when Homebrew's default Python moves past 3.13.",
+      "extraction_hint": "The separate tkinter formula for Homebrew Python (the folder-picker dependency) + version. URL is version-pinned; re-pointed to @3.12 in P80 because the repo's recommended interpreter is 3.12 (Resolve ceiling); re-point again when that recommendation moves.",
       "used_by": [
         "docs/MACOS-MAINTENANCE.md"
       ],
@@ -6242,7 +6242,31 @@
       "content_etag": "\"6a9b19e3-774ae\"",
       "content_last_modified": "Fri, 04 Sep 2026 19:20:03 GMT",
       "min_recheck_at": 739863
+    },
+    {
+      "id": "homebrew-formula-python-3-12",
+      "name": "Homebrew formula python@3.12",
+      "url": "https://formulae.brew.sh/formula/python@3.12",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 90,
+      "last_checked": "2026-09-05",
+      "last_changed_detected": null,
+      "extraction_hint": "the recommended Creator OS interpreter on macOS; watch the deprecation flag and dates (formula API on 2026-09-05: stable 3.12.14, deprecated false, deprecation_date 2028-11-01, disable_date 2029-11-01; python@3.13 is 2029-11-01 / 2030-11-01); DaVinci Resolve's scripting bridge caps at 3.12",
+      "used_by": [
+        "docs/SETUP_MAC.md",
+        "tools/setup.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "content_sha256": "9eac94884f88e6222e786750faedb060b11197208af5dabd94d41d5cdbffc142",
+      "content_etag": "\"6a9c9baa-323b\"",
+      "content_last_modified": "Sat, 05 Sep 2026 22:46:02 GMT",
+      "min_recheck_at": 739864
     }
   ],
-  "_content_digest": "327a78bf4100d3a30321c902eff3b4f44ab923e46122d555b5dac7abaaffbf8a"
+  "_content_digest": "fa844fd6c8c48e17f2985d8169016403db82f16136690dc62762460d04d59680"
 }

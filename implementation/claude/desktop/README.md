@@ -16,7 +16,7 @@ knowledge-only setup can match:
 
 ## Prerequisites
 
-Python 3.11 or later.
+Python 3.12 (see `docs/SETUP_MAC.md` for why 3.12 and not newer).
 
 Recommended (installs every dependency into a private `.venv` toolbox, so a Homebrew Python's
 install lock never blocks it):

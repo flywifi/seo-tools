@@ -188,8 +188,9 @@ def run_install_deps(as_json: bool = False) -> int:
 
 def check_python() -> None:
     major, minor = sys.version_info[:2]
-    if (major, minor) < (3, 11):
-        _say(f"ERROR: Python 3.11 or later required (you have {major}.{minor}).")
+    if (major, minor) < (3, 12):
+        _say(f"ERROR: Python 3.12 or later required (you have {major}.{minor}); numpy 2.5 and the "
+             f"video tooling are validated on 3.12, and Resolve's scripting bridge caps at 3.12.")
         sys.exit(1)
     _ok(f"Python {major}.{minor}")
 
@@ -207,13 +208,13 @@ def check_platform() -> None:
         if result.stdout.strip() == "1":
             _say("  [warn] Python is running under Rosetta (x86_64 emulation on arm64 hardware).")
             _say("         For best performance, install a native arm64 Python via Homebrew:")
-            _say("           brew install python@3.13")
+            _say("           brew install python@3.12")
             _say("         Then rerun: /opt/homebrew/bin/python3 tools/setup.py")
             return
     _say("  macOS tips:")
     _say("    If 'python3' is not found, install the python.org universal2 .pkg (notarized, Tk")
     _say("    bundled), or via Homebrew (https://brew.sh):")
-    _say("      brew install python@3.13")
+    _say("      brew install python@3.12")
     _say("    After installing requirements-render.txt, run once to fetch arm64 Chromium:")
     _say("      python3 -m playwright install chromium")
 

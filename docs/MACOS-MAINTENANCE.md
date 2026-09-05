@@ -91,7 +91,8 @@ full seed shape (`id`, `name`, `url`, `category`, `tier`); an already-registered
   {"id": "apple-local-network-privacy-tn3179", "url": "https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy"},
   {"id": "apple-local-network-privacy-faq", "url": "https://developer.apple.com/forums/thread/660260"},
   {"id": "homebrew-formula-whisper-cpp", "url": "https://formulae.brew.sh/formula/whisper-cpp"},
-  {"id": "homebrew-formula-python-tk", "url": "https://formulae.brew.sh/formula/python-tk@3.13"},
+  {"id": "homebrew-formula-python-tk", "url": "https://formulae.brew.sh/formula/python-tk@3.12"},
+  {"id": "homebrew-formula-python-3-12", "name": "Homebrew formula python@3.12", "url": "https://formulae.brew.sh/formula/python@3.12", "category": "os-platform", "tier": "T1", "check_interval_days": 60, "staleness_threshold_days": 90, "extraction_hint": "the recommended Creator OS interpreter on macOS; watch the deprecation flag and dates (formula API on 2026-09-05: stable 3.12.14, deprecated false, deprecation_date 2028-11-01, disable_date 2029-11-01; python@3.13 is 2029-11-01 / 2030-11-01); DaVinci Resolve's scripting bridge caps at 3.12", "used_by": ["docs/SETUP_MAC.md", "tools/setup.py"]},
   {"id": "whisper-cpp-ggml-models-hf", "url": "https://huggingface.co/ggerganov/whisper.cpp"},
   {"id": "mcp-connect-local-servers", "url": "https://modelcontextprotocol.io/docs/develop/connect-local-servers"},
   {"id": "claude-desktop-local-mcp", "url": "https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop"},
@@ -171,7 +172,7 @@ the `verify:` markers pointing at real symbols and the `sources` block above in 
 
 **"No module named encodings" or a dyld error when double-clicking the launcher.**
 Cause: the private `.venv` was built against a Homebrew Python that has since moved
-(`brew upgrade python@3.13` to `python@3.14` relocates the framework the venv symlinks into).
+(`brew upgrade python@3.12` to `python@3.13` relocates the framework the venv symlinks into).
 The interpreter file still exists and is still executable, so an existence test cannot detect
 this. `Start Creator OS Setup.command` therefore *probes* `.venv/bin/python3` with a real import
 before trusting it, and falls through to a working system Python with a printed note when the

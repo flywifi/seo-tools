@@ -27,7 +27,8 @@ detection, and deterministic quality scoring via the MCP server.
 
 ### Which macOS you need
 
-Creator OS itself only needs **Python 3.11 or later** (`tools/setup.py` enforces that floor), and it
+Creator OS needs **Python 3.12** (`tools/setup.py` enforces that floor; numpy 2.5 dropped 3.11, and
+DaVinci Resolve's scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on), and it
 does not check your macOS version. The practical floor comes from **Homebrew**, whose documentation
 states it supports **macOS Sonoma (14) or later** on officially supported hardware; 10.15 to 13 are
 unsupported but may still work, and 10.14 and older will not run it. So on macOS 13 or earlier, expect
@@ -52,7 +53,7 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 ### Step 2 -- Install Python and Git
 
 ```bash
-brew install python@3.13 git
+brew install python@3.12 git
 ```
 
 Verify:
@@ -228,7 +229,7 @@ export WHISPER_CPP_MODEL=/path/to/ggml-small.bin
 Prefer Python instead? Use **faster-whisper**, which needs **no** system ffmpeg (it bundles PyAV):
 
 ```bash
-brew install python@3.13 && pip3 install faster-whisper
+brew install python@3.12 && pip3 install faster-whisper
 ```
 
 ### macOS notes that trip people up
@@ -242,7 +243,7 @@ brew install python@3.13 && pip3 install faster-whisper
   Sequoia and is still gone in the current **macOS 26 (Tahoe)**.
 - macOS ships **no usable `python3`** (the built-in one is a stub that pops the "command line
   developer tools" dialog). Install it via the notarized **python.org universal2 `.pkg`** (no
-  Gatekeeper prompt, Tk bundled) or Homebrew (`brew install python@3.13`). The setup wizard installs
+  Gatekeeper prompt, Tk bundled) or Homebrew (`brew install python@3.12`). The setup wizard installs
   Python dependencies into a private `.venv` toolbox, which sidesteps Homebrew Python's PEP 668
   install lock.
 - A **downloaded static ffmpeg** hits `com.apple.quarantine` ("cannot be opened because the developer
@@ -307,12 +308,12 @@ The doctor gives the machine-correct command on Windows too.
 | `whisper.cpp needs a GGML model file` | Download a `ggml-<tier>.bin` and set `WHISPER_CPP_MODEL` to its path |
 | ffmpeg "cannot be opened, developer cannot be verified" | `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or use faster-whisper (no ffmpeg needed) |
 | No STT backend found on the Import screen | `brew install whisper-cpp ffmpeg` (Apple Silicon) or `pip3 install faster-whisper` |
-| `python3: command not found` | `brew install python@3.13` then add `/opt/homebrew/bin` to PATH |
+| `python3: command not found` | `brew install python@3.12` then add `/opt/homebrew/bin` to PATH |
 | `pip3: command not found` | Use `/opt/homebrew/bin/pip3` or `python3 -m pip` |
 | `playwright install` hangs | Check network; retry with `python3 -m playwright install chromium --force` |
 | `drift guard` reports issues after `git pull` | Run `python3 tools/sync_check.py` and read the report |
 | MCP tools not appearing in Claude Desktop | Restart Claude Desktop; check that the path in `claude_desktop_config.json` is absolute |
-| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.13` then use `/opt/homebrew/bin/python3` |
+| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.12` then use `/opt/homebrew/bin/python3` |
 
 ---
 

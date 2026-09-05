@@ -103,5 +103,148 @@
       "status": "unverified",
       "detail": "No Shotcut/Kdenlive/FCP available; emitted .mlt files are verified well-formed and round-trip through mltxml.parse only."
     }
+  ],
+  "revalidations": [
+    {
+      "date": "2026-09-05",
+      "phase": "P80",
+      "environment": {
+        "os": "Linux x86_64 (remote container)",
+        "python": "3.12.3",
+        "ffmpeg": {
+          "version": "7.0.2-static",
+          "archive_sha256": "abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"
+        },
+        "pip_versions": {
+          "numpy": "2.5.2",
+          "av": "18.1.0",
+          "scenedetect": "0.7.1",
+          "opencv-python-headless": "5.0.0.93",
+          "moviepy": "2.2.1",
+          "opentimelineio": "0.18.1",
+          "otio-fcpx-xml-adapter": "1.0.0",
+          "otio-kdenlive-adapter": "0.0.3"
+        }
+      },
+      "control": {
+        "python": "3.11.15",
+        "pip_versions": "the 2026-07-03 set above",
+        "pass": true,
+        "note": "the recipe reproduced the P26 goldens on the original versions before any new version was tried; all four probes passed with the same observed values recorded in live_checks"
+      },
+      "fixture_media": {
+        "sha256": "471098437753825e1c34903743bb592bffee24991e92efae6afca7e8b683e98f",
+        "note": "regenerated from the recipe in docs/video-tooling-spike-evidence.json; byte-identical to the 2026-07-03 encode"
+      },
+      "live_checks": [
+        {
+          "id": "silence-ffmpeg",
+          "expected": [
+            [
+              92.0,
+              104.5
+            ],
+            [
+              210.0,
+              218.5
+            ],
+            [
+              300.0,
+              320.0
+            ]
+          ],
+          "observed": [
+            [
+              92.011,
+              104.512
+            ],
+            [
+              210.008,
+              218.517
+            ],
+            [
+              300.013,
+              320.021
+            ]
+          ],
+          "max_delta_seconds": 0.021,
+          "tolerance_seconds": 0.05,
+          "computed_by": "ffmpeg.silencedetect",
+          "pass": true
+        },
+        {
+          "id": "silence-pyav",
+          "expected": [
+            [
+              92.1,
+              104.5
+            ],
+            [
+              210.1,
+              218.5
+            ],
+            [
+              300.1,
+              320.0
+            ]
+          ],
+          "observed": [
+            [
+              92.1,
+              104.5
+            ],
+            [
+              210.1,
+              218.5
+            ],
+            [
+              300.1,
+              320.0
+            ]
+          ],
+          "max_delta_seconds": 0.0,
+          "tolerance_seconds": 0.05,
+          "computed_by": "pyav.rms_window",
+          "pass": true
+        },
+        {
+          "id": "scenes-pyscenedetect",
+          "expected": [
+            60.0,
+            150.0,
+            240.0,
+            330.0
+          ],
+          "observed": [
+            60.0,
+            150.0,
+            240.0,
+            330.0
+          ],
+          "max_delta_seconds": 0.0,
+          "tolerance_seconds": 0.0,
+          "computed_by": "pyscenedetect.ContentDetector",
+          "pass": true
+        },
+        {
+          "id": "scenes-ffmpeg-scdet",
+          "expected": [
+            150.0,
+            240.0,
+            330.0
+          ],
+          "observed": [
+            150.0,
+            240.0,
+            330.0
+          ],
+          "max_delta_seconds": 0.0,
+          "tolerance_seconds": 0.0,
+          "computed_by": "ffmpeg.scdet",
+          "pass": true
+        }
+      ],
+      "battery": "selftest_sweep 88 of 88 and drift guard clean under the 3.12 venv with these versions plus requests, charset-normalizer, beautifulsoup4, python-dateutil, sqlite-vec, PyYAML, playwright installed"
+    }
   ]
 }

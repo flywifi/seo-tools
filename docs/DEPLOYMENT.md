@@ -6,7 +6,7 @@ Creator OS ships in five deployment modes. Choose the one that matches your setu
 
 ## Prerequisites (all options)
 
-- Python 3.11 or later
+- Python 3.12 (floor enforced by `tools/setup.py`; numpy 2.5 and the video tooling are validated on 3.12)
 - pip install -r requirements-crawl.txt (fetch tooling: requests, charset-normalizer)
 - pip install -r requirements-scraper.txt (HTML parsing: beautifulsoup4)
 - Optional: pip install -r requirements-render.txt (Playwright, for full competitor snapshots)

@@ -59,6 +59,18 @@ both via `source_currency update-source`. The checker reads only those two regis
 invariant 25 keeps `pinned_constraint` equal to the requirements specifier.
 `shared/connectors/connectors.json` supplies the connector ids an MCP entry protects, never versions.
 
+### Re-validating the video environment (P80 checklist)
+
+1. Regenerate the synthetic media from the recipe in `docs/video-tooling-spike-evidence.json` and run
+   the four probes recorded in `docs/video-tooling-integration-evidence.json` against the goldens
+   (first on the previously validated versions as a control, then on the candidates).
+2. Append a `revalidations` entry to that evidence file (date, python, pip_versions, ffmpeg, control,
+   live_checks with expected, observed, max_delta_seconds, tolerance, pass). Never edit the original run.
+3. `python3 tools/mac_surface_manifest.py reconcile` (the file is hash-pinned).
+4. Stamp each validated library: `python3 tools/source_currency.py update-source dep-<x>
+   --validated-version <resolved>`; the requirements pin and the registry pin must agree (drift
+   invariant 25 fails the build otherwise).
+
 ## Adding a new source or dependency
 
 Never hand-edit `source-registry.json`.

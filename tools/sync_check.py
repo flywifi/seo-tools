@@ -790,7 +790,7 @@ def check_dependency_registry():
             line = line.strip()
             if not line or line.startswith("#") or line.startswith("-"):
                 continue
-            name = re.split(r"[<>=!~;\[ ]", line, 1)[0].strip()
+            name = re.split(r"[<>=!~;\[ ]", line, maxsplit=1)[0].strip()
             if name and norm(name) not in covered_packages:
                 problem(f"{req.name}: package '{name}' has no software-dependency entry in "
                         f"source-registry.json (invariant 23; add it via dependency-sources-seed.json)")

@@ -88,7 +88,7 @@ Canonical transports per `shared/connectors/connectors.json`, `docs/STATISTICS.m
 | CommandPost | commandpost_macros | vendor install | macOS only |
 | whisper GGML model weights | whisper.cpp | download once (148 to 488 MB per tier) | data, not a pkg |
 
-macOS notes: Homebrew's own docs support macOS Sonoma (14) or later, so on macOS 13 or earlier prefer the python.org installer; no user-usable stock `python3` (install via `brew install python@3.13` or the notarized
+macOS notes: Homebrew's own docs support macOS Sonoma (14) or later, so on macOS 13 or earlier prefer the python.org installer; no user-usable stock `python3` (install via `brew install python@3.12` or the notarized
 python.org universal2 `.pkg`); Homebrew bottles and the python.org pkg are notarized so Gatekeeper
 does not prompt; a downloaded static ffmpeg carries `com.apple.quarantine` (remedy
 `xattr -dr com.apple.quarantine <path>` or System Settings to Privacy & Security to Open Anyway).

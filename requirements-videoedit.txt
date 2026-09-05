@@ -10,13 +10,14 @@
 scenedetect>=0.7,<0.8
 opencv-python-headless
 
-# In-process silence detection without an ffmpeg binary
-av
+# In-process silence detection without an ffmpeg binary (validated 18.1.0 under Python 3.12, P80)
+av>=18,<19
 
 # Frame-array math in mediaprobe (also pulled transitively by opencv/moviepy).
-# ABI/Python ceiling: numpy 2.5.x drops Python 3.11; the validated environment is 3.11.15
-# (docs/video-tooling-integration-evidence.json, validated 2.4.6). Raise with the Python 3.12 migration.
-numpy>=2.4,<2.5
+# numpy 2.5 dropped Python 3.11, which is why the repo floor is 3.12 (tools/setup.py). Validated
+# 2.5.2 under Python 3.12.3 against the P26 goldens (docs/video-tooling-integration-evidence.json,
+# revalidations). The <3 bound is the numpy 2.x ABI the opencv/moviepy wheels are built against.
+numpy>=2.5,<3
 
 # Local Shorts reframe rendering (crop geometry itself needs nothing)
 moviepy>=2,<3
