@@ -402,8 +402,16 @@ def selftest() -> int:
     ok("build() output is well-formed", _ET.fromstring(x) is not None)
     v = validate(x)
     ok("validate() accepts what build() produced", isinstance(v, dict) and v.get("ok") is True)
+    # P80: the achievable level depends on the machine. With xmllint the level is well_formed (or
+    # dtd_valid when a DTD is found); without it the pure-Python fallback reports well_formed_py.
+    # CI's ubuntu runner has no xmllint, so accepting only the xmllint levels kept CI red for three
+    # weeks while every machine with xmllint passed. Assert the honest level AND that the tool
+    # named matches what is actually installed.
+    _has_xmllint = shutil.which("xmllint") is not None
     ok("validate() reports the level it actually achieved, not a blanket pass",
-       v.get("level") in ("well_formed", "dtd_valid"))
+       v.get("level") in (("well_formed", "dtd_valid") if _has_xmllint else ("well_formed_py",)))
+    ok("validate() names the tool that actually ran",
+       v.get("tool") == ("xmllint" if _has_xmllint else "ElementTree"))
     bad = validate("<fcpxml><unclosed></fcpxml>")
     ok("malformed FCPXML is refused rather than accepted",
        isinstance(bad, dict) and bad.get("ok") is False)

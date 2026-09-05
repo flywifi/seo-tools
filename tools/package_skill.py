@@ -38,13 +38,38 @@ def skill_dirs(root=None):
         yield skill_md.parent
 
 
+_UNTRACKED_NOISE = ("__pycache__",)
+_UNTRACKED_SUFFIXES = (".pyc", ".pyo", ".tmp")
+
+
+def _source_files(d):
+    """The files that ARE the skill: tracked by git when this is a checkout, else every file that is
+    not interpreter or editor noise. P80: the first manifest hashed __pycache__ too, so running a
+    skill's script under a second interpreter (CI on 3.12, a Mac on 3.11) moved the hash with no
+    source change and the packaging-integrity step could never be green in two environments at once.
+    Paths are returned relative to d in both modes."""
+    import subprocess
+    d = Path(d)
+    try:
+        out = subprocess.run(["git", "ls-files", "-z", "--", "."], cwd=str(d), capture_output=True, timeout=60)
+        if out.returncode == 0:
+            rels = [f for f in out.stdout.decode("utf-8").split("\0") if f]
+            return sorted(Path(f) for f in rels if (d / f).is_file())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return sorted(x.relative_to(d) for x in d.rglob("*") if x.is_file()
+                  and not any(part in _UNTRACKED_NOISE for part in x.relative_to(d).parts)
+                  and x.suffix not in _UNTRACKED_SUFFIXES and ".local." not in x.name)
+
+
 def tree_sha(d):
-    """sha256 over the skill's source tree: sorted relative paths + file bytes, NUL-delimited.
-    mtime-free and deterministic, unlike the zip."""
+    """sha256 over the skill's SOURCE tree: sorted relative paths + file bytes, NUL-delimited.
+    mtime-free and deterministic, unlike the zip; untracked noise (__pycache__, *.pyc) excluded."""
+    d = Path(d)
     h = hashlib.sha256()
-    for f in sorted(x for x in d.rglob("*") if x.is_file()):
-        h.update(str(f.relative_to(d)).encode("utf-8")); h.update(b"\0")
-        h.update(f.read_bytes()); h.update(b"\0")
+    for rel in _source_files(d):
+        h.update(str(rel).encode("utf-8")); h.update(b"\0")
+        h.update((d / rel).read_bytes()); h.update(b"\0")
     return h.hexdigest()
 
 
@@ -147,6 +172,11 @@ def selftest():
            reconcile_manifest(root, man) == 0 and len(json.loads(man.read_text())["skills"]) == 2)
         ok("check is clean right after reconcile", check_manifest(root, man)[1] == 0)
         ok("tree hash is deterministic across passes", tree_sha(root / "skills" / "alpha") == tree_sha(root / "skills" / "alpha"))
+        _before = tree_sha(root / "skills" / "alpha")
+        (root / "skills" / "alpha" / "scripts" / "__pycache__").mkdir(parents=True)
+        (root / "skills" / "alpha" / "scripts" / "__pycache__" / "score.cpython-312.pyc").write_bytes(b"\x00magic")
+        (root / "skills" / "alpha" / "notes.local.json").write_text("{}")
+        ok("interpreter and local noise never move the tree hash (P80)", tree_sha(root / "skills" / "alpha") == _before)
         (root / "skills" / "alpha" / "notes.md").write_text("edited")
         drift, code = check_manifest(root, man)
         ok("an edited skill file drifts the check (exit 1, skill named)", code == 1 and drift == ["alpha"])
