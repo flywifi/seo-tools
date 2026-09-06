@@ -18,10 +18,12 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE.parent))
 import videoedit_validate as gate  # noqa: E402
+import env_paths  # noqa: E402  (the repo interpreter floor, P81)
 
 
 def _python_ok() -> bool:
-    # Resolve's fusionscript bridge is stable on 3.10 to 3.12; 3.13+ can crash older builds.
+    # Resolve's fusionscript bridge is stable on 3.10 to 3.12; 3.13+ can crash older builds. This is
+    # Resolve's range, not the repo floor (env_paths.PYTHON_FLOOR); the two intersect at 3.12.
     return (3, 10) <= sys.version_info[:2] <= (3, 12)
 
 
@@ -140,6 +142,9 @@ def preflight(config: dict | None = None) -> dict:
         notes.append("xmllint not found: FCPXML is checked for well-formedness in pure Python (no DTD validation).")
     if not _python_ok():
         notes.append(f"Python {sys.version_info.major}.{sys.version_info.minor}: pin 3.10 to 3.12 for the Resolve API bridge.")
+    if sys.version_info[:2] < env_paths.PYTHON_FLOOR:
+        notes.append(f"Python {sys.version_info.major}.{sys.version_info.minor} is below the Creator OS floor "
+                     f"{'.'.join(map(str, env_paths.PYTHON_FLOOR))} (tools/setup.py refuses it).")
     if not is_mac:
         notes.append("Non-macOS: Final Cut Pro and Compressor are unavailable; use the Resolve lane or hand off FCPXML files.")
     if flags["resolve_scripting"] and not resolve["lib_present"]:
@@ -163,6 +168,7 @@ def preflight(config: dict | None = None) -> dict:
         "os": plat,
         "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "python_ok_for_resolve": _python_ok(),
+        "python_ok_for_creator_os": sys.version_info[:2] >= env_paths.PYTHON_FLOOR,
         "tools": tools,
         "resolve": resolve,
         "flags": flags,
@@ -202,6 +208,8 @@ def selftest() -> int:
     ok("_importable answers True for the standard library", _importable("json") is True)
     ok("python_ok_for_resolve is a bool, not a guess",
        isinstance(p.get("python_ok_for_resolve"), bool))
+    ok("python_ok_for_creator_os reflects the floor (P81 B-18)",
+       p.get("python_ok_for_creator_os") == (sys.version_info[:2] >= env_paths.PYTHON_FLOOR))
 
     print(f"preflight selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

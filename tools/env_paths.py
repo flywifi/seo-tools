@@ -18,6 +18,7 @@ Stdlib only. Pure and injectable so the selftest can simulate a macOS PATH with 
 """
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,21 +28,32 @@ ROOT = Path(__file__).resolve().parent.parent  # repo root (tools/..)
 # harmless when absent; we never assume one architecture.
 BREW_PREFIXES = ("/opt/homebrew/bin", "/usr/local/bin")
 
+PYTHON_FLOOR = (3, 12)   # THE floor. tools/setup.py imports it; the launcher's probe string embeds it
+                         # (asserted by _selftest); docs are swept against it by drift invariant 48 (P81 G-1).
+
 
 def repo_root() -> Path:
     return ROOT
 
 
 def venv_python(root=None):
-    """Return the repo ``.venv`` interpreter Path if it exists, else None."""
+    """The repo ``.venv`` interpreter if it exists, RUNS, and meets PYTHON_FLOOR; else None (P81 B-5).
+    P80 taught the launcher to refuse an old venv; this function still handed every heavy tool to it,
+    so a 3.11 venv produced a wizard on system 3.12 spawning tools on 3.11 that setup.py then refused."""
     base = Path(root) if root is not None else ROOT
     for c in (
         base / ".venv" / "bin" / "python3",
         base / ".venv" / "bin" / "python",
         base / ".venv" / "Scripts" / "python.exe",  # Windows
     ):
-        if c.exists():
-            return c
+        if not c.exists():
+            continue
+        try:
+            r = subprocess.run([str(c), "-c", f"import sys; sys.exit(0 if sys.version_info[:2] >= {PYTHON_FLOOR} else 1)"],
+                               capture_output=True, timeout=20)
+        except (OSError, subprocess.SubprocessError):
+            return None          # exists but does not run (relocated framework): same as absent
+        return c if r.returncode == 0 else None
     return None
 
 
@@ -88,14 +100,25 @@ def _selftest() -> int:
         ok(venv_python(root) is None, "venv_python None when no .venv")
         ok(app_python(root) == sys.executable, "app_python falls back to sys.executable")
 
-        # Create a fake .venv/bin/python3 -> venv_python + app_python pick it up.
+        # P81 B-5: a venv is selected only when it RUNS and meets PYTHON_FLOOR.
         vbin = root / ".venv" / "bin"
         vbin.mkdir(parents=True)
         vpy = vbin / "python3"
-        vpy.write_text("#!/bin/sh\n")
+        vpy.write_text("#!/bin/sh\nexit 127\n")   # exists but does not run usefully
         vpy.chmod(vpy.stat().st_mode | stat.S_IEXEC)
-        ok(venv_python(root) == vpy, "venv_python finds .venv interpreter")
-        ok(app_python(root) == str(vpy), "app_python returns .venv interpreter when present")
+        ok(venv_python(root) is None, "a broken venv interpreter is rejected (P81 B-5)")
+        vpy.unlink()
+        vpy.symlink_to(sys.executable)             # a real interpreter
+        if sys.version_info[:2] >= PYTHON_FLOOR:
+            ok(venv_python(root) == vpy, "venv_python finds a floor-meeting .venv interpreter")
+            ok(app_python(root) == str(vpy), "app_python returns .venv interpreter when present")
+        else:
+            ok(venv_python(root) is None, "a below-floor venv interpreter is rejected (P81 B-5)")
+            ok(app_python(root) == sys.executable, "app_python falls back below the floor")
+        launcher = ROOT / "Start Creator OS Setup.command"
+        if launcher.exists():
+            ok(f"sys.version_info[:2] >= {PYTHON_FLOOR}" in launcher.read_text(encoding="utf-8"),
+               "the launcher probe embeds PYTHON_FLOOR")
 
         # augmented_path prepends the brew prefixes ahead of the base.
         ap = augmented_path("/usr/bin:/bin")

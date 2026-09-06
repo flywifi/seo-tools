@@ -188,9 +188,10 @@ def run_install_deps(as_json: bool = False) -> int:
 
 def check_python() -> None:
     major, minor = sys.version_info[:2]
-    if (major, minor) < (3, 12):
-        _say(f"ERROR: Python 3.12 or later required (you have {major}.{minor}); numpy 2.5 and the "
-             f"video tooling are validated on 3.12, and Resolve's scripting bridge caps at 3.12.")
+    if (major, minor) < env_paths.PYTHON_FLOOR:
+        floor = ".".join(map(str, env_paths.PYTHON_FLOOR))
+        _say(f"ERROR: Python {floor} or later required (you have {major}.{minor}); numpy 2.5 and the "
+             f"video tooling are validated on {floor}, and Resolve's scripting bridge caps at 3.12.")
         sys.exit(1)
     _ok(f"Python {major}.{minor}")
 
@@ -373,7 +374,13 @@ def _selftest() -> int:
         vd = Path(td) / ".venv"
         r = subprocess.run([PYTHON, "-m", "venv", str(vd)], capture_output=True, text=True, timeout=300)
         vpy = env_paths.venv_python(td)
-        ok(r.returncode == 0 and vpy is not None, "python -m venv creates a resolvable .venv (private toolbox)")
+        if sys.version_info[:2] >= env_paths.PYTHON_FLOOR:
+            ok(r.returncode == 0 and vpy is not None, "python -m venv creates a resolvable .venv (private toolbox)")
+        else:
+            # P81 B-5: env_paths now refuses a below-floor venv; a venv built from a below-floor
+            # interpreter is correctly invisible to the interpreter picker.
+            ok(r.returncode == 0 and vpy is None,
+               "a below-floor venv is created but refused by the interpreter picker (P81 B-5)")
         if vpy:
             pv = subprocess.run([str(vpy), "-m", "pip", "--version"], capture_output=True, text=True, timeout=60)
             ok(pv.returncode == 0, "the .venv has pip (a usable install target)")

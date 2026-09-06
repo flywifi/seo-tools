@@ -24,7 +24,7 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 # DaVinci Resolve scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on).
 #
 # The .venv is probed like every other candidate, NOT trusted for existing. A Homebrew python
-# upgrade (python@3.13 -> python@3.14) relocates the framework the venv symlinks into: the
+# upgrade (python@3.12 -> python@3.13) relocates the framework the venv symlinks into: the
 # interpreter still exists and is still executable, so an -x test passes while the interpreter
 # is dead. Trusting -x meant PY was set to a broken interpreter, the working fallbacks were
 # never tried, and the user got a dyld / "No module named encodings" traceback instead of the
@@ -34,9 +34,14 @@ if [ -x ".venv/bin/python3" ] && .venv/bin/python3 -c 'import sys; sys.exit(0 if
   PY=".venv/bin/python3"
 else
   if [ -x ".venv/bin/python3" ]; then
-    echo "Note: the private .venv toolbox is present but its interpreter does not run"
-    echo "(usually a Homebrew Python upgrade moved it). Falling back to a system Python."
-    echo "To rebuild it: rm -rf .venv && python3 tools/setup.py --install-deps"
+    if venv_v=$(.venv/bin/python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null); then
+      echo "Note: the private .venv toolbox runs Python $venv_v, but Creator OS needs 3.12 or newer."
+      echo "Falling back to a system Python for this launch."
+    else
+      echo "Note: the private .venv toolbox is present but its interpreter does not run"
+      echo "(usually a Homebrew Python upgrade moved it). Falling back to a system Python."
+    fi
+    echo "To rebuild it on 3.12: rm -rf .venv && python3.12 tools/setup.py --install-deps"
     echo ""
   fi
   for c in /opt/homebrew/bin/python3 /usr/local/bin/python3 \
