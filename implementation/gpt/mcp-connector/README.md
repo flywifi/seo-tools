@@ -49,7 +49,10 @@ names the public hostname your proxy forwards in the Host header. The MCP SDK (1
 alike) enables DNS-rebinding protection for a loopback bind and allow-lists only loopback, so without
 this every proxied request is answered `421 Invalid Host header` after the bearer gate has passed.
 The server prints a warning at startup when no allowed host is configured. Direct loopback clients
-keep working either way.
+keep working either way. Browser-based clients also need `--allowed-origin https://<their-origin>`
+(or `remote_mcp_allowed_origins`); server-to-server proxies send no Origin header and need none. A
+malformed value (a URL instead of a hostname, `*`, a string where a list is expected) stops the
+server at startup with the reason.
 
 The proxy terminates TLS and auth, then forwards to 127.0.0.1:8080. Capability flags and consent
 gates are enforced HERE, on this machine, for every surface that connects.

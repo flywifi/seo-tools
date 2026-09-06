@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import publishing_compliance as compliance  # noqa: E402
 import publishing  # noqa: E402
+import atomic_io  # noqa: E402  (the one atomic writer, P81)
 import finance  # noqa: E402  (P31: read-only AR view)
 import tasks as _tasks  # noqa: E402  (P35: read-only task view)
 
@@ -534,23 +535,29 @@ def _save_publish_creds(platform, updated):
     if not isinstance(updated, dict) or not platform:
         return
     try:
-        current = {}
-        if CREDS_PATH.exists():
-            current = json.loads(CREDS_PATH.read_text(encoding="utf-8")) or {}
-        if not isinstance(current, dict):
+        with atomic_io.locked(CREDS_PATH):
+            existed = CREDS_PATH.exists()
             current = {}
-        plat = current.setdefault(platform, {})
-        if not isinstance(plat, dict):
-            plat = current[platform] = {}
-        pub = plat.get("publish")
-        if isinstance(pub, dict):
-            pub.update(updated)
-        else:
-            plat["publish"] = dict(updated)
-        CREDS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        CREDS_PATH.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
-    except (OSError, ValueError):
-        pass
+            if existed:
+                current = json.loads(CREDS_PATH.read_text(encoding="utf-8")) or {}
+            if not isinstance(current, dict):
+                current = {}
+            plat = current.setdefault(platform, {})
+            if not isinstance(plat, dict):
+                plat = current[platform] = {}
+            pub = plat.get("publish")
+            if isinstance(pub, dict):
+                pub.update(updated)
+            else:
+                plat["publish"] = dict(updated)
+            CREDS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            atomic_io.atomic_write_text(CREDS_PATH, json.dumps(current, indent=2) + "\n")
+            if not existed:
+                os.chmod(CREDS_PATH, 0o600)  # tokens at rest: the wizard's convention for this file
+    except (OSError, ValueError) as exc:
+        # background path: must not raise into the scheduler, but must not be silent either (P81)
+        print(f"[dashboard] WARNING: could not persist refreshed {platform} token to "
+              f"{CREDS_PATH.name}: {exc}", file=sys.stderr)
 
 
 def _apply_dispatch_result(pdata, res):

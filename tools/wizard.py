@@ -35,6 +35,7 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loopback helper)
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
+import atomic_io  # noqa: E402  (sibling module in tools/; the one atomic writer, P81)
 
 # P73 D6-F9: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
 # derived from this port and docs/PUBLISHING.md tells you to register
@@ -135,7 +136,7 @@ def _write_claude_config(config: dict) -> pathlib.Path:
                       "before writing the new one.")
             except OSError:
                 pass
-    p.write_text(json.dumps(config, indent=2), encoding="utf-8")
+    atomic_io.atomic_write_text(p, json.dumps(config, indent=2))
     return p
 
 def _has_uv() -> bool:
@@ -1007,7 +1008,7 @@ def _save_api_credentials(creds: dict) -> None:
     """Write api-credentials.local.json (owner-only perms; gitignored, never committed)."""
     creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
     creds_path.parent.mkdir(parents=True, exist_ok=True)
-    creds_path.write_text(json.dumps(creds, indent=2), encoding="utf-8")
+    atomic_io.atomic_write_text(creds_path, json.dumps(creds, indent=2) + "\n")
     try:
         os.chmod(creds_path, 0o600)  # tokens at rest: owner read/write only
     except OSError:
@@ -1256,14 +1257,11 @@ def _write_storage_folder(folder: str):
     }
     written = _write_claude_config(config)
     # Record the folder locally so the freshness/store runtime knows where to write.
-    local_path = ROOT / "creator-os-config.local.json"
-    try:
-        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+    def _m(cfg):
         cfg["storage"] = {"local_folder": folder,
                           "_note": "The one folder Claude's filesystem connector may read and write."}
-        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-    except Exception as exc:  # noqa: BLE001
-        print(f"[wizard] Warning: could not record storage folder: {exc}")
+    if not _update_local_config(_m):
+        print("[wizard] Warning: could not record storage folder (see above)")
     return written, prior_folder
 
 
@@ -3332,32 +3330,54 @@ def _pick_folder() -> str:
         return ""
 
 
-def _update_capability_flag(key: str, value) -> None:
-    """Set a capability flag in creator-os-config.local.json (local only; never GitHub)."""
+def _update_local_config(mutate) -> bool:
+    """Read-modify-write creator-os-config.local.json under the cross-process lock, atomically (P81).
+    `mutate(cfg)` edits the dict in place. A file that does not parse is backed up with a timestamped
+    .corrupt.<stamp>.bak first (mirroring mcp_server._read_local_config_for_write) instead of being
+    overwritten. Returns True when written."""
     local_path = ROOT / "creator-os-config.local.json"
     try:
-        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+        with atomic_io.locked(local_path):
+            cfg = {}
+            if local_path.exists():
+                raw = local_path.read_bytes()
+                try:
+                    cfg = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    bak = local_path.with_name(f"{local_path.name}.corrupt.{time.strftime('%Y%m%d%H%M%S')}.bak")
+                    bak.write_bytes(raw)
+                    print(f"[wizard] {local_path.name} did not parse; backed it up to {bak.name} before rewriting.")
+                    cfg = {}
+            if not isinstance(cfg, dict):
+                cfg = {}
+            mutate(cfg)
+            atomic_io.atomic_write_text(local_path, json.dumps(cfg, indent=2) + "\n")
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[wizard] Warning: could not update {local_path.name}: {exc}")
+        return False
+
+
+def _update_capability_flag(key: str, value) -> None:
+    """Set a capability flag in creator-os-config.local.json (local only; never GitHub)."""
+    def _m(cfg):
         cfg.setdefault("capabilities", {})[key] = value
-        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-    except Exception as exc:
-        print(f"[wizard] Warning: could not update capability flag {key}: {exc}")
+    if not _update_local_config(_m):
+        print(f"[wizard] Warning: could not update capability flag {key} (see above)")
 
 
 def _update_config_section(section: str, updates: dict) -> None:
     """Deep-merge `updates` into a top-level SECTION of creator-os-config.local.json (local only; never
     GitHub). For non-capability settings like the P48 update channel."""
-    local_path = ROOT / "creator-os-config.local.json"
-    try:
-        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+    def _m(cfg):
         dest = cfg.setdefault(section, {})
         for k, v in updates.items():
             if k == "channels" and isinstance(v, dict) and isinstance(dest.get("channels"), dict):
                 dest["channels"].update(v)
             else:
                 dest[k] = v
-        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-    except Exception as exc:
-        print(f"[wizard] Warning: could not update config section {section}: {exc}")
+    if not _update_local_config(_m):
+        print(f"[wizard] Warning: could not update config section {section} (see above)")
 
 
 # ── P36 freshness / store orchestration ──────────────────────────────────────
@@ -3424,9 +3444,7 @@ def _write_freshness_config(store_backend: str, cadence_days: int, modality: str
     except (TypeError, ValueError):
         cadence = 30
     _update_capability_flag("task_store_backend", store_backend)
-    local_path = ROOT / "creator-os-config.local.json"
-    try:
-        cfg = json.loads(local_path.read_text(encoding="utf-8")) if local_path.exists() else {}
+    def _m(cfg):
         cfg["freshness"] = {
             "store_backend": store_backend,
             "cadence_days": cadence,
@@ -3434,9 +3452,8 @@ def _write_freshness_config(store_backend: str, cadence_days: int, modality: str
             "writes_to_github": False,
             "_note": "Personal freshness overlay location. The runtime writes only here, never GitHub.",
         }
-        local_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-    except Exception as exc:
-        print(f"[wizard] Warning: could not write freshness config: {exc}")
+    if not _update_local_config(_m):
+        print("[wizard] Warning: could not write freshness config (see above)")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────

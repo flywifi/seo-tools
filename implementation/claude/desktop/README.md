@@ -29,7 +29,7 @@ python3 tools/setup.py --install-deps
 This creates `.venv/` (gitignored) and installs the fetch, scraper, MCP, and Playwright sets into
 it. Advanced: to install by hand, create a venv first so PEP 668 does not block a Homebrew Python
 (`python3 -m venv .venv && ./.venv/bin/python -m pip install -r requirements-mcp.txt …`). An existing
-`.venv` built on the mcp 1.x SDK keeps working (the server starts on either major); to move it to 2.x,
+`.venv` built on the mcp 1.x SDK keeps working on the documented loopback deployment (the server starts on either major; a non-loopback bind under 1.x is also handled since P81); to move it to 2.x,
 re-run `python3 tools/setup.py --install-deps`.
 
 Build the keyword cache:

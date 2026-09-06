@@ -107,3 +107,5 @@ __pycache__/
 .pytest_cache/
 # The private toolbox: dependencies install here (never committed). See tools/env_paths.py.
 .venv/
+.DS_Store
+*.lock

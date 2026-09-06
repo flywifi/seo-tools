@@ -58,11 +58,11 @@
     "docs/video-tooling-spike-evidence.json": "2f0f5e6ef275f36ff543b38e34b2fec09b12e3c2c3a6def40b7abda0a0d9eec7",
     "docs/wizard/README.md": "cfb032348e946753c5f02333a755cded8cefebcc9b0490884319184801a1f15e",
     "docs/wizard/screenshot-guide.md": "8abc89d0ad48580c326c20be1be5ee2dbc380bc1547d644ccbc3c6de7a294f21",
-    "implementation/claude/desktop/README.md": "c98d5de4ecb7420aa3784812a50c23ef95a143b5806d1b7185e1c5cf94b92c9c",
+    "implementation/claude/desktop/README.md": "539a6b38ef26110dfdd81f2aafa10541d78d55bdaf3659fb7c138257598a9c9c",
     "implementation/claude/desktop/claude_desktop_config_snippet.json": "af2413d458f36b690dbdcefe322191c655ea24a01e12382f31142e40ead1f711",
     "requirements-transcribe.txt": "2c24e96a6c1dc7983f08928bf5beea407752e07d36af28a628ce50835a097c48",
     "requirements-videoedit.txt": "c2c68be0cb9a005cfe08f1c5083062766ca53d25d28be6cfb89a6439e82a36a1",
-    "shared/connectors/connectors.json": "ce42469728599a122053ccc094266423137661a0575084d61849675d6892c048",
+    "shared/connectors/connectors.json": "c197996de937644ec82d5ca255f709c4dd422069ca51006b2c978fff519447d7",
     "shared/content-import-engine.md": "a5c793c7c19bf1ced0a31ea8983e4dc0245a98b3b3b4ccb6e5faa391c55bec74",
     "shared/cross-modality/transitions.json": "c1a04ce3a9faa0194591b9246f9aaac8c1204ab7d7bfb0eed12444b29e8496e0",
     "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
@@ -83,7 +83,7 @@
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "79d5067f4e456d2411b51361b0a7775fb869a971be3f3d6dcb01cb1ab6a533bd",
     "tools/handoff/inbox.py": "839f2b19325c42785c49e81c57db7c969e35de792cf370c663c3403887601365",
-    "tools/handoff/watcher.py": "54c222648c6a3fb2041d4e5fd50a84875b734f30d1c4c0ae0e19adc39266b21d",
+    "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
     "tools/library_complete.py": "9df72f4caccc7c52ada4a4ffe9bdb228b5493fbe8734b88db0d6452f1c895b51",
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/secret_scan.py": "c67959af4970f7ac00c365fc23b8978f55a585eef9a5921454d1b4e98fb0466d",
@@ -95,7 +95,7 @@
     "tools/videoedit/fcpxml.py": "4fec08dc8a41104e7b37f27aad35b4507711fb39faccd16a4652f27a064dcbcd",
     "tools/videoedit/preflight.py": "2530e3c9bf94241059217de003616314afa6f4379fd0b2b4484377cf91e05360",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "a39f75aed99c349d552767ff768f204ecd2fcd81a630b472a7b7a0ef84f8db69"
+    "tools/wizard.py": "1a76cdbcd064710ae4bbebe92ce81340de4b7f868a9e53232855b1425e8d9951"
   },
   "excluded": {}
 }

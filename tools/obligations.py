@@ -30,6 +30,9 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atomic_io import atomic_write_text  # noqa: E402
+
 # CREATOR_OS_ROOT redirects every path this tool touches (config, register) to another root.
 # Same pattern as tools/mcp_server.py. Used by tools/handoff_sim.py to sandbox its write phases;
 # leave it unset for normal runs.
@@ -502,7 +505,7 @@ def _main(argv) -> int:
                 print(json.dumps(reg_out, indent=2, ensure_ascii=False))
                 return 0
             REGISTER_PATH.parent.mkdir(parents=True, exist_ok=True)
-            REGISTER_PATH.write_text(json.dumps(reg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            atomic_write_text(REGISTER_PATH, json.dumps(reg, indent=2, ensure_ascii=False) + "\n")
             print(f"wrote {REGISTER_PATH.relative_to(ROOT).as_posix()} ({reg['obligation_count']} obligation(s))")
             return 0
         print(json.dumps(reg, indent=2, ensure_ascii=False))

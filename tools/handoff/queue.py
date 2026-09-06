@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+from atomic_io import atomic_write_text  # noqa: E402
 
 # Mirrors shared/schemas/compute-job.json. The schema file is the contract of record; this constant
 # exists so validation is stdlib-only. A drift between the two fails the selftest below.
@@ -60,12 +62,11 @@ def ensure_hub_dirs(hub_root) -> None:
 
 
 def _atomic_write_json(path: Path, data: dict) -> None:
-    """Write to a temp name in the same directory, then os.replace. A sync client never sees a
-    half-written file, and a crashed writer leaves only a .tmp that the reader ignores."""
+    """Write to a temp name in the same directory, then os.replace (tools/atomic_io.py since P81: the
+    temp is PID-suffixed so two writers never share it, and it is removed on failure). A sync client
+    never sees a half-written file; the reader still ignores any stray .tmp."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    atomic_write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
 def _utcnow() -> str:
@@ -204,7 +205,7 @@ def read_queue(hub_root) -> list:
     if not qdir.exists():
         return out
     for p in sorted(qdir.iterdir()):
-        if not p.is_file() or p.suffix != ".json" or p.name.endswith(".tmp"):
+        if not p.is_file() or p.suffix != ".json" or ".tmp" in p.name:
             continue
         try:
             out.append({"path": p, "data": json.loads(p.read_text(encoding="utf-8")), "error": None})

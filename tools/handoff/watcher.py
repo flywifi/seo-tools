@@ -30,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
+import atomic_io  # noqa: E402  (the one atomic writer, P81)
 
 from handoff import queue as q  # noqa: E402
 from handoff import runner  # noqa: E402
@@ -161,19 +162,25 @@ def _persist_publish_creds(platform, updated) -> None:
     wizard)."""
     creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
     try:
-        current = json.loads(creds_path.read_text(encoding="utf-8")) if creds_path.exists() else {}
-        if not isinstance(current, dict):
-            current = {}
-        plat = current.setdefault(platform, {})
-        pub = plat.get("publish")
-        if isinstance(pub, dict):
-            pub.update(updated)
-        else:
-            plat["publish"] = dict(updated)
-        creds_path.parent.mkdir(parents=True, exist_ok=True)
-        creds_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
-    except (OSError, ValueError):
-        pass
+        with atomic_io.locked(creds_path):
+            existed = creds_path.exists()
+            current = json.loads(creds_path.read_text(encoding="utf-8")) if existed else {}
+            if not isinstance(current, dict):
+                current = {}
+            plat = current.setdefault(platform, {})
+            pub = plat.get("publish")
+            if isinstance(pub, dict):
+                pub.update(updated)
+            else:
+                plat["publish"] = dict(updated)
+            creds_path.parent.mkdir(parents=True, exist_ok=True)
+            atomic_io.atomic_write_text(creds_path, json.dumps(current, indent=2) + "\n")
+            if not existed:
+                os.chmod(creds_path, 0o600)  # tokens at rest: the wizard's convention for this file
+    except (OSError, ValueError) as exc:
+        # background path: must not raise, but must not be silent either (P81)
+        print(f"[watcher] WARNING: could not persist refreshed {platform} token to "
+              f"{creds_path.name}: {exc}", file=sys.stderr)
 
 
 def api_once() -> dict:

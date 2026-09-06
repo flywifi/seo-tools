@@ -18,7 +18,11 @@ Stdlib only, no side effects on import.
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atomic_io import atomic_write_text  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT / "canonical-sources" / "source-registry.json"
@@ -50,13 +54,8 @@ def save_registry(data: dict, path: Path = REGISTRY_PATH) -> None:
     interrupt (Ctrl-C, a crash, a full disk) mid-write left a 5,500-line registry truncated with
     no backup and no recovery path. os.replace is atomic within a filesystem, so a reader either
     sees the whole old file or the whole new one, never a half-written one (P73 D6-F8).
+    P81: delegates to tools/atomic_io.py, which also preserves the file's mode.
     """
     data["_content_digest"] = content_digest(data)
     blob = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-    tmp = path.with_name(path.name + f".tmp{os.getpid()}")
-    try:
-        tmp.write_text(blob, encoding="utf-8")
-        os.replace(tmp, path)
-    finally:
-        if tmp.exists():
-            tmp.unlink()
+    atomic_write_text(path, blob)

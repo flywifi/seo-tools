@@ -44,6 +44,7 @@ Prerequisites:
 import hmac
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -55,6 +56,7 @@ ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
 
 sys.path.insert(0, str(HERE))
 import publishing_compliance as compliance  # noqa: E402
+from atomic_io import atomic_write_text as _atomic_write_text, locked as _locked  # noqa: E402
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
@@ -266,9 +268,13 @@ def _read_local_config_for_write(path) -> tuple:
     try:
         return json.loads(raw), None, None
     except (OSError, json.JSONDecodeError):
-        bak = path.with_name(path.name + ".corrupt.bak")
+        import time as _time
+        bak = path.with_name(f"{path.name}.corrupt.{_time.strftime('%Y%m%d%H%M%S')}.bak")
         try:
-            bak.write_text(raw, encoding="utf-8")
+            raw_bytes = path.read_bytes()
+            tmp = bak.with_name(bak.name + f".tmp{os.getpid()}")
+            tmp.write_bytes(raw_bytes)
+            os.replace(tmp, bak)
         except OSError as exc:
             return {}, None, (f"{path} did not parse and could not be backed up ({exc}). "
                               f"Refusing to overwrite it.")
@@ -364,8 +370,9 @@ def _remote_serve_decision(host: str, token: str | None, insecure: bool) -> tupl
 
 class _BearerAuthMiddleware:
     """Minimal ASGI middleware: require 'Authorization: Bearer <token>' on every HTTP request,
-    constant-time compared; 401 otherwise. Wraps the FastMCP streamable-http app. Pure ASGI, no
-    FastMCP dependency, so it is unit-tested in the package-independent selftest tier."""
+    constant-time compared; 401 otherwise. Wraps the SDK's streamable-http app (MCPServer under 2.x,
+    FastMCP under 1.x). Pure ASGI, no SDK dependency, so it is unit-tested in the package-independent
+    selftest tier."""
 
     def __init__(self, app, token: str):
         self.app = app
@@ -401,7 +408,7 @@ def _auth_gate_fires(transport_arg: str | None, serve_remote: bool) -> bool:
 
 
 def _gate_app_builder_name(transport: str) -> str:
-    """The FastMCP app-builder attribute to wrap with the bearer gate, matched to the transport so a
+    """The app-builder attribute to wrap with the bearer gate (same name in both SDK majors), matched to the transport so a
     token-gated `--transport sse` serves the sse app, not the streamable-http app (the P67-B gated
     path always built streamable_http_app regardless of transport)."""
     return "sse_app" if transport == "sse" else "streamable_http_app"
@@ -414,12 +421,15 @@ def _gate_app_builder_name(transport: str) -> str:
 
 def _select_server_class():
     """(cls, is_v2). 2.x first: under 2.x `mcp.server.fastmcp` is a stub module that raises a pointed
-    ModuleNotFoundError by design, so the order matters and one ImportError covers both arms."""
+    ModuleNotFoundError by design, so the order matters. Only the ABSENCE of the 2.x module falls through
+    to the 1.x arm; a 2.x install whose own dependency is missing re-raises so the real cause is shown
+    (P81 C-4: the old bare `except ImportError` reported "neither class" for a broken 2.x install)."""
     try:
         from mcp.server.mcpserver import MCPServer as _cls
         return _cls, True
-    except ImportError:
-        pass
+    except ModuleNotFoundError as exc:
+        if exc.name not in ("mcp", "mcp.server", "mcp.server.mcpserver"):
+            raise
     from mcp.server.fastmcp import FastMCP as _cls
     return _cls, False
 
@@ -449,38 +459,98 @@ def _app_kwargs(is_v2, host, security=None):
 
 _SDK_LOOPBACK_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
 _SDK_LOOPBACK_ORIGINS = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+# hostname | IPv4 | [IPv6], optionally :port or :*  (the SDK matches these strings literally)
+_HOST_RE = re.compile(r"^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+                      r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)(?::(?:\d{1,5}|\*))?$")
 
 
-def _allowed_hosts_settings(allowed_hosts, settings_cls):
-    """BOTH SDK majors (1.28 onwards, verified in 1.28.1, 1.29.1 and 2.1.1) auto-enable DNS-rebinding
-    protection for a loopback bind, allow-listing only the SDK loopback set. A proxied request arrives
-    with Host: <public hostname>, so the documented loopback-behind-a-proxy deployment is answered 421
-    unless the public host is allow-listed. Passing an explicit list REPLACES the SDK default, so the
-    loopback entries are re-added (a direct loopback client must keep working). The SDK's
-    _validate_host needs the BARE entry for a portless Host header and the `host:*` entry for any port,
-    so both are emitted. Returns None when nothing was configured (the SDK default then applies)."""
+def _split_host_port(h):
+    """('host', 'port'|None) for host, host:port, [v6], [v6]:port."""
+    if h.startswith("["):
+        i = h.find("]")
+        return h[:i + 1], (h[i + 2:] if h[i + 1:i + 2] == ":" else None)
+    if h.count(":") == 1:
+        host, port = h.split(":")
+        return host, port
+    return h, None
+
+
+def _normalize_allowed_hosts(values):
+    """Validate the operator's allow-list. Accepts a list/tuple (or ONE bare str) of 'host', 'host:port',
+    '[v6]', '[v6]:port', or IPv4. Rejects URLs, paths, '*', whitespace, and non-list types with the reason,
+    because the SDK's _validate_host compares these strings literally: a URL or '*' can never match a
+    Host header and would silently disable the whole surface (P81 C-3/C-5)."""
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple)):
+        raise ValueError(f"remote_mcp_allowed_hosts must be a list of hostnames, got {type(values).__name__}")
+    out = []
+    for raw in values:
+        h = str(raw).strip()
+        if not h:
+            continue
+        if "://" in h or "/" in h:
+            raise ValueError(f"allowed host {h!r}: give a hostname, not a URL")
+        if not _HOST_RE.match(h):
+            raise ValueError(f"allowed host {h!r} is not a hostname, IPv4, or [IPv6] literal")
+        out.append(h)
+    return out
+
+
+def _allowed_hosts_settings(allowed_hosts, settings_cls, allowed_origins=()):
+    """Both SDK majors auto-enable DNS-rebinding protection for a LOOPBACK bind with only the SDK loopback
+    set allow-listed, so a proxied Host: <public> is answered 421 unless listed here. An explicit list
+    REPLACES the SDK default, so the loopback entries are re-added. _validate_host matches the bare entry for
+    a portless Host and 'host:*' for any port, so both are emitted (P80; input validated since P81).
+    Returns None when nothing is configured (the SDK default then applies)."""
     if not allowed_hosts:
         return None
     hosts, origins = list(_SDK_LOOPBACK_HOSTS), list(_SDK_LOOPBACK_ORIGINS)
     for h in allowed_hosts:
+        host, port = _split_host_port(h)
         hosts.append(h)
-        if ":" not in h:
-            hosts.append(f"{h}:*")
+        if port is None:
+            hosts.append(f"{host}:*")
         origins.append(f"https://{h}")
+    for o in allowed_origins:
+        if o not in origins:
+            origins.append(o)
     return settings_cls(allowed_hosts=hosts, allowed_origins=origins)
 
 
-def _remote_allowed_hosts(cli_hosts):
-    """--allowed-host (repeatable) wins; else remote_mcp_allowed_hosts (a list) in the gitignored
-    creator-os-config.local.json, the same file that carries remote_mcp_token."""
+_ORIGIN_RE = re.compile(r"^https?://[^/\s]+$")
+
+
+def _normalize_allowed_origins(values):
+    """'https://host[:port]' entries for browser-based clients (P81 C-6). Same shape rules as hosts."""
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple)):
+        raise ValueError(f"remote_mcp_allowed_origins must be a list of origins, got {type(values).__name__}")
+    out = []
+    for raw in values:
+        o = str(raw).strip()
+        if not o:
+            continue
+        if not _ORIGIN_RE.match(o):
+            raise ValueError(f"allowed origin {o!r} must look like https://host[:port]")
+        out.append(o)
+    return out
+
+
+def _remote_allowed_hosts(cli_hosts, key="remote_mcp_allowed_hosts", normalize=_normalize_allowed_hosts):
+    """--allowed-host (repeatable) wins; else the list under `key` in the gitignored
+    creator-os-config.local.json (the file that carries remote_mcp_token). Raises ValueError with the
+    reason on a malformed value; the caller turns that into an exit(2) at startup."""
     if cli_hosts:
-        return [h.strip() for h in cli_hosts if h and h.strip()]
+        return normalize(cli_hosts)
     try:
         data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
-        v = data.get("remote_mcp_allowed_hosts") or []
-        return [str(h).strip() for h in v if str(h).strip()]
-    except (OSError, json.JSONDecodeError, AttributeError):
+    except (OSError, json.JSONDecodeError):
         return []
+    if not isinstance(data, dict):
+        return []
+    return normalize(data.get(key) or [])
 
 
 # 2.x runs synchronous tool handlers on anyio worker threads, so two calls can interleave. The six
@@ -488,14 +558,6 @@ def _remote_allowed_hosts(cli_hosts):
 # three other write-annotated tools (schedule_post returns a plan, launch_setup spawns a process,
 # submit_compute_job writes one unique ticket via temp+replace) need none.
 _WRITE_LOCK = threading.Lock()
-
-
-def _atomic_write_text(path, text):
-    """temp + os.replace, the registry_io / handoff.queue pattern: a reader never sees a half-written
-    file and a crash mid-write leaves the previous bytes intact."""
-    tmp = path.with_name(path.name + f".tmp{os.getpid()}")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
 
 
 def _selftest_static() -> tuple:
@@ -540,8 +602,10 @@ def _selftest_static() -> tuple:
         _original = '{"capabilities": {"live_publishing_enabled": true},, "remote_mcp_token": "x"}'
         _p.write_text(_original, encoding="utf-8")
         _cfg, _bak, _err = _read_local_config_for_write(_p)
-        ok("a malformed local config is backed up, not destroyed",
-           _err is None and _bak and Path(_bak).read_text(encoding="utf-8") == _original)
+        import re as _re4
+        ok("a malformed local config is backed up, not destroyed, under a timestamped name (P81)",
+           _err is None and _bak and Path(_bak).read_text(encoding="utf-8") == _original
+           and _re4.fullmatch(r"creator-os-config\.local\.json\.corrupt\.\d{14}\.bak", Path(_bak).name))
         _p2 = Path(_td) / "good.json"
         _p2.write_text('{"capabilities": {"a": true}}', encoding="utf-8")
         _cfg2, _bak2, _err2 = _read_local_config_for_write(_p2)
@@ -738,8 +802,85 @@ def _selftest_static() -> tuple:
     import tempfile as _tf2
     with _tf2.TemporaryDirectory() as _td2:
         _p2 = Path(_td2) / "cfg.json"
+        _p2.write_text("{}", encoding="utf-8")
+        os.chmod(_p2, 0o600)
         _atomic_write_text(_p2, "{\"a\": 1}\n")
-        ok("atomic write lands the bytes and leaves no temp file", _p2.read_text() == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2])
+        ok("atomic write lands the bytes, leaves no temp file, and keeps the file's 0600 mode",
+           _p2.read_text() == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2]
+           and (os.stat(_p2).st_mode & 0o777) == 0o600)
+
+    # P81 C-3/C-5/C-6: operator-input validation (18 cases)
+    def _rejects(fn, val, token):
+        try:
+            fn(val)
+            return False
+        except ValueError as exc:
+            return token in str(exc)
+    ok("hosts: URL rejected with reason", _rejects(_normalize_allowed_hosts, ["https://x.example.com"], "not a URL"))
+    ok("hosts: path rejected", _rejects(_normalize_allowed_hosts, ["a/b"], "not a URL"))
+    ok("hosts: '*' rejected", _rejects(_normalize_allowed_hosts, ["*"], "hostname"))
+    ok("hosts: whitespace-inside rejected", _rejects(_normalize_allowed_hosts, ["a b.example"], "hostname"))
+    ok("hosts: a number rejected (not iterated per character)", _rejects(_normalize_allowed_hosts, 42, "list"))
+    ok("hosts: a dict rejected", _rejects(_normalize_allowed_hosts, {"h": 1}, "list"))
+    ok("hosts: bare string accepted as ONE host", _normalize_allowed_hosts("mcp.example.com") == ["mcp.example.com"])
+    ok("hosts: host:port accepted", _normalize_allowed_hosts(["h.example.com:8443"]) == ["h.example.com:8443"])
+    ok("hosts: IPv4 accepted", _normalize_allowed_hosts(["203.0.113.7"]) == ["203.0.113.7"])
+    ok("hosts: [IPv6] accepted", _normalize_allowed_hosts(["[2001:db8::1]"]) == ["[2001:db8::1]"])
+    ok("hosts: [IPv6]:* accepted and split correctly",
+       _split_host_port("[2001:db8::1]:*") == ("[2001:db8::1]", "*"))
+    ok("hosts: empty entries dropped", _normalize_allowed_hosts(["", "  ", "a.example.com"]) == ["a.example.com"])
+    ok("origins: https origin accepted", _normalize_allowed_origins(["https://app.example.com:8443"]) == ["https://app.example.com:8443"])
+    ok("origins: bare host rejected", _rejects(_normalize_allowed_origins, ["app.example.com"], "https"))
+    ok("origins: non-list rejected", _rejects(_normalize_allowed_origins, 7, "list"))
+    ok("origins: appended once, never duplicated",
+       _allowed_hosts_settings(["mcp.example.com"], _TSS, ["https://mcp.example.com"]).allowed_origins
+       == _SDK_LOOPBACK_ORIGINS + ["https://mcp.example.com"])
+    import tempfile as _tf3
+    with _tf3.TemporaryDirectory() as _td3:
+        _saved_clp = globals()["CONFIG_LOCAL_PATH"]
+        try:
+            globals()["CONFIG_LOCAL_PATH"] = Path(_td3) / "cfg.local.json"
+            CONFIG_LOCAL_PATH.write_text('{"remote_mcp_allowed_hosts": "one.example.com"}', encoding="utf-8")
+            ok("config arm: a bare string means one host", _remote_allowed_hosts([]) == ["one.example.com"])
+            CONFIG_LOCAL_PATH.write_text('{"remote_mcp_allowed_hosts": 42}', encoding="utf-8")
+            ok("config arm: a number raises ValueError (startup exit 2)",
+               _rejects(lambda v: _remote_allowed_hosts([]), None, "list"))
+            CONFIG_LOCAL_PATH.write_text('{nope', encoding="utf-8")
+            ok("config arm: an unparseable file degrades to []", _remote_allowed_hosts([]) == [])
+            CONFIG_LOCAL_PATH.unlink()
+            ok("config arm: an absent file degrades to []", _remote_allowed_hosts([]) == [])
+        finally:
+            globals()["CONFIG_LOCAL_PATH"] = _saved_clp
+
+    # P81 C-4 (T3): a 2.x install whose own dependency is missing surfaces the REAL missing name.
+    import importlib.abc as _iabc, importlib.machinery as _imach
+    class _BrokenFinder(_iabc.MetaPathFinder, _iabc.Loader):
+        def find_spec(self, name, path=None, target=None):
+            if name in ("mcp", "mcp.server", "mcp.server.mcpserver"):
+                return _imach.ModuleSpec(name, self, is_package=name != "mcp.server.mcpserver")
+            return None
+        def create_module(self, spec):
+            return None
+        def exec_module(self, module):
+            if module.__name__ == "mcp.server.mcpserver":
+                import creator_os_missing_dep_p81  # noqa: F401  (a name that can never exist)
+            module.__path__ = []
+    _saved2 = {k: sys.modules.pop(k, None) for k in ("mcp", "mcp.server", "mcp.server.mcpserver", "mcp.server.fastmcp")}
+    _finder = _BrokenFinder()
+    sys.meta_path.insert(0, _finder)
+    try:
+        try:
+            _select_server_class()
+            ok("shim: broken 2.x install surfaces its real missing dependency", False)
+        except ModuleNotFoundError as _exc:
+            ok("shim: broken 2.x install surfaces its real missing dependency", _exc.name == "creator_os_missing_dep_p81")
+    finally:
+        sys.meta_path.remove(_finder)
+        for k in ("mcp", "mcp.server", "mcp.server.mcpserver", "mcp.server.fastmcp"):
+            sys.modules.pop(k, None)
+        for k, v in _saved2.items():
+            if v is not None:
+                sys.modules[k] = v
 
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
@@ -1449,7 +1590,7 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
                     "gemini_gem_export", "custom_gpt_export").
         enabled: True to enable the capability, False to disable it.
     """
-    with _WRITE_LOCK:   # P80: one critical section for the read-modify-write; atomic replace, not truncate+write
+    with _WRITE_LOCK, _locked(CONFIG_LOCAL_PATH):   # P80 in-process, P81 cross-process (the wizard writes this file too)
         local, backup, err = _read_local_config_for_write(CONFIG_LOCAL_PATH)
         if err:
             return json.dumps({"error": err, "refused": True,
@@ -1922,9 +2063,9 @@ def obligation_build(rows: dict, today: str | None = None, lead_days: int = 3, w
                 reg["_gate"] = ("contract_obligations is off: register computed but NOT written. "
                                 "Enable it to persist (see degraded_behavior).")
             else:
-                with _WRITE_LOCK:
+                with _WRITE_LOCK, _locked(_ob.REGISTER_PATH):
                     _ob.REGISTER_PATH.parent.mkdir(parents=True, exist_ok=True)
-                    _ob.REGISTER_PATH.write_text(json.dumps(reg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                    _atomic_write_text(_ob.REGISTER_PATH, json.dumps(reg, indent=2, ensure_ascii=False) + "\n")
                 reg = dict(reg)
                 reg["_written"] = _ob.REGISTER_PATH.relative_to(_ob.ROOT).as_posix()
         return json.dumps(reg, indent=2, ensure_ascii=False)
@@ -2007,10 +2148,10 @@ def invoice_build(payload: dict, today: str | None = None, write: bool = False) 
             if not ok:
                 inv["_gate"] = reason
             else:
+                out = _fin.FINANCE_DIR / f"{inv['invoice_id']}.local.json"
                 with _WRITE_LOCK:
                     _fin.FINANCE_DIR.mkdir(parents=True, exist_ok=True)
-                    out = _fin.FINANCE_DIR / f"{inv['invoice_id']}.local.json"
-                    out.write_text(json.dumps(inv, indent=2) + "\n", encoding="utf-8")
+                    _atomic_write_text(out, json.dumps(inv, indent=2) + "\n")
                 inv["_written_to"] = str(out)
         return json.dumps(inv, indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
@@ -2495,7 +2636,7 @@ if __name__ == "__main__":
         # P61 C19 full tier: the package imported and every tool above registered live.
         _live = None
         try:
-            _live = len(mcp._tool_manager._tools)  # FastMCP's internal registry
+            _live = len(mcp._tool_manager._tools)  # the tool manager's registry (same private name in both majors; the public list_tools() fallback follows)
         except AttributeError:
             try:
                 import asyncio as _asyncio
@@ -2561,7 +2702,60 @@ if __name__ == "__main__":
             finally:
                 globals()["CONFIG_LOCAL_PATH"] = _orig_cfg
         print(("ok   " if _conc_ok else "FAIL ") + "concurrent configure_tool writes serialise and stay parseable (P80)")
-        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _RC_STATIC == 0) else 1
+
+        def _selftest_transport_policy(ok_fn, is_v2, server_cls, loopback_hosts, allowed_hosts_settings):
+            """G-9 (P81): the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
+            obtained WITHOUT binding a socket and fed to the SDK middleware; the assertion is the deny/pass
+            OUTCOME for a Host header, identical in mcp 1.28.1, 1.29.1 and 2.1.1. Asserting the outcome, not
+            `settings is not None`: TransportSecuritySettings() with empty lists is enabled and denies everything.
+            If a patch release renames _session_manager / _lowlevel_server, this fails loudly; the fallback is a
+            bound-socket probe."""
+            import asyncio as _aio
+            from mcp.server.transport_security import TransportSecuritySettings, TransportSecurityMiddleware
+            from starlette.requests import Request
+
+            def effective(host, security):
+                srv = server_cls("creator-os-selftest")
+                if is_v2:
+                    srv.streamable_http_app(host=host, transport_security=security)
+                    return srv._lowlevel_server._session_manager.security_settings
+                srv.settings.host = host
+                if security is not None:
+                    srv.settings.transport_security = security
+                elif host.lower() not in loopback_hosts:
+                    srv.settings.transport_security = None
+                srv.streamable_http_app()
+                return srv._session_manager.security_settings
+
+            def verdict(eff, host_header):
+                scope = {"type": "http", "method": "POST", "path": "/mcp", "query_string": b"",
+                         "headers": [(b"host", host_header.encode()), (b"content-type", b"application/json")]}
+                r = _aio.run(TransportSecurityMiddleware(eff).validate_request(Request(scope), is_post=True))
+                return "pass" if r is None else r.status_code
+
+            listed = allowed_hosts_settings(["mcp.example.com"], TransportSecuritySettings)
+            table = [("0.0.0.0", None, "evil.example", "pass"), ("127.0.0.1", None, "mcp.example.com", 421),
+                     ("127.0.0.1", None, "127.0.0.1:8080", "pass"), ("127.0.0.1", listed, "mcp.example.com", "pass"),
+                     ("127.0.0.1", listed, "mcp.example.com:443", "pass"), ("127.0.0.1", listed, "evil.example", 421),
+                     ("0.0.0.0", listed, "evil.example", 421)]
+            all_ok = True
+            for host, sec, hh, want in table:
+                mode = "with" if sec else "without"
+                got = verdict(effective(host, sec), hh)
+                good = got == want
+                all_ok = all_ok and good
+                ok_fn(f"transport policy: bind {host} {mode} allow-list, Host {hh} -> {want}", good)
+            return all_ok
+
+        _policy_ok = False
+        try:
+            def _ok_live(name, cond):
+                print(("ok   " if cond else "FAIL ") + name)
+            _policy_ok = _selftest_transport_policy(_ok_live, _MCP2, _ServerClass, _LOOPBACK_HOSTS,
+                                                    _allowed_hosts_settings)
+        except Exception as _exc:  # noqa: BLE001
+            print(f"FAIL transport-policy selftest raised: {_exc}")
+        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _policy_ok and _RC_STATIC == 0) else 1
         print(f"mcp_server selftest: full tier {'PASS' if _rc == 0 else 'FAIL'} "
               f"(package-independent tier {'PASS' if _RC_STATIC == 0 else 'FAIL'}, "
               f"{_live} tools live)")
@@ -2577,9 +2771,13 @@ if __name__ == "__main__":
     _ap.add_argument("--host", default="127.0.0.1")
     _ap.add_argument("--port", type=int, default=8080)
     _ap.add_argument("--allowed-host", action="append", default=[],
-                     help="public hostname(s) the proxy forwards in the Host header (repeatable). Under the mcp "
-                          "2.x SDK a loopback bind behind a proxy answers 421 to any other Host; also settable as "
+                     help="public hostname(s) the proxy forwards in the Host header (repeatable). BOTH SDK majors "
+                          "answer 421 to any other Host on a loopback bind; also settable as "
                           "remote_mcp_allowed_hosts (a list) in creator-os-config.local.json")
+    _ap.add_argument("--allowed-origin", action="append", default=[],
+                     help="browser origin(s) allowed to call the endpoint, e.g. https://app.example.com "
+                          "(repeatable); server-to-server proxies send no Origin and need none; also settable "
+                          "as remote_mcp_allowed_origins")
     _ap.add_argument("--insecure", action="store_true",
                      help="acknowledge binding a non-loopback interface with NO in-process auth "
                           "(applies to any network transport: --serve-remote or --transport "
@@ -2595,19 +2793,38 @@ if __name__ == "__main__":
     except OSError:
         pass
     if _transport != "stdio":
-        _hosts = _remote_allowed_hosts(_args.allowed_host)
-        from mcp.server.transport_security import TransportSecuritySettings as _TSS   # same path in 1.28+ and 2.x
-        _security = _allowed_hosts_settings(_hosts, _TSS)
-        if _security is None and (_args.host or "").lower() in _LOOPBACK_HOSTS:
-            print("[creator-os] WARNING: the MCP SDK enables DNS-rebinding protection for a loopback bind "
-                  "(1.28 onwards and 2.x alike); requests a proxy forwards with a public Host header are "
-                  "answered 421 until you pass --allowed-host <public-hostname> (or set "
-                  "remote_mcp_allowed_hosts in creator-os-config.local.json).", file=sys.stderr)
+        try:
+            from mcp.server.transport_security import TransportSecuritySettings as _TSS
+        except ImportError:
+            print("[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
+                  "pip install -r requirements-mcp.txt", file=sys.stderr)
+            sys.exit(1)
+        try:
+            _hosts = _remote_allowed_hosts(_args.allowed_host)
+            _origins = _remote_allowed_hosts(_args.allowed_origin, key="remote_mcp_allowed_origins",
+                                             normalize=_normalize_allowed_origins)
+        except ValueError as _exc:
+            print(f"[creator-os] ERROR: {_exc}", file=sys.stderr)
+            sys.exit(2)
+        _security = _allowed_hosts_settings(_hosts, _TSS, _origins)
+        _is_loopback = (_args.host or "").lower() in _LOOPBACK_HOSTS
+        if _security is None and _is_loopback:
+            print("[creator-os] WARNING: on a loopback bind the MCP SDK (both majors) allow-lists only loopback "
+                  "Host headers; requests a proxy forwards with a public Host are answered 421 until you pass "
+                  "--allowed-host <public-hostname> (or set remote_mcp_allowed_hosts in "
+                  "creator-os-config.local.json). A non-loopback bind gets no automatic protection in either "
+                  "major; pass --allowed-host to enable it.", file=sys.stderr)
         if not _MCP2:
             mcp.settings.host = _args.host   # 1.x: settings is the only sink; no blanket except (P80)
             mcp.settings.port = _args.port
             if _security is not None:
                 mcp.settings.transport_security = _security
+            elif not _is_loopback:
+                # P81 C-1: FastMCP computed its DNS-rebinding settings in __init__ for the DEFAULT host
+                # (loopback) because the server is constructed before argparse. For a non-loopback bind the
+                # SDK's own rule is "no automatic protection"; mirror it, or every request to a public bind
+                # is answered 421 with no diagnostic. Must run before the app is built (the SDK caches it).
+                mcp.settings.transport_security = None
         # P68-B: the auth decision fires for ANY network bind, not only --serve-remote. A bare
         # `--transport streamable-http|sse` reaches this branch too and must not skip the gate.
         if _auth_gate_fires(_args.transport, _args.serve_remote):
