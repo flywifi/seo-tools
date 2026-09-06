@@ -54,6 +54,27 @@ describes everything in the tree above the baseline, and the tag itself is still
 - `implementation/gpt/api/README.md` said the Assistants API "sunsets"; it was sunset on 2026-08-26 and
   the replacement pair is the Responses and Conversations APIs.
 
+- Three live sentences said `tools/dependency_currency.py` reconciles against the requirements files, the
+  evidence file, and the connector registry, or reads `check_interval_days`; it reads only the registry's
+  `validated_version` and `pinned_constraint`. CLAUDE.md, docs/CURRENCY.md, and traversal-config.json now
+  say what the tool does. The P79 record wrongly said AGENTS.md carried the sentence and wrongly listed
+  `mcp.types` and `_tool_manager._tools` as mcp 2.x breaks.
+- `dep-faster-whisper` carried an empty pin while requirements-transcribe.txt says `>=1.0`.
+- CI had been red on every run since 2026-08-16: the fcpxml selftest accepted only xmllint's validation
+  levels, and the GitHub runner has no xmllint. It now expects the level the installed tool can reach.
+- The skill-package manifest hashed gitignored `__pycache__` output, so running a skill's script under a
+  second interpreter moved a hash with no source change; it hashes tracked files.
+- The macOS launcher accepted any interpreter that could `import sys`; it requires 3.12 or newer and
+  falls through to the install instructions otherwise. `tools/setup.py` enforces the same floor.
+- The MCP server discarded `--host` and `--port` under the 2.x SDK (a bare except swallowed the settings
+  assignment); host and port now reach `run()` explicitly in both majors.
+- The documented proxied MCP deployment (loopback bind behind a reverse proxy) was answered 421 by the
+  SDK's DNS-rebinding protection, on the shipped 1.x pin as well as 2.x; the new allow-list surface fixes
+  it in both, verified by a live bind in each.
+- The connector registry described the MCP server as exposing eight tools; the count is delegated to
+  count_truth.
+- `tools/sync_check.py` passed `maxsplit` positionally to `re.split` (a DeprecationWarning on 3.13).
+
 ### Changed
 - Invariants 47 (projection staleness), 51 (doc freshness), and 56 (registry content digest) now fail
   the build instead of warning, including their import-failure branches; invariant 45 stays advisory
@@ -77,29 +98,6 @@ describes everything in the tree above the baseline, and the tag itself is still
   `revalidations` record in `docs/video-tooling-integration-evidence.json`, a registry source for the
   Homebrew `python@3.12` formula, and a doc-freshness binding for `docs/CURRENCY.md`.
 
-### Fixed
-- Three live sentences said `tools/dependency_currency.py` reconciles against the requirements files, the
-  evidence file, and the connector registry, or reads `check_interval_days`; it reads only the registry's
-  `validated_version` and `pinned_constraint`. CLAUDE.md, docs/CURRENCY.md, and traversal-config.json now
-  say what the tool does. The P79 record wrongly said AGENTS.md carried the sentence and wrongly listed
-  `mcp.types` and `_tool_manager._tools` as mcp 2.x breaks.
-- `dep-faster-whisper` carried an empty pin while requirements-transcribe.txt says `>=1.0`.
-- CI had been red on every run since 2026-08-16: the fcpxml selftest accepted only xmllint's validation
-  levels, and the GitHub runner has no xmllint. It now expects the level the installed tool can reach.
-- The skill-package manifest hashed gitignored `__pycache__` output, so running a skill's script under a
-  second interpreter moved a hash with no source change; it hashes tracked files.
-- The macOS launcher accepted any interpreter that could `import sys`; it requires 3.12 or newer and
-  falls through to the install instructions otherwise. `tools/setup.py` enforces the same floor.
-- The MCP server discarded `--host` and `--port` under the 2.x SDK (a bare except swallowed the settings
-  assignment); host and port now reach `run()` explicitly in both majors.
-- The documented proxied MCP deployment (loopback bind behind a reverse proxy) was answered 421 by the
-  SDK's DNS-rebinding protection, on the shipped 1.x pin as well as 2.x; the new allow-list surface fixes
-  it in both, verified by a live bind in each.
-- The connector registry described the MCP server as exposing eight tools; the count is delegated to
-  count_truth.
-- `tools/sync_check.py` passed `maxsplit` positionally to `re.split` (a DeprecationWarning on 3.13).
-
-### Changed
 - Python floor is 3.12 and the recommended Homebrew formula is `python@3.12`: numpy 2.5 dropped 3.11, and
   DaVinci Resolve's scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on. The
   video tooling was re-validated on 3.12 against the P26 goldens (numpy 2.5.2, av 18.1.0, scenedetect

@@ -61,3 +61,6 @@ added beyond what those records state. New decisions get the next number via
 | [0050](0050-p68-verification-hardening.md) | P68 Verification hardening (why nine defects survived) | 2026-07-20 | Accepted |
 | [0051](0051-p69-macos-audit-completeness-gate.md) | P69 macOS audit closes with a derived completeness gate | 2026-08-09 | Accepted |
 | [0052](0052-p72-openai-parity.md) | P72 OpenAI parity: one MCP server plus thin per-surface doors | 2026-08-15 | Accepted |
+| [0053](0053-p73-production-readiness-audit.md) | P73 Production readiness is a stated yardstick, and guards must catch the next drift | 2026-08-16 | Accepted |
+| [0054](0054-p74-verified-contracts-and-honest-residue.md) | P74 Verified contracts over plausible ones, and an honest residue over a silenced one | 2026-08-16 | Accepted |
+| [0055](0055-p80-python-312-and-mcp-dual-major.md) | P80 A 3.12 floor set by the narrowest lane, and an MCP server that speaks both SDK majors | 2026-09-05 | Accepted |

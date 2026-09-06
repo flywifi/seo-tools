@@ -1,5 +1,5 @@
 {
-  "_comment": "P52 doc-freshness signal: sha256 of each CODE file a doc documents, at the time the doc was last reconciled. If a bound source sha moves, drift invariant 51 (advisory) flags the doc as possibly stale. Re-read the doc, fix any drift, then run `python3 tools/doc_freshness.py reconcile` to re-bless it.",
+  "_comment": "P52 doc-freshness signal: sha256 of each CODE file a doc documents, at the time the doc was last reconciled. If a bound source sha moves, drift invariant 51 (blocking since P79) flags the doc as possibly stale. Re-read the doc, fix any drift, then run `python3 tools/doc_freshness.py reconcile` to re-bless it. `frozen` (P81) pins each dated record's body above its first '## Addendum' heading: records are append-only.",
   "generated_by": "tools/doc_freshness.py",
   "docs": {
     "docs/AUDIT-PROTOCOL.md": {
@@ -11,7 +11,8 @@
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
-        "tools/source_currency.py": "cbbd2f7e784aa107aee6bae4f438fc5ea4ba5fafc41a9a197883e6f500adc190"
+        "tools/source_currency.py": "171cf560c7ac889893869482f8e963643ba17b8f287869704ded855ba4245b93",
+        "tools/sync_check.py": "ec90d1b9b8abe17dcd3eb66a3c623b58b656411ed02fa0a247e156d2009e68a3"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -108,5 +109,11 @@
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }
+  },
+  "frozen": {
+    "docs/remediation-2026-09-04.md": "68a5ee8c9580e8a7bbee574a3c4c4a1dd468d7f629e0f5a7681f102358ee11fb",
+    "docs/integrity-currency-audit-2026-08-30.md": "caf00dd9f024472c28901e7b6511f0880a24b4c85c1b7a34923cc25fa6412f9b",
+    "docs/persona-audit-2026-07-15.md": "a761a4c40ee2feceacc7af535391d69c790bebe61d92e272c31a619fb8807be9",
+    "docs/production-readiness-2026-08-16.md": "14e6c8da00444cf3587571ff136664c10ae03ee58e27189df36a5185f6da8ae9"
   }
 }

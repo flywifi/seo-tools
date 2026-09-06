@@ -65,7 +65,9 @@ invariant 25 keeps `pinned_constraint` equal to the requirements specifier.
    the four probes recorded in `docs/video-tooling-integration-evidence.json` against the goldens
    (first on the previously validated versions as a control, then on the candidates).
 2. Append a `revalidations` entry to that evidence file (date, python, pip_versions, ffmpeg, control,
-   live_checks with expected, observed, max_delta_seconds, tolerance, pass). Never edit the original run.
+   live_checks with the exact `command` per check plus expected, observed, max_delta_seconds,
+   tolerance_seconds, pass; the 2026-07-03 originals predate this schema and are not re-shaped).
+   Never edit the original run.
 3. `python3 tools/mac_surface_manifest.py reconcile` (the file is hash-pinned).
 4. Stamp each validated library: `python3 tools/source_currency.py update-source dep-<x>
    --validated-version <resolved>`; the requirements pin and the registry pin must agree (drift

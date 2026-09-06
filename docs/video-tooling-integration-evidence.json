@@ -1,5 +1,5 @@
 {
-  "_comment": "P29 integration evidence: the shipped tools/videoedit modules exercised live against the P26 spike goldens. Companion to docs/video-tooling-spike-evidence.json (P26, frozen). All media and installs lived in a throwaway scratchpad; only the raw stderr fixtures under tools/videoedit/fixtures/ entered the repo.",
+  "_comment": "P29 integration evidence: the shipped tools/videoedit modules exercised live against the P26 spike goldens. Companion to docs/video-tooling-spike-evidence.json (P26, frozen). All media and installs lived in a throwaway scratchpad; only the raw stderr fixtures under tools/videoedit/fixtures/ entered the repo. P80 onward: `revalidations[]` holds later re-runs; the original run is never edited.",
   "date": "2026-07-03",
   "environment": {
     "os": "Linux x86_64 (remote container)",
@@ -170,7 +170,8 @@
           "max_delta_seconds": 0.021,
           "tolerance_seconds": 0.05,
           "computed_by": "ffmpeg.silencedetect",
-          "pass": true
+          "pass": true,
+          "command": "python3 tools/videoedit/mediaprobe.py silence --media workshop-synth.mp4 --backend ffmpeg"
         },
         {
           "id": "silence-pyav",
@@ -205,7 +206,8 @@
           "max_delta_seconds": 0.0,
           "tolerance_seconds": 0.05,
           "computed_by": "pyav.rms_window",
-          "pass": true
+          "pass": true,
+          "command": "python3 tools/videoedit/mediaprobe.py silence --media workshop-synth.mp4 --backend pyav"
         },
         {
           "id": "scenes-pyscenedetect",
@@ -224,7 +226,8 @@
           "max_delta_seconds": 0.0,
           "tolerance_seconds": 0.0,
           "computed_by": "pyscenedetect.ContentDetector",
-          "pass": true
+          "pass": true,
+          "command": "python3 tools/videoedit/mediaprobe.py scenes --media workshop-synth.mp4 --backend scenedetect"
         },
         {
           "id": "scenes-ffmpeg-scdet",
@@ -241,10 +244,51 @@
           "max_delta_seconds": 0.0,
           "tolerance_seconds": 0.0,
           "computed_by": "ffmpeg.scdet",
-          "pass": true
+          "pass": true,
+          "command": "python3 tools/videoedit/mediaprobe.py scenes --media workshop-synth.mp4 --backend ffmpeg --scdet-threshold 1"
         }
       ],
       "battery": "selftest_sweep 88 of 88 and drift guard clean under the 3.12 venv with these versions plus requests, charset-normalizer, beautifulsoup4, python-dateutil, sqlite-vec, PyYAML, playwright installed"
+    },
+    {
+      "date": "2026-09-06",
+      "phase": "P81",
+      "environment": {
+        "os": "Linux x86_64 (remote container)",
+        "python": "3.12.3",
+        "ffmpeg": "7.0.2-static (the P80-validated archive)",
+        "note": "the three probes P80 did not re-run; same py312 scratch venv and pip set as the 2026-09-05 entry"
+      },
+      "live_checks": [
+        {
+          "id": "reframe-moviepy-render",
+          "command": "python3 -c \"import sys,json; sys.path[:0]=['tools','tools/videoedit']; import reframe; print(json.dumps(reframe.render('workshop-synth.mp4','out.mp4',100.0,120.0,{'x':438,'y':0,'width':404,'height':720},config={'capabilities':{'shorts_reframe':{'enabled':True},'video_editing':{'enabled':True}}},backend='moviepy')))\" ; then ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=duration -of csv=p=0 out.mp4",
+          "expected": "rendered true, renderer moviepy.crop; ffprobe h264,404,720 duration 20.000000",
+          "observed": "rendered true, renderer moviepy.crop; h264,404,720 duration 20.000000",
+          "max_delta_seconds": 0.0,
+          "tolerance_seconds": 0.0,
+          "pass": true
+        },
+        {
+          "id": "reframe-ffmpeg-render",
+          "command": "python3 -c \"import sys,json; sys.path[:0]=['tools','tools/videoedit']; import reframe; print(json.dumps(reframe.render('workshop-synth.mp4','out.mp4',100.0,120.0,{'x':438,'y':0,'width':404,'height':720},config={'capabilities':{'shorts_reframe':{'enabled':True},'video_editing':{'enabled':True}}},backend='ffmpeg')))\" ; then ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -show_entries format=duration -of csv=p=0 out.mp4",
+          "expected": "rendered true, renderer ffmpeg.crop; ffprobe h264,404,720 duration 20.000000",
+          "observed": "rendered true, renderer ffmpeg.crop; h264,404,720 duration 20.000000",
+          "max_delta_seconds": 0.0,
+          "tolerance_seconds": 0.0,
+          "pass": true
+        },
+        {
+          "id": "mcp-tools-list",
+          "command": "CREATOR_OS_MCP_TOKEN=s3cret python3 tools/mcp_server.py --transport streamable-http --host 127.0.0.1 --port <free> & then JSON-RPC initialize + tools/list with the bearer token",
+          "expected": "60 tools (the 2026-07-03 entry recorded 27 on mcp 1.28.1; the surface grew by phase)",
+          "observed": "60 tools on mcp 2.1.1",
+          "max_delta_seconds": 0.0,
+          "tolerance_seconds": 0.0,
+          "pass": true
+        }
+      ]
     }
-  ]
+  ],
+  "last_revalidated": "2026-09-06"
 }

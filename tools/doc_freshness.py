@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -32,6 +33,7 @@ DOC_SOURCES = {
     "docs/CURRENCY.md": [   # P80 A4: the dependency-checker contract drifted from this doc for a full year unnoticed
         "tools/dependency_currency.py",
         "tools/source_currency.py",
+        "tools/sync_check.py",   # P81 A-9: the doc describes invariant 25's pin-chain rule
     ],
     "tools/publishing/MAINTAINER_README.md": [
         "tools/publishing/__init__.py",
@@ -89,6 +91,26 @@ DOC_SOURCES = {
     ],
 }
 
+# P81 G-5: dated records (a remediation record, an audit report) are frozen above their first
+# `## Addendum` heading. P80 edited four rows of the P79 record in place and left five others stale,
+# so the record contradicted itself; an addendum is the only sanctioned way to add later facts.
+FROZEN_GLOBS = ("docs/remediation-*.md", "docs/*-audit-*.md", "docs/production-readiness-*.md")
+_ADDENDUM_RE = re.compile(r"^## Addendum\b.*$", re.M)
+
+
+def frozen_docs(root: Path = ROOT) -> list:
+    out = []
+    for g in FROZEN_GLOBS:
+        out += sorted(str(p.relative_to(root)) for p in root.glob(g))
+    return out
+
+
+def frozen_body_sha(text: str) -> str:
+    """sha256 of the body ABOVE the first '## Addendum' heading, trailing whitespace stripped, so appending
+    an addendum never moves it and any other edit does."""
+    body = _ADDENDUM_RE.split(text, maxsplit=1)[0].rstrip()
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -107,11 +129,13 @@ def reconcile(root: Path = ROOT, sources: dict | None = None, manifest_path: Pat
         out[doc] = {"sources": rec}
     manifest = {
         "_comment": "P52 doc-freshness signal: sha256 of each CODE file a doc documents, at the time the "
-                    "doc was last reconciled. If a bound source sha moves, drift invariant 51 (advisory) "
-                    "flags the doc as possibly stale. Re-read the doc, fix any drift, then run "
-                    "`python3 tools/doc_freshness.py reconcile` to re-bless it.",
+                    "doc was last reconciled. If a bound source sha moves, drift invariant 51 (blocking "
+                    "since P79) flags the doc as possibly stale. Re-read the doc, fix any drift, then run "
+                    "`python3 tools/doc_freshness.py reconcile` to re-bless it. `frozen` (P81) pins each "
+                    "dated record's body above its first '## Addendum' heading: records are append-only.",
         "generated_by": "tools/doc_freshness.py",
         "docs": out,
+        "frozen": {d: frozen_body_sha((root / d).read_text(encoding="utf-8")) for d in frozen_docs(root)},
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -145,6 +169,18 @@ def check(root: Path = ROOT, sources: dict | None = None, manifest_path: Path | 
                 changed.append(s)
         if changed or missing:
             stale.append({"doc": doc, "changed_sources": changed, "missing_sources": missing})
+    blessed = manifest.get("frozen", {})
+    for d in frozen_docs(root):
+        fp = root / d
+        if not fp.exists():
+            continue
+        if d not in blessed:
+            stale.append({"doc": d, "changed_sources": [], "missing_sources": [],
+                          "note": "dated record not yet blessed; run 'python3 tools/doc_freshness.py reconcile'"})
+        elif blessed[d] != frozen_body_sha(fp.read_text(encoding="utf-8")):
+            stale.append({"doc": d, "changed_sources": [], "missing_sources": [],
+                          "note": "dated record edited above its Addendum section; records are append-only "
+                                  "(add an '## Addendum <date>' section, or run reconcile to re-bless deliberately)"})
     return stale
 
 
@@ -188,10 +224,26 @@ def selftest(root: Path = ROOT) -> int:
     st = check(root=d, sources=srcs, manifest_path=mp)
     ok("flags-missing-source", len(st) == 1 and "tools/a.py" in st[0]["missing_sources"])
 
+    # P81 G-5: frozen dated records. (Restore the source file the previous case deleted.)
+    (d / "tools" / "a.py").write_text("def f(): pass\n", encoding="utf-8")
+    (d / "docs" / "remediation-2026-01-01.md").write_text("# record\n\nbody\n", encoding="utf-8")
+    reconcile(root=d, sources=srcs, manifest_path=mp)
+    ok("frozen: clean after reconcile", check(root=d, sources=srcs, manifest_path=mp) == [])
+    with open(d / "docs" / "remediation-2026-01-01.md", "a", encoding="utf-8") as fh:
+        fh.write("\n## Addendum 2026-02-01\n\nlater facts\n")
+    ok("frozen: an addendum is allowed", check(root=d, sources=srcs, manifest_path=mp) == [])
+    txt = (d / "docs" / "remediation-2026-01-01.md").read_text(encoding="utf-8")
+    (d / "docs" / "remediation-2026-01-01.md").write_text(txt.replace("body", "edited body"), encoding="utf-8")
+    st = check(root=d, sources=srcs, manifest_path=mp)
+    ok("frozen: a body edit is flagged", len(st) == 1 and "append-only" in st[0].get("note", ""))
+    (d / "docs" / "prod-audit-2026-03-03.md").write_text("# new record\n", encoding="utf-8")
+    st = check(root=d, sources=srcs, manifest_path=mp)
+    ok("frozen: a new dated record must be blessed", any("not yet blessed" in x.get("note", "") for x in st))
+
     if failures:
         print("doc_freshness selftest FAILED:", ", ".join(failures))
         return 1
-    print("doc_freshness selftest OK (reconcile/flag-on-change/rebless/missing-manifest/missing-source)")
+    print("doc_freshness selftest OK (reconcile/flag-on-change/rebless/missing-manifest/missing-source/frozen)")
     return 0
 
 

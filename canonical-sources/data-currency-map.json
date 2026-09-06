@@ -1,6 +1,6 @@
 {
   "_comment": "Authoritative classification of every canonical data file: is it WATCHED by a registered source (so a change upstream flags it for review), intentionally STATIC (creator/template-derived, no upstream), DATED (internal data on a calendar cadence), or TOOL-MANAGED (owned by another tool). This resolves the P33 audit's 'orphaned data file' finding permanently: a future audit reads this map instead of re-flagging. Watched files name the registry source_ids that feed them; source_currency.py mark-checked --changed on one of those sources surfaces the file to update.",
-  "as_of": "2026-09-04",
+  "as_of": "2026-09-06",
   "files": [
     {
       "file": "keyword-library/youtube-algorithm-signals.json",
@@ -639,7 +639,9 @@
         "dep-ffmpeg",
         "dep-scenedetect",
         "dep-moviepy",
-        "dep-opencv-headless"
+        "dep-opencv-headless",
+        "dep-numpy",
+        "dep-av"
       ],
       "reason": "P36: the validated-run record; its versions are transcribed by hand into the registry's validated_version (dependency_currency reads the registry, not this file); review on a dependency major bump"
     },

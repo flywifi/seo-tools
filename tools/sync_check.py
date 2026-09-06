@@ -53,7 +53,7 @@ Invariants enforced:
       connector in connectors.json has a matching software-dependency / mcp-server entry in
       source-registry.json, so no dependency ships untracked by the currency system.
   24. Task-tracker integrity (P35): tasks store schema/flags stay coherent.
-  25. Currency-map integrity (P36): the data-currency map parses and its sources resolve; tier vocabulary, files[] schema and coverage (P79); requirements pin equals registry pin (P80).
+  25. Currency-map integrity (P36): the data-currency map parses and its sources resolve; tier vocabulary, files[] schema and coverage (P79); requirements pin equals registry pin (P80); evidence revalidation schema and as_of vs commit date (P81).
   26. Knowledge-only-surface freshness projection (P36): the packaged freshness bundle stays
       consistent with the registry digest.
   27. Jurisdictional-overlay bucket integrity (P37, optional): overlay buckets are well-formed.
@@ -81,7 +81,8 @@ Invariants enforced:
   41. Capability->connector target existence (P47, advisory): every CAPABILITY_TO_CONNECTOR target is
       a connector defined in connectors.json.
   42. Registry writer-count integrity (P47, advisory): exactly the five sanctioned tools reference the
-      registry writer.
+      registry writer; the one-atomic-writer rule for local-config, credential and register files is
+      blocking (P81).
   43. Moving-date calendar (P47, advisory): any moving-dates.json date whose effective/phase_2 has
       passed while verified_after < effective is surfaced.
   44. degraded_behavior/capability parity (P47, advisory): every '<name>_disabled' key maps to a real
@@ -93,7 +94,8 @@ Invariants enforced:
   47. Knowledge-pack projection staleness (P49 WS7; blocking since P79): when a shared engine/protocol a knowledge
       file projects changes sha since the projection manifest was reconciled, the file is surfaced.
   48. Doc-count truth (P49 WS2): live architecture/setup docs must state the true global totals
-      (spokes, invariants) computed by tools/count_truth.py; historical phase-logs are out of scope.
+      (spokes, invariants) computed by tools/count_truth.py; historical phase-logs are out of scope;
+      the Python-floor and retired-pin sweeps, the ADR index, and changelog heading uniqueness (P81).
   49. Doc symbol references (P52): a `<!-- verify: path[::symbol] -->` marker in a maintainer/SKILL/doc
       file asserts the named code still exists (path resolves; a ::symbol must be a module-level
       def/class/assignment or Class.method). Extends invariant 5 from paths to symbols.
@@ -101,7 +103,8 @@ Invariants enforced:
       (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md (invariant 3 covers skills/ only).
   51. Doc freshness (P52; blocking since P79): when a code file a doc documents (tools/doc_freshness.py
       DOC_SOURCES) changes sha since the doc-freshness manifest was reconciled, the doc is surfaced as
-      possibly stale (a content-hash signal, not a prose diff).
+      possibly stale (a content-hash signal, not a prose diff); dated records are frozen above their
+      Addendum section (P81).
   52. Doc-declared source registration (P55): every id a maintainer/SKILL/doc file declares in a
       fenced ```sources block or an inline `<!-- source: id -->` marker must exist in
       canonical-sources/source-registry.json with a matching url; unparseable blocks fail. Fail-closed
@@ -743,19 +746,36 @@ def check_connector_capability_mapping():
             )
 
 
+_REQ_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*(.*)$")
+
+
 def _requirement_lines():
-    """name -> (file:line, specifier) for every non-comment line of requirements-*.txt. P80 A2:
-    the specifier IS the pin as written; invariant 23 reads names only, this reads the rest."""
-    out = {}
+    """name -> (file:line, specifier) for every requirement line, plus problems. P80 A2 read the raw
+    remainder of the line as the pin; P81 strips what is not a version pin (a PEP 508 marker, a --hash,
+    a continuation), skips direct references (they carry a URL, not a version), and refuses a package
+    pinned differently in two files (the old dict silently kept the alphabetically last file)."""
+    out, problems = {}, []
     for f in sorted(ROOT.glob("requirements-*.txt")):
         for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
-            s = line.split("#", 1)[0].strip()
-            if not s or s.startswith("-"):
+            s = line.strip()
+            if not s or s.startswith(("#", "-")):
                 continue
-            m = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*(.*)$", s)
-            if m:
-                out[m.group(1).lower().replace("_", "-")] = (f"{f.name}:{i}", m.group(3).replace(" ", ""))
-    return out
+            if " @ " in s or "://" in s:
+                continue
+            s = s.split(" #", 1)[0].split("\t#", 1)[0].strip()
+            s = s.split(";", 1)[0].strip()
+            s = re.split(r"\s--hash", s, maxsplit=1)[0].strip()
+            s = s.rstrip("\\").strip()
+            m = _REQ_RE.match(s)
+            if not m:
+                continue
+            key = m.group(1).lower().replace("_", "-")
+            spec = m.group(3).replace(" ", "")
+            if key in out and out[key][1] != spec:
+                problems.append(f"requirements: {key} declared as {out[key][1]!r} in {out[key][0]} and {spec!r} in "
+                                f"{f.name}:{i}; one pin per package")
+            out.setdefault(key, (f"{f.name}:{i}", spec))
+    return out, problems
 
 
 def check_dependency_registry():
@@ -877,6 +897,23 @@ def _git_ls_files():
     if out.returncode != 0:
         return None
     return [line.strip() for line in out.stdout.splitlines() if line.strip()]
+
+
+def _git_last_commit_date(rel):
+    """ISO date of the last commit touching rel, or None outside git (the caller degrades loudly)."""
+    try:
+        out = subprocess.run(["git", "log", "-1", "--format=%cs", "--", rel], cwd=str(ROOT),
+                             capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (out.stdout.strip() or None) if out.returncode == 0 else None
+
+
+# Dated records quote what was true when they were written; live claims are swept, these are not.
+HISTORY_PREFIXES = ("docs/adr/", "ledger/", "CHANGELOG.md", "STATE.md", "docs/ROADMAP.md", "examples/",
+                    "docs/production-readiness-", "docs/remediation-", "docs/integrity-currency-audit-",
+                    "docs/persona-audit", "docs/CROSS-MODALITY-AUDIT.md", "docs/video-tooling-",
+                    "canonical-sources/volatile-corrections.")
 
 
 def _privacy_git_unavailable(invariant):
@@ -1529,7 +1566,9 @@ def check_currency_map():
     # P80 A2: the pin chain. dependency_currency reads ONLY the entry's pinned_constraint (never the
     # requirements files), so a specifier the registry does not mirror silently disables out-of-pin
     # detection for that package. Data fix: source_currency update-source --pinned-constraint.
-    reqs = _requirement_lines()
+    reqs, req_problems = _requirement_lines()
+    for msg in req_problems:
+        problem(f"currency-map: {msg}")
     for s in reg.get("sources", []):
         if not isinstance(s, dict) or s.get("category") != "software-dependency" or not s.get("package"):
             continue
@@ -1569,6 +1608,26 @@ def check_currency_map():
         if sub not in mapped and sub not in infra:
             problem(f"currency-map: {rel} is tracked but neither mapped in files[] nor excused in "
                     f"_infrastructure; classify it (watched|dated|static|tool-managed)")
+    # P81 G-7: a re-validation entry that cannot be re-run is not evidence (P80 dropped `command`).
+    ev_path = ROOT / "docs" / "video-tooling-integration-evidence.json"
+    if ev_path.exists():
+        try:
+            ev = json.loads(ev_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problem(f"currency-map: {ev_path.name} unreadable: {exc}")
+            ev = {}
+        req = {"id", "command", "expected", "observed", "max_delta_seconds", "tolerance_seconds", "pass"}
+        for r in ev.get("revalidations", []):
+            for c in r.get("live_checks", []):
+                miss = sorted(req - set(c))
+                if miss:
+                    problem(f"currency-map: {ev_path.name} revalidation {r.get('date')} check {c.get('id')} lacks {miss}")
+    # P81 G-8: the map's review stamp must not predate its own last edit.
+    cd = _git_last_commit_date("canonical-sources/data-currency-map.json")
+    if cd is None:
+        advisory("currency-map: as_of vs commit date DID NOT RUN (not a git checkout)")
+    elif str(cmap.get("as_of", "")) < cd:
+        problem(f"currency-map: as_of {cmap.get('as_of')} predates the map's last commit {cd}; bump as_of when editing the map")
 
 
 def check_task_tracker():
@@ -1881,6 +1940,33 @@ def check_registry_writer_count():
     if missing:
         advisory(f"registry-writers: expected registry writer(s) not detected: {missing}; the writer "
                  f"list in registry_io.py + CLAUDE.md may be stale")
+    # P81 G-6: one atomic writer. A bare write_text() on a local-config / credential / register path
+    # outside tools/atomic_io.py is the class behind C-2/C-7/C-8 (ten sites at P81 planning).
+    _target = re.compile(r"\.local\.json|local_path|creds_path|CREDS_PATH|CONFIG_LOCAL_PATH|REGISTER_PATH|FINANCE_DIR")
+    _allow = {("tools/handoff_sim.py", "OB.REGISTER_PATH"): "simulator tamper fixture; proves the verifier notices"}
+    for f in sorted(list(tools_dir.rglob("*.py")) + list((ROOT / "shared").rglob("*.py"))):
+        rel = f.relative_to(ROOT).as_posix()
+        if rel == "tools/atomic_io.py":
+            continue
+        try:
+            src = f.read_text(encoding="utf-8")
+            tree = _ast.parse(src)
+        except (OSError, SyntaxError):
+            continue
+
+        def _walk(node, in_selftest):
+            for ch in _ast.iter_child_nodes(node):
+                if isinstance(ch, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                    _walk(ch, in_selftest or "selftest" in ch.name.lower())
+                    continue
+                if (isinstance(ch, _ast.Call) and isinstance(ch.func, _ast.Attribute)
+                        and ch.func.attr == "write_text" and not in_selftest):
+                    seg = _ast.get_source_segment(src, ch.func.value) or ""
+                    if _target.search(seg) and (rel, seg) not in _allow:
+                        problem(f"atomic-writer: {rel}:{ch.lineno} writes {seg} with write_text(); use "
+                                f"tools/atomic_io.atomic_write_text (mode-preserving, temp cleaned, lockable)")
+                _walk(ch, in_selftest)
+        _walk(tree, False)
 
 
 def check_moving_dates():
@@ -2217,6 +2303,57 @@ def check_doc_count_truth():
                         f"(\"{rel}\", \"{key}\", \"{kw}\") to checks[] in check_doc_count_truth, or "
                         f"reword the sentence so it does not state a global count.")
                     break
+    # P81 G-1: the Python floor is one constant (tools/env_paths.PYTHON_FLOOR); prose that names another
+    # minor version as the floor or the recommendation is a live falsehood (P80 left two behind).
+    try:
+        sys.path.insert(0, str(ROOT / "tools"))
+        import env_paths as _ep
+        floor_minor = _ep.PYTHON_FLOOR[1]
+    except Exception as exc:  # noqa: BLE001
+        problem(f"doc-floor-truth: env_paths unavailable: {exc}")
+        floor_minor = None
+    floor_re = re.compile(r"(?:Python|python)\s*(?:>=\s*)?3\.(\d{1,2})\s+or\s+(?:later|newer)|python@3\.(\d{1,2})|\(3\.(\d{1,2}) recommended\)")
+    pin_re = re.compile(r">=1\.28,<2|numpy below 2\.5|deferred mcp 2\.x")
+    tracked = _git_ls_files() or []
+    for rel in tracked:
+        if rel.startswith(HISTORY_PREFIXES) or not rel.endswith((".md", ".py", ".command", ".bat", ".txt", ".json")):
+            continue
+        try:
+            lines = (ROOT / rel).read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines, 1):
+            if floor_minor is not None and not rel.endswith(".json"):
+                minors = [int(next(g for g in m.groups() if g)) for m in floor_re.finditer(line)]
+                stale = [v for v in minors if v != floor_minor]
+                if stale and f"3.{floor_minor}" not in line:
+                    problem(f"doc-floor-truth: {rel}:{i} names Python 3.{stale[0]} where the floor is 3.{floor_minor} "
+                            f"(tools/env_paths.PYTHON_FLOOR); fix the prose, or name the floor on the same line")
+            m = pin_re.search(line)
+            if m:
+                problem(f"doc-floor-truth: {rel}:{i} states a retired pin or work state ({m.group(0)!r}); "
+                        f"registry hints move via source_currency update-source --extraction-hint")
+    # P81 G-3: every ADR is reachable from the index (0053 to 0055 were not).
+    idx_path = ROOT / "docs" / "adr" / "README.md"
+    if idx_path.exists():
+        listed = set(re.findall(r"\[(\d{4})\]\(", idx_path.read_text(encoding="utf-8")))
+        for pf in sorted((ROOT / "docs" / "adr").glob("[0-9][0-9][0-9][0-9]-*.md")):
+            n = pf.name[:4]
+            if n != "0000" and n not in listed:
+                problem(f"adr-index: docs/adr/{pf.name} has no row in docs/adr/README.md; add "
+                        f"`| [{n}]({pf.name}) | <title> | <date> | Accepted |`")
+    # P81 G-4: one heading per category under [Unreleased] (P80 appended a second Fixed and Changed).
+    cl = ROOT / "CHANGELOG.md"
+    if cl.exists():
+        seen, in_unreleased = {}, False
+        for i, line in enumerate(cl.read_text(encoding="utf-8").splitlines(), 1):
+            if line.startswith("## "):
+                in_unreleased, seen = line.startswith("## [Unreleased]"), {}
+            elif in_unreleased and line.startswith("### "):
+                if line in seen:
+                    problem(f"changelog: '{line}' appears twice under [Unreleased] (lines {seen[line]} and {i}); "
+                            f"one heading per category (Keep a Changelog)")
+                seen[line] = i
 
 
 VERIFY_RE = re.compile(r"<!--\s*verify:\s*(\S+?)\s*-->")

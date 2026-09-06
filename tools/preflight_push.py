@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """preflight_push.py -- read-only push-blocker predictor (P47).
 
-Before you push, this reports every condition that would fail CI or be rejected by the commit
-hygiene hooks, in one place, WITHOUT changing anything. It does not reimplement the checkers; it
+Before you push, this reports the pre-push SUBSET of push blockers in one place, WITHOUT changing
+anything; `tools/battery.py` is the full gate (P81). It does not reimplement the checkers; it
 imports/invokes the existing ones and aggregates their verdicts:
 
   - drift          : the drift guard (tools/sync_check.py) -- the CI `guard` job.
@@ -140,7 +140,19 @@ def check_tracked_hygiene(scanner=secret_scan.scan_tracked, allowlist=None):
                    "remove the secret content from the tracked file (invariant 21)")
 
 
-CHECKS = (check_drift, check_version, check_freshness, check_commit_hygiene,
+def check_unstaged():
+    """P81 M-8: the mac-surface and package manifests derive from the INDEX, so reconciling or
+    pushing with unstaged tracked edits blesses bytes the commit will not carry."""
+    import battery
+    dirty = battery.unstaged_tracked()
+    if dirty is None:
+        return _result("unstaged", ["unstaged-edit check DID NOT RUN (not a git checkout)"],
+                       "run from a git checkout", status="skip")
+    return _result("unstaged", [f"tracked file has unstaged edits: {f}" for f in dirty],
+                   "git add -A (the mac-surface and package manifests derive from the INDEX)")
+
+
+CHECKS = (check_unstaged, check_drift, check_version, check_freshness, check_commit_hygiene,
           check_staged_hygiene, check_tracked_hygiene)
 
 

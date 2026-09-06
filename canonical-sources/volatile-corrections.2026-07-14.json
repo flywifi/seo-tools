@@ -14,7 +14,8 @@
       "apply_command": "python3 - <<'PY'\nimport pathlib\np=pathlib.Path('requirements-mcp.txt'); t=p.read_text().splitlines()\nt=[('mcp>=1.28,<2' if l.strip()=='mcp' else l) for l in t]\np.write_text('\\n'.join(t)+'\\n')\nPY",
       "apply_kind": "file-edit",
       "status": "applied",
-      "applied_note": "P73: applied 2026-08-16. requirements-mcp.txt pins `mcp>=1.28,<2`. The risk this entry staged as future had already materialized: mcp 2.0.0 stable shipped 2026-07-28 (dep-mcp.latest_seen), so an unbounded pin would have installed a breaking major on any fresh setup."
+      "applied_note": "P73: applied 2026-08-16. requirements-mcp.txt pins `mcp>=1.28,<2`. The risk this entry staged as future had already materialized: mcp 2.0.0 stable shipped 2026-07-28 (dep-mcp.latest_seen), so an unbounded pin would have installed a breaking major on any fresh setup.",
+      "superseded_by": "P80 (2026-09-05): requirements-mcp.txt pins mcp>=2,<3 and dep-mcp carries validated_version 2.1.1; see docs/adr/0055-p80-python-312-and-mcp-dual-major.md"
     },
     {
       "id": "vc-dep-mcp-validated-version",
@@ -28,7 +29,8 @@
       "apply_kind": "registry-field-update",
       "apply_verification": "[NEEDS VERIFICATION at apply] dependency_currency --apply stamps last_checked/latest_seen but may not write validated_version; if it does not, upsert the dep-mcp record via `source_currency.py seed-sources` with validated_version set. Never hand-edit the registry.",
       "status": "applied",
-      "applied_note": "P74, 2026-08-16: applied. dep-mcp.validated_version='1.28' and pinned_constraint='>=1.28,<2' set through `source_currency update-source`, which gained --validated-version/--pinned-constraint/--check-interval-days for exactly this reason: the fields previously had NO sanctioned writer, so the correction was unapplicable rather than merely unstarted. dependency_currency now computes real drift for it (major-drift, breaking, baseline 1.28 vs latest_seen 2.0.0) instead of having no baseline to compare against."
+      "applied_note": "P74, 2026-08-16: applied. dep-mcp.validated_version='1.28' and pinned_constraint='>=1.28,<2' set through `source_currency update-source`, which gained --validated-version/--pinned-constraint/--check-interval-days for exactly this reason: the fields previously had NO sanctioned writer, so the correction was unapplicable rather than merely unstarted. dependency_currency now computes real drift for it (major-drift, breaking, baseline 1.28 vs latest_seen 2.0.0) instead of having no baseline to compare against.",
+      "superseded_by": "P80 (2026-09-05): requirements-mcp.txt pins mcp>=2,<3 and dep-mcp carries validated_version 2.1.1; see docs/adr/0055-p80-python-312-and-mcp-dual-major.md"
     },
     {
       "id": "vc-ny-synthetic-performer",

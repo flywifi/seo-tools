@@ -87,7 +87,7 @@ mcp 1.28 to 2.0.0 stable (2026-07-28). Every changelog item was mapped against e
 | numpy 2.5.1, 2.5.2 | patch releases; 20 and 28 PRs read in full; gcc 10.3 floor for source builds; `PyArray_StringDTypeObject` opaque under abi3t | wheels only; no C API | not affected |
 | PyAV 18.1.0 | additive features (`AVRational`, `Frame.metadata`, `rescale_ts`, CUDA); fixes to `VideoFrame.save`, `add_stream` frame rate, mid-stream codec changes, missing `CodecContext`; "Support for building from source against FFmpeg 9.0 (binary wheels ship FFmpeg 8.1.2)" | audio-only decode via `av.open`, `decode`, `AudioResampler` | not affected on every item; baseline NOT re-stamped because validated means tested with media (Mac runbook, section 7) |
 | PySceneDetect 0.7.1 | `detect()` gains a `backend` keyword defaulting to `"opencv"`; PyAV-backend fixes; `FrameTimecode` comparison precision; additive helpers | `detect(path, ContentDetector(threshold))` on the default backend; reads `.seconds` | not affected on every item; same Mac-side disposition |
-| mcp 2.0.0 | `FastMCP` renamed `MCPServer`; `mcp.types` moved to the `mcp-types` package with snake_case fields; `streamablehttp_client` and WebSocket transport removed; transport parameters moved to `run()`; `MCP_*` env vars and `.env` no longer read; `McpError` renamed `MCPError`; sync handlers on a worker thread; results schema-validated; "v1.x is in maintenance mode and will only receive security fixes" | `tools/mcp_server.py` imports `FastMCP`, `mcp.types.ToolAnnotations`, probes `_tool_manager._tools`, wraps the streamable-http app builder | ported in P80 as a dual-capable module (pin now `>=2,<3`). P80 verification against the SDK source corrected this checklist: `mcp.types` is a permanent alias and camelCase kwargs still construct; `_tool_manager._tools` is unchanged; the real breaks were the `settings.host/port` assignment (swallowed by a bare except) and the app factory's DNS-rebinding default, which 1.28+ also has, so the proxied runbook was already failing on the shipped pin |
+| mcp 2.0.0 | `FastMCP` renamed `MCPServer`; `mcp.types` moved to the `mcp-types` package with snake_case fields; `streamablehttp_client` and WebSocket transport removed; transport parameters moved to `run()`; `MCP_*` env vars and `.env` no longer read; `McpError` renamed `MCPError`; sync handlers on a worker thread; results schema-validated; "v1.x is in maintenance mode and will only receive security fixes" | `tools/mcp_server.py` imports `FastMCP`, `mcp.types.ToolAnnotations`, probes `_tool_manager._tools`, wraps the streamable-http app builder | a real port, deferred as a future phase with this checklist; the `>=1.28,<2` pin in `requirements-mcp.txt` stands |
 
 Side observation recorded, not acted on: `tools/videoedit/mediaprobe.py` falls back to `audioop`, which
 leaves the standard library after Python 3.12, so the Python upgrade the numpy drift forces will also
@@ -174,7 +174,7 @@ hint records the validation scope in words.
 | item | command on the machine that has the data or the egress |
 |---|---|
 | the 110 bot-blocked sources | `python3 tools/source_currency.py check --detect-changes --apply` from residential egress; a success clears each block record automatically |
-| av and scenedetect baselines | done in P80 from the sandbox: the synthetic-media recipe reproduced the 2026-07-03 encode byte for byte, and the golden probes passed on av 18.1.0 and scenedetect 0.7.1 under Python 3.12 (`revalidations` in the evidence file); both stamped |
+| av and scenedetect baselines | re-run the golden-cut check from `docs/video-tooling-integration-evidence.json` with real media (expects cuts at 60.0, 150.0, 240.0, 330.0), then `update-source dep-av --validated-version 18.1.0` and `update-source dep-scenedetect --validated-version 0.7.1` |
 | scoop cache baseline | `python3 tools/hash_audit.py` reports the local baseline as report-only MISMATCH (entries legitimately changed since the last build); `python3 shared/cache/cache.py --build` re-baselines |
 | competitor index repair (P75) | `python3 tools/competitor_snapshot.py --check-og`, then `--parse`, then `--check-og` again |
 | self-release stamp | `python3 tools/update_check.py check --apply` (the releases API is blocked through this proxy) |
@@ -185,9 +185,9 @@ hint records the validation scope in words.
 - No new numbered invariants; no interval re-band; no tag; no PR; no edits to any data file downstream
   of a changed source (every changed page was read and verdicted instead).
 - Invariant 45 stays advisory (section 3).
-- The mcp 2.0 port is planned as P80 with its checklist corrected: verified against the SDK source, `mcp.types` is a permanent alias and camelCase kwargs still construct, and `_tool_manager._tools` is unchanged; the real breaks are the `settings.host/port` assignment (swallowed by a bare except) and the app factory's DNS-rebinding default (421 to a proxied Host header).
+- The mcp 2.0 port is deferred with its checklist (section 4.2).
 - `mcp-stats-compass` stays without a baseline, with the reason recorded on the entry.
-- **New finding, recorded for the maintainer (closed in P80):** `CLAUDE.md` states (AGENTS.md narrows the same block and never carried the sentence) that
+- **New finding, recorded for the maintainer:** `CLAUDE.md` (and its projection `AGENTS.md`) state that
   `tools/dependency_currency.py` reconciles against the requirements files, the evidence file, and the
   connector registry. The tool reads only the registry's own `validated_version` and `pinned_constraint`
   fields; it opens none of those three files. The registry fields are therefore the single source of
@@ -244,3 +244,28 @@ digest re-verified after each.
   {"id": "mcp-stats-compass"}
 ]
 ```
+
+## Addendum 2026-09-06 (P81)
+
+Facts established after this record's date; the body above describes the tree at `82f7414` as its
+first paragraph promises and is not edited.
+
+- Section 4.2, mcp 2.0.0 row: the port shipped in P80 as a dual-capable module (pin `>=2,<3`). Two of
+  the four listed breaks were not breaks: `mcp.types` is a permanent alias of `mcp_types` and camelCase
+  kwargs still construct; `_tool_manager._tools` is unchanged in 2.1.1. The two real breaks were the
+  `settings.host/port` assignment (swallowed by a bare except) and the app factory's DNS-rebinding
+  default, which 1.28+ also applies to a loopback bind. The row's second column repeats the researcher's
+  claim that `mcp.types` moved to a separate package with snake_case fields; that claim was wrong.
+- Section 4.2, PyAV and PySceneDetect rows, and section 7: both baselines were validated and stamped in
+  P80 from the sandbox (the synthetic-media recipe reproduced the 2026-07-03 encode; probes in the
+  evidence file's `revalidations`). The P80 revalidation ran four of the seven recorded probes; the
+  remaining three were run in P81.
+- Section 6: after P80 and P81, `dependency_currency report` shows no drifted entries; numpy 2.5.2,
+  av 18.1.0, scenedetect 0.7.1 and mcp 2.1.1 are `current`; faster-whisper reports `no-baseline`
+  against PyPI (1.2.1).
+- Section 8: the CLAUDE.md sentence about the dependency checker was corrected in P80 (AGENTS.md never
+  carried it).
+- Section 9's `sources` block declares `numpy-release-notes` (30/60 days) and `mcp-python-sdk-migration`
+  (60/90 days); the registry carries 14/14 for both because the `api-changelog` category override wins at
+  seed time (`tools/source_currency.py`, `per_category_overrides`). The block is a seed input, not the
+  registry's state.

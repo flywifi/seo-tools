@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-05",
+  "last_registry_update": "2026-09-06",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -5042,12 +5042,12 @@
     {
       "id": "dep-faster-whisper",
       "name": "faster-whisper (CTranslate2 STT backend)",
-      "url": "https://github.com/SYSTRAN/faster-whisper/releases",
+      "url": "https://pypi.org/project/faster-whisper/",
       "category": "software-dependency",
       "tier": "T2",
       "check_interval_days": 60,
       "staleness_threshold_days": 60,
-      "last_checked": null,
+      "last_checked": "2026-09-06",
       "last_changed_detected": null,
       "extraction_hint": "CPU/CUDA Whisper via CTranslate2; device=cpu|cuda only (no Apple GPU); needs no system ffmpeg (PyAV)",
       "used_by": [
@@ -5058,11 +5058,13 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "package": "faster-whisper",
-      "upstream_api": "github_releases",
-      "check_url": "https://api.github.com/repos/SYSTRAN/faster-whisper/releases/latest",
+      "upstream_api": "pypi",
+      "check_url": "https://pypi.org/pypi/faster-whisper/json",
       "pinned_constraint": ">=1.0",
       "validated_version": null,
-      "_why": "Optional local STT backend for content-import completion; default on Windows/Linux and Intel Mac"
+      "_why": "Optional local STT backend for content-import completion; default on Windows/Linux and Intel Mac",
+      "latest_seen": "1.2.1",
+      "latest_seen_date": "2025-10-31"
     },
     {
       "id": "dep-whisper-cpp",
@@ -5601,8 +5603,8 @@
       "tier": "T1",
       "check_interval_days": 90,
       "staleness_threshold_days": 120,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-06",
+      "last_changed_detected": "2026-09-06",
       "extraction_hint": "The separate tkinter formula for Homebrew Python (the folder-picker dependency) + version. URL is version-pinned; re-pointed to @3.12 in P80 because the repo's recommended interpreter is 3.12 (Resolve ceiling); re-point again when that recommendation moves.",
       "used_by": [
         "docs/MACOS-MAINTENANCE.md"
@@ -5611,10 +5613,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "99ee9551bd6c2ce9fb609876cc3cf14e2b34f6e0d209084b58b838a2e4453b1c",
-      "content_etag": "\"6a93725d-2ab1\"",
-      "content_last_modified": "Sat, 29 Aug 2026 23:59:25 GMT",
-      "min_recheck_at": 739858
+      "content_sha256": "63c17bd014ca5ed27bbe9a1e5fb93eab9d8225253f1b22b86570b20aacee23f3",
+      "content_etag": "\"6a9dbf77-2ab8\"",
+      "content_last_modified": "Sun, 06 Sep 2026 19:31:03 GMT",
+      "min_recheck_at": 739865
     },
     {
       "id": "whisper-cpp-ggml-models-hf",
@@ -6162,7 +6164,7 @@
       "staleness_threshold_days": 14,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "per-release deprecations, expirations, and the supported Python range; 2.5.0 dropped Python 3.11, which is why requirements-videoedit.txt pins numpy below 2.5",
+      "extraction_hint": "per-release deprecations, expirations, and the supported Python range; 2.5.0 dropped Python 3.11, which is why the repo floor moved to 3.12 (P80) and requirements-videoedit.txt pins numpy>=2.5,<3",
       "used_by": [
         "tools/videoedit/mediaprobe.py",
         "requirements-videoedit.txt"
@@ -6229,7 +6231,7 @@
       "staleness_threshold_days": 14,
       "last_checked": "2026-09-04",
       "last_changed_detected": null,
-      "extraction_hint": "the FastMCP to MCPServer rename, the mcp-types package split, transport and env-var changes; the checklist for the deferred mcp 2.x port of tools/mcp_server.py",
+      "extraction_hint": "the FastMCP to MCPServer rename, the mcp-types package split, transport and env-var changes; the checklist the P80 dual-major port of tools/mcp_server.py followed; re-read on a 2.x minor release",
       "used_by": [
         "tools/mcp_server.py",
         "requirements-mcp.txt"
@@ -6256,7 +6258,13 @@
       "extraction_hint": "the recommended Creator OS interpreter on macOS; watch the deprecation flag and dates (formula API on 2026-09-05: stable 3.12.14, deprecated false, deprecation_date 2028-11-01, disable_date 2029-11-01; python@3.13 is 2029-11-01 / 2030-11-01); DaVinci Resolve's scripting bridge caps at 3.12",
       "used_by": [
         "docs/SETUP_MAC.md",
-        "tools/setup.py"
+        "tools/setup.py",
+        "Start Creator OS Setup.command",
+        "tools/wizard.py",
+        "docs/MAC-VALIDATION.md",
+        "docs/DEPENDENCIES.md",
+        "docs/MACOS-MAINTENANCE.md",
+        "implementation/claude/desktop/README.md"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -6268,5 +6276,5 @@
       "min_recheck_at": 739864
     }
   ],
-  "_content_digest": "b83453c304917122517039c60f1e96d8bf3f572659ecc63db12134e243675025"
+  "_content_digest": "dcea6ce3084a39fe6d0c6deaa2676ba72d085f94c75994f6a9975b8dfb47f863"
 }

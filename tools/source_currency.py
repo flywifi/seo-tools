@@ -768,10 +768,24 @@ def cmd_update_source(args, registry):
                        # P79 F3: structured form of the EXCERPT-CONFIDENCE prose convention. Tri-state:
                        # an un-passed flag is None and therefore a no-op in this loop.
                        ("excerpt_confidence", getattr(args, "excerpt_confidence", None)),
-                       ("excerpt_verified_at", getattr(args, "excerpt_verified_at", None))):
+                       ("excerpt_verified_at", getattr(args, "excerpt_verified_at", None)),
+                       # P81 M-5: the dependency checker's upstream is data; without a writer the only way
+                       # to move dep-faster-whisper off the proxy-blocked GitHub feed was a hand edit.
+                       ("upstream_api", getattr(args, "upstream_api", None)),
+                       ("check_url", getattr(args, "check_url", None))):
         if val is not None and entry.get(field) != val:
             entry[field] = val
             changed.append(field)
+    if "url" in changed:
+        # P81 M-3: the stored content stamps describe the OLD page. Left in place, the next detect-changes
+        # run reports a fabricated 'changed' (different page, different sha) or, worse, sends the old etag
+        # to the new host and records a spurious 304 as 'unchanged'. Null them so the new URL is
+        # first_seen on its next check.
+        for k in ("content_sha256", "content_etag", "content_last_modified", "last_checked",
+                  "min_recheck_at", "last_changed_detected"):
+            if entry.get(k) is not None:
+                entry[k] = None
+                changed.append(f"{k}=null")
     if args.add_used_by:
         additions = [u.strip() for u in args.add_used_by.split(",") if u.strip()]
         existing = entry.setdefault("used_by", [])
@@ -937,6 +951,37 @@ def selftest_detect():
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
 
+    # P81 M-3: a --url change nulls the six content stamps; a same-URL call changes nothing.
+    import types as _types
+    g = globals()
+    _saved_save = g["save_registry"]
+    try:
+        g["save_registry"] = lambda reg: None
+        reg = {"sources": [{"id": "x-fixture", "url": "https://old.example.com/a",
+                            "content_sha256": "aa", "content_etag": "bb", "content_last_modified": "cc",
+                            "last_checked": "2026-01-01", "min_recheck_at": "2026-01-08",
+                            "last_changed_detected": "2026-01-01"}]}
+        a = _types.SimpleNamespace(id="x-fixture", url="https://new.example.com/b", category=None, name=None,
+                                   tier=None, extraction_hint=None, add_used_by=None)
+        buf2 = io.StringIO()
+        with contextlib.redirect_stdout(buf2):
+            cmd_update_source(a, reg)
+        out2 = json.loads(buf2.getvalue())
+        e = reg["sources"][0]
+        ok("update-source --url clears the six content stamps (P81 M-3)",
+           all(e[k] is None for k in ("content_sha256", "content_etag", "content_last_modified",
+                                      "last_checked", "min_recheck_at", "last_changed_detected"))
+           and sum(1 for c in out2["changed"] if c.endswith("=null")) == 6)
+        a2 = _types.SimpleNamespace(id="x-fixture", url="https://new.example.com/b", category=None, name=None,
+                                    tier=None, extraction_hint=None, add_used_by=None)
+        buf3 = io.StringIO()
+        with contextlib.redirect_stdout(buf3):
+            cmd_update_source(a2, reg)
+        ok("update-source with the same URL changes nothing",
+           json.loads(buf3.getvalue())["changed"] == [])
+    finally:
+        g["save_registry"] = _saved_save
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -1018,7 +1063,11 @@ def _main():
     p_upd.add_argument("--validated-version", dest="validated_version",
                        help="Dependency baseline: the version this repo is known to work against")
     p_upd.add_argument("--pinned-constraint", dest="pinned_constraint",
-                       help="Dependency pin as written in requirements (e.g. '>=1.28,<2')")
+                       help="Dependency pin as written in requirements (e.g. '>=2,<3')")
+    p_upd.add_argument("--upstream-api", dest="upstream_api", choices=["pypi", "github_releases", "binary", "manual"],
+                       help="how dependency_currency reaches the upstream (pypi | github_releases | binary | manual)")
+    p_upd.add_argument("--check-url", dest="check_url",
+                       help="the JSON endpoint dependency_currency fetches (PyPI: https://pypi.org/pypi/<pkg>/json)")
 
     args = parser.parse_args()
 

@@ -5,7 +5,7 @@ description: "ingests any file type using the offline docintel pipeline and prod
 load: always
 ---
 
-_Data freshness: as of 2026-09-05 (Creator OS baseline 34f648a4). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-09-06 (Creator OS baseline 86ee3b8f). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # document-studio
 

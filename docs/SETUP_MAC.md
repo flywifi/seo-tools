@@ -59,7 +59,7 @@ brew install python@3.12 git
 Verify:
 
 ```bash
-python3 --version   # should show 3.11 or later (3.13 recommended)
+python3 --version   # should show 3.12.x (3.13 is not recommended: DaVinci Resolve's scripting bridge caps at 3.12)
 git --version
 ```
 

@@ -6,6 +6,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:   # P81 N-6: the competitor-intel job's condition tests this trigger; declare it
 
 jobs:
   guard:
@@ -19,6 +20,8 @@ jobs:
           python-version: "3.12"
       - name: Drift guard
         run: python3 tools/sync_check.py
+      - name: Battery parity (tools/battery.py --list matches the steps below)
+        run: python3 tools/battery.py --list
       - name: Secret scan (tracked content)
         run: python3 tools/secret_scan.py --tracked
       - name: Commit hygiene backstop (messages + author emails after the policy boundary)
@@ -51,7 +54,7 @@ jobs:
         run: python3 tools/version.py --check
       - name: Scenario suite (10 cross-skill behavioral scenarios)
         run: python3 tools/scenario_check.py
-      - name: Count truth (live-doc claims vs machine-derived counts)
+      - name: Count truth vector (informational; the comparison is drift-guard invariant 48)
         run: python3 tools/count_truth.py
       - name: Doc freshness (content-hash staleness of bound docs)
         run: python3 tools/doc_freshness.py --check
@@ -109,7 +112,8 @@ jobs:
   # overlay (docs/FRESHNESS.md; tools/freshness_overlay.py). This keeps the freshness design with
   # ZERO GitHub coupling — no scheduled job reads or reports on the registry in CI. The guard job
   # above validates the dependency *registry* (invariant 23: every requirement and MCP connector has
-  # a source-registry entry) and runs dependency_currency/update_check --selftest as read-only,
-  # offline steps that exercise the detection logic without any network call or registry write. The
+  # a source-registry entry); the selftest sweep step runs dependency_currency/update_check
+  # --selftest as read-only, offline exercises of the detection logic (P81 N-6: they are not
+  # separate named steps). The
   # actual currency detection (which reaches PyPI/GitHub and writes the user's overlay) stays a
   # per-user runtime; CI never fetches or reports on live source freshness.

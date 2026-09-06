@@ -408,8 +408,9 @@ def selftest() -> int:
     # weeks while every machine with xmllint passed. Assert the honest level AND that the tool
     # named matches what is actually installed.
     _has_xmllint = shutil.which("xmllint") is not None
-    ok("validate() reports the level it actually achieved, not a blanket pass",
-       v.get("level") in (("well_formed", "dtd_valid") if _has_xmllint else ("well_formed_py",)))
+    _dtd = _find_dtd()
+    _expected = "dtd_valid" if (_has_xmllint and _dtd) else ("well_formed" if _has_xmllint else "well_formed_py")
+    ok(f"validate() reaches the strongest level this machine can ({_expected})", v.get("level") == _expected)
     ok("validate() names the tool that actually ran",
        v.get("tool") == ("xmllint" if _has_xmllint else "ElementTree"))
     bad = validate("<fcpxml><unclosed></fcpxml>")
