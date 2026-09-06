@@ -1,0 +1,70 @@
+[
+  {
+    "test_id": "conflict-check-genuine-conflict-human-review",
+    "description": "Historic-district frame requirement vs HVHZ impact-window requirement at equal specificity -> human_review_required",
+    "input": {
+      "overlay_a": "fl-historic-frame-requirement",
+      "overlay_b": "fl-hvhz"
+    },
+    "expected_output_keys": ["advisory_boundary", "human_review_required", "prov_audit"],
+    "assertions": [
+      "human_review_required is true",
+      "no fabricated winner is returned (governing overlay is null)",
+      "a W3C PROV audit record is attached",
+      "first line is the verbatim advisory boundary"
+    ]
+  },
+  {
+    "test_id": "conflict-check-ceiling-preemption-higher-governs",
+    "description": "Ceiling preemption -> the higher jurisdiction governs",
+    "input": {
+      "overlay_a": {"jurisdiction_level": "state", "preemption_type": "ceiling", "specificity_scope": 3},
+      "overlay_b": {"jurisdiction_level": "municipal", "preemption_type": "none", "specificity_scope": 5}
+    },
+    "expected_output_keys": ["advisory_boundary", "governing_overlay", "basis", "prov_audit"],
+    "assertions": [
+      "the state (higher jurisdiction) overlay governs",
+      "basis names ceiling/field preemption",
+      "PROV audit is attached"
+    ]
+  },
+  {
+    "test_id": "conflict-check-floor-plus-home-rule-most-stringent",
+    "description": "Floor preemption + local home-rule authority -> the more-stringent rule governs",
+    "input": {
+      "overlay_a": {"jurisdiction_level": "state", "preemption_type": "floor", "local_authority": true, "specificity_scope": 3},
+      "overlay_b": {"jurisdiction_level": "municipal", "preemption_type": "floor", "local_authority": true, "specificity_scope": 5}
+    },
+    "expected_output_keys": ["advisory_boundary", "governing_overlay", "basis", "prov_audit"],
+    "assertions": [
+      "the more-stringent local rule governs",
+      "basis names floor preemption plus home-rule authority"
+    ]
+  },
+  {
+    "test_id": "conflict-check-lex-specialis",
+    "description": "No preemption -> lex specialis: the more-specific scope governs",
+    "input": {
+      "overlay_a": {"jurisdiction_level": "county", "preemption_type": "none", "specificity_scope": 3},
+      "overlay_b": {"jurisdiction_level": "county", "preemption_type": "none", "specificity_scope": 6}
+    },
+    "expected_output_keys": ["advisory_boundary", "governing_overlay", "basis", "prov_audit"],
+    "assertions": [
+      "the more-specific (scope 6) overlay governs",
+      "basis names lex specialis"
+    ]
+  },
+  {
+    "test_id": "conflict-check-missing-overlay-id",
+    "description": "An overlay id not found names the missing id rather than guessing",
+    "input": {
+      "overlay_a": "fl-hvhz",
+      "overlay_b": "does-not-exist"
+    },
+    "expected_output_keys": ["advisory_boundary", "error"],
+    "assertions": [
+      "the missing id is named",
+      "no fabricated resolution is produced"
+    ]
+  }
+]

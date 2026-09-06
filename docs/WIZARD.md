@@ -1,7 +1,9 @@
 # Setup Wizard
 
 `tools/wizard.py` is a browser-based guided setup wizard for Creator OS. It walks you through
-connecting Google and Microsoft services to Claude without any command-line configuration.
+connecting Google and Microsoft services to Claude, setting up **publishing** to YouTube, Instagram,
+TikTok, and Pinterest, importing your past videos, and choosing your Creator OS folder -- all without
+any command-line configuration.
 
 ---
 
@@ -42,7 +44,8 @@ A browser window opens automatically. The wizard:
 2. Asks which services you want to connect (Google, Microsoft, or both).
 3. Walks you through each connection step by step.
 4. Writes all configuration files automatically -- no JSON editing.
-5. Tells you when to restart Claude Desktop.
+5. Tells you when to fully quit and reopen Claude Desktop (Cmd-Q on macOS, not just closing the
+   window) so it reloads the config.
 
 ### Google Workspace (Gmail, Calendar, Drive, Docs, Sheets)
 
@@ -60,13 +63,78 @@ prompt appears: Claude shows you a short code and a URL to visit
 (`microsoft.com/devicelogin`). You visit that URL, enter the code, sign in with your Microsoft
 account, and you are connected -- no credentials to paste anywhere.
 
+### Publishing setup (YouTube, Instagram, TikTok, Pinterest)
+
+From `/publishing-setup`, the wizard connects each platform with a **Connect** button that runs an
+in-browser sign-in (a loopback OAuth flow: the platform redirects back to
+`http://127.0.0.1:8765/oauth/<platform>/callback`, the wizard verifies a one-time `state` and stores
+the token locally). Each screen states the platform's real limits up front -- YouTube's ~7-day
+Testing-mode re-auth, TikTok's private-until-audit, Pinterest's sandbox-only Trial Pins, and
+Instagram's public-URL + professional-account requirements. Tokens are saved to
+`pipeline/user-context/api-credentials.local.json` (owner-only, gitignored). **Live posting stays off
+by default** (`live_publishing_enabled`), and every post needs your explicit confirmation. Full
+per-platform playbook: `docs/PUBLISHING.md`.
+
+### The Google Drive hub and the compute hand-off (P60)
+
+Three screens make the cross-surface hub work without a terminal. **`/drive-hub`** explains the
+shared Drive folder ("Creator OS": Inbox, Store, Jobs, Knowledge, Profile, Outbox), detects the
+Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines any
+typed path to your home tree, creates the missing subfolders, and saves the location locally
+(`creator-os-config.local.json`); it also carries a "Refresh the Knowledge folder" button that
+copies the claude.ai knowledge pack into the hub's `Knowledge/` folder
+(`tools/project_docs.py`, the P60-7 Projects projection; recipe in `docs/DRIVE-HUB.md`). **`/compute`** is the one-click toggle for the
+`compute_handoff_enabled` capability (default off): when on, a scheduled watcher pass
+(`python3 tools/handoff/watcher.py --once`, snippet in `tools/freshness-scheduler.example`) runs
+allowlisted jobs queued in the hub from any surface and writes results back for review. Nothing can
+post, publish, or read credentials from a job. **`/inbox`** sorts the drop folder: Scan lists what
+is new in the hub's `Inbox/` (the offline scan in `tools/handoff/inbox.py`; transcripts and media
+route by format, documents wait for a Claude session, unknowns are flagged in place, and any file
+whose text trips the offline injection pattern tier is sealed into `Inbox/Quarantine`). Approve is
+a **two-step work order** (P61): the first click files the batch and records it in the ledger, then
+a second screen lists the exact follow-up jobs with a checkbox each and an "Anything to change?"
+note, and a second click queues only the checked jobs. The note is attached to the work for review
+(the ticket `consent_note`); it never changes what runs. A **Background work: ON/OFF** banner on
+the work-order screen and beside `/inbox` shows the compute switch state and links to `/compute` to
+change it, so queued work that is waiting is never invisible. `/compute` also carries the
+default-off **direct saves** toggle (`job_store_writes_enabled`): enabling it requires an
+acknowledged risk checkbox, and even then a job writes to the library only when its ticket asks.
+Nothing is written or moved until you approve. Full model: `docs/DRIVE-HUB.md`.
+
+### Choosing folders (Browse button)
+
+Where the wizard needs a folder path -- the import screen and the "Choose my Creator OS folder" step
+-- a **Browse...** button opens your operating system's native folder picker
+(`tools/pick_folder.py`: a tkinter dialog, with macOS/Windows/Linux fallbacks). The typed path field
+stays as the always-works fallback when no picker is available (e.g. over SSH).
+
 ---
 
 ## What the wizard does behind the scenes (for Matt's reference)
 
-The wizard is a small Python script (`tools/wizard.py`) that runs a local web server on
-`http://localhost:8765` and opens your system browser. Nothing leaves your computer except
-the OAuth flows to Google and Microsoft's own servers.
+The wizard is a small Python script (`tools/wizard.py`) that runs a local web server bound to
+`http://127.0.0.1:8765` (loopback only, never `0.0.0.0`) and opens your system browser. Nothing
+leaves your computer except the OAuth flows to the providers' own servers (Google, Microsoft, and --
+during publishing setup -- YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
+
+If port 8765 is already taken, set `CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable
+or out of range falls back to 8765 with a printed note):
+
+```bash
+CREATOR_OS_WIZARD_PORT=8790 python3 tools/wizard.py
+```
+
+Only do this deliberately. The OAuth redirect URIs you register with each provider embed the
+port and are matched exactly, so changing it breaks every already-connected platform until you
+update the registered URI in that provider's console. Details in `docs/PUBLISHING.md`.
+
+**Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
+is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you
+type (import folder, Creator OS folder) are confined to your home directory after resolving
+symlinks; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
+Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being
+silently replaced; and the import scan/approve flow is tied to a single-use token so two open tabs
+cannot approve each other's scan.
 
 **Config files the wizard writes:**
 

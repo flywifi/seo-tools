@@ -79,3 +79,6 @@ The `data_quality` field signals the reliability tier of the entire result set. 
 When deal_id is provided, this atom reads from the pipeline store defined in `shared/pipeline-engine.md`. It reads only. It does not write back to pipeline records, update deal stage, or log activity. If the deal_id is not found in the pipeline store, the atom continues using only the inputs provided and adds `"deal_id not found in pipeline: pipeline data not used"` to flags.
 
 All pipeline reads are subject to the no-fabrication protocol (`protocols/no-fabrication.md`). If a pipeline field is missing or ambiguous, the atom returns null for that field rather than interpolating a value.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

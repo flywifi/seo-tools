@@ -3,11 +3,11 @@
     "id": "pinwrite-001",
     "description": "Happy path: full inputs with keyword cluster returns keyword-first title, keyword-rich description, alt text, and character counts within limits",
     "input": {
-      "topic": "dark moody bedroom makeover with thrifted nightstands",
+      "topic": "home decor bedroom makeover with thrifted nightstands",
       "video_url": "https://youtube.com/watch?v=example123",
       "board_name": "Moody Bedroom Inspiration",
       "keyword_cluster": {
-        "primary": ["dark moody bedroom makeover"],
+        "primary": ["home decor bedroom makeover"],
         "secondary": ["thrifted nightstand styling", "vintage bedroom decor", "moody home aesthetic"]
       },
       "persona": "Vintage Hunter"
@@ -56,7 +56,7 @@
     "id": "pinwrite-003",
     "description": "Edge case: very long topic that could cause title to exceed 100 chars; atom trims and documents in notes",
     "input": {
-      "topic": "how to transform a builder-basic bathroom into a dark moody vintage spa retreat with thrifted mirrors and antique brass hardware on a budget",
+      "topic": "how to transform a builder-basic bathroom into a stylized vintage spa retreat with thrifted mirrors and antique brass hardware on a budget",
       "board_name": "Bathroom Makeovers",
       "persona": "New Homeowner"
     },

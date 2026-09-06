@@ -4,12 +4,12 @@
   "description": "Complete DIY home decor project brief: snapshot, materials, steps, safety, styling variants, and renter alternatives.",
   "steps": [
     {"step": 1, "atom": "project-snapshot", "input_from": "user request", "output_to": "step2"},
-    {"step": 2, "atom": "materials-list", "input_from": "step1.snapshot + user request", "output_to": "step3"},
-    {"step": 3, "atom": "step-sequence", "input_from": "step1.snapshot + step2.materials", "output_to": "step4"},
+    {"step": 2, "atom": "materials-list", "input_from": "step1.snapshot + user request", "output_to": "step3", "reference_atoms": ["construction-lookup", "build-calc"], "note": "for a build touching residential construction (framing, decks, stairs, foundations, roofing), pull dimensions and quantities from construction-lookup and build-calc (board feet, stair math) rather than estimating"},
+    {"step": 3, "atom": "step-sequence", "input_from": "step1.snapshot + step2.materials", "output_to": "step4", "reference_atoms": ["construction-lookup", "code-lookup"], "note": "for construction steps, use construction-lookup for the required sequence and common mistakes and code-lookup for the governing section and adopted FL/NC edition; carry the citations and the boundary through"},
     {"step": 4, "atom": "styling-variant", "input_from": "step1.snapshot + user request", "output_to": "step5", "repeat": "2 to 3 variants"},
     {"step": 5, "atom": "renter-alt", "input_from": "step3.steps", "output_to": "step6", "condition": "renter_friendly requested or step has permanent modification", "repeat": "per_relevant_step"},
     {"step": 6, "atom": "govern-artifact", "input_from": "assembled_project_brief", "output_to": "final", "gates": ["integrity", "safety", "brand_alignment", "accuracy"]}
   ],
   "shortcut_atoms": ["project-snapshot", "materials-list", "step-sequence", "styling-variant", "renter-alt"],
-  "note": "The user can call any shortcut atom directly without running the full workflow. step-sequence always invokes the licensed-trade safety check per protocols/safety.md."
+  "note": "The user can call any shortcut atom directly without running the full workflow. step-sequence always invokes the licensed-trade safety check per protocols/safety.md. For residential construction facts (dimensions, code-cited steps, calculations), project-builder consults the construction-desk atoms construction-lookup, code-lookup, and build-calc rather than estimating; their citations and the verify-locally boundary carry through into the brief."
 }

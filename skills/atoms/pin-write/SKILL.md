@@ -69,7 +69,7 @@ If a draft exceeds the field limit, trim body copy first, preserve the leading k
 
 - Titles must open with the primary keyword phrase, not a brand name or article.
 - Descriptions must place the most important keyword in the first clause of the first sentence.
-- Use specific, concrete vocabulary: "dark moody bedroom with jewel-tone velvet curtains" outperforms "beautiful room ideas."
+- Use specific, concrete vocabulary: "home decor bedroom with jewel-tone velvet curtains" outperforms "beautiful room ideas."
 - CTAs in descriptions are action-oriented and Pinterest-native: "Save this for your next room refresh," "Pin it and shop the look," or "Click through for the full tutorial."
 - Do not open with "I" or the brand name; open with the subject keyword.
 - No em dashes anywhere in the output.
@@ -86,3 +86,6 @@ If a draft exceeds the field limit, trim body copy first, preserve the leading k
 ## Pipeline note
 
 Platform SEO rules and Pin specs (2:3 ratio, 1000x1500px, keyword-forward copy strategy) come from `shared/platform-engine.md`. Voice and persona guidance come from `shared/brand-engine.md` (published-to-audience mode: warm, specific, draws the viewer in; no em dashes). When a `keyword_cluster` is passed from the keyword-cluster atom, use its `primary` field to anchor the Pin title and its `secondary` field to seed the description body. This atom does not fabricate keyword difficulty scores, search volume, or engagement metrics; see `protocols/no-fabrication.md`.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

@@ -78,7 +78,7 @@ You MAY:
 Return your findings as structured data. The main loop will decide what to do with them.
 ```
 
-### Four agent roles
+### Five agent roles
 
 Each role has a defined research scope, engine context, and output schema.
 
@@ -108,6 +108,17 @@ deal compliance.
 - Protocols: no-fabrication, safety, quality-gates
 - MCP tools: quality_score
 - Data: reads from pipeline/deals/ and pipeline/accounts/ only
+
+**Cost Researcher** — vendor and product price research for cost estimates and proposals (P30):
+observed prices with URL and date, expense vs capex classification, cited time-required ranges.
+- Engines: finance-engine, web-intel-engine, injection-guard-engine
+- Protocols: no-fabrication (a price not observed on a source is null, never estimated),
+  research-citation, safety (financial boundary)
+- MCP tools: cache_query, source_staleness
+- Web: web-intel L2 public data and L3 polite crawl for vendor pricing pages
+- Output schema: shared/schemas/cost-research.json. Dispatch requires the cost_research flag;
+  findings are proposals and only the human writes the cost library
+  (canonical-sources/cost-library/costs.json).
 
 ### 2.1 Machine-readable agent contracts
 
@@ -469,7 +480,7 @@ to the user. This is never delegated to another agent.
 
 ```json
 {
-  "finding": "dark moody fall mantel has strong YouTube search intent",
+  "finding": "seasonal home decor project has strong YouTube search intent",
   "found_by": "seo-researcher",
   "source": "YouTube autocomplete + Google Trends",
   "confidence": "high",
@@ -501,6 +512,27 @@ All agent output uses the three-level confidence scale:
   multiple T3 sources
 - **low:** from a T3 source (blog post, community forum, single third-party analysis) without
   corroboration
+
+### Identity confidence vs claim confidence
+
+When agent output attributes a statement to a person or brand (a commitment, a rate, a contact
+fact), two independent confidences are reported:
+- **Claim confidence** (the `confidence_evidence` field): is the statement itself well supported?
+- **Identity confidence** (the `identity_confidence` field,
+  `shared/schemas/verification-envelope.json`): is the attribution right? Raw labels from pasted
+  or excerpted evidence start `unresolved` and are listed in `unresolved_labels` rather than
+  guessed into a CRM contact.
+
+The two never launder each other: a strong claim does not raise identity confidence, and a
+resolved identity does not raise claim confidence. Verifiers check them separately, and
+`shared/pipeline-engine.md` blocks durable writes that depend on an unresolved identity.
+
+### Unknown over false certainty
+
+When routing or classification is ambiguous, agents return an explicit unknown value
+(`account_link: unknown`, an `unresolved` identity, a named retrieval gap) instead of the most
+plausible guess. An unknown routed to human review is always a better outcome than a confident
+wrong answer written into a record.
 
 ### Fabrication detection
 
@@ -537,6 +569,23 @@ appends these to `ledger/ledger.json` as an audit trail. Agents never write to t
 
 **Drift guard enforcement:** Invariant 16 in `tools/sync_check.py` validates that every
 `.claude/workflows/*.js` file contains at least one adversarial verification marker.
+
+### Explicit stop conditions
+
+Every workflow declares where it stops early instead of producing a degraded result. A stop is a
+first-class outcome, not a failure: the workflow returns what it established, names the stop
+condition it hit, and sets `human_review_required` when a human can resolve it. Standard stop
+conditions:
+- **Target ambiguous:** the deal, account, or subject cannot be resolved to one record.
+- **Evidence too thin:** the bundle is `artifact_completeness: minimal` and the requested output
+  needs derived conclusions (see the memory safety model in `shared/pipeline-engine.md`).
+- **Linkage or identity unresolved:** conclusions would attach to a person or brand the evidence
+  does not confirm.
+- **Sources conflict materially:** the minority report contains a high-materiality conflict that
+  changes the answer.
+
+Continuing past a stop condition to deliver "something" is treated as a fabrication-adjacent
+failure in review.
 
 ---
 

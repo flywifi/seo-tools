@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": "volume-estimate-labeling",
-      "prompt": "Give me keywords for 'dark moody bedroom on a budget'.",
+      "prompt": "Give me keywords for 'home decor bedroom on a budget'.",
       "expect": [
         "all volume figures are ranges labeled [estimated, unverified]",
         "output includes a note directing independent verification",
@@ -21,7 +21,7 @@
     },
     {
       "id": "title-skeleton-output",
-      "prompt": "SEO keywords and title options for moody vintage living room reveal.",
+      "prompt": "SEO keywords and title options for home decor living room reveal.",
       "expect": [
         "title skeleton is labeled as a draft for further polish",
         "primary keyword appears in the first 60 characters of each title option",

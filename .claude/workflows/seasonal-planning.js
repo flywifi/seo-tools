@@ -107,12 +107,12 @@ log(`Checking seasonal trends for: ${season}`)
 const trends = await agent(
   `${READ_ONLY_RULES}
 
-You are an SEO research agent for Creator OS (moody-vintage home decor / DIY niche).
+You are an SEO research agent for Creator OS (home decor / DIY niche).
 
 Research seasonal trends for the "${season}" season in the home decor and DIY niche.
 
 1. Read shared/seo-intelligence-engine.md for seasonal SEO lead times and peak search windows.
-2. Read canonical-sources/keyword-library/moody-vintage.json for existing aesthetic keywords.
+2. Read canonical-sources/keyword-library/home decor.json for existing aesthetic keywords.
 3. Use WebSearch to check current trend signals for ${season} home decor topics.
 4. Use the cache_query MCP tool to find related terms in the offline cache.
 5. Identify 10 to 15 rising topics with their peak search windows.
@@ -137,7 +137,7 @@ const topicList = trends.rising_topics.map(t => t.topic).join(', ')
 const keywords = await agent(
   `${READ_ONLY_RULES}
 
-You are an SEO research agent for Creator OS (moody-vintage home decor / DIY niche).
+You are an SEO research agent for Creator OS (home decor / DIY niche).
 
 Expand these seasonal topics into publishable keyword targets: ${topicList}
 
@@ -193,7 +193,7 @@ Verification checklist:
    or is a real URL. Use Glob/Grep to check.
 2. Peak windows: do the claimed peak search windows match the seasonal lead times in
    shared/seo-intelligence-engine.md? Read the file and cross-check.
-3. Trend directions: are "rising" claims plausible for the ${season} season and the moody-vintage
+3. Trend directions: are "rising" claims plausible for the ${season} season and the home decor
    home decor niche?
 4. Unsourced numbers: flag any specific metrics without citations.
 5. Confidence-tier alignment: check source tier breakdown matches the overall confidence claim.
@@ -217,7 +217,7 @@ const calendarInput = {
 const calendar = await agent(
   `${READ_ONLY_RULES}
 
-You are a content planning agent for Creator OS (moody-vintage home decor / DIY niche).
+You are a content planning agent for Creator OS (home decor / DIY niche).
 
 Build a seasonal content calendar from these trend signals and keywords:
 

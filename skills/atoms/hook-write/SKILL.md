@@ -38,3 +38,6 @@ Write a single hook in the creator's published voice.
 ## Pipeline note
 Follows `shared/method.md`. Voice comes from `shared/brand-engine.md` (published mode); opening-window
 lengths come from `shared/platform-engine.md`. For short-form the hook must work with no prior context.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

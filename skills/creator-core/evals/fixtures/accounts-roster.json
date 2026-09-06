@@ -1,0 +1,27 @@
+[
+  {
+    "_comment": "FICTIONAL roster fixture for the scenario suite (S1, S2). Not real brands, people, or emails. Exercises the tools/accounts.py resolver: an alias hit (Hearthline), an ambiguity foil sharing a prefix (Hearthstone), and a brand-category candidate (Lumen, lighting).",
+    "account_id": "acct-hearthline-001",
+    "brand_name": "Hearthline Home",
+    "brand_category": "home decor",
+    "aliases": ["hearthline"],
+    "primary_contact": { "name": "Marcus Webb", "email": "marcus.webb@hearthlinehome.example", "role": "Partnerships Manager" },
+    "secondary_contacts": [ { "name": "Dana Ellis", "email": "dana.ellis@hearthlinehome.example", "role": "Creative Director" } ]
+  },
+  {
+    "account_id": "acct-hearthstone-001",
+    "brand_name": "Hearthstone Decor",
+    "brand_category": "home decor",
+    "aliases": [],
+    "primary_contact": { "name": "Priya Nair", "email": "priya@hearthstonedecor.example", "role": "Owner" },
+    "secondary_contacts": []
+  },
+  {
+    "account_id": "acct-lumen-001",
+    "brand_name": "Lumen & Co",
+    "brand_category": "lighting",
+    "aliases": ["lumen"],
+    "primary_contact": { "name": "Sam Ortega", "email": "sam@lumenco.example", "role": "Founder" },
+    "secondary_contacts": []
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "test_id": "task-status-mark-submitted",
+    "description": "marking a draft submitted appends a governed state change with its actor and source",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "task_id": "first-cut",
+      "new_status": "waiting_external",
+      "actor": "creator",
+      "source": "submitted the first cut to the brand"
+    },
+    "expected_output_keys": [
+      "status",
+      "history"
+    ],
+    "assertions": [
+      "the task moves to waiting_external",
+      "a history entry is appended with the actor and source",
+      "the history is append-only (prior entries are preserved)"
+    ]
+  },
+  {
+    "test_id": "task-status-waiting-computes-nudge",
+    "description": "a waiting-on-payment status computes the nudge and escalate dates",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "task_id": "final-payment",
+      "new_status": "waiting_external",
+      "actor": "creator",
+      "waiting_since": "2026-07-15"
+    },
+    "expected_output_keys": [
+      "status",
+      "handoff"
+    ],
+    "assertions": [
+      "the handoff carries nudge_at and escalate_at computed from waiting_since",
+      "only a nudge is prepared as a draft; nothing is sent",
+      "the dates are offline-computed"
+    ]
+  },
+  {
+    "test_id": "task-status-rejects-invalid-transition",
+    "description": "an illegal lifecycle transition is refused without mutating history",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "task_id": "first-cut",
+      "current_status": "cancelled",
+      "new_status": "in_progress",
+      "actor": "creator"
+    },
+    "expected_output_keys": [
+      "error",
+      "refused"
+    ],
+    "assertions": [
+      "an illegal transition (cancelled -> in_progress) is refused",
+      "the append-only history is not mutated on a rejected change",
+      "the refusal (refused=true) reports the illegal transition in the error message"
+    ]
+  }
+]

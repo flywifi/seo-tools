@@ -1,0 +1,59 @@
+{
+  "_comment": "P68 eval-truth guard (drift invariant 57, tools/sync_check.py::check_eval_output_keys). For each skill whose evals assert `expected_output_keys`, this records the AUTHORITATIVE output surface so a prose-invented key becomes a build failure. Fields: `emitters` = the `file:function` sites whose literal dict keys ARE the atom's real output (the guard AST-extracts every string dict-key inside each named function and unions them); `authoritative_keys` = the eval-facing keys the cases may assert (must be a subset of the union the emitters actually emit, unless remapped); `code_key_map` = {eval_key: real_code_key} for a legitimate emitter-level rename (empty when evals use the code key verbatim, which is the P68 convention); `spec_only` = true for an atom/spoke with NO deterministic emitter (pure LLM orchestration) whose keys are a declared prescriptive spec, not code-checkable. Do NOT hand-add a key to `authoritative_keys` that no emitter emits: the guard's manifest-subset-of-code check (for spec_only:false) rejects it, which is the point (it stops the manifest itself from drifting into fiction). Nesting note: the guard proves a key is emitted SOMEWHERE by the emitter, not that it is top-level; top-level-vs-nested precision is asserted in each case's prose `assertions`.",
+  "skills": {
+    "coverage-verify": {
+      "emitters": ["tools/coverage_verify.py:verify_coverage"],
+      "authoritative_keys": ["points", "summary", "minority_report", "human_review_required"],
+      "code_key_map": {},
+      "spec_only": false
+    },
+    "task-plan": {
+      "emitters": ["tools/tasks.py:forward_schedule", "tools/tasks.py:feasibility"],
+      "authoritative_keys": ["due", "gaps", "feasible", "conflicts", "forward", "reverse"],
+      "code_key_map": {},
+      "spec_only": false
+    },
+    "task-radar": {
+      "emitters": ["tools/tasks.py:scan", "tools/tasks.py:reminders_digest"],
+      "authoritative_keys": ["waiting_on_counterparty", "i_owe", "overdue", "due_soon", "aging_waits"],
+      "code_key_map": {},
+      "spec_only": false
+    },
+    "task-status": {
+      "emitters": ["tools/tasks.py:make_task", "tools/mcp_server.py:task_transition"],
+      "authoritative_keys": ["status", "history", "handoff", "error", "refused"],
+      "code_key_map": {},
+      "spec_only": false
+    },
+    "milestone-bill": {
+      "emitters": ["tools/mcp_server.py:milestone_status", "tools/tasks.py:billable_scan"],
+      "authoritative_keys": ["newly_billable", "ready_to_bill", "human_review_required"],
+      "code_key_map": {},
+      "spec_only": false
+    },
+    "shipment-track": {
+      "emitters": ["tools/mcp_server.py:shipment_track", "tools/shipments.py:manual_shipment", "tools/shipments.py:planning_anchor", "tools/shipments.py:fetch"],
+      "authoritative_keys": ["shipment", "anchor", "delivered_at", "basis"],
+      "code_key_map": {},
+      "spec_only": false
+    },
+    "email-to-task": {
+      "emitters": [],
+      "authoritative_keys": ["tasks", "citations", "untrusted_body_handled", "injection_flag", "gaps"],
+      "code_key_map": {},
+      "spec_only": true
+    },
+    "task-extract": {
+      "emitters": [],
+      "authoritative_keys": ["tasks", "citations", "gaps"],
+      "code_key_map": {},
+      "spec_only": true
+    },
+    "task-desk": {
+      "emitters": [],
+      "authoritative_keys": ["tasks", "citations", "human_review_required", "due", "feasible", "refusal", "handoff"],
+      "code_key_map": {},
+      "spec_only": true
+    }
+  }
+}

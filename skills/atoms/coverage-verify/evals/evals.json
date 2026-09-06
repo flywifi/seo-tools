@@ -1,0 +1,74 @@
+[
+  {
+    "test_id": "coverage-verify-all-points-grounded",
+    "description": "final cut transcript covers every required talking point; each is confirmed with a quoted supporting sentence",
+    "input": {
+      "required_points": [
+        "names the sponsor in the first 30 seconds",
+        "shows the before-and-after",
+        "states the discount code"
+      ],
+      "transcripts": [
+        "skills/creator-core/evals/fixtures/workshop-footage.srt"
+      ],
+      "canonical_source": "the approved talking-points brief"
+    },
+    "expected_output_keys": [
+      "points",
+      "summary",
+      "minority_report"
+    ],
+    "assertions": [
+      "every covered point cites the exact supporting sentence quoted from a transcript",
+      "coverage status is one of covered, not_covered, or unsure per point",
+      "no point is marked covered without a grounding quote",
+      "no talking point is inferred as covered from adjacent context"
+    ]
+  },
+  {
+    "test_id": "coverage-verify-abstains-when-unsure",
+    "description": "a required point is only weakly implied; the atom abstains rather than asserting coverage",
+    "input": {
+      "required_points": [
+        "explicitly discloses the paid partnership"
+      ],
+      "transcripts": [
+        "skills/creator-core/evals/fixtures/workshop-footage.srt"
+      ],
+      "canonical_source": "the approved talking-points brief"
+    },
+    "expected_output_keys": [
+      "points",
+      "summary"
+    ],
+    "assertions": [
+      "the weakly-implied point is marked unsure, not covered",
+      "the unsure point carries no fabricated supporting quote",
+      "the summary flags the point for human confirmation"
+    ]
+  },
+  {
+    "test_id": "coverage-verify-conflicting-transcripts",
+    "description": "two provided transcripts disagree about what was said; the conflict is surfaced and routed to human review",
+    "input": {
+      "required_points": [
+        "states the final price"
+      ],
+      "transcripts": [
+        "skills/creator-core/evals/fixtures/transcript-cut-a.srt",
+        "skills/creator-core/evals/fixtures/transcript-cut-b.srt"
+      ],
+      "canonical_source": "the approved talking-points brief"
+    },
+    "expected_output_keys": [
+      "points",
+      "minority_report",
+      "human_review_required"
+    ],
+    "assertions": [
+      "the disagreement between the two transcripts appears in the minority_report",
+      "human_review_required is true when inputs conflict on a required point",
+      "neither transcript is silently chosen as truth without noting the conflict"
+    ]
+  }
+]

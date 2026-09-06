@@ -1,0 +1,48 @@
+[
+  {
+    "test_id": "inbox-routing-mixed-batch",
+    "description": "Regression case 1 (MAINTAINER_README): a mixed drop (contract + pitch + video + unknown binary) yields ONE proposal batch; each known file carries a rule-backed route per shared/docintel/inbox_rules.json and the unknown is flagged in place. Mirrored by scenario S10 and the fixture skills/creator-core/evals/fixtures/inbox-scan-proposal.json.",
+    "input": {
+      "inbox_listing": "Inbox/collab-agreement-draft.pdf, Inbox/kitchen-refresh-cut3.mp4, Inbox/studio-vlog-042.srt, Inbox/mystery-asset.xyz",
+      "ledger": null,
+      "ingestion_records": "one ingest-route output per file; all injection scans CLEAN"
+    },
+    "expected_output_keys": ["proposals", "needs_review", "unknown", "quarantined", "human_review_required"],
+    "assertions": [
+      "exactly one batch is produced for the whole drop, never one proposal message per file",
+      "every proposals[] entry names a handler and store that exist in shared/docintel/inbox_rules.json, with the file's sha256 and scan verdict attached",
+      "the unknown file appears only in unknown[] with a gap note and no route_to; it is never forced into the nearest category",
+      "human_review_required is true; no store is written and no file is moved by the atom"
+    ]
+  },
+  {
+    "test_id": "inbox-routing-quarantine-never-routed",
+    "description": "Regression case 2 (MAINTAINER_README): a file whose injection scan returned QUARANTINE appears ONLY in the quarantined section, with the verdict shown verbatim, and is never assigned a route. Mirrored by scenario S10 leg atom-output-contract.",
+    "input": {
+      "inbox_listing": "Inbox/pasted-notes.docx",
+      "ledger": null,
+      "ingestion_records": "ingest-route output with injection_scan_result QUARANTINE"
+    },
+    "expected_output_keys": ["quarantined"],
+    "assertions": [
+      "quarantined[0].verdict is QUARANTINE, quoted verbatim from the injection guard",
+      "no quarantined entry appears in proposals[] or needs_review[]",
+      "the file stays in Inbox/ (no move is proposed for it, even on batch approval)"
+    ]
+  },
+  {
+    "test_id": "inbox-routing-idempotent-rescan",
+    "description": "Regression case 3 (MAINTAINER_README): re-scanning an unchanged Inbox proposes nothing; files already recorded in the ledger by content sha256 are skipped. Mirrored by the tools/handoff/inbox.py selftest case 'idempotent re-scan'.",
+    "input": {
+      "inbox_listing": "the same files as a prior approved scan",
+      "ledger": "pipeline/inbox/inbox-ledger.local.json with every file present by sha256",
+      "ingestion_records": "none needed; the sha256 diff short-circuits before classification"
+    },
+    "expected_output_keys": ["proposals", "needs_review", "unknown"],
+    "assertions": [
+      "proposals, needs_review and unknown are all empty",
+      "the scan reports the files as already handled (a count), not as an empty Inbox",
+      "the ledger is not written by the scan; only approval writes it"
+    ]
+  }
+]

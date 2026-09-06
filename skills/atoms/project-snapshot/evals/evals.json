@@ -18,7 +18,7 @@
       "budget_tier": "mid_range",
       "renter_friendly": "false or null since tenure is owner",
       "season_or_occasion": "fall",
-      "aesthetic_notes": "one to two sentences grounding project in moody-vintage aesthetic",
+      "aesthetic_notes": "one to two sentences grounding project in home decor aesthetic",
       "content_angles": "array of 2 to 4 one-line content angle ideas",
       "flags": "empty array if no missing inputs or concerns"
     },
@@ -45,7 +45,7 @@
       "budget_tier": "unspecified",
       "renter_friendly": "null since tenure not provided",
       "season_or_occasion": "null",
-      "aesthetic_notes": "non-empty string with moody-vintage grounding",
+      "aesthetic_notes": "non-empty string with home decor grounding",
       "content_angles": "array of 2 to 4 items",
       "flags": "array may contain notes about missing skill_level, tenure, or budget_tier"
     },
@@ -68,7 +68,7 @@
       "project_title": "non-empty string",
       "flags": "non-empty array with at least one entry flagging electrical work as outside DIY boundary per protocols/safety.md",
       "transformation_arc": "present but process may note professional involvement for wiring",
-      "aesthetic_notes": "grounds the visual result in moody-vintage aesthetic"
+      "aesthetic_notes": "grounds the visual result in home decor aesthetic"
     },
     "prohibit": [
       "empty flags array when project involves electrical rewiring",

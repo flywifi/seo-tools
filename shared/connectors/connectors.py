@@ -32,14 +32,22 @@ ALWAYS_ON = {"manual_paste", "uploaded_file"}
 
 # Maps creator-os-config.json capability flags -> connector IDs they enable
 CAPABILITY_TO_CONNECTOR = {
+    "drive_api_polling": "google_drive_hub",
     "youtube_api": "youtube_data_api",
+    "youtube_analytics": "youtube_analytics_api",
     "instagram_api": "instagram_graph_api",
     "tiktok_api": "tiktok_api",
+    "pinterest_api": "pinterest_api",
+    "youtube_publishing": "youtube_publish_api",
+    "instagram_publishing": "instagram_publish_api",
+    "tiktok_publishing": "tiktok_publish_api",
+    "pinterest_publishing": "pinterest_publish_api",
     "keyword_cache": "sqlite_cache",
     "playwright": "playwright_render",
     "mcp_server": "mcp_server",
     "google_workspace": "gmail",
     "microsoft_365": "microsoft_outlook_email",
+    "shipment_tracking": "easypost_tracking",
     "wolfram_alpha": "wolfram_alpha_mcp",
     "e2b_sandbox": "e2b_code_interpreter",
     "duckdb_analytics": "duckdb_analytics_mcp",
@@ -48,6 +56,10 @@ CAPABILITY_TO_CONNECTOR = {
     "r_statistics": "r_statistics_mcp",
     "monte_carlo": "monte_carlo_mcp",
     "scikit_learn": "scikit_learn_mcp",
+    "video_editing_enabled": "fcpxml_interchange",
+    "resolve_scripting": "resolve_api",
+    "compressor_presets": "compressor_cli",
+    "commandpost_macros": "commandpost_bridge",
 }
 
 
@@ -64,16 +76,28 @@ def load_flags(path: str | None) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _cap_enabled(val):
+    """A capability flag is either a bare bool or a {"enabled": bool, ...} object
+    (the shipped creator-os-config.json uses the object form; the wizard-written
+    creator-os-config.local.json uses bare bools). Returns True/False/None (None = unset)."""
+    if isinstance(val, dict):
+        return bool(val["enabled"]) if "enabled" in val else None
+    if isinstance(val, bool):
+        return val
+    return None
+
+
 def _capability_overrides(flags: dict) -> dict:
-    """Translate creator-os-config.json capability booleans into connector state overrides.
-    Only applies when the flags file is a creator-os-config-style file (has 'capabilities' key)
-    and the connector is not already explicitly listed in 'connectors'."""
+    """Translate creator-os-config.json capability flags into connector state overrides.
+    Handles both the object form ({"enabled": bool}) and the bare-bool form, so the
+    shipped config and the wizard-written local config both resolve correctly."""
     caps = flags.get("capabilities", {})
     overrides = {}
     for cap, connector_id in CAPABILITY_TO_CONNECTOR.items():
-        if caps.get(cap) is True:
+        state = _cap_enabled(caps.get(cap))
+        if state is True:
             overrides[connector_id] = "available"
-        elif caps.get(cap) is False:
+        elif state is False:
             overrides[connector_id] = "disabled"
     return overrides
 
@@ -107,7 +131,9 @@ def resolve(flags: dict, registry: dict | None = None) -> dict:
     restrictions: dict[str, dict] = {}
 
     for c in reg["connectors"]:
-        cid, default = c["id"], c["default_flag"]
+        # default_flag is required on every registry entry (drift invariant 53 executes this
+        # resolver over the committed registry); .get() keeps a malformed entry OFF, never crashing.
+        cid, default = c["id"], c.get("default_flag", "not_installed")
         st, restricted, reason = _flag_state(conf.get(cid, default))
         if cid in ALWAYS_ON and st != "disabled":
             st = "available"
@@ -173,7 +199,7 @@ def cmd_list() -> None:
     print(f"connector registry v{reg['version']} ({len(reg['connectors'])} connectors):")
     for c in reg["connectors"]:
         auth = "  AUTHORITATIVE for " + ", ".join(c["authoritative_for"]) if c.get("authoritative_for") else ""
-        print(f"  - {c['id']:22} [{c['default_flag']:16}] provides: {', '.join(c.get('provides', []))}{auth}")
+        print(f"  - {c['id']:22} [{c.get('default_flag', 'not_installed'):16}] provides: {', '.join(c.get('provides', []))}{auth}")
     print("\nstates:", " | ".join(reg["states"]))
     print("\nevidence types:", " | ".join(reg["evidence_types"]))
     print("\ndeployment modes:", " | ".join(reg["deployment_modes"].keys()))
@@ -202,7 +228,7 @@ def cmd_plan(flags_path: str | None) -> None:
         print("\nblocked_sources:", ", ".join(r["blocked"]))
 
 
-def main(argv) -> int:
+def _main(argv) -> int:
     ap = argparse.ArgumentParser(
         description="Resolve connector feature flags into an evidence plan (offline)."
     )
@@ -221,6 +247,17 @@ def main(argv) -> int:
         cmd_list()
     return 0
 
+
+def main(argv) -> int:
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))

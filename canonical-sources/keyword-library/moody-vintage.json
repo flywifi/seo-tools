@@ -1,11 +1,8 @@
 [
-  {"id": "kw-dark-collected-vintage", "title": "dark collected vintage", "text": "moody vintage decor keyword; collected over time aesthetic with jewel tones, brass, and dark woods", "tags": ["youtube", "pinterest"], "category": "aesthetic"},
-  {"id": "kw-moody-maximalism", "title": "moody maximalism", "text": "layered, saturated, maximal moody decor; the opposite of sterile minimalism", "tags": ["youtube", "pinterest"], "category": "aesthetic"},
-  {"id": "kw-jewel-tone-interiors", "title": "jewel tone interiors", "text": "forest green, sapphire, garnet, and amber interiors; deep saturated color", "tags": ["pinterest", "instagram"], "category": "aesthetic"},
-  {"id": "kw-dark-academia-home", "title": "dark academia home", "text": "vintage books, dark woods, brass, scholarly moody decor", "tags": ["youtube", "tiktok"], "category": "aesthetic"},
-  {"id": "kw-gothic-fall-decor", "title": "gothic fall decor", "text": "burgundy, burnished brass, dried botanicals, layered textiles for autumn", "tags": ["pinterest", "youtube"], "category": "seasonal"},
-  {"id": "kw-vintage-christmas", "title": "vintage christmas", "text": "jewel tones, vintage ornaments, candlelight, dark greenery; nostalgic not farmhouse", "tags": ["pinterest", "youtube"], "category": "seasonal"},
-  {"id": "kw-castlecore", "title": "castlecore", "text": "old-world, tapestry, heavy textiles, candlelit moody romantic decor", "tags": ["tiktok", "pinterest"], "category": "aesthetic"},
-  {"id": "kw-grandmillennial-dark", "title": "grandmillennial dark", "text": "chintz, scallops, and traditional patterns in a darker moody palette", "tags": ["pinterest", "instagram"], "category": "aesthetic"},
-  {"id": "kw-dark-cottagecore", "title": "dark cottagecore", "text": "cozy rustic cottage decor in a moody, mushroom and forest palette", "tags": ["tiktok", "pinterest"], "category": "aesthetic"}
+  {"id": "kw-example-aesthetic-1", "title": "[aesthetic keyword 1]", "text": "Example: niche aesthetic descriptor for YouTube and Pinterest. Replace with creator-specific keywords from creator-profile.local.json.", "tags": ["youtube", "pinterest"], "category": "aesthetic"},
+  {"id": "kw-example-aesthetic-2", "title": "[aesthetic keyword 2]", "text": "Example: style variant keyword. Replace with real niche keywords.", "tags": ["pinterest", "instagram"], "category": "aesthetic"},
+  {"id": "kw-example-seasonal-1", "title": "[seasonal keyword 1]", "text": "Example: seasonal content keyword for fall or holiday. Replace with niche-specific seasonal terms.", "tags": ["pinterest", "youtube"], "category": "seasonal"},
+  {"id": "kw-example-seasonal-2", "title": "[seasonal keyword 2]", "text": "Example: second seasonal keyword. Replace with real seasonal terms from the creator's content calendar.", "tags": ["pinterest", "youtube"], "category": "seasonal"},
+  {"id": "kw-example-diy-1", "title": "[DIY keyword 1]", "text": "Example: DIY project keyword. Replace with creator-specific project terms.", "tags": ["youtube", "tiktok"], "category": "diy"},
+  {"id": "kw-example-diy-2", "title": "[DIY keyword 2]", "text": "Example: technique or material keyword. Replace with real niche vocabulary.", "tags": ["youtube", "pinterest"], "category": "diy"}
 ]

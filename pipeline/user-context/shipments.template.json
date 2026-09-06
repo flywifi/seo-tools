@@ -1,0 +1,34 @@
+{
+  "_comment": "Committed null schema for product shipments (P35). Real shipments live in pipeline/user-context/shipments.local.json (gitignored). tools/shipments.py normalizes carrier data (EasyPost/Ship24, flag-gated, API key from env only, poll not webhook) or accepts manual entry using the identical shape. delivered_at is set ONLY from the delivered checkpoint's timestamp and is the immutable anchor that starts backwards-planning.",
+  "schema_version": "0.1.0",
+  "shipments": [
+    {
+      "id": null,
+      "deal_id": null,
+      "description": null,
+      "tracking_number": null,
+      "carrier": null,
+      "carrier_detected": false,
+      "status": "pre_transit | in_transit | out_for_delivery | delivered | available_for_pickup | returned | exception | cancelled | unknown",
+      "status_detail": null,
+      "est_delivery": null,
+      "delivered_at": null,
+      "checkpoints": [
+        {
+          "status": null,
+          "status_detail": null,
+          "message": null,
+          "timestamp": null,
+          "location": { "city": null, "state": null, "country": null, "zip": null },
+          "source": "carrier | manual"
+        }
+      ],
+      "source": "easypost | ship24 | manual",
+      "source_ref": null,
+      "raw_last_synced_at": null
+    }
+  ],
+  "human_review_required": true,
+  "generated_by": "tools/shipments.py",
+  "last_computed": null
+}

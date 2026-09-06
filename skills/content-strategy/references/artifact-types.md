@@ -15,6 +15,6 @@ A pillar by pillar view of what to make next. Required elements: a healthy mix o
 community roles (`shared/audience-engine.md`), with seasonal timing where relevant.
 
 ## Competitive positioning note
-How the creator stands out in the moody-vintage space. Required elements: the market gap named, the
+How the creator stands out in the home decor space. Required elements: the market gap named, the
 aesthetic difference, and at least one verified competitor signal (cited per
 `protocols/research-citation.md`), never invented.

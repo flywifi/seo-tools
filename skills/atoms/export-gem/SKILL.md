@@ -19,7 +19,10 @@ Gemini persona with uploaded knowledge files and a system instruction.
 
 The creator maintains parallel deployments of Creator OS across platforms. This atom handles the
 Gemini Gem target: it selects the most impactful knowledge files (constrained to Gemini's 10-file
-limit), merges and prioritizes engine content, generates a system instruction that works within
+limit), merges and prioritizes engine content, generates a system instruction (whose REQUIRED
+first line is the packaging stamp `Packaging version: <VERSION> (packaged <YYYY-MM-DD>)`,
+read from the repo `VERSION` file at export time; re-sync steps in `docs/TRANSITIONS.md`)
+that works within
 Gem's approximately 82% instruction adherence rate, and outputs the package ready for upload. It
 loads `shared/brand-engine.md` and `shared/voice-engine.md` to ensure brand and voice fidelity
 survive the export.
@@ -149,3 +152,6 @@ Inherited from `protocols/no-fabrication.md`:
 - Do not invent file sizes or counts. Measure them from the actual files.
 - Do not claim a file is included if it was excluded due to constraints.
 - If a requested spoke does not exist, report it in `warnings` — do not fabricate a SKILL.md.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

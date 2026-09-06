@@ -1,0 +1,48 @@
+[
+  {
+    "id": "contract-review-full",
+    "description": "A complete contract yields one finding per clause family with deal-breakers ordered first and quoted evidence.",
+    "input": {
+      "contract_text": "1. License. Creator grants Brand a non-exclusive license to repost on Brand social channels for 6 months. 2. Exclusivity. Creator will not work with competing home decor brands for 90 days. 3. Deliverables. One video, two revision rounds, approval within 5 business days. 4. Payment. 2,000 USD net 30 from delivery; 25 percent kill fee if Brand cancels. 5. Disclosure. Creator will disclose the paid partnership. 6. Approval. Brand may request changes twice. 7. Whitelisting. Not permitted without a separate addendum. 8. Territory. United States."
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "findings": "one per clause family present; each has legal_risk and business_friction as separate labels and a quoted contract_says",
+      "human_review_required": true
+    },
+    "prohibit": ["em dashes", "averaging the two severity axes", "enforceability claims", "fabricated clause text", "binding language in redline_suggestion"]
+  },
+  {
+    "id": "contract-review-dual-severity",
+    "description": "A low-legal-risk but high-friction approval loop shows the two axes diverging.",
+    "input": {
+      "contract_text": "Approval. Brand may request unlimited revisions and must approve each cut in writing before publication; there is no cap on revision rounds. Fee 3,000 USD net 30."
+    },
+    "expect": {
+      "findings": "content_approval_and_veto finding with business_friction high and legal_risk low or none",
+      "redline_suggestion": "plain-language, suggests capping revision rounds; not binding",
+      "recommend_counsel": true
+    },
+    "prohibit": ["marking legal_risk high to match friction", "em dashes", "presenting the redline as vetted"]
+  },
+  {
+    "id": "contract-review-missing-clause",
+    "description": "A contract with no payment or kill-fee language reports those as missing findings.",
+    "input": {
+      "contract_text": "Creator will produce one Reel and grant Brand a non-exclusive 6-month license. Brand will provide product. Creator will disclose the gift."
+    },
+    "expect": {
+      "missing_clauses": "includes payment_and_kill_fee",
+      "findings": "payment finding has contract_says null and gap 'missing'",
+      "recommend_counsel": true
+    },
+    "prohibit": ["inventing a fee or kill-fee figure", "dropping the missing clause instead of reporting it", "em dashes"]
+  },
+  {
+    "id": "contract-review-no-source",
+    "description": "Neither contract_text nor deal_id returns a structured error.",
+    "input": { "focus": "exclusivity" },
+    "expect": { "error": "no_source", "message": "present, asks for contract_text or deal_id" },
+    "prohibit": ["fabricated findings", "any review output without a source", "em dashes"]
+  }
+]

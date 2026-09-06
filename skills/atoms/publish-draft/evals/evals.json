@@ -1,0 +1,152 @@
+[
+  {
+    "id": "publish-draft-001",
+    "description": "Happy path: Instagram Reel with full inputs — formatted caption, hashtag block, numbered checklist, media specs, estimated posting time",
+    "input": {
+      "platform": "instagram",
+      "caption": "Finally finished the reading nook corner. One weekend, one can of chalk paint, and a $12 Goodwill chair.",
+      "hashtags": ["#diy", "#thriftflip", "#readingnook"],
+      "media_notes": "MP4, 9:16, 45 seconds, 1080x1920",
+      "scheduled_datetime": null,
+      "ftc_disclosure": null
+    },
+    "expect": {
+      "formatted_caption": "non-empty string — includes caption and hashtags",
+      "hashtag_block": "non-empty string — hashtags as standalone copyable block",
+      "posting_checklist": "array of at least 5 steps",
+      "media_specs": {
+        "format": "non-null",
+        "aspect_ratio": "non-null",
+        "max_duration_seconds": "non-null"
+      },
+      "optimal_posting_time": "non-null, labeled [estimated]",
+      "character_count": "positive integer",
+      "character_limit": 2200
+    },
+    "prohibit": [
+      "em dashes in formatted_caption",
+      "fabricated media specs not from platform-engine.md",
+      "optimal_posting_time without [estimated] label when not grounded in creator analytics"
+    ]
+  },
+  {
+    "id": "publish-draft-002",
+    "description": "TikTok with is_aigc context: posting checklist must include a step to manually toggle the AIGC label in the TikTok app",
+    "input": {
+      "platform": "tiktok",
+      "caption": "AI-assisted room layout idea for awkward L-shaped spaces.",
+      "hashtags": ["#interiordesign", "#aihome"],
+      "media_notes": "MP4, 9:16, 28 seconds",
+      "ftc_disclosure": null
+    },
+    "expect": {
+      "posting_checklist": "contains step referencing AIGC label or AI content disclosure in TikTok app",
+      "formatted_caption": "non-empty",
+      "platform": "tiktok"
+    },
+    "prohibit": [
+      "omitting AIGC disclosure step for AI-generated content on TikTok",
+      "em dashes in formatted_caption"
+    ]
+  },
+  {
+    "id": "publish-draft-003",
+    "description": "Pinterest description: must enforce 500-character limit and note hashtags as classification signals, not traffic sources",
+    "input": {
+      "platform": "pinterest",
+      "caption": "Step-by-step guide to refreshing an old armoire with chalk paint and dark wax. Full tutorial on the blog. Great project for renters who cannot drill into walls.",
+      "hashtags": ["#chalkpaint", "#armoire", "#diy", "#thriftflip"],
+      "media_notes": "JPG, 2:3, 1000x1500px"
+    },
+    "expect": {
+      "character_limit": 500,
+      "formatted_caption": "non-empty, under 500 characters",
+      "hashtag_block": "contains up to 5 hashtags",
+      "notes": "contains reference to hashtags as classification signals"
+    },
+    "prohibit": [
+      "formatted_caption exceeding 500 characters without a warning",
+      "silent truncation without noting it in the output",
+      "claiming hashtags drive traffic on Pinterest (they function as classification signals post-2024)"
+    ]
+  },
+  {
+    "id": "publish-draft-004",
+    "description": "YouTube Short: character limit 5000, hashtags above title note in checklist, thumbnail step included",
+    "input": {
+      "platform": "youtube",
+      "caption": "We stripped, sanded, and chalk-painted a $8 end table in under 3 hours. Here is exactly how we did it.",
+      "hashtags": ["#Shorts", "#diy", "#furnitureflip"],
+      "media_notes": "MP4, 9:16, 58 seconds, 1080x1920"
+    },
+    "expect": {
+      "character_limit": 5000,
+      "posting_checklist": "contains step about hashtags appearing above title or in description",
+      "media_specs": {
+        "max_duration_seconds": 60
+      }
+    },
+    "prohibit": [
+      "em dashes in formatted_caption",
+      "character_limit other than 5000 for YouTube"
+    ]
+  },
+  {
+    "id": "publish-draft-005",
+    "description": "Character limit exceeded: caption over platform limit — must return warning with character_count vs character_limit, must not silently truncate",
+    "input": {
+      "platform": "pinterest",
+      "caption": "This is a very long caption that intentionally exceeds the Pinterest 500-character limit. It has filler text to push it over. We are describing the full armoire restoration project in detail, including every product used, every step, every mistake, and every triumph along the way. This description is going to be way too long for Pinterest to accept, and the atom must catch this and return a warning rather than silently truncating the text before sending it to the platform. The creator needs to know so they can fix it.",
+      "hashtags": ["#diy"],
+      "ftc_disclosure": null
+    },
+    "expect": {
+      "character_count": "greater than 500",
+      "character_limit": 500,
+      "notes": "non-null — warns that caption exceeds character limit"
+    },
+    "prohibit": [
+      "silent truncation without surfacing the over-limit condition",
+      "character_count under 500 when caption is clearly over 500 characters"
+    ]
+  },
+  {
+    "id": "publish-draft-006",
+    "description": "FTC disclosure absent from caption, ftc_disclosure field provided — atom must prepend disclosure",
+    "input": {
+      "platform": "instagram",
+      "caption": "These paint brushes made the project so much easier.",
+      "hashtags": ["#ad", "#sponsored"],
+      "ftc_disclosure": "#ad",
+      "media_notes": null
+    },
+    "expect": {
+      "formatted_caption": "starts with or prominently contains #ad",
+      "ftc_reminder": "non-null",
+      "notes": "non-null — flags that disclosure was prepended or already present"
+    },
+    "prohibit": [
+      "formatted_caption without #ad when ftc_disclosure is #ad",
+      "blocking output because disclosure was missing — atom must prepend and continue"
+    ]
+  },
+  {
+    "id": "publish-draft-007",
+    "description": "No media_notes provided: checklist must still generate, must include reminder to verify file specs before uploading",
+    "input": {
+      "platform": "tiktok",
+      "caption": "The color turned out exactly how I hoped.",
+      "hashtags": ["#diy", "#colorreveal"],
+      "ftc_disclosure": null
+    },
+    "expect": {
+      "posting_checklist": "array of steps — includes a generic reminder about verifying media file specs",
+      "media_specs": "non-null — platform defaults from platform-engine.md",
+      "formatted_caption": "non-empty"
+    },
+    "prohibit": [
+      "posting_checklist empty when media_notes is absent",
+      "fabricating specific file specs beyond platform defaults when media_notes is null"
+    ]
+  }
+]

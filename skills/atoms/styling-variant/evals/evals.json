@@ -4,7 +4,7 @@
     "description": "Happy path: completed project with base aesthetic and target personas returns 2 to 3 variants with swap suggestions",
     "input": {
       "project_title": "Vintage Arched Mirror Makeover with Aged Gold Frame",
-      "base_aesthetic": "moody vintage",
+      "base_aesthetic": "[creator aesthetic]",
       "target_personas": ["The Renter", "The Thrift Maximalist"]
     },
     "expect": {
@@ -29,7 +29,7 @@
     "description": "Minimal inputs: project and base aesthetic only, atom selects personas from brand roster",
     "input": {
       "project_title": "Dark Chalk-Painted Bookshelf with Thrifted Brass Objects",
-      "base_aesthetic": "dark cottagecore"
+      "base_aesthetic": "[creator aesthetic]"
     },
     "expect": {
       "variants": "array of 2 to 3 objects",

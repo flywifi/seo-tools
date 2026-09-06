@@ -1,0 +1,160 @@
+{
+  "_comment": "P49 WS7 staleness signal: sha256 of each shared engine/protocol at the time its prose projection was last reconciled. If a source sha moves, drift invariant 47 (advisory) flags the projection files that may now be stale. Run `python3 tools/projection_manifest.py reconcile` after refreshing a projection to re-bless it.",
+  "generated_by": "tools/projection_manifest.py",
+  "projections": {
+    "implementation/claude/project/knowledge/01-creator-core.md": {
+      "sources": {
+        "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2"
+      },
+      "projection": "5d1ce64c64e0f0043db0f99402562d78a2867c8367c2490280051e9866d6a58f"
+    },
+    "implementation/claude/project/knowledge/02-brand-voice.md": {
+      "sources": {
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
+        "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd"
+      },
+      "projection": "7176014615ba4c5ed700dd8547def8fc55d09a5bb8e3b8c61aacd4199a5e3442"
+    },
+    "implementation/claude/project/knowledge/03-platform-seo.md": {
+      "sources": {
+        "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
+        "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6"
+      },
+      "projection": "917a4ea515442ecf7936be48f1ea768e0eadeb258bc34653a8007032dea67289"
+    },
+    "implementation/claude/project/knowledge/04-protocols.md": {
+      "sources": {
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
+        "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
+        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479",
+        "protocols/research-citation.md": "7c09987b8649f909fe6ecdf07d85cb038f809659ae9e217814766c57d1469e59"
+      },
+      "projection": "4c2bc64f4ab67bccb5662a7a32cb9cfaee2c71a0ccaeef5ea1f7058d5baeca63"
+    },
+    "implementation/claude/project/knowledge/05-content-spokes.md": {
+      "sources": {
+        "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
+        "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
+        "shared/web-intel-engine.md": "4043d8c4573504975dce33584ac5b69ac6165ef149178144d60f39155fdc69d6",
+        "shared/audience-engine.md": "3fa1de5e5e1bef99f35b0169ac1b8ab605e78c5894a451703c035083a460cb76",
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2"
+      },
+      "projection": "c7a38c0720b08da48c6553593a9202623de529d98e2cac2bf2bbcbab59efb1c4"
+    },
+    "implementation/claude/project/knowledge/06-document-spoke.md": {
+      "sources": {
+        "shared/docintel-engine.md": "e3f413e2116df01cc6a9e085e6aec60c87df924e1ba6a06614a8902ada409e1c",
+        "shared/injection-guard-engine.md": "6ab811da8f147f6bbef0c37eb46421db35797096f0956bafb5dfe6210efe0834",
+        "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
+        "shared/integrations-engine.md": "42c9d24c1d7c06fdc632f7e1af307cea02bd468df6c7482511b08b313d800395",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
+        "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
+        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
+      },
+      "projection": "780525aaf712c4c7eae2003db38bdd77fe4349793bd7c5b386e0843ffcc2594c"
+    },
+    "implementation/claude/project/knowledge/07-pipeline-spokes.md": {
+      "sources": {
+        "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b",
+        "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
+      },
+      "projection": "fc375f9a6f0988e17636c2fef69cbb8a5413efeedb9c049732787b221e2ade0a"
+    },
+    "implementation/claude/project/knowledge/08-key-atoms.md": {
+      "sources": {
+        "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
+        "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "shared/web-intel-engine.md": "4043d8c4573504975dce33584ac5b69ac6165ef149178144d60f39155fdc69d6",
+        "shared/method.md": "184403054c06eaafc9e2a17812e53e793fc7e0b4337b1fc91c14edab1a6cb539",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd"
+      },
+      "projection": "09b68703f14e86df387619bf64b1da9d7d27b0ec30f4014a366973edc4872145"
+    },
+    "implementation/claude/project/system-prompt.md": {
+      "sources": {
+        "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
+      },
+      "projection": "4adc1cc84bca806e1c2c734fdab5a337a5ccc26069cc597e63f1e0283bc00aa2"
+    },
+    "implementation/gpt/web/custom-instructions.md": {
+      "sources": {
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
+      },
+      "projection": "3967986bf1ca60914bc72b8a26518cc6237d9f7fdd2bcc50da25703625a93f50"
+    },
+    "implementation/gpt/web/custom-instructions-compact.md": {
+      "sources": {
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae"
+      },
+      "projection": "6e49bbf3adf66efe3046b89048731200265470e23365c6302fd367c5c4377d0c"
+    },
+    "implementation/gpt/project/project-instructions.md": {
+      "sources": {
+        "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
+      },
+      "projection": "71807af82e2606b8d6f245622a9ef5f42163588b3b13cf5d972e46f9eaf983a3"
+    },
+    "AGENTS.md": {
+      "sources": {
+        "CLAUDE.md": "1f7d832379e6ad6355daf4bb7e159cdd6666bdc31216f184def6428a76012df6"
+      },
+      "projection": "34fe7b78cf70d51a84b78ef9a7457794f3de34406e07b8d6b2e0922631cae25e"
+    },
+    "implementation/gemini/system-instruction.md": {
+      "sources": {
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
+      },
+      "projection": "ff270f500913c8f681234b986cd5646818989d20d33beaa88c7ab26275655a93"
+    },
+    "implementation/claude/project/creator-os-combined.md": {
+      "sources": {
+        "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
+        "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
+        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479",
+        "protocols/research-citation.md": "7c09987b8649f909fe6ecdf07d85cb038f809659ae9e217814766c57d1469e59",
+        "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
+        "shared/audience-engine.md": "3fa1de5e5e1bef99f35b0169ac1b8ab605e78c5894a451703c035083a460cb76",
+        "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
+        "shared/docintel-engine.md": "e3f413e2116df01cc6a9e085e6aec60c87df924e1ba6a06614a8902ada409e1c",
+        "shared/injection-guard-engine.md": "6ab811da8f147f6bbef0c37eb46421db35797096f0956bafb5dfe6210efe0834",
+        "shared/integrations-engine.md": "42c9d24c1d7c06fdc632f7e1af307cea02bd468df6c7482511b08b313d800395",
+        "shared/method.md": "184403054c06eaafc9e2a17812e53e793fc7e0b4337b1fc91c14edab1a6cb539",
+        "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
+        "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
+        "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
+        "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b",
+        "shared/transcription-engine.md": "7b22b1e0f6dd5808dce9110e5cd7b1895a623d5270e4d6fc81adc7ed5b349a13",
+        "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
+        "shared/web-intel-engine.md": "4043d8c4573504975dce33584ac5b69ac6165ef149178144d60f39155fdc69d6"
+      },
+      "projection": "dca159eb17e01d4b7ba52b782d170228d3f2590f15c8750ac0f57b2bef1130e1"
+    }
+  }
+}

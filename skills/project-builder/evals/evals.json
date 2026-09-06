@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": "basic-project-brief",
-      "prompt": "Build me a project brief for a dark moody bedroom makeover on a $300 budget.",
+      "prompt": "Build me a project brief for a home decor bedroom makeover on a $300 budget.",
       "expect": [
         "snapshot includes pillar, persona, transformation arc, and difficulty",
         "materials-list cost ranges are labeled as estimates",

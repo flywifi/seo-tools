@@ -1,0 +1,22 @@
+{
+  "_schema_version": "0.1.0",
+  "_note": "Blank schema for actual spend records, entry by entry. Real data lives in pipeline/finance/cost-actuals.local.json (gitignored). Entries are recorded by the human (or proposed by the system from receipts the human provides) and never invented. is_capex classification is organizational, not a tax determination (see _boundary). project_ref/deal_id link spend back to the project and deal so deal-debrief can compute true profitability with human review.",
+  "_boundary": "ARITHMETIC AND RESEARCH NOTES. NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE. REVIEW WITH A CPA OR TAX PROFESSIONAL BEFORE FILING OR RELYING ON CATEGORIZATIONS.",
+  "currency": "USD",
+  "entries": [
+    {
+      "date": null,
+      "vendor": null,
+      "description": "",
+      "category": "production_materials | equipment_capex | software_subscriptions | contractor_labor | travel | shipping_and_fees",
+      "amount": null,
+      "is_capex": false,
+      "project_ref": null,
+      "deal_id": null,
+      "receipt_ref": null,
+      "notes": ""
+    }
+  ],
+  "human_review_required": true,
+  "last_updated": null
+}

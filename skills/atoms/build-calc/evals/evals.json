@@ -1,0 +1,62 @@
+[
+  {
+    "test_id": "build-calc-stair",
+    "description": "stair geometry from total rise",
+    "input": {"calc": "stair", "params": {"total_rise_in": 108}},
+    "expected_output_keys": ["risers", "riser_height_in", "total_run_in", "code_ref", "boundary"],
+    "assertions": [
+      "risers is 14 and riser_height_in is about 7.714",
+      "riser_ok is true; result cites IRC R311.7.5 and carries the boundary"
+    ]
+  },
+  {
+    "test_id": "build-calc-egress-fail",
+    "description": "undersized egress opening fails",
+    "input": {"calc": "egress", "params": {"width_in": 20, "height_in": 24, "sill_in": 44}},
+    "expected_output_keys": ["area_sqft", "passes", "code_ref", "boundary"],
+    "assertions": [
+      "passes is false because area is under 5.7 sq ft",
+      "notes remind the input is the net clear opening, not the rough opening"
+    ]
+  },
+  {
+    "test_id": "build-calc-rvalue-zone",
+    "description": "R-value by climate zone with a county-letter suffix",
+    "input": {"calc": "rvalue", "params": {"component": "ceiling", "climate_zone": "4A"}},
+    "expected_output_keys": ["prescriptive_r_value", "region_hint", "code_ref", "boundary"],
+    "assertions": [
+      "climate_zone normalizes to 4 and returns the R38 to R60 range",
+      "notes say to confirm the exact value for the adopted edition"
+    ]
+  },
+  {
+    "test_id": "build-calc-boxfill",
+    "description": "NEC box fill for three 14 AWG plus device, clamp, ground",
+    "input": {"calc": "box_fill", "params": {"conductors": [14, 14, 14], "devices": 1, "clamps": 1, "grounds": 1}},
+    "expected_output_keys": ["required_box_volume_cuin", "code_ref", "boundary"],
+    "assertions": [
+      "required_box_volume_cuin is 14.0 cubic inches",
+      "result cites NEC 314.16"
+    ]
+  },
+  {
+    "test_id": "build-calc-deck-span-advisory",
+    "description": "deck span is advisory only",
+    "input": {"calc": "deck_span", "params": {"species": "SYP", "nominal": "2x8", "spacing_in": 16}},
+    "expected_output_keys": ["rough_span_ceiling_ft", "authoritative", "code_ref", "boundary"],
+    "assertions": [
+      "authoritative is false",
+      "notes say to read the actual span from AWC DCA6 and not build to this number"
+    ]
+  },
+  {
+    "test_id": "build-calc-bad-input",
+    "description": "invalid input returns a structured error, not a guess",
+    "input": {"calc": "rvalue", "params": {"component": "roofx", "climate_zone": 2}},
+    "expected_output_keys": ["error"],
+    "assertions": [
+      "returns an error naming the valid components",
+      "no fabricated fallback value"
+    ]
+  }
+]

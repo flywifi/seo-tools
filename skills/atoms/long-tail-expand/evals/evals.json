@@ -6,7 +6,7 @@
       "id": "lte-01",
       "description": "YouTube autocomplete expansion from a seasonal seed",
       "input": {
-        "seed_keyword": "dark moody fall mantel",
+        "seed_keyword": "seasonal home decor project",
         "platform": "youtube",
         "count": 20,
         "methods": ["autocomplete", "paa", "related"]

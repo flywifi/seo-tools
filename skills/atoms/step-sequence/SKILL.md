@@ -7,7 +7,7 @@ load: when a DIY home decor project needs a numbered build sequence with safety 
 
 # step-sequence
 
-Generate a structured, numbered step-by-step build process for a DIY home decor project in the creator's niche (moody-vintage home decor and DIY). Each step must explain what to do, briefly explain why it matters for the result, include a safety note when the action carries physical risk, and tag a b-roll filming opportunity so the step can feed directly into a production checklist or script.
+Generate a structured, numbered step-by-step build process for a DIY home decor project in the creator's niche (home decor and DIY). Each step must explain what to do, briefly explain why it matters for the result, include a safety note when the action carries physical risk, and tag a b-roll filming opportunity so the step can feed directly into a production checklist or script.
 
 ## Purpose
 
@@ -87,3 +87,6 @@ Output rules:
 - `protocols/safety.md` -- DIY trade boundary; licensed-trade hard stop; PPE, ventilation, and wellbeing rules.
 - `shared/adaptation-engine.md` -- renter vs owner axis (Axis 2) for renter-friendly step adaptation.
 - `shared/brand-engine.md` -- voice and tone for `action` and `detail` copy (published mode).
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (A/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

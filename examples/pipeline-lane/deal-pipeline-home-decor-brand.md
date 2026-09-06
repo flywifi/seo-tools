@@ -119,7 +119,7 @@ fields with actual information before sending.
 "[Creator name] creates moody, vintage-inspired home decor content for an audience of
 home owners and renters who want a collected, layered aesthetic without a designer budget.
 Her channel launches January 2026 with a content library covering furniture makeovers,
-thrift finds, and seasonal styling -- all filmed in an authentic 1920s bungalow.
+thrift finds, and seasonal styling -- all filmed in an authentic [creator's home].
 
 [Brand]'s [product line] aligns directly with her DIY makeover pillar. A natural integration
 would feature [product] in a furniture flip or seasonal decor project, reaching an audience

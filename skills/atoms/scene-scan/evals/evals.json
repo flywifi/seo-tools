@@ -1,0 +1,55 @@
+[
+  {
+    "test_id": "scene-scan-media-scenedetect",
+    "description": "media with PySceneDetect installed finds all cuts including isoluminant ones",
+    "input": {
+      "media_path": "a-recording.mp4",
+      "threshold": 27.0
+    },
+    "expected_output_keys": ["scene_cuts", "proposed_chapters", "computed_by", "backend_chain"],
+    "assertions": [
+      "computed_by is pyscenedetect.ContentDetector",
+      "proposed_chapters start with a 0.0 scene_start boundary",
+      "every suggested_title is null",
+      "no timing number is model-computed"
+    ]
+  },
+  {
+    "test_id": "scene-scan-scdet-caveat",
+    "description": "ffmpeg scdet fallback always carries the luma-only caveat",
+    "input": {
+      "media_path": "a-recording.mp4",
+      "scdet_threshold": 10.0
+    },
+    "expected_output_keys": ["scene_cuts", "computed_by", "notes"],
+    "assertions": [
+      "computed_by is ffmpeg.scdet",
+      "notes include the luma-only caveat about isoluminant cuts",
+      "the caveat is never stripped from the result"
+    ]
+  },
+  {
+    "test_id": "scene-scan-transcript-floor",
+    "description": "no media backends degrades to transcript chapter suggestion with provenance",
+    "input": {
+      "transcript_path": "skills/creator-core/evals/fixtures/workshop-footage.srt"
+    },
+    "expected_output_keys": ["proposed_chapters", "computed_by"],
+    "assertions": [
+      "computed_by is shared/docintel/transcripts.suggest_chapters",
+      "scene_cuts is empty (no pixels were measured)",
+      "boundaries carry basis silence, wpm_drop, or both; titles all null"
+    ]
+  },
+  {
+    "test_id": "scene-scan-no-input",
+    "description": "neither media nor transcript is refused honestly",
+    "input": {},
+    "expected_output_keys": ["scene_cuts", "proposed_chapters", "gaps"],
+    "assertions": [
+      "scene_cuts and proposed_chapters are empty",
+      "computed_by is null",
+      "gaps names what to provide; nothing is invented"
+    ]
+  }
+]

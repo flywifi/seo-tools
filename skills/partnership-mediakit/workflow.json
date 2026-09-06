@@ -3,11 +3,12 @@
   "id": "partnership-mediakit",
   "description": "Brand partnership outreach package: pitch paragraph, media kit sections, and rate card.",
   "steps": [
-    {"step": 1, "atom": "pitch-paragraph", "input_from": "brand_name + brand_product_category + proposed_format + brand_fit_notes", "output_to": "step2"},
-    {"step": 2, "atom": "mediakit-section", "input_from": "channel_data + brand_name", "output_to": "step3", "repeat": "per_section"},
-    {"step": 3, "atom": "rate-card-fill", "input_from": "format_list + alex_actual_rates (if available)", "output_to": "step4"},
-    {"step": 4, "atom": "govern-artifact", "input_from": "assembled_mediakit_package", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
+    {"step": 1, "atom": "pitch-paragraph", "input_from": "brand_name + brand_product_category + proposed_format + brand_fit_notes", "output_to": "step2", "condition": "action is generate (build the outreach package)"},
+    {"step": 2, "atom": "mediakit-section", "input_from": "channel_data + brand_name", "output_to": "step3", "repeat": "per_section", "condition": "action is generate"},
+    {"step": 3, "atom": "rate-card-fill", "input_from": "format_list + alex_actual_rates (if available)", "output_to": "step5", "condition": "action is generate"},
+    {"step": 4, "atom": "mediakit-critique", "input_from": "the creator's own media kit + platform", "output_to": "step5", "condition": "action is critique; compares the kit's metrics to benchmark ranges (benchmark-compare) and reviews structure; degrades to structural_only when benchmarks are unsourced; does NOT score the internal Quality Gates"},
+    {"step": 5, "atom": "govern-artifact", "input_from": "assembled_mediakit_package or critique", "output_to": "final", "gates": ["integrity", "accuracy", "brand_alignment"]}
   ],
-  "shortcut_atoms": ["pitch-paragraph", "mediakit-section", "rate-card-fill"],
+  "shortcut_atoms": ["pitch-paragraph", "mediakit-section", "rate-card-fill", "mediakit-critique"],
   "note": "Benchmark rates are labeled as industry benchmarks, never as the creator's personal rates without explicit labeling. FTC disclosure note appears in pitch when content is sponsored."
 }

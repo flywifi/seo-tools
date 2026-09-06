@@ -1,0 +1,50 @@
+[
+  {
+    "id": "legal-requirement-check-ftc-silent",
+    "description": "Sponsored deal with a contract silent on disclosure flags ftc_disclosure at_risk and cites an FTC source.",
+    "input": {
+      "contract_text": "Creator will produce one sponsored video for Brand for a fee of 2,000 USD. Brand receives a 6-month social license.",
+      "deal_context": { "fee": 2000, "is_sponsored": true, "category": "home decor" }
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "flags": "includes requirement ftc_disclosure with status at_risk and sources including ftc-disclosures-101 or ftc-endorsement-guides",
+      "recommend_counsel": true
+    },
+    "prohibit": ["citing a source id not in the registry", "stating the clause is unenforceable", "em dashes", "fabricated terms"]
+  },
+  {
+    "id": "legal-requirement-check-perpetual-flat-fee",
+    "description": "Perpetual worldwide rights for a flat fee flags both perpetual_usage_flat_fee and usage_rights_conflict.",
+    "input": {
+      "contract_text": "Creator grants Brand a perpetual, worldwide, royalty-free license to use the content in any medium. Flat fee 500 USD.",
+      "deal_context": { "fee": 500, "is_sponsored": true }
+    },
+    "expect": {
+      "flags": "includes perpetual_usage_flat_fee (at_risk) and usage_rights_conflict; usage flag cites us-copyright-basics",
+      "recommend_counsel": true,
+      "counsel_reason": "present"
+    },
+    "prohibit": ["ruling on enforceability", "em dashes", "citing a non-registry source"]
+  },
+  {
+    "id": "legal-requirement-check-not-applicable",
+    "description": "A non-sponsored, non-gifted, non-affiliate arrangement marks the FTC flag not_applicable with a reason.",
+    "input": {
+      "contract_text": "Two parties agree to co-produce a video with no compensation, product, or affiliate relationship.",
+      "deal_context": { "is_sponsored": false, "is_gifted": false, "is_affiliate": false }
+    },
+    "expect": {
+      "flags": "ftc_disclosure status not_applicable with a stated reason; missing_payment_terms may be flagged",
+      "human_review_required": true
+    },
+    "prohibit": ["marking ftc_disclosure at_risk when there is no material connection", "em dashes", "inventing a fee"]
+  },
+  {
+    "id": "legal-requirement-check-no-source",
+    "description": "Neither contract_text nor deal_id returns a structured error.",
+    "input": { "deal_context": { "is_sponsored": true } },
+    "expect": { "error": "no_source", "message": "present, asks for contract_text or deal_id" },
+    "prohibit": ["fabricated flags", "citations without a source document", "em dashes"]
+  }
+]

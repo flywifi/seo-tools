@@ -34,3 +34,6 @@ Design a single thumbnail concept.
 ## Pipeline note
 Follows `shared/method.md`. Thumbnail specs and the face-fill guidance come from
 `shared/platform-engine.md`. The concept must align with the title (no overpromising).
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

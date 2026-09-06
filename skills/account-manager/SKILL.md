@@ -1,7 +1,7 @@
 ---
 file: skills/account-manager/SKILL.md
 name: account-manager
-description: "manages brand account records in pipeline/accounts/: health-check, renewal signals, and follow-up recommendations; does NOT create or delete records directly and does NOT advance deal stages."
+description: "manages brand account records in pipeline/accounts/: health-check, renewal signals, follow-up recommendations, and read-only account and contact lookup (resolve a fuzzy brand phrase to an account, then read its contacts); does NOT create or delete records directly and does NOT advance deal stages."
 load: always
 ---
 
@@ -19,9 +19,11 @@ flagged rather than estimated.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| account_id | string | one of account_id or brand_name required | Unique identifier for the brand account record in pipeline/accounts/ |
-| brand_name | string | one of account_id or brand_name required | Human-readable brand name; resolved to account_id internally |
-| action | enum | required | One of: health_check, renewal_scan, overview |
+| account_id | string | one of account_id, brand_name, or brand_phrase required | Unique identifier for the brand account record in pipeline/accounts/ |
+| brand_name | string | one of account_id, brand_name, or brand_phrase required | Human-readable brand name; must match one record exactly |
+| brand_phrase | string | for contact_lookup and overview when the brand is loose | A fuzzy phrase or nickname ("that lightbulb company"); resolved to one account via account-resolve before any read |
+| person | string | optional | For contact_lookup: a name or role hint to filter the contact rows |
+| action | enum | required | One of: health_check, renewal_scan, overview, contact_lookup |
 | lookback_days | integer | optional | Days of history to consider for renewal_scan (default: 180) |
 
 ## Primary outputs
@@ -40,9 +42,11 @@ Returns an `account_report` object with the following fields:
 
 ## Atoms composed
 
+- **account-resolve** -- resolves a fuzzy brand phrase to one account id (or surfaces candidates), read-only; runs first when the caller has a loose phrase rather than an exact id
+- **contact-lookup** -- for the `contact_lookup` action: resolves the brand then reads the contact rows (name, role, email), optionally filtered to a person hint; read-only, PII-masked when the answer leaves the machine
 - **account-health** -- scores the account on recency, engagement cadence, and deal history
 - **renewal-signal** -- scans the lookback window and flags accounts approaching renewal or lapsed
-- **gap-record** -- invoked when account_id or brand_name cannot be resolved; returns a structured null rather than fabricating data
+- **gap-record** -- invoked when the account cannot be resolved; returns a structured null rather than fabricating data
 - **govern-artifact** -- runs the output through Quality Gates before returning
 
 ## Engines required
@@ -63,3 +67,10 @@ Returns an `account_report` object with the following fields:
 - Generating creative content of any kind
 - Accessing real account data outside the `pipeline/accounts/` records
 - Creating or deleting account records directly
+
+## Cross-modality
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: tools/accounts.py (difflib tiered fuzzy account resolution + deterministic PII redaction) over the private pipeline/accounts|deals/*.local.json store; exposed as MCP contact_lookup + deal_status. Off Claude only via the remote-MCP transport (mcp_server.py --serve-remote).
+Fallback: No runtime or hosted seam -> the private records, resolver, and redaction cannot run; reason over the pipeline-engine.md spec against records the user pastes, flag unverified, and name the command (contact_lookup / deal_status). Never fabricate account data or contacts. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
+See `shared/cross-modality-engine.md`.

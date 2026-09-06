@@ -17,8 +17,37 @@ dist/
 
 # Secrets and credentials
 .env
+.env.*
 secrets.json
 *.secret
+*.pem
+*.key
+
+# Finance boundary (P31): allowlist-invert. EVERYTHING under pipeline/finance/ is ignored by
+# default; only the blank template schemas are committed. A bank export, a hand-dropped
+# invoices.json, or any unknown file type never enters git even without a .local. suffix.
+# Drift invariant 20 enforces the same allowlist on TRACKED files as a second layer.
+pipeline/finance/*
+!pipeline/finance/*.template.json
+!pipeline/finance/*-schema.json
+
+# Document templates (P42): allowlist-invert. Creator templates and vetted contract/terms text
+# live ONLY in gitignored local files; only the all-null committed starters enter git.
+# Drift invariant 31 enforces starter purity (null bodies, no real provenance) as a second layer.
+pipeline/templates/*
+!pipeline/templates/*.template.json
+
+# Financial exports and statements: never committed, anywhere in the repo.
+pipeline/**/*.csv
+pipeline/**/*.xlsx
+pipeline/**/*.xls
+pipeline/**/*.pdf
+*.ofx
+*.qfx
+*statement*.csv
+*export*.csv
+paypal*.csv
+transactions*.csv
 
 # Traversal engine working files (operator reviews before any entry touches the registry)
 traversal-candidates.json
@@ -26,10 +55,57 @@ traversal-visited.json
 
 # Competitor intelligence snapshots (raw HTML, screenshots, SQLite index)
 pipeline/competitor-snapshots/
+
+# P45: the creator's OWN past-video library (stats, revenue, transcripts) is private, never committed.
+# Only the all-null committed starters are allowlisted back in.
+pipeline/video-library/*
+!pipeline/video-library/video-library.template.json
+!pipeline/video-library/video-library-schema.json
+
+# P60: the drop-folder inbox ledger (classification/routing state for files dropped in the Drive
+# hub Inbox). Real ledger is private; only the all-null committed template is allowlisted back in.
+pipeline/inbox/*
+!pipeline/inbox/inbox-ledger.template.json
+
+# P34: construction library, a local cache of downloaded public-domain/open assets
+# (DOE BASC, NREL, energycodes, Wikimedia). Fetched by tools/construction_fetch.py, never committed;
+# committed construction data is only the authored dictionary under canonical-sources/construction/.
+pipeline/construction-library/
 .harvest-cache/
 snapshots-log.json
+
+# Contract-artifact store (P23): raw contract text and per-contract records
+# (committed: only pipeline/contracts/contract.template.json and the deal-playbook template).
+# Covered by pipeline/**/*.local.* above; listed here so the intent is explicit: contract TEXT is never committed.
+pipeline/contracts/*.local.json
+pipeline/user-context/deal-playbook.local.json
+# Obligation register (P23 Phase 3): real dated obligations stay local; only the template is committed.
+pipeline/user-context/obligation-register.local.json
+obligations-bucket.manifest.json
+
+# Task tracker (P35): real tasks, recurrence rules, shipments, and payment schedules stay local; only
+# the templates are committed. Covered by pipeline/user-context/*.local.json above; explicit for intent.
+pipeline/user-context/task-register.local.json
+pipeline/user-context/recurrence-rules.local.json
+pipeline/user-context/shipments.local.json
+pipeline/user-context/payment-schedule.local.json
+tasks-bucket.manifest.json
+
+# Video editing bridge (P22): generated interchange files + local edit packages
+# (committed: only the *.template.json schema files under pipeline/editing/)
+pipeline/editing/*.local.*
+pipeline/editing/*.fcpxml
+pipeline/editing/*.fcpxmld/
+pipeline/editing/*.drt
+pipeline/editing/*.otio
+pipeline/editing/*.compressorsetting
+editing-bucket.manifest.json
 
 # Python
 __pycache__/
 *.pyc
 .pytest_cache/
+# The private toolbox: dependencies install here (never committed). See tools/env_paths.py.
+.venv/
+.DS_Store
+*.lock

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 380" width="520" height="380" font-family="sans-serif">
+  <title>Deck ledger attachment and flashing (IRC R507.9)</title>
+  <desc>Cross-section of a deck ledger fastened to the house band joist with staggered lag bolts and flashing shedding over the ledger. Original Creator OS drawing.</desc>
+  <rect x="0" y="0" width="520" height="380" fill="#ffffff"/>
+  <!-- house wall / band joist -->
+  <rect x="60" y="40" width="70" height="300" fill="#f0ead9" stroke="#222"/>
+  <text x="66" y="30" font-size="12" fill="#444">house wall</text>
+  <rect x="130" y="120" width="26" height="90" fill="#d8c79a" stroke="#222"/>
+  <text x="120" y="235" font-size="11" fill="#444">band joist</text>
+  <!-- ledger board -->
+  <rect x="156" y="120" width="26" height="120" fill="#c8a15a" stroke="#222"/>
+  <text x="150" y="258" font-size="11" fill="#a60">ledger</text>
+  <!-- staggered lag bolts (two rows) -->
+  <g stroke="#222" stroke-width="3">
+    <line x1="140" y1="140" x2="182" y2="140"/>
+    <line x1="140" y1="180" x2="182" y2="180"/>
+    <line x1="140" y1="220" x2="182" y2="220"/>
+  </g>
+  <text x="200" y="184" font-size="12" fill="#b00">1/2 in lag or through-bolt,</text>
+  <text x="200" y="200" font-size="12" fill="#b00">two staggered rows (never nails)</text>
+  <!-- flashing over ledger -->
+  <path d="M156,118 q10,-16 26,-6 l0,10" fill="none" stroke="#06c" stroke-width="2.5"/>
+  <text x="200" y="112" font-size="12" fill="#06c">flashing sheds over the ledger,</text>
+  <text x="200" y="128" font-size="12" fill="#06c">behind the water-resistive barrier</text>
+  <!-- joist + hanger -->
+  <rect x="182" y="150" width="180" height="22" fill="#d8c79a" stroke="#222"/>
+  <text x="270" y="145" font-size="11" fill="#444">deck joist in a hanger</text>
+  <path d="M182,150 l0,22 l14,0" fill="none" stroke="#333" stroke-width="3"/>
+  <!-- lateral load note -->
+  <text x="60" y="300" font-size="12" fill="#090">Add lateral-load hold-downs tying the deck into the interior floor framing (R507.9.2).</text>
+  <text x="60" y="352" font-size="12" fill="#444">Lag-only or unflashed ledgers rot the band joist and are the most common deck-collapse cause.</text>
+  <text x="60" y="370" font-size="11" fill="#888">Original Creator OS drawing (CC0). General guidance, not engineering advice.</text>
+</svg>

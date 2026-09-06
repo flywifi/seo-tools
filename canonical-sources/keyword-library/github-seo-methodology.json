@@ -111,5 +111,9 @@
       "finding": "Creator Breakout Kit data: polished lifestyle montages are a low-probability play for new channels. Tutorial, process, and before-and-after content formats have significantly higher click-through and retention than lifestyle aesthetic montages for channels under 10K subscribers.",
       "implication_for_creator_os": "When video-development recommends format for a new channel, the atom should weight tutorial and transformation formats above aesthetic montage until the channel reaches 10K subscribers."
     }
-  }
+  },
+  "source_ids": [
+    "github-seo-oss-methodology"
+  ],
+  "_currency": "watched (data-currency-map.json); refresh from the github-seo-oss-methodology source"
 }

@@ -6,7 +6,7 @@
       "brand_name": "Vintage Brass Co",
       "brand_product_category": "antique-finish cabinet hardware",
       "proposed_format": "dedicated",
-      "brand_fit_notes": "Their aged brass pulls match the moody-vintage aesthetic; popular in kitchen and bathroom DIY makeovers",
+      "brand_fit_notes": "Their aged brass pulls match the home decor aesthetic; popular in kitchen and bathroom DIY makeovers",
       "alex_pillar": "DIY and room makeovers"
     },
     "expect": {
@@ -63,11 +63,11 @@
     },
     "expect": {
       "tool": "pitch-paragraph",
-      "fabrication_check": "FLAG with reason explaining the product category is outside the moody-vintage home decor niche",
+      "fabrication_check": "FLAG with reason explaining the product category is outside the home decor niche",
       "personalization_notes": "flags that gaming headsets do not align with the creator's niche and audience"
     },
     "prohibit": [
-      "pitch paragraph that fabricates a niche connection between gaming peripherals and moody-vintage home decor",
+      "pitch paragraph that fabricates a niche connection between gaming peripherals and home decor",
       "fabrication_check PASS for an out-of-niche product",
       "subject lines that misrepresent the creator's content focus"
     ]

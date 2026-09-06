@@ -12,7 +12,7 @@ parameters:
       type: string
       description: >
         The creator's raw request in natural language. Examples:
-        "plan a dark moody fall mantel video",
+        "plan a seasonal home decor project video",
         "write a hook for my chalk paint armoire reel",
         "move the West Elm deal to in-production",
         "what keywords should I use for a thrift haul video on YouTube vs Pinterest".

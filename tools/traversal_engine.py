@@ -39,6 +39,12 @@ CONFIG_FILE = ROOT / "canonical-sources" / "traversal-config.json"
 CANDIDATES_FILE = ROOT / "traversal-candidates.json"
 VISITED_FILE = ROOT / "traversal-visited.json"
 
+# Categories that are NOT web pages with followable outlinks: competitor pages (snapshotted
+# offline by competitor_snapshot.py) and dependency/MCP-server entries (version-checked by
+# dependency_currency.py against PyPI/GitHub, never crawled). traverse-all skips these so it
+# never emits a link-crawl instruction for a PyPI or releases page.
+NON_TRAVERSABLE_CATEGORIES = {"competitor-page", "software-dependency", "mcp-server"}
+
 
 def load_json(path: Path) -> dict:
     if not path.exists():
@@ -55,13 +61,9 @@ def load_config() -> dict:
     return raw
 
 
-def load_registry() -> dict:
-    raw = load_json(REGISTRY_FILE)
-    return raw
-
-
-def save_registry(registry: dict) -> None:
-    save_json(REGISTRY_FILE, registry)
+# The registry has one write implementation, shared with source_currency.py, so both sanctioned
+# writers (source_currency.py and this file's `accept`) produce byte-identical output.
+from registry_io import load_registry, save_registry  # noqa: E402
 
 
 def get_interval(config: dict, category: str, field: str) -> int:
@@ -191,6 +193,7 @@ def cmd_traverse(args, registry: dict, config: dict) -> None:
         targets = [
             s for s in sources
             if s.get("depth", 0) == 0
+            and s.get("category") not in NON_TRAVERSABLE_CATEGORIES
             and (not category_filter or s.get("category") == category_filter)
         ]
 
@@ -359,8 +362,9 @@ def cmd_accept(args, registry: dict, config: dict) -> None:
         "depth": depth,
         "parent_source_id": parent_id,
         "next_steps": [
-            f"python3 tools/source_currency.py --mark-checked {custom_id}",
-            "Edit 'name' and 'extraction_hint' in source-registry.json for this entry (the only manual edit permitted after --accept).",
+            f"python3 tools/source_currency.py mark-checked {custom_id}",
+            f"python3 tools/source_currency.py update-source {custom_id} --name '<human-readable name>' "
+            f"--extraction-hint '<what to watch on this page>'   # never edit source-registry.json by hand",
             "Add this source to the 'used_by' list of any atoms or engines that depend on it."
         ]
     }, indent=2))
@@ -384,9 +388,13 @@ def cmd_prune_orphans(registry: dict, config: dict) -> None:
             except ValueError:
                 pass
 
+        # P49 WS9: a blocked source (robots/bot-block) is inconclusive, not gone -- it must NOT be
+        # orphan-eligible just because the crawler could not verify it. Only deliberately-skipped,
+        # unused, long-unchecked sources are orphan candidates; a durable fetch-block also protects it.
         is_orphan = (
             not used_by
-            and traversal_status in ("skipped", "blocked")
+            and traversal_status == "skipped"
+            and not source.get("last_block_detected")
             and (days_since_check is None or days_since_check > 180)
         )
 
@@ -402,7 +410,7 @@ def cmd_prune_orphans(registry: dict, config: dict) -> None:
                 "traversal_status": traversal_status,
                 "last_checked": last_checked,
                 "days_since_check": days_since_check,
-                "reason": "no used_by entries, traversal blocked or skipped, checked more than 180 days ago"
+                "reason": "no used_by entries, traversal deliberately skipped (not blocked), checked more than 180 days ago"
             })
 
     print(json.dumps({
@@ -444,7 +452,7 @@ def main():
     accept_p.add_argument("url")
     accept_p.add_argument("--id", help="Custom registry id (auto-generated if omitted)")
     accept_p.add_argument("--category", help="Override inferred category")
-    accept_p.add_argument("--tier", help="T1, T2, or T3 (default T2)")
+    accept_p.add_argument("--tier", choices=["T1", "T2", "T3"], help="T1, T2, or T3 (default T2)")
     accept_p.add_argument("--name", help="Human-readable name for the entry")
 
     # --prune-orphans
@@ -473,5 +481,44 @@ def main():
         sys.exit(1)
 
 
+
+def selftest() -> int:
+    """Offline proof of the pure URL/authority/scoring seams. No network, no registry writes.
+
+    These functions decide which outlinks enter the citation graph, so a defect here silently
+    widens or narrows what the traversal trusts. Nothing executed them before (P74 WP4)."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    ok("normalize_url strips utm/ref/fbclid/gclid but keeps real params",
+       normalize_url("https://EXAMPLE.com/a/?utm_source=x&id=7&fbclid=z") == "https://example.com/a?id=7")
+    ok("normalize_url drops the fragment and trailing slash, lowercases the host",
+       normalize_url("HTTPS://WWW.Example.com/path/#frag") == "https://www.example.com/path")
+    ok("normalize_url gives a bare domain the root path",
+       normalize_url("https://example.com") == "https://example.com/")
+    ok("is_authority_domain matches the domain exactly",
+       is_authority_domain("https://example.com/x", ["example.com"]))
+    ok("is_authority_domain matches a subdomain",
+       is_authority_domain("https://docs.example.com/x", ["example.com"]))
+    ok("is_authority_domain REFUSES a suffix lookalike (notexample.com is not example.com)",
+       not is_authority_domain("https://notexample.com/x", ["example.com"]))
+    ok("score_niche_relevance counts distinct terms, case-insensitively",
+       score_niche_relevance("Fall DECOR and lighting", ["decor", "lighting"]) == 2)
+    ok("score_niche_relevance caps at 5",
+       score_niche_relevance("a b c d e f g", list("abcdefg")) == 5)
+    ok("score_niche_relevance returns 0 for empty context",
+       score_niche_relevance("", ["x"]) == 0)
+
+    print(f"traversal_engine selftest: {'PASS' if not failures else 'FAIL'} "
+          f"({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
     main()

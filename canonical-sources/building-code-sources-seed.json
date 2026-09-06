@@ -1,0 +1,182 @@
+[
+  {
+    "id": "fl-building-code-portal",
+    "name": "Florida Building Code (official portal)",
+    "url": "https://www.floridabuilding.org/bc/bc_default.aspx",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "adopted edition banner (2023 FBC 8th Edition, 2021 I-Codes + ASCE 7-22); watch for the 9th Edition (2026) transition; single statewide code with local amendments",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup", "construction-engine"]
+  },
+  {
+    "id": "fl-code-amendments-search",
+    "name": "Florida Building Code amendments and declaratory statements search",
+    "url": "https://www.floridabuilding.org/c/default.aspx",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "statewide amendments, errata, and declaratory statements between code cycles",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-engine"]
+  },
+  {
+    "id": "fl-residential-code-icc",
+    "name": "Florida Building Code Residential 2023 (ICC Digital Codes, free viewer)",
+    "url": "https://codes.iccsafe.org/content/FLRC2023P1",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "free read-only viewer for FBC-R section numbers; cite sections, never copy text",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup"]
+  },
+  {
+    "id": "fl-product-approval",
+    "name": "Florida Product Approval system",
+    "url": "https://www.floridabuilding.org/pr/pr_default.aspx",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "statewide product approval; HVHZ requires a Miami-Dade NOA; wind-borne debris opening protection",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup"]
+  },
+  {
+    "id": "miami-dade-noa-hvhz",
+    "name": "Miami-Dade Product Control (NOA) search",
+    "url": "https://www.miamidade.gov/business/building/product-control-search.asp",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "High-Velocity Hurricane Zone Notice of Acceptance; TAS 201/202/203 impact protocols for Miami-Dade and Broward",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup"]
+  },
+  {
+    "id": "fl-statutes-ch553",
+    "name": "Florida Statutes Chapter 553 (Building Construction Standards)",
+    "url": "http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0553/0553.html",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "statutory basis for the FBC; public domain state statute (may be cited and quoted)",
+    "_license": "public-domain",
+    "used_by": ["code-lookup", "construction-engine"]
+  },
+  {
+    "id": "nc-osfm-codes",
+    "name": "NC OSFM building codes (current and past)",
+    "url": "https://www.ncosfm.gov/codes/codes-current-and-past",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "2018 NC Residential Code (2015 IRC) is enforced now; 2024 NC RC (2021 IRC) adopted but effective date postponed (earliest ~2027)",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup", "construction-engine"]
+  },
+  {
+    "id": "nc-building-code-council",
+    "name": "NC Building Code Council / Residential Code Council",
+    "url": "https://www.ncosfm.gov/find-information/rules-and-policy/building-code-council-bcc",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "watch the 2024 code effective-date decisions and the new Residential Code Council certification timeline",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-engine"]
+  },
+  {
+    "id": "nc-osfm-press",
+    "name": "NC OSFM news and press releases",
+    "url": "https://www.ncosfm.gov/news/press-releases",
+    "category": "building-code",
+    "tier": "T2",
+    "extraction_hint": "official announcements of code edition transitions and effective dates",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-engine"]
+  },
+  {
+    "id": "nc-residential-code-icc",
+    "name": "North Carolina Residential Code 2018 (ICC Digital Codes, free viewer)",
+    "url": "https://codes.iccsafe.org/content/NCRC2018P1",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "free read-only viewer for NC RC section numbers (2015 IRC base); includes Chapter 45 High Wind Zones",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup"]
+  },
+  {
+    "id": "nc-oah-rulemaking",
+    "name": "NC Office of Administrative Hearings (rulemaking / NCAC)",
+    "url": "https://www.oah.nc.gov/",
+    "category": "building-code",
+    "tier": "T2",
+    "extraction_hint": "administrative rule adoptions affecting code effective dates; public-domain state records",
+    "_license": "public-domain",
+    "used_by": ["code-lookup", "construction-engine"]
+  },
+  {
+    "id": "icc-irc-2021",
+    "name": "International Residential Code 2021 (ICC Digital Codes, free viewer)",
+    "url": "https://codes.iccsafe.org/content/IRC2021P1",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "model residential code both FL (2021 base) and pending NC 2024 derive from; cite sections R-numbers, never copy text or tables",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup", "build-calc"]
+  },
+  {
+    "id": "icc-iecc-2021",
+    "name": "International Energy Conservation Code 2021 (ICC Digital Codes)",
+    "url": "https://codes.iccsafe.org/content/IECC2021P1",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "insulation R-value and fenestration tables by climate zone (N1102 / R402); cite sections, use the public-domain DOE BASC restatement for values",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "build-calc"]
+  },
+  {
+    "id": "icc-ipc-imc-ifgc",
+    "name": "International Plumbing/Mechanical/Fuel Gas Codes (ICC Digital Codes)",
+    "url": "https://codes.iccsafe.org/codes/i-codes",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "IPC (drain slope, DFU), IMC and IFGC references for plumbing/HVAC/gas; cite sections only",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup"]
+  },
+  {
+    "id": "icc-codes-landing",
+    "name": "ICC Digital Codes library (all I-Codes landing)",
+    "url": "https://codes.iccsafe.org/codes",
+    "category": "building-code",
+    "tier": "T2",
+    "extraction_hint": "catches new I-Code editions and newly adopted state codes as they publish",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-engine"]
+  },
+  {
+    "id": "nfpa-nec-free-access",
+    "name": "NFPA 70 National Electrical Code (free access)",
+    "url": "https://www.nfpa.org/for-professionals/codes-and-standards/list-of-codes-and-standards/detail?code=70",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "NEC section numbers (210.52, 210.8, 210.12, 314.16, 240.4); free registered read-only; never copy text",
+    "_license": "cite-only",
+    "used_by": ["code-lookup", "construction-lookup", "build-calc"]
+  },
+  {
+    "id": "fl-upcodes",
+    "name": "UpCodes Florida (aggregated code viewer)",
+    "url": "https://up.codes/codes/florida",
+    "category": "building-code",
+    "tier": "T2",
+    "extraction_hint": "secondary free viewer for FL adopted codes and amendments; cross-check against the official portal",
+    "_license": "cite-only",
+    "used_by": ["code-lookup"]
+  },
+  {
+    "id": "nc-upcodes",
+    "name": "UpCodes North Carolina (aggregated code viewer)",
+    "url": "https://up.codes/codes/north_carolina",
+    "category": "building-code",
+    "tier": "T2",
+    "extraction_hint": "secondary free viewer for NC adopted codes; confirm the enforced edition against OSFM",
+    "_license": "cite-only",
+    "used_by": ["code-lookup"]
+  }
+]

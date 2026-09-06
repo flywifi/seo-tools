@@ -61,3 +61,10 @@ Atoms are invoked in the order listed. `caption-write` and `hashtag-set` run onc
 - **Generating the original long-form video** - use the `video-development` spoke. This spoke assumes the long-form project already exists.
 - **SEO keyword strategy** - use the `seo-keywords` spoke. This spoke consumes keywords; it does not generate them.
 - **Caption file transcription** (SRT/VTT/ASS output) - use `document-studio`. This spoke writes social captions, not caption files.
+
+## Cross-modality
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: Reasoning over the transcript plus scoop-cached platform specs (cache_query / shared/platform-engine.md) for clips, captions, hashtags, Pins, and calendar slots; local COMPUTE only through the shorts-reframe shortcut atom's MCP tool reframe_shorts (tools/videoedit/reframe.py 9:16 crop geometry + ffmpeg filter string, flag-gated CLI render) and mediaprobe-backed silence_scan / scene_scan for clip-point probing.
+Fallback: Without the MCP runtime, run the full 6-step package as B/A work: reason over the user-supplied transcript and platform specs for clips, captions, hashtags, Pins, and schedule; skip shorts-reframe crop geometry and media probing, flag cut points/durations as unverified, and never fabricate timecodes it cannot probe. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
+See `shared/cross-modality-engine.md`.

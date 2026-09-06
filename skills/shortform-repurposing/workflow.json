@@ -10,6 +10,6 @@
     {"step": 5, "atom": "calendar-slot", "input_from": "step1.clips + publish_by_window", "output_to": "step6"},
     {"step": 6, "atom": "govern-artifact", "input_from": "assembled_short_form_package", "output_to": "final", "gates": ["integrity", "brand_alignment", "accuracy"]}
   ],
-  "shortcut_atoms": ["short-extract", "caption-write", "hashtag-set", "pin-write", "calendar-slot"],
-  "note": "The ecosystem ratio is 1 long-form + 3 to 5 Shorts/Reels + 1 to 3 Pins per project. caption-write flags FTC disclosure when content is sponsored, gifted, or affiliate."
+  "shortcut_atoms": ["short-extract", "caption-write", "hashtag-set", "pin-write", "calendar-slot", "shorts-reframe"],
+  "note": "The ecosystem ratio is 1 long-form + 3 to 5 Shorts/Reels + 1 to 3 Pins per project. caption-write flags FTC disclosure when content is sponsored, gifted, or affiliate. shorts-reframe follows short-extract: chosen clip range in, 9:16 crop geometry (and optional flag-gated local render) out."
 }

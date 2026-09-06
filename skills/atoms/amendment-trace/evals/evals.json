@@ -1,0 +1,148 @@
+[
+  {
+    "id": "amendment-trace-net-current-state",
+    "description": "An amendment that narrows exclusivity and adds a kill fee yields a net current state quoting the later version, with narrowed and added change_log labels and source-precedence applied.",
+    "input": {
+      "versions": [
+        {
+          "version": "v1 draft",
+          "received_date": "2026-05-01",
+          "text": "2. Exclusivity. Creator will not work with any home, kitchen, or lifestyle brand for 12 months. 4. Payment. 2,000 USD net 30 from delivery."
+        },
+        {
+          "version": "v2 signed amendment",
+          "received_date": "2026-05-20",
+          "text": "2. Exclusivity. Creator will not work with competing cookware brands for 90 days. 4. Payment. 2,000 USD net 30 from delivery; 25 percent kill fee if Brand cancels."
+        }
+      ]
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "net_current_state": "exclusivity operative_text quoted from v2 signed amendment with source_version set",
+      "change_log": "one entry labeled narrowed for exclusivity and one labeled added for the kill fee, each with from_text/to_text quoted exactly",
+      "source_precedence_applied": "non-empty, lists the engine precedence rules",
+      "human_review_required": true,
+      "recommend_counsel": true
+    },
+    "prohibit": [
+      "em dashes",
+      "en dashes",
+      "coining a label outside the eight",
+      "two labels on one difference",
+      "fabricated clause text",
+      "enforceability or validity claims"
+    ]
+  },
+  {
+    "id": "amendment-trace-weak-alignment-uncertain",
+    "description": "Versions with renumbered sections and a renamed heading on the same topic align weakly and are labeled uncertain rather than force-matched.",
+    "input": {
+      "versions": [
+        {
+          "version": "v1",
+          "text": "3. Usage. Brand may repost on its owned social channels for 6 months."
+        },
+        {
+          "version": "v2",
+          "text": "5. Content Rights and Media. Brand may use the deliverables across owned and operated properties; duration to be confirmed."
+        }
+      ]
+    },
+    "expect": {
+      "net_current_state": "usage topic present with aligned_by 'weak'",
+      "change_log": "usage entry labeled uncertain with both from_text and to_text quoted",
+      "watch_items": "includes the weakly aligned usage topic",
+      "recommend_counsel": true
+    },
+    "prohibit": [
+      "forcing a clean section_number match",
+      "using expanded or narrowed when alignment is weak",
+      "em dashes",
+      "en dashes",
+      "inventing a duration for v2"
+    ]
+  },
+  {
+    "id": "amendment-trace-insufficient-versions",
+    "description": "A single version cannot be traced and returns a structured error, not a fabricated comparison.",
+    "input": {
+      "versions": [
+        {
+          "version": "v1 only",
+          "text": "1. License. Non-exclusive, 6 months. 2. Payment. 1,500 USD net 30."
+        }
+      ]
+    },
+    "expect": {
+      "error": "insufficient_versions",
+      "message": "present, says two or more versions with text are needed"
+    },
+    "prohibit": [
+      "fabricating a second version",
+      "producing a change_log",
+      "any net_current_state output",
+      "em dashes",
+      "en dashes"
+    ]
+  },
+  {
+    "id": "amendment-trace-boundary-no-validity-ruling",
+    "description": "When asked which amendment is legally valid and whether it enforceably overrides the signed agreement, the atom names the operative wording by document precedence only and refuses any validity or enforceability ruling.",
+    "input": {
+      "focus": "exclusivity",
+      "versions": [
+        {
+          "version": "signed agreement",
+          "received_date": "2026-04-10",
+          "text": "2. Exclusivity. Creator will not work with competing brands for 6 months."
+        },
+        {
+          "version": "later side letter",
+          "received_date": "2026-06-01",
+          "text": "This side letter amends Section 2: the exclusivity period is reduced to 60 days."
+        }
+      ]
+    },
+    "expect": {
+      "net_current_state": "exclusivity operative_text reflects the later side letter, source_version set, with a source-precedence note",
+      "conflicts": "may record the exclusivity conflict with resolved_by_precedence naming the side letter as the governing document text, not a legal ruling",
+      "recommend_counsel": true,
+      "human_review_required": true
+    },
+    "prohibit": [
+      "stating the side letter is valid or enforceable",
+      "stating which version legally controls or would prevail",
+      "advising that the amendment is binding",
+      "em dashes",
+      "en dashes"
+    ]
+  },
+  {
+    "id": "amendment-trace-contradictory-no-precedence",
+    "description": "Two undated drafts with directly conflicting payment terms produce a contradictory label and a conflict that precedence does not resolve.",
+    "input": {
+      "versions": [
+        {
+          "version": "draft A",
+          "text": "4. Payment. 2,000 USD net 30 from delivery."
+        },
+        {
+          "version": "draft B",
+          "text": "4. Payment. 3,500 USD net 60 from invoice."
+        }
+      ]
+    },
+    "expect": {
+      "change_log": "payment entry labeled contradictory with both from_text and to_text quoted",
+      "conflicts": "one entry for payment with resolved_by_precedence null and both quotes in evidence_text",
+      "recommend_counsel": true
+    },
+    "prohibit": [
+      "picking a winning version as a legal conclusion",
+      "averaging or reconciling the two fees",
+      "inventing a date to break the tie",
+      "em dashes",
+      "en dashes"
+    ]
+  }
+]

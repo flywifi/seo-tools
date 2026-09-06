@@ -1,0 +1,106 @@
+[
+  {
+    "id": "electrical-receptacle-spacing",
+    "title": "Receptacle spacing in habitable rooms",
+    "text": "Electrical work should be done or verified by a licensed electrician and permitted and inspected. As reference: in habitable rooms, receptacle outlets are spaced so that no point along the floor line of any wall is more than 6 feet from a receptacle, which means receptacles at most 12 feet apart, and any wall section 2 feet or wider counts. This keeps appliances from needing extension cords. Confirm the layout and all connections with a licensed electrician and verify against NEC 210.52(A) for your adopted edition.",
+    "trade": "electrical",
+    "topic": "receptacles",
+    "licensed_trade": true,
+    "dimensions": [
+      {"item": "max distance to a receptacle", "value": "6 ft along the wall floor line", "note": "NEC 210.52(A)(1)"},
+      {"item": "max spacing between receptacles", "value": "12 ft", "note": "the 6 ft rule stated as spacing"},
+      {"item": "wall counted", "value": "2 ft or wider", "note": "NEC 210.52(A)(2)"}
+    ],
+    "steps": [
+      "Engage a licensed electrician; pull the electrical permit.",
+      "Lay out receptacles so no wall point is over 6 ft from an outlet.",
+      "Count any wall segment 2 ft or wider, including fixed panels beside doors.",
+      "Schedule the rough-in and final inspections."
+    ],
+    "common_mistakes": [
+      "Leaving a wall segment over 6 ft from the nearest outlet.",
+      "Not counting short wall sections that still require a receptacle.",
+      "Doing the work without a permit or licensed electrician."
+    ],
+    "code_refs": [
+      {"code": "NEC", "section": "210.52(A)", "edition": "2020", "url": "https://www.nfpa.org/for-professionals/codes-and-standards/list-of-codes-and-standards/detail?code=70"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL adopts the NEC through the FBC; confirm the adopted NEC edition (often a cycle behind the latest).",
+      "nc": "NC adopts the NEC as the NC Electrical Code; confirm the enforced edition with the AHJ."
+    },
+    "diagram_refs": [],
+    "source_ids": ["nfpa-nec-free-access"],
+    "boundary": "verify-locally-licensed-pro"
+  },
+  {
+    "id": "electrical-gfci-afci",
+    "title": "GFCI and AFCI protection",
+    "text": "Electrical work should be done or verified by a licensed electrician. As reference: GFCI protection (ground-fault, which trips on current leakage) is required at receptacles in wet or damp locations such as bathrooms, kitchens, garages, unfinished basements, outdoors, and near sinks. AFCI protection (arc-fault, which trips on dangerous arcing) is required for most branch circuits serving dwelling living areas. Provide GFCI and AFCI protection where required, confirm with a licensed electrician, and verify against NEC 210.8 and 210.12 for your adopted edition.",
+    "trade": "electrical",
+    "topic": "protection",
+    "licensed_trade": true,
+    "dimensions": [
+      {"item": "GFCI locations", "value": "bath, kitchen, garage, basement, outdoors, near sinks", "note": "NEC 210.8(A)"},
+      {"item": "AFCI locations", "value": "most dwelling living-area branch circuits", "note": "NEC 210.12"}
+    ],
+    "steps": [
+      "Identify which receptacles and circuits fall under GFCI and AFCI rules.",
+      "Install GFCI devices or breakers at the required locations.",
+      "Install AFCI protection on the required branch circuits.",
+      "Test each device and have the work inspected."
+    ],
+    "common_mistakes": [
+      "Missing GFCI at a garage, basement, or outdoor receptacle.",
+      "No AFCI protection on bedroom and living-area circuits.",
+      "Confusing GFCI and AFCI and installing the wrong device."
+    ],
+    "code_refs": [
+      {"code": "NEC", "section": "210.8", "edition": "2020", "url": "https://www.nfpa.org/for-professionals/codes-and-standards/list-of-codes-and-standards/detail?code=70"},
+      {"code": "NEC", "section": "210.12", "edition": "2020", "url": "https://www.nfpa.org/for-professionals/codes-and-standards/list-of-codes-and-standards/detail?code=70"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Confirm the adopted NEC edition; GFCI and AFCI scope expanded in recent cycles.",
+      "nc": "Confirm the enforced NC Electrical Code edition; scope differs by cycle."
+    },
+    "diagram_refs": [],
+    "source_ids": ["nfpa-nec-free-access"],
+    "boundary": "verify-locally-licensed-pro"
+  },
+  {
+    "id": "electrical-wire-breaker-boxfill",
+    "title": "Wire size, breaker size, and box fill",
+    "text": "Electrical work should be done or verified by a licensed electrician. As reference: conductor ampacity must match the overcurrent device, so 14 AWG copper is protected at 15 amps, 12 AWG at 20 amps, and 10 AWG at 30 amps under the small-conductor rule. A junction or device box has a maximum fill based on the number and size of conductors, devices, and clamps inside it; an overfilled box overheats and is unsafe. Match wire to breaker, keep boxes within their fill limit, confirm with a licensed electrician, and verify against NEC 240.4(D) and 314.16 for your adopted edition.",
+    "trade": "electrical",
+    "topic": "conductors-and-boxes",
+    "licensed_trade": true,
+    "dimensions": [
+      {"item": "14 AWG copper", "value": "15 A breaker", "note": "NEC 240.4(D)"},
+      {"item": "12 AWG copper", "value": "20 A breaker", "note": "NEC 240.4(D)"},
+      {"item": "10 AWG copper", "value": "30 A breaker", "note": "NEC 240.4(D)"},
+      {"item": "box fill", "value": "per conductor/device/clamp volume", "note": "NEC 314.16; the build-calc box_fill tool computes required volume"}
+    ],
+    "steps": [
+      "Select conductor size for the load, then protect it at the matching breaker.",
+      "Count conductors, devices, and clamps in each box and compute required volume.",
+      "Choose a box whose volume meets or exceeds the required fill.",
+      "Have a licensed electrician verify and the work inspected."
+    ],
+    "common_mistakes": [
+      "A 20 A breaker on 14 AWG wire (or any wire-breaker mismatch).",
+      "Overfilled boxes packed past the fill limit.",
+      "Back-stabbed connections instead of terminal screws on higher-load circuits."
+    ],
+    "code_refs": [
+      {"code": "NEC", "section": "240.4(D)", "edition": "2020", "url": "https://www.nfpa.org/for-professionals/codes-and-standards/list-of-codes-and-standards/detail?code=70"},
+      {"code": "NEC", "section": "314.16", "edition": "2020", "url": "https://www.nfpa.org/for-professionals/codes-and-standards/list-of-codes-and-standards/detail?code=70"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Confirm the adopted NEC edition through the FBC.",
+      "nc": "Confirm the enforced NC Electrical Code edition."
+    },
+    "diagram_refs": [],
+    "source_ids": ["nfpa-nec-free-access"],
+    "boundary": "verify-locally-licensed-pro"
+  }
+]

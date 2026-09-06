@@ -1,0 +1,21 @@
+{
+  "_comment": "P60 drop-folder dispatch table (data, not code): content_category -> handler atom + target store. Read by the inbox-routing atom and tools/handoff/inbox.py. category_source says who can assign the category: 'format' = the offline classifier alone is enough (unambiguous from the file itself); 'content' = a Claude session must read the extraction (ingest-route) before this category is trusted, so the offline scan lists such files as needs_review rather than guessing. Every handler is proposal-only; nothing routes without human approval. Add or change rules only with the matching SKILL/maintainer/scenario updates (see skills/atoms/inbox-routing/MAINTAINER_README.md).",
+  "schema_version": "0.1.0",
+  "rules": {
+    "brand_contract": {"handler": "contract-triage", "store": "pipeline/contracts/", "category_source": "content"},
+    "pitch_email": {"handler": "pitch-extract", "store": "pipeline/deals/", "category_source": "content"},
+    "media_kit": {"handler": "mediakit-critique", "store": "pipeline/templates/", "category_source": "content"},
+    "analytics": {"handler": "video-import", "store": "pipeline/video-library/", "category_source": "content"},
+    "analytics_export": {"handler": "video-import", "store": "pipeline/video-library/", "category_source": "content"},
+    "platform_export": {"handler": "video-import", "store": "pipeline/video-library/", "category_source": "format"},
+    "invoice_receipt": {"handler": "payment-reconcile", "store": "pipeline/finance/", "category_source": "content"},
+    "transcript": {"handler": "transcript-import", "store": "pipeline/video-library/", "category_source": "format"},
+    "video_media": {"handler": "library-complete", "store": "pipeline/video-library/", "category_source": "format"},
+    "audio_media": {"handler": "library-complete", "store": "pipeline/video-library/", "category_source": "format"},
+    "profile_doc": {"handler": "profile-import", "store": "pipeline/user-context/", "category_source": "content"},
+    "template_doc": {"handler": "template-ingest", "store": "pipeline/templates/", "category_source": "content"},
+    "task_note": {"handler": "task-extract", "store": "pipeline/user-context/", "category_source": "content"},
+    "moodboard": {"handler": null, "store": null, "category_source": "content",
+                  "note": "reference asset; kept with the content it inspires, no store write"}
+  }
+}

@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": "fall-mantel-package",
-      "prompt": "Develop a moody fall mantel makeover video.",
+      "prompt": "Develop a seasonal home decor makeover video.",
       "expect": [
         "returns hook, title options, outline, thumbnail concept, and SEO description",
         "includes at least 3 standalone short-form clips",

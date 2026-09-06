@@ -1,0 +1,66 @@
+[
+  {
+    "id": "drywall-fastening",
+    "title": "Drywall fastener spacing",
+    "text": "Gypsum board is fastened to framing with screws or nails at a spacing that depends on whether it is a wall or ceiling and the framing spacing. Fasteners must be set slightly below the paper face without breaking it, because an overdriven screw that tears the paper loses its holding power. Space fasteners per the gypsum board table and set them just dimpled, not broken through, and verify against IRC R702.3.5 for your adopted edition.",
+    "trade": "drywall",
+    "topic": "fastening",
+    "dimensions": [
+      {"item": "wall fastener spacing", "value": "per IRC Table R702.3.5", "note": "closer at ceilings than walls; depends on framing spacing"},
+      {"item": "fastener set", "value": "dimpled, paper not broken", "note": "overdriven screws lose holding power"}
+    ],
+    "steps": [
+      "Hang board perpendicular to framing where practical, staggering end joints.",
+      "Fasten at the table spacing for the wall or ceiling condition.",
+      "Set each fastener to a slight dimple without tearing the face paper.",
+      "Use the correct fastener length for single or double layer."
+    ],
+    "common_mistakes": [
+      "Overdriven screws that break the paper and pull through.",
+      "Fastener spacing wider than the table allows.",
+      "Wrong screw length for the board thickness."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R702.3.5", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-7-wall-covering"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Same IRC gypsum board provisions under the FBC Residential 8th Edition.",
+      "nc": "Same under the enforced NC RC 2018."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "gypsum-ga216"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "drywall-garage-fire-separation",
+    "title": "Garage fire separation drywall",
+    "text": "The wall and ceiling between an attached garage and the house are a fire separation and require gypsum board of a specified thickness. The garage side of the common wall generally needs at least 1/2 inch gypsum board, and where there is habitable space above the garage the ceiling generally needs 5/8 inch Type X (fire-rated) gypsum board. Penetrations through the separation must be sealed. Use the correct board at the garage separation, seal penetrations, and verify against IRC R302.6 for your adopted edition.",
+    "trade": "drywall",
+    "topic": "fire-separation",
+    "dimensions": [
+      {"item": "garage side of common wall", "value": "1/2 in gypsum board min", "note": "IRC Table R302.6"},
+      {"item": "ceiling under habitable space", "value": "5/8 in Type X gypsum board", "note": "IRC Table R302.6"}
+    ],
+    "steps": [
+      "Identify the garage-to-house separation walls and ceiling.",
+      "Install at least 1/2 in gypsum on the garage side, 5/8 in Type X on a ceiling below living space.",
+      "Seal all penetrations and gaps in the separation.",
+      "Use a self-closing, rated door between garage and house where required."
+    ],
+    "common_mistakes": [
+      "Standard 1/2 in board on a garage ceiling that requires 5/8 in Type X.",
+      "Unsealed penetrations through the rated assembly.",
+      "Non-rated or non-self-closing door from garage to house."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R302.6", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Same IRC garage separation under the FBC.",
+      "nc": "Same under the enforced NC RC 2018."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021"],
+    "boundary": "verify-locally"
+  }
+]

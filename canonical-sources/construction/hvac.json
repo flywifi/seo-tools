@@ -1,0 +1,37 @@
+[
+  {
+    "id": "hvac-load-sizing",
+    "title": "HVAC sizing: Manual J, S, and D",
+    "text": "HVAC design should be done or verified by a licensed mechanical contractor. As reference: residential heating and cooling equipment is sized by a room-by-room load calculation (ACCA Manual J), then equipment is selected to match that load (Manual S), and the duct system is designed to deliver the airflow (Manual D). The code requires sizing by an approved method, not by a rule of thumb like square feet per ton. Oversizing is a real problem in hot-humid Florida, where an oversized air conditioner short-cycles and never runs long enough to pull humidity out of the air, leaving the house cold and clammy. Get a Manual J load calc, size and design from it, confirm with a licensed contractor, and verify against IRC M1401.3 for your adopted edition.",
+    "trade": "hvac",
+    "topic": "sizing",
+    "licensed_trade": true,
+    "dimensions": [
+      {"item": "load calculation", "value": "ACCA Manual J (room by room)", "note": "IRC M1401.3 requires an approved sizing method"},
+      {"item": "equipment selection", "value": "ACCA Manual S", "note": "match capacity to the Manual J load"},
+      {"item": "duct design", "value": "ACCA Manual D", "note": "size ducts and returns for the required airflow"}
+    ],
+    "steps": [
+      "Have a Manual J load calculation done for the actual house.",
+      "Select equipment with Manual S to match the load, not the largest available.",
+      "Design the duct system and returns with Manual D.",
+      "Keep the Manual J on file for the inspector."
+    ],
+    "common_mistakes": [
+      "Sizing by square feet per ton and oversizing, hurting comfort and humidity control in FL.",
+      "Undersized or too few return-air paths, starving the system.",
+      "Leaky ducts run through a hot attic, wasting capacity."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "M1401.3", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-14-heating-and-cooling-equipment-and-systems"},
+      {"code": "ACCA", "section": "Manual J / S / D", "edition": "current", "url": "https://www.acca.org/standards/technical-manuals"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FL climate zones 1 to 2 are cooling and humidity dominated; correct sizing (avoiding oversizing) is critical for dehumidification, and duct testing is required.",
+      "nc": "NC spans climate zones 3A to 5A; heating load grows toward the mountains, so the Manual J balance differs from FL."
+    },
+    "diagram_refs": [],
+    "source_ids": ["icc-irc-2021", "acca-manual-jsd", "doe-basc"],
+    "boundary": "verify-locally-licensed-pro"
+  }
+]

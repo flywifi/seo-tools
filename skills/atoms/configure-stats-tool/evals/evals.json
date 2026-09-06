@@ -7,9 +7,9 @@
     },
     "expected": {
       "tool": "wolfram_alpha",
-      "config_block": "contains mcpServers.wolfram-alpha with command npx",
+      "config_block": "contains mcpServers.wolfram-alpha with command uvx and args mcp-wolfram-alpha",
       "env_vars_needed": "contains WOLFRAM_APP_ID key",
-      "prerequisites": "includes Wolfram Alpha API key and Node.js",
+      "prerequisites": "includes Wolfram Alpha API key and uv (uvx)",
       "config_file_path": "contains Library/Application Support/Claude (macOS path)",
       "verification_prompt": "non-empty string mentioning integral or computation test"
     },

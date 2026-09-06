@@ -2,8 +2,8 @@
 Conventions for working in the Creator OS repository (the `seo-tools` repo).
 
 ## What this repo is
-Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills for the creator, a YouTube
-creator in the moody-vintage home decor and DIY niche. A routing hub (`creator-core`) classifies each
+Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills for YouTube and social media
+creators. A routing hub (`creator-core`) classifies each
 request into one of three lanes (Content, Document, Pipeline/CRM), loads only the engines that lane
 needs, enforces the protocols, and dispatches to a capability spoke. Spokes are thin orchestrators
 that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design. Live status:
@@ -17,13 +17,31 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
 - `protocols/` the five governance protocols. `quality-gates.md` is authoritative.
 - `pipeline/` the CRM records store (`accounts/`, `deals/`). Source of truth for all CRM facts. Real
   data is gitignored; only schemas and blank structures are committed.
-- `skills/` flat. The hub `creator-core/`, the governance skill `quality-review/`, the 14 spokes, and
+- `skills/` flat. The hub `creator-core/`, the governance skill `quality-review/`, the 22 spokes, and
   `atoms/` (single-operation sub-skills).
 - `canonical-sources/` reference data the scoop cache indexes (keyword library, platform specs,
   personas, rate benchmarks, seasonal aesthetic).
 - `tools/` `sync_check.py` (drift guard), `new_skill.py` (scaffolder), `version.py`,
   `package_skill.py`, `sync_cache.py` (scoop L3), `skill-template/`, `sync_manifest.json`.
+  `tools/dashboard/` is the Scheduling Dashboard (`python3 tools/dashboard/server.py`, port 8766).
+  `tools/wizard.py` is the setup wizard (port 8765), including `/publishing-setup` for platform
+  API credential configuration.
 - `implementation/` platform packaging (claude, gpt, gemini). `docs/`, `ledger/`, `examples/`.
+
+## Build, verify, and the battery
+Every change must leave the battery green before commit. The one runner (P81) is:
+```bash
+python3 tools/battery.py             # every gate, raw exit codes; refuses on unstaged tracked edits
+python3 tools/battery.py --py /usr/bin/python3.12   # rerun under a second interpreter when a floor moved
+```
+It runs, in order: the drift guard (`sync_check.py`), scenarios, the selftest sweep,
+`doc_freshness.py --check`, projections, `count_truth.py` (canonical counts; never restate counts by
+hand), `hash_audit.py`, `source_sync.py check`, `package_skill.py --check-manifest`, `eval_lint.py`,
+`preflight_push.py`, the staged secret scan, and the launcher syntax check. `--list` prints the roster.
+`tools/package_skill.py --all` is a BUILD step that writes `dist/`, not a validation step; CI runs
+it separately. Rituals: if you edit a macOS-relevant file, re-bless it with
+`python3 tools/mac_surface_manifest.py reconcile` (a NEW file needs `--accept-new` after review);
+if you stamp any registry source, run `python3 tools/build_freshness_bundle.py --apply`.
 
 ## Branching and git
 - Develop on the feature branch (currently `claude/repo-access-confirm-wxe50a`). Never push to `main`.
@@ -58,8 +76,9 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   competitor analysis, or citation chain traversal. Single-source lookups do not warrant an agent.
 - Agent definitions live in `.claude/agents/`. Workflow scripts live in `.claude/workflows/`.
   Structured output schemas live in `shared/schemas/`.
-- The four agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
-  `deal-reviewer`. Each has a scoped tool list and engine set defined in its agent definition file.
+- The five agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
+  `deal-reviewer`, `cost-researcher`. Each has a scoped tool list and engine set defined in its
+  agent definition file.
 - Every agent output must include `minority_report`, `confidence_evidence`, and `source_citations`
   fields (the verification envelope defined in `shared/schemas/verification-envelope.json`).
 - Every workflow includes an adversarial verification step — a second agent that independently
@@ -83,16 +102,103 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
-- `tools/source_currency.py` is the only tool that writes to `canonical-sources/source-registry.json`.
-  Do not edit source-registry.json by hand.
+- `canonical-sources/source-registry.json` is written only through `tools/registry_io.py`
+  (`load_registry`/`save_registry`), the single shared write implementation. Five tools funnel
+  through it. Four import it directly: `tools/source_currency.py` (report/check/mark-checked/
+  seed-sources/seed-partners/update-source/remove-source), `tools/traversal_engine.py` (`accept`,
+  which appends a graph-discovered source), `tools/dependency_currency.py` (`check --apply`, which
+  stamps dependency freshness), and `tools/update_check.py` (`apply_stamp`, which stamps the
+  repo-self-update source). A fifth, `tools/competitor_snapshot.py` (`register-competitor`), writes
+  through `source_currency`'s re-exported `save_registry`. Do not edit source-registry.json by hand;
+  use `seed-sources` for new sources, `update-source` for corrections, and `accept` for traversal
+  discoveries.
+- `tools/dependency_currency.py` is the token-free version-drift checker for pip packages, system
+  binaries, and MCP servers (categories `software-dependency`, `mcp-server`): it queries PyPI and
+  GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and computes drift from each
+  registry entry's own `validated_version` and `pinned_constraint`. Those two fields are the only
+  baselines it reads; they are transcribed by hand from `requirements-*.txt` and from the
+  validated-run record `docs/video-tooling-integration-evidence.json` via `source_currency
+  update-source`, and drift invariant 25 fails the build when a requirements specifier and the
+  registry pin disagree. `report`/`check` are read-only; `check --apply` stamps
+  `last_checked`/`latest_seen` for reachable entries via `registry_io` so routine currency
+  maintenance runs with no model tokens. Binary/manual entries degrade to advisory.
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
-  `traversal-visited.json`. Do not populate the registry by directly editing source-registry.json;
-  use `--accept` in traversal_engine.py which calls source_currency.py for the registry write.
+  `traversal-visited.json`.
 - `shared/connectors/connectors.json` is the source of truth for the connector registry. The
-  resolver (`shared/connectors/connectors.py`) reads both this file and `creator-os-config.local.json`
-  to produce the active evidence plan. Per-deployment overrides go in `creator-os-connectors.local.json`
-  (gitignored); do not edit `connectors.json` for deployment-specific state changes.
+  resolver (`shared/connectors/connectors.py`) reads this file plus, automatically,
+  `creator-os-config.local.json` to produce the active evidence plan; a dedicated flags file
+  (copy `shared/connectors/feature-flags.example.json` to gitignored
+  `creator-os-connectors.local.json`) is consulted only when passed explicitly via `--flags`.
+  Do not edit `connectors.json` for deployment-specific state changes. Every registry entry
+  carries a `default_flag`; drift invariant 53 executes the resolver over the committed registry
+  so a malformed entry fails the build.
+- **Human confirmation required before every post.** `schedule-post` always sets
+  `human_review_required: true`. No connector call is made, and no post is queued or published,
+  without an explicit human confirmation step. Agents never post directly — they produce
+  confirmation summaries for human review only. `tools/publishing_compliance.py` is the shared
+  FTC/AIGC/tier/credential gate used by both `schedule_post` (which reports) and the dashboard
+  confirm path (which refuses on a failed gate). Real platform publishing lives in
+  `tools/publishing/` and is gated behind the `live_publishing_enabled` flag (default off); while
+  off, the dashboard schedules and advances items to `ready_to_post` for manual posting and makes
+  no network call.
+
+## Planning depth (a plan is finished when execution holds no surprises)
+Plan before you build, and plan far enough that the implementation is a formality. A plan for
+anything beyond a trivial edit carries all of:
+- **who / what / when / where / why / how** for every work package, not just a task list.
+- **Risks with concrete mitigations**, each tied to a real failure this repo can have, not generic
+  caution.
+- **Citable evidence**: a `file:line`, a command's actual output, or a URL. An assertion with no
+  pointer is not evidence.
+- **Code that has been executed and shown to pass**, not code that looks plausible. Import the
+  module, call the function, paste what it returned.
+
+If a contract was guessed rather than verified, that is a defect in the plan, not a surprise to
+discover mid-implementation. Verifying beats assuming every time: the P74 planning pass ran its own
+example assertions and found a live regex defect that had been silently corrupting competitor
+metadata, plus nine function contracts that differed from their obvious reading. The planning phase
+is expected to be the majority of the work.
+
+## Documentation truth (docs change in the same PR as the code)
+When you change code, update its maintainer/SKILL/docs prose in the SAME change, never in a later
+cleanup pass. If you add or rename a symbol a doc names, update or add its `<!-- verify: path::symbol -->`
+marker; if you change a global count (a spoke, atom, invariant, scenario, agent role), fix every
+live-doc claim; if the prose cites a new external authority, declare it in the doc's fenced `sources`
+block and seed it into the registry (`tools/source_sync.py reconcile` generates the seed; invariant 52
+fails the build on an undeclared-in-registry citation); add a `CHANGELOG.md` entry under Unreleased;
+record any architectural decision as an ADR in `docs/adr/`. The drift guard enforces path resolution,
+symbol references, count truth, URL provenance, and doc-declared source registration, and stamps
+content-hash staleness. Full model and citations: `docs/DOC-MAINTENANCE.md`.
+
+## Commit and PR hygiene (non-negotiable, machine-enforced)
+Nothing leaves this machine that reveals more than the code change itself:
+- Commit messages, PR titles/bodies, and issue comments never contain: claude.ai session links,
+  personal email addresses, real dollar amounts, real brand or counterparty names from the
+  pipeline, credentials, or any PII. Fictional examples only, and only when needed.
+- The commit author email is the GitHub noreply address (repo-local `git config user.email`),
+  never a personal address.
+- After cloning, run `python3 tools/install_hooks.py` once: the pre-commit hook runs
+  `tools/secret_scan.py --staged` (blocks staged secrets, `.local.` files, CSV/spreadsheet
+  exports, key material, `.env*`), and the commit-msg hook rejects messages carrying session
+  links, emails, or secret patterns.
+- CI backstops clones that skipped the hooks: the guard job scans all tracked content
+  (invariant 21) and every commit message plus author email after the policy boundary SHA
+  recorded in `tools/secret-scan-allowlist.json`. History before the boundary is not rewritten
+  and not re-litigated.
+- Verified false positives are exempted only in `tools/secret-scan-allowlist.json`, each with a
+  written reason. Never exempt a real secret; fix the file instead.
+- Data at rest: drift invariants 19 (no tracked `.local.` files), 20 (tracked files under
+  `pipeline/` must be on the explicit allowlist; no tracked sensitive-format file anywhere —
+  spreadsheets, CSV/columnar exports, financial app files (QBW/QIF/OFX/QFX/TAX), credential/key
+  stores (PEM/KEY/P12/KDBX/keychain), databases, backups, email/contacts (PST/MBOX/VCF), archives,
+  office binaries, capture media, or `.env*`; the single list is
+  `tools/secret_scan.py::FORBIDDEN_DATA_SUFFIXES`, shared by the drift guard, the pre-commit hook,
+  and CI), and 21 (content scan of EVERY tracked text file, binary-sniffed rather than
+  suffix-gated) fail the build on violation and fail closed in CI. In a non-git copy all three
+  print a loud DID-NOT-RUN advisory instead of silently passing.
 
 ## Commit messages
-Describe the change and reference the affected engine, protocol, or skill. Update `STATE.md` at phase
-boundaries and after a skill ships.
+Keep them short: a few sentences at most, describing only what was added or changed and the
+affected engine, protocol, or skill. Never include conversation details, decision background,
+personal information, or links of any kind. Update `STATE.md` at phase boundaries and after a
+skill ships. Subject to the hygiene rules above. All work stays in this repository only.

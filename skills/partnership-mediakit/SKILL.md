@@ -7,7 +7,7 @@ load: always
 
 # partnership-mediakit
 
-Pipeline/CRM lane spoke that assembles a complete brand partnership outreach package for the creator's moody-vintage home decor and DIY channel. On a single request it produces the pitch
+Pipeline/CRM lane spoke that assembles a complete brand partnership outreach package for the creator's home decor and DIY channel. On a single request it produces the pitch
 paragraph, the full set of media kit sections, and a rate card. It never guesses at figures or
 invents data: real channel data is used when the caller supplies it; labeled industry benchmark
 ranges from `canonical-sources/rate-benchmarks/benchmarks.json` are used when real data is absent;
@@ -206,8 +206,15 @@ Output guarantees:
 - Fabricating subscriber counts, engagement rates, audience demographics, case study outcomes, or
   brand endorsements. If real data is not supplied and no benchmark applies, the field is null and
   flagged, never filled with an invented figure.
-- Outreach for product categories outside moody-vintage home decor, DIY, thrifting, seasonal decor,
+- Outreach for product categories outside home decor, DIY, thrifting, seasonal decor,
   or outdoor living. Pitches for out-of-niche products misrepresent the creator's audience and brand.
 - Creating or updating `pipeline/` CRM records. Read access to an existing account record is
   permitted when `crm_account_id` is supplied; write operations belong to deal-pipeline or
   account-manager.
+
+## Cross-modality
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over supplied real channel data, else labeled industry benchmark ranges from canonical-sources/rate-benchmarks/benchmarks.json (pitch-paragraph, mediakit-section, rate-card-fill); the benchmark data is offloadable to any surface; no compute tool.
+Fallback: Off a runtime, the benchmark ranges are providable as knowledge; without real channel data cite labeled benchmark ranges only (never the creator's personal rates) and null-flag missing figures. On ChatGPT this runs knowledge-only from the pasted pack; the desktop app can reach live data via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
+See `shared/cross-modality-engine.md`.

@@ -149,3 +149,6 @@ Inherited from `protocols/no-fabrication.md`:
 - Never fabricate a schema. If schema inference fails, set `schema` to null and note it in
   `retrieval_gaps`.
 - The `sql_executed` field must reflect the actual SQL, not a simplified or idealized version.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

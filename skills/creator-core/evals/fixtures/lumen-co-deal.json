@@ -1,0 +1,16 @@
+[
+  {
+    "_comment": "FICTIONAL deal fixture for the scenario suite (S2). Not a real brand or deal. Mirrors pipeline/deals/deal-schema.json; account_ref matches the Lumen record in accounts-roster.json so deal-status can resolve 'lumen' to it and report the stage verbatim.",
+    "deal_id": "deal-lumen-001",
+    "account_ref": "acct-lumen-001",
+    "brand_name": "Lumen & Co",
+    "deal_type": "dedicated_video",
+    "stage": "contract-negotiating",
+    "payment_due_date": null,
+    "invoice": { "status": "draft" },
+    "stage_history": [
+      { "stage": "in-discussion", "date": "2026-08-01" },
+      { "stage": "contract-negotiating", "date": "2026-09-10" }
+    ]
+  }
+]

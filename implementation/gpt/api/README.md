@@ -28,29 +28,43 @@ functions = [
 
 client = openai.OpenAI()
 
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {
-            "role": "system",
-            "content": (
-                Path("implementation/gpt/web/custom-instructions.md").read_text()
-            ),
-        },
-        {"role": "user", "content": "Plan a dark moody fall mantel video"},
-    ],
-    tools=[{"type": "function", "function": fn} for fn in functions],
-    tool_choice="auto",
+# Responses API (the current primary API; the Assistants API was sunset on 2026-08-26 and its
+# replacement is the Responses API plus the Conversations API; chat.completions remains
+# supported but is not where OpenAI's tooling investment goes).
+response = client.responses.create(
+    model="gpt-5.6",
+    instructions=Path("implementation/gpt/web/custom-instructions.md").read_text(),
+    input="Plan a seasonal home decor project video",
+    tools=[{"type": "function", **fn} for fn in functions],
 )
 
-print(response.choices[0].message)
+print(response.output_text)
 ```
 
-## Limitations vs Claude Desktop
+## Live Creator OS tools from the API (P72)
 
-- No MCP tools: competitor tag extraction, cache queries, and source staleness
-  detection require the Claude Desktop + MCP setup.
+The "no MCP from OpenAI" era is over: the Responses API takes hosted MCP servers directly, so a
+deployed Creator OS endpoint gives API calls the same live tools as Claude Desktop:
+
+```python
+response = client.responses.create(
+    model="gpt-5.6",
+    input="Which of my tracked keywords fit an October publish?",
+    tools=[{"type": "mcp", "server_label": "creator-os",
+            "server_url": "https://YOUR-HOST/mcp",
+            "allowed_tools": ["search", "fetch", "cache_query"],
+            "require_approval": "always"}],
+)
+```
+
+See `implementation/gpt/mcp-connector/README.md` for deployment and the approval loop that maps
+Creator OS's human-confirmation invariant onto the API.
+
+## Limitations vs Claude Desktop (without a deployed endpoint)
+
+- Without a hosted MCP endpoint: competitor tag extraction, cache queries, and source staleness
+  detection are unavailable; deploy the connector or use the Claude Desktop + MCP setup.
 - No voice-profile.json hook: voice personalization requires the local file.
-- All SEO estimates remain labeled [estimated] — no volume API is connected.
+- All SEO estimates remain labeled [estimated]; no volume API is connected.
 
 For full capability, use Claude Desktop with `tools/mcp_server.py` instead.

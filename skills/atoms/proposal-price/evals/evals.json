@@ -1,0 +1,46 @@
+[
+  {
+    "test_id": "proposal-price-cost-floor-binds",
+    "description": "with no negotiation floor the cost floor stands",
+    "input": { "cost_total": 500, "margin_percent": 30 },
+    "expected_output_keys": ["price_floor", "bound"],
+    "assertions": [
+      "price_floor is 650.00 with bound cost_floor (tool golden)",
+      "the output says the negotiation posture is unset and points at the playbook pricing_and_rates family",
+      "no number is model-computed"
+    ]
+  },
+  {
+    "test_id": "proposal-price-negotiation-floor-binds",
+    "description": "a higher rate-card floor overrides the cost floor",
+    "input": { "cost_total": 500, "margin_percent": 30, "rate_floor": 800 },
+    "expected_output_keys": ["price_floor", "bound"],
+    "assertions": [
+      "price_floor is 800.00 with bound negotiation_floor",
+      "the rate floor's provenance (rate card or playbook) is named",
+      "the consequential-action gate precedes any external quote"
+    ]
+  },
+  {
+    "test_id": "proposal-price-benchmark-flags",
+    "description": "a floor outside the benchmark range raises the right flag",
+    "input": { "cost_total": 500, "margin_percent": 30, "rate_floor": 800, "benchmark_range": { "low": 200, "high": 700 } },
+    "expected_output_keys": ["flags"],
+    "assertions": [
+      "exactly one flag: the floor exceeds the benchmark high",
+      "the flag advises expect-pushback-or-justify-scope; it never lowers the floor",
+      "the benchmark caveat (verify before quoting) stays attached"
+    ]
+  },
+  {
+    "test_id": "proposal-price-missing-inputs",
+    "description": "no estimate yet refuses honestly",
+    "input": { "margin_percent": 30 },
+    "expected_output_keys": ["price_floor", "gaps"],
+    "assertions": [
+      "price_floor is null with a gap saying to run cost-estimate first",
+      "null-valued benchmark rows are never used as a range",
+      "nothing is priced from thin air"
+    ]
+  }
+]

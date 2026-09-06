@@ -1,1 +1,5 @@
-mcp
+# mcp 2.x (stable since 2026-07-28). tools/mcp_server.py is dual-capable: an existing 1.x .venv keeps
+# working (FastMCP arm), a fresh install gets 2.x (MCPServer arm). Validated P80 in both majors,
+# including the streamable-HTTP bind and the proxied-Host allow-list. Do NOT add mcp-types here:
+# it is exact-pinned by mcp and must never be pinned independently (SDK migration guide).
+mcp>=2,<3

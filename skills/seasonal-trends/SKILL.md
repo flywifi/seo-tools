@@ -11,7 +11,7 @@ load: always
 
 Builds a seasonal content strategy for a defined planning window in the moody/vintage home decor and DIY niche. The skill maps topic seeds to the four recurring seasonal peaks that drive audience engagement for this channel:
 
-- Fall mantel: September to October
+- Seasonal decor: September to October
 - Holiday tablescapes: November to December
 - Spring refresh: March to April
 - Summer outdoor: May to June
@@ -78,3 +78,10 @@ Atoms are invoked in the order listed. `trend-check` is conditional and runs onc
 - Competitor research or gap analysis -- use `competitor-analysis`
 - Content outside the moody/vintage home decor and DIY niche -- this skill's seasonal windows, aesthetic profiles, and persona assumptions are niche-specific and will produce invalid output for other niches
 - Producing a plan that bypasses the Quality Gates -- `govern-artifact` is non-optional; a plan that does not pass the gate is not released
+
+## Cross-modality
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over canonical-sources/seasonal-aesthetic/seasonal.json (seasonal-map) and scoop-cache keyword/persona data via cache_query (keyword-cluster, idea-generate), with live web retrieval through shared/web-intel-engine.md for trend-check; calendar-slot and govern-artifact are model reasoning against protocols/quality-gates.md — no tools/*.py compute module runs.
+Fallback: Off a runtime, supply seasonal.json and the relevant scoop-cache slices as knowledge; skip live trend-check, set trend_status to null with the topic logged in retrieval_gaps, and flag as_of on all seasonal data. Never fabricate a trend. On ChatGPT this runs knowledge-only from the pasted pack; the desktop app can reach live data via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
+See `shared/cross-modality-engine.md`.

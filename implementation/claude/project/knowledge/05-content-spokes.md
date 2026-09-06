@@ -3,6 +3,8 @@ name: content-strategy
 description: generate content ideas, seasonal-aware idea clusters, pillar-aligned video concepts, and competitive positioning for the channel. Use when the user wants ideas, a content plan, what to make next, or how to position against a competitor. Do NOT use to develop one concept into a production package (use video-development) or to build a downloadable calendar file (use document-studio).
 ---
 
+_Data freshness: as of 2026-09-06 (Creator OS baseline 86ee3b8f). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+
 # content-strategy
 
 The primary idea-generation spoke. Produces idea clusters, not single ideas, so every suggestion
@@ -47,7 +49,7 @@ Produces a complete idea cluster even when no downstream spoke is available, and
 - Recommending a trend without verifying current momentum. trend-check is mandatory for any trend or
   seasonal claim; data older than 14 days for fast-moving categories is marked stale.
 - Returning single ideas instead of clusters.
-- Drifting off the moody-vintage aesthetic toward bright farmhouse.
+- Drifting off the home decor aesthetic toward bright farmhouse.
 
 ---
 
@@ -147,7 +149,7 @@ and flagged for re-verification.
 }
 ```
 
-- `topic`: a keyword phrase or concept (for example, "dark moody bedroom on a budget" or "vintage
+- `topic`: a keyword phrase or concept (for example, "home decor bedroom on a budget" or "vintage
   thrift flip DIY").
 - `platform_targets`: defaults to all three platforms if omitted. YouTube is always included.
 - `persona`: if omitted, the spoke infers from the topic and states the inference explicitly in the
@@ -265,7 +267,7 @@ Key output guarantees:
 - `protocols/research-citation.md` (platform spec freshness window: 3 to 6 months)
 - `protocols/no-fabrication.md`
 - `shared/web-intel-engine.md`
-- `shared/brand-engine.md` (moody-vintage keyword vocabulary and aesthetic guard)
+- `shared/brand-engine.md` (home decor keyword vocabulary and aesthetic guard)
 - `protocols/quality-gates.md` (governs the govern-artifact gate at the end of the workflow)
 
 ## Do NOT use for
@@ -279,7 +281,7 @@ Key output guarantees:
   connection via web-intel-engine Level 1 directly.
 - Trend momentum research outside a specific keyword. Use trend-check for broad trend signals.
 - Brand partnership or sponsorship research. Use deal-tracker or account-manager spokes.
-- Any topic outside the moody-vintage home decor and DIY niche. This spoke's keyword vocabulary
+- Any topic outside the home decor and DIY niche. This spoke's keyword vocabulary
   and competitor pool are calibrated to that niche; off-niche results will be unreliable.
 
 ---
@@ -361,7 +363,7 @@ load: always
 
 ## Purpose
 
-Delivers competitive intelligence to support content positioning for the creator's moody-vintage
+Delivers competitive intelligence to support content positioning for the creator's home decor
 home decor and DIY channel. The skill scans publicly visible content across specified platforms,
 clusters observed content angles, identifies overserved and underserved topics, and returns a
 structured gap report.
@@ -456,7 +458,7 @@ The following atoms are orchestrated in sequence. `trend-check` is conditional.
   organic, publicly visible content.
 - Accessing competitor private analytics, backend dashboards, or any data that is not publicly
   viewable without authentication.
-- General web research outside the moody-vintage home decor and DIY niche. Use
+- General web research outside the home decor and DIY niche. Use
   `shared/web-intel-engine.md` directly for broad research tasks.
 - Producing final editorial decisions. The gap report informs content strategy; it does not
   replace the creator's judgment.
@@ -476,7 +478,7 @@ load: always
 
 Builds a seasonal content strategy for a defined planning window in the moody/vintage home decor and DIY niche. The skill maps topic seeds to the four recurring seasonal peaks that drive audience engagement for this channel:
 
-- Fall mantel: September to October
+- Seasonal decor: September to October
 - Holiday tablescapes: November to December
 - Spring refresh: March to April
 - Summer outdoor: May to June
@@ -557,7 +559,7 @@ load: always
 
 Content lane spoke that transforms raw audience signals (comments, analytics exports, platform data)
 into a verified persona profile and actionable audience insights for the creator's
-moody-vintage home decor and DIY channel.
+home decor and DIY channel.
 
 ## Purpose
 
@@ -719,7 +721,7 @@ Key output guarantees:
   competitor-analysis for competitor channel profiling.
 - Producing final editorial decisions. Outputs are research inputs requiring human review before
   any publishing action.
-- Any audience outside the creator's moody-vintage home decor and DIY channel. These persona
+- Any audience outside the creator's home decor and DIY channel. These persona
   definitions and signal thresholds are calibrated for that specific niche and creator.
 
 ---

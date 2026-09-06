@@ -112,6 +112,208 @@
       "enabled": false,
       "description": "Custom GPT export packaging available. Enables: export-gpt atom to package Creator OS for OpenAI Custom GPTs.",
       "requires": "No external dependency. Enable to activate the export-gpt atom."
+    },
+    "youtube_publishing": {
+      "enabled": false,
+      "description": "YouTube video upload and scheduling via Data API v3. Enables: schedule-post atom to upload videos with publishAt scheduling. Separate from read-only youtube_api flag.",
+      "requires": "OAuth credentials with youtube.upload scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "instagram_publishing": {
+      "enabled": false,
+      "description": "Instagram Reel publishing via Graph API v25.0. Enables: schedule-post atom to post Reels via the two-step container+publish flow. Separate from read-only instagram_api flag.",
+      "requires": "Meta app credentials with instagram_business_content_publish scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "tiktok_publishing": {
+      "enabled": false,
+      "description": "TikTok video posting via Content Posting API. Enables: schedule-post atom with AIGC flag support. Rate limit: 6 req/min. Separate from read-only tiktok_api flag.",
+      "requires": "TikTok developer app credentials with video.publish scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "pinterest_publishing": {
+      "enabled": false,
+      "description": "Pinterest pin creation and scheduling via API v5. Enables: schedule-post atom with board targeting and scheduled_at datetime. Separate from read-only pinterest_api flag.",
+      "requires": "Pinterest developer app credentials with pins:write scope in pipeline/user-context/api-credentials.local.json"
+    },
+    "live_publishing_enabled": {
+      "enabled": false,
+      "description": "Master gate for real platform API publishing (tools/publishing/). While OFF, the Scheduling Dashboard and background scheduler run compliance checks and queue-status updates only, and make NO network call to any platform. Turn ON only after implementing the tools/publishing/ clients and configuring per-platform credentials.",
+      "requires": "tools/publishing/ clients implemented + per-platform credentials in pipeline/user-context/api-credentials.local.json. Default OFF; the dashboard is an honest human-in-the-loop scheduler until enabled."
+    },
+    "video_editing_enabled": {
+      "enabled": false,
+      "description": "Master gate for the video-editing bridge (tools/videoedit/). While OFF, the editing atoms still produce timeline/marker/caption specs and validated interchange files, but nothing launches or scripts an editor app. Turn ON to allow writing editor files and driving apps. Independent of the per-feature flags below.",
+      "requires": "tools/videoedit/ present. Default OFF; spec + validated files still work while off. Live app control needs Claude Desktop + local tools."
+    },
+    "resolve_scripting": {
+      "enabled": false,
+      "description": "DaVinci Resolve live control lane (tools/videoedit/resolve.py). Enables scripted timeline import, markers, and render-queue automation via the Resolve Python API. REQUIRES DaVinci Resolve STUDIO (paid); the free version cannot be scripted externally. Auto-detects and degrades to file interchange (FCPXML/OTIO) when Studio or Resolve is absent.",
+      "requires": "DaVinci Resolve Studio installed and running + Python 3.10 to 3.12. Env vars RESOLVE_SCRIPT_API / RESOLVE_SCRIPT_LIB set from the install (see shared/videoedit-engine.md)."
+    },
+    "fcpxml_timeline_export": {
+      "enabled": false,
+      "description": "Feature 1. Turn a finished script + chapter plan into a labeled editor timeline (markers per beat, gap clips for b-roll, chapter markers, empty title clips) as FCPXML/OTIO. Works on FCP and Resolve. Spec-only on knowledge engines; file generation needs local tools.",
+      "requires": "video_editing_enabled for file output. Spec generation works everywhere."
+    },
+    "caption_roundtrip": {
+      "enabled": false,
+      "description": "Feature 2. Move captions both ways: Creator OS transcript to SRT/iTT/CEA-608 for the editor, and the editor's exported captions back for SEO. Reuses shared/docintel/transcripts.py.",
+      "requires": "video_editing_enabled for file output. Reuses the offline transcription/docintel stack."
+    },
+    "shorts_reframe": {
+      "enabled": false,
+      "description": "Feature 3. Turn a chosen Shorts clip range into a vertical frame. Crop geometry is pure math (tools/videoedit/reframe.py, always available); with this flag on, a local render runs via MoviePy when installed or the ffmpeg crop filter, both optional and runtime-detected. Range selection reuses the short-extract atom; the shorts-reframe atom does the geometry and render.",
+      "requires": "Nothing for crop geometry. For a local render: this flag plus MoviePy (pip) or ffmpeg on PATH; see requirements-videoedit.txt."
+    },
+    "marker_intel_import": {
+      "enabled": false,
+      "description": "Feature 4. Read an exported FCPXML: markers become YouTube Key Moments, keywords become shot logs, roles map audio stems. Feeds entity-extract and geo-optimize and the scheduling metadata.",
+      "requires": "video_editing_enabled + a local parser (tools/videoedit/fcpxml.py) to read the exported file."
+    },
+    "compressor_presets": {
+      "enabled": false,
+      "description": "Feature 5. One export-all-deliverables step: platform-correct encode presets (YouTube 4K, Shorts/Reels 1080x1920, Pinterest, TikTok) driven by platform-engine.md, run via the Compressor CLI (macOS) or the Resolve render queue (cross-OS).",
+      "requires": "compressor_presets on + Compressor.app (macOS) OR resolve_scripting for the render-queue path."
+    },
+    "motion_template_fill": {
+      "enabled": false,
+      "description": "Feature 6. Fill the creator's brand Motion title/lower-third templates with generated copy via FCPXML (published parameters). macOS + FCP.",
+      "requires": "video_editing_enabled + brand Motion templates in ~/Movies/Motion Templates/ (macOS)."
+    },
+    "commandpost_macros": {
+      "enabled": false,
+      "description": "Feature 7. Emit or trigger CommandPost automations for finishing chores FCPXML cannot reach (apply brand LUT, drop intro, run an export preset). macOS + CommandPost + Final Cut Pro.",
+      "requires": "commandpost_macros on + CommandPost installed (macOS). Spec/snippet generation works everywhere."
+    },
+    "chapter_sync": {
+      "enabled": false,
+      "description": "Feature 8. One chapter list reused three ways: the editor's chapter track, the YouTube description timestamps, and the scheduling item. Feeds geo-optimize, content-calendar, and the scheduling queue. Pure data transform; works on every engine.",
+      "requires": "Nothing external. Pure transform; always available."
+    },
+    "contract_management": {
+      "enabled": false,
+      "description": "Master gate for the contract-desk spoke (P23). While OFF, deal-pipeline still handles the plain-language contract-negotiating behavior it always has (summarize terms, flag attention points, recommend counsel). Turn ON to activate the contract-desk spoke and its atoms (triage, clause review, legal-requirement checks, escalation briefs). This is legal information only, never legal advice. Independent of the per-feature flags below.",
+      "requires": "Nothing external. Point the atoms at an uploaded contract file (reuses the uploaded_file / google_drive document connectors). A configured pipeline/user-context/deal-playbook.local.json makes the review creator-specific; without it the atoms run in a labeled provisional mode against generic creator-side defaults."
+    },
+    "contract_drafting": {
+      "enabled": false,
+      "description": "Feature 1 (P23 Phase 2). Assemble a plain-language draft agreement from the deal-playbook standard positions plus the deal's agreed terms. Never emits binding language and always labels output not-vetted, review-before-signing. Requires contract_management on.",
+      "requires": "contract_management on. The contract-draft atom (P23 Phase 2) assembles a plain-language, not-vetted, not-binding draft from the playbook and agreed terms; while off, contract-desk routes drafting requests to a plain-language term summary and recommends drafting with counsel."
+    },
+    "contract_redline": {
+      "enabled": false,
+      "description": "Feature 2 (P23). Clause-by-clause review with dual severity (legal risk + business friction), exact-quote findings, playbook gaps, and plain-language redline suggestions; plus version tracking (net current state across contract versions). Requires contract_management on.",
+      "requires": "contract_management on. contract-review ships in P23 Phase 1; amendment/version tracing (amendment-trace, net current state across versions) ships in P23 Phase 2. Both are enabled by this flag."
+    },
+    "contract_obligations": {
+      "enabled": false,
+      "description": "Feature 3 (P23 Phase 3). Pull deliverables, deadlines, and payment terms out of a signed contract into an obligation register with send-by date math, and sync them to the content calendar and production tasks. Requires contract_management on.",
+      "requires": "contract_management on. Enables obligation-extract and the offline obligation register (tools/obligations.py). The register write is gated by this flag; the read-only deadline scan runs regardless. The date math runs in local Python, not tokens."
+    },
+    "task_tracking": {
+      "enabled": false,
+      "description": "Feature (P35). The project task and obligation tracker: event-triggered, source-cited tasks per deal and contract, with backwards-planning, recurrence, waiting-on accountability, and payment milestones. Register writes gate on this flag; read-only task scans run regardless. All date/dependency math is offline in tools/tasks.py. See shared/tasks-engine.md.",
+      "requires": "Nothing external for local_fs. tools/tasks.py runs offline (stdlib). google_drive / remote_mcp store backends need the corresponding connector configured."
+    },
+    "shipment_tracking": {
+      "enabled": false,
+      "description": "Feature (P35). Live carrier shipment tracking (EasyPost default, Ship24 alternative) that turns a tracking number into a normalized status and a delivered_at anchor for backwards-planning. Manual shipment entry is always available without this flag.",
+      "requires": "An aggregator API key in the environment (EASYPOST_API_KEY or SHIP24_API_KEY). tools/shipments.py polls over stdlib urllib honoring the env proxy + CA bundle; keys are read from env only, never persisted."
+    },
+    "coverage_verification": {
+      "enabled": false,
+      "description": "Feature (P35). Reconciles multiple media transcripts to a canonical truth and verifies that a deliverable covered its required points, citing the supporting sentence per point. The reconciliation and lexical tiers run offline in stdlib; this flag enables the optional semantic/NLI tiers when their dependencies are present. Without it, coverage abstains and routes to human review rather than inferring.",
+      "requires": "Nothing for the stdlib core. Optional: sentence-transformers / an NLI model for the semantic and entailment tiers."
+    },
+    "task_store_backend": {
+      "enabled": "local_fs",
+      "description": "Feature (P35). Where the task register lives: local_fs (Claude Desktop, offline), google_drive (a canonical JSON + Sheets mirror in Drive so claude.ai web/mobile and Desktop share one store), or remote_mcp (a hosted streamable-HTTP MCP endpoint serving Claude/ChatGPT/Gemini). Event-log union-merge keeps concurrent surfaces consistent. See shared/tasks-engine.md and shared/integrations-engine.md.",
+      "requires": "local_fs: nothing. google_drive: the Google Workspace connector (native on claude.ai web / Gemini; wizard-configured on Desktop). remote_mcp: a deployed remote MCP server (user/host provided)."
+    },
+    "jurisdictional_overlay": {
+      "enabled": true,
+      "description": "Feature (P37/P38). Advisory jurisdictional overlays on top of the construction base: does a project location fall inside a flood zone / historic district / ridge / steep-slope / watershed overlay (geometry, point-in-polygon), or trigger a statutory rule (attribute, e.g. HVHZ = Miami-Dade/Broward, SB 4D milestone by stories+age), or a versioned fact (SLR projection scoped to its counties, adopted code edition). Inter-overlay conflicts resolve by floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis, escalating genuine legal conflicts to human review. ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination. Offline stdlib engine (tools/geo_overlay.py) in EPSG:4326; the canonical-sources/jurisdiction/ bucket ships with the download and loads when this master switch is on (default on). Every output still carries the advisory boundary; on-by-default means available, never a determination.",
+      "requires": "Nothing for the offline core (stdlib point-in-polygon over cached or supplied GeoJSON). Live GIS/geocoding needs outbound HTTPS and is governed by jurisdictional_overlay_live (ask-first consent); non-4326 reprojection would need an optional pyproj tier (off by default)."
+    },
+    "jurisdictional_overlay_live": {
+      "enabled": true,
+      "mode": "ask",
+      "cadence": "per_session",
+      "description": "Feature (P38). Live-network CONSENT POLICY for jurisdictional overlays: the FEMA National Flood Hazard Layer flood lookup (tools/geo_fetch.py) and U.S. Census address geocoding (tools/geo_geocode.py). Default-ON but ASK-FIRST, once per session (mode 'ask', cadence 'per_session', enforced by tools/geo_consent.py): the first live lookup in a session asks the human, nothing is fetched until granted, a grant covers the session, and a denial or a headless run (no interactive prompt) falls back with NO network call. Set mode 'never' (or enabled false) to disable live lookups entirely; 'always' to pre-grant. Requires jurisdictional_overlay on. Advisory planning information only, never an official or legal determination.",
+      "requires": "jurisdictional_overlay on, plus outbound HTTPS (honors the env proxy + CA bundle). No API key (FEMA + Census public endpoints). Per-session human consent unless mode is 'always'."
+    },
+    "legal_requirement_checks": {
+      "enabled": false,
+      "description": "Feature 4 (P23). Check an inbound contract against creator-relevant legal requirements: FTC disclosure obligation, usage-rights conflicts, exclusivity overlap, missing payment or kill-fee terms, and the perpetual-usage-for-flat-fee flag. Cites the curated FTC sources. Legal information only, never legal advice. Requires contract_management on.",
+      "requires": "contract_management on. legal-requirement-check ships in P23 Phase 1 and cites canonical-sources/source-registry.json FTC entries."
+    },
+    "finance_management": {
+      "enabled": false,
+      "description": "Master gate for the finance bucket (P30). Activates finance record writes: invoice records, cost estimates, cost actuals, and the finance register under pipeline/finance/. Read-only scans (AR aging, invoice status) are always available without this flag. See shared/finance-engine.md.",
+      "requires": "Nothing external. tools/finance.py runs offline (stdlib, no network)."
+    },
+    "invoice_generation": {
+      "enabled": false,
+      "description": "Invoice drafting (P30). Activates the invoice-generate atom and tools/finance.py --build-invoice --write. Invoices are DRAFTED only and never sent by the system; the human reviews and sends (consequential-action gate, shared/finance-engine.md).",
+      "requires": "finance_management plus this flag."
+    },
+    "cost_research": {
+      "enabled": false,
+      "description": "Cost researcher dispatch (P30). Allows the cost-researcher agent to research vendor/product prices via the web-intel lanes for cost estimates and proposals. All findings cited or labeled [estimated]; read-only research, never a record write.",
+      "requires": "This flag; agent dispatch remains the operator's decision."
+    },
+    "mlt_timeline_export": {
+      "enabled": false,
+      "description": "Feature 9. Emit the edit-package as MLT XML, Shotcut's native project format and the Kdenlive substrate (tools/videoedit/mltxml.py). The second Lane A interchange format alongside FCPXML; stdlib-written, no external tool needed to build or parse the file.",
+      "requires": "Nothing to build/parse the file. Shotcut or Kdenlive to open it."
+    },
+    "media_render": {
+      "enabled": false,
+      "description": "Feature 10. Render an .mlt timeline (or single-asset cut list) to a video file locally: melt when installed, ffmpeg concat encode as fallback. App-driving tier: also requires the video_editing_enabled master gate, like Compressor.",
+      "requires": "video_editing_enabled plus this flag, and melt or ffmpeg on PATH. See requirements-videoedit.txt for the optional backends."
+    },
+    "document_templates": {
+      "enabled": false,
+      "description": "Master gate for the document-template lane (P42): the pipeline/templates/ store, tools/doctemplates.py writes, and the template-ingest / template-assemble atoms. Templates are block-structured (contracts, rate-card display docs, analytics overviews, terms/conditions) with swappable clause blocks. The system never authors block body text: vetted legalese enters only via creator upload and leaves only verbatim (bracket fills and whole-block include/exclude/swap). Read-only assemble/validate/list/diff always work without this flag; only persistence is gated.",
+      "requires": "Nothing external. Real templates live in gitignored pipeline/templates/*.local.json (the committed *.template.json starters are all-null shapes, drift invariant 31). Assembling a contract or terms/conditions document additionally requires contract_management and contract_drafting."
+    },
+    "background_update_check": {
+      "enabled": false,
+      "description": "Opt-in background check (P44) for whether a NEWER Creator OS release is published upstream. When on, tools/update_notify.py runs a read-only poll of the repo's public releases (nothing about your data leaves the machine) and, only when you are behind, surfaces one passive notice. It never applies anything: updating stays your explicit `python3 tools/update.py` run, which never touches your .local data. Enabling the flag is your standing consent for the read-only check; the wizard offers a one-click enable at /updates.",
+      "requires": "Nothing external. With this flag off (the default), no automated check runs and no network call is made. The manual `python3 tools/update_check.py report` and the update_check MCP tool always work regardless of this flag (running them is an explicit action)."
+    },
+    "content_import": {
+      "enabled": false,
+      "description": "Master gate for the content-import lane (P45): importing the creator's OWN past videos + metadata into the gitignored pipeline/video-library/ store, and completing missing transcripts with local STT. Read-only parsing of a downloaded export bundle (tools/import_parse.py) and proposal-only atoms always work; this flag enables the wizard /import flow and the store-write path. All imported data stays local. See shared/content-import-engine.md.",
+      "requires": "Nothing external for the export-bundle + paste tiers. Local transcription needs an STT backend (brew install whisper-cpp on Apple Silicon, or pip install faster-whisper); absent it, the flow degrades to a metadata-only library with transcripts flagged (never faked)."
+    },
+    "content_import_live": {
+      "enabled": false,
+      "description": "Enables the OPTIONAL live-API importer tier (P45, tools/importers/): pulling the creator's own videos + stats directly from YouTube/Instagram/TikTok/Pinterest with their OAuth credentials, instead of a downloaded export. Default off (like live_publishing_enabled). While off, no importer makes a network call; the export-bundle + paste tiers still work. Requires the matching per-platform read flag (youtube_api/instagram_api/tiktok_api/pinterest_api) and credentials in pipeline/user-context/api-credentials.local.json. Revenue is never fetched via API (Studio CSV only).",
+      "requires": "Per-platform OAuth read credentials the creator sets up for their OWN account (a testing-mode app on their own account suffices; no app verification needed for self-use)."
+    },
+    "youtube_analytics": {
+      "enabled": false,
+      "description": "Enables the YouTube Analytics API read connector (P45) for the creator's OWN audience-retention ('which parts were most watched') and channel stats, scope yt-analytics.readonly. Distinct from youtube_api (metadata/Data API). Gated additionally by content_import_live for any live call. Revenue is NOT available here for a solo creator (content-owner reports only); use the Studio CSV export.",
+      "requires": "OAuth with the yt-analytics.readonly scope for the creator's own channel."
+    },
+    "compute_handoff_enabled": {
+      "enabled": false,
+      "description": "P60. Master switch for the async compute hand-off: the local machine's watcher/runner picks up job tickets from the Drive hub Jobs/queue and runs allowlisted local tools (transcription, library analysis, import previews, finance reports). Off by default; with it off, no watcher pass runs any job from any transport.",
+      "requires": "The Drive hub folder configured (wizard /drive-hub) and one transport: Google Drive for desktop syncing the hub (default), the opt-in drive_api_polling capability, or the opt-in remote_compute_endpoint capability."
+    },
+    "job_store_writes_enabled": {
+      "enabled": false,
+      "description": "P61. Allow queued compute jobs to WRITE their results directly into your library (e.g. library_complete --write) instead of only producing a reviewable proposal. Off by default; jobs are proposal-only unless you turn this on with an acknowledged warning on the wizard /compute screen. Even when on, a job writes only if its ticket explicitly requests it; a ticket flag alone can never enable a write.",
+      "requires": "compute_handoff_enabled + an acknowledged risk warning on the wizard /compute screen. Local-only (creator-os-config.local.json); each machine has its own setting."
+    },
+    "drive_api_polling": {
+      "enabled": false,
+      "description": "P60 Transport B. Lets the watcher poll the Drive API directly (changes.list, drive.file scope) instead of reading a locally synced folder. Only needed when Google Drive for desktop is not installed.",
+      "requires": "compute_handoff_enabled + a Google OAuth desktop client connected on the wizard /drive-hub screen (token stored locally, gitignored)."
+    },
+    "remote_compute_endpoint": {
+      "enabled": false,
+      "description": "P60 Transport C. Exposes submit_compute_job / job_status on the remote MCP endpoint so a cloud session can hand off and track jobs live. The endpoint itself must be deployed per implementation/gpt/mcp-connector/README.md (TLS reverse proxy + auth in front; never exposed bare).",
+      "requires": "compute_handoff_enabled + a deployed remote MCP endpoint behind HTTPS and authentication."
     }
   },
   "degraded_behavior": {
@@ -128,7 +330,59 @@
     "jupyter_disabled": "Persistent notebook sessions unavailable. Multi-step computations cannot maintain state across turns.",
     "stats_general_disabled": "When no statistical MCP is available, all statistical atoms produce guidance-only output: they describe what test to run and provide runnable Python/R code, but do not compute results. All outputs labeled [guidance-only].",
     "gem_export_disabled": "Gemini Gem packaging unavailable. Use the manual export files in implementation/gemini/ instead.",
-    "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead."
+    "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead.",
+    "publishing_disabled": "All per-platform publishing flags are off. schedule-post falls back to publish-draft (manual mode). Output includes a paste-ready caption, platform-specific posting checklist, and FTC reminder. No posts are queued or published automatically. Use the scheduling dashboard (tools/dashboard/) to manage posts visually.",
+    "per_platform_publishing_disabled": "All per-platform publishing flags (youtube_publishing, instagram_publishing, tiktok_publishing, pinterest_publishing) are off. Every schedule-post call returns publishing_tier: manual and status: manual_required. Use publish-draft to get formatted paste-ready copy and a platform-specific posting checklist.",
+    "live_publishing_disabled": "live_publishing_enabled is off (default). The Scheduling Dashboard and background scheduler run FTC/AIGC/tier compliance checks and update queue status (drafts advance to ready_to_post at the scheduled time) but make NO network call to any platform. Posting is manual: open the ready_to_post item and post it yourself. The tools/publishing/ clients are complete OAuth + upload REST clients; they are gated off (no network call) while this flag is off, not stubs.",
+    "video_editing_disabled": "video_editing_enabled is off (default). Editing atoms still produce timeline/marker/caption/chapter specs and (on Claude Desktop) validated FCPXML/OTIO files, but nothing launches or scripts an editor app. Import the generated files into Final Cut Pro or DaVinci Resolve manually. Live app control is a no-op until this flag is on.",
+    "resolve_scripting_disabled": "resolve_scripting is off, or DaVinci Resolve Studio is not installed/running. The system cannot drive Resolve live (no scripted timeline import, markers, or render-queue control). It degrades to file interchange: it generates FCPXML/OTIO for the creator to import by hand. Note: external Resolve scripting requires the paid Studio edition.",
+    "fcpxml_timeline_export_disabled": "fcpxml_timeline_export is off. The system will not generate a timeline scaffold file. It still describes the intended timeline (markers, chapters, titles) as a spec the creator can build manually or enable this flag to auto-generate.",
+    "caption_roundtrip_disabled": "caption_roundtrip is off. Captions are not converted to/from editor formats. Transcripts and caption text are still produced; convert to SRT/iTT manually or enable this flag.",
+    "shorts_reframe_disabled": "shorts_reframe is off. Clip ranges and hooks are still recommended (short-extract) and the 9:16 crop parameters are still computed and emitted into the edit-package (shorts-reframe geometry); no local render happens. Apply the crop in the editor or enable this flag.",
+    "marker_intel_import_disabled": "marker_intel_import is off. Exported FCPXML markers/keywords are not parsed back into the system. Chapters and shot logs must be entered manually, or enable this flag to import them from the editor.",
+    "compressor_presets_disabled": "compressor_presets is off. Platform export presets are described but not run. Export from the editor manually using the recommended specs, or enable this flag (needs Compressor on macOS or the Resolve render queue).",
+    "motion_template_fill_disabled": "motion_template_fill is off. Title/lower-third copy is generated but not injected into Motion templates via FCPXML. Type it into the editor manually or enable this flag (macOS + FCP).",
+    "commandpost_macros_disabled": "commandpost_macros is off. Finishing automations are described but not emitted/triggered. Run the finishing steps manually or enable this flag (macOS + CommandPost).",
+    "chapter_sync_disabled": "chapter_sync is off. The chapter list is still produced but not fanned out to the description timestamps and scheduling item automatically. Copy them across manually or enable this flag.",
+    "contract_management_disabled": "contract_management is off (default). The contract-desk spoke and its atoms are not activated. Deal work continues exactly as before: at contract-negotiating, deal-pipeline summarizes terms in plain language, flags the points that deserve attention as action items, and recommends review with a qualified professional per protocols/safety.md. Turn the flag on for structured triage, clause-by-clause review, legal-requirement flags, and escalation briefs. Even on, output is legal information only, never legal advice.",
+    "contract_drafting_disabled": "contract_drafting is off. Drafting requests degrade to a plain-language summary of the agreed terms plus a recommendation to draft the binding agreement with a qualified professional. When on, contract-draft assembles a plain-language, not-vetted, not-binding starting point (never operative legalese, never signed). The system never emits binding contract language as if vetted.",
+    "contract_redline_disabled": "contract_redline is off. Clause-by-clause review with dual severity and version tracing is not produced. A contract at contract-negotiating still gets the plain-language term summary and attention flags. When on, contract-review and amendment-trace (net current state across versions) are both available.",
+    "playbook_bootstrap_disabled": "playbook-bootstrap runs only when contract_management is on. It is proposal-only: it suggests a starting deal-playbook from example contracts, or nudges an off-standard default from recent deals, and never writes deal-playbook.local.json (the human confirms and saves by hand). While off, configure the playbook by hand or with a qualified professional.",
+    "contract_obligations_disabled": "contract_obligations is off. obligation-extract can still pull duties into rows and tools/obligations.py --scan can compute a read-only deadline view (send-by dates, weekend/US-holiday roll-back, urgency bands) in local Python, but the dated obligation register is NOT written to pipeline/user-context/obligation-register.local.json and is not synced to the content calendar or production tasks. Turn the flag on to persist the register; the date math runs offline either way (no tokens).",
+    "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage.",
+    "mlt_timeline_export_disabled": "mlt_timeline_export is off. Timelines still export as FCPXML (fcpxml_timeline_export) or as the neutral edit-package JSON; Shotcut/Kdenlive users convert manually or enable this flag.",
+    "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior.",
+    "finance_management_disabled": "finance_management is off. AR aging and invoice status remain fully readable (tools/finance.py --ar-scan and the invoice-status atom need no flag), and all money math still runs offline on request, but no invoice record, cost estimate, or cost actual is written to pipeline/finance/. Turn the flag on to persist records.",
+    "invoice_generation_disabled": "invoice_generation is off. The system still computes what an invoice WOULD contain (line items, due date from structured terms, totals) and reports it for manual invoicing, but writes no invoice record and produces no invoice document.",
+    "cost_research_disabled": "cost_research is off. Cost estimates use only vendor quotes you provide, the local cost library, and labeled assumptions; no web research for prices is dispatched. Estimates remain honest: unknown costs are null and flagged, never guessed.",
+    "document_templates_disabled": "document_templates is off. tools/doctemplates.py still validates, lists, diffs, and COMPUTES an assembled document read-only (the result is returned with a _gate note), but nothing is written to disk. Template ingestion proposals still work (they never write anyway; the human saves the .local.json by hand). Turn the flag on in creator-os-config.local.json or one click at the setup wizard's /brand-deals screen to persist assembled documents. Contract and terms/conditions assembly additionally requires contract_management and contract_drafting; the system never emits binding contract language as if vetted, and assembled contracts are always ready_to_sign: false drafts for counsel.",
+    "background_update_check_disabled": "background_update_check is off (the default). No automated check for a newer Creator OS release runs and no background network call is made. You can still check by hand any time with `python3 tools/update_check.py report` or the update_check MCP tool. Turn it on in creator-os-config.local.json or one click at the setup wizard's /updates screen; once on, tools/update_notify.py runs a read-only release poll and shows one passive notice only when you are behind. Applying an update is always your explicit `python3 tools/update.py` run and never touches your .local data.",
+    "content_import_disabled": "content_import is off (the default). Read-only parsing of a downloaded export (tools/import_parse.py) and the proposal-only video-import/transcript-import atoms still run, but the wizard /import flow and store persistence are not offered. Turn it on in creator-os-config.local.json or at the wizard /import screen. All imported data stays local and gitignored.",
+    "content_import_live_disabled": "content_import_live is off (the default). No live-API importer (tools/importers/) makes a network call. Use the export-bundle tier instead: download your own data (Takeout / YouTube Studio CSV / Instagram or TikTok data export / Pinterest), then import the folder. Turn the live tier on only after setting up per-platform OAuth read credentials for your own account.",
+    "youtube_analytics_disabled": "youtube_analytics is off. Audience retention ('which parts were most watched') is not pulled live from the YouTube Analytics API. Retention still imports from a YouTube Studio retention CSV export (export_bundle tier). Off YouTube, retention is not available on any platform and is null-and-flagged, never fabricated.",
+    "compute_handoff_disabled": "compute_handoff_enabled is off (the default). No job ticket is picked up or executed from any transport; the Drive hub Jobs folder is inert. Heavy compute (transcription, library analysis) runs only when you start it yourself in a local session. Turn it on in creator-os-config.local.json or one click at the setup wizard's /compute screen.",
+    "drive_api_polling_disabled": "drive_api_polling is off (the default). The watcher reads only the locally synced Drive hub folder (Google Drive for desktop). If the sync app is not installed and this stays off, queued jobs wait untouched; nothing polls the Drive API and no OAuth token is used.",
+    "remote_compute_endpoint_disabled": "remote_compute_endpoint is off (the default). The remote MCP endpoint does not register the submit_compute_job / job_status tools, so cloud sessions cannot enqueue or track jobs over MCP; the Drive-file path (create a ticket in Jobs/queue) still works when compute_handoff_enabled is on.",
+    "job_store_writes_disabled": "Compute jobs never write to the library; they produce reviewable proposals only. Apply results yourself on the wizard /import screen or in a Claude session. This is the default and safest behavior.",
+    "playwright_disabled": "Browser automation is off. Competitor and SERP work uses saved HTML snapshots you provide; no page is fetched or rendered. Say that the data came from a snapshot and give its date, never imply a live read.",
+    "google_workspace_disabled": "Google Workspace is not connected. Documents are produced as local files for you to upload by hand; no Doc, Sheet, or Drive item is read or written.",
+    "microsoft_365_disabled": "Microsoft 365 is not connected. Documents are produced as local files for you to upload by hand; no OneDrive or SharePoint item is read or written.",
+    "task_tracking_disabled": "The task register is off. Tasks are returned as a plan in the reply and are not persisted; nothing is stored, transitioned, or reminded about between sessions.",
+    "shipment_tracking_disabled": "Shipment tracking is off. Carrier status cannot be looked up; report the tracking number and carrier and let the human check it, never infer a delivery state.",
+    "coverage_verification_disabled": "Deterministic coverage verification is off. Say which required points you believe are covered and mark it as an unverified reading, never as a scored result."
   },
-  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 14 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools."
+  "update": {
+    "_comment": "Self-update channel (P48). 'stable' follows released versions (the main branch); 'nightly' follows an in-progress/experimental branch and may be rough. Override the channel (and, for nightly, its branch) in creator-os-config.local.json, or via the CREATOR_OS_UPDATE_CHANNEL / CREATOR_OS_UPDATE_BRANCH env vars. Until a GitHub release exists, tools/update_check.py compares your installed commit against the resolved branch and shows 'behind by N commits' only when you opt into the background check. Applying stays your explicit tools/update.py run.",
+    "channel": "stable",
+    "channels": {
+      "stable": "main",
+      "nightly": "main"
+    }
+  },
+  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 22 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools.",
+  "drive_hub": {
+    "_comment": "P60. The Google Drive hub: one folder every surface shares. folder_name is the folder Creator OS creates/expects in My Drive; local_mirror is the ABSOLUTE path of that folder as synced by Google Drive for desktop on this machine (set by the wizard /drive-hub screen, stored in creator-os-config.local.json, never committed). Subfolders are fixed by convention: Inbox, Store, Jobs/{queue,results,archive}, Knowledge, Profile, Outbox. See docs/DRIVE-HUB.md.",
+    "folder_name": "Creator OS",
+    "local_mirror": null
+  }
 }

@@ -18,6 +18,8 @@ protocols/no-fabrication.md). If a value is unknown, it stays null and is flagge
 
 ## Account schema (pipeline/accounts/<brand-slug>.json)
 - `brand_name`: string.
+- `aliases`: list of alternate names or nicknames the creator uses for this brand (for the
+  account resolver in `tools/accounts.py`; empty list when none).
 - `brand_category`: one of furniture, home decor, paint and finishes, tools and hardware, textiles,
   lighting, organization, garden and outdoor, marketplace and thrift, other.
 - `primary_contact`: { name, role, email } (null fields allowed and flagged).
@@ -43,9 +45,13 @@ protocols/no-fabrication.md). If a value is unknown, it stays null and is flagge
 - `brand_name` and `account_ref`: link to the account record.
 - `deal_type`: one of dedicated_video, integrated_segment, product_mention, shorts, bundle.
 - `platforms`: list (youtube, youtube_shorts, instagram_reels, instagram_feed, tiktok, pinterest).
-- `agreed_deliverables`: list of { format, count, platform, due_date, ftc } where `ftc` records the
-  required disclosure for that deliverable (see protocols/safety.md FTC disclosure). `ftc` is a
-  required field on every sponsored deliverable and is never left blank on a signed deal.
+- `agreed_deliverables`: list of { deliverable_id, format, count, platform, due_date, ftc,
+  approval_state } where `ftc` records the required disclosure for that deliverable (see
+  protocols/safety.md FTC disclosure). `ftc` is a required field on every sponsored deliverable and is
+  never left blank on a signed deal. `deliverable_id` is a stable id so tasks and milestones (the task
+  tracker, shared/tasks-engine.md) can reference a specific deliverable; `approval_state` is one of
+  not_submitted, submitted, in_revision, approved, rejected, tracking the brand-approval round-trip per
+  deliverable (for example the long-form approved while the short is still in revision).
 - `compensation`: { amount, type } where type is one of cash, product, affiliate, mixed. Amount is
   null until a real figure is provided; never invent a rate.
 - `usage_rights`: { scope, window_start, window_end } where scope is one of social_only,
@@ -92,6 +98,14 @@ professional and by the owner before signing (see protocols/safety.md).
 carries `amount`, `invoice_date`, `payment_due_date`, `payment_received_date`, and `payment_method`,
 and never invents a figure.
 
+Invoices are standalone records in `pipeline/finance/` (schema:
+`pipeline/finance/invoice.template.json`), many per deal: deposits, partials, kill fees, and
+final balances are separate invoices. The deal record carries `invoice_refs[]` plus an embedded
+`invoice` object that is a denormalized summary of the most recent invoice record (kept for the
+radar and quick reads; the standalone record is authoritative). Due dates, aging, and
+late-penalty accrual are computed offline by `tools/finance.py` from the deal's
+`payment_terms_structured` block, never by the model; see `shared/finance-engine.md`.
+
 ## Radar views (read-only computed flags)
 The radar reads the store and surfaces, without writing anything:
 - `payment_overdue`: any invoice unpaid past its due date, with a days-overdue count.
@@ -104,6 +118,49 @@ The radar reads the store and surfaces, without writing anything:
 Usage rights and exclusivity are tracked separately from invoice status and never collapsed into a
 single status field: a brand can have paid its invoice yet still hold active exclusivity that blocks
 other deals.
+
+## Evidence bundles and completeness
+Evidence that informs a CRM write (a pasted email, an uploaded contract, a meeting recap, a
+connector response) is packaged as an evidence bundle before anything reads it. Every bundle
+carries:
+- `acquisition_mode`: which rung of the connector degradation ladder produced it (see
+  `shared/connectors/connectors.md`, Evidence acquisition modes).
+- `artifact_completeness`: `minimal` (an excerpt or single fragment), `partial` (some artifacts
+  present, known gaps), or `rich` (full artifact set for the source). Downstream consumers gate on
+  this grade instead of assuming the bundle is whole.
+- Per-item provenance: source name or connector, artifact identifier, and retrieval or paste time.
+  A value with no provenance is treated as unsourced and cannot support a write.
+
+## Memory safety model (field-level write classes)
+Not everything extracted from evidence may be written to a durable account or deal record. Every
+value falls into one of four write classes:
+
+| Write class | What falls here | Rule |
+|---|---|---|
+| `raw` | Transcript or email text, pasted threads, meeting excerpts, chat fragments | Never written to a durable field. Raw evidence stays in the bundle; records reference it. |
+| `conditional` | Verbatim quotes and evidence snippets supporting a field value | Writable only with provenance attached (source + artifact id + time). The quote must be exact; a paraphrase is `derived`, not `conditional`. |
+| `derived_reviewed` | Conclusions: stage changes, `relationship_health`, commitments, action items, `deal_history_summary` updates, contact role changes | Writable only through the stage-transition rules with the quality-review verdict recorded, and flagged `human_review_required` when linkage or identity is unresolved. |
+| `safe` | The confidence fields themselves: claim confidence, identity confidence, `artifact_completeness`, retrieval gaps | Always writable; these describe the evidence, not the account. |
+
+Two confidences, kept separate:
+- **Claim confidence**: is the statement itself well supported by the evidence?
+- **Identity confidence**: is the person or brand the statement is attributed to actually who the
+  record says? A raw label in a pasted thread ("Alex", "the brand contact") starts unresolved.
+A strong claim never raises identity confidence, and a resolved identity never raises claim
+confidence. Both are recorded on any write where attribution matters (contact updates,
+commitments, relationship health changes).
+
+## Write stop conditions
+Before any durable CRM write, stop — do not write, record why — when:
+- **Account linkage is weak.** The evidence cannot be tied to a specific account record with named
+  support. Record `account_link: unknown` on the bundle rather than guessing a brand. An unknown
+  linkage routed for human review is always preferred over a confident wrong one.
+- **Identity is unresolved** for a value whose meaning depends on who said it (a commitment, a
+  rate, a renewal signal). Keep the value in the bundle with `identity_confidence: unresolved`.
+- **The evidence bundle is `minimal`** and the write is `derived_reviewed` class. Minimal bundles
+  can update `safe`-class fields and raise flags; they cannot change stages or health.
+- **Sources conflict** on the value. Record the conflict (minority report) and route to human
+  review; never average or silently pick one.
 
 ## Store and integrity rules
 - Real CRM data lives in gitignored files (for example, `pipeline/accounts/*.local.json`); only

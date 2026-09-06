@@ -1,0 +1,18 @@
+{
+  "_comment": "task-desk composes the task-tracker atoms. All date/dependency math is offline in tools/tasks.py, shipment normalization in tools/shipments.py, coverage in tools/coverage_verify.py. Every task cites a real source (anti-phantom); register writes gate on task_tracking; nothing is sent, invoiced, or posted without human confirmation. Tracking and verification only: no legal advice (contract-desk), no money send (finance-desk), no deal-stage moves (deal-pipeline).",
+  "id": "task-desk",
+  "description": "Project task and obligation tracking: cited event-triggered tasks, backwards planning, waiting-on accountability, shipments, payment milestones, and deliverable coverage verification.",
+  "steps": [
+    {"step": 1, "atom": "task-extract", "input_from": "obligation rows / user statements / shipment events", "output_to": "step9", "condition": "creating cited tasks; register write requires task_tracking"},
+    {"step": 2, "atom": "email-to-task", "input_from": "a connected or pasted brand message", "output_to": "step1", "condition": "the source is an email; citation is code-stamped, body is untrusted"},
+    {"step": 3, "atom": "task-plan", "input_from": "the project's tasks + resolved event dates (or a deadline)", "output_to": "step9", "condition": "action is schedule / reverse-plan / feasibility"},
+    {"step": 4, "atom": "task-status", "input_from": "a task id + target state or hand-off event + source", "output_to": "step9", "condition": "action is a governed status change or waiting-on hand-off"},
+    {"step": 5, "atom": "task-radar", "input_from": "the task register (+ optional deal_id)", "output_to": "step9", "condition": "action is a read-only outstanding-tasks view (waiting-on vs I-owe, due bands)"},
+    {"step": 6, "atom": "shipment-track", "input_from": "a tracking number (live) or manual shipment fields", "output_to": "step3", "condition": "action is a shipment update; delivered_at feeds task-plan as the anchor"},
+    {"step": 7, "atom": "milestone-bill", "input_from": "the payment schedule + a deliverable event", "output_to": "step9", "condition": "action is billable readiness; ready milestones hand off to finance-desk / invoice-generate"},
+    {"step": 8, "atom": "coverage-verify", "input_from": "the required points + one or more media transcripts", "output_to": "step9", "condition": "action is deliverable coverage verification; abstains rather than infers"},
+    {"step": 9, "atom": "govern-artifact", "input_from": "the assembled output of steps 1 to 8", "output_to": "final", "condition": "always; enforces the boundary, citations, no fabrication, and formatting before handoff"}
+  ],
+  "shortcut_atoms": ["task-extract", "email-to-task", "task-plan", "task-status", "task-radar", "shipment-track", "milestone-bill", "coverage-verify"],
+  "note": "A single request may fire several steps (a shipment update recomputes the plan; an approval fires both a status change and billable readiness). deal-resourcing seeds tasks; contract-desk supplies obligation rows; finance-desk receives billable milestones. Every write is human-gated and every task cites a source."
+}

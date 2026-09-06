@@ -7,7 +7,7 @@ load: when a DIY home decor project requires a materials, tools, or sourcing lis
 
 # materials-list
 
-Generate a structured materials and tools list for a DIY home decor project in the creator's niche (moody-vintage home decor and DIY). Group items by category, flag safety-required tools, label all cost figures as estimated ranges, and adapt for renter constraints when requested.
+Generate a structured materials and tools list for a DIY home decor project in the creator's niche (home decor and DIY). Group items by category, flag safety-required tools, label all cost figures as estimated ranges, and adapt for renter constraints when requested.
 
 ## Purpose
 
@@ -98,3 +98,6 @@ Output rules:
 
 - `protocols/safety.md` -- DIY trade boundary; safety_required flags and escalation rules.
 - `shared/adaptation-engine.md` -- renter vs owner axis (Axis 2) and budget tier axis (Axis 3); sourcing guidance and the rule against inventing specific prices.
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (A/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

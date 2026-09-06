@@ -1,0 +1,90 @@
+[
+  {
+    "id": "ftc-disclosures-101",
+    "name": "FTC Disclosures 101 for Social Media Influencers",
+    "url": "https://www.ftc.gov/business-guidance/resources/disclosures-101-social-media-influencers",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "clear-and-conspicuous disclosure rules for sponsored, gifted, and affiliate content; per-post disclosure; plain terms",
+    "used_by": ["legal-requirement-check", "contract-review", "contract-triage"]
+  },
+  {
+    "id": "ftc-endorsement-guides",
+    "name": "FTC Guides Concerning Use of Endorsements and Testimonials (16 CFR Part 255)",
+    "url": "https://www.ftc.gov/legal-library/browse/rules/guides-concerning-use-endorsements-testimonials-advertising",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "the governing endorsement guides; material-connection disclosure standard for creators",
+    "used_by": ["legal-requirement-check", "contract-review"]
+  },
+  {
+    "id": "ftc-endorsements-faq",
+    "name": "FTC Endorsement Guides: What People Are Asking (FAQ)",
+    "url": "https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "practical dos and don'ts on disclosure placement, wording, and platform tools; answers common creator questions",
+    "used_by": ["legal-requirement-check", "contract-review"]
+  },
+  {
+    "id": "ftc-endorsements-hub",
+    "name": "FTC Endorsements, Influencers, and Reviews hub",
+    "url": "https://www.ftc.gov/business-guidance/advertising-marketing/endorsements-influencers-reviews",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "landing page linking current FTC endorsement guidance and enforcement updates for influencers",
+    "used_by": ["legal-requirement-check"]
+  },
+  {
+    "id": "us-copyright-basics",
+    "name": "U.S. Copyright Office: What Is Copyright",
+    "url": "https://www.copyright.gov/what-is-copyright/",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "copyright ownership basics; who holds rights in created content; useful for usage-rights and ownership clause review",
+    "used_by": ["contract-review", "usage-rights-check"]
+  },
+  {
+    "id": "cornell-wex-contract",
+    "name": "Cornell LII Wex: Contract",
+    "url": "https://www.law.cornell.edu/wex/contract",
+    "category": "legal-authority",
+    "tier": "T2",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "plain-language definition of contract terms and formation; general reference only, not case law",
+    "used_by": ["contract-review", "legal-requirement-check"]
+  },
+  {
+    "id": "cornell-wex-license",
+    "name": "Cornell LII Wex: License",
+    "url": "https://www.law.cornell.edu/wex/license",
+    "category": "legal-authority",
+    "tier": "T2",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "plain-language definition of a license and its scope; supports usage-rights and licensing clause review",
+    "used_by": ["contract-review", "usage-rights-check"]
+  },
+  {
+    "id": "ftc-soliciting-reviews-marketers",
+    "name": "FTC Soliciting and Paying for Online Reviews: A Guide for Marketers",
+    "url": "https://www.ftc.gov/business-guidance/resources/soliciting-paying-online-reviews-guide-marketers",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_interval_days": 180,
+    "staleness_threshold_days": 180,
+    "extraction_hint": "rules on paid and incentivized reviews and endorsements; relevant to gifted and affiliate deal terms",
+    "used_by": ["legal-requirement-check"]
+  }
+]

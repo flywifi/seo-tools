@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 380" width="520" height="380" font-family="sans-serif">
+  <title>Residential stair geometry (IRC R311.7)</title>
+  <desc>Side profile of a residential stair showing maximum riser, minimum tread, headroom, and handrail height. Original Creator OS drawing.</desc>
+  <rect x="0" y="0" width="520" height="380" fill="#ffffff"/>
+  <!-- steps (side profile), 5 risers -->
+  <g fill="none" stroke="#222" stroke-width="2">
+    <polyline points="60,320 60,280 120,280 120,240 180,240 180,200 240,200 240,160 300,160 300,120 360,120"/>
+    <!-- floor lines -->
+    <line x1="20" y1="320" x2="360" y2="320"/>
+    <line x1="300" y1="120" x2="480" y2="120"/>
+  </g>
+  <!-- riser dimension -->
+  <g stroke="#b00" stroke-width="1.2" fill="#b00" font-size="12">
+    <line x1="140" y1="240" x2="140" y2="280"/>
+    <text x="146" y="266">riser 7 3/4 in max</text>
+  </g>
+  <!-- tread dimension -->
+  <g stroke="#06c" stroke-width="1.2" fill="#06c" font-size="12">
+    <line x1="180" y1="192" x2="240" y2="192"/>
+    <text x="180" y="184">tread 10 in min</text>
+  </g>
+  <!-- headroom -->
+  <g stroke="#090" stroke-width="1.2" fill="#090" font-size="12">
+    <line x1="90" y1="60" x2="90" y2="300" stroke-dasharray="4 3"/>
+    <text x="96" y="80">headroom</text>
+    <text x="96" y="96">6 ft 8 in min</text>
+  </g>
+  <!-- handrail -->
+  <g stroke="#a60" stroke-width="2" fill="#a60" font-size="12">
+    <line x1="60" y1="250" x2="360" y2="90"/>
+    <text x="250" y="70">handrail 34 in to 38 in, grippable</text>
+  </g>
+  <text x="20" y="352" font-size="12" fill="#444">Variation between any two risers or treads in a flight: 3/8 in max. Verify against your adopted code edition.</text>
+  <text x="20" y="370" font-size="11" fill="#888">Original Creator OS drawing (CC0). General guidance, not engineering advice.</text>
+</svg>

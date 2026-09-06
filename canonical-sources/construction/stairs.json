@@ -1,0 +1,104 @@
+[
+  {
+    "id": "stairs-riser-tread",
+    "title": "Stair riser and tread limits",
+    "text": "Residential stairs have a maximum riser height and a minimum tread depth, and the risers and treads within a single flight must be consistent. The greatest riser height must not exceed the smallest by more than 3/8 inch across the flight, and the same tolerance applies to tread depth. Inconsistent riser heights are the single most common failed-inspection item on stairs because an uneven riser is a trip hazard. Build every riser and tread to the same dimension and verify the maximum riser and minimum tread against IRC R311.7.5 for your adopted edition.",
+    "trade": "stairs",
+    "topic": "geometry",
+    "dimensions": [
+      {"item": "max riser height", "value": "7 3/4 in", "note": "IRC R311.7.5.1"},
+      {"item": "min tread depth", "value": "10 in", "note": "IRC R311.7.5.2, measured nosing to nosing"},
+      {"item": "riser/tread variation within a flight", "value": "3/8 in max", "note": "largest minus smallest"},
+      {"item": "nosing projection", "value": "3/4 in to 1 1/4 in", "note": "required where treads are less than 11 in; IRC R311.7.5.3"}
+    ],
+    "steps": [
+      "Measure total rise floor to floor and divide into equal risers at or below 7 3/4 in.",
+      "Set a uniform tread depth of at least 10 in.",
+      "Lay out the stringer so every riser and every tread is identical.",
+      "Check the finished flight: no riser or tread varies more than 3/8 in from another."
+    ],
+    "common_mistakes": [
+      "Inconsistent riser heights over 3/8 in variance, usually at the top or bottom step.",
+      "Forgetting the finished floor thickness, which changes the first and last riser.",
+      "Treads shallower than 10 in without the required nosing."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R311.7.5.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"},
+      {"code": "IRC", "section": "R311.7.5.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FBC Residential 8th Edition follows IRC R311.7 stair geometry.",
+      "nc": "NC RC 2018 (2015 IRC) uses the same 7 3/4 in riser and 10 in tread limits; confirm section numbering."
+    },
+    "diagram_refs": ["stair-geometry"],
+    "source_ids": ["icc-irc-2021", "cpsc-safety"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "stairs-headroom-width",
+    "title": "Stair headroom and width",
+    "text": "A residential stair needs a minimum clear width and a minimum headroom measured vertically from the tread nosing line to any ceiling or obstruction above. Headroom is easy to pinch at a landing or where a stair passes under a floor above. Provide at least 6 feet 8 inches of headroom and the required clear width, and verify against IRC R311.7.1 and R311.7.2 for your adopted edition.",
+    "trade": "stairs",
+    "topic": "clearance",
+    "dimensions": [
+      {"item": "min headroom", "value": "6 ft 8 in", "note": "IRC R311.7.2, measured vertically from the nosing line"},
+      {"item": "min clear width", "value": "36 in", "note": "IRC R311.7.1, above the handrail height"}
+    ],
+    "steps": [
+      "Draw the stair in section and project the nosing line to the ceiling above.",
+      "Confirm at least 6 ft 8 in clear at every point, including under the floor above and at landings.",
+      "Confirm 36 in clear width, allowing for the handrail projection."
+    ],
+    "common_mistakes": [
+      "Headroom pinch where the stair passes under the floor framing above.",
+      "Measuring width below the handrail and losing clear width.",
+      "Landing built too small, reducing headroom at the turn."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R311.7.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"},
+      {"code": "IRC", "section": "R311.7.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Same as IRC R311.7 under the FBC Residential 8th Edition.",
+      "nc": "Same 6 ft 8 in headroom under the enforced NC RC 2018."
+    },
+    "diagram_refs": ["stair-geometry"],
+    "source_ids": ["icc-irc-2021"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "stairs-handrail-guard",
+    "title": "Handrails and guards on stairs",
+    "text": "A handrail is required on at least one side of a stair with four or more risers, set at a consistent height above the nosing line with a grippable profile. A guard is required along open sides where the walking surface is more than 30 inches above the floor or grade below, and the guard must resist a 4 inch sphere passing through so a child cannot slip through. Set the handrail height in the required range, choose a grippable cross section, and provide guards with proper infill, verifying against IRC R311.7.8 and R312 for your adopted edition.",
+    "trade": "stairs",
+    "topic": "railings",
+    "dimensions": [
+      {"item": "handrail height", "value": "34 in to 38 in", "note": "IRC R311.7.8.1, above the nosing line"},
+      {"item": "handrail required when", "value": "4 or more risers", "note": "IRC R311.7.8"},
+      {"item": "guard height", "value": "36 in min", "note": "IRC R312.1.2, where over 30 in drop"},
+      {"item": "guard opening", "value": "less than 4 in sphere", "note": "IRC R312.1.3; stair triangle allows 6 in"}
+    ],
+    "steps": [
+      "Install a continuous graspable handrail on stairs of 4 or more risers at 34 in to 38 in.",
+      "Add guards at open sides over 30 in above the surface below at 36 in minimum height.",
+      "Space balusters so a 4 in sphere cannot pass (6 in at the triangular stair opening).",
+      "Confirm the handrail profile is grippable per the code cross-section rule."
+    ],
+    "common_mistakes": [
+      "Guard shorter than 36 in or balusters wider than the 4 in sphere rule.",
+      "A wide flat 2x6 cap used as a handrail, which is not a grippable profile.",
+      "No handrail on a short but 4-riser run."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R311.7.8", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"},
+      {"code": "IRC", "section": "R312.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FBC Residential 8th Edition follows IRC R311.7.8 and R312.",
+      "nc": "NC RC 2018 uses the same handrail range and 4 in sphere guard rule."
+    },
+    "diagram_refs": ["stair-geometry"],
+    "source_ids": ["icc-irc-2021", "cpsc-safety"],
+    "boundary": "verify-locally"
+  }
+]

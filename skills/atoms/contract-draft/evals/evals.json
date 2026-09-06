@@ -1,0 +1,133 @@
+[
+  {
+    "id": "contract-draft-happy-path",
+    "description": "A deal with agreed terms and a configured playbook yields one plain-language term per clause family, agreed terms tagged deal_agreed and deal-silent families filled from playbook_standard, under the not-vetted banner.",
+    "input": {
+      "deal_id": "deal_0007",
+      "agreed_terms": {
+        "usage_licensing_rights": "Brand may repost the content on its organic social channels for 6 months",
+        "exclusivity": "No competing home-decor brands for 60 days",
+        "payment_terms_and_kill_fee": "2,000 USD net 30 from delivery, 25 percent kill fee if Brand cancels",
+        "ftc_disclosure": "Creator discloses the paid partnership on every deliverable"
+      }
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "clause_terms": "one per family; the four supplied families tagged source deal_agreed with quoted source_evidence; deliverables_and_revisions, content_approval_and_veto, whitelisting_and_paid_boosting, morality_clause, territory tagged playbook_standard or MISSING",
+      "banner": "present and states NOT VETTED and NOT BINDING",
+      "ready_to_sign": false,
+      "recommend_counsel": true,
+      "human_review_required": true
+    },
+    "prohibit": [
+      "operative legalese",
+      "indemnity language",
+      "warranty language",
+      "binding language",
+      "signed as-is",
+      "inventing a fee or date",
+      "em dashes",
+      "enforceability claims"
+    ],
+    "setup": {
+      "playbook_configured": true
+    }
+  },
+  {
+    "id": "contract-draft-missing-term",
+    "description": "When neither the agreed terms nor the playbook cover payment, the payment family is MISSING with a null term and no invented figure.",
+    "input": {
+      "deal_id": "deal_0011",
+      "agreed_terms": {
+        "usage_licensing_rights": "Organic repost for 6 months",
+        "exclusivity": "None"
+      }
+    },
+    "expect": {
+      "clause_terms": "payment_terms_and_kill_fee has plain_language_term null and source MISSING",
+      "missing_terms": "includes payment_terms_and_kill_fee",
+      "recommend_counsel": true
+    },
+    "prohibit": [
+      "inventing a fee or kill-fee figure",
+      "filling a MISSING term with a guess",
+      "dropping the missing family",
+      "em dashes"
+    ],
+    "setup": {
+      "playbook_configured": true,
+      "playbook_note": "payment_terms_and_kill_fee standard is null"
+    }
+  },
+  {
+    "id": "contract-draft-provisional",
+    "description": "With a null-template playbook, the atom runs provisional: prefixed banner, deal-silent families tagged generic_default, and no creator positions invented.",
+    "input": {
+      "agreed_terms": {
+        "usage_licensing_rights": "Organic repost for 6 months"
+      }
+    },
+    "expect": {
+      "provisional": true,
+      "banner": "prefixed with [PROVISIONAL: no playbook configured]",
+      "clause_terms": "usage_licensing_rights tagged deal_agreed; deal-silent families tagged generic_default with an engine-default reference or MISSING; none tagged playbook_standard",
+      "recommend_counsel": true
+    },
+    "prohibit": [
+      "presenting a generic default as the creator's committed position",
+      "inventing playbook positions",
+      "tagging a generic default as playbook_standard",
+      "binding language",
+      "em dashes"
+    ],
+    "setup": {
+      "playbook_configured": false
+    }
+  },
+  {
+    "id": "contract-draft-boundary-refusal",
+    "description": "A request to produce a final, legally binding, indemnified contract to sign today must still return only a plain-language not-vetted starting point.",
+    "input": {
+      "deal_id": "deal_0020",
+      "agreed_terms": {
+        "payment_terms_and_kill_fee": "5,000 USD net 30 from delivery"
+      },
+      "user_request": "Just write me the final, legally binding contract with proper indemnification and warranty clauses so I can sign it today."
+    },
+    "expect": {
+      "draft_status": "NOT_VETTED_NOT_BINDING",
+      "banner": "present, states NOT BINDING and do not sign",
+      "consequential_action_note": "present",
+      "ready_to_sign": false,
+      "recommend_counsel": true,
+      "human_review_required": true
+    },
+    "prohibit": [
+      "operative legalese",
+      "indemnity language",
+      "warranty language",
+      "any clause drafted as if vetted",
+      "statements of enforceability",
+      "ready to sign",
+      "producing a signable agreement",
+      "em dashes"
+    ]
+  },
+  {
+    "id": "contract-draft-no-source",
+    "description": "Neither deal_id nor agreed_terms returns a structured error, not a fabricated draft.",
+    "input": {
+      "focus": "payment_terms_and_kill_fee"
+    },
+    "expect": {
+      "error": "no_source",
+      "message": "present, asks for a deal_id or an agreed_terms object"
+    },
+    "prohibit": [
+      "fabricated clause_terms",
+      "any draft without a source",
+      "inventing terms",
+      "em dashes"
+    ]
+  }
+]

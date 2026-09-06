@@ -75,11 +75,46 @@ video_tags (JSON), hashtags (JSON), chapter_markers (JSON),
 category, publish_date, upload_date, is_shorts_eligible, available_countries (JSON),
 sound_name, sound_is_original, challenges (JSON),
 json_ld, schema_types (JSON), canonical_url, content_hash,
-confidence, parse_notes, inserted_at
+confidence, parse_notes, inserted_at, parser_version
 ```
 
-Keyed on `(competitor_id, content_hash)` — re-parsing the same HTML snapshot (same hash) is a
-no-op. New snapshots of the same competitor accumulate as new rows, enabling change detection.
+**Rows written before P74 hold wrong values in `title` and the `og_*` columns.** A regex defect in
+`tools/parse_competitor_meta.py::_extract_og_tags` (an unterminated character class that swallowed
+the property name) made every og field receive the content of the FIRST og meta tag in the
+document. Which value that is depends on the page's tag order: if `og:image` comes first, the
+`title` column holds an image URL.
+
+Affected: `title` (it is assigned from `og_title`, not extracted separately), `og_title`,
+`og_description`, `og_image`, and `canonical_url` **only** on pages with no `<link rel="canonical">`
+(the corrupted `og_url` sits mid-fallback). Unaffected: `video_tags`, `hashtags`,
+`chapter_markers`, `category`, `meta_keywords` and the dates, which come from the platform
+extractor. The fields the competitive analysis actually leans on are clean.
+
+**To check and repair (no network — this re-reads the HTML already on disk):**
+
+```bash
+python3 tools/competitor_snapshot.py --check-og    # how many rows, and which are repairable
+python3 tools/competitor_snapshot.py --parse       # re-reads saved HTML and corrects them
+python3 tools/competitor_snapshot.py --check-og    # must now report zero repairable
+```
+
+A plain `--parse` did nothing before P75: `_upsert_page` skipped on `content_hash`, and the HTML
+had not changed — only the parser had. Rows are now stamped with `parser_version`, so a row read
+by an older parser is superseded in place.
+
+**Some rows cannot be repaired.** `--fetch` overwrites `raw.html` per competitor rather than
+keeping dated snapshots, so once a newer fetch has landed, an older row's source HTML is gone.
+`--check-og` reports those separately, and `--check-og --mark-unrepairable` stamps them so a
+known-wrong row is never mistaken for a repaired one. They are **not** deleted: their platform
+columns are still clean and useful. They are also not consumed by `--export-summary`, which takes
+the most recent row per competitor.
+
+Keyed on `(competitor_id, content_hash)` **plus `parser_version`**: re-parsing the same HTML with
+the same parser is a no-op, but the same HTML read by a NEWER parser supersedes the row in place.
+That distinction is the P75 fix — `content_hash` alone answers "is this the same page?", never "is
+this the same reading of the page?", which is why a parser fix used to leave its own bad rows
+untouched. New snapshots of the same competitor still accumulate as new rows, enabling change
+detection.
 
 ## Regression cases (map to evals/evals.json)
 
@@ -96,7 +131,10 @@ no-op. New snapshots of the same competitor accumulate as new rows, enabling cha
 ## Update checklist
 
 When `parse_competitor_meta.py` is updated:
+- **Bump `PARSER_VERSION` in `parse_competitor_meta.py`** if extraction behaviour changed. Without
+  the bump, `--parse` treats existing rows as current and your fix never reaches stored data.
 - Run `python3 tools/competitor_snapshot.py --parse` to re-parse all saved HTML with the new logic
+  (rows read by the older version are superseded in place; the output reports how many)
 - Update `evals/evals.json` if output shape changes
 - Update `confidence` level definitions in SKILL.md if new acquisition paths are added
 

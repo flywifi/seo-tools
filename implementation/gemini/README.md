@@ -22,7 +22,7 @@ model = genai.GenerativeModel(
     system_instruction=system_instruction,
 )
 
-response = model.generate_content("Plan a dark moody fall mantel video")
+response = model.generate_content("Plan a seasonal home decor project video")
 print(response.text)
 ```
 

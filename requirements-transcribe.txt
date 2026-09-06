@@ -1,0 +1,22 @@
+# Optional local speech-to-text backends for the content-import completion layer (P45).
+# NOTHING here is required: tools/transcribe.py and tools/library_complete.py run stdlib-only
+# and degrade to the run_local_stt gap (a null transcript with the per-OS install command,
+# NEVER a fabricated transcript) when no backend is present. All STT is on-device: zero cloud,
+# zero tokens, no audio leaves the machine. preflight (python3 tools/videoedit/preflight.py)
+# reports which backend was found, and python3 tools/transcribe.py status prints the selection.
+#
+# Backend by machine (tools/transcribe.py::select_backend):
+#   Apple Silicon (M1 to M4): whisper.cpp (Metal). System binary, not a pip package:
+#       brew install whisper-cpp ffmpeg      (Homebrew bottles are notarized: no Gatekeeper prompt)
+#     Then point the runner at a GGML model file once via WHISPER_CPP_MODEL=ggml-<tier>.bin
+#     (download once from the whisper.cpp repo; a repo cannot ship model weights).
+#   Windows / Linux / Intel Mac: faster-whisper (pip). Needs NO system ffmpeg (bundles PyAV),
+#     the escape hatch when a user cannot get ffmpeg past macOS Gatekeeper.
+#
+# See docs/SETUP_MAC.md for the macOS Python/ffmpeg/Gatekeeper notes and the model-download step.
+
+# Recommended pip backend for Windows/Linux/Intel Mac (CPU int8 or CUDA float16).
+faster-whisper>=1.0
+
+# Optional richer accuracy decomposition beyond shared/docintel/wer.py (WER/MER/WIL in one call).
+jiwer>=4.0

@@ -1,0 +1,58 @@
+{
+  "_comment": "Creator OS jurisdictional-overlay function declarations for the Gemini API (developer function calling). Gemini emits a structured call; YOUR application executes the HTTPS request against the public endpoint and returns the result. Consumer 'Gems' CANNOT use these (no custom-tool surface) -- use the Gemini API or a hosted remote-MCP connector. ADVISORY only; never a legal or permitting determination; a genuine safety-vs-aesthetic conflict is for the authority having jurisdiction. Values behind ToS-limited code portals (exact setbacks) are not returned; cite the ordinance and verify locally.",
+  "_endpoints": {
+    "geocode_address": "GET https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address={address}&benchmark=Public_AR_Current&format=json  (result.addressMatches[0].coordinates -> x=lon, y=lat)",
+    "historic_district_at_point": "GET https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=HistoricDistricts&returnGeometry=false&f=geojson",
+    "zoning_at_point": "GET https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=Zoning,OverlayA,OverlayB&returnGeometry=false&f=geojson",
+    "flood_zone_at_point": "GET https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,SFHA_TF&returnGeometry=false&f=json"
+  },
+  "function_declarations": [
+    {
+      "name": "geocode_address",
+      "description": "Geocode a US street address to longitude/latitude (EPSG:4326) via the keyless U.S. Census geocoder. Advisory, rooftop-or-interpolated, not survey-grade. The app must call the Census endpoint and return coordinates.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {"type": "string", "description": "One-line US street address, e.g. '809 E Amelia St, Orlando FL 32803'."}
+        },
+        "required": ["address"]
+      }
+    },
+    {
+      "name": "historic_district_at_point",
+      "description": "Return which City of Orlando LOCAL historic district (if any) contains the point. If one is returned, exterior work needs a Certificate of Appropriateness (Orlando City Code Ch. 62 sec. 62.200) before a permit. Advisory only; the app calls the City ArcGIS endpoint (server-side point-in-polygon).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "lon": {"type": "number", "description": "Longitude, EPSG:4326."},
+          "lat": {"type": "number", "description": "Latitude, EPSG:4326."}
+        },
+        "required": ["lon", "lat"]
+      }
+    },
+    {
+      "name": "zoning_at_point",
+      "description": "Return the City of Orlando zoning + overlays at the point (e.g. R-2B/T/HP = base district + Traditional City + Historic Preservation). Exact setback numbers are NOT returned (Ch. 58 code, ToS-limited) -- cite the code and verify with the City. Advisory only.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "lon": {"type": "number", "description": "Longitude, EPSG:4326."},
+          "lat": {"type": "number", "description": "Latitude, EPSG:4326."}
+        },
+        "required": ["lon", "lat"]
+      }
+    },
+    {
+      "name": "flood_zone_at_point",
+      "description": "Return the FEMA National Flood Hazard Layer flood zone at the point (e.g. AE, VE, X), nationwide. Advisory only; NOT a substitute for an official FEMA flood determination or the stamped FIRM. The app calls the FEMA endpoint.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "lon": {"type": "number", "description": "Longitude, EPSG:4326."},
+          "lat": {"type": "number", "description": "Latitude, EPSG:4326."}
+        },
+        "required": ["lon", "lat"]
+      }
+    }
+  ]
+}

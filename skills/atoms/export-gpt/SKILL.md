@@ -94,6 +94,12 @@ Track character count throughout. If the instruction exceeds 8,000 characters:
 - Compress voice rules to the top 5 anti-AI patterns.
 - Note truncations in `warnings`.
 
+The REQUIRED first line of every instruction.txt is the packaging stamp:
+`Packaging version: <VERSION> (packaged <YYYY-MM-DD>)`, with `<VERSION>` read from the
+repo `VERSION` file at export time. The wizard's ChatGPT and transitions screens show the
+current version so the user can tell when to re-export and re-upload (re-sync steps:
+`docs/TRANSITIONS.md`).
+
 Write the instruction to `implementation/gpt/web/<gpt_name>/instruction.txt`.
 
 ### Step 3: select knowledge files
@@ -157,3 +163,6 @@ Inherited from `protocols/no-fabrication.md`:
 - Do not claim content is in the instruction if it was moved to a knowledge file.
 - Do not fabricate API endpoints in the Actions schema. Only include real, documented APIs.
 - If a requested spoke does not exist, report it in `warnings` — do not fabricate a SKILL.md.
+
+## Cross-modality
+Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

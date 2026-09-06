@@ -1,0 +1,58 @@
+[
+  {
+    "test_id": "content-library-youtube-import-full",
+    "description": "A YouTube export (Studio CSV + Takeout) builds records with stats, tags, retention, and Studio-CSV revenue; most-watched is derived from retention.",
+    "input": {"platform": "youtube", "export_dir": "/tmp/yt-export", "focus": "import"},
+    "expected_output_keys": ["proposed_records", "human_review_required"],
+    "assertions": [
+      "records carry tags and view stats with provenance",
+      "retention is present and most_watched is derived",
+      "revenue appears only from the Studio CSV",
+      "the importer proposes; nothing is saved automatically"
+    ]
+  },
+  {
+    "test_id": "content-library-instagram-retention-null",
+    "description": "An Instagram export builds records but retention and most-watched are null-flagged, never estimated.",
+    "input": {"platform": "instagram", "export_dir": "/tmp/ig-export", "focus": "import"},
+    "expected_output_keys": ["proposed_records"],
+    "assertions": [
+      "records carry reach/saved stats",
+      "retention is null-flagged",
+      "no most-watched parts are fabricated"
+    ]
+  },
+  {
+    "test_id": "content-library-complete-and-join",
+    "description": "library-complete fills a missing transcript on-device and joins it to the YouTube retention curve so each most-watched moment carries the spoken words.",
+    "input": {"platform": "youtube", "export_dir": "/tmp/yt-export", "focus": "complete"},
+    "expected_output_keys": ["completions"],
+    "assertions": [
+      "a matched media file gets a local STT transcript with provenance",
+      "each most-watched peak carries the words spoken at that timestamp",
+      "audio and transcript stay on the machine"
+    ]
+  },
+  {
+    "test_id": "content-library-no-stt-backend",
+    "description": "With no STT backend installed, the library completes metadata-only and transcripts carry the run_local_stt gap, never a fabricated transcript.",
+    "input": {"platform": "youtube", "export_dir": "/tmp/yt-export", "focus": "complete"},
+    "expected_output_keys": ["completions"],
+    "assertions": [
+      "transcripts are flagged run_local_stt with the per-OS install command",
+      "no transcript text is fabricated",
+      "the metadata library is still built"
+    ]
+  },
+  {
+    "test_id": "content-library-analyze-cited",
+    "description": "Analysis of the completed library cites video_keys and null-flags unavailable data.",
+    "input": {"platform": null, "focus": "analyze"},
+    "expected_output_keys": ["analysis"],
+    "assertions": [
+      "top tags and retention insights cite video_keys",
+      "non-YouTube retention is listed under retention_unavailable",
+      "no figure is fabricated"
+    ]
+  }
+]

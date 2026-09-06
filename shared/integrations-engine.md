@@ -125,6 +125,48 @@ If `captions.list` returns no tracks, return `metadata_only` with
 
 ---
 
+## YouTube Analytics API v2 (own-channel stats + audience retention)
+
+Distinct from the Data API. Host `https://youtubeanalytics.googleapis.com/v2/reports`. Read scope
+`yt-analytics.readonly` (own-channel analytics only; queries use `ids=channel==MINE`). This is the
+source for the creator's OWN performance data and for "which parts were most watched."
+
+### reports.query response envelope
+```json
+{
+  "kind": "youtubeAnalytics#resultTable",
+  "columnHeaders": [{ "name": "...", "columnType": "DIMENSION|METRIC", "dataType": "STRING|INTEGER|FLOAT" }],
+  "rows": [[ ... ]]
+}
+```
+`rows` is omitted entirely when there is no data. Parse by matching `columnHeaders[].name`, never by
+column position.
+
+### Audience retention ("which parts were most watched")
+- Dimension `elapsedVideoTimeRatio` (100 points, 0.01 to 1.0).
+- Metrics `audienceWatchRatio` (absolute watch ratio at that point) and `relativeRetentionPerformance`
+  (0 to 1, vs similar-length videos).
+- Required filter `filters=video==<VIDEO_ID>` (a SINGLE video id; no comma lists). Optional
+  `audienceType==ORGANIC` (values ORGANIC, AD_INSTREAM, AD_INDISPLAY), joined with `;`.
+- Example: `?ids=channel==MINE&startDate=2026-01-01&endDate=2026-07-01&dimensions=elapsedVideoTimeRatio&metrics=audienceWatchRatio,relativeRetentionPerformance&filters=video==VIDEO_ID`.
+
+### Core metrics (per video or channel)
+`views`, `estimatedMinutesWatched`, `averageViewDuration` (seconds), `averageViewPercentage`;
+dimensions for traffic (`insightTrafficSourceType`), demographics (`ageGroup`, `gender` with
+`viewerPercentage`), geography (`country`), device (`deviceType`, `operatingSystem`).
+
+### Revenue is NOT available here for a solo creator
+Estimated-revenue / ad-performance metrics (`estimatedRevenue`, `estimatedAdRevenue`, `grossRevenue`,
+`monetizedPlaybacks`, `playbackBasedCpm`, `cpm`, `adImpressions`) are supported only in **content-owner
+reports** (CMS / multi-channel-network context). They are not returned in channel reports, and the
+`yt-analytics-monetary.readonly` scope does not grant them there. A standalone YouTube Partner Program
+creator gets revenue ONLY from the YouTube Studio manual CSV export (see Owner self-export below).
+Creator OS never constructs a monetary Analytics API request.
+
+Sources: developers.google.com/youtube/analytics/{channel_reports,content_owner_reports,metrics,dimensions,reference/reports/query} (observed 2026-07-12).
+
+---
+
 ## Meta Graph API (Instagram)
 
 **Current version:** v25.0 (released February 18, 2026)
@@ -345,6 +387,69 @@ third-party ASR tool on the video file.
 
 ---
 
+## Pinterest API v5 (own Pin analytics)
+
+Read scopes `pins:read` (+ `user_accounts:read` for the top-pins endpoints). Metric enum names are
+confirmed from Pinterest's own OpenAPI description (`pinterest/api-description`, `v5/openapi.yaml`).
+
+### GET /pins/{pin_id}/analytics
+Query: `start_date`, `end_date` (`YYYY-MM-DD`; `start_date` no more than 90 days back), `metric_types`
+(required; comma-separated), `app_types` (default `ALL`), `split_field` (default `NO_SPLIT`). Response
+is keyed by app type:
+```json
+{"ALL": {
+  "daily_metrics": [{"date": "YYYY-MM-DD", "metrics": {"<METRIC>": <number>}}],
+  "lifetime_metrics": {"TOTAL_COMMENTS": 0, "TOTAL_REACTIONS": 0},
+  "summary_metrics": {"IMPRESSION": 0, "SAVE": 0, "SAVE_RATE": 0.0, "PIN_CLICK": 0,
+                       "OUTBOUND_CLICK": 0, "VIDEO_MRC_VIEW": 0, "VIDEO_AVG_WATCH_TIME": 0,
+                       "VIDEO_V50_WATCH_TIME": 0, "QUARTILE_95_PERCENT_VIEW": 0,
+                       "VIDEO_10S_VIEW": 0, "VIDEO_START": 0}
+}}
+```
+
+### GET /user_account/analytics/top_video_pins
+Query: `start_date`, `end_date`, `sort_by` (required enum), optional `from_claimed_content`
+(`OTHER|CLAIMED|BOTH`), `metric_types`, `num_of_pins`. Response:
+`{"date_availability": {...}, "pins": [{"pin_id": "...", "metrics": {"<METRIC>": <number>}}], "sort_by": <enum>}`.
+
+Video metric meanings (spec-quoted): `VIDEO_MRC_VIEW` = video views; `VIDEO_V50_WATCH_TIME` = total
+play time. There is **no** per-second retention, **no** hashtag/tag analytics, and **no** original
+video-Pin file download via the API.
+
+Sources: developers.pinterest.com/docs/api/v5/{pins-analytics,multi_pins-analytics,user_account-analytics-top_video_pins} (the HTML renders nav-only; values from github.com/pinterest/api-description v5/openapi.yaml, observed 2026-07-12).
+
+---
+
+## Owner self-export (Takeout / Studio CSV / DYI / data-export)
+
+The non-developer path: the creator exports their own data in-account and Creator OS parses the files
+locally (`tools/import_parse.py`). See `shared/content-import-engine.md` for the step-by-step
+playbooks. Key facts the importer relies on:
+
+- **Google Takeout to "YouTube and YouTube Music"**: `video metadata/` (uploaded files + metadata),
+  `playlists/*.csv`, `subscriptions/subscriptions.csv`, history JSON. Data-portability only: **no
+  analytics, views, watch-time, or retention**.
+- **YouTube Studio Analytics, Advanced Mode, Export**: a .zip with `Table data.csv` (one row per
+  video), `Chart data.csv`, `Totals.csv`. Header-driven parse (map by column name, not position). The
+  **only** manual source of revenue columns and the retention report; note the roughly 500-row cap.
+  [NEEDS VERIFICATION: exact header strings and the cap were not confirmable from a rendered
+  first-party page.]
+- **Instagram "Download Your Information" (JSON)**: `posts_*.json` / `reels.json` with `uri`,
+  `creation_timestamp` (epoch seconds), `title`, `media[]`; **no insights, no transcripts**. [NEEDS
+  VERIFICATION: exact filenames vary by export vintage; glob `posts_*.json`/`reels.json` and check both
+  post-root and per-item levels.]
+- **TikTok "Download your data" (JSON/TXT)**: posted-video list + files; retention curve is UI-only and
+  not included. [NEEDS VERIFICATION: key casing, e.g. `Video`>`Videos`>`VideoList[]` with
+  `Date`/`Link`/`Likes` vs API snake_case; parse defensively.]
+
+Transcripts are not in any of these exports; Creator OS completes them with local STT on the
+downloaded files (`shared/transcription-engine.md`). No platform scraping (Terms prohibit unauthorized
+automated collection); operate only on the creator's own account and their own downloaded files.
+
+Sources: support.google.com/accounts/answer/3024190 (Takeout), support.google.com/youtube/answer/9002587 (Studio export), help.instagram.com/181231772500920 (IG DYI), support.tiktok.com data-request (observed 2026-07-12).
+
+---
+
 ## Microsoft OneDrive (Microsoft Graph API)
 
 **Base URL:** `https://graph.microsoft.com/v1.0/`
@@ -465,6 +570,166 @@ contained.
 
 ---
 
+## Content Publishing Endpoints
+
+This section documents the write-side publishing specs used by `schedule-post` and
+`content-distributor`. All publishing requires human confirmation before any connector call.
+`human_review_required: true` must appear in every post output. Agents never publish directly.
+
+### Connector resolution order
+
+When `schedule-post` is invoked, it resolves the active connector in this fixed priority order:
+
+1. **Per-platform direct API** — direct_api tier; platform flags checked in order:
+   `youtube_publishing`, `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing`.
+2. **Manual (`publish-draft`)** — tier: manual; always available; no API credentials required.
+
+The first available tier for each platform wins. Partial connector coverage is normal: some
+platforms may have direct API credentials while others fall back to manual.
+
+### Pinterest API v5
+
+**Base URL:** `https://api.pinterest.com/v5/`
+**Scope:** `pins:write`, `boards:read` (the wizard Connect flow requests exactly these; `boards:write`
+is only needed to create boards, which Creator OS does not do)
+**Rate limits:** Reads 1,000/min; Writes 100/min; Analytics 200/min
+
+**Create and schedule a pin:**
+```
+POST /v5/pins
+{
+  "board_id": "{board_id}",
+  "title": "{pin_title_up_to_100_chars}",
+  "description": "{description_up_to_500_chars}",
+  "link": "{destination_url}",
+  "media_source": {
+    "source_type": "image_url",
+    "url": "{media_url}"
+  },
+  "scheduled_at": "2026-10-01T14:00:00Z"   // ISO 8601; omit for immediate publish
+}
+```
+
+**Video pin workflow:**
+1. `POST /v5/media` — register media and get `media_id`
+2. Upload video to the AWS S3 URL returned in step 1
+3. `POST /v5/pins` with `media_source.source_type: "video_id"` and `media_source.media_id`
+
+**Hashtag behavior (2025 to 2026):** Hashtag follow was removed December 2024. Hashtags now
+function as classification signals for the Pinterest algorithm, not as traffic sources.
+Include 2 to 5 relevant hashtags in the description for algorithm classification. Do not
+promise hashtag-driven traffic. The first 100 characters of the description are weighted
+most heavily for search.
+
+**Publishing safety requirements:**
+- No cross-platform watermarks. TikTok-watermarked video suppresses Pinterest distribution.
+- FTC disclosure must appear in description when `ftc_disclosure` is non-null.
+- Human confirmation required before `POST /v5/pins` is called.
+
+### Instagram Graph API v25.0 (Content Publishing)
+
+Full write-side details are covered in the Meta Graph API section above (two-step
+container+publish flow). Publishing-specific notes for `schedule-post`:
+
+- **Rate limit:** 100 posts per rolling 24-hour window.
+- **FTC disclosure:** Must appear prominently in caption text; prepend `#ad`, `#gifted`, or
+  `#affiliate` before the main caption body if not already present.
+- **Trial Reels:** Pass `trial_params.graduation_strategy=MANUAL` to test with non-followers
+  before committing to full audience distribution. Recommended for new content formats.
+- **Processing time:** After publishing, poll `GET /{container_id}?fields=status_code` until
+  `FINISHED` before calling `post-status` to retrieve the permalink.
+- **Deprecated metrics (v22.0+, April 21, 2025):** `clips_replays_count`, `impressions`,
+  `plays`, `ig_reels_aggregated_all_plays_count`. `post-status` must return null for these
+  fields, not zero.
+
+### TikTok Content Posting API (publishing)
+
+Full endpoint details are covered in the TikTok APIs section above. Publishing-specific notes
+for `schedule-post`:
+
+- **Rate limit:** 6 requests/minute per user token; 5 pending uploads per 24-hour window.
+- **AIGC flag:** `post_info.is_aigc: true` is REQUIRED when `is_aigc: true` in the atom input.
+  This is a TikTok platform requirement, not optional.
+- **Direct scheduling:** TikTok Content Posting API does not support `scheduled_at` natively.
+  The scheduling dashboard background scheduler handles timed dispatch for TikTok posts.
+  Direct API tier posts immediately when dispatched.
+- **No TikTok-watermarked reposts:** Do not repost watermarked TikTok content to other
+  platforms. Always use the source file.
+- **Status check endpoint:** `POST /v2/post/publish/status/fetch/` with `publish_id`.
+
+### YouTube Data API v3 (upload and scheduling)
+
+**Quota cost per upload:** approximately 1,600 units (resumable upload init + status checks).
+**Default daily quota:** 10,000 units — uploading 6 videos per day approaches the limit.
+
+**Video upload (resumable, required for all video uploads):**
+```
+POST https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable
+  Authorization: Bearer {oauth_token}
+  Content-Type: application/json
+  X-Upload-Content-Type: video/mp4
+  X-Upload-Content-Length: {file_size_bytes}
+
+{
+  "snippet": {
+    "title": "{title}",
+    "description": "{description_with_hashtags}",
+    "tags": ["{tag1}", "{tag2}"],
+    "categoryId": "26"   // "Howto & Style" for DIY/home content
+  },
+  "status": {
+    "privacyStatus": "private",       // keep private until scheduled time passes
+    "publishAt": "2026-09-10T17:00:00Z",  // ISO 8601 — YouTube auto-publishes at this time
+    "selfDeclaredMadeForKids": false
+  }
+}
+```
+Returns: `{ "id": "{video_id}" }` + upload URL in `Location` header.
+
+**YouTube Shorts identification (no dedicated API endpoint):**
+Shorts are identified heuristically: `contentDetails.duration` ≤ 60 seconds + `#Shorts` in
+title or description + 9:16 aspect ratio. There is no `publishAt` difference between Shorts
+and long-form.
+
+**Status check:** `GET /videos?id={video_id}&part=status` — `status.uploadStatus` transitions:
+`uploaded` → `processed` → (then `privacyStatus` changes to `public` at `publishAt`).
+
+### Safety requirements for all publishing
+
+- **Human confirmation:** Present the full confirmation table before any connector call.
+  Never auto-publish. `human_review_required: true` always.
+- **FTC disclosures:** Verify or prepend disclosures before connector call, not after.
+- **AIGC flags:** Set TikTok `is_aigc` flag before upload, not as a post-publish edit.
+- **Watermarks:** Never publish TikTok-watermarked content to Instagram or Pinterest.
+  Never publish Instagram-watermarked content to TikTok or Pinterest.
+- **No fabricated IDs:** `post_id` and `permalink` are returned by the connector, never
+  invented. If the connector returns no ID, `post_id: null`.
+
+### Publishing OAuth (loopback Connect flow, P51)
+
+Tokens are obtained in the setup wizard by a loopback OAuth flow (`tools/oauth_flow.py`); the wizard
+listens at `http://127.0.0.1:8765/oauth/<platform>/callback`, verifies a single-use `state`
+(RFC 6749 §10.12), exchanges the code, and stores the token under `creds[<platform>].publish` so it
+never clobbers the importer's read token. Live clients live in `tools/publishing/` and refresh via
+`oauth_flow.get_valid_access_token`. Per-platform reality (see `docs/PUBLISHING.md`):
+
+- **YouTube** — Google loopback OAuth, `youtube.upload` (PKCE S256 base64url). No website-free
+  Production path: keep the app in Testing, add yourself as a Test user, expect ~7-day re-auth.
+  Resumable upload defaults to `private`; the upload path never touches a monetary/analytics endpoint.
+- **TikTok** — Login Kit OAuth (**PKCE S256 hex**, not base64url; refresh token **rotates** — persist
+  it). Query `creator_info` first and refuse any privacy level the (possibly unaudited) app cannot use,
+  defaulting to `SELF_ONLY`. `FILE_UPLOAD` sends local bytes; `is_aigc` set before upload.
+- **Pinterest** — confidential OAuth (no PKCE, HTTP Basic token auth), fixed registered redirect port.
+  Image Pins upload base64 (no public URL). Trial access = sandbox Pins visible only to the creator.
+- **Instagram** — OAuth then short→long-lived (60-day) token; publish is container→poll→media_publish.
+  Two hard walls surfaced, never faked: media must be at a **public https URL** (no local upload), and
+  a professional account is required (App Review to post for others). Loopback redirect acceptance is
+  unverified, so a manual paste-the-code fallback is offered.
+
+Live network posting stays behind `live_publishing_enabled` (default off) plus human confirmation.
+
+---
+
 ## Deprecated and discontinued services
 
 **Play.ht:** Play.ht (AI voice generation service) was acquired by Meta in July 2025 and
@@ -472,3 +737,29 @@ fully shut down on December 31, 2025. Any workflow, skill, or documentation refe
 Play.ht as an active integration is outdated. Do not attempt to call Play.ht endpoints.
 If voice generation is needed, surface `needs_more_info: voice_service_unavailable` and
 request a replacement service decision from the creator.
+
+## Task store adapter (P35): Google Drive + Sheets, read and write
+
+The task tracker (`shared/tasks-engine.md`) stores its register through a pluggable adapter in
+`tools/tasks.py` (`load_register`/`save_register`, backends `local_fs | google_drive | remote_mcp`). The <!-- verify: tools/tasks.py::load_register --> <!-- verify: tools/tasks.py::save_register -->
+`google_drive` backend is what makes tasks continuous across Claude web, desktop, and mobile without any
+server to host, because Google Drive is the one substrate all of those surfaces reach natively and it is
+**read and write** (Claude can save files back to Drive).
+
+- **Canonical store:** one JSON file (the same schema as `task-register.template.json`) in the creator's
+  Google Drive. `save_register(..., backend="google_drive")` returns `canonical_json`; the host's native
+  Drive connector writes it to the file. `load_register(backend="google_drive", blob=...)` deserializes the
+  file contents the host read back. We build no Google API auth here (the connector doctrine above); the host
+  performs the I/O.
+- **Human-readable mirror:** `register_to_sheet_rows(register)` projects the register to a Google Sheets
+  mirror (one header row plus one row per task) for at-a-glance viewing and row-level edits. The Sheet is a
+  regenerated projection, never the source of truth.
+- **Concurrency safety:** because the task history is an append-only event log, two surfaces editing the same
+  Drive store are reconciled by `reconcile()` (union of events, then re-fold), not last-writer-wins clobber.
+- **Provider-neutral exports:** the `.ics` calendar (`register_to_ics`), a portable JSON/CSV, and the Sheet
+  make the same data usable in Google/Apple Calendar and in other AI systems (Gemini reads Drive natively;
+  ChatGPT via an app/Drive), so the tracker is not locked to one vendor.
+
+Enable it by connecting the native Google Drive connector and setting `task_store_backend: "google_drive"`
+in `creator-os-config.local.json`. The `local_fs` backend remains the full-fidelity Claude Desktop mode; the
+`remote_mcp` backend (a hosted endpoint) is the cross-AI option.

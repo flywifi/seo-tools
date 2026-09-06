@@ -1,0 +1,84 @@
+[
+  {
+    "_comment": "P36 compliance monitors. Load: python3 tools/source_currency.py seed-sources canonical-sources/compliance-sources-seed.json. The eCFR Versioner API is the gold-standard token-free signal (hash the part XML). Government primary sources are public domain (cache freely); model building codes (ICC/NFPA) are copyrighted -> cache the ADOPTION FACT/DATE only, never the code text. Note: FTC Part 255 is unchanged since 2023-07-26; the 2024 action is the separate Part 465.",
+    "id": "ftc-ecfr-16-cfr-465",
+    "name": "FTC Consumer Reviews & Testimonials rule, eCFR 16 CFR Part 465",
+    "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-D/part-465",
+    "category": "legal-authority",
+    "tier": "T1",
+    "check_url": "https://www.ecfr.gov/api/versioner/v1/full/current/title-16.xml?part=465",
+    "extraction_hint": "the real 2024 legislative rule (effective 2024-10-21): bans fake/AI-generated reviews, undisclosed insider reviews, review suppression; sha256 the Versioner part XML",
+    "_signal": "ecfr-api",
+    "used_by": ["shared/contract-engine.md", "legal-requirement-check", "safety"]
+  },
+  {
+    "id": "ftc-press-release-feed",
+    "name": "FTC press releases (RSS)",
+    "url": "https://www.ftc.gov/feeds/press-release.xml",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "the primary FTC change signal; filter items for endorsement/reviews/AI/influencer; announces new AI-endorsement actions",
+    "_signal": "rss",
+    "used_by": ["shared/contract-engine.md", "legal-requirement-check"]
+  },
+  {
+    "id": "federal-register-ftc-api",
+    "name": "Federal Register API (FTC endorsement/reviews rulemaking)",
+    "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bagencies%5D%5B%5D=federal-trade-commission&conditions%5Bcfr%5D%5Btitle%5D=16&order=newest",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "JSON, no key; newest document_number for CFR title 16 FTC actions on Part 255/465",
+    "_signal": "json",
+    "used_by": ["shared/contract-engine.md", "legal-requirement-check"]
+  },
+  {
+    "id": "us-copyright-fedreg-rss",
+    "name": "US Copyright Office Federal Register notices (RSS)",
+    "url": "http://www.loc.gov/rss/copyright/fedreg.xml",
+    "category": "legal-authority",
+    "tier": "T2",
+    "extraction_hint": "USCO rule changes incl. the Copyright-and-AI report series; public domain, free to poll",
+    "_signal": "rss",
+    "used_by": ["shared/contract-engine.md", "no-fabrication"]
+  },
+  {
+    "id": "ny-synthetic-performer-law",
+    "name": "New York synthetic-performer ad disclosure law (S8420)",
+    "url": "https://www.nysenate.gov/legislation/bills/2025/S8420",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "first-in-nation ad rule (effective 2026-06-09): conspicuous disclosure when an ad uses a synthetic performer; hash the bill status page or use the NY Senate JSON API",
+    "_signal": "sha256",
+    "used_by": ["shared/contract-engine.md", "publishing_compliance", "legal-requirement-check"]
+  },
+  {
+    "id": "ca-ai-transparency-sb942",
+    "name": "California AI Transparency Act (SB 942, amended by AB 853)",
+    "url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB942",
+    "category": "legal-authority",
+    "tier": "T1",
+    "extraction_hint": "provenance/disclosure duties for large GenAI providers; effective 2026-08-02 (delayed by AB 853); watch for further amending bills",
+    "_signal": "sha256",
+    "used_by": ["shared/contract-engine.md", "publishing_compliance"]
+  },
+  {
+    "id": "doe-iecc-state-certifications",
+    "name": "DOE Building Energy Codes state certifications (IECC)",
+    "url": "https://www.energycodes.gov/state-status/state-certifications",
+    "category": "building-code",
+    "tier": "T1",
+    "extraction_hint": "DOE 2024 IECC determination; residential certification deadline 2026-12-30; cache adoption status/dates (facts), never the IECC text",
+    "_signal": "sha256",
+    "used_by": ["construction/edition-status.json", "shared/construction-engine.md", "code-lookup"]
+  },
+  {
+    "id": "icc-code-adoption-map",
+    "name": "ICC I-Code adoption maps (PDF)",
+    "url": "https://www.iccsafe.org/wp-content/uploads/Code_Adoption_Maps.pdf",
+    "category": "building-code",
+    "tier": "T2",
+    "extraction_hint": "state-by-state adopted I-Code editions; sha256 the PDF bytes; store the adoption FACT only (ICC text is copyrighted, no scraping)",
+    "_signal": "sha256",
+    "used_by": ["construction/edition-status.json", "shared/construction-engine.md"]
+  }
+]

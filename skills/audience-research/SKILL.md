@@ -9,7 +9,7 @@ load: always
 
 Content lane spoke that transforms raw audience signals (comments, analytics exports, platform data)
 into a verified persona profile and actionable audience insights for the creator's
-moody-vintage home decor and DIY channel.
+home decor and DIY channel.
 
 ## Purpose
 
@@ -142,9 +142,13 @@ Key output guarantees:
    Acquisition level starts at Level 2 and falls through per the web-intel escalation rules.
 3. persona-map: maps ingested content and observed themes to the five-persona model; returns primary
    and secondary personas per topic cluster surfaced in the data.
-4. gap-record: called for every field or retrieval path that returns no usable data. Produces an
+4. product-fit: conditional, when the request asks whether a specific pitched product fits the
+   audience; scores the product against every persona with pain-point-tied reasoning, checks pillar
+   alignment, seasonal timing, and stored exclusivity conflicts, and returns a structured verdict
+   with a mandatory `data_basis` flag (niche defaults versus measured audience data).
+5. gap-record: called for every field or retrieval path that returns no usable data. Produces an
    explicit gap object rather than a silent blank.
-5. govern-artifact: gates the completed audience profile through quality-review before it is
+6. govern-artifact: gates the completed audience profile through quality-review before it is
    returned to the user or a downstream spoke.
 
 ## Engines required
@@ -171,5 +175,12 @@ Key output guarantees:
   competitor-analysis for competitor channel profiling.
 - Producing final editorial decisions. Outputs are research inputs requiring human review before
   any publishing action.
-- Any audience outside the creator's moody-vintage home decor and DIY channel. These persona
+- Any audience outside the creator's home decor and DIY channel. These persona
   definitions and signal thresholds are calibrated for that specific niche and creator.
+
+## Cross-modality
+Class: B.
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Mechanism: Reasoning over supplied channel data or the scoop cache personas/audience data (canonical-sources); composes ingest-route + persona-map; no compute tool beyond the shared gate.
+Fallback: Off a runtime, the persona/audience data can be pasted or provided as knowledge; degrade to reasoning over supplied inputs and flag its as_of. Never invent audience data. On ChatGPT this runs knowledge-only from the pasted pack; the desktop app can reach live data via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
+See `shared/cross-modality-engine.md`.

@@ -82,7 +82,7 @@ come from `shared/brand-engine.md`. No fabrication under any circumstance; see
 
 **channel_overview**
 Introduce the creator, her channel, its aesthetic (moody, vintage, collected-over-time), and her primary
-content niche (moody vintage home decor and DIY). Draw identity language from `shared/brand-engine.md`.
+content niche (home decor and DIY). Draw identity language from `shared/brand-engine.md`.
 Subscriber count and average views are real data only; emit null and flag if not supplied.
 
 **audience_demo**
@@ -131,3 +131,6 @@ Include a note that final rates are quoted individually based on deliverable sco
 - `protocols/no-fabrication.md` -- hard rule; no invented figures under any circumstance
 - `canonical-sources/rate-benchmarks/benchmarks.json` -- industry benchmark ranges (benchmark tier
   only, always labeled)
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

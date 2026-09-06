@@ -86,7 +86,7 @@ def evaluate(ref, hyp):
     }
 
 
-def main(argv):
+def _main(argv):
     ap = argparse.ArgumentParser(description="Creator OS offline WER/CER validator")
     ap.add_argument("--ref", required=True, help="reference text or file path")
     ap.add_argument("--hyp", required=True, help="hypothesis text or file path")
@@ -101,6 +101,17 @@ def main(argv):
               f"({result['ref_words']} ref words, edits={result['word_edits']})")
     return 0
 
+
+def main(argv):
+    """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
+    example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    try:
+        return _main(argv)
+    except OSError as exc:
+        print(json.dumps({"error": str(exc),
+                          "next_step": "pass a readable file path (this one could not be opened)"}))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

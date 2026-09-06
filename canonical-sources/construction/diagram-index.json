@@ -1,0 +1,97 @@
+[
+  {
+    "id": "stair-geometry",
+    "title": "Stair geometry diagram",
+    "text": "stair geometry diagram: side profile showing maximum riser 7 3/4 in, minimum tread 10 in, headroom 6 ft 8 in, and handrail height 34 to 38 in (IRC R311.7).",
+    "topic": "stairs",
+    "description": "Side profile of a residential stair with riser, tread, headroom, and handrail dimensions.",
+    "source_url": "canonical-sources/construction/diagrams/stair-geometry.svg",
+    "license": "CC0",
+    "local_path": "canonical-sources/construction/diagrams/stair-geometry.svg",
+    "attribution": "Original Creator OS drawing (CC0)."
+  },
+  {
+    "id": "deck-ledger",
+    "title": "Deck ledger attachment diagram",
+    "text": "deck ledger attachment diagram: cross-section of a ledger fastened to the house band joist with staggered lag bolts and flashing shedding over the ledger (IRC R507.9).",
+    "topic": "decks",
+    "description": "Cross-section of a deck ledger with staggered fasteners, flashing, joist hanger, and a lateral-load note.",
+    "source_url": "canonical-sources/construction/diagrams/deck-ledger.svg",
+    "license": "CC0",
+    "local_path": "canonical-sources/construction/diagrams/deck-ledger.svg",
+    "attribution": "Original Creator OS drawing (CC0)."
+  },
+  {
+    "id": "egress-opening",
+    "title": "Egress opening diagram",
+    "text": "egress opening diagram: net clear opening with minimum width 20 in, minimum height 24 in, 5.7 sq ft area, and maximum sill 44 in (IRC R310).",
+    "topic": "egress",
+    "description": "An egress window showing the net clear opening minimums and maximum sill height.",
+    "source_url": "canonical-sources/construction/diagrams/egress-opening.svg",
+    "license": "CC0",
+    "local_path": "canonical-sources/construction/diagrams/egress-opening.svg",
+    "attribution": "Original Creator OS drawing (CC0)."
+  },
+  {
+    "id": "wall-framing-layout",
+    "title": "Wall framing layout diagram",
+    "text": "wall framing layout diagram: elevation with studs 16 in on center, double top plate, bottom plate, and a header on king and jack studs (IRC R602).",
+    "topic": "framing",
+    "description": "Elevation of a framed wall with studs at 16 in on center, plates, and a header over an opening.",
+    "source_url": "canonical-sources/construction/diagrams/wall-framing-layout.svg",
+    "license": "CC0",
+    "local_path": "canonical-sources/construction/diagrams/wall-framing-layout.svg",
+    "attribution": "Original Creator OS drawing (CC0)."
+  },
+  {
+    "id": "rvalue-zone-map",
+    "title": "R-value by climate zone diagram (FL and NC)",
+    "text": "R-value by climate zone diagram: Florida zones 1 to 2 and North Carolina zones 3A to 5A with prescriptive ceiling and wall R-value ranges.",
+    "topic": "insulation",
+    "description": "Schematic of FL and NC climate zones with prescriptive ceiling, wall, and floor R-value ranges.",
+    "source_url": "canonical-sources/construction/diagrams/rvalue-zone-map.svg",
+    "license": "CC0",
+    "local_path": "canonical-sources/construction/diagrams/rvalue-zone-map.svg",
+    "attribution": "Original Creator OS drawing (CC0); values from the public-domain DOE Building America restatement."
+  },
+  {
+    "id": "basc-guide-diagrams",
+    "title": "DOE Building America Solution Center guide diagrams (public domain)",
+    "topic": "reference",
+    "description": "Public-domain step-by-step trade diagrams (insulation, air sealing, foundations, roofs, ducts). Downloadable into the local library by tools/construction_fetch.py; per-image credit lines mark any third-party image.",
+    "source_url": "https://basc.pnnl.gov/resource-guides",
+    "license": "public-domain",
+    "local_path": null,
+    "attribution": "U.S. DOE / PNNL Building America Solution Center (public domain); check each image caption for a third-party credit."
+  },
+  {
+    "id": "awc-dca6-figures",
+    "title": "AWC DCA6 deck figures (link only, copyrighted)",
+    "topic": "decks",
+    "description": "Authoritative deck detail figures and span tables in the AWC DCA6 guide. Copyrighted: linked, never reproduced or committed.",
+    "source_url": "https://awc.org/wp-content/uploads/2022/02/AWC-DCA62015-DeckGuide-1804.pdf",
+    "license": "cite-only",
+    "local_path": null,
+    "attribution": "American Wood Council DCA6 (copyrighted); reference by figure, do not reproduce."
+  },
+  {
+    "id": "icc-irc-figures",
+    "title": "ICC IRC figures (link only, copyrighted)",
+    "topic": "reference",
+    "description": "Figures within the International Residential Code. Copyrighted: linked to the free viewer, never reproduced or committed.",
+    "source_url": "https://codes.iccsafe.org/content/IRC2021P1",
+    "license": "cite-only",
+    "local_path": null,
+    "attribution": "International Code Council (copyrighted); cite by figure number, read in the free viewer."
+  },
+  {
+    "id": "wikimedia-construction-details",
+    "title": "Wikimedia Commons construction details (per-file CC/PD)",
+    "topic": "reference",
+    "description": "Construction detail images on Wikimedia Commons. Reusable per-file only after recording the exact license and attribution here before bundling.",
+    "source_url": "https://commons.wikimedia.org/wiki/Category:Construction_details",
+    "license": "per-file-cc-or-pd",
+    "local_path": null,
+    "attribution": "Per Wikimedia Commons file page; record the license and author before use."
+  }
+]

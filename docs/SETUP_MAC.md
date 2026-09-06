@@ -14,7 +14,7 @@ and Playwright auto-downloads the arm64 Chromium binary. No Rosetta required.
 3. Open `implementation/claude/project/system-prompt.md`, copy the full text, paste it into the
    Project Instructions field, and save.
 4. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`.
-5. Start a conversation: "Plan a dark moody fall mantel makeover video."
+5. Start a conversation: "Plan a seasonal home decor project makeover video."
 
 See `docs/DEPLOYMENT.md` Option B for the full walkthrough. No Homebrew, no Python, no git needed.
 
@@ -25,9 +25,19 @@ See `docs/DEPLOYMENT.md` Option B for the full walkthrough. No Homebrew, no Pyth
 This enables the competitor intelligence extraction, offline keyword cache, source staleness
 detection, and deterministic quality scoring via the MCP server.
 
+### Which macOS you need
+
+Creator OS needs **Python 3.12** (`tools/setup.py` enforces that floor; numpy 2.5 dropped 3.11, and
+DaVinci Resolve's scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on), and it
+does not check your macOS version. The practical floor comes from **Homebrew**, whose documentation
+states it supports **macOS Sonoma (14) or later** on officially supported hardware; 10.15 to 13 are
+unsupported but may still work, and 10.14 and older will not run it. So on macOS 13 or earlier, expect
+the Homebrew steps below to be unsupported-tier or to fail, and prefer the notarized python.org
+universal2 `.pkg`, which needs no Homebrew at all. This guide targets macOS 26 (Tahoe) and 15 (Sequoia).
+
 ### Step 1 -- Install Homebrew
 
-If not already installed:
+If not already installed (see the version note above):
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -40,21 +50,22 @@ echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv)"
 ```
 
-### Step 2 -- Install Python 3.11 and Git
+### Step 2 -- Install Python and Git
 
 ```bash
-brew install python@3.11 git
+brew install python@3.12 git
 ```
 
 Verify:
 
 ```bash
-python3 --version   # should show 3.11.x or later
+python3 --version   # should show 3.12.x (3.13 is not recommended: DaVinci Resolve's scripting bridge caps at 3.12)
 git --version
 ```
 
-If `python3` still points to the system Python (3.9 on older macOS), use the full path:
-`/opt/homebrew/bin/python3`.
+If `python3` still points to Apple's stock interpreter, use the full path:
+`/opt/homebrew/bin/python3`. (Apple's `/usr/bin/python3` is described by the Python docs as an older,
+incomplete build shipped for Xcode's own use; never modify or remove it, just do not build on it.)
 
 ### Step 3 -- Clone the repository
 
@@ -102,7 +113,7 @@ python3 -m playwright install chromium   # downloads arm64 Chromium (~170 MB, on
 pip3 install -r requirements-mcp.txt
 ```
 
-Smoke test (should return 8 tool definitions):
+Smoke test (should return 60 tool definitions):
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
@@ -170,13 +181,161 @@ python3 shared/cache/cache.py --build   # only if canonical-sources/ changed
 
 ---
 
+## The Google Drive hub + overnight compute (optional, P60)
+
+To let this Mac pick up jobs queued from any Claude surface (web, phone, Cowork) and run them
+locally (transcription, library analysis, import previews, finance reports):
+
+1. Install **Google Drive for desktop** (google.com/drive/download) and sign in.
+2. Create the hub folder in My Drive (the wizard's `/drive-hub` screen walks you through it) and
+   prefer **mirror** mode for that folder so it is always fully on disk. Streaming mode (the
+   macOS File Provider mount under `~/Library/CloudStorage/`) also works, but a large queued media
+   file must download before a job can start.
+3. On the wizard `/drive-hub` screen, point Creator OS at the synced folder (it is usually
+   detected automatically), then turn the hand-off on at `/compute`.
+4. Schedule the watcher with the ready-made cron or launchd snippet in
+   `tools/freshness-scheduler.example` ("compute hand-off watcher" section).
+
+The Mac must be **awake** for a pass to run; queued jobs simply wait otherwise. For an overnight
+batch, `caffeinate -s` in a Terminal window, or System Settings, then Energy Saver, and a wake
+schedule, keeps it available. Only allowlisted read/compute jobs can run; nothing posts, publishes,
+or reads credentials from a job, and every result waits for your review (`docs/DRIVE-HUB.md`).
+
+---
+
+## Local transcription / STT import (content-library)
+
+To import your OWN past videos and have Creator OS transcribe them on this computer (zero cloud, zero
+tokens; see `docs/CONTENT-IMPORT.md`), install a speech-to-text engine. Nothing here is required: with
+no engine the library is built metadata-only and each transcript is flagged as needing an engine, never
+faked.
+
+### Apple Silicon (M1 to M4) and Intel Macs
+
+The recommended engine is **whisper.cpp** (uses the Mac's Metal GPU on Apple Silicon):
+
+```bash
+brew install whisper-cpp ffmpeg
+```
+
+Homebrew bottles are notarized, so there is no Gatekeeper "unidentified developer" prompt. Download a
+model file once (a `ggml-<tier>.bin` from the whisper.cpp repository; tier by RAM: 8GB small, 16GB
+medium/turbo, 32GB large-v3) and point Creator OS at it:
+
+```bash
+export WHISPER_CPP_MODEL=/path/to/ggml-small.bin
+```
+
+Prefer Python instead? Use **faster-whisper**, which needs **no** system ffmpeg (it bundles PyAV):
+
+```bash
+brew install python@3.12 && pip3 install faster-whisper
+```
+
+### macOS notes that trip people up
+
+- **`git clone`, don't Download-ZIP.** Files created by `git clone` are not quarantined and the
+  `Start Creator OS Setup.command` launcher just runs. A downloaded `.zip`, unzipped in Finder,
+  quarantines the launcher and Gatekeeper blocks the first double-click.
+- **Clearing a Gatekeeper block (the current flow).** Open System Settings &rarr; Privacy &amp;
+  Security, scroll to the Security section, click **Open Anyway**, and confirm with your admin
+  password. **Right-click &rarr; Open no longer works** &mdash; that shortcut was removed in macOS 15
+  Sequoia and is still gone in the current **macOS 26 (Tahoe)**.
+- macOS ships **no usable `python3`** (the built-in one is a stub that pops the "command line
+  developer tools" dialog). Install it via the notarized **python.org universal2 `.pkg`** (no
+  Gatekeeper prompt, Tk bundled) or Homebrew (`brew install python@3.12`). The setup wizard installs
+  Python dependencies into a private `.venv` toolbox, which sidesteps Homebrew Python's PEP 668
+  install lock.
+- A **downloaded static ffmpeg** hits `com.apple.quarantine` ("cannot be opened because the developer
+  cannot be verified"). Clear it with `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or Open Anyway
+  as above. `brew install ffmpeg` (a notarized bottle) avoids quarantine entirely.
+- faster-whisper needs no system ffmpeg, so it is the escape hatch when a user cannot get a downloaded
+  ffmpeg past Gatekeeper.
+- **Local setup runs on this computer only.** The wizard, the folder import, transcription, and the
+  publishing OAuth loopback need Claude **Desktop** or **Claude Code** on this Mac. Claude in a browser
+  (claude.ai) and a remote Cowork session cannot reach your local files or `localhost` services.
+- **Dated context (as of 2026-08):** Homebrew's 5.0.0 announcement says casks that fail Gatekeeper
+  are disabled from **September 2026** (the post states the month, not a specific day, and hedges
+  the related changes as "September or later"). The same announcement moves **Intel to Tier 3 from
+  September 2026 and stops building new Intel bottles**, so on an Intel Mac expect `ffmpeg` and
+  `whisper-cpp` to build from source rather than install prebuilt. Separately, **macOS 27**
+  (expected fall 2026) drops Intel support, so Tahoe 26 is the last Intel release; that is a later
+  and independent cutoff from the Homebrew tier change.
+
+### The guided doctor (recommended for non-technical users)
+
+Instead of running the steps by hand, run the doctor. It checks your computer, finds (or explains how
+to install) an engine, and downloads a verified model for you:
+
+```bash
+python3 tools/transcribe.py doctor                     # green / amber / red verdict + the next command
+python3 tools/transcribe.py doctor --fetch-model base.en   # download + checksum-verify one model
+```
+
+The download is verified against a known SHA256 (from `canonical-sources/whisper-models.json`); a
+corrupt download is deleted rather than used. Models land in `~/.creator-os/whisper-models/` (override
+with `WHISPER_MODEL_DIR`). The setup wizard exposes the same flow at `python3 tools/wizard.py` -> **Check
+my setup** (`/doctor`), with one-click model downloads.
+
+Verify what was found:
+
+```bash
+python3 tools/transcribe.py status          # backend + selection for this machine
+python3 tools/videoedit/preflight.py        # transcribe_media lane + probes
+```
+
+### Windows (second priority)
+
+Non-technical Windows path uses **faster-whisper** (no separate model step, no system ffmpeg):
+
+1. Install Python from python.org. The installer trips **SmartScreen** ("Windows protected your PC") --
+   click **More info -> Run anyway** (the installer is signed by the Python Software Foundation). During
+   install, check **"Add python.exe to PATH."**
+2. `pip install faster-whisper`. On first transcription it downloads its model automatically to
+   `%USERPROFILE%\.cache\huggingface\hub`. A CPU runs it out of the box; an NVIDIA GPU additionally needs
+   cuBLAS + cuDNN 9 for CUDA 12.
+3. Prefer whisper.cpp? Download `whisper-bin-x64.zip` from the whisper.cpp GitHub releases, extract it,
+   and add the folder to PATH (the binary is `whisper-cli.exe`); then fetch a model with the doctor.
+
+The doctor gives the machine-correct command on Windows too.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `python3: command not found` | `brew install python@3.11` then add `/opt/homebrew/bin` to PATH |
+| `whisper.cpp needs a GGML model file` | Download a `ggml-<tier>.bin` and set `WHISPER_CPP_MODEL` to its path |
+| ffmpeg "cannot be opened, developer cannot be verified" | `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or use faster-whisper (no ffmpeg needed) |
+| No STT backend found on the Import screen | `brew install whisper-cpp ffmpeg` (Apple Silicon) or `pip3 install faster-whisper` |
+| `python3: command not found` | `brew install python@3.12` then add `/opt/homebrew/bin` to PATH |
 | `pip3: command not found` | Use `/opt/homebrew/bin/pip3` or `python3 -m pip` |
 | `playwright install` hangs | Check network; retry with `python3 -m playwright install chromium --force` |
 | `drift guard` reports issues after `git pull` | Run `python3 tools/sync_check.py` and read the report |
 | MCP tools not appearing in Claude Desktop | Restart Claude Desktop; check that the path in `claude_desktop_config.json` is absolute |
-| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.11` then use `/opt/homebrew/bin/python3` |
+| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.12` then use `/opt/homebrew/bin/python3` |
+
+---
+
+## Declared sources (maintainers)
+
+The macOS facts this guide states (Gatekeeper/Open Anyway flow, Rosetta, Tahoe 26, Intel support,
+python.org installers, Homebrew, connectors) are tracked for staleness by the currency system. Every id
+below must exist in `canonical-sources/source-registry.json` with the same URL (drift-guard invariant
+52); run `python3 tools/source_sync.py check` after editing this block.
+
+```sources
+[
+  {"id": "apple-gatekeeper-runtime", "url": "https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web"},
+  {"id": "apple-open-anyway-flow", "url": "https://support.apple.com/en-us/102445"},
+  {"id": "apple-gatekeeper-sequoia-change", "url": "https://developer.apple.com/news/?id=saqachfa"},
+  {"id": "apple-tcc-file-access", "url": "https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web"},
+  {"id": "apple-rosetta", "url": "https://support.apple.com/en-us/102527"},
+  {"id": "apple-macos-tahoe-updates", "url": "https://support.apple.com/en-us/122868"},
+  {"id": "apple-macos-intel-support", "url": "https://support.apple.com/en-us/122867"},
+  {"id": "python-macos-downloads", "url": "https://www.python.org/downloads/macos/"},
+  {"id": "homebrew-installation", "url": "https://docs.brew.sh/Installation"},
+  {"id": "homebrew-formula-ffmpeg", "url": "https://formulae.brew.sh/formula/ffmpeg"},
+  {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"}
+]
+```

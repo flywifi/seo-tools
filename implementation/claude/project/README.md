@@ -5,7 +5,7 @@ No terminal. No downloads. Works on the claude.ai web app and mobile app.
 ## What you get
 
 - Full hub routing across all three lanes (Content, Document, Pipeline/CRM)
-- All 14 spokes: video development, SEO keywords, project builder, competitor analysis,
+- All 22 spokes: video development, SEO keywords, project builder, competitor analysis,
   shortform repurposing, seasonal trends, audience research, analytics insights, document studio,
   account manager, deal pipeline, deal resourcing, partnership mediakit, quality review
 - Voice rules enforced on all output (no em dashes, no generic AI phrasing, object-first openings)
@@ -67,7 +67,7 @@ and notes what the upgrade path is.
 
 Start a new conversation inside the project and try:
 
-> Plan a dark moody fall mantel makeover video.
+> Plan a seasonal home decor project makeover video.
 
 You should see the hub classify your request as Content lane, route to
 video-development, and produce a structured output with hooks, title options,

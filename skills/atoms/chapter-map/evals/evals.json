@@ -1,0 +1,23 @@
+[
+  {
+    "id": "chapter-map-compliant",
+    "description": "Three well-spaced chapters produce correct timestamps and the geo-optimize outline shape.",
+    "input": {"source": {"chapters": [{"start_seconds": 0, "title": "Intro"}, {"start_seconds": 75, "title": "First coat"}, {"start_seconds": 210, "title": "Distressing"}]}},
+    "expect": ["youtube_description_timestamps starts with '0:00 Intro'", "uses M:SS format (1:15, 3:30)", "chapter_outline items have timestamp_seconds + chapter_topic", "gaps == []"],
+    "prohibit": ["fabricated chapters", "em dashes", "auto-renumbered timestamps"]
+  },
+  {
+    "id": "chapter-map-flags",
+    "description": "First-not-zero, fewer than 3, and a sub-10s gap are all flagged, not fixed.",
+    "input": {"source": {"chapters": [{"start_seconds": 5, "title": "A"}, {"start_seconds": 12, "title": "B"}]}},
+    "expect": ["gaps include first_not_zero", "gaps include too_few_chapters", "gaps include chapter_too_short", "artifacts still emitted"],
+    "prohibit": ["silently shifting first chapter to 0:00", "inventing a third chapter", "dropping chapters"]
+  },
+  {
+    "id": "chapter-map-empty",
+    "description": "No chapters returns empty artifacts and a no_chapters gap.",
+    "input": {"source": {"chapters": []}},
+    "expect": ["chapter_count == 0", "gaps include no_chapters"],
+    "prohibit": ["fabricated chapters", "em dashes"]
+  }
+]

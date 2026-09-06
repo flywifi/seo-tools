@@ -1,12 +1,12 @@
 [
   {
     "id": "hashtagset-001",
-    "description": "Happy path: full-input Instagram hashtag set for a moody-vintage thrift flip post",
+    "description": "Happy path: full-input Instagram hashtag set for a home decor thrift flip post",
     "input": {
       "topic": "Painting a thrifted dresser in dark green velvet finish",
       "platform": "instagram",
       "pillar": "DIY tutorial",
-      "aesthetic": "moody-vintage"
+      "aesthetic": "home decor"
     },
     "expect": {
       "tool": "hashtag-set",

@@ -57,7 +57,7 @@
       "name": "ab_test_routing",
       "description": "User asks to design a thumbnail A/B test. Should route to ab-test atom.",
       "input": {
-        "user_message": "Design a thumbnail A/B test for my next video. I want to compare a dark moody thumbnail vs. a bright one.",
+        "user_message": "Design a thumbnail A/B test for my next video. I want to compare a stylized thumbnail vs. a bright one.",
         "data_provided": false,
         "mcp_tool_connected": true
       },

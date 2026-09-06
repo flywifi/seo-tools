@@ -1,0 +1,31 @@
+{
+  "_comment": "Committed null schema for milestone payment schedules (P35), keyed by deal_id + contract_ref. Real schedules live in pipeline/user-context/payment-schedule.local.json (gitignored). A milestone becomes billable when its trigger event lands in the task event log; tools/tasks.py then emits a citation-carrying billable task into the finance lane (tools/finance.py), which drafts the invoice. Nothing is sent without human confirmation (finance_management + invoice_generation gates). Amounts stay null until a real figure is provided (never invented).",
+  "_boundary": "ORGANIZATIONAL TRACKING, NOT FINANCIAL OR TAX ADVICE. Confirm amounts and timing against the signed contract and review with a CPA before billing.",
+  "schema_version": "0.1.0",
+  "deal_id": null,
+  "contract_ref": null,
+  "currency": null,
+  "payment_model": "deposit_plus_milestone | milestone | retainer",
+  "net_terms_days": null,
+  "milestones": [
+    {
+      "milestone_id": null,
+      "label": null,
+      "amount": null,
+      "pct_of_total": null,
+      "trigger": {
+        "type": "on_signature | on_deliverable_event",
+        "event_ref": null,
+        "deliverable_id": null,
+        "event": "delivery | approval | publish"
+      },
+      "acceptance_required": false,
+      "billable_ready": false,
+      "billed_invoice_id": null,
+      "source": { "kind": "document | event_derived | user_stated" }
+    }
+  ],
+  "human_review_required": true,
+  "generated_by": "tools/tasks.py",
+  "last_computed": null
+}

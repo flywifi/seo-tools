@@ -1,4 +1,4 @@
 {
-  "_comment": "Historical rollback operations.",
+  "_comment": "Historical rollback operations (schema/shape only). The P44 local-migration runtime (tools/migrate_local.py) records user rollbacks to the gitignored ledger/rollback-log.local.json with this same {rollbacks: [...]} shape, so no user file paths or data ever enter git.",
   "rollbacks": []
 }

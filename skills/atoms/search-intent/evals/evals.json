@@ -25,11 +25,11 @@
     "id": "search-intent-002",
     "description": "Minimal inputs: keyword only with no platform, returns platform-agnostic classification",
     "input": {
-      "keyword": "dark cottagecore living room ideas"
+      "keyword": "vintage farmhouse living room ideas"
     },
     "expect": {
       "tool": "search-intent",
-      "keyword": "dark cottagecore living room ideas",
+      "keyword": "vintage farmhouse living room ideas",
       "intent.label": "one of: informational | commercial | transactional | navigational",
       "content_format_fit.primary": "one of the five format types",
       "confidence.value": "one of: high | medium | low",

@@ -1,0 +1,36 @@
+{
+  "_comment": "Committed null schema for recurring-obligation rules (P35). Real rules live in pipeline/user-context/recurrence-rules.local.json (gitignored). tools/tasks.py materializes concrete occurrences on demand by date (never spawn-on-complete), idempotent on (recurrence_id, occurrence_index); a skipped cycle is an explicit cancelled occurrence; every occurrence inherits source from the template. RRULE subset only (FREQ, INTERVAL, COUNT xor UNTIL, BYDAY).",
+  "schema_version": "0.1.0",
+  "rules": [
+    {
+      "id": null,
+      "project_id": null,
+      "contract_id": null,
+      "obligation_id": null,
+      "template": {
+        "title": null,
+        "task_kind": "next_action | waiting_on | milestone",
+        "responsible_party": "creator | brand | agency | platform | other",
+        "due_offset": { "anchor": "period_start | period_end", "days": null, "basis": "business | calendar" },
+        "source": { "kind": "document | event_derived | user_stated" }
+      },
+      "rule": {
+        "freq": "DAILY | WEEKLY | MONTHLY | YEARLY",
+        "interval": 1,
+        "count": null,
+        "until": null,
+        "byday": null,
+        "anchor_date": null
+      },
+      "generation": {
+        "lookahead": 1,
+        "last_generated_index": 0,
+        "next_anchor": null
+      },
+      "status": "active | paused | ended"
+    }
+  ],
+  "human_review_required": true,
+  "generated_by": "tools/tasks.py",
+  "last_computed": null
+}

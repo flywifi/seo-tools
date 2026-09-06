@@ -1,0 +1,24 @@
+[
+  {
+    "id": "homedepot-materials-pricing",
+    "name": "The Home Depot product pricing (DIY materials and tools)",
+    "url": "https://www.homedepot.com/",
+    "category": "cost-vendor",
+    "tier": "T2",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "extraction_hint": "current retail prices for project materials (lumber, paint, hardware, fasteners) and tools; per-item vendor pricing pages, not aggregators",
+    "used_by": ["cost-estimate", "cost-researcher"]
+  },
+  {
+    "id": "lowes-materials-pricing",
+    "name": "Lowe's product pricing (DIY materials and tools)",
+    "url": "https://www.lowes.com/",
+    "category": "cost-vendor",
+    "tier": "T2",
+    "check_interval_days": 90,
+    "staleness_threshold_days": 90,
+    "extraction_hint": "current retail prices for project materials and tools; per-item vendor pricing pages for cross-vendor comparison against Home Depot",
+    "used_by": ["cost-estimate", "cost-researcher"]
+  }
+]

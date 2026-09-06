@@ -1,0 +1,54 @@
+name: release
+
+# Ready, NOT auto-firing. This workflow never runs on push or schedule; a human dispatches it to cut
+# the baseline (or a later) release in an environment that has gh + a token with release permissions.
+# It gates on a green drift guard and a consistent version, is idempotent (skips if the release already
+# exists), and creates the tag + release atomically from the dispatched SHA. Locally, the same plan is
+# produced read-only by `python3 tools/release.py --plan`.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag (blank = the VERSION file)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # required to create the tag + release
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Gate on green drift guard + version consistency
+        run: |
+          python3 tools/sync_check.py
+          python3 tools/version.py --check
+      - name: Resolve version + print the read-only plan
+        id: plan
+        run: |
+          V="${{ github.event.inputs.version }}"
+          if [ -z "$V" ]; then V="$(cat VERSION)"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          python3 tools/release.py --plan
+      - name: Cut the release (idempotent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.plan.outputs.version }}"
+          TAG="v$V"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to do."
+            exit 0
+          fi
+          gh release create "$TAG" --target "$GITHUB_SHA" \
+            --title "Creator OS $TAG" \
+            --notes "Creator OS $TAG baseline release. First tagged release of the ecosystem; lets tools/update_check.py resolve a published release instead of reporting no_release. See STATE.md and the commit history for the phase-by-phase detail."
+      - name: Confirm self-update now resolves a release
+        run: python3 tools/update_check.py report || true

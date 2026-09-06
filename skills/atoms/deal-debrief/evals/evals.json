@@ -1,0 +1,48 @@
+[
+  {
+    "id": "deal-debrief-update-standard",
+    "description": "A closed deal with a longer-than-standard usage window and a stated reason proposes a playbook update with quoted evidence.",
+    "input": {
+      "deal_id": "d-010",
+      "closed_deal_summary": { "brand": "big-brand", "outcome": "closed/fulfilled" },
+      "off_standard_terms": [
+        { "clause_family": "usage_licensing_rights", "accepted_value": "12-month paid amplification", "reason_accepted": "large brand, fee covered the extended window" }
+      ]
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "off_standard_findings": "quotes the 12-month value and the stated reason",
+      "proposed_playbook_updates": "proposes update_standard or note_exception with a labeled rationale",
+      "save_note": "present; nothing written automatically",
+      "human_review_required": true
+    },
+    "prohibit": ["writing the playbook", "inventing a reason", "em dashes", "enforceability claims", "binding language"]
+  },
+  {
+    "id": "deal-debrief-no-reason",
+    "description": "An off-standard term with no stated reason keeps reason_accepted null and flagged, never invents a motive.",
+    "input": {
+      "deal_id": "d-011",
+      "off_standard_terms": [ { "clause_family": "payment_terms_and_kill_fee", "accepted_value": "net 60", "reason_accepted": null } ]
+    },
+    "expect": {
+      "off_standard_findings": "reason_accepted null and flagged in retrieval_gaps",
+      "proposed_playbook_updates": "may propose note_exception with lower confidence"
+    },
+    "prohibit": ["inventing why net 60 was accepted", "writing the playbook", "em dashes"]
+  },
+  {
+    "id": "deal-debrief-not-closed",
+    "description": "A deal that has not closed is refused with a flag.",
+    "input": { "deal_id": "d-012", "closed_deal_summary": { "outcome": "in-production" }, "off_standard_terms": [] },
+    "expect": { "retrieval_gaps": "flags that the deal has not closed; debrief runs on closed deals" },
+    "prohibit": ["debriefing an open deal as if closed", "em dashes"]
+  },
+  {
+    "id": "deal-debrief-no-source",
+    "description": "Neither deal_id nor closed_deal_summary returns a structured error.",
+    "input": { "off_standard_terms": [] },
+    "expect": { "error": "no_source", "message": "present, asks for deal_id or closed_deal_summary" },
+    "prohibit": ["fabricated findings", "writing the playbook", "em dashes"]
+  }
+]

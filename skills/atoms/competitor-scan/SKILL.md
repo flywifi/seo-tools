@@ -31,7 +31,7 @@ names, video titles, subscriber counts, view counts, or specific metrics.
 }
 ```
 
-- `topic`: a keyword phrase or content concept (for example, "dark moody bedroom makeover" or
+- `topic`: a keyword phrase or content concept (for example, "home decor bedroom makeover" or
   "vintage thrift flip DIY").
 - `platform`: one of the three supported platforms. Pass one platform per call; run the atom twice
   for cross-platform comparison.
@@ -97,3 +97,6 @@ reflects the aggregate retrieval quality across all slots.
 
 Obeys `protocols/no-fabrication.md` strictly: if a channel name, URL, or metric cannot be
 confirmed by retrieval, the field is either null or marked [unverified], never invented.
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

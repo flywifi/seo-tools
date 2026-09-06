@@ -1,0 +1,57 @@
+[
+  {
+    "test_id": "silence-scan-media-ffmpeg",
+    "description": "media with ffmpeg present measures silences via silencedetect",
+    "input": {
+      "media_path": "a-recording.mp4",
+      "noise_db": -50.0,
+      "min_silence_seconds": 2.0
+    },
+    "expected_output_keys": ["silences", "computed_by", "backend_chain", "parameters"],
+    "assertions": [
+      "computed_by is ffmpeg.silencedetect",
+      "every silence has start_seconds, end_seconds, duration_seconds from the tool",
+      "backend_chain first entry is ffmpeg with ok true",
+      "no timing number is model-computed"
+    ]
+  },
+  {
+    "test_id": "silence-scan-transcript-floor",
+    "description": "no media backends available degrades to the transcript floor with provenance",
+    "input": {
+      "transcript_path": "skills/creator-core/evals/fixtures/workshop-footage.srt",
+      "min_silence_seconds": 8.0
+    },
+    "expected_output_keys": ["silences", "computed_by", "backend_chain"],
+    "assertions": [
+      "computed_by is shared/docintel/transcripts.gap_metrics",
+      "3 silences with durations 12.5, 8.5, and 20.0 seconds",
+      "output states the floor measures caption gaps, not audio level"
+    ]
+  },
+  {
+    "test_id": "silence-scan-no-input",
+    "description": "neither media nor transcript is refused honestly",
+    "input": {},
+    "expected_output_keys": ["silences", "gaps"],
+    "assertions": [
+      "silences is empty",
+      "computed_by is null",
+      "gaps names what to provide; nothing is invented"
+    ]
+  },
+  {
+    "test_id": "silence-scan-zero-results",
+    "description": "dense audio with no qualifying silences reports empty without lowering thresholds",
+    "input": {
+      "media_path": "a-dense-recording.mp4",
+      "min_silence_seconds": 2.0
+    },
+    "expected_output_keys": ["silences", "parameters"],
+    "assertions": [
+      "silences is an empty list",
+      "parameters echo the thresholds used",
+      "threshold is not lowered silently to force results"
+    ]
+  }
+]

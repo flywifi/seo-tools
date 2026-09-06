@@ -1,6 +1,6 @@
 ---
 name: video-development
-description: "develop one video concept into a full production package: hook, title options, outline, thumbnail concept, SEO-aware description, and at least three short-form clip extractions. Use when the user has a concept and wants to build it out. Do NOT use to generate fresh ideas (use content-strategy) or to write the full word-for-word script (use script-writer when present)."
+description: "develop one video concept into a full production package: hook, title options, outline, thumbnail concept, SEO-aware description, and at least three short-form clip extractions. Use when the user has a concept and wants to build it out. Do NOT use to generate fresh ideas (use content-strategy) or to write the full word-for-word script yourself."
 ---
 
 # video-development
@@ -41,10 +41,17 @@ keyword-cluster, hook-write, title-generate, thumbnail-concept, short-extract, g
 can call hook-write, title-generate, or short-extract directly.
 
 ## Standalone usability
-Produces a complete production package even when shortform-repurposing or script-writer is not
+Produces a complete production package even when shortform-repurposing is not
 available; the clip list is usable on its own.
 
 ## Failure modes
 - Returning fewer than 3 short-form clips.
 - Clips that depend on the full video for context.
 - Overpromising titles or thumbnails the video does not deliver.
+
+## Cross-modality
+Class: C.
+Runs on: Claude Desktop/Code (native, MCP + the tool module); claude.ai via a hosted remote-MCP connector; Custom GPT / Gemini only when the tool is hosted behind a remote MCP or an Action; Gems: no.
+Mechanism: Core package build is pure reasoning over the engines plus scoop-cache lookups (platform specs, keyword library); the footage_breakdown lane runs deterministic media compute in tools/videoedit/mediaprobe.py via the silence_scan and scene_scan MCP tools (ffmpeg silencedetect / PyAV RMS; PySceneDetect / ffmpeg scdet).
+Fallback: Without a local runtime or hosted MCP seam, silence-scan and scene-scan degrade to the transcript gap/chapter-suggestion floor and the rest of the package is built by reasoning over supplied transcript, probe data, and specs; media facts that cannot be probed are flagged unverified, never fabricated. On ChatGPT this is reasoning-only and outputs are labeled provisional (no local tools, no flag enforcement); the desktop app can reach the full tool only via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
+See `shared/cross-modality-engine.md`.

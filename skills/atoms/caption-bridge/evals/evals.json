@@ -1,0 +1,30 @@
+[
+  {
+    "id": "caption-bridge-to-srt",
+    "description": "A transcript converts to SRT identical to the shared docintel emitter (no reinvention).",
+    "input": {"direction": "to_editor", "source": "<transcript with 2 cues>", "format": "srt"},
+    "expect": ["output has 2 --> cues", "matches shared/docintel/transcripts.py --emit srt"],
+    "prohibit": ["fabricated cues", "shifted timings", "em dashes in tooling output"]
+  },
+  {
+    "id": "caption-bridge-to-itt",
+    "description": "A transcript converts to a well-formed iTT (TTML) document.",
+    "input": {"direction": "to_editor", "source": "<transcript with 2 cues>", "format": "itt"},
+    "expect": ["valid XML (xmllint/ElementTree parses it)", "one <p begin= end=> per cue"],
+    "prohibit": ["malformed XML", "fabricated cues"]
+  },
+  {
+    "id": "caption-bridge-roundtrip",
+    "description": "iTT/SRT -> captions[] -> SRT returns the same cues (lossless).",
+    "input": {"direction": "from_editor", "source": "<iTT with 2 cues>"},
+    "expect": ["caption_count == 2", "start_seconds/end_seconds/text recovered", "re-emitting to SRT matches"],
+    "prohibit": ["invented cues", "dropped cues", "em dashes"]
+  },
+  {
+    "id": "caption-bridge-empty",
+    "description": "An empty caption file returns a gaps[] note, not fabricated cues.",
+    "input": {"direction": "from_editor", "source": "<caption file with no cues>"},
+    "expect": ["captions == []", "gaps[] notes empty_captions"],
+    "prohibit": ["fabricated cues", "silent success with content"]
+  }
+]

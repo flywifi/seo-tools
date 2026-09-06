@@ -10,7 +10,7 @@ role: Authoritative design reference for Creator OS. Describes the hub-and-spoke
 ## Overview
 
 Creator OS is a hub-and-spoke ecosystem of Claude Agent Skills built for the creator, a
-YouTube creator in the moody-vintage home decor and DIY niche.
+YouTube creator in the home decor and DIY niche.
 
 **Hub-and-spoke.** A single routing hub (`creator-core`) sits at the center. It classifies every
 request, loads only the engines that request needs, enforces the governance protocols, and dispatches
@@ -38,7 +38,7 @@ seo-tools/
   shared/           Flat canonical engines. Source of truth for all cross-cutting logic.
   protocols/        Five governance protocols. quality-gates.md is authoritative.
   pipeline/         CRM records store (accounts/, deals/). Real data is gitignored.
-  skills/           Hub, governance skill, 14 spokes, and atoms/ sub-skills.
+  skills/           Hub, governance skill, 22 spokes, and atoms/ sub-skills.
   canonical-sources/ Reference data the scoop cache indexes.
   tools/            Drift guard, scaffolder, versioner, packager, cache sync, template.
   implementation/   Platform packaging for Claude, GPT, and Gemini.
@@ -169,7 +169,12 @@ thing. Spokes compose atoms in sequence via `workflow.json` rather than embeddin
 
 Atoms can be called directly for one-off tasks without going through a full spoke workflow.
 
-**Installed atoms:**
+106 atoms are installed in total; `skills/atoms/` is the authoritative inventory (one directory per
+atom, each with its own SKILL.md), and the drift guard verifies every atom a workflow names exists.
+The founding content/pipeline set below illustrates the shape; later phases added the video/media,
+finance, contract, task, jurisdiction, construction, and content-library atom families.
+
+**Founding atoms (illustrative subset):**
 
 | Atom | Operation |
 |---|---|
@@ -388,7 +393,7 @@ tools and APIs, search the web, and return structured findings. They never creat
 or delete files. They never commit or push. The main loop (or the user) is the only actor that
 modifies the repository.
 
-**Four agent roles:**
+**Five agent roles:**
 
 | Agent | Purpose | Scoped tools |
 |---|---|---|
@@ -396,6 +401,7 @@ modifies the repository.
 | competitor-analyst | Deep competitor intelligence, entity extraction, gap analysis | competitor_scan, cache_query, source_staleness, WebFetch |
 | content-writer | Script, caption, pin, and pitch drafting with full voice context | cache_query, quality_score |
 | deal-reviewer | Deal evidence audit, usage rights, exclusivity, quality scoring | quality_score |
+| cost-researcher | Vendor and product price research for cost estimates and proposals | cache_query, source_staleness, WebSearch, WebFetch |
 
 Agent definitions live in `.claude/agents/`. Each definition is a system prompt that includes
 the read-only operating rules, scoped engine and protocol lists, permitted data sources, and
@@ -415,6 +421,7 @@ control flow (sequential dependencies, parallel fan-out, quality gate loops). Av
 | competitor-deep-dive.js | Multi-target competitor scanning with gap analysis |
 | seasonal-planning.js | Trend research, keyword expansion, and calendar assembly |
 | deal-review.js | Evidence audit, rights check, exclusivity check, and scoring |
+| content-distribution.js | Publishing plan resolution, per-platform scheduling, and status verification |
 
 **When to use agents.** Spawn agents only when: the research spans 3 or more sources, requires
 multi-platform comparison, involves deep competitor analysis, or follows a citation chain. Single
@@ -423,6 +430,179 @@ lookups and narrow questions are handled inline by the main loop.
 **Information flow.** Agents gather and return. The main loop aggregates, deduplicates, resolves
 conflicts between agent findings, synthesizes recommendations, and presents results to the user.
 Aggregation is never delegated to an agent.
+
+| Workflow | What it orchestrates |
+|---|---|
+| content-pipeline.js | Research, draft, and quality review for content production |
+| competitor-deep-dive.js | Multi-target competitor scanning with gap analysis |
+| seasonal-planning.js | Trend research, keyword expansion, and calendar assembly |
+| deal-review.js | Evidence audit, rights check, exclusivity check, and scoring |
+| content-distribution.js | Publishing plan resolution, per-platform scheduling, and status verification |
+
+---
+
+## Content Distribution
+
+The `content-distributor` spoke bridges the gap between "content produced" and "content live on
+the platform." It sits downstream of `shortform-repurposing` and `video-development` in the
+Content lane, accepting finalized captions and hashtags from prior spoke runs.
+
+### Publishing tiers
+
+Creator OS resolves publishing connectors in priority order:
+
+| Tier | Connector | Platforms | Notes |
+|---|---|---|---|
+| Tier 1 (Direct API) | `instagram_publishing` | Instagram | Graph API v25.0 two-step container+publish |
+| Tier 1 (Direct API) | `tiktok_publishing` | TikTok | Content Posting API; 6 req/min; AIGC flag required |
+| Tier 1 (Direct API) | `pinterest_publishing` | Pinterest | API v5 `POST /v5/pins` with `scheduled_at` |
+| Tier 1 (Direct API) | `youtube_publishing` | YouTube | Data API v3 resumable upload with `publishAt` |
+| Tier 2 (Manual) | none | All | `publish-draft` formats paste-ready posting packages |
+
+Tier resolution checks per-platform direct API flags first. If a platform's publishing flag is
+active, `schedule-post` uses the direct API. Otherwise it falls back to manual mode. The
+scheduling dashboard (`tools/dashboard/`) provides a browser-based GUI for managing the queue.
+
+### Human confirmation gate
+
+`human_review_required: true` is set on every post output, always. No post is ever queued or
+published without an explicit human confirmation step. This is enforced in the `schedule-post`
+atom and in every publishing tier path.
+
+### Compliance checks (always run before connector call)
+
+1. **FTC disclosure.** If `ftc_disclosure` is non-null, the atom verifies the disclosure string
+   is present in the caption. If absent, it is prepended and the addition is flagged in `notes`.
+2. **AIGC flag.** If `is_aigc: true` and platform is TikTok, the AIGC flag is set in the
+   payload per TikTok's AI content labeling requirement.
+3. **Cross-platform watermark rule.** If content was sourced from a competing platform, the atom
+   flags the watermark risk (watermarked content is penalized on Instagram and TikTok).
+
+### Atoms
+
+| Atom | When invoked |
+|---|---|
+| `caption-write` | Step 2 (conditional — only if captions not provided in spoke input) |
+| `hashtag-set` | Step 2 (conditional — only if hashtags not provided) |
+| `schedule-post` | Step 3 (per platform — core scheduling atom) |
+| `post-status` | Step 4 (optional — after scheduled time, check if post went live) |
+| `govern-artifact` | Step 5 (gates: integrity, safety, brand alignment) |
+
+Shortcut atoms callable directly: `schedule-post`, `publish-draft`, `post-status`.
+
+### Standalone / manual mode
+
+When no connector is active, the spoke produces a full manual posting package for every platform
+via the `publish-draft` atom: paste-ready caption with FTC disclosure, hashtag block, numbered
+platform-specific upload checklist, media spec reminder, and optimal posting time window. No API
+credentials or infrastructure required.
+
+### MCP tools
+
+Three MCP tools expose distribution capabilities to Claude Desktop:
+
+| MCP Tool | Description |
+|---|---|
+| `schedule_post` | Dispatch a post to the active connector or return a manual plan |
+| `post_status` | Check status of a previously queued post |
+| `get_publishing_plan` | Return which platforms have active connectors and at what tier |
+
+### Content calendar integration
+
+After scheduling, `pipeline/user-context/content-calendar.json` entries gain a `posts[]` array
+tracking `post_id`, `status`, `permalink`, `published_at`, `publishing_tier`, and compliance
+fields per platform. This provides a persistent audit trail of what was queued, when, and via
+which connector.
+
+### Scheduling Dashboard
+
+A browser-based GUI at `tools/dashboard/` gives the creator a visual interface for toggling
+platforms, setting per-platform schedules, editing captions and hashtags, and monitoring post
+status. No framework dependencies, no CDN, no build step.
+
+**Directory structure:**
+
+```
+tools/dashboard/
+  server.py              Python stdlib HTTP server, JSON API, background scheduler
+  static/
+    index.html           SPA shell (nav tabs, edit modal, toast container)
+    style.css            Brand-consistent theming (warm/moody palette)
+    app.js               Vanilla JS: fetch API, DOM manipulation, localStorage prefs
+    icons.svg            SVG sprite (platform logos, status indicators)
+```
+
+**Server** (`server.py`): pure Python stdlib (`http.server`, `json`, `threading`, `pathlib`).
+Port 8766 (the setup wizard uses 8765). Exposes a JSON API:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/queue` | Return the scheduling queue |
+| GET | `/api/publishing-plan` | Which platforms have a direct-API publishing flag enabled |
+| GET | `/api/credentials-status` | Which platform API credentials are configured |
+| GET | `/api/status/:item_id` | Return one queue item by its queue-item `id` |
+| POST | `/api/queue` | Add or update a queue item (`{title, source?, platforms:{...}}`) |
+| POST | `/api/import-report` | Flatten a content-distribution `posts[]` report into one queue item |
+| POST | `/api/schedule` | Run compliance checks and mark a platform post `scheduled` (human confirmation) |
+| POST | `/api/toggle-platform` | Enable or disable a platform for a queue item |
+| POST | `/api/update-caption` | Update caption or hashtags for a platform-specific post |
+| POST | `/api/update-schedule` | Update scheduled datetime for a platform-specific post |
+| POST | `/api/delete-item` | Remove an item from the queue |
+
+**Security:** the server binds to `127.0.0.1` only, emits no wildcard CORS header, requires
+`Content-Type: application/json` on POSTs, rejects mutating requests carrying a foreign `Origin`
+(localhost CSRF defense), and validates queue-item ids to a safe slug so crafted ids cannot reach
+the DOM. Queue reads and writes are serialized by a lock and written atomically (temp file plus
+`os.replace`) so the HTTP thread and the background scheduler cannot lose an update.
+
+**Data store:** `pipeline/user-context/scheduling-queue.local.json` (gitignored via the existing
+`*.local.json` pattern). Each queue item tracks per-platform state: enabled toggle, scheduled
+datetime, caption, hashtags, content type, media URL, FTC disclosure, AIGC flag, status, post ID,
+permalink, and error.
+
+**Five views:**
+1. **Queue** (default) — cards per content item with platform toggle switches, status dots, and
+   per-platform date/time pickers.
+2. **Calendar** — monthly grid with posts color-coded by platform.
+3. **Status** — table of all posts with current status, scheduled time, permalink, and error.
+4. **Credentials** — traffic-light indicators per platform linking to the setup wizard's
+   `/publishing-setup` screens for OAuth credential configuration.
+5. **Edit** (modal) — caption textarea with character count, hashtag editor, content type selector,
+   media URL field, FTC disclosure dropdown, AIGC flag toggle (TikTok only).
+
+**Compliance on confirm:** when the creator clicks "Confirm and Schedule," `/api/schedule` runs the
+shared compliance helper (`tools/publishing_compliance.py`) — the same FTC-disclosure prepend, AIGC
+flag rule, and publishing-tier resolution the MCP `schedule_post` tool uses. If a gate fails (for
+example a `direct_api` platform with no credentials configured), the endpoint refuses and returns an
+error rather than scheduling a non-compliant post. On success it stamps `ftc_disclosure_verified`,
+`aigc_flag_set`, and `publishing_tier` onto the queue entry, sets `status: scheduled` and
+`human_review_required: true`, and persists. The click IS the human confirmation step.
+
+**Live publishing is feature-flagged off.** No code here calls a platform API while
+`live_publishing_enabled` (in `creator-os-config.json`) is off, which is the default. The real API
+clients live in `tools/publishing/` as stubs until that flag is enabled. Because of this:
+
+**Background scheduler:** a daemon thread checks the queue every 60 seconds. When a scheduled
+item's `scheduled_datetime` has passed, it advances the item to `ready_to_post` (a signal to post
+it manually) — it makes NO network call. TikTok has no native `scheduled_at`, so this timer is how
+its schedule is honored; keep the dashboard running so items advance on time (otherwise they
+advance the next time it starts). When `live_publishing_enabled` is turned on, the same loop calls
+`tools/publishing/` and records the real `post_id`/`permalink`, setting `status` to `published` or
+`failed`.
+
+**Integration paths:**
+- *Input:* the `content-distributor` spoke produces a distribution report with a flat `posts[]`
+  array and a `dashboard_url`. The report shape does not match the queue schema, so the dashboard
+  exposes `POST /api/import-report`, which flattens `posts[]` into one queue item (keyed by
+  `platform`, mapping `ftc_disclosure_verified`/`aigc_flag_set` to `ftc_disclosure`/`is_aigc`). The
+  workflow's report includes a `dashboard_import_url` pointing at this endpoint. Alternatively the
+  creator reviews and enters posts through the Queue UI.
+- *Output:* confirming a post runs compliance and schedules it (see above). Actual posting is manual
+  (`ready_to_post`) until live publishing is enabled.
+- *Credentials:* the Credentials view links to `tools/wizard.py` at
+  `http://localhost:8765/publishing-setup/<platform>` for credential setup flows.
+
+Launch: `python3 tools/dashboard/server.py`
 
 ---
 
@@ -444,11 +624,11 @@ composite. The artifact is not released, not softened, and not partially shipped
 1. The generating spoke produces a draft using the shared engines.
 2. It self-checks against the nine dimensions.
 3. It hands off to quality-review via the govern-artifact atom.
-4. quality-review scores each dimension with a one-line evidence note and runs `scripts/score.py`.
+4. quality-review scores each dimension with a one-line evidence note and runs `skills/quality-review/scripts/score.py`.
 5. The spoke fixes and re-scores until it passes.
 6. Only a passing artifact is released. For CRM artifacts, the verdict is recorded alongside the
    record in `pipeline/`.
 
-**Deterministic scoring.** The arithmetic is always done by `scripts/score.py`, not by hand.
+**Deterministic scoring.** The arithmetic is always done by `skills/quality-review/scripts/score.py`, not by hand.
 The score.py script takes nine integer scores as JSON and returns a verdict object with the
 composite, the pass/fail decision, and the hard-fail flag.

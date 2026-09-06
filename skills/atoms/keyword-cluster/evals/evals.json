@@ -1,9 +1,9 @@
 [
   {
     "id": "keywordcluster-001",
-    "description": "Happy path: YouTube cluster for a moody-vintage topic returns primary, secondary, long-tail, and difficulty note",
+    "description": "Happy path: YouTube cluster for a home decor topic returns primary, secondary, long-tail, and difficulty note",
     "input": {
-      "topic": "dark moody bedroom makeover with thrifted furniture",
+      "topic": "home decor bedroom makeover with thrifted furniture",
       "platform": "youtube"
     },
     "expect": {
@@ -18,7 +18,7 @@
       "exact search volume stated as fact without verification caveat",
       "primary array with more than 2 items",
       "long_tail array with fewer than 4 or more than 8 items",
-      "keywords unrelated to moody-vintage home decor or DIY"
+      "keywords unrelated to home decor or DIY"
     ]
   },
   {

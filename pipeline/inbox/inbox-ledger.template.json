@@ -1,0 +1,17 @@
+{
+  "_comment": "Template for pipeline/inbox/inbox-ledger.local.json (gitignored). The drop-folder ledger: one entry per file seen in the Drive hub Inbox/, keyed by content sha256 so re-scans are idempotent. All fields null/empty here; the real ledger holds no file CONTENT, only classification and routing state. Written only by the inbox-routing flow after human approval; proposals never touch it.",
+  "schema_version": "0.1.0",
+  "entries": [
+    {
+      "sha256": null,
+      "file_name": null,
+      "first_seen": null,
+      "classified_as": null,
+      "injection_scan_result": null,
+      "routed_to": null,
+      "status": null,
+      "approved_at": null,
+      "notes": null
+    }
+  ]
+}

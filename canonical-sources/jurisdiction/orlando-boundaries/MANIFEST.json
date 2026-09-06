@@ -1,0 +1,57 @@
+{
+  "generated_by": "tools/geo_source_fetch.py --cache-orlando",
+  "generated_at": "2026-07-07T03:52:24.154264+00:00",
+  "boundary": "Advisory planning information only, derived from public government GIS; NOT a legal, survey, or permitting determination. Boundaries may be simplified or lag the source. Verify with the authority having jurisdiction.",
+  "files": [
+    {
+      "name": "hist_lake_lawsona_historic_district",
+      "sha256": "881769ebde3e788eb9a28a4577538f4fce4b727fe0019f273113c9c9a0c19d19",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "district": "Lake Lawsona Historic District",
+      "vertices": 204
+    },
+    {
+      "name": "hist_downtown_historic_district",
+      "sha256": "d99c7e2aef16ac4b8a3485b8cb26606effaa31a3afb63f3e027306cfcbe990b6",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "district": "Downtown Historic District",
+      "vertices": 50
+    },
+    {
+      "name": "hist_colonialtown_south_historic_district",
+      "sha256": "977cbce781c9b6598e5d2082270c219f4275d65cdbe6985dc807e159190afd4f",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "district": "Colonialtown South Historic District",
+      "vertices": 46
+    },
+    {
+      "name": "hist_lake_cherokee_historic_district",
+      "sha256": "d7aa7ed4e78f28d75a61047e75664a9c9ec597a50837590c7f99a348ded5ea19",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "district": "Lake Cherokee Historic District",
+      "vertices": 82
+    },
+    {
+      "name": "hist_lake_eola_heights_historic_district",
+      "sha256": "ca6f960549834ee63e212c7bc2f413f2b1d669cdc121aadfd08ac1c3201577ee",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "district": "Lake Eola Heights Historic District",
+      "vertices": 66
+    },
+    {
+      "name": "hist_lake_copeland_historic_district",
+      "sha256": "29bb5168689b670b4fd27fffd7fc8d3865b07089f4f172eb019a09597ca27777",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+      "district": "Lake Copeland Historic District",
+      "vertices": 104
+    },
+    {
+      "name": "zoning_r_2b_t_hp_lake_eola",
+      "sha256": "8a0861178544a99e4c6de13e16f1b585d92045fd18a7c81d7566aeab447e3edc",
+      "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0",
+      "zoning": "R-2B/T/HP",
+      "vertices": 133
+    }
+  ],
+  "rehashed_from_disk": "2026-09-04"
+}

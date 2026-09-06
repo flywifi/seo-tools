@@ -34,6 +34,9 @@ Build one keyword cluster for one topic and platform.
 - Writing the SEO description (that is video-development or document-studio).
 
 ## Pipeline note
-Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. A moody
-or vintage keyword library (for example, "dark collected vintage," "jewel tone interiors") seeds the
+Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. The
+creator's niche keyword library (configured via `creator-profile.local.json`) seeds the
 cluster. Obeys `protocols/no-fabrication.md`.
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

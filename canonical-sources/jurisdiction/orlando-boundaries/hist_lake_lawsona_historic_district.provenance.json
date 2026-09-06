@@ -1,0 +1,12 @@
+{
+  "file": "hist_lake_lawsona_historic_district.geojson",
+  "source_url": "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoHistoricLocalDistricts/FeatureServer/0",
+  "license": "City of Orlando open data / public records. The City disclaims legal-boundary accuracy ('not legally binding', 'spatially inaccurate', 'as is'). Advisory only.",
+  "fetched_at": "2026-07-07T03:52:23.085455+00:00",
+  "sha256": "881769ebde3e788eb9a28a4577538f4fce4b727fe0019f273113c9c9a0c19d19",
+  "boundary": "Advisory planning information only, derived from public government GIS; NOT a legal, survey, or permitting determination. Boundaries may be simplified or lag the source. Verify with the authority having jurisdiction.",
+  "district": "Lake Lawsona Historic District",
+  "vertices": 204,
+  "layer": "OrlandoHistoricLocalDistricts/0",
+  "rehashed_from_disk": "2026-09-04"
+}

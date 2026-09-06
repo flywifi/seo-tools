@@ -1,0 +1,57 @@
+[
+  {
+    "test_id": "library-analyze-top-tags-cite-keys",
+    "description": "Top tags aggregate across records, weighted by views, and each tag cites the video_keys it came from.",
+    "input": {"platform": null, "focus": "tags"},
+    "expected_output_keys": ["top_tags"],
+    "assertions": [
+      "a tag used in two videos has count 2",
+      "each tag entry cites its contributing video_keys",
+      "tags are ranked by count then total views"
+    ]
+  },
+  {
+    "test_id": "library-analyze-retention-youtube-only",
+    "description": "YouTube retention peaks and steepest-drop cliffs are surfaced; non-YouTube records are null-flagged, never estimated.",
+    "input": {"platform": null, "focus": "retention"},
+    "expected_output_keys": ["retention_insights"],
+    "assertions": [
+      "a YouTube record appears under insights with peaks and cliffs",
+      "an Instagram record appears under retention_unavailable",
+      "no retention is estimated for non-YouTube platforms"
+    ]
+  },
+  {
+    "test_id": "library-analyze-format-performance",
+    "description": "Average views are reported by duration bucket and by category, each cell citing its video_keys.",
+    "input": {"platform": null, "focus": "format"},
+    "expected_output_keys": ["format_performance"],
+    "assertions": [
+      "by_duration buckets videos and reports avg_views where views are known",
+      "by_category groups uncategorized separately",
+      "every group cites its video_keys"
+    ]
+  },
+  {
+    "test_id": "library-analyze-themes-honest-empty",
+    "description": "With no transcripts imported, transcript themes return a no_transcripts flag pointing to library-complete; once transcripts exist, real spoken terms surface with citations.",
+    "input": {"platform": null, "focus": "themes"},
+    "expected_output_keys": ["transcript_themes"],
+    "assertions": [
+      "an empty library returns flag no_transcripts and empty themes",
+      "a stored transcript surfaces a spoken term with its video_keys",
+      "themes are never invented from metadata"
+    ]
+  },
+  {
+    "test_id": "library-analyze-empty-library",
+    "description": "An empty library returns every section empty with the boundary note and no fabricated figures.",
+    "input": {"platform": null, "focus": null},
+    "expected_output_keys": ["top_tags", "retention_insights", "format_performance", "transcript_themes", "boundaries"],
+    "assertions": [
+      "all four sections are present and empty",
+      "the boundaries note states retention is YouTube-only and revenue is Studio-CSV-only",
+      "no fabricated figures are produced"
+    ]
+  }
+]

@@ -10,6 +10,8 @@ load:
   - protocols/formatting-metadata.md
 ---
 
+_Data freshness: as of 2026-09-06 (Creator OS baseline 86ee3b8f). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+
 # keyword-compare
 
 Compare a list of keywords across platforms and optionally across a seasonal window.
@@ -200,8 +202,8 @@ Build one keyword cluster for one topic and platform.
 - Writing the SEO description (that is video-development or document-studio).
 
 ## Pipeline note
-Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. A moody
-or vintage keyword library (for example, "dark collected vintage," "jewel tone interiors") seeds the
+Follows `shared/method.md`. Platform SEO differences come from `shared/platform-engine.md`. The
+creator's niche keyword library (configured via `creator-profile.local.json`) seeds the
 cluster. Obeys `protocols/no-fabrication.md`.
 
 ---
@@ -337,7 +339,7 @@ Generate title options for one concept.
 {
   "concept": "string",
   "primary_keyword": "string",
-  "style": "the aesthetic style label, for example moody vintage",
+  "style": "the aesthetic style label, for example vintage or modern",
   "platform": "youtube"
 }
 ```
@@ -413,7 +415,7 @@ The seven supported section types are:
 ```json
 {
   "section_type": "hook | intro | body-step | broll-cue | transition | cta | outro (required)",
-  "topic": "string (required) -- the video topic or project title, e.g. 'dark moody bookshelf makeover'",
+  "topic": "string (required) -- the video topic or project title, e.g. 'stylized bookshelf makeover'",
   "step_content": "string (optional, required when section_type is body-step) -- the specific step action and detail to convert into spoken script",
   "target_duration_seconds": "integer (optional) -- desired spoken length for this section in seconds",
   "platform": "youtube | shorts (optional, default youtube) -- determines opening-window timing and CTA norms"
@@ -460,7 +462,7 @@ Output rules:
 - Do not fabricate product names, brand timings, measurements, or prices. If the input step_content
   references specifics, carry them through; do not invent new ones.
 - Never use em dashes. Write ranges with "to" per `protocols/formatting-metadata.md`.
-- Voice anchors to the moody-vintage aesthetic and the bungalow context from `shared/brand-engine.md`.
+- Voice anchors to the home decor aesthetic and the bungalow context from `shared/brand-engine.md`.
   Warm, conversational, imperfect-is-fine energy.
 
 ## Do NOT use for
@@ -653,7 +655,7 @@ names, video titles, subscriber counts, view counts, or specific metrics.
 }
 ```
 
-- `topic`: a keyword phrase or content concept (for example, "dark moody bedroom makeover" or
+- `topic`: a keyword phrase or content concept (for example, "home decor bedroom makeover" or
   "vintage thrift flip DIY").
 - `platform`: one of the three supported platforms. Pass one platform per call; run the atom twice
   for cross-platform comparison.
@@ -719,3 +721,22 @@ reflects the aggregate retrieval quality across all slots.
 
 Obeys `protocols/no-fabrication.md` strictly: if a channel name, URL, or metric cannot be
 confirmed by retrieval, the field is either null or marked [unverified], never invented.
+
+---
+
+# Task tracker atoms (P35), composed by task-desk
+
+- task-extract: turns a real source (contract obligation rows, email, user statement, shipment event) into
+  source-cited task rows; refuses any task it cannot cite (anti-phantom).
+- email-to-task: extracts tasks from a brand message with a durable, re-openable citation (RFC 5322
+  Message-ID + provider permalink); the body is untrusted; the citation is code-stamped, not model-generated.
+- task-plan: schedules forward from a trigger event or backward from a deadline, flagging negative-slack
+  infeasibility (offline business-day CPM math).
+- task-status: governed status transitions, waiting-on nudge/escalate dates, and approval ping-pong that
+  flips who owes the next move.
+- task-radar: read-only waiting-on vs I-owe split with due-soon/overdue bands, each item cited.
+- coverage-verify: reconciles media transcripts to a canonical truth and verifies required points with a
+  cited supporting sentence, abstaining when unsure; input conflicts go to a minority report.
+- shipment-track: records a shipment (live carrier or manual) and sets the delivered_at planning anchor.
+- milestone-bill: flips a milestone to billable on a deliverable event and drafts the cited invoice for the
+  finance lane; never sends.

@@ -86,3 +86,6 @@ Follows `shared/method.md` at the Scheduling step. Platform-specific cadence gui
 short-form platform priority order come from `shared/platform-engine.md`. Seasonal window
 awareness is informed by `canonical-sources/` seasonal aesthetic data. Output must pass
 `protocols/quality-gates.md` before a date is committed to the live calendar.
+
+## Cross-modality
+Inherits its calling spoke's class (varies by caller (B/C)); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

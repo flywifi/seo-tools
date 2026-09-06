@@ -1,0 +1,46 @@
+{
+  "_comment": "Fictional inbox-routing proposal batch (P60 drop folder). Models the atom's output contract for scenario S10: format-routable files carry a rule-backed route, content types wait for review, unknowns are flagged in place, quarantined files are never routed, and the whole batch requires human review. All names and content are invented.",
+  "proposals": [
+    {
+      "file": "Inbox/studio-vlog-042.srt",
+      "sha256": "f1c1a9c0ffee00000000000000000000000000000000000000000000000000aa",
+      "classified_as": "transcript",
+      "category_source": "format",
+      "injection_scan_result": "CLEAN",
+      "route_to": {"handler": "transcript-import", "store": "pipeline/video-library/"},
+      "after_approval": "handler runs; file moves to Inbox/Processed/<date>/"
+    },
+    {
+      "file": "Inbox/kitchen-refresh-cut3.mp4",
+      "sha256": "f1c1a9c0ffee00000000000000000000000000000000000000000000000000bb",
+      "classified_as": "video_media",
+      "category_source": "format",
+      "injection_scan_result": "CLEAN",
+      "route_to": {"handler": "library-complete", "store": "pipeline/video-library/"},
+      "after_approval": "handler runs; file moves to Inbox/Processed/<date>/"
+    }
+  ],
+  "needs_review": [
+    {
+      "file": "Inbox/collab-agreement-draft.pdf",
+      "sha256": "f1c1a9c0ffee00000000000000000000000000000000000000000000000000cc",
+      "classified_as": null,
+      "category_source": "content_pending",
+      "note": "needs a Claude session (inbox-routing atom) to read the content and run the injection guard before a route is proposed"
+    }
+  ],
+  "unknown": [
+    {
+      "file": "Inbox/mystery-asset.xyz",
+      "note": "unclassifiable from format; left in place"
+    }
+  ],
+  "quarantined": [
+    {
+      "file": "Inbox/pasted-notes.docx",
+      "verdict": "QUARANTINE",
+      "note": "injection guard verdict; never routed, listed verbatim"
+    }
+  ],
+  "human_review_required": true
+}

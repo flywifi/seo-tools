@@ -1,0 +1,58 @@
+[
+  {
+    "test_id": "template-assemble-swap",
+    "description": "variant swap plus block exclusion assembles the right document",
+    "input": {
+      "_fixture": "saved fictional vetted contract template with a usage_rights variant group and a default-on exclusivity block; deal grants paid usage, no exclusivity",
+      "template_id": "fixture-vetted-base",
+      "deal_id": "fixture-deal"
+    },
+    "expected_output_keys": ["document_text", "blocks_used", "selection_resolved", "selection_rationale", "gaps", "human_review_required"],
+    "assertions": [
+      "the paid-usage variant text is present and the organic-only variant text is absent",
+      "the exclusivity block text is absent and selection_rationale states why",
+      "the RESEARCH NOTES banner is document_text line 1 and ready_to_sign is false",
+      "blocks_used tags vetted blocks creator_vetted_text"
+    ]
+  },
+  {
+    "test_id": "template-assemble-profile-gap",
+    "description": "a missing profile field stays bracketed, gapped, and mirrored to profile_gaps",
+    "input": {
+      "_fixture": "profile with legal_name set and governing_law_state null",
+      "template_id": "fixture-vetted-base"
+    },
+    "expected_output_keys": ["gaps", "profile_gaps", "document_text"],
+    "assertions": [
+      "[GOVERNING_LAW_STATE] remains bracketed in document_text",
+      "gaps and profile_gaps both name governing_law_state with a recommended next step",
+      "no substitute value is invented"
+    ]
+  },
+  {
+    "test_id": "template-assemble-selection-error",
+    "description": "structurally invalid selection aborts with errors, no document",
+    "input": {
+      "_fixture": "selections including both members of the usage_rights variant group",
+      "template_id": "fixture-vetted-base"
+    },
+    "expected_output_keys": ["selection_errors"],
+    "assertions": [
+      "selection_errors is non-empty and names the variant group",
+      "document_text is null; nothing partial is emitted",
+      "the atom proposes a corrected selection for the human instead of silently fixing it"
+    ]
+  },
+  {
+    "test_id": "template-assemble-no-template",
+    "description": "no saved template: report and point at the ingestion path",
+    "input": {
+      "template_id": "does-not-exist"
+    },
+    "expected_output_keys": [],
+    "assertions": [
+      "the atom reports the missing template and points at template-ingest and the committed starters",
+      "nothing is assembled from thin air"
+    ]
+  }
+]

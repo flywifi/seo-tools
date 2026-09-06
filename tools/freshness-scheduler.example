@@ -1,0 +1,72 @@
+# P36 local freshness scheduler (examples). Runs the token-free detection on YOUR machine and writes
+# to YOUR own store overlay. The freshness jobs never contact GitHub, push, or nag. (The optional
+# P44 update check below reads only GitHub's public release page, read-only, and only when you opt
+# in; it still never pushes and never applies anything.) Copy the snippet that fits your OS, set
+# OVERLAY to your store path, and adjust the cadence.
+#
+# The runtime is entirely local: reading public changelog/feed pages is downloading, never uploading.
+# See docs/FRESHNESS.md for the model.
+
+# ---- macOS / Linux cron (crontab -e) ----------------------------------------
+# Every Monday 08:00, detect changes and stamp your overlay; then refresh your local dashboard.
+# 0 8 * * 1  cd /path/to/seo-tools && \
+#   python3 tools/source_currency.py check --detect-changes --apply --overlay "$HOME/CreatorOS/freshness.overlay.json" >/dev/null 2>&1 ; \
+#   python3 tools/source_currency.py dashboard --overlay "$HOME/CreatorOS/freshness.overlay.json" --out "$HOME/CreatorOS/currency-dashboard.md"
+
+# ---- Optional: background update check (P44; opt-in) ------------------------
+# Only runs when you have turned on the background_update_check capability (wizard /updates screen,
+# or creator-os-config.local.json). It is a READ-ONLY poll of the repo's public release page: it
+# reports whether a newer Creator OS version exists and prints ONE short notice when you are behind.
+# It never pulls, never changes code, and never touches your .local data. Applying an update stays
+# your explicit `python3 tools/update.py` run. With the flag off, this command does nothing and
+# makes no network call.
+# 0 9 * * 1  cd /path/to/seo-tools && python3 tools/update_notify.py >> "$HOME/CreatorOS/update-notice.txt" 2>&1
+
+# ---- macOS launchd (~/Library/LaunchAgents/com.creatoros.freshness.plist) ----
+# <?xml version="1.0" encoding="UTF-8"?>
+# <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+# <plist version="1.0"><dict>
+#   <key>Label</key><string>com.creatoros.freshness</string>
+#   <key>ProgramArguments</key><array>
+#     <string>/bin/sh</string><string>-c</string>
+#     <string>cd /path/to/seo-tools && python3 tools/source_currency.py check --detect-changes --apply --overlay "$HOME/CreatorOS/freshness.overlay.json"</string>
+#   </array>
+#   <key>StartCalendarInterval</key><dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer></dict>
+# </dict></plist>
+# Load with: launchctl load ~/Library/LaunchAgents/com.creatoros.freshness.plist
+
+# ---- Notes ------------------------------------------------------------------
+# - OVERLAY should live in a folder YOU control (Claude Desktop MCP allowed-dir, or a Drive/on-device
+#   folder). Prefer a folder that is NOT continuously cloud-synced to avoid last-writer-wins races;
+#   the append-only union-merge protects the data, but single-device writes are simplest.
+# - Optional carrier/API keys are read from the environment only (EASYPOST_API_KEY, etc.), never
+#   persisted. The detection core needs no keys.
+# - There is no scheduled GitHub job. Downloading a newer shared baseline (git pull) is a separate,
+#   manual choice you make when you want it.
+
+# ---- P60: compute hand-off watcher (opt-in) ---------------------------------
+# Runs ONLY when you have turned on the compute_handoff_enabled capability (wizard /compute
+# screen, or creator-os-config.local.json) AND configured the Drive hub mirror path (wizard
+# /drive-hub screen). Each pass reads job tickets from the locally synced
+# "Creator OS/Jobs/queue" folder, runs ONLY allowlisted local tools (never publishing, never
+# credentials), and writes results back for every surface to read. With the flag off this
+# command reads nothing and runs nothing.
+# Every 10 minutes:
+# */10 * * * *  cd /path/to/seo-tools && python3 tools/handoff/watcher.py --once >> "$HOME/CreatorOS/handoff.log" 2>&1
+#
+# macOS launchd (~/Library/LaunchAgents/com.creatoros.handoff.plist), every 600 seconds:
+# <?xml version="1.0" encoding="UTF-8"?>
+# <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+# <plist version="1.0"><dict>
+#   <key>Label</key><string>com.creatoros.handoff</string>
+#   <key>ProgramArguments</key><array>
+#     <string>/usr/bin/python3</string>
+#     <string>/path/to/seo-tools/tools/handoff/watcher.py</string>
+#     <string>--once</string>
+#   </array>
+#   <key>StartInterval</key><integer>600</integer>
+#   <key>StandardOutPath</key><string>/tmp/creatoros-handoff.log</string>
+#   <key>StandardErrorPath</key><string>/tmp/creatoros-handoff.log</string>
+# </dict></plist>
+# Note: the machine must be awake for a pass to run (queued jobs simply wait otherwise).
+# `caffeinate -s` or an Energy Saver schedule keeps a Mac awake for an overnight batch.

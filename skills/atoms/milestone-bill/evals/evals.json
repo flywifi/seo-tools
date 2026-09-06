@@ -1,0 +1,69 @@
+[
+  {
+    "test_id": "milestone-bill-approval-fires",
+    "description": "a final-approval event fires and flips the matching milestone to billable, drafting a citation-carrying invoice task",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "event": {
+        "type": "approval",
+        "deliverable": "final_cut",
+        "occurred_on": "2026-07-15"
+      }
+    },
+    "expected_output_keys": [
+      "newly_billable",
+      "human_review_required"
+    ],
+    "assertions": [
+      "the milestone whose trigger matches the approval event is marked billable",
+      "an invoice task is drafted and cites the deliverable event that made it billable",
+      "nothing is sent; the draft is handed to the finance lane for the human to send",
+      "the amount and terms come from the milestone record, not an estimate"
+    ]
+  },
+  {
+    "test_id": "milestone-bill-event-no-match",
+    "description": "an event that matches no milestone trigger flips nothing",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "event": {
+        "type": "publish",
+        "deliverable": "teaser",
+        "occurred_on": "2026-07-16"
+      }
+    },
+    "expected_output_keys": [
+      "newly_billable",
+      "human_review_required"
+    ],
+    "assertions": [
+      "no milestone is flipped when the event matches no trigger",
+      "newly_billable is empty",
+      "no invoice task is fabricated for an unmatched event"
+    ]
+  },
+  {
+    "test_id": "milestone-bill-already-billed",
+    "description": "a milestone already marked billed is not double-billed on a repeat event",
+    "input": {
+      "deal_id": "deal-fictional-brand-2026",
+      "event": {
+        "type": "approval",
+        "deliverable": "final_cut",
+        "occurred_on": "2026-07-20"
+      },
+      "milestone_state": {
+        "final_cut": "billed"
+      }
+    },
+    "expected_output_keys": [
+      "newly_billable",
+      "human_review_required"
+    ],
+    "assertions": [
+      "an already-billed milestone is not flipped billable again",
+      "no duplicate invoice task is drafted",
+      "the note explains the milestone was already billed"
+    ]
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "_comment": "construction-desk composes the residential-construction reference atoms. All lookups run offline against the scoop cache (canonical-sources/construction) and all math runs in tools/build_calc.py (no tokens, no copyrighted tables). Every output carries the verify-locally boundary from protocols/safety.md and shared/construction-engine.md; electrical/plumbing/structural/roofing/HVAC lead with the licensed-professional requirement. Reference and calculation only: no project planning (project-builder), no cost (finance-desk), no engineering or code-compliance advice.",
+  "id": "construction-desk",
+  "description": "Residential construction and DIY reference: dimensions and technique, code section and adopted edition (FL and NC), and first-principles calculators.",
+  "steps": [
+    {
+      "step": 1,
+      "atom": "construction-lookup",
+      "input_from": "the trade or topic in plain language",
+      "output_to": "step4",
+      "condition": "request is a construction_question (how-to, dimensions, common mistakes, glossary)"
+    },
+    {
+      "step": 2,
+      "atom": "code-lookup",
+      "input_from": "topic + jurisdiction (fl, nc, or both)",
+      "output_to": "step4",
+      "condition": "request is a code_lookup (governing section, adopted edition, free-viewer link)"
+    },
+    {
+      "step": 3,
+      "atom": "build-calc",
+      "input_from": "calculation name + numeric inputs",
+      "output_to": "step4",
+      "condition": "request is a build_calc (stair, egress, R-value, box fill, drain slope, roof pitch, board foot, deck span)"
+    },
+    {
+      "step": 4,
+      "atom": "govern-artifact",
+      "input_from": "the assembled answer from steps 1 to 3",
+      "output_to": "final",
+      "condition": "always; enforces the boundary, citations, no fabrication, and formatting before handoff"
+    }
+  ],
+  "notes": "A single request may fire more than one of steps 1 to 3 (for example a riser height needs build-calc plus code-lookup). project-builder calls construction-lookup, code-lookup, and build-calc directly for its materials list, step sequence, and safety notes."
+}

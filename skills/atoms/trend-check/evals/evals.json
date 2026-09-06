@@ -3,13 +3,13 @@
     "id": "trend-check-001",
     "description": "Happy path: topic with platform and freshness_days returns momentum classification with source artifacts",
     "input": {
-      "topic": "dark moody kitchen makeover",
+      "topic": "stylized kitchen makeover",
       "platform": "youtube",
       "freshness_days": 14
     },
     "expect": {
       "tool": "trend-check",
-      "topic": "dark moody kitchen makeover",
+      "topic": "stylized kitchen makeover",
       "momentum": "one of: rising | flat | declining | unknown",
       "source_artifacts": "array, may contain retrieved evidence or be empty",
       "retrieval_gaps": "array, lists any gaps in retrieval",

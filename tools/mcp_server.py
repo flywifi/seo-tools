@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """Creator OS MCP Server — exposes Python tools to Claude Desktop as MCP tool calls.
 
-Ten tools:
-  cache_query        Query the offline FTS5 keyword/entity cache.
-  competitor_scan    Return parsed metadata for a stored competitor snapshot.
-  source_staleness   Report which canonical sources are stale or never checked.
-  drift_check        Run sync_check.py and return the result.
-  quality_score      Score an artifact against the 9-dimension quality gates.
-  add_competitor     Add a competitor URL to the tracking registry.
-  get_capabilities   Return which Creator OS capabilities are enabled.
-  get_connectors     Return the full connector evidence plan for this deployment.
-  get_stats_tools    Return which statistical MCP servers are currently enabled.
-  configure_tool     Enable or disable a capability flag in creator-os-config.local.json.
+Tools (the docstrings below and tools/list are authoritative; the set has grown by phase):
+  cache_query          Query the offline FTS5 keyword/entity cache.
+  competitor_scan      Return parsed metadata for a stored competitor snapshot.
+  source_staleness     Report which canonical sources are stale or never checked.
+  drift_check          Run sync_check.py and return the result.
+  quality_score        Score an artifact against the 9-dimension quality gates.
+  add_competitor       Add a competitor URL to the tracking registry.
+  get_capabilities     Return which Creator OS capabilities are enabled.
+  get_connectors       Return the full connector evidence plan for this deployment.
+  get_stats_tools      Return which statistical MCP servers are currently enabled.
+  configure_tool       Enable or disable a capability flag in creator-os-config.local.json.
+  schedule_post        Dispatch a post to the active publishing connector or return a manual plan.
+  post_status          Check the status of a previously scheduled or published post.
+  get_publishing_plan  Return which platforms have active publishing connectors and at what tier.
+  launch_setup         Open the setup wizard in the browser (local Desktop/Code only; no terminal).
 
 These are the capabilities above what vanilla Claude can do: live competitor
 tag extraction, offline FTS5 keyword lookups, source staleness detection, and
@@ -20,6 +24,15 @@ Claude Project or ChatGPT custom instructions setup.
 
 Usage:
   python3 tools/mcp_server.py
+  python3 tools/mcp_server.py --serve-remote --host 127.0.0.1 --port 8080 --allowed-host YOUR-HOST
+                                           # P80: under the mcp 2.x SDK a loopback bind behind a proxy must
+                                           # allow-list the public Host header the proxy forwards, or the
+                                           # SDK answers 421; --allowed-host is repeatable, or set
+                                           # remote_mcp_allowed_hosts (list) in creator-os-config.local.json
+  python3 tools/mcp_server.py --selftest   # two tiers: package-independent checks always run
+                                           # (config deep-merge, both Transport C gate refusals,
+                                           # static tool count); with the mcp package installed the
+                                           # full tier also asserts live registered == static.
 
 Configure in Claude Desktop claude_desktop_config.json:
   See implementation/claude/desktop/claude_desktop_config_snippet.json
@@ -28,30 +41,186 @@ Prerequisites:
   pip install -r requirements-mcp.txt
   python3 shared/cache/cache.py --build
 """
+import hmac
 import json
 import os
+import re
 import subprocess
 import sys
+import threading
 from pathlib import Path
+from pathlib import Path as pathlib_Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
 
-try:
-    from mcp.server.fastmcp import FastMCP
-except ImportError:
-    print(
-        "ERROR: 'mcp' package not installed.\n"
-        "Run: pip install -r requirements-mcp.txt",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-mcp = FastMCP("creator-os")
+sys.path.insert(0, str(HERE))
+import publishing_compliance as compliance  # noqa: E402
+from atomic_io import atomic_write_text as _atomic_write_text, locked as _locked  # noqa: E402
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
 
+_CACHE_DB = ROOT / "shared" / "cache" / "index.local.db"
+
+
+def _cache_conn():
+    """Read-only connection to the scoop cache index (mode=ro so a hosted endpoint cannot write)."""
+    import sqlite3
+    return sqlite3.connect(f"file:{_CACHE_DB}?mode=ro", uri=True)
+
+
+def _record_url(source: str) -> str:
+    """Provenance URL for a knowledge record (connector citations require a non-empty url;
+    developers.openai.com/api/docs/mcp). The cache stores `source` REPO-RELATIVE (it already
+    starts with canonical-sources/; shared/cache/cache.py::str(jf.relative_to(ROOT))), so no
+    prefix is added here -- the P72 adversarial pass caught the doubled-segment 404 this
+    comment now guards against."""
+    return f"https://github.com/flywifi/seo-tools/blob/main/{source}"
+
+
+def _search_impl(query: str, db_path=None) -> dict:
+    """Pure connector-contract search over the cache index (stdlib only, testable without the
+    mcp package -- the P61 C19 pattern). Returns {"results": [{"id","title","url"}]}."""
+    import sqlite3
+    db = pathlib_Path(db_path) if db_path else _CACHE_DB
+    if not db.exists():
+        return {"results": [], "note": "cache not built; run: python3 shared/cache/cache.py --build"}
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        fts = conn.execute("SELECT v FROM meta WHERE k='fts5'").fetchone()[0] == "1"
+        rows = []
+        if fts:
+            try:
+                rows = conn.execute(
+                    "SELECT source, id, title FROM records WHERE records MATCH ? "
+                    "AND source NOT LIKE '%.local.%' ORDER BY bm25(records) LIMIT 8",
+                    (query,)).fetchall()
+            except Exception:  # noqa: BLE001 -- FTS5 syntax errors on hostile input -> LIKE
+                rows = []
+        if not rows:
+            like = f"%{query}%"
+            rows = conn.execute(
+                "SELECT source, id, title FROM records WHERE (text LIKE ? OR title LIKE ?) "
+                "AND source NOT LIKE '%.local.%' LIMIT 8", (like, like)).fetchall()
+    finally:
+        conn.close()
+    return {"results": [{"id": f"{s}::{i}", "title": ti or i, "url": _record_url(s)}
+                        for s, i, ti in rows if ".local." not in s]}
+
+
+def _fetch_impl(record_id: str, db_path=None) -> dict:
+    """Pure connector-contract fetch by "source::record" id. Refuses .local. sources so a hosted
+    endpoint can never serve records that are not committed content."""
+    import sqlite3
+    source, _, rec = record_id.partition("::")
+    db = pathlib_Path(db_path) if db_path else _CACHE_DB
+    if ".local." in source or not db.exists():
+        return {"error": "unknown id"}
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        row = conn.execute(
+            "SELECT source, id, title, text FROM records WHERE source=? AND id=?",
+            (source, rec)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return {"error": "unknown id"}
+    s, i, ttl, text = row
+    return {"id": f"{s}::{i}", "title": ttl or i, "text": text,
+            "url": _record_url(s), "metadata": {"source_file": s}}
+
+
+# Tool safety classification (P72). Pure data above the import guard so the completeness gate
+# runs in the package-independent selftest tier (CI does not install the mcp package). Every
+# tool body was read for real side effects: only _WRITE_TOOLS mutate state or launch anything;
+# _READ_DESPITE_NAME are mutation-NAMED tools verified pure (edit_build_* return XML strings the
+# caller persists; import_* parse and propose; update_check runs "report"; payment_reconcile and
+# build_calc compute). A mutation-signal name in neither map fails the selftest.
+_WRITE_TOOLS = {
+    "add_competitor":    {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
+    "configure_tool":    {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "schedule_post":     {"readOnlyHint": False, "destructiveHint": True,  "openWorldHint": True},
+    "obligation_build":  {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "invoice_build":     {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "freshness_refresh": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "launch_setup":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "submit_compute_job": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    # Writes a caller-supplied overlay path via source_currency check --apply; the wrapper's
+    # overlay_path-required guard is the ONLY thing keeping it off the repo registry (P72 D3) --
+    # that guard is load-bearing, do not remove it.
+    "currency_detect_changes": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
+}
+_READ_DESPITE_NAME = {
+    "update_check", "import_edit_artifact", "import_obligations", "import_finance",
+    "payment_reconcile", "edit_build_fcpxml", "edit_build_mlt", "build_calc",
+    "video_library_import_status",  # status READ; "import" names what it reports on
+    # Computes the next task state and returns it; tasks.transition() appends to the history list
+    # in memory and re-folds, but NEVER calls save_register -- persisting is a separate,
+    # human-confirmed step. Mutation-sounding, non-persisting (P73 D6-F4).
+    "task_transition",
+}
+# Every remaining tool, each read as a pure read. Enrolment is explicit BECAUSE the old default
+# was silent: these 41 inherited readOnlyHint=True without anyone recording that they had been
+# checked. Adding a tool here is an assertion that you read its body.
+_VERIFIED_READS = {
+    "cache_query", "cashflow_view", "chapter_map", "code_lookup", "competitor_scan",
+    "construction_lookup", "contact_lookup", "cost_rollup", "coverage_verify", "currency_scan",
+    "deal_status", "drift_check", "edit_captions", "edit_parse_fcpxml", "edit_preflight",
+    "fetch", "finance_scan", "get_capabilities", "get_connectors", "get_publishing_plan",
+    "get_server_info", "get_stats_tools", "job_status", "jurisdiction_resolve",
+    "milestone_status", "obligation_scan", "overlay_conflict", "post_status", "proposal_price",
+    "quality_score", "reframe_shorts", "resolve_status", "scene_scan", "search",
+    "shipment_track", "silence_scan", "source_staleness", "task_ics_export", "task_plan",
+    "task_scan", "video_library_query",
+}
+_DEFAULT_READONLY = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
+# Kept only to make the error message concrete. It is NO LONGER what the gate tests: matching a
+# signal is not what makes a tool a write, and failing to match one never again makes it a read.
+_MUTATION_SIGNALS = ("add_", "configure_", "schedule_", "import_", "submit_", "update_",
+                     "refresh", "reconcile", "build", "detect", "apply", "publish", "delete_",
+                     "save_", "write_", "seed_", "mark_", "enable_", "disable_", "set_",
+                     "sync_", "remove_", "create_", "post_", "send_", "upload_")
+
+
+def _static_tool_names(src: str) -> list:
+    """Tool function names in source order, from the same bare-decorator convention the static
+    count uses."""
+    import re as _re2
+    return _re2.findall(r"(?m)^@mcp\.tool\(\)\s*\ndef (\w+)\(", src)
+
+
+def _classification_problems(src: str) -> list:
+    """The completeness gate, package-independent: EVERY tool name in the source must be
+    explicitly classified. There is no silent default.
+
+    This gate used to demand classification only for names matching _MUTATION_SIGNALS, so a tool
+    the list did not anticipate -- publish_draft, delete_*, save_*, set_* -- inherited
+    _DEFAULT_READONLY, i.e. readOnlyHint=True. MCP clients use readOnlyHint to decide whether to
+    skip the confirmation prompt, and tools/publishing/ already holds complete OAuth upload
+    clients waiting to be ungated, so the fail-open default sat one plausible tool name away from
+    a live upload running unconfirmed. Fail closed instead (P73 D6-F4).
+    """
+    problems = []
+    names = _static_tool_names(src)
+    for n in names:
+        if n in _WRITE_TOOLS or n in _READ_DESPITE_NAME or n in _VERIFIED_READS:
+            continue
+        hint = (" Its name carries a mutation signal, so _WRITE_TOOLS is the likely home."
+                if any(s in n for s in _MUTATION_SIGNALS) else "")
+        problems.append(
+            f"{n}: UNCLASSIFIED. Read its body, then add it to _WRITE_TOOLS (it mutates state), "
+            f"_READ_DESPITE_NAME (mutation-sounding but non-persisting), or _VERIFIED_READS "
+            f"(pure read).{hint}")
+    for n in list(_WRITE_TOOLS) + sorted(_READ_DESPITE_NAME) + sorted(_VERIFIED_READS):
+        if n not in names:
+            problems.append(f"{n}: classified but no such tool in source (stale entry)")
+    return problems
+
+
+# The two helpers below are defined ABOVE the mcp package import on purpose (P61 C19): they are
+# pure stdlib logic, and the --selftest package-independent tier must be able to exercise them in
+# a sandbox where the mcp package is not installed. The server-start path is unchanged.
 
 def _load_config() -> dict:
     """Load creator-os-config.json, then deep-merge creator-os-config.local.json over it.
@@ -69,9 +238,681 @@ def _load_config() -> dict:
             local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
             for key, val in local.get("capabilities", {}).items():
                 base.setdefault("capabilities", {})[key] = val
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, json.JSONDecodeError) as exc:
+            # P73 D6-F12 precursor: swallowing this silently reverted EVERY capability to the
+            # committed defaults with no signal, so a user whose local config had one bad comma
+            # saw features quietly turn themselves off. stderr, never stdout: stdout is the
+            # stdio JSON-RPC channel and printing there corrupts the protocol (P61 C19).
+            print(f"[creator-os] WARNING: {CONFIG_LOCAL_PATH} did not parse ({exc}); falling back "
+                  f"to committed defaults. Your local capability flags are NOT in effect.",
+                  file=sys.stderr)
     return base
+
+
+def _read_local_config_for_write(path) -> tuple:
+    """Read the gitignored local config for a read-modify-write cycle. Returns
+    (config_dict, backup_path_or_None, error_or_None).
+
+    P73 D6-F12: the previous inline version treated a JSONDecodeError as "empty file" and then
+    overwrote it, destroying remote_mcp_token, live_publishing_enabled, the workspace flags and
+    the update channel. That file is gitignored, so nothing could restore it. Back the bytes up
+    before the caller writes, mirroring tools/wizard.py::_write_claude_config, and refuse
+    outright if even the backup fails -- losing the data is worse than refusing the toggle.
+
+    Lives above the mcp package import (P61 C19) so the package-independent selftest tier can
+    exercise it in a sandbox where the mcp package is not installed.
+    """
+    if not path.exists():
+        return {}, None, None
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        return json.loads(raw), None, None
+    except (OSError, json.JSONDecodeError):
+        import time as _time
+        bak = path.with_name(f"{path.name}.corrupt.{_time.strftime('%Y%m%d%H%M%S')}.bak")
+        try:
+            raw_bytes = path.read_bytes()
+            tmp = bak.with_name(bak.name + f".tmp{os.getpid()}")
+            tmp.write_bytes(raw_bytes)
+            os.replace(tmp, bak)
+        except OSError as exc:
+            return {}, None, (f"{path} did not parse and could not be backed up ({exc}). "
+                              f"Refusing to overwrite it.")
+        return {}, str(bak), None
+
+
+_CACHE_REBUILD_HINT = "Run: python3 shared/cache/cache.py --build"
+_CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
+                       "databaseerror", "file is encrypted or is not a database")
+
+
+def _cache_failure(err: str) -> dict:
+    """Shape a failed cache subprocess into a tool result.
+
+    P73 D6-F11: an ABSENT index already returned a clear error plus a rebuild hint, but a CORRUPT
+    one (power loss mid `cache.py --build`) passed the .exists() guard and surfaced a raw
+    sqlite3.DatabaseError traceback into the MCP result, with no hint that rebuilding fixes it.
+    Corruption is the case where the user most needs to be told what to do.
+
+    Above the mcp package import (P61 C19) so the package-independent selftest tier can reach it.
+    """
+    msg = (err or "").strip()
+    if any(m in msg.lower() for m in _CORRUPT_DB_MARKERS):
+        return {"error": "Cache index is unreadable (the database file is corrupt).",
+                "hint": f"Delete it and rebuild: rm shared/cache/index.local.db && "
+                        f"{_CACHE_REBUILD_HINT}",
+                "detail": msg}
+    return {"error": msg or "cache query failed"}
+
+
+def _handoff_gates() -> str | None:
+    """Both P60 Transport C gates must be on; returns a plain refusal string or None."""
+    from handoff import runner as _runner
+    if not _runner.capability_enabled("remote_compute_endpoint"):
+        return ("remote_compute_endpoint is off (the default). This tool is part of the opt-in "
+                "remote compute endpoint; enable the capability in creator-os-config.local.json "
+                "only on a deployment secured per implementation/gpt/mcp-connector/README.md.")
+    if not _runner.handoff_enabled():
+        return ("compute_handoff_enabled is off (the default). Turn it on at the setup wizard's "
+                "/compute screen before queueing jobs.")
+    return None
+
+
+# --- Remote endpoint auth (P67-B) -----------------------------------------------------------
+# Pure-stdlib, defined above the mcp import so --selftest exercises them without the package.
+# The server still binds to loopback and trusts a TLS+auth proxy by default (the documented
+# deployment); these add (a) a fail-safe that refuses to bind a NON-loopback interface with no
+# token and no explicit acknowledgement -- for ANY network transport (--serve-remote OR a bare
+# --transport streamable-http/sse), not just --serve-remote (P68-B) -- and (b) an optional
+# in-process bearer gate as defense in depth when a token is configured.
+
+# NOTE: the empty string is deliberately NOT here. Python's socket layer treats host="" as
+# ALL interfaces, so accepting it as loopback let `--host ""` (or a wrapper doing --host "$H"
+# with H unset) bind publicly with no token and no --insecure (P73 D4).
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+def _remote_auth_token() -> str | None:
+    """Bearer token for the remote MCP endpoint, or None. Env CREATOR_OS_MCP_TOKEN wins; then a
+    gitignored creator-os-config.local.json 'remote_mcp_token'. Never read from a committed file,
+    so a token can never be baked into the repo."""
+    tok = os.environ.get("CREATOR_OS_MCP_TOKEN", "").strip()
+    if tok:
+        return tok
+    try:
+        data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
+        v = str(data.get("remote_mcp_token", "")).strip()
+        return v or None
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+
+
+def _remote_serve_decision(host: str, token: str | None, insecure: bool) -> tuple:
+    """Fail-safe policy for --serve-remote. Returns (action, message):
+      'gated'  -> a token is configured; enforce the in-process bearer gate.
+      'open'   -> bind with no in-process gate (loopback proxy pattern, or explicit --insecure).
+      'refuse' -> do not start (non-loopback bind, no token, no --insecure): the foot-gun of an
+                  accidentally public, unauthenticated endpoint.
+    A token always wins (defense in depth even on loopback); loopback with no token stays
+    frictionless for the documented proxy deployment."""
+    is_loopback = (host or "").lower() in _LOOPBACK_HOSTS
+    if token:
+        return ("gated", f"in-process bearer gate enforced on {host}")
+    if is_loopback:
+        return ("open", f"loopback bind on {host}: put a TLS+auth proxy in front "
+                        f"(no in-process token set)")
+    if insecure:
+        return ("open", f"--insecure: binding {host} with NO authentication (explicitly "
+                        f"acknowledged)")
+    return ("refuse", f"refusing to bind non-loopback host {host!r} with no CREATOR_OS_MCP_TOKEN "
+                      f"and no --insecure")
+
+
+class _BearerAuthMiddleware:
+    """Minimal ASGI middleware: require 'Authorization: Bearer <token>' on every HTTP request,
+    constant-time compared; 401 otherwise. Wraps the SDK's streamable-http app (MCPServer under 2.x,
+    FastMCP under 1.x). Pure ASGI, no SDK dependency, so it is unit-tested in the package-independent
+    selftest tier."""
+
+    def __init__(self, app, token: str):
+        self.app = app
+        self._expected = f"Bearer {token}"
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers") or [])
+        presented = headers.get(b"authorization", b"").decode("latin-1")
+        if not (presented and hmac.compare_digest(presented, self._expected)):
+            await send({"type": "http.response.start", "status": 401,
+                        "headers": [(b"content-type", b"text/plain; charset=utf-8"),
+                                    (b"www-authenticate", b"Bearer")]})
+            await send({"type": "http.response.body", "body": b"401 Unauthorized"})
+            return
+        await self.app(scope, receive, send)
+
+
+def _resolve_transport(transport_arg: str | None, serve_remote: bool) -> str:
+    """The transport __main__ actually binds, as a pure function of the two argv inputs. Mirrors the
+    one line that computes it so the selftest can reason about every argv without launching."""
+    return transport_arg or ("streamable-http" if serve_remote else "stdio")
+
+
+def _auth_gate_fires(transport_arg: str | None, serve_remote: bool) -> bool:
+    """Whether the remote-endpoint auth decision (refuse / gated / open) runs for this argv. It MUST
+    fire for ANY non-stdio (network) bind -- the P67-B bug was gating it on serve_remote alone, so
+    `--transport streamable-http` (or sse) with no --serve-remote bound an unauthenticated public
+    endpoint and skipped the gate entirely. The correct condition is simply: a network transport."""
+    return _resolve_transport(transport_arg, serve_remote) != "stdio"
+
+
+def _gate_app_builder_name(transport: str) -> str:
+    """The app-builder attribute to wrap with the bearer gate (same name in both SDK majors), matched to the transport so a
+    token-gated `--transport sse` serves the sse app, not the streamable-http app (the P67-B gated
+    path always built streamable_http_app regardless of transport)."""
+    return "sse_app" if transport == "sse" else "streamable_http_app"
+
+
+# --- SDK-major shim (P80) ---------------------------------------------------------------------
+# The MCP Python SDK 2.x renamed FastMCP to MCPServer and moved host/port from a settings object to
+# run() / the ASGI app factories. Everything below is SDK-free so the package-independent selftest
+# tier proves the routing without the package installed; the live tier proves it against both majors.
+
+def _select_server_class():
+    """(cls, is_v2). 2.x first: under 2.x `mcp.server.fastmcp` is a stub module that raises a pointed
+    ModuleNotFoundError by design, so the order matters. Only the ABSENCE of the 2.x module falls through
+    to the 1.x arm; a 2.x install whose own dependency is missing re-raises so the real cause is shown
+    (P81 C-4: the old bare `except ImportError` reported "neither class" for a broken 2.x install)."""
+    try:
+        from mcp.server.mcpserver import MCPServer as _cls
+        return _cls, True
+    except ModuleNotFoundError as exc:
+        if exc.name not in ("mcp", "mcp.server", "mcp.server.mcpserver"):
+            raise
+    from mcp.server.fastmcp import FastMCP as _cls
+    return _cls, False
+
+
+def _bind_kwargs(is_v2, host, port, security=None):
+    """Where host/port go. 2.x: run() kwargs. 1.x: nowhere here (settings, see __main__). The two
+    sinks are disjoint, so one dict per arm and no blanket except (the old bare `except Exception:
+    pass` around the settings assignment silently turned --host/--port into no-ops under 2.x)."""
+    if not is_v2:
+        return {}
+    kw = {"host": host, "port": port}
+    if security is not None:
+        kw["transport_security"] = security
+    return kw
+
+
+def _app_kwargs(is_v2, host, security=None):
+    """The ASGI app factories (streamable_http_app / sse_app) take host and transport_security under
+    2.x, never port; under 1.x they take nothing this code passes."""
+    if not is_v2:
+        return {}
+    kw = {"host": host}
+    if security is not None:
+        kw["transport_security"] = security
+    return kw
+
+
+_SDK_LOOPBACK_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+_SDK_LOOPBACK_ORIGINS = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+# hostname | IPv4 | [IPv6], optionally :port or :*  (the SDK matches these strings literally)
+_HOST_RE = re.compile(r"^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+                      r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)(?::(?:\d{1,5}|\*))?$")
+
+
+def _split_host_port(h):
+    """('host', 'port'|None) for host, host:port, [v6], [v6]:port."""
+    if h.startswith("["):
+        i = h.find("]")
+        return h[:i + 1], (h[i + 2:] if h[i + 1:i + 2] == ":" else None)
+    if h.count(":") == 1:
+        host, port = h.split(":")
+        return host, port
+    return h, None
+
+
+def _normalize_allowed_hosts(values):
+    """Validate the operator's allow-list. Accepts a list/tuple (or ONE bare str) of 'host', 'host:port',
+    '[v6]', '[v6]:port', or IPv4. Rejects URLs, paths, '*', whitespace, and non-list types with the reason,
+    because the SDK's _validate_host compares these strings literally: a URL or '*' can never match a
+    Host header and would silently disable the whole surface (P81 C-3/C-5)."""
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple)):
+        raise ValueError(f"remote_mcp_allowed_hosts must be a list of hostnames, got {type(values).__name__}")
+    out = []
+    for raw in values:
+        h = str(raw).strip()
+        if not h:
+            continue
+        if "://" in h or "/" in h:
+            raise ValueError(f"allowed host {h!r}: give a hostname, not a URL")
+        if not _HOST_RE.match(h):
+            raise ValueError(f"allowed host {h!r} is not a hostname, IPv4, or [IPv6] literal")
+        out.append(h)
+    return out
+
+
+def _allowed_hosts_settings(allowed_hosts, settings_cls, allowed_origins=()):
+    """Both SDK majors auto-enable DNS-rebinding protection for a LOOPBACK bind with only the SDK loopback
+    set allow-listed, so a proxied Host: <public> is answered 421 unless listed here. An explicit list
+    REPLACES the SDK default, so the loopback entries are re-added. _validate_host matches the bare entry for
+    a portless Host and 'host:*' for any port, so both are emitted (P80; input validated since P81).
+    Returns None when nothing is configured (the SDK default then applies)."""
+    if not allowed_hosts:
+        return None
+    hosts, origins = list(_SDK_LOOPBACK_HOSTS), list(_SDK_LOOPBACK_ORIGINS)
+    for h in allowed_hosts:
+        host, port = _split_host_port(h)
+        hosts.append(h)
+        if port is None:
+            hosts.append(f"{host}:*")
+        origins.append(f"https://{h}")
+    for o in allowed_origins:
+        if o not in origins:
+            origins.append(o)
+    return settings_cls(allowed_hosts=hosts, allowed_origins=origins)
+
+
+_ORIGIN_RE = re.compile(r"^https?://[^/\s]+$")
+
+
+def _normalize_allowed_origins(values):
+    """'https://host[:port]' entries for browser-based clients (P81 C-6). Same shape rules as hosts."""
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple)):
+        raise ValueError(f"remote_mcp_allowed_origins must be a list of origins, got {type(values).__name__}")
+    out = []
+    for raw in values:
+        o = str(raw).strip()
+        if not o:
+            continue
+        if not _ORIGIN_RE.match(o):
+            raise ValueError(f"allowed origin {o!r} must look like https://host[:port]")
+        out.append(o)
+    return out
+
+
+def _remote_allowed_hosts(cli_hosts, key="remote_mcp_allowed_hosts", normalize=_normalize_allowed_hosts):
+    """--allowed-host (repeatable) wins; else the list under `key` in the gitignored
+    creator-os-config.local.json (the file that carries remote_mcp_token). Raises ValueError with the
+    reason on a malformed value; the caller turns that into an exit(2) at startup."""
+    if cli_hosts:
+        return normalize(cli_hosts)
+    try:
+        data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    return normalize(data.get(key) or [])
+
+
+# 2.x runs synchronous tool handlers on anyio worker threads, so two calls can interleave. The six
+# tools that write files are serialised behind one lock (the census per tool is in ADR 0055); the
+# three other write-annotated tools (schedule_post returns a plan, launch_setup spawns a process,
+# submit_compute_job writes one unique ticket via temp+replace) need none.
+_WRITE_LOCK = threading.Lock()
+
+
+def _selftest_static() -> tuple:
+    """P61 C19: the package-independent selftest tier. Runs with or without the mcp package;
+    a missing package reduces coverage HONESTLY (reported, never a silent pass -- the P56 4C
+    lesson). Returns (rc, static_tool_count)."""
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+        print(("ok   " if cond else "FAIL ") + name)
+
+    import re
+    src = Path(__file__).read_text(encoding="utf-8")
+    # Line-anchored so the count never matches a string literal that merely mentions the
+    # decorator (this file's own counting code included).
+    static_count = len(re.findall(r"(?m)^@mcp\.tool\(\)\s*$", src))
+    ok("static @mcp.tool decorators found in source", static_count > 0)
+
+    # P72: connector-contract impls + classification completeness, all package-independent.
+    probs = _classification_problems(src)
+    ok(f"every tool name explicitly classified ({len(probs)} problem(s))", not probs)
+    for pb in probs:
+        print(f"       {pb}")
+    # P73 D6-F4: prove the gate is fail-CLOSED, not merely quiet. A tool whose name matches no
+    # mutation signal must still be refused when unclassified -- that is the whole defect.
+    # The decorator is assembled rather than written literally: a newline escape immediately
+    # followed by the decorator reads as an email address to tools/secret_scan.py, and keeping
+    # that scanner free of false positives is worth more than a one-line string.
+    _deco = "@" + "mcp.tool()"
+    _fake = src + "\n" + _deco + '\ndef publish_draft() -> str:\n    """x"""\n    return "x"\n'
+    _fake_probs = _classification_problems(_fake)
+    ok("an UNCLASSIFIED tool is refused even with no mutation-signal match",
+       any("publish_draft" in p and "UNCLASSIFIED" in p for p in _fake_probs))
+    _stale = _classification_problems(src.replace("def post_status(", "def post_status_renamed("))
+    ok("a classified-but-missing tool is reported as a stale entry",
+       any("post_status" in p and "stale entry" in p for p in _stale))
+    # P73 D6-F12: a malformed local config must be preserved, never clobbered.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _p = Path(_td) / "creator-os-config.local.json"
+        _original = '{"capabilities": {"live_publishing_enabled": true},, "remote_mcp_token": "x"}'
+        _p.write_text(_original, encoding="utf-8")
+        _cfg, _bak, _err = _read_local_config_for_write(_p)
+        import re as _re4
+        ok("a malformed local config is backed up, not destroyed, under a timestamped name (P81)",
+           _err is None and _bak and Path(_bak).read_text(encoding="utf-8") == _original
+           and _re4.fullmatch(r"creator-os-config\.local\.json\.corrupt\.\d{14}\.bak", Path(_bak).name))
+        _p2 = Path(_td) / "good.json"
+        _p2.write_text('{"capabilities": {"a": true}}', encoding="utf-8")
+        _cfg2, _bak2, _err2 = _read_local_config_for_write(_p2)
+        ok("a valid local config parses with no backup churn",
+           _err2 is None and _bak2 is None and _cfg2["capabilities"]["a"] is True)
+        _cfg3, _bak3, _err3 = _read_local_config_for_write(Path(_td) / "absent.json")
+        ok("an absent local config is an empty dict, not an error",
+           _err3 is None and _bak3 is None and _cfg3 == {})
+    # P73 D6-F11: a corrupt cache DB must get the rebuild hint, not a bare traceback.
+    _corrupt = _cache_failure("sqlite3.DatabaseError: file is not a database")
+    ok("a corrupt cache index returns a rebuild hint",
+       "hint" in _corrupt and "index.local.db" in _corrupt["hint"])
+    _other = _cache_failure("some unrelated failure")
+    ok("an unrelated cache failure is NOT mislabelled as corruption",
+       "hint" not in _other and _other["error"] == "some unrelated failure")
+    import sqlite3, tempfile, os
+    with tempfile.TemporaryDirectory() as td:
+        db = os.path.join(td, "idx.db")
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE records(source TEXT, id TEXT, title TEXT, text TEXT)")
+        conn.execute("CREATE TABLE meta(k TEXT, v TEXT)")
+        conn.execute("INSERT INTO meta VALUES('fts5','0')")
+        conn.executemany("INSERT INTO records VALUES(?,?,?,?)", [
+            ("canonical-sources/keyword-library.json", "kw1", "Fall decor keywords",
+             "fall decor keyword list"),
+            ("canonical-sources/seed.local.json", "sec", "Should never surface",
+             "gitignored local record"),
+        ])
+        conn.commit(); conn.close()
+        sr = _search_impl("keyword", db_path=db)
+        ok("search returns the connector contract shape",
+           isinstance(sr.get("results"), list) and sr["results"]
+           and set(sr["results"][0]) == {"id", "title", "url"} and sr["results"][0]["url"])
+        ok("search never serves .local. records",
+           all(".local." not in r["id"] for r in sr["results"]))
+        fr = _fetch_impl(sr["results"][0]["id"], db_path=db)
+        ok("fetch returns EXACTLY the contract fields",
+           set(fr) == {"id", "title", "text", "url", "metadata"})
+        ok("citation url is repo-relative once, never doubled (P72 D1)",
+           sr["results"][0]["url"].endswith("/canonical-sources/keyword-library.json")
+           and "canonical-sources/canonical-sources" not in sr["results"][0]["url"])
+        ok("fetch refuses a .local. source",
+           _fetch_impl("canonical-sources/seed.local.json::sec", db_path=db).get("error")
+           == "unknown id")
+        ok("hostile FTS input survives (falls back, no raise)",
+           isinstance(_search_impl('a AND ("', db_path=db).get("results"), list))
+        ok("missing db degrades to empty results with a note",
+           _search_impl("x", db_path=os.path.join(td, "absent.db")).get("results") == [])
+
+    # The real config deep-merge, against temp files (globals rebound and restored).
+    import tempfile
+    global CONFIG_PATH, CONFIG_LOCAL_PATH
+    real_paths = (CONFIG_PATH, CONFIG_LOCAL_PATH)
+    td = Path(tempfile.mkdtemp(prefix="mcp-selftest-"))
+    try:
+        (td / "base.json").write_text(json.dumps(
+            {"capabilities": {"a": {"enabled": False}, "b": {"enabled": True}}}), encoding="utf-8")
+        (td / "local.json").write_text(json.dumps(
+            {"capabilities": {"a": {"enabled": True}}}), encoding="utf-8")
+        CONFIG_PATH, CONFIG_LOCAL_PATH = td / "base.json", td / "local.json"
+        merged = _load_config()
+        ok("local capability overrides the committed default",
+           merged["capabilities"]["a"]["enabled"] is True
+           and merged["capabilities"]["b"]["enabled"] is True)
+        CONFIG_LOCAL_PATH = td / "missing.json"
+        ok("missing local file leaves committed defaults intact",
+           _load_config()["capabilities"]["a"]["enabled"] is False)
+        (td / "corrupt.json").write_text("{nope", encoding="utf-8")
+        CONFIG_LOCAL_PATH = td / "corrupt.json"
+        ok("corrupt local file never crashes the merge",
+           _load_config()["capabilities"]["a"]["enabled"] is False)
+    finally:
+        CONFIG_PATH, CONFIG_LOCAL_PATH = real_paths
+
+    # Both Transport C refusal strings, flags off (the committed defaults are off).
+    from handoff import runner as _runner
+    g1 = _handoff_gates()
+    ok("gate 1: remote_compute_endpoint off -> its refusal string",
+       g1 is not None and "remote_compute_endpoint is off" in g1)
+    real_cap = _runner.capability_enabled
+    try:
+        _runner.capability_enabled = lambda name, config=None: name == "remote_compute_endpoint"
+        g2 = _handoff_gates()
+        ok("gate 2: compute_handoff_enabled off -> its refusal string",
+           g2 is not None and "compute_handoff_enabled is off" in g2)
+        _runner.capability_enabled = lambda name, config=None: True
+        ok("gates clear only when BOTH capabilities are on", _handoff_gates() is None)
+    finally:
+        _runner.capability_enabled = real_cap
+
+    # Remote endpoint auth policy (P67-B), package-independent.
+    ok("serve decision: non-loopback + no token + no --insecure -> refuse",
+       _remote_serve_decision("0.0.0.0", None, False)[0] == "refuse")
+    ok("serve decision: loopback + no token -> open (proxy pattern)",
+       _remote_serve_decision("127.0.0.1", None, False)[0] == "open")
+    ok("serve decision: token set -> gated (even on non-loopback)",
+       _remote_serve_decision("0.0.0.0", "s3cret", False)[0] == "gated")
+    ok("serve decision: non-loopback + --insecure -> open (acknowledged)",
+       _remote_serve_decision("0.0.0.0", None, True)[0] == "open")
+    # P73 D4: host="" binds ALL interfaces in Python's socket layer, so it must be treated as
+    # non-loopback. It was previously allowlisted, which let an unset --host bind publicly.
+    ok("serve decision: EMPTY host + no token -> refuse (binds all interfaces)",
+       _remote_serve_decision("", None, False)[0] == "refuse")
+    ok("serve decision: empty host + token -> gated",
+       _remote_serve_decision("", "s3cret", False)[0] == "gated")
+
+    # Argv-level wiring (P68-B): the auth decision must be REACHED for any network bind, not just
+    # --serve-remote. These are the cases the P67-B fix missed -- a bare --transport streamable-http
+    # or sse (no --serve-remote) bound an open endpoint and skipped the gate. Fail here if the gate
+    # is ever re-gated on serve_remote alone.
+    ok("argv gate: --serve-remote -> gate fires", _auth_gate_fires(None, True) is True)
+    ok("argv gate: --transport streamable-http (no --serve-remote) -> gate fires",
+       _auth_gate_fires("streamable-http", False) is True)
+    ok("argv gate: --transport sse (no --serve-remote) -> gate fires",
+       _auth_gate_fires("sse", False) is True)
+    ok("argv gate: no args (stdio) -> gate does NOT fire", _auth_gate_fires(None, False) is False)
+    ok("argv gate: --transport stdio -> gate does NOT fire", _auth_gate_fires("stdio", False) is False)
+    ok("gate app: sse transport wraps the sse app", _gate_app_builder_name("sse") == "sse_app")
+    ok("gate app: streamable-http transport wraps the streamable-http app",
+       _gate_app_builder_name("streamable-http") == "streamable_http_app")
+
+    import asyncio as _asyncio
+
+    def _probe(authorization):
+        sent = []
+
+        async def _recv():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def _send(msg):
+            sent.append(msg)
+
+        async def _inner(scope, receive, send):  # the wrapped app; only reached when authorized
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+
+        hdrs = [(b"authorization", authorization.encode("latin-1"))] if authorization else []
+        mw = _BearerAuthMiddleware(_inner, "s3cret")
+        _asyncio.run(mw({"type": "http", "headers": hdrs}, _recv, _send))
+        return next(m["status"] for m in sent if m["type"] == "http.response.start")
+
+    ok("bearer gate: correct token -> 200", _probe("Bearer s3cret") == 200)
+    ok("bearer gate: wrong token -> 401", _probe("Bearer nope") == 401)
+    ok("bearer gate: missing header -> 401", _probe("") == 401)
+
+    # P80: the SDK-major shim, proven without the package (fake modules injected and restored).
+    import types as _types
+    _saved = {k: sys.modules.get(k) for k in ("mcp", "mcp.server", "mcp.server.mcpserver", "mcp.server.fastmcp")}
+    try:
+        def _fake(name, **attrs):
+            m = _types.ModuleType(name)
+            for k, v in attrs.items():
+                setattr(m, k, v)
+            return m
+        sys.modules.update({"mcp": _fake("mcp"), "mcp.server": _fake("mcp.server"),
+                            "mcp.server.mcpserver": _fake("mcp.server.mcpserver", MCPServer=type("MCPServer", (), {}))})
+        _cls, _v2 = _select_server_class()
+        ok("shim: 2.x arm selected when mcp.server.mcpserver imports", _v2 is True and _cls.__name__ == "MCPServer")
+        sys.modules.pop("mcp.server.mcpserver")
+        sys.modules["mcp.server.fastmcp"] = _fake("mcp.server.fastmcp", FastMCP=type("FastMCP", (), {}))
+        _cls, _v2 = _select_server_class()
+        ok("shim: 1.x arm selected when only fastmcp imports", _v2 is False and _cls.__name__ == "FastMCP")
+        # `None` in sys.modules makes `import name` raise ImportError even when the real package is
+        # installed; popping alone would let Python re-import it from disk.
+        sys.modules["mcp.server.mcpserver"] = None
+        sys.modules["mcp.server.fastmcp"] = None
+        try:
+            _select_server_class()
+            ok("shim: neither arm -> ImportError", False)
+        except ImportError:
+            ok("shim: neither arm -> ImportError", True)
+    finally:
+        for k, v in _saved.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+    ok("bind: 1.x routes nothing through run()", _bind_kwargs(False, "0.0.0.0", 8080) == {})
+    ok("bind: 2.x routes host/port through run()", _bind_kwargs(True, "127.0.0.1", 8080) == {"host": "127.0.0.1", "port": 8080})
+    ok("app factory: 2.x gets host, never port", _app_kwargs(True, "127.0.0.1") == {"host": "127.0.0.1"} and _app_kwargs(False, "x") == {})
+
+    class _TSS:
+        def __init__(self, allowed_hosts, allowed_origins):
+            self.allowed_hosts, self.allowed_origins = allowed_hosts, allowed_origins
+    _s = _allowed_hosts_settings(["mcp.example.com"], _TSS)
+    ok("allowed-hosts: keeps the SDK loopback set, adds bare host AND host:* plus the https origin",
+       _s.allowed_hosts == _SDK_LOOPBACK_HOSTS + ["mcp.example.com", "mcp.example.com:*"]
+       and _s.allowed_origins == _SDK_LOOPBACK_ORIGINS + ["https://mcp.example.com"])
+    ok("allowed-hosts: absent -> None (SDK default applies, WARNING printed)", _allowed_hosts_settings([], _TSS) is None)
+    ok("allowed-hosts: a host given with a port is not doubled",
+       _allowed_hosts_settings(["h.example.com:8443"], _TSS).allowed_hosts == _SDK_LOOPBACK_HOSTS + ["h.example.com:8443"])
+    ok("bind: security settings ride in run() kwargs under 2.x", _bind_kwargs(True, "127.0.0.1", 8080, _s).get("transport_security") is _s)
+    ok("allowed-hosts: CLI list is trimmed and wins", _remote_allowed_hosts([" a.example.com ", ""]) == ["a.example.com"])
+    import tempfile as _tf2
+    with _tf2.TemporaryDirectory() as _td2:
+        _p2 = Path(_td2) / "cfg.json"
+        _p2.write_text("{}", encoding="utf-8")
+        os.chmod(_p2, 0o600)
+        _atomic_write_text(_p2, "{\"a\": 1}\n")
+        ok("atomic write lands the bytes, leaves no temp file, and keeps the file's 0600 mode",
+           _p2.read_text() == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2]
+           and (os.stat(_p2).st_mode & 0o777) == 0o600)
+
+    # P81 C-3/C-5/C-6: operator-input validation (18 cases)
+    def _rejects(fn, val, token):
+        try:
+            fn(val)
+            return False
+        except ValueError as exc:
+            return token in str(exc)
+    ok("hosts: URL rejected with reason", _rejects(_normalize_allowed_hosts, ["https://x.example.com"], "not a URL"))
+    ok("hosts: path rejected", _rejects(_normalize_allowed_hosts, ["a/b"], "not a URL"))
+    ok("hosts: '*' rejected", _rejects(_normalize_allowed_hosts, ["*"], "hostname"))
+    ok("hosts: whitespace-inside rejected", _rejects(_normalize_allowed_hosts, ["a b.example"], "hostname"))
+    ok("hosts: a number rejected (not iterated per character)", _rejects(_normalize_allowed_hosts, 42, "list"))
+    ok("hosts: a dict rejected", _rejects(_normalize_allowed_hosts, {"h": 1}, "list"))
+    ok("hosts: bare string accepted as ONE host", _normalize_allowed_hosts("mcp.example.com") == ["mcp.example.com"])
+    ok("hosts: host:port accepted", _normalize_allowed_hosts(["h.example.com:8443"]) == ["h.example.com:8443"])
+    ok("hosts: IPv4 accepted", _normalize_allowed_hosts(["203.0.113.7"]) == ["203.0.113.7"])
+    ok("hosts: [IPv6] accepted", _normalize_allowed_hosts(["[2001:db8::1]"]) == ["[2001:db8::1]"])
+    ok("hosts: [IPv6]:* accepted and split correctly",
+       _split_host_port("[2001:db8::1]:*") == ("[2001:db8::1]", "*"))
+    ok("hosts: empty entries dropped", _normalize_allowed_hosts(["", "  ", "a.example.com"]) == ["a.example.com"])
+    ok("origins: https origin accepted", _normalize_allowed_origins(["https://app.example.com:8443"]) == ["https://app.example.com:8443"])
+    ok("origins: bare host rejected", _rejects(_normalize_allowed_origins, ["app.example.com"], "https"))
+    ok("origins: non-list rejected", _rejects(_normalize_allowed_origins, 7, "list"))
+    ok("origins: appended once, never duplicated",
+       _allowed_hosts_settings(["mcp.example.com"], _TSS, ["https://mcp.example.com"]).allowed_origins
+       == _SDK_LOOPBACK_ORIGINS + ["https://mcp.example.com"])
+    import tempfile as _tf3
+    with _tf3.TemporaryDirectory() as _td3:
+        _saved_clp = globals()["CONFIG_LOCAL_PATH"]
+        try:
+            globals()["CONFIG_LOCAL_PATH"] = Path(_td3) / "cfg.local.json"
+            CONFIG_LOCAL_PATH.write_text('{"remote_mcp_allowed_hosts": "one.example.com"}', encoding="utf-8")
+            ok("config arm: a bare string means one host", _remote_allowed_hosts([]) == ["one.example.com"])
+            CONFIG_LOCAL_PATH.write_text('{"remote_mcp_allowed_hosts": 42}', encoding="utf-8")
+            ok("config arm: a number raises ValueError (startup exit 2)",
+               _rejects(lambda v: _remote_allowed_hosts([]), None, "list"))
+            CONFIG_LOCAL_PATH.write_text('{nope', encoding="utf-8")
+            ok("config arm: an unparseable file degrades to []", _remote_allowed_hosts([]) == [])
+            CONFIG_LOCAL_PATH.unlink()
+            ok("config arm: an absent file degrades to []", _remote_allowed_hosts([]) == [])
+        finally:
+            globals()["CONFIG_LOCAL_PATH"] = _saved_clp
+
+    # P81 C-4 (T3): a 2.x install whose own dependency is missing surfaces the REAL missing name.
+    import importlib.abc as _iabc, importlib.machinery as _imach
+    class _BrokenFinder(_iabc.MetaPathFinder, _iabc.Loader):
+        def find_spec(self, name, path=None, target=None):
+            if name in ("mcp", "mcp.server", "mcp.server.mcpserver"):
+                return _imach.ModuleSpec(name, self, is_package=name != "mcp.server.mcpserver")
+            return None
+        def create_module(self, spec):
+            return None
+        def exec_module(self, module):
+            if module.__name__ == "mcp.server.mcpserver":
+                import creator_os_missing_dep_p81  # noqa: F401  (a name that can never exist)
+            module.__path__ = []
+    _saved2 = {k: sys.modules.pop(k, None) for k in ("mcp", "mcp.server", "mcp.server.mcpserver", "mcp.server.fastmcp")}
+    _finder = _BrokenFinder()
+    sys.meta_path.insert(0, _finder)
+    try:
+        try:
+            _select_server_class()
+            ok("shim: broken 2.x install surfaces its real missing dependency", False)
+        except ModuleNotFoundError as _exc:
+            ok("shim: broken 2.x install surfaces its real missing dependency", _exc.name == "creator_os_missing_dep_p81")
+    finally:
+        sys.meta_path.remove(_finder)
+        for k in ("mcp", "mcp.server", "mcp.server.mcpserver", "mcp.server.fastmcp"):
+            sys.modules.pop(k, None)
+        for k, v in _saved2.items():
+            if v is not None:
+                sys.modules[k] = v
+
+    failed = [n for n, c in checks if not c]
+    return (1 if failed else 0), static_count
+
+
+_SELFTEST = "--selftest" in sys.argv
+_RC_STATIC = 0
+if _SELFTEST:
+    _RC_STATIC, _STATIC_COUNT = _selftest_static()
+    try:
+        import mcp as _mcp_pkg  # noqa: F401
+    except ImportError:
+        print(f"mcp_server selftest: package-independent tier only "
+              f"({'PASS' if _RC_STATIC == 0 else 'FAIL'}; static tool count {_STATIC_COUNT}). "
+              f"The mcp package is not installed, so the live import + registered-tool count did "
+              f"NOT run. Install requirements-mcp.txt for the full check.")
+        sys.exit(_RC_STATIC)
+    # Package importable: fall through so the module registers every tool; the __main__ block
+    # finishes the full tier (live registered count == static source count).
+
+try:
+    _ServerClass, _MCP2 = _select_server_class()
+except ImportError:
+    try:
+        import mcp as _probe  # noqa: F401
+        print("ERROR: the installed 'mcp' package exposes neither MCPServer (2.x) nor FastMCP (1.x). "
+              "Reinstall from requirements-mcp.txt.", file=sys.stderr)
+    except ImportError:
+        print("ERROR: 'mcp' package not installed.\nRun: pip install -r requirements-mcp.txt", file=sys.stderr)
+    sys.exit(1)
+
+mcp = _ServerClass("creator-os")   # the first positional is `name` in both majors
 
 
 def _run(cmd: list, input_text: str | None = None) -> tuple:
@@ -98,7 +939,7 @@ def cache_query(query: str, limit: int = 5) -> str:
     cache index to be built first: python3 shared/cache/cache.py --build
 
     Args:
-        query: Full-text search query (e.g. "moody fall mantel" or "entity armoire").
+        query: Full-text search query (e.g. "seasonal home decor" or "entity armoire").
         limit: Maximum number of results to return (default 5).
     """
     cache_script = ROOT / "shared" / "cache" / "cache.py"
@@ -114,8 +955,69 @@ def cache_query(query: str, limit: int = 5) -> str:
         "--json",
     ])
     if rc != 0:
-        return json.dumps({"error": err.strip() or "cache query failed"})
+        return json.dumps(_cache_failure(err))
     return out.strip() or json.dumps([])
+
+
+def _construction_query(query, limit):
+    """Run the offline cache query and keep only construction-dictionary results."""
+    cache_script = ROOT / "shared" / "cache" / "cache.py"
+    if not (ROOT / "shared" / "cache" / "index.local.db").exists():
+        return None, {"error": "Cache index not found.", "hint": "Run: python3 shared/cache/cache.py --build"}
+    rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
+                         "--limit", str(max(limit * 5, 20)), "--json"])
+    if rc != 0:
+        return None, _cache_failure(err)
+    try:
+        data = json.loads(out or "{}")
+    except json.JSONDecodeError:
+        return None, {"error": "could not parse cache output"}
+    results = data.get("results", data if isinstance(data, list) else [])
+    kept = [r for r in results if str(r.get("source", "")).startswith("canonical-sources/construction")]
+    return kept[:limit], None
+
+
+@mcp.tool()
+def construction_lookup(query: str, limit: int = 6) -> str:
+    """Query the offline residential-construction dictionary (P34): dimensions, required steps, common
+    mistakes, and code citations for framing, stairs, decks, foundations, roofing, electrical,
+    plumbing, HVAC, drywall, insulation, egress, siding/flashing, plus the glossary, assemblies, and
+    FL/NC specifics. Returns ranked entries with their source file and record id (read the record for
+    the full dimensions and citations). Every entry carries the verify-locally boundary. Do NOT treat
+    results as code-compliance or engineering advice. Requires the cache: python3 shared/cache/cache.py
+    --build."""
+    kept, err = _construction_query(query, limit)
+    if err is not None:
+        return json.dumps(err)
+    return json.dumps({"query": query, "results": kept}, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def code_lookup(topic: str, jurisdiction: str = "both", limit: int = 6) -> str:
+    """Resolve a residential requirement by topic and jurisdiction (P34), returning the matching
+    dictionary entries (with their IRC/NEC/IPC section citations) plus the adopted code edition for the
+    jurisdiction: Florida (2023 FBC 8th Edition, 2021 I-Codes) or North Carolina (2018 NC RC, 2015 IRC,
+    with the pending 2024 transition). jurisdiction is 'fl', 'nc', or 'both'. Codes are cited by section
+    with a link to the free viewer; text and tables are never reproduced. Carries the verify-locally
+    boundary; not code-compliance advice. Requires the cache built."""
+    kept, err = _construction_query(topic, limit)
+    if err is not None:
+        return json.dumps(err)
+    edition = []
+    est = ROOT / "canonical-sources" / "construction" / "edition-status.json"
+    try:
+        entries = json.loads(est.read_text(encoding="utf-8"))
+        want = {"fl": {"FL", "model"}, "nc": {"NC", "model"}, "both": {"FL", "NC", "model"}}.get(
+            jurisdiction.lower(), {"FL", "NC", "model"})
+        edition = [{"jurisdiction": e.get("jurisdiction"), "adopted_edition": e.get("adopted_edition"),
+                    "model_basis": e.get("model_basis"), "pending": e.get("pending")}
+                   for e in entries if e.get("jurisdiction") in want]
+    except (OSError, json.JSONDecodeError):
+        edition = []
+    return json.dumps({"topic": topic, "jurisdiction": jurisdiction, "edition_status": edition,
+                       "requirements": kept,
+                       "boundary": "Verify against the adopted code edition and your permit office; not code-compliance advice."},
+                      indent=2, ensure_ascii=False)
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +1046,36 @@ def competitor_scan(competitor_id: str) -> str:
             "error": err.strip() or "parse failed",
             "hint": "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch",
         })
-    return out.strip() or json.dumps({"result": "no data found", "competitor_id": competitor_id})
+    # P75: this used to return the subprocess stdout, which is cmd_parse's COUNTER
+    # ({"parsed": 1, "skipped": []}) -- the per-row detail goes to stderr. So the tool promised
+    # metadata and delivered a tally. Read the stored row back and return that instead, which is
+    # the contract this docstring and skills/atoms/deep-competitor-scan already describe.
+    try:
+        parse_summary = json.loads(out.strip() or "{}")
+    except json.JSONDecodeError:
+        parse_summary = {}
+    db = ROOT / "pipeline" / "competitor-snapshots" / "index.local.db"
+    if not db.exists():
+        return json.dumps({"result": "no data found", "competitor_id": competitor_id,
+                           "hint": "Run: python3 tools/competitor_snapshot.py --fetch"})
+    import sqlite3 as _sq
+    con = _sq.connect(f"file:{db}?mode=ro", uri=True)
+    con.row_factory = _sq.Row
+    try:
+        row = con.execute(
+            "SELECT competitor_id, platform, url, title, og_description, video_tags, hashtags, "
+            "chapter_markers, category, publish_date, upload_date, is_shorts_eligible, "
+            "canonical_url, confidence, snapshot_date, parse_notes, parser_version "
+            "FROM competitor_pages WHERE competitor_id=? "
+            "ORDER BY snapshot_date DESC, id DESC LIMIT 1", (competitor_id,)).fetchone()
+    finally:
+        con.close()
+    if row is None:
+        return json.dumps({"result": "no data found", "competitor_id": competitor_id,
+                           "parse": parse_summary})
+    data = dict(row)
+    data["parse"] = parse_summary
+    return json.dumps(data, indent=2, default=str)
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +1103,267 @@ def source_staleness(category: str = "") -> str:
     if rc != 0:
         return json.dumps({"error": err.strip() or "staleness report failed"})
     return out.strip()
+
+
+@mcp.tool()
+def currency_scan(category: str = "", overlay_path: str = "") -> str:
+    """Report your sources' freshness, merging YOUR personal freshness overlay when given (P36).
+
+    Read-only. With overlay_path, union-merges your own store's freshness stamps onto the read-only
+    baseline so you see YOUR up-to-date view. Writes nothing; never touches GitHub.
+
+    Args:
+        category: Optional category filter (seo-authority, api-changelog, platform-spec, ...).
+        overlay_path: Path to your personal freshness overlay JSON (your store). Omit for baseline-only.
+    """
+    cmd = [sys.executable, str(ROOT / "tools" / "source_currency.py"), "report"]
+    if category:
+        cmd += [f"--category={category}"]
+    if overlay_path:
+        cmd += ["--overlay", overlay_path]
+    rc, out, err = _run(cmd)
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "currency scan failed"})
+    return out.strip()
+
+
+@mcp.tool()
+def currency_detect_changes(overlay_path: str, apply: bool = False, category: str = "", only: str = "") -> str:
+    """Token-free change detection over your web sources; stamps go to YOUR overlay only (P36).
+
+    Conditional-GET + sha256 per source; unchanged/first-seen are stamped, changed pages are queued
+    for you to interpret. With apply=true, freshness stamps are written to overlay_path (your own
+    store) -- NEVER the repo registry and NEVER GitHub. Requires an overlay_path so writes stay in
+    your control.
+
+    Args:
+        overlay_path: Path to your personal freshness overlay JSON (required as the write target).
+        apply: Write the freshness stamps to your overlay (default false = report only).
+        category: Optional category filter.
+        only: Optional single source id.
+    """
+    # LOAD-BEARING guard (P72 D3): without overlay_path the underlying CLI would stamp the
+    # committed source registry itself. This check is what confines a hosted endpoint's writes
+    # to the caller's own store; treat any refactor of it as a security change.
+    if not overlay_path:
+        return json.dumps({"error": "overlay_path is required so all writes stay in your own store"})
+    cmd = [sys.executable, str(ROOT / "tools" / "source_currency.py"), "check",
+           "--detect-changes", "--overlay", overlay_path]
+    if apply:
+        cmd += ["--apply"]
+    if category:
+        cmd += [f"--category={category}"]
+    if only:
+        cmd += ["--only", only]
+    with _WRITE_LOCK:   # the overlay is read-modify-written by the subprocess; serialise concurrent calls
+        rc, out, err = _run(cmd)
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "detect-changes failed"})
+    return out.strip()
+
+
+@mcp.tool()
+def freshness_refresh(overlay_path: str, source_id: str, field: str, value: str,
+                      source_citation: str, publish_date: str = "") -> str:
+    """Record ONE cited, refreshed reference value into YOUR freshness overlay (P36 Flow B).
+
+    Writes an {as_of, source_citation, publish_date} envelope to overlay_path (your own store) so the
+    value can be aged/flagged rather than silently trusted. Writes only your store; never GitHub, never
+    shared. Provide a real source_citation (no-fabrication): if you cannot cite it, do not record it.
+
+    Args:
+        overlay_path: Path to your personal freshness overlay JSON (your store; the only write target).
+        source_id: The registry source id this value came from.
+        field: The field name being refreshed (e.g. "instagram_reels_max_hashtags").
+        value: The refreshed value (as a string).
+        source_citation: The URL/citation the value came from (required).
+        publish_date: The source's publish date if known (ISO), for aging.
+    """
+    if not overlay_path or not source_citation:
+        return json.dumps({"error": "overlay_path and source_citation are required (no-fabrication)"})
+    sys.path.insert(0, str(HERE))
+    import freshness_overlay as _fo  # noqa: E402
+    with _WRITE_LOCK:   # read-modify-write of the caller's overlay
+        overlay = _fo.load_overlay(overlay_path)
+        env = _fo.record_value(overlay, source_id, field, value, source_citation,
+                               publish_date=publish_date or None)
+        _fo.save_overlay(overlay, overlay_path)
+    return json.dumps({"recorded": {"source_id": source_id, "field": field}, "envelope": env,
+                       "wrote_to": overlay_path,
+                       "boundary": "your store only; never GitHub, never shared"}, ensure_ascii=False)
+
+
+@mcp.tool()
+def video_library_query(fts_query: str, limit: int = 20) -> str:
+    """Full-text search the creator's OWN imported video library (P45, read-only, local).
+
+    Searches titles, descriptions, tags, and transcripts in the local video-library store
+    (pipeline/video-library/index.local.db) built by the content-library spoke. Returns matching
+    records with their stats, retention, and most-watched segments. Reads only the local store; makes
+    no network call and never leaves the machine. Empty store or no match returns an empty list.
+
+    Args:
+        fts_query: An SQLite FTS5 query (e.g. "armoire", "patina OR wainscoting", "diy NEAR makeover").
+        limit: Maximum records to return (default 20).
+    """
+    if not fts_query:
+        return json.dumps({"error": "fts_query is required"})
+    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "video_library.py"),
+                         "query", fts_query, "--limit", str(limit)])
+    if rc != 0:
+        return json.dumps({"error": (err or out or "video_library query failed").strip()[:300]})
+    return out.strip() or "[]"
+
+
+@mcp.tool()
+def video_library_import_status() -> str:
+    """Report how complete the creator's imported video library is (P45, read-only, local).
+
+    Returns totals by platform and how many records still lack a transcript, retention, or revenue, so
+    the creator knows what is imported and what library-complete can still fill on-device. Retention is
+    YouTube-only and revenue is Studio-CSV-only; missing data is reported, never fabricated. Reads only
+    the local store; makes no network call.
+    """
+    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "video_library.py"), "status"])
+    if rc != 0:
+        return json.dumps({"error": (err or out or "video_library status failed").strip()[:300]})
+    return out.strip() or "{}"
+
+
+@mcp.tool()
+def get_server_info() -> str:
+    """Report this Creator OS server's identity and installed version (read-only, P44).
+
+    Returns the installed ecosystem version (the same value stamped into a hosted endpoint's
+    serverInfo.version). A connected remote-MCP client observes a version bump only on a NEW session
+    (the version is exchanged at initialize; it is a poll signal, never pushed mid-session). Writes
+    nothing; makes no network call.
+    """
+    try:
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        version = None
+    ecosystem, skills, engines = None, None, None
+    try:
+        vj = json.loads((ROOT / "versions.json").read_text(encoding="utf-8"))
+        ecosystem = vj.get("ecosystem")
+        skills = len(vj.get("skills", {}))
+        engines = len(vj.get("engines", {}))
+    except (OSError, json.JSONDecodeError):
+        pass
+    return json.dumps({
+        "name": "creator-os",
+        "version": version,
+        "ecosystem_version": ecosystem,
+        "skills_tracked": skills,
+        "engines_tracked": engines,
+        "note": ("This version is the poll-able currency signal. A connected client sees a bump only "
+                 "on a new session; there is no server push that forces a live client to re-initialize."),
+    }, ensure_ascii=False)
+
+
+@mcp.tool()
+def update_check() -> str:
+    """Report whether a newer Creator OS release is available upstream (read-only, P44/P48).
+
+    Polls the repo's public releases API and compares against the installed VERSION. It NEVER pulls,
+    never writes code, and never touches your .local data (rate card, deals, contracts, templates).
+    Applying an update stays your explicit `python3 tools/update.py` run. Returns status
+    current | behind | ahead | no_release | unreachable | unknown. When no release is published yet, it
+    falls back to comparing the installed commit against the active update channel's branch (P48) and
+    may return status 'behind_unreleased' with annotation fields detection_method / channel /
+    tracked_branch / commits_behind. Both 'behind' and 'behind_unreleased' mean an update is available.
+    """
+    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "update_check.py"), "report"])
+    if rc != 0:
+        return json.dumps({"error": err.strip() or "update check failed"})
+    return out.strip()
+
+
+@mcp.tool()
+def jurisdiction_resolve(lon: float, lat: float, facts_json: str = "{}") -> str:
+    """Resolve which advisory jurisdictional overlays apply to a project location (P37, optional).
+
+    Evaluates the canonical-sources/jurisdiction/ overlays offline: attribute overlays (HVHZ, SB 4D,
+    steep-slope) against the supplied facts; geometry overlays against the point when a cached boundary
+    is present (live boundaries need jurisdictional_overlay_live and are noted, not fetched here);
+    versioned-fact overlays return their dated value. Gated by the jurisdictional_overlay flag.
+    ADVISORY PLANNING INFORMATION ONLY, never a legal or permitting determination.
+
+    Args:
+        lon: longitude (EPSG:4326).
+        lat: latitude (EPSG:4326).
+        facts_json: JSON object of project facts (county_fips, ownership_form, habitable_stories,
+                    building_age_years, elevation_ft, elevation_above_valley_ft, slope_pct, ...).
+    """
+    sys.path.insert(0, str(HERE))
+    import glob as _glob
+    import geo_overlay as _go  # noqa: E402
+    cfg = _load_config()
+    caps = cfg.get("capabilities", {})
+    on = caps.get("jurisdictional_overlay", {})
+    if not (on.get("enabled") if isinstance(on, dict) else on):
+        return json.dumps({"enabled": False, "note": "jurisdictional_overlay is off; enable it to resolve overlays",
+                           "boundary": _go.ADVISORY})
+    try:
+        facts = json.loads(facts_json) if facts_json else {}
+    except json.JSONDecodeError:
+        return json.dumps({"error": "facts_json is not valid JSON"})
+    applicable, evaluated = [], []
+    for f in sorted(_glob.glob(str(ROOT / "canonical-sources" / "jurisdiction" / "*.json"))):
+        if f.endswith(".example.json"):
+            continue  # schema demos are never loaded for production resolution
+        try:
+            recs = json.loads(open(f, encoding="utf-8").read())
+        except (OSError, json.JSONDecodeError):
+            continue
+        for r in recs:
+            if not isinstance(r, dict) or not r.get("id"):
+                continue
+            ctx = {"facts": facts, "point": (lon, lat)}
+            # geometry overlays only self-evaluate when a real inline geometry is present
+            if r.get("overlay_kind") == "geometry" and not (r.get("geometry") and not r.get("_geometry_is_illustrative")):
+                evaluated.append({"overlay_id": r["id"], "overlay_kind": "geometry", "applies": None,
+                                  "note": "needs a cached or live boundary (geometry_ref=" + str(r.get("geometry_ref")) + ")"})
+                continue
+            res = _go.eval_overlay(r, ctx)
+            evaluated.append({"overlay_id": r["id"], "overlay_kind": r.get("overlay_kind"),
+                              "applies": res.get("applies"), "note": res.get("note")})
+            if res.get("applies") is True:
+                applicable.append({"overlay_id": r["id"], "title": r.get("title"),
+                                   "kind": r.get("overlay_kind"), "source_ids": r.get("source_ids")})
+    return json.dumps({"enabled": True, "point": [lon, lat], "applicable_overlays": applicable,
+                       "evaluated": evaluated, "human_review_required": True, "boundary": _go.ADVISORY},
+                      ensure_ascii=False)
+
+
+@mcp.tool()
+def overlay_conflict(overlay_id_a: str, overlay_id_b: str) -> str:
+    """Resolve a conflict between two jurisdictional overlays by their ids (P37, optional).
+
+    Looks up both overlay records in canonical-sources/jurisdiction/, runs the conflict-resolution
+    cascade (floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis), and returns the
+    governing rule with a W3C PROV audit -- or human_review_required for a genuine legal conflict. Never
+    auto-resolves a genuine conflict. ADVISORY ONLY.
+    """
+    sys.path.insert(0, str(HERE))
+    import glob as _glob
+    import geo_overlay as _go  # noqa: E402
+    by = {}
+    for f in _glob.glob(str(ROOT / "canonical-sources" / "jurisdiction" / "*.json")):
+        if f.endswith(".example.json"):
+            continue  # schema demos are never loaded for production resolution
+        try:
+            for r in json.loads(open(f, encoding="utf-8").read()):
+                if isinstance(r, dict) and r.get("id"):
+                    by[r["id"]] = r
+        except (OSError, json.JSONDecodeError):
+            continue
+    a, b = by.get(overlay_id_a), by.get(overlay_id_b)
+    if not a or not b:
+        missing = [i for i in (overlay_id_a, overlay_id_b) if i not in by]
+        return json.dumps({"error": f"overlay id(s) not found: {missing}"})
+    return json.dumps(_go.resolve_conflict(a, b), ensure_ascii=False)
 
 
 # ---------------------------------------------------------------------------
@@ -247,11 +1439,12 @@ def add_competitor(url: str, platform: str) -> str:
         platform: One of: youtube, pinterest, tiktok, instagram.
     """
     snapshot_script = ROOT / "tools" / "competitor_snapshot.py"
-    rc, out, err = _run([
-        sys.executable, str(snapshot_script),
-        "--add-competitor", url,
-        "--platform", platform,
-    ])
+    with _WRITE_LOCK:   # the subprocess read-modify-writes the registry; serialise concurrent calls
+        rc, out, err = _run([
+            sys.executable, str(snapshot_script),
+            "--add-competitor", url,
+            "--platform", platform,
+        ])
     if rc != 0:
         return json.dumps({"error": err.strip() or "add failed"})
     return out.strip() or json.dumps({
@@ -397,30 +1590,1279 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
                     "gemini_gem_export", "custom_gpt_export").
         enabled: True to enable the capability, False to disable it.
     """
-    local: dict = {}
-    if CONFIG_LOCAL_PATH.exists():
-        try:
-            local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            local = {}
+    with _WRITE_LOCK, _locked(CONFIG_LOCAL_PATH):   # P80 in-process, P81 cross-process (the wizard writes this file too)
+        local, backup, err = _read_local_config_for_write(CONFIG_LOCAL_PATH)
+        if err:
+            return json.dumps({"error": err, "refused": True,
+                               "hint": "Fix the JSON by hand, then re-run this tool."})
 
-    local.setdefault("capabilities", {})[capability] = enabled
+        local.setdefault("capabilities", {})[capability] = enabled
 
-    CONFIG_LOCAL_PATH.write_text(
-        json.dumps(local, indent=2) + "\n", encoding="utf-8"
-    )
+        _atomic_write_text(CONFIG_LOCAL_PATH, json.dumps(local, indent=2) + "\n")
 
-    return json.dumps({
+    result = {
         "result": "ok",
         "capability": capability,
         "enabled": enabled,
         "file": str(CONFIG_LOCAL_PATH),
-    })
+    }
+    if backup:
+        result["warning"] = (
+            f"The existing local config did not parse as JSON. It was backed up to {backup} and "
+            f"the file has been rewritten with only this capability. Any other local settings "
+            f"(publishing flags, remote_mcp_token, update channel) must be restored from that "
+            f"backup by hand.")
+    return json.dumps(result)
+
+
+# ---------------------------------------------------------------------------
+# Tool 11: schedule_post
+# ---------------------------------------------------------------------------
+
+PUBLISHING_FLAGS = [
+    "youtube_publishing", "instagram_publishing",
+    "tiktok_publishing", "pinterest_publishing",
+]
+
+
+@mcp.tool()
+def schedule_post(
+    platform: str,
+    caption: str,
+    content_type: str,
+    media_url: str = "",
+    scheduled_datetime: str = "",
+    hashtags: list | None = None,
+    is_aigc: bool = False,
+    ftc_disclosure: str = "",
+    board_name: str = "",
+) -> str:
+    """Build a confirmation plan for a single post. Never publishes; a human confirms first.
+
+    Checks which content_publishing connector is active (per-platform direct API >
+    manual fallback), enforces FTC disclosure and AIGC flag rules, then returns a
+    confirmation summary. Human confirmation is ALWAYS required before the connector
+    actually queues the post — this tool returns the plan, not a completed action.
+    When no connector is active, returns a manual posting package.
+
+    Args:
+        platform: One of: instagram, tiktok, pinterest, youtube.
+        caption: Finalized caption text (must include FTC disclosure if required).
+        content_type: One of: reel, short, pin, video, carousel, photo.
+        media_url: Publicly accessible URL to the media file (required for direct API tier).
+        scheduled_datetime: ISO 8601 datetime; empty = post immediately when connector allows.
+        hashtags: Optional list of hashtag strings to append if not already in caption.
+        is_aigc: If True and platform is tiktok, AIGC flag will be set on the post.
+        ftc_disclosure: One of: #ad, #gifted, #affiliate. Empty = no disclosure required.
+        board_name: Pinterest board name (required when platform is pinterest).
+    """
+    config = _load_config()
+
+    # Shared compliance + tier resolution (same helper the dashboard confirm path uses).
+    result = compliance.check(
+        platform,
+        caption=caption,
+        ftc_disclosure=ftc_disclosure,
+        is_aigc=is_aigc,
+        config=config,
+    )
+    tier = result["tier"]
+    connector = result["connector"]
+    effective_caption = result["effective_caption"]
+
+    if tier == "manual":
+        notes = "No direct-API publishing connector active. Use manual posting package below."
+    elif not result["has_credentials"]:
+        # This tool reports (does not hard-fail); the dashboard confirm path refuses instead.
+        notes = result["error"]
+    else:
+        notes = f"Connector ready: {connector}. Confirm to proceed."
+
+    # Build confirmation summary
+    summary = {
+        "platform": platform,
+        "content_type": content_type,
+        "publishing_tier": tier,
+        "connector_would_use": connector,
+        "scheduled_datetime": scheduled_datetime or None,
+        "caption_preview": effective_caption[:120] + "..." if len(effective_caption) > 120 else effective_caption,
+        "hashtags": hashtags or [],
+        "ftc_disclosure": result["ftc_disclosure"],
+        "ftc_disclosure_verified": result["ftc_disclosure_verified"],
+        "ftc_prepended": result["ftc_prepended"],
+        "aigc_flag_would_set": result["aigc_flag_set"],
+        "board_name": board_name or None,
+        "media_url_provided": bool(media_url),
+        "has_credentials": result["has_credentials"],
+        "human_review_required": True,
+        "status": "manual_required" if tier == "manual" else "awaiting_human_confirmation",
+        "notes": notes,
+    }
+
+    if tier == "manual":
+        summary["manual_posting_instructions"] = {
+            "instagram": "Open Instagram app → + → Reel/Photo → paste caption → add hashtags → post.",
+            "tiktok": "Open TikTok app → + → Upload → paste caption → add hashtags → post.",
+            "pinterest": f"Open Pinterest → + → Create Pin → upload media → paste description → select board '{board_name}' → publish.",
+            "youtube": "Open YouTube Studio → Create → Upload video → paste title/description → publish.",
+        }.get(platform, f"Open {platform} and post manually.")
+
+    return json.dumps(summary, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Tool 12: post_status
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def post_status(
+    platform: str,
+    post_id: str,
+    include_engagement_snapshot: bool = False,
+) -> str:
+    """Report what is known about a previously scheduled post, and where to check it by hand.
+
+    HONEST SCOPE (P73 D4-5): this reads the per-platform publishing FLAG only. It does not call a
+    connector, so it never returns a live status. When the flag is off it returns status: unknown
+    with a manual check URL for the platform; when the flag is on it names the connector that
+    would be responsible. The Creator OS status vocabulary (published, scheduled, processing,
+    failed, draft, unknown) is what a live implementation would map onto; today only `unknown` is
+    ever produced from a real lookup.
+
+    `include_engagement_snapshot` is accepted and currently has NO effect: no connector call is
+    made, so no engagement numbers exist to return. It is not silently zero-filled.
+
+    Never fabricates status, permalink, or engagement numbers — all unavailable
+    fields are returned as null, not zero-filled.
+
+    Args:
+        platform: One of: instagram, tiktok, pinterest, youtube.
+        post_id: The post_id returned by schedule-post when the post was queued.
+        include_engagement_snapshot: Reserved; has no effect today (see the scope note above).
+                                     When implemented: if True and the connector supports it, return
+                                     current views/likes/saves/shares. Defaults False.
+    """
+    config = _load_config()
+    caps = config.get("capabilities", {})
+
+    def _flag_enabled(name: str) -> bool:
+        meta = caps.get(name, {})
+        return meta.get("enabled", False) if isinstance(meta, dict) else bool(meta)
+
+    if _flag_enabled(f"{platform}_publishing"):
+        connector = f"{platform}_publishing"
+    else:
+        connector = "none"
+
+    # Manual check URL patterns per platform
+    manual_urls = {
+        "instagram": "https://www.instagram.com/ — open app or web, check your profile.",
+        "tiktok": "https://www.tiktok.com/@{your_username} — check in TikTok Studio.",
+        "pinterest": "https://www.pinterest.com/{your_username}/ — check in Pinterest Analytics.",
+        "youtube": "https://studio.youtube.com/ — check Content tab.",
+    }
+
+    if connector == "none":
+        return json.dumps({
+            "platform": platform,
+            "post_id": post_id,
+            "status": "unknown",
+            "permalink": None,
+            "published_at": None,
+            "scheduled_for": None,
+            "engagement_snapshot": None,
+            "connector_used": "none",
+            "error": None,
+            "notes": (
+                f"No publishing connector active for {platform}. "
+                f"Check manually: {manual_urls.get(platform, 'Open the platform app.')}"
+            ),
+        }, indent=2)
+
+    return json.dumps({
+        "platform": platform,
+        "post_id": post_id,
+        "status": "unknown",
+        "permalink": None,
+        "published_at": None,
+        "scheduled_for": None,
+        "engagement_snapshot": None,
+        "connector_used": connector,
+        "error": None,
+        "notes": (
+            f"Connector '{connector}' is configured. Call the connector's status endpoint "
+            f"directly with post_id '{post_id}' to retrieve live status. "
+            "Creator OS MCP delegates status checks to the platform's direct API "
+            "rather than re-implementing their interfaces."
+        ),
+    }, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Tool 13: get_publishing_plan
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def get_publishing_plan() -> str:
+    """Return which platforms have active publishing connectors and at what tier.
+
+    Reads all content_publishing capability flags and resolves a publishing plan
+    showing the available tier (direct_api or manual) per platform.
+    Use this before running content-distributor to know which platforms will queue
+    automatically and which will require manual posting.
+    """
+    config = _load_config()
+    caps = config.get("capabilities", {})
+
+    def _flag_enabled(name: str) -> bool:
+        meta = caps.get(name, {})
+        return meta.get("enabled", False) if isinstance(meta, dict) else bool(meta)
+
+    platforms = ["instagram", "tiktok", "pinterest", "youtube"]
+
+    platform_plans = {}
+    for plat in platforms:
+        per_platform_flag = f"{plat}_publishing"
+        if _flag_enabled(per_platform_flag):
+            tier = "direct_api"
+            connector = per_platform_flag
+        else:
+            tier = "manual"
+            connector = "none"
+        platform_plans[plat] = {
+            "tier": tier,
+            "connector": connector,
+            "will_auto_queue": tier != "manual",
+        }
+
+    any_connector = any(p["will_auto_queue"] for p in platform_plans.values())
+
+    return json.dumps({
+        "publishing_plan": platform_plans,
+        "any_connector_active": any_connector,
+        "connectors_checked": {
+            "youtube_publishing": _flag_enabled("youtube_publishing"),
+            "instagram_publishing": _flag_enabled("instagram_publishing"),
+            "tiktok_publishing": _flag_enabled("tiktok_publishing"),
+            "pinterest_publishing": _flag_enabled("pinterest_publishing"),
+        },
+        "dashboard_url": "http://localhost:8766",
+        "note": (
+            "All platforms in manual mode. No per-platform publishing connector is active. "
+            "Enable per-platform flags in creator-os-config.local.json or use the scheduling dashboard."
+            if not any_connector
+            else "Publishing plan resolved. Human confirmation required before any post is queued."
+        ),
+    }, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Tools 14 to 18: video editing bridge (P22)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def edit_preflight() -> str:
+    """Report what the video-editing bridge can do on this machine (OS, tools, flags, lanes).
+    Thin wrapper over tools/videoedit/preflight.py; launches nothing."""
+    code, out, err = _run([sys.executable, str(HERE / "videoedit" / "preflight.py"), "--json"])
+    return out if code == 0 else json.dumps({"error": err or "preflight failed"})
+
+
+@mcp.tool()
+def edit_build_fcpxml(edit_package: dict) -> str:
+    """Build a validated FCPXML timeline scaffold from a neutral edit-package.
+    Returns the FCPXML plus a validation result. File generation is allowed even while
+    video_editing_enabled is off (it drives no app). See shared/videoedit-engine.md."""
+    import tempfile as _tf
+    sys.path.insert(0, str(HERE / "videoedit"))
+    sys.path.insert(0, str(HERE))
+    import fcpxml as _f  # type: ignore
+    import videoedit_validate as _v  # type: ignore
+    xml = _f.build(edit_package)
+    val = _v.validate_fcpxml(xml)
+    return json.dumps({"fcpxml": xml, "validation": val}, indent=2)
+
+
+@mcp.tool()
+def edit_parse_fcpxml(fcpxml_path: str) -> str:
+    """Parse an exported FCPXML/.fcpxmld into a neutral edit-package (markers, chapters,
+    keywords, roles). This is the offline-to-online handoff feeding SEO and scheduling."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import fcpxml as _f  # type: ignore
+    try:
+        return json.dumps(_f.parse(fcpxml_path), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def import_edit_artifact(fcpxml_path: str) -> str:
+    """Import an editor export and surface the pieces that feed the rest of Creator OS:
+    chapters -> geo-optimize / description timestamps / scheduling, keywords -> entity-extract,
+    roles -> audio-stem plan. Mirrors the dashboard /api/import-report handoff."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import fcpxml as _f  # type: ignore
+    try:
+        pkg = _f.parse(fcpxml_path)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+    tl = pkg.get("timeline", {})
+    return json.dumps({
+        "edit_package": pkg,
+        "handoff": {
+            "chapters_for_geo_optimize_and_scheduling": tl.get("chapters", []),
+            "keywords_for_entity_extract": [k.get("keyword") for k in tl.get("keywords", [])],
+            "roles_for_audio_stems": tl.get("roles", []),
+            "marker_count": len(tl.get("markers", [])),
+        },
+    }, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def resolve_status() -> str:
+    """Report the DaVinci Resolve lane status (env bootstrap + whether live control is available).
+    Live control needs Resolve Studio + the resolve_scripting/video_editing_enabled flags; this
+    only inspects, it does not launch Resolve."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import resolve as _r  # type: ignore
+    from preflight import _resolve_present, _python_ok  # type: ignore
+    return json.dumps({
+        "bootstrap": _r.bootstrap_env(),
+        "resolve_detected": _resolve_present(),
+        "python_ok_for_resolve": _python_ok(),
+        "note": "Live methods are stubs until video_editing_enabled + resolve_scripting are on and Resolve Studio is running.",
+    }, indent=2)
+
+
+@mcp.tool()
+def edit_captions(source: str, direction: str = "from_editor", format: str = "srt") -> str:
+    """Caption round-trip (feature 2). direction='to_editor' converts a transcript/caption file to
+    SRT/VTT/iTT text; direction='from_editor' parses an editor caption file into edit-package
+    captions[]. Reuses the offline transcript stack; drives no app."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import captions as _c  # type: ignore
+    try:
+        if direction == "to_editor":
+            return json.dumps({"format": format, "caption_text": _c.to_editor(source, format)}, ensure_ascii=False)
+        return json.dumps(_c.from_editor(source), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def chapter_map(chapters: dict) -> str:
+    """Chapter fan-out (feature 8). Accepts an edit-package, a {chapters:[...]} object, or a bare
+    list, and returns the geo-optimize chapter_outline, a paste-ready YouTube description timestamp
+    block, scheduling metadata, and YouTube-rule validation flags. Pure transform."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import chapters as _ch  # type: ignore
+    try:
+        return json.dumps(_ch.fan_out(chapters), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def silence_scan(media_path: str | None = None, transcript_path: str | None = None,
+                 noise_db: float = -50.0, min_silence_seconds: float = 2.0) -> str:
+    """Silence (dead air) detection with provenance (P29). Local analysis, no flag, no app:
+    ffmpeg silencedetect when present, PyAV RMS as fallback, degrading to the transcript gap
+    floor. Result carries computed_by and the backend_chain audit trail; no backend means an
+    honest gaps[] entry, never invented numbers."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import mediaprobe as _mp  # type: ignore
+    try:
+        return json.dumps(_mp.detect_silence(media_path, transcript_path, noise_db,
+                                             min_silence_seconds), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def scene_scan(media_path: str | None = None, transcript_path: str | None = None,
+               threshold: float = 27.0) -> str:
+    """Scene-change detection and chapter candidates with provenance (P29). Local analysis, no
+    flag, no app: PySceneDetect when installed, ffmpeg scdet as fallback (luma-only caveat rides
+    on the result), degrading to the transcript chapter floor. Chapter titles are never
+    invented (suggested_title is always null)."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import mediaprobe as _mp  # type: ignore
+    try:
+        return json.dumps(_mp.detect_scenes(media_path, transcript_path, threshold),
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def reframe_shorts(source_width: int, source_height: int, aspect: str = "9:16",
+                   x_center: float | None = None) -> str:
+    """Shorts crop geometry (P29, feature 3). Pure math, always available: the centered (or
+    offset, clamped) crop rectangle plus the ffmpeg filter string, as an edit-package reframe
+    block. Local rendering is CLI-only (tools/videoedit/reframe.py render, gated on the
+    shorts_reframe flag); this tool never renders."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import reframe as _rf  # type: ignore
+    try:
+        return json.dumps(_rf.crop_geometry(source_width, source_height, aspect, x_center),
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def edit_build_mlt(edit_package: dict) -> str:
+    """Build MLT XML (Shotcut-native, Kdenlive substrate) from an edit-package (P29, feature 9).
+    Mirrors edit_build_fcpxml: returns the XML plus a well-formedness validation verdict. File
+    generation only; rendering is CLI-only behind the media_render flag."""
+    sys.path.insert(0, str(HERE / "videoedit"))
+    import mltxml as _mlt  # type: ignore
+    try:
+        xml = _mlt.build(edit_package)
+        verdict = _mlt.validate(xml)
+        return json.dumps({"mlt_xml": xml, "validation": verdict}, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def obligation_scan(rows: dict | None = None, today: str | None = None, lead_days: int = 3) -> str:
+    """Read-only deadline scan for contract obligations (P23 Phase 3). Deterministic date math runs
+    in local Python (tools/obligations.py), so the model spends no tokens on arithmetic. Pass `rows`
+    (obligation-extract output) to scan them, or omit to scan the stored register. Always available,
+    even when contract_obligations is off; never writes."""
+    sys.path.insert(0, str(HERE))
+    import obligations as _ob  # type: ignore
+    try:
+        anchor = _ob._today(today)
+        data = rows if rows is not None else (
+            json.loads(_ob.REGISTER_PATH.read_text(encoding="utf-8")) if _ob.REGISTER_PATH.exists() else None
+        )
+        if data is None:
+            return json.dumps({"error": "no_source", "message": "pass rows or build the register first"})
+        return json.dumps(_ob.scan(data, anchor, lead_days), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def obligation_build(rows: dict, today: str | None = None, lead_days: int = 3, write: bool = False) -> str:
+    """Compute the dated obligation register from obligation-extract rows (P23 Phase 3). The date math
+    (send-by, weekend/US-holiday roll-back, urgency bands) runs in local Python, not tokens. Returns
+    the computed register JSON. Persisting it (write=True) is gated behind contract_obligations; while
+    off, the register is computed and returned with a gate note but not written."""
+    sys.path.insert(0, str(HERE))
+    import obligations as _ob  # type: ignore
+    try:
+        anchor = _ob._today(today)
+        reg = _ob.build_register(rows, anchor, lead_days)
+        if write:
+            cfg = _ob.load_config()
+            if not _ob.flag_enabled(cfg, "contract_obligations"):
+                reg = dict(reg)
+                reg["_gate"] = ("contract_obligations is off: register computed but NOT written. "
+                                "Enable it to persist (see degraded_behavior).")
+            else:
+                with _WRITE_LOCK, _locked(_ob.REGISTER_PATH):
+                    _ob.REGISTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+                    _atomic_write_text(_ob.REGISTER_PATH, json.dumps(reg, indent=2, ensure_ascii=False) + "\n")
+                reg = dict(reg)
+                reg["_written"] = _ob.REGISTER_PATH.relative_to(_ob.ROOT).as_posix()
+        return json.dumps(reg, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def import_obligations() -> str:
+    """Import the computed obligation register and surface the pieces that feed the rest of Creator OS:
+    deadlines -> content-calendar (publish_target_date / ftc_disclosure via linked_deal_id),
+    send-by dates -> production-task (D-minus-N offsets), payment terms -> deal-resourcing / invoice-status.
+    Mirrors import_edit_artifact and the dashboard /api/import-report handoff. Read-only."""
+    sys.path.insert(0, str(HERE))
+    import obligations as _ob  # type: ignore
+    if not _ob.REGISTER_PATH.exists():
+        return json.dumps({"error": "no_register",
+                           "message": "no obligation register yet; run obligation_build with write=True (contract_obligations on)"})
+    try:
+        reg = json.loads(_ob.REGISTER_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+    obs = reg.get("obligations", [])
+    return json.dumps({
+        "boundary": reg.get("_boundary"),
+        "contract_ref": reg.get("contract_ref"),
+        "deal_id": reg.get("deal_id"),
+        "band_counts": reg.get("band_counts", {}),
+        "handoff": {
+            "calendar_deadlines": [
+                {"required_action": o.get("required_action"), "effective_date": o.get("effective_date"),
+                 "send_by_date": o.get("send_by_date"), "urgency_band": o.get("urgency_band")}
+                for o in obs
+            ],
+            "production_send_by_dates": [o.get("send_by_date") for o in obs if o.get("send_by_date")],
+            "payment_obligations": [
+                {"required_action": o.get("required_action"), "send_by_date": o.get("send_by_date")}
+                for o in obs if (o.get("clause_family") == "payment_terms_and_kill_fee"
+                                 or (o.get("required_action") or "").lower().find("invoice") >= 0
+                                 or (o.get("required_action") or "").lower().find("payment") >= 0)
+            ],
+        },
+        "human_review_required": True,
+        "note": "Deterministic register from tools/obligations.py; map these onto content-calendar, production-task, and deal-resourcing. A human confirms before any calendar or invoice action.",
+    }, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def finance_scan(invoices: list | None = None, today: str | None = None) -> str:
+    """Accounts-receivable scan (P30). Read-only and always available: aging buckets, per-brand
+    totals, accrued late penalties under each invoice's frozen terms, and the chase queue. Pass
+    invoice records inline, or omit to read pipeline/finance/*.local.json. All arithmetic runs in
+    tools/finance.py (exact decimal, no tokens); the model never re-adds figures."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else None
+        return json.dumps(_fin.ar_scan(invoices, t), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def invoice_build(payload: dict, today: str | None = None, write: bool = False) -> str:
+    """Draft a standalone invoice record (P30). Numbers only from the payload (deal figures);
+    deterministic INV-<deal_id>-<seq> id; due date derived from structured net terms offline.
+    write=True persists to pipeline/finance/ ONLY when finance_management AND invoice_generation
+    are on; otherwise the computed draft returns with a _gate note. Nothing is ever sent; the
+    human reviews and sends (consequential-action gate, shared/finance-engine.md)."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    import obligations as _ob  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else _date.today()
+        inv = _fin.build_invoice(payload, t)
+        if write:
+            ok, reason = _fin._write_allowed(_ob.load_config())
+            if not ok:
+                inv["_gate"] = reason
+            else:
+                out = _fin.FINANCE_DIR / f"{inv['invoice_id']}.local.json"
+                with _WRITE_LOCK:
+                    _fin.FINANCE_DIR.mkdir(parents=True, exist_ok=True)
+                    _atomic_write_text(out, json.dumps(inv, indent=2) + "\n")
+                inv["_written_to"] = str(out)
+        return json.dumps(inv, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def cost_rollup(line_items: list, time: dict | None = None) -> str:
+    """Cost-estimate totals (P30): category sums, expense vs capex split, time cost (hours x
+    hourly rate), grand total. Exact decimal via tools/finance.py; null amounts come back as
+    gaps and are excluded from totals, never guessed in. Carries the CPA boundary downstream."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    try:
+        return json.dumps(_fin.cost_rollup(line_items, time), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def proposal_price(cost_total: float | None = None, margin_percent: float | None = None,
+                   rate_floor: float | None = None, benchmark_range: dict | None = None) -> str:
+    """Standardized proposal price floor (P30): max(cost floor, negotiation floor) with the
+    binding constraint named and benchmark-range flags. Decision support only; the
+    consequential-action gate applies before any number is quoted externally."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    try:
+        return json.dumps(_fin.proposal_price(cost_total, margin_percent, rate_floor,
+                                              benchmark_range), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def cashflow_view(scheduled: list | None = None, estimates: list | None = None,
+                  horizon_days: int = 90, today: str | None = None,
+                  redacted: bool = False) -> str:
+    """Weekly cash-movement view (P31). Read-only, always available: expected inflows from open
+    invoices (read from pipeline/finance/) and dated scheduled rows, outflows from dated cost
+    estimates; overdue and undated items totaled separately with gaps, never guessed into a
+    week. Movement, not a bank balance. EXPOSURE NOTE: raw output contains real amounts and
+    brand names; pass redacted=True (banded amounts, initialed brands) for anything that will
+    be quoted outside this machine."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else None
+        result = _fin.cashflow(None, scheduled, estimates, horizon_days, t)
+        return json.dumps(_fin.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def build_calc(calc: str, params: dict | None = None) -> str:
+    """Offline residential construction calculation (P34). calc is one of: stair, egress, rvalue,
+    box_fill, drain_slope, roof_pitch, board_foot, deck_span. params holds the numeric inputs, e.g.
+    stair -> {total_rise_in}; egress -> {width_in, height_in, sill_in, at_grade}; rvalue ->
+    {component, climate_zone}; box_fill -> {conductors:[awg...], devices, clamps, grounds};
+    drain_slope -> {pipe_dia_in, run_ft}; roof_pitch -> {rise, run}; board_foot -> {thickness_in,
+    width_in, length_ft, qty}; deck_span -> {species, nominal, spacing_in}. All math is first
+    principles in tools/build_calc.py (no copyrighted tables); every result carries its code section
+    and the verify-locally boundary. deck_span is advisory only, never an authoritative span."""
+    sys.path.insert(0, str(HERE))
+    import build_calc as _bc  # type: ignore
+    fns = {
+        "stair": _bc.stair, "egress": _bc.egress, "rvalue": _bc.rvalue_zone,
+        "box_fill": _bc.box_fill, "drain_slope": _bc.drain_slope, "roof_pitch": _bc.roof_pitch,
+        "board_foot": _bc.board_foot, "deck_span": _bc.deck_span_sanity,
+    }
+    fn = fns.get(calc)
+    if fn is None:
+        return json.dumps({"error": f"unknown calc '{calc}'; choose one of {sorted(fns)}"})
+    try:
+        return json.dumps(fn(**(params or {})), indent=2, ensure_ascii=False)
+    except TypeError as exc:
+        return json.dumps({"error": f"bad params for {calc}: {exc}"})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def payment_reconcile(csv_path: str, window_days: int = 5, amount_tolerance: str = "0.00",
+                      redacted: bool = False) -> str:
+    """Match a bank/PayPal export to open invoices (P31). PROPOSAL-ONLY: confidence-tiered
+    matches for human confirmation; nothing is marked paid here (mark-paid is a gated CLI step
+    after an explicit yes per invoice). STRUCTURAL BOUNDARY: an in-repo CSV is refused unless
+    its filename carries .local. (bank exports live at pipeline/finance/<name>.local.csv,
+    gitignored, or outside the repo). EXPOSURE NOTE: raw output contains real amounts and
+    descriptions; pass redacted=True for anything quoted off this machine."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    try:
+        result = _fin.reconcile(csv_path, None, window_days, amount_tolerance)
+        return json.dumps(_fin.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except PermissionError as exc:
+        return json.dumps({"error": str(exc), "refused": True})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def import_finance(today: str | None = None) -> str:
+    """Fan the AR scan out to the existing join points (P30), mirroring import_obligations:
+    chase send-by dates for the content calendar and production tasks, deposit and payment due
+    dates for deal-resourcing. Read-only; a human confirms before any calendar or chase action."""
+    sys.path.insert(0, str(HERE))
+    import finance as _fin  # type: ignore
+    from datetime import date as _date
+    try:
+        t = _date.fromisoformat(today) if today else None
+        scan = _fin.ar_scan(None, t)
+        return json.dumps({
+            "as_of": scan["as_of"],
+            "join_points": {
+                "calendar_chase_dates": [
+                    {"invoice_id": r["invoice_id"], "brand_name": r.get("brand_name"),
+                     "chase_send_by": r.get("chase_send_by"), "urgency_band": r.get("urgency_band")}
+                    for r in scan["action_queue"]
+                ],
+                "production_payment_dates": [
+                    {"invoice_id": r["invoice_id"], "payment_due_date": r.get("payment_due_date")}
+                    for bucket in scan["buckets"].values() for r in bucket
+                ],
+                "disputed_for_review": scan["disputed"],
+            },
+            "total_outstanding": scan["total_outstanding"],
+            "computed_by": scan["computed_by"],
+            "human_review_required": True,
+            "note": "Deterministic AR view from tools/finance.py; map chase dates onto content-calendar and production-task. A human confirms before any chase or calendar action; nothing is sent.",
+        }, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def contact_lookup(query: str, person: str | None = None, redacted: bool = False) -> str:
+    """Resolve a fuzzy brand phrase to one account and read its contact(s) (P32). Read-only,
+    always available. The brand is resolved via the tiered account resolver (exact, alias,
+    substring, fuzzy, brand-category); if it does not resolve to ONE account, no contacts are
+    read and the resolver candidates are surfaced. A person hint that matches nobody returns a
+    gap naming the known contacts, never the wrong person. EXPOSURE NOTE: contacts are real
+    names and emails read from pipeline/accounts/*.local.json; the raw result is for the human
+    operator on this machine. Pass redacted=True (initials, masked emails) for anything quoted
+    off this machine."""
+    sys.path.insert(0, str(HERE))
+    import accounts as _acct  # type: ignore
+    try:
+        result = _acct.contacts(query, person=person)
+        return json.dumps(_acct.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def deal_status(query: str | None = None, deal_id: str | None = None,
+                redacted: bool = False) -> str:
+    """Report a deal's lifecycle status verbatim (P32). Read-only, always available: stage, the
+    latest stage_history event, payment_due_date, and the denormalized invoice.status, quoted
+    from pipeline/deals/*.local.json. Give a brand phrase (resolved to the account, then its
+    deals are listed) or an explicit deal_id. NO money math (aging, penalties, totals are
+    finance_scan) and NO stage transition (that is the evidence-gated deal-pipeline flow).
+    EXPOSURE NOTE: brand names are real; pass redacted=True for anything quoted off this
+    machine."""
+    sys.path.insert(0, str(HERE))
+    import accounts as _acct  # type: ignore
+    try:
+        result = _acct.deal_status(query=query, deal_id=deal_id)
+        return json.dumps(_acct.redact(result) if redacted else result,
+                          indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+# ---------------------------------------------------------------------------
+# Task tracker (P35): tasks, scheduling, coverage, shipments, milestones
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def task_scan(register_path: str | None = None, today: str | None = None) -> str:
+    """Read-only outstanding-task view (P35): the waiting-on-counterparty vs I-owe split plus due-soon,
+    overdue, and status counts, each item cited. Offline, always available. Nothing is sent."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    from datetime import date as _date
+    try:
+        reg = _t.load_register("local_fs", register_path)
+        d = _t._ob._parse_date(today) or _date.today()
+        return json.dumps(_t.scan(reg, d), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def task_plan(tasks: list, events: dict | None = None, deadline_task: str | None = None,
+              deadline: str | None = None) -> str:
+    """Schedule a project's tasks (P35): forward from trigger events, or, with deadline_task + deadline, a
+    backward reverse-plan plus a negative-slack feasibility check. Offline business-day math; unresolved
+    triggers are null and flagged, never guessed."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    try:
+        if deadline_task and deadline:
+            return json.dumps(_t.feasibility(tasks, events or {}, deadline_task, deadline), indent=2, ensure_ascii=False)
+        return json.dumps(_t.forward_schedule(tasks, events or {}), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def task_transition(task: dict, to_status: str, by: str = "user:creator", at: str | None = None,
+                    note: str | None = None) -> str:
+    """Apply one governed task state change (P35) through the single choke point: validates the allowed
+    transition, appends the audit event, and re-folds. Illegal transitions are refused, not forced. The
+    register write itself is human-confirmed."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    from datetime import date as _date
+    try:
+        return json.dumps(_t.transition(task, to_status, by, at or _date.today().isoformat(), note),
+                          indent=2, ensure_ascii=False)
+    except ValueError as exc:
+        return json.dumps({"error": str(exc), "refused": True})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def task_ics_export(register_path: str | None = None) -> str:
+    """Export tracked task due dates (and payment milestones) as a portable RFC 5545 .ics calendar (P35) that
+    imports into any calendar app. Skips closed tasks; stable UIDs so re-export updates rather than duplicates."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    try:
+        reg = _t.load_register("local_fs", register_path)
+        return _t.register_to_ics(reg)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def coverage_verify(canonical_or_sources: dict, required_points: list) -> str:
+    """Verify a deliverable covered its required points (P35). Pass {"texts": [...]} to reconcile multiple
+    transcripts to a canonical truth first, or {"canonical_text": "..."}. Returns per-point verdicts with an
+    extractive supporting quote, abstaining when unsure; input conflicts flow into a minority report. Not
+    compliance advice."""
+    sys.path.insert(0, str(HERE))
+    import coverage_verify as _cv  # type: ignore
+    try:
+        rec = None
+        if canonical_or_sources.get("texts"):
+            srcs = [{"id": f"src{i}", "text": t} for i, t in enumerate(canonical_or_sources["texts"])]
+            rec = _cv.reconcile(srcs)
+            canonical = rec.get("canonical_text", "")
+        else:
+            canonical = canonical_or_sources.get("canonical_text", "")
+        return json.dumps(_cv.verify_coverage(canonical, required_points, reconciliation=rec), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def shipment_track(tracking_number: str | None = None, carrier: str | None = None,
+                   provider: str = "easypost", manual: dict | None = None) -> str:
+    """Record a product shipment (P35): a live carrier poll (flag-gated, API key from env only) or a manual
+    entry, normalized to the canonical status enum, returning the delivered_at planning anchor. No key means
+    manual entry, never a guessed status."""
+    sys.path.insert(0, str(HERE))
+    import shipments as _sh  # type: ignore
+    try:
+        if manual:
+            ship = _sh.manual_shipment(**manual)
+            return json.dumps({"shipment": ship, "anchor": _sh.planning_anchor(ship)}, indent=2, ensure_ascii=False)
+        res = _sh.fetch(tracking_number, carrier, provider)
+        if res.get("shipment"):
+            res["anchor"] = _sh.planning_anchor(res["shipment"])
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def milestone_status(schedule: dict, deliverable_id: str | None = None, event: str | None = None) -> str:
+    """Payment-milestone billable readiness (P35). With deliverable_id + event, flips the matching milestones
+    to billable and returns citation-carrying invoice-draft tasks for the finance lane; otherwise reports
+    which milestones are already ready to bill. Nothing is invoiced or sent here."""
+    sys.path.insert(0, str(HERE))
+    import tasks as _t  # type: ignore
+    from datetime import date as _date
+    try:
+        if deliverable_id and event:
+            fired = _t.apply_deliverable_event(schedule, deliverable_id, event, _date.today().isoformat())
+            return json.dumps({"newly_billable": fired, "human_review_required": True}, indent=2, ensure_ascii=False)
+        return json.dumps(_t.billable_scan(schedule), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def launch_setup() -> str:
+    """Open the Creator OS setup wizard in the user's web browser (no terminal needed).
+
+    Spawns tools/wizard.py as a local background process; it serves a guided setup at
+    http://localhost:8765/ and opens the browser automatically. This works ONLY where Creator OS runs
+    as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code) — a hosted/remote
+    connector runs in the vendor's cloud and cannot open a browser or reach the user's computer.
+    Nothing is installed or changed by this call itself; the wizard asks for consent at each step."""
+    wizard = HERE / "wizard.py"
+    if not wizard.exists():
+        return json.dumps({"error": "wizard not found", "path": str(wizard)})
+    try:
+        kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        if os.name == "posix":
+            kwargs["start_new_session"] = True
+        subprocess.Popen([sys.executable, str(wizard)], **kwargs)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": f"could not start the wizard: {exc}",
+                           "manual": "Run: python3 tools/wizard.py"})
+    return json.dumps({
+        "result": "launching",
+        "url": "http://localhost:8765/",
+        "note": "The setup wizard is opening in your web browser. If it does not open, visit the URL "
+                "above. This works only when Creator OS runs locally (Claude Desktop or Claude Code), "
+                "not from a browser-only or hosted connector.",
+    }, indent=2)
+
+
+# _handoff_gates moved above the mcp package import (P61 C19) so the package-independent
+# selftest tier can exercise both refusal strings without the package installed.
+
+
+@mcp.tool()
+def submit_compute_job(job_type: str, params_json: str = "{}", input_refs_json: str = "[]") -> str:
+    """Queue an allowlisted compute job for the local machine (P60 Transport C, doubly gated).
+
+    Creates a validated ticket in the Drive hub's Jobs/queue via the local queue writer; the
+    scheduled watcher/runner executes it and writes a result to Jobs/results. Only the job types in
+    shared/schemas/compute-job.json can run (transcription, library analysis, import previews,
+    read-only finance reports, offline competitor parse, projections, inbox scan) — nothing can
+    post, publish, send, or read credentials from a job, and every result carries
+    human_review_required. Refuses unless BOTH remote_compute_endpoint and compute_handoff_enabled
+    are on and the Drive hub is configured (wizard /drive-hub). Returns the ticket JSON or a plain
+    error."""
+    gate = _handoff_gates()
+    if gate:
+        return json.dumps({"error": gate})
+    from handoff import queue as _hq
+    from handoff import watcher as _watcher
+    hub, note = _watcher.resolve_hub(None)
+    if hub is None:
+        return json.dumps({"error": note})
+    try:
+        params = json.loads(params_json or "{}")
+        input_refs = json.loads(input_refs_json or "[]")
+    except ValueError as exc:
+        return json.dumps({"error": f"params_json/input_refs_json is not valid JSON: {exc}"})
+    try:
+        ticket = _hq.submit(hub, job_type, params=params, input_refs=input_refs, origin="other",
+                            requested_by="remote-mcp")
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)})
+    return json.dumps({"result": "queued", "job_id": ticket["job_id"],
+                       "note": "The local watcher runs this on its next pass; check with "
+                               "job_status(job_id)."}, indent=2)
+
+
+@mcp.tool()
+def job_status(job_id: str) -> str:
+    """Report the state of a queued compute job (P60 Transport C, read-only, doubly gated).
+
+    Returns the result JSON from Jobs/results when the job has run, 'pending' while its ticket
+    waits in Jobs/queue, or 'unknown' if neither exists (never guessed)."""
+    gate = _handoff_gates()
+    if gate:
+        return json.dumps({"error": gate})
+    from handoff import queue as _hq
+    from handoff import watcher as _watcher
+    hub, note = _watcher.resolve_hub(None)
+    if hub is None:
+        return json.dumps({"error": note})
+    rp = _hq.result_path(hub, job_id)
+    if rp.exists():
+        try:
+            return rp.read_text(encoding="utf-8")
+        except OSError as exc:
+            return json.dumps({"error": f"result unreadable: {exc}"})
+    for entry in _hq.read_queue(hub):
+        if (entry["data"] or {}).get("job_id") == job_id:
+            return json.dumps({"job_id": job_id, "status": "pending",
+                               "note": "waiting for the local watcher's next pass"})
+    return json.dumps({"job_id": job_id, "status": "unknown",
+                       "note": "no ticket or result found for this id in the configured hub"})
+
+
+@mcp.tool()
+def search(query: str) -> str:
+    """Search the Creator OS knowledge base (the canonical-sources cache index).
+
+    ChatGPT-connector-shaped (P72): returns {"results": [{"id", "title", "url"}]} so this server
+    satisfies the plain-connector contract (ChatGPT without developer mode, and deep research,
+    require exactly-shaped search + fetch tools; developers.openai.com/api/docs/mcp). Read-only.
+
+    Args:
+        query: Full-text search query (e.g. "seasonal pinterest lead times").
+    """
+    return json.dumps(_search_impl(query))
+
+
+@mcp.tool()
+def fetch(id: str) -> str:
+    """Fetch one knowledge record by a search result id ("source::record").
+
+    ChatGPT-connector-shaped (P72): returns {"id", "title", "text", "url", "metadata"} per the
+    plain-connector contract (developers.openai.com/api/docs/mcp). Read-only; refuses gitignored
+    .local. sources.
+
+    Args:
+        id: A result id exactly as returned by search, "source-file::record-id".
+    """
+    return json.dumps(_fetch_impl(id))
+
+
+# ---------------------------------------------------------------------------
+# Tool annotations (P72): classification data lives above the import guard (package-independent
+# tier checks completeness); this applies it to the live registry. Decorators stay bare
+# @mcp.tool() because the static count matches that exact spelling.
+# ---------------------------------------------------------------------------
+
+def _apply_annotations() -> tuple:
+    """Attach ToolAnnotations to every registered tool; return (applied, problems)."""
+    try:
+        from mcp.types import ToolAnnotations
+    except ImportError:
+        return 0, ["mcp.types.ToolAnnotations unavailable; annotations skipped (old mcp package)"]
+    problems = _classification_problems(Path(__file__).read_text(encoding="utf-8"))
+    applied = 0
+    for name, tool in mcp._tool_manager._tools.items():
+        ann = _WRITE_TOOLS.get(name, _DEFAULT_READONLY)
+        try:
+            tool.annotations = ToolAnnotations(**ann)
+            applied += 1
+        except (AttributeError, TypeError) as exc:
+            problems.append(f"{name}: annotation attach failed ({exc})")
+    return applied, problems
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+#
+# Transport (P35 cross-surface / cross-AI):
+#   default (no args)  -> stdio, for a local Claude Desktop MCP server (claude_desktop_config.json).
+#   --serve-remote     -> a remote streamable-HTTP MCP endpoint. Deploy it behind an HTTPS reverse
+#                         proxy that terminates TLS + auth (the documented model). The server adds
+#                         two in-process protections that fire for ANY network transport -- both
+#                         --serve-remote and a bare --transport streamable-http/sse (P68-B): it
+#                         REFUSES to bind a non-loopback --host with no CREATOR_OS_MCP_TOKEN and no
+#                         --insecure (no accidental open public endpoint), and when a token IS set it
+#                         enforces an in-process bearer gate (defense in depth). Loopback binds need
+#                         no token.
+#                         One endpoint CAN serve claude.ai web + mobile AND, since both
+#                         vendors speak MCP, ChatGPT (developer mode, web and desktop app; plan gating
+#                         needs verification) and Gemini. We ship the server code and the runbooks; we do
+#                         not host a server. Deploy + per-surface registration runbook:
+#                         implementation/gpt/mcp-connector/README.md (also docs/TASK-TRACKER.md).
+#                         The same task tools serve every surface unchanged; capability flags and consent
+#                         gates enforce on THIS machine for every connected surface.
+#   Updating a deployed endpoint (P44): update the endpoint machine (tools/update.py) and restart; every
+#   connected session serves the new behavior on its next connect. Keep the tool set SMALL and STABLE
+#   and push evolving content through tool RESPONSES: neither claude.ai nor ChatGPT reliably picks up a
+#   changed tool CONTRACT on a live connection (stale list caches / manual Refresh), so adding/renaming
+#   tools breaks the background promise. Bump the VERSION each deploy; get_server_info surfaces it as the
+#   poll-able currency signal (serverInfo.version is exchanged only at initialize, never pushed).
 
 if __name__ == "__main__":
-    mcp.run()
+    if _SELFTEST:
+        # P61 C19 full tier: the package imported and every tool above registered live.
+        _live = None
+        try:
+            _live = len(mcp._tool_manager._tools)  # the tool manager's registry (same private name in both majors; the public list_tools() fallback follows)
+        except AttributeError:
+            try:
+                import asyncio as _asyncio
+                _live = len(_asyncio.run(mcp.list_tools()))
+            except Exception as _exc:  # noqa: BLE001
+                print(f"FAIL could not count live-registered tools: {_exc}")
+                sys.exit(1)
+        import re as _re
+        _src_count = len(_re.findall(r"(?m)^@mcp\.tool\(\)\s*$",
+                                     Path(__file__).read_text(encoding="utf-8")))
+        _match = _live == _src_count
+        print(("ok   " if _match else "FAIL ")
+              + f"live registered tool count {_live} == static source count {_src_count}")
+        # P72: annotations complete + connector contract shapes.
+        _applied, _ann_problems = _apply_annotations()
+        _ann_ok = not _ann_problems and _applied == _live
+        print(("ok   " if _ann_ok else "FAIL ")
+              + f"annotations applied to {_applied}/{_live} tools, {len(_ann_problems)} problem(s)")
+        for _pb in _ann_problems:
+            print(f"       {_pb}")
+        _shape_ok = True
+        _sr = json.loads(search("keyword"))
+        if "results" not in _sr or not isinstance(_sr["results"], list):
+            _shape_ok = False
+        for _r in _sr["results"]:
+            if set(_r) != {"id", "title", "url"} or not _r["url"]:
+                _shape_ok = False
+        _fr = json.loads(fetch(_sr["results"][0]["id"])) if _sr["results"] else {"error": "empty"}
+        if _sr["results"] and not {"id", "title", "text", "url"} <= set(_fr):
+            _shape_ok = False
+        _loc = json.loads(fetch("x.local.json::anything"))
+        if "error" not in _loc:
+            _shape_ok = False
+        _hostile = json.loads(search('a AND ("'))  # FTS syntax bomb -> must not raise
+        if "results" not in _hostile:
+            _shape_ok = False
+        print(("ok   " if _shape_ok else "FAIL ")
+              + "search/fetch match the ChatGPT connector contract shapes; .local refused; "
+              + "hostile FTS input survives")
+        # P80: six write tools are serialised behind _WRITE_LOCK and configure_tool writes atomically.
+        # Two threads toggling different capabilities must leave one parseable file holding both keys
+        # and no temp residue. Runs against a temp path; the real local config is never touched.
+        import tempfile as _tf3
+        import threading as _th3
+        _conc_ok = False
+        with _tf3.TemporaryDirectory() as _td3:
+            _orig_cfg = CONFIG_LOCAL_PATH
+            globals()["CONFIG_LOCAL_PATH"] = pathlib_Path(_td3) / "local.json"
+            try:
+                def _toggle(name):
+                    for i in range(25):
+                        configure_tool(name, bool(i % 2))
+                _ts = [_th3.Thread(target=_toggle, args=("cap_a",)), _th3.Thread(target=_toggle, args=("cap_b",))]
+                for _x in _ts:
+                    _x.start()
+                for _x in _ts:
+                    _x.join()
+                _data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
+                _conc_ok = (set(_data.get("capabilities", {})) == {"cap_a", "cap_b"}
+                            and not list(pathlib_Path(_td3).glob("*.tmp*")))
+            except Exception as _exc:  # noqa: BLE001
+                print(f"FAIL concurrent configure_tool raised: {_exc}")
+            finally:
+                globals()["CONFIG_LOCAL_PATH"] = _orig_cfg
+        print(("ok   " if _conc_ok else "FAIL ") + "concurrent configure_tool writes serialise and stay parseable (P80)")
+
+        def _selftest_transport_policy(ok_fn, is_v2, server_cls, loopback_hosts, allowed_hosts_settings):
+            """G-9 (P81): the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
+            obtained WITHOUT binding a socket and fed to the SDK middleware; the assertion is the deny/pass
+            OUTCOME for a Host header, identical in mcp 1.28.1, 1.29.1 and 2.1.1. Asserting the outcome, not
+            `settings is not None`: TransportSecuritySettings() with empty lists is enabled and denies everything.
+            If a patch release renames _session_manager / _lowlevel_server, this fails loudly; the fallback is a
+            bound-socket probe."""
+            import asyncio as _aio
+            from mcp.server.transport_security import TransportSecuritySettings, TransportSecurityMiddleware
+            from starlette.requests import Request
+
+            def effective(host, security):
+                srv = server_cls("creator-os-selftest")
+                if is_v2:
+                    srv.streamable_http_app(host=host, transport_security=security)
+                    return srv._lowlevel_server._session_manager.security_settings
+                srv.settings.host = host
+                if security is not None:
+                    srv.settings.transport_security = security
+                elif host.lower() not in loopback_hosts:
+                    srv.settings.transport_security = None
+                srv.streamable_http_app()
+                return srv._session_manager.security_settings
+
+            def verdict(eff, host_header):
+                scope = {"type": "http", "method": "POST", "path": "/mcp", "query_string": b"",
+                         "headers": [(b"host", host_header.encode()), (b"content-type", b"application/json")]}
+                r = _aio.run(TransportSecurityMiddleware(eff).validate_request(Request(scope), is_post=True))
+                return "pass" if r is None else r.status_code
+
+            listed = allowed_hosts_settings(["mcp.example.com"], TransportSecuritySettings)
+            table = [("0.0.0.0", None, "evil.example", "pass"), ("127.0.0.1", None, "mcp.example.com", 421),
+                     ("127.0.0.1", None, "127.0.0.1:8080", "pass"), ("127.0.0.1", listed, "mcp.example.com", "pass"),
+                     ("127.0.0.1", listed, "mcp.example.com:443", "pass"), ("127.0.0.1", listed, "evil.example", 421),
+                     ("0.0.0.0", listed, "evil.example", 421)]
+            all_ok = True
+            for host, sec, hh, want in table:
+                mode = "with" if sec else "without"
+                got = verdict(effective(host, sec), hh)
+                good = got == want
+                all_ok = all_ok and good
+                ok_fn(f"transport policy: bind {host} {mode} allow-list, Host {hh} -> {want}", good)
+            return all_ok
+
+        _policy_ok = False
+        try:
+            def _ok_live(name, cond):
+                print(("ok   " if cond else "FAIL ") + name)
+            _policy_ok = _selftest_transport_policy(_ok_live, _MCP2, _ServerClass, _LOOPBACK_HOSTS,
+                                                    _allowed_hosts_settings)
+        except Exception as _exc:  # noqa: BLE001
+            print(f"FAIL transport-policy selftest raised: {_exc}")
+        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _policy_ok and _RC_STATIC == 0) else 1
+        print(f"mcp_server selftest: full tier {'PASS' if _rc == 0 else 'FAIL'} "
+              f"(package-independent tier {'PASS' if _RC_STATIC == 0 else 'FAIL'}, "
+              f"{_live} tools live)")
+        sys.exit(_rc)
+    _ann_applied, _ann_probs = _apply_annotations()
+    for _pb in _ann_probs:
+        print(f"[mcp-server] annotation problem: {_pb}", file=sys.stderr)
+    import argparse as _argparse
+    _ap = _argparse.ArgumentParser(description="Creator OS MCP server")
+    _ap.add_argument("--serve-remote", action="store_true",
+                     help="run as a remote streamable-HTTP MCP endpoint (one connector for web/mobile + other AIs)")
+    _ap.add_argument("--transport", choices=["stdio", "streamable-http", "sse"], default=None)
+    _ap.add_argument("--host", default="127.0.0.1")
+    _ap.add_argument("--port", type=int, default=8080)
+    _ap.add_argument("--allowed-host", action="append", default=[],
+                     help="public hostname(s) the proxy forwards in the Host header (repeatable). BOTH SDK majors "
+                          "answer 421 to any other Host on a loopback bind; also settable as "
+                          "remote_mcp_allowed_hosts (a list) in creator-os-config.local.json")
+    _ap.add_argument("--allowed-origin", action="append", default=[],
+                     help="browser origin(s) allowed to call the endpoint, e.g. https://app.example.com "
+                          "(repeatable); server-to-server proxies send no Origin and need none; also settable "
+                          "as remote_mcp_allowed_origins")
+    _ap.add_argument("--insecure", action="store_true",
+                     help="acknowledge binding a non-loopback interface with NO in-process auth "
+                          "(applies to any network transport: --serve-remote or --transport "
+                          "streamable-http/sse, when no token is set)")
+    _args, _ = _ap.parse_known_args()
+    _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
+    # One quiet, non-blocking startup notice (stderr only; stdout is the stdio protocol channel).
+    # No network call happens here: the update_check tool polls only when explicitly invoked.
+    try:
+        _v = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        print(f"[creator-os] version {_v}. Call the update_check tool any time to see if a newer "
+              f"release is published (read-only; it never pulls or changes anything).", file=sys.stderr)
+    except OSError:
+        pass
+    if _transport != "stdio":
+        try:
+            from mcp.server.transport_security import TransportSecuritySettings as _TSS
+        except ImportError:
+            print("[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
+                  "pip install -r requirements-mcp.txt", file=sys.stderr)
+            sys.exit(1)
+        try:
+            _hosts = _remote_allowed_hosts(_args.allowed_host)
+            _origins = _remote_allowed_hosts(_args.allowed_origin, key="remote_mcp_allowed_origins",
+                                             normalize=_normalize_allowed_origins)
+        except ValueError as _exc:
+            print(f"[creator-os] ERROR: {_exc}", file=sys.stderr)
+            sys.exit(2)
+        _security = _allowed_hosts_settings(_hosts, _TSS, _origins)
+        _is_loopback = (_args.host or "").lower() in _LOOPBACK_HOSTS
+        if _security is None and _is_loopback:
+            print("[creator-os] WARNING: on a loopback bind the MCP SDK (both majors) allow-lists only loopback "
+                  "Host headers; requests a proxy forwards with a public Host are answered 421 until you pass "
+                  "--allowed-host <public-hostname> (or set remote_mcp_allowed_hosts in "
+                  "creator-os-config.local.json). A non-loopback bind gets no automatic protection in either "
+                  "major; pass --allowed-host to enable it.", file=sys.stderr)
+        if not _MCP2:
+            mcp.settings.host = _args.host   # 1.x: settings is the only sink; no blanket except (P80)
+            mcp.settings.port = _args.port
+            if _security is not None:
+                mcp.settings.transport_security = _security
+            elif not _is_loopback:
+                # P81 C-1: FastMCP computed its DNS-rebinding settings in __init__ for the DEFAULT host
+                # (loopback) because the server is constructed before argparse. For a non-loopback bind the
+                # SDK's own rule is "no automatic protection"; mirror it, or every request to a public bind
+                # is answered 421 with no diagnostic. Must run before the app is built (the SDK caches it).
+                mcp.settings.transport_security = None
+        # P68-B: the auth decision fires for ANY network bind, not only --serve-remote. A bare
+        # `--transport streamable-http|sse` reaches this branch too and must not skip the gate.
+        if _auth_gate_fires(_args.transport, _args.serve_remote):
+            _token = _remote_auth_token()
+            _action, _msg = _remote_serve_decision(_args.host, _token, _args.insecure)
+            print(f"[creator-os] remote MCP ({_transport}): {_msg}", file=sys.stderr)
+            if _action == "refuse":
+                print("[creator-os] Set CREATOR_OS_MCP_TOKEN (or remote_mcp_token in "
+                      "creator-os-config.local.json) to enable the in-process bearer gate, bind "
+                      "--host 127.0.0.1 behind a TLS+auth proxy, or pass --insecure to acknowledge "
+                      "an open bind. See implementation/gpt/mcp-connector/README.md.",
+                      file=sys.stderr)
+                sys.exit(2)
+            if _action == "gated":
+                _app = None
+                _get_app = getattr(mcp, _gate_app_builder_name(_transport), None)
+                if _get_app is not None:
+                    try:
+                        _app = _get_app(**_app_kwargs(_MCP2, _args.host, _security))
+                    except Exception as _exc:  # noqa: BLE001
+                        print(f"[creator-os] could not build the app for the bearer gate: {_exc}",
+                              file=sys.stderr)
+                try:
+                    import uvicorn as _uvicorn
+                except ImportError:
+                    _uvicorn = None
+                if _app is not None and _uvicorn is not None:
+                    _uvicorn.run(_BearerAuthMiddleware(_app, _token),
+                                 host=_args.host, port=_args.port)
+                    sys.exit(0)
+                # Fail closed: a token is configured but the in-process gate could not be
+                # installed. Never bind unprotected while implying the token is enforced.
+                print(f"[creator-os] a bearer token is configured but the in-process gate could not "
+                      f"be installed (needs MCPServer/FastMCP.{_gate_app_builder_name(_transport)} + uvicorn). "
+                      f"Refusing to bind unprotected; enforce the token at your proxy, install "
+                      f"requirements-mcp.txt, or pass --insecure to override.", file=sys.stderr)
+                if not _args.insecure:
+                    sys.exit(2)
+        mcp.run(transport=_transport, **_bind_kwargs(_MCP2, _args.host, _args.port, _security))
+    else:
+        mcp.run()

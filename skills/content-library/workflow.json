@@ -1,0 +1,41 @@
+{
+  "spoke": "content-library",
+  "description": "Import, complete, and analyze the creator's OWN past videos across YouTube/Instagram/TikTok/Pinterest. Export-bundle floor with an optional flag-gated live OAuth pull; on-device STT completes transcripts; the YouTube retention curve is joined to the transcript; nothing is fabricated and the importer proposes while the human saves.",
+  "steps": [
+    {
+      "step": 1,
+      "atom": "video-import",
+      "label": "Import metadata + stats from the export bundle (or optional live API)",
+      "input_from": "caller.export_dir, caller.platform, caller.pasted_stats, caller.use_live_api",
+      "output_to": "proposed_records",
+      "notes": "Runs ingest-route on the bundle (halts on QUARANTINE/BLOCK), applies the platform parser, and proposes records with per-field provenance. Retention null off YouTube; revenue only from a Studio CSV. Human saves via tools/video_library.py upsert."
+    },
+    {
+      "step": 2,
+      "atom": "library-complete",
+      "label": "Match downloaded media and complete the withheld fields on-device",
+      "input_from": "caller.export_dir, proposed_records",
+      "output_to": "completions",
+      "notes": "Matches each downloaded file to a video_key, runs local STT for missing transcripts (run_local_stt gap when no backend), derives chapters/keywords, and joins retention to the transcript. Composes transcript-import per video. Proposal-only."
+    },
+    {
+      "step": 3,
+      "atom": "transcript-import",
+      "label": "Per-video transcript (uploaded caption or local STT)",
+      "repeat": "per_video",
+      "skip_if": "transcript_already_present",
+      "input_from": "proposed_records[].video_key, caller.export_dir",
+      "output_to": "transcripts",
+      "notes": "Prefers a creator-uploaded YouTube caption; otherwise on-device STT. Never scrapes, never fabricates, never downloads ASR tracks (403)."
+    },
+    {
+      "step": 4,
+      "atom": "library-analyze",
+      "label": "Grounded analysis of the completed library",
+      "input_from": "caller.platform",
+      "output_to": "analysis",
+      "notes": "Top tags, YouTube retention peaks/cliffs with the spoken words, format/category performance, transcript themes. Every figure cites video_keys; unavailable data null-flagged, never estimated."
+    }
+  ],
+  "boundaries": "All imported data stays local and gitignored (.local). Retention is YouTube-only; revenue is Studio-CSV-only; the live importer builds no monetary URL. Transcripts are on-device STT (zero cloud, zero tokens) or a creator-uploaded caption; absent a backend, transcripts are flagged run_local_stt, never faked. The importer proposes; the human saves. No posting (that is content-distributor). Class C: needs a local runtime and the creator's files."
+}

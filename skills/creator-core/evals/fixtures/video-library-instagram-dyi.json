@@ -1,0 +1,14 @@
+{
+  "_comment": "Synthetic Instagram Download-Your-Information reels export (P45 scenario fixture). Fictional; no real account or PII. Retention is not present in any IG export.",
+  "ig_reels_media": [
+    {
+      "media": [
+        {
+          "uri": "media/reels/202605_reel_TOURXYZ.mp4",
+          "creation_timestamp": 1777680000,
+          "title": "quick armoire tour"
+        }
+      ]
+    }
+  ]
+}

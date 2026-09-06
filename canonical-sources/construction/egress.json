@@ -1,0 +1,70 @@
+[
+  {
+    "id": "egress-window-opening",
+    "title": "Emergency escape and rescue opening (egress window)",
+    "text": "Every sleeping room and every basement with habitable space must have at least one emergency escape and rescue opening a person can climb out of and a firefighter can enter through. The opening has a minimum net clear opening area, a minimum clear height and width, and a maximum sill height above the floor. The net clear opening is the actual free space when the window is open, which is smaller than the rough opening. Provide an opening that meets the minimum net clear area, height, width, and sill height, and verify against IRC R310 for your adopted edition.",
+    "trade": "egress",
+    "topic": "emergency-escape",
+    "dimensions": [
+      {"item": "min net clear opening area", "value": "5.7 sq ft", "note": "IRC R310.2.1; 5.0 sq ft is allowed at grade-floor and below-grade openings"},
+      {"item": "min net clear height", "value": "24 in", "note": "IRC R310.2.1"},
+      {"item": "min net clear width", "value": "20 in", "note": "IRC R310.2.1"},
+      {"item": "max sill height", "value": "44 in above the floor", "note": "IRC R310.2.2"}
+    ],
+    "steps": [
+      "Confirm every sleeping room and habitable basement has a compliant opening.",
+      "Size the window so the net clear opening (window open) meets the area, height, and width minimums.",
+      "Keep the finished sill no more than 44 in above the floor.",
+      "For below-grade openings add a compliant window well with a ladder where required."
+    ],
+    "common_mistakes": [
+      "Assuming 5.7 sq ft is the minimum everywhere; the 5.0 sq ft reduction applies only at grade or below-grade.",
+      "Sizing to the rough opening instead of the smaller net clear opening.",
+      "A replacement window that nets below the minimum opening.",
+      "Sill higher than 44 in, or the opening blocked by furniture or bars without a release."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R310.2.1", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"},
+      {"code": "IRC", "section": "R310.2.2", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "FBC Residential 8th Edition follows IRC R310; impact or shutter requirements in wind-borne debris zones must still allow the escape opening to operate.",
+      "nc": "NC RC 2018 (2015 IRC) uses the same 5.7 and 5.0 sq ft net clear areas and 44 in sill."
+    },
+    "diagram_refs": ["egress-opening"],
+    "source_ids": ["icc-irc-2021"],
+    "boundary": "verify-locally"
+  },
+  {
+    "id": "egress-window-well",
+    "title": "Egress window well",
+    "text": "A below-grade emergency escape opening needs a window well large enough for a person to get out and open the window fully, with a permanent ladder or steps where the well is deep. The well must provide a minimum horizontal area and projection, and a well deeper than 44 inches needs a fixed ladder. Size the window well area and projection, add the required ladder for deep wells, and verify against IRC R310.2.3 for your adopted edition.",
+    "trade": "egress",
+    "topic": "window-well",
+    "dimensions": [
+      {"item": "min window well area", "value": "9 sq ft", "note": "IRC R310.2.3"},
+      {"item": "min horizontal projection and width", "value": "36 in", "note": "IRC R310.2.3"},
+      {"item": "ladder required when", "value": "well depth over 44 in", "note": "IRC R310.2.3.1"}
+    ],
+    "steps": [
+      "Provide a well with at least 9 sq ft and 36 in projection so the window opens fully.",
+      "Where the well is deeper than 44 in, add a permanently affixed ladder or steps.",
+      "Keep any cover or grate operable from inside without tools or special knowledge."
+    ],
+    "common_mistakes": [
+      "Well too small for the window to open or a person to exit.",
+      "Deep well with no ladder.",
+      "A cover that cannot be opened from inside the well."
+    ],
+    "code_refs": [
+      {"code": "IRC", "section": "R310.2.3", "edition": "2021", "url": "https://codes.iccsafe.org/content/IRC2021P1/chapter-3-building-planning"}
+    ],
+    "jurisdiction_notes": {
+      "fl": "Basements are uncommon in much of FL; where present, the same well rules apply.",
+      "nc": "Common in NC piedmont and mountain basements; confirm well and ladder detail with the AHJ."
+    },
+    "diagram_refs": ["egress-opening"],
+    "source_ids": ["icc-irc-2021"],
+    "boundary": "verify-locally"
+  }
+]

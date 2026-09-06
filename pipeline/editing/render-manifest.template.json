@@ -1,0 +1,18 @@
+{
+  "_comment": "Committed null-schema for a render/export manifest (P22). Real manifests live in pipeline/editing/render-manifest.local.json (gitignored). Tracks what was exported for which platform, where, and its status. See shared/videoedit-engine.md.",
+  "schema_version": "1.0",
+  "source_project": null,
+  "created_at": null,
+  "renders": [
+    {
+      "platform": null,
+      "preset": null,
+      "output_path": null,
+      "resolution": null,
+      "codec": null,
+      "status": "planned",
+      "engine": "compressor | resolve_render_queue | manual",
+      "error": null
+    }
+  ]
+}

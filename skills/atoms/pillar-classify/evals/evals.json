@@ -3,7 +3,7 @@
     "id": "pillarclassify-001",
     "description": "Happy path: clear DIY project idea returns high confidence with correct pillar",
     "input": {
-      "idea": "chalk paint vintage nightstand makeover with dark moody finish"
+      "idea": "chalk paint vintage nightstand makeover with stylized finish"
     },
     "expect": {
       "tool": "pillar-classify",

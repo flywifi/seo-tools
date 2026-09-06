@@ -1,0 +1,58 @@
+[
+  {
+    "test_id": "template-ingest-contract",
+    "description": "a fictional past contract becomes a proposed template with exact-quote clause blocks",
+    "input": {
+      "_fixture": "fictional signed sponsorship agreement with usage, exclusivity, payment, and approval clauses",
+      "doc_type": "contract",
+      "template_id_hint": "my-sponsorship-base"
+    },
+    "expected_output_keys": ["template_id", "doc_type", "blocks", "variant_groups", "unmapped_text", "omitted", "human_review_required"],
+    "assertions": [
+      "every proposed block body is an exact quote from the fixture with quote_verified true and a confidence label",
+      "clause_family keys come from the deal-playbook machine set",
+      "the RESEARCH NOTES banner is the first output line and the verbatim save note is present",
+      "no file is written"
+    ]
+  },
+  {
+    "test_id": "template-ingest-variant-group",
+    "description": "two clauses covering the same family become a proposed variant_group",
+    "input": {
+      "_fixture": "fictional contract carrying both an organic-only usage clause and an organic-plus-paid alternative appendix",
+      "doc_type": "contract"
+    },
+    "expected_output_keys": ["variant_groups", "blocks"],
+    "assertions": [
+      "the two usage clauses are sibling blocks sharing one variant_group with distinct variant_labels",
+      "neither body is merged, edited, or summarized"
+    ]
+  },
+  {
+    "test_id": "template-ingest-placeholders",
+    "description": "placeholders in the example normalize to bracket tokens proposed as fill_fields",
+    "input": {
+      "_fixture": "fictional terms sheet containing [Name], ___, and {{rate}} placeholders",
+      "doc_type": "terms_conditions"
+    },
+    "expected_output_keys": ["blocks"],
+    "assertions": [
+      "each placeholder becomes a [BRACKET_TOKEN] declared in the block's fill_fields",
+      "each proposed source guess (profile/deal/rate_card/manual) carries a confidence label",
+      "no value is invented for any placeholder"
+    ]
+  },
+  {
+    "test_id": "template-ingest-unmapped",
+    "description": "spans that map to no block are returned verbatim, never dropped",
+    "input": {
+      "_fixture": "fictional contract with a hand-written margin note paragraph that fits no clause family",
+      "doc_type": "contract"
+    },
+    "expected_output_keys": ["unmapped_text"],
+    "assertions": [
+      "the margin paragraph appears verbatim in unmapped_text",
+      "it is not forced into a clause_family block"
+    ]
+  }
+]

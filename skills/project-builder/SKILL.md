@@ -67,3 +67,10 @@ Atoms are called in the order listed. govern-artifact always runs last.
 - SEO keyword strategy, search clustering, or metadata optimization -- use the seo-keywords spoke
 - Brand deal tracking, rate negotiation, or sponsorship outreach -- use the deal-pipeline spoke
 - Any workflow that requires live trend data or real-time search signals without first running trend-check -- project-builder does not call external data sources
+
+## Cross-modality
+Class: A.
+Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Mechanism: Reasoning over shared/method.md, shared/brand-engine.md, and shared/adaptation-engine.md to compose six atoms (project-snapshot, materials-list, step-sequence, styling-variant, renter-alt, govern-artifact) into a project_brief; no tool of its own — for residential-construction builds, steps 2 to 3 defer construction facts to construction-lookup/code-lookup (Class B scoop-cache lookups) and math to build-calc (Class C, tools/build_calc.py).
+Fallback: Runs everywhere as knowledge-only; on surfaces without the construction-desk atoms it null-flags construction dimensions, code citations, and quantities (never estimates them) and delivers the brief with those fields marked "verify locally". On ChatGPT (web, custom GPT, Projects, desktop app) this works by pasting the knowledge pack; re-paste when the packaging version changes.
+See `shared/cross-modality-engine.md`.

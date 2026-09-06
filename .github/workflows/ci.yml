@@ -6,32 +6,66 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:   # P81 N-6: the competitor-intel job's condition tests this trigger; declare it
 
 jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the commit-message backstop needs history
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Drift guard
         run: python3 tools/sync_check.py
+      - name: Battery parity (tools/battery.py --list matches the steps below)
+        run: python3 tools/battery.py --list
+      - name: Secret scan (tracked content)
+        run: python3 tools/secret_scan.py --tracked
+      - name: Commit hygiene backstop (messages + author emails after the policy boundary)
+        run: |
+          # P74 D1-4: origin/main..HEAD is EMPTY once a push to main lands, so on a direct main
+          # push this step scanned nothing while still reporting success. The policy boundary SHA
+          # has always been recorded but was never used to bound the range. Prefer the branch
+          # range when it is non-empty; otherwise fall back to the boundary. scan_commit_messages
+          # already skips commits at or before the boundary internally, so the wider range does
+          # not re-litigate history.
+          git fetch origin main --depth=200 || true
+          BOUNDARY=$(python3 -c "import json;print(json.load(open('tools/secret-scan-allowlist.json')).get('commit_policy_boundary',''))")
+          RANGE=""
+          if git rev-parse origin/main >/dev/null 2>&1 \
+             && [ -n "$(git rev-list --count origin/main..HEAD 2>/dev/null | tr -d 0)" ]; then
+            RANGE="origin/main..HEAD"
+          elif [ -n "$BOUNDARY" ] && git cat-file -e "$BOUNDARY^{commit}" 2>/dev/null; then
+            RANGE="$BOUNDARY..HEAD"
+          fi
+          if [ -z "$RANGE" ]; then
+            # Fail closed: a hygiene backstop that cannot determine what to scan must not pass.
+            # Reachable if the checkout is shallow past the boundary; fix with fetch-depth: 0.
+            echo "commit hygiene: cannot resolve a scan range (boundary '$BOUNDARY' unreachable"
+            echo "and origin/main absent or already merged). Refusing to report success."
+            exit 1
+          fi
+          echo "commit hygiene: scanning $RANGE"
+          python3 tools/secret_scan.py --commit-messages "$RANGE"
       - name: Version consistency
         run: python3 tools/version.py --check
-      - name: Eval JSON validity
-        run: |
-          python3 - <<'PY'
-          import json, pathlib, sys
-          bad = 0
-          for p in pathlib.Path("skills").rglob("evals/evals.json"):
-              try:
-                  json.loads(p.read_text(encoding="utf-8"))
-              except Exception as exc:
-                  print("invalid", p, exc)
-                  bad += 1
-          sys.exit(1 if bad else 0)
-          PY
+      - name: Scenario suite (10 cross-skill behavioral scenarios)
+        run: python3 tools/scenario_check.py
+      - name: Count truth vector (informational; the comparison is drift-guard invariant 48)
+        run: python3 tools/count_truth.py
+      - name: Doc freshness (content-hash staleness of bound docs)
+        run: python3 tools/doc_freshness.py --check
+      - name: Projection staleness (knowledge projections vs their sources; exits 1 when stale)
+        run: python3 tools/projection_manifest.py --check
+      - name: Behavioral selftest sweep (scripted discovery of every CLI selftest; P66)
+        run: python3 tools/selftest_sweep.py
+      - name: Eval structural lint (shape of every case, not just JSON validity; P67-D)
+        run: python3 tools/eval_lint.py
+      - name: Packaging integrity (skill source-tree hashes vs the recorded manifest; exits 1 on drift)
+        run: python3 tools/package_skill.py --check-manifest
       - name: Packaging
         run: python3 tools/package_skill.py --all
 
@@ -51,8 +85,12 @@ jobs:
         continue-on-error: true   # fetch failures are non-blocking; parse what we have
       - name: Parse saved HTML into index
         run: python3 tools/competitor_snapshot.py --parse
+        continue-on-error: true   # empty/gitignored snapshot dir is not a failure; parse what exists
       - name: Export sanitized summary
         run: python3 tools/competitor_snapshot.py --export-summary
+        continue-on-error: true   # no snapshots to summarize is a no-op, not a red build
+      - name: Secret scan before any artifact or commit
+        run: python3 tools/secret_scan.py --tracked
       - name: Upload snapshot artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -68,3 +106,14 @@ jobs:
           git add canonical-sources/keyword-library/competitor-channels.json
           git diff --cached --quiet || git commit -m "chore: update competitor-channels.json from scheduled snapshot run"
           git push
+
+  # currency-report job retired in P36. Source/dependency freshness is now a fully LOCAL runtime:
+  # each user runs the token-free detection on their own machine and it writes to their own store
+  # overlay (docs/FRESHNESS.md; tools/freshness_overlay.py). This keeps the freshness design with
+  # ZERO GitHub coupling — no scheduled job reads or reports on the registry in CI. The guard job
+  # above validates the dependency *registry* (invariant 23: every requirement and MCP connector has
+  # a source-registry entry); the selftest sweep step runs dependency_currency/update_check
+  # --selftest as read-only, offline exercises of the detection logic (P81 N-6: they are not
+  # separate named steps). The
+  # actual currency detection (which reaches PyPI/GitHub and writes the user's overlay) stays a
+  # per-user runtime; CI never fetches or reports on live source freshness.

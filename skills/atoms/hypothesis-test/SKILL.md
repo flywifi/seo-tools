@@ -164,3 +164,6 @@ Inherited from `protocols/no-fabrication.md` and `shared/compute-engine.md` Sect
 - State all assumptions. Flag violations.
 - Emit sample size warnings when n < 30 for parametric tests.
 - If no computation tool is connected, produce guidance-only output — never estimate a p-value.
+
+## Cross-modality
+Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.

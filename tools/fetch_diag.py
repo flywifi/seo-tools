@@ -234,3 +234,50 @@ def summarize(block: dict, sources: dict) -> str:
     if s:
         bits.append("structured: " + ", ".join(s))
     return "; ".join(bits) or "no block, no structured-source hints"
+
+
+def selftest() -> int:
+    """Offline proof of the anti-bot classifier over synthetic responses. No network (P74 WP4).
+
+    classify_block takes the body as str, not bytes. Both directions matter: calling a live page
+    blocked wastes the acquire budget, and calling a block "fine" makes the caller trust an
+    error page as content."""
+    failures = []
+
+    def ok(name, cond):
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+        if not cond:
+            failures.append(name)
+
+    cf = classify_block(403, {"server": "cloudflare", "cf-ray": "abc"},
+                        "Attention Required! | Cloudflare")
+    ok("a Cloudflare challenge is identified by vendor", cf.get("vendor") == "Cloudflare")
+    ok("a challenge is marked blocked and not worth a naive retry",
+       cf.get("blocked") is True and cf.get("retry_worthwhile") is False)
+    ok("the classification cites the signals it used, never a bare verdict",
+       bool(cf.get("signals")))
+
+    clean = classify_block(200, {"server": "nginx"}, "<html>ok</html>")
+    ok("an ordinary 200 is NOT called a block",
+       clean.get("blocked") is False and clean.get("vendor") is None)
+    ok("an unblocked response is worth retrying", clean.get("retry_worthwhile") is True)
+
+    src = find_data_sources(
+        '<link rel="alternate" type="application/rss+xml" href="/feed.xml">', "https://example.com")
+    ok("a feed is surfaced as an absolute URL",
+       "https://example.com/feed.xml" in (src.get("feeds") or []))
+    empty = find_data_sources("<html></html>", "https://example.com")
+    ok("a page with no structured sources yields empty lists, not invented ones",
+       not any(empty.get(k) for k in ("feeds", "api_endpoints", "platform_blobs")))
+    ok("summarize renders a human line for the no-block case",
+       isinstance(summarize(clean, empty), str) and summarize(clean, empty).strip() != "")
+
+    print(f"fetch_diag selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    import sys
+    if "--selftest" in sys.argv:
+        raise SystemExit(selftest())
+    print("fetch_diag is a library; run with --selftest to verify its classifiers.")

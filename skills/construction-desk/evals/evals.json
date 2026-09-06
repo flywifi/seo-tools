@@ -1,0 +1,62 @@
+[
+  {
+    "test_id": "construction-desk-question-routes-lookup",
+    "description": "a how-to question routes to construction-lookup",
+    "input": {"request": "how do I attach a deck ledger", "classification": "construction_question"},
+    "expected_output_keys": [],
+    "assertions": [
+      "construction-lookup returns cited steps and the flashing requirement",
+      "output ends through govern-artifact with the boundary intact"
+    ]
+  },
+  {
+    "test_id": "construction-desk-code-routes-codelookup",
+    "description": "a code question routes to code-lookup with edition status",
+    "input": {"request": "what does Florida code require for egress", "classification": "code_lookup"},
+    "expected_output_keys": [],
+    "assertions": [
+      "returns IRC R310 with the FL 2023 8th Edition status and a free-viewer link",
+      "no copyrighted code text is reproduced"
+    ]
+  },
+  {
+    "test_id": "construction-desk-calc-routes-buildcalc",
+    "description": "a calculation routes to build-calc",
+    "input": {"request": "how many risers for a 108 inch rise", "classification": "build_calc"},
+    "expected_output_keys": [],
+    "assertions": [
+      "build-calc returns 14 risers at about 7.714 in with the boundary",
+      "the result cites IRC R311.7.5"
+    ]
+  },
+  {
+    "test_id": "construction-desk-nc-edition-ambiguity",
+    "description": "NC code question states enforced 2018 and pending 2024",
+    "input": {"request": "which residential code edition does North Carolina enforce", "classification": "code_lookup"},
+    "expected_output_keys": [],
+    "assertions": [
+      "states the enforced 2018 code on the 2015 IRC and flags the pending 2024 transition",
+      "defers the effective date to OSFM and the Residential Code Council"
+    ]
+  },
+  {
+    "test_id": "construction-desk-licensed-trade-lead",
+    "description": "an electrical question leads with the licensed-professional requirement",
+    "input": {"request": "GFCI locations in a kitchen remodel", "classification": "construction_question"},
+    "expected_output_keys": [],
+    "assertions": [
+      "leads with the licensed-electrician requirement and cites NEC 210.8",
+      "carries the construction boundary"
+    ]
+  },
+  {
+    "test_id": "construction-desk-no-authoritative-span",
+    "description": "a structural sizing request returns an advisory flag, not a member size",
+    "input": {"request": "what size joist spans 14 feet", "classification": "build_calc"},
+    "expected_output_keys": [],
+    "assertions": [
+      "returns the deck-span advisory ceiling labeled non-authoritative and points to DCA6",
+      "does not return an authoritative member size"
+    ]
+  }
+]

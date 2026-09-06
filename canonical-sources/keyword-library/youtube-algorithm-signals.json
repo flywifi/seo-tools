@@ -91,7 +91,7 @@
       "signal": "comments",
       "impact_tier": "secondary — outranks likes (2025)",
       "affects": ["shorts_feed"],
-      "current_best_practice": "As of 2025, comments carry more weight than raw likes as a Shorts ranking signal. A Short that prompts a reply or question outperforms one that collects passive likes. Prompt specific questions: 'What would you put on a dark fall mantel?' not 'Leave a comment below.'",
+      "current_best_practice": "As of 2025, comments carry more weight than raw likes as a Shorts ranking signal. A Short that prompts a reply or question outperforms one that collects passive likes. Prompt specific questions: 'What would you put on a seasonal home decor?' not 'Leave a comment below.'",
       "levers": ["question_prompt_at_end", "open_loop_design"],
       "freshness_note": "Signal shift confirmed mid-2025. Verify monthly."
     },

@@ -1,0 +1,55 @@
+[
+  {
+    "id": "contract-triage-green",
+    "description": "Standard offer with bounded rights and clear disclosure triages GREEN with empty flag arrays.",
+    "input": {
+      "contract_text": "Creator will produce one dedicated video for Brand. Brand receives a non-exclusive license to repost on Brand-owned social channels for 6 months from publish. Creator retains copyright. Fee is 2,000 USD, net 30 from delivery. Creator will include a clear paid-partnership disclosure. No exclusivity.",
+      "deal_context": { "fee": 2000, "category": "home decor", "brand_name": "Sample Brand" }
+    },
+    "expect": {
+      "header": "starts with RESEARCH NOTES. NOT LEGAL ADVICE.",
+      "verdict": "GREEN",
+      "hidden_obligations_found": "empty array",
+      "deal_breakers_found": "empty array",
+      "human_review_required": true
+    },
+    "prohibit": ["em dashes", "legal advice or enforceability claims", "fabricated terms not in the input", "verdict RED or YELLOW with no supporting flag"]
+  },
+  {
+    "id": "contract-triage-yellow-hidden",
+    "description": "A non-disclosure obligation buried in a sponsorship forces YELLOW with the hidden obligation quoted.",
+    "input": {
+      "contract_text": "Creator will post one Reel. In addition, Creator agrees not to disclose the existence or terms of this agreement to any third party, and agrees not to work with any competing brand for twelve months. Fee to be determined.",
+      "deal_context": { "fee": null, "category": "home decor" }
+    },
+    "expect": {
+      "verdict": "YELLOW or RED",
+      "hidden_obligations_found": "non-empty; includes the non-disclosure and non-compete with quoted evidence_text",
+      "recommend_counsel": true,
+      "retrieval_gaps": "may note the undetermined fee"
+    },
+    "prohibit": ["marking GREEN", "inventing a fee", "em dashes", "resolving the issue instead of routing it"]
+  },
+  {
+    "id": "contract-triage-red-dealbreaker",
+    "description": "Perpetual worldwide rights for a flat fee is a deal-breaker: RED.",
+    "input": {
+      "contract_text": "Creator hereby grants Brand a perpetual, irrevocable, worldwide, royalty-free license to use, modify, and sublicense the content in any medium, and assigns all copyright to Brand. Flat fee 500 USD.",
+      "deal_context": { "fee": 500, "category": "home decor" }
+    },
+    "expect": {
+      "verdict": "RED",
+      "deal_breakers_found": "non-empty; quotes the perpetual/assignment language",
+      "recommend_counsel": true,
+      "counsel_reason": "present, cites the specific clause"
+    },
+    "prohibit": ["marking GREEN or YELLOW", "stating the clause is or is not enforceable", "em dashes"]
+  },
+  {
+    "id": "contract-triage-no-source",
+    "description": "Neither contract_text nor deal_id returns a structured error.",
+    "input": { "deal_context": { "category": "home decor" } },
+    "expect": { "error": "no_source", "message": "present, asks for contract_text or deal_id" },
+    "prohibit": ["fabricated contract data", "any verdict without a source", "em dashes"]
+  }
+]

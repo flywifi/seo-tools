@@ -15,7 +15,7 @@ downloadable files.
   `protocols/formatting-metadata.md`.
 - trend-check is mandatory before any trend or seasonal claim; stale data is marked, not dropped.
 - Returns clusters, not single ideas.
-- Stays on the moody-vintage aesthetic and names the persona each idea serves.
+- Stays on the home decor aesthetic and names the persona each idea serves.
 
 ## Known failure modes
 - Recommending a trend from memory without trend-check.

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "contract-desk-full-standard",
+    "description": "action full on a standard contract runs triage, review, and legal-check, then govern-artifact; every artifact carries the boundary header.",
+    "input": {
+      "action": "full",
+      "contract_text": "Creator produces one dedicated video. Brand receives a non-exclusive 6-month social license. Creator retains copyright. Fee 2,000 USD net 30. Creator discloses the paid partnership. No exclusivity.",
+      "deal_context": { "fee": 2000, "is_sponsored": true, "category": "home decor" }
+    },
+    "expect": [
+      "every atom output starts with the RESEARCH NOTES boundary header",
+      "triage verdict present (likely GREEN)",
+      "contract-review returns findings with dual severity",
+      "legal-requirement-check cites at least one FTC registry source",
+      "human_review_required true throughout"
+    ],
+    "prohibit": ["legal advice or enforceability claims", "fabricated terms", "em dashes", "any send or sign action"]
+  },
+  {
+    "id": "contract-desk-full-dealbreaker",
+    "description": "action full on a perpetual-rights flat-fee contract surfaces RED and a draft-only escalation brief.",
+    "input": {
+      "action": "full",
+      "contract_text": "Creator grants Brand a perpetual worldwide royalty-free license and assigns all copyright. Flat fee 500 USD.",
+      "deal_context": { "fee": 500, "is_sponsored": true }
+    },
+    "expect": [
+      "triage verdict RED",
+      "legal-requirement-check flags perpetual_usage_flat_fee and usage_rights_conflict",
+      "escalation-brief drafts accept/counter/walk with ready_to_send false",
+      "recommend_counsel true"
+    ],
+    "prohibit": ["stating the clause is unenforceable", "ready_to_send true", "em dashes", "advancing the deal stage"]
+  },
+  {
+    "id": "contract-desk-drafting-degrades",
+    "description": "A drafting request in Phase 1 degrades honestly rather than emitting binding language.",
+    "input": { "action": "full", "contract_text": "Please draft a sponsorship agreement for me.", "deal_context": {} },
+    "expect": [
+      "output explains contract drafting is a later phase / gated by contract_drafting",
+      "provides a plain-language summary and recommends drafting with a qualified professional",
+      "no binding contract language emitted"
+    ],
+    "prohibit": ["emitting binding contract clauses as if vetted", "claiming the draft is legally sound", "em dashes"]
+  }
+]

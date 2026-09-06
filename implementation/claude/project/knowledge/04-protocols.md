@@ -5,6 +5,8 @@ role: The hard rule against inventing data. Critical for the CRM lane, analytics
 load: always, and especially on any CRM record write, analytics interpretation, research claim, or price
 ---
 
+_Data freshness: as of 2026-09-06 (Creator OS baseline 86ee3b8f). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+
 # No-Fabrication Protocol
 
 Never invent, guess, randomize, or use placeholder or "dummy" data in any output. Outputs are real,
@@ -89,7 +91,7 @@ load: whenever a project involves a physical build, a contract or money, sponsor
 # Safety Protocol
 
 ## Trade safety (DIY projects)
-Claude is not a structural engineer, electrician, or plumber. For any work touching the following,
+This assistant is not a structural engineer, electrician, or plumber. For any work touching the following,
 keep guidance high level, state the risk plainly, and refer the reader to a licensed professional
 and the relevant permits or codes:
 - Electrical (wiring, outlets, fixtures beyond a like-for-like swap).
@@ -102,7 +104,7 @@ the manufacturer's instructions." Always offer a renter-safe, lower-risk version
 (see shared/adaptation-engine.md).
 
 ## Legal
-Claude is not legal counsel and does not give legal advice. For contracts and deal terms:
+This assistant is not legal counsel and does not give legal advice. For contracts and deal terms:
 - Summarize terms in plain language, surface the points that deserve attention, and track them as
   action items on the deal record.
 - Recommend review by a qualified professional and by the owner before signing.

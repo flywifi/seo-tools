@@ -1,0 +1,62 @@
+[
+  {
+    "test_id": "construction-lookup-stair-riser",
+    "description": "max stair riser question returns the cited stairs entry",
+    "input": {"query": "maximum stair riser height"},
+    "expected_output_keys": ["results"],
+    "assertions": [
+      "returns the stairs-riser-tread record with 7 3/4 in and IRC R311.7.5.1",
+      "output carries the verify-locally boundary; no fabricated data"
+    ]
+  },
+  {
+    "test_id": "construction-lookup-deck-ledger",
+    "description": "deck ledger attachment returns cited steps and flashing requirement",
+    "input": {"query": "how to attach a deck ledger"},
+    "expected_output_keys": ["results"],
+    "assertions": [
+      "returns decks-ledger-attachment with the lag/bolt pattern, flashing, and IRC R507.9",
+      "does not reproduce the copyrighted DCA6 table; cites it"
+    ]
+  },
+  {
+    "test_id": "construction-lookup-electrical-boundary",
+    "description": "electrical question leads with the licensed-professional requirement",
+    "input": {"query": "receptacle spacing living room"},
+    "expected_output_keys": ["results"],
+    "assertions": [
+      "returns electrical-receptacle-spacing and leads with the licensed-electrician requirement",
+      "cites NEC 210.52(A)"
+    ]
+  },
+  {
+    "test_id": "construction-lookup-glossary",
+    "description": "term definition from the CC0 glossary",
+    "input": {"query": "what is a soffit"},
+    "expected_output_keys": ["results"],
+    "assertions": [
+      "returns the glossary-soffit entry",
+      "no fabricated definition"
+    ]
+  },
+  {
+    "test_id": "construction-lookup-nc-insulation",
+    "description": "North Carolina insulation returns climate-zone ranges",
+    "input": {"query": "north carolina insulation r-value"},
+    "expected_output_keys": ["results"],
+    "assertions": [
+      "returns the insulation and fl-nc entries with the 3A to 5A ranges",
+      "says to confirm the exact value for the adopted edition and county zone"
+    ]
+  },
+  {
+    "test_id": "construction-lookup-no-entry",
+    "description": "topic with no dictionary entry is not fabricated",
+    "input": {"query": "swimming pool coping detail"},
+    "expected_output_keys": ["results"],
+    "assertions": [
+      "returns no false match and says the dictionary has no entry",
+      "does not invent a dimension"
+    ]
+  }
+]

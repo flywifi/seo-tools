@@ -1,0 +1,52 @@
+[
+  {
+    "test_id": "code-lookup-florida-edition",
+    "description": "Florida jurisdiction returns the adopted edition status",
+    "input": {"topic": "egress window", "jurisdiction": "fl"},
+    "expected_output_keys": ["edition_status", "requirements", "boundary"],
+    "assertions": [
+      "edition_status names the 2023 FBC 8th Edition on the 2021 I-Codes",
+      "requirements cite IRC R310 with a free-viewer link; no code text reproduced"
+    ]
+  },
+  {
+    "test_id": "code-lookup-nc-transition",
+    "description": "North Carolina flags the enforced 2018 code and pending 2024",
+    "input": {"topic": "stair riser", "jurisdiction": "nc"},
+    "expected_output_keys": ["edition_status", "requirements", "boundary"],
+    "assertions": [
+      "edition_status states the enforced 2018 NC RC on the 2015 IRC and the pending 2024 code",
+      "does not present the 2024 code as currently enforced"
+    ]
+  },
+  {
+    "test_id": "code-lookup-deck-section",
+    "description": "deck ledger returns the governing IRC section",
+    "input": {"topic": "deck ledger", "jurisdiction": "both"},
+    "expected_output_keys": ["edition_status", "requirements", "boundary"],
+    "assertions": [
+      "requirements cite IRC R507.9 and reference AWC DCA6",
+      "the copyrighted table is not reproduced"
+    ]
+  },
+  {
+    "test_id": "code-lookup-both-jurisdictions",
+    "description": "both returns FL, NC, and model edition status",
+    "input": {"topic": "insulation", "jurisdiction": "both"},
+    "expected_output_keys": ["edition_status"],
+    "assertions": [
+      "edition_status includes FL, NC, and the model-code basis",
+      "carries the verify-with-AHJ boundary"
+    ]
+  },
+  {
+    "test_id": "code-lookup-no-text-reproduction",
+    "description": "a request to quote code text is refused with a citation instead",
+    "input": {"topic": "quote the exact IRC egress text", "jurisdiction": "fl"},
+    "expected_output_keys": ["requirements", "boundary"],
+    "assertions": [
+      "returns the section number and free-viewer link, not the code text",
+      "no copyrighted text is reproduced"
+    ]
+  }
+]

@@ -3,12 +3,12 @@
     "id": "kc-001",
     "description": "Single keyword, all four platforms, no season — produces 4 platform profiles with no null competition_estimate",
     "input": {
-      "keywords": ["dark moody fall mantel"],
+      "keywords": ["seasonal home decor project"],
       "platforms": ["youtube", "pinterest", "tiktok", "google"]
     },
     "expect": {
       "tool": "keyword-compare",
-      "keywords_analyzed": ["dark moody fall mantel"],
+      "keywords_analyzed": ["seasonal home decor project"],
       "keywords_overflow": "empty array",
       "comparison_matrix": "array with exactly 1 row",
       "platform_profiles": "exactly 4 profiles, one per platform",
@@ -28,7 +28,7 @@
     "description": "10-keyword batch, 2 platforms — all 10 analyzed, keywords_overflow empty",
     "input": {
       "keywords": [
-        "chalk paint armoire", "thrift store furniture flip", "dark moody bedroom",
+        "chalk paint armoire", "thrift store furniture flip", "home decor bedroom",
         "vintage christmas decor", "board and batten diy", "moody green living room",
         "antique brass hardware", "small bathroom makeover", "diy wainscoting",
         "fall mantel decorating"
@@ -75,7 +75,7 @@
     "id": "kc-004",
     "description": "Season context provided — seasonal_relevance non-null, seasonal_timing_summary present",
     "input": {
-      "keywords": ["dark moody fall mantel", "vintage christmas decor", "chalk paint armoire"],
+      "keywords": ["seasonal home decor project", "vintage christmas decor", "chalk paint armoire"],
       "platforms": ["youtube", "pinterest"],
       "season": "fall"
     },

@@ -1,0 +1,12 @@
+{
+  "_comment": "TEST-ONLY fictional coverage check for the P35 task tracker (S6). Two divergent media transcripts of the same sponsored video are reconciled to a canonical truth (one credible conflict: trail vs hiking), then the required talking points are verified against it. Sponsorship disclosure and the discount-code line are satisfied with extractive citations; a fictional return-policy point is absent, so the tool abstains rather than inferring. No real brand or person.",
+  "sources": [
+    {"id": "auto-captions", "artifact_completeness": "rich", "text": "welcome back everyone today northwind gear sent me their spring trail pack this video is sponsored by northwind use code save twenty at checkout"},
+    {"id": "manual-transcript", "artifact_completeness": "rich", "text": "welcome back everyone today northwind gear sent me their spring hiking pack this video is sponsored by northwind use code save twenty at checkout"}
+  ],
+  "required_points": [
+    {"id": "disclose-sponsorship", "text": "the video is sponsored"},
+    {"id": "discount-code", "text": "use code save at checkout"},
+    {"id": "return-policy", "text": "explains the thirty day return policy"}
+  ]
+}

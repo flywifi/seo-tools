@@ -2,7 +2,893 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P81 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P81: Remediation of the 24-hour audit of P80 (2026-09-06, docs/adr/0056-p81-audit-remediation.md).
+  Forty-nine findings closed in four commits after five read-only researchers extracted every
+  contract verbatim and every code change ran in a sandbox first. One atomic writer replaced four;
+  the MCP server's 1.x non-loopback bind and its allow-list validation were fixed with an
+  outcome-asserting selftest in both SDK majors; the packager and the manifest hash the same
+  tracked set; the interpreter floor became one constant that the launcher, setup, and the
+  interpreter picker share; eight guard sub-checks and a frozen-record rule now catch the prose,
+  index, schema, and writer classes behind the findings; the CI history is a command, and the
+  records were corrected to it. Not done, by decision: Python 3.13 (Resolve caps at 3.12; the rglob and audioop items are the 3.13 checklist); re-reading the Resolve ceiling on a Mac; pinning mcp-types (exact-pinned by mcp); a baseline for mcp-stats-compass; refusing to start when no allowed host is configured (the server warns); installing xmllint in CI (offered as a decision); running the Windows launcher probe (no cmd.exe here); running ci_history.py live (api.github.com is proxy-blocked here); tag; PR.
+
+- P80: Remediation of the P79 residue (2026-09-05, docs/adr/0055-p80-python-312-and-mcp-dual-major.md).
+  Three researchers crawled the dependency checker, the Python version surface, and the MCP SDK
+  source before a line changed, and two proofs ran in memory for every code block. The checker docs
+  now say what the tool reads, and the pin chain they described is enforced by the drift guard (one
+  live disagreement found and fixed). The Python floor moved to 3.12 with the video tooling
+  re-validated against the P26 goldens on the new numpy, av, and scenedetect after a control run on
+  the original versions reproduced the media byte for byte; the Mac install instructions, the
+  launcher probe, and the setup floor moved together. The MCP server was ported to the 2.x SDK as a
+  dual-capable module: two silent breaks a naive rename would have shipped (host and port discarded;
+  proxied requests answered 421) were proven with a live bind in both SDK majors, and executing the
+  port showed the 421 had been there on the shipped 1.x pin all along. Executing also found and fixed a
+  selftest that assumed xmllint (the sole CI failure since P74's release-preconditions commit on
+  2026-08-16; CI had been red since run 228 on 2026-07-19 for the release tool's selftest before
+  that) and a package manifest that hashed interpreter cache files; two of the six P80 pushes were
+  themselves red (runs 289 and 293). Not done, by decision: Python 3.13 (Resolve caps at
+  3.12), tag, PR.
+
+- P79: Remediation of the P78 findings (2026-09-04, docs/remediation-2026-09-04.md). Ten code
+  commits, each planned to the point of executed proof before it was written: the GIS writer now
+  hashes the bytes it writes and its fourteen hashes were re-stamped from disk; the freshness
+  bundle recompares its own per-file hashes; doc-freshness is exit-coded and the projection check
+  runs in CI; three advisory integrity invariants became blocking while invariant 45 stays advisory
+  by recorded decision; the whisper doctor verifies a found model against its pin; skill packages
+  have a source-tree hash manifest checked in CI; hash_audit recomputes every stored hash in one
+  command; seven dependency baselines were validated by running the battery under the installed
+  versions; the selftest enrolment gate re-landed with a 22-entry exemption list. Five researchers
+  crawled the 18 changed sources and the four passed moving dates to primary text: every changed
+  page was token or metadata churn with zero downstream corrections, and every date was confirmed
+  and stamped. Mac-only items (the 110 blocked sources, the av and scenedetect media validation,
+  the P75 index repair, the cache baseline rebuild) are a runbook in the record, not silently
+  skipped.
+
+- P78: SHA-256 verified integrity and currency audit (2026-08-30,
+  docs/integrity-currency-audit-2026-08-30.md). Every stored hash recomputed from bytes rather
+  than trusted: four manifests and the registry digest verify; one freshness-bundle hash was
+  stale because its checker never recompares its own strongest field; all fourteen GIS boundary
+  hashes never matched any committed byte because the writer hashes one serialization and writes
+  another (data intact, fix named, not applied by scope decision). First complete source sweep:
+  213 entries stamped through the sanctioned writers, 18 changed sources queued for human review
+  with their consumers named, 110 bot-blocked entries got the first real durable block records,
+  and the changed queue edited no downstream data. Scope held to the maintainer's four decisions:
+  report only for verification gaps and guard behavior, full sweep for sources, nothing changed
+  for dependencies.
+
+- P76: Rebuilt the P74/P75 branch history (2026-08-16). Nine commits had been pushed without an
+  approved plan; a tool error and a harness state change were read as approval. The maintainer
+  reviewed each commit and decided it individually, and the branch was reset to the last approved
+  commit and rebuilt as eight commits reflecting those verdicts. Most of the work was re-approved
+  and shipped unchanged. Two changes were dropped as maintainer decisions rather than repairs: the
+  re-band of 63 currency check intervals, and the selftest enrolment gate with its exemption list.
+  The fifteen selftests those two shipped alongside were kept, so the sweep is unchanged at 85. Two
+  additions the original lacked shipped with the version bump: the pasted ChatGPT pack was
+  re-stamped to 0.2.0, and the packaging-stamp invariant now compares that stamp against the
+  ecosystem version instead of only asserting the line exists, which closes a re-paste loop the
+  bump would otherwise have created. Nothing at or before the last approved commit was rewritten,
+  and no tag existed at any point.
+
+- P74/P75: Remediation of the open P73 findings (ADR 0054, 2026-08-16), and the data repair that
+  followed. Planning the work found a live defect the audit itself had missed: the OG-tag
+  extractor's regex left a character class unterminated, so every og_* field received the first
+  meta tag's content and the competitor snapshot index recorded a competitor's image URL as their
+  title. It survived because nothing had ever executed that module. Fixing the parser did not fix
+  the rows it had already written, so P75 made the parser version part of the row identity: a page
+  re-read by a newer parser is superseded in place, and any future extractor fix repairs its own
+  historical rows. Fifteen tools gained real coverage (sweep 70 to 85), chosen untrusted-input
+  first. Three registry fields gained a sanctioned writer, which unblocked a correction that was
+  unapplicable rather than unstarted, giving the dependency checker a real mcp baseline. Two
+  documented controls were made real (the CI scan range was empty on a direct main push; the
+  commit-msg hook lacked the author-email half). The release path gained preconditions, the
+  changelog rolled up to a single 0.2.0 section, and the version bumped across all five locations
+  that carry it, including the pasted ChatGPT pack whose stale stamp had made the wizard's
+  re-export advice unterminating. No tag was created: that stays the maintainer's decision.
+  Two findings were deliberately left open rather than closed by a mechanism or a policy the
+  maintainer had not chosen: selftest enrolment is still unenforced, and the 63 currency intervals
+  that have never once been met are still declared as written.
+
+- P73: Production-readiness audit (ADR 0053, 2026-08-16). Six dimension audits (integrity,
+  completeness, accuracy, truthfulness, consistency, adaptability) run as monitored waves, each
+  finding triaged and reproduced by the main loop before it was accepted. Two safety defects led:
+  the MCP annotation gate classified tools by name signal, so an unanticipated write tool inherited
+  `readOnlyHint: True` (the hint clients use to skip confirmation), and `configure_tool` overwrote
+  an unparseable local config, destroying the publishing flags and remote token in a gitignored
+  file. Both are fixed fail-closed with permanent selftest cases. Three guards were given
+  forward-coverage so they detect the next drift rather than the last: count-truth enrolment is now
+  swept rather than curated (it caught two unguarded claims immediately, one added earlier in the
+  same audit), citation registration recognises shorthand, and the Mac vocabulary proposes unknown
+  macOS concepts for review. Four single points of failure were fixed with the recovery
+  documentation each lacked. The audit also corrected its own regressions: a ChatGPT-web prose fix
+  from earlier in the phase had changed the docs without the data model.
+
+- P68: Verification hardening (ADR 0050, 2026-07-20). Remediated the nine defects an adversarial
+  audit of the P67 commits found, and closed the five process gaps that let them survive P65/P66
+  and a green battery. (A) The most serious: eval cases asserted `expected_output_keys` authored
+  from SKILL.md prose, eight of them present in zero tool code. New `tools/eval_key_manifest.json`
+  + drift invariant 57 (`check_eval_output_keys`) AST-extracts each skill emitter's real dict keys
+  and enforces both that every case key is authoritative AND that the authoritative set is grounded
+  in code (so the manifest cannot invent either); nine eval files corrected; spec_only skills mark
+  each case. Run against the pre-fix tree it flagged all eight invented keys. (B) The remote-MCP
+  fail-safe, gated on `--serve-remote`, was bypassable via `--transport streamable-http|sse`; the
+  auth decision now fires for any non-stdio transport and the gated path serves the transport-matched
+  app, with an argv-level selftest proven to fail on the pre-fix wiring. (C) `docs/AUDIT-PROTOCOL.md`
+  §7 now requires an independent, fresh-context close-out check against code plus a red-team proof
+  per guard; ADR 0049-B coverage claim narrowed. (D) inv 14/16/17 hardened against the audit's
+  false-positive/negative cases, coverage-verify fixtures created, TikTok rate-limit citation
+  registered. Count 56 to 57. No launch flag flipped or tag cut.
+
+- P67: Production-readiness hardening (ADR 0049, 2026-07-19), three in-repo slices chosen by the
+  user (release-cutting and live-surface validation stay a hand-off). (A) Guard-shallowness
+  backlog closed: invariants 14/16/17 rebuilt from substring/marker tests into property checks
+  (non-empty parsed allowlist; a workflow agent() must consume an earlier agent/parallel/pipeline
+  result, not just carry a marker; no mutation tool in a read-only agent's allowlist), each tuned
+  against the green tree with a crafted-bad proof; count unchanged at 56. (B) The remote MCP
+  endpoint (`--serve-remote`) gained fail-safe auth: it refuses a non-loopback bind with no
+  CREATOR_OS_MCP_TOKEN and no --insecure, and enforces an in-process bearer gate when a token is
+  set (package-independent selftest covers both). (C) Honesty truth-up: the degraded-behavior
+  prose calling the publishing clients "stubs" corrected (they are gated-off REST clients),
+  docs/ROADMAP.md added inventorying the genuine NotImplementedError stubs, and the TikTok
+  rate-limit [NEEDS VERIFICATION] resolved to the documented 600 req/min per endpoint. (D) Eval
+  testing model: tools/eval_lint.py (offline structural linter, CI-wired, swept selftest) replaced
+  the bare json.loads CI step and surfaced 27 hollow scaffold cases across 9 skills, all authored
+  into real eval cases; behavioral eval execution documented as an intentional opt-in (not a push
+  gate).
+- P66: Remediation of the P65 full-system audit's fifteen findings (ADR 0048, 2026-07-19). The
+  three HIGH data-boundary gaps closed first: the generic sk- secret pattern matches current
+  hyphenated provider formats plus fine-grained github_pat_ tokens, the tracked-content scan
+  reads every tracked file behind a binary sniff instead of a suffix allowlist, and invariant
+  20's forbidden suffixes expanded to one shared tiered list (FORBIDDEN_DATA_SUFFIXES: financial
+  app files, credential/key stores, databases, backups, email/contacts, spreadsheets, columnar
+  exports, disk images, archives, office binaries, capture media) consumed by the guard, the
+  pre-commit gate, and CI. The invariant-36 keystone asserts a labeled check is registered in
+  main(); privacy invariants print a loud DID-NOT-RUN advisory in a non-git copy. Sixteen more
+  CLIs got the thin-main OSError boundary (invariant 54 Layer 3 guards the structure; per-tool
+  boundary cases in six selftests). CI gained the behavioral battery via tools/selftest_sweep.py
+  (scripted discovery, 63+ selftests) plus scenario_check/count_truth/doc_freshness. Invariant
+  55 origin claims became structured (explicit _residual_origins + a per-origin surface-affinity
+  table); four agent definitions gained the verification envelope with invariant 15 enforcing
+  the def prose; every selftest count in the tree is derived; validate_agent_output gained a
+  selftest and a loud degraded mode; NEW advisory invariant 56 (count 55 to 56) detects
+  out-of-band content edits to source-registry.json via the _content_digest that
+  registry_io.save_registry stamps; the competitor export screens every parsed-HTML free-text
+  field through the injection and secret/PII scanners before the committed summary (null-and-
+  flag). Guard-shallowness recipes against invariants 14/16/17 are a documented backlog in
+  docs/DOC-MAINTENANCE.md. Battery green end to end.
+
+- P64: Cowork as a first-class surface + whole-path input hardening + audit-completeness
+  machinery (ADR 0047, 2026-07-19). The cross-modality surface model gained `cowork_local` and
+  `cowork_remote` rows (11 surfaces; honest, vendor-cited capability profiles with
+  `needs_verification` where the docs are silent), every surface row gained an `origins` field,
+  and NEW invariant 55 (`check_surface_origin_completeness`, fail-closed) reconciles the model
+  against the independent origin oracle (`tools/handoff/queue.py::ALLOWED_ORIGINS` == the
+  compute-job schema enum), so an origin no surface claims fails the build. The whole
+  ENAMETOOLONG class is fixed: every filesystem touch reachable from a CLI arg in
+  finance/obligations (plus accounts/tasks/doctemplates soft sites and a bonus payload-derived
+  invoice-filename write) returns the clean error envelope on a >255-byte path; invariant 54
+  widened in place to a two-layer loader-body + AST taint check that fails on the pre-fix tree;
+  every path-taking CLI selftest carries a >NAME_MAX boundary case; two lying selftest summary
+  literals (obligations "16 of 16" over 18, tasks "46" over 45) replaced with derived counts.
+  `docs/AUDIT-PROTOCOL.md` (six sections mapping root causes RC1 to RC6) makes audit coverage
+  derived-not-recalled, with the mandatory closing "Not exercised" list; scenario S10 gained the
+  `cowork-surface-model` leg so the battery executes the Cowork model facts on every run.
+  Selftests: finance 105/105, obligations 20/20, accounts 28/28, tasks 46/46, doctemplates
+  27/27; scenarios 10/10; drift clean at 55.
+- P63: sweep remediation (ADR 0046). The four defects the 2026-07-18 diagnose-only Mac +
+  cross-skill workflow sweep confirmed are fixed with proof mechanisms that fail on the old code:
+  the connector resolver no longer crashes on the committed registry (google_drive_hub gains
+  `default_flag: not_installed`; `resolve()`/`cmd_list()` harden with `.get()`; NEW invariant 53
+  executes the resolver over the committed registry, fail-closed); `transcript_normalize` jobs
+  deliver the full documented output via the new additive `transcripts.py --normalize` combined
+  mode (segments + silences + chapters in one object; the runner selftest now RUNS the built argv
+  on a committed fixture and asserts all three keys; single-mode arms byte-unchanged for the
+  footage-analysis atom); finance/obligations CLIs return the clean `{"error","next_step"}`
+  envelope instead of raw tracebacks on bad payload paths (tagged PayloadError + local `_fail`;
+  `build_invoice` gap-flags a non-dict `terms` as `malformed_terms`; NEW invariant 54 AST-asserts
+  both loader guards stay, fail-closed). Invariants 52 to 54; selftests grow: transcripts 7/7
+  (new), runner 27/27, finance 102/102, obligations 16/16.
+- P62: two-pass injection screening (ADR 0045). The offline pattern tier now feeds the authoritative
+  in-session semantic guard: `injection_scan.render_prior` renders the offline verdict as an advisory
+  line, `shared/injection-guard-engine.md` defines the `<untrusted_content>` envelope + reconciliation
+  + fail-safe, drop-folder records carry the `offline_pattern_scan` prior + `pass2_pending`,
+  `inbox.reconcile` + `approve` persist the `{offline_pattern_scan, injection_scan_result,
+  reconciliation}` triple and refuse to route anything the offline tier sealed or the session
+  escalated (the session can never un-seal). New `shared/schemas/injection-scan.json`; the
+  ingest-route/inbox-routing atoms gained the prior + reconciliation contract; per-modality coverage
+  (`both`/`offline_only`/`session_only`) in `shared/cross-modality-engine.md`; ChatGPT/Gemini
+  packaging instruct the discipline (not enforce). `docs/INJECTION-TWO-PASS.md` documents the model;
+  its per-engine vendor-doc citations are research-pending (a research pass hit a session limit).
+  inbox 38/38, injection_scan 23/23, scenarios 10/10, drift clean at 52.
+
+- P61: close the non-Mac gaps (ADR 0044). The offline injection pattern tier
+  (`tools/injection_scan.py`, the engine's machine-scoreable spec verbatim with a category-sync
+  selftest) screens every unattended ingest surface: ticket free text (fail-closed in
+  `validate_ticket`), the inbox scan (QUARANTINE/BLOCK files sealed into `Inbox/Quarantine/<date>/`
+  by `sweep_quarantine`, the second sanctioned writer, behind four resurrection locks), and import
+  previews; findings render escaped with the exact matched phrasing, and the verdict field is
+  `offline_pattern_scan` (the session guard stays authoritative). Approval became a two-step work
+  order (Approve files the batch; a second screen lists the exact follow-up jobs with checkboxes
+  and an amendment note carried as `consent_note` -- data, never argv), with GATE-QUEUE switch
+  banners at multiple points. New `transcript_normalize` job type; the broken `library_complete`
+  builder fixed (argparse-accepted proof case); transcribe output moved under `Jobs/results/`;
+  direct library saves gated behind the acknowledged local `job_store_writes_enabled` capability
+  (62 capabilities, 47 degraded notes) re-read by the runner at build time.
+  `tools/keyword_offline.py` makes the last refused job type real (all 8 library files + scoop
+  cache, `search_volumes` always null). The `project_docs` API lane refreshes and persists its
+  token; report-style done jobs deliver to the hub `Outbox/` (both transports).
+  `tools/mcp_server.py` gained its first selftest (two tiers; sandbox full-tier proof: 58 tools
+  live == static). Mac-dependent items stay on the ADR 0043 hands-on checklist untouched.
+
+- P60: the omnichannel Drive hub (ADR 0043). One shared Drive folder ("Creator OS": Inbox, Store,
+  Jobs, Knowledge, Profile, Outbox; spec `docs/DRIVE-HUB.md`) with an append-only/create-only
+  write rule, and the async compute hand-off built as ONE queue and runner (`tools/handoff/`:
+  job-type allowlist, UUID idempotency, hub-confined input paths, per-type timeouts, honest
+  failures) behind three transports: the Drive-for-desktop folder watcher (default, cron/launchd
+  `--once`), opt-in Drive API polling (`drive.file` scope, create-only, injectable transport), and
+  opt-in remote MCP `submit_compute_job`/`job_status` (58 tools). The drop folder ships as the
+  `inbox-routing` atom (atoms 105 to 106) + the `inbox_rules.json` dispatch table + the offline
+  scanner `tools/handoff/inbox.py` (never guesses content categories; approve is the sole writer)
+  + the wizard `/inbox` flow, pinned by scenario S10 (scenarios 9 to 10, routing deliberately
+  absent). Projects get a dual projection (`tools/project_docs.py`): pack copies into the hub's
+  `Knowledge/` folder plus an opt-in Google Docs lane that updates stable doc ids so a private
+  Project live-syncs; engines-to-pack staleness stays invariant 47, pack-to-Drive is the tool's
+  own check. All three hub capabilities default OFF (61 capabilities, 46 degraded notes); nothing
+  in any job path can post, publish, or read credentials. Real-Mac behaviors (sync latency,
+  launchd, Docs conversion fidelity) are recorded as the ADR 0043 hands-on checklist, not claimed.
+
+- P59: currency/accuracy audit of four surfaces (versioning, maintainer files, README/docs, error
+  logs): every item verified current, brought current, or explicitly recorded as stale-by-decision.
+  Fixed: the `versions.json` `updated` stamp (lagged at 2026-06-30 across P52 to P58; nothing
+  validates it); the publishing maintainer invariants 2 and 3 (still described the pre-P57
+  caller-only gate and the pre-P58 `account_id` fallback); seven stale `finance.py --selftest`
+  pass-count claims across six finance atom docs (44/59/71, actual 99); `docs/WIZARD.md` (loopback
+  bind address + the P57/P58 request guards documented); `docs/ARCHITECTURE.md` (the atoms table
+  read as a complete inventory while listing 27 of the 105 installed atoms); and the dashboard
+  scheduler, which recorded any `ok:false` client refusal outside gated/unconfirmed/auth_required
+  as "published" with a null post id (now keyed on `ok` via `_apply_dispatch_result`, pinned by a
+  new dashboard `--selftest`, 9/9). The doc-freshness manifest was re-blessed (invariant 51 green)
+  and the finance docs are now bound to `finance.py` so the stale-count class is machine-caught.
+  Stale-by-decision (recorded in ADR 0042 with exact hand-off commands, not changed): the
+  CHANGELOG `[0.1.0]` heading vs the not-yet-published GitHub release (and `autoUpdate: true`),
+  the unstamped `creator-os-release` registry entry, and the staged volatile corrections (the NY
+  moving-date advisory, invariant 43, keeps firing by accepted choice; the EU AI Act seed stays
+  staged). `docs/PUBLISHING.md` re-verified against the current publishing/oauth code: no drift.
+
+- Pending, hand-off only: cutting the baseline v0.1.0 GitHub release (needs `gh`), stamping
+  `creator-os-release` (`python3 tools/update_check.py check --apply`), and the staged volatile
+  corrections (`mark-checked ny-synthetic-performer-law --changed`; the EU AI Act seed). See ADR 0042.
+
+- P58: remediated the remaining P56 audit deficiencies (the LOW hardening cluster) and closed the
+  audit's own coverage gap (the three surfaces the P56 agents never mapped under a session limit).
+  OAuth: `import urllib.error` made explicit; `refresh()` maps a transient 400 to a retryable OAuthError
+  (only 401/terminal codes force reconnect); a dead Instagram long-lived token now raises ReauthRequired
+  (A1). Publishing clients: reject a 0-byte file before any network init; pin the YouTube resumable-PUT
+  to a googleapis host; Instagram requires a real `ig_user_id` (dropped the Facebook-Page-id fallback)
+  (A2). Honesty: `ftc_disclosure_verified` documented as a presence check, not content validation (A3).
+  Wizard: bounded + malformed-safe request-body read; a corrupt Claude config is backed up before any
+  overwrite; the fetch-model tier is allowlisted before shelling; the import batch is tied to a
+  single-use token so two tabs cannot cross-approve (A4a-d part 1). Deferred with a written rationale:
+  ThreadingMixIn (A4d part 2) would add concurrency to the unlocked config-file RMW paths P57 hardened
+  (MED, not exploitable). Track B (map + verify the launch/install, P52-guards-as-oracles, and P55
+  surfaces) found NO new issues: the installer is flag-gated + honest, the drift guards fire on genuinely
+  bad input, and P55 stays green. Every fix carries a selftest; the P57 harnesses still read KILLED.
+
+- P56/P57: adversarial audit of the last-24h change set (P50 to P55) + remediation. The audit
+  (diagnose-first, sandboxed zero-network harnesses in the session scratchpad) confirmed 12 findings,
+  all behind `live_publishing_enabled=OFF` so no user was exposed. P57 fixed all of them, each with a
+  harness that flips from CONFIRMED to KILLED and the green baseline preserved. Publish path: the
+  dashboard passed the wrong creds shape to `dispatch` so the live path returned auth_required for
+  everyone (F1); `dispatch` now structurally enforces `live_publishing_enabled` + explicit human
+  confirm instead of trusting the caller (F2/F8); a `persist` callable is threaded through so a TikTok
+  refresh-token rotation is saved (F3); the scheduler dispatches only a `direct_api`-tier platform
+  (F7); add-to-queue strips caller-supplied control fields (F8). OAuth: Pinterest/Instagram redirect
+  host `localhost` to `127.0.0.1` (F9, `localhost` could resolve to IPv6 `::1` and lose the callback).
+  Wizard: home-tree path confinement on the import scan and the filesystem-MCP folder (F4/F6, was
+  `os.path.isdir` only), a cross-site Origin/Referer guard on every mutating POST (F5), and
+  `nightly_branch` git-ref validation + HTML escaping (F10/F11). Also added the missing
+  `publishing_compliance --selftest` (F12). The LOW hardening cluster is drafted-not-applied; a fresh
+  map of three audit surfaces not reached under a session limit (launch/install, the P52 guards, a P55
+  regression pass) is deferred. Full findings + harnesses live in the session scratchpad, not the repo.
+- P55: seeded the macOS/AI-surface research sources and made doc citations trigger registry tracking.
+  Seeded 23 sources (registry 218 to 241): a new `os-platform` category (Apple Gatekeeper/Open-Anyway/
+  TCC/TN3179 + DTS FAQ/Rosetta/Tahoe/Intel-support, python.org + PEP 668, Homebrew docs + formulae,
+  whisper.cpp GGML models) plus 5 `ai-surface-spec` entries (MCP local-servers, Claude Desktop/Code/
+  connectors docs); every URL fetch-verified before seeding, freshness bundle restamped. New
+  declare-generate-enforce loop: a doc declares its external authorities in a fenced ```sources block
+  (or `<!-- source: id -->` marker); `tools/source_sync.py` (read-only, 13-check selftest) reconciles
+  declarations against the registry and generates the seed file for anything unregistered; new
+  fail-closed drift invariant 52 (`check_doc_source_registry`, mirroring invariant 23) fails the build
+  on an unregistered/URL-mismatched/unparseable declaration, with illustrative-id exemptions in
+  `tools/doc-source-allowlist.json`. Declared-sources blocks live in `docs/MACOS-MAINTENANCE.md` and
+  `docs/SETUP_MAC.md`; the convention is documented in `docs/CURRENCY.md` + `docs/DOC-MAINTENANCE.md` +
+  CLAUDE.md. Two macOS platform dates (Homebrew cask Gatekeeper change 2026-09-01, macOS 27 Intel drop)
+  added to `canonical-sources/moving-dates.json`. The registry writer set is unchanged (source_sync
+  never writes it).
+- P54: fixed the macOS issues found by the P53 stress test (code + copy; behavioral confirmation stays
+  the hands-on checklist). New `tools/env_paths.py`: `app_python()` prefers a private repo `.venv`
+  interpreter (graceful fallback), `which()` prepends the Homebrew prefixes so a double-click launch
+  finds brew tools. `setup.py` installs deps into a `.venv` (`ensure_venv`), sidestepping Homebrew
+  Python's PEP 668 lock (`--break-system-packages` is a labeled fallback). Wizard routes tool
+  subprocesses + `_install_uv` through `app_python()`, detection through `env_paths.which()`, adds an
+  injectable `_os()/_arch()` sim seam, exits cleanly on a busy port 8765 (no traceback), resolves
+  wizard-written MCP `npx`/`uvx` to absolute (`_mcp_command`), and states Quit-completely + the mcp log
+  path. Launcher `.command` prefers `.venv`, probes for a real python3 (rejects the CLT stub, steers to
+  python.org), exports the brew PATH, and uses the current Tahoe Open-Anyway Gatekeeper copy. MCP
+  snippet's `creator-os` command -> absolute `.venv/bin/python3`. Arch-aware STT copy (no false Metal
+  claim on Intel), TCC folder-denial message, DaVinci multi-path (`preflight`), Safari OAuth caveat.
+  New `--selftest` guards: loopback-127.0.0.1 (G1), whisper 3-name probe (G2), macOS render, port
+  collision. Docs: `docs/MACOS-MAINTENANCE.md` (maintainer invariants), SETUP_MAC/DEPENDENCIES/
+  PUBLISHING/WIZARD updated. Diagnostics + hands-on checklist from P53 live in the session scratchpad
+  (not the repo).
+- P53: macOS stress test (diagnose-only; all artifacts in the scratchpad, nothing committed). Two-tier
+  method: OS-simulated + selftest coverage here, a 5W+H hands-on checklist for real hardware. Surfaced
+  16 findings (2 code-confirmed HIGH: PEP 668 installer break, double-click PATH gap) later fixed in P54.
+- P52: maintainer and doc-accuracy audit plus forward drift guards (seo-tools only). Extended the
+  path-resolution check to `docs/*.md`/`README.md`; added a symbol-reference invariant
+  (`<!-- verify: path::symbol -->` resolved against the AST, with `tools/doc-verify-allowlist.json`
+  exemptions), a tools-layer maintainer-coverage invariant (`TOOLS_MAINTAINER_DIRS`), and
+  `tools/doc_freshness.py` content-hash staleness stamping (advisory). Created
+  `tools/publishing/MAINTAINER_README.md` (invariants, failure modes, dev-traps, regression map).
+  Ran a full multi-agent content-accuracy sweep; after review, applied the approved corrections
+  (publishing layer no longer "dark/stubs", Pinterest scope, finance-desk check counts,
+  contract-desk atoms, videoedit atom list, tool-count/script-path refs), lowered the skill-template
+  regression bar to three, and added Regression sections to five atom maintainer files. Broad
+  `verify:` marker retrofit (61 markers across 43 docs, each bound to a real top-level `tools/`
+  symbol). Process conventions: advisory `.github/CODEOWNERS` (@flywifi); `docs/adr/` (MADR, 5
+  foundational + 31 backfilled from the ledger); root `CHANGELOG.md` (Keep a Changelog + SemVer,
+  reconstructed from STATE + ledger); `docs/DOC-MAINTENANCE.md`; and a CLAUDE.md "docs change in the
+  same PR as the code" rule. Regression-probed: a bad marker and a reintroduced stale count each fail
+  the drift guard. Drift clean; scenarios 9/9; all publishing/oauth/picker selftests green.
+- P51: real publishing OAuth + live upload (persona-audit stumbles 8, 9) and a native folder picker
+  (10). **Shared OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
+  from research (PKCE base64url for Google, **hex** for TikTok, none for Pinterest/Instagram; Basic vs
+  body client auth; TikTok refresh-token rotation). Generalized wizard callback `/oauth/<platform>/
+  callback` with single-use `state` CSRF + `/api/oauth-start` + a manual paste-the-code fallback.
+  **Credential clobber fixed:** `_merge_api_credentials` deep-merges; publishing tokens live under
+  `creds[plat].publish` and never overwrite importer read tokens; Instagram `ig_user_id` canonicalized
+  at the root. **Live clients** (all gated behind `live_publishing_enabled`, default off, + human
+  confirm; all built on an injected transport with no-network selftests): YouTube resumable upload
+  (default-private, upload-only, no monetary endpoint); Pinterest base64 image Pin (no public URL);
+  TikTok creator_info→init→chunked FILE_UPLOAD→status (SELF_ONLY default, refuses unaudited public,
+  `is_aigc`); Instagram container→poll→media_publish (surfaces the public-URL wall + professional-
+  account requirement honestly, never faking a local upload). All four setup screens rewritten with a
+  Connect button + each platform's real wall stated. **Native folder picker** (`tools/pick_folder.py`):
+  tkinter-in-subprocess with osascript/PowerShell-STA/zenity/kdialog fallbacks + headless degrade; a
+  Browse button + `/api/pick-folder` on the import and storage-folder screens; text field stays the
+  floor. Compliance `has_credentials` tightened to the publish namespace. `docs/PUBLISHING.md` +
+  integrations-engine section + live-account verification checklist. New selftests: oauth_flow,
+  publishing/{youtube,pinterest,tiktok,instagram}, pick_folder, wizard OAuth callback.
+- P50: wizard onboarding remediation for the persona-audit structural stumbles 5, 6, 7, 10, 11.
+  **No-terminal launch (5):** double-click `Start Creator OS Setup.command`/`.bat` at repo root
+  (the `.command` carries the executable bit) + a `launch_setup` MCP tool. **First-screen IA (6):**
+  `_screen_welcome` collapsed to one primary question, a `/claude` browser-vs-desktop chooser, and a
+  `/bring` "bring what you already have" hub. **Native-first Google + storage (7):** `_screen_google`
+  leads with the built-in connector and demotes Cloud Console to an advanced expander; new
+  `/storage-folder` step registers a filesystem MCP scoped to one folder via `_write_claude_config`.
+  **Guided import (10):** `_screen_import` reworked into "ask Claude" + a Scan/preview/Approve form
+  (`/api/run-import`), commands demoted to an expander. **Default install (11):** `tools/setup.py
+  --install-deps` + a wizard "Set up my computer" screen install every free pip set + uv + Playwright's
+  browser, reporting each outcome; `_screen_node_missing` gains inline recovery + a re-check button.
+  Blockers fixed: `configure-stats-tool` reconciled to the canonical registry; numpy/python-dateutil/
+  sqlite-vec/PyYAML declared (numpy in requirements-videoedit, the rest in new requirements-tools.txt)
+  and seeded for invariant 23; new `docs/DEPENDENCIES.md`. Persona audit now 23 screens, all green,
+  0 orphans.
+- P49: audit remediation across honesty, shareability, provenance, and doc-truth. **WS9 (block is not
+  gone):** `tools/source_currency.py` now classifies a bot-block (403/429/challenge, incl. a 200
+  interstitial) as `blocked` (never `changed`/stale/orphan), records a durable `last_block_detected`,
+  and excludes blocked sources from staleness/SLA; `traversal_engine` orphan-pruning and
+  `dependency_currency`/`update_check` distinguish a rate-limit from an absence; a human/browser
+  verification handoff (paste/upload on every surface, or `--resilient` retry via `fetch_resilient`)
+  and the `web-intel-engine` policy were added. **WS1:** YouTube `categoryId` decoded to a label at
+  import (`canonical-sources/youtube-video-categories.json`). **WS5/6:** a "Source and updates" way-home
+  line in every knowledge stamp + a single combined knowledge pack (`creator-os-combined.md`). **WS8:**
+  `docs/COMPLETENESS-CONTRACT.md` + softened overclaiming GPT Action strings. **WS4:**
+  `docs/PERSONA-AUDIT.md` + `tools/persona_audit.py` harness + first audit + low-risk wizard fixes.
+  Three new invariants took the count 45 -> 48: **46** URL provenance (ERROR, `operational-url-allowlist.json`),
+  **47** knowledge-pack projection staleness (advisory, `projection_manifest.py`), **48** doc-count truth
+  (ERROR, `count_truth.py`). Stale counts corrected (22 spokes, 5 agent roles, 48 invariants). Selftests:
+  source_currency 28/28, video_library 30/30, youtube_import 19/19, freshness_bundle 14/14, projection
+  6/6, persona 5/5; scenarios 9/9.
+- P48: self-update channels + before-a-release fallback. `tools/update_check.py` now falls back, when
+  no GitHub release is published, to comparing the installed commit against a tracked branch (one
+  read-only GitHub compare call), so the self-update path is no longer inert. Adds a channel model
+  (`stable` -> main, `nightly` -> an experimental branch) resolved by `resolve_channel()` with
+  precedence `CREATOR_OS_UPDATE_BRANCH` > `CREATOR_OS_UPDATE_CHANNEL` > `creator-os-config` update.channel
+  > default stable; the same resolved branch feeds `tools/update.py`'s pull so check and apply agree.
+  New status `behind_unreleased` (the GitHub compare direction inverts: base=local, head=branch, so
+  "ahead" means the local copy is behind). The wizard `/updates` screen gains a channel selector
+  (`/api/set-update-channel` -> `creator-os-config.local.json`); `update_notify` phrases the no-release
+  case; the MCP `update_check` docstring documents it. Read-only, never-nag, opt-in gated; reverts to
+  release comparison automatically once a release is cut. Selftests: update_check 40/40, notify 15/15.
+  Note: `main` exists on GitHub (an earlier remark that it did not was wrong); the missing artifact is
+  the release/tag, not the branch.
+- P47: currency / versioning / push-integrity, diagnose-only. Added `tools/preflight_push.py` (a
+  read-only reporter that predicts every push blocker: drift, version desync, un-restamped freshness,
+  and the commit-hygiene classes including the environment's claude.ai session trailer) and
+  `tools/release.py` + `.github/workflows/release.yml` (ready, not auto-firing, release wiring so the
+  self-update poll stops reporting `no_release`). Drift invariants grew to 45: invariant 36
+  (catalog-integrity keystone) makes the invariant catalog a single source of truth and fixed the
+  historical double-"Invariant 22" + the stale header; 37 to 38 are error-level (legal-source
+  category; marketplace/plugin version equality); 39 to 45 are advisory (versions coverage, used_by
+  paths, capability to connector, writer-count, moving-date calendar, degraded parity, content-vs-
+  digest). Corrected doc drift (registry_io.py / CLAUDE.md / CURRENCY.md now name all five registry
+  writers; the false ci.yml currency-selftest comment). Fixed the one real recurring CI failure (the
+  weekly `competitor-intel` job now continues on an empty snapshot dir). Staged a cited July-2026
+  volatile-correction backlog (highest: cap `mcp` below the breaking 2.x on PyPI, verified live) plus
+  a moving-date calendar and an EU AI Act Article 50 seed, none applied. The one intended advisory the
+  drift guard now prints is the NY synthetic-performer law (effective 2026-06-09, not yet re-verified).
+  Pending, hand-off only: cutting the baseline v0.1.0 GitHub release (this environment has no `gh` and
+  no release API; run `python3 tools/release.py --plan` locally, or dispatch the release workflow).
+- P46: content-import hardening + non-technical onboarding. A read-only stress test of the P45 lane
+  (simulated MacBook Pro on Claude web/Cowork/Desktop) found 9 defects in the live importers and the
+  export-ZIP parser; all are fixed against cited platform behavior. Importers: TikTok create_time is
+  coerced defensively (a bad field no longer aborts the batch); YouTube/Instagram/TikTok pagination is
+  bounded by a max_pages backstop and returns a `truncated` sentinel instead of a silent partial
+  library; Instagram now terminates on the documented `paging.next` absence (not the `after` cursor)
+  and pins `/v25.0/`. Parser/CLI: import_parse guards every zipfile.ZipFile via `_safe_zip`
+  (BadZipFile is not an OSError subclass) so a corrupt export degrades to []; video_library's CLI
+  returns a clean JSON error + nonzero exit on bad upsert/FTS input. Analysis/completion:
+  derive_most_watched returns [] on a flat retention curve; library_complete joins whisper-JSON/SRT
+  transcripts to retention and flags an untimed transcript with a `no_timing` gap; `complete --write`
+  reports honest per-field counts. Non-technical layer: `tools/transcribe.py doctor` gives a
+  green/amber/red readiness verdict + the exact next command, and `--fetch-model` downloads a
+  whisper.cpp GGML model verified against a committed sha256 allowlist
+  (canonical-sources/whisper-models.json, from Hugging Face LFS object ids); the wizard adds a
+  /doctor screen with one-click model downloads and corrupt-export recovery copy; docs/SETUP_MAC.md
+  gains a doctor + Windows section. Drift invariant 35 (check_importer_robustness) locks the defect
+  class (no unbounded while-True pagination, zipfile inside a try, guarded create_time, truncation
+  signal preserved). All selftests green; scenarios 9/9; drift clean at 35 invariants.
+
+- P45: content import (the creator's OWN past videos + metadata). Import, complete, and analyze the
+  back catalog across YouTube/Instagram/TikTok/Pinterest, entirely on the creator's machine,
+  proposal-only. tools/video_library.py is the local gitignored SQLite+FTS5 store (upsert by
+  video_key, freshness-enveloped stats, retention null off YouTube, no committed summary) plus a
+  read-only analysis layer (top tags, YouTube retention peaks/cliffs, format performance, transcript
+  themes; every figure cites video_keys; unavailable data null-flagged). tools/import_parse.py reads
+  the four export bundles (revenue ONLY from the YouTube Studio CSV). tools/importers/* is the
+  flag-gated OAuth REST tier (content_import_live master + per-platform read flag + own creds; the
+  YouTube importer builds no monetary URL and skips ASR captions). Completion layer:
+  tools/transcribe.py is the OS/backend-aware on-device STT runner (whisper.cpp on Apple Silicon,
+  faster-whisper elsewhere; run_local_stt gap with per-OS install when no backend, never a fabricated
+  transcript) and tools/library_complete.py joins the YouTube retention curve to the transcript so
+  each most-watched moment carries the spoken words (elapsed_ratio x duration_s). Skills:
+  video-import, transcript-import, library-complete, library-analyze atoms + the content-library
+  spoke (Class C with the invariant-32 Fallback). Wiring: hub routes import_past_videos/
+  analyze_back_catalog/most_watched_parts; MCP video_library_query + video_library_import_status;
+  wizard /import guided flow with per-OS STT install + macOS Gatekeeper/Python notes. Governance:
+  drift invariant 34 (video-library starters are pure null shape), scenario S9, docs/CONTENT-IMPORT.md
+  + SETUP_MAC.md STT section + DEPLOYMENT.md matrix rows. Two corrected premises are load-bearing:
+  YouTube snippet.tags are PUBLIC, and revenue cannot come from the Analytics API (Studio-CSV only).
+  Retention is YouTube-only; transcripts are on-device STT or an uploaded caption (ASR not downloaded,
+  no scraping); all imported data is gitignored; the importer proposes and the human saves.
+
+- P44: background updating for established users (Claude and ChatGPT). Answers "how do I update once
+  I have my own saved data?" without ever pushing, nagging, or pulling on the user's behalf.
+  tools/update_check.py is the token-free self-update poll (reuses dependency_currency; compares the
+  repo's own GitHub release tag against VERSION); tools/update_notify.py gates it behind the opt-in
+  background_update_check flag (off by default; headless run makes no network call when off) and
+  emits one passive notice only when behind, always pointing at the explicit tools/update.py. The
+  wizard gains an /updates screen; the MCP server gains get_server_info + update_check tools and a
+  quiet startup line. Data safety: tools/local_audit.py read-only schema audit + CHANGELOG.migrations.json
+  (human-authored why/impact, no-fabrication) + invariant 33; tools/migrate_local.py is the
+  consent-first, reversible, byte-for-byte migration (compat_view shim is the safe default; write is
+  opt-in per file/field with backup + rollback to gitignored .local logs). Distribution: the
+  git-backed .claude-plugin marketplace (Claude Code/Cowork auto-update; Cowork org "Sync
+  automatically" needs a version-bump PR merge; Cowork sandbox is ephemeral). Hosted remote-MCP is
+  the only true-background browser path: small stable tool set, content through responses,
+  serverInfo.version as the poll signal (list_changed unreliable mid-session). docs/UPDATING.md is
+  the per-surface runbook; TRANSITIONS/CROSS-MODALITY/PASTE-SAFETY/FRESHNESS reconcile the notice with
+  the never-nag rules. Every unverifiable OpenAI/Anthropic product claim is tagged NEEDS VERIFICATION.
+
+- P43: ChatGPT surfaces + transitions. A 17-error audit of ChatGPT web/desktop coverage is fully
+  resolved: shared/cross-modality/transitions.json is the single source of truth for 9 surfaces
+  (incl. ChatGPT plain web, custom GPT, Projects, desktop app) and transition pairs, mirrored by
+  docs/TRANSITIONS.md and enforced by invariant 32. The wizard asks which AI you use, walks each
+  ChatGPT flavor step by step (/chatgpt), and walks any between-AI move (/transitions: what
+  travels, what stops working, what to re-import), with a local-machine precondition banner and
+  needs-verification tags on unverifiable OpenAI product claims. Remote-MCP claims hedged to
+  CAN-serve-IF-deployed with the runbook at implementation/gpt/mcp-connector/README.md; the
+  ChatGPT profile import landed (prompt + proposal-only atom + provenance); connectors gained
+  option_d2_chatgpt_connected; docs/PASTE-SAFETY.md, packaging version stamps, the consent
+  asymmetry note, and the flags-enforcement map close the privacy/honesty gaps; all 23 spoke
+  Fallback lines name their ChatGPT degradation path.
+
+- P42: creator document templates. Block-structured reusable templates (contracts, rate-card
+  display docs, analytics overviews, terms/conditions) with swappable clause blocks: variant
+  groups for mutually exclusive alternatives, advisory conditions for the model, never_with and
+  requires enforced in code. Store `pipeline/templates/` gitignore-inverted (all-null committed
+  starters; attorney text only in gitignored .local files; invariant 31 enforces starter purity).
+  `tools/doctemplates.py` (26-check selftest incl. vetted-body byte-equality) assembles by
+  concatenation plus bracket fills from profile/deal/rate-card/export/manual sources, writes
+  gated by the `document_templates` flag. Atoms: `template-ingest` (proposal-only, exact-quote
+  bodies, human saves by hand) and `template-assemble` (model selects whole blocks with reasons,
+  code assembles; contract safety envelope preserved). Hub route `template_manage`;
+  contract-desk branches drafting to the vetted template when one exists. Scenario S8
+  regression-locks swap/exclude assembly. Runbook `docs/DOCUMENT-TEMPLATES.md`.
+
+- P40: brand-deal flow hardening, all 10 flaws from the CoolBreeze test run fixed. Finance core:
+  rate-floor-only pricing (`no_cost_basis` gap) + `price_package` (unpriceable items excluded,
+  never 0). Personal rate card: `pipeline/finance/rate-card.template.json` (real card gitignored),
+  format resolution with `rate_floor_source` provenance, `benchmark_tier_assumed`/`_mismatch` gaps.
+  Five structure-only benchmark lever records (null, `needs_research`, do-not-quote). New atoms:
+  `product-fit` (persona-scored verdict, mandatory `data_basis`, exclusivity red-flag cap) and
+  `pitch-extract` (untrusted body, envelope-stamped citation, verbatim compensation). New hub route
+  `pitch_triage` -> deal-pipeline chains extract -> fit -> package price -> gaps -> gate; contract
+  drafting stays human-requested. Wizard `/brand-deals` readiness screen (one-click local flag
+  enable); degraded messages name the exact flag + wizard route; contract-draft output carries
+  mandatory `profile_gaps[]`. Acceptance: 10/10 assertions on the live CLI + repo state (throwaway
+  sandbox removed); scenario `S7-coolbreeze-pitch` regression-locks the flow (7/7 suite green).
+  Runbook: `docs/BRAND-DEALS.md`. P41 follow-up: score.py rejects unknown dimension keys (S4 leg);
+  the specific `no_rate_card_entry` gap suppresses the generic `missing_input` twin in both pricing
+  paths; the rate-card format vocabulary is documented OPEN (posts, story sets, scripts, ideation,
+  UGC rows added, all null) and mixed-deliverable packages price item by item, never forced into a
+  video format (selftest 99/99, S7 extended to a 3-type package).
+
+- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Full adversarial
+  audit completed across three resumed runs: 23/23 classifiers + 23/23 skeptics (22 upheld, 1
+  overturned an over-call). Class corrections applied; all 96 atoms carry an inherited one-line
+  declaration; invariant 28 hardened to reject a stub (Class/Runs on/Mechanism/Fallback required).
+  Final A=2/B=7/C=14. docs/CROSS-MODALITY-AUDIT.md has the per-skill verdicts + packaging candidates.
+
+- P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
+  consent (`tools/geo_consent.py`): default-on but ask-first once per session, headless/declined falls
+  back with no call, governing both `geo_fetch.py` (FEMA) and the new `tools/geo_geocode.py` (US Census
+  address to point). The master `jurisdictional_overlay` switch is now default-on. An independent
+  adversarial gate (5 properties + confirm pass) caught + fixed two safety-discard bugs in
+  `resolve_conflict`: non-comparable stringency, and comparison across incommensurable units, now
+  escalate to human review (a safety floor is never silently discarded). `tools/geo_source_fetch.py` is
+  the universal-path fetcher + build cacher: cached all 6 City of Orlando historic-district boundaries +
+  the R-2B/T/HP zoning polygon as real GeoJSON with provenance (`orlando-boundaries/`), resolved via a
+  new `geometry_ref: cache:` loader. Authored 11 cited overlay records (`orlando-overlays.json` +
+  statewide FL Building Code edition); 6 sources seeded + a currency baseline stamped (registry
+  186->192). Fixed a versioned-fact over-fire (rutherford scoped to its county); `*.example.json` demos
+  excluded from production resolution; invariant 27 now requires every versioned-fact to declare
+  `applicability`. Selftests: geo_overlay 37/37, geo_consent 12/12, geo_geocode 9/9, geo_fetch 13/13,
+  e2e proof 17/17. 809 E Amelia resolves offline to Lake Eola Heights + R-2B/T/HP + FBC 8th Edition,
+  with flood/SJRWMD as consent-gated live gaps. Everything advisory-not-legal-determination. Ledger:
+  `P38-jurisdictional-overlay-hardening-orlando`.
+  Cross-modality (P38-6/7): `docs/CROSS-MODALITY.md` + a GPT Action
+  (`implementation/gpt/actions/jurisdiction_overlay_action.yaml`) + Gemini function declarations make
+  the overlay reachable off Claude (Custom GPT, Gemini API, remote MCP, curl; consumer Gems is the one
+  dead end). `shared/cross-modality-engine.md` defines the model (capability classes A/B/C, surface
+  matrix, packaging map, fallback ladder); every spoke SKILL.md now carries a `## Cross-modality`
+  declaration; the setup wizard added a `/cross-modality` per-surface screen. New drift invariants: 28
+  (every spoke declares cross-modality) and 29 (every `implementation/` schema parses).
+
+- P37: added an OPTIONAL, advisory jurisdictional-overlay bucket on top of the construction base
+  (default off). `tools/geo_overlay.py` (selftest 26/26) is a stdlib EPSG:4326 engine: point-in-polygon
+  (half-open vertex rule, holes, multipolygon), bbox pre-filter + true ring test, GeoJSON/KML ingest,
+  three overlay kinds (geometry / attribute / versioned-fact), and a conflict-resolution cascade
+  (floor/ceiling preemption + Dillon/Home-Rule authority + lex specialis + human-review escape) with a
+  W3C PROV audit. `tools/geo_fetch.py` (10/10) is the live FEMA NFHL flood connector behind a SECOND
+  default-off flag (`jurisdictional_overlay_live`): with it off it makes no network call (proven by an
+  exploding-getter test). The optional `canonical-sources/jurisdiction/` bucket (fl-overlays +
+  nc-overlays) auto-indexes into the scoop cache; 14 FL+NC GIS/legal sources are seeded under a new
+  `jurisdiction-gis` cadence category with P36 currency wiring (registry 172->186); drift invariant 27
+  (`check_jurisdiction`) keeps every overlay cited, kind-typed, and advisory-flagged. MCP tools
+  `jurisdiction_resolve` and `overlay_conflict`. Everything is advisory-not-legal-determination;
+  genuine legal conflicts escalate to human review. NC modeled honestly (Rutherford has no steep-slope
+  ordinance; Asheville Sec. 7-9-2; MRPA layer is screening-only). Docs: `docs/JURISDICTION-OVERLAY.md`,
+  `docs/JURISDICTION-OVERLAY-PLAN.md`. Ledger: `P37-jurisdictional-overlay`. (Hub `jurisdiction-desk`
+  spoke + routing is the remaining optional wiring.)
+
+- P36: turned the dormant source-currency system into an always-fresh, per-user, self-contained
+  freshness system that keeps every deployment's reference data accurate on every modality WITHOUT the
+  freshness runtime ever touching GitHub. `tools/freshness_overlay.py` (selftest 30/30) adds the
+  read-only-baseline + user-controlled overlay: an append-only event log with deterministic
+  union-merge, a provenance envelope on every refreshed value, selector-scoped hashing, RFC 9111
+  max-age, a two-tier SLA, Wayback link-rot, a local dashboard, and a store adapter over
+  local_fs/google_drive/remote_mcp (reusing the P35 store model). `source_currency.py` gained an
+  `--overlay` path so report/check/detect-changes/dashboard write only to the user's own store, never
+  the repo registry or GitHub. `data-currency-map.json` now tracks 12 embedded-fact prose/config
+  artifacts (the connector registry, integrations/contract/construction/compute/tasks/platform
+  engines, config, wizard, video-tooling evidence) under drift invariant 25. Four seed files add 33
+  monitorable sources (registry 139->172): connector API changelogs, a new `ai-surface-spec` category
+  (MCP/.mcpb/Skills/GPT-Actions/Apps-SDK/Gemini), creator content data (Google Search feeds, Trends
+  API, Sprout/Hootsuite, IMH/HypeAuditor, Shopify), and compliance (eCFR Part 465, FTC/Fed-Register/
+  USCO feeds, NY/CA AI-disclosure laws, DOE IECC, ICC map). `tools/build_freshness_bundle.py`
+  (selftest 9/9) stamps a visible freshness date on the 11 knowledge digests under drift invariant 26.
+  The wizard gained a `/freshness-setup` store step; the MCP server gained currency_scan/
+  currency_detect_changes/freshness_refresh (overlay-only writes); a local launchd/cron scheduler
+  example ships; the weekly CI currency job is retired for zero GitHub coupling. Docs:
+  `docs/FRESHNESS.md`. Ledger: `P36-source-currency-freshness`.
+
+- P35: added the offline, source-cited, human-gated project task and obligation tracker for brand deals.
+  `shared/tasks-engine.md` defines the model: the anti-phantom rule (every task cites a document,
+  event_derived, or user_stated source; there is never a task the tool cannot cite), a seven-state
+  lifecycle with a first-class waiting_external state, and history[] as the append-only source of truth
+  that status/responsible_party/billable_ready fold over. `tools/tasks.py` (selftest 46/46) does the
+  offline compute: forward/backward/reverse-plan scheduling with a negative-slack feasibility check on the
+  obligations date math, RRULE recurrence materialized on demand, waiting-on handoff nudge/escalate,
+  two-party approval ping-pong, payment-milestone billable-readiness into the finance lane, .ics export +
+  reminders digest, and a store adapter (local_fs / google_drive / remote_mcp) whose append-only event-log
+  union-merge makes a shared Google Drive store concurrency-safe (not last-writer-wins). `tools/shipments.py`
+  (15/15) normalizes carrier status to a canonical enum, polls EasyPost/Ship24 with env-only keys (or takes
+  manual entry), and sets the immutable delivered_at planning anchor. `tools/coverage_verify.py` (18/18)
+  reconciles multiple media transcripts to a canonical truth (surfacing every credible dissent as a
+  conflict) and verifies required talking points with extractive citations, abstaining rather than inferring.
+  Eight atoms compose the `task-desk` spoke, hub-routed as task_status/task_plan/coverage_check/
+  shipment_update/milestone_bill; MCP tools and a dashboard tasks view added. Cross-surface continuity for a
+  non-technical Mac user runs the same tasks on claude.ai web, the Claude desktop app, and mobile via the
+  Drive/Sheets store, with an optional remote-MCP transport that CAN reach ChatGPT/Gemini when
+  deployed behind HTTPS + auth (runbook: implementation/gpt/mcp-connector/README.md). Four config
+  capabilities (task_tracking, shipment_tracking, coverage_verification, task_store_backend). Drift invariant
+  24 enforces task-tracker integrity; the S6 creator-core scenario exercises a two-party ping-pong plus
+  milestone, shipment, and coverage on fictional fixtures. Docs: `docs/TASK-TRACKER.md`. Ledger:
+  `P35-task-tracker`.
+
+- P34: added the offline residential construction and DIY knowledge base scoped to Florida and North
+  Carolina. `shared/construction-engine.md` defines the offline-dictionary schema, the cite-and-link-only
+  redistribution model (the codes are copyrighted, so we author cited prose keyed to section numbers and
+  never bundle code text), and FL/NC edition awareness. The dictionary
+  (`canonical-sources/construction/*.json`: 12 trades plus glossary, assemblies, fl-nc-specifics,
+  edition-status, diagram-index) is indexed by the scoop cache and answerable offline via
+  `construction_lookup`. `tools/build_calc.py` adds eight first-principles calculators (selftest 24/24).
+  Three atoms (construction-lookup, code-lookup, build-calc) compose the new `construction-desk` spoke,
+  hub-routed as `construction_question`/`code_lookup`/`build_calc`, with `project-builder` consuming them;
+  MCP tools `construction_lookup`/`code_lookup`/`build_calc` added. Five original CC0 SVG diagrams with a
+  license-tagged index. `tools/construction_fetch.py` downloads only public-domain/open assets and
+  structurally refuses copyrighted hosts (selftest 12/12). 37 sources registered under new `building-code`
+  (cite-only, 365d) and `construction-authority` (180d) currency categories; `edition-status.json` and the
+  data-currency-map watch the NC 2024 and FL 9th-Edition transitions. Drift invariant 22 enforces
+  edition-aware citations, per-diagram licenses, and diagram_ref resolution. Docs: `docs/CONSTRUCTION.md`.
+
+- P33: audited and modernized the source-currency system. Fixed its config bugs (legal-authority
+  and cost-vendor cadence overrides added to traversal-config so they are no longer treated as
+  7-day-due; corrected the stale MCP-spec and TikTok changelog URLs; deduped two duplicate entries;
+  filled or pruned the four placeholder stubs; allowlist gained tiktok.com, copyright.gov,
+  law.cornell.edu, github.com, ecfr.gov). Extracted `tools/registry_io.py` as the single shared
+  registry writer (source_currency, traversal_engine, dependency_currency import it) and added a
+  `source_currency.py update-source` correction subcommand. Closed the dependency blind spot: the
+  registry gained `software-dependency` and `mcp-server` categories (fields upstream_api, check_url,
+  package, pinned_constraint, validated_version, latest_seen) and 28 seeded entries (12 pip, 6
+  binaries, 10 MCP servers), each naming what it protects and why a bump matters.
+  `tools/dependency_currency.py` is the token-free version-drift checker (PyPI JSON + GitHub
+  Releases, deterministic drift with major-bump-is-breaking, advisory offline degradation, --apply
+  stamping, 21-check selftest); `source_currency.py check --detect-changes` adds token-free
+  content-change detection (conditional GET + sha256 stored on the entry; unchanged stamped, changed
+  queued; 10-check selftest). Added content sources (FTC eCFR 16 CFR 255, three cost vendors, a
+  github-seo upstream) and `data-currency-map.json` classifying every canonical file
+  (watched/static/dated/tool-managed) so the audit's orphan finding is resolved permanently. Drift
+  invariant 23 fails if a requirements package or MCP-backed connector has no registry entry; a
+  read-only weekly `currency-report` CI job runs both reports; `docs/CURRENCY.md` is the runbook.
+  A dependency baseline --apply ended the pip deps' dormancy. Ledger: `P33-source-dependency-currency`.
+
+- P32: closed all seven remaining scenario-suite gaps (G1 to G7); the P24 gap ledger (G1 to G10)
+  is now empty, all closed deliberately. The CRM read lane: `tools/accounts.py` is a third offline
+  compute-lane instance (stdlib, CREATOR_OS_ROOT sandbox, computed_by, gaps[], 27-check selftest,
+  read-only) with a tiered brand resolver (exact, alias, substring, difflib fuzzy, brand-category
+  term map) that never auto-picks past a confident exact or alias match, a contacts reader, and a
+  verbatim deal-status reader (no money math). Three atoms (`account-resolve`, `contact-lookup`,
+  `deal-status`); account-manager gains a `contact_lookup` action and an account-resolve step,
+  deal-pipeline a deal-status read step. account-schema v0.2.0 reconciled to the pipeline engine
+  (brand_category enum incl. lighting, secondary_contacts, relationship_health, aliases,
+  channel_preferences, deal_history_summary, renewal_candidate). Hub classifications
+  `account_read`, `deal_status`, `content_critique`. Seasonal: new
+  `canonical-sources/seasonal-aesthetic.md` plus the `seasonal.json` seasonal-windows entry with
+  resolved ISO dates (reference_year 2026, annual recurrence); engine table, seasonal-map table,
+  and JSON reconciled; drift invariant 22 validates frontmatter load refs and canonical-sources
+  joined KNOWN_ROOTS. Media-kit critique: `mediakit-critique` (benchmark-compare per metric plus a
+  structural review, honest `structural_only` degradation when benchmarks are unsourced) routed via
+  content_critique to partnership-mediakit. Two MCP tools (`contact_lookup`, `deal_status`,
+  read-only and PII-masked; 36 total). Contact PII stays on-machine; reads redact for anything
+  quoted off-machine. Ledger: `P32-close-all-scenario-gaps`.
+
+- P31: finance features on a hardened privacy boundary. Security first: allowlist-invert
+  `.gitignore` for `pipeline/finance/` plus repo-wide export/key/env ignore patterns; drift
+  invariant 20 (every tracked file under `pipeline/` must be on the explicit allowlist; no
+  tracked CSV/XLSX/OFX/QFX/PEM/KEY/.env anywhere) and invariant 21 (content secret scan), both
+  failing closed in CI; `tools/secret_scan.py` (stdlib scanner: key material, credential values,
+  session links, emails, amount-plus-brand pairs in pipeline files; selftest on concatenated
+  fixtures) with `tools/secret-scan-allowlist.json` (reasoned exemptions plus the commit-policy
+  boundary SHA); `tools/install_hooks.py` (pre-commit staged scan, commit-msg hygiene hook); CI
+  gains a tracked-content scan and a commit-message/author backstop; CLAUDE.md gains the
+  machine-enforced commit and PR hygiene non-negotiables. Then the features on top:
+  `finance.cashflow()` (weekly cash-movement buckets over a horizon; overdue, beyond-horizon,
+  and undated flows totaled separately with gaps), `finance.redact()` (banded amounts, initialed
+  brands; `--redacted` CLI flag and MCP parameter), `finance.reconcile()` (bank/PayPal CSV to
+  open invoices in exact/probable/uncertain tiers, proposal-only, structural refusal of any
+  in-repo non-`.local.` CSV) with the gated `mark_paid()` write, dashboard AR tab (read-only
+  aging plus chase queue at `/api/ar`), and three new atoms (`cashflow-view`,
+  `payment-reconcile`, `dunning-draft` with its bucket-keyed tone ladder that never sends).
+  Hub classifications `cashflow_projection`, `payment_reconcile`, `dunning_draft`; finance-desk
+  actions `cashflow`, `reconcile`, `dun`. finance.py selftest now 71 checks. Two MCP tools
+  (34 total). Ledger: `P31-finance-privacy-boundary`.
+
+- P30: the accounting bucket. `pipeline/finance/` record store (standalone invoices with line
+  items and frozen terms_snapshot, cost estimates, cost actuals; deal.invoice becomes a
+  denormalized summary plus `invoice_refs[]`, resolving the P23-era drift toward the engine's
+  standalone model). Structured money terms, additive: `payment_terms_structured` (net days,
+  anchor, deposit, late penalty, kill fee), `revenue_share`, `commission`, `ip_license_fee` on
+  deal v0.3.0 and contract schemas, filled only from quoted evidence; playbook gains
+  `pricing_and_rates` and `revenue_share_and_commission` families. `tools/finance.py` is the
+  second offline compute lane instance (imports the obligations date machinery; exact Decimal;
+  44-check selftest): AR aging, late-penalty accrual, revenue-share/commission clamps from
+  reported basis figures only, cost rollups, proposal price floors, deterministic invoice ids,
+  sha256 manifest, CREATOR_OS_ROOT sandbox; reads always on, writes gated by
+  `finance_management` + `invoice_generation` (+ `cost_research` for agent dispatch). New
+  `finance-desk` spoke (atoms `invoice-generate`, `ar-review`, `cost-estimate`,
+  `proposal-price`; hub classifications `invoice_create`, `finance_review`, `cost_estimate`,
+  `proposal_price`); document-studio gains the `invoice` artifact type; invoice-status upgraded
+  to standalone records and the six-state lifecycle. G8 closed deliberately (structured
+  benchmark rows plus 6 sourced-or-null metric rows; scenario suite now 7 gaps, all observed).
+  Personal rate card template with the deal-debrief proposal-only feedback loop. Fifth agent
+  role `cost-researcher` (envelope schema, observed-or-null prices) with the cost library and
+  vendor pricing sources registered via source_currency.py. Five MCP tools (32 total). Verbatim
+  financial boundary (NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE) plus a consequential-action
+  gate before any external money commitment; invoices are drafted, never sent. Ledger:
+  `P30-accounting-bucket`.
+
+- P29: the P26 media-tool shortlist integrated as optional, runtime-detected backends over the P28
+  transcript floor. `tools/videoedit/mediaprobe.py` (silence: ffmpeg silencedetect -> PyAV RMS ->
+  gap_metrics; scenes: PySceneDetect -> ffmpeg scdet with the luma caveat attached ->
+  suggest_chapters; 17-check selftest on committed raw-stderr fixtures),
+  `tools/videoedit/reframe.py` (crop geometry always available, render gated on `shorts_reframe`,
+  12-check selftest), `tools/videoedit/mltxml.py` (MLT XML as the second Lane A format, Shotcut
+  native; render gated on the new `media_render` flag, APP_DRIVING tier; 13-check selftest). Every
+  result carries `computed_by` plus a `backend_chain` audit trail; no backend means honest
+  `gaps[]`, never numbers. Three new atoms (`silence-scan`, `scene-scan`, `shorts-reframe`), two
+  new flags (`mlt_timeline_export`, `media_render`), four MCP tools (27 total), preflight
+  detection and degrade notes, `requirements-videoedit.txt` (optional only). `otio_core.merge` now
+  unions incoming `gaps[]` and adopts an enabled reframe directive (both were silently dropped).
+  All backends live-verified against the P26 goldens
+  (`docs/video-tooling-integration-evidence.json`); unverified and recorded: melt render
+  execution, macOS paths, editor-side .mlt opening, otio-kdenlive-adapter reading our MLT, and
+  auto-editor (bootstrap still 403-blocked; conditionally shortlisted only). Ledger:
+  `P29-media-tool-integration`.
+- P28: transcript-to-chapters capability shipped and gaps G9 + G10 closed (the scenario suite now
+  declares 8 gaps, all observed). `shared/docintel/transcripts.py` gained `gap_metrics()`
+  (inter-segment silence detection, promoted from the runner-owned evidence code the P26 S-0 spike
+  validated) and `suggest_chapters()` (chapter boundaries from silences plus words_per_minute
+  drops; titles always null, never invented), plus `--gap-metrics` and `--suggest-chapters` CLI
+  flags. `tools/scenario_check.py` `op_gap_metrics` now delegates to the product function. New
+  `footage_breakdown` classification routes to `video-development`; new `footage-analysis` atom
+  (shortcut on video-development) is the realizer: local timing math, model names chapters from
+  transcript text only, `human_review_required: true`. Scenario S5 flipped from ambiguous to
+  present routing and its silence leg asserts the product `computed_by`. Zero new dependencies;
+  the P26 media-tool shortlist (PySceneDetect, ffmpeg, auto-editor, PyAV) remains a future
+  integration phase above this stdlib floor. Ledger: `P28-transcript-chapters-footage-routing`.
+- P27: evidence governance patterns adopted from the maintainer's prior meeting-evidence system
+  (reviewed offline; the source document itself is not committed). Five additive changes: the
+  five-mode evidence acquisition ladder (connectors.md + connectors.json v0.2.0
+  `evidence_modes`), the field-level memory safety model and write stop conditions
+  (pipeline-engine.md), identity confidence split from claim confidence plus
+  `artifact_completeness` (verification-envelope.json, exposed in deal-review.json), the
+  unknown-over-false-certainty and explicit-stop-conditions rules
+  (research-orchestration-engine.md Section 7), and two concrete stop gates in deal-review.js
+  (target ambiguous; evidence too thin). Ledger: `P27-evidence-governance-patterns`.
+- P26: open-source video tooling evaluation (evaluation only; no integration, no flag changes; G9
+  and G10 stay open and the scenario probes still observe them). 15 candidates scored against the
+  two-lane videoedit architecture with a 9-criterion rubric; 7 hands-on spikes against synthetic
+  media sharing ground truth with the committed `workshop-footage.srt` fixture; 4 research agents
+  plus 1 adversarial verifier (8 load-bearing claims attacked: 3 upheld, 5 refined). Headlines:
+  PySceneDetect found all 4 authored cuts frame-exact including an isoluminant cut that ffmpeg
+  misses by default (luma-only YUV scoring, source-verified, `format=rgb24` workaround); ffmpeg
+  silencedetect hit authored silences within 0.021 s; PyAV reproduced silence detection in-process
+  with no binary; MoviePy v2 passed the 9:16 reframe spike fully self-contained; the stdlib S-0
+  control recovered all transcript gaps with zero dependencies (the degradation floor); auto-editor
+  is conditionally shortlisted (emits our exact Lane A formats, but its PyPI wheel is a binary-
+  downloading bootstrap and the fcpxml.py round-trip is still unvalidated, S-2 network-blocked);
+  Kdenlive/Shotcut verified to have no edit-automation API, confirming the two-lane thesis (their
+  surface IS the MLT XML project file + melt). Remotion excluded on its non-OSI license; Revideo/
+  editly/ffmpeg-python/Olive/ffmpeg-concat confirmed dormant or stalled. Deliverables:
+  `docs/VIDEO_TOOLING_EVAL.md`, `docs/video-tooling-scores.json` (machine-recomputable totals),
+  `docs/video-tooling-spike-evidence.json`, first real `ledger/ledger.json` decisions (umbrella +
+  4 feature slots).
+
+- P25: the 38-check handoff simulation is now committed and offline-runnable
+  (`python3 tools/handoff_sim.py`), completing the offline test battery. All write phases run in a
+  throwaway sandbox: `tools/obligations.py` now honors `CREATOR_OS_ROOT` (same pattern as
+  `mcp_server.py`), the sim sets it to a temp dir before loading the stack, REFUSES to run write
+  phases if the redirect did not take, and Phase J proves reality untouched (real
+  `creator-os-config.local.json` and obligation register byte-identical after the run, no tracked
+  `.local` files, drift guard green). Verified: 38/38 twice, sentinel-file proof, and a mid-run
+  SIGKILL proof (real files byte-identical). Full battery: scenario_check (5 scenarios, 10-gap
+  contract) + handoff_sim (38) + obligations selftest (15) + scenario_check selftest (12) +
+  sync_check (19 invariants).
+
+- P24: realistic scenario test suite. Five realistic cross-lane utterances ("what's the email for
+  that guy from my Hearthline account?", "where are we with that lightbulb company contract?",
+  seasonal prep, media kit critique, raw-footage breakdown) pinned as a committed, re-runnable
+  contract: `skills/creator-core/evals/scenarios.json` + fictional fixtures, run by
+  `tools/scenario_check.py` (stdlib, deterministic, pinned clock 2026-09-15, writes nothing).
+  Deterministic legs run through the real product code: obligations date math (register, bands,
+  net-30 anchor), transcript parsing, chapter fan-out + YouTube-rule validation, Quality Gates
+  verdict arithmetic, benchmark rows. **Findings-as-contract**: the suite fails if a leg breaks, if
+  a declared-absent classification appears in the hub routing table, or if any of the 10 gap-ledger
+  probes stops observing its gap (closing a gap requires updating the contract + docs/SCENARIOS.md
+  deliberately; proven by negative test). Gap ledger G1 to G10 (docs/SCENARIOS.md) is the
+  later-phase backlog: no CRM read/contact/fuzzy-resolver capability (G1 to G3), account-schema
+  drift vs pipeline-engine (G4), seasonal-map broken load ref + prose-only seasonal dates (G5, G6),
+  no media-kit critique path + sparse benchmarks (G7, G8), no transcript-to-chapters/cuts analysis
+  (G9), no footage-breakdown routing (G10). TEST-ONLY phase per user decision: gaps documented, not
+  built. Result: 5/5 scenarios pass, 10/10 gaps observed, runner selftest 12/12.
+
+- P23 (Phase 3): obligations, timelines, local-first privacy, and an offline compute lane. Two new
+  atoms: `obligation-extract` (pulls deliverables/deadlines/payment terms from a SIGNED contract into
+  obligation rows using the engine's obligation-row schema; quotes evidence; never computes dates) and
+  `deal-debrief` (proposal-only close-out memory that proposes playbook updates and never writes the
+  playbook). **Offline compute lane** `tools/obligations.py` (pure stdlib, no network) does the
+  deterministic date math the model must not spend tokens on: send-by dates, weekend and US-federal-
+  holiday roll-backward, and urgency bands (red 0 to 13, orange 14 to 44, yellow 45 to 89, overdue,
+  out_of_band); writes `pipeline/user-context/obligation-register.local.json` (gated by
+  `contract_obligations`); `--scan` is read-only and always available; sha256 bucket manifest
+  (`--manifest`/`--verify`) mirrors `tools/sync_editing.py`. Tested deterministically (weekend +
+  Juneteenth/July-4 roll-back, all bands, null-and-flag). MCP tools `obligation_build`,
+  `obligation_scan`, `import_obligations` bridge online-to-offline (the model never does the
+  arithmetic). **Local-first privacy** is now a hard guarantee: drift-guard **invariant 19**
+  (`tools/sync_check.py`) fails if git tracks any personal `*.local.*` file (proven to bite), and
+  `tools/local_privacy.py` reports what stays local. `pipeline/user-context/obligation-register.template.json`
+  committed (null); real register `.local` and gitignored. contract-desk wired (actions `obligations`,
+  `debrief`); `contract_obligations` degraded_behavior updated. Engine gains obligation-register,
+  offline-compute-lane, and deal-debrief notes. New reference doc `docs/LOCAL_CONTEXT.md`. All
+  non-advisory (verbatim RESEARCH NOTES header, human_review_required); nothing signed or sent; the
+  creator's data stays on her machine. P23 is complete (Phases 1 to 3).
+- P23 (Phase 2): contract drafting + version tracking. Three atoms, designed and adversarially
+  verified by a workflow (6 agents; all returned pass_with_fixes with zero boundary/binding-language/
+  fabrication/dash issues; the small required fixes were applied before writing): `contract-draft`
+  (assembles a plain-language, not-vetted, not-binding starting point from the playbook standards +
+  the deal's agreed terms via a tagged source precedence deal_agreed > playbook_standard >
+  generic_default > MISSING; nulls unknowns; never operative legalese; ready_to_sign false),
+  `amendment-trace` (net current state across contract versions using the difference labels and
+  source precedence already in `shared/contract-engine.md`; quotes exactly, flags conflicts, marks
+  uncertain rather than forcing a match), and `playbook-bootstrap` (proposal-only: bootstrap a
+  starting playbook from example contracts, or nudge an off-standard default from recent deals; never
+  writes the playbook, the human confirms). Engine gains "Plain-language draft assembly" and
+  "Bootstrapping and nudging the playbook" sections. contract-desk workflow rewired (triage, review,
+  amendment-trace, legal-requirement-check, escalation-brief, contract-draft, govern-artifact; new
+  actions trace/draft/playbook_setup; playbook-bootstrap as a shortcut). Flags contract_drafting and
+  contract_redline now ship their atoms (degraded_behavior updated); playbook_bootstrap_disabled added.
+  All non-advisory: verbatim RESEARCH NOTES header, human_review_required, recommend_counsel; nothing
+  signed or sent. Phase 3 (obligation register + timeline) remains, flag in place and off.
+- P23 (Phase 1): deal contract management. New `contract-desk` Pipeline/CRM spoke that reviews the
+  contract *document* (deal-pipeline still owns the deal record and stage transitions). Canonical
+  `shared/contract-engine.md` (non-advisory boundary, clause taxonomy, four-tier playbook model, dual
+  severity, confidence labels, amendment net-current-state + difference labels + source precedence,
+  deadline date math, curated legal sources). Contract-artifact store `pipeline/contracts/`
+  (`contract.template.json` committed; real text gitignored). Creator-side clause library
+  `pipeline/user-context/deal-playbook.template.json`. `pipeline/deals/deal-schema.json` reconciled to
+  `shared/pipeline-engine.md` (deal_type, per-deliverable FTC, compensation, usage_rights,
+  exclusivity, invoice states; account_ref and quality_verdict) plus `contract_ref` / `contract_text`.
+  5 flags (contract_management master + contract_drafting, contract_redline, contract_obligations,
+  legal_requirement_checks) with degraded_behavior; no new connector (intake reuses the document
+  connectors). Legal sources: `canonical-sources/legal-sources-seed.json` seeded via
+  `tools/source_currency.py seed-sources` (6 new FTC/reference entries; the two existing FTC entries'
+  `used_by` extended to the contract atoms via a new used_by-union in the seeder). Four atoms
+  (`contract-triage`, `contract-review`, `legal-requirement-check`, `escalation-brief`), all
+  non-advisory with the verbatim RESEARCH NOTES header, human_review_required, confidence labels, and
+  quoted evidence; reuse `usage-rights-check` and `exclusivity-check`. Hub wired (4
+  request_classification values + routing rows + downstream spoke). Legal information only, never legal
+  advice; nothing is signed or sent. Reference doc `docs/CONTRACTS.md`. Phases 2 (drafting,
+  amendment-trace) and 3 (obligation register + timeline) remain, flags in place and off.
+- P22 (Phase 2): captions + chapters. Feature 2 (caption round-trip) via `tools/videoedit/captions.py`
+  (SRT/VTT reuse `shared/docintel/transcripts.py`; iTT added; CEA-608 deferred) + the `caption-bridge`
+  atom. Feature 8 (chapter fan-out) via `tools/videoedit/chapters.py` (geo-optimize outline +
+  paste-ready YouTube timestamps + scheduling metadata; YouTube Key Moments rules validate-and-flag) +
+  the `chapter-map` atom. MCP tools `edit_captions` + `chapter_map`. Both atoms standalone, compose via
+  the shared edit-package. Phases 3 to 4 (Resolve live lane; Shorts/Compressor/Motion/CommandPost) remain.
+- P22 (Phase 1, walking skeleton): video-editing bridge. Neutral core (edit-package + FCPXML,
+  `shared/videoedit-engine.md`) with a lossless script->FCPXML->parse round-trip that needs no editor
+  installed. 10 new flags (2 lane + 8 feature, all default off) + `degraded_behavior`; 4 connectors
+  (`fcpxml_interchange`, `resolve_api`, `compressor_cli`, `commandpost_bridge`) on the `edit_artifact`
+  evidence type, mapped in `CAPABILITY_TO_CONNECTOR`. `tools/videoedit/` (preflight, otio_core, fcpxml
+  build/validate/parse, resolve/compressor/commandpost gated stubs) + `tools/videoedit_validate.py`
+  (gate + validation) + `tools/sync_editing.py` (sha256 bucket manifest). Atoms `edit-timeline-spec`
+  and `fcpxml-parse`; MCP tools `edit_preflight`, `edit_build_fcpxml`, `edit_parse_fcpxml`,
+  `import_edit_artifact`, `resolve_status`. Mirrors the `live_publishing_enabled` seam. DaVinci Resolve
+  live lane (Studio-only) and features 2/3/5/6/7/8 are Phases 2 to 4.
+- P21: P20 adversarial-audit remediation — 27 verified findings closed. Dashboard security
+  (CSRF Origin/Content-Type guards, wildcard CORS removed, stored-XSS via data-* binding, queue
+  lock + atomic writes); shared `tools/publishing_compliance.py` gate wired into the dashboard
+  confirm path (refuses non-compliant posts) and reused by `schedule_post`; honest scaffold
+  (scheduler advances to `ready_to_post`, no fake dispatch) with a feature-flagged-off
+  `tools/publishing/` real-API seam (`live_publishing_enabled`, default off); `POST /api/import-report`
+  adapter for the content-distributor handoff; four dedicated `{platform}_publish_api` connectors
+  wired through `CAPABILITY_TO_CONNECTOR` (+ object-form flag reading, pinterest_api mapping);
+  wizard YouTube state corrected (no false "Ready" without a token); drift-guard invariant 18
+  (connector requires_capability must be mapped); docs corrected.
 
 - P6: voice engine, source currency, and em-dash scope fix — shipped (commit b28f13e).
 - P7: SEO intelligence engine, recursive source traversal, and 4 new atoms — shipped (commit 8b044f0).
@@ -266,6 +1152,60 @@ P6 through P17 are complete. Drift guard exits 0. Branch: `claude/repo-access-co
   information flow).
 - `CLAUDE.md`: agent orchestration conventions section added.
 - `docs/DEPLOYMENT.md`: agent orchestration row added to capability matrix.
+
+### Social media scheduling and content distribution (P20)
+- **New spoke:** `skills/content-distributor/` — Content lane spoke accepting finalized content
+  (captions + hashtags from prior shortform-repurposing or video-development runs) and
+  orchestrating the full scheduling lifecycle: connector check → caption/hashtag generation
+  (if needed) → schedule-post per platform → post-status check → govern-artifact.
+- **3 new atoms:**
+  - `skills/atoms/schedule-post/`: queues or schedules a single post via the active publishing
+    connector (direct platform API > manual fallback). FTC/AIGC compliance enforced.
+    `human_review_required: true` always set. 3 eval cases.
+  - `skills/atoms/publish-draft/`: formats paste-ready posting packages for manual upload —
+    finalized caption with disclosure and hashtags, numbered posting checklist, media spec
+    reminder, optimal posting time. Zero infrastructure required. 3 eval cases.
+  - `skills/atoms/post-status/`: checks status of a previously scheduled post via the active
+    connector. Maps platform-native codes to Creator OS vocabulary (published, scheduled,
+    processing, failed, draft, unknown). Optional engagement snapshot. 3 eval cases.
+- **Connector registry (`shared/connectors/connectors.json`):** `content_publishing` evidence type
+  added. Write-side publishing is provided by four dedicated connectors
+  (`youtube_publish_api`, `instagram_publish_api`, `tiktok_publish_api`, `pinterest_publish_api`),
+  each gated on its `{platform}_publishing` capability flag and mapped in
+  `connectors.py` CAPABILITY_TO_CONNECTOR. These are separate from the read-side connectors
+  (`youtube_data_api`, etc.), which no longer provide `content_publishing` (added in the P20 audit
+  remediation).
+- **Feature flags (`creator-os-config.json`):** 4 new capability flags — `youtube_publishing`,
+  `instagram_publishing`, `tiktok_publishing`, `pinterest_publishing` — all default to
+  `enabled: false`. Degraded behavior entries added.
+- **Hub routing (`skills/creator-core/SKILL.md`):** `content_distribution` added to the
+  request_classification enum; routing table row maps to `content-distributor`; spoke added
+  to the downstream list.
+- **Integrations engine (`shared/integrations-engine.md`):** "Content Publishing Endpoints"
+  section added — per-platform write-side API specs (Pinterest v5, YouTube Data API v3,
+  TikTok Content Posting API, Instagram Graph API v25.0), AIGC flag rules, FTC disclosure
+  requirements, and human confirmation mandate.
+- **Content calendar (`pipeline/user-context/content-calendar.json`):** `posts[]` array added
+  to `entry_schema` tracking per-platform post_id, status, permalink, published_at,
+  publishing_tier, connector_used, ftc_disclosure, and is_aigc.
+- **Distribution report schema (`shared/schemas/distribution-report.json`):** JSON Schema for
+  content-distributor output — `posts[]`, `distribution_summary` (total/queued/manual/failed),
+  `manual_posting_packages[]`, `next_steps[]`, plus verification envelope fields.
+- **MCP server (`tools/mcp_server.py`):** 3 new tools added — `schedule_post` (dispatches to
+  active connector or returns manual plan), `post_status` (checks post status), and
+  `get_publishing_plan` (resolves tier per platform). Total: 13 MCP tools.
+- **Workflow script (`.claude/workflows/content-distribution.js`):** 4-phase adversarially-verified
+  workflow (Prepare → Distribute → Verify → Report). Uses read-only agent rules per
+  research-orchestration-engine.md. Verification envelope fields in all schemas.
+- **Architecture docs:** Content Distribution subsection added to `docs/ARCHITECTURE.md` —
+  publishing tier table, human confirmation gate, compliance checks, atoms, MCP tools, and
+  content calendar integration.
+- **CLAUDE.md:** Human confirmation non-negotiable added to publishing constraints.
+- **Canonical sources note:** 7 new source entries for P20 are pre-seeded via the traversal_engine
+  `--accept` flow rather than direct registry edits. Run `python3 tools/traversal_engine.py
+  --accept` for: pinterest-api-v5-pin-creation,
+  youtube-api-upload-video, tiktok-content-posting-api-docs, instagram-content-publishing-api-docs,
+  ftc-endorsement-guides-social.
 
 ## Flags and follow-ups
 - `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was

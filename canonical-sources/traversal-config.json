@@ -51,6 +51,54 @@
       "staleness_threshold_days": 7,
       "traversal_depth": 0,
       "_note": "Competitor video and channel pages. Snapshot saved offline via competitor_snapshot.py for ytInitialPlayerResponse extraction. 3-day check interval keeps tag/hashtag intelligence fresh. traversal_depth=0 — we do not follow links from competitor pages."
+    },
+    "legal-authority": {
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "traversal_depth": 1,
+      "_note": "FTC endorsement guides, copyright basics, contract references. Change semi-annually. Without this override the traversal engine treated legal sources as 7-day-due (the global default), contradicting their intent."
+    },
+    "cost-vendor": {
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "traversal_depth": 1,
+      "_note": "Materials-pricing vendor pages for the cost library. Quarterly is sufficient; prices drift but the cost tool null-and-flags rather than trusting a stale scrape."
+    },
+    "software-dependency": {
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "traversal_depth": 0,
+      "_note": "pip packages and system binaries. NOT web-traversed (traverse-all skips this category). Authoritative freshness is computed per-package by tools/dependency_currency.py against PyPI / GitHub Releases on every run (it does not read check_interval_days); this override only governs the generic source_currency report grouping."
+    },
+    "mcp-server": {
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "traversal_depth": 0,
+      "_note": "Third-party MCP servers (stats fleet, Google/Microsoft). NOT web-traversed. Version drift checked by tools/dependency_currency.py against their GitHub release pages; a tool-name or auth change silently drops a connector."
+    },
+    "building-code": {
+      "check_interval_days": 365,
+      "staleness_threshold_days": 365,
+      "traversal_depth": 0,
+      "_note": "Florida, North Carolina, and model I-Code / NEC portals plus permit authorities. Cite-only (copyrighted code text is never ingested; we key to section numbers and link the free viewer). Code cycles run three years, so an annual check is right; the content-change detector still catches an edition banner or errata between cycles (the NC 2024 transition and FL 9th Edition draft are watched deliberately). Depth 0: these viewers are not crawled, only change-detected."
+    },
+    "construction-authority": {
+      "check_interval_days": 180,
+      "staleness_threshold_days": 180,
+      "traversal_depth": 1,
+      "_note": "AWC / APA / ACCA / Building Science plus the public-domain U.S. government sources (DOE BASC, OSHA/eCFR, FEMA, CPSC, NIST/USDA-FPL, energycodes.gov) and open datasets (NREL BSD-3, Wikidata CC0, Wikimedia). Semi-annual. Government and open sources here are redistributable; the trade-association sources are cite-only."
+    },
+    "ai-surface-spec": {
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "traversal_depth": 0,
+      "_note": "P36. The AI-surface/packaging formats this ecosystem exports to (MCP protocol, .mcpb manifest, Anthropic Agent Skills, OpenAI GPT Actions / Apps SDK, Google Gemini). Monthly check so an export cannot silently break on an MCP transport deadline, a SKILL.md field cap, a GPT Actions char limit, or a model-id retirement. Prefer a git releases/commits feed; ETag+sha256 for the HTML/plain-text holdouts."
+    },
+    "jurisdiction-gis": {
+      "check_interval_days": 90,
+      "staleness_threshold_days": 90,
+      "traversal_depth": 0,
+      "_note": "P37 (optional jurisdictional-overlay bucket). Government GIS boundary services (FEMA NFHL, water management district hubs, county/municipal ArcGIS, NC OneMap) that feed advisory overlays. Poll the layer metadata JSON for the ArcGIS editingInfo.lastEditDate / OGC ETag freshness signal (FEMA NFHL layer 28 has none, so poll the LOMRs layer). Public-domain federal + open state/county data; cache the boundary fact, never a legal determination."
     }
   },
   "traversal_max_depth": 2,
@@ -98,13 +146,57 @@
     "apartmenttherapy.com",
     "sproutsocial.com",
     "buffer.com",
-    "trends.google.com"
+    "trends.google.com",
+    "tiktok.com",
+    "copyright.gov",
+    "law.cornell.edu",
+    "github.com",
+    "ecfr.gov",
+    "floridabuilding.org",
+    "ncosfm.gov",
+    "codes.iccsafe.org",
+    "up.codes",
+    "nfpa.org",
+    "awc.org",
+    "apawood.org",
+    "buildingscience.com",
+    "basc.pnnl.gov",
+    "energycodes.gov",
+    "fema.gov",
+    "cpsc.gov",
+    "huduser.gov",
+    "fpl.fs.usda.gov",
+    "osha.gov",
+    "commons.wikimedia.org",
+    "wikidata.org",
+    "oah.nc.gov",
+    "miamidade.gov",
+    "leg.state.fl.us",
+    "fdacs.gov",
+    "osti.gov"
   ],
   "_allowlist_note": "Only outlinks from pages on this list are followed during traversal. To add a domain, append it here. Removing a domain does not prune existing registry entries.",
   "niche_relevance_terms": [
-    "home decor", "diy", "vintage", "moody", "youtube", "creator", "algorithm",
-    "seo", "search", "platform", "thrift", "antique", "makeover", "interior",
-    "content", "keyword", "ranking", "influencer", "sponsored", "affiliate"
+    "home decor",
+    "diy",
+    "vintage",
+    "moody",
+    "youtube",
+    "creator",
+    "algorithm",
+    "seo",
+    "search",
+    "platform",
+    "thrift",
+    "antique",
+    "makeover",
+    "interior",
+    "content",
+    "keyword",
+    "ranking",
+    "influencer",
+    "sponsored",
+    "affiliate"
   ],
   "_note": "To change any interval, edit this file. Use tools/traversal_engine.py --set-interval --category=<cat> <days> as a convenience shortcut, or edit the JSON directly."
 }

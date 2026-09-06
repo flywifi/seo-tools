@@ -1,0 +1,13 @@
+{
+  "_comment": "FICTIONAL rate card fixture for the CoolBreeze pitch-triage scenario (P40). Stands in for the gitignored rate-card.local.json in memory only; every value is invented for the test. subscriber_tier is deliberately null so the benchmark_tier_assumed gap fires.",
+  "schema_version": "1.0",
+  "as_of": "2026-01-01",
+  "subscriber_tier": null,
+  "currency": "USD",
+  "rates": [
+    {"format": "youtube_dedicated_long_form", "base_rate": 600, "notes": "fictional test rate"},
+    {"format": "tiktok_dedicated", "base_rate": null, "notes": "deliberately unset: the package leg must list this item as unpriceable, never 0"}
+  ],
+  "uplifts": [],
+  "rate_history": []
+}

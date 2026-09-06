@@ -1,0 +1,33 @@
+{
+  "_comment": "TEST-ONLY fictional two-party approval loop for the P35 task tracker (S6). Exercises tools/tasks.advance_ping_pong + apply_deliverable_event: creator submits, brand requests changes, creator resubmits, brand approves; the approval fires the acceptance-required payment milestone into a billable, citation-carrying finance proposal. No real brand, person, or dollar figure.",
+  "deliverable_id": "dlv-spring-haul",
+  "at": "2026-09-15",
+  "task": {
+    "id": "task-nw-draft-approval",
+    "title": "Northwind spring haul: draft approval loop",
+    "task_kind": "waiting_on",
+    "status": "in_progress",
+    "responsible_party": "creator",
+    "deliverable_ref": "dlv-spring-haul",
+    "history": [],
+    "ping_pong": {"cycle_id": "cy-nw-1", "iteration": 0, "max_iterations": 5, "stage": "draft"},
+    "source": {"kind": "document", "ref": {"contract_id": "contract-northwind-2026", "clause": "4.2"}}
+  },
+  "schedule": {
+    "deal_id": "deal-northwind-001",
+    "contract_ref": "contract-northwind-2026",
+    "net_terms_days": 30,
+    "milestones": [
+      {
+        "milestone_id": "ms-final",
+        "label": "Final approval payment",
+        "amount": 1200,
+        "pct_of_total": 60,
+        "acceptance_required": true,
+        "billable_ready": false,
+        "trigger": {"type": "on_deliverable_event", "deliverable_id": "dlv-spring-haul", "event": "approval"},
+        "source": {"kind": "document", "ref": {"contract_id": "contract-northwind-2026", "clause": "5.2"}}
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+[
+  {
+    "test_id": "cost-estimate-sourced-lines",
+    "description": "mixed-source line items roll up with the split and labels intact",
+    "input": {
+      "project_ref": "fall-workshop-tour",
+      "line_items": [
+        { "category": "production_materials", "description": "chalk paint", "amount": 42.50, "source": "quote" },
+        { "category": "equipment_capex", "description": "clamp lights", "amount": 80, "is_capex": true, "source": "cost_library", "citation": "cost-library entry id + as_of date" },
+        { "category": "travel", "description": "restore run", "source": "assumption" }
+      ],
+      "time": { "phases": [ { "phase": "build", "hours": 10 } ], "hourly_rate": 45 }
+    },
+    "expected_output_keys": ["totals", "gaps"],
+    "assertions": [
+      "totals come from tools/finance.py cost_rollup with computed_by",
+      "expense and capex are split; the assumption line without an amount is a gap, not a zero",
+      "every line names its source; the citation rides with library entries",
+      "the CPA boundary line is the first line of the output"
+    ]
+  },
+  {
+    "test_id": "cost-estimate-no-hourly-rate",
+    "description": "time phases without any rate yield a null time cost plus a gap",
+    "input": {
+      "project_ref": "p",
+      "line_items": [ { "category": "production_materials", "description": "wood", "amount": 60, "source": "quote" } ],
+      "time": { "phases": [ { "phase": "build", "hours": 8 } ] }
+    },
+    "expected_output_keys": ["totals", "gaps"],
+    "assertions": [
+      "time_cost is null with a missing_time_inputs gap",
+      "the grand total states it excludes time cost",
+      "no assumed hourly rate is silently injected"
+    ]
+  },
+  {
+    "test_id": "cost-estimate-capex-classification",
+    "description": "capex items are classified organizationally with the boundary intact",
+    "input": {
+      "project_ref": "p",
+      "line_items": [ { "category": "equipment_capex", "description": "camera slider", "amount": 250, "is_capex": true, "source": "quote" } ]
+    },
+    "expected_output_keys": ["totals"],
+    "assertions": [
+      "the item lands in capex, not expense",
+      "the output states classification is organizational, not a tax determination",
+      "human_review_required is true"
+    ]
+  },
+  {
+    "test_id": "cost-estimate-research-flag-off",
+    "description": "cost_research off degrades to quotes, library, and labeled assumptions",
+    "input": {
+      "project_ref": "p",
+      "line_items": [ { "category": "production_materials", "description": "specialty hinge", "source": "assumption" } ]
+    },
+    "expected_output_keys": ["gaps"],
+    "assertions": [
+      "no web research is dispatched",
+      "the degrade note names the remaining sources",
+      "the unknown price stays null and flagged, never guessed"
+    ]
+  }
+]

@@ -70,3 +70,6 @@ enriches the static classification with observed data.
 - shared/web-intel-engine.md (live SERP crawl via Level 3 when check_live is true)
 - shared/platform-engine.md (platform-specific format constraints)
 - protocols/no-fabrication.md (no invented ranking positions or volume figures)
+
+## Cross-modality
+Inherits its calling spoke's class (Class B); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
