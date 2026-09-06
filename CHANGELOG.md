@@ -7,8 +7,8 @@ All notable changes to Creator OS are documented here. The format follows
 This history was reconstructed from `STATE.md` and `ledger/ledger.json`; it records only
 what those sources state. Per-phase detail lives in `STATE.md`; the reasoning behind major
 decisions lives in `docs/adr/`. `0.1.0` (the baseline cut in P47) is the only version tagged so
-far, so all pre-release development is folded into that entry. `0.2.0` is prepared and dated: it
-describes everything in the tree above the baseline, and the tag itself is still pending.
+far, so all pre-release development is folded into that entry. `0.2.0` is prepared and dated and the
+tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ## [Unreleased]
 
@@ -36,6 +36,21 @@ describes everything in the tree above the baseline, and the tag itself is still
   guidelines and Code of Practice, the numpy, PyAV, and PySceneDetect release pages, the MCP SDK
   migration guide).
 
+- P80 (`docs/adr/0055-p80-python-312-and-mcp-dual-major.md`): drift invariant 25 fails the build when a
+  `requirements-*.txt` specifier and the registry entry's `pinned_constraint` disagree, so the dependency
+  checker's out-of-pin math can no longer be silently disabled by an unmirrored pin. `tools/mcp_server.py`
+  gained `--allowed-host` (and `remote_mcp_allowed_hosts` in the local config) for proxied deployments, a
+  `revalidations` record in `docs/video-tooling-integration-evidence.json`, a registry source for the
+  Homebrew `python@3.12` formula, and a doc-freshness binding for `docs/CURRENCY.md`.
+- P81 (`docs/adr/0056-p81-audit-remediation.md`): `tools/atomic_io.py`, the one mode-preserving atomic
+  writer with a cross-process lock, now behind every local-config, credential, and register write;
+  `tools/battery.py` (the gate runner) and `tools/ci_history.py` (CI transitions from the Actions API);
+  drift guard sub-checks for the Python floor and retired pins in live prose, the ADR index, changelog
+  heading uniqueness, bare local-config writers, the evidence revalidation schema, and the currency
+  map's `as_of`; frozen dated records in doc_freshness; `--upstream-api`/`--check-url` and stamp
+  clearing on a URL change in `update-source`; a transport-policy selftest for the MCP server in both
+  SDK majors.
+
 ### Fixed
 - The GIS boundary writer hashed one serialization and wrote another, so all fourteen stored hashes
   described bytes that never existed; it now serializes once and hashes what it writes, the hashes were
@@ -54,14 +69,18 @@ describes everything in the tree above the baseline, and the tag itself is still
 - `implementation/gpt/api/README.md` said the Assistants API "sunsets"; it was sunset on 2026-08-26 and
   the replacement pair is the Responses and Conversations APIs.
 
-- Three live sentences said `tools/dependency_currency.py` reconciles against the requirements files, the
+- Four live sentences (CLAUDE.md, two in docs/CURRENCY.md, traversal-config.json) and the currency map's
+  reason for the evidence file said `tools/dependency_currency.py` reconciles against the requirements files, the
   evidence file, and the connector registry, or reads `check_interval_days`; it reads only the registry's
   `validated_version` and `pinned_constraint`. CLAUDE.md, docs/CURRENCY.md, and traversal-config.json now
   say what the tool does. The P79 record wrongly said AGENTS.md carried the sentence and wrongly listed
   `mcp.types` and `_tool_manager._tools` as mcp 2.x breaks.
 - `dep-faster-whisper` carried an empty pin while requirements-transcribe.txt says `>=1.0`.
-- CI had been red on every run since 2026-08-16: the fcpxml selftest accepted only xmllint's validation
-  levels, and the GitHub runner has no xmllint. It now expects the level the installed tool can reach.
+- The fcpxml selftest accepted only xmllint's validation levels, and the GitHub runner has no xmllint;
+  it now expects the level the installed tool can reach. (CI had been red since run 228 on 2026-07-19:
+  the release tool's selftest failed until P74's release-preconditions commit on 2026-08-16, and the
+  fcpxml assertion from then until P80-1b at run 290. Two P80 pushes were red, runs 289 and 293;
+  `tools/ci_history.py` reproduces this from the Actions API.)
 - The skill-package manifest hashed gitignored `__pycache__` output, so running a skill's script under a
   second interpreter moved a hash with no source change; it hashes tracked files.
 - The macOS launcher accepted any interpreter that could `import sys`; it requires 3.12 or newer and
@@ -74,6 +93,14 @@ describes everything in the tree above the baseline, and the tag itself is still
 - The connector registry described the MCP server as exposing eight tools; the count is delegated to
   count_truth.
 - `tools/sync_check.py` passed `maxsplit` positionally to `re.split` (a DeprecationWarning on 3.13).
+
+- The MCP server answered 421 to every request on a non-loopback bind under the 1.x SDK (settings
+  frozen at construction for the default host); a malformed `remote_mcp_allowed_hosts` value was
+  iterated per character or crashed startup; the skill packager zipped a different file set than the
+  manifest hashed and hashed an un-added skill as empty; the launcher refused a 3.11 venv that
+  `env_paths` then handed every tool to; `docs/SETUP_MAC.md` still recommended 3.13; the P80 records
+  misdated the CI history; the P79 record contradicted itself after in-place edits and is restored
+  with an addendum.
 
 ### Changed
 - Invariants 47 (projection staleness), 51 (doc freshness), and 56 (registry content digest) now fail
@@ -88,15 +115,9 @@ describes everything in the tree above the baseline, and the tag itself is still
 - The three FTC HTML sources hash only `main#main-content`, ending a false-changed class caused by
   per-request page tokens.
 - Seven dependency entries gained validated baselines after the full battery ran green with those
-  versions installed in a scratch venv; `requirements-videoedit.txt` pins numpy below 2.5 because 2.5
-  drops the Python 3.11 the video tooling was validated on.
-
-- P80 (`docs/adr/0055-p80-python-312-and-mcp-dual-major.md`): drift invariant 25 fails the build when a
-  `requirements-*.txt` specifier and the registry entry's `pinned_constraint` disagree, so the dependency
-  checker's out-of-pin math can no longer be silently disabled by an unmirrored pin. `tools/mcp_server.py`
-  gained `--allowed-host` (and `remote_mcp_allowed_hosts` in the local config) for proxied deployments, a
-  `revalidations` record in `docs/video-tooling-integration-evidence.json`, a registry source for the
-  Homebrew `python@3.12` formula, and a doc-freshness binding for `docs/CURRENCY.md`.
+  versions installed in a scratch venv. (`requirements-videoedit.txt` was pinned below numpy 2.5 at P79
+  because 2.5 dropped the Python 3.11 the video tooling was validated on; P80 moved the floor and the
+  pin, see the P80 bullet below.)
 
 - Python floor is 3.12 and the recommended Homebrew formula is `python@3.12`: numpy 2.5 dropped 3.11, and
   DaVinci Resolve's scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on. The
@@ -107,6 +128,8 @@ describes everything in the tree above the baseline, and the tag itself is still
   install (`FastMCP`); six file-writing tools are serialised behind one lock because 2.x runs synchronous
   handlers on worker threads, and `configure_tool` writes the local config atomically.
   `requirements-mcp.txt` pins `mcp>=2,<3`.
+- fcpxml's selftest asserts the strongest validation level the machine can reach; the three video
+  probes P80 did not re-run are recorded; `dep-faster-whisper` checks PyPI.
 
 ## [0.2.0] - 2026-08-16
 

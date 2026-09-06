@@ -64,3 +64,4 @@ added beyond what those records state. New decisions get the next number via
 | [0053](0053-p73-production-readiness-audit.md) | P73 Production readiness is a stated yardstick, and guards must catch the next drift | 2026-08-16 | Accepted |
 | [0054](0054-p74-verified-contracts-and-honest-residue.md) | P74 Verified contracts over plausible ones, and an honest residue over a silenced one | 2026-08-16 | Accepted |
 | [0055](0055-p80-python-312-and-mcp-dual-major.md) | P80 A 3.12 floor set by the narrowest lane, and an MCP server that speaks both SDK majors | 2026-09-05 | Accepted |
+| [0056](0056-p81-audit-remediation.md) | P81 One writer, one floor, frozen records: closing the 24-hour audit | 2026-09-06 | Accepted |

@@ -2,7 +2,17 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P80 are complete. Drift guard exits 0 (57 invariants). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P81 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P81: Remediation of the 24-hour audit of P80 (2026-09-06, docs/adr/0056-p81-audit-remediation.md).
+  Forty-nine findings closed in four commits after five read-only researchers extracted every
+  contract verbatim and every code change ran in a sandbox first. One atomic writer replaced four;
+  the MCP server's 1.x non-loopback bind and its allow-list validation were fixed with an
+  outcome-asserting selftest in both SDK majors; the packager and the manifest hash the same
+  tracked set; the interpreter floor became one constant that the launcher, setup, and the
+  interpreter picker share; eight guard sub-checks and a frozen-record rule now catch the prose,
+  index, schema, and writer classes behind the findings; the CI history is a command, and the
+  records were corrected to it. Not done, by decision: Python 3.13 (Resolve caps at 3.12; the rglob and audioop items are the 3.13 checklist); re-reading the Resolve ceiling on a Mac; pinning mcp-types (exact-pinned by mcp); a baseline for mcp-stats-compass; refusing to start when no allowed host is configured (the server warns); installing xmllint in CI (offered as a decision); running the Windows launcher probe (no cmd.exe here); running ci_history.py live (api.github.com is proxy-blocked here); tag; PR.
 
 - P80: Remediation of the P79 residue (2026-09-05, docs/adr/0055-p80-python-312-and-mcp-dual-major.md).
   Three researchers crawled the dependency checker, the Python version surface, and the MCP SDK
@@ -14,9 +24,11 @@ P6 through P80 are complete. Drift guard exits 0 (57 invariants). Branch: `claud
   launcher probe, and the setup floor moved together. The MCP server was ported to the 2.x SDK as a
   dual-capable module: two silent breaks a naive rename would have shipped (host and port discarded;
   proxied requests answered 421) were proven with a live bind in both SDK majors, and executing the
-  port showed the 421 had been there on the shipped 1.x pin all along. Executing also found and fixed
-  the reason CI had been red since 2026-08-16 (a selftest that assumed xmllint) and a package
-  manifest that hashed interpreter cache files. Not done, by decision: Python 3.13 (Resolve caps at
+  port showed the 421 had been there on the shipped 1.x pin all along. Executing also found and fixed a
+  selftest that assumed xmllint (the sole CI failure since P74's release-preconditions commit on
+  2026-08-16; CI had been red since run 228 on 2026-07-19 for the release tool's selftest before
+  that) and a package manifest that hashed interpreter cache files; two of the six P80 pushes were
+  themselves red (runs 289 and 293). Not done, by decision: Python 3.13 (Resolve caps at
   3.12), tag, PR.
 
 - P79: Remediation of the P78 findings (2026-09-04, docs/remediation-2026-09-04.md). Ten code

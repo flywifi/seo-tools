@@ -41,7 +41,7 @@ symbol, path, or count is verifiable, so it is verified.
 5. **Content-hash staleness stamping** (`tools/doc_freshness.py`; and, for the knowledge packs,
    `tools/projection_manifest.py`). A manifest binds each high-value doc to the code files it
    describes and records their sha256 at reconcile time; `--check` flags "may be stale" when a
-   bound source moves. **Advisory by default.** See the caveat below.
+   bound source moves. **Blocking since P79** (invariant 51). See the caveat below.
 6. **Tools-layer maintainer coverage.** Allowlisted `tools/` directories
    (`TOOLS_MAINTAINER_DIRS`) must each carry a `MAINTAINER_README.md`, and those files are
    reference-checked like skill maintainer docs.
@@ -59,6 +59,16 @@ symbol, path, or count is verifiable, so it is verified.
    "Doc-declared sources".
 
 ## Process conventions
+
+- **Dated records are append-only (P81).** A remediation record or audit report describes the tree
+  at its date. Later facts go in an `## Addendum <date>` section at its end; `tools/doc_freshness.py`
+  freezes the body above that heading and the drift guard fails on any other edit.
+- **Consumer census before a fix (P81).** Before changing a value or a file set, paste the
+  `grep -rn` of every consumer into the plan; P80's three high-severity misses were neighbours of
+  the changed line.
+- **The battery is `python3 tools/battery.py` (P81):** raw exit codes, refuses on unstaged tracked
+  edits; CLAUDE.md's block names it. A `flock` sidecar on a Drive-mirrored checkout is
+  advisory-only; the atomic replace in `tools/atomic_io.py` is the safety readers rely on.
 
 - **CODEOWNERS** (`.github/CODEOWNERS`) maps each component and its maintainer doc to the same
   owner, so a code PR pulls in the doc owner. **Advisory only** for now: this is a solo-maintainer
@@ -87,7 +97,8 @@ engineering, mirroring the repo's own projection-manifest precedent (invariant "
 staleness"). It is **not** backed by a named external standard. The strongest external anchor is
 only the general "keep documentation fresh" guidance (e.g. Google's style guide). It is a
 staleness *signal* (the sha of a bound source moved), not a proof the prose is wrong, and prose
-cannot be byte-compared to its source. That is why it ships **advisory**, not as a build-breaker.
+cannot be byte-compared to its source; the signal says re-read, not what changed. Since P79 a stale
+signal fails the build until the doc is re-read and re-blessed.
 Do not present it as a cited industry standard.
 
 ## When you change code
@@ -98,7 +109,7 @@ Do not present it as a cited industry standard.
 4. If the prose cites a new external authority, declare it in the doc's `sources` block and seed it
    (`python3 tools/source_sync.py reconcile`, then `source_currency.py seed-sources <generated>`,
    then `build_freshness_bundle.py --apply` since new source ids move the freshness digest).
-5. Run `python3 tools/sync_check.py` (and `tools/doc_freshness.py --check`); reconcile the
+5. Run `python3 tools/battery.py` (under both interpreters when a floor changed); reconcile the
    staleness manifests if a bound source legitimately changed.
 6. Add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an ADR.
 

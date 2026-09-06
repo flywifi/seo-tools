@@ -55,9 +55,11 @@ baseline and the exact check URL) and exit 0 — they never fabricate a version 
 
 Baselines live in the registry: `pinned_constraint` is transcribed from `requirements-*.txt` and
 `validated_version` from the last validated run (`docs/video-tooling-integration-evidence.json`),
-both via `source_currency update-source`. The checker reads only those two registry fields; drift
-invariant 25 keeps `pinned_constraint` equal to the requirements specifier.
-`shared/connectors/connectors.json` supplies the connector ids an MCP entry protects, never versions.
+both via `source_currency update-source`. The checker reads only those two registry fields. Drift invariant 25
+keeps `pinned_constraint` equal to the requirements specifier for every pip package the registry
+names (mcp-server entries carry an install command, not a specifier, and packages absent from the
+requirements files are outside the rule). `shared/connectors/connectors.json` is not an input to the
+checker; it only names the connector ids an MCP entry protects.
 
 ### Re-validating the video environment (P80 checklist)
 
@@ -130,7 +132,7 @@ Per-category intervals live in `canonical-sources/traversal-config.json`
 tool-mcp 14d, niche authority 30d, mcp-server 30d, ai-surface-spec 30d, software-dependency 60d,
 rate-benchmark / cost-vendor 90d, legal-authority 180d, competitor-page 3d. A category override wins
 over a per-entry value at seed time; `os-platform` (P55, the macOS/OS facts) deliberately has no
-override, so its per-entry `check_interval_days` values (60d for Homebrew formulae up to 365d for
+override, so its per-entry `check_interval_days` values (60d to 90d for Homebrew formulae up to 365d for
 PEP 668) apply as declared. Dependency entries are checked on every `dependency_currency` run
 regardless of `check_interval_days`; the interval governs only the generic `source_currency` report
 grouping.

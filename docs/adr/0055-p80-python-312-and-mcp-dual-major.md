@@ -65,6 +65,19 @@ P79 left three non-Mac items open. Researching each to primary text changed its 
 - `mcp-types` is never pinned independently (exact-pinned by mcp, per the SDK migration guide).
 - `mcp-stats-compass` stays without a baseline (an MCP server, not importable-testable here).
 
+## Errata (P81, 2026-09-06)
+
+- Context bullet 4 and the last sentence of Consequences say CI had been red since 2026-08-16. The
+  Actions history (tools/ci_history.py) shows the last green run on 2026-07-19 (run 227); the release
+  tool's selftest failed from run 228 until P74's release-preconditions commit on 2026-08-16, and the
+  fcpxml assertion from then until P80-1b (run 290). Two P80 pushes were red (runs 289, 293).
+- Decision 4 excuses `launch_setup` from the write lock because it "spawns a process"; that is the reason
+  a thread lock could not protect the file it writes, not a reason none was needed. P81 added a
+  cross-process lock (tools/atomic_io.py) on both writers.
+- "What was deliberately left open" names atomic writes inside `tools/obligations.py`; the truncating
+  writes were in `tools/mcp_server.py` (obligation_build, invoice_build) and are fixed in P81.
+- "twelve places" (Context) was eleven `brew install python@3.13` recommendations in seven files.
+
 ## Alternatives considered
 
 Docs-only correction (leaves the pin chain unguarded). Making the tool read the requirements and

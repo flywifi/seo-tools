@@ -29,15 +29,15 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
 - `implementation/` platform packaging (claude, gpt, gemini). `docs/`, `ledger/`, `examples/`.
 
 ## Build, verify, and the battery
-Every change must leave the battery green before commit:
+Every change must leave the battery green before commit. The one runner (P81) is:
 ```bash
-python3 tools/sync_check.py          # drift guard; must exit 0 (57 invariants)
-python3 tools/scenario_check.py      # 10/10 scenarios
-python3 tools/selftest_sweep.py      # every tool selftest
-python3 tools/doc_freshness.py --check
-python3 tools/count_truth.py         # canonical counts (never restate counts by hand)
-python3 tools/preflight_push.py
+python3 tools/battery.py             # every gate, raw exit codes; refuses on unstaged tracked edits
+python3 tools/battery.py --py /usr/bin/python3.12   # rerun under a second interpreter when a floor moved
 ```
+It runs, in order: the drift guard (`sync_check.py`), scenarios, the selftest sweep,
+`doc_freshness.py --check`, projections, `count_truth.py` (canonical counts; never restate counts by
+hand), `hash_audit.py`, `source_sync.py check`, `package_skill.py --check-manifest`, `eval_lint.py`,
+`preflight_push.py`, the staged secret scan, and the launcher syntax check. `--list` prints the roster.
 `tools/package_skill.py --all` is a BUILD step that writes `dist/`, not a validation step; CI runs
 it separately. Rituals: if you edit a macOS-relevant file, re-bless it with
 `python3 tools/mac_surface_manifest.py reconcile` (a NEW file needs `--accept-new` after review);
