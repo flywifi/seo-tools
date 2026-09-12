@@ -110,7 +110,7 @@ See `implementation/claude/project/README.md` for example requests and the capab
 
 ---
 
-## Option C -- GPT-4 API with function calling (developer use)
+## Option C -- OpenAI API function calling (developer use)
 
 Exposes Creator OS spokes as OpenAI function schemas. Suitable for integrating into a Python
 application that already uses the OpenAI API.
@@ -123,20 +123,22 @@ from pathlib import Path
 
 functions = [
     yaml.safe_load(f.read_text())
-    for f in Path("implementation/gpt/api").glob("*.yaml")
+    for f in sorted(Path("implementation/gpt/api").glob("*.yaml"))
+    if not f.name.startswith("README")
 ]
 
-response = openai.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": your_request}],
-    tools=[{"type": "function", "function": fn} for fn in functions],
+client = openai.OpenAI()
+response = client.responses.create(
+    model="gpt-5.6",
+    input=your_request,
+    tools=[{"type": "function", **fn} for fn in functions],
 )
 ```
 
 Five function schemas are provided: `creator_core`, `keyword_compare`, `seo_keywords`,
 `competitor_analysis`, `video_development`.
 
-See `implementation/gpt/api/README.md` for the full example.
+See `implementation/gpt/api/README.md` for the full example, including hosted-MCP tools.
 
 ---
 

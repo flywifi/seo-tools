@@ -5,6 +5,9 @@ description: >
   protocols, and dispatches to the appropriate spoke. Returns a routing object and the
   spoke's deliverable output. Use this as the entry point for all Creator OS requests
   when no specific spoke is known.
+  Returns: JSON routing object: request_classification, primary_lane, recommended_spoke,
+  engines_required, protocols_to_enforce, adaptation_axes, pipeline_action, open_questions.
+  Followed by the spoke's deliverable output.
 parameters:
   type: object
   properties:
@@ -41,7 +44,3 @@ parameters:
       additionalProperties: false
   required:
     - request
-returns: >
-  JSON routing object: request_classification, primary_lane, recommended_spoke,
-  engines_required, protocols_to_enforce, adaptation_axes, pipeline_action,
-  open_questions. Followed by the spoke's deliverable output.
