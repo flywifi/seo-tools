@@ -128,7 +128,8 @@ tools stay invisible. Bump VERSION so `get_server_info` reflects the deploy.
 Two tiers, same server:
 - **Without developer mode (chat + deep research):** this server ships connector-contract `search`
   and `fetch` tools over the knowledge cache, which is the exact pair ChatGPT requires from a
-  plain connector (developers.openai.com/api/docs/mcp). Add the connector by URL
+  plain connector (developers.openai.com/api/docs/mcp). Both return the payload twice, as
+  structuredContent and as mirrored text content, per that contract. Add the connector by URL
   `https://YOUR-HOST/mcp`.
 - **Developer mode (full tool set):** Settings -> Apps (Connectors) -> enable Developer mode
   (available on Pro/Plus/Business/Enterprise/Edu on the web; help.openai.com article 12584461,
