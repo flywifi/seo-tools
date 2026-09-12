@@ -71,7 +71,7 @@ behavior on its next connect. Two rules make this hold, and one is a hard limit:
   connector after the tool list changes. `[NEEDS VERIFICATION: mid-session list_changed /
   resources.updated honoring on claude.ai and ChatGPT.]`
 - Bump the ecosystem VERSION each deploy; `serverInfo.version` (exchanged at MCP `initialize`, current
-  spec 2025-11-25) is a poll signal read on a new session, never pushed into a live one. The
+  spec 2026-07-28) is a poll signal read on a new session, never pushed into a live one. The
   `get_server_info` tool surfaces it. <!-- verify: tools/mcp_server.py::get_server_info -->
 
 Knowledge-only surfaces (pasted packs, uploaded Project/GPT knowledge, Gems) never auto-update: the

@@ -32,11 +32,13 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
    token enforced by the proxy). The MCP server binds to loopback and trusts the proxy; optionally
    set `CREATOR_OS_MCP_TOKEN` so it ALSO enforces the bearer token in-process (defense in depth).
    If you
-   implement full OAuth to satisfy a provider's connector requirements, the current MCP spec
-   (2025-11-25, Authorization) expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
+   implement full OAuth to satisfy a provider's connector requirements, the MCP spec's
+   Authorization model expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
    Metadata (RFC 9728), PKCE with S256, the RFC 8707 `resource` parameter, token-audience
    validation, and HTTPS on every authorization endpoint. (Source:
-   modelcontextprotocol.io/specification/2025-11-25/basic/authorization.)
+   modelcontextprotocol.io/specification/2026-07-28/basic/authorization; the requirement list was
+   originally verified against the 2025-11-25 revision [NEEDS VERIFICATION: re-check it against
+   2026-07-28, which restructured the handshake].)
 
 ## Start the server (behind the proxy, never directly exposed)
 
@@ -111,7 +113,7 @@ Two rules make this reliable, and one honest limit:
   `get_server_info` tool surfaces the running version so a client or a monitor can read it.
 - **Content modeled as MCP resources** can use `resources/subscribe` + `notifications/resources/updated`
   for finer-grained refresh where the client supports it, but treat new-session re-fetch as the
-  dependable path. (Source: modelcontextprotocol.io/specification/2025-11-25/server/{tools,resources,
+  dependable path. (Source: modelcontextprotocol.io/specification/2026-07-28/server/{tools,resources,
   lifecycle}.)
 
 ## Security notes
