@@ -2,7 +2,20 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P81 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P82 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P82: Remediation of the ChatGPT/OpenAI usage audit (2026-09-12,
+  docs/adr/0057-p82-chatgpt-audit-remediation.md). Nineteen findings closed in eight commits.
+  Two live GIS endpoints fixed and probe-verified (the flood one had been returning HTTP 200 with
+  no flood zone); the five function specs made wire-legal; the connector envelope doubled and
+  asserted on the wire under both MCP SDK majors; the stale ChatGPT plan facts corrected and
+  tagged for browser verification; the blocked-source escalation clock added as report fields
+  plus a drift-guard advisory, with zero CI coupling so P36 stands; the citation guard widened to
+  line-based shorthand, .json, and implementation/**; the surface-budget detector given a
+  negative fixture proven by mutation; and the ChatGPT packaging docs bound into doc freshness.
+  Not done, by decision: Apps SDK packaging; agent-mode surface promotion; strict-mode function
+  schemas; browser verification of the four NEEDS VERIFICATION plan facts (owner's two-minute
+  pass); tag; PR.
 
 - P81: Remediation of the 24-hour audit of P80 (2026-09-06, docs/adr/0056-p81-audit-remediation.md).
   Forty-nine findings closed in four commits after five read-only researchers extracted every

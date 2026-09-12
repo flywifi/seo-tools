@@ -42,6 +42,25 @@
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
+    "implementation/gpt/api/README.md": {
+      "sources": {
+        "implementation/gpt/api/competitor_analysis.yaml": "f0276e9e14505fd6bce361a9c89b227c23fe03a841abd610b62a4067f2bb9693",
+        "implementation/gpt/api/creator_core.yaml": "eca20983095ff6af889432ed174d841ff1fdcc74b60c044da60712526f0d2c9b",
+        "implementation/gpt/api/keyword_compare.yaml": "2a3a6eca0e2539d1c75df5c7ae2183d3291cba8a46d3e57e3082e666cdce5066",
+        "implementation/gpt/api/seo_keywords.yaml": "15665406daa68b4982486dba66d708feff134a8f6f4340412a4b93b149e47b42",
+        "implementation/gpt/api/video_development.yaml": "5028babdadb4cebb3e89945540b972f94581f8ab0a768f35f492eb77fbc8d0b7"
+      }
+    },
+    "implementation/gpt/mcp-connector/README.md": {
+      "sources": {
+        "tools/mcp_server.py": "97752baa7bccc979ad2756b4165329489c6cb0d322c78a2eb4624feada182260"
+      }
+    },
+    "docs/TRANSITIONS.md": {
+      "sources": {
+        "shared/cross-modality/transitions.json": "e8cd7930ab269ded59e8c13e6a325e616cff95651015c20dcc6e0c0aad9a684e"
+      }
+    },
     "shared/injection-guard-engine.md": {
       "sources": {
         "tools/injection_scan.py": "71e485cabe449c616589cff3ff425a8d50aa9e6c951e52f3a8dcdc0fe77d0868"
