@@ -71,6 +71,15 @@ def match_media(export_dir, records, prober=_mp.probe):
     Returns {worklist:[{video_key, media_path, missing[]}], unmatched_media:[...], no_media:[...]}.
     Never invents a match; an unmatched file is reported, not force-fit."""
     export = Path(export_dir)
+    # P82: Python 3.13's pathlib glob suppresses scandir errors, so a bad export path (for
+    # example a >255-byte component) yielded an EMPTY worklist as success and the P66
+    # clean-envelope guarantee became vacuous. Probe the directory explicitly so a bad path
+    # raises OSError on every supported interpreter and main() wraps it in the envelope. A
+    # MISSING directory stays an empty worklist (the 3.12 rglob semantics the selftests pin).
+    try:
+        os.stat(export)
+    except FileNotFoundError:
+        pass
     files = [p for p in export.rglob("*") if p.is_file() and p.suffix.lower() in MEDIA_EXTS]
     by_key = {r["video_key"]: r for r in records}
     # index provenance uris (basename) -> video_key
