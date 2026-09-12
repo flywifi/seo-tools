@@ -66,3 +66,4 @@ added beyond what those records state. New decisions get the next number via
 | [0055](0055-p80-python-312-and-mcp-dual-major.md) | P80 A 3.12 floor set by the narrowest lane, and an MCP server that speaks both SDK majors | 2026-09-05 | Accepted |
 | [0056](0056-p81-audit-remediation.md) | P81 One writer, one floor, frozen records: closing the 24-hour audit | 2026-09-06 | Accepted |
 | [0057](0057-p82-chatgpt-audit-remediation.md) | Pointing the machinery outward: closing the ChatGPT/OpenAI audit | 2026-09-12 | Accepted |
+| [0058](0058-p82-9-block-classification-and-episodes.md) | A widget is not a wall: block classification and block episodes | 2026-09-12 | Accepted |

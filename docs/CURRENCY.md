@@ -185,8 +185,12 @@ Detection and correction of currency/versioning/push drift, all diagnose-only (n
 
 A fetch that an automated check receives as a 403/401/406/451, a 429/503 throttle, or a
 Cloudflare/CAPTCHA/DataDome challenge (even one served at HTTP 200) is bot-detection or a rate-limit,
-**not** evidence the source disappeared. `source_currency.py --detect-changes` runs
-`tools/fetch_diag.py::classify_block` over every response and classifies such a result as **`blocked`**,
+**not** evidence the source disappeared. On a success response the classifier demands
+challenge-page evidence before saying so (P82-9): a captcha widget embedded in a large genuine
+page, or a CDN's header fingerprint on real content, is not a block — nine healthy sources were
+misfiled as permanently blocked on exactly that evidence before the distinction was drawn.
+`source_currency.py --detect-changes` runs
+`tools/fetch_diag.py::classify_block` over every response and classifies a true block as **`blocked`**,
 distinct from `unreachable`:
 
 - A `blocked` source is **never** stamped stale, **never** flagged `changed` (a 200 challenge page is
@@ -261,6 +265,10 @@ carries `blocked_overdue` in its summary and `days_blocked` plus `overdue` on ev
 browser (a challenge block cannot be cleared by retrying); and drift-guard invariant 43 prints a
 non-blocking `blocked-clock:` advisory on every run, locally and in CI, summarising the count and
 listing the T1 sources by name. Clearing one still requires a human opening the URL.
+The clock measures the block **episode**: `first_block_detected` is stamped when a source
+enters the blocked state, survives re-detection on later sweeps (so routine maintenance cannot
+reset the alert), and clears on recovery or on `mark-checked`, the human verification verb,
+which now heals the whole block record.
 
 This is recorded as an open finding, not a fixed one. **The bands have not been re-banded**, because
 what a source's cadence should be is a maintenance-policy decision for the maintainer, not a number

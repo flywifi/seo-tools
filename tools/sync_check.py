@@ -1997,8 +1997,9 @@ def check_moving_dates():
                          f"(staged fix in volatile-corrections.2026-07-14.json)")
 
     # P82: blocked-source escalation clock. Twin of tools/source_currency.py::is_currently_blocked
-    # plus the overdue math in blocked_sources() (inline-duplicated: the guard stays
-    # stdlib-self-contained; keep the two in step). A blocked source is excluded from staleness
+    # plus the overdue math in blocked_sources() -- including the P82-9 episode field
+    # first_block_detected -- (inline-duplicated: the guard stays stdlib-self-contained; keep
+    # the two in step). A blocked source is excluded from staleness
     # math by design (P49 WS9), so without this advisory a blocked-but-load-bearing source could
     # never age into ANY signal, however long the block lasted. Summary line plus T1 lines only:
     # 112 sources were blocked on 2026-09-12 and enumerating them all would drown the signal.
@@ -2023,7 +2024,9 @@ def check_moving_dates():
                 except ValueError:
                     pass
             try:
-                days = (_today - datetime.date.fromisoformat(lbd)).days
+                # P82-9: age from the episode start (twin of blocked_sources(); keep in step).
+                episode = s.get("first_block_detected") or lbd
+                days = (_today - datetime.date.fromisoformat(episode)).days
             except ValueError:
                 continue
             interval = s.get("check_interval_days") or 30

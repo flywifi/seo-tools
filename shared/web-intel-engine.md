@@ -76,7 +76,8 @@ Polite crawl rules:
 - Maximum 10 pages per domain per spoke invocation.
 
 Block handling at Level 3 (a block is INCONCLUSIVE, not evidence the source is gone, changed, or stale):
-- A 403/401/406/451, a 429/503 throttle, or a detected anti-bot vendor/CAPTCHA means the bot was
+- A 403/401/406/451, a 429/503 throttle, or challenge-page evidence on a 2xx (a captcha asset or
+  CDN fingerprint alone on a healthy success page is NOT a block; P82-9) means the bot was
   refused, not that the resource disappeared. Record it as `blocked` (kind: `challenge`/`ip_block`/
   `rate_limit`/`captcha` via `tools/fetch_diag.py::classify_block`) with a durable block marker, and
   NEVER stamp the source stale, flag it "changed", or make it orphan-eligible on the strength of a block.
