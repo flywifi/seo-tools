@@ -5,7 +5,7 @@
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "ce2607788c3b662d19a5e1d04df0608ff910bc035b961a9062351e62b7b73834",
-        "shared/cross-modality/transitions.json": "c1a04ce3a9faa0194591b9246f9aaac8c1204ab7d7bfb0eed12444b29e8496e0"
+        "shared/cross-modality/transitions.json": "e8cd7930ab269ded59e8c13e6a325e616cff95651015c20dcc6e0c0aad9a684e"
       }
     },
     "docs/CURRENCY.md": {

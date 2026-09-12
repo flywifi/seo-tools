@@ -36,6 +36,9 @@ to preserve brand fidelity through compression.
 
 ## Update checklist
 
+0. Confirm the workspace-only creation gate still holds (registry source
+   `openai-gpt-creation-policy`) before shipping a package; personal plans cannot build new GPTs
+   as of 2026-08.
 1. If OpenAI Custom GPT instruction limit changes, update Step 2 and the 8000-character cap.
 2. If `shared/voice-engine.md` anti-AI pattern list changes, update compression priorities in
    Step 2.

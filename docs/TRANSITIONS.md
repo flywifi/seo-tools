@@ -64,7 +64,9 @@ it from the two surface records.
 - **Claude Desktop to the ChatGPT desktop app:** the strongest ChatGPT surface. Knowledge paste
   works like the web; live tools become possible by deploying the remote MCP endpoint
   (`implementation/gpt/mcp-connector/README.md`) and adding it as a developer-mode connector
-  [NEEDS VERIFICATION: plan gating].
+  [NEEDS VERIFICATION: plan gating]. The desktop app merged Chat, Work, and Codex into one app in
+  July 2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ
+  between the two [NEEDS VERIFICATION: merge details from secondary reporting].
 - **ChatGPT (any) back to Claude Desktop:** run the profile-import prompt
   (`implementation/gpt/profile-import/PROMPT.md`) once per ChatGPT context, paste the JSON back
   home, and the profile-import atom proposes `creator-profile.local.json` with per-field
@@ -149,7 +151,7 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | Door | Who it serves | Artifact | Key facts |
 |---|---|---|---|
 | ChatGPT custom instructions | daily chat, any tier | `implementation/gpt/web/custom-instructions.md` (full, under 5,000 combined) or `-compact.md` (Free/Go, under 1,500) | caps per help/8096356; per-field vs combined not documented |
-| ChatGPT Project | RECOMMENDED personal-plan home | `implementation/gpt/project/` + the 8 shared knowledge files | project-only memory chosen at creation (help/10169521); consumer file counts not documented |
+| ChatGPT Project | RECOMMENDED personal-plan home | `implementation/gpt/project/` + the 8 shared knowledge files | project-only memory best chosen at creation, switchable later for unshared projects [NEEDS VERIFICATION 2026-08-14]; file caps 5 Free / 25 Plus / 40 Pro-Business-Enterprise [NEEDS VERIFICATION 2026-09] (help/10169521) |
 | Custom GPT + Actions | workspace accounts only | `implementation/gpt/actions/` | creation requires Business/Enterprise/Edu (help/8554397); memory does not work in GPTs |
 | ChatGPT connector (no dev mode) | chat + deep research | server `search`/`fetch` tools | exact contract per developers.openai.com/api/docs/mcp |
 | ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web (help/12584461, excerpt) |

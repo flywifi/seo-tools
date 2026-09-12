@@ -61,11 +61,15 @@ gates are enforced HERE, on this machine, for every surface that connects.
 
 - **claude.ai (web and mobile):** Settings, then Connectors, then add a custom connector with
   your HTTPS URL. Follow the on-screen auth flow.
-- **ChatGPT web (developer mode):** Settings, then Connectors; enable developer mode if your plan
-  offers it, then add the endpoint URL. [NEEDS VERIFICATION: developer-mode availability, the
-  exact settings path, and auth support depend on your ChatGPT plan; check before relying on it.]
+- **ChatGPT web (developer mode):** Settings, then Apps (formerly Connectors); enable Developer
+  mode if your plan offers it, then add the endpoint URL. [NEEDS VERIFICATION: developer-mode
+  availability, the exact settings path (menu naming churned across mid-2026 renames), and auth
+  support depend on your ChatGPT plan; check in a browser before relying on it.]
 - **ChatGPT desktop app (developer mode):** same as web, from the desktop app's Settings, then
-  Connectors. [NEEDS VERIFICATION: plan gating and connector scope.]
+  Apps (formerly Connectors). The desktop app merged Chat, Work, and Codex into one app in July
+  2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ between
+  the two. [NEEDS VERIFICATION: plan gating, connector scope, and the merge details, which come
+  from secondary reporting.]
 - **Gemini (CLI / Agent Platform):** register the endpoint per Google's MCP client
   configuration. [NEEDS VERIFICATION: which Gemini surfaces accept remote MCP on your plan.]
 
@@ -131,7 +135,7 @@ Two tiers, same server:
   plain connector (developers.openai.com/api/docs/mcp). Both return the payload twice, as
   structuredContent and as mirrored text content, per that contract. Add the connector by URL
   `https://YOUR-HOST/mcp`.
-- **Developer mode (full tool set):** Settings -> Apps (Connectors) -> enable Developer mode
+- **Developer mode (full tool set):** Settings -> Apps (formerly Connectors) -> enable Developer mode
   (available on Pro/Plus/Business/Enterprise/Edu on the web; help.openai.com article 12584461,
   excerpt confidence) -> add `https://YOUR-HOST/mcp`. Write tools carry accurate
   `destructiveHint`/`readOnlyHint` annotations, so ChatGPT prompts for confirmation on

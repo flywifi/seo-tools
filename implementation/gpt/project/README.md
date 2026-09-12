@@ -9,14 +9,19 @@ MCP, or the deployed MCP connector in ChatGPT developer mode).
 ## Setup (one time, about five minutes)
 
 1. In ChatGPT, open the sidebar and click **New project**. Name it "Creator OS".
-2. **At creation, choose project-only memory.** This keeps Creator OS work separate from your
-   personal chats, and the choice is only offered when the project is created.
+2. **Choose project-only memory.** This keeps Creator OS work separate from your personal chats.
+   Best set at creation; an existing project can be switched to project-only memory later as long
+   as it has not been shared. [NEEDS VERIFICATION: switching for existing unshared projects,
+   reported 2026-08-14; help.openai.com is not machine-fetchable.]
 3. Open the project's **Instructions** and paste the entire contents of
    `project-instructions.md` (this folder).
-4. In the project's **Files** area, upload the 8 knowledge files from
+4. In the project's **Files** area, upload the knowledge files from
    `implementation/claude/project/knowledge/` (they are surface-neutral Markdown; the same files
-   serve the Claude Project). 8 files is under every published limit; per-project file counts on
-   personal plans are not officially documented as of 2026-08.
+   serve the Claude Project). Published per-project caps are 5 files on Free, 25 on Plus, and 40
+   on Pro/Business/Enterprise. [NEEDS VERIFICATION: caps from secondary reporting, 2026-09;
+   help.openai.com is not machine-fetchable.] On Plus and above, upload all 8. On Free the
+   8-file bundle does NOT fit: upload the first 5 in the numbered order (01 through 05) and
+   expect the acceptance prompts that rely on the rest to degrade.
 5. Run the three acceptance prompts below. If all three pass, the Project is live.
 
 ## Acceptance prompts (paste each into a new chat inside the Project)
