@@ -114,6 +114,14 @@ entry:
    unchanged). Illustrative ids used in documentation examples are exempted in
    `tools/doc-source-allowlist.json`, each with a written reason.
 
+The corpus the invariant sweeps was widened in P82 after the ChatGPT audit found three blind
+spots. The fenced-block pass now also covers `implementation/**/*.md`, where the packaging READMEs
+declare the plan-fact authorities. The shorthand pass — which catches scheme-less citations like
+`help/12584461` — is now line-based rather than prefix-anchored, so a comma list ("articles
+8554397, 8798878", exactly how ADR 0052 leaked an unregistered id) no longer slips it. And `.json`
+joined the swept extensions, so `shared/cross-modality/transitions.json`, the file holding the most
+plan claims in the repo, is covered.
+
 The outcome: citing a source in a maintainer note is no longer inert prose. The citation forces a
 registry entry, and the registry entry puts the source on the freshness cadence below, so the fact the
 doc rests on gets re-checked on schedule from then on. `python3 tools/source_sync.py check` is the
