@@ -4,6 +4,21 @@ Live build status for Creator OS. Update at phase boundaries and after a skill s
 ## Current phase
 P6 through P82 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P82-9: The block that wasn't (2026-09-12,
+  docs/adr/0058-p82-9-block-classification-and-episodes.md). Investigating the escalation
+  clock's 13-source backlog before clearing it found the classifier calling healthy pages
+  blocked (captcha widgets and CDN fingerprints as evidence; one vendor's marker table has no
+  body entries, so its success verdicts were fingerprint-only by construction) and the sweep
+  resetting the clock it feeds. The classifier now demands challenge evidence on a success
+  response, pinned in both directions by fixtures; nine sources recovered and were stamped on
+  the live re-sweep with an authenticity spot-check; blocks are episodes (first_block_detected)
+  so maintenance cannot silence the alert; mark-checked heals the whole block record; the OAuth
+  requirement list is re-verified against the 2026-07-28 spec; the dead TikTok portal URL was
+  re-homed through the production fetch chain. Browser checklist delivered for the four
+  help-center facts plus the genuine refusals. Not done, by decision: UA impersonation in the
+  routine fetcher; the four help-center facts (browser-only); Apps SDK; agent-mode promotion;
+  tag; PR.
+
 - P82: Remediation of the ChatGPT/OpenAI usage audit (2026-09-12,
   docs/adr/0057-p82-chatgpt-audit-remediation.md). Nineteen findings closed in eight commits.
   Two live GIS endpoints fixed and probe-verified (the flood one had been returning HTTP 200 with

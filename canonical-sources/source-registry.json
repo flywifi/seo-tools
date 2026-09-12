@@ -11,7 +11,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Look for algorithm update announcements, ranking signal changes, structured data spec updates, and Core Web Vitals threshold changes.",
       "used_by": [
@@ -26,9 +26,12 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "919fdb56f7505e89da3e03cc5f200b6c6f0457974e58a559b2444a7b8ac133a2",
+      "content_last_modified": "Thu, 16 Jul 2026 11:42:35 GMT",
+      "first_block_detected": null
     },
     {
       "id": "youtube-creator-blog",
@@ -106,7 +109,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Early signals on Google algorithm changes (often surfaces before official confirmation). Useful for trend-check when SEJ has nothing.",
       "used_by": [
@@ -116,9 +119,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "7889df8b6e8997374cc8a61a65097f1aa25d7c9035e609bea24b2d56d3c25f62",
+      "first_block_detected": null
     },
     {
       "id": "youtube-help-video-specs",
@@ -665,7 +670,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Extract: current Pinterest search trends and predictions, keyword guidance for home decor category, algorithm changes to pin distribution. Annual Predicts report is high priority.",
       "used_by": [
@@ -678,9 +683,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "ffedf33ff6d39ba43634b564a7521c86d784b57492ba0e5a1ff7d1be824cb2c3",
+      "first_block_detected": null
     },
     {
       "id": "pinterest-newsroom",
@@ -690,7 +697,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Check for algorithm changes, new ad format announcements, creator program updates. Early signal for platform spec changes before help center updates.",
       "used_by": [
@@ -701,21 +708,23 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "1b99496c5152e4dfc489ed2db45c45a1c4f93877ce253d5b444c395851debc22",
+      "first_block_detected": null
     },
     {
       "id": "tiktok-fyp-guide",
-      "name": "TikTok Creator Portal: Understanding the For You Page",
-      "url": "https://www.tiktok.com/creator-portal/en-us/tiktok-content-strategy/understanding-the-for-you-page/",
+      "name": "TikTok Creator Academy (successor of the creator portal)",
+      "url": "https://www.tiktok.com/creator-academy/en-us/",
       "category": "seo-authority",
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
-      "extraction_hint": "Extract: what TikTok says drives FYP distribution (completion rate, interactions, video info, device/account settings), content quality guidance, hashtag role.",
+      "extraction_hint": "creator education hub; FYP-recommendation specifics live in the tiktok-newsroom-algorithm source; watch for the portal moving again",
       "used_by": [
         "seo-intelligence-engine",
         "platform-engine",
@@ -725,9 +734,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "c455867fef8aa3717deeabec089ff329072ad0a3ac42ba135ef246feb06e5fcc",
+      "first_block_detected": null
     },
     {
       "id": "tiktok-newsroom",
@@ -737,7 +748,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Check for algorithm transparency updates, new creator monetization features, policy changes. Early signal before creator portal updates.",
       "used_by": [
@@ -748,9 +759,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "0cbabbeb519caddc01aaf77556bbcdebc0980e699263f561a71c8981ce4adacd",
+      "first_block_detected": null
     },
     {
       "id": "ftc-disclosures-101",
@@ -870,9 +883,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
+      "last_block_detected": "2026-09-12",
       "block_kind": "rate_limit",
-      "block_vendor": null
+      "block_vendor": null,
+      "first_block_detected": "2026-09-12"
     },
     {
       "id": "the-spruce-home-decor",
@@ -1113,7 +1127,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Extract: official FYP ranking signals (rewatch rate now #1, surpassing completion), what TikTok says are non-factors (follower count, prior video performance), signals that make content FYP-ineligible. This is the primary official source for algorithm transparency.",
       "used_by": [
@@ -1125,9 +1139,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "27e509308ded3409de9afd8f4f6f9c900208c441a406e56ccc7b11e9aa6eec58",
+      "first_block_detected": null
     },
     {
       "id": "instagram-graph-api-docs",
@@ -1157,7 +1173,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Extract: official ranking signals for Reels (sends per reach as unique primary signal, watch time, saves, originality gate at 10+ reposts), what Instagram says it penalizes (low-res, watermarked content, reposts), hashtag guidance updates.",
       "used_by": [
@@ -1169,9 +1185,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "a88c2ace0bfd11d589e2ec5c197a990920da0622fce25260627d1c80fa6a1203",
+      "first_block_detected": null
     },
     {
       "id": "pinterest-api-v5-docs",
@@ -1301,9 +1319,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
+      "last_block_detected": "2026-09-12",
       "block_kind": "rate_limit",
-      "block_vendor": null
+      "block_vendor": null,
+      "first_block_detected": "2026-09-12"
     },
     {
       "id": "tubebuddy-blog",
@@ -1313,7 +1332,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Scan for: SEO optimization tactics, chapter marker best practices, end screen strategy, keyword research approaches for YouTube. Flag T3 confidence.",
       "used_by": [
@@ -1324,9 +1343,12 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "54bde9b53f4bb4bdcfd3feb030b2f022d04ee254bdfba12886fff92984e34175",
+      "min_recheck_at": 739871,
+      "first_block_detected": null
     },
     {
       "id": "pinterest-api-v5-pin-creation",
@@ -3899,7 +3921,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "year-stamped retail shopping dates; the DATES are public facts (freely cacheable); re-verify on the year flip in the title",
       "used_by": [
@@ -3912,9 +3934,13 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "adc0eef0edfc4f999515e9a94a4ed0da899c384266b0501b9af05205894c79ea",
+      "content_last_modified": "Sat, 12 Sep 2026 21:10:46 GMT",
+      "min_recheck_at": 739871,
+      "first_block_detected": null
     },
     {
       "id": "ftc-ecfr-16-cfr-465",
@@ -6270,7 +6296,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "a new date-tag is a new protocol revision; 2026-07-28 removed the handshake and added _meta plus mandatory server/discover (verified at source 2026-09-07); watch transport deprecations and auth changes",
       "used_by": [
@@ -6280,7 +6306,8 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "71595b6819504788b6814017aa61b9b009e8d018504df5358a2443a417942566"
     },
     {
       "id": "codex-agents-md-config",
@@ -6322,5 +6349,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "91b3c12fd828bc2a1521618f0825da22b4b29b8b90140b035fd0eb1649567d0a"
+  "_content_digest": "ce9df75c8c6f83109587e2a69f86db2b5f3b82045baae431f1d914af09d5310d"
 }

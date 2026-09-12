@@ -13,6 +13,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P82-9: block episodes. `first_block_detected` is stamped on entry to the blocked state,
+  survives re-sweeps (legacy rows inherit their prior detection date), and clears on recovery
+  and on `mark-checked`, which now heals the whole block record; both escalation clocks measure
+  from it.
 - P82: the blocked-source escalation clock (`report` gains `days_blocked`, `overdue` and
   `blocked_overdue` with per-source human-verification actions; drift invariant 43 prints a
   non-blocking `blocked-clock:` advisory, keeping P36's no-CI-freshness-reporting decision
@@ -59,6 +63,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P82-9: the anti-bot classifier no longer calls a healthy success page blocked on a captcha
+  widget or CDN fingerprint alone (nine seo-authority sources were misfiled as permanently
+  blocked on that evidence, and the resilient retry's own successful fetches were re-condemned
+  by the same markers); block re-detection no longer resets the escalation clock.
 - P82: the jurisdiction Action's geocode and flood endpoints, both of which composed URLs that
   never returned what the schema promised (the flood one returned HTTP 200 with no flood zone);
   the undocumented `returns:` field that all five OpenAI function specs sent to the wire; the
@@ -118,6 +126,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P82-9: the connector runbook's OAuth requirement list is re-verified against the 2026-07-28
+  MCP revision (S256 attributed to OAuth 2.1, which mandates it); the blocked backlog was
+  re-swept through the fixed classifier and stamped; the retired TikTok creator-portal source
+  was re-homed to the Creator Academy hub after verification through the production fetch chain.
 - P82: drift invariant 52 now scans shorthand help-center citations line by line (the old
   prefix-anchored pattern missed comma lists), sweeps `.json` so `transitions.json` is policed,
   and checks `sources` blocks under `implementation/**`; the MCP spec registry source was

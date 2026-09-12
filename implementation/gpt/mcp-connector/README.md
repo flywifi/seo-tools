@@ -34,11 +34,10 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
    If you
    implement full OAuth to satisfy a provider's connector requirements, the MCP spec's
    Authorization model expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
-   Metadata (RFC 9728), PKCE with S256, the RFC 8707 `resource` parameter, token-audience
-   validation, and HTTPS on every authorization endpoint. (Source:
-   modelcontextprotocol.io/specification/2026-07-28/basic/authorization; the requirement list was
-   originally verified against the 2025-11-25 revision [NEEDS VERIFICATION: re-check it against
-   2026-07-28, which restructured the handshake].)
+   Metadata (RFC 9728), PKCE (OAuth 2.1 mandates the S256 code-challenge method), the RFC 8707
+   `resource` parameter, token-audience validation, and HTTPS on every authorization endpoint.
+   (Source: modelcontextprotocol.io/specification/2026-07-28/basic/authorization; requirement
+   list re-verified against the 2026-07-28 revision, 2026-09-12.)
 
 ## Start the server (behind the proxy, never directly exposed)
 

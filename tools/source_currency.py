@@ -727,7 +727,11 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
                       # measures time IN the blocked state, not time since the last sweep --
                       # otherwise every routine sweep would reset days_blocked to zero and the
                       # blocked-overdue alert could never fire.
-                      "first_block_detected": e.get("first_block_detected") or today}
+                      # Legacy rows (blocked before the field existed) inherit their prior
+                      # detection date as the episode start -- for a never-reswept block that
+                      # date IS the episode start, so the inheritance is exact.
+                      "first_block_detected": e.get("first_block_detected")
+                                              or e.get("last_block_detected") or today}
                 if overlay_path:
                     _fo.stamp(overlay, e["id"], today, kind="block", **bf)
                 else:
@@ -920,6 +924,15 @@ def selftest_detect():
         ok("blocked apply records last_block_detected", e_b1.get("last_block_detected") == today_str())
         ok("blocked apply stamps the episode start (P82-9)",
            e_b1.get("first_block_detected") == today_str())
+        # a LEGACY row (blocked before the episode field existed) inherits its prior
+        # detection date on re-detection, not today
+        legacy = {"id": "b-legacy", "url": "https://x.example/legacy", "category": "seo-authority",
+                  "last_block_detected": "2026-08-30", "used_by": []}
+        lreg = {"sources": [legacy]}
+        with _cl2.redirect_stdout(_io2.StringIO()):
+            cmd_detect_changes(BArgs(), lreg, {}, getter=blocking_getter)
+        ok("legacy re-detection inherits the prior date as the episode start (P82-9)",
+           legacy.get("first_block_detected") == "2026-08-30")
         # a re-detection must NOT reset the episode: age it, re-run the blocked getter
         e_b1["first_block_detected"] = "2026-08-03"
         b2b = _io2.StringIO()
