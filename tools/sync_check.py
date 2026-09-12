@@ -1996,6 +1996,47 @@ def check_moving_dates():
                          f"re-verified since (verified_after={va!r}); re-check the source and update "
                          f"(staged fix in volatile-corrections.2026-07-14.json)")
 
+    # P82: blocked-source escalation clock. Twin of tools/source_currency.py::is_currently_blocked
+    # plus the overdue math in blocked_sources() (inline-duplicated: the guard stays
+    # stdlib-self-contained; keep the two in step). A blocked source is excluded from staleness
+    # math by design (P49 WS9), so without this advisory a blocked-but-load-bearing source could
+    # never age into ANY signal, however long the block lasted. Summary line plus T1 lines only:
+    # 112 sources were blocked on 2026-09-12 and enumerating them all would drown the signal.
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if reg_path.exists():
+        try:
+            _sources = json.loads(reg_path.read_text(encoding="utf-8")).get("sources", [])
+        except (OSError, json.JSONDecodeError) as exc:
+            advisory(f"blocked-clock: source-registry.json unreadable: {exc}")
+            _sources = []
+        _today = datetime.date.today()
+        _overdue = []
+        for s in _sources:
+            lbd = s.get("last_block_detected")
+            if not lbd:
+                continue
+            last = s.get("last_checked")
+            if last:
+                try:
+                    if not (datetime.date.fromisoformat(lbd) > datetime.date.fromisoformat(last)):
+                        continue  # a later successful check cleared the block
+                except ValueError:
+                    pass
+            try:
+                days = (_today - datetime.date.fromisoformat(lbd)).days
+            except ValueError:
+                continue
+            interval = s.get("check_interval_days") or 30
+            if days > interval:
+                _overdue.append((s.get("id"), days, interval, s.get("tier")))
+        if _overdue:
+            advisory(f"blocked-clock: {len(_overdue)} blocked source(s) past their check interval "
+                     f"(T1 listed below); full list: python3 tools/source_currency.py report")
+            for sid, days, interval, tier in sorted(_overdue, key=lambda o: -o[1]):
+                if tier == "T1":
+                    advisory(f"blocked-clock: {sid!r} blocked {days} days (interval {interval}); "
+                             f"needs human verification in a browser")
+
 
 # degraded_behavior keys that cover several capabilities, or a renamed capability, so they are NOT of
 # the direct '<capability>_disabled' form. Invariant 44 skips these (e.g. api_disabled covers the

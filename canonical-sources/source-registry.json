@@ -3647,10 +3647,7 @@
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "the newer ChatGPT app packaging surface (built on MCP); _meta.ui contract, widget MIME, structuredContent",
-      "used_by": [
-        "implementation/gpt",
-        "skills/atoms/export-gpt"
-      ],
+      "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -6325,5 +6322,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "cb055f77b83322dd5f7818d0cfd7192f496c3e612657fa05ea1e7a1228598e6e"
+  "_content_digest": "91b3c12fd828bc2a1521618f0825da22b4b29b8b90140b035fd0eb1649567d0a"
 }

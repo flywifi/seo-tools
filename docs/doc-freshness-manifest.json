@@ -11,8 +11,8 @@
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
-        "tools/source_currency.py": "171cf560c7ac889893869482f8e963643ba17b8f287869704ded855ba4245b93",
-        "tools/sync_check.py": "ec90d1b9b8abe17dcd3eb66a3c623b58b656411ed02fa0a247e156d2009e68a3"
+        "tools/source_currency.py": "334730e2070f502d635921426947e1ec0803fb4b695ee722c0ec3411d8e01eae",
+        "tools/sync_check.py": "728c40da91ab22f55bef8c9a040af89b34beaa1cd98bdf47f79f4460dbd5362a"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {

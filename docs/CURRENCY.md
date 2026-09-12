@@ -233,12 +233,26 @@ single write path. Do not edit the digest by hand.
 
 ## Interval banding (what a cadence promises, P74)
 
-A `check_interval_days` value is a promise that the clock actually runs. Today it does not.
+A `check_interval_days` value is a promise with two different backings, and only one of them has
+teeth today.
+
+For a REACHABLE source the clock still runs only when a human runs the detection locally.
 **66 sources declare a sub-monthly cadence and 64 of them have never been checked once**, because
 P36 retired the weekly CI job and made stamping an explicit local or cron step that no committed
 doc installs. Only two sub-30-day entries have ever been polled: `google-drive-desktop-sync-modes`
 and `google-drive-desktop-macos`. A 7-day interval that has never fired is not diligence, it is a
-number that makes the registry look better maintained than it is.
+number that makes the registry look better maintained than it is. That remains true and deliberate
+(P36: freshness is a per-user local runtime with zero GitHub coupling).
+
+For a BLOCKED source the promise is now enforced passively (P82). A blocked source is excluded
+from staleness math because a bot-block is inconclusive, not stale (P49 WS9) — correct in
+isolation, but it left such a source with no exit condition at all: it could never age into any
+signal, however long the block lasted. Three things now give that quiet state a clock. `report`
+carries `blocked_overdue` in its summary and `days_blocked` plus `overdue` on every blocked entry;
+`recommended_actions` names each source past its own interval as needing human verification in a
+browser (a challenge block cannot be cleared by retrying); and drift-guard invariant 43 prints a
+non-blocking `blocked-clock:` advisory on every run, locally and in CI, summarising the count and
+listing the T1 sources by name. Clearing one still requires a human opening the URL.
 
 This is recorded as an open finding, not a fixed one. **The bands have not been re-banded**, because
 what a source's cadence should be is a maintenance-policy decision for the maintainer, not a number
