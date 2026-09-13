@@ -20,10 +20,16 @@ function calling), and optional Code Interpreter access.
 
 The creator maintains parallel deployments of Creator OS across platforms. This atom handles the
 Custom GPT target: it compresses the most critical system rules into the 8K-character instruction
-limit, selects knowledge files for upload, optionally generates an Actions schema (OpenAPI YAML)
-for external tool integration, and outputs the package ready for configuration in the GPT Builder.
-It loads `shared/brand-engine.md` and `shared/voice-engine.md` to ensure brand and voice fidelity
-survive the compression.
+limit (the GPT Builder's field limit; OpenAI documents no cap on a fetchable page, so treat 8,000
+as the enforced-by-UI figure and re-verify on paste), selects knowledge files for upload,
+optionally generates an Actions schema (OpenAPI YAML) for external tool integration, and outputs
+the package ready for configuration in the GPT Builder. It loads `shared/brand-engine.md` and
+`shared/voice-engine.md` to ensure brand and voice fidelity survive the compression.
+
+> IMPORTANT (verified 2026-08): creating or publishing a NEW Custom GPT requires a ChatGPT
+> Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and
+> edit existing GPTs but cannot build new ones. On a personal plan, package for a ChatGPT Project
+> instead (`implementation/gpt/project/`). This atom's output targets the workspace GPT Builder.
 
 ## When to invoke
 
@@ -151,7 +157,8 @@ Flag any issues:
 ```
 
 - `instruction_text`: the full instruction text (included in output for review).
-- `instruction_chars`: character count. Must be <= 8000.
+- `instruction_chars`: character count. Must be <= 8000 (GPT Builder field limit;
+  UI-enforced, not documented on a fetchable OpenAI page).
 - `knowledge_files`: array of objects with name and source path.
 - `actions_schema_path`: path to the OpenAPI YAML, or null if `include_actions` was false.
 - `warnings`: array of strings noting truncations, exclusions, or configuration requirements.
@@ -166,3 +173,12 @@ Inherited from `protocols/no-fabrication.md`:
 
 ## Cross-modality
 Inherits its calling spoke's class (the calling spoke's class); see `shared/cross-modality-engine.md`. An atom carries no independent surface wiring and runs wherever the spoke that composes it runs.
+
+```sources
+[
+  {"id": "openai-gpt-creation-policy",
+   "url": "https://help.openai.com/en/articles/8554397-creating-and-editing-gpts"},
+  {"id": "openai-gpt-actions-production",
+   "url": "https://developers.openai.com/api/docs/actions/production"}
+]
+```

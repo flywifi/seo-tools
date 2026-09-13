@@ -114,6 +114,14 @@ entry:
    unchanged). Illustrative ids used in documentation examples are exempted in
    `tools/doc-source-allowlist.json`, each with a written reason.
 
+The corpus the invariant sweeps was widened in P82 after the ChatGPT audit found three blind
+spots. The fenced-block pass now also covers `implementation/**/*.md`, where the packaging READMEs
+declare the plan-fact authorities. The shorthand pass — which catches scheme-less citations like
+`help/12584461` — is now line-based rather than prefix-anchored, so a comma list ("articles
+8554397, 8798878", exactly how ADR 0052 leaked an unregistered id) no longer slips it. And `.json`
+joined the swept extensions, so `shared/cross-modality/transitions.json`, the file holding the most
+plan claims in the repo, is covered.
+
 The outcome: citing a source in a maintainer note is no longer inert prose. The citation forces a
 registry entry, and the registry entry puts the source on the freshness cadence below, so the fact the
 doc rests on gets re-checked on schedule from then on. `python3 tools/source_sync.py check` is the
@@ -177,8 +185,12 @@ Detection and correction of currency/versioning/push drift, all diagnose-only (n
 
 A fetch that an automated check receives as a 403/401/406/451, a 429/503 throttle, or a
 Cloudflare/CAPTCHA/DataDome challenge (even one served at HTTP 200) is bot-detection or a rate-limit,
-**not** evidence the source disappeared. `source_currency.py --detect-changes` runs
-`tools/fetch_diag.py::classify_block` over every response and classifies such a result as **`blocked`**,
+**not** evidence the source disappeared. On a success response the classifier demands
+challenge-page evidence before saying so (P82-9): a captcha widget embedded in a large genuine
+page, or a CDN's header fingerprint on real content, is not a block — nine healthy sources were
+misfiled as permanently blocked on exactly that evidence before the distinction was drawn.
+`source_currency.py --detect-changes` runs
+`tools/fetch_diag.py::classify_block` over every response and classifies a true block as **`blocked`**,
 distinct from `unreachable`:
 
 - A `blocked` source is **never** stamped stale, **never** flagged `changed` (a 200 challenge page is
@@ -233,12 +245,30 @@ single write path. Do not edit the digest by hand.
 
 ## Interval banding (what a cadence promises, P74)
 
-A `check_interval_days` value is a promise that the clock actually runs. Today it does not.
+A `check_interval_days` value is a promise with two different backings, and only one of them has
+teeth today.
+
+For a REACHABLE source the clock still runs only when a human runs the detection locally.
 **66 sources declare a sub-monthly cadence and 64 of them have never been checked once**, because
 P36 retired the weekly CI job and made stamping an explicit local or cron step that no committed
 doc installs. Only two sub-30-day entries have ever been polled: `google-drive-desktop-sync-modes`
 and `google-drive-desktop-macos`. A 7-day interval that has never fired is not diligence, it is a
-number that makes the registry look better maintained than it is.
+number that makes the registry look better maintained than it is. That remains true and deliberate
+(P36: freshness is a per-user local runtime with zero GitHub coupling).
+
+For a BLOCKED source the promise is now enforced passively (P82). A blocked source is excluded
+from staleness math because a bot-block is inconclusive, not stale (P49 WS9) — correct in
+isolation, but it left such a source with no exit condition at all: it could never age into any
+signal, however long the block lasted. Three things now give that quiet state a clock. `report`
+carries `blocked_overdue` in its summary and `days_blocked` plus `overdue` on every blocked entry;
+`recommended_actions` names each source past its own interval as needing human verification in a
+browser (a challenge block cannot be cleared by retrying); and drift-guard invariant 43 prints a
+non-blocking `blocked-clock:` advisory on every run, locally and in CI, summarising the count and
+listing the T1 sources by name. Clearing one still requires a human opening the URL.
+The clock measures the block **episode**: `first_block_detected` is stamped when a source
+enters the blocked state, survives re-detection on later sweeps (so routine maintenance cannot
+reset the alert), and clears on recovery or on `mark-checked`, the human verification verb,
+which now heals the whole block record.
 
 This is recorded as an open finding, not a fixed one. **The bands have not been re-banded**, because
 what a source's cadence should be is a maintenance-policy decision for the maintainer, not a number

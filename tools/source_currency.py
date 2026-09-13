@@ -118,6 +118,19 @@ def blocked_sources(sources, category=None):
             "last_block_detected": s.get("last_block_detected"),
             "last_verified": s.get("last_checked"),
             "used_by": s.get("used_by", []),
+            # P82: a blocked source is rightly excluded from staleness math (P49 WS9), which
+            # left it with NO exit condition -- it could never age into any signal however long
+            # the block lasted. days_blocked/overdue give the quiet state a clock; the drift
+            # guard's invariant-43 advisory is the twin signal.
+            "check_interval_days": s.get("check_interval_days"),
+            # P82-9: measure from the episode START (first_block_detected); legacy rows without
+            # the field fall back to last_block_detected, which for a never-reswept block IS the
+            # episode start, so the fallback is exact.
+            "first_block_detected": s.get("first_block_detected") or s.get("last_block_detected"),
+            "days_blocked": days_since(s.get("first_block_detected") or s.get("last_block_detected")),
+            "overdue": bool(days_since(s.get("first_block_detected") or s.get("last_block_detected")) is not None
+                            and days_since(s.get("first_block_detected") or s.get("last_block_detected"))
+                            > (s.get("check_interval_days") or 30)),
             "note": "the automated fetch was blocked (not gone); open the URL in a browser and paste "
                     "the text, or run 'python3 tools/fetch_resilient.py <url>' to retry. See "
                     "docs/PASTE-SAFETY.md.",
@@ -195,7 +208,7 @@ def compute_staleness(sources, category=None, traversal_config=None):
     return stale, never_checked, up_to_date
 
 
-def build_recommended_actions(stale, never_checked):
+def build_recommended_actions(stale, never_checked, blocked_overdue=()):
     actions = []
     for s in never_checked:
         cats = s.get("category", "unknown")
@@ -208,13 +221,24 @@ def build_recommended_actions(stale, never_checked):
             f"{s['days_overdue']}d overdue [{s.get('category', '?')}]: "
             f"{s['name']} -- affects: {affected}"
         )
+    # P82: a blocked source past its own cadence needs a HUMAN, not another retry -- a challenge
+    # block cannot be cleared by fetching again. Without this the five plan-fact sources every
+    # cap and tier claim rests on produced no action of any kind.
+    for b in sorted(blocked_overdue, key=lambda x: x.get("days_blocked") or 0, reverse=True):
+        affected = ", ".join(b.get("used_by", [])) or "no consumers registered"
+        actions.append(
+            f"BLOCKED {b['days_blocked']}d (interval {b.get('check_interval_days') or 30}) "
+            f"[{b.get('category', '?')}]: {b['name']} -- needs human verification in a browser; "
+            f"affects: {affected}"
+        )
     return actions
 
 
 def build_report(sources, category=None, include_refetch=False, traversal_config=None):
     stale, never_checked, up_to_date = compute_staleness(sources, category, traversal_config)
     blocked = blocked_sources(sources, category)  # P49 WS9: inconclusive, not stale
-    actions = build_recommended_actions(stale, never_checked)
+    blocked_overdue = [b for b in blocked if b.get("overdue")]
+    actions = build_recommended_actions(stale, never_checked, blocked_overdue)
 
     report = {
         "as_of": today_str(),
@@ -225,6 +249,7 @@ def build_report(sources, category=None, include_refetch=False, traversal_config
             "never_checked": len(never_checked),
             "up_to_date": len(up_to_date),
             "blocked": len(blocked),
+            "blocked_overdue": len(blocked_overdue),
         },
         "stale": stale,
         "never_checked": never_checked,
@@ -318,6 +343,11 @@ def cmd_mark_checked(args, registry, traversal_config=None):
     for s in registry["sources"]:
         if s["id"] == source_id:
             s["last_checked"] = today_str()
+            # P82-9: mark-checked is the human verification verb; a verified source is not
+            # blocked, so the whole block episode clears rather than lingering as stale state.
+            for k in ("last_block_detected", "first_block_detected", "block_kind", "block_vendor"):
+                if s.get(k) is not None:
+                    s[k] = None
             source_name = s.get("name", source_id)
             if changed:
                 s["last_changed_detected"] = today_str()
@@ -692,7 +722,16 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
             })
             if apply:
                 bf = {"last_block_detected": today, "block_kind": blk.get("kind"),
-                      "block_vendor": blk.get("vendor")}
+                      "block_vendor": blk.get("vendor"),
+                      # P82-9: the episode start survives re-detection, so the escalation clock
+                      # measures time IN the blocked state, not time since the last sweep --
+                      # otherwise every routine sweep would reset days_blocked to zero and the
+                      # blocked-overdue alert could never fire.
+                      # Legacy rows (blocked before the field existed) inherit their prior
+                      # detection date as the episode start -- for a never-reswept block that
+                      # date IS the episode start, so the inheritance is exact.
+                      "first_block_detected": e.get("first_block_detected")
+                                              or e.get("last_block_detected") or today}
                 if overlay_path:
                     _fo.stamp(overlay, e["id"], today, kind="block", **bf)
                 else:
@@ -715,7 +754,8 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
                 fields["last_changed_detected"] = today
             # P49 WS9: a successful check clears any prior block state (source recovered).
             if e.get("last_block_detected"):
-                fields.update({"last_block_detected": None, "block_kind": None, "block_vendor": None})
+                fields.update({"last_block_detected": None, "block_kind": None,
+                               "block_vendor": None, "first_block_detected": None})
             if overlay_path:
                 _fo.stamp(overlay, e["id"], today, kind="detect", **fields)
             else:
@@ -793,6 +833,13 @@ def cmd_update_source(args, registry):
             if u not in existing:
                 existing.append(u)
                 changed.append(f"used_by+{u}")
+    if getattr(args, "remove_used_by", None):
+        removals = [u.strip() for u in args.remove_used_by.split(",") if u.strip()]
+        existing = entry.setdefault("used_by", [])
+        for u in removals:
+            if u in existing:
+                existing.remove(u)
+                changed.append(f"used_by-{u}")
     if not changed:
         print(json.dumps({"id": args.id, "changed": [], "note": "no field differed; nothing written"}))
         return
@@ -875,6 +922,28 @@ def selftest_detect():
         bout = json.loads(b2.getvalue())
         e_b1 = breg["sources"][0]
         ok("blocked apply records last_block_detected", e_b1.get("last_block_detected") == today_str())
+        ok("blocked apply stamps the episode start (P82-9)",
+           e_b1.get("first_block_detected") == today_str())
+        # a LEGACY row (blocked before the episode field existed) inherits its prior
+        # detection date on re-detection, not today
+        legacy = {"id": "b-legacy", "url": "https://x.example/legacy", "category": "seo-authority",
+                  "last_block_detected": "2026-08-30", "used_by": []}
+        lreg = {"sources": [legacy]}
+        with _cl2.redirect_stdout(_io2.StringIO()):
+            cmd_detect_changes(BArgs(), lreg, {}, getter=blocking_getter)
+        ok("legacy re-detection inherits the prior date as the episode start (P82-9)",
+           legacy.get("first_block_detected") == "2026-08-30")
+        # a re-detection must NOT reset the episode: age it, re-run the blocked getter
+        e_b1["first_block_detected"] = "2026-08-03"
+        b2b = _io2.StringIO()
+        with _cl2.redirect_stdout(b2b):
+            cmd_detect_changes(BArgs(), breg, {}, getter=blocking_getter)
+        ok("re-detection preserves the episode start (clock not reset, P82-9)",
+           e_b1.get("first_block_detected") == "2026-08-03"
+           and e_b1.get("last_block_detected") == today_str())
+        ok("the clock reads the episode, not the re-detection (P82-9)",
+           blocked_sources([dict(e_b1, name="n", url="u")])[0]["days_blocked"]
+           == days_since("2026-08-03"))
         ok("blocked apply does NOT stamp last_checked", "last_checked" not in e_b1)
         ok("blocked apply preserves prior content sha", e_b1.get("content_sha256") == "orig")
         ok("blocked surfaced for human verification", "b1" in [q["id"] for q in bout["needs_human_verification"]])
@@ -885,6 +954,8 @@ def selftest_detect():
             cmd_detect_changes(BArgs(), breg, {}, getter=ok_getter)
         ok("recovery clears the block state", e_b1.get("last_block_detected") is None)
         ok("recovery stamps last_checked", e_b1.get("last_checked") == today_str())
+        ok("recovery clears the episode field (P82-9)",
+           e_b1.get("first_block_detected") is None)
     finally:
         globals()["save_registry"] = _saved_writer
 
@@ -982,6 +1053,53 @@ def selftest_detect():
     finally:
         g["save_registry"] = _saved_save
 
+    # P82: the blocked-source escalation clock. A blocked source is excluded from staleness math
+    # (P49 WS9) and so had no exit condition at all; these pin the overdue boundary and the
+    # removal path that lets a source stop claiming a consumer it no longer has.
+    import datetime as _dt82
+    def _blocked_fixture(days, interval):
+        when = (_dt82.date.today() - _dt82.timedelta(days=days)).isoformat()
+        return {"id": f"b{days}", "name": f"blocked {days}d", "url": "https://x.example/b",
+                "category": "ai-surface-spec", "check_interval_days": interval,
+                "last_block_detected": when, "last_checked": None, "used_by": ["docs/X.md"]}
+    _b40 = blocked_sources([_blocked_fixture(40, 30)])[0]
+    _b05 = blocked_sources([_blocked_fixture(5, 30)])[0]
+    ok("blocked 40d at interval 30 is overdue", _b40["overdue"] is True and _b40["days_blocked"] == 40)
+    ok("blocked 5d at interval 30 is not overdue", _b05["overdue"] is False)
+    ok("overdue blocked source produces a human-verification action",
+       any("needs human verification" in a for a in build_recommended_actions([], [], [_b40])))
+    ok("non-overdue blocked source produces no action",
+       build_recommended_actions([], [], []) == [])
+    _rep82 = build_report([_blocked_fixture(40, 30), _blocked_fixture(5, 30)])
+    ok("report summary counts blocked_overdue", _rep82["summary"]["blocked_overdue"] == 1)
+
+    _saved_save82 = g["save_registry"]
+    try:
+        g["save_registry"] = lambda reg: None
+        reg82 = {"sources": [{"id": "u-fixture", "url": "https://u.example/a",
+                              "used_by": ["a/one.md", "b/two.md"]}]}
+        a82 = _types.SimpleNamespace(id="u-fixture", url=None, category=None, name=None, tier=None,
+                                     extraction_hint=None, add_used_by=None,
+                                     remove_used_by="a/one.md,not/present.md")
+        buf82 = io.StringIO()
+        with contextlib.redirect_stdout(buf82):
+            cmd_update_source(a82, reg82)
+        ok("remove-used-by drops the named consumer and ignores absent ones",
+           reg82["sources"][0]["used_by"] == ["b/two.md"]
+           and json.loads(buf82.getvalue())["changed"] == ["used_by-a/one.md"])
+        # P82-9: mark-checked (the human verification verb) heals the whole block record.
+        # Runs INSIDE the save-neutralized block: cmd_mark_checked calls save_registry.
+        _mc = {"id": "mc1", "name": "n", "last_block_detected": "2026-08-30",
+               "first_block_detected": "2026-08-30", "block_kind": "captcha",
+               "block_vendor": "reCAPTCHA"}
+        with contextlib.redirect_stdout(io.StringIO()):
+            cmd_mark_checked(_types.SimpleNamespace(id="mc1", changed=False), {"sources": [_mc]})
+        ok("mark-checked clears the whole block episode (P82-9)",
+           all(_mc.get(k) is None for k in
+               ("last_block_detected", "first_block_detected", "block_kind", "block_vendor")))
+    finally:
+        g["save_registry"] = _saved_save82
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -1041,6 +1159,10 @@ def _main():
     p_upd.add_argument("--tier", choices=["T1", "T2", "T3"], help="Corrected tier")
     p_upd.add_argument("--extraction-hint", dest="extraction_hint", help="Corrected extraction hint")
     p_upd.add_argument("--add-used-by", dest="add_used_by", help="Comma-separated atoms/engines to union into used_by")
+    p_upd.add_argument("--remove-used-by", dest="remove_used_by",
+                       help="Comma-separated used_by entries to remove (exact match). P82: the "
+                            "registry could add consumers but never drop one, so a source could "
+                            "keep claiming a consumer that no longer exists.")
     # P74 WP1: these three had NO sanctioned writer, so two recorded corrections were physically
     # unapplicable -- re-banding an unmeetable check cadence, and giving dependency_currency a
     # baseline to compare against. Hand-editing source-registry.json is forbidden, and a new

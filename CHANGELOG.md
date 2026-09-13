@@ -13,6 +13,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P82-9: block episodes. `first_block_detected` is stamped on entry to the blocked state,
+  survives re-sweeps (legacy rows inherit their prior detection date), and clears on recovery
+  and on `mark-checked`, which now heals the whole block record; both escalation clocks measure
+  from it.
+- P82: the blocked-source escalation clock (`report` gains `days_blocked`, `overdue` and
+  `blocked_overdue` with per-source human-verification actions; drift invariant 43 prints a
+  non-blocking `blocked-clock:` advisory, keeping P36's no-CI-freshness-reporting decision
+  intact), a wire-level connector-envelope assertion in the MCP selftest that runs under both
+  SDK majors, a hermetic negative fixture proving the surface-budget detector can fail,
+  `source_currency.py update-source --remove-used-by`, and doc-freshness bindings for the
+  ChatGPT-facing packaging docs (`docs/adr/0057-p82-chatgpt-audit-remediation.md`).
 - First complete currency sweep and a SHA-256 verified integrity census (P78), recorded in
   `docs/integrity-currency-audit-2026-08-30.md`. Every stored hash in the tree was recomputed
   from bytes: the mac-surface, projection, and doc-freshness manifests and the registry digest
@@ -52,6 +63,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P82-9: the anti-bot classifier no longer calls a healthy success page blocked on a captcha
+  widget or CDN fingerprint alone (nine seo-authority sources were misfiled as permanently
+  blocked on that evidence, and the resilient retry's own successful fetches were re-condemned
+  by the same markers); block re-detection no longer resets the escalation clock.
+- P82: the jurisdiction Action's geocode and flood endpoints, both of which composed URLs that
+  never returned what the schema promised (the flood one returned HTTP 200 with no flood zone);
+  the undocumented `returns:` field that all five OpenAI function specs sent to the wire; the
+  connector's half-sent envelope (`search`/`fetch` now emit structuredContent plus mirrored
+  text); `docs/DEPLOYMENT.md` Option C, which still described the superseded chat.completions
+  path; and the stale ChatGPT plan facts (per-project file caps by tier, project memory scope,
+  the connector settings path, the July 2026 desktop-app merge), each tagged for browser
+  verification because the help center blocks automated fetches.
 - The GIS boundary writer hashed one serialization and wrote another, so all fourteen stored hashes
   described bytes that never existed; it now serializes once and hashes what it writes, the hashes were
   re-stamped from disk, and the vertex counter counts every ring (the zoning polygon's hole ring was
@@ -103,6 +126,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P82-9: the connector runbook's OAuth requirement list is re-verified against the 2026-07-28
+  MCP revision (S256 attributed to OAuth 2.1, which mandates it); the blocked backlog was
+  re-swept through the fixed classifier and stamped; the retired TikTok creator-portal source
+  was re-homed to the Creator Academy hub after verification through the production fetch chain.
+- P82: drift invariant 52 now scans shorthand help-center citations line by line (the old
+  prefix-anchored pattern missed comma lists), sweeps `.json` so `transitions.json` is policed,
+  and checks `sources` blocks under `implementation/**`; the MCP spec registry source was
+  swapped to the 2026-07-28 revision; the five Cloudflare-blocked plan-fact sources now declare
+  their consumers in `used_by`; and the Apps SDK source no longer claims consumers that do not
+  exist in the tree.
 - Invariants 47 (projection staleness), 51 (doc freshness), and 56 (registry content digest) now fail
   the build instead of warning, including their import-failure branches; invariant 45 stays advisory
   by recorded decision, with its unreadable-input branch now blocking.

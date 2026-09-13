@@ -32,11 +32,12 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
    token enforced by the proxy). The MCP server binds to loopback and trusts the proxy; optionally
    set `CREATOR_OS_MCP_TOKEN` so it ALSO enforces the bearer token in-process (defense in depth).
    If you
-   implement full OAuth to satisfy a provider's connector requirements, the current MCP spec
-   (2025-11-25, Authorization) expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
-   Metadata (RFC 9728), PKCE with S256, the RFC 8707 `resource` parameter, token-audience
-   validation, and HTTPS on every authorization endpoint. (Source:
-   modelcontextprotocol.io/specification/2025-11-25/basic/authorization.)
+   implement full OAuth to satisfy a provider's connector requirements, the MCP spec's
+   Authorization model expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
+   Metadata (RFC 9728), PKCE (OAuth 2.1 mandates the S256 code-challenge method), the RFC 8707
+   `resource` parameter, token-audience validation, and HTTPS on every authorization endpoint.
+   (Source: modelcontextprotocol.io/specification/2026-07-28/basic/authorization; requirement
+   list re-verified against the 2026-07-28 revision, 2026-09-12.)
 
 ## Start the server (behind the proxy, never directly exposed)
 
@@ -61,11 +62,15 @@ gates are enforced HERE, on this machine, for every surface that connects.
 
 - **claude.ai (web and mobile):** Settings, then Connectors, then add a custom connector with
   your HTTPS URL. Follow the on-screen auth flow.
-- **ChatGPT web (developer mode):** Settings, then Connectors; enable developer mode if your plan
-  offers it, then add the endpoint URL. [NEEDS VERIFICATION: developer-mode availability, the
-  exact settings path, and auth support depend on your ChatGPT plan; check before relying on it.]
+- **ChatGPT web (developer mode):** Settings, then Apps (formerly Connectors); enable Developer
+  mode if your plan offers it, then add the endpoint URL. [NEEDS VERIFICATION: developer-mode
+  availability, the exact settings path (menu naming churned across mid-2026 renames), and auth
+  support depend on your ChatGPT plan; check in a browser before relying on it.]
 - **ChatGPT desktop app (developer mode):** same as web, from the desktop app's Settings, then
-  Connectors. [NEEDS VERIFICATION: plan gating and connector scope.]
+  Apps (formerly Connectors). The desktop app merged Chat, Work, and Codex into one app in July
+  2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ between
+  the two. [NEEDS VERIFICATION: plan gating, connector scope, and the merge details, which come
+  from secondary reporting.]
 - **Gemini (CLI / Agent Platform):** register the endpoint per Google's MCP client
   configuration. [NEEDS VERIFICATION: which Gemini surfaces accept remote MCP on your plan.]
 
@@ -107,7 +112,7 @@ Two rules make this reliable, and one honest limit:
   `get_server_info` tool surfaces the running version so a client or a monitor can read it.
 - **Content modeled as MCP resources** can use `resources/subscribe` + `notifications/resources/updated`
   for finer-grained refresh where the client supports it, but treat new-session re-fetch as the
-  dependable path. (Source: modelcontextprotocol.io/specification/2025-11-25/server/{tools,resources,
+  dependable path. (Source: modelcontextprotocol.io/specification/2026-07-28/server/{tools,resources,
   lifecycle}.)
 
 ## Security notes
@@ -128,9 +133,10 @@ tools stay invisible. Bump VERSION so `get_server_info` reflects the deploy.
 Two tiers, same server:
 - **Without developer mode (chat + deep research):** this server ships connector-contract `search`
   and `fetch` tools over the knowledge cache, which is the exact pair ChatGPT requires from a
-  plain connector (developers.openai.com/api/docs/mcp). Add the connector by URL
+  plain connector (developers.openai.com/api/docs/mcp). Both return the payload twice, as
+  structuredContent and as mirrored text content, per that contract. Add the connector by URL
   `https://YOUR-HOST/mcp`.
-- **Developer mode (full tool set):** Settings -> Apps (Connectors) -> enable Developer mode
+- **Developer mode (full tool set):** Settings -> Apps (formerly Connectors) -> enable Developer mode
   (available on Pro/Plus/Business/Enterprise/Edu on the web; help.openai.com article 12584461,
   excerpt confidence) -> add `https://YOUR-HOST/mcp`. Write tools carry accurate
   `destructiveHint`/`readOnlyHint` annotations, so ChatGPT prompts for confirmation on

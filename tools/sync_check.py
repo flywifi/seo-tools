@@ -1996,6 +1996,50 @@ def check_moving_dates():
                          f"re-verified since (verified_after={va!r}); re-check the source and update "
                          f"(staged fix in volatile-corrections.2026-07-14.json)")
 
+    # P82: blocked-source escalation clock. Twin of tools/source_currency.py::is_currently_blocked
+    # plus the overdue math in blocked_sources() -- including the P82-9 episode field
+    # first_block_detected -- (inline-duplicated: the guard stays stdlib-self-contained; keep
+    # the two in step). A blocked source is excluded from staleness
+    # math by design (P49 WS9), so without this advisory a blocked-but-load-bearing source could
+    # never age into ANY signal, however long the block lasted. Summary line plus T1 lines only:
+    # 112 sources were blocked on 2026-09-12 and enumerating them all would drown the signal.
+    reg_path = ROOT / "canonical-sources" / "source-registry.json"
+    if reg_path.exists():
+        try:
+            _sources = json.loads(reg_path.read_text(encoding="utf-8")).get("sources", [])
+        except (OSError, json.JSONDecodeError) as exc:
+            advisory(f"blocked-clock: source-registry.json unreadable: {exc}")
+            _sources = []
+        _today = datetime.date.today()
+        _overdue = []
+        for s in _sources:
+            lbd = s.get("last_block_detected")
+            if not lbd:
+                continue
+            last = s.get("last_checked")
+            if last:
+                try:
+                    if not (datetime.date.fromisoformat(lbd) > datetime.date.fromisoformat(last)):
+                        continue  # a later successful check cleared the block
+                except ValueError:
+                    pass
+            try:
+                # P82-9: age from the episode start (twin of blocked_sources(); keep in step).
+                episode = s.get("first_block_detected") or lbd
+                days = (_today - datetime.date.fromisoformat(episode)).days
+            except ValueError:
+                continue
+            interval = s.get("check_interval_days") or 30
+            if days > interval:
+                _overdue.append((s.get("id"), days, interval, s.get("tier")))
+        if _overdue:
+            advisory(f"blocked-clock: {len(_overdue)} blocked source(s) past their check interval "
+                     f"(T1 listed below); full list: python3 tools/source_currency.py report")
+            for sid, days, interval, tier in sorted(_overdue, key=lambda o: -o[1]):
+                if tier == "T1":
+                    advisory(f"blocked-clock: {sid!r} blocked {days} days (interval {interval}); "
+                             f"needs human verification in a browser")
+
 
 # degraded_behavior keys that cover several capabilities, or a renamed capability, so they are NOT of
 # the direct '<capability>_disabled' form. Invariant 44 skips these (e.g. api_disabled covers the
@@ -2467,7 +2511,12 @@ def check_doc_source_registry():
             exempt = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
         except (OSError, json.JSONDecodeError):
             exempt = set()
-    for target in _reference_scan_files():
+    # P82 (audit F17): the sources-block pass also covers implementation/**/*.md, where the
+    # packaging READMEs declare the plan-fact authorities. LOCAL union only --
+    # _reference_scan_files() is shared with invariants 5 and 49 and must stay narrow.
+    _scan_targets = list(_reference_scan_files()) + [
+        q for q in sorted((ROOT / "implementation").rglob("*.md")) if q.is_file()]
+    for target in _scan_targets:
         rel = target.relative_to(ROOT)
         text = target.read_text(encoding="utf-8")
         for m in SOURCES_BLOCK_RE.finditer(text):
@@ -2510,20 +2559,31 @@ def check_doc_source_registry():
     # the registry entry is required.
     known_articles = {m for url in registry.values() if url
                       for m in re.findall(r"/articles/(\d{4,})", url)}
-    shorthand = re.compile(r"(?:help\.openai\.com/en/articles/|\bhelp/)(\d{4,})")
+    # P82 (audit F17): line-based, not prefix-anchored. The old pattern required the id to sit
+    # immediately after the prefix, so a comma list -- "articles 8554397, 8798878", exactly how
+    # ADR 0052 leaked an unregistered id -- slipped it. Any line naming the help host yields its
+    # 7-8 digit tokens (word-bounded, so comma-grouped figures and shorter noise stay out).
+    _help_line = re.compile(r"help\.openai\.com|\bhelp/")
+    _article_id = re.compile(r"\b(\d{7,8})\b")
     # Deliberately NOT _reference_scan_files(): that set excludes tools/*.py and the packaging
     # READMEs, which is where two thirds of these citations actually live -- including
     # tools/surface_budgets.py, whose enforced caps depend on them. Scanning the narrower set
     # would have closed the class on paper while staying blind to the real instances.
     for rel in (_git_ls_files() or []):
-        if not rel.endswith((".md", ".py")) or rel.startswith("canonical-sources/"):
+        # P82: .json joins the corpus so shared/cross-modality/transitions.json -- the file
+        # holding the most plan claims in the repo -- is swept too.
+        if not rel.endswith((".md", ".py", ".json")) or rel.startswith("canonical-sources/"):
             continue
         target = ROOT / rel
         if not target.exists():
             continue
         seen = set()
-        for art in shorthand.findall(target.read_text(encoding="utf-8", errors="ignore")):
-            if art in known_articles or art in seen:
+        arts = []
+        for line in target.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if _help_line.search(line):
+                arts.extend(_article_id.findall(line))
+        for art in arts:
+            if art in known_articles or art in seen or art in exempt:
                 continue
             seen.add(art)
             problem(f"{rel}: cites help.openai.com article {art} in shorthand, but no registry "

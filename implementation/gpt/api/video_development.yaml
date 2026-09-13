@@ -5,6 +5,11 @@ description: >
   drop-off risk ratings), title generation, thumbnail concept, a script with
   section-by-section structure, b-roll notes per section, and 3 or more Short
   extracts ready for repurposing. Governed by quality gates before output.
+  Returns: JSON: keyword_cluster, hooks (5 variants with hook_type, text, drop_off_risk_rating),
+  titles (3 to 5 candidates with CTR rationale), thumbnail_concept (foreground, background,
+  text_overlay, color_palette), script (sections: intro, body_sections[], outro — each with
+  narration, b_roll_notes, on_screen_text), short_extracts (3+ clips with start_cue, end_cue,
+  caption, hook_for_short), quality_review_score, fabrication_flags.
 
   Use when the creator is ready to produce a specific video and needs the
   creative package. For just a title or just a hook, invoke those atoms directly
@@ -43,10 +48,3 @@ parameters:
       description: Creator's DIY skill level for content complexity adaptation.
   required:
     - concept
-returns: >
-  JSON: keyword_cluster, hooks (5 variants with hook_type, text, drop_off_risk_rating),
-  titles (3 to 5 candidates with CTR rationale), thumbnail_concept
-  (foreground, background, text_overlay, color_palette), script
-  (sections: intro, body_sections[], outro — each with narration, b_roll_notes,
-  on_screen_text), short_extracts (3+ clips with start_cue, end_cue, caption,
-  hook_for_short), quality_review_score, fabrication_flags.

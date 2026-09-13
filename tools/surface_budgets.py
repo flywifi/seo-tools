@@ -13,7 +13,8 @@ Caps sourced 2026-08-15:
     Authority: help.openai.com/en/articles/8096356 (excerpt confidence; page 403s direct fetch).
   - Codex AGENTS.md: combined project-doc budget `project_doc_max_bytes` defaults to 32 KiB;
     files past the limit are skipped silently.
-    Authority: learn.chatgpt.com/docs/agent-configuration/agents-md (direct fetch).
+    Authority: learn.chatgpt.com/docs/agent-configuration/agents-md (direct fetch;
+    registry source codex-agents-md-config).
   - ChatGPT Project instructions: no documented cap; 8,000 chars is our conservative target so
     the artifact survives any plausible future limit.
     Authority: help.openai.com/en/articles/10169521 documents no limit (excerpt confidence).
@@ -73,15 +74,44 @@ def check(root: Path = ROOT) -> list:
     return problems
 
 
+def _selftest_fixture() -> list:
+    """Hermetic negative fixture (P82): prove check() can FAIL. The selftest used to run check()
+    against the real repo and assert today's files fit, which passes just as happily when the
+    detector is broken as when the artifacts are fine. This plants one over-cap two-box file and
+    one over-cap byte-budget file in a temp root and returns what check() says about them."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "implementation/gpt/web").mkdir(parents=True)
+        (root / "implementation/gpt/project").mkdir(parents=True)
+        (root / "implementation/gpt/web/custom-instructions.md").write_text(
+            "## Box 1\n" + "a" * 3000 + "\n## Box 2\n" + "b" * 2500, encoding="utf-8")
+        (root / "implementation/gpt/web/custom-instructions-compact.md").write_text(
+            "## Box 1\nhi\n## Box 2\nyo", encoding="utf-8")
+        (root / "implementation/gpt/project/project-instructions.md").write_text(
+            "x" * 8001, encoding="utf-8")
+        (root / "AGENTS.md").write_text("ok", encoding="utf-8")
+        return check(root=root)
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    problems = check()
     if "--selftest" in argv:
+        fixture = _selftest_fixture()
+        box_flagged = any("> 5000" in x for x in fixture)
+        byte_flagged = any("8001 bytes > 8000" in x for x in fixture)
+        if not (box_flagged and byte_flagged and len(fixture) == 2):
+            print(f"  FAIL  fixture: the detector did not flag exactly the two planted "
+                  f"violations (got {len(fixture)}: {fixture})")
+            print("surface-budgets selftest: FAIL (fixture tier)")
+            return 1
+        problems = check()
         for x in problems:
             print(f"  FAIL  {x}")
         print(f"surface-budgets selftest: {'PASS' if not problems else 'FAIL'} "
-              f"({len(problems)} violation(s))")
+              f"({len(problems)} violation(s); fixture tier proved the detector can fail)")
         return 1 if problems else 0
+    problems = check()
     if problems:
         for x in problems:
             print(f"surface-budget: {x}")

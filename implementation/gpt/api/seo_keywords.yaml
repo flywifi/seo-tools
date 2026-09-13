@@ -7,6 +7,11 @@ description: >
   cross-platform verdicts, a topical authority hub-and-cluster plan, and a quality
   score; volume figures are labeled [estimated] and anything that could not be
   retrieved is surfaced in retrieval_gaps rather than invented.
+  Returns: JSON: keyword_cluster (primary + secondary + long_tail), search_intent per keyword,
+  platform_profiles per keyword-platform pair, topical_authority_map (hub + satellites),
+  competitor_gaps, title_suggestions (3 to 5 per top keyword), seasonal_timing_summary,
+  quality_review_score (composite + dimension breakdown + release_approved), retrieval_gaps,
+  fabrication_flags. All volume estimates labeled [estimated].
 
   Use when the creator needs a keyword deliverable to act on.
   For quick cross-platform comparison only, use keyword_compare instead.
@@ -44,9 +49,3 @@ parameters:
         hub video to 3 to 5 satellite video angles. Defaults to true.
   required:
     - topic
-returns: >
-  JSON: keyword_cluster (primary + secondary + long_tail), search_intent per keyword,
-  platform_profiles per keyword-platform pair, topical_authority_map (hub + satellites),
-  competitor_gaps, title_suggestions (3 to 5 per top keyword), seasonal_timing_summary,
-  quality_review_score (composite + dimension breakdown + release_approved),
-  retrieval_gaps, fabrication_flags. All volume estimates labeled [estimated].

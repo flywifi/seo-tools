@@ -49,6 +49,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 from pathlib import Path as pathlib_Path
 
 HERE = Path(__file__).resolve().parent
@@ -2552,31 +2553,34 @@ def job_status(job_id: str) -> str:
 
 
 @mcp.tool()
-def search(query: str) -> str:
+def search(query: str) -> dict[str, Any]:
     """Search the Creator OS knowledge base (the canonical-sources cache index).
 
-    ChatGPT-connector-shaped (P72): returns {"results": [{"id", "title", "url"}]} so this server
-    satisfies the plain-connector contract (ChatGPT without developer mode, and deep research,
-    require exactly-shaped search + fetch tools; developers.openai.com/api/docs/mcp). Read-only.
+    ChatGPT-connector-shaped (P72; envelope P82): returns {"results": [{"id", "title", "url"}]}
+    as STRUCTURED output. The SDK emits it both as structuredContent and as serialized text
+    content, the dual envelope the plain-connector contract requires (ChatGPT without developer
+    mode, and deep research, require exactly-shaped search + fetch tools;
+    developers.openai.com/api/docs/mcp). Read-only.
 
     Args:
         query: Full-text search query (e.g. "seasonal pinterest lead times").
     """
-    return json.dumps(_search_impl(query))
+    return _search_impl(query)
 
 
 @mcp.tool()
-def fetch(id: str) -> str:
+def fetch(id: str) -> dict[str, Any]:
     """Fetch one knowledge record by a search result id ("source::record").
 
-    ChatGPT-connector-shaped (P72): returns {"id", "title", "text", "url", "metadata"} per the
-    plain-connector contract (developers.openai.com/api/docs/mcp). Read-only; refuses gitignored
+    ChatGPT-connector-shaped (P72; envelope P82): returns {"id", "title", "text", "url",
+    "metadata"} as STRUCTURED output plus mirrored text content, per the plain-connector
+    contract (developers.openai.com/api/docs/mcp). Read-only; refuses gitignored
     .local. sources.
 
     Args:
         id: A result id exactly as returned by search, "source-file::record-id".
     """
-    return json.dumps(_fetch_impl(id))
+    return _fetch_impl(id)
 
 
 # ---------------------------------------------------------------------------
@@ -2658,24 +2662,42 @@ if __name__ == "__main__":
         for _pb in _ann_problems:
             print(f"       {_pb}")
         _shape_ok = True
-        _sr = json.loads(search("keyword"))
+        _sr = search("keyword")            # P82: wrappers return dicts (dual envelope)
         if "results" not in _sr or not isinstance(_sr["results"], list):
             _shape_ok = False
         for _r in _sr["results"]:
             if set(_r) != {"id", "title", "url"} or not _r["url"]:
                 _shape_ok = False
-        _fr = json.loads(fetch(_sr["results"][0]["id"])) if _sr["results"] else {"error": "empty"}
+        _fr = fetch(_sr["results"][0]["id"]) if _sr["results"] else {"error": "empty"}
         if _sr["results"] and not {"id", "title", "text", "url"} <= set(_fr):
             _shape_ok = False
-        _loc = json.loads(fetch("x.local.json::anything"))
-        if "error" not in _loc:
+        if "error" not in fetch("x.local.json::anything"):
             _shape_ok = False
-        _hostile = json.loads(search('a AND ("'))  # FTS syntax bomb -> must not raise
-        if "results" not in _hostile:
+        if "results" not in search('a AND ("'):   # FTS syntax bomb -> must not raise
+            _shape_ok = False
+        # P82 wire tier: assert the OUTCOME through the SDK, not the impl. The ChatGPT
+        # connector contract requires the payload BOTH as structuredContent and as serialized
+        # text. 1.x FastMCP call_tool returns (content, structured); 2.x MCPServer returns a
+        # CallToolResult whose python attribute is structured_content -- NOT structuredContent;
+        # reading the camelCase name yields None and the check silently lies (caught live).
+        import asyncio as _asyncio
+        _wres = _asyncio.run(mcp.call_tool("search", {"query": "keyword"}))
+        if isinstance(_wres, tuple):
+            _wcontent, _wstructured = _wres
+        else:
+            _wcontent, _wstructured = _wres.content, _wres.structured_content
+        _wtext = next((getattr(c, "text", None) for c in (_wcontent or [])
+                       if getattr(c, "text", None)), None)
+        if (_wstructured is None or "results" not in _wstructured
+                or _wtext is None or json.loads(_wtext) != _wstructured):
+            _shape_ok = False
+        _wres2 = _asyncio.run(mcp.call_tool("fetch", {"id": "x.local.json::anything"}))
+        _wstructured2 = _wres2[1] if isinstance(_wres2, tuple) else _wres2.structured_content
+        if not (_wstructured2 and "error" in _wstructured2):
             _shape_ok = False
         print(("ok   " if _shape_ok else "FAIL ")
-              + "search/fetch match the ChatGPT connector contract shapes; .local refused; "
-              + "hostile FTS input survives")
+              + "search/fetch: dual connector envelope on the wire (structuredContent + text "
+              + "mirror); .local refused; hostile FTS input survives")
         # P80: six write tools are serialised behind _WRITE_LOCK and configure_tool writes atomically.
         # Two threads toggling different capabilities must leave one parseable file holding both keys
         # and no temp residue. Runs against a temp path; the real local config is never touched.

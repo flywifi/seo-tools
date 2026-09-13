@@ -5,6 +5,10 @@ description: >
   fit, competition estimate, and seasonal relevance per keyword-platform pair, plus
   three cross-platform verdicts: universal keywords (strong fit on 3+ platforms),
   platform-exclusive opportunities, and niche long-tail candidates.
+  Returns: JSON: keywords_analyzed, keywords_overflow, platforms_analyzed, season_context,
+  comparison_matrix (keyword + cross_platform_verdict + strongest_platform + platform_profiles
+  per cell), universal_keywords, platform_exclusive_opportunities, seasonal_timing_summary,
+  retrieval_gaps, fabrication_flags. competition_estimate is always labeled [estimated].
 
   Use when the creator wants to decide which platform to prioritize for a keyword or
   batch of keywords in a single query. Do NOT use for keyword research from scratch
@@ -44,9 +48,3 @@ parameters:
         len(keywords) x len(platforms) > 20. Defaults to false.
   required:
     - keywords
-returns: >
-  JSON: keywords_analyzed, keywords_overflow, platforms_analyzed, season_context,
-  comparison_matrix (keyword + cross_platform_verdict + strongest_platform +
-  platform_profiles per cell), universal_keywords, platform_exclusive_opportunities,
-  seasonal_timing_summary, retrieval_gaps, fabrication_flags.
-  competition_estimate is always labeled [estimated].

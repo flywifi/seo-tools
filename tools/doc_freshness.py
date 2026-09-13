@@ -56,6 +56,19 @@ DOC_SOURCES = {
         "tools/wizard.py",
         "tools/pick_folder.py",
     ],
+    # P82 (audit F15): nothing ChatGPT-facing was bound, so every drift the 2026-09 audit found
+    # had to be found by hand. Each of these would have caught one of them: the loader/spec
+    # contract (an undocumented `returns:` key reaching the wire), the connector envelope
+    # (search/fetch returning text only), and the plan-fact tables (file caps, memory scope).
+    "implementation/gpt/api/README.md": [
+        "implementation/gpt/api/competitor_analysis.yaml",
+        "implementation/gpt/api/creator_core.yaml",
+        "implementation/gpt/api/keyword_compare.yaml",
+        "implementation/gpt/api/seo_keywords.yaml",
+        "implementation/gpt/api/video_development.yaml",
+    ],
+    "implementation/gpt/mcp-connector/README.md": ["tools/mcp_server.py"],
+    "docs/TRANSITIONS.md": ["shared/cross-modality/transitions.json"],
     # P61: the injection-guard engine doc's "Offline pattern tier" section describes the tool that
     # implements its categories/scores verbatim; a tool change plausibly stales that section.
     "shared/injection-guard-engine.md": ["tools/injection_scan.py"],

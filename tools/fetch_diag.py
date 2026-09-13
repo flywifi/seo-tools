@@ -64,6 +64,11 @@ _VENDORS = [
     }),
 ]
 
+# P82-9: real challenge interstitials are small; genuine pages that merely EMBED a captcha
+# widget are large. Measured 2026-09-12: nine false-positive pages ran 85 KB to 1.1 MB; a
+# Cloudflare interstitial is under ~16 KB. 30 KB separates the populations with wide margin.
+_CHALLENGE_BODY_MAX = 30_000
+
 _CAPTCHAS = [
     ("hCaptcha", ["hcaptcha.com", "h-captcha", "hcaptcha"]),
     ("reCAPTCHA", ["recaptcha", "g-recaptcha", "google.com/recaptcha"]),
@@ -115,7 +120,22 @@ def classify_block(status: int | None, headers: dict | None = None, body: str = 
 
     is_4xx_block = status in (401, 403, 406, 451)
     is_throttle = status in (429, 503)
-    challenge_markers = any(s.startswith("body") for s in signals) or captcha
+    is_success = status is not None and 200 <= status < 300
+    challenge_body = any(s.startswith("body") for s in signals)
+    # P82-9: on a SUCCESS response, a captcha asset or a bare vendor fingerprint is not a wall.
+    # Genuine pages embed reCAPTCHA for their own forms (Google's blog carries 'recaptcha' five
+    # times on a 623 KB page of real content), and every site behind a CDN carries that CDN's
+    # header/cookie fingerprint (Akamai has NO body markers, so its 200-verdicts were always
+    # fingerprint-only). A real challenge interstitial is small (Cloudflare's is under ~16 KB)
+    # or carries a challenge-specific body marker. Requiring that evidence on a 2xx ended nine
+    # false "permanently blocked" verdicts on healthy seo-authority sources (2026-09-12).
+    # Non-2xx logic is unchanged: a 403/429/503 is still a block/throttle on status alone.
+    if captcha and is_success and not challenge_body and len(body or "") > _CHALLENGE_BODY_MAX:
+        signals = [s for s in signals if not s.startswith("captcha ")]
+        captcha = None
+    if vendor and is_success and not challenge_body and not captcha:
+        vendor = None  # a CDN serving real content, not a CDN refusing us
+    challenge_markers = challenge_body or captcha
     blocked = bool(vendor or captcha or is_4xx_block or is_throttle)
 
     if captcha:
@@ -261,6 +281,27 @@ def selftest() -> int:
     ok("an ordinary 200 is NOT called a block",
        clean.get("blocked") is False and clean.get("vendor") is None)
     ok("an unblocked response is worth retrying", clean.get("retry_worthwhile") is True)
+
+    widget = classify_block(200, {"server": "cloudflare"},
+                            "<html><title>Real article</title>" + "x" * 40_000 +
+                            "<script src='https://www.google.com/recaptcha/api.js'></script></html>")
+    ok("a genuine 200 page embedding a captcha widget is NOT a block (P82-9)",
+       widget.get("blocked") is False)
+    cdn = classify_block(200, {"server": "cloudflare", "cf-ray": "abc"},
+                         "<html>plain healthy page" + "y" * 40_000 + "</html>")
+    ok("a CDN fingerprint on a healthy 200 is NOT a block (P82-9)",
+       cdn.get("blocked") is False and cdn.get("vendor") is None)
+    interstitial = classify_block(200, {"server": "cloudflare"},
+                                  "<html>Just a moment... /cdn-cgi/challenge-platform</html>")
+    ok("a 200-served challenge interstitial IS still a block",
+       interstitial.get("blocked") is True)
+    small_captcha = classify_block(200, {}, "<html>verify: g-recaptcha challenge</html>")
+    ok("a small 200 body with a captcha marker IS still a block",
+       small_captcha.get("blocked") is True)
+    hard403 = classify_block(403, {"server": "cloudflare", "cf-ray": "abc"},
+                             "Attention Required! | Cloudflare")
+    ok("non-2xx classification is unchanged by P82-9",
+       hard403.get("blocked") is True and hard403.get("retry_worthwhile") is False)
 
     src = find_data_sources(
         '<link rel="alternate" type="application/rss+xml" href="/feed.xml">', "https://example.com")

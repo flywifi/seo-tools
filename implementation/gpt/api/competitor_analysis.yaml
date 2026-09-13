@@ -5,6 +5,12 @@ description: >
   optionally checks trend momentum, and produces a structured gap report covering
   overserved topics, underserved angles, keyword gaps, entity gaps, and a
   differentiation summary.
+  Returns: JSON: competitors_found per platform (name, url, scale_tier, primary_aesthetic,
+  content_pillars_overlap), entity_map (extracted named entities with frequency and niche_fit),
+  keyword_gaps (keywords competitors use that creator does not), overserved_topics (high
+  competition, avoid), underserved_angles (low competition, pursue), differentiation_summary,
+  retrieval_gaps, fabrication_flags. All competitor data labeled [unverified] until confirmed via
+  source.
 
   Use when the creator wants to understand the competitive landscape before planning
   content. For a single competitor's hidden metadata (video tags, hashtags, chapters),
@@ -37,10 +43,3 @@ parameters:
         Adds latency. Defaults to false.
   required:
     - niche
-returns: >
-  JSON: competitors_found per platform (name, url, scale_tier, primary_aesthetic,
-  content_pillars_overlap), entity_map (extracted named entities with frequency and
-  niche_fit), keyword_gaps (keywords competitors use that creator does not),
-  overserved_topics (high competition, avoid), underserved_angles (low competition,
-  pursue), differentiation_summary, retrieval_gaps, fabrication_flags.
-  All competitor data labeled [unverified] until confirmed via source.

@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-06",
+  "last_registry_update": "2026-09-12",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -11,7 +11,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Look for algorithm update announcements, ranking signal changes, structured data spec updates, and Core Web Vitals threshold changes.",
       "used_by": [
@@ -26,9 +26,12 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "919fdb56f7505e89da3e03cc5f200b6c6f0457974e58a559b2444a7b8ac133a2",
+      "content_last_modified": "Thu, 16 Jul 2026 11:42:35 GMT",
+      "first_block_detected": null
     },
     {
       "id": "youtube-creator-blog",
@@ -106,7 +109,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Early signals on Google algorithm changes (often surfaces before official confirmation). Useful for trend-check when SEJ has nothing.",
       "used_by": [
@@ -116,9 +119,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "7889df8b6e8997374cc8a61a65097f1aa25d7c9035e609bea24b2d56d3c25f62",
+      "first_block_detected": null
     },
     {
       "id": "youtube-help-video-specs",
@@ -665,7 +670,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Extract: current Pinterest search trends and predictions, keyword guidance for home decor category, algorithm changes to pin distribution. Annual Predicts report is high priority.",
       "used_by": [
@@ -678,9 +683,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "ffedf33ff6d39ba43634b564a7521c86d784b57492ba0e5a1ff7d1be824cb2c3",
+      "first_block_detected": null
     },
     {
       "id": "pinterest-newsroom",
@@ -690,7 +697,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Check for algorithm changes, new ad format announcements, creator program updates. Early signal for platform spec changes before help center updates.",
       "used_by": [
@@ -701,21 +708,23 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "1b99496c5152e4dfc489ed2db45c45a1c4f93877ce253d5b444c395851debc22",
+      "first_block_detected": null
     },
     {
       "id": "tiktok-fyp-guide",
-      "name": "TikTok Creator Portal: Understanding the For You Page",
-      "url": "https://www.tiktok.com/creator-portal/en-us/tiktok-content-strategy/understanding-the-for-you-page/",
+      "name": "TikTok Creator Academy (successor of the creator portal)",
+      "url": "https://www.tiktok.com/creator-academy/en-us/",
       "category": "seo-authority",
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
-      "extraction_hint": "Extract: what TikTok says drives FYP distribution (completion rate, interactions, video info, device/account settings), content quality guidance, hashtag role.",
+      "extraction_hint": "creator education hub; FYP-recommendation specifics live in the tiktok-newsroom-algorithm source; watch for the portal moving again",
       "used_by": [
         "seo-intelligence-engine",
         "platform-engine",
@@ -725,9 +734,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "c455867fef8aa3717deeabec089ff329072ad0a3ac42ba135ef246feb06e5fcc",
+      "first_block_detected": null
     },
     {
       "id": "tiktok-newsroom",
@@ -737,7 +748,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Check for algorithm transparency updates, new creator monetization features, policy changes. Early signal before creator portal updates.",
       "used_by": [
@@ -748,9 +759,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "0cbabbeb519caddc01aaf77556bbcdebc0980e699263f561a71c8981ce4adacd",
+      "first_block_detected": null
     },
     {
       "id": "ftc-disclosures-101",
@@ -870,9 +883,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
+      "last_block_detected": "2026-09-12",
       "block_kind": "rate_limit",
-      "block_vendor": null
+      "block_vendor": null,
+      "first_block_detected": "2026-09-12"
     },
     {
       "id": "the-spruce-home-decor",
@@ -1113,7 +1127,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Extract: official FYP ranking signals (rewatch rate now #1, surpassing completion), what TikTok says are non-factors (follower count, prior video performance), signals that make content FYP-ineligible. This is the primary official source for algorithm transparency.",
       "used_by": [
@@ -1125,9 +1139,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "27e509308ded3409de9afd8f4f6f9c900208c441a406e56ccc7b11e9aa6eec58",
+      "first_block_detected": null
     },
     {
       "id": "instagram-graph-api-docs",
@@ -1157,7 +1173,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Extract: official ranking signals for Reels (sends per reach as unique primary signal, watch time, saves, originality gate at 10+ reposts), what Instagram says it penalizes (low-res, watermarked content, reposts), hashtag guidance updates.",
       "used_by": [
@@ -1169,9 +1185,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "a88c2ace0bfd11d589e2ec5c197a990920da0622fce25260627d1c80fa6a1203",
+      "first_block_detected": null
     },
     {
       "id": "pinterest-api-v5-docs",
@@ -1301,9 +1319,10 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
+      "last_block_detected": "2026-09-12",
       "block_kind": "rate_limit",
-      "block_vendor": null
+      "block_vendor": null,
+      "first_block_detected": "2026-09-12"
     },
     {
       "id": "tubebuddy-blog",
@@ -1313,7 +1332,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "Scan for: SEO optimization tactics, chapter marker best practices, end screen strategy, keyword research approaches for YouTube. Flag T3 confidence.",
       "used_by": [
@@ -1324,9 +1343,12 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "54bde9b53f4bb4bdcfd3feb030b2f022d04ee254bdfba12886fff92984e34175",
+      "min_recheck_at": 739871,
+      "first_block_detected": null
     },
     {
       "id": "pinterest-api-v5-pin-creation",
@@ -3647,10 +3669,7 @@
       "last_checked": "2026-08-30",
       "last_changed_detected": null,
       "extraction_hint": "the newer ChatGPT app packaging surface (built on MCP); _meta.ui contract, widget MIME, structuredContent",
-      "used_by": [
-        "implementation/gpt",
-        "skills/atoms/export-gpt"
-      ],
+      "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -3902,7 +3921,7 @@
       "tier": "T3",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": null,
+      "last_checked": "2026-09-12",
       "last_changed_detected": null,
       "extraction_hint": "year-stamped retail shopping dates; the DATES are public facts (freely cacheable); re-verify on the year flip in the title",
       "used_by": [
@@ -3915,9 +3934,13 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "adc0eef0edfc4f999515e9a94a4ed0da899c384266b0501b9af05205894c79ea",
+      "content_last_modified": "Sat, 12 Sep 2026 21:10:46 GMT",
+      "min_recheck_at": 739871,
+      "first_block_detected": null
     },
     {
       "id": "ftc-ecfr-16-cfr-465",
@@ -4860,29 +4883,6 @@
       "content_sha256": "0d3150a69779294f24b089ff92b99c007394c2783e6ba924abb174c8d671f1cc",
       "content_etag": "\"45b099e286257979198540dc4516d2b4\"",
       "content_last_modified": "Sat, 29 Aug 2026 10:15:11 GMT"
-    },
-    {
-      "id": "mcp-spec-2025-11-25",
-      "name": "Model Context Protocol specification 2025-11-25 (stable)",
-      "url": "https://modelcontextprotocol.io/specification/2025-11-25",
-      "category": "ai-surface-spec",
-      "tier": "T1",
-      "check_interval_days": 30,
-      "staleness_threshold_days": 30,
-      "last_checked": null,
-      "last_changed_detected": null,
-      "extraction_hint": "Streamable HTTP, OAuth 2.1 (RFC 9728/8707/PKCE), tools.listChanged, resources/subscribe, serverInfo.version at initialize; 2026-07-28 is RC only",
-      "used_by": [
-        "docs/CROSS-MODALITY.md"
-      ],
-      "depth": 0,
-      "parent_source_id": null,
-      "traversal_status": "pending",
-      "child_source_ids": [],
-      "_why": "The current stable protocol revision underpinning every Tier-B background-update claim",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
     },
     {
       "id": "youtube-studio-analytics-export",
@@ -5924,7 +5924,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: custom-instructions fields cap at 1,500 characters on Free/Go and 5,000 on Plus and above; whether the cap is per-field or combined is NOT documented, so packaged artifacts are sized against the combined reading (tools/surface_budgets.py). Re-verify by browser when possible.",
-      "used_by": [],
+      "used_by": [
+        "implementation/gpt/web/README.md",
+        "tools/surface_budgets.py"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -5946,7 +5949,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
-      "used_by": [],
+      "used_by": [
+        "implementation/gpt/project/README.md",
+        "tools/surface_budgets.py"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -5968,7 +5974,10 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: creating and publishing NEW Custom GPTs requires a Business, Enterprise or Edu workspace; personal plans (Free/Go/Plus/Pro) can use and edit existing GPTs but cannot create new ones. Re-verify by browser when possible.",
-      "used_by": [],
+      "used_by": [
+        "shared/cross-modality/transitions.json",
+        "skills/atoms/export-gpt"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -6010,7 +6019,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
-      "used_by": [],
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -6072,7 +6083,9 @@
       "last_checked": null,
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: developer mode with custom MCP connectors is available on Pro, Plus, Business, Enterprise and Edu on the web; write-action MCP apps are beta on Business/Enterprise/Edu; custom connectors are unverified by OpenAI and carry a prompt-injection warning. Re-verify by browser when possible.",
-      "used_by": [],
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -6274,7 +6287,67 @@
       "content_etag": "\"6a9c9baa-323b\"",
       "content_last_modified": "Sat, 05 Sep 2026 22:46:02 GMT",
       "min_recheck_at": 739864
+    },
+    {
+      "id": "mcp-spec-2026-07-28",
+      "name": "Model Context Protocol specification 2026-07-28 (current)",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-12",
+      "last_changed_detected": null,
+      "extraction_hint": "a new date-tag is a new protocol revision; 2026-07-28 removed the handshake and added _meta plus mandatory server/discover (verified at source 2026-09-07); watch transport deprecations and auth changes",
+      "used_by": [
+        "docs/CROSS-MODALITY.md",
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "content_sha256": "71595b6819504788b6814017aa61b9b009e8d018504df5358a2443a417942566"
+    },
+    {
+      "id": "codex-agents-md-config",
+      "name": "Codex agent configuration: AGENTS.md (learn.chatgpt.com)",
+      "url": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "project_doc_max_bytes default (32 KiB) backs the AGENTS.md budget in tools/surface_budgets.py",
+      "used_by": [
+        "tools/surface_budgets.py",
+        "AGENTS.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-gpt-workspace-articles",
+      "name": "Custom GPT workspace policy companion article (help center 8798878)",
+      "url": "https://help.openai.com/en/articles/8798878",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com blocks automated fetch); cited by ADR 0052 beside 8554397 for the workspace-only Custom GPT gate; URL slug unknown until a browser visit",
+      "used_by": [
+        "docs/adr/0052-p72-openai-parity.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "dcea6ce3084a39fe6d0c6deaa2676ba72d085f94c75994f6a9975b8dfb47f863"
+  "_content_digest": "ce9df75c8c6f83109587e2a69f86db2b5f3b82045baae431f1d914af09d5310d"
 }

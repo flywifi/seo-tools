@@ -239,13 +239,13 @@
       ],
       "origins": [],
       "setup_steps": [
-        "Create a Project in ChatGPT (sidebar, New project). At creation, choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats (this choice is only offered at creation).",
+        "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats (best set at creation; an existing unshared project can be switched later [NEEDS VERIFICATION: switching reported 2026-08-14; help center not machine-fetchable]).",
         "Set the Project instructions to implementation/gpt/project/project-instructions.md (paste the whole file).",
-        "Upload the 8 knowledge files from implementation/claude/project/knowledge/ to the Project files area (8 files is under every published limit; consumer per-project file counts are not officially documented as of 2026-08).",
+        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps: 5 on Free, 25 on Plus, 40 on Pro/Business/Enterprise [NEEDS VERIFICATION: caps from secondary reporting, 2026-09]. On Free the 8-file bundle does not fit; upload the first 5 (01 through 05) instead.",
         "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when your files are stale."
       ],
       "needs_verification": [
-        "your plan's per-project file limit if you add files beyond this bundle (not officially documented for Free/Plus/Pro; 40/project documented for Team/Business/Enterprise)"
+        "your plan's per-project file cap: 5 Free / 25 Plus / 40 Pro-Business-Enterprise per secondary reporting 2026-09; not re-verified against the help center (machine-fetch blocked)"
       ]
     },
     "chatgpt_desktop": {

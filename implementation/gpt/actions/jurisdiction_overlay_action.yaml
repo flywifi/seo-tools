@@ -14,7 +14,7 @@ info:
 servers:
   - url: https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services
 paths:
-  /geocode:
+  /locations/onelineaddress:
     servers:
       - url: https://geocoding.geo.census.gov/geocoder
     get:
@@ -41,7 +41,7 @@ paths:
             default: "json"
       responses:
         "200":
-          description: "Census geocoder result. Read result.addressMatches first coordinates: x is longitude, y is latitude."
+          description: "Census geocoder result. Read result.addressMatches[0].coordinates: x is longitude, y is latitude. An empty addressMatches array means no match was found; say so rather than guessing coordinates."
   /OrlandoHistoricLocalDistricts/FeatureServer/0/query:
     get:
       operationId: historicDistrictAtPoint
@@ -148,7 +148,7 @@ paths:
       responses:
         "200":
           description: "GeoJSON FeatureCollection. Feature property Zoning is the district code."
-  /flood:
+  /query:
     servers:
       - url: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28
     get:
@@ -201,4 +201,4 @@ paths:
             default: "json"
       responses:
         "200":
-          description: "ArcGIS result. Feature attribute FLD_ZONE is the flood zone."
+          description: "ArcGIS query result. features[0].attributes.FLD_ZONE is the flood zone (e.g. AE, VE, X); SFHA_TF is T when the point is in a Special Flood Hazard Area. An empty features array means no NFHL coverage at the point; say so rather than guessing a zone."
