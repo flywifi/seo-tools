@@ -14,8 +14,8 @@ and must be checked against your own account; the repo does not assert it.
 | Claude Desktop (this computer) | everything (Class A, B, C native) | yes |
 | Claude Code / command line | everything | yes |
 | claude.ai in a browser (web and mobile) | knowledge natively; live tools via a deployed remote MCP connector | no (the endpoint's machine enforces) |
-| Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend) | yes |
-| Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect | no (a fresh sandbox has no local config) |
+| Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend); the existing-desktop path -- new sessions default to the cloud (support/14479288, 2026-09-19) | yes |
+| Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect; the cloud default, beta on web and mobile for Pro, Max, and Team plans (support/14479288, 2026-09-19) | no (a fresh sandbox has no local config) |
 | ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files); live tools need a developer-mode MCP connector, which is a separate setup and not "plain" chat | no |
 | Custom GPT (built in the ChatGPT GPT builder) | knowledge pack + the public jurisdiction Action | no |
 | ChatGPT Projects (a Project with files at chatgpt.com) | knowledge pack as Project instructions + files | no |

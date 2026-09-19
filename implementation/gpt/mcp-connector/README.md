@@ -60,8 +60,12 @@ gates are enforced HERE, on this machine, for every surface that connects.
 
 ## Register the connector, per surface
 
-- **claude.ai (web and mobile):** Settings, then Connectors, then add a custom connector with
-  your HTTPS URL. Follow the on-screen auth flow.
+- **claude.ai (web and mobile):** available on Free, Pro, and Max (Customize, then Connectors,
+  then Add custom connector) and on Team/Enterprise (an Owner adds it under Organization
+  settings, then Connectors). Use the HTTPS URL ending in `/mcp`; a URL ending in `/sse`
+  selects the older SSE transport. Authentication settings cannot be changed after a connector
+  is added; remove and re-add to change them. (Source:
+  claude.com/docs/connectors/custom/remote-mcp, fetched 2026-09-19.)
 - **ChatGPT web (developer mode):** Settings, then Security and login, then turn on Developer
   mode; add the server at chatgpt.com/plugins (the plus button). Available on Pro, Plus,
   Business, Enterprise, and Education accounts on the web. (Source:
