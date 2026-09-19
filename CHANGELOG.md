@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P85: a first-time lane in the wizard -- one "Set everything up" button chains free-tools
+  install, the Creator OS install-and-verify step, and the optional service connections, each
+  screen with an explicit Skip; progress persists to a gitignored state file so an interrupted
+  setup resumes on relaunch (Start over clears it explicitly, never implicitly); `main()` gains
+  a Python-floor guard that prints the install instructions instead of tracebacking on 3.11.
 - P85: the setup wizard installs the Creator OS MCP server itself (`/creator-os-server` screen):
   the entry is merged into Claude Desktop's config through the safe writer with absolute
   venv-aware paths, then verified with a real MCP handshake and tool listing before the wizard

@@ -39,7 +39,15 @@ Run one command and follow the browser steps:
 python3 tools/wizard.py
 ```
 
-A browser window opens automatically. The wizard:
+A browser window opens automatically. First time? Press the one **"Set everything up"** button:
+it chains the free-tools install, the Creator OS install-and-verify step, and the optional
+Google/Microsoft connections, with an explicit "Skip this step" on every screen. Progress is
+saved locally (a gitignored `creator-os-wizard-state.local.json` holding only step flags), so
+closing the window or relaunching resumes where you left off; "Start over" on the welcome
+screen clears it. Run on an older Python and the wizard exits with the install instructions
+instead of a traceback.
+
+The wizard:
 
 1. Detects your operating system (Mac, Windows, or Linux).
 2. **Installs the Creator OS tools into Claude Desktop** (the `/creator-os-server` step): it

@@ -285,6 +285,31 @@ _state: dict = {
 }
 _lock = threading.Lock()
 
+# P85-2: setup progress survives a relaunch. Flags only -- no secrets, no PII. The .local.json
+# suffix is gitignored and commit-blocked (pre-commit hook + drift invariant 19). Re-running the
+# wizard never wipes this implicitly; only the "Start over" button clears it.
+_STATE_PATH = ROOT / "creator-os-wizard-state.local.json"
+
+def _load_persisted_state() -> None:
+    try:
+        saved = json.loads(_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if isinstance(saved, dict):
+        with _lock:
+            _state.update(saved)
+
+def _clear_persisted_state() -> None:
+    with _lock:
+        for k in ("first_run_step", "creator_os_installed", "creator_os_probe",
+                  "google_done", "microsoft_done"):
+            _state.pop(k, None)
+        _state.update(google_done=False, microsoft_done=False)
+        try:
+            _STATE_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
+
 def _get(key: str):
     with _lock:
         return _state.get(key)
@@ -292,6 +317,15 @@ def _get(key: str):
 def _set(**kwargs) -> None:
     with _lock:
         _state.update(kwargs)
+        try:
+            atomic_io.atomic_write_text(
+                _STATE_PATH,
+                json.dumps({k: v for k, v in _state.items()
+                            if isinstance(v, (bool, int, str))}))
+        except OSError:
+            pass  # persistence is a convenience; the session keeps working in memory
+
+_load_persisted_state()
 
 _shutdown = threading.Event()
 
@@ -367,6 +401,32 @@ def _page(title: str, body: str, dots: list[str] | None = None) -> str:
 
 # ── Individual screens ─────────────────────────────────────────────────────
 
+_FIRST_RUN_LABELS = {
+    "/setup-computer": "Install the free tools",
+    "/creator-os-server": "Install the Creator OS tools into Claude Desktop",
+    "/desktop": "Connect Google or Microsoft (optional)",
+    "/done": "Finish",
+}
+
+def _first_run_banner() -> str:
+    """P85-2 resume banner: rendered only when a first run is underway. Reads state; never
+    mutates it (screen functions are rendered on every request)."""
+    step = _get("first_run_step")
+    if not step or step == "/done" or step not in _FIRST_RUN_LABELS:
+        return ""
+    return f"""<div class="success-box"><strong>Welcome back.</strong> Your setup is part-way
+done. Next step: {_FIRST_RUN_LABELS[step]}.
+<a class="btn btn-primary" href="{step}" style="margin-left:8px">Continue</a>
+<a class="btn btn-outline" href="/first-run/reset">Start over</a></div>"""
+
+def _first_run_nav(current: str) -> str:
+    """The Next/Skip row shown on a chained screen only while the first-time lane is at that
+    screen. Skipping is explicit (its own labelled button), never silent."""
+    if _get("first_run_step") != current:
+        return ""
+    return f"""<hr><p><a class="btn btn-primary" href="/first-run/next?frm={current}">Next step</a>
+<a class="btn btn-outline" href="/first-run/next?frm={current}">Skip this step</a></p>"""
+
 def _screen_welcome() -> str:
     os_label = _os_label()
     claude_hint = " (detected on this computer)" if _claude_installed() else ""
@@ -375,6 +435,13 @@ def _screen_welcome() -> str:
 <p>A short, guided setup. Start with one question and we tailor the rest to you.</p>
 <p style="font-size:.9rem;color:#7a5a5a">This computer: <strong>{os_label}</strong>.</p>
 {_local_precondition_note()}
+{_first_run_banner()}
+<hr>
+<h2>First time here?</h2>
+<a class="btn btn-primary" href="/first-run/start"><strong>Set everything up</strong> (one guided path)</a>
+<p class="hint">Installs the free tools, puts Creator OS into Claude Desktop, checks it works,
+and optionally connects Google or Microsoft. Every step can be skipped, and closing this window
+does not lose your progress.</p>
 <hr>
 <h2>Which AI do you use?</h2>
 <a class="btn btn-primary" href="/claude"><strong>Claude</strong>{claude_hint}</a>
@@ -512,6 +579,7 @@ wizard handles them. A checkmark means you are ready.</p>
 </a>
 <a class="btn btn-outline" href="/">Back</a>
 <div class="note">You can connect both. Start with whichever you use more.</div>
+{_first_run_nav("/desktop")}
 """, dots=["done", "done", "active", "dot"])
 
 def _screen_creator_os_server(result: dict | None = None) -> str:
@@ -565,6 +633,7 @@ It will run: <code>{html.escape(entry["command"])}</code></p>
 {status_html if status_html else '''<form method="POST" action="/api/install-creator-os">
   <button class="btn btn-primary" type="submit">Install and verify now</button>
 </form>'''}
+{_first_run_nav("/creator-os-server")}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/desktop">Back</a></p>
 """, dots=["done", "done", "active", "dot"])
 
@@ -2608,6 +2677,7 @@ download). You will see a result line for every package, including any that did 
 <h2>Node.js and ffmpeg</h2>
 <p>Two tools are system programs, not Python packages, so they install through your operating system
 instead. <a href="/doctor">Check my setup</a> shows the exact one-line command for this machine.</p>
+{_first_run_nav("/setup-computer")}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>""")
 
 
@@ -2704,6 +2774,32 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._send(_oauth_callback_page(plat, q))
                 return
             self._send("<h1>Not found</h1>", 404)
+            return
+
+        if path == "/first-run/start":
+            # P85-2: enter the first-time lane. A benign progress hint (no config, no
+            # credentials), so a GET is acceptable here like the rest of the wizard's nav.
+            _set(first_run_step="/setup-computer")
+            self._redirect("/setup-computer")
+            return
+
+        if path == "/first-run/next":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            frm = q.get("frm", [""])[0]
+            chain = {"/setup-computer": "/creator-os-server",
+                     "/creator-os-server": "/desktop",
+                     "/desktop": "/done"}
+            nxt = chain.get(frm)
+            if nxt:
+                _set(first_run_step=nxt)
+                self._redirect(nxt)
+            else:
+                self._redirect("/")
+            return
+
+        if path == "/first-run/reset":
+            _clear_persisted_state()
+            self._redirect("/")
             return
 
         if path == "/cross-modality":
@@ -3882,6 +3978,18 @@ def _selftest() -> int:
 def main() -> None:
     if "--selftest" in sys.argv:
         raise SystemExit(_selftest())
+    # P85-2: fail friendly on an old interpreter instead of tracebacking later in a tool call.
+    # Mirrors the launcher's wording; the launcher already refuses pre-3.12, but the docs also
+    # say `python3 tools/wizard.py`, which bypasses the launcher.
+    if sys.version_info[:2] < env_paths.PYTHON_FLOOR:
+        floor = ".".join(map(str, env_paths.PYTHON_FLOOR))
+        print(f"\nCreator OS needs Python {floor} or newer; this is "
+              f"Python {sys.version_info[0]}.{sys.version_info[1]}.")
+        print("Easiest fix: install the notarized python.org universal2 build "
+              "(https://www.python.org/downloads/macos/),")
+        print("or install Homebrew (https://brew.sh) and run: brew install python@3.12")
+        print("Then run:  python3.12 tools/wizard.py")
+        raise SystemExit(1)
     # Bind loopback only (127.0.0.1). Primary reason: the wizard has no reason to be reachable from
     # the network, so it should not listen on an external interface. Apple's TN3179 defines a local
     # network as one on a broadcast-capable interface (Wi-Fi/Ethernet), which excludes loopback by
