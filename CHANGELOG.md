@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P85: the wizard selftest grows four families -- a 31-screen render sweep enumerated from the
+  module namespace, the creator-os config-merge round-trip (other servers survive, corrupt
+  configs are backed up), the state-persistence round-trip, and worker double-start/crash
+  semantics; ADR 0061 records the design decisions, including that the OpenClaw onboarding
+  docs were a design reference only and no OpenClaw software is used or shipped.
 - P85: the wizard's two long steps (free-tools install, speech-model download) run in a worker
   thread behind a self-refreshing progress page; double starts are refused and a crashed worker
   still reaches a terminal error page with the reason, keeping the per-package honest reporting.

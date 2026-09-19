@@ -50,7 +50,8 @@
     "docs/adr/0051-p69-macos-audit-completeness-gate.md": "bc1ac29fbc0c52475c1a74e302dc7dfad885043647f8277049fcae2dba946a56",
     "docs/adr/0055-p80-python-312-and-mcp-dual-major.md": "e3ac82f612c1e4d8ee57e49d685209d2ee4b92c295e478a5e6811fed1fff908c",
     "docs/adr/0056-p81-audit-remediation.md": "97f1c182e481ce725178147defaaaf7860c54b73a49d797a313bbbcd2bee5100",
-    "docs/adr/README.md": "8f61882788099d557d3bdc9eccf8a00fed85a549cdd435aacd32041af5df68d5",
+    "docs/adr/0061-p85-wizard-first-run-readiness.md": "154f05f2a5129d07222160c098e7c72f5839107759636b237d97493cf1455a7b",
+    "docs/adr/README.md": "de6ba2f7cacfef7f31655ce277fa37db4a7b19071230a9a7827805311d5dd479",
     "docs/persona-audit-2026-07-15.md": "e97a68e156c8c8c7300f9ba5e31fc93b17166fb75fad2e5faaa47108f182c56e",
     "docs/production-readiness-2026-08-16.md": "c46c77a45d24d6befceee6ae9dde8f599fb69c5710ab80b377c6c8140ae45975",
     "docs/remediation-2026-09-04.md": "4e4a5267a24ed3295ecd585bc7929a56fb249fa2bd05958f52a486b373f66137",
@@ -96,7 +97,7 @@
     "tools/videoedit/fcpxml.py": "0a83956f732d314a0ae6e3ba2b146b9a4fd6b7977fb5b540db67c33064efc5a5",
     "tools/videoedit/preflight.py": "f2127a8303b06a69eacf59a5e5aad370d502db1f50db270e753d0619b956f5c0",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "c4372471a6fe92c6ddfdb1bcecbbc2ca2c000e9a265ba8a3e4b809b3b9ed2cc5"
+    "tools/wizard.py": "452beda323f05952bdb292bbc8a8725c3905a150e1ff7efa17a795196cb41185"
   },
   "excluded": {}
 }

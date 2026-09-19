@@ -2,7 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P84 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P85 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P85: setup-wizard first-run readiness (2026-09-19, docs/adr/0061-p85-wizard-first-run-readiness.md).
+  The audit's headline: the wizard never wrote the creator-os MCP server entry at all (two docs
+  claimed it did), and the documented smoke test could not work (bare tools/list is rejected
+  pre-handshake, executed proof). Shipped: the /creator-os-server install-and-verify step (safe
+  config merge, real MCP handshake plus tool listing compared against count_truth at probe time,
+  three explicit outcomes, manual fallback on display); a truthful Done page with a Check-again
+  re-probe; a first-time lane with one Set-everything-up button, explicit Skips, and progress
+  persisted to a gitignored .local.json (resume banner; explicit Start over); a Python-floor
+  guard in main(); worker-thread progress pages for the two long steps with guaranteed terminal
+  states; a selftest extension (31-screen render sweep, merge round-trip with corrupt-backup,
+  state persistence, worker semantics). Design informed by the OpenClaw project's onboarding
+  docs as reference ONLY -- no OpenClaw software is used or shipped (ADR 0061 decision 5); the
+  reference is registered as a low-frequency T2 seed. The launcher was audited and deliberately
+  left untouched.
 
 - P84: walled-page banking pass (2026-09-19, docs/adr/0060-p84-custom-gpt-retirement-stance.md).
   Two human-delivered browser bundles consumed: eight sources mark-checked (four OpenAI help

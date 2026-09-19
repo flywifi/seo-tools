@@ -69,3 +69,4 @@ added beyond what those records state. New decisions get the next number via
 | [0058](0058-p82-9-block-classification-and-episodes.md) | A widget is not a wall: block classification and block episodes | 2026-09-12 | Accepted |
 | [0059](0059-p83-september-vendor-currency.md) | September currency: Plugins by their new name, and evidence before conformance | 2026-09-19 | Accepted |
 | [0060](0060-p84-custom-gpt-retirement-stance.md) | Custom GPT retirement: keep export-gpt, steer new setups elsewhere | 2026-09-19 | Accepted |
+| [0061](0061-p85-wizard-first-run-readiness.md) | Wizard first-run readiness: verified completion, resume, and the server it forgot | 2026-09-19 | Accepted |

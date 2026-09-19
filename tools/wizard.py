@@ -4036,12 +4036,98 @@ def _selftest() -> int:
     except Exception as exc:  # noqa: BLE001
         check(False, f"direct-saves section errored: {exc}")
 
+    # P85-4a: render EVERY screen function with defaults (empty-string args where required),
+    # enumerated from the module namespace so a new screen cannot dodge the sweep. A screen must
+    # return non-empty HTML with no traceback text.
+    import inspect as _inspect
+    rendered = 0
+    for _name, _fn in sorted(globals().items()):
+        if not (_name.startswith("_screen_") and callable(_fn)):
+            continue
+        try:
+            try:
+                _html_out = _fn()
+            except TypeError:
+                _n = len(_inspect.signature(_fn).parameters)
+                _html_out = _fn(*([""] * _n))
+            rendered += 1
+            check(bool(_html_out) and "Traceback" not in _html_out,
+                  f"screen {_name} rendered empty or with a traceback")
+        except Exception as exc:  # noqa: BLE001
+            check(False, f"screen {_name} raised: {exc}")
+
+    # P85-4b: creator-os config merge round-trip under a fake HOME -- another server and a
+    # non-mcp key must survive, paths must be absolute, and the corrupt-config backup must fire.
+    import tempfile as _tempfile
+    _old_home = os.environ.get("HOME")
+    _old_appdata = os.environ.get("APPDATA")
+    try:
+        _fake = _tempfile.mkdtemp(prefix="wizard-selftest-home-")
+        os.environ["HOME"] = _fake
+        os.environ["APPDATA"] = _fake  # Windows path branch uses APPDATA
+        _cfgp = _claude_config_path()
+        _cfgp.parent.mkdir(parents=True, exist_ok=True)
+        _cfgp.write_text(json.dumps({"mcpServers": {"user-own": {"command": "/bin/x"}},
+                                     "globalShortcut": "Alt+C"}), encoding="utf-8")
+        _cfg = _read_claude_config()
+        _cfg.setdefault("mcpServers", {})["creator-os"] = _creator_os_entry()
+        _write_claude_config(_cfg)
+        _back = json.loads(_cfgp.read_text(encoding="utf-8"))
+        check(_back["mcpServers"].get("user-own", {}).get("command") == "/bin/x",
+              "creator-os merge clobbered another server")
+        check(_back.get("globalShortcut") == "Alt+C", "creator-os merge clobbered a non-mcp key")
+        _e = _back["mcpServers"]["creator-os"]
+        check(os.path.isabs(_e["command"]) and os.path.isabs(_e["args"][0]),
+              "creator-os entry paths are not absolute")
+        _cfgp.write_text("{not json", encoding="utf-8")
+        _write_claude_config({"mcpServers": {"creator-os": _creator_os_entry()}})
+        check(_cfgp.with_name(_cfgp.name + ".corrupt.bak").exists(),
+              "corrupt-config backup did not fire on the merge path")
+    finally:
+        if _old_home is not None:
+            os.environ["HOME"] = _old_home
+        if _old_appdata is not None:
+            os.environ["APPDATA"] = _old_appdata
+        elif "APPDATA" in os.environ:
+            del os.environ["APPDATA"]
+
+    # P85-4c: persisted-state round-trip (subset assertion: _state carries pre-seeded defaults).
+    _set(selftest_probe_flag="round-trip")
+    try:
+        _reloaded = json.loads(_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _reloaded = {}
+    check(_reloaded.get("selftest_probe_flag") == "round-trip",
+          "state write-through did not persist")
+    with _lock:
+        _state.pop("selftest_probe_flag", None)
+        try:
+            atomic_io.atomic_write_text(_STATE_PATH, json.dumps(
+                {k: v for k, v in _state.items() if isinstance(v, (bool, int, str))}))
+        except OSError:
+            pass
+
+    # P85-4d: worker double-start refusal and terminal state on a crash.
+    check(_start_job("selftest_job", lambda: (time.sleep(0.2), {"ok": True})[1]) is True,
+          "worker did not start")
+    check(_start_job("selftest_job", lambda: None) is False,
+          "worker double-start was not refused")
+    time.sleep(0.4)
+    check(_job_status("selftest_job")["running"] is False, "worker never finished")
+    _start_job("selftest_crash", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    time.sleep(0.3)
+    _crash = _job_status("selftest_crash")
+    check(_crash["running"] is False and "boom" in str(_crash.get("result", {}).get("error", "")),
+          "crashed worker did not store a terminal error")
+
     if failures:
         print("wizard selftest FAILED:")
         for f in failures:
             print("  -", f)
         return 1
-    print("wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; port-collision; loopback guard; 0 network)")
+    print(f"wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; "
+          f"port-collision; loopback guard; {rendered}-screen render sweep; creator-os merge "
+          f"round-trip + corrupt backup; state persistence; worker double-start/crash; 0 network)")
     return 0
 
 
