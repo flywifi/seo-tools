@@ -18,6 +18,13 @@ Usage:
   python3 tools/package_skill.py --reconcile-manifest   # (re)write the source-tree hash manifest
   python3 tools/package_skill.py --check-manifest       # exit 1 when a skill tree drifted from the manifest
   python3 tools/package_skill.py --selftest             # offline
+
+Org-distribution facts (support.claude.com article 13837433 + Desktop changelog, fetched
+2026-09-19): the manual marketplace-ZIP route caps at 50 MB per plugin and 100 plugins; a zip
+whose top level is a single component folder (e.g. `skills/`) installs with nothing (Desktop fix
+note 2026-08-27), so bundle from the plugin root; hosted `url` marketplaces deliver plugins as
+zips and require `manifestSha256` for auto-install; admins can disable user marketplaces and
+skill creation (`userPluginMarketplacesEnabled`, `skillCreationEnabled`).
 """
 import hashlib
 import json

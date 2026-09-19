@@ -11,7 +11,7 @@
     {
       "name": "creator-os",
       "source": "./",
-      "description": "The full Creator OS suite: a routing hub, a governance skill, Content, Document, and Pipeline/CRM spokes, and an atom library, sharing one governed core of engines and protocols.",
+      "description": "Creator OS: a hub-and-spoke ecosystem of Claude Agent Skills for YouTube and social media creators. A routing hub classifies each request into one of three lanes (Content, Document, Pipeline/CRM) and dispatches to governed capability spokes composed from single-operation atoms.",
       "version": "0.2.0",
       "category": "content-creation"
     }

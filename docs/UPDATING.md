@@ -58,7 +58,10 @@ Two ways, both effectively hands-off once set up:
   Team/Enterprise admin forces it by setting `"autoUpdate": true` on an `extraKnownMarketplaces` entry
   in managed settings. New SKILL.md text hot-reloads within a session; changes to hooks/`.mcp.json`
   need `/reload-plugins` or a new session.
-  (Source: code.claude.com/docs/en/discover-plugins.)
+  Claude Code shows a per-plugin **context cost** before install (the name+description metadata
+  of every skill loads at startup), namespaces plugin skills as `creator-os:<skill>`, and
+  prefers the marketplace entry's description over plugin.json's -- the two are kept identical
+  here for that reason. (Source: code.claude.com/docs/en/discover-plugins, fetched 2026-09-19.)
   Org distribution is first-party documented (support.claude.com article 13837433, fetched
   2026-09-19): Team/Enterprise owners distribute plugins via marketplaces -- manual ZIP upload
   (max 50 MB each, up to 100 plugins) or GitHub-synced private repos (up to 500 plugins,

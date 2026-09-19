@@ -2,7 +2,7 @@
 """release.py -- read-only release planner + checker for the Creator OS ecosystem (P47).
 
 The self-update lane (tools/update_check.py) polls the repo's GitHub releases. With zero releases
-published it always reports `no_release` while .claude-plugin/plugin.json advertises autoUpdate, so the
+published it always reports `no_release` while the marketplace advertises auto-update (marketplace-level, per code.claude.com/docs/en/discover-plugins; plugin-level autoUpdate is not a recognized field), so the
 self-update path is inert. This tool READIES (it does not fire) the baseline release: it reports the
 current release state and prints the EXACT, unexecuted commands to cut it.
 

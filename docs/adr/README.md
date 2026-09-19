@@ -67,3 +67,4 @@ added beyond what those records state. New decisions get the next number via
 | [0056](0056-p81-audit-remediation.md) | P81 One writer, one floor, frozen records: closing the 24-hour audit | 2026-09-06 | Accepted |
 | [0057](0057-p82-chatgpt-audit-remediation.md) | Pointing the machinery outward: closing the ChatGPT/OpenAI audit | 2026-09-12 | Accepted |
 | [0058](0058-p82-9-block-classification-and-episodes.md) | A widget is not a wall: block classification and block episodes | 2026-09-12 | Accepted |
+| [0059](0059-p83-september-vendor-currency.md) | September currency: Plugins by their new name, and evidence before conformance | 2026-09-19 | Accepted |
