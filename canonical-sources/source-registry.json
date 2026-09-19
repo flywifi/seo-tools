@@ -6389,7 +6389,154 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "instagram-ranking-feed-recommendations",
+      "name": "Instagram Feed Recommendations AI system card (Meta Transparency Center)",
+      "url": "https://transparency.meta.com/features/explaining-ranking/ig-feed-recommendations",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": null,
+      "extraction_hint": "Prediction models + input signals for recommended feed content (LLM informativeness score, 84-day author time-spent, content-age impression buckets, save/Not-interested effects); card carries an UPDATED date (2026-06-29 as of seeding). Human-verified via browser save 2026-09-19; datacenter egress may be blocked.",
+      "used_by": [
+        "shared/seo-intelligence-engine.md",
+        "shared/platform-engine.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Canonical first-party documentation of the Instagram recommendation ranking signals the SEO guidance reasons about"
+    },
+    {
+      "id": "instagram-ranking-suggested-accounts",
+      "name": "Instagram Suggested Accounts AI system card (Meta Transparency Center)",
+      "url": "https://transparency.meta.com/features/explaining-ranking/ig-suggested-accounts/",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": null,
+      "extraction_hint": "Candidate sourcing, ML ranking factors (mutual follows, follower counts, follow-back likelihood), filtering rules. UPDATED 2025-03-07 as of seeding. Human-verified via browser save 2026-09-19.",
+      "used_by": [
+        "shared/seo-intelligence-engine.md",
+        "skills/competitor-scan"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "First-party account-recommendation signals; informs audience-growth guidance"
+    },
+    {
+      "id": "instagram-ranking-threads-feed",
+      "name": "Instagram Threads Feed AI system card (Meta Transparency Center)",
+      "url": "https://transparency.meta.com/features/explaining-ranking/ig-threads-feed/",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": null,
+      "extraction_hint": "Threads ('Text Post App') feed prediction models: like/reply/profile-tap propensities, reply-tree (level 2) engagement windows, 84-day time-spent buckets. UPDATED 2025-03-07 as of seeding. Human-verified via browser save 2026-09-19.",
+      "used_by": [
+        "shared/seo-intelligence-engine.md",
+        "shared/platform-engine.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Threads ranking signals from the platform itself; backs cross-posting guidance"
+    },
+    {
+      "id": "instagram-ranking-feed",
+      "name": "Instagram Feed (connected content) AI system card (Meta Transparency Center)",
+      "url": "https://transparency.meta.com/features/explaining-ranking/ig-feed",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Sibling card of ig-feed-recommendations covering ranking of content from FOLLOWED accounts (connected content); cited by the recommendations card. Not yet human-verified; datacenter egress may be blocked.",
+      "used_by": [
+        "shared/seo-intelligence-engine.md",
+        "shared/platform-engine.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Completes the Instagram feed-ranking pair: followed-content ranking beside recommendations"
+    },
+    {
+      "id": "instagram-recommendation-guidelines",
+      "name": "Recommendations on Instagram (Recommendation Guidelines, help center)",
+      "url": "https://help.instagram.com/313829416281232",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": null,
+      "extraction_hint": "Content NOT eligible for recommendation: unoriginal/repurposed content without material value, long captions unrelated to content, engagement-bait comment networks, weight-loss/cosmetic promotion; accounts repeatedly posting photorealistic AI-generated persons without the AI label are not recommended. Human-verified via browser save 2026-09-19; SPA, datacenter egress blocked.",
+      "used_by": [
+        "shared/seo-intelligence-engine.md",
+        "skills/atoms/caption-write",
+        "tools/publishing_compliance.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The platform's own recommendability rules; the AI-label and unoriginality clauses bear directly on repurposing and compliance guidance"
+    },
+    {
+      "id": "openai-apps-sdk-help",
+      "name": "Build with the Apps SDK (OpenAI help center)",
+      "url": "https://help.openai.com/en/articles/12515353-build-with-the-apps-sdk",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Help-center companion to the developers.openai.com Plugins/Apps SDK docs; referenced from the developer-mode article. NOT yet read; Cloudflare-walled from datacenter egress -- browser handoff required.",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "Named by the developer-mode article the connector runbook now cites; watches the app-building side of the same surface"
+    },
+    {
+      "id": "openai-company-knowledge",
+      "name": "Company knowledge in ChatGPT Business/Enterprise/Edu (OpenAI help center)",
+      "url": "https://help.openai.com/en/articles/12628342-company-knowledge-in-chatgpt-business-enterprise-and-edu",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Governs which connected apps participate in company knowledge (search/fetch only, per the developer-mode FAQ). NOT yet read; Cloudflare-walled from datacenter egress -- browser handoff required.",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md",
+        "docs/UPDATING.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "The search/fetch-participation rule the runbook now states is scoped by this article"
     }
   ],
-  "_content_digest": "6830c839a71b560662239a704a75b6e67622b145bdd7cee08bb5eceb8c92c55d"
+  "_content_digest": "885033ae9f084b0cea0d5a06f812729d3d9cd4641c601a01a3f6804ca57a469a"
 }

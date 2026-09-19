@@ -416,7 +416,7 @@ Video metric meanings (spec-quoted): `VIDEO_MRC_VIEW` = video views; `VIDEO_V50_
 play time. There is **no** per-second retention, **no** hashtag/tag analytics, and **no** original
 video-Pin file download via the API.
 
-Sources: developers.pinterest.com/docs/api/v5/{pins-analytics,multi_pins-analytics,user_account-analytics-top_video_pins} (the HTML renders nav-only; values from github.com/pinterest/api-description v5/openapi.yaml, observed 2026-07-12).
+Sources: developers.pinterest.com/docs/api/v5/{pins-analytics,multi_pins-analytics,user_account-analytics-top_video_pins} (as of 2026-09-19 these pages fetch with full embedded spec content, including `x-ratelimit-category`; values originally confirmed from github.com/pinterest/api-description v5/openapi.yaml, observed 2026-07-12).
 
 ---
 
@@ -592,7 +592,12 @@ platforms may have direct API credentials while others fall back to manual.
 **Base URL:** `https://api.pinterest.com/v5/`
 **Scope:** `pins:write`, `boards:read` (the wizard Connect flow requests exactly these; `boards:write`
 is only needed to create boards, which Creator OS does not do)
-**Rate limits:** Reads 1,000/min; Writes 100/min; Analytics 200/min
+**Rate limits (Standard access, per minute per user per app):** reads (`org_read`) 1,000;
+writes (`org_write`) 100; Pin analytics (`org_analytics`, the category `/pins/{pin_id}/analytics`
+declares via `x-ratelimit-category`) 60. Trial access is instead capped at 1,000 requests per
+day per app across the API, and pins or boards created under Trial are sandbox entities visible
+only to their creator. (developers.pinterest.com/docs/reference/rate-limits and the pins-analytics
+endpoint spec, fetched 2026-09-19.)
 
 **Create and schedule a pin:**
 ```
