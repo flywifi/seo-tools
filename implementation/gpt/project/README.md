@@ -17,9 +17,11 @@ MCP, or the deployed MCP connector in ChatGPT developer mode).
    `project-instructions.md` (this folder).
 4. In the project's **Files** area, upload the knowledge files from
    `implementation/claude/project/knowledge/` (they are surface-neutral Markdown; the same files
-   serve the Claude Project). Published per-project caps are 5 files on Free, 25 on Plus, and 40
-   on Pro/Business/Enterprise. [NEEDS VERIFICATION: caps from secondary reporting, 2026-09;
-   help.openai.com is not machine-fetchable.] On Plus and above, upload all 8. On Free the
+   serve the Claude Project). Published per-project caps are 5 files on Free, 25 on Go and Plus,
+   and 40 on Edu/Pro/Business/Enterprise, with at most 10 files per simultaneous upload
+   (confirmed 2026-09-19, help article 10169521 read in full; shared-project collaborator caps
+   are 5 Free / 10 Go-Plus / 100 Pro and workspace plans). Project instructions replace your
+   global custom instructions inside the project. On Plus and above, upload all 8. On Free the
    8-file bundle does NOT fit: upload the first 5 in the numbered order (01 through 05) and
    expect the acceptance prompts that rely on the rest to degrade.
 5. Run the three acceptance prompts below. If all three pass, the Project is live.

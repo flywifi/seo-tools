@@ -28,11 +28,11 @@ functions = [
 
 client = openai.OpenAI()
 
-# Responses API (the current primary API; the Assistants API was sunset on 2026-08-26 and its
-# replacement is the Responses API plus the Conversations API; chat.completions remains
-# supported but is not where OpenAI's tooling investment goes).
+# Responses API (the current primary API; the Assistants API was sunset on 2026-08-26 and the
+# Responses API is its replacement, with stateful context via store: true; chat.completions
+# remains supported but is not where OpenAI's tooling investment goes).
 response = client.responses.create(
-    model="gpt-5.6",
+    model="gpt-5.6",  # stable alias routing to GPT-5.6 Sol; OpenAI's current flagship is gpt-6-astra
     instructions=Path("implementation/gpt/web/custom-instructions.md").read_text(),
     input="Plan a seasonal home decor project video",
     tools=[{"type": "function", **fn} for fn in functions],
@@ -54,6 +54,8 @@ response = client.responses.create(
             "server_url": "https://YOUR-HOST/mcp",
             "allowed_tools": ["search", "fetch", "cache_query"],
             "require_approval": "always"}],
+    # connector_id is deprecated for models released after 2026-09-01: use server_url, or
+    # tunnel_id for a Secure MCP Tunnel (developers.openai.com tools-connectors-mcp, 2026-09-19).
 )
 ```
 

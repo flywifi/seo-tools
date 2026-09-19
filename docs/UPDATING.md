@@ -58,16 +58,27 @@ Two ways, both effectively hands-off once set up:
   Team/Enterprise admin forces it by setting `"autoUpdate": true` on an `extraKnownMarketplaces` entry
   in managed settings. New SKILL.md text hot-reloads within a session; changes to hooks/`.mcp.json`
   need `/reload-plugins` or a new session.
-  (Source: code.claude.com/docs/en/discover-plugins.)
-  `[NEEDS VERIFICATION: whether Team/Enterprise admins can centrally provision custom Skills org-wide
-  is documented inconsistently: the Agent Skills overview says custom Skills "cannot be centrally
-  managed by admins," while support.claude.com/.../13119606 says Owners CAN provision org-wide and
-  scope via plugins. Distributing Creator OS as a plugin (this marketplace) sidesteps the conflict,
-  since plugins are the documented org-managed unit; re-check before relying on org-wide Skill
-  provisioning.]`
+  Claude Code shows a per-plugin **context cost** before install (the name+description metadata
+  of every skill loads at startup), namespaces plugin skills as `creator-os:<skill>`, and
+  prefers the marketplace entry's description over plugin.json's -- the two are kept identical
+  here for that reason. (Source: code.claude.com/docs/en/discover-plugins, fetched 2026-09-19.)
+  Org distribution is first-party documented (support.claude.com article 13837433, fetched
+  2026-09-19): Team/Enterprise owners distribute plugins via marketplaces -- manual ZIP upload
+  (max 50 MB each, up to 100 plugins) or GitHub-synced private repos (up to 500 plugins,
+  `marketplace.json` with relative plugin paths supported), with per-plugin install states
+  (Installed by default / Available / Not available / Required), and "Cowork and Skills must both
+  be enabled for your organization before you can use plugin marketplaces."
+  `[NEEDS VERIFICATION: only the narrower residue -- support.claude.com/.../13119606 on org-wide
+  provisioning of bare Skills (outside plugins) remains unread; plugins are the documented
+  org-managed unit either way.]`
 - **As a git clone.** Run `python3 tools/update.py` (git pull + drift guard + cache rebuild; it never
   touches `*.local.json`), or a small pull cron. The CLI itself also auto-updates in the background
   unless `DISABLE_AUTOUPDATER` is set. (Source: code.claude.com/docs/en/setup.)
+  Two floors worth knowing (same page, fetched 2026-09-19): Claude Code requires a Pro, Max, Team,
+  Enterprise, or Console account (the free claude.ai plan has no Claude Code access), and the npm
+  install route requires Node.js 22 or later. Also: a local (stdio) MCP server is reachable only
+  from Claude Desktop and Claude Code -- never from claude.ai web or mobile (support article
+  11725091).
 
 ### Claude Desktop (with a local MCP server)
 - The Desktop app auto-updates itself (Team/Enterprise admins can manage this centrally via MDM).
@@ -77,8 +88,9 @@ Two ways, both effectively hands-off once set up:
   Claude's official directory update automatically, but a **privately distributed `.mcpb` does NOT
   auto-update** (you reinstall a new, version-bumped bundle). Note that mid-2026 Desktop builds gated
   managed `.mcpb` behind `isDesktopExtensionEnabled` and removed installing extensions from local
-  `.mcpb` files in managed deployments. `[NEEDS VERIFICATION: consumer directory vs enterprise .mcpb
-  gating, claude.com/docs/connectors/custom/desktop-extensions]`.
+  `.mcpb` files in managed deployments. Custom desktop extensions are "Available for Team and Enterprise
+  plans with Claude Desktop" (claude.com/docs/connectors/custom/desktop-extensions, fetched
+  2026-09-19), so `.mcpb` packaging is an org path, not a consumer one.
 
 ### Claude Cowork
 - Cowork runs each session in a **fresh, temporary sandbox** (created at session start, destroyed at

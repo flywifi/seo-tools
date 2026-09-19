@@ -58,6 +58,7 @@ python3 shared/cache/cache.py --stats     # confirm index built
 3. Open your Claude Desktop config file:
    - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
    - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   - Linux: `~/.config/Claude/claude_desktop_config.json`
 
 4. If the file already has an `mcpServers` key, add the `"creator-os"` block
    inside it. If it does not exist, create the file with the full snippet.
@@ -66,6 +67,12 @@ python3 shared/cache/cache.py --stats     # confirm index built
    enough; the config is only read at launch. If the Creator OS tools do not appear, check
    `~/Library/Logs/Claude/mcp-server-creator-os.log` for a startup error (a wrong or non-absolute
    interpreter path is the usual cause).
+
+> Note: Anthropic's current getting-started guidance installs local servers as desktop
+> extensions (Settings, then Extensions; `.mcpb` bundles -- custom ones are Team/Enterprise).
+> This JSON-config flow remains fully supported (the app added new keys to the same file on
+> 2026-09-15) and is what the wizard automates. (Sources: support article 10949351;
+> modelcontextprotocol.io/docs/develop/connect-local-servers, both fetched 2026-09-19.)
 
 ---
 

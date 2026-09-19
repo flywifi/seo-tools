@@ -26,10 +26,17 @@ optionally generates an Actions schema (OpenAPI YAML) for external tool integrat
 the package ready for configuration in the GPT Builder. It loads `shared/brand-engine.md` and
 `shared/voice-engine.md` to ensure brand and voice fidelity survive the compression.
 
-> IMPORTANT (verified 2026-08): creating or publishing a NEW Custom GPT requires a ChatGPT
-> Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and
-> edit existing GPTs but cannot build new ones. On a personal plan, package for a ChatGPT Project
-> instead (`implementation/gpt/project/`). This atom's output targets the workspace GPT Builder.
+> IMPORTANT (confirmed 2026-09-19, help article 8554397 read in full): creating or publishing a
+> NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free,
+> Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal
+> plan, package for a ChatGPT Project instead (`implementation/gpt/project/`). This atom's output
+> targets the workspace GPT Builder.
+>
+> RETIREMENT NOTICE: OpenAI plans to retire Custom GPTs in favor of Plugins -- Enterprise
+> workspaces on 2026-12-11, other plans expected to follow; a migration flow is targeted for
+> 2026-09-17 (tracked in `canonical-sources/moving-dates.json` as `custom-gpt-retirement`; stance
+> in ADR 0060). Existing GPTs keep working until retirement; for NEW setups prefer the ChatGPT
+> Project or the MCP connector door.
 
 ## When to invoke
 

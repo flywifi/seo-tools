@@ -122,6 +122,7 @@
         "cowork"
       ],
       "setup_steps": [
+        "Note: new Cowork sessions run in the cloud by default; local execution remains available for existing desktop deployments (support article 14479288, fetched 2026-09-19).",
         "Install Creator OS through the plugin marketplace.",
         "Open the Desktop app's Cowork tab and choose a local session (a hypervisor-isolated VM on this computer).",
         "Connect the Creator OS folder so the session can reach your files."
@@ -154,6 +155,7 @@
         "cowork"
       ],
       "setup_steps": [
+        "Cowork is the cloud default, in beta on web and mobile for Pro, Max, and Team plans (support article 14479288, fetched 2026-09-19).",
         "Install Creator OS through the plugin marketplace; an organization's plugin auto-sync fires only when a version-bump PR merges.",
         "Reach stateful data through Google Drive or a hosted connector; the sandbox is destroyed at session end, so nothing written to its local disk (including .local store files) persists.",
         "Local stdio MCP servers do not run here; connect capabilities as remote MCP connectors, and reach local files only through folders explicitly connected in the Desktop app."
@@ -210,14 +212,15 @@
       ],
       "origins": [],
       "setup_steps": [
-        "IMPORTANT (verified 2026-08): creating or publishing a NEW Custom GPT now requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal plan, use ChatGPT Projects instead (the recommended door).",
+        "IMPORTANT (confirmed 2026-09-19, help article 8554397 read in full): creating or publishing a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal plan, use ChatGPT Projects instead (the recommended door).",
+        "RETIREMENT NOTICE: OpenAI plans to retire Custom GPTs in favor of Plugins. Enterprise workspaces lose them on 2026-12-11; other plans are expected to follow; a migration flow is targeted for 2026-09-17. Prefer the Project or connector door for new setups; existing GPTs keep working until retirement.",
         "If you have a workspace: ask Creator OS (on your computer) for a Custom GPT export; the export-gpt package gives you the instruction file and knowledge files.",
         "In the GPT builder, paste the instruction file and upload the knowledge files (20-file cap per GPT).",
         "Optionally add the jurisdiction Action: paste implementation/gpt/actions/jurisdiction_overlay_action.yaml and set the deployed endpoint URL.",
         "Note: ChatGPT memory does not function inside Custom GPTs."
       ],
       "needs_verification": [
-        "that your account is in a Business/Enterprise/Edu workspace (personal plans cannot create GPTs as of 2026-08; help.openai.com article 8554397)"
+        "that your workspace still offers the GPT builder (Custom GPTs are being retired in favor of Plugins; Enterprise: 2026-12-11, other plans expected to follow; help.openai.com article 8554397, read 2026-09-19)"
       ]
     },
     "chatgpt_projects": {
@@ -271,7 +274,7 @@
       "setup_steps": [
         "Install the ChatGPT desktop app and sign in.",
         "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version.",
-        "For live Creator OS tools: open Settings, then Connectors, and enable developer mode if your plan offers it. [NEEDS VERIFICATION: developer-mode connector availability depends on your ChatGPT plan]",
+        "For live Creator OS tools: open Settings, then Security and login, and turn on Developer mode; add the server at chatgpt.com/plugins. Available on Pro, Plus, Business, Enterprise, and Education accounts (developers.openai.com developer-mode guide, fetched 2026-09-19).",
         "Add your deployed Creator OS remote MCP endpoint as a connector (implementation/gpt/mcp-connector/README.md). Without a deployed endpoint there are no live tools here.",
         "Capability flags are not enforced on this surface; the connector endpoint enforces its own gates on the machine where it runs.",
         "Know the desktop app's limits: ON MACOS, 'Work with Apps' reads only a fixed list of compatible apps (Apple Notes, Notion, TextEdit, VS Code family, JetBrains and similar) -- it has NO general access to your files or folders. That feature is macOS-only, so on Windows there is no such list at all. Either way your Creator OS knowledge still comes from pasted instructions, a Project, or a connector."
@@ -493,7 +496,7 @@
       ],
       "stops_working": [],
       "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace as of 2026-08. Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
+        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
         "build the GPT from the export-gpt package",
         "re-run the profile-import prompt inside the GPT context if you rely on profile answers there"
       ],
@@ -581,7 +584,7 @@
       ],
       "stops_working": [],
       "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace as of 2026-08. Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
+        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
         "build the GPT from the export-gpt package; the jurisdiction Action becomes available again"
       ],
       "stays_authoritative": "export_and_you_save",

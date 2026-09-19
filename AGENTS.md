@@ -1,4 +1,6 @@
 <!-- PROJECTION of CLAUDE.md for Codex and other AGENTS.md-reading agents (P72). Do not edit by
+
+<!-- Read by Codex (AGENTS.md discovery). Claude Code reads this file only when CLAUDE.md is absent (Claude Code v2.1.277), so in Claude Code sessions CLAUDE.md governs. -->
 hand: edit CLAUDE.md, then re-project. Registered in tools/projection_manifest.py; staleness is
 flagged by drift invariant 47. Codex reads this file root-down with a 32 KiB combined budget. -->
 
