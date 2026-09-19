@@ -111,6 +111,17 @@
       "verified_after": null,
       "citation_url": "https://learn.chatgpt.com/docs/changelog",
       "confidence": "verified"
+    },
+    {
+      "id": "custom-gpt-retirement",
+      "jurisdiction": "OpenAI ChatGPT",
+      "description": "OpenAI retires Custom GPTs in favor of Plugins: Enterprise workspaces lose them on 2026-12-11 (public GPTs from affected workspaces included even when used from other plans); a migration flow to Plugins is targeted for 2026-09-17 and other plans are expected to follow the same timeline (help article 8554397, read in full 2026-09-19). Drives skills/atoms/export-gpt and the Custom GPT door in shared/cross-modality/transitions.json.",
+      "registry_source_id": "openai-gpt-creation-policy",
+      "effective": "2026-12-11",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://help.openai.com/en/articles/8554397-creating-and-editing-gpts",
+      "confidence": "verified"
     }
   ]
 }

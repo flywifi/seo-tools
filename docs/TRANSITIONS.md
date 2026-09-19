@@ -55,10 +55,13 @@ it from the two surface records.
   `implementation/gpt/web/custom-instructions.md` into ChatGPT settings) and carry data as dated
   export files. Everything computed locally stops: finance math, template assembly, obligation
   dates, the deterministic quality score, flag enforcement. Your computer stays authoritative.
-- **Claude Desktop to a Custom GPT** (workspace accounts only; as of 2026-08 personal plans cannot
-  create new GPTs -- use a ChatGPT Project instead): run the export-gpt package (instruction + up
-  to 20 knowledge files); optionally add the jurisdiction Action. The Action sends what you type to
-  OpenAI and the public endpoint; the local ask-first consent step does not apply there.
+- **Claude Desktop to a Custom GPT** (workspace accounts only; confirmed 2026-09-19 that personal
+  plans cannot create new GPTs -- use a ChatGPT Project instead; note OpenAI plans to retire
+  Custom GPTs in favor of Plugins, Enterprise on 2026-12-11 with other plans expected to follow,
+  so prefer the Project or connector door for new setups): run the export-gpt package
+  (instruction + up to 20 knowledge files, each up to 512 MB); optionally add the jurisdiction
+  Action. The Action sends what you type to OpenAI and the public endpoint; the local ask-first
+  consent step does not apply there. A GPT can use apps OR Actions, not both at once.
 - **Claude Desktop to ChatGPT Projects:** reuse the same package as Project instructions +
   files. Limits vary by plan [NEEDS VERIFICATION: check your plan].
 - **Claude Desktop to the ChatGPT desktop app:** the strongest ChatGPT surface. Knowledge paste
@@ -151,8 +154,8 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | Door | Who it serves | Artifact | Key facts |
 |---|---|---|---|
 | ChatGPT custom instructions | daily chat, any tier | `implementation/gpt/web/custom-instructions.md` (full, under 5,000 combined) or `-compact.md` (Free/Go, under 1,500) | caps per help/8096356; per-field vs combined not documented |
-| ChatGPT Project | RECOMMENDED personal-plan home | `implementation/gpt/project/` + the 8 shared knowledge files | project-only memory best chosen at creation, switchable later for unshared projects [NEEDS VERIFICATION 2026-08-14]; file caps 5 Free / 25 Plus / 40 Pro-Business-Enterprise [NEEDS VERIFICATION 2026-09] (help/10169521) |
-| Custom GPT + Actions | workspace accounts only | `implementation/gpt/actions/` | creation requires Business/Enterprise/Edu (help/8554397); memory does not work in GPTs |
+| ChatGPT Project | RECOMMENDED personal-plan home | `implementation/gpt/project/` + the 8 shared knowledge files | project-only memory chosen at creation, switchable later for unshared projects; file caps 5 Free / 25 Go-Plus / 40 Edu-Pro-Business-Enterprise, max 10 files per upload; project instructions replace global custom instructions inside the project (help/10169521, read in full 2026-09-19) |
+| Custom GPT + Actions | workspace accounts only | `implementation/gpt/actions/` | creation requires Business/Enterprise/Edu (help/8554397, confirmed 2026-09-19); retirement planned in favor of Plugins (Enterprise 2026-12-11, other plans expected to follow); memory does not work in GPTs |
 | ChatGPT connector (no dev mode) | chat + deep research | server `search`/`fetch` tools | exact contract per developers.openai.com/api/docs/mcp |
 | ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web; Settings, then Security and login; servers at chatgpt.com/plugins (developers.openai.com developer-mode guide, 2026-09-19) |
 | ChatGPT desktop | convenience | same as web | Work with Apps is macOS-only and reads a fixed app list; no general file access (help/10119604) |

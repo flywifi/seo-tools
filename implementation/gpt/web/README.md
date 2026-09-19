@@ -9,10 +9,12 @@
    ("How would you like ChatGPT to respond?").
 4. Save. Every new conversation will now use Creator OS routing.
 
-Size and tier notes (verified 2026-08): the custom-instructions cap is 1,500 characters on
-Free/Go and 5,000 on Plus and above; whether the cap is per-field or combined is not officially
+Size and tier notes (confirmed 2026-09-19, help article 8096356 read in full): the
+custom-instructions cap is 1,500 characters on Free/Go and 5,000 on Plus, Pro, Business,
+Enterprise, and Education; whether the cap is per-field or combined is still not officially
 documented, so the full version is kept under 5,000 COMBINED and paste-validated by
-`tools/surface_budgets.py`. On Free/Go, use `custom-instructions-compact.md` (under 1,500
+`tools/surface_budgets.py`. Note custom instructions do not apply inside Projects or Custom
+GPTs (project instructions and GPT instructions replace them there). On Free/Go, use `custom-instructions-compact.md` (under 1,500
 combined). If you are on a personal plan and want a richer setup than two boxes, use a ChatGPT
 Project instead (see `implementation/gpt/project/`): file uploads plus project instructions plus
 project-only memory, on every tier.

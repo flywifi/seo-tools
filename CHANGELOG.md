@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P84: the Custom GPT retirement enters moving-dates (`custom-gpt-retirement`, Enterprise
+  2026-12-11, migration flow to Plugins targeted 2026-09-17; help article 8554397 read in full
+  via a human-delivered browser save) with the export-gpt stance recorded in ADR 0060; the
+  connector runbook gains the workspace custom-MCP-app card (admin enablement paths, frozen
+  tool snapshots, the OAuth offline_access requirement, Secure MCP Tunnel for private servers).
 - P83: two vendor moving dates (Claude Desktop orgPluginSettings record-form removal 2026-10-07;
   GPT-5.5 retirement 2026-10-14), Claude-side doc-freshness bindings (Desktop README to its
   config snippet; UPDATING.md to the plugin manifests), and wire-selftest assertions pinning the
@@ -135,6 +140,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P84: eight walled sources banked as human-verified (four OpenAI help articles, the Instagram
+  feed-ranking article, the MCP releases and skills-commits feeds, the TikTok video object);
+  two TikTok seed URLs corrected and the MCPB spec re-pointed to the raw host;
+  developers.pinterest.com proved fetchable and pinterest-pin-analytics-v5 stamped; the ChatGPT
+  caps prose is now first-party confirmed (custom instructions 1,500/5,000 tiered; project
+  files 5/25/40 with Go and Edu placed; project instructions replace custom instructions); the
+  Custom GPT door and export-gpt banner carry the retirement steer. Checked, no change needed:
+  all 130 SKILL.md descriptions pass the 1,024-character claude.ai upload cap (max 985) with no
+  reserved-name violations.
 - P83: Cowork is documented cloud-first (Pro, Max, and Team beta; local remains for existing
   desktop deployments); the claude.ai connector card carries the documented Free/Pro/Max and
   org flows; five registry seeds re-pointed off retired hosts (Apps SDK to Plugins,

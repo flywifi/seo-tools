@@ -2,8 +2,25 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P83 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P84 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P84: walled-page banking pass (2026-09-19, docs/adr/0060-p84-custom-gpt-retirement-stance.md).
+  Two human-delivered browser bundles consumed: eight sources mark-checked (four OpenAI help
+  articles read in full, the Instagram feed-ranking cluster, the MCP releases and skills-commits
+  feeds, the TikTok video object), two TikTok URLs corrected, the MCPB spec re-pointed to the
+  fetchable raw host, and developers.pinterest.com proved fetchable from the container
+  (pinterest-pin-analytics-v5 stamped by the detector). The big vendor fact: Custom GPTs retire
+  in favor of Plugins (Enterprise 2026-12-11; moving-dates `custom-gpt-retirement`; export-gpt
+  stays with a retirement steer, ADR 0060). ChatGPT caps prose is now first-party confirmed;
+  the connector runbook gains the workspace custom-MCP-app card (read/fetch-only personal dev
+  mode, frozen tool snapshots, OAuth offline_access, Secure MCP Tunnel at T1). The
+  130-file SKILL.md description sweep against the 1,024-char claude.ai upload cap found zero
+  violations and zero reserved-name hits (max 985). Remaining manual browser items: help
+  articles 10119604 and 8798878 (sharing-and-publishing-gpts), and the Instagram
+  download-your-information article (its save captured other SPA content). Declined with
+  reason: seeding the Meta Content Library docs (cleanroom research product, no repo consumer),
+  the AI-at-Meta training-data page, the dormant Pinterest quickstart repo, and four
+  watch-list-only help.openai articles (RBAC, GPT access management, two release-notes feeds).
 - P83: September vendor-currency pass (2026-09-19, docs/adr/0059-p83-september-vendor-currency.md).
   Fifteen changed and twenty first-readable AI-surface seeds consumed: the ChatGPT developer-mode
   path and plan list are now first-party cited (two excerpt tags closed without a browser); the

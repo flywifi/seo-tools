@@ -68,8 +68,29 @@ gates are enforced HERE, on this machine, for every surface that connects.
   claude.com/docs/connectors/custom/remote-mcp, fetched 2026-09-19.)
 - **ChatGPT web (developer mode):** Settings, then Security and login, then turn on Developer
   mode; add the server at chatgpt.com/plugins (the plus button). Available on Pro, Plus,
-  Business, Enterprise, and Education accounts on the web. (Source:
-  developers.openai.com/api/docs/guides/developer-mode, fetched 2026-09-19.)
+  Business, Enterprise, and Education accounts on the web. On personal plans (including Pro),
+  developer mode connects MCP servers with read and fetch permissions only; write and modify
+  actions are a workspace beta (next card). MCP apps are web only, not available on the mobile
+  apps. Agent mode does not use custom apps; deep research can, for read and fetch actions only.
+  (Sources: developers.openai.com/api/docs/guides/developer-mode, fetched 2026-09-19;
+  help.openai.com article 12584461, read in full 2026-09-19.)
+- **ChatGPT workspaces (Business, Enterprise, Edu) -- custom MCP apps with write actions
+  (beta):** an admin or owner must enable developer mode first (Business: each admin toggles it
+  for themselves under Workspace Settings, then Permissions and Roles, then Connected Data;
+  Enterprise/Edu: Settings, then Apps, then Advanced Settings, with RBAC to grant it to chosen
+  members). Configure the app (endpoint, auth, Scan Tools), test it as a draft, then an
+  admin/owner publishes it from Workspace settings, then Apps, then Drafts. Operational notes
+  that matter for Creator OS deploys: (1) the workspace pins a frozen snapshot of the tool
+  contract at approval -- after any deploy that adds or changes tools, an admin must hit
+  Refresh on the app (Business plans cannot update a published app at all: recreate and
+  republish); (2) if the server uses OAuth, the provider must issue refresh tokens (advertise
+  `offline_access` in its discovery metadata) or ChatGPT loses access when the first
+  authorization expires; (3) a server on a private network or dev machine cannot be added
+  directly -- OpenAI's Secure MCP Tunnel runs an outbound-only `tunnel-client` beside the
+  private server (tunnel_id from Platform tunnel settings; outbound HTTPS to api.openai.com:443
+  only; supports developer-mode testing but not public plugin distribution).
+  (Sources: help.openai.com article 12584461, read in full 2026-09-19;
+  developers.openai.com/api/docs/guides/secure-mcp-tunnels, fetched 2026-09-19.)
 - **ChatGPT desktop app (developer mode):** same as web (Settings, then Security and login;
   servers managed at chatgpt.com/plugins). The desktop app merged Chat, Work, and Codex into one app in July
   2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ between
@@ -136,9 +157,12 @@ tools stay invisible. Bump VERSION so `get_server_info` reflects the deploy.
 ### ChatGPT (her door: web, Plus/Pro)
 Two tiers, same server:
 - **Without developer mode (chat + deep research):** this server ships connector-contract `search`
-  and `fetch` tools over the knowledge cache, which is the exact pair ChatGPT requires from a
-  plain connector (developers.openai.com/api/docs/mcp). Both return the payload twice, as
-  structuredContent and as mirrored text content, per that contract. Both tools declare an
+  and `fetch` tools over the knowledge cache, the pair ChatGPT's connector contract is built
+  around (developers.openai.com/api/docs/mcp). OpenAI no longer hard-requires search and fetch
+  for connected servers generally (help article 12584461 FAQ, read 2026-09-19), but they remain
+  what citations and company knowledge run on ("only apps with search/fetch functionality are
+  included" in company knowledge), so this server keeps shipping them. Both return the payload
+  twice, as structuredContent and as mirrored text content, per that contract. Both tools declare an
   output schema, and every result carries a non-empty `url`: ChatGPT creates citation metadata
   only when `url` is a non-empty string (developers.openai.com/api/docs/mcp, fetched
   2026-09-19). Add the connector by URL `https://YOUR-HOST/mcp`.

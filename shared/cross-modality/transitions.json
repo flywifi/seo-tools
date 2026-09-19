@@ -212,14 +212,15 @@
       ],
       "origins": [],
       "setup_steps": [
-        "IMPORTANT (verified 2026-08): creating or publishing a NEW Custom GPT now requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal plan, use ChatGPT Projects instead (the recommended door).",
+        "IMPORTANT (confirmed 2026-09-19, help article 8554397 read in full): creating or publishing a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal plan, use ChatGPT Projects instead (the recommended door).",
+        "RETIREMENT NOTICE: OpenAI plans to retire Custom GPTs in favor of Plugins. Enterprise workspaces lose them on 2026-12-11; other plans are expected to follow; a migration flow is targeted for 2026-09-17. Prefer the Project or connector door for new setups; existing GPTs keep working until retirement.",
         "If you have a workspace: ask Creator OS (on your computer) for a Custom GPT export; the export-gpt package gives you the instruction file and knowledge files.",
         "In the GPT builder, paste the instruction file and upload the knowledge files (20-file cap per GPT).",
         "Optionally add the jurisdiction Action: paste implementation/gpt/actions/jurisdiction_overlay_action.yaml and set the deployed endpoint URL.",
         "Note: ChatGPT memory does not function inside Custom GPTs."
       ],
       "needs_verification": [
-        "that your account is in a Business/Enterprise/Edu workspace (personal plans cannot create GPTs as of 2026-08; help.openai.com article 8554397)"
+        "that your workspace still offers the GPT builder (Custom GPTs are being retired in favor of Plugins; Enterprise: 2026-12-11, other plans expected to follow; help.openai.com article 8554397, read 2026-09-19)"
       ]
     },
     "chatgpt_projects": {
@@ -495,7 +496,7 @@
       ],
       "stops_working": [],
       "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace as of 2026-08. Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
+        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
         "build the GPT from the export-gpt package",
         "re-run the profile-import prompt inside the GPT context if you rely on profile answers there"
       ],
@@ -583,7 +584,7 @@
       ],
       "stops_working": [],
       "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace as of 2026-08. Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
+        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
         "build the GPT from the export-gpt package; the jurisdiction Action becomes available again"
       ],
       "stays_authoritative": "export_and_you_save",
