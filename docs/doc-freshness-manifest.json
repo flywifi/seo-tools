@@ -61,6 +61,17 @@
         "shared/cross-modality/transitions.json": "040654e71a312d046b2e29991f85fcf07cec03ff42ee46fbc40eaecc6eb3c5d1"
       }
     },
+    "implementation/claude/desktop/README.md": {
+      "sources": {
+        "implementation/claude/desktop/claude_desktop_config_snippet.json": "af2413d458f36b690dbdcefe322191c655ea24a01e12382f31142e40ead1f711"
+      }
+    },
+    "docs/UPDATING.md": {
+      "sources": {
+        ".claude-plugin/plugin.json": "263233b553f70462acbbd30259143ca62a5646aa823fd95f058c413b4d51b0df",
+        ".claude-plugin/marketplace.json": "44bc6c2b1c36c966b3779fe8de66243ffdaed2f491ead2d5d22c7c1b0d1e6860"
+      }
+    },
     "shared/injection-guard-engine.md": {
       "sources": {
         "tools/injection_scan.py": "71e485cabe449c616589cff3ff425a8d50aa9e6c951e52f3a8dcdc0fe77d0868"

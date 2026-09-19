@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-12",
+  "last_registry_update": "2026-09-19",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -328,13 +328,13 @@
     },
     {
       "id": "anthropic-release-notes",
-      "name": "Anthropic Release Notes",
-      "url": "https://docs.anthropic.com/en/release-notes/overview",
+      "name": "Claude Platform release notes (platform.claude.com)",
+      "url": "https://platform.claude.com/docs/en/release-notes/overview",
       "category": "api-changelog",
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Check for new model releases, MCP spec updates, tool use changes, context window changes, and deprecated API versions.",
       "used_by": [
@@ -345,9 +345,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "89a4c16358af550d950c11f5f7aae53b9cd7b0821de1e92ee99d398d31f635e6",
+      "first_block_detected": null
     },
     {
       "id": "influencer-hub-benchmark",
@@ -442,14 +444,14 @@
     {
       "id": "claude-code-release-notes",
       "name": "Claude Code Release Notes",
-      "url": "https://docs.anthropic.com/en/release-notes/claude-code",
+      "url": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
       "category": "tool-mcp",
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
-      "extraction_hint": "Check for new slash commands, MCP server support changes, permission model updates, hook system changes.",
+      "extraction_hint": "UNDATED changelog: entries keyed by version headers, not dates; diff by version headers only (date-based staleness cannot work here); raw.githubusercontent.com is fetchable where github.com pages are blocked",
       "used_by": [
         "creator-core"
       ],
@@ -457,9 +459,13 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": null
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "5222e915289dd1c7bc2414e8c3b61db277c1a493f2477c30909462a48571ec0a",
+      "content_etag": "\"3cef7750847bf51547ed2b6a076aedcdd7beea122dd468bfebc4c6e48098be72\"",
+      "min_recheck_at": 739878,
+      "first_block_detected": null
     },
     {
       "id": "mcp-specification",
@@ -487,14 +493,14 @@
     {
       "id": "google-drive-mcp-docs",
       "name": "Google Drive MCP Connector Docs",
-      "url": "https://docs.anthropic.com/en/docs/claude-code/tutorials/add-mcp-server",
+      "url": "https://code.claude.com/docs/en/mcp",
       "category": "tool-mcp",
       "tier": "T1",
       "check_interval_days": 14,
       "staleness_threshold_days": 14,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
-      "extraction_hint": "Check for changes to available tool names, authentication flow changes, file access permission scope updates.",
+      "extraction_hint": "successor of the retired docs.anthropic.com add-mcp-server tutorial (old URL 404s); same page also backs claude-code-mcp-docs -- keep both ids until their used_by sets are merged deliberately",
       "used_by": [
         "integrations-engine",
         "ingest-route"
@@ -503,9 +509,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "fa25f5b3b3d9a41ed091b1b3706b0aec67243b723a1cb7eab8f8aeff76ba8e61",
+      "first_block_detected": null
     },
     {
       "id": "youtube-help-recommendations",
@@ -3617,7 +3625,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "SKILL.md frontmatter caps (name 64 / description 1024 / compatibility 500 chars), reserved-word ban on 'anthropic'/'claude', no consecutive hyphens; the field-constraint table is what breaks packaging",
       "used_by": [
@@ -3630,9 +3638,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "f8f106bdabf144f836a6198e97044b82e1d75da106a40d49187e000b7a6f0277",
+      "first_block_detected": null
     },
     {
       "id": "claude-apps-release-notes",
@@ -3642,7 +3652,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "consumer-surface changes to Projects knowledge limits, Memory, Desktop connectors; no RSS, ETag+sha256",
       "used_by": [
@@ -3654,19 +3664,21 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "f9f77732458155db242413616926e82a7e59289ca12724593a24e8a22aceaf2e",
+      "first_block_detected": null
     },
     {
       "id": "openai-apps-sdk-changelog",
-      "name": "OpenAI Apps SDK changelog (MCP in ChatGPT)",
-      "url": "https://developers.openai.com/apps-sdk/changelog",
+      "name": "OpenAI Plugin UI changelog (formerly Apps SDK)",
+      "url": "https://developers.openai.com/plugins/changelog",
       "category": "ai-surface-spec",
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "the newer ChatGPT app packaging surface (built on MCP); _meta.ui contract, widget MIME, structuredContent",
       "used_by": [],
@@ -3675,9 +3687,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "content_sha256": "11b170bba2c23e066ee9ea58118159ebe84a6e7fbf2433a64bc36c41c8378953",
-      "content_etag": "\"5a6edcb1531a0a96e66f3db5d8b232dd\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:29:54 GMT"
+      "content_sha256": "a1809b015cd59b7385dff16924e5097de7cf509005b26adfb9524e6057c0ab8b",
+      "content_etag": "\"64fa8b73751ea5bb0489e3cfcd3354de\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:34:24 GMT"
     },
     {
       "id": "openai-gpt-actions-production",
@@ -3687,8 +3699,8 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "hard caps that silently truncate/reject exports: endpoint/param descriptions 300/700 chars, payloads <100k chars, 45s timeout, no custom headers",
       "used_by": [
         "implementation/gpt/api",
@@ -3699,9 +3711,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "content_sha256": "cde78995bfe0cb46b8efc5012fe676a8fd84666d808c30b35a2942054714a986",
-      "content_etag": "\"c9781aa0d966edbbbae0f383207f9a59\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:10:20 GMT"
+      "content_sha256": "bf8c1f0efa5a1a200dfc2c6b705ff412aa6d5e097fc20dad0e23131dce862b14",
+      "content_etag": "\"c066a6b29936b413368994a19c27abfa\"",
+      "content_last_modified": "Sat, 19 Sep 2026 15:00:33 GMT"
     },
     {
       "id": "gemini-api-changelog",
@@ -3711,8 +3723,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "plain-text mirror; cheapest reliable sha256 diff of any surface; tool/agent packaging changes",
       "used_by": [
         "implementation/gemini",
@@ -3723,7 +3735,7 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "content_sha256": "08186bb9b8099491fa6a2217d91cb3520453257f8ebaa220b16033504a05fbd5"
+      "content_sha256": "407abdc42bd6d8648f19f524c5893b8b2a3b6fe13fdcba28a0627f6185510a4e"
     },
     {
       "id": "gemini-deprecations",
@@ -3733,8 +3745,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "model retirement dates; any pinned model id in an export fails after its shutdown date",
       "used_by": [
         "implementation/gemini",
@@ -3745,8 +3757,8 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "sha256",
-      "content_sha256": "ae14b3f86df9c5f2286d3235ba71fc11dcd2e5190537e69b6313fedb2b6fb43b",
-      "content_last_modified": "Thu, 27 Aug 2026 15:51:02 GMT"
+      "content_sha256": "2a9d2d18e444564c7227e0f0c660783af0a8c8d4fe7e2e628d44230dfcbdec20",
+      "content_last_modified": "Thu, 17 Sep 2026 17:06:46 GMT"
     },
     {
       "id": "google-search-central-feed",
@@ -4662,7 +4674,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Plugin/marketplace auto-update defaults, extraKnownMarketplaces autoUpdate, /plugin commands, FORCE_AUTOUPDATE_PLUGINS",
       "used_by": [
@@ -4673,9 +4685,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "Governs the true-background distribution channel for Claude Code; fast-moving per-version notes",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "55551f4f307d383b636455b4e61f66724e24bc5119ea67b4a5e98eab9a11863a",
+      "first_block_detected": null
     },
     {
       "id": "claude-code-setup-docs",
@@ -4685,7 +4699,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "claude update, native background updates, autoUpdatesChannel, DISABLE_AUTOUPDATER, DISABLE_UPDATES",
       "used_by": [
@@ -4696,9 +4710,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The CLI/native auto-update floor for a Claude Code install of Creator OS",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "959a5f903d33cb570874bf4b076e431eaefea67e420f54ba80e769282e92c57a",
+      "first_block_detected": null
     },
     {
       "id": "claude-cowork-architecture",
@@ -4708,7 +4724,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Per-session sandbox created at start and destroyed at end; sessions/files saved to account; local MCP servers do not run remotely",
       "used_by": [
@@ -4719,9 +4735,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The data-persistence boundary that makes Cowork always-latest for delivery but ephemeral for local .local data",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "2104e7c070f010886b7c6b6c0ea0d5d4fbf983976de019aaef5a617daec42a87",
+      "first_block_detected": null
     },
     {
       "id": "claude-cowork-plugins-org",
@@ -4731,7 +4749,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Changes take effect on next session or plugin refresh; Sync automatically toggle; auto-sync fires only on a version-bump PR merge, not a direct push",
       "used_by": [
@@ -4742,9 +4760,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The claude.ai/Cowork equivalent of CLI marketplace auto-update; version-bump-PR-merge is a hard release constraint",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "e2482edd189393e36c4b30e8054a09638edfa78f55788310444d9a4e385fca23",
+      "first_block_detected": null
     },
     {
       "id": "claude-cowork-changelog",
@@ -4754,7 +4774,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Dated fixes for plugin/skill persistence, marketplace auto-refresh, Desktop Extension gating",
       "used_by": [
@@ -4765,9 +4785,12 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "Fast-moving dated signal; several update-relevant behaviors changed month to month in mid-2026",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "fcb305ca9cd0e0595534d6486b4ed561f619b4ad841a8481510d8f446431a546",
+      "content_etag": "W/\"ntgilf0a2rjrdl\"",
+      "first_block_detected": null
     },
     {
       "id": "claude-remote-mcp-docs",
@@ -4777,7 +4800,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Add-connector flow, plan gating, OAuth vs request-header auth, org vs individual add paths",
       "used_by": [
@@ -4788,9 +4811,12 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The best multi-surface true-background channel (a hosted remote MCP server) for claude.ai + Cowork",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "e83099f3018f2b55e6eac3dcf27be48a9164adf5695a42645d7b171b39e65e7f",
+      "content_etag": "W/\"1ztmim2kkc9y6w\"",
+      "first_block_detected": null
     },
     {
       "id": "claude-desktop-extensions-docs",
@@ -4800,7 +4826,7 @@
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "MCPB/.mcpb packaging, directory auto-update vs self-distributed manual reinstall, isDesktopExtensionEnabled gating",
       "used_by": [
@@ -4811,9 +4837,12 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The Desktop packaged-server update contract; directory bundles auto-update, self-distributed do not",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "4c30c614356a2cb50acb4afb813d7c39fe8807d9d02246f279052113e96f03b1",
+      "content_etag": "W/\"f76oh1ucoy8wbz\"",
+      "first_block_detected": null
     },
     {
       "id": "openai-developer-mode",
@@ -4823,8 +4852,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "Full read+write MCP client support, plan gating, SSE + streaming HTTP, write actions require confirmation (beta)",
       "used_by": [
         "docs/CROSS-MODALITY.md"
@@ -4834,19 +4863,19 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "First-party (fetchable) source for the ChatGPT Tier-B connector path; replaces reliance on the 403-walled help page",
-      "content_sha256": "12aee11918fec862191522dae9ca0f6bd5921ecf8bb4278a32d104ee8c8a48dd",
-      "content_etag": "\"946d98a88769f8e4eef33439b0c9c32c\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:11:58 GMT"
+      "content_sha256": "2daabe92c43eb686ca52b395bf745a91b43931c241d2540a87b100ca7050b156",
+      "content_etag": "\"60174f35afa6a22819b2c7606ce3a8e6\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:30:26 GMT"
     },
     {
       "id": "openai-connect-chatgpt",
       "name": "Connect from ChatGPT (Apps SDK)",
-      "url": "https://developers.openai.com/apps-sdk/deploy/connect-chatgpt",
+      "url": "https://developers.openai.com/plugins/deploy/connect-chatgpt",
       "category": "ai-surface-spec",
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Manual Refresh metadata step, per-conversation write confirmation, all-plans support as of 2025-11-13",
       "used_by": [
@@ -4857,9 +4886,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The live-output-vs-refresh-contract nuance (R1) for ChatGPT MCP connectors/apps",
-      "content_sha256": "4fdd80d7612ceff48106f03f82b3d6498f816d8a4b2be920fd4fecb4fe18f313",
-      "content_etag": "\"c8d0a46ae72ea63072f446abec15c712\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:06:39 GMT"
+      "content_sha256": "164134e074f0df032cb64565017bfe4941c9cd00f7ad40879ba56755e51e0ac6",
+      "content_etag": "\"81ee174b21a1bdbc38308a01883e7876\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:43:32 GMT"
     },
     {
       "id": "openai-responses-mcp",
@@ -4869,8 +4898,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "type:mcp remote tool: server_url, authorization, require_approval; tool list cached per conversation via mcp_list_tools",
       "used_by": [
         "docs/CROSS-MODALITY.md"
@@ -4880,9 +4909,9 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The developer-API Tier-B path that reaches any public remote MCP server with full read/write",
-      "content_sha256": "0d3150a69779294f24b089ff92b99c007394c2783e6ba924abb174c8d671f1cc",
-      "content_etag": "\"45b099e286257979198540dc4516d2b4\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:15:11 GMT"
+      "content_sha256": "3dc385757e5281fdf178cb76d9c8f0ba526a56c22f9e6e9bcc31609a75cc498b",
+      "content_etag": "\"0014348447517631d82cdcfc30a34330\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:33:35 GMT"
     },
     {
       "id": "youtube-studio-analytics-export",
@@ -5740,7 +5769,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Native Google Workspace connector (no Cloud Console); Team/Enterprise admin gating.",
       "used_by": [
@@ -5750,9 +5779,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "368eeb37ae24beda05c2831b776e39563261bac94334311a505d94e79b85e959",
+      "first_block_detected": null
     },
     {
       "id": "google-drive-desktop-sync-modes",
@@ -5798,7 +5829,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "",
       "used_by": [],
@@ -5806,9 +5837,11 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Cloudflare"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "28bfc936b4c51a93f4e3c65c518da20a619d5084ae81c113145492329f1c64ec",
+      "first_block_detected": null
     },
     {
       "id": "openai-model-spec",
@@ -5839,16 +5872,16 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "b7b058be1f8cc70826c4b71bbcb6d15117fcc230c594237c6cba5102b94e667b",
-      "content_last_modified": "Wed, 26 Aug 2026 23:31:34 GMT"
+      "content_sha256": "e6533593be2fa9a55b48738f782435395ac4e5ad1c1e1d64fad90117331b44b1",
+      "content_last_modified": "Fri, 18 Sep 2026 21:36:39 GMT"
     },
     {
       "id": "owasp-llm01-prompt-injection",
@@ -5996,17 +6029,17 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "48b6ae35b3a1ddf988dea756cc2e7b9e3ebef43ef3b4c66166ca43f40b5fbc16",
-      "content_etag": "\"babb99e4fb4cebd2675c99e527e142c1\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:08:33 GMT"
+      "content_sha256": "3a3b980191c08c98feead3a9659273836aded29c45a0f323da519d0a27e0fecb",
+      "content_etag": "\"ad166caa3cfd67dccf8b500efe931230\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:37:38 GMT"
     },
     {
       "id": "openai-work-with-apps",
@@ -6040,17 +6073,17 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "3507195b3817351ce546ab73a183495761ec4e2cc37e7ef6b0c3abf5f1ec7343",
-      "content_etag": "\"f4a8e1dababb3d978e969810af37c938\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:09:00 GMT"
+      "content_sha256": "7f2161a530db3c7c2cefa8613035b1af00cd2f3dc938a937213362fc5d501eb5",
+      "content_etag": "\"87c783e7f303905e7a03280cea23cd99\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:29:55 GMT"
     },
     {
       "id": "codex-mcp-config",
@@ -6060,17 +6093,17 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-08-30",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "",
       "used_by": [],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "9dc1aac9055bf4a770525da70273db73c3e45580ce95f2b9074384815f85d5ed",
-      "content_etag": "\"27b86eed4130614b332068934f9f6285\"",
-      "content_last_modified": "Sat, 29 Aug 2026 10:11:55 GMT"
+      "content_sha256": "87352d1df983d941e51c10dc6dab18e948e5e5a073250c99ce9d20338a8fda13",
+      "content_etag": "\"a16c392c74551b2db9fb67b573922c26\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:29:41 GMT"
     },
     {
       "id": "openai-chatgpt-developer-mode-help",
@@ -6296,8 +6329,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-09-12",
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "a new date-tag is a new protocol revision; 2026-07-28 removed the handshake and added _meta plus mandatory server/discover (verified at source 2026-09-07); watch transport deprecations and auth changes",
       "used_by": [
         "docs/CROSS-MODALITY.md",
@@ -6307,7 +6340,7 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "content_sha256": "71595b6819504788b6814017aa61b9b009e8d018504df5358a2443a417942566"
+      "content_sha256": "0c1014a3d7b71c3df38a6b03cd172bf9845ee1ea84f7343a4d344d0865b036a7"
     },
     {
       "id": "codex-agents-md-config",
@@ -6317,7 +6350,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "project_doc_max_bytes default (32 KiB) backs the AGENTS.md budget in tools/surface_budgets.py",
       "used_by": [
@@ -6327,7 +6360,10 @@
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
-      "child_source_ids": []
+      "child_source_ids": [],
+      "content_sha256": "d0b5bda4161af49a5dfc0830cd47bbad7813d3b40e00b0feea23ec8e21ad0664",
+      "content_etag": "\"716a545b2520d7a3a57c9f48de2cf580\"",
+      "content_last_modified": "Sat, 19 Sep 2026 14:30:46 GMT"
     },
     {
       "id": "openai-gpt-workspace-articles",
@@ -6349,5 +6385,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "ce9df75c8c6f83109587e2a69f86db2b5f3b82045baae431f1d914af09d5310d"
+  "_content_digest": "e29098924d26d8c383a3faa2a235074315bc801fef35d4ea4ec35a6a40f24867"
 }

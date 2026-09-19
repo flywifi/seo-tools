@@ -89,6 +89,28 @@
       "verified_after": "2026-09-04",
       "citation_url": "https://developers.openai.com/api/docs/guides/migrate-to-responses",
       "confidence": "verified"
+    },
+    {
+      "id": "claude-desktop-orgpluginsettings-record-form",
+      "jurisdiction": "Claude Desktop",
+      "description": "Claude Desktop accepts the orgPluginSettings record form only until 2026-10-07; array form required after (Desktop changelog entry 2026-08-27, v1.40609.0). Drives docs/UPDATING.md org-plugin guidance.",
+      "registry_source_id": "claude-cowork-changelog",
+      "effective": "2026-10-07",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://claude.com/docs/cowork/changelog",
+      "confidence": "verified"
+    },
+    {
+      "id": "gpt-5-5-retirement",
+      "jurisdiction": "OpenAI ChatGPT",
+      "description": "GPT-5.5 retires from ChatGPT, ChatGPT Work, and Codex on 2026-10-14; users directed to gpt-5.6-sol (learn.chatgpt.com changelog entry 2026-09-14). The repo does not use GPT-5.5; tracked because the gpt-5.6 alias family is what the repo's examples ride on.",
+      "registry_source_id": "codex-mcp-config",
+      "effective": "2026-10-14",
+      "phase_2": null,
+      "verified_after": null,
+      "citation_url": "https://learn.chatgpt.com/docs/changelog",
+      "confidence": "verified"
     }
   ]
 }

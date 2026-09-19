@@ -69,6 +69,15 @@ DOC_SOURCES = {
     ],
     "implementation/gpt/mcp-connector/README.md": ["tools/mcp_server.py"],
     "docs/TRANSITIONS.md": ["shared/cross-modality/transitions.json"],
+    # P83: the Claude-side mirror of the P82 gap -- these two doc/source pairs carried the
+    # September drift (config-snippet paths, plugin manifests) with nothing watching.
+    "implementation/claude/desktop/README.md": [
+        "implementation/claude/desktop/claude_desktop_config_snippet.json",
+    ],
+    "docs/UPDATING.md": [
+        ".claude-plugin/plugin.json",
+        ".claude-plugin/marketplace.json",
+    ],
     # P61: the injection-guard engine doc's "Offline pattern tier" section describes the tool that
     # implements its categories/scores verbatim; a tool change plausibly stales that section.
     "shared/injection-guard-engine.md": ["tools/injection_scan.py"],

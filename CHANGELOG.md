@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P83: two vendor moving dates (Claude Desktop orgPluginSettings record-form removal 2026-10-07;
+  GPT-5.5 retirement 2026-10-14), Claude-side doc-freshness bindings (Desktop README to its
+  config snippet; UPDATING.md to the plugin manifests), and wire-selftest assertions pinning the
+  declared connector output schemas and the non-empty result urls the ChatGPT citation rule
+  requires.
 - P82-9: block episodes. `first_block_detected` is stamped on entry to the blocked state,
   survives re-sweeps (legacy rows inherit their prior detection date), and clears on recovery
   and on `mark-checked`, which now heals the whole block record; both escalation clocks measure
@@ -63,6 +68,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P83: the ChatGPT developer-mode path (now Settings, then Security and login; servers at
+  chatgpt.com/plugins) replaces the excerpt-confidence tags with first-party citations across the
+  connector runbook, transitions, and docs; the unrecognized autoUpdate field left plugin.json;
+  the Assistants replacement framing matches the migration page.
 - P82-9: the anti-bot classifier no longer calls a healthy success page blocked on a captcha
   widget or CDN fingerprint alone (nine seo-authority sources were misfiled as permanently
   blocked on that evidence, and the resilient retry's own successful fetches were re-condemned
@@ -126,6 +135,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P83: Cowork is documented cloud-first (Pro, Max, and Team beta; local remains for existing
+  desktop deployments); the claude.ai connector card carries the documented Free/Pro/Max and
+  org flows; five registry seeds re-pointed off retired hosts (Apps SDK to Plugins,
+  docs.anthropic.com to platform.claude.com, the dead add-mcp-server tutorial to
+  code.claude.com/docs/en/mcp) and twenty-seven AI-surface seeds stamped through the sanctioned
+  writer; the two plugin manifest descriptions are now identical.
 - P82-9: the connector runbook's OAuth requirement list is re-verified against the 2026-07-28
   MCP revision (S256 attributed to OAuth 2.1, which mandates it); the blocked backlog was
   re-swept through the fixed classifier and stamped; the retired TikTok creator-portal source

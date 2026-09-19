@@ -2,7 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P82 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P83 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+
+- P83: September vendor-currency pass (2026-09-19, docs/adr/0059-p83-september-vendor-currency.md).
+  Fifteen changed and twenty first-readable AI-surface seeds consumed: the ChatGPT developer-mode
+  path and plan list are now first-party cited (two excerpt tags closed without a browser); the
+  Apps SDK rename to Plugins propagated through prose and registry; Cowork reframed cloud-first
+  with quoted plans; the claude.ai connector card carries the documented Free/Pro/Max flow; the
+  Desktop README gains the Linux path and Extensions-onboarding note; plugin manifests aligned and
+  the unrecognized autoUpdate field removed (validator --strict passes); typed connector returns
+  tested under both SDK majors and rejected on evidence, with the declared-schema and
+  non-empty-url rules pinned in the wire selftest instead; five seeds re-pointed off retired
+  hosts and twenty-seven stamped; two vendor deadlines entered moving-dates; Claude-side
+  doc-freshness bindings added. Not done, by decision: the three changed social-importer seeds
+  (their consumer tools need review first); atoms-tier restructuring (enumeration stance recorded
+  UNVERIFIED-BY-RUNTIME in the ADR); community-marketplace submission; Secure MCP Tunnel; the six
+  help-center facts (browser checklist stands, minus the settings-path item closed at T1); tag; PR.
 
 - P82-9: The block that wasn't (2026-09-12,
   docs/adr/0058-p82-9-block-classification-and-episodes.md). Investigating the escalation

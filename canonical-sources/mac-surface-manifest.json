@@ -14,7 +14,7 @@
     "Start Creator OS Setup.command": "ab19efa8879268a879bcadc59c29bdd40afc8065f727b13b72dd40f4462f5145",
     "canonical-sources/data-currency-map.json": "c365ee84022c9d54cc0c80529cdef0c6788efcd92ef2099319c35af3b9b4be98",
     "canonical-sources/dependency-sources-seed.json": "53237bd235a9c24dbea32259a732a192300e819146e0757ea4c74cd4efe54ce4",
-    "canonical-sources/moving-dates.json": "500bf54392be537fba5d6a5e96764cd6e9e3ba7649ed1acf7aa7246ede1f6eff",
+    "canonical-sources/moving-dates.json": "7c8da3f64aca90e6b88e2dd34025b464c5b99e46b671101cd51f0c45d72374d5",
     "canonical-sources/operational-url-allowlist.json": "799eed2d9612ea707d7fb9f4a4e382c2046122caf12f95290006a94221ab6abd",
     "canonical-sources/volatile-corrections.2026-07-14.json": "94c3216314225ce2ece91a6f901072b5a25bbca926844134d6286656da64cb82",
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
