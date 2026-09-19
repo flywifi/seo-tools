@@ -6536,7 +6536,29 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "The search/fetch-participation rule the runbook now states is scoped by this article"
+    },
+    {
+      "id": "openclaw-onboarding-docs",
+      "name": "OpenClaw onboarding documentation (design reference)",
+      "url": "https://docs.openclaw.ai/start/wizard",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": null,
+      "extraction_hint": "Design-pattern reference only for the Creator OS setup wizard (ADR 0061): verified-completion gating, resume semantics, no-silent-fallback failure UX. No OpenClaw software is used or shipped; low-frequency watch.",
+      "used_by": [
+        "docs/adr/0061-p85-wizard-first-run-readiness.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "_why": "ADR 0061 cites it as the studied reference design; registered per invariant 52",
+      "content_sha256": "2ae27cbb58051a946ede31fd0fa6ae32ed680e66bdd84a39bb9503d5adcb78c3",
+      "min_recheck_at": 739878
     }
   ],
-  "_content_digest": "885033ae9f084b0cea0d5a06f812729d3d9cd4641c601a01a3f6804ca57a469a"
+  "_content_digest": "dca029b3b4831754749ffe1b938da2110e933580abba5598846c1aa273c0fc7a"
 }

@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "1a76cdbcd064710ae4bbebe92ce81340de4b7f868a9e53232855b1425e8d9951",
+        "tools/wizard.py": "452beda323f05952bdb292bbc8a8725c3905a150e1ff7efa17a795196cb41185",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -63,7 +63,7 @@
     },
     "implementation/claude/desktop/README.md": {
       "sources": {
-        "implementation/claude/desktop/claude_desktop_config_snippet.json": "af2413d458f36b690dbdcefe322191c655ea24a01e12382f31142e40ead1f711"
+        "implementation/claude/desktop/claude_desktop_config_snippet.json": "fe89c0004d021688aad1e1eeac00673be440ab87f5ea78a8a74e0e91cffb5c51"
       }
     },
     "docs/UPDATING.md": {

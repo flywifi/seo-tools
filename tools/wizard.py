@@ -139,6 +139,71 @@ def _write_claude_config(config: dict) -> pathlib.Path:
     atomic_io.atomic_write_text(p, json.dumps(config, indent=2))
     return p
 
+def _creator_os_entry() -> dict:
+    """The creator-os MCP server entry for Claude Desktop (P85-1). Absolute paths on purpose:
+    Claude Desktop launches servers with its own narrow PATH, so a bare 'python3' can fail to
+    start (the config snippet documents the same rule). env_paths.app_python() prefers the
+    private .venv toolbox and falls back to a working system interpreter."""
+    root = ROOT.resolve()
+    return {
+        "command": str(env_paths.app_python(root)),
+        "args": [str(root / "tools" / "mcp_server.py")],
+        "env": {"CREATOR_OS_ROOT": str(root)},
+    }
+
+def _expected_tool_count() -> int | None:
+    """Count-truth rule: never restate the tool count by hand. Read it from count_truth.py at
+    probe time; None on any failure means the probe reports the count as unchecked rather than
+    comparing against a stale number."""
+    try:
+        out = subprocess.run(
+            [env_paths.app_python(), str(ROOT / "tools" / "count_truth.py")],
+            capture_output=True, text=True, timeout=60,
+        ).stdout
+        return int(json.loads(out)["mcp_tools"])
+    except Exception:  # noqa: BLE001
+        return None
+
+def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, str, int]:
+    """Verified-completion probe (P85-1): full MCP stdio handshake, then tools/list. A bare
+    tools/list is rejected before initialization (the server answers -32602), so the sequence
+    is initialize -> notifications/initialized -> tools/list. Returns (ok, detail, tool_count).
+    Never raises."""
+    msgs = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "creator-os-wizard-probe", "version": "0"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    ]
+    stdin = "".join(json.dumps(m) + "\n" for m in msgs)
+    try:
+        r = subprocess.run([py, server], input=stdin, capture_output=True,
+                           text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, "the server did not answer within the time limit", 0
+    except OSError as exc:
+        return False, f"could not start the server: {exc}", 0
+    if "ERROR: 'mcp' package not installed" in (r.stderr or ""):
+        return False, ("the mcp package is not installed yet "
+                       "(run Install the free tools first)"), 0
+    tools = None
+    for line in (r.stdout or "").splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if d.get("id") == 2 and "result" in d:
+            tools = d["result"].get("tools", [])
+    if tools is None:
+        tail = (r.stderr or "").strip().splitlines()[-1:] or ["no reply"]
+        return False, f"no tools/list reply ({tail[0][:160]})", 0
+    return True, "", len(tools)
+
 def _has_uv() -> bool:
     # env_paths.which prepends the Homebrew prefixes so uv is found under a double-click launch
     # (non-login zsh) where /opt/homebrew/bin is off PATH; also accept a uv inside the private .venv.
@@ -220,6 +285,31 @@ _state: dict = {
 }
 _lock = threading.Lock()
 
+# P85-2: setup progress survives a relaunch. Flags only -- no secrets, no PII. The .local.json
+# suffix is gitignored and commit-blocked (pre-commit hook + drift invariant 19). Re-running the
+# wizard never wipes this implicitly; only the "Start over" button clears it.
+_STATE_PATH = ROOT / "creator-os-wizard-state.local.json"
+
+def _load_persisted_state() -> None:
+    try:
+        saved = json.loads(_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if isinstance(saved, dict):
+        with _lock:
+            _state.update(saved)
+
+def _clear_persisted_state() -> None:
+    with _lock:
+        for k in ("first_run_step", "creator_os_installed", "creator_os_probe",
+                  "google_done", "microsoft_done"):
+            _state.pop(k, None)
+        _state.update(google_done=False, microsoft_done=False)
+        try:
+            _STATE_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
+
 def _get(key: str):
     with _lock:
         return _state.get(key)
@@ -227,6 +317,77 @@ def _get(key: str):
 def _set(**kwargs) -> None:
     with _lock:
         _state.update(kwargs)
+        try:
+            atomic_io.atomic_write_text(
+                _STATE_PATH,
+                json.dumps({k: v for k, v in _state.items()
+                            if isinstance(v, (bool, int, str))}))
+        except OSError:
+            pass  # persistence is a convenience; the session keeps working in memory
+
+_load_persisted_state()
+
+# P85-3: long steps (dependency install, model download) run in a worker thread so the browser
+# shows honest progress instead of a frozen page. One job per name; a double start is refused,
+# never queued. A crashed worker stores {"error": ...} so the wait page always reaches a
+# terminal state.
+_jobs: dict = {}
+_jlock = threading.Lock()
+
+def _start_job(name: str, fn) -> bool:
+    with _jlock:
+        if _jobs.get(name, {}).get("running"):
+            return False
+        _jobs[name] = {"running": True, "result": None}
+
+    def _run():
+        try:
+            res = fn()
+        except Exception as exc:  # noqa: BLE001  (terminal state guaranteed)
+            res = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+        with _jlock:
+            _jobs[name] = {"running": False, "result": res}
+
+    threading.Thread(target=_run, daemon=True).start()
+    return True
+
+def _job_status(name: str) -> dict:
+    with _jlock:
+        return dict(_jobs.get(name) or {"running": False, "result": None})
+
+def _render_install_deps_result(res: dict) -> str:
+    """The exact per-package honest rendering the synchronous handler used, factored for the
+    /job-wait terminal state (P85-3)."""
+    if res.get("error"):
+        return _screen_setup_computer(saved=(
+            f"The installer could not run: {res['error']} You can also install from a terminal: "
+            "<code>python3 tools/setup.py --install-deps</code>."))
+    rows = ""
+    for r in res.get("results", []):
+        if r.get("ok") is True:
+            rows += f"<li>&#10003; <strong>{r.get('item')}</strong> &mdash; {r.get('desc','')}</li>"
+        elif r.get("ok") is None:
+            rows += f"<li>&bull; <strong>{r.get('item')}</strong> &mdash; skipped ({r.get('detail','')})</li>"
+        else:
+            rows += (f"<li>&#10007; <strong>{r.get('item')}</strong> &mdash; did not install. "
+                     f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
+    any_fail = any(r.get("ok") is False for r in res.get("results", []))
+    head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
+            "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
+            if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
+            "your operating system &mdash; see <a href=\"/doctor\">Check my setup</a>.")
+    return _screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>")
+
+def _render_fetch_model_result(res: dict) -> str:
+    if res.get("ok"):
+        msg = (f"Downloaded and verified <strong>{res.get('model')}</strong> "
+               f"(checked by {res.get('verified')}). Saved to {res.get('path')}. You are ready to "
+               "transcribe on this computer.")
+    else:
+        msg = (f"The model download did not complete: {res.get('error','unknown error')}. "
+               "You can retry, or build a metadata-only library for now (transcripts stay flagged, "
+               "never faked).")
+    return _screen_doctor(saved=msg)
 
 _shutdown = threading.Event()
 
@@ -302,6 +463,32 @@ def _page(title: str, body: str, dots: list[str] | None = None) -> str:
 
 # ── Individual screens ─────────────────────────────────────────────────────
 
+_FIRST_RUN_LABELS = {
+    "/setup-computer": "Install the free tools",
+    "/creator-os-server": "Install the Creator OS tools into Claude Desktop",
+    "/desktop": "Connect Google or Microsoft (optional)",
+    "/done": "Finish",
+}
+
+def _first_run_banner() -> str:
+    """P85-2 resume banner: rendered only when a first run is underway. Reads state; never
+    mutates it (screen functions are rendered on every request)."""
+    step = _get("first_run_step")
+    if not step or step == "/done" or step not in _FIRST_RUN_LABELS:
+        return ""
+    return f"""<div class="success-box"><strong>Welcome back.</strong> Your setup is part-way
+done. Next step: {_FIRST_RUN_LABELS[step]}.
+<a class="btn btn-primary" href="{step}" style="margin-left:8px">Continue</a>
+<a class="btn btn-outline" href="/first-run/reset">Start over</a></div>"""
+
+def _first_run_nav(current: str) -> str:
+    """The Next/Skip row shown on a chained screen only while the first-time lane is at that
+    screen. Skipping is explicit (its own labelled button), never silent."""
+    if _get("first_run_step") != current:
+        return ""
+    return f"""<hr><p><a class="btn btn-primary" href="/first-run/next?frm={current}">Next step</a>
+<a class="btn btn-outline" href="/first-run/next?frm={current}">Skip this step</a></p>"""
+
 def _screen_welcome() -> str:
     os_label = _os_label()
     claude_hint = " (detected on this computer)" if _claude_installed() else ""
@@ -310,6 +497,13 @@ def _screen_welcome() -> str:
 <p>A short, guided setup. Start with one question and we tailor the rest to you.</p>
 <p style="font-size:.9rem;color:#7a5a5a">This computer: <strong>{os_label}</strong>.</p>
 {_local_precondition_note()}
+{_first_run_banner()}
+<hr>
+<h2>First time here?</h2>
+<a class="btn btn-primary" href="/first-run/start"><strong>Set everything up</strong> (one guided path)</a>
+<p class="hint">Installs the free tools, puts Creator OS into Claude Desktop, checks it works,
+and optionally connects Google or Microsoft. Every step can be skipped, and closing this window
+does not lose your progress.</p>
 <hr>
 <h2>Which AI do you use?</h2>
 <a class="btn btn-primary" href="/claude"><strong>Claude</strong>{claude_hint}</a>
@@ -406,6 +600,15 @@ def _screen_desktop(error: str = "") -> str:
     node_status = f'<span class="check">&#10003;</span> Node.js {node_v} is installed' if _node_ok() \
                   else '&#9744; Node.js 20+ not found (only needed for Microsoft 365; skip if you use Google)'
     err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if _get("creator_os_installed"):
+        creator_os_status = ('<p style="margin-bottom:6px"><span class="check">&#10003;</span> '
+                             'Installed and verified this session.</p>')
+    elif "creator-os" in (_read_claude_config().get("mcpServers") or {}):
+        creator_os_status = ('<p style="margin-bottom:6px">&#9744; An entry exists in your config '
+                             'but has not been verified this session.</p>')
+    else:
+        creator_os_status = ('<p style="margin-bottom:6px">&#9744; Not installed yet &mdash; this '
+                             'is what puts Creator OS itself into Claude Desktop.</p>')
     return _page("Claude Desktop Setup", f"""
 <h1>Claude Desktop Setup</h1>
 {_local_precondition_note()}
@@ -419,8 +622,12 @@ wizard handles them. A checkmark means you are ready.</p>
 <p style="margin-bottom:6px">{uv_status}</p>
 <p style="margin-bottom:16px">{node_status}</p>
 <hr>
-<h2>What do you want to connect?</h2>
-<a class="btn btn-primary" href="/google">Connect Google Workspace
+<h2>Step 1: the Creator OS tools</h2>
+{creator_os_status}
+<a class="btn btn-primary" href="/creator-os-server">Install the Creator OS tools into Claude Desktop</a>
+<hr>
+<h2>Step 2 (optional): what do you want to connect?</h2>
+<a class="btn btn-secondary" href="/google">Connect Google Workspace
   <span class="tag" style="background:#4a2020;color:#fff;margin-left:6px">Gmail</span>
   <span class="tag" style="background:#4a2020;color:#fff">Calendar</span>
   <span class="tag" style="background:#4a2020;color:#fff">Drive</span>
@@ -434,7 +641,64 @@ wizard handles them. A checkmark means you are ready.</p>
 </a>
 <a class="btn btn-outline" href="/">Back</a>
 <div class="note">You can connect both. Start with whichever you use more.</div>
+{_first_run_nav("/desktop")}
 """, dots=["done", "done", "active", "dot"])
+
+def _screen_creator_os_server(result: dict | None = None) -> str:
+    """P85-1: install the creator-os MCP server into Claude Desktop and VERIFY it with a real
+    handshake probe before claiming success. Three explicit outcomes, no silent fallback."""
+    cfg = _claude_config_path()
+    entry = _creator_os_entry()
+    already = "creator-os" in (_read_claude_config().get("mcpServers") or {})
+    status_html = ""
+    if result is not None:
+        if result.get("ok"):
+            n, exp = result.get("count", 0), result.get("expected")
+            count_line = (f"All {n} Creator OS tools answered."
+                          if exp is None or n == exp else
+                          f"{n} tools answered (expected {exp} &mdash; if you just updated, rerun "
+                          "the check after a fresh install of the free tools).")
+            status_html = f"""<div class="success-box"><strong>Installed and verified.</strong>
+{count_line} Now <strong>completely quit Claude Desktop (Cmd-Q on a Mac) and reopen it</strong>
+&mdash; the config is only read when the app starts. Then continue below.</div>
+<a class="btn btn-primary" href="/desktop">Continue: connect Google or Microsoft (optional)</a>
+<a class="btn btn-outline" href="/done">Finish</a>"""
+        elif result.get("no_sdk"):
+            status_html = f"""<div class="error-box">The entry was written, but the check could not
+pass yet: {html.escape(result.get("detail", ""))}. Claude Desktop needs those free tools too, so
+install them first, then come back and press the button again.</div>
+<a class="btn btn-primary" href="/setup-computer">Install the free tools</a>"""
+        else:
+            status_html = f"""<div class="error-box">The entry was written, but the verification
+check did not pass: {html.escape(result.get("detail", ""))}</div>
+<form method="POST" action="/api/install-creator-os" style="display:inline">
+  <button class="btn btn-primary" type="submit">Try again</button>
+</form>
+<details style="margin-top:12px"><summary>Set it up by hand instead</summary>
+<p class="hint">Merge the <code>creator-os</code> block from
+<code>implementation/claude/desktop/claude_desktop_config_snippet.json</code> into
+<code>{html.escape(str(cfg))}</code>, replacing the placeholder path with this folder&#8217;s
+absolute path. Errors appear in <code>~/Library/Logs/Claude/mcp-server-creator-os.log</code>.</p>
+</details>"""
+    already_html = ('<div class="note">A creator-os entry already exists in your config; the '
+                    'button below rewrites it for THIS folder and re-verifies it.</div>'
+                    if already and result is None else "")
+    return _page("Install the Creator OS tools", f"""
+<h1>Install the Creator OS tools into Claude Desktop</h1>
+{_local_precondition_note()}
+{already_html}
+<p>This writes one entry into Claude Desktop&#8217;s settings file so the app can run the
+Creator OS tools on this computer, then <strong>checks it actually works</strong> before saying
+done. Nothing else in your settings is touched.</p>
+<p class="hint">Settings file: <code>{html.escape(str(cfg))}</code><br>
+It will run: <code>{html.escape(entry["command"])}</code></p>
+{status_html if status_html else '''<form method="POST" action="/api/install-creator-os">
+  <button class="btn btn-primary" type="submit">Install and verify now</button>
+</form>'''}
+{_first_run_nav("/creator-os-server")}
+<p style="margin-top:16px"><a class="btn btn-outline" href="/desktop">Back</a></p>
+""", dots=["done", "done", "active", "dot"])
+
 
 def _screen_google(error: str = "") -> str:
     err_html = f'<div class="error-box">{error}</div>' if error else ""
@@ -1157,6 +1421,25 @@ def _screen_done() -> str:
     google = _get("google_done")
     microsoft = _get("microsoft_done")
     connected = []
+    # P85-1: the creator-os line is derived from the probe result at render time, never stored
+    # prose. If the probe did not run (or failed) this session, say so plainly instead of
+    # implying success, and offer the fix.
+    if _get("creator_os_installed"):
+        n = _get("creator_os_probe")
+        connected.append(f"The Creator OS tools ({n} tools, verified this session)")
+        creator_os_note = """<form method="POST" action="/api/recheck-creator-os" style="display:inline">
+  <button class="btn btn-outline" type="submit">Check the Creator OS tools again</button>
+</form>"""
+    else:
+        in_config = "creator-os" in (_read_claude_config().get("mcpServers") or {})
+        msg = ("A Creator OS entry exists in your Claude Desktop config, but it was not verified "
+               "this session." if in_config else
+               "The Creator OS tools were <strong>not</strong> set up in this session.")
+        creator_os_note = f"""<div class="note">{msg}
+<a class="btn btn-primary" href="/creator-os-server" style="margin-left:8px">Set up now</a>
+<form method="POST" action="/api/recheck-creator-os" style="display:inline">
+  <button class="btn btn-outline" type="submit">Check again</button>
+</form></div>"""
     if google:
         connected.append("Google Workspace (Gmail, Calendar, Drive, Sheets)")
     if microsoft:
@@ -1176,6 +1459,7 @@ If a tool does not appear afterward, check <code>~/Library/Logs/Claude/mcp-serve
     return _page("Setup Complete", f"""
 <h1>You are all set!</h1>
 {connected_html}
+{creator_os_note}
 {restart}
 <h2>Things to try in Creator OS</h2>
 <ul class="steps">
@@ -2455,6 +2739,7 @@ download). You will see a result line for every package, including any that did 
 <h2>Node.js and ffmpeg</h2>
 <p>Two tools are system programs, not Python packages, so they install through your operating system
 instead. <a href="/doctor">Check my setup</a> shows the exact one-line command for this machine.</p>
+{_first_run_nav("/setup-computer")}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>""")
 
 
@@ -2553,6 +2838,62 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._send("<h1>Not found</h1>", 404)
             return
 
+        if path == "/job-wait":
+            # P85-3: the honest-progress page for worker jobs. Running -> auto-refreshing wait
+            # page; finished -> the same result rendering the old synchronous handlers produced.
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            name = q.get("name", [""])[0]
+            if name not in ("install_deps", "fetch_model"):
+                self._redirect("/")
+                return
+            st = _job_status(name)
+            if st["running"]:
+                label = ("Installing the free tools" if name == "install_deps"
+                         else "Downloading and verifying the speech model")
+                self._send(_page("Working", f"""
+<meta http-equiv="refresh" content="3;url=/job-wait?name={name}">
+<h1>{label}&hellip;</h1>
+<p>This can take a few minutes the first time (the bigger downloads are a headless browser or a
+speech model). This page refreshes by itself every few seconds &mdash; you do not need to do
+anything, and closing this window does not stop the work.</p>
+<div class="note">Still working. Last checked just now.</div>"""))
+                return
+            res = st["result"]
+            if res is None:
+                self._redirect("/setup-computer" if name == "install_deps" else "/doctor")
+                return
+            if name == "install_deps":
+                self._send(_render_install_deps_result(res))
+            else:
+                self._send(_render_fetch_model_result(res))
+            return
+
+        if path == "/first-run/start":
+            # P85-2: enter the first-time lane. A benign progress hint (no config, no
+            # credentials), so a GET is acceptable here like the rest of the wizard's nav.
+            _set(first_run_step="/setup-computer")
+            self._redirect("/setup-computer")
+            return
+
+        if path == "/first-run/next":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            frm = q.get("frm", [""])[0]
+            chain = {"/setup-computer": "/creator-os-server",
+                     "/creator-os-server": "/desktop",
+                     "/desktop": "/done"}
+            nxt = chain.get(frm)
+            if nxt:
+                _set(first_run_step=nxt)
+                self._redirect(nxt)
+            else:
+                self._redirect("/")
+            return
+
+        if path == "/first-run/reset":
+            _clear_persisted_state()
+            self._redirect("/")
+            return
+
         if path == "/cross-modality":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(_screen_cross_modality(q.get("surface", [""])[0]))
@@ -2575,6 +2916,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             "/bring": _screen_bring(),
             "/claudeai": _screen_claudeai(),
             "/desktop": _screen_desktop(),
+            "/creator-os-server": _screen_creator_os_server(),
             "/google": _screen_google(),
             "/microsoft": _screen_microsoft(),
             "/done": _screen_done(),
@@ -2614,6 +2956,40 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if not _origin_allowed(self.headers.get("Origin"), self.headers.get("Referer")):
             self._send("<h1>Blocked</h1><p>This request came from another website and was refused "
                        "for your safety. Use the Creator OS setup page in your browser.</p>", status=403)
+            return
+
+        if path == "/api/install-creator-os":
+            # P85-1: merge the creator-os entry into Claude Desktop's config through the safe
+            # writer (corrupt-backup + atomic + no-clobber), then VERIFY with the handshake probe
+            # against the exact interpreter the config now names. Three explicit outcomes.
+            entry = _creator_os_entry()
+            config = _read_claude_config()
+            config.setdefault("mcpServers", {})["creator-os"] = entry
+            try:
+                _write_claude_config(config)
+            except OSError as exc:
+                self._send(_screen_creator_os_server(
+                    {"ok": False, "detail": f"could not write the settings file: {exc}"}))
+                return
+            ok, detail, count = _probe_mcp_server(entry["command"], entry["args"][0])
+            no_sdk = (not ok) and "mcp package is not installed" in detail
+            _set(creator_os_installed=ok, creator_os_probe=count)
+            self._send(_screen_creator_os_server(
+                {"ok": ok, "detail": detail, "no_sdk": no_sdk,
+                 "count": count, "expected": _expected_tool_count() if ok else None}))
+            return
+
+        if path == "/api/recheck-creator-os":
+            # P85-1 (A-4 "Check again"): re-read the config and re-run the probe, e.g. after the
+            # Claude Desktop restart. Never starts a new install; only re-derives the truth.
+            servers = _read_claude_config().get("mcpServers") or {}
+            e = servers.get("creator-os") or {}
+            if e.get("command") and e.get("args"):
+                ok, _detail, count = _probe_mcp_server(e["command"], e["args"][0])
+                _set(creator_os_installed=ok, creator_os_probe=count)
+            else:
+                _set(creator_os_installed=False, creator_os_probe=0)
+            self._send(_screen_done())
             return
 
         if path == "/api/enable-capability":
@@ -2752,27 +3128,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/install-deps":
             # Install every free, cross-platform, no-key pip set + uv + the Playwright browser on THIS
             # computer (local; nothing uploaded). Reports every package outcome, never silently.
-            res = _run_setup(["--install-deps", "--json"])
-            if res.get("error"):
-                self._send(_screen_setup_computer(saved=(
-                    f"The installer could not run: {res['error']} You can also install from a terminal: "
-                    "<code>python3 tools/setup.py --install-deps</code>.")))
-                return
-            rows = ""
-            for r in res.get("results", []):
-                if r.get("ok") is True:
-                    rows += f"<li>&#10003; <strong>{r.get('item')}</strong> &mdash; {r.get('desc','')}</li>"
-                elif r.get("ok") is None:
-                    rows += f"<li>&bull; <strong>{r.get('item')}</strong> &mdash; skipped ({r.get('detail','')})</li>"
-                else:
-                    rows += (f"<li>&#10007; <strong>{r.get('item')}</strong> &mdash; did not install. "
-                             f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
-            any_fail = any(r.get("ok") is False for r in res.get("results", []))
-            head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
-                    "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
-                    if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
-                    "your operating system &mdash; see <a href=\"/doctor\">Check my setup</a>.")
-            self._send(_screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>"))
+            # P85-3: runs in a worker thread; the wait page shows honest progress. A second press
+            # while running is refused, never queued.
+            _start_job("install_deps", lambda: _run_setup(["--install-deps", "--json"]))
+            self._redirect("/job-wait?name=install_deps")
             return
 
         if path == "/api/recheck-node":
@@ -2789,20 +3148,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             model = (data.get("model") or "").strip()
             # A4c: only a known model tier may be shelled to transcribe.py (no arbitrary argv).
             if model and model not in _KNOWN_MODEL_TIERS:
-                res = {"error": f"Unknown model tier '{html.escape(model)}'."}
-            elif model:
-                res = _run_transcribe(["doctor", "--fetch-model", model])
-            else:
-                res = {"error": "no model chosen"}
-            if res.get("ok"):
-                msg = (f"Downloaded and verified <strong>{res.get('model')}</strong> "
-                       f"(checked by {res.get('verified')}). Saved to {res.get('path')}. You are ready to "
-                       "transcribe on this computer.")
-            else:
-                msg = (f"The model download did not complete: {res.get('error','unknown error')}. "
-                       "You can retry, or build a metadata-only library for now (transcripts stay flagged, "
-                       "never faked).")
-            self._send(_screen_doctor(saved=msg))
+                self._send(_screen_doctor(saved=f"Unknown model tier '{html.escape(model)}'."))
+                return
+            if not model:
+                self._send(_screen_doctor(saved="No model chosen."))
+                return
+            # P85-3: the download (a few hundred MB) runs in a worker; the wait page polls.
+            _start_job("fetch_model",
+                       lambda m=model: _run_transcribe(["doctor", "--fetch-model", m]))
+            self._redirect("/job-wait?name=fetch_model")
             return
 
         if path == "/api/set-drive-hub":
@@ -3682,18 +4036,116 @@ def _selftest() -> int:
     except Exception as exc:  # noqa: BLE001
         check(False, f"direct-saves section errored: {exc}")
 
+    # P85-4a: render EVERY screen function with defaults (empty-string args where required),
+    # enumerated from the module namespace so a new screen cannot dodge the sweep. A screen must
+    # return non-empty HTML with no traceback text.
+    import inspect as _inspect
+    rendered = 0
+    for _name, _fn in sorted(globals().items()):
+        if not (_name.startswith("_screen_") and callable(_fn)):
+            continue
+        try:
+            try:
+                _html_out = _fn()
+            except TypeError:
+                _n = len(_inspect.signature(_fn).parameters)
+                _html_out = _fn(*([""] * _n))
+            rendered += 1
+            check(bool(_html_out) and "Traceback" not in _html_out,
+                  f"screen {_name} rendered empty or with a traceback")
+        except Exception as exc:  # noqa: BLE001
+            check(False, f"screen {_name} raised: {exc}")
+
+    # P85-4b: creator-os config merge round-trip under a fake HOME -- another server and a
+    # non-mcp key must survive, paths must be absolute, and the corrupt-config backup must fire.
+    import tempfile as _tempfile
+    _old_home = os.environ.get("HOME")
+    _old_appdata = os.environ.get("APPDATA")
+    try:
+        _fake = _tempfile.mkdtemp(prefix="wizard-selftest-home-")
+        os.environ["HOME"] = _fake
+        os.environ["APPDATA"] = _fake  # Windows path branch uses APPDATA
+        _cfgp = _claude_config_path()
+        _cfgp.parent.mkdir(parents=True, exist_ok=True)
+        _cfgp.write_text(json.dumps({"mcpServers": {"user-own": {"command": "/bin/x"}},
+                                     "globalShortcut": "Alt+C"}), encoding="utf-8")
+        _cfg = _read_claude_config()
+        _cfg.setdefault("mcpServers", {})["creator-os"] = _creator_os_entry()
+        _write_claude_config(_cfg)
+        _back = json.loads(_cfgp.read_text(encoding="utf-8"))
+        check(_back["mcpServers"].get("user-own", {}).get("command") == "/bin/x",
+              "creator-os merge clobbered another server")
+        check(_back.get("globalShortcut") == "Alt+C", "creator-os merge clobbered a non-mcp key")
+        _e = _back["mcpServers"]["creator-os"]
+        check(os.path.isabs(_e["command"]) and os.path.isabs(_e["args"][0]),
+              "creator-os entry paths are not absolute")
+        _cfgp.write_text("{not json", encoding="utf-8")
+        _write_claude_config({"mcpServers": {"creator-os": _creator_os_entry()}})
+        check(_cfgp.with_name(_cfgp.name + ".corrupt.bak").exists(),
+              "corrupt-config backup did not fire on the merge path")
+    finally:
+        if _old_home is not None:
+            os.environ["HOME"] = _old_home
+        if _old_appdata is not None:
+            os.environ["APPDATA"] = _old_appdata
+        elif "APPDATA" in os.environ:
+            del os.environ["APPDATA"]
+
+    # P85-4c: persisted-state round-trip (subset assertion: _state carries pre-seeded defaults).
+    _set(selftest_probe_flag="round-trip")
+    try:
+        _reloaded = json.loads(_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _reloaded = {}
+    check(_reloaded.get("selftest_probe_flag") == "round-trip",
+          "state write-through did not persist")
+    with _lock:
+        _state.pop("selftest_probe_flag", None)
+        try:
+            atomic_io.atomic_write_text(_STATE_PATH, json.dumps(
+                {k: v for k, v in _state.items() if isinstance(v, (bool, int, str))}))
+        except OSError:
+            pass
+
+    # P85-4d: worker double-start refusal and terminal state on a crash.
+    check(_start_job("selftest_job", lambda: (time.sleep(0.2), {"ok": True})[1]) is True,
+          "worker did not start")
+    check(_start_job("selftest_job", lambda: None) is False,
+          "worker double-start was not refused")
+    time.sleep(0.4)
+    check(_job_status("selftest_job")["running"] is False, "worker never finished")
+    _start_job("selftest_crash", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    time.sleep(0.3)
+    _crash = _job_status("selftest_crash")
+    check(_crash["running"] is False and "boom" in str(_crash.get("result", {}).get("error", "")),
+          "crashed worker did not store a terminal error")
+
     if failures:
         print("wizard selftest FAILED:")
         for f in failures:
             print("  -", f)
         return 1
-    print("wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; port-collision; loopback guard; 0 network)")
+    print(f"wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; "
+          f"port-collision; loopback guard; {rendered}-screen render sweep; creator-os merge "
+          f"round-trip + corrupt backup; state persistence; worker double-start/crash; 0 network)")
     return 0
 
 
 def main() -> None:
     if "--selftest" in sys.argv:
         raise SystemExit(_selftest())
+    # P85-2: fail friendly on an old interpreter instead of tracebacking later in a tool call.
+    # Mirrors the launcher's wording; the launcher already refuses pre-3.12, but the docs also
+    # say `python3 tools/wizard.py`, which bypasses the launcher.
+    if sys.version_info[:2] < env_paths.PYTHON_FLOOR:
+        floor = ".".join(map(str, env_paths.PYTHON_FLOOR))
+        print(f"\nCreator OS needs Python {floor} or newer; this is "
+              f"Python {sys.version_info[0]}.{sys.version_info[1]}.")
+        print("Easiest fix: install the notarized python.org universal2 build "
+              "(https://www.python.org/downloads/macos/),")
+        print("or install Homebrew (https://brew.sh) and run: brew install python@3.12")
+        print("Then run:  python3.12 tools/wizard.py")
+        raise SystemExit(1)
     # Bind loopback only (127.0.0.1). Primary reason: the wizard has no reason to be reachable from
     # the network, so it should not listen on an external interface. Apple's TN3179 defines a local
     # network as one on a broadcast-capable interface (Wi-Fi/Ethernet), which excludes loopback by

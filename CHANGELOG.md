@@ -13,6 +13,25 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P85: the wizard selftest grows four families -- a 31-screen render sweep enumerated from the
+  module namespace, the creator-os config-merge round-trip (other servers survive, corrupt
+  configs are backed up), the state-persistence round-trip, and worker double-start/crash
+  semantics; ADR 0061 records the design decisions, including that the OpenClaw onboarding
+  docs were a design reference only and no OpenClaw software is used or shipped.
+- P85: the wizard's two long steps (free-tools install, speech-model download) run in a worker
+  thread behind a self-refreshing progress page; double starts are refused and a crashed worker
+  still reaches a terminal error page with the reason, keeping the per-package honest reporting.
+- P85: a first-time lane in the wizard -- one "Set everything up" button chains free-tools
+  install, the Creator OS install-and-verify step, and the optional service connections, each
+  screen with an explicit Skip; progress persists to a gitignored state file so an interrupted
+  setup resumes on relaunch (Start over clears it explicitly, never implicitly); `main()` gains
+  a Python-floor guard that prints the install instructions instead of tracebacking on 3.11.
+- P85: the setup wizard installs the Creator OS MCP server itself (`/creator-os-server` screen):
+  the entry is merged into Claude Desktop's config through the safe writer with absolute
+  venv-aware paths, then verified with a real MCP handshake and tool listing before the wizard
+  claims success; the Done page derives its Creator OS line from the probe at render time and
+  carries a "Check again" re-probe for after the app restart. Previously the wizard never wrote
+  this entry at all and two docs claimed it did.
 - P84: the Custom GPT retirement enters moving-dates (`custom-gpt-retirement`, Enterprise
   2026-12-11, migration flow to Plugins targeted 2026-09-17; help article 8554397 read in full
   via a human-delivered browser save) with the export-gpt stance recorded in ADR 0060; the
@@ -73,6 +92,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P85: the documented MCP smoke test in the macOS setup guide could never work (a bare
+  tools/list is rejected before the initialize handshake; executed proof) -- replaced with the
+  full three-message probe; two false claims that the wizard already wrote the creator-os
+  config entry (setup guide and the config snippet's own comment) now describe reality.
 - P83: the ChatGPT developer-mode path (now Settings, then Security and login; servers at
   chatgpt.com/plugins) replaces the excerpt-confidence tags with first-party citations across the
   connector runbook, transitions, and docs; the unrecognized autoUpdate field left plugin.json;
