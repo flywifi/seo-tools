@@ -1181,7 +1181,7 @@
       "tier": "T1",
       "check_interval_days": 7,
       "staleness_threshold_days": 7,
-      "last_checked": "2026-09-12",
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "Extract: official ranking signals for Reels (sends per reach as unique primary signal, watch time, saves, originality gate at 10+ reposts), what Instagram says it penalizes (low-res, watermarked content, reposts), hashtag guidance updates.",
       "used_by": [
@@ -3552,7 +3552,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "a new date-tag (e.g. 2025-11-25) is a new protocol revision; watch for transport deprecations (SSE->Streamable HTTP), JSON Schema dialect, auth changes",
       "used_by": [
@@ -3565,21 +3565,21 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "git-atom",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
+      "last_block_detected": null,
+      "block_kind": null,
       "block_vendor": null
     },
     {
       "id": "mcpb-manifest-spec",
       "name": "MCP Bundle (.mcpb) manifest spec (GitHub)",
-      "url": "https://github.com/modelcontextprotocol/mcpb/blob/main/MANIFEST.md",
+      "url": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/MANIFEST.md",
       "category": "ai-surface-spec",
       "tier": "T2",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
-      "extraction_hint": "the .dxt->.mcpb rename and manifest_version bumps (0.3/0.4); required manifest fields for a Desktop Extension bundle",
+      "extraction_hint": "raw.githubusercontent.com serves the spec where github.com pages are challenge-walled from datacenter egress; current mcpb_version 0.3 (spec dated 2025-12-02)",
       "used_by": [
         "implementation/claude/desktop",
         "tools/mcp_server.py"
@@ -3589,9 +3589,13 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "git-file-sha256",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": null
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "cac6cf56412f2d136da2fc886cc3417acbcbfd73b260024388159562b2abe466",
+      "content_etag": "\"bf75bb6e0c870be1cc015d1a58468a573e0ba4326f2f6d391c93dbe252a7d3a1\"",
+      "min_recheck_at": 739878,
+      "first_block_detected": null
     },
     {
       "id": "anthropic-skills-commits",
@@ -3601,7 +3605,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "no releases; watch commits for skill-format changes; the repo has no tags",
       "used_by": [
@@ -3613,8 +3617,8 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_signal": "git-atom",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
+      "last_block_detected": null,
+      "block_kind": null,
       "block_vendor": null
     },
     {
@@ -5002,12 +5006,12 @@
     {
       "id": "tiktok-display-video-object",
       "name": "TikTok Display API v2 Video object",
-      "url": "https://developers.tiktok.com/doc/tiktok-api-v2-video-object",
+      "url": "https://developers.tiktok.com/docs/en/tiktok-api-v2-video-object",
       "category": "ai-surface-spec",
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "data.videos[] 15 fields (id, create_time, view_count, like_count, ...); scope video.list; NO retention/hashtag/file-url",
       "used_by": [
@@ -5018,14 +5022,14 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "Exact TikTok Display API video fields for the live importer",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "ip_block",
-      "block_vendor": "Akamai Bot Manager"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null
     },
     {
       "id": "tiktok-data-request",
       "name": "TikTok: requesting your data (in-app export)",
-      "url": "https://support.tiktok.com/en/account-and-privacy/personalized-ads-and-data/requesting-your-data",
+      "url": "https://www.tiktok.com/support/faq_detail?id=7543597460594285112",
       "category": "ai-surface-spec",
       "tier": "T2",
       "check_interval_days": 30,
@@ -5053,7 +5057,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "keyed by app_type: summary_metrics{IMPRESSION,SAVE,VIDEO_MRC_VIEW,VIDEO_AVG_WATCH_TIME,...}; scopes pins:read; NO retention/transcript",
       "used_by": [
@@ -5064,9 +5068,11 @@
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "Exact Pinterest Pin-analytics metric enums for the live importer",
-      "last_block_detected": "2026-08-30",
-      "block_kind": "captcha",
-      "block_vendor": "reCAPTCHA"
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
+      "content_sha256": "1da1aa26340f8747db8c59b7a57b4002362b6a50e4cc58902af4ff14e9a00fad",
+      "first_block_detected": null
     },
     {
       "id": "dep-faster-whisper",
@@ -5954,7 +5960,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: custom-instructions fields cap at 1,500 characters on Free/Go and 5,000 on Plus and above; whether the cap is per-field or combined is NOT documented, so packaged artifacts are sized against the combined reading (tools/surface_budgets.py). Re-verify by browser when possible.",
       "used_by": [
@@ -5965,9 +5971,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "challenge",
-      "block_vendor": "Cloudflare",
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
       "excerpt_confidence": true,
       "excerpt_verified_at": "2026-08-16"
     },
@@ -5979,7 +5985,7 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
+      "last_checked": "2026-09-19",
       "last_changed_detected": null,
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch; facts from search excerpts of the named article, 2026-08-15). Re-verify by browser when possible.",
       "used_by": [
@@ -5990,9 +5996,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "challenge",
-      "block_vendor": "Cloudflare",
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
       "excerpt_confidence": true,
       "excerpt_verified_at": "2026-08-15"
     },
@@ -6004,8 +6010,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: creating and publishing NEW Custom GPTs requires a Business, Enterprise or Edu workspace; personal plans (Free/Go/Plus/Pro) can use and edit existing GPTs but cannot create new ones. Re-verify by browser when possible.",
       "used_by": [
         "shared/cross-modality/transitions.json",
@@ -6015,9 +6021,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "challenge",
-      "block_vendor": "Cloudflare",
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
       "excerpt_confidence": true,
       "excerpt_verified_at": "2026-08-16"
     },
@@ -6113,8 +6119,8 @@
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": null,
-      "last_changed_detected": null,
+      "last_checked": "2026-09-19",
+      "last_changed_detected": "2026-09-19",
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: developer mode with custom MCP connectors is available on Pro, Plus, Business, Enterprise and Edu on the web; write-action MCP apps are beta on Business/Enterprise/Edu; custom connectors are unverified by OpenAI and carry a prompt-injection warning. Re-verify by browser when possible.",
       "used_by": [
         "implementation/gpt/mcp-connector/README.md"
@@ -6123,9 +6129,9 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
-      "last_block_detected": "2026-08-30",
-      "block_kind": "challenge",
-      "block_vendor": "Cloudflare",
+      "last_block_detected": null,
+      "block_kind": null,
+      "block_vendor": null,
       "excerpt_confidence": true,
       "excerpt_verified_at": "2026-08-16"
     },
@@ -6385,5 +6391,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "e29098924d26d8c383a3faa2a235074315bc801fef35d4ea4ec35a6a40f24867"
+  "_content_digest": "6830c839a71b560662239a704a75b6e67622b145bdd7cee08bb5eceb8c92c55d"
 }
