@@ -327,6 +327,68 @@ def _set(**kwargs) -> None:
 
 _load_persisted_state()
 
+# P85-3: long steps (dependency install, model download) run in a worker thread so the browser
+# shows honest progress instead of a frozen page. One job per name; a double start is refused,
+# never queued. A crashed worker stores {"error": ...} so the wait page always reaches a
+# terminal state.
+_jobs: dict = {}
+_jlock = threading.Lock()
+
+def _start_job(name: str, fn) -> bool:
+    with _jlock:
+        if _jobs.get(name, {}).get("running"):
+            return False
+        _jobs[name] = {"running": True, "result": None}
+
+    def _run():
+        try:
+            res = fn()
+        except Exception as exc:  # noqa: BLE001  (terminal state guaranteed)
+            res = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+        with _jlock:
+            _jobs[name] = {"running": False, "result": res}
+
+    threading.Thread(target=_run, daemon=True).start()
+    return True
+
+def _job_status(name: str) -> dict:
+    with _jlock:
+        return dict(_jobs.get(name) or {"running": False, "result": None})
+
+def _render_install_deps_result(res: dict) -> str:
+    """The exact per-package honest rendering the synchronous handler used, factored for the
+    /job-wait terminal state (P85-3)."""
+    if res.get("error"):
+        return _screen_setup_computer(saved=(
+            f"The installer could not run: {res['error']} You can also install from a terminal: "
+            "<code>python3 tools/setup.py --install-deps</code>."))
+    rows = ""
+    for r in res.get("results", []):
+        if r.get("ok") is True:
+            rows += f"<li>&#10003; <strong>{r.get('item')}</strong> &mdash; {r.get('desc','')}</li>"
+        elif r.get("ok") is None:
+            rows += f"<li>&bull; <strong>{r.get('item')}</strong> &mdash; skipped ({r.get('detail','')})</li>"
+        else:
+            rows += (f"<li>&#10007; <strong>{r.get('item')}</strong> &mdash; did not install. "
+                     f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
+    any_fail = any(r.get("ok") is False for r in res.get("results", []))
+    head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
+            "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
+            if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
+            "your operating system &mdash; see <a href=\"/doctor\">Check my setup</a>.")
+    return _screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>")
+
+def _render_fetch_model_result(res: dict) -> str:
+    if res.get("ok"):
+        msg = (f"Downloaded and verified <strong>{res.get('model')}</strong> "
+               f"(checked by {res.get('verified')}). Saved to {res.get('path')}. You are ready to "
+               "transcribe on this computer.")
+    else:
+        msg = (f"The model download did not complete: {res.get('error','unknown error')}. "
+               "You can retry, or build a metadata-only library for now (transcripts stay flagged, "
+               "never faked).")
+    return _screen_doctor(saved=msg)
+
 _shutdown = threading.Event()
 
 # ── CSS / HTML helpers ─────────────────────────────────────────────────────
@@ -2776,6 +2838,36 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._send("<h1>Not found</h1>", 404)
             return
 
+        if path == "/job-wait":
+            # P85-3: the honest-progress page for worker jobs. Running -> auto-refreshing wait
+            # page; finished -> the same result rendering the old synchronous handlers produced.
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            name = q.get("name", [""])[0]
+            if name not in ("install_deps", "fetch_model"):
+                self._redirect("/")
+                return
+            st = _job_status(name)
+            if st["running"]:
+                label = ("Installing the free tools" if name == "install_deps"
+                         else "Downloading and verifying the speech model")
+                self._send(_page("Working", f"""
+<meta http-equiv="refresh" content="3;url=/job-wait?name={name}">
+<h1>{label}&hellip;</h1>
+<p>This can take a few minutes the first time (the bigger downloads are a headless browser or a
+speech model). This page refreshes by itself every few seconds &mdash; you do not need to do
+anything, and closing this window does not stop the work.</p>
+<div class="note">Still working. Last checked just now.</div>"""))
+                return
+            res = st["result"]
+            if res is None:
+                self._redirect("/setup-computer" if name == "install_deps" else "/doctor")
+                return
+            if name == "install_deps":
+                self._send(_render_install_deps_result(res))
+            else:
+                self._send(_render_fetch_model_result(res))
+            return
+
         if path == "/first-run/start":
             # P85-2: enter the first-time lane. A benign progress hint (no config, no
             # credentials), so a GET is acceptable here like the rest of the wizard's nav.
@@ -3036,27 +3128,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/install-deps":
             # Install every free, cross-platform, no-key pip set + uv + the Playwright browser on THIS
             # computer (local; nothing uploaded). Reports every package outcome, never silently.
-            res = _run_setup(["--install-deps", "--json"])
-            if res.get("error"):
-                self._send(_screen_setup_computer(saved=(
-                    f"The installer could not run: {res['error']} You can also install from a terminal: "
-                    "<code>python3 tools/setup.py --install-deps</code>.")))
-                return
-            rows = ""
-            for r in res.get("results", []):
-                if r.get("ok") is True:
-                    rows += f"<li>&#10003; <strong>{r.get('item')}</strong> &mdash; {r.get('desc','')}</li>"
-                elif r.get("ok") is None:
-                    rows += f"<li>&bull; <strong>{r.get('item')}</strong> &mdash; skipped ({r.get('detail','')})</li>"
-                else:
-                    rows += (f"<li>&#10007; <strong>{r.get('item')}</strong> &mdash; did not install. "
-                             f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
-            any_fail = any(r.get("ok") is False for r in res.get("results", []))
-            head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
-                    "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
-                    if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
-                    "your operating system &mdash; see <a href=\"/doctor\">Check my setup</a>.")
-            self._send(_screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>"))
+            # P85-3: runs in a worker thread; the wait page shows honest progress. A second press
+            # while running is refused, never queued.
+            _start_job("install_deps", lambda: _run_setup(["--install-deps", "--json"]))
+            self._redirect("/job-wait?name=install_deps")
             return
 
         if path == "/api/recheck-node":
@@ -3073,20 +3148,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             model = (data.get("model") or "").strip()
             # A4c: only a known model tier may be shelled to transcribe.py (no arbitrary argv).
             if model and model not in _KNOWN_MODEL_TIERS:
-                res = {"error": f"Unknown model tier '{html.escape(model)}'."}
-            elif model:
-                res = _run_transcribe(["doctor", "--fetch-model", model])
-            else:
-                res = {"error": "no model chosen"}
-            if res.get("ok"):
-                msg = (f"Downloaded and verified <strong>{res.get('model')}</strong> "
-                       f"(checked by {res.get('verified')}). Saved to {res.get('path')}. You are ready to "
-                       "transcribe on this computer.")
-            else:
-                msg = (f"The model download did not complete: {res.get('error','unknown error')}. "
-                       "You can retry, or build a metadata-only library for now (transcripts stay flagged, "
-                       "never faked).")
-            self._send(_screen_doctor(saved=msg))
+                self._send(_screen_doctor(saved=f"Unknown model tier '{html.escape(model)}'."))
+                return
+            if not model:
+                self._send(_screen_doctor(saved="No model chosen."))
+                return
+            # P85-3: the download (a few hundred MB) runs in a worker; the wait page polls.
+            _start_job("fetch_model",
+                       lambda m=model: _run_transcribe(["doctor", "--fetch-model", m]))
+            self._redirect("/job-wait?name=fetch_model")
             return
 
         if path == "/api/set-drive-hub":

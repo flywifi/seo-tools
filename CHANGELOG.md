@@ -13,6 +13,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P85: the wizard's two long steps (free-tools install, speech-model download) run in a worker
+  thread behind a self-refreshing progress page; double starts are refused and a crashed worker
+  still reaches a terminal error page with the reason, keeping the per-package honest reporting.
 - P85: a first-time lane in the wizard -- one "Set everything up" button chains free-tools
   install, the Creator OS install-and-verify step, and the optional service connections, each
   screen with an explicit Skip; progress persists to a gitignored state file so an interrupted
