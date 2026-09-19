@@ -642,6 +642,8 @@ def _selftest_static() -> tuple:
            and set(sr["results"][0]) == {"id", "title", "url"} and sr["results"][0]["url"])
         ok("search never serves .local. records",
            all(".local." not in r["id"] for r in sr["results"]))
+        ok("every search result url is non-empty (ChatGPT citation rule, P83)",
+           all(r["url"] for r in sr["results"]))
         fr = _fetch_impl(sr["results"][0]["id"], db_path=db)
         ok("fetch returns EXACTLY the contract fields",
            set(fr) == {"id", "title", "text", "url", "metadata"})
@@ -2695,9 +2697,23 @@ if __name__ == "__main__":
         _wstructured2 = _wres2[1] if isinstance(_wres2, tuple) else _wres2.structured_content
         if not (_wstructured2 and "error" in _wstructured2):
             _shape_ok = False
+        # P83 (connector guidance 2026-09-19): tools should DECLARE an output schema, and ChatGPT
+        # creates citations only when `url` is a non-empty string. Pin both: the annotation-derived
+        # schema must be present on the wire tools (proven under mcp 1.30 and 2.2 -- a TypedDict
+        # return was tested and REJECTED: 1.x None-pads absent keys and breaks the text mirror),
+        # and every search result must carry a non-empty url.
+        _wtools = _asyncio.run(mcp.list_tools())
+        for _wt in _wtools:
+            if _wt.name in ("search", "fetch"):
+                _wsch = getattr(_wt, "output_schema", None) or getattr(_wt, "outputSchema", None)
+                if not (_wsch and _wsch.get("type") == "object"):
+                    _shape_ok = False
+        if not all(_r.get("url") for _r in _sr["results"]):
+            _shape_ok = False
         print(("ok   " if _shape_ok else "FAIL ")
               + "search/fetch: dual connector envelope on the wire (structuredContent + text "
-              + "mirror); .local refused; hostile FTS input survives")
+              + "mirror); output schema declared; result urls non-empty; .local refused; "
+              + "hostile FTS input survives")
         # P80: six write tools are serialised behind _WRITE_LOCK and configure_tool writes atomically.
         # Two threads toggling different capabilities must leave one parseable file holding both keys
         # and no temp residue. Runs against a temp path; the real local config is never touched.

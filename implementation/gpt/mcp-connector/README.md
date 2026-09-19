@@ -134,8 +134,10 @@ Two tiers, same server:
 - **Without developer mode (chat + deep research):** this server ships connector-contract `search`
   and `fetch` tools over the knowledge cache, which is the exact pair ChatGPT requires from a
   plain connector (developers.openai.com/api/docs/mcp). Both return the payload twice, as
-  structuredContent and as mirrored text content, per that contract. Add the connector by URL
-  `https://YOUR-HOST/mcp`.
+  structuredContent and as mirrored text content, per that contract. Both tools declare an
+  output schema, and every result carries a non-empty `url`: ChatGPT creates citation metadata
+  only when `url` is a non-empty string (developers.openai.com/api/docs/mcp, fetched
+  2026-09-19). Add the connector by URL `https://YOUR-HOST/mcp`.
 - **Developer mode (full tool set):** Settings -> Security and login -> turn on Developer mode,
   then add `https://YOUR-HOST/mcp` at chatgpt.com/plugins (available on
   Pro/Plus/Business/Enterprise/Edu on the web; developers.openai.com/api/docs/guides/developer-mode,
