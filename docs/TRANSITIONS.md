@@ -154,7 +154,7 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | ChatGPT Project | RECOMMENDED personal-plan home | `implementation/gpt/project/` + the 8 shared knowledge files | project-only memory best chosen at creation, switchable later for unshared projects [NEEDS VERIFICATION 2026-08-14]; file caps 5 Free / 25 Plus / 40 Pro-Business-Enterprise [NEEDS VERIFICATION 2026-09] (help/10169521) |
 | Custom GPT + Actions | workspace accounts only | `implementation/gpt/actions/` | creation requires Business/Enterprise/Edu (help/8554397); memory does not work in GPTs |
 | ChatGPT connector (no dev mode) | chat + deep research | server `search`/`fetch` tools | exact contract per developers.openai.com/api/docs/mcp |
-| ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web (help/12584461, excerpt) |
+| ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web; Settings, then Security and login; servers at chatgpt.com/plugins (developers.openai.com developer-mode guide, 2026-09-19) |
 | ChatGPT desktop | convenience | same as web | Work with Apps is macOS-only and reads a fixed app list; no general file access (help/10119604) |
 | Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
 | Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |

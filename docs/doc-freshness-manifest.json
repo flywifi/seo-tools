@@ -5,7 +5,7 @@
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "ce2607788c3b662d19a5e1d04df0608ff910bc035b961a9062351e62b7b73834",
-        "shared/cross-modality/transitions.json": "e8cd7930ab269ded59e8c13e6a325e616cff95651015c20dcc6e0c0aad9a684e"
+        "shared/cross-modality/transitions.json": "3573cab880cc73e7143111af6b16f77f4d7cb5615247a6890686f805e3983265"
       }
     },
     "docs/CURRENCY.md": {
@@ -58,7 +58,7 @@
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "e8cd7930ab269ded59e8c13e6a325e616cff95651015c20dcc6e0c0aad9a684e"
+        "shared/cross-modality/transitions.json": "3573cab880cc73e7143111af6b16f77f4d7cb5615247a6890686f805e3983265"
       }
     },
     "shared/injection-guard-engine.md": {

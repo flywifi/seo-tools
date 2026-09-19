@@ -62,12 +62,12 @@ gates are enforced HERE, on this machine, for every surface that connects.
 
 - **claude.ai (web and mobile):** Settings, then Connectors, then add a custom connector with
   your HTTPS URL. Follow the on-screen auth flow.
-- **ChatGPT web (developer mode):** Settings, then Apps (formerly Connectors); enable Developer
-  mode if your plan offers it, then add the endpoint URL. [NEEDS VERIFICATION: developer-mode
-  availability, the exact settings path (menu naming churned across mid-2026 renames), and auth
-  support depend on your ChatGPT plan; check in a browser before relying on it.]
-- **ChatGPT desktop app (developer mode):** same as web, from the desktop app's Settings, then
-  Apps (formerly Connectors). The desktop app merged Chat, Work, and Codex into one app in July
+- **ChatGPT web (developer mode):** Settings, then Security and login, then turn on Developer
+  mode; add the server at chatgpt.com/plugins (the plus button). Available on Pro, Plus,
+  Business, Enterprise, and Education accounts on the web. (Source:
+  developers.openai.com/api/docs/guides/developer-mode, fetched 2026-09-19.)
+- **ChatGPT desktop app (developer mode):** same as web (Settings, then Security and login;
+  servers managed at chatgpt.com/plugins). The desktop app merged Chat, Work, and Codex into one app in July
   2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ between
   the two. [NEEDS VERIFICATION: plan gating, connector scope, and the merge details, which come
   from secondary reporting.]
@@ -136,9 +136,10 @@ Two tiers, same server:
   plain connector (developers.openai.com/api/docs/mcp). Both return the payload twice, as
   structuredContent and as mirrored text content, per that contract. Add the connector by URL
   `https://YOUR-HOST/mcp`.
-- **Developer mode (full tool set):** Settings -> Apps (formerly Connectors) -> enable Developer mode
-  (available on Pro/Plus/Business/Enterprise/Edu on the web; help.openai.com article 12584461,
-  excerpt confidence) -> add `https://YOUR-HOST/mcp`. Write tools carry accurate
+- **Developer mode (full tool set):** Settings -> Security and login -> turn on Developer mode,
+  then add `https://YOUR-HOST/mcp` at chatgpt.com/plugins (available on
+  Pro/Plus/Business/Enterprise/Edu on the web; developers.openai.com/api/docs/guides/developer-mode,
+  fetched 2026-09-19, first-party documented). Write tools carry accurate
   `destructiveHint`/`readOnlyHint` annotations, so ChatGPT prompts for confirmation on
   `schedule_post` and friends -- that is the Creator OS human-confirmation invariant surfacing in
   ChatGPT's own UX.
@@ -155,7 +156,9 @@ Two tiers, same server:
 `require_approval: "always"` maps the human-confirmation invariant onto the API: the model emits
 `mcp_approval_request` and nothing runs until your code replies with an approval
 (developers.openai.com/api/docs/guides/tools-connectors-mcp). The token is resent per request and
-never stored by OpenAI. No fee beyond tokens.
+never stored by OpenAI. No fee beyond tokens. Note: `connector_id` is deprecated for models
+released after 2026-09-01; use `server_url` (or `tunnel_id` for a Secure MCP Tunnel), and pass an
+OAuth token via `authorization` when the server requires one (same page, fetched 2026-09-19).
 
 ### OpenAI Agents SDK
 ```python

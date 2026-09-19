@@ -82,7 +82,7 @@
     {
       "id": "assistants-api-sunset",
       "jurisdiction": "OpenAI API",
-      "description": "The OpenAI Assistants API was shut down on 2026-08-26 (deprecated 2025-08-26; the deprecations page states it was 'officially sunset ... and is no longer available', verified 2026-09-04). API guidance targets the Responses API and the Conversations API. Drives implementation/gpt/api/README.md phrasing.",
+      "description": "The OpenAI Assistants API was shut down on 2026-08-26 (deprecated 2025-08-26; the deprecations page states it was 'officially sunset ... and is no longer available', verified 2026-09-04). API guidance targets the Responses API (stateful context via store: true). Drives implementation/gpt/api/README.md phrasing.",
       "registry_source_id": "openai-migrate-to-responses",
       "effective": "2026-08-26",
       "phase_2": null,

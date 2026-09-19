@@ -271,7 +271,7 @@
       "setup_steps": [
         "Install the ChatGPT desktop app and sign in.",
         "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version.",
-        "For live Creator OS tools: open Settings, then Connectors, and enable developer mode if your plan offers it. [NEEDS VERIFICATION: developer-mode connector availability depends on your ChatGPT plan]",
+        "For live Creator OS tools: open Settings, then Security and login, and turn on Developer mode; add the server at chatgpt.com/plugins. Available on Pro, Plus, Business, Enterprise, and Education accounts (developers.openai.com developer-mode guide, fetched 2026-09-19).",
         "Add your deployed Creator OS remote MCP endpoint as a connector (implementation/gpt/mcp-connector/README.md). Without a deployed endpoint there are no live tools here.",
         "Capability flags are not enforced on this surface; the connector endpoint enforces its own gates on the machine where it runs.",
         "Know the desktop app's limits: ON MACOS, 'Work with Apps' reads only a fixed list of compatible apps (Apple Notes, Notion, TextEdit, VS Code family, JetBrains and similar) -- it has NO general access to your files or folders. That feature is macOS-only, so on Windows there is no such list at all. Either way your Creator OS knowledge still comes from pasted instructions, a Project, or a connector."
