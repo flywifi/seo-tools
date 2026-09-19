@@ -13,6 +13,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P85: the setup wizard installs the Creator OS MCP server itself (`/creator-os-server` screen):
+  the entry is merged into Claude Desktop's config through the safe writer with absolute
+  venv-aware paths, then verified with a real MCP handshake and tool listing before the wizard
+  claims success; the Done page derives its Creator OS line from the probe at render time and
+  carries a "Check again" re-probe for after the app restart. Previously the wizard never wrote
+  this entry at all and two docs claimed it did.
 - P84: the Custom GPT retirement enters moving-dates (`custom-gpt-retirement`, Enterprise
   2026-12-11, migration flow to Plugins targeted 2026-09-17; help article 8554397 read in full
   via a human-delivered browser save) with the export-gpt stance recorded in ADR 0060; the
@@ -73,6 +79,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P85: the documented MCP smoke test in the macOS setup guide could never work (a bare
+  tools/list is rejected before the initialize handshake; executed proof) -- replaced with the
+  full three-message probe; two false claims that the wizard already wrote the creator-os
+  config entry (setup guide and the config snippet's own comment) now describe reality.
 - P83: the ChatGPT developer-mode path (now Settings, then Security and login; servers at
   chatgpt.com/plugins) replaces the excerpt-confidence tags with first-party citations across the
   connector runbook, transitions, and docs; the unrecognized autoUpdate field left plugin.json;

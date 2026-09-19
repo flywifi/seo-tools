@@ -113,10 +113,29 @@ python3 -m playwright install chromium   # downloads arm64 Chromium (~170 MB, on
 pip3 install -r requirements-mcp.txt
 ```
 
-Smoke test (should return 60 tool definitions):
+Smoke test (should print the tool count; a bare `tools/list` is rejected before the MCP
+`initialize` handshake, so the probe sends the full three-message sequence — the wizard's
+"Install and verify" button runs this same check for you):
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
+python3 - <<'EOF'
+import json, subprocess
+msgs = [
+  {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+   "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+              "clientInfo": {"name": "smoke", "version": "0"}}},
+  {"jsonrpc": "2.0", "method": "notifications/initialized"},
+  {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+]
+r = subprocess.run(["python3", "tools/mcp_server.py"],
+                   input="".join(json.dumps(m) + "\n" for m in msgs),
+                   capture_output=True, text=True, timeout=90)
+for line in r.stdout.splitlines():
+    if line.strip().startswith("{"):
+        d = json.loads(line)
+        if d.get("id") == 2 and "result" in d:
+            print(len(d["result"]["tools"]), "tools")
+EOF
 ```
 
 ### Step 8 -- Run the setup wizard
@@ -131,7 +150,8 @@ python3 tools/wizard.py
 
 A browser window opens automatically at `http://localhost:8765`. Follow the on-screen steps.
 The wizard:
-- Configures the Creator OS MCP server in Claude Desktop's config file
+- Installs the Creator OS MCP server into Claude Desktop's config file AND verifies it with a
+  real handshake check before saying done (the "Install the Creator OS tools" step)
 - Optionally connects Google Workspace (requires Google Cloud credentials -- the wizard walks
   you through getting them; takes about 5 minutes)
 - Optionally connects Microsoft 365 (requires Node.js 20+; the wizard checks and advises if

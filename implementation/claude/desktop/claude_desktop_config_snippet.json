@@ -1,5 +1,5 @@
 {
-  "_comment": "Merge this block into your Claude Desktop config file. The wizard (python3 tools/wizard.py) writes these entries automatically. This file is for manual setup or reference.",
+  "_comment": "Merge this block into your Claude Desktop config file. The wizard's 'Install the Creator OS tools' step (python3 tools/wizard.py, then Claude Desktop Setup) writes the creator-os entry for you and verifies it; the connector entries are written when you connect those services. This file remains the manual fallback and reference.",
   "_config_path_macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
   "_config_path_windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
   "_config_path_linux": "~/.config/Claude/claude_desktop_config.json",

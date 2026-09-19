@@ -1,9 +1,10 @@
 # Setup Wizard
 
 `tools/wizard.py` is a browser-based guided setup wizard for Creator OS. It walks you through
-connecting Google and Microsoft services to Claude, setting up **publishing** to YouTube, Instagram,
-TikTok, and Pinterest, importing your past videos, and choosing your Creator OS folder -- all without
-any command-line configuration.
+installing the Creator OS tools into Claude Desktop (and **verifying they actually answer** before
+saying done), connecting Google and Microsoft services to Claude, setting up **publishing** to
+YouTube, Instagram, TikTok, and Pinterest, importing your past videos, and choosing your Creator OS
+folder -- all without any command-line configuration.
 
 ---
 
@@ -41,8 +42,15 @@ python3 tools/wizard.py
 A browser window opens automatically. The wizard:
 
 1. Detects your operating system (Mac, Windows, or Linux).
-2. Asks which services you want to connect (Google, Microsoft, or both).
-3. Walks you through each connection step by step.
+2. **Installs the Creator OS tools into Claude Desktop** (the `/creator-os-server` step): it
+   writes the one `creator-os` entry into Claude Desktop's settings file with absolute paths,
+   never touches your other settings, and then runs a real check -- the full MCP handshake plus a
+   tool listing -- before it says done. If the check cannot pass yet (for example, the free tools
+   are not installed), it says exactly why and where to fix it; a manual-merge fallback is shown
+   for the rare case the automatic write cannot work. The Done page reports the verified tool
+   count and has a "Check again" button for after you restart Claude Desktop.
+3. Asks which services you want to connect (Google, Microsoft, or both).
+4. Walks you through each connection step by step.
 4. Writes all configuration files automatically -- no JSON editing.
 5. Tells you when to fully quit and reopen Claude Desktop (Cmd-Q on macOS, not just closing the
    window) so it reloads the config.

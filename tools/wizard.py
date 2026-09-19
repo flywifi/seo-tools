@@ -139,6 +139,71 @@ def _write_claude_config(config: dict) -> pathlib.Path:
     atomic_io.atomic_write_text(p, json.dumps(config, indent=2))
     return p
 
+def _creator_os_entry() -> dict:
+    """The creator-os MCP server entry for Claude Desktop (P85-1). Absolute paths on purpose:
+    Claude Desktop launches servers with its own narrow PATH, so a bare 'python3' can fail to
+    start (the config snippet documents the same rule). env_paths.app_python() prefers the
+    private .venv toolbox and falls back to a working system interpreter."""
+    root = ROOT.resolve()
+    return {
+        "command": str(env_paths.app_python(root)),
+        "args": [str(root / "tools" / "mcp_server.py")],
+        "env": {"CREATOR_OS_ROOT": str(root)},
+    }
+
+def _expected_tool_count() -> int | None:
+    """Count-truth rule: never restate the tool count by hand. Read it from count_truth.py at
+    probe time; None on any failure means the probe reports the count as unchecked rather than
+    comparing against a stale number."""
+    try:
+        out = subprocess.run(
+            [env_paths.app_python(), str(ROOT / "tools" / "count_truth.py")],
+            capture_output=True, text=True, timeout=60,
+        ).stdout
+        return int(json.loads(out)["mcp_tools"])
+    except Exception:  # noqa: BLE001
+        return None
+
+def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, str, int]:
+    """Verified-completion probe (P85-1): full MCP stdio handshake, then tools/list. A bare
+    tools/list is rejected before initialization (the server answers -32602), so the sequence
+    is initialize -> notifications/initialized -> tools/list. Returns (ok, detail, tool_count).
+    Never raises."""
+    msgs = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "creator-os-wizard-probe", "version": "0"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    ]
+    stdin = "".join(json.dumps(m) + "\n" for m in msgs)
+    try:
+        r = subprocess.run([py, server], input=stdin, capture_output=True,
+                           text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, "the server did not answer within the time limit", 0
+    except OSError as exc:
+        return False, f"could not start the server: {exc}", 0
+    if "ERROR: 'mcp' package not installed" in (r.stderr or ""):
+        return False, ("the mcp package is not installed yet "
+                       "(run Install the free tools first)"), 0
+    tools = None
+    for line in (r.stdout or "").splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if d.get("id") == 2 and "result" in d:
+            tools = d["result"].get("tools", [])
+    if tools is None:
+        tail = (r.stderr or "").strip().splitlines()[-1:] or ["no reply"]
+        return False, f"no tools/list reply ({tail[0][:160]})", 0
+    return True, "", len(tools)
+
 def _has_uv() -> bool:
     # env_paths.which prepends the Homebrew prefixes so uv is found under a double-click launch
     # (non-login zsh) where /opt/homebrew/bin is off PATH; also accept a uv inside the private .venv.
@@ -406,6 +471,15 @@ def _screen_desktop(error: str = "") -> str:
     node_status = f'<span class="check">&#10003;</span> Node.js {node_v} is installed' if _node_ok() \
                   else '&#9744; Node.js 20+ not found (only needed for Microsoft 365; skip if you use Google)'
     err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if _get("creator_os_installed"):
+        creator_os_status = ('<p style="margin-bottom:6px"><span class="check">&#10003;</span> '
+                             'Installed and verified this session.</p>')
+    elif "creator-os" in (_read_claude_config().get("mcpServers") or {}):
+        creator_os_status = ('<p style="margin-bottom:6px">&#9744; An entry exists in your config '
+                             'but has not been verified this session.</p>')
+    else:
+        creator_os_status = ('<p style="margin-bottom:6px">&#9744; Not installed yet &mdash; this '
+                             'is what puts Creator OS itself into Claude Desktop.</p>')
     return _page("Claude Desktop Setup", f"""
 <h1>Claude Desktop Setup</h1>
 {_local_precondition_note()}
@@ -419,8 +493,12 @@ wizard handles them. A checkmark means you are ready.</p>
 <p style="margin-bottom:6px">{uv_status}</p>
 <p style="margin-bottom:16px">{node_status}</p>
 <hr>
-<h2>What do you want to connect?</h2>
-<a class="btn btn-primary" href="/google">Connect Google Workspace
+<h2>Step 1: the Creator OS tools</h2>
+{creator_os_status}
+<a class="btn btn-primary" href="/creator-os-server">Install the Creator OS tools into Claude Desktop</a>
+<hr>
+<h2>Step 2 (optional): what do you want to connect?</h2>
+<a class="btn btn-secondary" href="/google">Connect Google Workspace
   <span class="tag" style="background:#4a2020;color:#fff;margin-left:6px">Gmail</span>
   <span class="tag" style="background:#4a2020;color:#fff">Calendar</span>
   <span class="tag" style="background:#4a2020;color:#fff">Drive</span>
@@ -435,6 +513,61 @@ wizard handles them. A checkmark means you are ready.</p>
 <a class="btn btn-outline" href="/">Back</a>
 <div class="note">You can connect both. Start with whichever you use more.</div>
 """, dots=["done", "done", "active", "dot"])
+
+def _screen_creator_os_server(result: dict | None = None) -> str:
+    """P85-1: install the creator-os MCP server into Claude Desktop and VERIFY it with a real
+    handshake probe before claiming success. Three explicit outcomes, no silent fallback."""
+    cfg = _claude_config_path()
+    entry = _creator_os_entry()
+    already = "creator-os" in (_read_claude_config().get("mcpServers") or {})
+    status_html = ""
+    if result is not None:
+        if result.get("ok"):
+            n, exp = result.get("count", 0), result.get("expected")
+            count_line = (f"All {n} Creator OS tools answered."
+                          if exp is None or n == exp else
+                          f"{n} tools answered (expected {exp} &mdash; if you just updated, rerun "
+                          "the check after a fresh install of the free tools).")
+            status_html = f"""<div class="success-box"><strong>Installed and verified.</strong>
+{count_line} Now <strong>completely quit Claude Desktop (Cmd-Q on a Mac) and reopen it</strong>
+&mdash; the config is only read when the app starts. Then continue below.</div>
+<a class="btn btn-primary" href="/desktop">Continue: connect Google or Microsoft (optional)</a>
+<a class="btn btn-outline" href="/done">Finish</a>"""
+        elif result.get("no_sdk"):
+            status_html = f"""<div class="error-box">The entry was written, but the check could not
+pass yet: {html.escape(result.get("detail", ""))}. Claude Desktop needs those free tools too, so
+install them first, then come back and press the button again.</div>
+<a class="btn btn-primary" href="/setup-computer">Install the free tools</a>"""
+        else:
+            status_html = f"""<div class="error-box">The entry was written, but the verification
+check did not pass: {html.escape(result.get("detail", ""))}</div>
+<form method="POST" action="/api/install-creator-os" style="display:inline">
+  <button class="btn btn-primary" type="submit">Try again</button>
+</form>
+<details style="margin-top:12px"><summary>Set it up by hand instead</summary>
+<p class="hint">Merge the <code>creator-os</code> block from
+<code>implementation/claude/desktop/claude_desktop_config_snippet.json</code> into
+<code>{html.escape(str(cfg))}</code>, replacing the placeholder path with this folder&#8217;s
+absolute path. Errors appear in <code>~/Library/Logs/Claude/mcp-server-creator-os.log</code>.</p>
+</details>"""
+    already_html = ('<div class="note">A creator-os entry already exists in your config; the '
+                    'button below rewrites it for THIS folder and re-verifies it.</div>'
+                    if already and result is None else "")
+    return _page("Install the Creator OS tools", f"""
+<h1>Install the Creator OS tools into Claude Desktop</h1>
+{_local_precondition_note()}
+{already_html}
+<p>This writes one entry into Claude Desktop&#8217;s settings file so the app can run the
+Creator OS tools on this computer, then <strong>checks it actually works</strong> before saying
+done. Nothing else in your settings is touched.</p>
+<p class="hint">Settings file: <code>{html.escape(str(cfg))}</code><br>
+It will run: <code>{html.escape(entry["command"])}</code></p>
+{status_html if status_html else '''<form method="POST" action="/api/install-creator-os">
+  <button class="btn btn-primary" type="submit">Install and verify now</button>
+</form>'''}
+<p style="margin-top:16px"><a class="btn btn-outline" href="/desktop">Back</a></p>
+""", dots=["done", "done", "active", "dot"])
+
 
 def _screen_google(error: str = "") -> str:
     err_html = f'<div class="error-box">{error}</div>' if error else ""
@@ -1157,6 +1290,25 @@ def _screen_done() -> str:
     google = _get("google_done")
     microsoft = _get("microsoft_done")
     connected = []
+    # P85-1: the creator-os line is derived from the probe result at render time, never stored
+    # prose. If the probe did not run (or failed) this session, say so plainly instead of
+    # implying success, and offer the fix.
+    if _get("creator_os_installed"):
+        n = _get("creator_os_probe")
+        connected.append(f"The Creator OS tools ({n} tools, verified this session)")
+        creator_os_note = """<form method="POST" action="/api/recheck-creator-os" style="display:inline">
+  <button class="btn btn-outline" type="submit">Check the Creator OS tools again</button>
+</form>"""
+    else:
+        in_config = "creator-os" in (_read_claude_config().get("mcpServers") or {})
+        msg = ("A Creator OS entry exists in your Claude Desktop config, but it was not verified "
+               "this session." if in_config else
+               "The Creator OS tools were <strong>not</strong> set up in this session.")
+        creator_os_note = f"""<div class="note">{msg}
+<a class="btn btn-primary" href="/creator-os-server" style="margin-left:8px">Set up now</a>
+<form method="POST" action="/api/recheck-creator-os" style="display:inline">
+  <button class="btn btn-outline" type="submit">Check again</button>
+</form></div>"""
     if google:
         connected.append("Google Workspace (Gmail, Calendar, Drive, Sheets)")
     if microsoft:
@@ -1176,6 +1328,7 @@ If a tool does not appear afterward, check <code>~/Library/Logs/Claude/mcp-serve
     return _page("Setup Complete", f"""
 <h1>You are all set!</h1>
 {connected_html}
+{creator_os_note}
 {restart}
 <h2>Things to try in Creator OS</h2>
 <ul class="steps">
@@ -2575,6 +2728,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             "/bring": _screen_bring(),
             "/claudeai": _screen_claudeai(),
             "/desktop": _screen_desktop(),
+            "/creator-os-server": _screen_creator_os_server(),
             "/google": _screen_google(),
             "/microsoft": _screen_microsoft(),
             "/done": _screen_done(),
@@ -2614,6 +2768,40 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if not _origin_allowed(self.headers.get("Origin"), self.headers.get("Referer")):
             self._send("<h1>Blocked</h1><p>This request came from another website and was refused "
                        "for your safety. Use the Creator OS setup page in your browser.</p>", status=403)
+            return
+
+        if path == "/api/install-creator-os":
+            # P85-1: merge the creator-os entry into Claude Desktop's config through the safe
+            # writer (corrupt-backup + atomic + no-clobber), then VERIFY with the handshake probe
+            # against the exact interpreter the config now names. Three explicit outcomes.
+            entry = _creator_os_entry()
+            config = _read_claude_config()
+            config.setdefault("mcpServers", {})["creator-os"] = entry
+            try:
+                _write_claude_config(config)
+            except OSError as exc:
+                self._send(_screen_creator_os_server(
+                    {"ok": False, "detail": f"could not write the settings file: {exc}"}))
+                return
+            ok, detail, count = _probe_mcp_server(entry["command"], entry["args"][0])
+            no_sdk = (not ok) and "mcp package is not installed" in detail
+            _set(creator_os_installed=ok, creator_os_probe=count)
+            self._send(_screen_creator_os_server(
+                {"ok": ok, "detail": detail, "no_sdk": no_sdk,
+                 "count": count, "expected": _expected_tool_count() if ok else None}))
+            return
+
+        if path == "/api/recheck-creator-os":
+            # P85-1 (A-4 "Check again"): re-read the config and re-run the probe, e.g. after the
+            # Claude Desktop restart. Never starts a new install; only re-derives the truth.
+            servers = _read_claude_config().get("mcpServers") or {}
+            e = servers.get("creator-os") or {}
+            if e.get("command") and e.get("args"):
+                ok, _detail, count = _probe_mcp_server(e["command"], e["args"][0])
+                _set(creator_os_installed=ok, creator_os_probe=count)
+            else:
+                _set(creator_os_installed=False, creator_os_probe=0)
+            self._send(_screen_done())
             return
 
         if path == "/api/enable-capability":
