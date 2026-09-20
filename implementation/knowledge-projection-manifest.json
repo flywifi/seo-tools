@@ -84,7 +84,7 @@
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
         "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
-        "docs/WIZARD.md": "dd7073fd1dc7a094b08920be1049bacc9d587c3c690bce461dfda95157785bc8",
+        "docs/WIZARD.md": "4d9a755be1b76bc9d726c63177b8393edc126ff0a2f1185b580af37c8bd7bfe7",
         "docs/SETUP_MAC.md": "54405c2a8263e28aa1b55319e597bf28da27b0c2fdc22dbf8d0c5b7d4fbe4dd9",
         "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
@@ -109,7 +109,7 @@
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
         "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
       },
-      "projection": "5e9bcbbdd70263b4b7186d7b2517f404b65bfdb76a04b1684dfcc1cbdc5369c0"
+      "projection": "d8e8330250dd66bc9217d21068f2b37d64e618b76a90a4cb375791f5b6ac3d4d"
     },
     "implementation/gpt/web/custom-instructions-compact.md": {
       "sources": {
@@ -149,7 +149,7 @@
         "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
         "docs/SETUP_MAC.md": "54405c2a8263e28aa1b55319e597bf28da27b0c2fdc22dbf8d0c5b7d4fbe4dd9",
         "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
-        "docs/WIZARD.md": "dd7073fd1dc7a094b08920be1049bacc9d587c3c690bce461dfda95157785bc8",
+        "docs/WIZARD.md": "4d9a755be1b76bc9d726c63177b8393edc126ff0a2f1185b580af37c8bd7bfe7",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "f11ecd712b7be116c67697516d9956099ac6d6f3d4da0c3bc9838fdb630a8ab8",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",

@@ -60,7 +60,8 @@ Google/Microsoft connections, with an explicit "Skip this step" on every screen.
 saved locally (a gitignored `creator-os-wizard-state.local.json` holding only step flags), so
 closing the window or relaunching resumes where you left off; "Start over" on the welcome
 screen clears it. Run on an older Python and the wizard exits with the install instructions
-instead of a traceback. The two long steps (installing the free tools, downloading a speech
+instead of a traceback (Python 3.12 through 3.14 are all supported, P91; the exit message
+says so). The two long steps (installing the free tools, downloading a speech
 model) run in the background behind a self-refreshing progress page, so the browser never looks
 frozen; pressing the button twice is refused rather than queued, and a crashed install still
 lands on an error page with the reason.

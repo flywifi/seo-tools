@@ -4961,6 +4961,7 @@ def main() -> None:
               "(https://www.python.org/downloads/macos/),")
         print("or install Homebrew (https://brew.sh) and run: brew install python@3.12")
         print("Then run:  python3.12 tools/wizard.py")
+        print("(Python 3.12 through 3.14 are all supported; any of them works here.)")
         raise SystemExit(1)
     # Bind loopback only (127.0.0.1). Primary reason: the wizard has no reason to be reachable from
     # the network, so it should not listen on an external interface. Apple's TN3179 defines a local

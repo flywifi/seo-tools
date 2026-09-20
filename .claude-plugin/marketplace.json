@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Creator OS plugin for YouTube and social media creators.",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "creator-os",
       "source": "./",
       "description": "Creator OS: a hub-and-spoke ecosystem of Claude Agent Skills for YouTube and social media creators. A routing hub classifies each request into one of three lanes (Content, Document, Pipeline/CRM) and dispatches to governed capability spokes composed from single-operation atoms.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "category": "content-creation"
     }
   ]

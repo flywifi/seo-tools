@@ -2,8 +2,15 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P91 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P92 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P92: version 0.3.0 cut (2026-09-20). The P82 to P91 work ships as a release: all five
+  version locations (VERSION, versions.json ecosystem, plugin.json, marketplace.json twice)
+  and the custom-instructions packaging stamp bumped from 0.2.0/2026-08-16 in one commit, the
+  CHANGELOG Unreleased rolled into a 0.3.0 section, and the wizard's below-floor exit message
+  states the 3.12 to 3.14 supported range. The Cowork/plugin auto-sync rule (a merged
+  version-bump PR) is satisfied when this merges; the wizard's re-paste comparison is
+  truthful again.
 - P91: formal Python 3.14 support (2026-09-20, docs/adr/0064-p91-python-314-support.md).
   CPython 3.14's Path.exists() behavior change had silently turned four boundary refusals
   into empty results; each now probes through a version-proof stat() helper, with the
