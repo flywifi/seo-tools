@@ -11,13 +11,18 @@ on:
 jobs:
   guard:
     runs-on: ubuntu-latest
+    strategy:
+      # P91: the validated interpreter set is 3.12 through 3.14 (floor 3.12, ADR 0064).
+      # 3.13 is covered by the local battery convention; CI pins the two ends.
+      matrix:
+        python-version: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # the commit-message backstop needs history
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - name: Drift guard
         run: python3 tools/sync_check.py
       - name: Battery parity (tools/battery.py --list matches the steps below)

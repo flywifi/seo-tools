@@ -13,6 +13,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P91: formal Python 3.14 support. The validated interpreter set is now 3.12 through 3.14
+  (battery 13 of 13 gates under all three; all seven requirements files install cleanly on
+  3.14, including transcription and video). CI's guard job runs a 3.12 + 3.14 matrix; the
+  floor stays 3.12 because DaVinci Resolve's scripting bridge vendor-caps there, so that one
+  lane is documented 3.12-only. Honest residue tagged in SETUP_MAC: the mcp SDK import on a
+  3.14 FINAL could not be proven in the validation container (its 3.14.0rc2 predates the
+  typing API pydantic targets) and is closed by the Mac acceptance run. ADR 0064 records the
+  decisions.
 - P90: the standalone skill exporter (`tools/package_skill.py --standalone` /
   `--standalone-all`): every Creator OS skill references shared engine files, so a plain
   skill ZIP dangles on claude.ai's consumer skill upload -- the exporter bundles each skill's

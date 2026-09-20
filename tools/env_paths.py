@@ -29,6 +29,8 @@ ROOT = Path(__file__).resolve().parent.parent  # repo root (tools/..)
 BREW_PREFIXES = ("/opt/homebrew/bin", "/usr/local/bin")
 
 PYTHON_FLOOR = (3, 12)   # THE floor. tools/setup.py imports it; the launcher's probe string embeds it
+                         # P91: validated THROUGH 3.14 (battery 13/13 on 3.12/3.13/3.14); the floor
+                         # stays 3.12 for the Resolve live-control lane (vendor cap, ADR 0064).
                          # (asserted by _selftest); docs are swept against it by drift invariant 48 (P81 G-1).
 
 
