@@ -6558,7 +6558,184 @@
       "_why": "ADR 0061 cites it as the studied reference design; registered per invariant 52",
       "content_sha256": "2ae27cbb58051a946ede31fd0fa6ae32ed680e66bdd84a39bb9503d5adcb78c3",
       "min_recheck_at": 739878
+    },
+    {
+      "id": "claude-cowork-chat-merge",
+      "name": "Claude Cowork and chat are one Claude (help center)",
+      "url": "https://support.claude.com/en/articles/16761823-claude-cowork-and-chat-are-one-claude",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/TRANSITIONS.md",
+        "docs/UPDATING.md",
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-skills-use",
+      "name": "Use skills in Claude (help center)",
+      "url": "https://support.claude.com/en/articles/12512180-use-skills-in-claude",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/UPDATING.md",
+        "docs/TRANSITIONS.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-skills-create",
+      "name": "How to create custom skills (help center)",
+      "url": "https://support.claude.com/en/articles/12512198-how-to-create-custom-skills",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/UPDATING.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-org-skills-provisioning",
+      "name": "Provision and manage skills for your organization (help center)",
+      "url": "https://support.claude.com/en/articles/13119606-provision-and-manage-skills-for-your-organization",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/UPDATING.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-projects-overview",
+      "name": "What are projects? (help center)",
+      "url": "https://support.claude.com/en/articles/9517075-what-are-projects",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/TRANSITIONS.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-github-projects-integration",
+      "name": "Use the GitHub integration (help center)",
+      "url": "https://support.claude.com/en/articles/10167454-use-the-github-integration",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/TRANSITIONS.md",
+        "docs/DEPLOYMENT.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-connectors-directory",
+      "name": "Use connectors to extend Claude's capabilities (help center)",
+      "url": "https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/CROSS-MODALITY.md",
+        "docs/TRANSITIONS.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-custom-connectors",
+      "name": "Get started with custom connectors using remote MCP (help center)",
+      "url": "https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/CROSS-MODALITY.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-plugins-use",
+      "name": "Use plugins in Claude (help center)",
+      "url": "https://support.claude.com/en/articles/13837440-use-plugins-in-claude",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/TRANSITIONS.md",
+        "docs/UPDATING.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "bac14fe15f40423e4f87cc7f57dd48890ffed722f947dd490b5ea1da424a1973"
+  "_content_digest": "20cca8cd50d3bb487de41a93facc813c039049f07432ecea4b7510ae1a69310b"
 }

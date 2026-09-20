@@ -2,7 +2,7 @@
 """Projects dual projection (P60-7): put the knowledge pack where claude.ai Projects can stay
 current with it.
 
-Two lanes over the SAME ten pack files (the eight knowledge files, the system prompt, and the
+Two lanes over the SAME eleven pack files (the nine knowledge files, the system prompt, and the
 combined pack -- all already guarded against their source engines by drift invariant 47):
 
 - project (local lane, zero network): copy each pack file into the Drive hub's Knowledge/ folder
@@ -46,6 +46,7 @@ _PROJ = ROOT / "implementation" / "claude" / "project"
 PACK_FILES = [_PROJ / "knowledge" / n for n in (
     "01-creator-core.md", "02-brand-voice.md", "03-platform-seo.md", "04-protocols.md",
     "05-content-spokes.md", "06-document-spoke.md", "07-pipeline-spokes.md", "08-key-atoms.md",
+    "09-setup-and-surfaces.md",
 )] + [_PROJ / "system-prompt.md", _PROJ / "creator-os-combined.md"]
 
 STATE_PATH = ROOT / "pipeline" / "user-context" / "project-docs-map.local.json"

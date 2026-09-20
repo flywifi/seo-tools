@@ -13,8 +13,15 @@ and Playwright auto-downloads the arm64 Chromium binary. No Rosetta required.
 2. Click **Projects** in the left sidebar, then **New Project**. Name it **Creator OS**.
 3. Open `implementation/claude/project/system-prompt.md`, copy the full text, paste it into the
    Project Instructions field, and save.
-4. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`.
+4. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`
+   (or the single combined file `implementation/claude/project/creator-os-combined.md`, or
+   connect this GitHub repository to the Project's knowledge instead of uploading -- see
+   `docs/DEPLOYMENT.md` Option B).
 5. Start a conversation: "Plan a seasonal home decor project makeover video."
+
+No repo on the computer? Ask the maintainer to send the files or mirror them into the shared
+Drive folder's `Knowledge/` subfolder (the wizard's Drive hub screen does it in one click), or
+download them from github.com/flywifi/seo-tools.
 
 See `docs/DEPLOYMENT.md` Option B for the full walkthrough. No Homebrew, no Python, no git needed.
 
@@ -115,7 +122,10 @@ pip3 install -r requirements-mcp.txt
 
 Smoke test (should print the tool count; a bare `tools/list` is rejected before the MCP
 `initialize` handshake, so the probe sends the full three-message sequence — the wizard's
-"Install and verify" button runs this same check for you):
+"Install and verify" button runs the same verification for you, interactively). If it prints
+nothing, run it once more: this one-shot pipe can lose the reply to a startup race on newer
+MCP SDK versions — the wizard's check speaks the protocol step by step and does not have
+this race (P88):
 
 ```bash
 python3 - <<'EOF'
@@ -160,6 +170,13 @@ The wizard:
 When the wizard says "Restart Claude Desktop," quit and reopen the Claude Desktop app.
 
 After restarting, test: ask Claude "run a drift check" -- expected reply: "DRIFT GUARD: clean".
+
+**A note on the config file's future:** Anthropic's current local-MCP help article (support
+article 10949351, updated 2026-06-30) documents only Settings > Extensions with packaged
+`.mcpb` bundles and no longer mentions `claude_desktop_config.json`. Current builds still honor
+the file (your working install is the evidence) `[NEEDS VERIFICATION: re-confirm after each
+Claude Desktop update -- if the entry ever stops loading, the packaged .mcpb path in
+docs/UPDATING.md is the successor]`.
 
 **Manual alternative:** Merge `implementation/claude/desktop/claude_desktop_config_snippet.json`
 into `~/Library/Application Support/Claude/claude_desktop_config.json` by hand, replacing

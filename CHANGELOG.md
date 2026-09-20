@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P89: a ninth knowledge file, `09-setup-and-surfaces.md`, teaches a claude.ai or ChatGPT
+  Project to walk its own user through setup: which Claude they are in after the 2026-09-16
+  chat/Cowork merge, the four claude.ai doors (plugin marketplace, GitHub-connected Project,
+  uploads, skill ZIPs) with unverified pieces flagged, how to obtain the files with no repo on
+  the computer, the ChatGPT Project door, and the Desktop upgrade. Registered in the Drive
+  projection lanes and guarded by the projection manifest with the setup docs as sources, so
+  onboarding-doc changes flag the pack file stale. The wizard's claude.ai screen and WIZARD.md
+  "For Alex" section now describe the same four doors instead of only the Google connector,
+  and the system prompt's upgrade pointer names the in-Project file instead of a repo path.
+  ADR 0062 records the design.
 - P85: the wizard selftest grows four families -- a 31-screen render sweep enumerated from the
   module namespace, the creator-os config-merge round-trip (other servers survive, corrupt
   configs are backed up), the state-persistence round-trip, and worker double-start/crash
@@ -92,6 +102,23 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P89: the cross-modality record's stale spots are squared. DEPLOYMENT.md's first-run
+  checklist no longer claims to cover the browser-only options, and its MCP smoke test is the
+  full three-message handshake instead of the bare tools/list the P85 audit proved broken
+  (with the tool count printed, never hand-restated); the Custom GPT retirement steer and a
+  ChatGPT Project option reached DEPLOYMENT.md at last, with the reported 2026-09-25
+  creation-stop tagged as unverified secondary reporting; the recommended ChatGPT door's
+  project-instructions.md and the compact custom-instructions file joined the
+  freshness-stamped managed set (the stale 2026-08-15 stamp heals and invariant 26 covers
+  both permanently); and the macOS guide's manual smoke test carries the P88 race caveat with
+  the wizard named as the race-free path.
+- P88: the wizard's verification probe no longer races the server's stdin EOF handling --
+  under the mcp 2.x SDK the fire-and-close transport dropped the tools/list request roughly
+  one run in five to ten (the server answered initialize, then exited cleanly in one second
+  without the second reply). The probe is now interactive, closing stdin only after the
+  reply, with one automatic retry reserved for transient first-start failures; deterministic
+  refusals never retry (proven by invocation counting in the selftest). This also corrects
+  the earlier in-chat "startup latency" reading of the same symptom.
 - P87: the wizard's install-verification gate no longer passes a completed handshake with an
   empty toolset or an impostor server (the serverInfo name is pinned; the version never is,
   since the SDK majors report it differently), and an uncross-checked tool count is labeled
@@ -171,6 +198,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P89: the September 2026 Claude surface changes are banked and reflected in the cross-surface
+  record. Nine support articles seeded as T1 sources, headlined by the 2026-09-16 merge of
+  Claude chat and Cowork into one Claude (staged rollout from Pro and Max); the claude.ai
+  surface entry in transitions.json now lists four doors (plugin from a GitHub-URL marketplace,
+  Project knowledge via the GitHub connector with manual sync, classic uploads, skill ZIP
+  uploads on any plan) with the unverifiable pieces tagged; the ChatGPT Projects file caps in
+  transitions.json upgraded to the first-party wording and the stale secondary-reporting tag
+  removed; UPDATING.md closes the org-skills-provisioning residue (article 13119606 read:
+  Team/Enterprise org directory, consumer path stays ZIP upload); and both Desktop setup docs
+  record that Anthropic's local-MCP article now documents only .mcpb Extensions, with the
+  config-file continuation tagged for re-confirmation.
 - P84: eight walled sources banked as human-verified (four OpenAI help articles, the Instagram
   feed-ranking article, the MCP releases and skills-commits feeds, the TikTok video object);
   two TikTok seed URLs corrected and the MCPB spec re-pointed to the raw host;

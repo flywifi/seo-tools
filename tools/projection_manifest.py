@@ -47,6 +47,12 @@ PROJECTIONS = {
                              "shared/web-intel-engine.md", "shared/method.md",
                              "protocols/formatting-metadata.md", "protocols/no-fabrication.md",
                              "protocols/safety.md"],
+    # P89: the setup-assistant knowledge file projects the SETUP DOCS, not engines, so a change
+    # to any onboarding doc flags the pack file for a refresh (same staleness machinery).
+    _K + "09-setup-and-surfaces.md": ["docs/DEPLOYMENT.md", "docs/WIZARD.md",
+                                      "docs/SETUP_MAC.md", "docs/TRANSITIONS.md",
+                                      "implementation/claude/project/README.md",
+                                      "implementation/gpt/project/README.md"],
     "implementation/claude/project/system-prompt.md": ["shared/pipeline-engine.md", "shared/voice-engine.md",
                                                        "protocols/no-fabrication.md",
                                                        "protocols/formatting-metadata.md"],

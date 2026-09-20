@@ -164,56 +164,136 @@ def _expected_tool_count() -> int | None:
     except Exception:  # noqa: BLE001
         return None
 
-def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, str, int]:
-    """Verified-completion probe (P85-1, hardened P87 after the 2026-09-19 audit): full MCP
-    stdio handshake, then tools/list. A bare tools/list is rejected before initialization (the
-    server answers -32602), so the sequence is initialize -> notifications/initialized ->
-    tools/list. ok requires ALL of: a tools/list reply, the serverInfo NAME 'creator-os'
-    (never the version -- mcp 1.x reports the SDK version there, 2.x an empty string), and at
-    least one tool. Returns (ok, detail, tool_count). Never raises."""
-    msgs = [
-        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-         "params": {"protocolVersion": "2025-06-18",
-                    "capabilities": {},
-                    "clientInfo": {"name": "creator-os-wizard-probe", "version": "0"}}},
-        {"jsonrpc": "2.0", "method": "notifications/initialized"},
-        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
-    ]
-    stdin = "".join(json.dumps(m) + "\n" for m in msgs)
+def _probe_mcp_server_once(py: str, server: str, timeout: int = 90) -> tuple[bool, str, int]:
+    """One INTERACTIVE verification attempt (P88). The P85/P87 probe wrote all three protocol
+    messages and closed stdin immediately; under the mcp 2.x SDK the stdio transport sometimes
+    processed that EOF before the buffered tools/list request and exited cleanly without
+    answering it (observed: rc=0 in 1.0s with only the initialize reply, about 1 run in 5 to
+    10). This attempt speaks the protocol step by step and closes stdin only after the
+    tools/list reply, so that race cannot exist. Checks preserved from P87: the serverInfo
+    NAME must be 'creator-os' (never the version -- mcp 1.x reports the SDK version there,
+    2.x an empty string) and the toolset must be non-empty. Returns (ok, detail, tool_count).
+    Never raises."""
     try:
-        r = subprocess.run([py, server], input=stdin, capture_output=True,
-                           text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return False, "the server did not answer within the time limit", 0
+        p = subprocess.Popen([py, server], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True, bufsize=1)
     except OSError as exc:
         return False, f"could not start the server: {exc}", 0
-    if "ERROR: 'mcp' package not installed" in (r.stderr or ""):
-        return False, ("the mcp package is not installed yet "
-                       "(run Install the free tools first)"), 0
-    tools, info = None, None
-    for line in (r.stdout or "").splitlines():
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
+    lines: list = []
+    err_chunks: list = []
+    lk = threading.Lock()
+
+    def _pump(stream, sink):
+        for ln in stream:
+            with lk:
+                sink.append(ln)
+        stream.close()
+
+    threading.Thread(target=_pump, args=(p.stdout, lines), daemon=True).start()
+    threading.Thread(target=_pump, args=(p.stderr, err_chunks), daemon=True).start()
+
+    def _scan(rid):
+        with lk:
+            for ln in lines:
+                ln = ln.strip()
+                if not ln.startswith("{"):
+                    continue
+                try:
+                    d = json.loads(ln)
+                except json.JSONDecodeError:
+                    continue
+                if d.get("id") == rid and "result" in d:
+                    return d["result"]
+        return None
+
+    def _reply(rid, deadline):
+        while time.time() < deadline:
+            found = _scan(rid)
+            if found is not None:
+                return found
+            with lk:
+                stderr_now = "".join(err_chunks)
+            if "ERROR: 'mcp' package not installed" in stderr_now:
+                return "NO_SDK"
+            if p.poll() is not None:
+                time.sleep(0.2)  # drain grace: let the pumps deliver the last buffered lines
+                return _scan(rid)  # None here means: exited without the reply
+            time.sleep(0.05)
+        return "TIMEOUT"
+
+    def _send(obj):
         try:
-            d = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if d.get("id") == 1 and "result" in d:
-            info = d["result"].get("serverInfo")
-        if d.get("id") == 2 and "result" in d:
-            tools = d["result"].get("tools", [])
-    if tools is None:
-        tail = (r.stderr or "").strip().splitlines()[-1:] or ["no reply"]
-        return False, f"no tools/list reply ({tail[0][:160]})", 0
+            p.stdin.write(json.dumps(obj) + "\n")
+            p.stdin.flush()
+            return True
+        except (BrokenPipeError, OSError):
+            return False  # a dead pipe is classified by the reply scan (no-SDK exits fast)
+
+    def _finish(ok, detail, n):
+        try:
+            p.stdin.close()
+        except OSError:
+            pass
+        try:
+            p.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            p.kill()
+        return ok, detail, n
+
+    def _stderr_tail():
+        with lk:
+            return ("".join(err_chunks).strip().splitlines()[-1:] or ["no reply"])[0][:160]
+
+    deadline = time.time() + timeout
+    _send({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+           "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                      "clientInfo": {"name": "creator-os-wizard-probe", "version": "0"}}})
+    r1 = _reply(1, deadline)
+    if r1 == "NO_SDK":
+        return _finish(False, "the mcp package is not installed yet "
+                              "(run Install the free tools first)", 0)
+    if r1 == "TIMEOUT":
+        return _finish(False, "the server did not answer within the time limit", 0)
+    if r1 is None:
+        return _finish(False,
+                       f"the server exited before finishing the check ({_stderr_tail()})", 0)
+    info = r1.get("serverInfo")
+    _send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+    _send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    r2 = _reply(2, deadline)
+    if r2 == "TIMEOUT":
+        return _finish(False, "the server did not answer within the time limit", 0)
+    if r2 in (None, "NO_SDK"):
+        return _finish(False, f"no tools/list reply ({_stderr_tail()})", 0)
+    tools = r2.get("tools", [])
     name = info.get("name") if isinstance(info, dict) else None
     if name != "creator-os":
-        return False, (f"a different MCP server answered at that path "
-                       f"('{name or 'unnamed'}', expected 'creator-os')"), len(tools)
+        return _finish(False, (f"a different MCP server answered at that path "
+                               f"('{name or 'unnamed'}', expected 'creator-os')"), len(tools))
     if not tools:
-        return False, ("the server answered but reported no tools -- the entry points at "
-                       "something, just not a working Creator OS install"), 0
-    return True, "", len(tools)
+        return _finish(False, ("the server answered but reported no tools -- the entry points "
+                               "at something, just not a working Creator OS install"), 0)
+    return _finish(True, "", len(tools))
+
+
+def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, str, int]:
+    """Public probe (P85-1 contract, P87 checks, P88 transport): one interactive attempt, and
+    ONE automatic retry after a 2-second pause ONLY when the failure is transient (the server
+    exited early, never replied, or timed out) -- a cold first start is the expected real-world
+    first-run condition. Deterministic refusals (wrong server name, empty toolset, missing mcp
+    package, interpreter not startable) are never retried: proven by invocation counting in
+    the selftest. Returns (ok, detail, tool_count). Never raises."""
+    ok, detail, n = _probe_mcp_server_once(py, server, timeout)
+    transient = (not ok) and ("exited before finishing" in detail
+                              or "time limit" in detail
+                              or "no tools/list reply" in detail)
+    if ok or not transient:
+        return ok, detail, n
+    time.sleep(2)
+    ok2, detail2, n2 = _probe_mcp_server_once(py, server, timeout)
+    if ok2:
+        return True, "", n2
+    return False, detail2 + " (tried twice)", n2
 
 def _has_uv() -> bool:
     # env_paths.which prepends the Homebrew prefixes so uv is found under a double-click launch
@@ -580,14 +660,33 @@ it instead of starting from scratch. Pick where your information lives.</p>
 """, dots=["active", "dot", "dot", "dot"])
 
 def _screen_claudeai() -> str:
-    return _page("Google Workspace on claude.ai", """
-<h1>Connect Google to claude.ai</h1>
-<p>claude.ai has built-in Google Workspace support. No downloads or technical setup required
-&#8212; just click Connect and sign in.</p>
+    return _page("Creator OS on claude.ai", """
+<h1>Creator OS on claude.ai</h1>
+<p>Since 2026-09-16, Claude chat and Cowork are one Claude (rolling out in stages from Pro and
+Max plans), so skills, plugins, and connectors work from any conversation. Four ways to get
+Creator OS there, best first:</p>
+<ol class="steps">
+  <li><strong>The plugin (paid plans):</strong> in claude.ai, open <strong>Customize</strong>,
+      then <strong>Plugins</strong>, and add this repository&#8217;s marketplace link. Everything
+      installs in one step. (Whether a private repository link works on a personal plan is not
+      yet verified &#8212; try it, and fall back to the next door.)</li>
+  <li><strong>A Project fed straight from GitHub:</strong> Projects &#8594; New Project &#8594;
+      paste <code>implementation/claude/project/system-prompt.md</code> as the project
+      instructions &#8594; in the knowledge area choose <strong>+</strong> &#8594;
+      <strong>GitHub</strong> &#8594; this repository &#8594;
+      <code>implementation/claude/project/</code>. Press <strong>Sync now</strong> after each
+      update.</li>
+  <li><strong>A Project fed by uploads (any plan, incl. Free):</strong> same Project, but upload
+      the nine knowledge files, or the single <code>creator-os-combined.md</code>.</li>
+  <li><strong>Individual skill ZIPs (any plan):</strong> Settings &#8594; Capabilities &#8594;
+      enable code execution, then Customize &#8594; Skills &#8594; upload. Only self-contained
+      skills work this way; the full system needs door 1, 2, or 3.</li>
+</ol>
+<h2>Connect Google Workspace</h2>
 <ol class="steps">
   <li>Go to <a href="https://claude.ai" target="_blank">claude.ai</a> and sign in.</li>
-  <li>Click your profile picture in the top-right corner, then click <strong>Settings</strong>.</li>
-  <li>In the left sidebar, click <strong>Integrations</strong> (or <strong>Connectors</strong>).</li>
+  <li>Open <strong>Customize</strong>, then <strong>Connectors</strong> (older builds:
+      Settings &#8594; Integrations).</li>
   <li>Find <strong>Google Workspace</strong> and click <strong>Add</strong>.</li>
   <li>Sign in with your Google account and click <strong>Allow</strong>.</li>
 </ol>
@@ -600,7 +699,7 @@ def _screen_claudeai() -> str:
   Microsoft connector. If you need Outlook or Excel integration, you will need to use
   Claude Desktop instead.
 </div>
-<a class="btn btn-success" href="/done">I&#8217;ve connected Google &mdash; show me what to try</a>
+<a class="btn btn-success" href="/done">Done here &mdash; show me what to try</a>
 <a class="btn btn-outline" href="/">Back</a>
 """, dots=["done", "active", "dot", "dot"])
 
@@ -4166,6 +4265,56 @@ def _selftest() -> int:
     check("not cross-checked" in _html_p and "All 60" not in _html_p,
           "unchecked count rendered as a confirmed 'All N' claim")
 
+    # P88: the probe's transport waits for the reply instead of racing stdin EOF (the mcp 2.x
+    # race dropped tools/list about 1 run in 5 to 10 under fire-and-close), the single retry
+    # heals a genuine cold-start crash, and deterministic refusals never retry. Fixtures are
+    # the executed pre-check spoofs verbatim.
+    def _spoof2(path, name, extra_head="", think="", tools_json="[]"):
+        path.write_text(
+            'import json, sys, time, os\n' + extra_head +
+            'for line in sys.stdin:\n'
+            '    line = line.strip()\n'
+            '    if not line: continue\n'
+            '    d = json.loads(line)\n'
+            '    if d.get("method") == "initialize":\n'
+            '        print(json.dumps({"jsonrpc":"2.0","id":d["id"],"result":{'
+            '"protocolVersion":"2025-06-18","capabilities":{},'
+            '"serverInfo":{"name":"' + name + '","version":"9"}}}), flush=True)\n'
+            '    elif d.get("method") == "tools/list":\n'
+            + (('        ' + think + '\n') if think else '') +
+            '        print(json.dumps({"jsonrpc":"2.0","id":d["id"],'
+            '"result":{"tools":' + tools_json + '}}), flush=True)\n',
+            encoding="utf-8")
+        return str(path)
+    _one_tool = '[{"name":"t","inputSchema":{"type":"object"}}]'
+    # (d) slow reply: the transport waits (3s think time) instead of racing EOF
+    _ok_d, _det_d, _n_d = _probe_mcp_server(
+        sys.executable, _spoof2(_sp / "d.py", "creator-os", think="time.sleep(3)",
+                                tools_json=_one_tool))
+    check(_ok_d is True and _n_d == 1,
+          "probe raced a slow tools/list reply instead of waiting (transport regressed)")
+    # (e) flaky-once: first invocation exits silently (cold-start crash), second is healthy;
+    #     the single transient retry must heal it
+    _sent = _sp / "sentinel.txt"
+    _ok_e, _det_e, _n_e = _probe_mcp_server(
+        sys.executable, _spoof2(_sp / "e.py", "creator-os",
+                                extra_head=('if not os.path.exists(' + repr(str(_sent)) + '):\n'
+                                            '    open(' + repr(str(_sent)) + ', "w").write("x")\n'
+                                            '    sys.exit(0)\n'),
+                                tools_json=_one_tool))
+    check(_ok_e is True and _n_e == 1,
+          "transient retry did not heal a flaky first start")
+    # (f) impostor with an invocation counter: refused AND invoked exactly once
+    _cnt = _sp / "count.txt"
+    _cnt.write_text("0", encoding="utf-8")
+    _ok_f, _det_f, _ = _probe_mcp_server(
+        sys.executable, _spoof2(_sp / "f.py", "fake",
+                                extra_head=('_c = int(open(' + repr(str(_cnt)) + ').read())\n'
+                                            'open(' + repr(str(_cnt)) + ', "w").write(str(_c + 1))\n')))
+    check(_ok_f is False and "different MCP server" in _det_f
+          and _cnt.read_text(encoding="utf-8") == "1",
+          "a deterministic refusal consumed a retry (impostor invoked more than once)")
+
     if failures:
         print("wizard selftest FAILED:")
         for f in failures:
@@ -4174,7 +4323,8 @@ def _selftest() -> int:
     print(f"wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; "
           f"port-collision; loopback guard; {rendered}-screen render sweep; creator-os merge "
           f"round-trip + corrupt backup; state persistence; worker double-start/crash; "
-          f"probe spoof refusals + honest count wording; 0 network)")
+          f"probe spoof refusals + honest count wording; "
+          f"interactive-transport wait + transient retry; 0 network)")
     return 0
 
 

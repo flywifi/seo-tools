@@ -5,7 +5,7 @@
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "ce2607788c3b662d19a5e1d04df0608ff910bc035b961a9062351e62b7b73834",
-        "shared/cross-modality/transitions.json": "e9b5ddb8dd60add340b62049a50332947425a81163c8842f65864ec20375f2cc"
+        "shared/cross-modality/transitions.json": "c037759ca26b31d72dc15e2afdbb419843ac803eae3d83c826dbe61cfca71144"
       }
     },
     "docs/CURRENCY.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "652a6e21df8474e406eb7ade4f24a600a964aa9f6dc088ac9f02ddf27b1dfb6b",
+        "tools/wizard.py": "bf24d206c7caa7b30f4af05694ac51e6ff14950f2f0e3340625a5f5eaafd2db7",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -58,7 +58,7 @@
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "e9b5ddb8dd60add340b62049a50332947425a81163c8842f65864ec20375f2cc"
+        "shared/cross-modality/transitions.json": "c037759ca26b31d72dc15e2afdbb419843ac803eae3d83c826dbe61cfca71144"
       }
     },
     "implementation/claude/desktop/README.md": {
@@ -126,7 +126,7 @@
         "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "839f2b19325c42785c49e81c57db7c969e35de792cf370c663c3403887601365",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "8a17ca6bad599bf573f366f3fb5da66d101b5625ed3cc89af485408e6a71e5f2"
+        "tools/project_docs.py": "b8f3a27c5e19f9a0ac45abcc3d63f4466d45a41624f81ddde795317476f54812"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {

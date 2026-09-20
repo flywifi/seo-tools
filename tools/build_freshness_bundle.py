@@ -31,7 +31,7 @@ MANIFEST_PATH = ROOT / "implementation" / "freshness-bundle.json"
 # P49 WS5: a stable "way home" so any downloaded/pasted copy tells the reader where the living source is.
 SOURCE_URL = "github.com/flywifi/seo-tools"
 
-# P49 WS6: the single-file combined knowledge pack (generated from the 8 Claude knowledge files) so a
+# P49 WS6: the single-file combined knowledge pack (generated from the 9 Claude knowledge files) so a
 # non-technical user can upload ONE file to a Claude Project / Custom GPT instead of eight.
 KNOWLEDGE_GLOB = "implementation/claude/project/knowledge/*.md"
 COMBINED_REL = "implementation/claude/project/creator-os-combined.md"
@@ -42,6 +42,8 @@ MANAGED_GLOBS = [
     "implementation/claude/project/system-prompt.md",
     "implementation/claude/project/creator-os-combined.md",
     "implementation/gpt/web/custom-instructions.md",
+    "implementation/gpt/web/custom-instructions-compact.md",
+    "implementation/gpt/project/project-instructions.md",
     "implementation/gemini/system-instruction.md",
 ]
 
@@ -85,7 +87,7 @@ def _strip_marker(text):
 
 
 def combined_body(root=ROOT):
-    """Deterministic single-file concatenation of the 8 Claude knowledge files (P49 WS6). Each part's
+    """Deterministic single-file concatenation of the 9 Claude knowledge files (P49 WS6). Each part's
     own freshness marker is stripped; the combined file gets ONE stamp at the top via apply()."""
     parts = sorted(root.glob(KNOWLEDGE_GLOB))
     out = ["# Creator OS - combined knowledge (single-file upload)",
