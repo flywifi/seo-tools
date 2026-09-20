@@ -2,8 +2,15 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P85 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P87 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P87: audit remediation (2026-09-20). Both findings of the 2026-09-19 adversarial audit
+  closed: the wizard's verification gate pins the serverInfo name (never the
+  SDK-dependent version), refuses an empty toolset, and labels an uncross-checked tool
+  count instead of claiming it; the audit's spoof server is a permanent selftest
+  fixture whose three pins failed on pre-fix code and pass now. The mcpb-manifest-spec
+  hint names manifest_version. The audit report itself remains uncommitted by owner
+  decision.
 - P85: setup-wizard first-run readiness (2026-09-19, docs/adr/0061-p85-wizard-first-run-readiness.md).
   The audit's headline: the wizard never wrote the creator-os MCP server entry at all (two docs
   claimed it did), and the documented smoke test could not work (bare tools/list is rejected

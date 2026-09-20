@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-19",
+  "last_registry_update": "2026-09-20",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -3579,7 +3579,7 @@
       "staleness_threshold_days": 30,
       "last_checked": "2026-09-19",
       "last_changed_detected": null,
-      "extraction_hint": "raw.githubusercontent.com serves the spec where github.com pages are challenge-walled from datacenter egress; current mcpb_version 0.3 (spec dated 2025-12-02)",
+      "extraction_hint": "raw.githubusercontent.com serves the spec where github.com pages are challenge-walled from datacenter egress; spec states 'Current version: 0.3' (last updated 2025-12-02); the manifest's spec-version field is manifest_version",
       "used_by": [
         "implementation/claude/desktop",
         "tools/mcp_server.py"
@@ -6560,5 +6560,5 @@
       "min_recheck_at": 739878
     }
   ],
-  "_content_digest": "dca029b3b4831754749ffe1b938da2110e933580abba5598846c1aa273c0fc7a"
+  "_content_digest": "bac14fe15f40423e4f87cc7f57dd48890ffed722f947dd490b5ea1da424a1973"
 }
