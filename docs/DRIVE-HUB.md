@@ -163,7 +163,7 @@ the Inbox.
 
 ## The Knowledge folder and claude.ai Projects (dual projection)
 
-`tools/project_docs.py` keeps the claude.ai knowledge pack (the eight knowledge files, the system
+`tools/project_docs.py` keeps the claude.ai knowledge pack (the nine knowledge files, the system
 prompt, and the combined pack, all guarded against their source engines by drift invariant 47)
 present in the hub's `Knowledge/` folder, two ways:
 

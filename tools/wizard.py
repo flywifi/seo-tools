@@ -660,14 +660,33 @@ it instead of starting from scratch. Pick where your information lives.</p>
 """, dots=["active", "dot", "dot", "dot"])
 
 def _screen_claudeai() -> str:
-    return _page("Google Workspace on claude.ai", """
-<h1>Connect Google to claude.ai</h1>
-<p>claude.ai has built-in Google Workspace support. No downloads or technical setup required
-&#8212; just click Connect and sign in.</p>
+    return _page("Creator OS on claude.ai", """
+<h1>Creator OS on claude.ai</h1>
+<p>Since 2026-09-16, Claude chat and Cowork are one Claude (rolling out in stages from Pro and
+Max plans), so skills, plugins, and connectors work from any conversation. Four ways to get
+Creator OS there, best first:</p>
+<ol class="steps">
+  <li><strong>The plugin (paid plans):</strong> in claude.ai, open <strong>Customize</strong>,
+      then <strong>Plugins</strong>, and add this repository&#8217;s marketplace link. Everything
+      installs in one step. (Whether a private repository link works on a personal plan is not
+      yet verified &#8212; try it, and fall back to the next door.)</li>
+  <li><strong>A Project fed straight from GitHub:</strong> Projects &#8594; New Project &#8594;
+      paste <code>implementation/claude/project/system-prompt.md</code> as the project
+      instructions &#8594; in the knowledge area choose <strong>+</strong> &#8594;
+      <strong>GitHub</strong> &#8594; this repository &#8594;
+      <code>implementation/claude/project/</code>. Press <strong>Sync now</strong> after each
+      update.</li>
+  <li><strong>A Project fed by uploads (any plan, incl. Free):</strong> same Project, but upload
+      the nine knowledge files, or the single <code>creator-os-combined.md</code>.</li>
+  <li><strong>Individual skill ZIPs (any plan):</strong> Settings &#8594; Capabilities &#8594;
+      enable code execution, then Customize &#8594; Skills &#8594; upload. Only self-contained
+      skills work this way; the full system needs door 1, 2, or 3.</li>
+</ol>
+<h2>Connect Google Workspace</h2>
 <ol class="steps">
   <li>Go to <a href="https://claude.ai" target="_blank">claude.ai</a> and sign in.</li>
-  <li>Click your profile picture in the top-right corner, then click <strong>Settings</strong>.</li>
-  <li>In the left sidebar, click <strong>Integrations</strong> (or <strong>Connectors</strong>).</li>
+  <li>Open <strong>Customize</strong>, then <strong>Connectors</strong> (older builds:
+      Settings &#8594; Integrations).</li>
   <li>Find <strong>Google Workspace</strong> and click <strong>Add</strong>.</li>
   <li>Sign in with your Google account and click <strong>Allow</strong>.</li>
 </ol>
@@ -680,7 +699,7 @@ def _screen_claudeai() -> str:
   Microsoft connector. If you need Outlook or Excel integration, you will need to use
   Claude Desktop instead.
 </div>
-<a class="btn btn-success" href="/done">I&#8217;ve connected Google &mdash; show me what to try</a>
+<a class="btn btn-success" href="/done">Done here &mdash; show me what to try</a>
 <a class="btn btn-outline" href="/">Back</a>
 """, dots=["done", "active", "dot", "dot"])
 

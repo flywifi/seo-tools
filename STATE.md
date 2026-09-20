@@ -2,8 +2,20 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P87 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P89 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P89: cross-surface onboarding on the merged-Claude model (2026-09-20,
+  docs/adr/0062-p89-web-onboarding-in-the-pack.md). The September surface changes are banked
+  (nine T1 support-article seeds, headlined by the 2026-09-16 merge of Claude chat and Cowork
+  into one Claude) and the web surfaces can finally walk a non-technical user through setup: a
+  ninth knowledge file (09-setup-and-surfaces.md) carries the four claude.ai doors (plugin
+  marketplace, GitHub-connected Project with manual sync, uploads, skill ZIPs), the file-
+  delivery bootstrap, the ChatGPT Project door, and the Desktop upgrade, guarded by the
+  projection manifest with the setup docs as sources. Every entry doc states how a no-terminal
+  user obtains the files; unverifiable vendor details are tagged, never asserted.
+- P88: the wizard's verification probe no longer races the mcp 2.x stdin-EOF handling
+  (interactive transport, single transient-only retry, three selftest pins including an
+  invocation-counter proof that refusals never retry).
 - P87: audit remediation (2026-09-20). Both findings of the 2026-09-19 adversarial audit
   closed: the wizard's verification gate pins the serverInfo name (never the
   SDK-dependent version), refuses an empty toolset, and labels an uncross-checked tool

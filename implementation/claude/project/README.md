@@ -61,6 +61,18 @@ and notes what the upgrade path is.
    - `06-document-spoke.md`
    - `07-pipeline-spokes.md`
    - `08-key-atoms.md`
+   - `09-setup-and-surfaces.md`
+
+   Or upload the single combined file `creator-os-combined.md` (one folder up) instead of the
+   nine -- one or the other, not both. Or skip uploads entirely: the knowledge area's "+" >
+   GitHub option can connect this repository's `implementation/claude/project/` folder
+   directly, with a manual "Sync now" after each update (support article 10167454, fetched
+   2026-09-20; plan gating not stated in the article -- check on your plan).
+
+   **How you get these files with no repo on your computer:** ask the maintainer to send them
+   (or to mirror them into the shared Drive folder's `Knowledge/` subfolder from the wizard's
+   Drive hub screen), or download them from the repository page (github.com/flywifi/seo-tools)
+   under `implementation/claude/project/`.
 3. Wait for all files to finish processing (the spinner stops).
 
 ### Step 4: Test
@@ -97,7 +109,10 @@ and a script outline.
 ## Updating the knowledge files
 
 If the system is updated (new atom added, engine updated, spoke changed), re-upload
-the relevant knowledge file. You do not need to re-upload all 8 files for a small change:
+the relevant knowledge file (or, on a GitHub-connected Project, just press "Sync now"; on a
+combined-pack upload, replace `creator-os-combined.md`). You do not need to re-upload all 9
+files for a small change:
 - New atom added: re-upload `08-key-atoms.md`
-- Engine updated: re-upload the file that contains that engine (02 through 03)
+- Engine updated: re-upload the file that contains that engine (01 through 03)
 - New spoke added: re-upload the relevant spoke file (05, 06, or 07)
+- Setup guidance changed: re-upload `09-setup-and-surfaces.md`

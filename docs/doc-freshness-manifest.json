@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "bdbdf31cf07b7cd17c3381c1d7f6ec60326b0b99da7651de042930d7dea32b14",
+        "tools/wizard.py": "bf24d206c7caa7b30f4af05694ac51e6ff14950f2f0e3340625a5f5eaafd2db7",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -126,7 +126,7 @@
         "tools/handoff/drive_api.py": "e0861fd82070db211d512e16b6a4707c098876c44ed1905efcbf6048bc5f7f38",
         "tools/handoff/inbox.py": "839f2b19325c42785c49e81c57db7c969e35de792cf370c663c3403887601365",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "8a17ca6bad599bf573f366f3fb5da66d101b5625ed3cc89af485408e6a71e5f2"
+        "tools/project_docs.py": "b8f3a27c5e19f9a0ac45abcc3d63f4466d45a41624f81ddde795317476f54812"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {

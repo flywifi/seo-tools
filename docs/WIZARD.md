@@ -10,14 +10,29 @@ folder -- all without any command-line configuration.
 
 ## For Alex (no terminal needed -- claude.ai path)
 
-If you use Claude at **claude.ai** (not Claude Desktop), you do not need the wizard. Google
-Workspace is available as a built-in connector:
+If you use Claude at **claude.ai** (not Claude Desktop), you do not need the wizard. Since
+2026-09-16 Claude chat and Cowork are one Claude (rolling out in stages from Pro and Max), so
+skills, plugins, and connectors work from any conversation. Get Creator OS there one of four
+ways, best first (full steps: `docs/DEPLOYMENT.md` Option B and the wizard's own claude.ai
+screen):
+
+1. **The plugin** (paid plans): Customize > Plugins, add the repository's marketplace link --
+   everything in one step. (Private-repository marketplace links on personal plans are not yet
+   verified; fall back to door 2.)
+2. **A Project fed straight from GitHub**: New Project, paste
+   `implementation/claude/project/system-prompt.md` as the project instructions, then connect
+   this repository's `implementation/claude/project/` folder to the Project's knowledge
+   ("Sync now" after updates).
+3. **A Project fed by uploads** (any plan, including Free): upload the nine knowledge files or
+   the single combined file.
+4. **Individual skill ZIP uploads** (any plan; self-contained skills only).
+
+Then connect Google Workspace, which is a built-in connector:
 
 1. Sign in to [claude.ai](https://claude.ai).
-2. Click your profile picture (top right) and go to **Settings**.
-3. Click **Integrations** in the left sidebar.
-4. Click **Add** next to **Google Workspace**.
-5. Sign in with your Google account and click **Allow**.
+2. Open **Customize**, then **Connectors** (older builds: Settings > Integrations).
+3. Click **Add** next to **Google Workspace**.
+4. Sign in with your Google account and click **Allow**.
 
 That is it. Creator OS can now read your Gmail, Google Calendar, and Google Drive (Docs, Sheets)
 when you are in a project conversation. No credentials, no downloads, no terminal.

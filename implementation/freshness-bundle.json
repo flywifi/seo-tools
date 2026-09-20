@@ -36,12 +36,16 @@
       "sha256": "383bcfb00bf8cb1b8d14f3872d276017f53dea94fd548fe6343f888a0770c5b2"
     },
     {
+      "file": "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
+      "sha256": "bc3228b24eb1c974a01caa33c12978546152ae82d89efb029130adf5f48d4c5c"
+    },
+    {
       "file": "implementation/claude/project/system-prompt.md",
-      "sha256": "c02cc2d13a213a6c48e4a96406e561aa82cbd723ccdda709873985701b261dc9"
+      "sha256": "fa970f804aa21e330ea193508d137fc67fd6326956f95b1439824dc4256fba4c"
     },
     {
       "file": "implementation/claude/project/creator-os-combined.md",
-      "sha256": "ddff257b17bc6b73e99facbebae36e3806e744bf4f4adc992c0d8a58530018a6"
+      "sha256": "aa629b0dfa4982d3db6c8cf58f9156dd650dfeae83574bf275d72d8cab30b748"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",

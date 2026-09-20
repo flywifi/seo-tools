@@ -13,8 +13,15 @@ and Playwright auto-downloads the arm64 Chromium binary. No Rosetta required.
 2. Click **Projects** in the left sidebar, then **New Project**. Name it **Creator OS**.
 3. Open `implementation/claude/project/system-prompt.md`, copy the full text, paste it into the
    Project Instructions field, and save.
-4. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`.
+4. Click **Add content** and upload each file from `implementation/claude/project/knowledge/`
+   (or the single combined file `implementation/claude/project/creator-os-combined.md`, or
+   connect this GitHub repository to the Project's knowledge instead of uploading -- see
+   `docs/DEPLOYMENT.md` Option B).
 5. Start a conversation: "Plan a seasonal home decor project makeover video."
+
+No repo on the computer? Ask the maintainer to send the files or mirror them into the shared
+Drive folder's `Knowledge/` subfolder (the wizard's Drive hub screen does it in one click), or
+download them from github.com/flywifi/seo-tools.
 
 See `docs/DEPLOYMENT.md` Option B for the full walkthrough. No Homebrew, no Python, no git needed.
 

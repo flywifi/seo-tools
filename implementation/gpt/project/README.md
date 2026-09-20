@@ -21,9 +21,13 @@ MCP, or the deployed MCP connector in ChatGPT developer mode).
    and 40 on Edu/Pro/Business/Enterprise, with at most 10 files per simultaneous upload
    (confirmed 2026-09-19, help article 10169521 read in full; shared-project collaborator caps
    are 5 Free / 10 Go-Plus / 100 Pro and workspace plans). Project instructions replace your
-   global custom instructions inside the project. On Plus and above, upload all 8. On Free the
-   8-file bundle does NOT fit: upload the first 5 in the numbered order (01 through 05) and
+   global custom instructions inside the project. On Plus and above, upload all 9. On Free the
+   9-file bundle does NOT fit: upload the first 5 in the numbered order (01 through 05) and
    expect the acceptance prompts that rely on the rest to degrade.
+   **How you get these files with no repo on your computer:** ask the maintainer to send them
+   (or to mirror them into the shared Drive folder's `Knowledge/` subfolder from the wizard's
+   Drive hub screen), or download them from the repository page (github.com/flywifi/seo-tools)
+   under `implementation/claude/project/knowledge/`.
 5. Run the three acceptance prompts below. If all three pass, the Project is live.
 
 ## Acceptance prompts (paste each into a new chat inside the Project)

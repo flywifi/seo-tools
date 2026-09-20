@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P89: a ninth knowledge file, `09-setup-and-surfaces.md`, teaches a claude.ai or ChatGPT
+  Project to walk its own user through setup: which Claude they are in after the 2026-09-16
+  chat/Cowork merge, the four claude.ai doors (plugin marketplace, GitHub-connected Project,
+  uploads, skill ZIPs) with unverified pieces flagged, how to obtain the files with no repo on
+  the computer, the ChatGPT Project door, and the Desktop upgrade. Registered in the Drive
+  projection lanes and guarded by the projection manifest with the setup docs as sources, so
+  onboarding-doc changes flag the pack file stale. The wizard's claude.ai screen and WIZARD.md
+  "For Alex" section now describe the same four doors instead of only the Google connector,
+  and the system prompt's upgrade pointer names the in-Project file instead of a repo path.
+  ADR 0062 records the design.
 - P85: the wizard selftest grows four families -- a 31-screen render sweep enumerated from the
   module namespace, the creator-os config-merge round-trip (other servers survive, corrupt
   configs are backed up), the state-persistence round-trip, and worker double-start/crash
