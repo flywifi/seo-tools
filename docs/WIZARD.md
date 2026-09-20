@@ -62,7 +62,9 @@ The wizard:
    presented as confirmed. If the check cannot pass yet (for example, the free tools
    are not installed), it says exactly why and where to fix it; a manual-merge fallback is shown
    for the rare case the automatic write cannot work. The Done page reports the verified tool
-   count and has a "Check again" button for after you restart Claude Desktop.
+   count and has a "Check again" button for after you restart Claude Desktop. The check talks
+   to the server step by step and never closes the connection before the reply arrives, and it
+   quietly tries once more if the server stumbles on its very first start.
 3. Asks which services you want to connect (Google, Microsoft, or both).
 4. Walks you through each connection step by step.
 4. Writes all configuration files automatically -- no JSON editing.

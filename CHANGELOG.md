@@ -92,6 +92,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P88: the wizard's verification probe no longer races the server's stdin EOF handling --
+  under the mcp 2.x SDK the fire-and-close transport dropped the tools/list request roughly
+  one run in five to ten (the server answered initialize, then exited cleanly in one second
+  without the second reply). The probe is now interactive, closing stdin only after the
+  reply, with one automatic retry reserved for transient first-start failures; deterministic
+  refusals never retry (proven by invocation counting in the selftest). This also corrects
+  the earlier in-chat "startup latency" reading of the same symptom.
 - P87: the wizard's install-verification gate no longer passes a completed handshake with an
   empty toolset or an impostor server (the serverInfo name is pinned; the version never is,
   since the SDK majors report it differently), and an uncross-checked tool count is labeled
