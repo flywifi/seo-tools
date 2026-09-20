@@ -101,7 +101,6 @@
         "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it under Customize, then Connectors (Free plans can hold one custom connector; support article 11176164)."
       ],
       "needs_verification": [
-        "adding a PRIVATE GitHub-repo plugin marketplace on a personal plan (support article 13837440 does not address private repositories)",
         "plan gating of the GitHub-to-project-knowledge connector (support article 10167454 does not state plans)"
       ]
     },

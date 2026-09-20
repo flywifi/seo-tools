@@ -12,6 +12,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ## [Unreleased]
 
+### Fixed
+- The repository's visibility was misstated as private in the P89/P90 guidance (the wizard's
+  claude.ai screens, the setup knowledge file, DEPLOYMENT's GitHub-connector note, and a
+  transitions caveat about private marketplace links). Verified public via an
+  unauthenticated API check; every claim corrected: the marketplace link needs no access
+  grant (it is a paid-plan feature, stated instead), the GitHub-fed Project needs only a
+  GitHub sign-in, and the moot private-marketplace verification tag is removed. The
+  connector plan-gating tag remains, still genuinely unverified.
+
 ## [0.3.0] - 2026-09-20
 
 ### Added

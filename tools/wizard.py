@@ -677,8 +677,8 @@ the wizard copies the pastes, stages the upload folder, and verifies the result<
 <ol class="steps">
   <li><strong>The plugin (paid plans):</strong> in claude.ai, open <strong>Customize</strong>,
       then <strong>Plugins</strong>, and add this repository&#8217;s marketplace link. Everything
-      installs in one step. (Whether a private repository link works on a personal plan is not
-      yet verified &#8212; try it, and fall back to the next door.)</li>
+      installs in one step. The repository is public, so the link needs no access grant;
+      marketplace plugins are a paid-plan feature, so on Free use the next door.</li>
   <li><strong>A Project fed straight from GitHub:</strong> Projects &#8594; New Project &#8594;
       paste <code>implementation/claude/project/system-prompt.md</code> as the project
       instructions &#8594; in the knowledge area choose <strong>+</strong> &#8594;
@@ -2429,8 +2429,8 @@ folder. Pick whichever fits the account.</p>
 <p>On claude.ai: <strong>Customize</strong>, then <strong>Plugins</strong>, then add this
 marketplace link:</p>
 {_copy_block("mkt", "Marketplace link", "https://github.com/flywifi/seo-tools")}
-<div class="note">The repository is private, and whether a private marketplace link works on a
-personal plan is not verified yet. If it refuses, use Door 2 or 3.</div>
+<div class="note">The repository is public, so the link needs no access grant. Marketplace
+plugins are a paid-plan feature; on Free, use Door 2 or 3.</div>
 
 <h2>Door 2: a Project fed straight from GitHub (no files to move)</h2>
 <ol class="steps">

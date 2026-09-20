@@ -5,7 +5,7 @@
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "ce2607788c3b662d19a5e1d04df0608ff910bc035b961a9062351e62b7b73834",
-        "shared/cross-modality/transitions.json": "ca3d8275b93a8cbb149934aa7c22f53f070d459c8b743d1e12494bfd76798ff9"
+        "shared/cross-modality/transitions.json": "edf0bc100cde5c25e2712171e02169dd4b7a7f3f0d9dd4a2f9c3dfa2a4d7c3d1"
       }
     },
     "docs/CURRENCY.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "5e1881a53c02f0465225f13ea82f2727b46d0903b636f70ad017f0a113f99db4",
+        "tools/wizard.py": "e505b628f01c79ee41c122f0c07dc96868a5feb6dff9bf6061d72f443fd18b83",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -58,7 +58,7 @@
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "ca3d8275b93a8cbb149934aa7c22f53f070d459c8b743d1e12494bfd76798ff9"
+        "shared/cross-modality/transitions.json": "edf0bc100cde5c25e2712171e02169dd4b7a7f3f0d9dd4a2f9c3dfa2a4d7c3d1"
       }
     },
     "implementation/claude/desktop/README.md": {

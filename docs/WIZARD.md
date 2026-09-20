@@ -17,8 +17,8 @@ ways, best first (full steps: `docs/DEPLOYMENT.md` Option B and the wizard's own
 screen):
 
 1. **The plugin** (paid plans): Customize > Plugins, add the repository's marketplace link --
-   everything in one step. (Private-repository marketplace links on personal plans are not yet
-   verified; fall back to door 2.)
+   everything in one step. The repository is public, so the link needs no access grant; on
+   Free, use door 2 or 3.
 2. **A Project fed straight from GitHub**: New Project, paste
    `implementation/claude/project/system-prompt.md` as the project instructions, then connect
    this repository's `implementation/claude/project/` folder to the Project's knowledge
