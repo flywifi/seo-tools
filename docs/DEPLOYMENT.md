@@ -167,8 +167,19 @@ Paste-and-go. No files to upload. Knowledge-only mode.
 
 See `implementation/gpt/web/README.md` for limitations and the capability comparison.
 
+**Option D2 -- ChatGPT Project (recommended OpenAI door for personal plans):** a Project gives
+Creator OS file uploads, pinned instructions, and project-only memory on every ChatGPT tier.
+Full walkthrough and acceptance prompts: `implementation/gpt/project/README.md`. File caps
+(help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu,
+Pro, Business, and Enterprise, at most 10 files per upload. Do NOT build a new Custom GPT:
+OpenAI retires Custom GPTs in favor of Plugins -- Enterprise on 2026-12-11 with other plans
+expected to follow (ADR 0060) `[NEEDS VERIFICATION: secondary reporting adds an Enterprise
+new-GPT creation stop of 2026-09-25 and in-product migration tooling from ~2026-09-17, from
+the walled retirement FAQ (help article 20001519), unread first-party]`.
+
 More ChatGPT paths (P43): the setup wizard's `/chatgpt` screen walks plain web chat, a custom
-GPT, a ChatGPT Project, and the ChatGPT desktop app step by step, and `/transitions` walks any
+GPT (retiring surface -- see above), a ChatGPT Project, and the ChatGPT desktop app step by
+step, and `/transitions` walks any
 move between AIs (`docs/TRANSITIONS.md`). Bringing ChatGPT's knowledge of you home:
 `implementation/gpt/profile-import/README.md`. Live tools on ChatGPT require a deployed
 developer-mode MCP connector (`implementation/gpt/mcp-connector/README.md`; conditional
@@ -206,7 +217,10 @@ See `implementation/gemini/README.md` for notes on Gemini-specific limitations.
 
 ---
 
-## First-run checklist (all options)
+## First-run checklist (computer options: A, C, and the Gemini API lane)
+
+Options B (claude.ai) and D (ChatGPT web) are browser-only; their checks are the acceptance
+prompts in their own sections and READMEs, not these commands.
 
 ```bash
 # 1. Drift guard -- should exit 0
@@ -221,9 +235,31 @@ python3 tools/version.py --check
 # 4. Source currency report -- shows which sources need checking
 python3 tools/source_currency.py report
 
-# 5. (Claude Desktop only) MCP server self-test
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 tools/mcp_server.py
-# Should return 60 tool definitions
+# 5. (Claude Desktop only) MCP server self-test: prefer the wizard's "Install and verify"
+#    step (docs/WIZARD.md), which runs the full three-message MCP handshake and cross-checks
+#    the tool count against the repo's canonical count. Manual equivalent (a bare tools/list
+#    is rejected before the initialize handshake, so the probe sends the full sequence):
+python3 - <<'EOF'
+import json, subprocess
+msgs = [
+  {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+   "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+              "clientInfo": {"name": "smoke", "version": "0"}}},
+  {"jsonrpc": "2.0", "method": "notifications/initialized"},
+  {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+]
+r = subprocess.run(["python3", "tools/mcp_server.py"],
+                   input="".join(json.dumps(m) + "\n" for m in msgs),
+                   capture_output=True, text=True, timeout=90)
+for line in r.stdout.splitlines():
+    if line.strip().startswith("{"):
+        d = json.loads(line)
+        if d.get("id") == 2 and "result" in d:
+            print(len(d["result"]["tools"]), "tools")
+EOF
+# Should print the tool count. If it prints nothing, run it once more: this one-shot pipe
+# can lose the reply to a startup race on newer MCP SDK versions; the wizard's check speaks
+# the protocol interactively and does not have this race.
 ```
 
 ---
@@ -270,7 +306,7 @@ python3 tools/competitor_snapshot.py --export-summary
 | Jupyter notebook sessions | Yes (MCP) | No | Via remote MCP | No | No | No |
 | ML predictions (scikit-learn) | Yes (MCP) | No | Via remote MCP | No | No | No |
 | Gemini Gem export packaging | Yes | Yes | Yes (export and save it) | No | No | N/A |
-| Custom GPT export packaging | Yes | Yes | Yes (export and save it) | N/A | N/A | No |
+| Custom GPT export packaging (retiring surface, ADR 0060) | Yes | Yes | Yes (export and save it) | N/A | N/A | No |
 | Subagent workflows (content-pipeline, etc.) | Yes | No | Not verified | No | No | No |
 | Agent orchestration (read-only research agents) | Yes | No | Not verified | No | No | No |
 | Edit spec generation (markers, chapters, captions, presets) | Yes | Yes | Yes | Yes | Yes | Yes |

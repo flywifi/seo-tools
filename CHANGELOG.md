@@ -102,6 +102,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P89: the cross-modality record's stale spots are squared. DEPLOYMENT.md's first-run
+  checklist no longer claims to cover the browser-only options, and its MCP smoke test is the
+  full three-message handshake instead of the bare tools/list the P85 audit proved broken
+  (with the tool count printed, never hand-restated); the Custom GPT retirement steer and a
+  ChatGPT Project option reached DEPLOYMENT.md at last, with the reported 2026-09-25
+  creation-stop tagged as unverified secondary reporting; the recommended ChatGPT door's
+  project-instructions.md and the compact custom-instructions file joined the
+  freshness-stamped managed set (the stale 2026-08-15 stamp heals and invariant 26 covers
+  both permanently); and the macOS guide's manual smoke test carries the P88 race caveat with
+  the wizard named as the race-free path.
 - P88: the wizard's verification probe no longer races the server's stdin EOF handling --
   under the mcp 2.x SDK the fire-and-close transport dropped the tools/list request roughly
   one run in five to ten (the server answered initialize, then exited cleanly in one second

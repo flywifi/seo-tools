@@ -83,9 +83,9 @@
     },
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "3eca279f0ec54c1e7f2608159a805aa4f05344dc06d839561fa21dd8858aa19a",
+        "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
         "docs/WIZARD.md": "78aa4bdac5c13f90298cb86645ce2c3f2442a85ec01e01ff2a3b9c5c4f630436",
-        "docs/SETUP_MAC.md": "a7e01b1da7ac50e017d15fa1875f011ae332a086c4826e1757e2f32d4468aa91",
+        "docs/SETUP_MAC.md": "00508034c1636486742d2b788363a9c43ae39205592c8f220acd67c80aa459c1",
         "docs/TRANSITIONS.md": "8faf79e256cee977ede12156fd92b6885733df5d1db63518bbd4a4e10494a746",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "d5f92851c0e18bca6e2552a5f4a81e7967e856f508123e8dc2024dd20287e0b7"
@@ -117,7 +117,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae"
       },
-      "projection": "6e49bbf3adf66efe3046b89048731200265470e23365c6302fd367c5c4377d0c"
+      "projection": "c148435894aec5490b7d03e4f0715ac7cd1b7fe657f4a34ce9dceb650a115b8e"
     },
     "implementation/gpt/project/project-instructions.md": {
       "sources": {
@@ -126,7 +126,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
       },
-      "projection": "71807af82e2606b8d6f245622a9ef5f42163588b3b13cf5d972e46f9eaf983a3"
+      "projection": "3515ea9004bfb6acabb2303be9f04ed3273e55411b03ed8fccb9f75c4b58b732"
     },
     "AGENTS.md": {
       "sources": {
@@ -146,8 +146,8 @@
     },
     "implementation/claude/project/creator-os-combined.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "3eca279f0ec54c1e7f2608159a805aa4f05344dc06d839561fa21dd8858aa19a",
-        "docs/SETUP_MAC.md": "a7e01b1da7ac50e017d15fa1875f011ae332a086c4826e1757e2f32d4468aa91",
+        "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
+        "docs/SETUP_MAC.md": "00508034c1636486742d2b788363a9c43ae39205592c8f220acd67c80aa459c1",
         "docs/TRANSITIONS.md": "8faf79e256cee977ede12156fd92b6885733df5d1db63518bbd4a4e10494a746",
         "docs/WIZARD.md": "78aa4bdac5c13f90298cb86645ce2c3f2442a85ec01e01ff2a3b9c5c4f630436",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",

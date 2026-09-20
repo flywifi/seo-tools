@@ -42,6 +42,8 @@ MANAGED_GLOBS = [
     "implementation/claude/project/system-prompt.md",
     "implementation/claude/project/creator-os-combined.md",
     "implementation/gpt/web/custom-instructions.md",
+    "implementation/gpt/web/custom-instructions-compact.md",
+    "implementation/gpt/project/project-instructions.md",
     "implementation/gemini/system-instruction.md",
 ]
 

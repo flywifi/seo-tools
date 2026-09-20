@@ -122,7 +122,10 @@ pip3 install -r requirements-mcp.txt
 
 Smoke test (should print the tool count; a bare `tools/list` is rejected before the MCP
 `initialize` handshake, so the probe sends the full three-message sequence — the wizard's
-"Install and verify" button runs this same check for you):
+"Install and verify" button runs the same verification for you, interactively). If it prints
+nothing, run it once more: this one-shot pipe can lose the reply to a startup race on newer
+MCP SDK versions — the wizard's check speaks the protocol step by step and does not have
+this race (P88):
 
 ```bash
 python3 - <<'EOF'

@@ -52,6 +52,14 @@
       "sha256": "5e9bcbbdd70263b4b7186d7b2517f404b65bfdb76a04b1684dfcc1cbdc5369c0"
     },
     {
+      "file": "implementation/gpt/web/custom-instructions-compact.md",
+      "sha256": "c148435894aec5490b7d03e4f0715ac7cd1b7fe657f4a34ce9dceb650a115b8e"
+    },
+    {
+      "file": "implementation/gpt/project/project-instructions.md",
+      "sha256": "3515ea9004bfb6acabb2303be9f04ed3273e55411b03ed8fccb9f75c4b58b732"
+    },
+    {
       "file": "implementation/gemini/system-instruction.md",
       "sha256": "576c9f1ff497d6250261b1a8e80a7345aa5b3335b3eccc923921524a30eb0c08"
     }
