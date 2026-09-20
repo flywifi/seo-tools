@@ -12,6 +12,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-20
+
 ### Added
 - P91: formal Python 3.14 support. The validated interpreter set is now 3.12 through 3.14
   (battery 13 of 13 gates under all three; all seven requirements files install cleanly on
@@ -249,6 +251,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P92: the 0.3.0 cut itself -- all five version locations and the custom-instructions
+  packaging stamp move together (the stamp-vs-ecosystem invariant enforces the pairing), and
+  the wizard's below-floor exit message now states the supported 3.12 to 3.14 range.
 - P89: the September 2026 Claude surface changes are banked and reflected in the cross-surface
   record. Nine support articles seeded as T1 sources, headlined by the 2026-09-16 merge of
   Claude chat and Cowork into one Claude (staged rollout from Pro and Max); the claude.ai

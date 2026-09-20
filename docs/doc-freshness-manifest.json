@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "bbd94e6318ebd44f97fb4e0845a2bb4aaee3b04d115e6353e99ee3cff5500773",
+        "tools/wizard.py": "5e1881a53c02f0465225f13ea82f2727b46d0903b636f70ad017f0a113f99db4",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -68,8 +68,8 @@
     },
     "docs/UPDATING.md": {
       "sources": {
-        ".claude-plugin/plugin.json": "263233b553f70462acbbd30259143ca62a5646aa823fd95f058c413b4d51b0df",
-        ".claude-plugin/marketplace.json": "44bc6c2b1c36c966b3779fe8de66243ffdaed2f491ead2d5d22c7c1b0d1e6860"
+        ".claude-plugin/plugin.json": "8f1ae536079404e3ed090f941b851ae30ac2735c2c34c71fc54d184a87e71f2b",
+        ".claude-plugin/marketplace.json": "cbdaea923ccf1fdc655c2230303673ec18198e0dc62403b627329303ec16e6f4"
       }
     },
     "shared/injection-guard-engine.md": {

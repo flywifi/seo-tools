@@ -49,7 +49,7 @@
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",
-      "sha256": "5e9bcbbdd70263b4b7186d7b2517f404b65bfdb76a04b1684dfcc1cbdc5369c0"
+      "sha256": "d8e8330250dd66bc9217d21068f2b37d64e618b76a90a4cb375791f5b6ac3d4d"
     },
     {
       "file": "implementation/gpt/web/custom-instructions-compact.md",
