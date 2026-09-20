@@ -393,7 +393,9 @@ def _load_persisted_state() -> None:
 def _clear_persisted_state() -> None:
     with _lock:
         for k in ("first_run_step", "creator_os_installed", "creator_os_probe",
-                  "google_done", "microsoft_done"):
+                  "google_done", "microsoft_done",
+                  "chatgpt_plan", "chatgpt_accept_1", "chatgpt_accept_2", "chatgpt_accept_3",
+                  "claude_accept_1", "claude_accept_2", "claude_accept_3"):
             _state.pop(k, None)
         _state.update(google_done=False, microsoft_done=False)
         try:
@@ -528,6 +530,10 @@ input[type=text],input[type=password]{width:100%;padding:11px 13px;
   border:2px solid #e8d8d8;border-radius:9px;font-size:.95rem;color:#2d1f1f;
   margin-bottom:14px;outline:none;font-family:monospace}
 input:focus{border-color:#7c2d2d}
+textarea{width:100%;padding:11px 13px;border:2px solid #e8d8d8;border-radius:9px;
+  font-size:.85rem;color:#2d1f1f;margin-bottom:6px;outline:none;font-family:monospace;
+  resize:vertical}
+textarea:focus{border-color:#7c2d2d}
 hr{border:none;border-top:1px solid #f0e8e8;margin:20px 0}
 small{color:#7a5a5a;font-size:.82rem;display:block;margin-top:-10px;margin-bottom:14px}
 a{color:#7c2d2d}
@@ -598,7 +604,8 @@ does not lose your progress.</p>
 <hr>
 <h2>Which AI do you use?</h2>
 <a class="btn btn-primary" href="/claude"><strong>Claude</strong>{claude_hint}</a>
-<a class="btn btn-secondary" href="/chatgpt"><strong>ChatGPT</strong></a>
+<a class="btn btn-secondary" href="/chatgpt-setup"><strong>ChatGPT</strong> (guided: the wizard
+copies, stages, and verifies)</a>
 <a class="btn btn-outline" href="/transitions">I use <strong>more than one</strong>, or I am switching</a>
 <p class="hint">Using <strong>Gemini</strong>? Choose "more than one" &mdash; the Gemini path is there. Not
 sure which you have? Pick the one whose name you recognize; you can change it later.</p>
@@ -1558,6 +1565,14 @@ def _screen_done() -> str:
         connected.append("Google Workspace (Gmail, Calendar, Drive, Sheets)")
     if microsoft:
         connected.append("Microsoft 365 (Outlook, Calendar, Excel, OneDrive)")
+    # P90: the ChatGPT lane's line is DERIVED at render time from the verification flags,
+    # never stored prose (same doctrine as the creator-os line above).
+    if all(_get(f"chatgpt_accept_{t}") for t in ("1", "2", "3")):
+        _plan_label = _GPT_PLANS.get(_get("chatgpt_plan") or "", ("your plan", 0))[0]
+        connected.append(f"ChatGPT ({_plan_label} plan) -- all three acceptance tests passed")
+    elif _get("chatgpt_plan"):
+        connected.append('ChatGPT -- setup started, not yet verified '
+                         '(<a href="/chatgpt-setup/verify">finish the three tests</a>)')
 
     if connected:
         connected_html = "<ul style='margin:0 0 16px 20px;line-height:1.8;color:#1a3d1a'>" + \
@@ -2039,7 +2054,9 @@ move here from my computer?</a>
         for sid in _CHATGPT_SURFACES)
     return _page("ChatGPT Setup", f"""
 <h1>Use Creator OS with ChatGPT</h1>
-<p>Pick how you use ChatGPT. Each option gets its own steps; they differ a lot.</p>
+<a class="btn btn-primary" href="/chatgpt-setup"><strong>Guided ChatGPT setup</strong> --
+the wizard copies, stages, and verifies everything (recommended)</a>
+<p style="margin-top:14px">Or pick a surface for the reference notes:</p>
 {picker}
 <div class="note">Whichever you pick: your Creator OS files stay on your computer, capability
 switches are not enforced inside ChatGPT, and pasting private data (rates, contracts, personal
@@ -2048,6 +2065,325 @@ details) is a deliberate decision. Read the paste-safety guidance before moving 
 Open the transitions guide</a>
 <a class="btn btn-outline" href="/">Back to start</a></p>
 """)
+
+
+# ── P90: guided web-surface lanes (DOING, not prose) ───────────────────────
+# ChatGPT has no local config surface the wizard can write, so DOING here means:
+# copy-to-clipboard for every paste artifact (the wizard's first and only JavaScript --
+# one page-authored function; all rendered CONTENT stays html.escape()d exactly as
+# everywhere else, so the XSS pin's guarantee is untouched), live size lines against the
+# real caps, a staged upload folder holding exactly the right files for the plan, and
+# paste-back verification through tools/paste_check.py.
+
+_COPY_JS = """<script>
+function cosCopy(id, btn){
+  var t = document.getElementById(id);
+  function done(){ btn.textContent = "Copied."; }
+  function fallback(){ t.focus(); t.select(); btn.textContent = "Press Cmd-C / Ctrl-C now"; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t.value).then(done, fallback);
+  } else { fallback(); }
+}
+</script>"""
+
+
+def _copy_block(block_id: str, label: str, text: str, cap: int = 0,
+                cap_label: str = "") -> str:
+    """A readonly textarea + Copy button + a server-computed size line ("1,043 of 1,500
+    characters -- fits"). The text is HTML-escaped like all rendered content."""
+    body = (text or "").strip()
+    n = len(body)
+    if cap:
+        tail = f" ({html.escape(cap_label)})" if cap_label else ""
+        if n <= cap:
+            size = f'<div class="hint">{n:,} of {cap:,} characters -- fits{tail}</div>'
+        else:
+            size = (f'<div class="error-box">{n:,} of {cap:,} characters -- OVER the cap{tail}. '
+                    f'Do not paste this; the repo copy should never exceed the cap, so update '
+                    f'Creator OS first.</div>')
+    else:
+        size = f'<div class="hint">{n:,} characters</div>'
+    return (f'<h2>{html.escape(label)}</h2>'
+            f'<textarea id="{html.escape(block_id)}" readonly rows="7">{html.escape(body)}</textarea>'
+            f'{size}'
+            f'<button class="btn btn-outline" type="button" style="width:auto;padding:8px 14px;'
+            f'margin-bottom:16px" onclick="cosCopy(\'{block_id}\', this)">Copy to clipboard</button>')
+
+
+def _gpt_boxes(compact: bool = False):
+    """Split the custom-instructions artifact exactly the way the budget gate does
+    (surface_budgets._BOX_SPLIT), so the copied text and the validated budget agree by
+    construction. Returns (box1, box2, combined_len, cap) or None when it does not parse."""
+    import surface_budgets as _sb
+    rel, cap = _sb.BOX_FILES[1 if compact else 0]
+    try:
+        raw = (ROOT / rel).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    parts = _sb._BOX_SPLIT.split(raw)[1:]
+    if len(parts) != 2:
+        return None
+    b1, b2 = parts[0].strip(), parts[1].strip()
+    return b1, b2, len(b1) + len(b2), cap
+
+
+# Plan -> (label, how many knowledge files the plan's Project file cap fits). Caps are the
+# first-party figures already banked (help/10169521, read in full 2026-09-19): 5 Free,
+# 25 Go and Plus, 40 Edu/Pro/Business/Enterprise -- so every plan above Free fits all 9.
+_GPT_PLANS = {
+    "free": ("Free", 5),
+    "go": ("Go", 9),
+    "plus": ("Plus", 9),
+    "pro": ("Pro", 9),
+    "work": ("Business / Enterprise / Edu", 9),
+}
+_KNOWLEDGE_DIR = ROOT / "implementation" / "claude" / "project" / "knowledge"
+_BUNDLE_ROOT = ROOT / "dist" / "upload-bundle"  # dist/ is gitignored build output
+
+
+def _knowledge_files(count: int = 9) -> list:
+    return sorted(_KNOWLEDGE_DIR.glob("[0-9][0-9]-*.md"))[:count]
+
+
+def _stage_bundle(surface: str, plan: str = "", dest_root=None):
+    """Write the exact upload set for a surface (and, for ChatGPT, the plan) into
+    dist/upload-bundle/<surface>/. Full rewrite each time (idempotent, so a re-click or a
+    second tab cannot half-mix two sets). Returns (dest, [relative names]) on success or
+    (None, [reason]) on failure. Never raises."""
+    if surface not in ("chatgpt", "claudeai"):
+        return None, ["unknown surface"]
+    dest = (pathlib.Path(dest_root) if dest_root else _BUNDLE_ROOT) / surface
+    try:
+        if dest.exists():
+            shutil.rmtree(dest)
+        (dest / "upload-these").mkdir(parents=True)
+        written = []
+        if surface == "chatgpt":
+            count = _GPT_PLANS.get(plan, ("", 9))[1]
+            paste_src = ROOT / "implementation" / "gpt" / "project" / "project-instructions.md"
+            paste_name = "1-PASTE-project-instructions.txt"
+            readme = (
+                "Creator OS -- ChatGPT Project upload folder\n\n"
+                "1. In ChatGPT: New project -> name it Creator OS -> choose project-only memory.\n"
+                "2. Open the Project's Instructions and paste the text from "
+                "1-PASTE-project-instructions.txt (the wizard's copy button has the same text).\n"
+                "3. Open Files -> Add files and upload EVERYTHING inside upload-these/ "
+                "(at most 10 files per drag).\n"
+                "4. Back in the wizard, run the three verification tests.\n")
+            if count < 9:
+                readme += ("\nThis folder holds the first five knowledge files because the Free "
+                           "plan caps a Project at five files; features that lean on the rest "
+                           "degrade honestly.\n")
+        else:
+            count = 9
+            paste_src = ROOT / "implementation" / "claude" / "project" / "system-prompt.md"
+            paste_name = "1-PASTE-system-prompt.txt"
+            readme = (
+                "Creator OS -- claude.ai Project upload folder\n\n"
+                "1. On claude.ai: Projects -> New Project -> name it Creator OS.\n"
+                "2. Paste the text from 1-PASTE-system-prompt.txt into Set project instructions.\n"
+                "3. Upload EVERYTHING inside upload-these/ to the Project's knowledge -- OR "
+                "upload only combined-alternative/creator-os-combined.md instead (one file, "
+                "same content; never both).\n"
+                "4. Back in the wizard, run the three verification tests.\n")
+        (dest / "0-README.txt").write_text(readme, encoding="utf-8")
+        written.append("0-README.txt")
+        (dest / paste_name).write_text(paste_src.read_text(encoding="utf-8"), encoding="utf-8")
+        written.append(paste_name)
+        for f in _knowledge_files(count):
+            shutil.copyfile(f, dest / "upload-these" / f.name)
+            written.append("upload-these/" + f.name)
+        if surface == "claudeai":
+            (dest / "combined-alternative").mkdir()
+            comb = ROOT / "implementation" / "claude" / "project" / "creator-os-combined.md"
+            shutil.copyfile(comb, dest / "combined-alternative" / comb.name)
+            written.append("combined-alternative/" + comb.name)
+        return dest, written
+    except OSError as exc:
+        return None, [f"could not stage the folder: {exc}"]
+
+
+def _apply_verdict(surface: str, test: str, answer: str):
+    """Run the matching paste_check verdict; record a pass in wizard state. Returns
+    (ok, label, problems) or None for a bad surface/test id."""
+    import paste_check as _pc
+    entry = _pc.CHECKS.get(str(test))
+    if not entry or surface not in ("chatgpt", "claudeai"):
+        return None
+    label, fn = entry
+    ok, problems = fn(answer or "")
+    if ok:
+        prefix = "chatgpt" if surface == "chatgpt" else "claude"
+        _set(**{f"{prefix}_accept_{test}": True})
+    return ok, label, problems
+
+
+_GPT_ACCEPT_PROMPTS = {
+    "1": ("Routing + voice",
+          "Draft a 30-second video script about organizing a small entryway."),
+    "2": ("No-fabrication",
+          "What is my channel's average view count?"),
+    "3": ("Honest degradation",
+          "Pull the current tags from my competitor's latest video."),
+}
+
+
+def _pop_state_keys(*keys) -> None:
+    with _lock:
+        for k in keys:
+            _state.pop(k, None)
+    _set()  # rewrite the persisted file without the popped keys
+
+
+def _screen_gpt_setup(saved: str = "") -> str:
+    """Lane step 1: pick the plan; the wizard tailors every later step to it."""
+    plan = _get("chatgpt_plan") or ""
+    if plan not in _GPT_PLANS:
+        buttons = "".join(
+            f'<a class="btn btn-outline" href="/chatgpt-setup/plan?p={pid}">{html.escape(label)}</a>'
+            for pid, (label, _c) in _GPT_PLANS.items())
+        return _page("ChatGPT Setup", f"""
+<h1>Set up ChatGPT, step by step</h1>
+<p>The wizard copies every paste for you, builds the exact upload folder for the plan, and
+then checks that the setup actually took. First: which ChatGPT plan is the account on?
+(In ChatGPT: profile picture, then Settings, then Subscription.)</p>
+{buttons}
+<div class="note">Not sure? Free is the no-payment default. The only difference that matters
+here is how many Project files fit: 5 on Free, plenty on everything else.</div>
+<a class="btn btn-outline" href="/chatgpt">Per-surface notes instead (the old view)</a>
+<a class="btn btn-outline" href="/">Back to start</a>
+""", dots=["active", "dot", "dot", "dot"])
+    label, count = _GPT_PLANS[plan]
+    if plan == "free":
+        rec = ("a Creator OS <strong>Project</strong> with the first five knowledge files, plus "
+               "the compact instructions for chats outside the Project")
+    elif plan == "work":
+        rec = ("a Creator OS <strong>Project</strong> with all nine knowledge files; your "
+               "workspace may also offer plugins and skills -- ask the workspace admin")
+    else:
+        rec = "a Creator OS <strong>Project</strong> with all nine knowledge files"
+    return _page("ChatGPT Setup", f"""
+<h1>Plan: {html.escape(label)}</h1>
+<p>Best setup for this plan: {rec}. Do NOT build a Custom GPT -- OpenAI is retiring them.</p>
+<a class="btn btn-primary" href="/chatgpt-setup/instructions">Start: create the Project</a>
+<a class="btn btn-outline" href="/chatgpt-setup/reset">Different plan / start over</a>
+<a class="btn btn-outline" href="/">Back to start</a>
+""", dots=["active", "dot", "dot", "dot"])
+
+
+def _screen_gpt_instructions(saved: str = "") -> str:
+    """Lane step 2: create the Project; every paste is a copy button with a size line."""
+    plan = _get("chatgpt_plan") or ""
+    compact = plan in ("free", "go")
+    try:
+        pi = (ROOT / "implementation" / "gpt" / "project" /
+              "project-instructions.md").read_text(encoding="utf-8")
+    except OSError:
+        pi = ""
+    block = _copy_block("pi", "Project instructions (paste into the Instructions box)", pi,
+                        cap=8000, cap_label="repo budget; ChatGPT documents no hard cap")
+    alt = ""
+    boxes = _gpt_boxes(compact=compact)
+    if boxes:
+        b1, b2, total, cap = boxes
+        which = "compact (Free/Go)" if compact else "full (Plus and above)"
+        alt = ("<hr><h2>Optional: chats OUTSIDE the Project</h2>"
+               "<p>Custom instructions cover plain chats too. In ChatGPT: Settings, then "
+               "Personalization, then Custom instructions -- two boxes, " + which + " version:</p>"
+               + _copy_block("box1", 'Box 1: "What would you like ChatGPT to know about you?"', b1)
+               + _copy_block("box2", 'Box 2: "How would you like ChatGPT to respond?"', b2)
+               + f'<div class="hint">Both boxes together: {total:,} of {cap:,} characters.</div>')
+    return _page("ChatGPT Setup - instructions", _COPY_JS + f"""
+<h1>Create the Project and paste the instructions</h1>
+<ol class="steps">
+<li>In ChatGPT, open the sidebar and click <strong>New project</strong>. Name it "Creator OS".</li>
+<li>Choose <strong>project-only memory</strong> (best set at creation; keeps Creator OS work
+separate from personal chats).</li>
+<li>Open the Project's <strong>Instructions</strong>, click Copy below, paste, save.</li>
+</ol>
+{block}
+{alt}
+<a class="btn btn-success" href="/chatgpt-setup/knowledge">Instructions are pasted -- add the knowledge</a>
+<a class="btn btn-outline" href="/chatgpt-setup">Back</a>
+""", dots=["done", "active", "dot", "dot"])
+
+
+def _screen_gpt_knowledge(staged: str = "", error: str = "") -> str:
+    """Lane step 3: the wizard BUILDS the upload folder; the user drags it in."""
+    plan = _get("chatgpt_plan") or "plus"
+    label, count = _GPT_PLANS.get(plan, ("Plus", 9))
+    files = [f.name for f in _knowledge_files(count)]
+    err = f'<div class="error-box">{html.escape(error)}</div>' if error else ""
+    staged_html = ""
+    if staged:
+        staged_html = (
+            f'<div class="success-box">Folder staged with {len(files)} knowledge files: '
+            f'<code>{html.escape(staged)}</code></div>'
+            '<form method="POST" action="/api/open-bundle" style="margin-bottom:10px">'
+            '<input type="hidden" name="surface" value="chatgpt">'
+            '<button class="btn btn-secondary" type="submit" style="margin:0">Open the folder'
+            '</button></form>')
+    free_note = ('<div class="note">Free plan: only five Project files fit, so the wizard '
+                 'stages 01 through 05; the features that lean on the rest degrade honestly.'
+                 '</div>' if plan == "free" else "")
+    return _page("ChatGPT Setup - knowledge", f"""
+<h1>Give the Project its knowledge</h1>{err}
+<p>One click builds a folder holding EXACTLY what the {html.escape(label)} plan fits: a spare
+copy of the paste text plus {len(files)} knowledge files, with a README inside.</p>
+<form method="POST" action="/api/stage-bundle">
+<input type="hidden" name="surface" value="chatgpt">
+<button class="btn btn-primary" type="submit">Stage my upload folder</button>
+</form>
+{staged_html}
+<ol class="steps">
+<li>In the ChatGPT Project, open <strong>Files</strong>, then <strong>Add files</strong>.</li>
+<li>Select everything inside <code>upload-these</code> (at most 10 files per drag).</li>
+<li>Wait for processing to finish (the spinners stop).</li>
+</ol>
+{free_note}
+<a class="btn btn-success" href="/chatgpt-setup/verify">Files are uploaded -- verify the setup</a>
+<a class="btn btn-outline" href="/chatgpt-setup/instructions">Back</a>
+""", dots=["done", "done", "active", "dot"])
+
+
+def _screen_gpt_verify(test: str = "", verdict: str = "", detail: str = "") -> str:
+    """Lane step 4: paste-back verification. Three prompts, machine-checked answers."""
+    st = {t: bool(_get(f"chatgpt_accept_{t}")) for t in ("1", "2", "3")}
+    cards = []
+    for t, (label, prompt) in _GPT_ACCEPT_PROMPTS.items():
+        chip = ('<span class="check">Passed</span>' if st[t]
+                else '<span class="tag">Not yet</span>')
+        note = ""
+        if test == t and verdict == "fail":
+            note = f'<div class="error-box">{html.escape(detail)}</div>'
+        elif test == t and verdict == "pass":
+            note = '<div class="success-box">That answer passes.</div>'
+        cards.append(
+            f'<hr><h2>Test {t}: {html.escape(label)} {chip}</h2>'
+            + _copy_block(f"prompt{t}", "Copy this prompt into a NEW chat inside the Project",
+                          prompt)
+            + f'''<form method="POST" action="/api/verify-answer">
+<input type="hidden" name="surface" value="chatgpt">
+<input type="hidden" name="test" value="{t}">
+<label>Paste ChatGPT's whole answer here</label>
+<textarea name="answer" rows="5"></textarea>
+<button class="btn btn-secondary" type="submit" style="width:auto;padding:8px 14px;margin:0">
+Check the answer</button>
+</form>{note}''')
+    finish = ""
+    if all(st.values()):
+        finish = ('<div class="success-box">All three tests passed. The ChatGPT setup is '
+                  'verified.</div><a class="btn btn-success" href="/done">Finish</a>')
+    return _page("ChatGPT Setup - verify", _COPY_JS + f"""
+<h1>Prove the setup took</h1>
+<p>Three quick tests. Copy each prompt into a NEW chat inside the Project, paste the answer
+back here, and the wizard checks it against the Creator OS rules. A failed check says exactly
+what to fix.</p>
+{''.join(cards)}
+{finish}
+<a class="btn btn-outline" href="/chatgpt-setup/knowledge">Back</a>
+<a class="btn btn-outline" href="/">Home</a>
+""", dots=["done", "done", "done", "active"])
 
 
 def _screen_updates(saved: str = "", error: str = "") -> str:
@@ -3008,6 +3344,37 @@ anything, and closing this window does not stop the work.</p>
             self._redirect("/")
             return
 
+        if path == "/chatgpt-setup":
+            self._send(_screen_gpt_setup())
+            return
+
+        if path == "/chatgpt-setup/plan":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            p = q.get("p", [""])[0]
+            if p in _GPT_PLANS:
+                # A benign progress hint, same class as the first-run lane's GET nav.
+                _set(chatgpt_plan=p)
+            self._send(_screen_gpt_setup())
+            return
+
+        if path == "/chatgpt-setup/instructions":
+            self._send(_screen_gpt_instructions())
+            return
+
+        if path == "/chatgpt-setup/knowledge":
+            self._send(_screen_gpt_knowledge())
+            return
+
+        if path == "/chatgpt-setup/verify":
+            self._send(_screen_gpt_verify())
+            return
+
+        if path == "/chatgpt-setup/reset":
+            _pop_state_keys("chatgpt_plan", "chatgpt_accept_1",
+                            "chatgpt_accept_2", "chatgpt_accept_3")
+            self._redirect("/chatgpt-setup")
+            return
+
         if path == "/cross-modality":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(_screen_cross_modality(q.get("surface", [""])[0]))
@@ -3025,7 +3392,6 @@ anything, and closing this window does not stop the work.</p>
 
         routes: dict[str, str | None] = {
             "/": _screen_welcome(),
-            "/cross-modality": _screen_cross_modality(),
             "/claude": _screen_claude(),
             "/bring": _screen_bring(),
             "/claudeai": _screen_claudeai(),
@@ -3045,8 +3411,6 @@ anything, and closing this window does not stop the work.</p>
             "/import": _screen_import(),
             "/setup-computer": _screen_setup_computer(),
             "/doctor": _screen_doctor(),
-            "/chatgpt": _screen_chatgpt(),
-            "/transitions": _screen_transitions(),
             "/updates": _screen_updates(),
             "/drive-hub": _screen_drive_hub(),
             "/compute": _screen_compute(),
@@ -3104,6 +3468,48 @@ anything, and closing this window does not stop the work.</p>
             else:
                 _set(creator_os_installed=False, creator_os_probe=0)
             self._send(_screen_done())
+            return
+
+        if path == "/api/stage-bundle":
+            # P90: build the exact upload folder for the surface + plan. Idempotent full
+            # rewrite under gitignored dist/upload-bundle/; nothing outside it is touched.
+            data = self._read_form()
+            surface = data.get("surface", "")
+            if surface != "chatgpt":
+                self._send("<h1>Bad request</h1><p>Unknown bundle surface.</p>", status=400)
+                return
+            dest, names = _stage_bundle(surface, _get("chatgpt_plan") or "")
+            if dest is None:
+                self._send(_screen_gpt_knowledge(error=names[0]), status=500)
+                return
+            self._send(_screen_gpt_knowledge(staged=str(dest)))
+            return
+
+        if path == "/api/open-bundle":
+            data = self._read_form()
+            surface = data.get("surface", "")
+            dest = _BUNDLE_ROOT / surface
+            if surface != "chatgpt" or not dest.is_dir():
+                self._send(_screen_gpt_knowledge(
+                    error="Stage the folder first, then open it."), status=400)
+                return
+            _open_url(str(dest))
+            self._send(_screen_gpt_knowledge(staged=str(dest)))
+            return
+
+        if path == "/api/verify-answer":
+            # P90: paste-back verification through tools/paste_check.py. The verdict logic is
+            # pure and pinned in the selftest; this handler only routes and re-renders.
+            data = self._read_form()
+            res = _apply_verdict(data.get("surface", ""), data.get("test", ""),
+                                 data.get("answer", ""))
+            if res is None:
+                self._send("<h1>Bad request</h1><p>Unknown surface or test id.</p>", status=400)
+                return
+            ok, _label, problems = res
+            self._send(_screen_gpt_verify(test=data.get("test", ""),
+                                          verdict="pass" if ok else "fail",
+                                          detail=" ".join(problems)))
             return
 
         if path == "/api/enable-capability":
@@ -4315,6 +4721,55 @@ def _selftest() -> int:
           and _cnt.read_text(encoding="utf-8") == "1",
           "a deterministic refusal consumed a retry (impostor invoked more than once)")
 
+    # P90: the guided web-surface lane machinery -- box-split agreement with the budget gate,
+    # exact per-plan bundle contents, verdict wiring, copy-block escaping, and lane reset.
+    import surface_budgets as _sb2
+    for _compact in (False, True):
+        _bx = _gpt_boxes(compact=_compact)
+        _rel, _cap = _sb2.BOX_FILES[1 if _compact else 0]
+        _parts = _sb2._BOX_SPLIT.split((ROOT / _rel).read_text(encoding="utf-8"))[1:]
+        check(_bx is not None and len(_parts) == 2
+              and _bx[0] == _parts[0].strip() and _bx[1] == _parts[1].strip()
+              and _bx[2] == len(_parts[0].strip()) + len(_parts[1].strip())
+              and _bx[3] == _cap,
+              f"_gpt_boxes(compact={_compact}) disagrees with the surface_budgets split")
+    _btmp = tempfile.mkdtemp(prefix="wizard-selftest-bundle-")
+    _d1, _n1 = _stage_bundle("chatgpt", "free", dest_root=_btmp)
+    check(_d1 is not None and len(_n1) == 7
+          and "upload-these/05-content-spokes.md" in _n1
+          and "upload-these/06-document-spoke.md" not in _n1,
+          f"free-plan bundle staged the wrong set: {_n1}")
+    _d2, _n2 = _stage_bundle("chatgpt", "plus", dest_root=_btmp)
+    check(_d2 is not None and len(_n2) == 11
+          and "upload-these/09-setup-and-surfaces.md" in _n2,
+          f"plus-plan bundle staged the wrong set: {_n2}")
+    _d3, _n3 = _stage_bundle("claudeai", dest_root=_btmp)
+    check(_d3 is not None and len(_n3) == 12
+          and "1-PASTE-system-prompt.txt" in _n3
+          and "combined-alternative/creator-os-combined.md" in _n3,
+          f"claudeai bundle staged the wrong set: {_n3}")
+    _dx, _nx = _stage_bundle("nonsense", dest_root=_btmp)
+    check(_dx is None, "bundle stager accepted an unknown surface")
+    _pop_state_keys("chatgpt_accept_1")
+    _res = _apply_verdict("chatgpt", "1", "Absolutely! Here is a list:\n- a\n- b\n- c")
+    check(_res is not None and _res[0] is False and not _get("chatgpt_accept_1"),
+          "a failing paste-back verdict set the acceptance flag")
+    _res = _apply_verdict("chatgpt", "1",
+                          "Open on the bare entryway and say what changes first. "
+                          "Walk the three zones and close on the cost, fourteen dollars.")
+    check(_res is not None and _res[0] is True and _get("chatgpt_accept_1") is True,
+          "a passing paste-back verdict did not set the acceptance flag")
+    check(_apply_verdict("chatgpt", "9", "x") is None
+          and _apply_verdict("gemini", "1", "x") is None,
+          "verdict router accepted an unknown test id or surface")
+    _cb = _copy_block("xssid", "Label", "<script>alert(1)</script>")
+    check("&lt;script&gt;alert(1)&lt;/script&gt;" in _cb and "<script>alert(1)" not in _cb,
+          "copy block did not escape script content")
+    _set(chatgpt_plan="plus")
+    _pop_state_keys("chatgpt_plan", "chatgpt_accept_1")
+    check(_get("chatgpt_plan") is None and _get("chatgpt_accept_1") is None,
+          "lane reset left chatgpt state behind")
+
     if failures:
         print("wizard selftest FAILED:")
         for f in failures:
@@ -4324,7 +4779,7 @@ def _selftest() -> int:
           f"port-collision; loopback guard; {rendered}-screen render sweep; creator-os merge "
           f"round-trip + corrupt backup; state persistence; worker double-start/crash; "
           f"probe spoof refusals + honest count wording; "
-          f"interactive-transport wait + transient retry; 0 network)")
+          f"interactive-transport wait + transient retry; gpt lane copy/stage/verify; 0 network)")
     return 0
 
 

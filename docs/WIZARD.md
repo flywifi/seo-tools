@@ -102,6 +102,22 @@ prompt appears: Claude shows you a short code and a URL to visit
 (`microsoft.com/devicelogin`). You visit that URL, enter the code, sign in with your Microsoft
 account, and you are connected -- no credentials to paste anywhere.
 
+### Guided ChatGPT setup (`/chatgpt-setup`)
+
+The ChatGPT path is a doing lane, not a wall of steps (P90). Pick the ChatGPT plan and the
+wizard tailors everything to it: every paste (the Project instructions, and the two
+custom-instruction boxes for chats outside the Project) is a **Copy to clipboard** button with
+a live character count against the real cap, split with exactly the same parser the repo's
+budget gate uses so the copied text and the validated budget always agree. **"Stage my upload
+folder"** builds `dist/upload-bundle/chatgpt/` with a README, the paste text as a spare copy,
+and exactly the knowledge files the plan fits (five on Free, all nine otherwise), plus an
+"Open the folder" button. The lane ends with **paste-back verification**: three acceptance
+prompts (routing and voice, no-fabrication, honest degradation), each a copy button; paste
+ChatGPT's answer back and the wizard machine-checks it (`tools/paste_check.py`) and says
+exactly what to fix on a failure. All three passes are remembered and reported on the Done
+page; "Different plan / start over" clears only the ChatGPT lane. The old per-surface
+reference notes remain at `/chatgpt`.
+
 ### Publishing setup (YouTube, Instagram, TikTok, Pinterest)
 
 From `/publishing-setup`, the wizard connects each platform with a **Connect** button that runs an

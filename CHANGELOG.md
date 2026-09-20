@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P90: the wizard's guided ChatGPT lane (`/chatgpt-setup`): a plan picker that tailors every
+  later step, copy-to-clipboard for every paste artifact (the wizard's first JavaScript; one
+  page-authored function, all rendered content still escaped) with live character counts
+  split by the exact surface_budgets parser, a staged upload folder under gitignored
+  `dist/upload-bundle/` holding precisely the files the plan fits with an Open-the-folder
+  button, and paste-back verification of the three acceptance prompts with per-failure fix
+  advice and verified state on the Done page. Selftest pins: box-split agreement with the
+  budget gate, exact per-plan bundle contents (free 7, plus 11, claudeai 12 entries, unknown
+  surface refused), failing verdicts never set the acceptance flag, copy blocks escape script
+  content, and lane reset leaves no state behind.
 - P90: `tools/paste_check.py`, the paste-back acceptance verifier for the wizard's web-surface
   lanes: three pure verdict functions mirroring the ChatGPT/claude.ai acceptance prompts
   (routing and voice, no-fabrication, honest degradation) over a pasted assistant answer, with
