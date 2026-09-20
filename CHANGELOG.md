@@ -13,6 +13,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Fixed
+- P93: Creator OS never installs machine-wide. The two code fallbacks that retried pip with
+  the system-override flag into Homebrew's shared site-packages when no .venv existed
+  (setup.py's dependency installer and the wizard's uv step) now refuse with the exact
+  remedy ("run tools/setup.py --install-deps to create the repo's private .venv") instead.
+  Pinned twice: a fake PEP 668 interpreter fixture that failed against the pre-fix code
+  (executed detector proof), and a source pin asserting the override string is gone from
+  both modules.
 - The repository's visibility was misstated as private in the P89/P90 guidance (the wizard's
   claude.ai screens, the setup knowledge file, DEPLOYMENT's GitHub-connector note, and a
   transitions caveat about private marketplace links). Verified public via an

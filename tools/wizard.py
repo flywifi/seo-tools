@@ -303,10 +303,15 @@ def _has_uv() -> bool:
     vp = env_paths.venv_python()
     return bool(vp and (vp.parent / "uv").exists())
 
+_PEP668_REFUSAL_UV = ("this interpreter refuses global installs (PEP 668) and Creator OS "
+                      "never installs machine-wide; press Install the free tools first -- it "
+                      "creates the repo's private .venv -- then retry (docs/INSTALL-SCOPE.md)")
+
+
 def _install_uv() -> tuple[bool, str]:
-    # Install into the private .venv when present (env_paths.app_python); on a PEP 668 externally-
-    # managed Python with no .venv, retry with the sanctioned --break-system-packages override so a
-    # Homebrew Python does not silently block the install.
+    # Install into the private .venv when present (env_paths.app_python). P93: on a PEP 668
+    # externally-managed Python with no .venv, REFUSE with the remedy -- Creator OS never
+    # writes into a machine-wide site-packages (docs/INSTALL-SCOPE.md).
     py = env_paths.app_python()
     try:
         r = subprocess.run(
@@ -317,13 +322,7 @@ def _install_uv() -> tuple[bool, str]:
             return True, ""
         detail = (r.stderr or r.stdout or "").strip()
         if "externally-managed-environment" in detail:
-            r2 = subprocess.run(
-                [py, "-m", "pip", "install", "--break-system-packages", "uv"],
-                capture_output=True, text=True, timeout=120,
-            )
-            if r2.returncode == 0:
-                return True, ""
-            return False, (r2.stderr or r2.stdout or "").strip()
+            return False, _PEP668_REFUSAL_UV
         return False, detail
     except Exception as exc:
         return False, str(exc)

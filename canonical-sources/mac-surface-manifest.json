@@ -36,7 +36,7 @@
     "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
     "docs/VIDEO_EDITING.md": "b6b58fb59582d04f95462daa15f9f4190e5208155fa863ca0779b36c6b28347a",
     "docs/VIDEO_TOOLING_EVAL.md": "b9207405b3ab9b540e31812e92ebec57ef88adb2956dc62011c88240ec8ea4f7",
-    "docs/WIZARD.md": "496f9b3c45c602f8270a72958f0a6c712cd0c152f511b0231eb2ce0396af1e10",
+    "docs/WIZARD.md": "40ddd0142e0cfb9eea25336697fabd6024c62cba954e41565d0172abb83b51a3",
     "docs/adr/0013-p29-media-tool-integration.md": "c6daebb703c4e021c85a0ae248acc2cee8d654eebe392d4854ffa0b4f8249171",
     "docs/adr/0030-p45-content-import.md": "da86c5edf3bfe9c982a669e9124086aa29482910c3349654498a6d8eb770418a",
     "docs/adr/0031-p46-content-import-hardening.md": "84c051ba8d6a2a63cd792b89308f01838e0001de2200ae1473839fd5314933f3",
@@ -89,7 +89,7 @@
     "tools/library_complete.py": "581fa236a8df89019e32ccd15aa8fae477145563362ae98d5dc35d3a0efc9dca",
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/secret_scan.py": "c67959af4970f7ac00c365fc23b8978f55a585eef9a5921454d1b4e98fb0466d",
-    "tools/setup.py": "7a410ffab7ec159d3f215feb8ad10e84cda5a2474231b73cdfdda56cbd40bc11",
+    "tools/setup.py": "593cb6b21a4fb4f2705e60006efb0f05b5348000a4157d6ca9bf2c371761a8b7",
     "tools/transcribe.py": "795177f4b2e88dc40bbce16fc0a9e3fe832ae166782bb86243057c76efb338a0",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
@@ -97,7 +97,7 @@
     "tools/videoedit/fcpxml.py": "0a83956f732d314a0ae6e3ba2b146b9a4fd6b7977fb5b540db67c33064efc5a5",
     "tools/videoedit/preflight.py": "f2127a8303b06a69eacf59a5e5aad370d502db1f50db270e753d0619b956f5c0",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "e505b628f01c79ee41c122f0c07dc96868a5feb6dff9bf6061d72f443fd18b83"
+    "tools/wizard.py": "4e2555aaa28ff4b0e3e3328ef4cc1a728a9c4f1721f1a8d56d71059238438751"
   },
   "excluded": {}
 }

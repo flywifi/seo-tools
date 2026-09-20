@@ -54,6 +54,11 @@ Run one command and follow the browser steps:
 python3 tools/wizard.py
 ```
 
+Everything the wizard installs stays inside your user account (the repo's private `.venv`,
+`~/.local`, `~/Library`); since P93 it never writes into a machine-wide location -- on a
+locked-down (PEP 668) Python with no `.venv` it refuses with the exact remedy instead of
+overriding.
+
 A browser window opens automatically. First time? Press the one **"Set everything up"** button:
 it chains the free-tools install, the Creator OS install-and-verify step, and the optional
 Google/Microsoft connections, with an explicit "Skip this step" on every screen. Progress is

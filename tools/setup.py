@@ -58,10 +58,16 @@ REQUIREMENTS_SETS = [
 ]
 
 
-def _pip_install(args: list, python: str | None = None, allow_break_system: bool = False) -> tuple:
-    """Run pip with the given args in the target interpreter. Returns (ok, detail). Never raises.
-    On a PEP 668 externally-managed interpreter, retries once with --break-system-packages only when
-    allow_break_system is set. The .venv path avoids PEP 668 entirely, so it never needs the override."""
+_PEP668_REFUSAL = ("this interpreter refuses global installs (PEP 668) and Creator OS never "
+                   "installs machine-wide; run 'python3 tools/setup.py --install-deps' to "
+                   "create the repo's private .venv, then retry")
+
+
+def _pip_install(args: list, python: str | None = None) -> tuple:
+    """Run pip with the given args in the target interpreter. Returns (ok, detail). Never
+    raises. P93: on a PEP 668 externally-managed interpreter this REFUSES with the remedy --
+    Creator OS never writes into a machine-wide site-packages; the repo .venv is the only
+    install target (docs/INSTALL-SCOPE.md)."""
     py = python or PYTHON
     try:
         r = subprocess.run(
@@ -71,14 +77,8 @@ def _pip_install(args: list, python: str | None = None, allow_break_system: bool
         if r.returncode == 0:
             return True, ""
         detail = (r.stderr or r.stdout or "").strip()
-        if allow_break_system and "externally-managed-environment" in detail:
-            r2 = subprocess.run(
-                [py, "-m", "pip", "install", "--break-system-packages", *args],
-                capture_output=True, text=True, timeout=1800,
-            )
-            if r2.returncode == 0:
-                return True, "installed with --break-system-packages (no .venv available)"
-            return False, (r2.stderr or r2.stdout or "").strip()[-400:]
+        if "externally-managed-environment" in detail:
+            return False, _PEP668_REFUSAL
         return False, detail[-400:]
     except Exception as exc:  # noqa: BLE001
         return False, str(exc)
@@ -136,7 +136,6 @@ def install_dependencies() -> list:
     results = []
     venv_py, venv_note = ensure_venv()
     target = venv_py or PYTHON
-    allow_break = venv_py is None  # override PEP 668 only when we could not isolate into a .venv
     results.append({"item": ".venv", "desc": "private dependency toolbox",
                     "ok": venv_py is not None, "detail": venv_note})
     for fname, desc in REQUIREMENTS_SETS:
@@ -144,14 +143,14 @@ def install_dependencies() -> list:
         if not p.exists():
             results.append({"item": fname, "desc": desc, "ok": None, "detail": "file not found"})
             continue
-        ok, detail = _pip_install(["-r", str(p)], python=target, allow_break_system=allow_break)
+        ok, detail = _pip_install(["-r", str(p)], python=target)
         results.append({"item": fname, "desc": desc, "ok": ok, "detail": detail})
     # uv: pip-installable, cross-platform, no sudo. Powers the Google/Wolfram uvx MCP servers.
     venv_uv = Path(target).parent / "uv"
     if venv_uv.exists() or env_paths.which("uv"):
         results.append({"item": "uv", "desc": "uvx runtime", "ok": None, "detail": "already installed"})
     else:
-        ok, detail = _pip_install(["uv"], python=target, allow_break_system=allow_break)
+        ok, detail = _pip_install(["uv"], python=target)
         results.append({"item": "uv", "desc": "uvx runtime for Google/Wolfram MCP servers", "ok": ok, "detail": detail})
     # Playwright browser binary (only if the package landed in the target interpreter).
     pw_ok, pw_detail = _install_playwright_browser(target)
@@ -413,6 +412,25 @@ def _selftest() -> int:
     # _pip_install never raises on a bad interpreter and reports failure honestly.
     okf, _ = _pip_install(["x"], python="/nonexistent/python/xyz")
     ok(okf is False, "_pip_install returns (False, detail) on a bad interpreter, never raises")
+    # P93: Creator OS never installs machine-wide. (a) A PEP 668 refusal comes back as the
+    # user-scope remedy sentence, never a --break retry -- this pin FAILED against the
+    # pre-P93 code, which returned ok=True 'installed with the machine-wide pip override (no
+    # .venv available)' (executed detector proof). (b) Source pins in the env_paths launcher-probe
+    # style: the override string is gone from this module and the wizard.
+    if sys.platform != "win32":
+        with tempfile.TemporaryDirectory() as td93:
+            fake = Path(td93) / "fakepy"
+            fake.write_text("#!/bin/sh\necho 'error: externally-managed-environment' >&2\n"
+                            "exit 1\n", encoding="utf-8")
+            fake.chmod(0o755)
+            okp, det = _pip_install(["x"], python=str(fake))
+            ok(okp is False and "never installs machine-wide" in det,
+               "PEP 668 refusal carries the user-scope remedy, never a machine-wide retry (P93)")
+    _marker = "--break-system-" + "packages"  # split so this pin never matches itself
+    _self_src = Path(__file__).read_text(encoding="utf-8")
+    _wiz_src = (ROOT / "tools" / "wizard.py").read_text(encoding="utf-8")
+    ok(_marker not in _self_src and _marker not in _wiz_src,
+       "the machine-wide pip override is gone from setup.py and wizard.py (P93 source pin)")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
