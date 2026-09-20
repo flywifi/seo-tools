@@ -46,6 +46,18 @@ DEFAULT_LEAD_DAYS = 3  # default days before a due date the creator should act (
 
 # --------------------------------------------------------------------------- config / flag gate
 
+def _probe_exists(p: Path) -> bool:
+    """Path.exists() with the pre-3.14 boundary semantics (P91): absent reads False, but an
+    UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError instead
+    of reading absent -- CPython 3.14 changed Path.exists() to swallow those errors, which
+    silently bypassed this boundary's PayloadError envelope."""
+    try:
+        p.stat()
+        return True
+    except (FileNotFoundError, NotADirectoryError, ValueError):
+        return False
+
+
 def load_config() -> dict:
     """Object-form flag in committed config, bare-bool override in gitignored .local (repo pattern)."""
     base: dict = {}
@@ -485,7 +497,7 @@ def _main(argv) -> int:
     if a.scan:
         src = REGISTER_PATH if a.scan == "__register__" else Path(a.scan)
         try:
-            found = src.exists()
+            found = _probe_exists(src)
         except OSError as exc:  # e.g. ENAMETOOLONG on a >255-byte inline-JSON "path"
             raise PayloadError(f"could not read the payload path: {exc}") from exc
         if not found:

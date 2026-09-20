@@ -89,7 +89,7 @@
     "tools/library_complete.py": "581fa236a8df89019e32ccd15aa8fae477145563362ae98d5dc35d3a0efc9dca",
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/secret_scan.py": "c67959af4970f7ac00c365fc23b8978f55a585eef9a5921454d1b4e98fb0466d",
-    "tools/setup.py": "a360c1107c0ac949bf8117b1ce1f60cf392eeca55ecc9698fdba52dfca3e6b1f",
+    "tools/setup.py": "7a410ffab7ec159d3f215feb8ad10e84cda5a2474231b73cdfdda56cbd40bc11",
     "tools/transcribe.py": "795177f4b2e88dc40bbce16fc0a9e3fe832ae166782bb86243057c76efb338a0",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",

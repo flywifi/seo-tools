@@ -54,6 +54,18 @@ ACTIVE_DEAL_STAGES = {
 }
 
 
+def _probe_exists(p):
+    """Path.exists() with the pre-3.14 boundary semantics (P91): absent reads False, but an
+    UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
+    CLI boundary's clean envelope fires -- CPython 3.14 changed Path.exists() to swallow
+    those errors, which turned the refusal into a misleading 'file not found'."""
+    try:
+        p.stat()
+        return True
+    except (FileNotFoundError, NotADirectoryError, ValueError):
+        return False
+
+
 def load_traversal_config():
     """Load traversal-config.json for interval defaults. Returns empty dict on missing file."""
     if not TRAVERSAL_CONFIG_PATH.exists():
@@ -393,7 +405,7 @@ def cmd_seed_sources(args, registry, traversal_config=None):
     entry (so a source can be shared by more atoms without a second registry writer).
     """
     seeds_path = Path(args.file)
-    if not seeds_path.exists():
+    if not _probe_exists(seeds_path):
         print(f"ERROR: seeds file not found: {seeds_path}", file=sys.stderr)
         sys.exit(1)
 

@@ -313,6 +313,18 @@ def register_to_sheet_rows(register):
     return rows
 
 
+def _probe_exists(p: Path) -> bool:
+    """Path.exists() with the pre-3.14 boundary semantics (P91): absent reads False, but an
+    UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError instead
+    of reading absent -- CPython 3.14 changed Path.exists() to swallow those errors, which
+    silently turned this boundary's documented refusal into an empty register."""
+    try:
+        p.stat()
+        return True
+    except (FileNotFoundError, NotADirectoryError, ValueError):
+        return False
+
+
 def load_register(backend="local_fs", path=None, blob=None) -> dict:
     """Load the register through the selected store backend over one canonical JSON schema.
     - local_fs: read the .local.json (Claude Desktop).
@@ -322,7 +334,7 @@ def load_register(backend="local_fs", path=None, blob=None) -> dict:
     if backend == "local_fs":
         p = Path(path) if path else REGISTER_PATH
         try:
-            found = p.exists()
+            found = _probe_exists(p)
         except OSError as exc:  # e.g. ENAMETOOLONG: an unprobeable path is unreadable, not empty
             raise ValueError(f"could not read task register: {exc}")
         if not found:
