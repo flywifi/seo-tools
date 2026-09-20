@@ -207,14 +207,18 @@ def check_platform() -> None:
         )
         if result.stdout.strip() == "1":
             _say("  [warn] Python is running under Rosetta (x86_64 emulation on arm64 hardware).")
-            _say("         For best performance, install a native arm64 Python via Homebrew:")
+            _say("         For best performance, install a native arm64 Python. User-only route")
+            _say("         (docs/INSTALL-SCOPE.md): curl -LsSf https://astral.sh/uv/install.sh | sh")
+            _say("         then: uv python install 3.12   (lands in ~/.local, native arm64)")
+            _say("         Machine-wide alternative (affects the whole computer):")
             _say("           brew install python@3.12")
-            _say("         Then rerun: /opt/homebrew/bin/python3 tools/setup.py")
+            _say("         Then rerun tools/setup.py with the new interpreter.")
             return
     _say("  macOS tips:")
-    _say("    If 'python3' is not found, install the python.org universal2 .pkg (notarized, Tk")
-    _say("    bundled), or via Homebrew (https://brew.sh):")
-    _say("      brew install python@3.12")
+    _say("    If 'python3' is not found: the user-only route (docs/INSTALL-SCOPE.md) is the uv")
+    _say("    installer: curl -LsSf https://astral.sh/uv/install.sh | sh, then uv python install 3.12.")
+    _say("    Machine-wide alternatives (affect the whole computer): the python.org universal2 .pkg")
+    _say("    (notarized, Tk bundled), or Homebrew (https://brew.sh): brew install python@3.12")
     _say("    After installing requirements-render.txt, run once to fetch arm64 Chromium:")
     _say("      python3 -m playwright install chromium")
 

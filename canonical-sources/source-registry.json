@@ -6735,7 +6735,47 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "uv-installer-docs",
+      "name": "uv installation (Astral docs)",
+      "url": "https://docs.astral.sh/uv/getting-started/installation/",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/INSTALL-SCOPE.md",
+        "docs/SETUP_MAC.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "nvm-readme",
+      "name": "nvm README (per-user Node version manager)",
+      "url": "https://github.com/nvm-sh/nvm",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-09-20",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/INSTALL-SCOPE.md",
+        "docs/WIZARD.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "20cca8cd50d3bb487de41a93facc813c039049f07432ecea4b7510ae1a69310b"
+  "_content_digest": "715763df0d6029e3bb897cc48e40b5495f081c6e88fff9edf2e54e2a904a986e"
 }

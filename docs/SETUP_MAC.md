@@ -43,39 +43,43 @@ container's 3.14.0rc2 lacks the typing._eval_type keyword pydantic 2.13.5 target
 the acceptance run below]` -- acceptance run on a 3.14 Mac: `python3 tools/setup.py
 --install-deps && python3 tools/battery.py`, then the wizard's install-and-verify step must
 report the full tool count. Creator OS
-does not check your macOS version. The practical floor comes from **Homebrew**, whose documentation
-states it supports **macOS Sonoma (14) or later** on officially supported hardware; 10.15 to 13 are
-unsupported but may still work, and 10.14 and older will not run it. So on macOS 13 or earlier, expect
-the Homebrew steps below to be unsupported-tier or to fail, and prefer the notarized python.org
-universal2 `.pkg`, which needs no Homebrew at all. This guide targets macOS 26 (Tahoe) and 15 (Sequoia).
+does not check your macOS version. **Install scope (P93): everything on this default path
+stays inside your user account** -- home folder only, no admin rights, nothing under
+`/Applications` or `/opt/homebrew`. Full policy, approved locations, and the one exception
+(Apple's Command Line Tools git): `docs/INSTALL-SCOPE.md`. This guide targets macOS 26
+(Tahoe) and 15 (Sequoia).
 
-### Step 1 -- Install Homebrew
+### Step 1 -- Python and Git (user-only)
 
-If not already installed (see the version note above):
+Check what you already have:
+
+```bash
+python3 --version   # 3.12 to 3.14 all work (P91). Already in range? Nothing to install.
+                    # Only the DaVinci Resolve live-control lane needs python3.12 (its bridge caps there).
+git --version       # usually preinstalled via Apple's Command Line Tools
+```
+
+Python missing or too old? Install a user-only one via uv (lands in `~/.local`, no admin
+rights; docs.astral.sh/uv):
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.12
+```
+
+Git missing? Accept the Apple Command Line Tools prompt (`xcode-select --install`) -- the one
+machine-level component on this path, with no user-scoped equivalent (see the exceptions
+register in `docs/INSTALL-SCOPE.md`).
+
+**Machine-wide alternative (affects the whole computer):** Homebrew. Its docs support macOS
+Sonoma (14) or later; it installs to `/opt/homebrew/` for every user of the machine.
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-On M2, Homebrew installs to `/opt/homebrew/`. Add it to your shell profile if prompted:
-
-```bash
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv)"
-```
-
-### Step 2 -- Install Python and Git
-
-```bash
+# machine-wide: lands in /opt/homebrew for every user of this Mac
 brew install python@3.12 git
-```
-
-Verify:
-
-```bash
-python3 --version   # 3.12 to 3.14 all work (P91); already on 3.14? Skip the brew install and use it.
-                    # Only the DaVinci Resolve live-control lane needs python3.12 (its bridge caps there).
-git --version
 ```
 
 If `python3` still points to Apple's stock interpreter, use the full path:
@@ -105,28 +109,23 @@ python3 tools/setup.py
 This creates your gitignored local data files, builds the FTS5 keyword cache, and verifies the
 drift guard. Expected output ends with `[ok] drift guard clean`.
 
-### Step 5 -- Install the fetch stack (competitor intelligence)
+### Step 5 -- Install every dependency set (one command, into the repo's private .venv)
 
 ```bash
-pip3 install -r requirements-crawl.txt -r requirements-scraper.txt
+python3 tools/setup.py --install-deps
 ```
 
-### Step 6 -- Install Playwright (optional, for JavaScript-rendered snapshots)
+One command covers the fetch stack, the HTML parser, Playwright plus its Chromium download
+(~170 MB, one-time, cached under `~/Library`), the MCP server package, transcription, video
+analysis, and the tooling accelerators -- all into the repo's private `.venv`, never into a
+machine-wide Python (P93: on a locked-down PEP 668 interpreter with no `.venv`, the installer
+refuses with the remedy instead of overriding). Each set reports its own honest result; a
+failed optional set degrades that lane, never the base.
 
-Playwright enables full competitor HTML rendering, including YouTube `ytInitialData` extraction
-from pages that require JavaScript. Without it, the fetch stack still works via browser-header
-requests (prong 1) -- Playwright adds prong 2.
+### Steps 6 and 7 -- covered by Step 5
 
-```bash
-pip3 install -r requirements-render.txt
-python3 -m playwright install chromium   # downloads arm64 Chromium (~170 MB, one-time)
-```
-
-### Step 7 -- Install the MCP server
-
-```bash
-pip3 install -r requirements-mcp.txt
-```
+(Playwright and the MCP server used to be separate pip steps; they install into
+the `.venv` with everything else now.)
 
 Smoke test (should print the tool count; a bare `tools/list` is rejected before the MCP
 `initialize` handshake, so the probe sends the full three-message sequence — the wizard's
@@ -174,6 +173,10 @@ The wizard:
   you through getting them; takes about 5 minutes)
 - Optionally connects Microsoft 365 (requires Node.js 20+; the wizard checks and advises if
   missing; uses device code flow -- visit a URL, enter a code, done)
+
+Installing Claude Desktop itself? Put the app in your per-user folder so even the binary
+stays user-only: `mkdir -p ~/Applications`, then drag Claude.app there instead of
+`/Applications` (its config and sign-in are per-user either way).
 
 When the wizard says "Restart Claude Desktop," quit and reopen the Claude Desktop app.
 
@@ -257,9 +260,16 @@ faked.
 
 ### Apple Silicon (M1 to M4) and Intel Macs
 
-The recommended engine is **whisper.cpp** (uses the Mac's Metal GPU on Apple Silicon):
+The user-only default is **faster-whisper**: it is already inside the repo's `.venv` after
+`python3 tools/setup.py --install-deps` (requirements-transcribe), needs **no** system ffmpeg
+(it bundles PyAV), and downloads its model to your user cache on first run. Nothing else to
+install.
+
+**Machine-wide alternative (affects the whole computer):** **whisper.cpp** uses the Mac's
+Metal GPU on Apple Silicon and is the faster engine, but installs via Homebrew:
 
 ```bash
+# machine-wide: lands in /opt/homebrew for every user of this Mac
 brew install whisper-cpp ffmpeg
 ```
 
@@ -269,12 +279,6 @@ medium/turbo, 32GB large-v3) and point Creator OS at it:
 
 ```bash
 export WHISPER_CPP_MODEL=/path/to/ggml-small.bin
-```
-
-Prefer Python instead? Use **faster-whisper**, which needs **no** system ffmpeg (it bundles PyAV):
-
-```bash
-brew install python@3.12 && pip3 install faster-whisper
 ```
 
 ### macOS notes that trip people up
@@ -287,13 +291,15 @@ brew install python@3.12 && pip3 install faster-whisper
   password. **Right-click &rarr; Open no longer works** &mdash; that shortcut was removed in macOS 15
   Sequoia and is still gone in the current **macOS 26 (Tahoe)**.
 - macOS ships **no usable `python3`** (the built-in one is a stub that pops the "command line
-  developer tools" dialog). Install it via the notarized **python.org universal2 `.pkg`** (no
-  Gatekeeper prompt, Tk bundled) or Homebrew (`brew install python@3.12`). The setup wizard installs
-  Python dependencies into a private `.venv` toolbox, which sidesteps Homebrew Python's PEP 668
-  install lock.
+  developer tools" dialog). The user-only route is uv (`~/.local`, Step 1); the machine-wide
+  alternatives (affect the whole computer) are the notarized **python.org universal2 `.pkg`**
+  (no Gatekeeper prompt, Tk bundled) or Homebrew (`brew install python@3.12`). The setup wizard
+  installs Python dependencies into a private `.venv` toolbox either way, which sidesteps
+  Homebrew Python's PEP 668 install lock.
 - A **downloaded static ffmpeg** hits `com.apple.quarantine` ("cannot be opened because the developer
   cannot be verified"). Clear it with `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or Open Anyway
-  as above. `brew install ffmpeg` (a notarized bottle) avoids quarantine entirely.
+  as above. The machine-wide alternative `brew install ffmpeg` (a notarized bottle) avoids
+  quarantine entirely.
 - faster-whisper needs no system ffmpeg, so it is the escape hatch when a user cannot get a downloaded
   ffmpeg past Gatekeeper.
 - **Local setup runs on this computer only.** The wizard, the folder import, transcription, and the
@@ -336,7 +342,8 @@ Non-technical Windows path uses **faster-whisper** (no separate model step, no s
 1. Install Python from python.org. The installer trips **SmartScreen** ("Windows protected your PC") --
    click **More info -> Run anyway** (the installer is signed by the Python Software Foundation). During
    install, check **"Add python.exe to PATH."**
-2. `pip install faster-whisper`. On first transcription it downloads its model automatically to
+2. `python tools\setup.py --install-deps` installs faster-whisper into the repo's private
+   `.venv` (user-only). On first transcription it downloads its model automatically to
    `%USERPROFILE%\.cache\huggingface\hub`. A CPU runs it out of the box; an NVIDIA GPU additionally needs
    cuBLAS + cuDNN 9 for CUDA 12.
 3. Prefer whisper.cpp? Download `whisper-bin-x64.zip` from the whisper.cpp GitHub releases, extract it,
@@ -352,13 +359,13 @@ The doctor gives the machine-correct command on Windows too.
 |---|---|
 | `whisper.cpp needs a GGML model file` | Download a `ggml-<tier>.bin` and set `WHISPER_CPP_MODEL` to its path |
 | ffmpeg "cannot be opened, developer cannot be verified" | `xattr -dr com.apple.quarantine /path/to/ffmpeg`, or use faster-whisper (no ffmpeg needed) |
-| No STT backend found on the Import screen | `brew install whisper-cpp ffmpeg` (Apple Silicon) or `pip3 install faster-whisper` |
-| `python3: command not found` | `brew install python@3.12` then add `/opt/homebrew/bin` to PATH |
-| `pip3: command not found` | Use `/opt/homebrew/bin/pip3` or `python3 -m pip` |
+| No STT backend found on the Import screen | `python3 tools/setup.py --install-deps` (installs faster-whisper into the repo `.venv`, user-only); machine-wide alternative: `brew install whisper-cpp ffmpeg` |
+| `python3: command not found` | User-only: the uv route in Step 1; machine-wide alternative: `brew install python@3.12` then add `/opt/homebrew/bin` to PATH |
+| `pip3: command not found` | Use `python3 -m pip`, or better: `python3 tools/setup.py --install-deps` (the `.venv` route) |
 | `playwright install` hangs | Check network; retry with `python3 -m playwright install chromium --force` |
 | `drift guard` reports issues after `git pull` | Run `python3 tools/sync_check.py` and read the report |
 | MCP tools not appearing in Claude Desktop | Restart Claude Desktop; check that the path in `claude_desktop_config.json` is absolute |
-| `setup.py` says "running under Rosetta" | Install arm64 Python: `brew install python@3.12` then use `/opt/homebrew/bin/python3` |
+| `setup.py` says "running under Rosetta" | Install an arm64 Python: user-only via uv (Step 1); machine-wide alternative: `brew install python@3.12` then `/opt/homebrew/bin/python3` |
 
 ---
 

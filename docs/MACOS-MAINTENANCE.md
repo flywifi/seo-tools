@@ -13,9 +13,10 @@ confirmation is the hands-on checklist.
 ## Non-negotiable invariants
 
 1. **Dependencies install into a private `.venv` ("private toolbox").** A Homebrew Python follows
-   PEP 668 and refuses a global `pip install`. `setup.py::ensure_venv` creates `.venv/` (gitignored)
-   and installs there; `--break-system-packages` is a labeled fallback only when a `.venv` cannot be
-   created. Never add a bare `pip install` into the base interpreter.
+   PEP 668 and refuses global package installs. `setup.py::ensure_venv` creates `.venv/` (gitignored)
+   and installs there; since P93 there is NO machine-wide fallback -- when a `.venv` cannot be
+   created on a PEP 668 interpreter, the installer refuses with the exact remedy instead
+   (docs/INSTALL-SCOPE.md). Never install packages into the base interpreter.
    <!-- verify: tools/setup.py::ensure_venv -->
 2. **The app runs under the `.venv` interpreter when it exists.** `env_paths.app_python()` returns the
    `.venv` python if present, else `sys.executable` (so no `.venv` == today's behavior, no regression).

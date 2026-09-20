@@ -12,6 +12,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ## [Unreleased]
 
+### Changed
+- P93: every install instruction across the live guidance defaults to user-scoped. The new
+  policy page docs/INSTALL-SCOPE.md states the rule (home folder only, no sudo, no
+  /Applications, /opt/homebrew, or /usr/local), the approved locations, the user-scoped
+  defaults (uv for Python into ~/.local, nvm for Node into ~/.nvm, faster-whisper inside the
+  repo .venv for transcription), and the one exception (Apple CLT git). SETUP_MAC,
+  DEPENDENCIES, MAC-VALIDATION, DEPLOYMENT, WIZARD, TRANSITIONS, the wizard's Node and
+  transcription screens, and the setup/transcribe CLI hints all lead with the user-only
+  route; every remaining Homebrew or system-package line sits under an explicit
+  "machine-wide alternative (affects the whole computer)" label. The two installer sources
+  (uv installer docs, nvm README) are seeded into the registry as T1.
+
 ### Fixed
 - P93: Creator OS never installs machine-wide. The two code fallbacks that retried pip with
   the system-override flag into Homebrew's shared site-packages when no .venv existed
