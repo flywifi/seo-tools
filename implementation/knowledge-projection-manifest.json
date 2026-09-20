@@ -83,14 +83,14 @@
     },
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
-        "docs/WIZARD.md": "4d9a755be1b76bc9d726c63177b8393edc126ff0a2f1185b580af37c8bd7bfe7",
+        "docs/DEPLOYMENT.md": "ab8ff418d6440e881c996b1cd02e7fd936bd686e79f724acf9c18594b51509f8",
+        "docs/WIZARD.md": "496f9b3c45c602f8270a72958f0a6c712cd0c152f511b0231eb2ce0396af1e10",
         "docs/SETUP_MAC.md": "54405c2a8263e28aa1b55319e597bf28da27b0c2fdc22dbf8d0c5b7d4fbe4dd9",
         "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "f11ecd712b7be116c67697516d9956099ac6d6f3d4da0c3bc9838fdb630a8ab8"
       },
-      "projection": "168e28763fd9b2852cfd920a54b761fcb44fb22d5c1ee9b3d5da5cc6feee4b59"
+      "projection": "e756c16baca6532e3a22976cccc3a83db518206221beebdbc0e90e652e016dc8"
     },
     "implementation/claude/project/system-prompt.md": {
       "sources": {
@@ -146,10 +146,10 @@
     },
     "implementation/claude/project/creator-os-combined.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
+        "docs/DEPLOYMENT.md": "ab8ff418d6440e881c996b1cd02e7fd936bd686e79f724acf9c18594b51509f8",
         "docs/SETUP_MAC.md": "54405c2a8263e28aa1b55319e597bf28da27b0c2fdc22dbf8d0c5b7d4fbe4dd9",
         "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
-        "docs/WIZARD.md": "4d9a755be1b76bc9d726c63177b8393edc126ff0a2f1185b580af37c8bd7bfe7",
+        "docs/WIZARD.md": "496f9b3c45c602f8270a72958f0a6c712cd0c152f511b0231eb2ce0396af1e10",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "f11ecd712b7be116c67697516d9956099ac6d6f3d4da0c3bc9838fdb630a8ab8",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
@@ -171,7 +171,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "shared/web-intel-engine.md": "75ad0b196a12daae58c38428c84f505fc0f214b04246781c03515e66bef5e271"
       },
-      "projection": "fe52ba7682c67a6fbff35e30aa6cd512d39775c05557916bd207a5f39f45ef43"
+      "projection": "4317425102389be8d359da48237e911e0cdf5a8a83998ba4daa9c73043595f55"
     }
   }
 }

@@ -87,7 +87,8 @@ requires a local upgrade.
    - **Or connect GitHub instead of uploading:** in the Project's knowledge area, "+" > GitHub >
      select this repository > choose `implementation/claude/project/` (sync is manual via
      "Sync now"; support article 10167454, fetched 2026-09-20; the connector's plan gating is
-     not stated in the article -- check on your plan, and the repository access must be granted).
+     not stated in the article -- check on your plan; the repository is public, so no access
+     grant is needed, just sign in to GitHub when the connector asks).
    Each file (and the combined pack) carries a visible freshness line ending in
    `Source and updates: github.com/flywifi/seo-tools`, so a reader always knows where the living source is.
    **How you get these files with no repo on your computer:** ask the maintainer to send them

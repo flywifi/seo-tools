@@ -28,16 +28,16 @@ tab for a while; this Project behaves the same either way. Claude Docs and Claud
 ## Four ways to run Creator OS on claude.ai, best first
 
 1. **The plugin (paid plans).** Everything installs in one step: open Customize, then Plugins,
-   and add the maintainer's Creator OS marketplace link (a GitHub repository link). Skills and
+   and add the Creator OS marketplace link (github.com/flywifi/seo-tools). Skills and
    connectors from the plugin work in any conversation; deeper automation runs in agentic
-   sessions. One thing to check with the maintainer first: the repository is private, and
-   whether a private marketplace link works on a personal plan has not been verified yet.
+   sessions. The repository is public, so the link needs no access grant; marketplace plugins
+   are a paid-plan feature, so on Free use door 2 or 3.
 2. **This Project, fed straight from GitHub.** In the Project's knowledge area, choose the "+"
    button, pick GitHub, select the Creator OS repository, and choose the folder
    `implementation/claude/project/`. Syncing is manual: press "Sync now" after the maintainer
-   ships an update. You need access to the repository on GitHub (ask the maintainer to grant
-   it), and the plan requirements for this connector are not stated in the vendor's article,
-   so check it on your plan.
+   ships an update. The repository is public, so no special access is needed; just sign in to
+   GitHub when the connector asks. The plan requirements for this connector are not stated in
+   the vendor's article, so check it on your plan.
 3. **This Project, fed by uploaded files.** Works on every plan, including Free (Free is
    capped at five projects). Upload the numbered knowledge files, or the single combined file
    `creator-os-combined.md` -- one or the other, not both. See "Getting the files" below.
@@ -61,8 +61,8 @@ tab for a while; this Project behaves the same either way. Claude Docs and Claud
 - Ask the maintainer of your Creator OS install to send them, or to mirror them into the
   shared "Creator OS" Google Drive folder under `Knowledge/` (the setup wizard's Drive hub
   screen does this in one click); you can then download them from Drive.
-- If you have repository access, every file is on the GitHub page
-  (github.com/flywifi/seo-tools) under `implementation/claude/project/`.
+- Every file is on the public GitHub page (github.com/flywifi/seo-tools) under
+  `implementation/claude/project/`.
 - Or skip files entirely: doors 1 and 2 above read from the repository directly.
 
 ## Finishing a ChatGPT Project

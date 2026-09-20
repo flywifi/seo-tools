@@ -37,7 +37,7 @@
     },
     {
       "file": "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
-      "sha256": "168e28763fd9b2852cfd920a54b761fcb44fb22d5c1ee9b3d5da5cc6feee4b59"
+      "sha256": "e756c16baca6532e3a22976cccc3a83db518206221beebdbc0e90e652e016dc8"
     },
     {
       "file": "implementation/claude/project/system-prompt.md",
@@ -45,7 +45,7 @@
     },
     {
       "file": "implementation/claude/project/creator-os-combined.md",
-      "sha256": "fe52ba7682c67a6fbff35e30aa6cd512d39775c05557916bd207a5f39f45ef43"
+      "sha256": "4317425102389be8d359da48237e911e0cdf5a8a83998ba4daa9c73043595f55"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",
