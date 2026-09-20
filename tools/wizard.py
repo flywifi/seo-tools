@@ -165,10 +165,12 @@ def _expected_tool_count() -> int | None:
         return None
 
 def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, str, int]:
-    """Verified-completion probe (P85-1): full MCP stdio handshake, then tools/list. A bare
-    tools/list is rejected before initialization (the server answers -32602), so the sequence
-    is initialize -> notifications/initialized -> tools/list. Returns (ok, detail, tool_count).
-    Never raises."""
+    """Verified-completion probe (P85-1, hardened P87 after the 2026-09-19 audit): full MCP
+    stdio handshake, then tools/list. A bare tools/list is rejected before initialization (the
+    server answers -32602), so the sequence is initialize -> notifications/initialized ->
+    tools/list. ok requires ALL of: a tools/list reply, the serverInfo NAME 'creator-os'
+    (never the version -- mcp 1.x reports the SDK version there, 2.x an empty string), and at
+    least one tool. Returns (ok, detail, tool_count). Never raises."""
     msgs = [
         {"jsonrpc": "2.0", "id": 1, "method": "initialize",
          "params": {"protocolVersion": "2025-06-18",
@@ -188,7 +190,7 @@ def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, st
     if "ERROR: 'mcp' package not installed" in (r.stderr or ""):
         return False, ("the mcp package is not installed yet "
                        "(run Install the free tools first)"), 0
-    tools = None
+    tools, info = None, None
     for line in (r.stdout or "").splitlines():
         line = line.strip()
         if not line.startswith("{"):
@@ -197,11 +199,20 @@ def _probe_mcp_server(py: str, server: str, timeout: int = 90) -> tuple[bool, st
             d = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if d.get("id") == 1 and "result" in d:
+            info = d["result"].get("serverInfo")
         if d.get("id") == 2 and "result" in d:
             tools = d["result"].get("tools", [])
     if tools is None:
         tail = (r.stderr or "").strip().splitlines()[-1:] or ["no reply"]
         return False, f"no tools/list reply ({tail[0][:160]})", 0
+    name = info.get("name") if isinstance(info, dict) else None
+    if name != "creator-os":
+        return False, (f"a different MCP server answered at that path "
+                       f"('{name or 'unnamed'}', expected 'creator-os')"), len(tools)
+    if not tools:
+        return False, ("the server answered but reported no tools -- the entry points at "
+                       "something, just not a working Creator OS install"), 0
     return True, "", len(tools)
 
 def _has_uv() -> bool:
@@ -654,10 +665,14 @@ def _screen_creator_os_server(result: dict | None = None) -> str:
     if result is not None:
         if result.get("ok"):
             n, exp = result.get("count", 0), result.get("expected")
-            count_line = (f"All {n} Creator OS tools answered."
-                          if exp is None or n == exp else
-                          f"{n} tools answered (expected {exp} &mdash; if you just updated, rerun "
-                          "the check after a fresh install of the free tools).")
+            if exp is not None and n == exp:
+                count_line = f"All {n} Creator OS tools answered."
+            elif exp is None:
+                count_line = (f"{n} tools answered (count not cross-checked against the "
+                              "repo's canonical count).")
+            else:
+                count_line = (f"{n} tools answered (expected {exp} &mdash; if you just updated, "
+                              "rerun the check after a fresh install of the free tools).")
             status_html = f"""<div class="success-box"><strong>Installed and verified.</strong>
 {count_line} Now <strong>completely quit Claude Desktop (Cmd-Q on a Mac) and reopen it</strong>
 &mdash; the config is only read when the app starts. Then continue below.</div>
@@ -4120,6 +4135,37 @@ def _selftest() -> int:
     check(_crash["running"] is False and "boom" in str(_crash.get("result", {}).get("error", "")),
           "crashed worker did not store a terminal error")
 
+    # P87 (audit F-1): the verification gate refuses an impostor and an empty toolset, and the
+    # PASS wording never claims a count it did not confirm. These three pins FAILED on the
+    # pre-P87 code (executed detector proof) -- if they ever fail again, the gate regressed.
+    import tempfile as _tf2
+    _sp = pathlib.Path(_tf2.mkdtemp(prefix="wizard-selftest-spoof-"))
+    def _spoof(path, name):
+        path.write_text(
+            'import json, sys\n'
+            'for line in sys.stdin:\n'
+            '    line = line.strip()\n'
+            '    if not line: continue\n'
+            '    d = json.loads(line)\n'
+            '    if d.get("method") == "initialize":\n'
+            '        print(json.dumps({"jsonrpc":"2.0","id":d["id"],"result":{'
+            '"protocolVersion":"2025-06-18","capabilities":{},'
+            '"serverInfo":{"name":"' + name + '","version":"9"}}}), flush=True)\n'
+            '    elif d.get("method") == "tools/list":\n'
+            '        print(json.dumps({"jsonrpc":"2.0","id":d["id"],'
+            '"result":{"tools":[]}}), flush=True)\n',
+            encoding="utf-8")
+        return str(path)
+    _ok_a, _det_a, _ = _probe_mcp_server(sys.executable, _spoof(_sp / "a.py", "fake"))
+    check(_ok_a is False and "different MCP server" in _det_a,
+          "probe accepted an impostor server (identity pin regressed)")
+    _ok_b, _det_b, _ = _probe_mcp_server(sys.executable, _spoof(_sp / "b.py", "creator-os"))
+    check(_ok_b is False and "no tools" in _det_b,
+          "probe accepted an empty toolset (zero-tool gate regressed)")
+    _html_p = _screen_creator_os_server({"ok": True, "count": 60, "expected": None})
+    check("not cross-checked" in _html_p and "All 60" not in _html_p,
+          "unchecked count rendered as a confirmed 'All N' claim")
+
     if failures:
         print("wizard selftest FAILED:")
         for f in failures:
@@ -4127,7 +4173,8 @@ def _selftest() -> int:
         return 1
     print(f"wizard selftest OK (OAuth CSRF+exchange+no-clobber; macOS render seam; "
           f"port-collision; loopback guard; {rendered}-screen render sweep; creator-os merge "
-          f"round-trip + corrupt backup; state persistence; worker double-start/crash; 0 network)")
+          f"round-trip + corrupt backup; state persistence; worker double-start/crash; "
+          f"probe spoof refusals + honest count wording; 0 network)")
     return 0
 
 

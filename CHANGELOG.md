@@ -92,6 +92,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P87: the wizard's install-verification gate no longer passes a completed handshake with an
+  empty toolset or an impostor server (the serverInfo name is pinned; the version never is,
+  since the SDK majors report it differently), and an uncross-checked tool count is labeled
+  instead of rendered as "All N tools answered" -- both behaviors were demonstrated by the
+  2026-09-19 adversarial audit, and its spoof server is now a permanent selftest fixture.
 - P85: the documented MCP smoke test in the macOS setup guide could never work (a bare
   tools/list is rejected before the initialize handshake; executed proof) -- replaced with the
   full three-message probe; two false claims that the wizard already wrote the creator-os
