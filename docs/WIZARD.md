@@ -56,7 +56,10 @@ The wizard:
 2. **Installs the Creator OS tools into Claude Desktop** (the `/creator-os-server` step): it
    writes the one `creator-os` entry into Claude Desktop's settings file with absolute paths,
    never touches your other settings, and then runs a real check -- the full MCP handshake plus a
-   tool listing -- before it says done. If the check cannot pass yet (for example, the free tools
+   tool listing -- before it says done. The check also confirms it is the Creator OS server
+   answering (not just any program at that path) and that it actually lists tools; a count that
+   cannot be cross-checked against the repo's canonical count is labeled as such rather than
+   presented as confirmed. If the check cannot pass yet (for example, the free tools
    are not installed), it says exactly why and where to fix it; a manual-merge fallback is shown
    for the rare case the automatic write cannot work. The Done page reports the verified tool
    count and has a "Check again" button for after you restart Claude Desktop.
