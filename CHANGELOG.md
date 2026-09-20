@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P90: the wizard's guided claude.ai lane (`/claudeai-setup`): the four doors as one action
+  screen (marketplace link and system prompt as copy buttons, the GitHub-fed Project's exact
+  click-path, staged upload folder with the nine files plus the combined-file alternative),
+  then the same paste-back verification under claude-side state keys, shared card renderer
+  with the ChatGPT lane, persona-audited, with a verdict-wiring pin.
 - P90: the wizard's guided ChatGPT lane (`/chatgpt-setup`): a plan picker that tailors every
   later step, copy-to-clipboard for every paste artifact (the wizard's first JavaScript; one
   page-authored function, all rendered content still escaped) with live character counts

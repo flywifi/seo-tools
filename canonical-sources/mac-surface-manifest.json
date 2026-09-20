@@ -36,7 +36,7 @@
     "docs/TRANSITIONS.md": "8faf79e256cee977ede12156fd92b6885733df5d1db63518bbd4a4e10494a746",
     "docs/VIDEO_EDITING.md": "b6b58fb59582d04f95462daa15f9f4190e5208155fa863ca0779b36c6b28347a",
     "docs/VIDEO_TOOLING_EVAL.md": "b9207405b3ab9b540e31812e92ebec57ef88adb2956dc62011c88240ec8ea4f7",
-    "docs/WIZARD.md": "b059733cef4c667824453d06b10f2f96d469766667c3f3fd929f0e8415a65698",
+    "docs/WIZARD.md": "97b10fdf19aaa1b8c8747a8c4880b10c105536e20238dd25f6cfc5915d7a25bc",
     "docs/adr/0013-p29-media-tool-integration.md": "c6daebb703c4e021c85a0ae248acc2cee8d654eebe392d4854ffa0b4f8249171",
     "docs/adr/0030-p45-content-import.md": "da86c5edf3bfe9c982a669e9124086aa29482910c3349654498a6d8eb770418a",
     "docs/adr/0031-p46-content-import-hardening.md": "84c051ba8d6a2a63cd792b89308f01838e0001de2200ae1473839fd5314933f3",
@@ -97,7 +97,7 @@
     "tools/videoedit/fcpxml.py": "0a83956f732d314a0ae6e3ba2b146b9a4fd6b7977fb5b540db67c33064efc5a5",
     "tools/videoedit/preflight.py": "f2127a8303b06a69eacf59a5e5aad370d502db1f50db270e753d0619b956f5c0",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "d8bb0438189ddbf9627ca2fedd5bbd54c0c4396849d44d8106f617a87a265dca"
+    "tools/wizard.py": "e429fe03c8ded6af0a80c83b0c355eff89419709f60d356dc6d504718e758ae6"
   },
   "excluded": {}
 }

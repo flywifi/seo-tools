@@ -670,8 +670,10 @@ def _screen_claudeai() -> str:
     return _page("Creator OS on claude.ai", """
 <h1>Creator OS on claude.ai</h1>
 <p>Since 2026-09-16, Claude chat and Cowork are one Claude (rolling out in stages from Pro and
-Max plans), so skills, plugins, and connectors work from any conversation. Four ways to get
-Creator OS there, best first:</p>
+Max plans), so skills, plugins, and connectors work from any conversation.</p>
+<a class="btn btn-primary" href="/claudeai-setup"><strong>Guided claude.ai setup</strong> --
+the wizard copies the pastes, stages the upload folder, and verifies the result</a>
+<p style="margin-top:14px">The four doors, for reference (the guided path walks them):</p>
 <ol class="steps">
   <li><strong>The plugin (paid plans):</strong> in claude.ai, open <strong>Customize</strong>,
       then <strong>Plugins</strong>, and add this repository&#8217;s marketplace link. Everything
@@ -1573,6 +1575,11 @@ def _screen_done() -> str:
     elif _get("chatgpt_plan"):
         connected.append('ChatGPT -- setup started, not yet verified '
                          '(<a href="/chatgpt-setup/verify">finish the three tests</a>)')
+    if all(_get(f"claude_accept_{t}") for t in ("1", "2", "3")):
+        connected.append("claude.ai -- all three acceptance tests passed")
+    elif any(_get(f"claude_accept_{t}") for t in ("1", "2", "3")):
+        connected.append('claude.ai -- verification started '
+                         '(<a href="/claudeai-setup/verify">finish the three tests</a>)')
 
     if connected:
         connected_html = "<ul style='margin:0 0 16px 20px;line-height:1.8;color:#1a3d1a'>" + \
@@ -2346,9 +2353,11 @@ copy of the paste text plus {len(files)} knowledge files, with a README inside.<
 """, dots=["done", "done", "active", "dot"])
 
 
-def _screen_gpt_verify(test: str = "", verdict: str = "", detail: str = "") -> str:
-    """Lane step 4: paste-back verification. Three prompts, machine-checked answers."""
-    st = {t: bool(_get(f"chatgpt_accept_{t}")) for t in ("1", "2", "3")}
+def _verify_cards(surface: str, prefix: str, assistant: str,
+                  test: str = "", verdict: str = "", detail: str = "") -> tuple[str, bool]:
+    """The shared paste-back verification cards for both web lanes. Returns
+    (cards_html, all_passed)."""
+    st = {t: bool(_get(f"{prefix}_accept_{t}")) for t in ("1", "2", "3")}
     cards = []
     for t, (label, prompt) in _GPT_ACCEPT_PROMPTS.items():
         chip = ('<span class="check">Passed</span>' if st[t]
@@ -2363,15 +2372,21 @@ def _screen_gpt_verify(test: str = "", verdict: str = "", detail: str = "") -> s
             + _copy_block(f"prompt{t}", "Copy this prompt into a NEW chat inside the Project",
                           prompt)
             + f'''<form method="POST" action="/api/verify-answer">
-<input type="hidden" name="surface" value="chatgpt">
+<input type="hidden" name="surface" value="{surface}">
 <input type="hidden" name="test" value="{t}">
-<label>Paste ChatGPT's whole answer here</label>
+<label>Paste {assistant}'s whole answer here</label>
 <textarea name="answer" rows="5"></textarea>
 <button class="btn btn-secondary" type="submit" style="width:auto;padding:8px 14px;margin:0">
 Check the answer</button>
 </form>{note}''')
+    return "".join(cards), all(st.values())
+
+
+def _screen_gpt_verify(test: str = "", verdict: str = "", detail: str = "") -> str:
+    """Lane step 4: paste-back verification. Three prompts, machine-checked answers."""
+    cards, all_ok = _verify_cards("chatgpt", "chatgpt", "ChatGPT", test, verdict, detail)
     finish = ""
-    if all(st.values()):
+    if all_ok:
         finish = ('<div class="success-box">All three tests passed. The ChatGPT setup is '
                   'verified.</div><a class="btn btn-success" href="/done">Finish</a>')
     return _page("ChatGPT Setup - verify", _COPY_JS + f"""
@@ -2379,9 +2394,91 @@ Check the answer</button>
 <p>Three quick tests. Copy each prompt into a NEW chat inside the Project, paste the answer
 back here, and the wizard checks it against the Creator OS rules. A failed check says exactly
 what to fix.</p>
-{''.join(cards)}
+{cards}
 {finish}
 <a class="btn btn-outline" href="/chatgpt-setup/knowledge">Back</a>
+<a class="btn btn-outline" href="/">Home</a>
+""", dots=["done", "done", "done", "active"])
+
+
+def _screen_claude_setup(staged: str = "", error: str = "") -> str:
+    """The claude.ai doing lane (P90): the four doors with their actions, not prose."""
+    try:
+        sp = (ROOT / "implementation" / "claude" / "project" /
+              "system-prompt.md").read_text(encoding="utf-8")
+    except OSError:
+        sp = ""
+    err = f'<div class="error-box">{html.escape(error)}</div>' if error else ""
+    staged_html = ""
+    if staged:
+        staged_html = (
+            f'<div class="success-box">Folder staged: <code>{html.escape(staged)}</code> -- '
+            f'nine knowledge files under <code>upload-these</code>, the paste text, and the '
+            f'one-file combined alternative.</div>'
+            '<form method="POST" action="/api/open-bundle" style="margin-bottom:10px">'
+            '<input type="hidden" name="surface" value="claudeai">'
+            '<button class="btn btn-secondary" type="submit" style="margin:0">Open the folder'
+            '</button></form>')
+    return _page("claude.ai Setup", _COPY_JS + f"""
+<h1>Set up claude.ai, step by step</h1>{err}
+<p>Since 2026-09-16 Claude chat and Cowork are one Claude, so skills, plugins, and connectors
+work from any conversation. Two doors need no files at all; the upload door is one staged
+folder. Pick whichever fits the account.</p>
+
+<h2>Door 1: the plugin (paid plans, everything in one step)</h2>
+<p>On claude.ai: <strong>Customize</strong>, then <strong>Plugins</strong>, then add this
+marketplace link:</p>
+{_copy_block("mkt", "Marketplace link", "https://github.com/flywifi/seo-tools")}
+<div class="note">The repository is private, and whether a private marketplace link works on a
+personal plan is not verified yet. If it refuses, use Door 2 or 3.</div>
+
+<h2>Door 2: a Project fed straight from GitHub (no files to move)</h2>
+<ol class="steps">
+<li>Projects, then <strong>New Project</strong>. Name it "Creator OS".</li>
+<li>Paste the project instructions below into <strong>Set project instructions</strong>.</li>
+<li>In the knowledge area: <strong>+</strong>, then <strong>GitHub</strong>, pick this
+repository, choose the folder <code>implementation/claude/project/</code>.</li>
+<li>After any Creator OS update, press <strong>Sync now</strong>.</li>
+</ol>
+
+<h2>Door 3: a Project fed by uploads (any plan, including Free)</h2>
+{_copy_block("sp", "Project instructions (paste into Set project instructions)", sp)}
+<form method="POST" action="/api/stage-bundle">
+<input type="hidden" name="surface" value="claudeai">
+<button class="btn btn-primary" type="submit">Stage my upload folder</button>
+</form>
+{staged_html}
+<p class="hint">Upload everything in <code>upload-these</code> to the Project's knowledge, or
+only the combined-alternative file -- one or the other, never both.</p>
+
+<h2>Door 4: individual skill uploads</h2>
+<p>Settings, then Capabilities (enable code execution), then Customize, then Skills. Only
+self-contained skill ZIPs work standalone; most Creator OS skills need the plugin door.</p>
+
+<h2>Connect Google Workspace</h2>
+<p><strong>Customize</strong>, then <strong>Connectors</strong>, find Google Workspace, click
+<strong>Add</strong>, sign in, <strong>Allow</strong>.</p>
+
+<a class="btn btn-success" href="/claudeai-setup/verify">Set up -- now verify it took</a>
+<a class="btn btn-outline" href="/claudeai">The overview page</a>
+<a class="btn btn-outline" href="/">Back to start</a>
+""", dots=["done", "active", "dot", "dot"])
+
+
+def _screen_claude_verify(test: str = "", verdict: str = "", detail: str = "") -> str:
+    """Paste-back verification for the claude.ai lane (same three tests, claude_ keys)."""
+    cards, all_ok = _verify_cards("claudeai", "claude", "Claude", test, verdict, detail)
+    finish = ""
+    if all_ok:
+        finish = ('<div class="success-box">All three tests passed. The claude.ai setup is '
+                  'verified.</div><a class="btn btn-success" href="/done">Finish</a>')
+    return _page("claude.ai Setup - verify", _COPY_JS + f"""
+<h1>Prove the claude.ai setup took</h1>
+<p>Copy each prompt into a NEW chat inside the Creator OS Project on claude.ai, paste the
+answer back here, and the wizard checks it against the Creator OS rules.</p>
+{cards}
+{finish}
+<a class="btn btn-outline" href="/claudeai-setup">Back</a>
 <a class="btn btn-outline" href="/">Home</a>
 """, dots=["done", "done", "done", "active"])
 
@@ -3375,6 +3472,19 @@ anything, and closing this window does not stop the work.</p>
             self._redirect("/chatgpt-setup")
             return
 
+        if path == "/claudeai-setup":
+            self._send(_screen_claude_setup())
+            return
+
+        if path == "/claudeai-setup/verify":
+            self._send(_screen_claude_verify())
+            return
+
+        if path == "/claudeai-setup/reset":
+            _pop_state_keys("claude_accept_1", "claude_accept_2", "claude_accept_3")
+            self._redirect("/claudeai-setup")
+            return
+
         if path == "/cross-modality":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(_screen_cross_modality(q.get("surface", [""])[0]))
@@ -3475,26 +3585,30 @@ anything, and closing this window does not stop the work.</p>
             # rewrite under gitignored dist/upload-bundle/; nothing outside it is touched.
             data = self._read_form()
             surface = data.get("surface", "")
-            if surface != "chatgpt":
+            if surface not in ("chatgpt", "claudeai"):
                 self._send("<h1>Bad request</h1><p>Unknown bundle surface.</p>", status=400)
                 return
+            screen = _screen_gpt_knowledge if surface == "chatgpt" else _screen_claude_setup
             dest, names = _stage_bundle(surface, _get("chatgpt_plan") or "")
             if dest is None:
-                self._send(_screen_gpt_knowledge(error=names[0]), status=500)
+                self._send(screen(error=names[0]), status=500)
                 return
-            self._send(_screen_gpt_knowledge(staged=str(dest)))
+            self._send(screen(staged=str(dest)))
             return
 
         if path == "/api/open-bundle":
             data = self._read_form()
             surface = data.get("surface", "")
+            if surface not in ("chatgpt", "claudeai"):
+                self._send("<h1>Bad request</h1><p>Unknown bundle surface.</p>", status=400)
+                return
+            screen = _screen_gpt_knowledge if surface == "chatgpt" else _screen_claude_setup
             dest = _BUNDLE_ROOT / surface
-            if surface != "chatgpt" or not dest.is_dir():
-                self._send(_screen_gpt_knowledge(
-                    error="Stage the folder first, then open it."), status=400)
+            if not dest.is_dir():
+                self._send(screen(error="Stage the folder first, then open it."), status=400)
                 return
             _open_url(str(dest))
-            self._send(_screen_gpt_knowledge(staged=str(dest)))
+            self._send(screen(staged=str(dest)))
             return
 
         if path == "/api/verify-answer":
@@ -3507,9 +3621,11 @@ anything, and closing this window does not stop the work.</p>
                 self._send("<h1>Bad request</h1><p>Unknown surface or test id.</p>", status=400)
                 return
             ok, _label, problems = res
-            self._send(_screen_gpt_verify(test=data.get("test", ""),
-                                          verdict="pass" if ok else "fail",
-                                          detail=" ".join(problems)))
+            screen = (_screen_gpt_verify if data.get("surface") == "chatgpt"
+                      else _screen_claude_verify)
+            self._send(screen(test=data.get("test", ""),
+                              verdict="pass" if ok else "fail",
+                              detail=" ".join(problems)))
             return
 
         if path == "/api/enable-capability":
@@ -4762,6 +4878,16 @@ def _selftest() -> int:
     check(_apply_verdict("chatgpt", "9", "x") is None
           and _apply_verdict("gemini", "1", "x") is None,
           "verdict router accepted an unknown test id or surface")
+    _pop_state_keys("claude_accept_2")
+    _res = _apply_verdict("claudeai", "2", "Your average view count is 12,400 views.")
+    check(_res is not None and _res[0] is False and not _get("claude_accept_2"),
+          "a failing claudeai verdict set the acceptance flag")
+    _res = _apply_verdict("claudeai", "2",
+                          "That number is not in my files. [unverified] Share the real figure "
+                          "from your analytics and I will use it.")
+    check(_res is not None and _res[0] is True and _get("claude_accept_2") is True,
+          "a passing claudeai verdict did not set the acceptance flag")
+    _pop_state_keys("claude_accept_2")
     _cb = _copy_block("xssid", "Label", "<script>alert(1)</script>")
     check("&lt;script&gt;alert(1)&lt;/script&gt;" in _cb and "<script>alert(1)" not in _cb,
           "copy block did not escape script content")
@@ -4779,7 +4905,7 @@ def _selftest() -> int:
           f"port-collision; loopback guard; {rendered}-screen render sweep; creator-os merge "
           f"round-trip + corrupt backup; state persistence; worker double-start/crash; "
           f"probe spoof refusals + honest count wording; "
-          f"interactive-transport wait + transient retry; gpt lane copy/stage/verify; 0 network)")
+          f"interactive-transport wait + transient retry; web lanes copy/stage/verify; 0 network)")
     return 0
 
 

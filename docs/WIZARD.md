@@ -118,6 +118,15 @@ exactly what to fix on a failure. All three passes are remembered and reported o
 page; "Different plan / start over" clears only the ChatGPT lane. The old per-surface
 reference notes remain at `/chatgpt`.
 
+### Guided claude.ai setup (`/claudeai-setup`)
+
+The same doing treatment for claude.ai: the four doors on one action screen -- the plugin
+marketplace link as a copy button, the GitHub-fed Project's exact click-path, the upload door
+with a system-prompt copy button and its own "Stage my upload folder" (nine knowledge files
+plus the one-file combined alternative, with the README explaining one-or-the-other), and the
+skill-ZIP door -- followed by the same three paste-back verification tests under their own
+state keys, reported on the Done page. The claude.ai overview screen links the lane first.
+
 ### Publishing setup (YouTube, Instagram, TikTok, Pinterest)
 
 From `/publishing-setup`, the wizard connects each platform with a **Connect** button that runs an

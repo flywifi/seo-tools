@@ -53,6 +53,8 @@ ROUTES = {
     "/chatgpt-setup/instructions": "_screen_gpt_instructions",
     "/chatgpt-setup/knowledge": "_screen_gpt_knowledge",
     "/chatgpt-setup/verify": "_screen_gpt_verify",
+    "/claudeai-setup": "_screen_claude_setup",
+    "/claudeai-setup/verify": "_screen_claude_verify",
     "/transitions": "_screen_transitions",
     "/updates": "_screen_updates",
     "/cross-modality": "_screen_cross_modality",
