@@ -13,9 +13,9 @@ and must be checked against your own account; the repo does not assert it.
 |---|---|---|
 | Claude Desktop (this computer) | everything (Class A, B, C native) | yes |
 | Claude Code / command line | everything | yes |
-| claude.ai in a browser (web and mobile) | knowledge natively; live tools via a deployed remote MCP connector | no (the endpoint's machine enforces) |
-| Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend); the existing-desktop path -- new sessions default to the cloud (support/14479288, 2026-09-19) | yes |
-| Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect; the cloud default, beta on web and mobile for Pro, Max, and Team plans (support/14479288, 2026-09-19) | no (a fresh sandbox has no local config) |
+| claude.ai in a browser (web and mobile) | knowledge natively (Project uploads, or the GitHub connector into project knowledge with manual Sync now, support/10167454); plugin skills on paid plans (Customize > Plugins, GitHub-URL marketplaces, support/13837440) and self-contained skill ZIPs on any plan (support/12512180); live tools via a deployed remote MCP connector (Free holds one custom connector, support/11176164) | no (the endpoint's machine enforces) |
+| Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend); the existing-desktop path -- since 2026-09-16 chat and Cowork are one Claude (support/16761823), and the Desktop app must be open for local access | yes |
+| Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect; since 2026-09-16 these agentic cloud sessions start from any conversation in the merged Claude, staged rollout from Pro and Max (support/16761823); pre-merge accounts still see the separate beta surface (support/14479288) | no (a fresh sandbox has no local config) |
 | ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files); live tools need a developer-mode MCP connector, which is a separate setup and not "plain" chat | no |
 | Custom GPT (built in the ChatGPT GPT builder) | knowledge pack + the public jurisdiction Action | no |
 | ChatGPT Projects (a Project with files at chatgpt.com) | knowledge pack as Project instructions + files | no |
@@ -29,6 +29,15 @@ Two facts hold on every non-local surface, and nothing there changes them:
 2. **Your local data does not follow you automatically.** Rate card, deals, contracts, templates,
    and profile live in gitignored local files; read `docs/PASTE-SAFETY.md` before pasting any of
    it into a third-party chat.
+
+**The merge (2026-09-16):** Claude chat and Cowork are one Claude (support article 16761823,
+fetched 2026-09-20). There is no separate mode to pick; Claude routes quick answers and
+agentic sessions itself, existing projects, connectors, and skills carry over, and Claude Docs
+and Claude Slides launched alongside (beta, paid plans). The rollout is staged from Pro and
+Max over the following weeks, so both UIs coexist for a while; the two Cowork rows above are
+kept during the transition and describe the local path and the agentic cloud sessions
+respectively. Projects themselves remain, on every plan including Free (five-project cap,
+automatic RAG for large knowledge; support article 9517075).
 
 One more fact specific to Cowork remote sessions: **the sandbox is ephemeral.** It is destroyed
 when the session ends, and nothing written to its local disk survives — including `.local` store
@@ -166,6 +175,24 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 
 ```sources
 [
+  {"id": "claude-cowork-chat-merge", "name": "Claude Cowork and chat are one Claude (help center)",
+   "url": "https://support.claude.com/en/articles/16761823-claude-cowork-and-chat-are-one-claude",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-projects-overview", "name": "What are projects? (help center)",
+   "url": "https://support.claude.com/en/articles/9517075-what-are-projects",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-github-projects-integration", "name": "Use the GitHub integration (help center)",
+   "url": "https://support.claude.com/en/articles/10167454-use-the-github-integration",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-skills-use", "name": "Use skills in Claude (help center)",
+   "url": "https://support.claude.com/en/articles/12512180-use-skills-in-claude",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-plugins-use", "name": "Use plugins in Claude (help center)",
+   "url": "https://support.claude.com/en/articles/13837440-use-plugins-in-claude",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-connectors-directory", "name": "Use connectors to extend Claude's capabilities (help center)",
+   "url": "https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities",
+   "category": "ai-surface-spec", "tier": "T1"},
   {"id": "openai-custom-instructions-caps", "name": "ChatGPT custom instructions (help center)",
    "url": "https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions",
    "category": "ai-surface-spec", "tier": "T1"},

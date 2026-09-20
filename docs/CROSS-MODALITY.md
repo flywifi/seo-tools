@@ -34,7 +34,11 @@ connector.
   `jurisdiction_resolve(lon, lat, facts_json)` runs offline; the first live lookup in a session asks for
   consent (`geo_consent`), and a decline or headless run makes no call.
 - **claude.ai web/mobile:** deploy `python3 tools/mcp_server.py --serve-remote` somewhere reachable from
-  the provider cloud, then add it as a **custom connector** (remote MCP). One deployed endpoint CAN
+  the provider cloud, then add it as a **custom connector** (remote MCP) under **Customize >
+  Connectors** (the settings moved under a Customize menu; even Free plans can hold one custom
+  connector -- support articles 11176164 and 11175166, fetched 2026-09-20). Since 2026-09-16
+  claude.ai chat and Cowork are one Claude (support article 16761823), so a connector added there
+  serves both plain conversations and agentic sessions. One deployed endpoint CAN
   also serve ChatGPT (developer mode, web and desktop app) and Gemini, IF hosted behind HTTPS with
   authentication; the repo ships the server code and the runbook
   (`implementation/gpt/mcp-connector/README.md`), not a hosted service. The proxy is the auth
@@ -42,7 +46,9 @@ connector.
   (`--serve-remote` or a bare `--transport streamable-http`/`sse`) refuses a non-loopback bind with
   no `CREATOR_OS_MCP_TOKEN` and no `--insecure`, and enforces an in-process bearer gate when a
   token is set. ChatGPT registration steps carry needs-verification tags (plan gating).
-- **Custom GPT** (building requires a Business/Enterprise/Edu workspace as of 2026-08): in the GPT builder, add an **Action** and paste
+- **Custom GPT** (building requires a Business/Enterprise/Edu workspace as of 2026-08, and the
+  surface is retiring: Enterprise loses Custom GPTs 2026-12-11 with other plans expected to
+  follow -- ADR 0060; steer new setups to a ChatGPT Project or the connector door): in the GPT builder, add an **Action** and paste
   `implementation/gpt/actions/jurisdiction_overlay_action.yaml`. Auth = none (all endpoints are keyless).
   The GPT calls the public ArcGIS/FEMA/Census endpoints itself.
 - **Gemini API:** load `implementation/gemini/jurisdiction-function-declarations.json` as

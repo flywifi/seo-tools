@@ -161,6 +161,13 @@ When the wizard says "Restart Claude Desktop," quit and reopen the Claude Deskto
 
 After restarting, test: ask Claude "run a drift check" -- expected reply: "DRIFT GUARD: clean".
 
+**A note on the config file's future:** Anthropic's current local-MCP help article (support
+article 10949351, updated 2026-06-30) documents only Settings > Extensions with packaged
+`.mcpb` bundles and no longer mentions `claude_desktop_config.json`. Current builds still honor
+the file (your working install is the evidence) `[NEEDS VERIFICATION: re-confirm after each
+Claude Desktop update -- if the entry ever stops loading, the packaged .mcpb path in
+docs/UPDATING.md is the successor]`.
+
 **Manual alternative:** Merge `implementation/claude/desktop/claude_desktop_config_snippet.json`
 into `~/Library/Application Support/Claude/claude_desktop_config.json` by hand, replacing
 `REPLACE_WITH_ABSOLUTE_PATH` with the output of `pwd` from the seo-tools directory.

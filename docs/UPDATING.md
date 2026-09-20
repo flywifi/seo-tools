@@ -68,9 +68,14 @@ Two ways, both effectively hands-off once set up:
   `marketplace.json` with relative plugin paths supported), with per-plugin install states
   (Installed by default / Available / Not available / Required), and "Cowork and Skills must both
   be enabled for your organization before you can use plugin marketplaces."
-  `[NEEDS VERIFICATION: only the narrower residue -- support.claude.com/.../13119606 on org-wide
-  provisioning of bare Skills (outside plugins) remains unread; plugins are the documented
-  org-managed unit either way.]`
+  Org-wide provisioning of bare Skills (outside plugins) is also first-party documented now
+  (support article 13119606, fetched 2026-09-20): Team/Enterprise owners manage an org skills
+  directory under Organization settings > Skills (Library / Requests / Policy tabs) with
+  auto-pushed updates; individual Pro/Max users cannot share skills user-to-user through the
+  product, so the consumer distribution path stays "send the ZIP, they upload it" (Customize >
+  Skills, code execution enabled; support articles 12512180 and 12512198). Consumer plugin
+  installs exist too: Customize > Plugins, with any GitHub-repo marketplace addable by URL on
+  paid plans (support article 13837440).
 - **As a git clone.** Run `python3 tools/update.py` (git pull + drift guard + cache rebuild; it never
   touches `*.local.json`), or a small pull cron. The CLI itself also auto-updates in the background
   unless `DISABLE_AUTOUPDATER` is set. (Source: code.claude.com/docs/en/setup.)
@@ -93,6 +98,10 @@ Two ways, both effectively hands-off once set up:
   2026-09-19), so `.mcpb` packaging is an org path, not a consumer one.
 
 ### Claude Cowork
+- **Since 2026-09-16, Claude chat and Cowork are one Claude** (support article 16761823, fetched
+  2026-09-20): agentic sessions start from any conversation, existing plugins, skills, and
+  connectors carry over, and the rollout is staged from Pro and Max. The update story below is
+  unchanged by the merge -- delivery is still through plugins.
 - Cowork runs each session in a **fresh, temporary sandbox** (created at session start, destroyed at
   the end), so a session picks up your current installed plugins automatically. Updating is delivered
   through the plugin/marketplace, not a manual pull.

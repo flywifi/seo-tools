@@ -80,6 +80,7 @@
       "carries": [
         "pasted_instructions",
         "knowledge_files",
+        "plugin_skills",
         "remote_mcp_connectors"
       ],
       "flags_enforced": false,
@@ -92,10 +93,16 @@
         "web"
       ],
       "setup_steps": [
-        "For knowledge-only use, add the Creator OS knowledge files to a claude.ai Project.",
-        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it in claude.ai as a custom connector."
+        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20); rollout is staged from Pro and Max, so accounts may still show the pre-merge UI for a while. Skills, plugins, and connectors work from any conversation in the merged experience.",
+        "Best door on a paid plan: install the Creator OS plugin (Customize, then Plugins; a GitHub-repo marketplace can be added by URL per support article 13837440). Skills and connectors then work in any conversation; deeper automation runs in agentic sessions.",
+        "Knowledge door, any plan: add the Creator OS knowledge files to a claude.ai Project, either by uploading them or by connecting the GitHub repository to the Project's knowledge and selecting implementation/claude/project/ (sync is manual via Sync now; support article 10167454). Free plans are capped at five projects (support article 9517075).",
+        "Individual skills, any plan: enable code execution (Settings, then Capabilities), then upload a self-contained skill ZIP under Customize, then Skills (support article 12512180). Skills that reference repo-root shared/ paths need the plugin door instead.",
+        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it under Customize, then Connectors (Free plans can hold one custom connector; support article 11176164)."
       ],
-      "needs_verification": []
+      "needs_verification": [
+        "adding a PRIVATE GitHub-repo plugin marketplace on a personal plan (support article 13837440 does not address private repositories)",
+        "plan gating of the GitHub-to-project-knowledge connector (support article 10167454 does not state plans)"
+      ]
     },
     "cowork_local": {
       "label": "Claude Cowork (local session on this computer)",
@@ -122,7 +129,7 @@
         "cowork"
       ],
       "setup_steps": [
-        "Note: new Cowork sessions run in the cloud by default; local execution remains available for existing desktop deployments (support article 14479288, fetched 2026-09-19).",
+        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20); this row describes the local-execution path, which remains for existing desktop deployments while the staged rollout (Pro and Max first) proceeds. The Desktop app must be open for local folders, the built-in browser, computer use, and local MCP.",
         "Install Creator OS through the plugin marketplace.",
         "Open the Desktop app's Cowork tab and choose a local session (a hypervisor-isolated VM on this computer).",
         "Connect the Creator OS folder so the session can reach your files."
@@ -155,7 +162,7 @@
         "cowork"
       ],
       "setup_steps": [
-        "Cowork is the cloud default, in beta on web and mobile for Pro, Max, and Team plans (support article 14479288, fetched 2026-09-19).",
+        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20): agentic cloud sessions now start from any conversation, no separate Cowork mode. This row describes those cloud sessions; rollout is staged from Pro and Max, so a pre-merge account still sees the separate Cowork surface this row originally described (support article 14479288).",
         "Install Creator OS through the plugin marketplace; an organization's plugin auto-sync fires only when a version-bump PR merges.",
         "Reach stateful data through Google Drive or a hosted connector; the sandbox is destroyed at session end, so nothing written to its local disk (including .local store files) persists.",
         "Local stdio MCP servers do not run here; connect capabilities as remote MCP connectors, and reach local files only through folders explicitly connected in the Desktop app."
@@ -244,12 +251,10 @@
       "setup_steps": [
         "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats (best set at creation; an existing unshared project can be switched later [NEEDS VERIFICATION: switching reported 2026-08-14; help center not machine-fetchable]).",
         "Set the Project instructions to implementation/gpt/project/project-instructions.md (paste the whole file).",
-        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps: 5 on Free, 25 on Plus, 40 on Pro/Business/Enterprise [NEEDS VERIFICATION: caps from secondary reporting, 2026-09]. On Free the 8-file bundle does not fit; upload the first 5 (01 through 05) instead.",
+        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per simultaneous upload. On Free the full bundle does not fit; upload the first 5 (01 through 05) instead.",
         "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when your files are stale."
       ],
-      "needs_verification": [
-        "your plan's per-project file cap: 5 Free / 25 Plus / 40 Pro-Business-Enterprise per secondary reporting 2026-09; not re-verified against the help center (machine-fetch blocked)"
-      ]
+      "needs_verification": []
     },
     "chatgpt_desktop": {
       "label": "ChatGPT desktop app",

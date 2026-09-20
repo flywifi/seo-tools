@@ -60,6 +60,12 @@ python3 shared/cache/cache.py --stats     # confirm index built
    - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
    - Linux: `~/.config/Claude/claude_desktop_config.json`
 
+   Note: Anthropic's current local-MCP help article (support article 10949351, updated
+   2026-06-30) documents only Settings > Extensions with packaged `.mcpb` bundles and no
+   longer mentions this file. Current builds still honor it `[NEEDS VERIFICATION: re-confirm
+   after each Claude Desktop update; the packaged .mcpb path in docs/UPDATING.md is the
+   successor if it ever stops loading]`.
+
 4. If the file already has an `mcpServers` key, add the `"creator-os"` block
    inside it. If it does not exist, create the file with the full snippet.
 

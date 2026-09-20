@@ -178,6 +178,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with an addendum.
 
 ### Changed
+- P89: the September 2026 Claude surface changes are banked and reflected in the cross-surface
+  record. Nine support articles seeded as T1 sources, headlined by the 2026-09-16 merge of
+  Claude chat and Cowork into one Claude (staged rollout from Pro and Max); the claude.ai
+  surface entry in transitions.json now lists four doors (plugin from a GitHub-URL marketplace,
+  Project knowledge via the GitHub connector with manual sync, classic uploads, skill ZIP
+  uploads on any plan) with the unverifiable pieces tagged; the ChatGPT Projects file caps in
+  transitions.json upgraded to the first-party wording and the stale secondary-reporting tag
+  removed; UPDATING.md closes the org-skills-provisioning residue (article 13119606 read:
+  Team/Enterprise org directory, consumer path stays ZIP upload); and both Desktop setup docs
+  record that Anthropic's local-MCP article now documents only .mcpb Extensions, with the
+  config-file continuation tagged for re-confirmation.
 - P84: eight walled sources banked as human-verified (four OpenAI help articles, the Instagram
   feed-ranking article, the MCP releases and skills-commits feeds, the TikTok video object);
   two TikTok seed URLs corrected and the MCPB spec re-pointed to the raw host;
