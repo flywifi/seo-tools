@@ -175,10 +175,23 @@ def parse_youtube_studio_zip(zip_path):
 
 # ── Google Takeout (metadata only; NO analytics) ─────────────────────────────
 
+def _probe_exists(p):
+    """Path.exists() with the pre-3.14 boundary semantics (P91): absent reads False, but an
+    UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
+    CLI envelope fires -- CPython 3.14 changed Path.exists()/is_file()/is_dir() to swallow
+    those errors, which made an unreadable path parse to an empty [] instead."""
+    try:
+        p.stat()
+        return True
+    except (FileNotFoundError, NotADirectoryError, ValueError):
+        return False
+
+
 def parse_youtube_takeout(path):
     """Parse a Takeout 'YouTube and YouTube Music' folder or zip. Metadata only: id/title/published/
     description; stats stay null (Takeout carries no analytics). Defensive CSV column matching."""
     p = Path(str(path))
+    _probe_exists(p)  # unprobeable (e.g. ENAMETOOLONG) raises to the CLI envelope; absent falls through
 
     def _from_csv_text(text):
         recs = []

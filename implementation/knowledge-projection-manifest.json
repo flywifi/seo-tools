@@ -85,7 +85,7 @@
       "sources": {
         "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
         "docs/WIZARD.md": "dd7073fd1dc7a094b08920be1049bacc9d587c3c690bce461dfda95157785bc8",
-        "docs/SETUP_MAC.md": "00508034c1636486742d2b788363a9c43ae39205592c8f220acd67c80aa459c1",
+        "docs/SETUP_MAC.md": "54405c2a8263e28aa1b55319e597bf28da27b0c2fdc22dbf8d0c5b7d4fbe4dd9",
         "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "f11ecd712b7be116c67697516d9956099ac6d6f3d4da0c3bc9838fdb630a8ab8"
@@ -147,7 +147,7 @@
     "implementation/claude/project/creator-os-combined.md": {
       "sources": {
         "docs/DEPLOYMENT.md": "c3170f70c0420dd90129968c43a9b00ba909e707fe61a8d22d0f0622ab7a3a89",
-        "docs/SETUP_MAC.md": "00508034c1636486742d2b788363a9c43ae39205592c8f220acd67c80aa459c1",
+        "docs/SETUP_MAC.md": "54405c2a8263e28aa1b55319e597bf28da27b0c2fdc22dbf8d0c5b7d4fbe4dd9",
         "docs/TRANSITIONS.md": "cc81a0a7588b2bed7d586663de80626c7e2c91fbae28f94f2e5cf4fc88a46525",
         "docs/WIZARD.md": "dd7073fd1dc7a094b08920be1049bacc9d587c3c690bce461dfda95157785bc8",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",

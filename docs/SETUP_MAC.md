@@ -34,8 +34,15 @@ detection, and deterministic quality scoring via the MCP server.
 
 ### Which macOS you need
 
-Creator OS needs **Python 3.12** (`tools/setup.py` enforces that floor; numpy 2.5 dropped 3.11, and
-DaVinci Resolve's scripting bridge caps at 3.12, so 3.12 is the one version every lane agrees on), and it
+Creator OS supports **Python 3.12 to 3.14** (`tools/setup.py` enforces the 3.12 floor; numpy 2.5
+dropped 3.11; 3.14 is battery-validated as of P91, ADR 0064). One lane exception: **DaVinci
+Resolve's scripting bridge caps at 3.12**, so if you use the Resolve live-control lane, run that
+lane's tools with `python3.12`. Two P91 residues only a real 3.14-final machine can close, both
+expected to pass: `[NEEDS VERIFICATION: the mcp SDK import on a 3.14 FINAL (the validation
+container's 3.14.0rc2 lacks the typing._eval_type keyword pydantic 2.13.5 targets); closed by
+the acceptance run below]` -- acceptance run on a 3.14 Mac: `python3 tools/setup.py
+--install-deps && python3 tools/battery.py`, then the wizard's install-and-verify step must
+report the full tool count. Creator OS
 does not check your macOS version. The practical floor comes from **Homebrew**, whose documentation
 states it supports **macOS Sonoma (14) or later** on officially supported hardware; 10.15 to 13 are
 unsupported but may still work, and 10.14 and older will not run it. So on macOS 13 or earlier, expect
@@ -66,7 +73,8 @@ brew install python@3.12 git
 Verify:
 
 ```bash
-python3 --version   # should show 3.12.x (3.13 is not recommended: DaVinci Resolve's scripting bridge caps at 3.12)
+python3 --version   # 3.12 to 3.14 all work (P91); already on 3.14? Skip the brew install and use it.
+                    # Only the DaVinci Resolve live-control lane needs python3.12 (its bridge caps there).
 git --version
 ```
 

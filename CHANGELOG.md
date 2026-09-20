@@ -13,6 +13,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P91: formal Python 3.14 support. The validated interpreter set is now 3.12 through 3.14
+  (battery 13 of 13 gates under all three; all seven requirements files install cleanly on
+  3.14, including transcription and video). CI's guard job runs a 3.12 + 3.14 matrix; the
+  floor stays 3.12 because DaVinci Resolve's scripting bridge vendor-caps there, so that one
+  lane is documented 3.12-only. Honest residue tagged in SETUP_MAC: the mcp SDK import on a
+  3.14 FINAL could not be proven in the validation container (its 3.14.0rc2 predates the
+  typing API pydantic targets) and is closed by the Mac acceptance run. ADR 0064 records the
+  decisions.
 - P90: the standalone skill exporter (`tools/package_skill.py --standalone` /
   `--standalone-all`): every Creator OS skill references shared engine files, so a plain
   skill ZIP dangles on claude.ai's consumer skill upload -- the exporter bundles each skill's
@@ -133,6 +141,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors.
 
 ### Fixed
+- P91: the oversize-path boundary guards survive CPython 3.14. Python 3.14 changed
+  Path.exists()/is_file()/is_dir() to swallow errors like ENAMETOOLONG that 3.12 raised,
+  which silently turned four documented boundary refusals (tasks register load, the
+  obligations scan payload, the import parsers, the seed-sources path) into empty results
+  instead of their clean error envelopes -- a semantic regression, not a test nit. Each
+  boundary now probes with a version-proof stat()-based helper (absent reads False;
+  unprobeable raises, because an unprobeable path is unreadable, not empty). The four
+  pre-existing selftest pins are the detector proof: failing under unfixed 3.14, passing
+  after, still passing under 3.12 and 3.13. The setup selftest also became portable: pip and
+  venv-resolvability checks skip with a printed reason on interpreter builds that cannot
+  prove them (a standalone 3.14 rc with broken ensurepip and non-executable venvs), never
+  silently pass. The full battery now runs 13 of 13 gates under 3.12, 3.13, AND 3.14.
 - P89: the cross-modality record's stale spots are squared. DEPLOYMENT.md's first-run
   checklist no longer claims to cover the browser-only options, and its MCP smoke test is the
   full three-message handshake instead of the bare tools/list the P85 audit proved broken

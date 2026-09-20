@@ -2,8 +2,15 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P90 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P91 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P91: formal Python 3.14 support (2026-09-20, docs/adr/0064-p91-python-314-support.md).
+  CPython 3.14's Path.exists() behavior change had silently turned four boundary refusals
+  into empty results; each now probes through a version-proof stat() helper, with the
+  pre-existing selftest pins as the fail-then-pass detector proof. Battery 13 of 13 under
+  3.12, 3.13, AND 3.14; all seven requirements files install on 3.14; CI guards 3.12 + 3.14.
+  The floor stays 3.12 (Resolve lane vendor cap). Residue: the mcp SDK on a 3.14 FINAL is
+  tagged, closed by the owner's Mac acceptance run (setup + battery + wizard verify).
 - P90: the wizard DOES the web setup (2026-09-20, docs/adr/0063-p90-wizard-doing-lanes.md).
   Guided lanes for the two big web surfaces: /chatgpt-setup (plan picker, copy-to-clipboard
   for every paste with live counts split by the exact surface_budgets parser, a staged

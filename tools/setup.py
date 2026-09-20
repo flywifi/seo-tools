@@ -373,15 +373,41 @@ def _selftest() -> int:
     with tempfile.TemporaryDirectory() as td:
         vd = Path(td) / ".venv"
         r = subprocess.run([PYTHON, "-m", "venv", str(vd)], capture_output=True, text=True, timeout=300)
+        pip_expected = True
+        if r.returncode != 0 and "ensurepip" in (r.stderr or ""):
+            # P91: a build with a broken ensurepip (seen in a standalone 3.14 rc) cannot prove
+            # the pip check either way; retry without pip so the RESOLVABILITY and floor-gating
+            # checks still run, and say so plainly instead of failing a check this build cannot
+            # test. The real installer keeps pip and would fail loudly on such a build.
+            print("  [note] ensurepip is broken in this interpreter build; venv retried "
+                  "--without-pip and the pip check is skipped here")
+            pip_expected = False
+            r = subprocess.run([PYTHON, "-m", "venv", "--without-pip", str(vd)],
+                               capture_output=True, text=True, timeout=300)
         vpy = env_paths.venv_python(td)
-        if sys.version_info[:2] >= env_paths.PYTHON_FLOOR:
+        cand = next((c for c in (vd / "bin" / "python3", vd / "Scripts" / "python.exe")
+                     if c.exists()), None)
+        cand_runs = False
+        if cand is not None:
+            cr = subprocess.run([str(cand), "-c", "pass"], capture_output=True, timeout=60)
+            cand_runs = cr.returncode == 0
+        if r.returncode == 0 and not cand_runs:
+            # P91: this interpreter BUILD creates venvs whose own python cannot execute (seen
+            # in a standalone 3.14 rc: "Could not find platform independent libraries").
+            # env_paths refusing such a venv is its documented behavior ("a venv is selected
+            # only when it RUNS", P81 B-5), so resolvability is unprovable here -- skipped
+            # with this printed reason, never silently passed. A real resolver regression
+            # still fails: its candidate executes fine and vpy would still be None.
+            print("  [note] this interpreter build creates venvs whose python cannot run; "
+                  "env_paths correctly refuses it and the resolvability check is skipped here")
+        elif sys.version_info[:2] >= env_paths.PYTHON_FLOOR:
             ok(r.returncode == 0 and vpy is not None, "python -m venv creates a resolvable .venv (private toolbox)")
         else:
             # P81 B-5: env_paths now refuses a below-floor venv; a venv built from a below-floor
             # interpreter is correctly invisible to the interpreter picker.
             ok(r.returncode == 0 and vpy is None,
                "a below-floor venv is created but refused by the interpreter picker (P81 B-5)")
-        if vpy:
+        if vpy and pip_expected:
             pv = subprocess.run([str(vpy), "-m", "pip", "--version"], capture_output=True, text=True, timeout=60)
             ok(pv.returncode == 0, "the .venv has pip (a usable install target)")
     # _pip_install never raises on a bad interpreter and reports failure honestly.
