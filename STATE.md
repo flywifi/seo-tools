@@ -2,8 +2,18 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P89 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P90 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P90: the wizard DOES the web setup (2026-09-20, docs/adr/0063-p90-wizard-doing-lanes.md).
+  Guided lanes for the two big web surfaces: /chatgpt-setup (plan picker, copy-to-clipboard
+  for every paste with live counts split by the exact surface_budgets parser, a staged
+  upload folder holding precisely the plan's files, paste-back verification of the three
+  acceptance prompts through the new tools/paste_check.py with per-failure fix advice) and
+  /claudeai-setup (the four doors as actions, shared verification). The standalone skill
+  exporter makes the claude.ai skill-upload door real: referenced engine files bundled into
+  each ZIP with references rewritten, dangling references refused, plain-zip defect proven
+  first in the selftest. First JavaScript in the wizard (one page-authored copy function;
+  content escaping pinned); screen sweep 31 to 37; persona audit covers the six new screens.
 - P89: cross-surface onboarding on the merged-Claude model (2026-09-20,
   docs/adr/0062-p89-web-onboarding-in-the-pack.md). The September surface changes are banked
   (nine T1 support-article seeds, headlined by the 2026-09-16 merge of Claude chat and Cowork

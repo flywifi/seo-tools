@@ -2401,7 +2401,7 @@ what to fix.</p>
 """, dots=["done", "done", "done", "active"])
 
 
-def _screen_claude_setup(staged: str = "", error: str = "") -> str:
+def _screen_claude_setup(staged: str = "", error: str = "", built: str = "") -> str:
     """The claude.ai doing lane (P90): the four doors with their actions, not prose."""
     try:
         sp = (ROOT / "implementation" / "claude" / "project" /
@@ -2452,8 +2452,20 @@ repository, choose the folder <code>implementation/claude/project/</code>.</li>
 only the combined-alternative file -- one or the other, never both.</p>
 
 <h2>Door 4: individual skill uploads</h2>
-<p>Settings, then Capabilities (enable code execution), then Customize, then Skills. Only
-self-contained skill ZIPs work standalone; most Creator OS skills need the plugin door.</p>
+<p>Settings, then Capabilities (enable code execution), then Customize, then Skills. Creator OS
+skills reference shared engine files, so a plain skill ZIP dangles -- the wizard builds
+STANDALONE zips with the referenced engine text bundled in and the references rewritten:</p>
+<form method="POST" action="/api/build-skill-zips">
+<button class="btn btn-secondary" type="submit" style="margin:0 0 10px 0">Build upload-ready
+skill ZIPs (all skills)</button>
+</form>
+{(f'<div class="success-box">{html.escape(built)}</div>'
+  '<form method="POST" action="/api/open-bundle" style="margin-bottom:10px">'
+  '<input type="hidden" name="surface" value="standalone">'
+  '<button class="btn btn-secondary" type="submit" style="margin:0">Open the ZIPs folder'
+  '</button></form>') if built else ''}
+<p class="hint">Upload a ZIP under Customize, then Skills (rename .zip is already the format).
+Multi-skill orchestration still needs the plugin door; each ZIP says so inside.</p>
 
 <h2>Connect Google Workspace</h2>
 <p><strong>Customize</strong>, then <strong>Connectors</strong>, find Google Workspace, click
@@ -3599,8 +3611,17 @@ anything, and closing this window does not stop the work.</p>
         if path == "/api/open-bundle":
             data = self._read_form()
             surface = data.get("surface", "")
-            if surface not in ("chatgpt", "claudeai"):
+            if surface not in ("chatgpt", "claudeai", "standalone"):
                 self._send("<h1>Bad request</h1><p>Unknown bundle surface.</p>", status=400)
+                return
+            if surface == "standalone":
+                dest = ROOT / "dist" / "standalone"
+                if not dest.is_dir():
+                    self._send(_screen_claude_setup(
+                        error="Build the skill ZIPs first, then open the folder."), status=400)
+                    return
+                _open_url(str(dest))
+                self._send(_screen_claude_setup(built=f"ZIPs folder: {dest}"))
                 return
             screen = _screen_gpt_knowledge if surface == "chatgpt" else _screen_claude_setup
             dest = _BUNDLE_ROOT / surface
@@ -3609,6 +3630,23 @@ anything, and closing this window does not stop the work.</p>
                 return
             _open_url(str(dest))
             self._send(screen(staged=str(dest)))
+            return
+
+        if path == "/api/build-skill-zips":
+            # P90: build standalone skill ZIPs (engine references bundled + rewritten).
+            # Sub-second over the whole roster, so synchronous like the bundle stager.
+            import package_skill as _pk
+            built_n, skipped = 0, []
+            for d in _pk.skill_dirs():
+                out, info = _pk.package_standalone(d)
+                if out is None:
+                    skipped.append(f"{d.name} ({info})")
+                else:
+                    built_n += 1
+            msg = f"Built {built_n} upload-ready skill ZIP(s) in dist/standalone/."
+            if skipped:
+                msg += f" Skipped {len(skipped)}: " + "; ".join(skipped[:3])
+            self._send(_screen_claude_setup(built=msg))
             return
 
         if path == "/api/verify-answer":

@@ -6,6 +6,10 @@ Business/Enterprise/Edu workspaces (2026), this is the recommended ChatGPT home 
 Plus/Pro account. Knowledge-only mode: no live tools here (the upgrade paths are Claude Desktop +
 MCP, or the deployed MCP connector in ChatGPT developer mode).
 
+Fastest path: the setup wizard on the maintainer's computer (`python3 tools/wizard.py`, the
+ChatGPT button) copies each paste, stages the exact upload folder for the plan, and verifies
+the result against the acceptance prompts below. The manual steps:
+
 ## Setup (one time, about five minutes)
 
 1. In ChatGPT, open the sidebar and click **New project**. Name it "Creator OS".

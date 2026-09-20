@@ -126,6 +126,12 @@ with a system-prompt copy button and its own "Stage my upload folder" (nine know
 plus the one-file combined alternative, with the README explaining one-or-the-other), and the
 skill-ZIP door -- followed by the same three paste-back verification tests under their own
 state keys, reported on the Done page. The claude.ai overview screen links the lane first.
+The skill-ZIP door carries a "Build upload-ready skill ZIPs" button: every Creator OS skill
+references shared engine files, so a plain skill ZIP dangles -- the build
+(`tools/package_skill.py --standalone-all`, sub-second for the whole roster) bundles each
+skill's referenced engine and protocol files under `references/upstream/` inside the ZIP and
+rewrites the references to point there, with an honesty note inside stating what does not
+travel (multi-skill orchestration needs the plugin door).
 
 ### Publishing setup (YouTube, Instagram, TikTok, Pinterest)
 

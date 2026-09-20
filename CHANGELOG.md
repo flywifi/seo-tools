@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P90: the standalone skill exporter (`tools/package_skill.py --standalone` /
+  `--standalone-all`): every Creator OS skill references shared engine files, so a plain
+  skill ZIP dangles on claude.ai's consumer skill upload -- the exporter bundles each skill's
+  referenced engine and protocol files under references/upstream/ inside the ZIP and rewrites
+  the references in the packaged copy only (longest-first so a rewritten path is never
+  re-hit), refuses dangling references, and drops an honesty note stating that multi-skill
+  orchestration still needs the plugin. Selftest first proves the plain-zip defect, then the
+  fix; the whole 130-skill roster builds in under a second, so the wizard's claude.ai lane
+  carries a synchronous "Build upload-ready skill ZIPs" button. ADR 0063 records the P90
+  doing-lane design.
 - P90: the wizard's guided claude.ai lane (`/claudeai-setup`): the four doors as one action
   screen (marketplace link and system prompt as copy buttons, the GitHub-fed Project's exact
   click-path, staged upload folder with the nine files plus the combined-file alternative),
