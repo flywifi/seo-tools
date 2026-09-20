@@ -13,6 +13,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P90: `tools/paste_check.py`, the paste-back acceptance verifier for the wizard's web-surface
+  lanes: three pure verdict functions mirroring the ChatGPT/claude.ai acceptance prompts
+  (routing and voice, no-fabrication, honest degradation) over a pasted assistant answer, with
+  the banned-opener corpus transcribed from the voice engine and a hermetic selftest that
+  proves each detector fails on a bad fixture before passing a compliant one. Verdicts advise
+  with a stated reason; the human decides.
 - P89: a ninth knowledge file, `09-setup-and-surfaces.md`, teaches a claude.ai or ChatGPT
   Project to walk its own user through setup: which Claude they are in after the 2026-09-16
   chat/Cowork merge, the four claude.ai doors (plugin marketplace, GitHub-connected Project,
