@@ -71,3 +71,4 @@ added beyond what those records state. New decisions get the next number via
 | [0060](0060-p84-custom-gpt-retirement-stance.md) | Custom GPT retirement: keep export-gpt, steer new setups elsewhere | 2026-09-19 | Accepted |
 | [0061](0061-p85-wizard-first-run-readiness.md) | Wizard first-run readiness: verified completion, resume, and the server it forgot | 2026-09-19 | Accepted |
 | [0062](0062-p89-web-onboarding-in-the-pack.md) | Web onboarding ships inside the knowledge pack, on the merged-Claude surface model | 2026-09-20 | Accepted |
+| [0063](0063-p90-wizard-doing-lanes.md) | The wizard DOES the web setup: guided lanes that copy, stage, and verify | 2026-09-20 | Accepted |

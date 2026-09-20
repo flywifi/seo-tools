@@ -199,6 +199,69 @@ def package(skill_dir):
     return True
 
 
+# P90: repo-root references a skill makes to canonical engine/protocol files. In-repo these
+# resolve (the drift guard enforces it); in a lone uploaded ZIP they dangle, which is why zero
+# skills survive standalone upload without this exporter.
+_REF_RE = re.compile(r"\b(?:shared|protocols)/[\w][\w./-]*\.md\b")
+_TEXT_SUFFIXES = {".md", ".json", ".txt", ".yaml", ".yml"}
+_STANDALONE_NOTE = (
+    "This is a STANDALONE export of one Creator OS skill for uploading to claude.ai\n"
+    "(Customize > Skills). The shared engine and protocol files it references are bundled\n"
+    "under references/upstream/ and the references are rewritten to point there, so the\n"
+    "skill's knowledge travels intact. What does NOT travel: multi-skill orchestration\n"
+    "(workflows composing other skills) -- that needs the Creator OS plugin or the computer\n"
+    "setup. Source and updates: github.com/flywifi/seo-tools\n")
+
+
+def package_standalone(skill_dir, dist_root=None, repo_root=ROOT):
+    """Build <dist>/standalone/<name>.zip: the skill plus embedded copies of every shared/ or
+    protocols/ markdown file its text files reference, with the references rewritten to the
+    embedded path IN THE PACKAGED COPY ONLY (a build transform, same class as the combined
+    knowledge pack; repo files are untouched). Returns (out_path, sorted_refs) on success or
+    (None, reason). A referenced file missing on disk is a refusal, not a silent drop."""
+    skill_dir = Path(skill_dir)
+    ok, reason = valid(skill_dir)
+    if not ok:
+        return None, f"{skill_dir.name}: {reason}"
+    try:
+        files = _source_files(skill_dir)
+    except UntrackedSkill as exc:
+        return None, str(exc)
+    texts, refs = {}, set()
+    for r in files:
+        p = skill_dir / r
+        if p.suffix in _TEXT_SUFFIXES:
+            t = p.read_text(encoding="utf-8", errors="replace")
+            texts[r] = t
+            for m in _REF_RE.finditer(t):
+                refs.add(m.group(0))
+    missing = [x for x in sorted(refs) if not (Path(repo_root) / x).is_file()]
+    if missing:
+        return None, f"{skill_dir.name}: referenced file(s) missing on disk: {missing}"
+    rewrite = {ref: f"references/upstream/{ref}" for ref in refs}
+    dist = Path(dist_root) if dist_root else DIST
+    out_dir = dist / "standalone"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{skill_dir.name}.zip"
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        for r in files:
+            arc = str(Path(skill_dir.name) / r)
+            if r in texts:
+                body = texts[r]
+                # Longest ref first, so one rewritten path can never be re-hit by a shorter
+                # ref that happens to be its substring.
+                for ref in sorted(rewrite, key=len, reverse=True):
+                    body = body.replace(ref, rewrite[ref])
+                zf.writestr(arc, body)
+            else:
+                zf.write(skill_dir / r, arc)
+        for ref in sorted(refs):
+            zf.write(Path(repo_root) / ref,
+                     str(Path(skill_dir.name) / "references" / "upstream" / ref))
+        zf.writestr(str(Path(skill_dir.name) / "STANDALONE-NOTE.txt"), _STANDALONE_NOTE)
+    return out, sorted(refs)
+
+
 def selftest():
     import tempfile
     checks = []
@@ -256,6 +319,42 @@ def selftest():
         ok("a downloaded (non-git) copy filters noise instead of refusing",
            _source_files(copy) == [Path("SKILL.md"), Path("notes.md")])
         shutil.rmtree(copy_parent)
+        # P90: the standalone exporter. First the failing state the exporter exists to fix
+        # (detector-can-fail proof): a PLAIN zip of a skill that references a shared engine
+        # dangles -- the token is inside, the engine is not.
+        eng = root / "shared" / "fixture-engine.md"
+        eng.parent.mkdir(parents=True, exist_ok=True)
+        eng.write_text("engine body", encoding="utf-8")
+        beta = root / "skills" / "beta"
+        (beta / "SKILL.md").write_text(fm.format(n="beta")
+                                       + "\nLoad shared/fixture-engine.md first.\n",
+                                       encoding="utf-8")
+        subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+        plain = root / "beta-plain.zip"
+        with zipfile.ZipFile(plain, "w") as zf:
+            for r in _source_files(beta):
+                zf.write(beta / r, str(Path("beta") / r))
+        _pz = zipfile.ZipFile(plain)
+        ok("PLAIN zip dangles: the reference is inside, the engine is not (the P90 defect)",
+           "shared/fixture-engine.md" in _pz.read("beta/SKILL.md").decode("utf-8")
+           and not any("fixture-engine" in n for n in _pz.namelist()))
+        outp, refs = package_standalone(beta, dist_root=root / "dist", repo_root=root)
+        _sz = zipfile.ZipFile(outp)
+        _body = _sz.read("beta/SKILL.md").decode("utf-8")
+        ok("standalone zip bundles the engine under references/upstream/",
+           "beta/references/upstream/shared/fixture-engine.md" in _sz.namelist())
+        ok("standalone SKILL.md points at the bundled copy, no repo-root token left",
+           "references/upstream/shared/fixture-engine.md" in _body
+           and not re.search(r"(?<!references/upstream/)\bshared/fixture-engine\.md", _body))
+        ok("standalone zip carries the honesty note",
+           "beta/STANDALONE-NOTE.txt" in _sz.namelist())
+        (beta / "SKILL.md").write_text(fm.format(n="beta")
+                                       + "\nLoad shared/missing-engine.md first.\n",
+                                       encoding="utf-8")
+        subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+        outp, reason = package_standalone(beta, dist_root=root / "dist", repo_root=root)
+        ok("a dangling reference is a refusal, never a silent drop",
+           outp is None and "missing" in str(reason))
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -277,6 +376,30 @@ def main(argv):
         results = [package(d) for d in skill_dirs()]
         print(f"packaged {sum(results)}/{len(results)} skills")
         return 0 if all(results) else 1
+    if "--standalone-all" in argv:
+        oks = 0
+        dirs = list(skill_dirs())
+        for d in dirs:
+            out, info = package_standalone(d)
+            if out is None:
+                print(f"  SKIP {d.name}: {info}")
+            else:
+                oks += 1
+        print(f"standalone-packaged {oks}/{len(dirs)} skills -> {DIST / 'standalone'}")
+        return 0 if oks else 1
+    if "--standalone" in argv:
+        i = argv.index("--standalone")
+        name = argv[i + 1] if len(argv) > i + 1 else ""
+        matches = [d for d in skill_dirs() if d.name == name]
+        if not matches:
+            print(f"no skill named {name!r}")
+            return 1
+        out, info = package_standalone(matches[0])
+        if out is None:
+            print(f"REFUSE {name}: {info}")
+            return 1
+        print(f"OK {name} -> {out} (bundled {len(info)} referenced file(s))")
+        return 0
     name = argv[0]
     matches = [d for d in skill_dirs() if d.name == name]
     if not matches:

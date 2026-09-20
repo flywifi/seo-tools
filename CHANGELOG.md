@@ -13,6 +13,37 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P90: the standalone skill exporter (`tools/package_skill.py --standalone` /
+  `--standalone-all`): every Creator OS skill references shared engine files, so a plain
+  skill ZIP dangles on claude.ai's consumer skill upload -- the exporter bundles each skill's
+  referenced engine and protocol files under references/upstream/ inside the ZIP and rewrites
+  the references in the packaged copy only (longest-first so a rewritten path is never
+  re-hit), refuses dangling references, and drops an honesty note stating that multi-skill
+  orchestration still needs the plugin. Selftest first proves the plain-zip defect, then the
+  fix; the whole 130-skill roster builds in under a second, so the wizard's claude.ai lane
+  carries a synchronous "Build upload-ready skill ZIPs" button. ADR 0063 records the P90
+  doing-lane design.
+- P90: the wizard's guided claude.ai lane (`/claudeai-setup`): the four doors as one action
+  screen (marketplace link and system prompt as copy buttons, the GitHub-fed Project's exact
+  click-path, staged upload folder with the nine files plus the combined-file alternative),
+  then the same paste-back verification under claude-side state keys, shared card renderer
+  with the ChatGPT lane, persona-audited, with a verdict-wiring pin.
+- P90: the wizard's guided ChatGPT lane (`/chatgpt-setup`): a plan picker that tailors every
+  later step, copy-to-clipboard for every paste artifact (the wizard's first JavaScript; one
+  page-authored function, all rendered content still escaped) with live character counts
+  split by the exact surface_budgets parser, a staged upload folder under gitignored
+  `dist/upload-bundle/` holding precisely the files the plan fits with an Open-the-folder
+  button, and paste-back verification of the three acceptance prompts with per-failure fix
+  advice and verified state on the Done page. Selftest pins: box-split agreement with the
+  budget gate, exact per-plan bundle contents (free 7, plus 11, claudeai 12 entries, unknown
+  surface refused), failing verdicts never set the acceptance flag, copy blocks escape script
+  content, and lane reset leaves no state behind.
+- P90: `tools/paste_check.py`, the paste-back acceptance verifier for the wizard's web-surface
+  lanes: three pure verdict functions mirroring the ChatGPT/claude.ai acceptance prompts
+  (routing and voice, no-fabrication, honest degradation) over a pasted assistant answer, with
+  the banned-opener corpus transcribed from the voice engine and a hermetic selftest that
+  proves each detector fails on a bad fixture before passing a compliant one. Verdicts advise
+  with a stated reason; the human decides.
 - P89: a ninth knowledge file, `09-setup-and-surfaces.md`, teaches a claude.ai or ChatGPT
   Project to walk its own user through setup: which Claude they are in after the 2026-09-16
   chat/Cowork merge, the four claude.ai doors (plugin marketplace, GitHub-connected Project,

@@ -94,6 +94,7 @@
       ],
       "setup_steps": [
         "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20); rollout is staged from Pro and Max, so accounts may still show the pre-merge UI for a while. Skills, plugins, and connectors work from any conversation in the merged experience.",
+        "Fastest path: the setup wizard's guided claude.ai lane (python3 tools/wizard.py on the maintainer's computer) walks the four doors with copy buttons, a staged upload folder, and paste-back verification (P90).",
         "Best door on a paid plan: install the Creator OS plugin (Customize, then Plugins; a GitHub-repo marketplace can be added by URL per support article 13837440). Skills and connectors then work in any conversation; deeper automation runs in agentic sessions.",
         "Knowledge door, any plan: add the Creator OS knowledge files to a claude.ai Project, either by uploading them or by connecting the GitHub repository to the Project's knowledge and selecting implementation/claude/project/ (sync is manual via Sync now; support article 10167454). Free plans are capped at five projects (support article 9517075).",
         "Individual skills, any plan: enable code execution (Settings, then Capabilities), then upload a self-contained skill ZIP under Customize, then Skills (support article 12512180). Skills that reference repo-root shared/ paths need the plugin door instead.",
@@ -191,6 +192,7 @@
       ],
       "origins": [],
       "setup_steps": [
+        "Fastest path: the setup wizard on the maintainer's computer (python3 tools/wizard.py, the ChatGPT button) copies each paste, stages the exact upload folder for the plan, and verifies the setup from pasted answers (P90).",
         "Open ChatGPT Settings, then Personalization, then Custom Instructions.",
         "Paste the two boxes from implementation/gpt/web/custom-instructions.md (the file tells you which text goes in which box).",
         "This is knowledge-only mode: no live data, no local tools, no capability flags. Numbers you did not supply in the chat are never real Creator OS data.",
@@ -249,6 +251,7 @@
       ],
       "origins": [],
       "setup_steps": [
+        "Fastest path: the setup wizard on the maintainer's computer (python3 tools/wizard.py, the ChatGPT button) copies each paste, stages the exact upload folder for the plan, and verifies the setup from pasted answers (P90).",
         "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats (best set at creation; an existing unshared project can be switched later [NEEDS VERIFICATION: switching reported 2026-08-14; help center not machine-fetchable]).",
         "Set the Project instructions to implementation/gpt/project/project-instructions.md (paste the whole file).",
         "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per simultaneous upload. On Free the full bundle does not fit; upload the first 5 (01 through 05) instead.",

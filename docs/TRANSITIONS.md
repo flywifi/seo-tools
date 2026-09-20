@@ -4,7 +4,9 @@ Creator OS runs best where your files live, but you can carry it to any AI surfa
 what travels, what stops working, and what to re-import. This doc mirrors the machine source of
 truth at `shared/cross-modality/transitions.json`; the setup wizard's `/transitions` screen
 renders any from/to pair from the same data (run `python3 tools/wizard.py` and pick "I use more
-than one"). Anything tagged `[NEEDS VERIFICATION: ...]` depends on your ChatGPT or Gemini plan
+than one"). Since P90 the wizard also carries guided DOING lanes for the two big web surfaces
+(`/chatgpt-setup` and `/claudeai-setup`): copy buttons for every paste, a staged upload folder,
+and paste-back verification -- the surface rows below note them as the fastest path. Anything tagged `[NEEDS VERIFICATION: ...]` depends on your ChatGPT or Gemini plan
 and must be checked against your own account; the repo does not assert it.
 
 ## The eleven surfaces

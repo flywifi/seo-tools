@@ -43,9 +43,10 @@ tab for a while; this Project behaves the same either way. Claude Docs and Claud
    `creator-os-combined.md` -- one or the other, not both. See "Getting the files" below.
 4. **Individual skill uploads (any plan).** Enable code execution under Settings, then
    Capabilities ("Code execution and file creation"), then upload a skill ZIP under Customize,
-   then Skills. Only self-contained skills work this way; most Creator OS skills load shared
-   engine files from the repository and need the plugin door instead. If the file picker
-   refuses a `.skill` file, rename it to `.zip` first.
+   then Skills. Plain skill files reference shared engine files and dangle on their own, so
+   ask the maintainer to build the STANDALONE zips: the setup wizard's claude.ai screen has a
+   one-click "Build upload-ready skill ZIPs" button that bundles each skill's engine text
+   inside. Multi-skill orchestration still needs the plugin door.
 
 ## Finishing a claude.ai Project (5 minutes, no terminal)
 
@@ -66,7 +67,9 @@ tab for a while; this Project behaves the same either way. Claude Docs and Claud
 
 ## Finishing a ChatGPT Project
 
-Same files, different door: New project, choose project-only memory, paste
+Fastest path: on the maintainer's computer, the setup wizard (`python3 tools/wizard.py`, the
+ChatGPT button) copies each paste for you, stages the exact upload folder for the plan, and
+then verifies the setup from pasted answers. The manual path: same files, different door: New project, choose project-only memory, paste
 `project-instructions.md` (from `implementation/gpt/project/`) as the project instructions,
 then upload the same numbered knowledge files. Plan file caps (confirmed 2026-09-19): 5 on
 Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per

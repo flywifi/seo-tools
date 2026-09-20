@@ -1,5 +1,9 @@
 # Creator OS — ChatGPT Custom Instructions Setup
 
+Fastest path: run the setup wizard on the maintainer's computer (`python3 tools/wizard.py`,
+the ChatGPT button) — it copies each paste for you with live size checks, stages the exact
+upload folder for your plan, and verifies the setup from pasted answers. The manual steps:
+
 ## Setup
 
 1. Open ChatGPT → click your profile → Settings → Personalization → Custom Instructions.
