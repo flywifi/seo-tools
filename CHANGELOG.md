@@ -12,6 +12,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ## [Unreleased]
 
+### Added
+- P93: drift invariant 59 (install-scope policy). The guard scans the live setup guidance
+  for sudo package commands, brew install, npm install -g, the pip system-override flag,
+  and command-anchored pip install lines, and fails the build on any hit without the
+  "machine-wide"/"whole computer" label within two lines. The detector self-proves on
+  embedded fail-then-pass fixtures (including the two anchored-pip edge cases) before every
+  scan. Invariant count 57 to 58. ADR 0065 records the policy decisions.
+
 ### Changed
 - P93: every install instruction across the live guidance defaults to user-scoped. The new
   policy page docs/INSTALL-SCOPE.md states the rule (home folder only, no sudo, no

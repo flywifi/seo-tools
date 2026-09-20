@@ -138,6 +138,11 @@ Invariants enforced:
       audited in canonical-sources/mac-surface-manifest.json at a recorded sha256, or
       listed in its `excluded` map with a reason. Two-way: a new Mac surface fails as
       unaudited; an edited audited surface fails as changed. tools/mac_surface_manifest.py.
+  59. Install-scope policy (P93): every machine-wide install instruction in the live setup
+      guidance (sudo package commands, brew install, npm install -g, the pip system-override
+      flag, command-anchored pip install) carries the "machine-wide"/"whole computer" label
+      within two lines, so user-scoped stays the default. Policy: docs/INSTALL-SCOPE.md.
+      The detector self-proves on embedded fail-then-pass fixtures before every scan.
 """
 import ast
 import json
@@ -3155,6 +3160,93 @@ def check_mac_surface_completeness():
                  f"MAC_SIGNALS (then re-bless) or confirm the file is not a Mac surface.")
 
 
+def check_install_scope():
+    """Invariant 59: install-scope policy (P93). Every machine-wide install instruction in the
+    LIVE setup guidance -- a sudo package command, `brew install`, `npm install -g`, the pip
+    system-override flag, or a command-anchored pip install line -- must carry the label
+    "machine-wide" or "whole computer" within two lines, so the user-scoped default
+    (docs/INSTALL-SCOPE.md: home folder only, repo .venv, ~/.local, ~/.nvm) can never silently
+    stop being the default. The scanned set is the guidance a person actually follows; exempt by
+    design (historical or third-party records, not our guidance): docs/adr/, CHANGELOG.md,
+    STATE.md, the dated audit records under ledger/, and the video-tooling evaluation records
+    (docs/VIDEO_TOOLING_EVAL*, docs/video-tooling-*). The detector proves itself before scanning:
+    an embedded unlabeled fixture must flag, its labeled twin must not, prose mentioning
+    "no real pip install" must not, and an instruction line "Run: pip install uv" must -- a
+    detector that cannot fail reports a problem instead of a verdict."""
+    live_guidance = [
+        "README.md",
+        "docs/SETUP_MAC.md",
+        "docs/DEPENDENCIES.md",
+        "docs/MAC-VALIDATION.md",
+        "docs/WIZARD.md",
+        "docs/DEPLOYMENT.md",
+        "docs/TRANSITIONS.md",
+        "docs/INSTALL-SCOPE.md",
+        "docs/MACOS-MAINTENANCE.md",
+        "docs/wizard/screenshot-guide.md",
+        "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
+        "implementation/claude/desktop/README.md",
+        "tools/wizard.py",
+        "tools/transcribe.py",
+        "tools/setup.py",
+        "shared/cross-modality/transitions.json",
+    ]
+    pattern = re.compile(
+        r"(sudo\s+(?:apt|apt-get|dnf|yum|pacman|zypper|installer|softwareupdate"
+        r"|xcode-select|npm|pip3?|sh|bash|make)\b"
+        r"|brew install|npm install -g|--break-system-" r"packages"
+        r"|(?:^|[>`\"'\(:;\$]|\s{2}|Run: )\s*pip3? install\b)")
+    label = re.compile(r"(whole computer|machine-wide)", re.I)
+
+    def scan(lines):
+        hits = []
+        for i, line in enumerate(lines):
+            m = pattern.search(line)
+            if not m:
+                continue
+            window = lines[max(0, i - 2): i + 3]
+            if any(label.search(w) for w in window):
+                continue
+            hits.append((i + 1, m.group(0).strip() or line.strip()))
+        return hits
+
+    # Detector self-proof (fail-then-pass + the two anchored-pip edge fixtures).
+    unlabeled = ["Install the engine:", "", "brew install ffmpeg", "", "done"]
+    labeled = ["Machine-wide alternative (affects the whole computer):", "",
+               "brew install ffmpeg", "", "done"]
+    prose_edge = ["The installer relies on the repo .venv, so no real pip install",
+                  "ever touches the base interpreter."]
+    command_edge = ["Run: pip install uv"]
+    if len(scan(unlabeled)) != 1:
+        problem("install-scope: detector self-proof failed -- the unlabeled brew fixture did not flag")
+        return
+    if scan(labeled):
+        problem("install-scope: detector self-proof failed -- the labeled fixture flagged")
+        return
+    if scan(prose_edge):
+        problem("install-scope: detector self-proof failed -- prose 'no real pip install' flagged")
+        return
+    if len(scan(command_edge)) != 1:
+        problem("install-scope: detector self-proof failed -- 'Run: pip install uv' did not flag")
+        return
+
+    for rel in live_guidance:
+        p = ROOT / rel
+        if not p.exists():
+            problem(f"install-scope: scanned guidance file {rel} is missing; update the "
+                    f"live_guidance list in check_install_scope() deliberately, never by absence")
+            continue
+        try:
+            lines = p.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            problem(f"install-scope: {rel} could not be read: {exc}")
+            continue
+        for lineno, frag in scan(lines):
+            problem(f"install-scope: {rel}:{lineno}: unlabeled machine-wide install: {frag} "
+                    f"(lead with the user-scoped route, or put 'machine-wide alternative "
+                    f"(affects the whole computer)' within two lines; docs/INSTALL-SCOPE.md)")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -3212,6 +3304,7 @@ def main():
     check_surface_origin_completeness()
     check_registry_content_digest()
     check_eval_output_keys()
+    check_install_scope()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

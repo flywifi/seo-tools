@@ -105,7 +105,7 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   `.venv`, `~/.local`, `~/Applications`, `~/Library`); nothing under `/Applications`,
   `/opt/homebrew`, or via `sudo` unless explicitly labeled "machine-wide alternative (affects
   the whole computer)". Policy, approved locations, and the one exception (Apple CLT git):
-  `docs/INSTALL-SCOPE.md`. Drift invariant 58 enforces the labeling in live guidance; the
+  `docs/INSTALL-SCOPE.md`. Drift invariant 59 enforces the labeling in live guidance; the
   code side never writes into a machine-wide site-packages (the PEP 668 refusal in
   `tools/setup.py::_pip_install`).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
