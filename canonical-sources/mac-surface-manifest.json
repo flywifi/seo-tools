@@ -9,7 +9,7 @@
   },
   "files": {
     "AGENTS.md": "2ac6498873307949fe01bb80f8830090f6c091541da6d1fb69e2a4b8fed1a841",
-    "CLAUDE.md": "f2275ff486311576ff00ad3ef7045c0665f34e5c1d9d4525a6308bdc6965e9d1",
+    "CLAUDE.md": "4ca73ae90b2c6bbb75218dd0130820122fd74c4d51481ee079a2632c917d2ac6",
     "Start Creator OS Setup.bat": "e9c01d9d41b8e805a387146df1e2a9692b51224192f100f5316ea055a030b75e",
     "Start Creator OS Setup.command": "ca39fd0df9f87ce983db603f887f8ebb13118f1b697607147832f48ce08814be",
     "canonical-sources/data-currency-map.json": "c365ee84022c9d54cc0c80529cdef0c6788efcd92ef2099319c35af3b9b4be98",
@@ -82,6 +82,7 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "4e87fcde95a22a258002b673e0d5065ee3c40acef994a86626bbcb21524c6fb8",
     "tools/acquire.py": "a37ac480a88ebc8da389535c9a056a3ccc5f45e75427f7af691031d945c46f5b",
+    "tools/claim-proof-manifest.json": "fd88b5489a4c91a29957e15e68367f04dbef9555405ed8da966568c8d941e337",
     "tools/count_truth.py": "993c5932892d5c39b0d8a45867b29ef04650703348a7e8d4c16625c400273748",
     "tools/env_paths.py": "9bea11a8d9a7074e4873e0f52bbcc397d8648f79f3b07d6997c415405024396c",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",

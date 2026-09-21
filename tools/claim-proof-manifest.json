@@ -1,0 +1,183 @@
+{
+  "_comment": "P94 claim-proof binding (drift invariant 60, tools/sync_check.py::check_claim_proof). A universal claim about this repo's own behavior is a promise, and a promise ships with the executed proof that keeps it. `claims` bind a verbatim sentence to either an enforced drift invariant (`invariant:N`) or a NAMED selftest pin the battery actually runs (`tools/x.py::selftest::<label substring>`). `exempt` records a universal that no code can prove -- a standing instruction to the agent -- with a written reason. `routes` bind an install route the docs RECOMMEND to the code that must DETECT it. `corpus` is the guarded set: a universal claim there that appears in none of the three lists fails the build.",
+  "_why": "P93 shipped the commit subject 'no code path installs machine-wide' while the fallback it denied sat on line 138 of the file it changed, and shipped 'every remaining brew install sits under a label' while three live files did not. Both passed every existing guard, because documentation truth checks paths, symbols, counts, URLs and hashes, and a universal sentence names none of those.",
+  "corpus": {
+    "CLAUDE.md": {
+      "section": [
+        "## Non-negotiables",
+        "## Planning depth"
+      ]
+    },
+    "docs/INSTALL-SCOPE.md": {}
+  },
+  "claims": [
+    {
+      "doc": "CLAUDE.md",
+      "claim": "No em dashes in user-facing output",
+      "proof": "invariant:4",
+      "why": "check_formatting enforces the formatting rule over committed content; the doc itself states the enforcement is scoped to examples/."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "No real CRM data or PII committed to the repo",
+      "proof": "invariant:21",
+      "why": "check_secret_content reads every tracked text file; invariants 19 and 20 cover the filename and pipeline-allowlist halves."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Every spoke in the hub's downstream list exists; every atom a workflow names is installed.",
+      "proof": "invariant:6",
+      "why": "check_hub proves the spoke half and invariant 7 (check_workflows) proves the atom half."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is written only through `tools/registry_io.py`",
+      "proof": "invariant:42",
+      "why": "check_registry_writer_count counts the sanctioned writers, so a new out-of-band writer fails the build."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is the only tool that writes to `traversal-candidates.json`",
+      "proof": "invariant:42",
+      "why": "the registry-writer count gate covers the traversal store's single-writer rule as part of the same sanctioned-writer census."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Every registry entry carries a `default_flag`; drift invariant 53 executes the resolver",
+      "proof": "invariant:53",
+      "why": "check_connector_resolver_smoke executes the resolver over the committed registry, so a malformed entry fails."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "the code side never writes into a machine-wide site-packages at all",
+      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
+      "why": "the P93-4 pin asserts install_dependencies invokes pip zero times when no .venv exists; it fails against the P93-1 code, which installed all seven sets into the base interpreter."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Drift invariant 59 enforces the labeling across every tracked guidance file",
+      "proof": "invariant:59",
+      "why": "check_install_scope derives its denominator from git ls-files, so 'every tracked guidance file' is the scanned set rather than a hand list."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is gated behind the `live_publishing_enabled` flag (default off)",
+      "proof": "tools/publishing_compliance.py::selftest::live_publishing_enabled default should be False",
+      "why": "the named pin asserts the default directly; the human-confirmation half of that bullet is an agent directive and is exempted separately."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "no Creator OS tool ever writes into a machine-wide site-packages",
+      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
+      "why": "same executed pin as the CLAUDE.md non-negotiable; this is the policy page's statement of it."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Every remaining `brew install`",
+      "proof": "invariant:59",
+      "why": "the completeness half of this sentence is exactly what check_install_scope proves over the derived denominator; it was false when the denominator was a 16-file list."
+    }
+  ],
+  "exempt": [
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Never fabricate data, metrics, rates, brands, or sources",
+      "why": "A standing instruction to the agent about generated output, not a property of this repo's code. protocols/no-fabrication.md governs it and no guard can prove a negative about future generations."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Nothing is released until it passes the Quality Gates",
+      "why": "A release-process directive routed through the quality-review skill; there is no code path a drift invariant can execute to prove a human followed it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Claims about this repo's own behavior meet the same bar as a plan",
+      "why": "The claims rule itself, and it quotes the trigger words it governs. Invariant 60 enforces the rule; a self-binding entry would be circular, so it is exempted with this reason instead."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Installs are user-scoped by default: everything lands under the user's home folder",
+      "why": "The policy statement whose two provable halves are bound separately above (invariant 59 for the guidance labeling, the setup.py pin for the code side). This opening sentence is the summary of those bindings."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Agents never post directly",
+      "why": "A behavioral directive about how agents act, enforced by the human-confirmation step in schedule-post rather than by a guard that can execute the negative."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Those two fields are the only baselines it reads",
+      "why": "Describes dependency_currency's read surface, which invariant 25 constrains only at the requirements-versus-registry pin level; the read-surface half is maintainer documentation of the tool's design."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Everything Creator OS asks a person to download or install lands inside their own user",
+      "why": "The policy's opening statement of intent; its enforceable halves are bound above to invariant 59 and the setup.py pin rather than duplicated here."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "| the repo's `.venv/` | every Python package",
+      "why": "An approved-locations table row describing where packages land; the enforceable claim behind it is the setup.py venv-only pin bound above."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "caches (pip, Playwright's browser)",
+      "why": "A table row naming third-party cache locations those tools choose; this repo does not control them and no guard can assert their behavior."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "wizard state, staged bundles, `dist/` builds -- all gitignored",
+      "why": "A table row about gitignore coverage, which drift invariant 19 enforces for tracked .local. files; the row itself is descriptive."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "nvm, per its README install script",
+      "why": "A table row describing a third-party installer's documented behavior; the repo-side obligation (that we can find what it installs) is bound as a route record instead."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "already inside the repo `.venv` after `--install-deps`",
+      "why": "A table row naming the STT default; the enforceable half is the venv-only install pin bound above."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "none needed -- the repository is public",
+      "why": "A statement about GitHub repository visibility, verified out of band against the GitHub API in P92-2; no local guard can assert a remote's visibility."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "`shared/connectors/connectors.json` is the source of truth for the connector registry",
+      "why": "Names which file is authoritative for maintainers, a convention about where to edit; invariant 53 proves the committed registry resolves, not that no other file claims authority."
+    }
+  ],
+  "routes": [
+    {
+      "recommends": "astral.sh/uv/install.sh",
+      "in": [
+        "docs/INSTALL-SCOPE.md",
+        "docs/SETUP_MAC.md",
+        "tools/setup.py",
+        "tools/wizard.py",
+        "Start Creator OS Setup.command"
+      ],
+      "lands_in": ".local/bin",
+      "prober": [
+        "tools/env_paths.py::USER_BIN",
+        "Start Creator OS Setup.command"
+      ],
+      "why": "uv installs itself and `uv python install`'s pythonX.Y into ~/.local/bin (uv docs, Installing Python). P93 recommended this route while env_paths searched only the Homebrew prefixes and the launcher probed only machine-wide paths, so the Python its own message told the user to install was invisible."
+    },
+    {
+      "recommends": "nvm-sh/nvm",
+      "in": [
+        "docs/INSTALL-SCOPE.md",
+        "tools/wizard.py"
+      ],
+      "lands_in": "versions/node",
+      "prober": [
+        "tools/env_paths.py::NVM_NODE_SUBDIR"
+      ],
+      "why": "nvm keeps each node under $NVM_DIR/versions/node/<version>/bin (nvm.sh::nvm_version_path) and is sourced per shell. P93 made nvm the recommended Node route while env_paths could not see it, so the wizard looped users on 'Still not detecting Node.js 20 or higher' after issuing its own nvm command."
+    }
+  ]
+}

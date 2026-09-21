@@ -143,6 +143,12 @@ Invariants enforced:
       flag, command-anchored pip install) carries the "machine-wide"/"whole computer" label
       within two lines, so user-scoped stays the default. Policy: docs/INSTALL-SCOPE.md.
       The detector self-proves on embedded fail-then-pass fixtures before every scan.
+  60. Claim-proof binding (P94): a universal claim about this repo's own behavior inside the
+      guarded corpus (CLAUDE.md's non-negotiables, docs/INSTALL-SCOPE.md) is bound in
+      tools/claim-proof-manifest.json to an enforced invariant or a NAMED selftest pin the
+      battery executes, or carries a written-reason exemption. Route records additionally tie a
+      recommended install route to the code that detects it. A reverse enrolment sweep fails on
+      any unbound universal claim, so the promise list cannot grow unproven.
 """
 import ast
 import json
@@ -3356,6 +3362,335 @@ def check_install_scope():
                     f"docs/INSTALL-SCOPE.md)")
 
 
+# P94: the claim-proof detector. A universal claim about this repo's own behavior is a promise;
+# each branch below is a distinct way of making one, and the coverage proof exercises every branch
+# by name so deleting one fails the build rather than narrowing what the gate sees (the P70 lesson
+# from invariant 58, the P93 lesson from invariant 59).
+_CLAIM_BRANCHES = {
+    "never": r"\bnever\b",
+    "always": r"\balways\b",
+    "every": r"\bevery\b",
+    "all": r"\ball\b",
+    "no_ever": r"\bno\s+\w+(?:\s+\w+){0,3}\s+ever\b",
+    "nothing": r"\bnothing\b",
+    "only": r"\bonly\b",
+}
+_CLAIM_PATTERN = re.compile("|".join(f"(?P<{k}>{v})" for k, v in _CLAIM_BRANCHES.items()), re.I)
+_CLAIM_MANIFEST_PATH = ROOT / "tools" / "claim-proof-manifest.json"
+
+
+def _claim_symbol_value(pyfile, symbol):
+    """The string a module-level assignment binds, or None. Used so a route prober is checked on
+    the constant its detection actually reads rather than on the path appearing anywhere in the
+    file, comments included."""
+    try:
+        tree = ast.parse(Path(pyfile).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return None
+    for node in tree.body:
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, ast.AnnAssign) else [])
+        for tgt in targets:
+            if isinstance(tgt, ast.Name) and tgt.id == symbol:
+                val = node.value
+                if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                    return val.value
+    return None
+
+
+def _claim_norm(text):
+    """Whitespace-normalized text. A bound claim is matched on words, not line breaks: re-wrapping
+    a paragraph is not a change to the promise, but changing what it says is."""
+    return " ".join(text.split())
+
+
+def _claim_units(text, line_offset=0):
+    """(line, unit_text) for each claim UNIT in a markdown slice: a bullet, numbered item, table
+    row, or paragraph. Units, not lines, because a promise spans the lines of its bullet and a
+    reader binds the promise, not the line. Headings are titles, not promises, and are skipped."""
+    units, cur, start = [], [], None
+    for i, line in enumerate(text.splitlines(), start=line_offset + 1):
+        s = line.strip()
+        is_start = bool(s.startswith(("- ", "* ", "|")) or re.match(r"^\d+\. ", s) or s.startswith("#"))
+        if is_start or not s:
+            if cur:
+                units.append((start, " ".join(cur)))
+            cur, start = ([s], i) if s else ([], None)
+        else:
+            if not cur:
+                start = i
+            cur.append(s)
+    if cur:
+        units.append((start, " ".join(cur)))
+    return [(ln, u) for ln, u in units if not u.lstrip().startswith("#")]
+
+
+def _claim_corpus_units(spec):
+    """Yield (doc, line, unit) over the manifest's declared corpus. A corpus entry may name a
+    section slice so a promise list can be guarded without guarding a whole file of prose."""
+    for rel, cfg in sorted(spec.items()):
+        path = ROOT / rel
+        if not path.exists():
+            problem(f"claim-proof: corpus file {rel} is missing; correct the manifest deliberately")
+            continue
+        text = path.read_text(encoding="utf-8")
+        section = (cfg or {}).get("section")
+        offset = 0
+        if section:
+            head, sep, rest = text.partition(section[0])
+            if not sep:
+                problem(f"claim-proof: {rel} no longer contains the section marker {section[0]!r}")
+                continue
+            body, sep2, _ = rest.partition(section[1])
+            if not sep2:
+                problem(f"claim-proof: {rel} no longer contains the section end marker {section[1]!r}")
+                continue
+            offset = (head + section[0]).count("\n")
+            text = body
+        for ln, unit in _claim_units(text, offset):
+            yield rel, ln, unit
+
+
+def _claim_pin_labels(pyfile):
+    """Named check labels inside a module's selftest: the first string literal of each ok()/check()
+    call. Returns None when the file cannot be parsed. Mirrors count_truth's AST approach rather
+    than importing, so a claim's proof is resolved without executing anything."""
+    try:
+        tree = ast.parse(Path(pyfile).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return None
+    labels = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if "selftest" not in node.name.lower():
+            continue
+        for call in ast.walk(node):
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+                continue
+            if call.func.id not in {"ok", "check", "_check", "_ok", "c"}:
+                continue
+            for arg in call.args:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str) and len(arg.value) > 3:
+                    labels.append(arg.value)
+                    break
+    return labels
+
+
+def _claim_selftest_modules():
+    """Modules the battery actually EXECUTES a selftest for. A pin in a module the sweep never
+    runs is not a proof, so membership here is what makes `tools/x.py::selftest::...` resolvable."""
+    try:
+        import selftest_sweep
+        return {str(Path(p).resolve()) for p, _ in selftest_sweep.discover()}
+    except Exception:  # noqa: BLE001 - a broken sweep is reported by its own gate, not this one
+        return None
+
+
+def _claim_resolve_proof(proof, enforced, selftest_mods):
+    """(ok, detail) for one proof reference. Two forms: `invariant:N` (a labeled check registered
+    in main()) and `tools/x.py::selftest::<label substring>` (a named pin the sweep executes)."""
+    if proof.startswith("invariant:"):
+        raw = proof.split(":", 1)[1].strip()
+        if not raw.isdigit():
+            return False, f"malformed invariant reference {proof!r}"
+        num = int(raw)
+        if num not in enforced:
+            return False, (f"invariant {num} is not enforced (no check_* function carries that "
+                           f"label AND is registered in main())")
+        return True, ""
+    if "::selftest::" in proof:
+        mod, _, label = proof.partition("::selftest::")
+        path = ROOT / mod
+        if not path.exists():
+            return False, f"proof module {mod} does not exist"
+        if selftest_mods is not None and str(path.resolve()) not in selftest_mods:
+            return False, (f"{mod} exposes no selftest the sweep runs, so a pin inside it is "
+                           f"never executed and cannot prove anything")
+        labels = _claim_pin_labels(path)
+        if labels is None:
+            return False, f"proof module {mod} could not be parsed"
+        if not any(label in lab for lab in labels):
+            return False, (f"{mod} has no selftest pin whose label contains {label!r}; the pin "
+                           f"was renamed or removed, so the claim is no longer proven")
+        return True, ""
+    return False, (f"unrecognized proof form {proof!r}; use `invariant:N` or "
+                   f"`tools/x.py::selftest::<pin label>`")
+
+
+def check_claim_proof():
+    """Invariant 60: claim-proof binding (P94). A universal claim about this repo's own behavior
+    ("never", "every", "all", "only", "nothing", "always", "no ... ever") inside the guarded
+    corpus must be bound in tools/claim-proof-manifest.json to either an enforced drift invariant
+    or a NAMED selftest pin the battery actually executes -- or listed as an exemption with a
+    written reason, for a standing instruction to the agent that no code can prove.
+
+    This exists because P93 shipped "no code path installs machine-wide" as a commit subject while
+    the fallback it denied was still on line 138 of the file it changed, and shipped "every
+    remaining brew install sits under a label" while three live files did not. Both sentences
+    passed every existing guard: documentation truth checks paths, symbols, counts, URLs and
+    hashes, and a universal sentence names none of those.
+
+    Two further bindings ride along. ROUTE records tie an install route the docs RECOMMEND to the
+    code that must DETECT it, because P93 recommended nvm and uv while env_paths searched neither,
+    so the wizard reported "Node.js not detected" after issuing its own nvm command. And a reverse
+    enrolment sweep (the shape of invariant 48's) fails when a universal claim joins the corpus
+    bound to nothing, so the promise list cannot grow unproven.
+
+    The detector proves itself against one fixture per branch before it scans, so deleting a
+    branch fails the build instead of quietly shrinking coverage."""
+    # --- coverage proof: one fixture per branch, by name ---
+    fixtures = {
+        "never": "Creator OS never writes outside the user account.",
+        "always": "The gate always refuses an unsigned payload.",
+        "every": "Every spoke resolves to an installed atom.",
+        "all": "All seven requirement sets land in the private .venv.",
+        "no_ever": "No tool here ever touches a shared site-packages.",
+        "nothing": "Nothing is released until the gates pass.",
+        "only": "The repo .venv is the only install target.",
+    }
+    missing = sorted(set(_CLAIM_BRANCHES) - set(fixtures))
+    if missing:
+        problem(f"claim-proof: branch(es) {missing} have no coverage fixture; every branch must be "
+                f"proven to fire, or the gate can narrow silently")
+        return
+    for name, sample in fixtures.items():
+        hit = _CLAIM_PATTERN.search(sample)
+        if hit is None or hit.lastgroup != name:
+            problem(f"claim-proof: detector self-proof failed -- the {name!r} branch did not flag "
+                    f"its fixture ({sample!r}); coverage shrank")
+            return
+    if _CLAIM_PATTERN.search("The installer reports each result honestly and stops on failure."):
+        problem("claim-proof: detector self-proof failed -- a sentence making no universal claim "
+                "was flagged")
+        return
+    if len(_claim_units("- first promise\n  continues here\n\n- second promise\n")) != 2:
+        problem("claim-proof: detector self-proof failed -- a multi-line bullet did not read as "
+                "one claim unit")
+        return
+    if _claim_units("## A heading that says every\n"):
+        problem("claim-proof: detector self-proof failed -- a heading was read as a promise")
+        return
+
+    if not _CLAIM_MANIFEST_PATH.exists():
+        problem("claim-proof: tools/claim-proof-manifest.json is missing (invariant 60 cannot run)")
+        return
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"claim-proof: tools/claim-proof-manifest.json is unreadable: {exc}")
+        return
+
+    enforced = set()
+    try:
+        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+        label_re = re.compile(r"^Invariants?\s+(\d+(?:\s*(?:,|and)\s*\d+)*)")
+        main_node = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+        registered = set()
+        if main_node is not None:
+            registered = {n.func.id for n in ast.walk(main_node)
+                          if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+        for n in tree.body:
+            if isinstance(n, ast.FunctionDef) and n.name in registered:
+                m = label_re.match((ast.get_docstring(n) or "").strip())
+                if m:
+                    enforced.update(int(x) for x in re.findall(r"\d+", m.group(1)))
+    except (OSError, SyntaxError) as exc:
+        problem(f"claim-proof: could not parse this file to resolve invariant references: {exc}")
+        return
+    selftest_mods = _claim_selftest_modules()
+
+    # --- every bound claim still says what it said, and its proof still resolves ---
+    bound = []
+    for entry in man.get("claims", []):
+        rel, text, proof = entry.get("doc"), entry.get("claim"), entry.get("proof")
+        if not (rel and text and proof):
+            problem(f"claim-proof: manifest claim entry is missing doc/claim/proof: {entry}")
+            continue
+        path = ROOT / rel
+        if not path.exists():
+            problem(f"claim-proof: bound claim names missing doc {rel}")
+            continue
+        if _claim_norm(text) not in _claim_norm(path.read_text(encoding="utf-8")):
+            problem(f"claim-proof: {rel} no longer contains the bound claim {text!r}. The sentence "
+                    f"changed but its proof did not: re-read {proof} and update the binding, or "
+                    f"narrow the claim to what is actually tested")
+            continue
+        ok, detail = _claim_resolve_proof(proof, enforced, selftest_mods)
+        if not ok:
+            problem(f"claim-proof: {rel} claims {text[:60]!r} on the strength of {proof}, but "
+                    f"{detail}")
+        bound.append((rel, text))
+
+    for entry in man.get("exempt", []):
+        rel, text, why = entry.get("doc"), entry.get("claim"), entry.get("why") or ""
+        if not (rel and text):
+            problem(f"claim-proof: manifest exemption is missing doc/claim: {entry}")
+            continue
+        if len(why) < 25:
+            problem(f"claim-proof: the exemption for {text[:50]!r} in {rel} needs a written reason "
+                    f"of at least 25 characters; a bare exemption is how a promise goes unproven")
+            continue
+        path = ROOT / rel
+        if path.exists() and _claim_norm(text) in _claim_norm(path.read_text(encoding="utf-8")):
+            bound.append((rel, text))
+        else:
+            problem(f"claim-proof: the exemption for {text[:50]!r} no longer matches any text in "
+                    f"{rel}; remove the stale entry or re-bind it")
+
+    # --- routes: a route the docs RECOMMEND must be a route the code can FIND ---
+    for entry in man.get("routes", []):
+        cmd, docs_in = entry.get("recommends"), entry.get("in") or []
+        lands, probers = entry.get("lands_in"), entry.get("prober") or []
+        if not (cmd and docs_in and lands and probers):
+            problem(f"claim-proof: route entry needs recommends/in/lands_in/prober: {entry}")
+            continue
+        for rel in docs_in:
+            path = ROOT / rel
+            if not path.exists():
+                problem(f"claim-proof: route doc {rel} is missing")
+            elif _claim_norm(cmd) not in _claim_norm(path.read_text(encoding="utf-8")):
+                problem(f"claim-proof: {rel} no longer recommends {cmd!r}; if the route changed, "
+                        f"update the route record so detection follows it")
+        for rel in probers:
+            mod, _, symbol = rel.partition("::")
+            path = ROOT / mod
+            if not path.exists():
+                problem(f"claim-proof: route prober {mod} is missing")
+                continue
+            body = path.read_text(encoding="utf-8")
+            if symbol:
+                # Resolve the SYMBOL, not the token: a prober that keeps the path in a comment
+                # while its actual lookup moved would otherwise pass (found by this check's own
+                # red-team pass, which mutated USER_BIN and watched the gate stay silent).
+                value = _claim_symbol_value(path, symbol)
+                if value is None:
+                    problem(f"claim-proof: route prober {rel} does not resolve to a module-level "
+                            f"string assignment; the constant the detection depends on is gone")
+                elif lands not in value:
+                    problem(f"claim-proof: {mod} defines {symbol} as {value!r}, which no longer "
+                            f"points at {lands!r}, but the docs still recommend {cmd!r} which "
+                            f"installs there. A route we recommend has to be a route we can find, "
+                            f"or the advice dead-ends")
+            elif lands not in body:
+                problem(f"claim-proof: {mod} no longer looks in {lands!r}, but the docs still "
+                        f"recommend {cmd!r} which installs there. A route we recommend has to be "
+                        f"a route we can find, or the advice dead-ends")
+
+    # --- reverse enrolment sweep: a universal claim bound to nothing is the P93 failure ---
+    for rel, ln, unit in _claim_corpus_units(man.get("corpus", {})):
+        hit = _CLAIM_PATTERN.search(unit)
+        if hit is None:
+            continue
+        norm_unit = _claim_norm(unit)
+        if any(r == rel and _claim_norm(t) in norm_unit for r, t in bound):
+            continue
+        problem(f"claim-proof: {rel}:{ln} makes a universal claim ({hit.group(0)!r}) that nothing "
+                f"binds: {unit[:80]!r}. Add it to tools/claim-proof-manifest.json with the "
+                f"invariant or selftest pin that proves it, list it as an exemption with a written "
+                f"reason, or narrow the sentence to what is actually tested")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -3414,6 +3749,7 @@ def main():
     check_registry_content_digest()
     check_eval_output_keys()
     check_install_scope()
+    check_claim_proof()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

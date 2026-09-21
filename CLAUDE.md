@@ -110,8 +110,11 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   site-packages under a commit saying they could not. The independent pass that checks a claim
   runs BEFORE the claim is reported or merged (`docs/AUDIT-PROTOCOL.md` section 7.1), and a new
   guard's scan set is derived from the tree, never a hand list of the files the change happened
-  to touch. When a check fails, report it honestly with the output; never claim a skipped step
-  ran.
+  to touch. The promises in this section and in `docs/INSTALL-SCOPE.md` are bound to their
+  proofs in `tools/claim-proof-manifest.json`; drift invariant 60 fails the build when a bound
+  claim drifts from its proof, when a named pin is renamed away, when a recommended install
+  route stops being detectable, or when an unproven universal claim joins the list. When a
+  check fails, report it honestly with the output; never claim a skipped step ran.
 - Installs are user-scoped by default: everything lands under the user's home folder (repo
   `.venv`, `~/.local`, `~/Applications`, `~/Library`); nothing under `/Applications`,
   `/opt/homebrew`, or via `sudo` unless explicitly labeled "machine-wide alternative (affects
