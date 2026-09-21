@@ -15,7 +15,7 @@
       "doc": "CLAUDE.md",
       "claim": "No em dashes in user-facing output",
       "proof": "invariant:4",
-      "why": "check_formatting enforces the formatting rule over committed content; the doc itself states the enforcement is scoped to examples/."
+      "why": "invariant 4 (check_formatting) proves the no-em-dash rule over committed examples/ content, which is the scope the same bullet states; the wider instruction to the agent is covered by the formatting protocol it cites."
     },
     {
       "doc": "CLAUDE.md",
@@ -31,21 +31,9 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "is written only through `tools/registry_io.py`",
-      "proof": "invariant:42",
-      "why": "check_registry_writer_count counts the sanctioned writers, so a new out-of-band writer fails the build."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "is the only tool that writes to `traversal-candidates.json`",
-      "proof": "invariant:42",
-      "why": "the registry-writer count gate covers the traversal store's single-writer rule as part of the same sanctioned-writer census."
-    },
-    {
-      "doc": "CLAUDE.md",
       "claim": "Every registry entry carries a `default_flag`; drift invariant 53 executes the resolver",
       "proof": "invariant:53",
-      "why": "check_connector_resolver_smoke executes the resolver over the committed registry, so a malformed entry fails."
+      "why": "invariant 53 executes the connector resolver over the committed registry, so an entry malformed enough to break resolution fails the build. It does not separately assert the presence of default_flag on every entry."
     },
     {
       "doc": "CLAUDE.md",
@@ -76,6 +64,54 @@
       "claim": "Every remaining `brew install`",
       "proof": "invariant:59",
       "why": "the completeness half of this sentence is exactly what check_install_scope proves over the derived denominator; it was false when the denominator was a 16-file list."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "The drift guard enforces this for `examples/` only.",
+      "proof": "invariant:4",
+      "why": "this sentence states the enforced scope exactly, and check_formatting is what enforces it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "nothing under `/Applications`,\n  `/opt/homebrew`, or via `sudo` unless explicitly labeled",
+      "proof": "invariant:59",
+      "why": "check_install_scope scans every tracked guidance file for exactly these machine-wide forms and fails on any that is unlabeled."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "**Human confirmation required before every post.**",
+      "proof": "tools/publishing_compliance.py::selftest::human_review_required must always be True",
+      "why": "the named pin asserts the flag is set on every path through the compliance gate."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Nothing goes to `/Applications`, `/opt/homebrew`,\n`/usr/local`, or anywhere `sudo` is needed.",
+      "proof": "invariant:59",
+      "why": "the same derived-denominator scan proves no unlabeled instruction to install in those locations survives in the guidance."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "`schedule-post` always sets `human_review_required: true`",
+      "proof": "tools/publishing_compliance.py::selftest::human_review_required must always be True",
+      "why": "the named pin asserts the flag on every path through the gate."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "the repo `.venv` is the only install target",
+      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
+      "why": "the pin proves pip is invoked zero times when no .venv exists, so the .venv is the only target the installer ever writes to."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Drift invariant 59\nenforces this over every tracked guidance file (an unlabeled machine-wide instruction fails\nthe build)",
+      "proof": "invariant:59",
+      "why": "check_install_scope derives its file set from git ls-files and fails on an unlabeled hit."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "The repo `.venv` is the only install target, so when it cannot be\ncreated the installer refuses with the remedy instead of falling back to the base interpreter",
+      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
+      "why": "the pin proves pip is never invoked without a .venv, which is exactly this sentence."
     }
   ],
   "exempt": [
@@ -148,6 +184,121 @@
       "doc": "CLAUDE.md",
       "claim": "`shared/connectors/connectors.json` is the source of truth for the connector registry",
       "why": "Names which file is authoritative for maintainers, a convention about where to edit; invariant 53 proves the committed registry resolves, not that no other file claims authority."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is written only through `tools/registry_io.py`",
+      "why": "invariant 42 counts the sanctioned registry writers but is labelled advisory in its own docstring and does not gate the build on a new writer, so this is a maintainer convention backed by an advisory census rather than a proven property."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is the only tool that writes to `traversal-candidates.json`",
+      "why": "no guard inspects traversal-candidates.json or traversal-visited.json at all; this is a maintainer convention with no executed proof behind it, recorded here honestly rather than bound to a check that does not cover it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "A universal claim (\"no\", \"never\", \"every\", \"all\", \"repo-wide\") in a",
+      "why": "this sentence QUOTES the trigger vocabulary the rule governs; the words are the subject of the sentence rather than a promise being made."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "drift invariant 60 fails the build when a bound\n  claim drifts from its proof, when a named pin is renamed away, when a recommended install\n  route stops being detectable, or when an unproven universal claim joins the list",
+      "why": "invariant 60's own behavior, proven by the fail-then-pass fixtures embedded in check_claim_proof that run on every battery pass through the drift guard rather than by a selftest pin (sync_check is exempt from the selftest sweep because executing it IS its test)."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is the token-free version-drift checker for pip packages, system\n  binaries, and MCP servers",
+      "why": "describes the tool's purpose and read surface for maintainers; invariant 25 constrains only the requirements-versus-registry pin, not the tool's design."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "The resolver (`shared/connectors/connectors.py`) reads this file plus, automatically,",
+      "why": "describes which files the resolver consults, a design note for maintainers rather than a promise a guard can execute."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "(Microsoft 365 lane only)",
+      "why": "scopes which lane needs Node at all; the detectability obligation for that route is bound as a route record instead."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "works on every platform, fully user-scoped",
+      "why": "describes faster-whisper's own portability, a property of that third-party package rather than of this repo's code."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "auth only if a machine must PUSH",
+      "why": "states when GitHub credentials are needed, a fact about GitHub's access model that no local guard can assert."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "commit subject, a doc sentence, a CHANGELOG entry, or a report to the owner either names\n  the executed pin that proves it or is narrowed to what was actually tested",
+      "why": "the claims rule's own statement of scope, which reaches a chat report to the owner; no guard can read a chat message, so this half is doctrine enforced by judgment rather than by the build."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Test the PROPERTY\n  claimed, not the mechanism changed",
+      "why": "an instruction about how to choose a test, not an assertion about repo behavior that a test could confirm."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Policy, approved locations, and the one exception (Apple CLT git):",
+      "why": "points at the policy page and names the single exception; the enforceable halves are bound separately to invariant 59 and the setup.py pin."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "it queries PyPI and GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and\n  computes drift from each registry entry's own `validated_version` and `pinned_constraint`",
+      "why": "describes how the currency checker works for maintainers; invariant 25 pins only the requirements-versus-registry agreement, not the tool's implementation."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is consulted only when passed explicitly via `--flags`",
+      "why": "describes the resolver's flag-file precedence, a design note; invariant 53 proves the resolver executes over the committed registry, not this precedence rule."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "No connector call is made, and no post is queued or published,\n  without an explicit human confirmation step",
+      "why": "restates the human-confirmation promise in negative form; its executed proof is the publishing_compliance pin bound to the same bullet's positive statement."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "they produce\n  confirmation summaries for human review only",
+      "why": "a behavioral directive about what agents produce, enforced by the confirmation step rather than by a guard that can execute the negative."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Machine-wide installation is always a labeled\nchoice a person makes deliberately, never a default this repo hands out.",
+      "why": "the policy's statement of intent; the enforceable half (that no unlabeled machine-wide instruction survives) is bound to invariant 59 in the following sentence."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "written by the apps/tools themselves, always per-user",
+      "why": "a table row describing where third-party apps place their own per-user config and caches; this repo neither writes nor controls those locations."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "P93 proved a refusal for PEP 668 interpreters and\n  claimed it for every machine-wide one",
+      "why": "a worked example of the mistake the rule exists to prevent, describing a past defect rather than asserting a current property of the code."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "`report`/`check` are read-only",
+      "why": "describes the currency checker's two read-only verbs for maintainers; no guard asserts a CLI verb writes nothing."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "so seven requirements sets still installed into a shared\n  site-packages under a commit saying they could not",
+      "why": "the second half of the P93 worked example; it recounts what went wrong once, not a property of the code as it stands."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "a new\n  guard's scan set is derived from the tree, never a hand list of the files the change happened\n  to touch",
+      "why": "a process precondition for writing a guard, checked by the reviewer at design time; no build step can tell whether a denominator was derived or recalled."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "When a\n  check fails, report it honestly with the output; never claim a skipped step ran.",
+      "why": "an instruction governing what the agent says in a report; nothing in the build can read a chat message, so this is doctrine enforced by judgment."
     }
   ],
   "routes": [
@@ -179,5 +330,28 @@
       ],
       "why": "nvm keeps each node under $NVM_DIR/versions/node/<version>/bin (nvm.sh::nvm_version_path) and is sourced per shell. P93 made nvm the recommended Node route while env_paths could not see it, so the wizard looped users on 'Still not detecting Node.js 20 or higher' after issuing its own nvm command."
     }
-  ]
+  ],
+  "_detector_branches_why": "Recorded branch names for the two detectors that scan text. Fixture/branch agreement alone only catches a half delete; pinning the names means removing a branch AND its fixture in one edit still fails the build, the realistic way coverage narrows.",
+  "detector_branches": {
+    "claim_proof": [
+      "all",
+      "always",
+      "every",
+      "never",
+      "no_ever",
+      "nothing",
+      "only"
+    ],
+    "install_scope": [
+      "brew",
+      "macos-pkg",
+      "macports",
+      "npm-global",
+      "pip-command",
+      "pip-override",
+      "pipx-global",
+      "sudo-pkg",
+      "sudo-python"
+    ]
+  }
 }

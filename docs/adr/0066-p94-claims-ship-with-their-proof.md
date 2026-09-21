@@ -16,8 +16,8 @@ guard built to enforce the third shared a blind spot with the work it was checki
 - `docs/INSTALL-SCOPE.md` asserted that every remaining `brew install` in the guidance sat under
   a machine-wide label while three live files did not;
 - drift invariant 59 was described as enforcing the policy across the guidance, but scanned a
-  hardcoded sixteen-file list — exactly the set of files the phase had just edited, so the guard
-  could only confirm work already done.
+  hardcoded sixteen-file list, almost all of them files the phase had just edited, so the guard
+  largely confirmed work already done.
 
 The mandated adversarial pass (`docs/AUDIT-PROTOCOL.md` section 7) caught all three. The
 protocol worked. What failed was everything around it:
@@ -70,10 +70,19 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    guarded corpus is CLAUDE.md's non-negotiables and `docs/INSTALL-SCOPE.md`, and the sweep
    fails when a universal claim *joins* that corpus bound to nothing, so the promise list cannot
    grow unproven.
-7. **The coverage proof is shared, not hand-rolled.** `_coverage_proof()` asserts every detector
-   branch has a fixture and every fixture fires its own branch, and is used by invariants 59 and
-   60. All 22-plus coverage proofs in the repo were previously hand-rolled with no two sharing
-   code.
+7. **The coverage proof is shared, and the branch set is pinned.** `_coverage_proof()` asserts
+   every detector branch has a fixture and every fixture fires its own branch, and is used by
+   invariants 59 and 60. Fixture agreement alone only catches a half delete, so the branch names
+   are also recorded in the manifest: removing a branch together with its fixture still fails.
+   All 22-plus coverage proofs in the repo were previously hand-rolled with no two sharing code.
+
+8. **This ADR's own pass was audited before it was reported, and the audit found real defects.**
+   Four independent lenses over P94 found that the reverse sweep matched whole markdown units, so
+   a universal claim appended to an already-bound bullet was absorbed unchecked; that a selftest
+   pin whose condition was a literal would resolve as a proof; that the CI parity check matched
+   raw file text, so a commented-out step counted as coverage; and that a parity note asserting
+   CI ran `bash -n` on the launcher described a step that did not exist. All four are fixed here,
+   and eleven universals the unit-granularity bug had been absorbing are now accounted for.
 
 ## Consequences
 

@@ -13,15 +13,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
-- P94: drift invariant 60 (claim-proof binding) and tools/claim-proof-manifest.json. Every
-  universal claim about this repo's own behavior in CLAUDE.md's non-negotiables and
-  docs/INSTALL-SCOPE.md is now bound to an enforced invariant or a NAMED selftest pin the
-  battery actually executes, or recorded as an exemption with a written reason when no code
-  can prove it. Route records additionally bind an install route the docs recommend to the
+- P94: drift invariant 60 (claim-proof binding) and tools/claim-proof-manifest.json. Every universal claim about this repo's own behavior in CLAUDE.md's non-negotiables and
+  docs/INSTALL-SCOPE.md is now accounted for: 17 are bound to an enforced invariant or a NAMED
+  selftest pin the battery executes, and 37 are recorded as exemptions with written reasons
+  because they are instructions to the agent or facts about third-party software that no guard
+  can prove. The exemption count is the honest finding: most universals in that section are
+  directives, not properties of this repo's code. Route records additionally bind an install route the docs recommend to the
   code that detects it, resolved through the prober's symbol rather than the path appearing
   anywhere in the file. A reverse enrolment sweep fails when a universal claim joins the
-  corpus bound to nothing. Seven adversarial mutations were run against a verified-clean
-  baseline and all seven were caught. Invariant count 58 to 59; ADR 0066 records the
+  corpus bound to nothing, matching at claim granularity so a new promise cannot ride in on a
+  neighbouring binding. Eight adversarial mutations run against a verified-clean baseline are
+  all caught, including the two that P94's own pre-report audit found in the first cut: a
+  universal appended to an already-bound bullet, and a proof citing a selftest pin whose
+  condition was a literal. Invariant count 58 to 59; ADR 0066 records the
   decisions.
 - P94: `tools/battery.py --check-parity` asserts CI actually runs every battery gate. The CI
   step was named "Battery parity (tools/battery.py --list matches the steps below)" and only
@@ -29,9 +33,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   audit nor source sync. Both are now CI steps, and preflight push is declared with its
   reason (it inspects a local working tree, which a CI checkout does not have).
 - P94: `_coverage_proof()` in tools/sync_check.py, shared by invariants 59 and 60: every
-  detector branch must have a fixture and every fixture must fire its own branch, so deleting
-  a branch fails the build. All 22-plus coverage proofs in the repo were hand-rolled before
-  this, with no two sharing code.
+  detector branch must have a fixture and every fixture must fire its own branch, and the branch names are pinned in the manifest, so deleting a branch fails the build whether
+  or not its fixture goes with it. All 22-plus coverage proofs in the repo were hand-rolled
+  before this, with no two sharing code.
 - P93: drift invariant 59 (install-scope policy). The guard scans EVERY tracked text file
   (a derived denominator, minus written-reason exemptions for historical records and
   third-party evaluations) for brew, sudo package commands, MacPorts, global npm/pipx

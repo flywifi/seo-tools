@@ -140,8 +140,8 @@ wording, and that is the defect.
 - **A guard's denominator is DERIVED, never recalled.** Section 1 already says this about an
   audit's coverage sets; it binds a new guard's scan set too. A hand-maintained list of files
   to check is the alternative `docs/adr/0051` already rejected for invariant 58 ("a memorized
-  denominator"), and P93 shipped it anyway for invariant 59 — scanning exactly the sixteen files
-  the phase had just edited, so the guard could only confirm work already done. If a list is
+  denominator"), and P93 shipped it anyway for invariant 59 — scanning a hand-listed sixteen files, almost all of them ones the phase had just edited, so
+  the guard largely confirmed work already done. If a list is
   genuinely unavoidable, every entry carries a written reason, and the exemption map is the
   list, not the scan set.
 - **Remediation that touches the same guard earns a second pass.** P70 is the recorded case: the

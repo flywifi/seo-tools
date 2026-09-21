@@ -126,28 +126,63 @@ def ci_parity(workflow=None) -> int:
     if not wf.exists():
         print(f"battery parity: {wf} not found", file=sys.stderr)
         return 1
-    text = wf.read_text(encoding="utf-8")
-    missing = []
+    commands = _run_commands(wf.read_text(encoding="utf-8"))
+    haystack = "\n".join(commands)
+    missing, noted = [], []
     for name, gate_argv in GATES:
-        script = next((a for a in gate_argv if a.endswith(".py")), None)
-        if script is None:
-            continue          # the inline launcher-syntax gate has no script path to match
-        if script not in text and name not in CI_PARITY_NOTES:
-            missing.append(f"{name} ({script})")
-    for name, why in sorted(CI_PARITY_NOTES.items()):
-        print(f"battery parity: {name} is covered differently in CI: {why}")
+        probe = next((a for a in gate_argv if a.endswith(".py")), None)
+        if probe is None:
+            probe = "Start Creator OS Setup.command"     # the launcher-syntax gate, checked by name
+        if probe in haystack:
+            continue
+        if name in CI_PARITY_NOTES:
+            noted.append(name)
+            continue
+        missing.append(f"{name} ({probe})")
+    for name in sorted(noted):
+        print(f"battery parity: {name} is covered differently in CI: {CI_PARITY_NOTES[name]}")
     if missing:
         print("battery parity: CI does not run these battery gates: " + ", ".join(missing),
               file=sys.stderr)
         return 1
-    print(f"battery parity: CI runs all {len(GATES)} battery gates")
+    ran = len(GATES) - len(noted)
+    print(f"battery parity: CI runs {ran} of {len(GATES)} battery gates directly; "
+          f"{len(noted)} covered differently (listed above)")
     return 0
+
+
+def _run_commands(text):
+    """Every shell line inside a `run:` block of a workflow, comments stripped. Parity has to read
+    what CI EXECUTES: matching raw file text let a commented-out or disabled step count as
+    coverage, which is how a gate could silently stop running while the step name still promised
+    it (found by this check's own adversarial pass)."""
+    out, in_run, run_indent = [], False, 0
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        indent = len(raw) - len(raw.lstrip())
+        if in_run and stripped and indent <= run_indent:
+            in_run = False
+        if in_run:
+            if not stripped.startswith("#"):
+                out.append(stripped.split(" #", 1)[0])
+            continue
+        if stripped.startswith("#"):
+            continue
+        if stripped.startswith("- name:") or stripped.startswith("if:"):
+            continue
+        if stripped.startswith("run:"):
+            rest = stripped[len("run:"):].strip()
+            if rest and rest not in ("|", ">", "|-", ">-"):
+                out.append(rest)
+            else:
+                in_run, run_indent = True, indent
+    return out
 
 
 # Gates CI covers by a different route than running the gate's own script, each with its reason.
 CI_PARITY_NOTES = {
-    "launcher syntax": "CI runs `bash -n` on the launcher inline, the same check without a script path",
-    "staged secret scan": "CI scans ALL tracked content (secret_scan.py --tracked), a superset of the staged scan",
+    "staged secret scan": "CI scans ALL tracked content (secret_scan.py --tracked), a superset of "
+                          "the staged scan, because a CI checkout has nothing staged",
     "preflight push": "checks the LOCAL working tree before a push (unstaged edits, branch state); "
                       "a CI checkout is clean by construction, so there is nothing for it to find",
 }

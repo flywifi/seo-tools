@@ -27,6 +27,8 @@ jobs:
         run: python3 tools/sync_check.py
       - name: Battery parity (asserts CI runs every battery gate)
         run: python3 tools/battery.py --check-parity
+      - name: Launcher syntax (bash -n on the double-click entry point)
+        run: bash -n 'Start Creator OS Setup.command'
       - name: Hash audit (recompute every stored manifest hash)
         run: python3 tools/hash_audit.py
       - name: Source sync (registry and doc citation reconciliation)

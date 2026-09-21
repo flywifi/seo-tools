@@ -3255,6 +3255,25 @@ def _install_scope_scan(lines):
     return hits
 
 
+def _claim_pinned_branches():
+    """The claim-proof branch names recorded in the manifest, or None when it is unreadable."""
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return man.get("detector_branches", {}).get("claim_proof")
+
+
+def _install_scope_pinned_branches():
+    """The install-scope branch names recorded in the claim-proof manifest, or None when it is
+    unreadable (its own invariant reports that)."""
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return man.get("detector_branches", {}).get("install_scope")
+
+
 def check_install_scope():
     """Invariant 59: install-scope policy (P93, widened P93-4). Every machine-wide install
     instruction anywhere in the repo's LIVE guidance -- brew, a sudo package command, MacPorts,
@@ -3288,7 +3307,8 @@ def check_install_scope():
         "macos-pkg": "installer -pkg python.pkg -target /",
     }
     gap = _coverage_proof("install-scope", _INSTALL_SCOPE_BRANCHES, fixtures,
-                          lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1)
+                          lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1,
+                          pinned=_install_scope_pinned_branches())
     if gap:
         problem(gap)
         return
@@ -3375,7 +3395,7 @@ _CLAIM_PATTERN = re.compile("|".join(f"(?P<{k}>{v})" for k, v in _CLAIM_BRANCHES
 _CLAIM_MANIFEST_PATH = ROOT / "tools" / "claim-proof-manifest.json"
 
 
-def _coverage_proof(kind, branches, fixtures, fires):
+def _coverage_proof(kind, branches, fixtures, fires, pinned=None):
     """Shared detector self-proof (P94). A detector with N branches can lose one silently: the
     regex narrows, the gate still prints clean, and the coverage claim quietly becomes false
     (invariant 58's deriver, P70; invariant 59's scan list, P93). This asserts the two properties
@@ -3384,6 +3404,19 @@ def _coverage_proof(kind, branches, fixtures, fires):
 
     `fires(name, sample)` is the detector's own scan, returning truthy when `sample` trips the
     branch called `name`."""
+    if pinned is not None:
+        # Fixture/branch agreement alone only catches a HALF delete. Pinning the branch names
+        # means deleting a branch AND its fixture in one edit still fails, which is the realistic
+        # way a detector narrows (found by P94's own adversarial pass).
+        lost = sorted(set(pinned) - set(branches))
+        if lost:
+            return (f"{kind}: branch(es) {lost} are recorded in tools/claim-proof-manifest.json "
+                    f"but no longer exist in the detector; coverage shrank. Restore them, or "
+                    f"remove them from the manifest deliberately with a reason")
+        added = sorted(set(branches) - set(pinned))
+        if added:
+            return (f"{kind}: branch(es) {added} exist in the detector but are not recorded in "
+                    f"tools/claim-proof-manifest.json; record them so the set cannot shrink later")
     missing = sorted(set(branches) - set(fixtures))
     if missing:
         return (f"{kind}: branch(es) {missing} have no coverage fixture; every branch must be "
@@ -3490,10 +3523,21 @@ def _claim_pin_labels(pyfile):
                 continue
             if call.func.id not in {"ok", "check", "_check", "_ok", "c"}:
                 continue
-            for arg in call.args:
-                if isinstance(arg, ast.Constant) and isinstance(arg.value, str) and len(arg.value) > 3:
-                    labels.append(arg.value)
-                    break
+            args = list(call.args)
+            label = next((a.value for a in args
+                          if isinstance(a, ast.Constant) and isinstance(a.value, str)
+                          and len(a.value) > 3), None)
+            if label is None:
+                continue
+            # The OTHER arguments carry the assertion. A pin whose condition is a literal
+            # (ok(True, "label")) names a proof that proves nothing, so it does not count.
+            asserts = [a for a in args
+                       if not (isinstance(a, ast.Constant) and a.value == label)]
+            if asserts and all(isinstance(a, ast.Constant) for a in asserts):
+                continue
+            if not asserts:
+                continue
+            labels.append(label)
     return labels
 
 
@@ -3573,7 +3617,8 @@ def check_claim_proof():
         hit = _CLAIM_PATTERN.search(sample)
         return hit is not None and hit.lastgroup == name
 
-    gap = _coverage_proof("claim-proof", _CLAIM_BRANCHES, fixtures, _claim_fires)
+    gap = _coverage_proof("claim-proof", _CLAIM_BRANCHES, fixtures, _claim_fires,
+                          pinned=_claim_pinned_branches())
     if gap:
         problem(gap)
         return
@@ -3699,13 +3744,23 @@ def check_claim_proof():
         hit = _CLAIM_PATTERN.search(unit)
         if hit is None:
             continue
-        norm_unit = _claim_norm(unit)
-        if any(r == rel and _claim_norm(t) in norm_unit for r, t in bound):
+        # Subtract what IS bound, then look at what is left. Matching the whole unit would let a
+        # new universal appended to an already-bound bullet ride in on its neighbour's binding --
+        # the defect P94's own adversarial pass found in this very check.
+        remainder = _claim_norm(unit)
+        for r, t in bound:
+            if r != rel:
+                continue
+            needle = _claim_norm(t)
+            if needle and needle in remainder:
+                remainder = remainder.replace(needle, " ")
+        left = _CLAIM_PATTERN.search(remainder)
+        if left is None:
             continue
-        problem(f"claim-proof: {rel}:{ln} makes a universal claim ({hit.group(0)!r}) that nothing "
-                f"binds: {unit[:80]!r}. Add it to tools/claim-proof-manifest.json with the "
-                f"invariant or selftest pin that proves it, list it as an exemption with a written "
-                f"reason, or narrow the sentence to what is actually tested")
+        problem(f"claim-proof: {rel}:{ln} makes a universal claim ({left.group(0)!r}) that nothing "
+                f"binds: {remainder.strip()[:90]!r}. Add it to tools/claim-proof-manifest.json "
+                f"with the invariant or selftest pin that proves it, list it as an exemption with "
+                f"a written reason, or narrow the sentence to what is actually tested")
 
 
 def main():

@@ -58,6 +58,20 @@ symbol, path, or count is verifiable, so it is verified.
    a file with no block and no marker is untouched. Full model: `docs/CURRENCY.md`
    "Doc-declared sources".
 
+8. **Claim-proof binding** (invariant 60, P94). The six guardrails above all check TOKENS inside
+   prose: paths, symbols, counts, URLs, source ids, hashes. A universal sentence -- "Creator OS
+   never installs machine-wide", "every remaining `brew install` carries the label" -- names none
+   of those, so until P94 nothing checked it, and two such sentences shipped false. In the
+   guarded corpus (CLAUDE.md's non-negotiables and `docs/INSTALL-SCOPE.md`) every universal claim
+   is now recorded in `tools/claim-proof-manifest.json`: bound to an enforced drift invariant or
+   to a NAMED selftest pin the battery executes, or exempted with a written reason when it is an
+   instruction to the agent or a fact about third-party software that no guard can prove. The
+   same manifest binds each recommended install route to the code that must detect it. A reverse
+   enrolment sweep fails when a universal claim joins the corpus bound to nothing, matching at
+   claim granularity rather than by paragraph so a new promise cannot ride in on a neighbour's
+   binding. This guardrail is narrow ON PURPOSE: the repo carries 2,846 lines with absolutes, and
+   guarding all of them would be an annotation project nobody maintains.
+
 ## Process conventions
 
 - **Dated records are append-only (P81).** A remediation record or audit report describes the tree

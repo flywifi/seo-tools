@@ -6,14 +6,15 @@ P6 through P94 are complete. Drift guard exits 0 (the full invariant set). Branc
 
 - P94: a claim about this repo ships with its executed proof (2026-09-21,
   docs/adr/0066-p94-claims-ship-with-their-proof.md). P93 reported two false headline claims and
-  built a guard whose scan list was the set of files the phase had just edited; the mandated
+  built a guard whose scan list was a hand-listed sixteen files, almost all of them ones the
+  phase had just edited; the mandated
   adversarial pass caught all of it, but only after the claims were pushed and reported.
   Doctrine: CLAUDE.md gains the claims rule and the honesty sentence that previously existed only
   in the AGENTS.md projection, and AUDIT-PROTOCOL 7.1 moves the independent pass ahead of the
   report, makes a derived denominator a precondition for shipping a guard, and writes down the
-  P70 second-pass trigger. Machinery: drift invariant 60 binds every universal claim in the
-  non-negotiables and INSTALL-SCOPE to an enforced invariant or a named selftest pin the battery
-  runs, binds each recommended install route to the code that detects it, and fails on any
+  P70 second-pass trigger. Machinery: drift invariant 60 accounts for every universal claim in the
+  non-negotiables and INSTALL-SCOPE: 17 bound to an enforced invariant or a named selftest pin
+  the battery runs, 37 exempted with written reasons as agent directives or third-party facts, binds each recommended install route to the code that detects it, and fails on any
   unbound universal claim joining the corpus; seven adversarial mutations were caught against a
   verified-clean baseline. The shared _coverage_proof helper now backs invariants 59 and 60, and
   the CI parity step asserts what its name promises, which immediately showed CI was running
