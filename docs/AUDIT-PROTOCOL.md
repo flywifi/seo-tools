@@ -121,6 +121,34 @@ surface. A green battery and a self-review passed both. Therefore:
   step) and `shared/schemas/verification-envelope.json`. The difference is that section 7 applies
   it to the phase close-out itself, not only to research workflows.
 
+### 7.1 When the pass runs (P94)
+
+The three clauses above say what the independent pass must do. They said nothing about *when*,
+and the gap was load-bearing: section 8's persistence contract requires claims to be "committed
+and pushed per stage", and `CLAUDE.md`'s documentation-truth rule requires doc prose to land in
+the same change as the code. Both mandate that a claim be written and pushed at stage time,
+while section 7 attached its verification to the word "closed". In P93 a commit subject reading
+"no code path installs machine-wide", a policy doc asserting every remaining `brew install`
+carried its label, and a report to the owner saying both were done all shipped inside that
+window; the phase-close pass then found all three false. The pass was not late by its own
+wording, and that is the defect.
+
+- **The independent pass runs BEFORE the claim is reported or merged**, not only at phase close.
+  A universal claim that has not survived it is reported narrowed to what was actually tested,
+  or not made. Reporting "X is closed everywhere" on the strength of having tested one case is
+  the failure this clause exists to stop.
+- **A guard's denominator is DERIVED, never recalled.** Section 1 already says this about an
+  audit's coverage sets; it binds a new guard's scan set too. A hand-maintained list of files
+  to check is the alternative `docs/adr/0051` already rejected for invariant 58 ("a memorized
+  denominator"), and P93 shipped it anyway for invariant 59 — scanning exactly the sixteen files
+  the phase had just edited, so the guard could only confirm work already done. If a list is
+  genuinely unavoidable, every entry carries a written reason, and the exemption map is the
+  list, not the scan set.
+- **Remediation that touches the same guard earns a second pass.** P70 is the recorded case: the
+  P69 remediation traded one defect for another, and only a second independent reading caught
+  that the manifest "claimed more than it delivered". A fix authored by the same reader who
+  found the defect is not independently verified.
+
 ```sources
 []
 ```

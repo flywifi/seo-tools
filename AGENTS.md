@@ -47,6 +47,12 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
 - Human confirmation before every post: `schedule_post` never publishes without an explicit
   human confirmation step, and `live_publishing_enabled` defaults off.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
+- **Claims about this repo's own behavior need executed evidence.** A universal claim ("no",
+  "never", "every", "all") in a commit subject, a doc sentence, or a report either names the
+  executed pin proving it or is narrowed to what was tested. Test the PROPERTY claimed, not the
+  mechanism changed. The independent pass runs BEFORE the claim is reported or merged
+  (`docs/AUDIT-PROTOCOL.md` 7.1), and a guard's scan set is derived from the tree, never a hand
+  list of the files the change touched.
 - Installs are user-scoped by default: everything lands under the user's home folder, and any
   machine-wide route carries the label "machine-wide alternative (affects the whole computer)"
   (`docs/INSTALL-SCOPE.md`; drift invariant 59; the code side refuses PEP 668 overrides).
