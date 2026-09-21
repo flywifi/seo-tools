@@ -17,11 +17,16 @@ policy, so it would have drifted back.
 
 ## Decisions
 
-1. **Refusal over fallback.** On a PEP 668 externally-managed interpreter with no `.venv`,
-   the installer refuses with the exact remedy ("run `python3 tools/setup.py --install-deps`
-   to create the repo's private `.venv`") instead of overriding into the shared
-   site-packages. Proven fail-then-pass: a fake PEP 668 interpreter fixture in the setup
-   selftest, plus a source pin asserting the override flag string is gone from both modules.
+1. **Refusal over fallback, on ANY machine-wide interpreter.** With no `.venv` to install
+   into, the installer refuses with the exact remedy ("run `python3 tools/setup.py
+   --install-deps` to create the repo's private `.venv`") and never invokes pip at all. The
+   first cut of this decision keyed the refusal on the PEP 668 "externally-managed-environment"
+   string, which the adversarial pass proved insufficient: `install_dependencies` still fell
+   back to `target = venv_py or PYTHON`, and a machine-wide interpreter that carries no PEP 668
+   marker (a python.org framework build, `/usr/local`) accepted the write silently. Executed
+   proof: under that code all seven requirements sets installed into `/usr/local/bin/python3`
+   and reported success. Pinned fail-then-pass in the setup selftest (pip is never invoked; every
+   set is refused), plus the PEP 668 fixture and a source pin over both modules.
 2. **The label convention.** Machine-wide routes are kept, not deleted -- some users want
    Homebrew -- but every one sits under the literal label "machine-wide alternative (affects
    the whole computer)" within two lines, and the user-scoped route leads. The owner's
@@ -37,12 +42,23 @@ policy, so it would have drifted back.
    rather than hidden. USING existing machine binaries (`env_paths.which` reading the
    Homebrew prefixes) remains allowed; ADDING to machine locations is what the policy
    forbids.
-5. **Drift invariant 59 locks the words.** `check_install_scope()` scans the live guidance
-   set for sudo package commands, `brew install`, `npm install -g`, the pip override flag,
-   and command-anchored pip installs, and fails the build on any hit without the label
-   within two lines. The detector self-proves on embedded fail-then-pass fixtures (including
-   the two anchored-pip edge cases) before every scan, so a detector that cannot fail
-   reports a problem instead of a verdict.
+5. **Drift invariant 59 locks the words, over a DERIVED denominator.** `check_install_scope()`
+   scans every tracked text file, minus an exemption map whose every entry carries a written
+   reason (decision records, the changelog, the phase log, the ledger, dated audits,
+   third-party evaluations, registry data, CI workflows, and the two files that hold detector
+   vocabularies). The first cut scanned a hardcoded 16-file allowlist; the adversarial pass
+   found live machine-wide instructions in six files outside it, including the repo-root
+   double-click launcher. A closed list can only shrink silently. Labels govern downward
+   only (a heading introduces its block, so it cannot bless the command above it), fenced
+   `sources` blocks are citation data and are skipped, and every regex branch carries its own
+   fail-then-pass fixture so deleting one fails the build rather than narrowing coverage.
+
+6. **A route we recommend must be a route we can find.** Recommending user-scoped installs
+   obliges the code to look where they land: `env_paths.augmented_path()` prepends
+   `~/.local/bin` and each `$NVM_DIR/versions/node/<version>/bin` ahead of the Homebrew
+   prefixes, and the launcher probes the versioned `~/.local/bin/python3.X` names uv writes.
+   Without this the advice dead-ends: the wizard reported "Node.js not detected" after giving
+   the user its own nvm command.
 
 ## Consequences
 

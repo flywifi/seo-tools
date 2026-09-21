@@ -62,6 +62,15 @@ _PEP668_REFUSAL = ("this interpreter refuses global installs (PEP 668) and Creat
                    "installs machine-wide; run 'python3 tools/setup.py --install-deps' to "
                    "create the repo's private .venv, then retry")
 
+# P93: the .venv could not be created, so there is nowhere user-scoped to install. Creator OS
+# refuses rather than falling back to the base interpreter, whose site-packages is shared with
+# every other user of the machine (docs/INSTALL-SCOPE.md).
+_NO_VENV_REFUSAL = ("refused: the repo's private .venv could not be created and Creator OS never "
+                    "installs into a machine-wide site-packages. Install a user-scoped Python "
+                    "(curl -LsSf https://astral.sh/uv/install.sh | sh, then uv python install "
+                    "3.12) and rerun with that interpreter: python3.12 tools/setup.py "
+                    "--install-deps")
+
 
 def _pip_install(args: list, python: str | None = None) -> tuple:
     """Run pip with the given args in the target interpreter. Returns (ok, detail). Never
@@ -89,7 +98,11 @@ def ensure_venv() -> tuple:
     Isolating deps in .venv sidesteps PEP 668 on a Homebrew Python and gives the launcher and the
     Claude MCP config a stable absolute interpreter. Creating a venv is allowed even from an
     externally-managed base (PEP 668 only blocks pip into the base). If creation fails (e.g. a
-    stripped-down CLT-shim interpreter), returns (None, reason) and the caller does a system install."""
+    stripped-down CLT-shim interpreter), returns (None, reason) and the caller REFUSES to install:
+    P93 removed the system-install fallback entirely, because a base interpreter that is merely
+    machine-wide (a python.org framework build, /usr/local) is not PEP 668 marked, so pip would
+    have succeeded straight into a shared site-packages. The .venv is the only install target
+    (docs/INSTALL-SCOPE.md)."""
     existing = env_paths.venv_python()
     if existing:
         return str(existing), "using existing .venv"
@@ -98,11 +111,11 @@ def ensure_venv() -> tuple:
         subprocess.run([PYTHON, "-m", "venv", str(venv_dir)],
                        capture_output=True, text=True, timeout=300)
     except Exception as exc:  # noqa: BLE001
-        return None, f"could not create .venv ({exc}); using the system Python"
+        return None, f"could not create .venv ({exc})"
     created = env_paths.venv_python()
     if created:
         return str(created), "created .venv (private toolbox)"
-    return None, "could not create .venv; using the system Python"
+    return None, "could not create .venv"
 
 
 def _install_playwright_browser(python: str | None = None) -> tuple:
@@ -135,9 +148,19 @@ def install_dependencies() -> list:
     the user's shell package manager and are handled by the launcher/doctor."""
     results = []
     venv_py, venv_note = ensure_venv()
-    target = venv_py or PYTHON
     results.append({"item": ".venv", "desc": "private dependency toolbox",
                     "ok": venv_py is not None, "detail": venv_note})
+    if venv_py is None:
+        # P93: no .venv means NO install. There is no base-interpreter fallback: pip into the base
+        # would land in whatever site-packages that interpreter owns, which on a python.org or
+        # /usr/local build is machine-wide AND not PEP 668 marked, so nothing would have refused it.
+        for fname, desc in REQUIREMENTS_SETS:
+            results.append({"item": fname, "desc": desc, "ok": False, "detail": _NO_VENV_REFUSAL})
+        results.append({"item": "uv", "desc": "uvx runtime", "ok": False, "detail": _NO_VENV_REFUSAL})
+        results.append({"item": "playwright chromium", "desc": "Headless browser binary",
+                        "ok": None, "detail": "skipped: no .venv to install into"})
+        return results
+    target = venv_py
     for fname, desc in REQUIREMENTS_SETS:
         p = ROOT / fname
         if not p.exists():
@@ -435,6 +458,30 @@ def _selftest() -> int:
     _wiz_src = (ROOT / "tools" / "wizard.py").read_text(encoding="utf-8")
     ok(_marker not in _self_src and _marker not in _wiz_src,
        "the machine-wide pip override is gone from setup.py and wizard.py (P93 source pin)")
+    # (c) P93-4, the gap the P93 adversarial pass found: the PEP 668 branch above only covers an
+    # interpreter that MARKS itself externally-managed. A plain machine-wide interpreter (a
+    # python.org framework build, /usr/local) raises no such error, so the old
+    # `target = venv_py or PYTHON` fallback installed straight into a shared site-packages with
+    # nothing to refuse it. No .venv now means NO install, whatever the base interpreter is.
+    # This pin fails against P93-1 code, which returned ok=True for every set here.
+    _real_pip_install = _pip_install
+    _real_ensure_venv = ensure_venv
+    _pip_targets = []
+    try:
+        globals()["ensure_venv"] = lambda: (None, "could not create .venv")
+        globals()["_pip_install"] = lambda a, python=None: (_pip_targets.append(python), (True, ""))[1]
+        _res = install_dependencies()
+    finally:
+        globals()["_pip_install"] = _real_pip_install
+        globals()["ensure_venv"] = _real_ensure_venv
+    _sets = [r for r in _res if r["item"].startswith("requirements-")]
+    ok(_pip_targets == [],
+       "no .venv: pip is never invoked at all, so nothing can land machine-wide (P93-4)")
+    ok(bool(_sets) and all(r["ok"] is False and "never installs into a machine-wide" in r["detail"]
+                           for r in _sets),
+       "no .venv: every requirements set is refused with the user-scoped remedy (P93-4)")
+    ok(any(r["item"] == "uv" and r["ok"] is False for r in _res),
+       "no .venv: the uv step is refused too, not silently installed (P93-4)")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:

@@ -67,6 +67,16 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv python install 3.12
 ```
 
+That gives you **`python3.12`**, not a bare `python3`, and it lands in `~/.local/bin`. Two
+consequences worth knowing before Step 4:
+
+- Type `python3.12` (not `python3`) in the commands below. Every command in this guide works
+  with either name.
+- If your shell reports `command not found`, `~/.local/bin` is not on your PATH yet. Run
+  `uv python update-shell` and open a new Terminal window, or call it by full path:
+  `~/.local/bin/python3.12`. The double-click launcher already looks in `~/.local/bin`, so it
+  finds this Python without any PATH change.
+
 Git missing? Accept the Apple Command Line Tools prompt (`xcode-select --install`) -- the one
 machine-level component on this path, with no user-scoped equivalent (see the exceptions
 register in `docs/INSTALL-SCOPE.md`).
@@ -86,7 +96,7 @@ If `python3` still points to Apple's stock interpreter, use the full path:
 `/opt/homebrew/bin/python3`. (Apple's `/usr/bin/python3` is described by the Python docs as an older,
 incomplete build shipped for Xcode's own use; never modify or remove it, just do not build on it.)
 
-### Step 3 -- Clone the repository
+### Step 2 -- Clone the repository
 
 ```bash
 git clone https://github.com/flywifi/seo-tools.git
@@ -100,7 +110,7 @@ pwd
 # example: /Users/matt/projects/seo-tools
 ```
 
-### Step 4 -- Run first-time setup
+### Step 3 -- Run first-time setup
 
 ```bash
 python3 tools/setup.py
@@ -109,7 +119,7 @@ python3 tools/setup.py
 This creates your gitignored local data files, builds the FTS5 keyword cache, and verifies the
 drift guard. Expected output ends with `[ok] drift guard clean`.
 
-### Step 5 -- Install every dependency set (one command, into the repo's private .venv)
+### Step 4 -- Install every dependency set (one command, into the repo's private .venv)
 
 ```bash
 python3 tools/setup.py --install-deps
@@ -122,10 +132,10 @@ machine-wide Python (P93: on a locked-down PEP 668 interpreter with no `.venv`, 
 refuses with the remedy instead of overriding). Each set reports its own honest result; a
 failed optional set degrades that lane, never the base.
 
-### Steps 6 and 7 -- covered by Step 5
+#### Already covered by Step 4
 
-(Playwright and the MCP server used to be separate pip steps; they install into
-the `.venv` with everything else now.)
+(Playwright and the MCP server used to be separate pip steps of their own; they install into
+the `.venv` with everything else now, so there is nothing extra to run.)
 
 Smoke test (should print the tool count; a bare `tools/list` is rejected before the MCP
 `initialize` handshake, so the probe sends the full three-message sequence — the wizard's
@@ -155,7 +165,7 @@ for line in r.stdout.splitlines():
 EOF
 ```
 
-### Step 8 -- Run the setup wizard
+### Step 5 -- Run the setup wizard
 
 The wizard opens in your browser and handles Claude Desktop configuration, and optionally
 connects Google Workspace (Gmail, Calendar, Drive/Docs/Sheets) and Microsoft 365 (Outlook,

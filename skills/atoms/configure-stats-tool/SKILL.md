@@ -57,7 +57,8 @@ The canonical transport for each server is `docs/STATISTICS.md` and
 sources exactly. Do not substitute other package names.
 
 ### wolfram_alpha
-- Prerequisites: uv (`pip install uv`, provides `uvx`), Wolfram Alpha API key (from
+- Prerequisites: uv (user-only: `curl -LsSf https://astral.sh/uv/install.sh | sh` puts it in
+  `~/.local/bin` and provides `uvx`), Wolfram Alpha API key (from
   developer.wolframalpha.com; free tier 2,000 calls/month).
 - Env vars: `WOLFRAM_APP_ID`.
 - MCP server: `mcp-wolfram-alpha` launched via `uvx` (Python, not npm).
@@ -87,20 +88,21 @@ sources exactly. Do not substitute other package names.
 - Config note: point the server at the creator's data directory for automatic file discovery.
 
 ### stats_compass
-- Prerequisites: Python 3.10+ with the `stats_compass_mcp` package installed (`pip install stats-compass-mcp`).
+- Prerequisites: Python 3.10+ with the `stats_compass_mcp` package installed user-only (`.venv/bin/pip install stats-compass-mcp`).
 - Env vars: none.
 - MCP server: `stats_compass_mcp` launched via `python3 -m` (Python module, not npm).
 - Supports: t-test, chi-square, ANOVA, Mann-Whitney U, proportion test, correlation, descriptive
   statistics.
 
 ### jupyter_notebook
-- Prerequisites: Python 3.10+ with the `jupyter_mcp_server` package installed (`pip install jupyter-mcp-server`), jupyter, ipykernel.
+- Prerequisites: Python 3.10+ with the `jupyter_mcp_server` package installed user-only (`.venv/bin/pip install jupyter-mcp-server`), jupyter, ipykernel.
 - Env vars: none.
 - MCP server: `jupyter_mcp_server` launched via `python3 -m`.
 - Config note: the Jupyter server must be running before Claude Desktop connects.
 
 ### r_statistics
-- Prerequisites: R 4.0+, Rscript on PATH, and the `rmcp` package (`pip install rmcp`).
+- Prerequisites: R 4.0+, Rscript on PATH, and the `rmcp` package installed user-only
+  (`.venv/bin/pip install rmcp`).
 - Env vars: none.
 - MCP server: `rmcp` (Python launcher that shells to R).
 - Pre-installed R packages recommended: stats (built-in), car, effectsize, ggplot2.
@@ -190,7 +192,7 @@ Provide a verification step the user can run to confirm the tool is working:
   "env_vars_needed": {
     "WOLFRAM_APP_ID": "Wolfram Alpha App ID from developer.wolframalpha.com"
   },
-  "prerequisites": ["uv (pip install uv)", "Wolfram Alpha API key"],
+  "prerequisites": ["uv (user-only installer into ~/.local/bin)", "Wolfram Alpha API key"],
   "prerequisites_met": true,
   "config_file_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
   "flag_enabled": true,

@@ -55,9 +55,11 @@ python3 tools/wizard.py
 ```
 
 Everything the wizard installs stays inside your user account (the repo's private `.venv`,
-`~/.local`, `~/Library`); since P93 it never writes into a machine-wide location -- on a
-locked-down (PEP 668) Python with no `.venv` it refuses with the exact remedy instead of
-overriding. The same default runs through every screen: the Node.js screen leads with the
+`~/.local`, `~/Library`); since P93 it never writes into a machine-wide location -- with no
+`.venv` to install into it refuses with the exact remedy, whatever the base interpreter is.
+It also SEARCHES the user-scoped locations it recommends (`~/.local/bin`, nvm's
+`~/.nvm/versions/node/<version>/bin`), so a tool installed the user-only way is detected
+rather than reported missing. The same default runs through every screen: the Node.js screen leads with the
 per-user nvm route (`~/.nvm`) and the transcription screen with `faster-whisper` in the repo
 `.venv`; any Homebrew or system-package route appears only under an explicit "machine-wide
 alternative (affects the whole computer)" label. Full policy: `docs/INSTALL-SCOPE.md`.

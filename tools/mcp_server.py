@@ -37,8 +37,8 @@ Usage:
 Configure in Claude Desktop claude_desktop_config.json:
   See implementation/claude/desktop/claude_desktop_config_snippet.json
 
-Prerequisites:
-  pip install -r requirements-mcp.txt
+Prerequisites (user-only: everything lands in the repo's private .venv, docs/INSTALL-SCOPE.md):
+  python3 tools/setup.py --install-deps
   python3 shared/cache/cache.py --build
 """
 import hmac
@@ -910,9 +910,11 @@ except ImportError:
     try:
         import mcp as _probe  # noqa: F401
         print("ERROR: the installed 'mcp' package exposes neither MCPServer (2.x) nor FastMCP (1.x). "
-              "Reinstall from requirements-mcp.txt.", file=sys.stderr)
+              "Reinstall with python3 tools/setup.py --install-deps (user-only, repo .venv).", file=sys.stderr)
     except ImportError:
-        print("ERROR: 'mcp' package not installed.\nRun: pip install -r requirements-mcp.txt", file=sys.stderr)
+        print("ERROR: 'mcp' package not installed.\n"
+              "Run: python3 tools/setup.py --install-deps  "
+              "(user-only, into the repo's private .venv)", file=sys.stderr)
     sys.exit(1)
 
 mcp = _ServerClass("creator-os")   # the first positional is `name` in both majors
@@ -2835,7 +2837,7 @@ if __name__ == "__main__":
             from mcp.server.transport_security import TransportSecuritySettings as _TSS
         except ImportError:
             print("[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
-                  "pip install -r requirements-mcp.txt", file=sys.stderr)
+                  "run python3 tools/setup.py --install-deps (user-only, repo .venv)", file=sys.stderr)
             sys.exit(1)
         try:
             _hosts = _remote_allowed_hosts(_args.allowed_host)

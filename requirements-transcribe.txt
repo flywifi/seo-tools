@@ -6,7 +6,8 @@
 # reports which backend was found, and python3 tools/transcribe.py status prints the selection.
 #
 # Backend by machine (tools/transcribe.py::select_backend):
-#   Apple Silicon (M1 to M4): whisper.cpp (Metal). System binary, not a pip package:
+#   Apple Silicon (M1 to M4): whisper.cpp (Metal) is the FASTER engine but a system binary, not a
+#     pip package, so it is a machine-wide alternative (affects the whole computer):
 #       brew install whisper-cpp ffmpeg      (Homebrew bottles are notarized: no Gatekeeper prompt)
 #     Then point the runner at a GGML model file once via WHISPER_CPP_MODEL=ggml-<tier>.bin
 #     (download once from the whisper.cpp repo; a repo cannot ship model weights).

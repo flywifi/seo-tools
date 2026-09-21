@@ -13,12 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
-- P93: drift invariant 59 (install-scope policy). The guard scans the live setup guidance
-  for sudo package commands, brew install, npm install -g, the pip system-override flag,
-  and command-anchored pip install lines, and fails the build on any hit without the
-  "machine-wide"/"whole computer" label within two lines. The detector self-proves on
-  embedded fail-then-pass fixtures (including the two anchored-pip edge cases) before every
-  scan. Invariant count 57 to 58. ADR 0065 records the policy decisions.
+- P93: drift invariant 59 (install-scope policy). The guard scans EVERY tracked text file
+  (a derived denominator, minus written-reason exemptions for historical records and
+  third-party evaluations) for brew, sudo package commands, MacPorts, global npm/pipx
+  installs, the pip system-override flag, command-anchored pip installs, and macOS
+  .pkg/python.org downloads, and fails the build on any hit without the
+  "machine-wide"/"whole computer" label on its line or the two above it. Labels govern
+  downward only, so a heading cannot bless the user-scoped command above it, and fenced
+  `sources` citation blocks are skipped. Every regex branch carries its own fail-then-pass
+  fixture, so deleting a branch fails the build instead of shrinking coverage silently.
+  Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
 - P93: every install instruction across the live guidance defaults to user-scoped. The new
@@ -40,6 +44,27 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Pinned twice: a fake PEP 668 interpreter fixture that failed against the pre-fix code
   (executed detector proof), and a source pin asserting the override string is gone from
   both modules.
+- P93-4: the P93 adversarial pass found that P93-1 had closed only HALF the machine-wide write.
+  The refusal keyed on the PEP 668 "externally-managed-environment" string, but
+  `install_dependencies` still fell back to `target = venv_py or PYTHON`, so on an interpreter
+  that is machine-wide WITHOUT that marker (a python.org framework build, /usr/local) pip
+  succeeded straight into the shared site-packages and reported success. Executed proof: all
+  seven requirements sets installed into /usr/local/bin/python3 under the old code. The .venv is
+  now the only install target in both `install_dependencies` and the wizard's `_install_uv`; with
+  no .venv, pip is never invoked at all and every item is refused with the remedy.
+- P93-4: the user-scoped routes this repo now recommends were not detectable. `env_paths` searched
+  only the Homebrew prefixes, so an nvm-installed node (`$NVM_DIR/versions/node/<v>/bin`) and a
+  uv-installed `~/.local/bin/python3.12` were invisible: the wizard looped users on "Node.js not
+  detected" after giving them the nvm command, and the double-click launcher could not find the
+  Python its own message told them to install. `augmented_path` now prepends the user-scoped dirs
+  ahead of the brew prefixes, the launcher probes the versioned `~/.local/bin/python3.X` names
+  first, and SETUP_MAC documents that uv installs `python3.12` rather than `python3`.
+- P93-4: six live-guidance surfaces still led with an unlabeled machine-wide install, none of them
+  visible to the first cut of invariant 59 because it scanned a hardcoded 16-file list: the
+  repo-root double-click launcher (the entry point for non-technical Mac users), the wizard's
+  Python-floor message, the videoedit preflight note, the capability `requires` strings in
+  creator-os-config.json, the MCP server's missing-dependency hints, and the transcription engine,
+  stats-tool skill, and requirements headers.
 - The repository's visibility was misstated as private in the P89/P90 guidance (the wizard's
   claude.ai screens, the setup knowledge file, DEPLOYMENT's GitHub-connector note, and a
   transitions caveat about private marketplace links). Verified public via an

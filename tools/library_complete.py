@@ -333,7 +333,10 @@ def selftest():
         def gap_transcriber(path, tags=None, title=None, out_dir=None):
             return {"transcript_text": None, "segments": [], "srt": None, "computed_by": None,
                     "backend_chain": [], "gaps": [{"gap_type": "no_backend",
-                    "recommended_action": "run_local_stt", "install": "brew install whisper-cpp ffmpeg"}]}
+                    "recommended_action": "run_local_stt",
+                    "install": "python3 tools/setup.py --install-deps   (user-only: "
+                               "faster-whisper in the repo .venv; machine-wide alternative: "
+                               "brew install whisper-cpp ffmpeg)"}]}
         p2 = complete(m["worklist"], {"youtube:vidJoin": rec}, transcriber=gap_transcriber, out_dir=tmp)[0]
         ok("no-backend completion proposes no transcript", "transcript" not in p2["filled"])
         ok("no-backend completion surfaces run_local_stt gap",

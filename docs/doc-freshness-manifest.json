@@ -12,7 +12,7 @@
       "sources": {
         "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
         "tools/source_currency.py": "7a61050826184f2f04aa6e52428f26c1b1c754544ba3e35ff84ca51bea4fcd17",
-        "tools/sync_check.py": "3e9599816efc17282b69895ea18e1b5cf149098d27cd4a1f98ceb433f74c9c62"
+        "tools/sync_check.py": "dbef44368f528e2178434666a495f532f5cbcb4d52250eba3568e0ddfe72234f"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "8b40186f43ebd2441690aec3c777d5c9a5ae917956ca8efc38b202404d71c3c5",
+        "tools/wizard.py": "f6683dae6e6fdbb845eb7ce23de46bfa0396da69e2662620196efe37b0b4bfb2",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -53,7 +53,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "c4da91cf5353103a85d70f51c112bad5731789daae96e9b434b4fcd21837bc24"
+        "tools/mcp_server.py": "03ae42778814d3079e6d1f609d4413c93db32b1f92b768122829afc352c2c923"
       }
     },
     "docs/TRANSITIONS.md": {
@@ -63,7 +63,7 @@
     },
     "implementation/claude/desktop/README.md": {
       "sources": {
-        "implementation/claude/desktop/claude_desktop_config_snippet.json": "fe89c0004d021688aad1e1eeac00673be440ab87f5ea78a8a74e0e91cffb5c51"
+        "implementation/claude/desktop/claude_desktop_config_snippet.json": "ebb79356750e21fd18ae43c24fb4ac0318a2dfa45fc00278df7f44af8e45e619"
       }
     },
     "docs/UPDATING.md": {

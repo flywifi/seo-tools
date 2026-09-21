@@ -105,7 +105,8 @@ def prong_playwright(url: str, timeout: float = 45.0) -> dict:
         from playwright.sync_api import sync_playwright
     except Exception:
         return {"ok": False, "status": None, "final_url": url, "content": b"",
-                "note": "playwright not installed — enable: pip install playwright && playwright install chromium"}
+                "note": "playwright not installed — enable with: python3 tools/setup.py --install-deps "
+                        "(user-only, into the repo's private .venv)"}
     try:
         with sync_playwright() as p:
             kw = {}

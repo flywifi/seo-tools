@@ -161,8 +161,10 @@ def preflight(config: dict | None = None) -> dict:
         notes.append("media_render is on but the video_editing_enabled master gate is off; no render will run.")
     if not lanes["transcribe_media"]:
         notes.append("No whisper.cpp and no faster-whisper: content-import transcript completion degrades to "
-                     "the run_local_stt gap (never a fabricated transcript). Install on Apple Silicon with "
-                     "'brew install whisper-cpp ffmpeg'; elsewhere 'pip install faster-whisper' (no system ffmpeg needed).")
+                     "the run_local_stt gap (never a fabricated transcript). Install the user-only default with "
+                     "'python3 tools/setup.py --install-deps' (faster-whisper into the repo's private .venv, "
+                     "no system ffmpeg needed). Machine-wide alternative (affects the whole computer), for "
+                     "Metal on Apple Silicon: 'brew install whisper-cpp ffmpeg'.")
 
     return {
         "os": plat,

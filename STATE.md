@@ -15,6 +15,15 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   computer)" label. Lock: drift invariant 59 scans the live guidance and fails the build on
   any unlabeled machine-wide instruction, with an embedded self-proving detector. Invariant
   count 57 to 58; registry gained uv-installer-docs and nvm-readme (T1).
+  P93-4 (the mandated adversarial pass on this pass's own output) found and fixed three
+  classes it had missed: the refusal keyed on the PEP 668 marker while the installer still
+  fell back to the base interpreter, so a machine-wide Python without that marker took all
+  seven requirements sets (executed proof; the .venv is now the only target and pip is never
+  invoked without one); the recommended user-scoped routes were undetectable, so the wizard
+  looped users on "Node.js not detected" after its own nvm instructions (env_paths and the
+  launcher now search ~/.local/bin and nvm's node dirs first); and invariant 59's hardcoded
+  16-file scan list missed six live surfaces including the double-click launcher, so the
+  denominator is now derived from git ls-files with written-reason exemptions.
 - P92: version 0.3.0 cut (2026-09-20). The P82 to P91 work ships as a release: all five
   version locations (VERSION, versions.json ecosystem, plugin.json, marketplace.json twice)
   and the custom-instructions packaging stamp bumped from 0.2.0/2026-08-16 in one commit, the

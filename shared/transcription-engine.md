@@ -85,7 +85,8 @@ speech-to-text, real-time caption streaming, and on-the-fly studio monitoring ar
 
 - Backend: CTranslate2, int8 quantized weights
 - Performance: fastest on CPU of the three options; also the fastest on CUDA if GPU is available
-- Python install: `pip install faster-whisper`
+- Python install (user-only, into the repo's private toolbox): `python3 tools/setup.py --install-deps`
+  (or directly: `.venv/bin/pip install faster-whisper`)
 - Model download: automatic on first run, cached to `~/.cache/huggingface/hub/` by default
 - Output formats: JSON (with word-level timestamps), SRT, VTT
 - License: MIT
@@ -107,7 +108,7 @@ speech-to-text, real-time caption streaming, and on-the-fly studio monitoring ar
 - Backend: PyTorch
 - Performance: slower than faster-whisper (typically 3x to 8x slower on CPU for the same model
   tier)
-- Python install: `pip install openai-whisper`
+- Python install (user-only, into the repo's private toolbox): `.venv/bin/pip install openai-whisper`
 - Output formats: JSON (with segments and word timestamps), SRT, VTT, TXT
 - License: MIT
 - When to use: debugging, compatibility testing, validating faster-whisper output against the
@@ -290,7 +291,7 @@ None require cloud access. Install only as needed.
 ### jiwer v4.0.0
 
 - License: Apache-2.0
-- Install: `pip install jiwer`
+- Install (user-only, into the repo's private toolbox): `.venv/bin/pip install jiwer`
 - Backend: RapidFuzz (C++ extension, fast string matching)
 - Computes: WER, MER (Match Error Rate), WIL (Word Information Lost), WIP (Word Information
   Preserved) in a single call
@@ -306,7 +307,7 @@ print(result.wer, result.mer, result.wil)
 ### aeneas
 
 - License: BSD
-- Install: `pip install aeneas` (requires espeak and ffmpeg)
+- Install (user-only, into the repo's private toolbox): `.venv/bin/pip install aeneas` (needs espeak and ffmpeg)
 - Purpose: forced alignment; maps a known transcript text to audio timestamps word by word
 - Use when caption sync is the problem (words are correct but timing is off)
 - Output: SMIL or JSON alignment map; useful for validating or correcting segment start/end times
@@ -314,7 +315,7 @@ print(result.wer, result.mer, result.wil)
 ### ffsubsync
 
 - License: MIT
-- Install: `pip install ffsubsync`
+- Install (user-only, into the repo's private toolbox): `.venv/bin/pip install ffsubsync`
 - Purpose: re-syncs an existing SRT or ASS subtitle file to the audio track of a video; corrects
   temporal drift introduced by export pipeline mismatches or re-encoding
 - Use when captions are textually correct but consistently early or late relative to audio

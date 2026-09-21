@@ -177,8 +177,8 @@ Operations `resolve.py` exposes (all gated behind `video_editing_enabled` + `res
 
 ## OpenTimelineIO (OTIO)
 
-Optional neutral-core enhancement (`pip install OpenTimelineIO OpenTimelineIO-Plugins` +
-`otio-fcpx-xml-adapter`). Since OTIO 0.17 adapters are a separate package. The FCPXML adapter
+Optional neutral-core enhancement, installed user-only into the repo's private toolbox
+(`.venv/bin/pip install OpenTimelineIO OpenTimelineIO-Plugins otio-fcpx-xml-adapter`). Since OTIO 0.17 adapters are a separate package. The FCPXML adapter
 round-trips single/multiple tracks, audio, gaps, markers, nesting, but NOT transitions, effects,
 multicam, or fancy speed changes. When OTIO is absent, `otio_core.py` degrades to the edit-package +
 `fcpxml.py` serialization (no OTIO dependency required for the core round-trip).

@@ -3160,91 +3160,200 @@ def check_mac_surface_completeness():
                  f"MAC_SIGNALS (then re-bless) or confirm the file is not a Mac surface.")
 
 
+# P93-4: the install-scope detector. Each branch is a DISTINCT way to install machine-wide, and
+# the check's coverage proof exercises every one of them by name, so deleting a branch fails the
+# build instead of silently shrinking what the gate sees (the P70 lesson from invariant 58).
+_INSTALL_SCOPE_BRANCHES = {
+    "brew": r"brew\s+(?:install|reinstall)\b",
+    "sudo-pkg": r"sudo\s+(?:-\S+\s+)*(?:apt|apt-get|dnf|yum|pacman|zypper|port|snap|installer|"
+                r"softwareupdate|xcode-select|npm|pip3?|gem|make|sh|bash|cp|mv|mkdir|ln)\b",
+    "sudo-python": r"sudo\s+(?:-\S+\s+)*(?:python3?|/usr/bin/python3?)\s+-m\s+pip\b",
+    "macports": r"(?<!sudo )\bport\s+install\b",
+    "npm-global": r"npm\s+(?:install|i|add)\s+(?:-g|--global)\b",
+    "pipx-global": r"pipx\s+install\s+[^\n]*--global\b",
+    "pip-override": r"--break-system-" r"packages",
+    "pip-command": r"(?:^|[>`\"'\(:;$|]|\s{2}|\b(?:Run|run|then|Then):\s*|^\s*[-*]\s+)"
+                   r"\s*(?:python3?\s+-m\s+)?pip3?\s+install\b",
+    "macos-pkg": r"(?:installer\s+-pkg\b|python\.org/downloads|universal2\s+(?:\.pkg|installer|build))",
+}
+_INSTALL_SCOPE_PATTERN = re.compile("|".join(f"(?:{p})" for p in _INSTALL_SCOPE_BRANCHES.values()))
+_INSTALL_SCOPE_LABEL = re.compile(r"(whole computer|machine-wide|machine wide)", re.I)
+
+# Paths whose install lines are NOT this repo's live guidance. Each entry carries its reason; a
+# path is exempt when it starts with a listed prefix or matches a listed name.
+_INSTALL_SCOPE_EXEMPT = {
+    "docs/adr/": "decision records: they quote the state of the world when the decision was made",
+    "CHANGELOG.md": "release history: entries describe what WAS, and are never re-edited",
+    "STATE.md": "phase log: historical record of each pass",
+    "ledger/": "the dated decision ledger: append-only history",
+    "docs/production-readiness-": "a dated audit record, frozen at its run date",
+    "docs/VIDEO_TOOLING_EVAL": "third-party tool evaluation: records those vendors' own install facts",
+    "docs/video-tooling-": "third-party tool evaluation evidence, same reason",
+    "docs/AUDIT-": "dated audit protocol records",
+    "tools/sync_check.py": "this file: it holds the detector's own deliberately unlabeled fixtures",
+    "tools/secret-scan-allowlist.json": "a scanner allowlist of literal strings, not guidance",
+    "tools/mac_surface_manifest.py": "holds the mac-surface SIGNAL tokens (one is the literal "
+                                     "'brew install'); a detector vocabulary, not an instruction",
+    ".github/": "CI workflow steps run in an ephemeral single-use container that is destroyed "
+                "after the run; nothing there installs onto a person's machine",
+    "canonical-sources/": "registry and reference DATA about third-party sources (extraction "
+                          "hints, allowlist reasons, seeds); it describes what those tools are, "
+                          "it does not instruct anyone to install anything",
+}
+
+# Extensions worth reading as guidance. Anything else (images, archives, notebooks) is skipped.
+_INSTALL_SCOPE_SUFFIXES = (".md", ".py", ".json", ".txt", ".sh", ".command", ".yml", ".yaml", ".js")
+
+
+def _install_scope_governed(lines, i):
+    """Is line ``i`` covered by a machine-wide label? A label is a HEADING: it governs the block
+    it introduces, and only downward. So look at the instruction's own contiguous non-blank
+    paragraph, then at up to two lines above that paragraph (across at most one blank separator,
+    the 'Machine-wide alternative:' + blank + command shape). Never look below the instruction:
+    the P93 adversarial pass showed a label introducing the NEXT section would otherwise bless the
+    user-scoped command sitting above it."""
+    start = i
+    while start > 0 and lines[start - 1].strip():
+        start -= 1
+    if any(_INSTALL_SCOPE_LABEL.search(w) for w in lines[start:i + 1]):
+        return True
+    j = start - 1
+    if j >= 0 and not lines[j].strip():      # allow a single blank separator
+        j -= 1
+    for k in (j, j - 1):
+        if k >= 0 and _INSTALL_SCOPE_LABEL.search(lines[k]):
+            return True
+    return False
+
+
+def _install_scope_scan(lines):
+    """Return [(lineno, matched_text)] for every unlabeled machine-wide install instruction.
+    Lines inside a fenced ``sources`` block are skipped: those are machine-read citation rows
+    (id + url), governed by invariant 52, not instructions anyone follows."""
+    hits = []
+    in_sources = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            fence = stripped[3:].strip().lower()
+            in_sources = (fence == "sources") if not in_sources else False
+            continue
+        if in_sources:
+            continue
+        m = _INSTALL_SCOPE_PATTERN.search(line)
+        if not m:
+            continue
+        if _install_scope_governed(lines, i):
+            continue
+        hits.append((i + 1, m.group(0).strip() or line.strip()))
+    return hits
+
+
 def check_install_scope():
-    """Invariant 59: install-scope policy (P93). Every machine-wide install instruction in the
-    LIVE setup guidance -- a sudo package command, `brew install`, `npm install -g`, the pip
-    system-override flag, or a command-anchored pip install line -- must carry the label
-    "machine-wide" or "whole computer" within two lines, so the user-scoped default
-    (docs/INSTALL-SCOPE.md: home folder only, repo .venv, ~/.local, ~/.nvm) can never silently
-    stop being the default. The scanned set is the guidance a person actually follows; exempt by
-    design (historical or third-party records, not our guidance): docs/adr/, CHANGELOG.md,
-    STATE.md, the dated audit records under ledger/, and the video-tooling evaluation records
-    (docs/VIDEO_TOOLING_EVAL*, docs/video-tooling-*). The detector proves itself before scanning:
-    an embedded unlabeled fixture must flag, its labeled twin must not, prose mentioning
-    "no real pip install" must not, and an instruction line "Run: pip install uv" must -- a
-    detector that cannot fail reports a problem instead of a verdict."""
-    live_guidance = [
-        "README.md",
-        "docs/SETUP_MAC.md",
-        "docs/DEPENDENCIES.md",
-        "docs/MAC-VALIDATION.md",
-        "docs/WIZARD.md",
-        "docs/DEPLOYMENT.md",
-        "docs/TRANSITIONS.md",
-        "docs/INSTALL-SCOPE.md",
-        "docs/MACOS-MAINTENANCE.md",
-        "docs/wizard/screenshot-guide.md",
-        "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
-        "implementation/claude/desktop/README.md",
-        "tools/wizard.py",
-        "tools/transcribe.py",
-        "tools/setup.py",
-        "shared/cross-modality/transitions.json",
-    ]
-    pattern = re.compile(
-        r"(sudo\s+(?:apt|apt-get|dnf|yum|pacman|zypper|installer|softwareupdate"
-        r"|xcode-select|npm|pip3?|sh|bash|make)\b"
-        r"|brew install|npm install -g|--break-system-" r"packages"
-        r"|(?:^|[>`\"'\(:;\$]|\s{2}|Run: )\s*pip3? install\b)")
-    label = re.compile(r"(whole computer|machine-wide)", re.I)
+    """Invariant 59: install-scope policy (P93, widened P93-4). Every machine-wide install
+    instruction anywhere in the repo's LIVE guidance -- brew, a sudo package command, MacPorts,
+    a global npm/pipx install, the pip system-override flag, a command-anchored pip install, or
+    a macOS .pkg/python.org download -- must carry the label "machine-wide"/"whole computer" on
+    its own line or in the two lines above it, so the user-scoped default (docs/INSTALL-SCOPE.md:
+    home folder only, repo .venv, ~/.local, ~/.nvm) can never silently stop being the default.
 
-    def scan(lines):
-        hits = []
-        for i, line in enumerate(lines):
-            m = pattern.search(line)
-            if not m:
-                continue
-            window = lines[max(0, i - 2): i + 3]
-            if any(label.search(w) for w in window):
-                continue
-            hits.append((i + 1, m.group(0).strip() or line.strip()))
-        return hits
+    The denominator is DERIVED, not listed: every tracked text file is scanned, minus the
+    _INSTALL_SCOPE_EXEMPT paths (historical records and third-party evaluations, each with a
+    written reason). The first cut of this check scanned a hardcoded 16-file allowlist, and the
+    P93 adversarial pass found live machine-wide instructions in six files outside it --
+    including the repo-root double-click launcher, the entry point for non-technical Mac users.
+    A closed list can only shrink silently; a derived one cannot.
 
-    # Detector self-proof (fail-then-pass + the two anchored-pip edge fixtures).
-    unlabeled = ["Install the engine:", "", "brew install ffmpeg", "", "done"]
-    labeled = ["Machine-wide alternative (affects the whole computer):", "",
-               "brew install ffmpeg", "", "done"]
-    prose_edge = ["The installer relies on the repo .venv, so no real pip install",
-                  "ever touches the base interpreter."]
-    command_edge = ["Run: pip install uv"]
-    if len(scan(unlabeled)) != 1:
-        problem("install-scope: detector self-proof failed -- the unlabeled brew fixture did not flag")
+    The check proves itself before scanning: EVERY branch in _INSTALL_SCOPE_BRANCHES must flag
+    its own fixture and stay clean once labeled, so deleting a branch fails the build rather than
+    narrowing coverage unnoticed (the invariant-58 lesson). Two anchoring fixtures ride along:
+    prose reading "no real pip install" must NOT flag, and an instruction "Run: pip install uv"
+    must."""
+    # --- coverage proof: one fail-then-pass fixture per branch, by name ---
+    fixtures = {
+        "brew": "brew install ffmpeg",
+        "sudo-pkg": "sudo apt-get install -y nodejs",
+        "sudo-python": "sudo python3 -m pip install requests",
+        "macports": "port install ffmpeg",
+        "npm-global": "npm install -g some-cli",
+        "pipx-global": "pipx install black --global",
+        "pip-override": "pip install x --break-system-" + "packages",
+        "pip-command": "Run: pip install uv",
+        "macos-pkg": "installer -pkg python.pkg -target /",
+    }
+    missing = sorted(set(_INSTALL_SCOPE_BRANCHES) - set(fixtures))
+    if missing:
+        problem(f"install-scope: branch(es) {missing} have no coverage fixture; every branch must "
+                f"be proven to fire, or the gate can narrow silently")
         return
-    if scan(labeled):
-        problem("install-scope: detector self-proof failed -- the labeled fixture flagged")
-        return
-    if scan(prose_edge):
+    for name, sample in fixtures.items():
+        if len(_install_scope_scan(["intro", "", sample])) != 1:
+            problem(f"install-scope: detector self-proof failed -- the '{name}' branch did not "
+                    f"flag its fixture ({sample!r}); coverage shrank")
+            return
+        if _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample]):
+            problem(f"install-scope: detector self-proof failed -- the labeled '{name}' fixture flagged")
+            return
+    if _install_scope_scan(["The installer uses the repo .venv, so no real pip install",
+                            "ever touches the base interpreter."]):
         problem("install-scope: detector self-proof failed -- prose 'no real pip install' flagged")
         return
-    if len(scan(command_edge)) != 1:
-        problem("install-scope: detector self-proof failed -- 'Run: pip install uv' did not flag")
+    if _install_scope_scan(["brew install ffmpeg", "",
+                            "Machine-wide alternative (affects the whole computer):"]) != [(1, "brew install")]:
+        problem("install-scope: detector self-proof failed -- a label BELOW an instruction blessed "
+                "it; the window must look up, not down")
+        return
+    # A label heading governs its whole block, not just the next two lines.
+    if _install_scope_scan(["Machine-wide alternatives (affect the whole computer):",
+                            "  - the python.org universal2 installer,",
+                            "      https://example.invalid/downloads",
+                            "  - or install Homebrew, then run: brew install python@3.12"]):
+        problem("install-scope: detector self-proof failed -- a labeled block stopped governing "
+                "after two lines; the label heads the block it introduces")
+        return
+    # ...but it stops at a blank-separated NEW block, so it cannot bless a distant instruction.
+    if len(_install_scope_scan(["Machine-wide alternative (affects the whole computer):",
+                                "  brew install ffmpeg", "", "Now the everyday setup:", "",
+                                "  brew install something-else"])) != 1:
+        problem("install-scope: detector self-proof failed -- a label leaked past its block into "
+                "a later, unrelated instruction")
+        return
+    # A fenced `sources` block is citation data (invariant 52's domain), never an instruction.
+    if _install_scope_scan(["```sources", '{"id": "x", "url": "https://www.python.org/downloads/macos/"}',
+                            "```"]):
+        problem("install-scope: detector self-proof failed -- a citation row in a fenced sources "
+                "block was read as an install instruction")
         return
 
-    for rel in live_guidance:
-        p = ROOT / rel
-        if not p.exists():
-            problem(f"install-scope: scanned guidance file {rel} is missing; update the "
-                    f"live_guidance list in check_install_scope() deliberately, never by absence")
+    # --- derived denominator: every tracked text file, minus the written-reason exemptions ---
+    try:
+        out = subprocess.run(["git", "ls-files"], cwd=str(ROOT),
+                             capture_output=True, text=True, timeout=60)
+        tracked = [l for l in out.stdout.splitlines() if l.strip()] if out.returncode == 0 else []
+    except (OSError, subprocess.SubprocessError) as exc:
+        tracked = []
+        if os.environ.get("CI"):
+            problem(f"install-scope: git ls-files failed in CI (fail closed): {exc}")
+            return
+    if not tracked:
+        advisory("install-scope DID NOT RUN: no git file listing available (non-git copy); "
+                 "the machine-wide-install gate could not scan anything")
+        return
+    for rel in tracked:
+        if not rel.endswith(_INSTALL_SCOPE_SUFFIXES):
             continue
+        if any(rel == k or rel.startswith(k) for k in _INSTALL_SCOPE_EXEMPT):
+            continue
+        p = ROOT / rel
         try:
             lines = p.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeDecodeError) as exc:
-            problem(f"install-scope: {rel} could not be read: {exc}")
+        except (OSError, UnicodeDecodeError):
             continue
-        for lineno, frag in scan(lines):
+        for lineno, frag in _install_scope_scan(lines):
             problem(f"install-scope: {rel}:{lineno}: unlabeled machine-wide install: {frag} "
                     f"(lead with the user-scoped route, or put 'machine-wide alternative "
-                    f"(affects the whole computer)' within two lines; docs/INSTALL-SCOPE.md)")
+                    f"(affects the whole computer)' on that line or the two above it; "
+                    f"docs/INSTALL-SCOPE.md)")
 
 
 def main():

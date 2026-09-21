@@ -307,12 +307,20 @@ _PEP668_REFUSAL_UV = ("this interpreter refuses global installs (PEP 668) and Cr
                       "never installs machine-wide; press Install the free tools first -- it "
                       "creates the repo's private .venv -- then retry (docs/INSTALL-SCOPE.md)")
 
+_NO_VENV_REFUSAL_UV = ("the repo's private .venv does not exist yet and Creator OS never installs "
+                       "into a machine-wide site-packages; press Install the free tools first -- "
+                       "it creates the .venv -- then retry (docs/INSTALL-SCOPE.md)")
+
 
 def _install_uv() -> tuple[bool, str]:
-    # Install into the private .venv when present (env_paths.app_python). P93: on a PEP 668
-    # externally-managed Python with no .venv, REFUSE with the remedy -- Creator OS never
-    # writes into a machine-wide site-packages (docs/INSTALL-SCOPE.md).
-    py = env_paths.app_python()
+    # P93: the .venv is the ONLY install target. app_python() falls back to sys.executable, which
+    # on a python.org or /usr/local build is a machine-wide site-packages that pip would accept
+    # without any PEP 668 error, so this resolves the venv directly and refuses when it is absent
+    # (docs/INSTALL-SCOPE.md).
+    vp = env_paths.venv_python()
+    if vp is None:
+        return False, _NO_VENV_REFUSAL_UV
+    py = str(vp)
     try:
         r = subprocess.run(
             [py, "-m", "pip", "install", "uv"],
@@ -4966,13 +4974,14 @@ def main() -> None:
         floor = ".".join(map(str, env_paths.PYTHON_FLOOR))
         print(f"\nCreator OS needs Python {floor} or newer; this is "
               f"Python {sys.version_info[0]}.{sys.version_info[1]}.")
-        print("Easiest fix: install the notarized python.org universal2 build "
-              "(https://www.python.org/downloads/macos/),")
-        print("User-only route (stays in your account): install uv, then a Python:")
+        print("Recommended (user-only: stays in your account, no admin password):")
         print("  curl -LsSf https://astral.sh/uv/install.sh | sh")
         print("  uv python install 3.12")
-        print("Machine-wide alternative (affects the whole computer):")
-        print("  install Homebrew (https://brew.sh) and run: brew install python@3.12")
+        print("  (that puts python3.12 in ~/.local/bin)")
+        print("Machine-wide alternatives (affect the whole computer, need an admin password):")
+        print("  the notarized python.org universal2 build "
+              "(https://www.python.org/downloads/macos/),")
+        print("  or install Homebrew (https://brew.sh) and run: brew install python@3.12")
         print("Then run:  python3.12 tools/wizard.py")
         print("(Python 3.12 through 3.14 are all supported; any of them works here.)")
         raise SystemExit(1)
