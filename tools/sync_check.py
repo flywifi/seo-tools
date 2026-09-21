@@ -3457,6 +3457,15 @@ def _claim_norm(text):
     return " ".join(text.split())
 
 
+# P94-5: an exception clause can reverse a bound promise without using a single universal word
+# ("...refuses, except when ALLOW_SYSTEM is set, which installs into the shared site-packages").
+# The remainder scan cannot see that, so escape-hatch markers sitting in a bound unit are surfaced
+# on their own. Found by P94's own pre-report audit.
+_CLAIM_ESCAPE_RE = re.compile(
+    r"\b(unless|except when|except if|apart from when|other than when|save when|"
+    r"but if|override[sd]? this|bypass(?:es|ed)? this|opt out of this)\b", re.I)
+
+
 def _claim_units(text, line_offset=0):
     """(line, unit_text) for each claim UNIT in a markdown slice: a bullet, numbered item, table
     row, or paragraph. Units, not lines, because a promise spans the lines of its bullet and a
@@ -3504,19 +3513,45 @@ def _claim_corpus_units(spec):
             yield rel, ln, unit
 
 
+def _claim_reachable_selftest_fns(tree):
+    """Function names reachable from a module's selftest ENTRY point. A pin only proves something
+    if it runs: P94's pre-report audit parked a real-looking label in a function nothing calls and
+    watched the gate certify the promise as proven. Entry points are the selftest functions the
+    sweep invokes; from there this walks the call graph by name."""
+    fns = {n.name: n for n in ast.walk(tree)
+           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    entries = {name for name in fns
+               if name.lower() in {"selftest", "_selftest", "main"} or name.lower().startswith("selftest")}
+    seen, stack = set(), list(entries)
+    while stack:
+        name = stack.pop()
+        if name in seen or name not in fns:
+            continue
+        seen.add(name)
+        for call in ast.walk(fns[name]):
+            if isinstance(call, ast.Call) and isinstance(call.func, ast.Name):
+                stack.append(call.func.id)
+            elif isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute):
+                stack.append(call.func.attr)
+    return seen
+
+
 def _claim_pin_labels(pyfile):
     """Named check labels inside a module's selftest: the first string literal of each ok()/check()
     call. Returns None when the file cannot be parsed. Mirrors count_truth's AST approach rather
-    than importing, so a claim's proof is resolved without executing anything."""
+    than importing, so a claim's proof is resolved without executing anything. A label only counts
+    when its call carries a real condition AND its enclosing function is reachable from the
+    selftest entry -- a label alone is a comment, not a proof."""
     try:
         tree = ast.parse(Path(pyfile).read_text(encoding="utf-8"))
     except (OSError, SyntaxError):
         return None
+    reachable = _claim_reachable_selftest_fns(tree)
     labels = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        if "selftest" not in node.name.lower():
+        if "selftest" not in node.name.lower() or node.name not in reachable:
             continue
         for call in ast.walk(node):
             if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
@@ -3754,6 +3789,20 @@ def check_claim_proof():
             needle = _claim_norm(t)
             if needle and needle in remainder:
                 remainder = remainder.replace(needle, " ")
+        # An escape hatch next to a bound promise must be declared, even when it uses no
+        # universal word: it changes what the bound sentence means.
+        if len(remainder) < len(_claim_norm(unit)):          # something in this unit IS bound
+            # No guard on "this doc declares an escape somewhere": bound text is already
+            # subtracted, so a marker still standing in the remainder is by definition NOT part
+            # of any declared claim. The first cut skipped the whole FILE when one bound entry
+            # anywhere in it contained "unless", which silently disabled this check.
+            esc = _CLAIM_ESCAPE_RE.search(remainder)
+            if esc:
+                problem(f"claim-proof: {rel}:{ln} attaches an exception ({esc.group(0)!r}) to a "
+                        f"bound promise without declaring it: {remainder.strip()[:90]!r}. An "
+                        f"escape hatch changes what the promise means, so bind or exempt the "
+                        f"clause explicitly, or narrow the promise to match it")
+                continue
         left = _CLAIM_PATTERN.search(remainder)
         if left is None:
             continue

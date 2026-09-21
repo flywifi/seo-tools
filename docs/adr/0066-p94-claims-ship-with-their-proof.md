@@ -81,8 +81,18 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    a universal claim appended to an already-bound bullet was absorbed unchecked; that a selftest
    pin whose condition was a literal would resolve as a proof; that the CI parity check matched
    raw file text, so a commented-out step counted as coverage; and that a parity note asserting
-   CI ran `bash -n` on the launcher described a step that did not exist. All four are fixed here,
-   and eleven universals the unit-granularity bug had been absorbing are now accounted for.
+   CI ran `bash -n` on the launcher described a step that did not exist. Eleven universals the
+   unit-granularity bug had been absorbing are now accounted for.
+
+   The audit's verification stage then confirmed two more against the first remediation, both
+   reproduced here before being fixed: a pin label parked in a function nothing calls still
+   resolved (a label is a comment, not a proof, so a pin must now be REACHABLE from the selftest
+   entry), and a bound promise could be reversed by an "except when..." clause containing no
+   universal word, which the remainder scan could not see (an undeclared escape hatch beside a
+   bound promise now fails on its own). The first cut of that escape check was itself wrong: one
+   declared "unless" anywhere in a file disabled it for the whole file. Three rounds of
+   adversarial passes on one change is the honest record of how much a guard needs before its
+   own claim about itself is true.
 
 ## Consequences
 

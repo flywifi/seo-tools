@@ -22,10 +22,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   code that detects it, resolved through the prober's symbol rather than the path appearing
   anywhere in the file. A reverse enrolment sweep fails when a universal claim joins the
   corpus bound to nothing, matching at claim granularity so a new promise cannot ride in on a
-  neighbouring binding. Eight adversarial mutations run against a verified-clean baseline are
-  all caught, including the two that P94's own pre-report audit found in the first cut: a
-  universal appended to an already-bound bullet, and a proof citing a selftest pin whose
-  condition was a literal. Invariant count 58 to 59; ADR 0066 records the
+  neighbouring binding. Nine adversarial mutations run against a verified-clean baseline are
+  all caught. Four of the nine are defects P94's own pre-report audit found in earlier cuts of
+  this same check: a universal appended to an already-bound bullet, a proof citing a pin whose
+  condition was a literal, a proof citing a pin parked in a function nothing calls, and a bound
+  promise reversed by an "except when" clause carrying no universal word at all. A pin now has
+  to carry a real condition AND sit in a function reachable from the selftest entry, and an
+  undeclared escape hatch beside a bound promise fails on its own. Invariant count 58 to 59; ADR 0066 records the
   decisions.
 - P94: `tools/battery.py --check-parity` asserts CI actually runs every battery gate. The CI
   step was named "Battery parity (tools/battery.py --list matches the steps below)" and only
