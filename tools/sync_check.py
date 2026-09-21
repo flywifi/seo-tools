@@ -3287,16 +3287,12 @@ def check_install_scope():
         "pip-command": "Run: pip install uv",
         "macos-pkg": "installer -pkg python.pkg -target /",
     }
-    missing = sorted(set(_INSTALL_SCOPE_BRANCHES) - set(fixtures))
-    if missing:
-        problem(f"install-scope: branch(es) {missing} have no coverage fixture; every branch must "
-                f"be proven to fire, or the gate can narrow silently")
+    gap = _coverage_proof("install-scope", _INSTALL_SCOPE_BRANCHES, fixtures,
+                          lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1)
+    if gap:
+        problem(gap)
         return
     for name, sample in fixtures.items():
-        if len(_install_scope_scan(["intro", "", sample])) != 1:
-            problem(f"install-scope: detector self-proof failed -- the '{name}' branch did not "
-                    f"flag its fixture ({sample!r}); coverage shrank")
-            return
         if _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample]):
             problem(f"install-scope: detector self-proof failed -- the labeled '{name}' fixture flagged")
             return
@@ -3377,6 +3373,30 @@ _CLAIM_BRANCHES = {
 }
 _CLAIM_PATTERN = re.compile("|".join(f"(?P<{k}>{v})" for k, v in _CLAIM_BRANCHES.items()), re.I)
 _CLAIM_MANIFEST_PATH = ROOT / "tools" / "claim-proof-manifest.json"
+
+
+def _coverage_proof(kind, branches, fixtures, fires):
+    """Shared detector self-proof (P94). A detector with N branches can lose one silently: the
+    regex narrows, the gate still prints clean, and the coverage claim quietly becomes false
+    (invariant 58's deriver, P70; invariant 59's scan list, P93). This asserts the two properties
+    that stop that: EVERY branch has a named fixture, and every fixture actually FIRES its own
+    branch. Returns a problem string, or None when the proof holds.
+
+    `fires(name, sample)` is the detector's own scan, returning truthy when `sample` trips the
+    branch called `name`."""
+    missing = sorted(set(branches) - set(fixtures))
+    if missing:
+        return (f"{kind}: branch(es) {missing} have no coverage fixture; every branch must be "
+                f"proven to fire, or the gate can narrow silently")
+    extra = sorted(set(fixtures) - set(branches))
+    if extra:
+        return (f"{kind}: fixture(s) {extra} name no branch; a fixture for a branch that no "
+                f"longer exists is a coverage claim with nothing behind it")
+    for name in sorted(fixtures):
+        if not fires(name, fixtures[name]):
+            return (f"{kind}: detector self-proof failed -- the {name!r} branch did not flag its "
+                    f"fixture ({fixtures[name]!r}); coverage shrank")
+    return None
 
 
 def _claim_symbol_value(pyfile, symbol):
@@ -3549,17 +3569,14 @@ def check_claim_proof():
         "nothing": "Nothing is released until the gates pass.",
         "only": "The repo .venv is the only install target.",
     }
-    missing = sorted(set(_CLAIM_BRANCHES) - set(fixtures))
-    if missing:
-        problem(f"claim-proof: branch(es) {missing} have no coverage fixture; every branch must be "
-                f"proven to fire, or the gate can narrow silently")
-        return
-    for name, sample in fixtures.items():
+    def _claim_fires(name, sample):
         hit = _CLAIM_PATTERN.search(sample)
-        if hit is None or hit.lastgroup != name:
-            problem(f"claim-proof: detector self-proof failed -- the {name!r} branch did not flag "
-                    f"its fixture ({sample!r}); coverage shrank")
-            return
+        return hit is not None and hit.lastgroup == name
+
+    gap = _coverage_proof("claim-proof", _CLAIM_BRANCHES, fixtures, _claim_fires)
+    if gap:
+        problem(gap)
+        return
     if _CLAIM_PATTERN.search("The installer reports each result honestly and stops on failure."):
         problem("claim-proof: detector self-proof failed -- a sentence making no universal claim "
                 "was flagged")

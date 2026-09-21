@@ -25,8 +25,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Drift guard
         run: python3 tools/sync_check.py
-      - name: Battery parity (tools/battery.py --list matches the steps below)
-        run: python3 tools/battery.py --list
+      - name: Battery parity (asserts CI runs every battery gate)
+        run: python3 tools/battery.py --check-parity
+      - name: Hash audit (recompute every stored manifest hash)
+        run: python3 tools/hash_audit.py
+      - name: Source sync (registry and doc citation reconciliation)
+        run: python3 tools/source_sync.py check
       - name: Secret scan (tracked content)
         run: python3 tools/secret_scan.py --tracked
       - name: Commit hygiene backstop (messages + author emails after the policy boundary)

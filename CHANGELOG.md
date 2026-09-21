@@ -13,6 +13,25 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P94: drift invariant 60 (claim-proof binding) and tools/claim-proof-manifest.json. Every
+  universal claim about this repo's own behavior in CLAUDE.md's non-negotiables and
+  docs/INSTALL-SCOPE.md is now bound to an enforced invariant or a NAMED selftest pin the
+  battery actually executes, or recorded as an exemption with a written reason when no code
+  can prove it. Route records additionally bind an install route the docs recommend to the
+  code that detects it, resolved through the prober's symbol rather than the path appearing
+  anywhere in the file. A reverse enrolment sweep fails when a universal claim joins the
+  corpus bound to nothing. Seven adversarial mutations were run against a verified-clean
+  baseline and all seven were caught. Invariant count 58 to 59; ADR 0066 records the
+  decisions.
+- P94: `tools/battery.py --check-parity` asserts CI actually runs every battery gate. The CI
+  step was named "Battery parity (tools/battery.py --list matches the steps below)" and only
+  printed the roster; turning the real check on found that CI was running neither the hash
+  audit nor source sync. Both are now CI steps, and preflight push is declared with its
+  reason (it inspects a local working tree, which a CI checkout does not have).
+- P94: `_coverage_proof()` in tools/sync_check.py, shared by invariants 59 and 60: every
+  detector branch must have a fixture and every fixture must fire its own branch, so deleting
+  a branch fails the build. All 22-plus coverage proofs in the repo were hand-rolled before
+  this, with no two sharing code.
 - P93: drift invariant 59 (install-scope policy). The guard scans EVERY tracked text file
   (a derived denominator, minus written-reason exemptions for historical records and
   third-party evaluations) for brew, sudo package commands, MacPorts, global npm/pipx
@@ -37,6 +56,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P94 (correction to the P93 record, 2026-09-21): two P93 commit subjects overclaimed and are
+  immutable in pushed history, so the correction is recorded here. `P93-1: no code path installs
+  machine-wide.` was false when written: the installer still fell back to the base interpreter,
+  so an interpreter that is machine-wide without a PEP 668 marker took all seven requirements
+  sets. `P93-2: every install instruction defaults to user-scoped.` was false for six live
+  surfaces, including the repo-root double-click launcher. Both were made true by P93-4; drift
+  invariant 60 now binds the surviving claims to the pins that prove them.
 - P93: Creator OS never installs machine-wide. The two code fallbacks that retried pip with
   the system-override flag into Homebrew's shared site-packages when no .venv existed
   (setup.py's dependency installer and the wizard's uv step) now refuse with the exact

@@ -9,7 +9,8 @@ This runner closes the class:
   * it REFUSES to run while tracked files carry unstaged edits (the mac-surface and package manifests
     derive from the INDEX, so reconciling with a dirty worktree blesses bytes a commit will not carry);
   * `--py <interpreter>` reruns the battery under a second interpreter (the repo floor rule);
-  * `--list` prints the gate roster (CI's parity step asserts the roster is importable and non-empty).
+  * `--list` prints the gate roster; `--check-parity` asserts CI actually runs every gate
+    (P94: the old parity step printed the roster under a name that promised a comparison).
 
 Outside a git checkout the unstaged check prints a loud DID-NOT-RUN advisory instead of silently
 passing (the repo's fail-closed idiom). Stdlib only.
@@ -115,9 +116,48 @@ def selftest() -> int:
     return 1 if failures else 0
 
 
+def ci_parity(workflow=None) -> int:
+    """P94: assert CI actually runs every battery gate, instead of printing a roster under a step
+    name that promises a comparison. For each gate, the workflow must contain the script the gate
+    runs. Gates CI covers by a different route are declared in CI_PARITY_NOTES with a reason, and
+    commands CI runs that the battery does not are REPORTED, not forbidden: the two rosters differ
+    by design (CI also builds dist/ and scans all tracked content)."""
+    wf = Path(workflow) if workflow else ROOT / ".github" / "workflows" / "ci.yml"
+    if not wf.exists():
+        print(f"battery parity: {wf} not found", file=sys.stderr)
+        return 1
+    text = wf.read_text(encoding="utf-8")
+    missing = []
+    for name, gate_argv in GATES:
+        script = next((a for a in gate_argv if a.endswith(".py")), None)
+        if script is None:
+            continue          # the inline launcher-syntax gate has no script path to match
+        if script not in text and name not in CI_PARITY_NOTES:
+            missing.append(f"{name} ({script})")
+    for name, why in sorted(CI_PARITY_NOTES.items()):
+        print(f"battery parity: {name} is covered differently in CI: {why}")
+    if missing:
+        print("battery parity: CI does not run these battery gates: " + ", ".join(missing),
+              file=sys.stderr)
+        return 1
+    print(f"battery parity: CI runs all {len(GATES)} battery gates")
+    return 0
+
+
+# Gates CI covers by a different route than running the gate's own script, each with its reason.
+CI_PARITY_NOTES = {
+    "launcher syntax": "CI runs `bash -n` on the launcher inline, the same check without a script path",
+    "staged secret scan": "CI scans ALL tracked content (secret_scan.py --tracked), a superset of the staged scan",
+    "preflight push": "checks the LOCAL working tree before a push (unstaged edits, branch state); "
+                      "a CI checkout is clean by construction, so there is nothing for it to find",
+}
+
+
 def main(argv) -> int:
     if "--selftest" in argv:
         return selftest()
+    if "--check-parity" in argv:
+        return ci_parity()
     if "--list" in argv:
         for name, gate_argv in GATES:
             print(f"{name}: python3 {' '.join(gate_argv)}")
