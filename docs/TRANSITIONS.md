@@ -32,6 +32,11 @@ Two facts hold on every non-local surface, and nothing there changes them:
    and profile live in gitignored local files; read `docs/PASTE-SAFETY.md` before pasting any of
    it into a third-party chat.
 
+Moving TO the strongest surface stays user-scoped (P93): the Claude Desktop app installs
+per-user into `~/Applications`, and everything else Creator OS installs stays inside your own
+user account -- see `docs/INSTALL-SCOPE.md` and the `claude_desktop` setup steps in
+`shared/cross-modality/transitions.json`.
+
 **The merge (2026-09-16):** Claude chat and Cowork are one Claude (support article 16761823,
 fetched 2026-09-20). There is no separate mode to pick; Claude routes quick answers and
 agentic sessions itself, existing projects, connectors, and skills carry over, and Claude Docs

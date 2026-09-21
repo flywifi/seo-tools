@@ -19,6 +19,7 @@
     {"host": "githubusercontent.com", "category": "raw-asset", "reason": "raw.githubusercontent.com for the Homebrew install script and NREL openstudio-standards data files"},
     {"host": "huggingface.co", "category": "model-download", "reason": "GGML whisper.cpp model download host (local STT doctor)"},
     {"host": "brew.sh", "category": "install", "reason": "Homebrew homepage shown in the macOS setup path"},
+    {"host": "astral.sh", "category": "install", "reason": "uv standalone installer script (astral.sh/uv/install.sh), the user-only Python route in the P93 setup/wizard hints (docs/INSTALL-SCOPE.md); the docs source is registered separately as uv-installer-docs"},
     {"host": "nodejs.org", "category": "install", "reason": "Node.js download link shown when the Microsoft 365 MCP needs Node"},
     {"host": "claude.ai", "category": "product-surface", "reason": "claude.ai web surface referenced in the wizard; also appears in secret-scan selftest fixtures"}
   ]

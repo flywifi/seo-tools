@@ -303,11 +303,24 @@ def _has_uv() -> bool:
     vp = env_paths.venv_python()
     return bool(vp and (vp.parent / "uv").exists())
 
+_PEP668_REFUSAL_UV = ("this interpreter refuses global installs (PEP 668) and Creator OS "
+                      "never installs machine-wide; press Install the free tools first -- it "
+                      "creates the repo's private .venv -- then retry (docs/INSTALL-SCOPE.md)")
+
+_NO_VENV_REFUSAL_UV = ("the repo's private .venv does not exist yet and Creator OS never installs "
+                       "into a machine-wide site-packages; press Install the free tools first -- "
+                       "it creates the .venv -- then retry (docs/INSTALL-SCOPE.md)")
+
+
 def _install_uv() -> tuple[bool, str]:
-    # Install into the private .venv when present (env_paths.app_python); on a PEP 668 externally-
-    # managed Python with no .venv, retry with the sanctioned --break-system-packages override so a
-    # Homebrew Python does not silently block the install.
-    py = env_paths.app_python()
+    # P93: the .venv is the ONLY install target. app_python() falls back to sys.executable, which
+    # on a python.org or /usr/local build is a machine-wide site-packages that pip would accept
+    # without any PEP 668 error, so this resolves the venv directly and refuses when it is absent
+    # (docs/INSTALL-SCOPE.md).
+    vp = env_paths.venv_python()
+    if vp is None:
+        return False, _NO_VENV_REFUSAL_UV
+    py = str(vp)
     try:
         r = subprocess.run(
             [py, "-m", "pip", "install", "uv"],
@@ -317,13 +330,7 @@ def _install_uv() -> tuple[bool, str]:
             return True, ""
         detail = (r.stderr or r.stdout or "").strip()
         if "externally-managed-environment" in detail:
-            r2 = subprocess.run(
-                [py, "-m", "pip", "install", "--break-system-packages", "uv"],
-                capture_output=True, text=True, timeout=120,
-            )
-            if r2.returncode == 0:
-                return True, ""
-            return False, (r2.stderr or r2.stdout or "").strip()
+            return False, _PEP668_REFUSAL_UV
         return False, detail
     except Exception as exc:
         return False, str(exc)
@@ -934,12 +941,15 @@ def _screen_node_missing(rechecked: bool = False) -> str:
     os_name = _os()
     if os_name == "mac":
         node_install = """
-<p>Run this in Terminal to install Node.js:</p>
-<pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.9rem;
-            overflow-x:auto;margin-bottom:14px">brew install node</pre>
-<p>No Homebrew yet? Paste this first (it is the standard macOS installer), then run the line above:</p>
+<p>User-only install (stays inside your account, no admin rights) via nvm, the per-user Node
+version manager -- it lives in <code>~/.nvm</code>. Run these two lines in Terminal, then open
+a new Terminal window:</p>
 <pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.85rem;
-            overflow-x:auto;margin-bottom:14px">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</pre>"""
+            overflow-x:auto;margin-bottom:14px">curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+nvm install --lts</pre>
+<p>Machine-wide alternative (affects the whole computer):</p>
+<pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.9rem;
+            overflow-x:auto;margin-bottom:14px">brew install node</pre>"""
     elif os_name == "windows":
         node_install = """
 <p>Download and install Node.js from the official site:</p>
@@ -950,15 +960,20 @@ def _screen_node_missing(rechecked: bool = False) -> str:
 <strong>Run anyway</strong>.</p>"""
     else:
         node_install = """
-<p>Install Node.js 20+ using your package manager:</p>
+<p>User-only install (stays inside your account) via nvm, the per-user Node version manager
+(<code>~/.nvm</code>):</p>
+<pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.85rem;
+            overflow-x:auto;margin-bottom:14px">curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+nvm install --lts</pre>
+<p>Machine-wide alternative (affects the whole computer), via your package manager:</p>
 <pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.9rem;
-            overflow-x:auto;margin-bottom:14px"># Debian / Ubuntu
+            overflow-x:auto;margin-bottom:14px"># Debian / Ubuntu (machine-wide)
 sudo apt install -y nodejs npm
 
-# Fedora / RHEL
+# Fedora / RHEL (machine-wide)
 sudo dnf install -y nodejs
 
-# Arch
+# Arch (machine-wide)
 sudo pacman -S nodejs npm</pre>"""
     recheck_note = ('<div class="error-box">Still not detecting Node.js 20 or higher. Make sure the '
                     'install finished, then try again. On Windows you may need to close and reopen '
@@ -2976,30 +2991,31 @@ def _stt_install_block() -> str:
                       "noticeably slower")
         return f"""
 <div class="note"><strong>Install a transcription engine ({chip}).</strong>
-The recommended engine is <strong>whisper.cpp</strong> (it {speed}). In Terminal:
+The user-only default is <strong>faster-whisper</strong>, already inside the repo's private
+toolbox after <strong>Install the free tools</strong> (it needs <strong>no</strong> system
+ffmpeg and stays entirely inside your user account). Nothing else to install.
+<br><br>Machine-wide alternative (affects the whole computer): <strong>whisper.cpp</strong>
+(it {speed}). In Terminal:
 <pre>brew install whisper-cpp ffmpeg</pre>
 Homebrew bottles are notarized, so there is no "unidentified developer" Gatekeeper prompt. You then
 download a model file once (a ggml-*.bin from the whisper.cpp repo) and point Creator OS at it with
-<code>WHISPER_CPP_MODEL</code>.
-<br><br>Prefer Python instead? <pre>brew install python@3.12 && pip3 install faster-whisper</pre>
-faster-whisper needs <strong>no</strong> system ffmpeg, which is the escape hatch if a downloaded
-ffmpeg gets blocked by Gatekeeper. Note: macOS ships no usable <code>python3</code>; install it via
-Homebrew (above) or the notarized python.org universal2 installer. If you ever download a static
+<code>WHISPER_CPP_MODEL</code>. If you ever download a static
 ffmpeg and macOS blocks it ("unidentified developer"), clear the quarantine with
 <pre>xattr -dr com.apple.quarantine /path/to/ffmpeg</pre>
 or open it once via System Settings &rarr; Privacy &amp; Security &rarr; Open Anyway.</div>"""
     if os_name == "windows":
         return """
 <div class="note"><strong>Install a transcription engine (Windows).</strong>
-Install Python from python.org, then in a terminal:
-<pre>pip install faster-whisper</pre>
-It needs no system ffmpeg. With an NVIDIA GPU it will use CUDA automatically; otherwise it runs on the
-CPU. SmartScreen may warn on the Python installer; choose Run anyway for the official python.org build.</div>"""
+The user-only default is <strong>faster-whisper</strong>, already inside the repo's private
+toolbox after <strong>Install the free tools</strong> (into the repo's .venv; no system
+ffmpeg needed). With an NVIDIA GPU it uses CUDA automatically; otherwise the CPU.</div>"""
     return """
 <div class="note"><strong>Install a transcription engine (Linux).</strong>
-<pre>pip install faster-whisper</pre>
-It needs no system ffmpeg and uses CUDA automatically when an NVIDIA GPU is present, otherwise the CPU.
-Or use your package manager for whisper.cpp: <pre>apt install whisper-cpp ffmpeg</pre></div>"""
+The user-only default is <strong>faster-whisper</strong>, already inside the repo's private
+toolbox after <strong>Install the free tools</strong> (into the repo's .venv; no system
+ffmpeg needed; CUDA automatic with an NVIDIA GPU).
+<br><br>Machine-wide alternative (affects the whole computer), via your package manager:
+<pre>apt install whisper-cpp ffmpeg</pre></div>"""
 
 
 def _screen_import(saved: str = "", preview_html: str = "", folder: str = "", error: str = "") -> str:
@@ -4105,7 +4121,8 @@ anything, and closing this window does not stop the work.</p>
                 if not ok:
                     self._send(_screen_google(
                         error=f"Could not install uv automatically: {err}. "
-                              "Run: pip install uv  then come back and try again."
+                              "Press Install the free tools first (it installs uv into the "
+                              "repo's private .venv, user-only), then come back and try again."
                     ))
                     return
 
@@ -4957,9 +4974,14 @@ def main() -> None:
         floor = ".".join(map(str, env_paths.PYTHON_FLOOR))
         print(f"\nCreator OS needs Python {floor} or newer; this is "
               f"Python {sys.version_info[0]}.{sys.version_info[1]}.")
-        print("Easiest fix: install the notarized python.org universal2 build "
+        print("Recommended (user-only: stays in your account, no admin password):")
+        print("  curl -LsSf https://astral.sh/uv/install.sh | sh")
+        print("  uv python install 3.12")
+        print("  (that puts python3.12 in ~/.local/bin)")
+        print("Machine-wide alternatives (affect the whole computer, need an admin password):")
+        print("  the notarized python.org universal2 build "
               "(https://www.python.org/downloads/macos/),")
-        print("or install Homebrew (https://brew.sh) and run: brew install python@3.12")
+        print("  or install Homebrew (https://brew.sh) and run: brew install python@3.12")
         print("Then run:  python3.12 tools/wizard.py")
         print("(Python 3.12 through 3.14 are all supported; any of them works here.)")
         raise SystemExit(1)

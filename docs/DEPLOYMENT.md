@@ -6,11 +6,11 @@ Creator OS ships in five deployment modes. Choose the one that matches your setu
 
 ## Prerequisites (all options)
 
-- Python 3.12 (floor enforced by `tools/setup.py`; numpy 2.5 and the video tooling are validated on 3.12)
-- pip install -r requirements-crawl.txt (fetch tooling: requests, charset-normalizer)
-- pip install -r requirements-scraper.txt (HTML parsing: beautifulsoup4)
-- Optional: pip install -r requirements-render.txt (Playwright, for full competitor snapshots)
-- Optional (Claude Desktop only): pip install -r requirements-mcp.txt (MCP server: mcp)
+- Python 3.12 to 3.14 (floor 3.12, enforced by `tools/setup.py`)
+- Every dependency set installs with one command into the repo's private `.venv`, user-only
+  (P93, `docs/INSTALL-SCOPE.md`): `python3 tools/setup.py --install-deps` -- covers the fetch
+  tooling (requests, charset-normalizer), HTML parsing (beautifulsoup4), Playwright, the MCP
+  server package, transcription, video analysis, and the tooling accelerators
 - **macOS (M2 / Apple Silicon):** See `docs/SETUP_MAC.md` for the full step-by-step walkthrough.
   After installing `requirements-render.txt`, run once: `python3 -m playwright install chromium`
   (downloads the arm64 Chromium binary, approximately 170 MB).
@@ -24,9 +24,9 @@ source staleness detection, and deterministic quality scoring. Requires a local 
 
 **Steps:**
 
-1. Clone the repo and install dependencies:
+1. Clone the repo and install dependencies (into the repo's private `.venv`, user-only):
    ```bash
-   pip install -r requirements-crawl.txt -r requirements-scraper.txt -r requirements-mcp.txt
+   python3 tools/setup.py --install-deps
    ```
 
 2. Build the keyword cache:

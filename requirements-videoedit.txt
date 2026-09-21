@@ -4,7 +4,8 @@
 # preflight (python3 tools/videoedit/preflight.py) reports what was found.
 #
 # ffmpeg and melt are system binaries, not pip packages: install via your OS package
-# manager (brew install ffmpeg mlt / apt install ffmpeg melt) or a static build.
+# manager, which is a machine-wide alternative (affects the whole computer):
+# brew install ffmpeg mlt / sudo apt install ffmpeg melt -- or an unpacked static build under $HOME.
 
 # Scene/chapter detection (recommended detector; catches isoluminant cuts ffmpeg scdet misses)
 scenedetect>=0.7,<0.8

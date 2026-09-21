@@ -6,7 +6,7 @@
     "mcp_server": {
       "enabled": false,
       "description": "MCP server running (Claude Desktop only). Enables: cache queries, competitor scans, source staleness, quality scoring, drift check.",
-      "requires": "pip install -r requirements-mcp.txt + claude_desktop_config.json configured"
+      "requires": "python3 tools/setup.py --install-deps (installs requirements-mcp.txt into the repo's private .venv, user-only) + claude_desktop_config.json configured"
     },
     "competitor_snapshots": {
       "enabled": false,
@@ -21,7 +21,7 @@
     "playwright": {
       "enabled": false,
       "description": "Playwright installed. Enables: rendered HTML snapshots of competitor pages (Pinterest, Instagram).",
-      "requires": "pip install -r requirements-render.txt"
+      "requires": "python3 tools/setup.py --install-deps (installs requirements-render.txt into the repo's private .venv, user-only)"
     },
     "youtube_api": {
       "enabled": false,
@@ -81,7 +81,7 @@
     "stats_compass": {
       "enabled": false,
       "description": "stats-compass-mcp connected. Enables: 50+ pandas-based statistical tools (t-tests, ANOVA, chi-square, correlation matrices).",
-      "requires": "pip install stats-compass-mcp + configured in Claude Desktop"
+      "requires": ".venv/bin/pip install stats-compass-mcp (user-only, into the repo's private .venv) + configured in Claude Desktop"
     },
     "jupyter_notebook": {
       "enabled": false,
@@ -283,7 +283,7 @@
     "content_import": {
       "enabled": false,
       "description": "Master gate for the content-import lane (P45): importing the creator's OWN past videos + metadata into the gitignored pipeline/video-library/ store, and completing missing transcripts with local STT. Read-only parsing of a downloaded export bundle (tools/import_parse.py) and proposal-only atoms always work; this flag enables the wizard /import flow and the store-write path. All imported data stays local. See shared/content-import-engine.md.",
-      "requires": "Nothing external for the export-bundle + paste tiers. Local transcription needs an STT backend (brew install whisper-cpp on Apple Silicon, or pip install faster-whisper); absent it, the flow degrades to a metadata-only library with transcripts flagged (never faked)."
+      "requires": "Nothing external for the export-bundle + paste tiers. Local transcription needs an STT backend: python3 tools/setup.py --install-deps (user-only, faster-whisper in the repo .venv); machine-wide alternative (affects the whole computer) for Metal on Apple Silicon: brew install whisper-cpp. Absent a backend, the flow degrades to a metadata-only library with transcripts flagged (never faked)."
     },
     "content_import_live": {
       "enabled": false,

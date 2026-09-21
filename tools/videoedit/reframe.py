@@ -135,7 +135,8 @@ def render(media_path, out_path, start_seconds, end_seconds, crop, config=None, 
         "gap_type": "no_backend",
         "description": "no render backend could run (see backend_chain)",
         "impact": "no local render; crop parameters still valid",
-        "recommended_next_step": "pip install moviepy or put ffmpeg on PATH, or apply the crop in the editor"})
+        "recommended_next_step": "python3 tools/setup.py --install-deps (user-only: moviepy into "
+                                 "the repo .venv), or put ffmpeg on PATH, or apply the crop in the editor"})
     return result
 
 

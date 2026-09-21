@@ -65,7 +65,7 @@ Canonical transports per `shared/connectors/connectors.json`, `docs/STATISTICS.m
 | stats-compass | **python3** | `python3 -m stats_compass_mcp` | none |
 | duckdb-analytics | **Node** (npx) | `npx -y @motherduckdb/mcp-server-motherduck` | none (local) |
 | jupyter-notebook | **python3** | `python3 -m jupyter_mcp_server` | none |
-| r-statistics | **pip + R** | `rmcp` (`pip install rmcp`) | R language installed |
+| r-statistics | **pip + R** | `rmcp` (user-only: `.venv/bin/pip install rmcp`) | R language installed (machine-wide) |
 | monte-carlo | `[NEEDS VERIFICATION]` | `MCS-MCP` | runtime unconfirmed upstream |
 | scikit-learn | `[NEEDS VERIFICATION]` | `mcp-server-scikit-learn` | runtime unconfirmed upstream |
 
@@ -75,20 +75,25 @@ Canonical transports per `shared/connectors/connectors.json`, `docs/STATISTICS.m
 
 ## C. System binaries / runtimes (OS package manager or static build) — all optional
 
+Install-scope note (P93, `docs/INSTALL-SCOPE.md`): the "Install" column below lists the
+user-only route FIRST; brew/apt entries are the machine-wide alternative (they affect the
+whole computer).
+
 | Binary | Needed by | Install | Platform |
 |---|---|---|---|
-| `uv` | uvx MCP servers (google, wolfram) | `pip install uv` (auto by wizard) | all |
-| `Node.js 20+` | npx MCP servers (ms365, e2b, duckdb) | brew / nodejs.org / apt | all |
-| `ffmpeg` | videoedit silence/encode, transcribe | brew / apt or static build | all |
+| `uv` | uvx MCP servers (google, wolfram) | auto by the wizard into the repo `.venv` (user-only); or the astral.sh installer to `~/.local/bin` | all |
+| `Node.js 20+` | npx MCP servers (ms365, e2b, duckdb) | user-only: nvm (`~/.nvm`); machine-wide: brew / nodejs.org / apt | all |
+| `ffmpeg` | videoedit silence/encode, transcribe | machine-wide: brew / apt; or a static build cleared of quarantine | all |
 | `mlt` / `melt` | videoedit MLT writer/render | Shotcut/Kdenlive bundle | all |
-| `whisper.cpp` (`whisper-cli`) | STT on Apple Silicon (Metal) | `brew install whisper-cpp` | Apple Silicon |
+| `whisper.cpp` (`whisper-cli`) | STT on Apple Silicon (Metal) | machine-wide: `brew install whisper-cpp` (user-only STT default is faster-whisper in the `.venv`) | Apple Silicon |
 | `R` language | r-statistics MCP (rmcp) | brew / apt / CRAN | all |
 | DaVinci Resolve **Studio** (paid) | resolve_scripting | vendor install | mac/win/linux |
 | Apple Compressor (paid) | compressor_presets | Mac App Store | macOS only |
 | CommandPost | commandpost_macros | vendor install | macOS only |
 | whisper GGML model weights | whisper.cpp | download once (148 to 488 MB per tier) | data, not a pkg |
 
-macOS notes: Homebrew's own docs support macOS Sonoma (14) or later, so on macOS 13 or earlier prefer the python.org installer; no user-usable stock `python3` (install via `brew install python@3.12` or the notarized
+macOS notes: the user-only Python route is uv (`~/.local`, docs/INSTALL-SCOPE.md); the
+machine-wide alternatives are Homebrew (its own docs support macOS Sonoma (14) or later, so on macOS 13 or earlier prefer the python.org installer) -- no user-usable stock `python3` (machine-wide: `brew install python@3.12` or the notarized
 python.org universal2 `.pkg`); Homebrew bottles and the python.org pkg are notarized so Gatekeeper
 does not prompt; a downloaded static ffmpeg carries `com.apple.quarantine` (remedy
 `xattr -dr com.apple.quarantine <path>` or System Settings to Privacy & Security to Open Anyway).

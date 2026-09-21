@@ -5,14 +5,14 @@
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "ce2607788c3b662d19a5e1d04df0608ff910bc035b961a9062351e62b7b73834",
-        "shared/cross-modality/transitions.json": "edf0bc100cde5c25e2712171e02169dd4b7a7f3f0d9dd4a2f9c3dfa2a4d7c3d1"
+        "shared/cross-modality/transitions.json": "68546a38f0f6d814b0ac301e485bf2c927e15bb200db495fde405d74eaedf024"
       }
     },
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
         "tools/source_currency.py": "7a61050826184f2f04aa6e52428f26c1b1c754544ba3e35ff84ca51bea4fcd17",
-        "tools/sync_check.py": "b7ef90ddc3a348c7614f46c18b6c1d15e4987fe0778098846ac4a0ead5c17ba8"
+        "tools/sync_check.py": "dbef44368f528e2178434666a495f532f5cbcb4d52250eba3568e0ddfe72234f"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "e505b628f01c79ee41c122f0c07dc96868a5feb6dff9bf6061d72f443fd18b83",
+        "tools/wizard.py": "f6683dae6e6fdbb845eb7ce23de46bfa0396da69e2662620196efe37b0b4bfb2",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -53,17 +53,17 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "c4da91cf5353103a85d70f51c112bad5731789daae96e9b434b4fcd21837bc24"
+        "tools/mcp_server.py": "03ae42778814d3079e6d1f609d4413c93db32b1f92b768122829afc352c2c923"
       }
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "edf0bc100cde5c25e2712171e02169dd4b7a7f3f0d9dd4a2f9c3dfa2a4d7c3d1"
+        "shared/cross-modality/transitions.json": "68546a38f0f6d814b0ac301e485bf2c927e15bb200db495fde405d74eaedf024"
       }
     },
     "implementation/claude/desktop/README.md": {
       "sources": {
-        "implementation/claude/desktop/claude_desktop_config_snippet.json": "fe89c0004d021688aad1e1eeac00673be440ab87f5ea78a8a74e0e91cffb5c51"
+        "implementation/claude/desktop/claude_desktop_config_snippet.json": "ebb79356750e21fd18ae43c24fb4ac0318a2dfa45fc00278df7f44af8e45e619"
       }
     },
     "docs/UPDATING.md": {

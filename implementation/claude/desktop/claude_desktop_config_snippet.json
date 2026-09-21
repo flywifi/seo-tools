@@ -13,7 +13,7 @@
       }
     },
     "google-workspace": {
-      "_comment": "Optional. Added by wizard when you connect Google. Requires uv (pip install uv). Covers Gmail, Calendar, Drive, Docs, and Sheets.",
+      "_comment": "Optional. Added by wizard when you connect Google. Requires uv (user-only: the wizard installs it into the repo private .venv, or curl -LsSf https://astral.sh/uv/install.sh | sh puts it in ~/.local/bin). Covers Gmail, Calendar, Drive, Docs, and Sheets.",
       "command": "uvx",
       "args": ["workspace-mcp", "--tool-tier", "core"],
       "env": {

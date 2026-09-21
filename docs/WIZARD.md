@@ -54,6 +54,16 @@ Run one command and follow the browser steps:
 python3 tools/wizard.py
 ```
 
+Everything the wizard installs stays inside your user account (the repo's private `.venv`,
+`~/.local`, `~/Library`); since P93 it never writes into a machine-wide location -- with no
+`.venv` to install into it refuses with the exact remedy, whatever the base interpreter is.
+It also SEARCHES the user-scoped locations it recommends (`~/.local/bin`, nvm's
+`~/.nvm/versions/node/<version>/bin`), so a tool installed the user-only way is detected
+rather than reported missing. The same default runs through every screen: the Node.js screen leads with the
+per-user nvm route (`~/.nvm`) and the transcription screen with `faster-whisper` in the repo
+`.venv`; any Homebrew or system-package route appears only under an explicit "machine-wide
+alternative (affects the whole computer)" label. Full policy: `docs/INSTALL-SCOPE.md`.
+
 A browser window opens automatically. First time? Press the one **"Set everything up"** button:
 it chains the free-tools install, the Creator OS install-and-verify step, and the optional
 Google/Microsoft connections, with an explicit "Skip this step" on every screen. Progress is

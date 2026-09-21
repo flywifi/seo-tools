@@ -528,7 +528,7 @@
         "competitor_data"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "pip install -r requirements-render.txt + playwright install chromium. On macOS M2: auto-downloads arm64 binary. Enables ytInitialData extraction from YouTube pages that require JavaScript. Enable by setting playwright: true in creator-os-config.local.json.",
+      "auth_note": "python3 tools/setup.py --install-deps (user-only: requirements-render.txt and the Chromium binary land in the repo private .venv and ~/Library caches). On macOS M2: auto-downloads arm64 binary. Enables ytInitialData extraction from YouTube pages that require JavaScript. Enable by setting playwright: true in creator-os-config.local.json.",
       "requires_capability": "playwright",
       "deployment_support": [
         "option_a_claude_desktop_mcp"

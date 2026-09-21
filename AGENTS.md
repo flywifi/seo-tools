@@ -47,6 +47,9 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
 - Human confirmation before every post: `schedule_post` never publishes without an explicit
   human confirmation step, and `live_publishing_enabled` defaults off.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
+- Installs are user-scoped by default: everything lands under the user's home folder, and any
+  machine-wide route carries the label "machine-wide alternative (affects the whole computer)"
+  (`docs/INSTALL-SCOPE.md`; drift invariant 59; the code side refuses PEP 668 overrides).
 - Docs change in the SAME commit as the code they describe; new external citations go in a
   fenced `sources` block and get seeded into the registry.
 

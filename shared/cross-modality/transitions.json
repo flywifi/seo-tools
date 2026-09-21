@@ -32,7 +32,7 @@
         "mac"
       ],
       "setup_steps": [
-        "Install Claude Desktop and keep your Creator OS folder on this computer.",
+        "Install Claude Desktop into ~/Applications (per-user) and keep your Creator OS folder on this computer; everything Creator OS installs stays inside your user account (docs/INSTALL-SCOPE.md).",
         "Run the wizard (python3 tools/wizard.py) and pick Claude Desktop; it writes the MCP entries to your Claude Desktop config.",
         "Restart Claude Desktop; the Creator OS tools appear automatically."
       ],

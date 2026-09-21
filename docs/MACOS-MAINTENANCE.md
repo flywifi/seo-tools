@@ -13,19 +13,24 @@ confirmation is the hands-on checklist.
 ## Non-negotiable invariants
 
 1. **Dependencies install into a private `.venv` ("private toolbox").** A Homebrew Python follows
-   PEP 668 and refuses a global `pip install`. `setup.py::ensure_venv` creates `.venv/` (gitignored)
-   and installs there; `--break-system-packages` is a labeled fallback only when a `.venv` cannot be
-   created. Never add a bare `pip install` into the base interpreter.
+   PEP 668 and refuses global package installs. `setup.py::ensure_venv` creates `.venv/` (gitignored)
+   and installs there; since P93 there is NO machine-wide fallback -- when a `.venv` cannot be
+   created the installer refuses with the exact remedy, whatever the base interpreter is
+   (docs/INSTALL-SCOPE.md). Never install packages into the base interpreter.
    <!-- verify: tools/setup.py::ensure_venv -->
 2. **The app runs under the `.venv` interpreter when it exists.** `env_paths.app_python()` returns the
    `.venv` python if present, else `sys.executable` (so no `.venv` == today's behavior, no regression).
    The launcher, the Claude MCP snippet, and every wizard subprocess call use it. Do not hardcode
    `python3`/`sys.executable` for a heavy tool.
    <!-- verify: tools/env_paths.py::app_python -->
-3. **Resolve system binaries with the Homebrew prefixes prepended.** A double-clicked `.command` runs
-   a non-login zsh (only `~/.zshenv`), so `/opt/homebrew/bin` is off PATH and `shutil.which` misses
-   brew tools. Use `env_paths.which()` for `node`/`uv`/`ffmpeg`/`whisper-cli`, never bare `shutil.which`
-   / a bare command name.
+3. **Resolve system binaries through `env_paths.which()`, user-scoped dirs first.** A double-clicked
+   `.command` runs a non-login zsh (only `~/.zshenv`), so neither `~/.local/bin` nor `/opt/homebrew/bin`
+   is on PATH and `shutil.which` misses both. `augmented_path()` prepends the user-scoped dirs
+   (`~/.local/bin`, each `$NVM_DIR/versions/node/<version>/bin`) ahead of the brew prefixes, because
+   P93 makes user-scoped the install default: a tool we tell someone to install user-only must be
+   findable afterwards, or the recommended route dead-ends (the wizard looped users on "Node.js not
+   detected" after its own nvm instructions). Use `env_paths.which()` for
+   `node`/`uv`/`ffmpeg`/`whisper-cli`, never bare `shutil.which` / a bare command name.
    <!-- verify: tools/env_paths.py::which -->
 4. **Bind loopback only (`127.0.0.1`), never `0.0.0.0`.** Loopback is exempt from the macOS Application
    Firewall incoming-connection prompt and the Sequoia/Tahoe local-network permission prompt (Apple
@@ -56,8 +61,11 @@ confirmation is the hands-on checklist.
    "not found."
    <!-- verify: tools/pick_folder.py::_os_command -->
 10. **Never assume `python3` works on a fresh Mac.** The built-in `/usr/bin/python3` is a stub that
-    triggers the Command Line Tools dialog. The launcher probes for a real, working interpreter and
-    steers to the notarized python.org universal2 `.pkg` when only the stub exists.
+    triggers the Command Line Tools dialog. The launcher probes for a real, working interpreter --
+    including the versioned `~/.local/bin/python3.14|3.13|3.12` that `uv python install` writes, which
+    it checks FIRST -- and when none exists it steers to the user-only uv route, with the notarized
+    python.org universal2 `.pkg` and Homebrew named underneath as machine-wide alternatives
+    (affects the whole computer).
 
 ## Reuse anchors
 - `tools/env_paths.py` — `venv_python` / `app_python` / `which` / `augmented_path` (the shared helper).

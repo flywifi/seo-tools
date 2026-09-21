@@ -91,7 +91,8 @@ and enter a short code -- no password is shared with Creator OS."
 
 **What it shows:** A yellow warning box: "Node.js 20 or later is required for Microsoft 365."
 Below it, OS-specific install instructions:
-- Mac: `brew install node` with a "Copy command" button
+- Mac: the user-only nvm route first, then `brew install node` under the machine-wide
+  alternative label (P93)
 - Windows: "Download from nodejs.org" with a link
 - Linux: distro-appropriate command with a "Copy command" button
 

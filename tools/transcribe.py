@@ -70,14 +70,17 @@ def detect_backends():
 
 
 def _install_hint(os_name, arch):
-    """The OS-correct one-liner a non-technical user runs to get a backend."""
+    """The OS-correct one-liner a non-technical user runs to get a backend. P93: the default
+    is always user-only (faster-whisper via the repo's .venv, docs/INSTALL-SCOPE.md); brew and
+    apt routes are named as the machine-wide alternative."""
     if os_name == "darwin":
-        # Homebrew bottles are notarized -> no Gatekeeper prompt; faster-whisper needs no system ffmpeg.
-        return ("brew install whisper-cpp ffmpeg   "
-                "(or: brew install python && pip3 install faster-whisper)")
+        return ("python3 tools/setup.py --install-deps   (user-only: faster-whisper in the "
+                "repo .venv; machine-wide alternative: brew install whisper-cpp ffmpeg)")
     if os_name.startswith("win"):
-        return "pip install faster-whisper   (install Python from python.org first)"
-    return "pip install faster-whisper   (or your package manager: apt install whisper-cpp ffmpeg)"
+        return ("python3 tools/setup.py --install-deps   (user-only: faster-whisper in the "
+                "repo .venv)")
+    return ("python3 tools/setup.py --install-deps   (user-only: faster-whisper in the repo "
+            ".venv; machine-wide alternative: apt install whisper-cpp ffmpeg)")
 
 
 def default_model(ram_gb=None):
@@ -439,9 +442,9 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
         hb = shutil.which("brew") is not None if brew_present is None else brew_present
         if not hb:
             steps.append({"step": "homebrew", "ok": False,
-                          "what_it_is": "Homebrew, the macOS installer used to add whisper.cpp",
+                          "what_it_is": "Homebrew, needed only for the machine-wide whisper.cpp alternative (affects the whole computer)",
                           "next_command": _HOMEBREW_INSTALL,
-                          "why": "the easiest notarized way to install the engine (no Gatekeeper prompt)"})
+                          "why": "not needed for the user-only default (faster-whisper via --install-deps); notarized bottles, no Gatekeeper prompt, if you choose the whisper.cpp route"})
 
     # whisper.cpp needs a model FILE; faster-whisper auto-downloads its own on first run.
     if sel.get("backend") == "whisper.cpp":
@@ -507,9 +510,11 @@ def selftest():
     ok("windows cpu whisper.cpp fallback", s["backend"] == "whisper.cpp" and s["device"] == "cpu")
     # Nothing installed -> honest gap with an OS-correct install string.
     s = select_backend(os_name="darwin", arch="arm64", have={"whisper_cpp": False, "faster_whisper": False})
-    ok("no backend -> ok False + mac install hint", s["ok"] is False and "brew install whisper-cpp" in (s["install"] or ""))
+    ok("no backend -> ok False + mac hint is user-only-first (P93)",
+       s["ok"] is False and "--install-deps" in (s["install"] or "")
+       and "machine-wide alternative" in (s["install"] or ""))
     s = select_backend(os_name="linux", arch="x86_64", have={"whisper_cpp": False, "faster_whisper": False})
-    ok("no backend on linux -> pip install hint", "pip install faster-whisper" in (s["install"] or ""))
+    ok("no backend on linux -> user-only .venv hint (P93)", "--install-deps" in (s["install"] or ""))
 
     # RAM-tiered model floor.
     ok("model floor 8GB -> small", default_model(8) == "small")
@@ -525,7 +530,9 @@ def selftest():
     r = transcribe("/nonexistent-p45.mp4", os_name="darwin", arch="arm64",
                    have={"whisper_cpp": False, "faster_whisper": False})
     ok("no-backend transcribe returns gap, no transcript", r["transcript_text"] is None and r["segments"] == [])
-    ok("gap is run_local_stt with OS install", r["gaps"][0]["recommended_action"] == "run_local_stt" and "brew install" in r["gaps"][0].get("install", ""))
+    ok("gap is run_local_stt with the user-only install hint (P93)",
+       r["gaps"][0]["recommended_action"] == "run_local_stt"
+       and "--install-deps" in r["gaps"][0].get("install", ""))
 
     # Normalization path: a canned SRT parses into segments (proves the transcripts.py wiring).
     import tempfile
@@ -540,7 +547,7 @@ def selftest():
 
         # P46 doctor: verdicts for simulated machines (pure/injectable, no real hardware).
         d_none = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": False, "faster_whisper": False})
-        ok("doctor red when no engine + mac install action", d_none["verdict"] == "red" and "brew install whisper-cpp" in (d_none["next_action"] or ""))
+        ok("doctor red when no engine + mac install action", d_none["verdict"] == "red" and "machine-wide alternative: brew install whisper-cpp" in (d_none["next_action"] or ""))
         d_fw = doctor(os_name="linux", arch="x86_64", have={"whisper_cpp": False, "faster_whisper": True})
         ok("doctor green with faster-whisper (auto model)", d_fw["verdict"] == "green" and d_fw["next_action"] is None)
         d_cpp_nomodel = doctor(os_name="darwin", arch="arm64", have={"whisper_cpp": True, "faster_whisper": False},

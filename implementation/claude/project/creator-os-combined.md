@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-09-20 (Creator OS baseline 12cf4d57). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-09-21 (Creator OS baseline 9953a93c). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS - combined knowledge (single-file upload)
 
@@ -3611,7 +3611,9 @@ pitches), Google Calendar (content schedule), and Google Drive files when you as
 
 ## The Claude Desktop upgrade (what it adds, who does it)
 
-The upgrade is a maintainer task on the computer itself: run `python3 tools/wizard.py` in the
+Everything Creator OS installs stays inside the user's own account (home folder only, no
+admin rights); the Claude Desktop app itself belongs in `~/Applications`, not the shared
+`/Applications`. The upgrade is a maintainer task on the computer itself: run `python3 tools/wizard.py` in the
 Creator OS folder and press "Set everything up". The wizard installs the tools, verifies the
 Creator OS server actually answers before saying done, and walks Google, Microsoft, and
 publishing connections step by step with a Skip on every screen. What you gain: competitor
