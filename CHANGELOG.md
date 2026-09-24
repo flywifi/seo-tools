@@ -57,19 +57,24 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   NOT RUN, never as clean; the adversarial vectors are chosen by the reviewer, not the author;
   and a pass that died partway is recorded (the ADR 0043 and 0045 precedents). CLAUDE.md and
   AGENTS.md carry the rule.
-- P95: `tools/battery.py --check-parity` counts a gate only when a BLOCKING CI step (no `if:`
-  on the step or its job beyond always()/success(), no continue-on-error) runs exactly the
-  gate's command as the whole step. P94 matched the script path anywhere in the step text, so a
+- P95: `tools/battery.py --check-parity` is meant to count a gate only when a BLOCKING CI step
+  (no `if:` on the step or its job beyond always()/success(), no continue-on-error) runs exactly
+  the gate's command as the whole step. Its line parser misses several valid YAML forms that
+  defeat that (a job-level `if:` written after `steps:`, `needs:` on a skipped job, a folded
+  `|| true`, quoted keys), found by the independent pass on P95 and listed in the audit
+  record's addendum. P94 matched the script path anywhere in the step text, so a
   step disabled with `if: false`, or `source_sync.py reconcile` standing in for `check`, still
   counted. The check now also prints commands CI runs that are not battery gates (it surfaced
   `version.py --check`), lists conditional steps it did not count, and fails on a parity note
   whose gate CI runs directly or that names no gate. Nine parity branches are pinned in
   `battery.py --selftest`.
 - P95: invariant 60's trigger vocabulary now matches what the docs advertise. CLAUDE.md listed
-  "repo-wide" (no occurrence anywhere in the guarded corpus) and a bare "no" the detector could
-  not see, and omitted "only", "nothing" and "always", which it enforced. The detector gains
-  bare "no" (precision 1.00, recall 0.89 on a 21-case labelled set; the one miss is named in
-  ADR 0066), "none", "cannot", and a `no ... ever` that tolerates punctuation; CLAUDE.md,
+  "repo-wide" (no sentence in the guarded corpus used it; its one occurrence was that list) and
+  a bare "no" the detector could not see, and omitted "only", "nothing" and "always", which it
+  enforced. The detector gains bare "no" (measured at precision 1.00 and recall 0.89 on a
+  21-case labelled set that was not committed, so the figure cannot be re-run; the independent
+  pass on P95 later found in-vocabulary misses and a false positive), "none", "cannot", and a
+  `no ... ever` that tolerates punctuation; CLAUDE.md,
   AGENTS.md, ADR 0066 and the check's docstring now list the same words. The five universals the
   new branches surfaced are resolved: two bound, three exempted with reasons (manifest: 19
   bound, 40 exempted). The escape-clause list gains "except where", "with the exception of",
@@ -86,16 +91,31 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P95 (correction to the P95 record, 2026-09-24): the independent pass on P95 ran after
+  P95-1 to P95-3 were pushed, which is the order section 7.2 (written in P95-1) rules out, and
+  its verification stage confirmed 34 of 35 issues (docs/p94-claim-proof-audit-2026-09-24.md,
+  Addendum). The subject `P95-2: a claim-proof pin counts only when it can fail.` is false as a
+  universal and is immutable in pushed history; the P95 entries here and in ADR 0066 are
+  narrowed to what was tested. Also corrected: the "80 pins" attribution, "exercises every
+  rule", the "repo-wide" occurrence claim, and the unreproducible precision figure. Not fixed
+  here, and listed in the addendum: the parity parser's YAML gaps, over-broad install-scope
+  exemptions, detector recall and escape vocabulary, and four bindings whose pins test a
+  different property than their claims (the dashboard network call, `wizard._install_uv`,
+  `schedule_post`'s review flag, `default_flag` validity).
 - P95 (correction to the P94 record, 2026-09-24): the P94 entry above says a pin "has to carry
   a real condition AND sit in a function reachable from the selftest entry". As shipped that was
   not true: any function whose name began with "selftest" counted as an entry, an attribute call
   made a same-named function reachable, and `ok(1 == 1, label)` passed because only a bare
-  literal was refused. A pin now counts only when it is on the live call path (uses by name,
-  skipping uncalled nested defs and provably dead branches), calls a helper the module defines
-  that tests its condition, and has a condition that depends on something the code computes. A
-  fixture module in the drift guard exercises every rule, and eleven single-rule reversions
-  each fail the build. Measured over all 91 swept modules: no previously accepted label is
-  refused, and 80 pins in fakes, nested helpers and lambda helpers became visible.
+  literal was refused. P95 added static refusal rules: a pin is refused when the resolver does
+  not find it on the live call path (uses by name, skipping uncalled nested defs and dead `if`
+  branches), when its helper is not a module definition that tests its condition, or when its
+  condition's truth is fixed. They are refusal rules, not a guarantee: the independent pass on
+  P95 showed pins that cannot fail still pass (for example `ok(x or not x, ...)`, a helper
+  rebound to `print`, a pin under `while False:`). A fixture module in the drift guard
+  exercises eleven of the rules, and reverting any one of those fails the build; the same pass
+  found nine more that it does not exercise. Measured over all 91 swept modules: no previously
+  accepted label is refused, and 80 more became visible, 71 of them in mcp_server's
+  module-level `_selftest_static` and 9 should-not-reach pins in seven other modules.
 - P95: drift invariant 59's exemption map is checked for staleness. Five of its thirteen
   entries exempted nothing, one of them the living AUDIT-PROTOCOL filed under "dated audit
   protocol records"; they are dropped, and an entry that matches no tracked file or exempts
@@ -107,7 +127,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   that repeated its words.
 - P95: drift invariant 53 asserts `default_flag` is present on every connectors.json entry.
   It previously only executed the resolver, which reads the field with a fallback, so the
-  CLAUDE.md sentence and the resolver's comment that credited it were both false.
+  CLAUDE.md sentence and the resolver's comment that credited it were both false. A present but
+  invalid value (a typo such as "availabel") still passes and silently leaves the connector off
+  (independent pass on P95, issue B4).
 - P95: the publishing dispatch selftest tests the property, not the status string. A
   recording client observes zero platform calls with the flag off (and a flag-on control shows
   the probe sees calls). A gate that returns "gated" after calling the client passed the old

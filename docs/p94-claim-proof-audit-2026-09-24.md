@@ -108,3 +108,76 @@ caught by a harness the author wrote, so none of them counts as independently ve
 - Audit a fixed commit: the pass reads a pinned SHA and the author does not edit the tree while it
   runs (the gap behind six of the nine KILLED verdicts above).
 - The five unguarded exemption maps and the verdict enum listed under Not exercised.
+
+## Addendum 2026-09-24: the independent pass on P95
+
+**How it ran.** Four read-only lenses (pin soundness, detector and sweep, parity and exemptions,
+claims versus record) audited the pinned commit `ad54e37`, and the tree was not edited while they
+ran. Each chose its own vectors. The 42 findings they REPORTED (12, 9, 10, 11) deduplicate to 35
+issues. Six refutation agents then re-ran every issue from scratch.
+
+| Stage | Count |
+|---|---|
+| REPORTED by the four lenses | 42 |
+| Distinct issues after deduplication | 35 |
+| VERIFIED by the refutation stage | 34 |
+| KILLED | 1 (P7) |
+| Severity of the 34, as the verifiers judged it | 12 medium, 22 low, 0 high |
+
+The table below is the per-issue ledger for this pass (section 8 item 4), so these counts can be
+checked from the repository, which the body's P94 counts cannot.
+
+| Id | Issue | Verdict | Severity | From |
+|---|---|---|---|---|
+| P1 | Parity misses a job-level `if:`/continue-on-error written after `steps:` (or after a block-list matrix) | VERIFIED | medium | P95 |
+| P2 | Parity counts a multi-line plain `run:` that YAML folds into `... \|\| true` | VERIFIED | low | P95 |
+| P3 | Parity misses quoted keys, a commented job key, non-standard indentation, `-   run:` alignment | VERIFIED | low | P95 |
+| P4 | Parity ignores `needs:` on a job that is skipped on push | VERIFIED | medium | P95 |
+| P5 | Parity counts any list item with a `run:` key, e.g. under `strategy.matrix.include` | VERIFIED | low | P95 |
+| P6 | The parity step itself is enforced by nothing | VERIFIED | low | P94 |
+| P7 | A parity note's substitute is never checked | KILLED: invariant 21 still runs `secret_scan.py --tracked` in the blocking drift-guard step | low | |
+| P8 | The CI-only report omits multi-line steps (`secret_scan.py --commit-messages`) | VERIFIED | low | P95 |
+| P9 | Parity fails falsely (closed) on several valid YAML forms | VERIFIED | low | P95 |
+| P10 | The job-level continue-on-error branch is not pinned by `battery.py --selftest` | VERIFIED | low | P95 |
+| E1 | Invariant 59's staleness check is per entry: a redundant, over-broad, or empty (`''`) exemption passes | VERIFIED | medium | P95 |
+| E2 | Invariant 60's own exemptions have no does-work check: 15 of 40 exempt nothing | VERIFIED | low | P94 |
+| E3 | Three P95 exemption reasons are inaccurate (nvm README narrower than "no sudo, ever"; "sees none of it" vs the CLT git exception; "no model tokens" is statically checkable) | VERIFIED | low | P95 |
+| V1 | The coverage proof cannot see a narrowed regex; every P95 widening can be reverted with the build green; the labelled set is not committed | VERIFIED | medium | P94 design, P95 additions |
+| V2 | In-vocabulary misses ("There is no fallback to the base interpreter", "No post may be published ...") and a false positive ("no admin rights needed") | VERIFIED | medium | P95 |
+| V3 | Escape check misses bare "except", "excluding", "barring", "aside from", "overrides it", and a marker in the next unit | VERIFIED | medium | P94, partly P95 |
+| V4 | Escape additions, one-occurrence binding and `no ..., ever` punctuation have no permanent self-proof | VERIFIED | low | P95 |
+| V5 | "must stay LAST" overstated (must follow `no_ever`); a missing `detector_branches` key fails open; text under a heading is never scanned | VERIFIED | low | P94, P95 |
+| Q1 | `_claim_value_fixed` raises IndexError on a builtin name (`if str is bytes:`), aborting the whole drift guard | VERIFIED | low | P95 regression |
+| Q2 | Pins that cannot fail are still accepted (`x or not x`, helper rebound to `print`, `while False:`, `for _ in ():`, constants via unpacking) | VERIFIED | medium | P95 claim |
+| Q3 | The pin fixture does not exercise nine rules; reverting each leaves the build green | VERIFIED | low | P95 |
+| Q4 | A `_selftest` the CLI never dispatches still counts as run | VERIFIED | medium | P94 |
+| Q5 | An empty or one-character proof label resolves to any pin | VERIFIED | low | P94 |
+| Q6 | Exponential time, RecursionError and UnicodeDecodeError in pin resolution (fail closed) | VERIFIED | low | P95, decode error P94 |
+| Q7 | Real pins falsely refused after harmless refactors (`bool(cond)` to `cond`; `check(label, expected, actual)`) | VERIFIED | low | P95 |
+| B1 | "makes no network call" is bound to a pin the dashboard path never exercises: the dashboard calls `dispatch(allow_live=True)` | VERIFIED | medium | P95 |
+| B1b | The recording-client pin watches only `_CLIENTS['youtube']` | VERIFIED | low | P95 |
+| B2 | Install-scope bindings do not cover `wizard._install_uv` or setup.py's `.venv`-present path | VERIFIED | medium | P94, inherited by a P95 binding |
+| B3 | "`schedule-post` always sets `human_review_required`" is bound to a pin that never runs `schedule_post` | VERIFIED | medium | P94 |
+| B4 | Invariant 53 checks `default_flag` presence, not validity; a typo silently disables a connector | VERIFIED | low | P94, narrowed by P95 |
+| R1 | The pushed subject `P95-2: a claim-proof pin counts only when it can fail.` is false, and was pushed before this pass | VERIFIED | medium | P95 |
+| R2 | This record's P94 counts cannot be reproduced from the repo; "the verifiers read 007e235" is false for at least #9; "STATE.md line 9" was stale on commit (line 21) | VERIFIED | low | P95 |
+| R3 | "80 pins in fakes, nested helpers and lambda helpers": 71 are in mcp_server's `_selftest_static`, 9 are should-not-reach pins; none in fakes or helpers | VERIFIED | low | P95 |
+| R4 | "repo-wide ... no occurrence anywhere in the guarded corpus": it occurred once, in the trigger list | VERIFIED | low | P95 |
+| R5 | The P95 matrix, the 21-case set and the eleven-reversion harness are cited but not committed | VERIFIED | low | P95 |
+
+**What this changes in the body above.** The FIXED verdicts for I1, I2, I4, I6 and I10 do not
+hold as their rows state them: Q1 to Q4 for I1, V3 for I2, P1 to P5 and P10 for I4, V1 and V2 for
+I6, B4 for I10. Of the residuals, the dashboard one is worse than stated (B1: the seam gives the
+dashboard path no coverage, not partial coverage). The P95 prose in CHANGELOG, ADR 0066, STATE.md,
+DOC-MAINTENANCE, `tools/sync_check.py` and `tools/battery.py` was narrowed in the commit that adds
+this addendum; the P95-2 commit subject cannot be changed and is corrected in CHANGELOG.
+
+**Process, recorded.** P95-1 to P95-3 were pushed before this pass ran, which section 7.2 (written
+in P95-1) rules out for claims. The author launched the first lens without the read-only rules
+block, stopped it, confirmed the repository unchanged, and relaunched all four with the block.
+Three of the four lenses wrote helper or output files to the session scratchpad outside the
+repository, against that block; the repository stayed clean (`git status` empty before and after).
+The refutation agents reported no file writes.
+
+**Not fixed here.** Every VERIFIED issue above except the prose corrections is open. They are the
+input to the next pass, which needs its own plan.

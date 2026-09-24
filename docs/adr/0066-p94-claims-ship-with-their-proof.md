@@ -99,26 +99,33 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    Re-running the audit's vectors against P94-5 showed the reachability fix was incomplete: a
    `selftest_park` counted as an entry by name prefix, an unrelated attribute call made a
    same-named function reachable, and `ok(1 == 1, label)` passed because only a bare literal was
-   refused. A pin now counts only when (a) the call is on the live call path from `selftest`/
-   `_selftest` or a selftest-named function the CLI calls, following uses by name and skipping
-   uncalled nested defs and provably dead branches; (b) the helper it calls is defined in the
-   module and actually tests its condition; and (c) that condition depends on something the
-   code computes. A literal, a local constant, a tuple, `x == x` and `x or True` are refused; a
+   refused. P95 added three static refusal rules: (a) the call must be on the live call path
+   from `selftest`/`_selftest` or a selftest-named function the CLI calls, following uses by
+   name and skipping uncalled nested defs and dead `if` branches; (b) the helper it calls must
+   be defined in the module and test its condition; and (c) that condition's truth must not be
+   fixed. A literal, a local constant, a tuple, `x == x` and `x or True` are refused; a
    known-false condition counts, because `ok(False, label)` after a call that must raise is a
    real should-not-reach assertion; a MODULE-level constant counts, because it is the code under
    test. Measured over all 91 swept modules before shipping: no previously accepted label is
-   refused, and 80 pins in fakes, nested helpers and lambda helpers became visible. A fixture
-   module in the drift guard exercises every rule, and each of eleven single-rule reversions was
-   confirmed to fail the build.
+   refused, and 80 more became visible (71 in mcp_server's module-level `_selftest_static`, 9
+   should-not-reach pins elsewhere; the first version of this sentence attributed them to fakes
+   and helpers, which was wrong). A fixture module in the drift guard exercises eleven of the
+   rules, and reverting any one of those fails the build. The independent pass on P95 found nine
+   more rules the fixture does not exercise, and pins that cannot fail that the rules still
+   accept (`ok(x or not x, ...)`, a helper rebound to `print`, a pin under `while False:`); see
+   the addendum to docs/p94-claim-proof-audit-2026-09-24.md.
 
    The trigger vocabulary did not match its own documentation. CLAUDE.md advertised "repo-wide"
-   (zero occurrences in the guarded corpus, a phantom) and a bare "no" the code could not see,
+   (no sentence in the guarded corpus used it; its one occurrence was the list itself) and a bare "no" the code could not see,
    and did not mention "only", "nothing" and "always", which it enforced. Bare "no", "none" and
    "cannot" are now branches, and `no ... ever` tolerates punctuation ("no sudo, ever"). The
    bare-"no" pattern measured precision 1.00 and recall 0.89 on a 21-case labelled set drawn
-   from the corpus; its one miss is a past-participle predicate ("No real CRM data or PII
-   committed to the repo"), which is already bound verbatim. It must stay the LAST branch:
-   listed first, it claims "no ... ever" sentences from their own branch. The five universals it
+   from the corpus, which was not committed; its one miss on that set is a past-participle
+   predicate ("No real CRM data or PII committed to the repo"), already bound verbatim. The
+   independent pass on P95 found further in-vocabulary misses ("There is no fallback to the
+   base interpreter") and a false positive ("no admin rights needed"). It must follow `no_ever`:
+   listed before it, it claims "no ... ever" sentences from their own branch and the coverage
+   proof fails. The five universals it
    surfaced were resolved on their merits: two bound (one to a new recording-client pin that
    observes zero platform calls with the flag off, one to the existing no-.venv refusal pin) and
    three exempted with reasons. Invariant 53 now asserts `default_flag` on every connector entry;
@@ -133,14 +140,15 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    the escape check, which now also knows "except where", "with the exception of", "provided
    that" and "save for".
 
-10. **P95: parity reads what CI enforces, and an exemption must still do work.** A gate counts
-    only when a blocking step runs exactly its command as the whole step; a disabled, advisory,
-    conditional or wrong-subcommand step does not, and a parity note whose gate CI runs directly
-    fails as stale. Invariant 59's exemption map had no staleness check: five of thirteen entries
+10. **P95: parity reads what CI enforces, and an exemption must still do work.** A gate is
+    meant to count only when a blocking step runs exactly its command as the whole step; in the
+    forms the line parser reads, a disabled, advisory, conditional or wrong-subcommand step does
+    not, and a parity note whose gate CI runs directly fails as stale. Invariant 59's exemption map had no staleness check: five of thirteen entries
     exempted nothing and are dropped, and an entry that exempts nothing now fails the build (the
     selftest-enrolment rule "is BOTH exempt and covered; drop the stale exemption", applied to
-    the map that narrows invariant 59's denominator). The audit triage and P95's residuals are in
-    docs/p94-claim-proof-audit-2026-09-24.md.
+    the map that narrows invariant 59's denominator). An over-broad entry still passes, and the
+    parity parser misses several valid YAML forms; both are in the addendum to
+    docs/p94-claim-proof-audit-2026-09-24.md, with the audit triage and P95's residuals.
 
 ## Consequences
 

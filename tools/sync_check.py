@@ -3440,12 +3440,13 @@ _CLAIM_BRANCHES = {
     "only": r"\bonly\b",
     "none": r"\bnone\b",
     "cannot": r"\b(?:cannot|can['\u2019]t)\b",
-    # P95: bare "no" as a promise ("no code path installs ...", "makes no network call") without
-    # flagging the innocuous forms ("no admin rights needed", "no terminal"). Measured on a 21-case
-    # labelled set drawn from the corpus: precision 1.00, recall 0.89; the one miss is a
-    # past-participle predicate ("No real CRM data ... committed"). ORDER IS LOAD-BEARING: this
-    # branch must stay LAST, because alternation reports the first branch that matches at a
-    # position, and listed first it would claim "no X ever" sentences from no_ever.
+    # P95: bare "no" as a promise ("no code path installs ...", "makes no network call"), aiming
+    # not to flag innocuous forms ("no terminal needed"; the independent pass on P95 found "no
+    # admin rights needed" IS flagged). Measured on a 21-case labelled set drawn from the corpus,
+    # not committed: precision 1.00, recall 0.89; the pass found further misses ("There is no
+    # fallback ..."). ORDER IS LOAD-BEARING: this branch must follow no_ever, because alternation
+    # reports the first branch that matches at a position, and listed before it this branch
+    # would claim "no X ever" sentences from no_ever.
     "bare_no": (r"(?<![\"\u201c])\bno\s+(?:\w[\w./-]*\s+){0,3}"
                 r"(?:is|are|was|were|will|can|ever|\w+s(?=\s+\w))\b"
                 r"|\b(?:makes?|writes?|installs?|invokes?|issues?|sends?|queues?|publishes?|reads?|"
@@ -4067,11 +4068,13 @@ def check_claim_proof():
     the battery actually executes -- or listed as an exemption with a written reason, for a
     standing instruction to the agent that no code can prove.
 
-    A pin counts only when it can fail: the call is on the selftest's live call path, goes to a
-    helper this module defines that actually tests its condition, and that condition depends on
-    something the code computes. P94's independent pass showed a parked function and `ok(1 == 1,
-    ...)` certifying promises; P95's harness added a tuple, `x == x`, `x or True` and a helper that
-    never tests its argument to the same list.
+    Static refusal rules (P95) reject a pin that cannot fail when the call is off the selftest's
+    live call path, goes to a helper this module does not define or that never tests its
+    condition, or has a condition whose truth is fixed. P94's independent pass showed a parked
+    function and `ok(1 == 1, ...)` certifying promises; P95's harness added a tuple, `x == x`,
+    `x or True` and a helper that never tests its argument. The rules are incomplete: the
+    independent pass on P95 found pins that cannot fail and still pass (addendum to
+    docs/p94-claim-proof-audit-2026-09-24.md).
 
     This exists because P93 shipped "no code path installs machine-wide" as a commit subject while
     the fallback it denied was still on line 138 of the file it changed, and shipped "every

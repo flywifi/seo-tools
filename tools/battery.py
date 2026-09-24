@@ -115,7 +115,9 @@ def selftest() -> int:
         ok("outside git the unstaged check returns None (loud advisory path)",
            unstaged_tracked(Path(td2)) is None)
 
-    # P95: parity branches, pinned on a fixture workflow so none can regress silently.
+    # P95: parity branches, pinned on a fixture workflow. Not every branch is pinned: the
+    # independent pass on P95 found the job-level continue-on-error branch can be removed with
+    # this selftest still passing (audit record addendum, P10).
     saved_gates, saved_notes = list(GATES), dict(CI_PARITY_NOTES)
     try:
         GATES[:] = [("alpha", ["tools/alpha.py", "check"]), ("beta", ["tools/beta.py"]),
@@ -165,9 +167,10 @@ def selftest() -> int:
 
 def ci_parity(workflow=None) -> int:
     """P94: assert CI actually ENFORCES every battery gate, instead of printing a roster under a
-    step name that promises a comparison. P95: a gate counts only when a BLOCKING CI step (no
-    `if:` guard on it or its job beyond always()/success(), no continue-on-error) runs exactly the
-    gate's command as its whole step. P94 matched the script path in the step text, so a step
+    step name that promises a comparison. P95: a gate is meant to count only when a BLOCKING CI
+    step (no `if:` guard on it or its job beyond always()/success(), no continue-on-error) runs
+    exactly the gate's command as its whole step; the line parser below misses several valid YAML
+    forms that defeat that (independent pass on P95, audit record addendum). P94 matched the script path in the step text, so a step
     disabled with `if: false`, or `source_sync.py reconcile` standing in for `source_sync.py
     check`, still counted. Gates CI covers by a different route are declared in CI_PARITY_NOTES
     with a reason; a note whose gate CI now runs directly fails as stale; and commands CI runs

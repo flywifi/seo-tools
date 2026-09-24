@@ -2,20 +2,22 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P94 are complete; P95 is committed and its independent pass is pending (AUDIT-PROTOCOL
-7.2: not complete until that pass's verification stage returns). Drift guard exits 0 (the full
+P6 through P94 are complete. P95 is committed and its independent pass has returned: its
+verification stage confirmed 34 of 35 issues, so P95 is not complete (AUDIT-PROTOCOL 7.2;
+docs/p94-claim-proof-audit-2026-09-24.md, Addendum). Drift guard exits 0 (the full
 invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
 - P95: closing the P94 audit properly (2026-09-24, docs/p94-claim-proof-audit-2026-09-24.md,
   ADR 0066 decisions 9 and 10). Doctrine: AUDIT-PROTOCOL 7.2 says a pass is finished when its
   verification stage returns, a pass that could not run is DID NOT RUN, and the adversarial
-  vectors are the reviewer's. Guards: a claim-proof pin counts only when it can fail (live call
-  path, a helper that tests its condition, a condition that depends on computed state); the
+  vectors are the reviewer's. Guards: static refusal rules for claim-proof pins that cannot
+  fail (off the live call path, a helper that does not test its condition, a condition whose
+  truth is fixed); the
   detector sees bare "no", "none" and "cannot", and the docs list the words it enforces;
-  invariant 53 asserts `default_flag`; `--check-parity` counts only blocking steps running a
+  invariant 53 asserts `default_flag`; `--check-parity` is meant to count only blocking steps running a
   gate's exact command; invariant 59 fails on an exemption that exempts nothing. Manifest: 19
-  bound, 40 exempted. Residuals and the untested edges are listed in the record, not claimed
-  closed.
+  bound, 40 exempted. The independent pass then confirmed 34 of 35 issues against P95,
+  including a false P95-2 commit subject; they are listed in the record's addendum.
 - P94: a claim about this repo ships with its executed proof (2026-09-21,
   docs/adr/0066-p94-claims-ship-with-their-proof.md). P93 reported two false headline claims and
   built a guard whose scan list was a hand-listed sixteen files, almost all of them ones the
