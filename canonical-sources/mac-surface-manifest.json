@@ -8,8 +8,8 @@
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
   "files": {
-    "AGENTS.md": "2ac6498873307949fe01bb80f8830090f6c091541da6d1fb69e2a4b8fed1a841",
-    "CLAUDE.md": "4ca73ae90b2c6bbb75218dd0130820122fd74c4d51481ee079a2632c917d2ac6",
+    "AGENTS.md": "78a12f1213d5ede2748b09dd313846e250fc43fe7b10e5044aa7fdd9120d151f",
+    "CLAUDE.md": "80d8149c3ffd668992e473427ecd56d05dd7a6892996dfe88f6ec07d8f47ec19",
     "Start Creator OS Setup.bat": "e9c01d9d41b8e805a387146df1e2a9692b51224192f100f5316ea055a030b75e",
     "Start Creator OS Setup.command": "ca39fd0df9f87ce983db603f887f8ebb13118f1b697607147832f48ce08814be",
     "canonical-sources/data-currency-map.json": "c365ee84022c9d54cc0c80529cdef0c6788efcd92ef2099319c35af3b9b4be98",
@@ -20,7 +20,7 @@
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
     "creator-os-config.json": "d3e33b4c7d19705a438e2dd528423e469ef6cbf6a51a68f3c9ce12718380acd2",
     "docs/ARCHITECTURE.md": "4ef2af9196bf985947e07c611fbafb8b01adad1b6e0ab24ef30d9aff73a83003",
-    "docs/AUDIT-PROTOCOL.md": "b52f4424d2e81c5b05cc0a4753b0b67f12aa7f72c0b2d885664ba57b4c9e4f6c",
+    "docs/AUDIT-PROTOCOL.md": "b212836f7dd2935937b220974257469f743cdce879ab8ffe4f5497602e8f54f9",
     "docs/CONTENT-IMPORT.md": "a7e617f7c69dfd95912d3993fabfe47b8c08bc3adfaacd015db954d8d4c38db9",
     "docs/CURRENCY.md": "39e7fd80296dd0dbc313edd82dd84f711e26792b1453c72217a079d96a8f6627",
     "docs/DEPENDENCIES.md": "b5859b2963906ae1844e7c32a1f0d5c82f842634f9ce67ae5b2b16c025959a8d",

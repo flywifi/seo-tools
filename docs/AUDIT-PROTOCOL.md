@@ -149,6 +149,40 @@ wording, and that is the defect.
   that the manifest "claimed more than it delivered". A fix authored by the same reader who
   found the defect is not independently verified.
 
+### 7.2 When the pass is finished (P95)
+
+Section 7.1 says the independent pass runs before a claim is reported. It does not say when the
+pass is FINISHED, and P94 showed the gap twice. First, the pass was launched, its lenses returned
+findings, the author read them, fixed what they named, and reported to the owner, while the
+refutation stage was still running; that stage then came back confirming two defects the report
+had described as fixed. Second, an earlier run of the same pass returned "total: 0 findings"
+while every one of its four agents had died on a usage limit. Starting a pass is not finishing
+it, and a pass that could not run did not pass.
+
+- **A pass is complete when its verification stage has returned.** A lens finding is REPORTED;
+  only the refutation round moves it to VERIFIED or KILLED, which is the status ladder section 8
+  item 4 already defines. A claim about what a pass found, or about a fix that closes what it
+  found, waits for that round. Reporting off first-stage output is reporting an unverified claim.
+- **A pass that could not run is DID NOT RUN, never clean.** A zero from a checker whose agents
+  never executed is the same defect as a guard that scans nothing, and it takes the same
+  treatment the drift guard gives a non-git copy: say DID NOT RUN, name what went unchecked, and
+  do not let it read as a pass. `CLAUDE.md` already says "never claim a skipped step ran"; a pass
+  whose agents died is a skipped step.
+- **The adversarial vectors are not chosen by the author.** P94-5 reported "nine adversarial
+  mutations, all caught". They were nine the author picked, so they confirmed the author's own
+  fix, which is the shape section 7.1 forbids for a guard's scan set, applied to its test set. An
+  independent pass that chose its own vectors then broke three of the fixes: a function merely
+  NAMED like a selftest counted as reachable, a tautology written as a comparison passed as a
+  real condition, and a disabled CI step still counted as coverage. Author-chosen mutations prove
+  the fix does what the author meant; only reviewer-chosen ones test whether it does what it
+  claims.
+- **Record an involuntarily incomplete pass as incomplete.** Section 8 item 6's non-action list
+  and the ledger's `explicit_non_action` field both cover what a phase *chose* not to do. A pass
+  that died is not a choice. The precedents are ADR 0043, which lists "the three research
+  subagents launched for this phase died at start" among its evidence and names the compensating
+  work, and ADR 0045, which records a usage-limit interruption by narrowing the claim to the part
+  that was verified firsthand. Do the same: name the dead pass, and narrow the claim.
+
 ```sources
 []
 ```

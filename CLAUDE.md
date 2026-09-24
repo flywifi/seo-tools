@@ -108,7 +108,10 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   claimed, not the mechanism changed: P93 proved a refusal for PEP 668 interpreters and claimed
   it for every machine-wide one, so seven requirements sets still installed into a shared
   site-packages under a commit saying they could not. The independent pass that checks a claim
-  runs BEFORE the claim is reported or merged (`docs/AUDIT-PROTOCOL.md` section 7.1), and a new
+  runs BEFORE the claim is reported or merged (`docs/AUDIT-PROTOCOL.md` section 7.1), the claim
+  waits for that pass's verification stage to return rather than its first findings, a pass
+  whose agents could not run is reported as DID NOT RUN rather than as clean, and the adversarial
+  vectors are chosen by the reviewer rather than the author (section 7.2); and a new
   guard's scan set is derived from the tree, never a hand list of the files the change happened
   to touch. The promises in this section and in `docs/INSTALL-SCOPE.md` are bound to their
   proofs in `tools/claim-proof-manifest.json`; drift invariant 60 fails the build when a bound
