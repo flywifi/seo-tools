@@ -2611,11 +2611,28 @@ def check_connector_resolver_smoke():
     shipping without default_flag, the P63 F-SWEEP-4 defect) crashed --plan/--list/--json and the
     MCP get_connectors tool while the guard stayed green. This check dynamically imports the
     resolver and calls resolve({}) — the pure default-flag path — so any entry the resolver cannot
-    process fails the build. Fail-closed: an exception of any kind is a problem, not an advisory."""
+    process fails the build. Fail-closed: an exception of any kind is a problem, not an advisory.
+
+    P95: it also asserts `default_flag` is PRESENT on every committed entry. The resolver reads the
+    field with a fallback (a malformed entry stays OFF rather than crashing), so executing it
+    could never catch a missing flag, while CLAUDE.md and the resolver's own comment both said
+    this invariant did."""
     tool = ROOT / "shared" / "connectors" / "connectors.py"
     if not tool.exists():
         problem("connector-resolver: shared/connectors/connectors.py is missing")
         return
+    registry = ROOT / "shared" / "connectors" / "connectors.json"
+    try:
+        entries = json.loads(registry.read_text(encoding="utf-8")).get("connectors", [])
+    except (OSError, json.JSONDecodeError, AttributeError) as exc:
+        problem(f"connector-resolver: shared/connectors/connectors.json is unreadable: {exc}")
+        return
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict) or not entry.get("default_flag"):
+            cid = entry.get("id", f"#{i}") if isinstance(entry, dict) else f"#{i}"
+            problem(f"connector-resolver: connectors.json entry {cid!r} has no default_flag; every "
+                    f"registry entry must declare one (the resolver would silently treat it as "
+                    f"not_installed)")
     import importlib.util
     spec = importlib.util.spec_from_file_location("_connectors_smoke", tool)
     mod = importlib.util.module_from_spec(spec)
@@ -3387,9 +3404,21 @@ _CLAIM_BRANCHES = {
     "always": r"\balways\b",
     "every": r"\bevery\b",
     "all": r"\ball\b",
-    "no_ever": r"\bno\s+\w+(?:\s+\w+){0,3}\s+ever\b",
+    "no_ever": r"\bno\s+\w+(?:[\s,;]+\w+){0,3}[\s,;]+ever\b",
     "nothing": r"\bnothing\b",
     "only": r"\bonly\b",
+    "none": r"\bnone\b",
+    "cannot": r"\b(?:cannot|can['\u2019]t)\b",
+    # P95: bare "no" as a promise ("no code path installs ...", "makes no network call") without
+    # flagging the innocuous forms ("no admin rights needed", "no terminal"). Measured on a 21-case
+    # labelled set drawn from the corpus: precision 1.00, recall 0.89; the one miss is a
+    # past-participle predicate ("No real CRM data ... committed"). ORDER IS LOAD-BEARING: this
+    # branch must stay LAST, because alternation reports the first branch that matches at a
+    # position, and listed first it would claim "no X ever" sentences from no_ever.
+    "bare_no": (r"(?<![\"\u201c])\bno\s+(?:\w[\w./-]*\s+){0,3}"
+                r"(?:is|are|was|were|will|can|ever|\w+s(?=\s+\w))\b"
+                r"|\b(?:makes?|writes?|installs?|invokes?|issues?|sends?|queues?|publishes?|reads?|"
+                r"touch(?:es)?|performs?|runs?\s+with|lands?\s+in|with)\s+no\s+\w"),
 }
 _CLAIM_PATTERN = re.compile("|".join(f"(?P<{k}>{v})" for k, v in _CLAIM_BRANCHES.items()), re.I)
 _CLAIM_MANIFEST_PATH = ROOT / "tools" / "claim-proof-manifest.json"
@@ -3461,9 +3490,15 @@ def _claim_norm(text):
 # ("...refuses, except when ALLOW_SYSTEM is set, which installs into the shared site-packages").
 # The remainder scan cannot see that, so escape-hatch markers sitting in a bound unit are surfaced
 # on their own. Found by P94's own pre-report audit.
+# P95 widened the list after an independent pass reversed a bound promise with "except where",
+# "with the exception of" and "provided that". A reversal that uses NO marker at all ("..., and
+# ALLOW_SYSTEM installs into the shared site-packages") needs semantics a word list does not have;
+# that residual is named in ADR 0066, not claimed closed.
 _CLAIM_ESCAPE_RE = re.compile(
-    r"\b(unless|except when|except if|apart from when|other than when|save when|"
-    r"but if|override[sd]? this|bypass(?:es|ed)? this|opt out of this)\b", re.I)
+    r"\b(unless|except when|except if|except where|except for|with the exception of|"
+    r"apart from when|other than when|save when|save for|provided that|providing that|"
+    r"so long as|as long as|only if|but if|override[sd]? this|bypass(?:es|ed)? this|"
+    r"opt out of this)\b", re.I)
 
 
 def _claim_units(text, line_offset=0):
@@ -3513,67 +3548,428 @@ def _claim_corpus_units(spec):
             yield rel, ln, unit
 
 
-def _claim_reachable_selftest_fns(tree):
-    """Function names reachable from a module's selftest ENTRY point. A pin only proves something
-    if it runs: P94's pre-report audit parked a real-looking label in a function nothing calls and
-    watched the gate certify the promise as proven. Entry points are the selftest functions the
-    sweep invokes; from there this walks the call graph by name."""
-    fns = {n.name: n for n in ast.walk(tree)
-           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    entries = {name for name in fns
-               if name.lower() in {"selftest", "_selftest", "main"} or name.lower().startswith("selftest")}
-    seen, stack = set(), list(entries)
+# P95: a selftest pin proves a claim only when it is a call to a check helper this module
+# defines, made from code the selftest actually runs, whose condition could actually be false.
+_CLAIM_PIN_HELPERS = {"ok", "check", "_check", "_ok", "c"}
+_CLAIM_PIN_ENTRIES = ("selftest", "_selftest")
+_CLAIM_FNDEF = (ast.FunctionDef, ast.AsyncFunctionDef)
+_CLAIM_PURE_BUILTINS = {"bool", "len", "str", "int", "float", "repr", "abs", "tuple", "list",
+                        "set", "frozenset", "dict", "min", "max", "sorted", "sum", "any", "all"}
+
+
+def _claim_own_nodes(node):
+    """The nodes of a function (or module) body, not descending into nested functions, lambdas or
+    classes: a call written inside a nested def runs only if that def is itself used."""
+    stack = list(ast.iter_child_nodes(node))
     while stack:
-        name = stack.pop()
-        if name in seen or name not in fns:
-            continue
-        seen.add(name)
-        for call in ast.walk(fns[name]):
-            if isinstance(call, ast.Call) and isinstance(call.func, ast.Name):
-                stack.append(call.func.id)
-            elif isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute):
-                stack.append(call.func.attr)
-    return seen
+        cur = stack.pop()
+        yield cur
+        if not isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+            stack.extend(ast.iter_child_nodes(cur))
 
 
-def _claim_pin_labels(pyfile):
-    """Named check labels inside a module's selftest: the first string literal of each ok()/check()
-    call. Returns None when the file cannot be parsed. Mirrors count_truth's AST approach rather
-    than importing, so a claim's proof is resolved without executing anything. A label only counts
-    when its call carries a real condition AND its enclosing function is reachable from the
-    selftest entry -- a label alone is a comment, not a proof."""
+def _claim_scopes(tree):
+    """(parent, defs): each function's enclosing function (None = module) and each scope's
+    functions by name, including `ok = lambda ...` helpers. Lookups walk this chain as Python
+    does, so a nested `ok` resolves to its own definition, not a same-named one elsewhere."""
+    parent, defs = {}, {None: {}}
+
+    def visit(node, owner):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, _CLAIM_FNDEF):
+                parent[child] = owner
+                defs.setdefault(owner, {})[child.name] = child
+                defs.setdefault(child, {})
+                visit(child, child)
+            elif isinstance(child, ast.Assign) and isinstance(child.value, ast.Lambda) \
+                    and len(child.targets) == 1 and isinstance(child.targets[0], ast.Name):
+                defs.setdefault(owner, {})[child.targets[0].id] = child.value
+            elif not isinstance(child, (ast.Lambda, ast.ClassDef)):
+                visit(child, owner)
+    visit(tree, None)
+    return parent, defs
+
+
+def _claim_lookup(name, scope, parent, defs):
+    while True:
+        hit = defs.get(scope, {}).get(name)
+        if hit is not None or scope is None:
+            return hit
+        scope = parent.get(scope)
+
+
+def _claim_stored_names(node, whole):
+    """How many times a scope binds each name. `whole` also counts nested scopes, which can rebind
+    an outer name through nonlocal/global; any non-assignment binding counts as two, since such a
+    name never holds one fixed value."""
+    counts = {}
+    for n in (ast.walk(node) if whole else _claim_own_nodes(node)):
+        names = []
+        if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del)):
+            names = [n.id]
+        elif isinstance(n, (ast.Global, ast.Nonlocal)):
+            names = list(n.names) * 2
+        elif isinstance(n, ast.alias):
+            names = [(n.asname or n.name).split(".")[0]] * 2
+        elif isinstance(n, ast.ExceptHandler) and n.name:
+            names = [n.name] * 2
+        elif isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,)) and n is not node:
+            names = [n.name] * 2
+        elif isinstance(n, ast.arguments):
+            names = [a.arg for a in n.posonlyargs + n.args + n.kwonlyargs] * 2
+            names += [a.arg for a in (n.vararg, n.kwarg) if a] * 2
+        for name in names:
+            counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def _claim_immutable_binding(node):
+    """True when a value bound to a name keeps its value for good. A name bound once to `[]` is NOT
+    fixed: `targets = []` then `targets.append(...)` is how a real selftest records calls, and
+    treating it as a constant rejected the P93-4 pin during P95's own development."""
+    if isinstance(node, (ast.Constant, ast.Tuple, ast.Lambda, ast.GeneratorExp, ast.JoinedStr,
+                         ast.Compare, ast.Name)):
+        return True
+    if isinstance(node, ast.UnaryOp):
+        return isinstance(node.op, ast.Not) or isinstance(node.operand, ast.Constant)
+    if isinstance(node, ast.BoolOp):
+        return all(_claim_immutable_binding(v) for v in node.values)
+    if isinstance(node, ast.IfExp):
+        return _claim_immutable_binding(node.body) and _claim_immutable_binding(node.orelse)
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in {"bool", "len", "str", "int", "float", "repr", "abs", "tuple",
+                                 "frozenset", "any", "all"})
+
+
+def _claim_value_fixed(node, resolve):
+    """True when the node's VALUE cannot depend on anything the program computes."""
+    rec = lambda n: _claim_value_fixed(n, resolve)  # noqa: E731
+    if isinstance(node, ast.Constant):
+        return True
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return all(not isinstance(e, ast.Starred) and rec(e) for e in node.elts)
+    if isinstance(node, ast.Dict):
+        return None not in node.keys and all(map(rec, node.keys + node.values))
+    if isinstance(node, ast.JoinedStr):
+        return all(rec(v.value) for v in node.values if isinstance(v, ast.FormattedValue))
+    if isinstance(node, ast.UnaryOp):
+        return rec(node.operand)
+    if isinstance(node, ast.BinOp):
+        return rec(node.left) and rec(node.right)
+    if isinstance(node, ast.BoolOp):
+        return all(map(rec, node.values))
+    if isinstance(node, ast.Compare):
+        return all(map(rec, [node.left] + node.comparators))
+    if isinstance(node, ast.IfExp):
+        return rec(node.test) and rec(node.body) and rec(node.orelse)
+    if isinstance(node, ast.NamedExpr):
+        return rec(node.value)
+    if isinstance(node, ast.Name):
+        bound = resolve(node.id)
+        return bound is not None and bound[0] is not None and \
+            _claim_value_fixed(bound[0], bound[1])
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+        return resolve(node.func.id) == ("builtin",) and all(map(rec, node.args))
+    return False
+
+
+def _claim_truth(node, resolve):
+    """(fixed, value): fixed is True when the node's TRUTH cannot depend on anything the program
+    computes; value is that truth when safely known, else None. A pin whose condition has a fixed
+    truth cannot fail, so it proves nothing. P94 rejected only a bare literal; P95 found that
+    `ok(1 == 1, ...)`, a tuple (always truthy), `x == x`, `x or True` and a name bound to a
+    constant all still passed as proofs."""
+    rec = lambda n: _claim_truth(n, resolve)  # noqa: E731
+    if isinstance(node, ast.Constant):
+        return True, bool(node.value)
+    if isinstance(node, ast.Compare) and all(
+            isinstance(p, ast.Constant) for p in [node.left] + node.comparators):
+        try:
+            return True, bool(eval(compile(ast.Expression(node), "<pin>", "eval"),  # noqa: S307
+                                   {"__builtins__": {}}))
+        except Exception:  # noqa: BLE001 - e.g. unorderable constants: still fixed
+            return True, None
+    if _claim_value_fixed(node, resolve):
+        return True, None
+    if isinstance(node, (ast.Lambda, ast.GeneratorExp)):
+        return True, True
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        if any(isinstance(e, ast.Starred) for e in node.elts):
+            return False, None
+        return True, bool(node.elts)
+    if isinstance(node, ast.Dict):
+        return (False, None) if None in node.keys else (True, bool(node.keys))
+    if isinstance(node, ast.JoinedStr):
+        lit = any(isinstance(v, ast.Constant) and v.value for v in node.values)
+        return (True, True) if lit else (False, None)
+    if isinstance(node, ast.Name):
+        bound = resolve(node.id)
+        return _claim_truth(bound[0], bound[1]) if bound and bound[0] is not None \
+            else (False, None)
+    if isinstance(node, ast.NamedExpr):
+        return rec(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        fixed, val = rec(node.operand)
+        return (True, None if val is None else not val) if fixed else (False, None)
+    if isinstance(node, ast.BoolOp):
+        parts = [rec(v) for v in node.values]
+        decider = isinstance(node.op, ast.Or)          # Or is decided by a True, And by a False
+        if any(f and v is decider for f, v in parts):
+            return True, decider
+        return (True, None) if all(f for f, _ in parts) else (False, None)
+    if isinstance(node, ast.Compare) and len(node.ops) == 1 \
+            and ast.dump(node.left) == ast.dump(node.comparators[0]) \
+            and isinstance(node.left, (ast.Name, ast.Attribute, ast.Subscript)):
+        if isinstance(node.ops[0], (ast.Eq, ast.Is, ast.LtE, ast.GtE)):
+            return True, True                          # x == x: reflexive, cannot fail
+        if isinstance(node.ops[0], (ast.NotEq, ast.IsNot, ast.Lt, ast.Gt)):
+            return True, False
+    if isinstance(node, ast.IfExp):
+        tf, tv = rec(node.test)
+        if tf and tv is not None:
+            return rec(node.body if tv else node.orelse)
+        (bf, bv), (of, ov) = rec(node.body), rec(node.orelse)
+        return (True, bv) if (bf and of and bv is not None and bv == ov) else (False, None)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+            and node.func.id == "bool" and resolve("bool") == ("builtin",) \
+            and len(node.args) == 1 and not node.keywords:
+        return rec(node.args[0])
+    return False, None
+
+
+def _claim_condition_param(helper):
+    """The first parameter the helper's body tests for truth, or None. A helper that never tests
+    its condition (prints the label and returns) certifies nothing, however real the call looks."""
+    params = [a.arg for a in helper.args.posonlyargs + helper.args.args + helper.args.kwonlyargs]
+    tested = set()
+    for node in ast.walk(helper):
+        tests = []
+        if isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
+            tests.append(node.test)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+                and node.func.id == "bool":
+            tests.extend(node.args)
+        for t in tests:
+            tested.update(n.id for n in ast.walk(t) if isinstance(n, ast.Name))
+    return next((p for p in params if p in tested), None)
+
+
+def _claim_live_nodes(node, resolve):
+    """Like _claim_own_nodes, but skipping code that can never run: the body of an `if` whose test
+    is fixed false (or its else when fixed true), and statements after a return/raise/break/
+    continue in the same block. Otherwise `if False: ok(False, label)` would pass as a proof."""
+    def block(stmts):
+        for st in stmts:
+            yield from one(st)
+            if isinstance(st, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+                return
+
+    def one(cur):
+        yield cur
+        if isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+            return
+        if isinstance(cur, (ast.If, ast.IfExp)):
+            fixed, val = _claim_truth(cur.test, resolve)
+            yield from one(cur.test)
+            body = cur.body if isinstance(cur.body, list) else [cur.body]
+            orelse = cur.orelse if isinstance(cur.orelse, list) else [cur.orelse]
+            if not (fixed and val is False):
+                yield from (block(body) if isinstance(cur, ast.If) else one(body[0]))
+            if not (fixed and val is True):
+                yield from (block(orelse) if isinstance(cur, ast.If) else one(orelse[0]))
+            return
+        for _field, value in ast.iter_fields(cur):
+            if isinstance(value, list):
+                if value and isinstance(value[0], ast.stmt):
+                    yield from block(value)
+                else:
+                    for v in value:
+                        if isinstance(v, ast.AST):
+                            yield from one(v)
+            elif isinstance(value, ast.AST):
+                yield from one(value)
+
+    if isinstance(node, ast.Lambda):
+        yield from one(node.body)
+    else:
+        yield from block(node.body)
+
+
+def _claim_pins(source):
+    """(label, reason) for every candidate pin in a module's source, or None if it cannot be
+    parsed. `reason` is None when the pin counts as a proof, else why it does not, so the gate can
+    say WHY a label that exists is refused."""
     try:
-        tree = ast.parse(Path(pyfile).read_text(encoding="utf-8"))
-    except (OSError, SyntaxError):
+        tree = ast.parse(source)
+    except SyntaxError:
         return None
-    reachable = _claim_reachable_selftest_fns(tree)
-    labels = []
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        if "selftest" not in node.name.lower() or node.name not in reachable:
-            continue
-        for call in ast.walk(node):
-            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+    parent, defs = _claim_scopes(tree)
+    counts, assigns = {None: _claim_stored_names(tree, False)}, {}
+    for scope in [None] + list(parent):
+        if scope is not None:
+            counts[scope] = _claim_stored_names(scope, True)
+        for n in _claim_own_nodes(tree if scope is None else scope):
+            target = (n.targets[0] if isinstance(n, ast.Assign) and len(n.targets) == 1 else
+                      n.target if isinstance(n, ast.AnnAssign) and n.value is not None else None)
+            if isinstance(target, ast.Name):
+                assigns[(scope, target.id)] = n.value
+
+    def resolver(scope, depth=0):
+        def resolve(name):
+            """(bound value node, its resolver), ("builtin",), or None when not fixed."""
+            s = scope
+            while True:
+                c = counts.get(s, {})
+                if name in c:
+                    # Only a name the selftest's own code binds can make a check self-fulfilling.
+                    # A MODULE-level name is the code under test: `check(len(BANNED) >= 6, ...)`
+                    # fails the day someone empties BANNED, so it is a real regression guard.
+                    val = assigns.get((s, name))
+                    if s is not None and c[name] == 1 and val is not None and depth < 20 \
+                            and _claim_immutable_binding(val):
+                        return val, resolver(s, depth + 1)
+                    return None
+                if s is None:
+                    return ("builtin",) if name in _CLAIM_PURE_BUILTINS else None
+                s = parent.get(s)
+        return resolve
+
+
+    def uses(fn):
+        """Functions a live piece of code uses by name: a call, or a callback handed over."""
+        for ref in _claim_live_nodes(fn, resolver(fn if fn is not tree else None)):
+            if isinstance(ref, ast.Name) and isinstance(ref.ctx, ast.Load):
+                hit = _claim_lookup(ref.id, None if fn is tree else fn, parent, defs)
+                if hit is not None:
+                    yield hit
+
+    def closure(starts):
+        seen, stack = set(), list(starts)
+        while stack:
+            fn = stack.pop()
+            if fn not in seen:
+                seen.add(fn)
+                stack.extend(uses(fn))
+        return seen
+
+    # Entries: `selftest`/`_selftest`, plus any selftest-named function on the CLI's own call path
+    # (source_currency dispatches `selftest_detect` from `_main`). A name PREFIX alone is not an
+    # entry -- P95 found `def selftest_park()`, called by nothing, counted as run -- and an
+    # attribute call like `obj.park()` never makes this module's `park` reachable.
+    top = defs[None]
+    cli = closure(uses(tree))
+    entries = [top[n] for n in _CLAIM_PIN_ENTRIES if n in top]
+    entries += [f for f in cli if isinstance(f, _CLAIM_FNDEF) and "selftest" in f.name.lower()]
+    reachable = closure(entries)
+
+    out = []
+    for fn in parent:
+        for call in _claim_live_nodes(fn, resolver(fn)):
+            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                    and call.func.id in _CLAIM_PIN_HELPERS):
                 continue
-            if call.func.id not in {"ok", "check", "_check", "_ok", "c"}:
-                continue
-            args = list(call.args)
-            label = next((a.value for a in args
+            label = next((a.value for a in list(call.args) + [k.value for k in call.keywords]
                           if isinstance(a, ast.Constant) and isinstance(a.value, str)
                           and len(a.value) > 3), None)
             if label is None:
                 continue
-            # The OTHER arguments carry the assertion. A pin whose condition is a literal
-            # (ok(True, "label")) names a proof that proves nothing, so it does not count.
-            asserts = [a for a in args
-                       if not (isinstance(a, ast.Constant) and a.value == label)]
-            if asserts and all(isinstance(a, ast.Constant) for a in asserts):
-                continue
-            if not asserts:
-                continue
-            labels.append(label)
-    return labels
+            name, reason = call.func.id, None
+            helper = _claim_lookup(name, fn, parent, defs)
+            if fn not in reachable:
+                reason = (f"it sits in {fn.name}(), which nothing on the selftest's call path "
+                          f"uses, so it never runs")
+            elif helper is None:
+                reason = f"{name}() is not defined in this module, so what it checks cannot be read"
+            else:
+                cond = _claim_condition_param(helper)
+                params = [a.arg for a in helper.args.posonlyargs + helper.args.args]
+                bound = {params[i]: a for i, a in enumerate(call.args)
+                         if i < len(params) and not isinstance(a, ast.Starred)}
+                bound.update({k.arg: k.value for k in call.keywords if k.arg})
+                if cond is None:
+                    reason = f"{name}() never tests any of its arguments, so it cannot fail"
+                elif cond not in bound:
+                    reason = f"the call passes nothing for {name}()'s condition {cond!r}"
+                else:
+                    fixed, val = _claim_truth(bound[cond], resolver(fn))
+                    if fixed and val is not False:
+                        reason = ("its condition cannot depend on anything the code computes (a "
+                                  "literal, a constant, or an expression whose truth is fixed), "
+                                  "so it cannot fail")
+            out.append((label, reason))
+    return out
+
+
+def _claim_pin_labels(pyfile):
+    """Labels of the pins in a module that count as proofs, or None when it cannot be read or
+    parsed. Resolved by AST, never by importing, so a claim's proof is checked without executing
+    anything (the count_truth approach)."""
+    try:
+        text = Path(pyfile).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    pins = _claim_pins(text)
+    return None if pins is None else [lab for lab, why in pins if why is None]
+
+
+# P95: one fixture module per refusal rule, run before every scan so a rule cannot regress
+# silently. Each fake pin below reproduces a way a label could pass as a proof while proving
+# nothing; only the labels in _CLAIM_PIN_FIXTURE_PROOFS may be accepted.
+_CLAIM_PIN_FIXTURE = """
+TABLE = ("a", "b", "c")
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    def unused():
+        ok(state(), "nested-uncalled")
+    def fake(url):
+        ok(url.startswith("https"), "callback")
+    r = state()
+    same = True
+    ok(r == 1, "real")
+    ok(1 == 1, "literal-compare")
+    ok((r, "why"), "tuple-truthy")
+    ok(r == r, "reflexive")
+    ok(r or True, "or-true")
+    ok(same, "local-constant")
+    ok(len(TABLE) > 2, "module-constant")
+    _check("extra-arg", True, [])
+    _check("label-first", r, [])
+    c(r, "swallowed")
+    check(r, "undefined-helper")
+    obj.park()
+    run(fake)
+    if False:
+        ok(False, "dead-branch")
+    try:
+        load()
+        ok(False, "should-not-reach")
+    except ValueError:
+        ok(True, "should-not-reach")
+
+def selftest_park():
+    _check("name-prefix", state(), [])
+
+def park():
+    _check("attribute-only", state(), [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+def c(cond, msg):
+    print(msg)
+"""
+_CLAIM_PIN_FIXTURE_PROOFS = {"real", "module-constant", "label-first", "callback", "should-not-reach"}
+# Every label must still be SEEN (and refused), except "dead-branch": code under `if False:` is
+# pruned before it is a candidate. If pruning regresses, its `ok(False, ...)` reads as a
+# should-not-reach proof and the accepted set above changes, so that rule is covered too.
+_CLAIM_PIN_FIXTURE_ALL = _CLAIM_PIN_FIXTURE_PROOFS | {
+    "nested-uncalled", "literal-compare", "tuple-truthy", "reflexive", "or-true",
+    "local-constant", "extra-arg", "swallowed", "undefined-helper", "name-prefix",
+    "attribute-only"}
 
 
 def _claim_selftest_modules():
@@ -3581,7 +3977,15 @@ def _claim_selftest_modules():
     runs is not a proof, so membership here is what makes `tools/x.py::selftest::...` resolvable."""
     try:
         import selftest_sweep
-        return {str(Path(p).resolve()) for p, _ in selftest_sweep.discover()}
+        mods = {str(Path(p).resolve()) for p, _ in selftest_sweep.discover()}
+        # A package selftest runs as `python -m <pkg> --selftest`, whose __main__ imports the
+        # package's own _selftest, so its pins live in the package __init__ (P95).
+        for _label, argv in getattr(selftest_sweep, "PACKAGE_ENTRIES", []):
+            if "-m" in argv and argv.index("-m") + 1 < len(argv):
+                init = ROOT / "tools" / argv[argv.index("-m") + 1] / "__init__.py"
+                if init.exists():
+                    mods.add(str(init.resolve()))
+        return mods
     except Exception:  # noqa: BLE001 - a broken sweep is reported by its own gate, not this one
         return None
 
@@ -3606,23 +4010,37 @@ def _claim_resolve_proof(proof, enforced, selftest_mods):
         if selftest_mods is not None and str(path.resolve()) not in selftest_mods:
             return False, (f"{mod} exposes no selftest the sweep runs, so a pin inside it is "
                            f"never executed and cannot prove anything")
-        labels = _claim_pin_labels(path)
-        if labels is None:
+        try:
+            pins = _claim_pins(path.read_text(encoding="utf-8"))
+        except OSError:
+            pins = None
+        if pins is None:
             return False, f"proof module {mod} could not be parsed"
-        if not any(label in lab for lab in labels):
-            return False, (f"{mod} has no selftest pin whose label contains {label!r}; the pin "
-                           f"was renamed or removed, so the claim is no longer proven")
-        return True, ""
+        if any(label in lab for lab, why in pins if why is None):
+            return True, ""
+        refused = next((why for lab, why in pins if label in lab), None)
+        if refused:
+            return False, (f"{mod} has a pin labelled {label!r}, but it does not count as a "
+                           f"proof: {refused}")
+        return False, (f"{mod} has no selftest pin whose label contains {label!r}; the pin "
+                       f"was renamed or removed, so the claim is no longer proven")
     return False, (f"unrecognized proof form {proof!r}; use `invariant:N` or "
                    f"`tools/x.py::selftest::<pin label>`")
 
 
 def check_claim_proof():
     """Invariant 60: claim-proof binding (P94). A universal claim about this repo's own behavior
-    ("never", "every", "all", "only", "nothing", "always", "no ... ever") inside the guarded
-    corpus must be bound in tools/claim-proof-manifest.json to either an enforced drift invariant
-    or a NAMED selftest pin the battery actually executes -- or listed as an exemption with a
-    written reason, for a standing instruction to the agent that no code can prove.
+    ("never", "every", "all", "only", "nothing", "always", "none", "cannot", "no ... ever", and a
+    bare "no" used as a promise -- P95) inside the guarded corpus must be bound in
+    tools/claim-proof-manifest.json to either an enforced drift invariant or a NAMED selftest pin
+    the battery actually executes -- or listed as an exemption with a written reason, for a
+    standing instruction to the agent that no code can prove.
+
+    A pin counts only when it can fail: the call is on the selftest's live call path, goes to a
+    helper this module defines that actually tests its condition, and that condition depends on
+    something the code computes. P94's independent pass showed a parked function and `ok(1 == 1,
+    ...)` certifying promises; P95's harness added a tuple, `x == x`, `x or True` and a helper that
+    never tests its argument to the same list.
 
     This exists because P93 shipped "no code path installs machine-wide" as a commit subject while
     the fallback it denied was still on line 138 of the file it changed, and shipped "every
@@ -3647,6 +4065,9 @@ def check_claim_proof():
         "no_ever": "No tool here ever touches a shared site-packages.",
         "nothing": "Nothing is released until the gates pass.",
         "only": "The repo .venv is the only install target.",
+        "none": "The installer writes none of it outside the home folder.",
+        "cannot": "The dashboard cannot publish without a confirmation step.",
+        "bare_no": "No code path in this repo installs machine-wide.",
     }
     def _claim_fires(name, sample):
         hit = _CLAIM_PATTERN.search(sample)
@@ -3667,6 +4088,13 @@ def check_claim_proof():
         return
     if _claim_units("## A heading that says every\n"):
         problem("claim-proof: detector self-proof failed -- a heading was read as a promise")
+        return
+    pins = _claim_pins(_CLAIM_PIN_FIXTURE) or []
+    accepted = {lab for lab, why in pins if why is None}
+    if accepted != _CLAIM_PIN_FIXTURE_PROOFS or {lab for lab, _ in pins} != _CLAIM_PIN_FIXTURE_ALL:
+        problem(f"claim-proof: pin self-proof failed -- the fixture's accepted pins are "
+                f"{sorted(accepted)}, expected {sorted(_CLAIM_PIN_FIXTURE_PROOFS)}. A rule that "
+                f"refuses a fake proof (unreachable, tautological, or unchecked) has regressed")
         return
 
     if not _CLAIM_MANIFEST_PATH.exists():
@@ -3775,20 +4203,25 @@ def check_claim_proof():
                         f"a route we can find, or the advice dead-ends")
 
     # --- reverse enrolment sweep: a universal claim bound to nothing is the P93 failure ---
+    consumed = set()
     for rel, ln, unit in _claim_corpus_units(man.get("corpus", {})):
-        hit = _CLAIM_PATTERN.search(unit)
-        if hit is None:
-            continue
         # Subtract what IS bound, then look at what is left. Matching the whole unit would let a
         # new universal appended to an already-bound bullet ride in on its neighbour's binding --
-        # the defect P94's own adversarial pass found in this very check.
+        # the defect P94's own adversarial pass found in this very check. Each binding covers ONE
+        # occurrence in its doc (P95): subtracting every occurrence let a short bound phrase
+        # ("makes no network call") whitelist any later sentence that repeated its words.
         remainder = _claim_norm(unit)
-        for r, t in bound:
-            if r != rel:
+        for idx, (r, t) in enumerate(bound):
+            if r != rel or idx in consumed:
                 continue
             needle = _claim_norm(t)
             if needle and needle in remainder:
-                remainder = remainder.replace(needle, " ")
+                remainder = remainder.replace(needle, " ", 1)
+                consumed.add(idx)
+        # Bindings are consumed in document order BEFORE the hit test, so a bound phrase whose
+        # own unit makes no universal claim still uses up its binding there.
+        if _CLAIM_PATTERN.search(unit) is None:
+            continue
         # An escape hatch next to a bound promise must be declared, even when it uses no
         # universal word: it changes what the bound sentence means.
         if len(remainder) < len(_claim_norm(unit)):          # something in this unit IS bound

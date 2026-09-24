@@ -31,7 +31,8 @@ error}` result for one human-confirmed post." It never decides *whether* to post
    and with `status:"unconfirmed"` unless the caller passes `confirmed=True` asserting a human
    confirmed THIS entry. Callers still pass `config` and `confirmed=True` (the dashboard scheduler is
    the only production caller); the in-dispatch check is defense in depth, not a license for callers to
-   skip their own gate. Default is off; while off, no network call.
+   skip their own gate. Default is off; while off, no network call (P95: the dispatch selftest
+   swaps in a recording client and observes zero calls, with a flag-on control).
    `<!-- verify: tools/publishing_compliance.py::live_publishing_enabled -->`
 4. **YouTube = upload-only, default private.** The upload path constructs NO monetary/analytics
    endpoint (upload host only), and `status.privacyStatus` defaults to `private`; public requires an
@@ -69,6 +70,9 @@ error}` result for one human-confirmed post." It never decides *whether* to post
    `python3 tools/oauth_flow.py --selftest`.
 7. Wizard OAuth callback: single-use `state` CSRF + no-clobber merge + flag flip —
    `python3 tools/wizard.py --selftest`.
+8. Flag off: `dispatch()` never reaches a platform client, observed with a recording client rather
+   than inferred from the `gated` status (a gate that returns `gated` after calling the client
+   fails it) — `PYTHONPATH=tools python3 -m publishing --selftest`.
 
 ## Approval-gated changes
 Editing any of: `youtube._UPLOAD_SCOPES`, the default `privacyStatus`, a platform's PKCE mode

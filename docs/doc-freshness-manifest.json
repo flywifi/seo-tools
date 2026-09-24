@@ -12,12 +12,12 @@
       "sources": {
         "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
         "tools/source_currency.py": "7a61050826184f2f04aa6e52428f26c1b1c754544ba3e35ff84ca51bea4fcd17",
-        "tools/sync_check.py": "7a777cd0d0f9df2e1972948dbf599cd13974d0a86b06ba217d8743c9b8a9db39"
+        "tools/sync_check.py": "1a0ab2089eb2695e2938261abcc73138e7b5d127af98f53e462274bcb60ca8d2"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
       "sources": {
-        "tools/publishing/__init__.py": "d82eb23a9309b0301b62b6ea5be815274562fa46dd54a1a1f8c96e75938fec34",
+        "tools/publishing/__init__.py": "3fb2d2e4749aa7a83a181495c00f1fd3b0d85d4b3e28122dd651434162a2271e",
         "tools/publishing/youtube.py": "c16c7873a7f80dedbf73b130761e3a212da2b0bfeac46a266f822733b81e5310",
         "tools/publishing/instagram.py": "dcf27cd8030ad18df8e3068040afd7e98f12416d0b9295f954ea734b5d8f7ca4",
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",

@@ -43,8 +43,9 @@ pass-counts drifting across six finance atom docs with nothing catching them.
 ## Decisions
 
 1. **A universal claim about repo behavior names its executed proof, or is narrowed to what was
-   tested.** "no", "never", "every", "all", "only", "nothing", "always" in a commit subject, a
-   doc sentence, a CHANGELOG entry or a report to the owner. Test the PROPERTY claimed, not the
+   tested.** "no", "never", "every", "all", "only", "nothing", "always", "none", "cannot" (the
+   last two and bare "no" detected since P95) in a commit subject, a doc sentence, a CHANGELOG
+   entry or a report to the owner. Test the PROPERTY claimed, not the
    mechanism changed: P93 proved a refusal for PEP 668 interpreters and claimed it for every
    machine-wide one.
 2. **The independent pass runs before the claim is reported or merged** (`AUDIT-PROTOCOL.md`
@@ -93,6 +94,44 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    declared "unless" anywhere in a file disabled it for the whole file. Three rounds of
    adversarial passes on one change is the honest record of how much a guard needs before its
    own claim about itself is true.
+
+9. **P95: a pin must be able to fail, and the detector must see the words the docs advertise.**
+   Re-running the audit's vectors against P94-5 showed the reachability fix was incomplete: a
+   `selftest_park` counted as an entry by name prefix, an unrelated attribute call made a
+   same-named function reachable, and `ok(1 == 1, label)` passed because only a bare literal was
+   refused. A pin now counts only when (a) the call is on the live call path from `selftest`/
+   `_selftest` or a selftest-named function the CLI calls, following uses by name and skipping
+   uncalled nested defs and provably dead branches; (b) the helper it calls is defined in the
+   module and actually tests its condition; and (c) that condition depends on something the
+   code computes. A literal, a local constant, a tuple, `x == x` and `x or True` are refused; a
+   known-false condition counts, because `ok(False, label)` after a call that must raise is a
+   real should-not-reach assertion; a MODULE-level constant counts, because it is the code under
+   test. Measured over all 91 swept modules before shipping: no previously accepted label is
+   refused, and 80 pins in fakes, nested helpers and lambda helpers became visible. A fixture
+   module in the drift guard exercises every rule, and each of eleven single-rule reversions was
+   confirmed to fail the build.
+
+   The trigger vocabulary did not match its own documentation. CLAUDE.md advertised "repo-wide"
+   (zero occurrences in the guarded corpus, a phantom) and a bare "no" the code could not see,
+   and did not mention "only", "nothing" and "always", which it enforced. Bare "no", "none" and
+   "cannot" are now branches, and `no ... ever` tolerates punctuation ("no sudo, ever"). The
+   bare-"no" pattern measured precision 1.00 and recall 0.89 on a 21-case labelled set drawn
+   from the corpus; its one miss is a past-participle predicate ("No real CRM data or PII
+   committed to the repo"), which is already bound verbatim. It must stay the LAST branch:
+   listed first, it claims "no ... ever" sentences from their own branch. The five universals it
+   surfaced were resolved on their merits: two bound (one to a new recording-client pin that
+   observes zero platform calls with the flag off, one to the existing no-.venv refusal pin) and
+   three exempted with reasons. Invariant 53 now asserts `default_flag` on every connector entry;
+   before, it only executed a resolver that reads the field with a fallback, so the binding was
+   false.
+
+   Residuals, named rather than claimed closed: reachability is static, so a call under a branch
+   that is not provably dead still counts; a helper that tests its condition but throws the
+   result away still counts; a pin can pass while testing a different property than the claim
+   (semantic, and the reviewer's job); and a bound promise reversed by a clause with no marker
+   word at all ("..., and ALLOW_SYSTEM installs into the shared site-packages") is invisible to
+   the escape check, which now also knows "except where", "with the exception of", "provided
+   that" and "save for".
 
 ## Consequences
 

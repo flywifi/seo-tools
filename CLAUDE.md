@@ -102,9 +102,10 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **Claims about this repo's own behavior meet the same bar as a plan: executed evidence, or
-  they are not written.** A universal claim ("no", "never", "every", "all", "repo-wide") in a
-  commit subject, a doc sentence, a CHANGELOG entry, or a report to the owner either names the
-  executed pin that proves it or is narrowed to what was actually tested. Test the PROPERTY
+  they are not written.** A universal claim ("no", "never", "every", "all", "only", "nothing",
+  "always", "none", "cannot") in a commit subject, a doc sentence, a CHANGELOG entry, or a report
+  to the owner either names the executed pin that proves it or is narrowed to what was actually
+  tested. Test the PROPERTY
   claimed, not the mechanism changed: P93 proved a refusal for PEP 668 interpreters and claimed
   it for every machine-wide one, so seven requirements sets still installed into a shared
   site-packages under a commit saying they could not. The independent pass that checks a claim

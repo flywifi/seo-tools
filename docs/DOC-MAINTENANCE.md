@@ -69,7 +69,10 @@ symbol, path, or count is verifiable, so it is verified.
    same manifest binds each recommended install route to the code that must detect it. A reverse
    enrolment sweep fails when a universal claim joins the corpus bound to nothing, matching at
    claim granularity rather than by paragraph so a new promise cannot ride in on a neighbour's
-   binding. This guardrail is narrow ON PURPOSE: the repo carries 2,846 lines with absolutes, and
+   binding, and each binding covers one occurrence of its text. A pin counts only when it can
+   fail (P95): it sits on the selftest's live call path, calls a helper the module defines that
+   tests its condition, and that condition depends on something the code computes; a fixture
+   module in the drift guard exercises each of those rules. This guardrail is narrow ON PURPOSE: the repo carries 2,846 lines with absolutes, and
    guarding all of them would be an annotation project nobody maintains.
 
 ## Process conventions

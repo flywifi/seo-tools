@@ -131,8 +131,9 @@ def resolve(flags: dict, registry: dict | None = None) -> dict:
     restrictions: dict[str, dict] = {}
 
     for c in reg["connectors"]:
-        # default_flag is required on every registry entry (drift invariant 53 executes this
-        # resolver over the committed registry); .get() keeps a malformed entry OFF, never crashing.
+        # default_flag is required on every registry entry (drift invariant 53 asserts it on every
+        # committed entry and executes this resolver); .get() keeps a malformed entry OFF, never
+        # crashing.
         cid, default = c["id"], c.get("default_flag", "not_installed")
         st, restricted, reason = _flag_state(conf.get(cid, default))
         if cid in ALWAYS_ON and st != "disabled":

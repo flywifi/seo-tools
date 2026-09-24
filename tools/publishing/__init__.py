@@ -101,6 +101,30 @@ def _selftest() -> int:
     r_default = dispatch("youtube", {}, sentinel, confirmed=True)
     ok("default gate reads compliance (OFF) -> gated", r_default.get("status") == "gated")
 
+    # P95: test the PROPERTY, not the status string. A recording client stands in for the real
+    # one, so "no network call while the flag is off" is observed rather than inferred from the
+    # refusal; the flag-on control proves the probe can see a call at all.
+    calls = []
+
+    class _Recorder:
+        @staticmethod
+        def publish(*args, **kwargs):
+            calls.append(args)
+            return {"ok": True, "status": "published", "post_id": "X", "permalink": None,
+                    "error": None}
+
+    real = _CLIENTS["youtube"]
+    _CLIENTS["youtube"] = _Recorder
+    try:
+        dispatch("youtube", {}, sentinel, allow_live=False, confirmed=True)
+        ok("flag off: the platform client is never called, so no network call is made",
+           calls == [])
+        dispatch("youtube", {}, sentinel, allow_live=True, confirmed=True)
+        ok("flag on and confirmed: the recording client is reached (the probe sees calls)",
+           len(calls) == 1)
+    finally:
+        _CLIENTS["youtube"] = real
+
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)

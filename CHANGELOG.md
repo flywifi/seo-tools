@@ -51,6 +51,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P95: docs/AUDIT-PROTOCOL.md section 7.2 says when a verification pass is finished. A claim
+  waits for the pass's verification stage to return, not its first findings (the REPORTED to
+  VERIFIED or KILLED ladder of section 8); a pass whose agents could not run is reported as DID
+  NOT RUN, never as clean; the adversarial vectors are chosen by the reviewer, not the author;
+  and a pass that died partway is recorded (the ADR 0043 and 0045 precedents). CLAUDE.md and
+  AGENTS.md carry the rule.
+- P95: invariant 60's trigger vocabulary now matches what the docs advertise. CLAUDE.md listed
+  "repo-wide" (no occurrence anywhere in the guarded corpus) and a bare "no" the detector could
+  not see, and omitted "only", "nothing" and "always", which it enforced. The detector gains
+  bare "no" (precision 1.00, recall 0.89 on a 21-case labelled set; the one miss is named in
+  ADR 0066), "none", "cannot", and a `no ... ever` that tolerates punctuation; CLAUDE.md,
+  AGENTS.md, ADR 0066 and the check's docstring now list the same words. The five universals the
+  new branches surfaced are resolved: two bound, three exempted with reasons (manifest: 19
+  bound, 40 exempted). The escape-clause list gains "except where", "with the exception of",
+  "provided that", "save for" and related forms.
 - P93: every install instruction across the live guidance defaults to user-scoped. The new
   policy page docs/INSTALL-SCOPE.md states the rule (home folder only, no sudo, no
   /Applications, /opt/homebrew, or /usr/local), the approved locations, the user-scoped
@@ -63,6 +78,27 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P95 (correction to the P94 record, 2026-09-24): the P94 entry above says a pin "has to carry
+  a real condition AND sit in a function reachable from the selftest entry". As shipped that was
+  not true: any function whose name began with "selftest" counted as an entry, an attribute call
+  made a same-named function reachable, and `ok(1 == 1, label)` passed because only a bare
+  literal was refused. A pin now counts only when it is on the live call path (uses by name,
+  skipping uncalled nested defs and provably dead branches), calls a helper the module defines
+  that tests its condition, and has a condition that depends on something the code computes. A
+  fixture module in the drift guard exercises every rule, and eleven single-rule reversions
+  each fail the build. Measured over all 91 swept modules: no previously accepted label is
+  refused, and 80 pins in fakes, nested helpers and lambda helpers became visible.
+- P95: a binding in tools/claim-proof-manifest.json now covers one occurrence of its text, not
+  every occurrence in the doc; a short bound phrase otherwise whitelisted any later sentence
+  that repeated its words.
+- P95: drift invariant 53 asserts `default_flag` is present on every connectors.json entry.
+  It previously only executed the resolver, which reads the field with a fallback, so the
+  CLAUDE.md sentence and the resolver's comment that credited it were both false.
+- P95: the publishing dispatch selftest tests the property, not the status string. A
+  recording client observes zero platform calls with the flag off (and a flag-on control shows
+  the probe sees calls). A gate that returns "gated" after calling the client passed the old
+  status-only pin; it fails the new one. The claim-proof resolver now also resolves pins in
+  package selftests run as `python -m <pkg> --selftest`.
 - P94 (correction to the P93 record, 2026-09-21): two P93 commit subjects overclaimed and are
   immutable in pushed history, so the correction is recorded here. `P93-1: no code path installs
   machine-wide.` was false when written: the installer still fell back to the base interpreter,

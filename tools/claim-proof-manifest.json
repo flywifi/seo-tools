@@ -33,7 +33,7 @@
       "doc": "CLAUDE.md",
       "claim": "Every registry entry carries a `default_flag`; drift invariant 53 executes the resolver",
       "proof": "invariant:53",
-      "why": "invariant 53 executes the connector resolver over the committed registry, so an entry malformed enough to break resolution fails the build. It does not separately assert the presence of default_flag on every entry."
+      "why": "invariant 53 asserts default_flag is present on every entry in the committed connectors.json and executes the resolver over it (P95; before that it only executed the resolver, which reads the field with a fallback and so could never catch a missing one)."
     },
     {
       "doc": "CLAUDE.md",
@@ -112,6 +112,18 @@
       "claim": "The repo `.venv` is the only install target, so when it cannot be\ncreated the installer refuses with the remedy instead of falling back to the base interpreter",
       "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
       "why": "the pin proves pip is never invoked without a .venv, which is exactly this sentence."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "when it cannot be created the installer refuses with the remedy rather than falling back to the base interpreter",
+      "proof": "tools/setup.py::selftest::no .venv: every requirements set is refused with the user-scoped remedy",
+      "why": "the setup selftest removes the .venv path and asserts every requirements set comes back refused with the user-scoped remedy text; its sibling pin asserts pip is never invoked at all."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "advances items to `ready_to_post` for manual posting and makes no network call",
+      "proof": "tools/publishing/__init__.py::selftest::flag off: the platform client is never called",
+      "why": "dispatch() is the only route from the dashboard to a platform client; the pin swaps in a recording client and observes zero calls with the flag off, and a flag-on control proves the probe sees calls. The dashboard's own flag-off branch sits inline in a 60-second scheduler loop that no selftest drives, so it is covered by this seam rather than pinned directly."
     }
   ],
   "exempt": [
@@ -197,7 +209,7 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "A universal claim (\"no\", \"never\", \"every\", \"all\", \"repo-wide\") in a",
+      "claim": "A universal claim (\"no\", \"never\", \"every\", \"all\", \"only\", \"nothing\", \"always\", \"none\", \"cannot\") in a",
       "why": "this sentence QUOTES the trigger vocabulary the rule governs; the words are the subject of the sentence rather than a promise being made."
     },
     {
@@ -299,6 +311,21 @@
       "doc": "CLAUDE.md",
       "claim": "When a\n  check fails, report it honestly with the output; never claim a skipped step ran.",
       "why": "an instruction governing what the agent says in a report; nothing in the build can read a chat message, so this is doctrine enforced by judgment."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "maintenance runs with no model tokens",
+      "why": "Describes how the tool is meant to be run: a deterministic stdlib script from cron or a shell, with no agent in the loop. Spending tokens needs an agent, which is outside anything the script's own code can assert."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "no sudo, ever",
+      "why": "Paraphrases nvm's own documented per-user install model, quoted from its README in the same cell. A property of a third-party installer that no code in this repo can prove."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "sees none of it",
+      "why": "The last step of a manual verification procedure the reader performs on their own machine with a second account. It says how to check, not what the code does."
     }
   ],
   "routes": [
@@ -336,9 +363,12 @@
     "claim_proof": [
       "all",
       "always",
+      "bare_no",
+      "cannot",
       "every",
       "never",
       "no_ever",
+      "none",
       "nothing",
       "only"
     ],

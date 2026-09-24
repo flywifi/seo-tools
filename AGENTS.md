@@ -48,8 +48,9 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   human confirmation step, and `live_publishing_enabled` defaults off.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **Claims about this repo's own behavior need executed evidence.** A universal claim ("no",
-  "never", "every", "all") in a commit subject, a doc sentence, or a report either names the
-  executed pin proving it or is narrowed to what was tested. Test the PROPERTY claimed, not the
+  "never", "every", "all", "only", "nothing", "always", "none", "cannot") in a commit subject, a
+  doc sentence, or a report either names the executed pin proving it or is narrowed to what was
+  tested. Test the PROPERTY claimed, not the
   mechanism changed. The independent pass runs BEFORE the claim is reported or merged
   (`docs/AUDIT-PROTOCOL.md` 7.1), the claim waits for that pass's verification stage rather than
   its first findings, a pass that could not run is reported as DID NOT RUN, and the adversarial
