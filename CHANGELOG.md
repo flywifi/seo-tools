@@ -57,6 +57,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   NOT RUN, never as clean; the adversarial vectors are chosen by the reviewer, not the author;
   and a pass that died partway is recorded (the ADR 0043 and 0045 precedents). CLAUDE.md and
   AGENTS.md carry the rule.
+- P95: `tools/battery.py --check-parity` counts a gate only when a BLOCKING CI step (no `if:`
+  on the step or its job beyond always()/success(), no continue-on-error) runs exactly the
+  gate's command as the whole step. P94 matched the script path anywhere in the step text, so a
+  step disabled with `if: false`, or `source_sync.py reconcile` standing in for `check`, still
+  counted. The check now also prints commands CI runs that are not battery gates (it surfaced
+  `version.py --check`), lists conditional steps it did not count, and fails on a parity note
+  whose gate CI runs directly or that names no gate. Nine parity branches are pinned in
+  `battery.py --selftest`.
 - P95: invariant 60's trigger vocabulary now matches what the docs advertise. CLAUDE.md listed
   "repo-wide" (no occurrence anywhere in the guarded corpus) and a bare "no" the detector could
   not see, and omitted "only", "nothing" and "always", which it enforced. The detector gains
@@ -88,6 +96,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   fixture module in the drift guard exercises every rule, and eleven single-rule reversions
   each fail the build. Measured over all 91 swept modules: no previously accepted label is
   refused, and 80 pins in fakes, nested helpers and lambda helpers became visible.
+- P95: drift invariant 59's exemption map is checked for staleness. Five of its thirteen
+  entries exempted nothing, one of them the living AUDIT-PROTOCOL filed under "dated audit
+  protocol records"; they are dropped, and an entry that matches no tracked file or exempts
+  nothing now fails the build. The P94 audit's triage (29 reported, 20 verified, 9 killed, 13
+  distinct issues), P95's verdict on each, its own defects and its residuals are recorded in
+  docs/p94-claim-proof-audit-2026-09-24.md.
 - P95: a binding in tools/claim-proof-manifest.json now covers one occurrence of its text, not
   every occurrence in the doc; a short bound phrase otherwise whitelisted any later sentence
   that repeated its words.

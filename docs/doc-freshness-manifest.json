@@ -12,7 +12,7 @@
       "sources": {
         "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
         "tools/source_currency.py": "7a61050826184f2f04aa6e52428f26c1b1c754544ba3e35ff84ca51bea4fcd17",
-        "tools/sync_check.py": "1a0ab2089eb2695e2938261abcc73138e7b5d127af98f53e462274bcb60ca8d2"
+        "tools/sync_check.py": "67471e7d2f2d1e1689557298f2bcc651835e219dd6a222dc2c80f7b4ebaea67e"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -143,6 +143,7 @@
   "frozen": {
     "docs/remediation-2026-09-04.md": "68a5ee8c9580e8a7bbee574a3c4c4a1dd468d7f629e0f5a7681f102358ee11fb",
     "docs/integrity-currency-audit-2026-08-30.md": "caf00dd9f024472c28901e7b6511f0880a24b4c85c1b7a34923cc25fa6412f9b",
+    "docs/p94-claim-proof-audit-2026-09-24.md": "44e2de2decee4e95b6a97e8bc594d9352e7c3666a6c4feca1cff8534f8acf2f4",
     "docs/persona-audit-2026-07-15.md": "a761a4c40ee2feceacc7af535391d69c790bebe61d92e272c31a619fb8807be9",
     "docs/production-readiness-2026-08-16.md": "14e6c8da00444cf3587571ff136664c10ae03ee58e27189df36a5185f6da8ae9"
   }

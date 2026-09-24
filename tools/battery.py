@@ -9,14 +9,16 @@ This runner closes the class:
   * it REFUSES to run while tracked files carry unstaged edits (the mac-surface and package manifests
     derive from the INDEX, so reconciling with a dirty worktree blesses bytes a commit will not carry);
   * `--py <interpreter>` reruns the battery under a second interpreter (the repo floor rule);
-  * `--list` prints the gate roster; `--check-parity` asserts CI actually runs every gate
-    (P94: the old parity step printed the roster under a name that promised a comparison).
+  * `--list` prints the gate roster; `--check-parity` asserts a BLOCKING CI step runs each gate's
+    exact command (P94: the old parity step printed the roster under a name that promised a
+    comparison; P95: a disabled, advisory or wrong-subcommand step no longer counts).
 
 Outside a git checkout the unstaged check prints a loud DID-NOT-RUN advisory instead of silently
 passing (the repo's fail-closed idiom). Stdlib only.
 """
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -112,80 +114,213 @@ def selftest() -> int:
     with tempfile.TemporaryDirectory() as td2:
         ok("outside git the unstaged check returns None (loud advisory path)",
            unstaged_tracked(Path(td2)) is None)
+
+    # P95: parity branches, pinned on a fixture workflow so none can regress silently.
+    saved_gates, saved_notes = list(GATES), dict(CI_PARITY_NOTES)
+    try:
+        GATES[:] = [("alpha", ["tools/alpha.py", "check"]), ("beta", ["tools/beta.py"]),
+                    ("gamma", ["tools/gamma.py"]), ("delta", ["tools/delta.py"]),
+                    ("epsilon", ["tools/epsilon.py"]), ("zeta", ["tools/zeta.py"])]
+        CI_PARITY_NOTES.clear()
+        CI_PARITY_NOTES.update({"gamma": "covered by a superset step, fixture reason"})
+        wf = ("jobs:\n  guard:\n    runs-on: x\n    steps:\n"
+              "      - name: A\n        run: python3 tools/alpha.py check\n"
+              "      - name: B\n        if: false\n        run: python3 tools/beta.py\n"
+              "      - name: D\n        continue-on-error: true\n        run: python3 tools/delta.py\n"
+              "      - name: E\n        run: |\n          set +e\n          python3 tools/epsilon.py\n"
+              "      - name: V\n        run: python3 tools/version.py --check\n")
+        nightly = ("  nightly:\n    if: github.event_name == 'schedule'\n    runs-on: x\n    steps:\n"
+                   "      - name: Z\n        run: python3 tools/zeta.py\n")
+        direct_gamma = "      - name: G\n        run: python3 tools/gamma.py\n"
+        wf_all = wf + nightly
+        missing, noted, stale, ci_only, cond = parity_report(wf_all)
+        ok("parity: a blocking step running the exact command covers its gate",
+           not any("alpha" in m for m in missing))
+        ok("parity: an `if: false` step is not coverage", any("beta" in m for m in missing))
+        ok("parity: a continue-on-error step is not coverage", any("delta" in m for m in missing))
+        ok("parity: a gate inside a multi-command block (set +e) is not coverage",
+           any("epsilon" in m for m in missing))
+        ok("parity: a noted gate is reported as covered differently", noted == ["gamma"])
+        ok("parity: a CI-only command is reported", ci_only == ["python3 tools/version.py --check"])
+        ok("parity: a step in a job with an `if:` guard is not coverage",
+           any("zeta" in m for m in missing))
+        ok("parity: conditional steps are listed as not counted", cond == ["B", "D", "Z"])
+        missing, _, _, _, _ = parity_report(wf_all.replace("alpha.py check", "alpha.py reconcile"))
+        ok("parity: a different subcommand does not cover the gate",
+           any("alpha" in m for m in missing))
+        _, _, stale, _, _ = parity_report(wf + direct_gamma + nightly)
+        ok("parity: a note whose gate CI now runs directly is flagged stale",
+           any("BOTH noted and run directly" in x for x in stale))
+        CI_PARITY_NOTES["retired"] = "a gate that no longer exists, fixture reason"
+        _, _, stale, _, _ = parity_report(wf_all)
+        ok("parity: a note naming no battery gate is flagged stale",
+           any("names no battery gate" in x for x in stale))
+    finally:
+        GATES[:] = saved_gates
+        CI_PARITY_NOTES.clear()
+        CI_PARITY_NOTES.update(saved_notes)
     print(f"battery selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0
 
 
 def ci_parity(workflow=None) -> int:
-    """P94: assert CI actually runs every battery gate, instead of printing a roster under a step
-    name that promises a comparison. For each gate, the workflow must contain the script the gate
-    runs. Gates CI covers by a different route are declared in CI_PARITY_NOTES with a reason, and
-    commands CI runs that the battery does not are REPORTED, not forbidden: the two rosters differ
-    by design (CI also builds dist/ and scans all tracked content)."""
+    """P94: assert CI actually ENFORCES every battery gate, instead of printing a roster under a
+    step name that promises a comparison. P95: a gate counts only when a BLOCKING CI step (no
+    `if:` guard on it or its job beyond always()/success(), no continue-on-error) runs exactly the
+    gate's command as its whole step. P94 matched the script path in the step text, so a step
+    disabled with `if: false`, or `source_sync.py reconcile` standing in for `source_sync.py
+    check`, still counted. Gates CI covers by a different route are declared in CI_PARITY_NOTES
+    with a reason; a note whose gate CI now runs directly fails as stale; and commands CI runs
+    that are not battery gates are printed, so the two rosters' differences stay visible."""
     wf = Path(workflow) if workflow else ROOT / ".github" / "workflows" / "ci.yml"
     if not wf.exists():
         print(f"battery parity: {wf} not found", file=sys.stderr)
         return 1
-    commands = _run_commands(wf.read_text(encoding="utf-8"))
-    haystack = "\n".join(commands)
-    missing, noted = [], []
-    for name, gate_argv in GATES:
-        probe = next((a for a in gate_argv if a.endswith(".py")), None)
-        if probe is None:
-            probe = "Start Creator OS Setup.command"     # the launcher-syntax gate, checked by name
-        if probe in haystack:
-            continue
-        if name in CI_PARITY_NOTES:
-            noted.append(name)
-            continue
-        missing.append(f"{name} ({probe})")
+    missing, noted, stale, ci_only, conditional = parity_report(wf.read_text(encoding="utf-8"))
     for name in sorted(noted):
         print(f"battery parity: {name} is covered differently in CI: {CI_PARITY_NOTES[name]}")
-    if missing:
-        print("battery parity: CI does not run these battery gates: " + ", ".join(missing),
-              file=sys.stderr)
+    for cmd in ci_only:
+        print(f"battery parity: CI also runs {cmd!r}, which is not a battery gate")
+    if conditional:
+        print(f"battery parity: {len(conditional)} conditional or advisory CI step(s) are not "
+              f"counted as coverage: {', '.join(conditional)}")
+    for line in missing + stale:
+        print(f"battery parity: {line}", file=sys.stderr)
+    if missing or stale:
         return 1
-    ran = len(GATES) - len(noted)
-    print(f"battery parity: CI runs {ran} of {len(GATES)} battery gates directly; "
-          f"{len(noted)} covered differently (listed above)")
+    print(f"battery parity: CI enforces {len(GATES) - len(noted)} of {len(GATES)} battery gates "
+          f"directly; {len(noted)} covered differently (listed above)")
     return 0
 
 
-def _run_commands(text):
-    """Every shell line inside a `run:` block of a workflow, comments stripped. Parity has to read
-    what CI EXECUTES: matching raw file text let a commented-out or disabled step count as
-    coverage, which is how a gate could silently stop running while the step name still promised
-    it (found by this check's own adversarial pass)."""
-    out, in_run, run_indent = [], False, 0
+def parity_report(text):
+    """(missing, noted, stale, ci_only, conditional) for a workflow's text. Pure (no filesystem)
+    so each branch is asserted permanently in selftest() rather than red-teamed once by hand."""
+    steps = _ci_steps(text)
+    commands = [(st, _step_command(st)) for st in steps if not st["gates"]]
+    wanted = {name: CI_EQUIVALENT.get(name, argv) for name, argv in GATES}
+    covered, missing, noted, stale = set(), [], [], []
+    for name, want in wanted.items():
+        if any(cmd == want for _, cmd in commands):
+            covered.add(name)
+        elif name in CI_PARITY_NOTES:
+            noted.append(name)
+        else:
+            near = next((st for st in steps if any(want[0] in ln for ln in st["run"])), None)
+            why = ""
+            if near is not None and near["gates"]:
+                why = f"; step {near['name']!r} does not enforce it ({', '.join(near['gates'])})"
+            elif near is not None:
+                why = (f"; step {near['name']!r} runs {' / '.join(near['run'])!r}, not exactly "
+                       f"the gate's command as its whole step")
+            missing.append(f"CI does not enforce the {name} gate (needs a blocking step running "
+                           f"exactly: {' '.join(want)}){why}")
+    for name in sorted(CI_PARITY_NOTES):
+        if name not in wanted:
+            stale.append(f"{name!r} is noted but names no battery gate; drop the note")
+        elif name in covered:
+            stale.append(f"{name!r} is BOTH noted and run directly by CI; drop the stale note")
+    ci_only = sorted({" ".join(st["run"][0].split()) for st, cmd in commands
+                      if cmd and cmd not in wanted.values()
+                      and (cmd[0].startswith("tools/") or cmd[0] == "bash")})
+    conditional = [st["name"] or st["run"][0] for st in steps if st["gates"] and st["run"]]
+    return missing, noted, stale, ci_only, conditional
+
+
+def _yaml_value(text):
+    """A scalar value with its trailing comment and surrounding quotes removed."""
+    val = text.split(" #", 1)[0].strip()
+    if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
+        val = val[1:-1]
+    return val
+
+
+def _ci_steps(text):
+    """Every step of every job as {job, name, run: [command lines], gates: [why not blocking]}.
+    Comments are dropped, so a commented-out step does not exist. A step is BLOCKING (empty
+    `gates`) when it runs on every trigger and its failure fails the job. Line-based on purpose:
+    the battery is stdlib only, and the workflow is plain block YAML."""
+    steps, job, job_gates, cur = [], None, [], None
+    in_jobs, block_indent = False, None
     for raw in text.splitlines():
         stripped = raw.strip()
         indent = len(raw) - len(raw.lstrip())
-        if in_run and stripped and indent <= run_indent:
-            in_run = False
-        if in_run:
-            if not stripped.startswith("#"):
-                out.append(stripped.split(" #", 1)[0])
+        if block_indent is not None:
+            if not stripped or indent > block_indent:
+                if stripped and not stripped.startswith("#"):
+                    cur["run"].append(stripped.split(" #", 1)[0].rstrip())
+                continue
+            block_indent = None
+        if not stripped or stripped.startswith("#"):
             continue
-        if stripped.startswith("#"):
+        if indent == 0:
+            in_jobs, job, cur = stripped == "jobs:", None, None
             continue
-        if stripped.startswith("- name:") or stripped.startswith("if:"):
+        if not in_jobs:
             continue
-        if stripped.startswith("run:"):
-            rest = stripped[len("run:"):].strip()
-            if rest and rest not in ("|", ">", "|-", ">-"):
-                out.append(rest)
-            else:
-                in_run, run_indent = True, indent
-    return out
+        if indent == 2 and stripped.endswith(":"):
+            job, job_gates, cur = stripped[:-1], [], None
+            continue
+        if job is None:
+            continue
+        key_indent = indent
+        if stripped.startswith("- ") and indent >= 6:
+            cur = {"job": job, "name": "", "run": [], "gates": list(job_gates), "indent": indent + 2}
+            steps.append(cur)
+            stripped, key_indent = stripped[2:].strip(), indent + 2
+        key, sep, val = stripped.partition(":")
+        key, val = key.strip(), _yaml_value(val)
+        if not sep:
+            continue
+        if cur is None:
+            if indent == 4 and key == "if" and val not in _ALWAYS_RUNS:
+                job_gates.append(f"job if: {val}")
+            elif indent == 4 and key == "continue-on-error" and val != "false":
+                job_gates.append(f"job continue-on-error: {val}")
+            continue
+        if key_indent != cur["indent"]:
+            continue                        # a nested mapping (`with:` inputs), not a step key
+        if key == "name":
+            cur["name"] = val
+        elif key == "if" and val not in _ALWAYS_RUNS:
+            cur["gates"].append(f"if: {val}")
+        elif key == "continue-on-error" and val != "false":
+            cur["gates"].append(f"continue-on-error: {val}")
+        elif key == "run":
+            if val in ("|", ">", "|-", ">-", "|+", ">+"):
+                block_indent = key_indent
+            elif val:
+                cur["run"].append(val)
+    return steps
 
 
-# Gates CI covers by a different route than running the gate's own script, each with its reason.
+def _step_command(step):
+    """A step's single command as shell words, python interpreter dropped; None when the step runs
+    anything else as well. A gate must be the WHOLE step: `x || true`, `set +e` earlier in a
+    block, or a trailing `; exit 0` would each mask its exit code."""
+    if len(step["run"]) != 1:
+        return None
+    try:
+        words = shlex.split(step["run"][0])
+    except ValueError:
+        return None
+    if words and (words[0] in ("python", "python3") or words[0].startswith("python3.")):
+        words = words[1:]
+    return words
+
+
+# Gates CI covers by a different route than running the gate's own command, each with its reason.
 CI_PARITY_NOTES = {
     "staged secret scan": "CI scans ALL tracked content (secret_scan.py --tracked), a superset of "
                           "the staged scan, because a CI checkout has nothing staged",
     "preflight push": "checks the LOCAL working tree before a push (unstaged edits, branch state); "
                       "a CI checkout is clean by construction, so there is nothing for it to find",
 }
+# The shell words CI runs for a gate whose battery argv is not a plain script call.
+CI_EQUIVALENT = {"launcher syntax": ["bash", "-n", "Start Creator OS Setup.command"]}
+# `if:` values that cannot be false on a push, so they do not make a step conditional.
+_ALWAYS_RUNS = {"always()", "success()", "true", "${{ always() }}", "${{ success() }}",
+                "${{ true }}"}
 
 
 def main(argv) -> int:

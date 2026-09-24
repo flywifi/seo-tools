@@ -133,6 +133,15 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    the escape check, which now also knows "except where", "with the exception of", "provided
    that" and "save for".
 
+10. **P95: parity reads what CI enforces, and an exemption must still do work.** A gate counts
+    only when a blocking step runs exactly its command as the whole step; a disabled, advisory,
+    conditional or wrong-subcommand step does not, and a parity note whose gate CI runs directly
+    fails as stale. Invariant 59's exemption map had no staleness check: five of thirteen entries
+    exempted nothing and are dropped, and an entry that exempts nothing now fails the build (the
+    selftest-enrolment rule "is BOTH exempt and covered; drop the stale exemption", applied to
+    the map that narrows invariant 59's denominator). The audit triage and P95's residuals are in
+    docs/p94-claim-proof-audit-2026-09-24.md.
+
 ## Consequences
 
 - A promise in the non-negotiables cannot drift from its proof, lose its pin to a rename, or

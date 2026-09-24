@@ -3204,17 +3204,15 @@ _INSTALL_SCOPE_LABEL = re.compile(r"(whole computer|machine-wide|machine wide)",
 
 # Paths whose install lines are NOT this repo's live guidance. Each entry carries its reason; a
 # path is exempt when it starts with a listed prefix or matches a listed name.
+# P95: every entry must still exempt something; _install_scope_exempt_problems fails the build
+# on one that does not (CHANGELOG.md, ledger/, docs/production-readiness-, docs/AUDIT- and the
+# secret-scan allowlist were dropped for exempting nothing).
 _INSTALL_SCOPE_EXEMPT = {
     "docs/adr/": "decision records: they quote the state of the world when the decision was made",
-    "CHANGELOG.md": "release history: entries describe what WAS, and are never re-edited",
     "STATE.md": "phase log: historical record of each pass",
-    "ledger/": "the dated decision ledger: append-only history",
-    "docs/production-readiness-": "a dated audit record, frozen at its run date",
     "docs/VIDEO_TOOLING_EVAL": "third-party tool evaluation: records those vendors' own install facts",
     "docs/video-tooling-": "third-party tool evaluation evidence, same reason",
-    "docs/AUDIT-": "dated audit protocol records",
     "tools/sync_check.py": "this file: it holds the detector's own deliberately unlabeled fixtures",
-    "tools/secret-scan-allowlist.json": "a scanner allowlist of literal strings, not guidance",
     "tools/mac_surface_manifest.py": "holds the mac-surface SIGNAL tokens (one is the literal "
                                      "'brew install'); a detector vocabulary, not an instruction",
     ".github/": "CI workflow steps run in an ephemeral single-use container that is destroyed "
@@ -3304,7 +3302,8 @@ def check_install_scope():
     written reason). The first cut of this check scanned a hardcoded 16-file allowlist, and the
     P93 adversarial pass found live machine-wide instructions in six files outside it --
     including the repo-root double-click launcher, the entry point for non-technical Mac users.
-    A closed list can only shrink silently; a derived one cannot.
+    A closed list can only shrink silently; a derived one cannot. P95: the exemptions are held to
+    the same standard -- one that matches no tracked file, or exempts nothing, fails the build.
 
     The check proves itself before scanning: EVERY branch in _INSTALL_SCOPE_BRANCHES must flag
     its own fixture and stay clean once labeled, so deleting a branch fails the build rather than
@@ -3364,6 +3363,13 @@ def check_install_scope():
                 "block was read as an install instruction")
         return
 
+    stale = _install_scope_exempt_problems({"live/": "r", "dead/": "r", "gone/": "r"},
+                                           {"live/a.md": 2, "dead/b.md": 0, "other.md": 1})
+    if len(stale) != 2 or "'dead/' is stale" not in stale[0] or "'gone/' matches no" not in stale[1]:
+        problem(f"install-scope: detector self-proof failed -- the stale-exemption check returned "
+                f"{stale!r}; an exemption that does no work must be reported")
+        return
+
     # --- derived denominator: every tracked text file, minus the written-reason exemptions ---
     try:
         out = subprocess.run(["git", "ls-files"], cwd=str(ROOT),
@@ -3378,21 +3384,46 @@ def check_install_scope():
         advisory("install-scope DID NOT RUN: no git file listing available (non-git copy); "
                  "the machine-wide-install gate could not scan anything")
         return
+    hits_by_file = {}
     for rel in tracked:
+        hits_by_file[rel] = 0
         if not rel.endswith(_INSTALL_SCOPE_SUFFIXES):
-            continue
-        if any(rel == k or rel.startswith(k) for k in _INSTALL_SCOPE_EXEMPT):
             continue
         p = ROOT / rel
         try:
             lines = p.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             continue
-        for lineno, frag in _install_scope_scan(lines):
+        hits = _install_scope_scan(lines)
+        hits_by_file[rel] = len(hits)
+        if any(rel == k or rel.startswith(k) for k in _INSTALL_SCOPE_EXEMPT):
+            continue                # scanned anyway, so the staleness check below can count it
+        for lineno, frag in hits:
             problem(f"install-scope: {rel}:{lineno}: unlabeled machine-wide install: {frag} "
                     f"(lead with the user-scoped route, or put 'machine-wide alternative "
                     f"(affects the whole computer)' on that line or the two above it; "
                     f"docs/INSTALL-SCOPE.md)")
+    for msg in _install_scope_exempt_problems(_INSTALL_SCOPE_EXEMPT, hits_by_file):
+        problem(msg)
+
+
+def _install_scope_exempt_problems(exempt, hits_by_file):
+    """Stale entries in the exemption map, given {tracked path: unlabeled-install count}. Pure,
+    so the gate proves it before use. P95: an exemption shrinks invariant 59's denominator, and
+    nothing checked that one still did any work -- five of thirteen exempted nothing at all, one of
+    them a living protocol filed under "dated audit records". The sibling rule is selftest_sweep's
+    "is BOTH exempt and covered; drop the stale exemption"."""
+    out = []
+    for key in sorted(exempt):
+        under = [n for rel, n in hits_by_file.items() if rel == key or rel.startswith(key)]
+        if not under:
+            out.append(f"install-scope: the exemption {key!r} matches no tracked file; drop the "
+                       f"entry")
+        elif not sum(under):
+            out.append(f"install-scope: the exemption {key!r} is stale: nothing under it carries "
+                       f"an unlabeled machine-wide install, so it exempts nothing. Drop it so those "
+                       f"files are scanned like any other")
+    return out
 
 
 # P94: the claim-proof detector. A universal claim about this repo's own behavior is a promise;
