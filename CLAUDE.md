@@ -118,6 +118,13 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Never fabricate data, metrics, rates, brands, or sources (`protocols/no-fabrication.md`). Null and
   flag instead.
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
+  What the build detects: drift invariant 19 refuses tracked personal `*.local.*` files;
+  invariant 20 refuses tracked `pipeline/` files beyond the blank templates and tracked data-file
+  types (the forbidden-suffix list in `tools/secret_scan.py`); invariant 21 scans tracked content
+  for known secret formats, non-allowlisted email addresses, North American phone numbers whose
+  digit groups are split by a dash, dot, single space or area-code parenthesis, and dollar
+  figures in `pipeline/` files. A name, a postal address, or a phone number written as one digit
+  run, with slashes, or with spaced dashes is not detected.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **A commit subject names the mechanism it changed.** A stage pushed before its verification stage
   returns says in its subject what the code now does, not the property the stage aims at; the
@@ -197,10 +204,12 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   (copy `shared/connectors/feature-flags.example.json` to gitignored
   `creator-os-connectors.local.json`) is consulted only when passed explicitly via `--flags`.
   Do not edit `connectors.json` for deployment-specific state changes. Every registry entry
-  carries a `default_flag`; drift invariant 53 executes the resolver over the committed registry
-  so a malformed entry fails the build.
-- **Human confirmation required before every post.** `schedule-post` always sets
-  `human_review_required: true`. No connector call is made, and no post is queued or published,
+  carries a `default_flag` naming one of the registry's declared `states`; drift invariant 53
+  checks that and runs the resolver and its `--list` and `--plan` output over the committed
+  registry, so a missing or undeclared default, or an entry the resolver or its CLI cannot
+  process, fails the build.
+- **Human confirmation required before every post.** The `schedule_post` MCP tool
+  (`tools/mcp_server.py`) always sets `human_review_required: true`. No connector call is made, and no post is queued or published,
   without an explicit human confirmation step. Agents never post directly — they produce
   confirmation summaries for human review only. `tools/publishing_compliance.py` is the shared
   FTC/AIGC/tier/credential gate used by both `schedule_post` (which reports) and the dashboard

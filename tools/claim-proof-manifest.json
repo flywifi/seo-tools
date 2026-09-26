@@ -25,27 +25,27 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "No real CRM data or PII committed to the repo",
-      "proof": "invariant:21",
-      "why": "check_secret_content reads every tracked text file; invariants 19 and 20 cover the filename and pipeline-allowlist halves."
+      "claim": "drift invariant 19 refuses tracked personal `*.local.*` files",
+      "proof": "invariant:19",
+      "why": "check_local_privacy fails when git ls-files lists a file whose basename matches the personal *.local.* pattern (fail-closed in CI when git is unavailable)."
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "Every spoke in the hub's downstream list exists; every atom a workflow names is installed.",
+      "claim": "Every spoke in the hub's downstream list exists;",
       "proof": "invariant:6",
-      "why": "check_hub proves the spoke half and invariant 7 (check_workflows) proves the atom half."
+      "why": "check_hub parses the fenced list under the hub's \"## Downstream spokes\" heading and fails on a listed name with no skills/<name>/ directory, and on a spoke directory the list omits; a fixture self-proof of both directions runs first."
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "Every registry entry carries a `default_flag`; drift invariant 53 executes the resolver",
+      "claim": "Every registry entry carries a `default_flag` naming one of the registry's declared `states`; drift invariant 53 checks that and runs the resolver and its `--list` and `--plan` output over the committed registry, so a missing or undeclared default, or an entry the resolver or its CLI cannot process, fails the build.",
       "proof": "invariant:53",
-      "why": "invariant 53 asserts default_flag is present on every entry in the committed connectors.json and executes the resolver over it (P95; before that it only executed the resolver, which reads the field with a fallback and so could never catch a missing one)."
+      "why": "check_connector_resolver_smoke refuses any committed default_flag that is not a bare string from connectors.json's own `states` list (a self-proof on misspelled, boolean, numeric, empty, missing and dict values runs first), then executes resolve({}) and connectors.py --list, --plan and --plan --json over the committed registry and fails on any exception (a self-proof with a raising registry loader proves all three CLI paths run)."
     },
     {
       "doc": "CLAUDE.md",
       "claim": "the code side never writes into a machine-wide site-packages at all",
-      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
-      "why": "the P93-4 pin asserts install_dependencies invokes pip zero times when no .venv exists; it fails against the P93-1 code, which installed all seven sets into the base interpreter."
+      "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
+      "why": "the census parses every .py file in the tree (hidden, build and cache directories excluded) and fails unless the only pip install argv literals sit in setup.py::_pip_install and wizard.py::_install_uv; the install-target pins in the setup.py and wizard.py selftests then record the interpreter each of those two runs pip with."
     },
     {
       "doc": "CLAUDE.md",
@@ -56,14 +56,14 @@
     {
       "doc": "CLAUDE.md",
       "claim": "is gated behind the `live_publishing_enabled` flag (default off)",
-      "proof": "tools/publishing_compliance.py::selftest::live_publishing_enabled default should be False",
-      "why": "the named pin asserts the default directly; the human-confirmation half of that bullet is an agent directive and is exempted separately."
+      "proof": "tools/publishing_compliance.py::selftest::the committed creator-os-config.json ships live_publishing_enabled off",
+      "why": "the named pin reads the committed creator-os-config.json (never the gitignored local override) and asserts the master flag is off there; its sibling pin asserts an unset flag reads as off."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "no Creator OS tool ever writes into a machine-wide site-packages",
-      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
-      "why": "same executed pin as the CLAUDE.md non-negotiable; this is the policy page's statement of it."
+      "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
+      "why": "the same pip census as the CLAUDE.md non-negotiable; this is the policy page's statement of it."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -86,8 +86,8 @@
     {
       "doc": "CLAUDE.md",
       "claim": "**Human confirmation required before every post.**",
-      "proof": "tools/publishing_compliance.py::selftest::human_review_required must always be True",
-      "why": "the named pin asserts the flag is set on every path through the compliance gate."
+      "proof": "tools/dashboard/server.py::selftest::every flag on: a post no human confirmed never reaches the network",
+      "why": "the dashboard selftest sends forged confirmation fields through the add, import, caption, toggle and schedule endpoints, then runs the real scheduler loop with every publishing flag on while recording at urllib.request.urlopen and socket.create_connection, and observes zero calls. Sibling pins show Confirm does mark the post scheduled and dispatch() refuses an entry not passed confirmed=True."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -97,15 +97,15 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "`schedule-post` always sets `human_review_required: true`",
-      "proof": "tools/publishing_compliance.py::selftest::human_review_required must always be True",
-      "why": "the named pin asserts the flag on every path through the gate."
+      "claim": "The `schedule_post` MCP tool (`tools/mcp_server.py`) always sets `human_review_required: true`",
+      "proof": "tools/mcp_server.py::selftest::schedule_post always sets human_review_required: true on every platform and tier",
+      "why": "_selftest_static runs _schedule_post_impl, the whole body of the MCP tool, for all four platforms on the manual, direct_api-without-credentials and direct_api-with-token tiers and asserts the flag on all twelve summaries; a structural pin asserts the tool returns that summary unchanged."
     },
     {
       "doc": "CLAUDE.md",
       "claim": "the repo `.venv` is the only install target",
-      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
-      "why": "the pin proves pip is invoked zero times when no .venv exists, so the .venv is the only target the installer ever writes to."
+      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
+      "why": "install_dependencies runs with env_paths reporting a .venv path and the module's subprocess swapped for an argv recorder while ensure_venv, _pip_install and _install_playwright_browser stay real; every recorded argv[0] must be that path, so a fallback to the base interpreter in install_dependencies or inside _pip_install fails the pin."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -115,21 +115,69 @@
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "The repo `.venv` is the only install target, so when it cannot be\ncreated the installer refuses with the remedy instead of falling back to the base interpreter",
-      "proof": "tools/setup.py::selftest::no .venv: pip is never invoked at all",
-      "why": "the pin proves pip is never invoked without a .venv, which is exactly this sentence."
+      "claim": "The repo `.venv` is the only install target",
+      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
+      "why": "the setup.py argv-recorder pin: with a .venv present, every pip and Playwright subprocess install_dependencies starts runs the .venv interpreter."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "so when it cannot be\ncreated the installer refuses with the remedy instead of falling back to the base interpreter",
+      "proof": "tools/setup.py::selftest::no .venv: install_dependencies runs only the .venv creation attempt",
+      "why": "with env_paths finding no .venv and ensure_venv left real, the only subprocess install_dependencies starts is the `python -m venv` creation attempt (recorded at the subprocess argv, not run), so no pip or Playwright call reaches the base interpreter; a sibling pin checks every requirements set is refused with the remedy text."
     },
     {
       "doc": "CLAUDE.md",
       "claim": "when it cannot be created the installer refuses with the remedy rather than falling back to the base interpreter",
-      "proof": "tools/setup.py::selftest::no .venv: every requirements set is refused with the user-scoped remedy",
-      "why": "the setup selftest removes the .venv path and asserts every requirements set comes back refused with the user-scoped remedy text; its sibling pin asserts pip is never invoked at all."
+      "proof": "tools/setup.py::selftest::no .venv: install_dependencies runs only the .venv creation attempt",
+      "why": "with env_paths finding no .venv and ensure_venv left real, install_dependencies starts only the `python -m venv` creation attempt (recorded at the subprocess argv, not run) and no pip or Playwright call, so nothing falls back to the base interpreter; a sibling pin checks every requirements set is refused with the remedy text."
     },
     {
       "doc": "CLAUDE.md",
       "claim": "advances items to `ready_to_post` for manual posting and makes no network call",
-      "proof": "tools/publishing/__init__.py::selftest::flag off: the platform client is never called",
-      "why": "dispatch() is the only route from the dashboard to a platform client; the pin swaps in a recording client and observes zero calls with the flag off, and a flag-on control proves the probe sees calls. The dashboard's own flag-off branch sits inline in a 60-second scheduler loop that no selftest drives, so it is covered by this seam rather than pinned directly."
+      "proof": "tools/dashboard/server.py::selftest::scheduler flag off: every due item advances to ready_to_post and no network call is made",
+      "why": "the dashboard selftest runs the real _scheduler_loop for one pass with the master flag off (with no flags set, and with every platform flag on), records at urllib.request.urlopen and socket.create_connection, and observes zero calls with every due item at ready_to_post; a flag-on control proves the recorder sees the upload attempt, and dispatch() independently refuses when the flag it reads is off."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "`tools/wizard.py::_install_uv`)",
+      "proof": "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
+      "why": "names the wizard's own uv install as the second code path; its selftest pin runs _install_uv with no .venv and requires a refusal and zero subprocess calls, and a sibling pin requires the one pip call to use the .venv interpreter when a .venv exists."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "`tools/wizard.py::_install_uv`)",
+      "proof": "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
+      "why": "the wizard selftest runs _install_uv with a .venv present and requires exactly one subprocess call, a pip install whose argv[0] is the .venv interpreter; a sibling pin covers the no-.venv refusal."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "invariant 20 refuses tracked `pipeline/` files beyond the blank templates and tracked data-file types",
+      "proof": "invariant:20",
+      "why": "check_pipeline_allowlist fails on a tracked pipeline/ file outside PIPELINE_TRACKED_ALLOWLIST and on any tracked file whose suffix is in secret_scan.FORBIDDEN_DATA_SUFFIXES."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "invariant 21 scans tracked content for known secret formats, non-allowlisted email addresses",
+      "proof": "invariant:21",
+      "why": "check_secret_content runs tools/secret_scan.py --tracked over every tracked text file: PATTERNS cover API keys, private keys, credential values, session links and non-allowlisted emails, and AMOUNT_RE covers dollar figures under pipeline/."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "North American phone numbers whose digit groups are split by a dash, dot, single space or area-code parenthesis",
+      "proof": "tools/secret_scan.py::selftest::phone number detected in the paren, +1, 1-prefix, dotted and extension NANP shapes",
+      "why": "the secret_scan selftest builds paren, +1, 1-prefix, dotted and extension fixtures by concatenation and requires a phone_number finding for each while dates, versions, ISBNs and ports stay clean; invariant 21 runs the same PATTERNS over tracked content. A single digit run, a slash-separated number and a spaced-dash number are not matched; the next sentence says so and a sibling selftest check pins it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "every atom a workflow names is installed.",
+      "proof": "invariant:7",
+      "why": "check_workflows fails on any atom a workflow.json step or shortcut_atoms entry names that has no skills/atoms/<name>/ directory."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "| the repo's `.venv/` | every Python package",
+      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
+      "why": "the row says every Python package lands in the repo .venv; the setup.py pin runs install_dependencies with an argv recorder and requires every pip and Playwright subprocess to run the .venv interpreter."
     }
   ],
   "exempt": [
@@ -146,12 +194,12 @@
     {
       "doc": "CLAUDE.md",
       "claim": "Installs are user-scoped by default: everything lands under the user's home folder",
-      "why": "The policy statement whose two provable halves are bound separately above (invariant 59 for the guidance labeling, the setup.py pin for the code side). This opening sentence is the summary of those bindings."
+      "why": "The policy statement whose provable halves are bound separately: invariant 59 for the guidance labeling, and for the code side the pip census and install-target pins in the tools/setup.py and tools/wizard.py selftests, which record the interpreter each pip subprocess runs in. This opening sentence summarises those bindings."
     },
     {
       "doc": "CLAUDE.md",
       "claim": "Agents never post directly",
-      "why": "A behavioral directive about how agents act, enforced by the human-confirmation step in schedule-post rather than by a guard that can execute the negative."
+      "why": "a behavioral directive about how agents act; no guard can execute the negative. Its code-side boundary is bound through the bold headline of the same bullet, whose pin sends forged confirmation fields through the dashboard's add, import, caption, toggle and schedule-edit endpoints and observes no network call."
     },
     {
       "doc": "CLAUDE.md",
@@ -161,12 +209,7 @@
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "Everything Creator OS asks a person to download or install lands inside their own user",
-      "why": "The policy's opening statement of intent; its enforceable halves are bound above to invariant 59 and the setup.py pin rather than duplicated here."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "| the repo's `.venv/` | every Python package",
-      "why": "An approved-locations table row describing where packages land; the enforceable claim behind it is the setup.py venv-only pin bound above."
+      "why": "The policy's opening statement of intent; its enforceable halves are bound separately, to invariant 59 for the guidance and to the pip census and install-target pins in the tools/setup.py and tools/wizard.py selftests for the code."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -226,7 +269,7 @@
     {
       "doc": "CLAUDE.md",
       "claim": "No connector call is made, and no post is queued or published,\n  without an explicit human confirmation step",
-      "why": "restates the human-confirmation promise in negative form; its executed proof is the publishing_compliance pin bound to the same bullet's positive statement."
+      "why": "restates the bold headline in negative form. Its code half is bound through that headline's dashboard pin (a post no human confirmed never reaches the network with every flag on); 'no connector call' also covers read connectors an agent might call, which is an agent directive no code can execute."
     },
     {
       "doc": "CLAUDE.md",

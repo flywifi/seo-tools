@@ -103,8 +103,10 @@ def _capability_overrides(flags: dict) -> dict:
 
 
 def _flag_state(val):
-    """A connector flag is either a bare state string OR {state, restricted_evidence[], reason}.
-    The latter keeps the connector active while restricting specific evidence types."""
+    """A per-deployment connector flag is either a bare state string OR {state,
+    restricted_evidence[], reason}. The latter keeps the connector active while restricting
+    specific evidence types. A registry `default_flag` is a bare state string only: cmd_list
+    prints it as text, and drift invariant 53 refuses any other shape in connectors.json."""
     if isinstance(val, dict):
         return (val.get("state", "available"),
                 list(val.get("restricted_evidence", []) or []),
@@ -131,9 +133,9 @@ def resolve(flags: dict, registry: dict | None = None) -> dict:
     restrictions: dict[str, dict] = {}
 
     for c in reg["connectors"]:
-        # default_flag is required on every registry entry (drift invariant 53 asserts it on every
-        # committed entry and executes this resolver); .get() keeps a malformed entry OFF, never
-        # crashing.
+        # default_flag is required on every registry entry and must be a bare state string from the
+        # registry's `states` list (drift invariant 53 checks both over the committed registry and
+        # runs this resolver and the --list/--plan CLI); .get() keeps a malformed entry OFF.
         cid, default = c["id"], c.get("default_flag", "not_installed")
         st, restricted, reason = _flag_state(conf.get(cid, default))
         if cid in ALWAYS_ON and st != "disabled":

@@ -316,7 +316,8 @@ def _install_uv() -> tuple[bool, str]:
     # P93: the .venv is the ONLY install target. app_python() falls back to sys.executable, which
     # on a python.org or /usr/local build is a machine-wide site-packages that pip would accept
     # without any PEP 668 error, so this resolves the venv directly and refuses when it is absent
-    # (docs/INSTALL-SCOPE.md).
+    # (docs/INSTALL-SCOPE.md). _selftest pins both branches at the argv of the subprocess this
+    # starts: no .venv starts none, and with one pip runs only with the .venv interpreter.
     vp = env_paths.venv_python()
     if vp is None:
         return False, _NO_VENV_REFUSAL_UV
@@ -4811,7 +4812,7 @@ def _selftest() -> int:
     check(_crash["running"] is False and "boom" in str(_crash.get("result", {}).get("error", "")),
           "crashed worker did not store a terminal error")
 
-    # P87 (audit F-1): the verification gate refuses an impostor and an empty toolset, and the
+    # P87: the verification gate refuses an impostor and an empty toolset, and the
     # PASS wording never claims a count it did not confirm. These three pins FAILED on the
     # pre-P87 code (executed detector proof) -- if they ever fail again, the gate regressed.
     import tempfile as _tf2
@@ -4950,6 +4951,43 @@ def _selftest() -> int:
     _pop_state_keys("chatgpt_plan", "chatgpt_accept_1")
     check(_get("chatgpt_plan") is None and _get("chatgpt_accept_1") is None,
           "lane reset left chatgpt state behind")
+
+    # _install_uv's install target, observed at the argv of the subprocess it starts. Only calls
+    # made from this thread are recorded; a call from any other thread goes to the real module,
+    # so a worker left running by the tests above cannot pollute the record.
+    _real_subprocess, _me, _uv_calls = subprocess, threading.get_ident(), []
+
+    class _UvRecorder:
+        returncode, stdout, stderr = 0, "", ""
+
+        def __getattr__(self, name):
+            return getattr(_real_subprocess, name)
+
+        def run(self, cmd, *a, **k):
+            if threading.get_ident() != _me:
+                return _real_subprocess.run(cmd, *a, **k)
+            _uv_calls.append([str(x) for x in cmd])
+            return self
+
+    _uv_fake = ROOT / ".venv-selftest-absent" / "bin" / "python3"
+    _saved_vp = env_paths.venv_python
+    try:
+        globals()["subprocess"] = _UvRecorder()
+        env_paths.venv_python = lambda *a, **k: None
+        _uv_none = _install_uv()
+        _uv_none_calls = list(_uv_calls)
+        env_paths.venv_python = lambda *a, **k: _uv_fake
+        _uv_venv = _install_uv()
+    finally:
+        globals()["subprocess"] = _real_subprocess
+        env_paths.venv_python = _saved_vp
+    _uv_venv_calls = _uv_calls[len(_uv_none_calls):]
+    check(_uv_none[0] is False and _uv_none_calls == [],
+          "no .venv: _install_uv refuses and starts no subprocess, so uv cannot land in a base "
+          "interpreter")
+    check(_uv_venv[0] is True and len(_uv_venv_calls) == 1
+          and _uv_venv_calls[0][0] == str(_uv_fake) and "pip" in _uv_venv_calls[0],
+          ".venv present: _install_uv runs pip only with the .venv interpreter")
 
     if failures:
         print("wizard selftest FAILED:")

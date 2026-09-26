@@ -105,7 +105,7 @@ def _get_credentials_status():
     return {plat: bool(creds.get(plat)) for plat in PLATFORMS}
 
 
-# F8: control fields that ONLY the human Confirm path (_handle_schedule) or the
+# Control fields that ONLY the human Confirm path (_handle_schedule) or the
 # scheduler may set. Stripped from any add-to-queue / import payload so an injected
 # status='scheduled' (or a forged post_id/permalink/schedule) cannot masquerade as
 # human confirmation and get dispatched to the real API.
@@ -117,7 +117,7 @@ _PROTECTED_PLATFORM_FIELDS = frozenset({
 
 def _sanitize_platform_input(pdata):
     """Return a copy of caller-supplied platform data with protected control fields
-    removed (P57 F8). Content fields (enabled, caption, ftc_disclosure, is_aigc, ...)
+    removed. Content fields (enabled, caption, ftc_disclosure, is_aigc, ...)
     pass through; confirmation/scheduling state does not."""
     if not isinstance(pdata, dict):
         return {}
@@ -583,69 +583,156 @@ def _apply_dispatch_result(pdata, res):
         pdata["error"] = res.get("error") or status or "publish failed"
 
 
-def _scheduler_loop():
-    """Advance due, human-confirmed posts.
+def _scheduler_tick(queue, config, creds, now):
+    """One scheduler pass over an in-memory queue; returns True when any entry changed.
 
-    While `live_publishing_enabled` is off (default), this makes NO platform
-    network call — a due item (status 'scheduled', set only by a human clicking
-    Confirm) is advanced to 'ready_to_post' for manual posting. When live
-    publishing is enabled, it calls tools/publishing/ and records the real
-    post_id/permalink/error, setting status to 'published' or 'failed'.
+    Only a due entry whose status is 'scheduled' (set only by a human clicking Confirm) is
+    touched. While `live_publishing_enabled` is off (default), it advances to 'ready_to_post'
+    for manual posting and no platform network call is made. An entry goes to
+    publishing.dispatch() only when the master flag AND its platform's `{platform}_publishing`
+    flag are on; a manual-tier entry advances to ready_to_post even with the master flag on.
+    dispatch() is called with allow_live=None, so it reads the master flag from `config` again
+    and refuses with `gated` when it is off. The result is recorded as 'published' with the
+    real post_id/permalink, or 'failed' with the error.
     """
+    live = compliance.live_publishing_enabled(config)
+    changed = False
+    for item in queue.get("queue", []):
+        for platform, pdata in item.get("platforms", {}).items():
+            if not (
+                pdata.get("enabled")
+                and pdata.get("status") == "scheduled"
+                and pdata.get("scheduled_datetime")
+            ):
+                continue
+            try:
+                sched = datetime.fromisoformat(pdata["scheduled_datetime"])
+                if sched.tzinfo is None:
+                    sched = sched.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                continue
+            if sched > now:
+                continue
+            # Due now, and a human confirmed it (status == 'scheduled'). The master flag and the
+            # platform's own flag must both be on before a network call.
+            tier_live = live and compliance.flag_enabled(config, f"{platform}_publishing")
+            if tier_live:
+                try:
+                    # The full creds map (each client re-indexes creds[platform]['publish']) and a
+                    # persist callback so a rotated token is saved. allow_live=None: dispatch reads
+                    # the master flag from `config` itself and refuses when it is off.
+                    res = publishing.dispatch(
+                        platform, pdata, creds,
+                        config=config, allow_live=None, confirmed=True,
+                        persist=(lambda upd, _p=platform: _save_publish_creds(_p, upd)),
+                    )
+                    _apply_dispatch_result(pdata, res)
+                except NotImplementedError as exc:
+                    pdata["status"] = "ready_to_post"
+                    pdata["error"] = str(exc)
+                except Exception as exc:  # noqa: BLE001
+                    pdata["status"] = "failed"
+                    pdata["error"] = str(exc)
+            else:
+                # No network call; the entry is due for manual posting.
+                pdata["status"] = "ready_to_post"
+            changed = True
+    return changed
+
+
+def _scheduler_loop():
+    """Every 60 seconds: load the config, credentials and queue, run one _scheduler_tick over
+    them, and save the queue when the tick changed it. The config reaches the tick exactly as
+    loaded; the selftest drives this loop for one pass to pin that."""
     while not _shutdown.is_set():
         _shutdown.wait(60)
         if _shutdown.is_set():
             break
         config = _load_config()
-        live = compliance.live_publishing_enabled(config)
         creds = compliance.load_credentials()
         now = datetime.now(timezone.utc)
         with _queue_lock:
             queue = _load_queue()
-            changed = False
-            for item in queue.get("queue", []):
-                for platform, pdata in item.get("platforms", {}).items():
-                    if not (
-                        pdata.get("enabled")
-                        and pdata.get("status") == "scheduled"
-                        and pdata.get("scheduled_datetime")
-                    ):
-                        continue
-                    try:
-                        sched = datetime.fromisoformat(pdata["scheduled_datetime"])
-                        if sched.tzinfo is None:
-                            sched = sched.replace(tzinfo=timezone.utc)
-                    except (ValueError, TypeError):
-                        continue
-                    if sched > now:
-                        continue
-                    # Due now, and the human already confirmed (status == 'scheduled').
-                    # F7: only a direct_api-tier platform (its {platform}_publishing flag on) may
-                    # hit the network; a manual-tier item advances to ready_to_post even when the
-                    # global live flag is on -- the two gates must agree before a network call.
-                    tier_live = live and compliance.flag_enabled(config, f"{platform}_publishing")
-                    if tier_live:
-                        try:
-                            # F1: pass the FULL creds map (clients re-index creds[platform]['publish']).
-                            # F3: persist token rotation. F2/F8: dispatch re-checks the gate + confirm.
-                            res = publishing.dispatch(
-                                platform, pdata, creds,
-                                config=config, allow_live=True, confirmed=True,
-                                persist=(lambda upd, _p=platform: _save_publish_creds(_p, upd)),
-                            )
-                            _apply_dispatch_result(pdata, res)
-                        except NotImplementedError as exc:
-                            pdata["status"] = "ready_to_post"
-                            pdata["error"] = str(exc)
-                        except Exception as exc:  # noqa: BLE001
-                            pdata["status"] = "failed"
-                            pdata["error"] = str(exc)
-                    else:
-                        # Honest scaffold: no network call; item is due for manual posting.
-                        pdata["status"] = "ready_to_post"
-                    changed = True
-            if changed:
+            if _scheduler_tick(queue, config, creds, now):
                 _save_queue(queue)
+
+
+class _NetRecorder:
+    """Selftest seam: records every outbound connection attempt at urllib.request.urlopen and
+    socket.create_connection, the stdlib calls the publishing clients' HTTP goes through, and
+    refuses each one with OSError, so a check can observe network calls instead of inferring
+    them from a status string."""
+
+    def __enter__(self):
+        import socket
+        import urllib.request
+        self.calls = []
+        self._saved = (urllib.request.urlopen, socket.create_connection)
+
+        def _urlopen(req, *args, **kwargs):
+            self.calls.append(getattr(req, "full_url", req))
+            raise OSError("selftest: network refused")
+
+        def _connect(address, *args, **kwargs):
+            self.calls.append(address)
+            raise OSError("selftest: network refused")
+
+        urllib.request.urlopen, socket.create_connection = _urlopen, _connect
+        return self
+
+    def __exit__(self, *exc):
+        import socket
+        import urllib.request
+        urllib.request.urlopen, socket.create_connection = self._saved
+        return False
+
+
+def _run_scheduler_once(queue, config, creds):
+    """Selftest seam: run the real _scheduler_loop for exactly one pass with `queue`, `config` and
+    `creds` injected at its module-level seams (no wait, no file read or write), then restore
+    every seam. Returns the queue as the pass left it."""
+    g = globals()
+    names = ("_shutdown", "_load_config", "_load_queue", "_save_queue", "_save_publish_creds")
+    saved = {n: g[n] for n in names}
+    saved_creds = compliance.load_credentials
+
+    class _OnePass:
+        polls = 0
+
+        def is_set(self):
+            self.polls += 1
+            return self.polls > 2
+
+        def wait(self, timeout=None):
+            return False
+
+    g.update(_shutdown=_OnePass(), _load_config=lambda: config, _load_queue=lambda: queue,
+             _save_queue=lambda data: None, _save_publish_creds=lambda platform, updated: None)
+    compliance.load_credentials = lambda: creds
+    try:
+        _scheduler_loop()
+    finally:
+        g.update(saved)
+        compliance.load_credentials = saved_creds
+    return queue
+
+
+def _selftest_fixtures():
+    """Selftest data: publish credentials for every platform (a far-future epoch expiry, so no
+    token refresh) and the content fields each of the four clients needs before its first
+    request (a real local file as media, a public image URL, a board id, an Instagram account id)."""
+    creds = {p: {"publish": {"access_token": "AT", "expires_at": 4102444800}} for p in PLATFORMS}
+    creds["instagram"]["ig_user_id"] = "1"
+    content = {"media_path": __file__, "image_path": __file__, "board_id": "board1",
+               "image_url": "https://example.invalid/x.jpg"}
+    return creds, content
+
+
+def _selftest_due_queue(content, status="scheduled"):
+    """One queue item, due since 2000, enabled on every platform with the given status."""
+    entry = dict(content, enabled=True, status=status,
+                 scheduled_datetime="2000-01-01T00:00:00+00:00")
+    return {"queue": [{"id": "selftest", "platforms": {p: dict(entry) for p in PLATFORMS}}]}
 
 
 def _selftest() -> int:
@@ -675,6 +762,103 @@ def _selftest() -> int:
     p = {}
     _apply_dispatch_result(p, {"ok": False})
     ok("statusless failure still carries an error string", p["status"] == "failed" and p["error"])
+
+    # Human confirmation: only the Confirm endpoint (_handle_schedule) marks a post 'scheduled'.
+    # Forged confirmation fields go through the add, import, caption, toggle and schedule-edit
+    # endpoints, then the real scheduler loop runs with every publishing flag on and the network
+    # observed.
+    store = {"queue": []}
+    replies = []
+
+    class _Request:
+        def _json_response(self, data, status=200):
+            replies.append(status)
+
+    g = globals()
+    saved = {n: g[n] for n in ("_load_queue", "_save_queue", "_load_config")}
+    saved_creds = compliance.load_credentials
+    g.update(_load_queue=lambda: store, _save_queue=lambda data: None, _load_config=lambda: {})
+    compliance.load_credentials = lambda: {}
+    try:
+        creds, content = _selftest_fixtures()
+        due = "2000-01-01T00:00:00+00:00"
+        forged = dict(content, enabled=True, status="scheduled", human_review_required=True,
+                      post_id="forged", scheduled_datetime=due, caption="x")
+        req = _Request()
+        for _ in range(2):  # a new item, then an update to the same item
+            DashboardHandler._handle_add_to_queue(
+                req, {"id": "hc", "platforms": {p: dict(forged) for p in PLATFORMS}})
+        DashboardHandler._handle_import_report(
+            req, {"id": "hc2", "posts": [dict(forged, platform=p) for p in PLATFORMS]})
+        for p in PLATFORMS:
+            for item_id in ("hc", "hc2"):
+                DashboardHandler._handle_update_caption(req, dict(forged, item_id=item_id, platform=p))
+                DashboardHandler._handle_toggle_platform(
+                    req, {"item_id": item_id, "platform": p, "enabled": True})
+                DashboardHandler._handle_update_schedule(
+                    req, {"item_id": item_id, "platform": p, "scheduled_datetime": due})
+        entries = [pd for it in store["queue"] for pd in it["platforms"].values()]
+        ok("only the Confirm endpoint marks a post confirmed: add, import, caption, toggle and "
+           "schedule edits cannot set its status or human_review_required",
+           len(entries) == 8 and not any(pd.get("status") == "scheduled" or pd.get("post_id")
+                                         or pd.get("human_review_required") for pd in entries))
+        every_flag_on = {"capabilities": dict({f"{p}_publishing": True for p in PLATFORMS},
+                                              live_publishing_enabled=True)}
+        with _NetRecorder() as net:
+            _run_scheduler_once(store, every_flag_on, creds)
+        ok("every flag on: a post no human confirmed never reaches the network",
+           net.calls == [] and len(entries) == 8)
+        DashboardHandler._handle_schedule(req, {"item_id": "hc", "platform": "youtube"})
+        confirmed = store["queue"][0]["platforms"]["youtube"]
+        ok("Confirm marks the post scheduled with human_review_required (the probe sees the transition)",
+           confirmed.get("status") == "scheduled" and confirmed.get("human_review_required") is True)
+    finally:
+        g.update(saved)
+        compliance.load_credentials = saved_creds
+
+    # The scheduler, run through the real _scheduler_loop, with the network observed.
+    creds, content = _selftest_fixtures()
+    platform_flags = {f"{p}_publishing": True for p in PLATFORMS}
+    states = set()
+    with _NetRecorder() as net:
+        for cfg in ({}, {"capabilities": dict(platform_flags)}):
+            q = _run_scheduler_once(_selftest_due_queue(content), cfg, creds)
+            states |= {pd["status"] for pd in q["queue"][0]["platforms"].values()}
+    ok("scheduler flag off: every due item advances to ready_to_post and no network call is made",
+       net.calls == [] and states == {"ready_to_post"})
+    # The tick's own master-flag check, observed at dispatch(): with the master flag off the tick
+    # never calls it, even with every platform flag on; with both flags on it calls it per platform.
+    routed = []
+    real_dispatch = publishing.dispatch
+
+    def _dispatch_probe(platform, *args, **kwargs):
+        routed.append(platform)
+        return {"ok": False, "status": "gated", "post_id": None, "permalink": None,
+                "error": "selftest probe"}
+
+    publishing.dispatch = _dispatch_probe
+    try:
+        with _NetRecorder() as net:
+            q = _selftest_due_queue(content)
+            changed = _scheduler_tick(q, {"capabilities": dict(platform_flags)}, creds,
+                                      datetime.now(timezone.utc))
+        ok("scheduler tick, master flag off with every platform flag on: dispatch() is never called, "
+           "every item is ready_to_post, no network call",
+           changed and routed == [] and net.calls == []
+           and {pd["status"] for pd in q["queue"][0]["platforms"].values()} == {"ready_to_post"})
+        del routed[:]
+        _scheduler_tick(_selftest_due_queue(content),
+                        {"capabilities": dict(platform_flags, live_publishing_enabled=True)}, creds,
+                        datetime.now(timezone.utc))
+        ok("scheduler tick, master and platform flags on: dispatch() is called for every platform "
+           "(the probe sees calls)", sorted(routed) == sorted(PLATFORMS))
+    finally:
+        publishing.dispatch = real_dispatch
+    with _NetRecorder() as net:
+        _run_scheduler_once(_selftest_due_queue(content), {"capabilities": {
+            "live_publishing_enabled": True, "youtube_publishing": True}}, creds)
+    ok("scheduler flag on: the network recorder sees the upload attempt (the probe sees calls)",
+       len(net.calls) >= 1)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

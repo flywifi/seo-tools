@@ -3,7 +3,7 @@
 Run from the repo root with tools/ on the path:
     PYTHONPATH=tools python3 -m publishing --selftest
 
-Exercises the P57 F2/F8 defense-in-depth gate in dispatch() (flag-off -> gated,
+Exercises the defense-in-depth gate in dispatch() (flag-off -> gated,
 unconfirmed -> refused, unknown platform -> ValueError). Zero network.
 """
 import sys

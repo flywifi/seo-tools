@@ -25,14 +25,16 @@ error}` result for one human-confirmed post." It never decides *whether* to post
    a real `ig_user_id` too — it does NOT fall back to `account_id` (usually the linked Facebook Page
    id, the wrong object type for `/{id}/media`). Every new writer MUST set `ig_user_id`.
    `<!-- verify: tools/importers/instagram_import.py -->`
-3. **Live gate + human confirm are structural.** Since P57 (F2/F8), `dispatch()` itself ENFORCES both
+3. **Live gate + human confirm are structural.** `dispatch()` itself enforces both
    gates before touching any client: it refuses with `status:"gated"` unless
-   `publishing_compliance.live_publishing_enabled(config)` (or an explicit `allow_live=True`) holds,
+   `publishing_compliance.live_publishing_enabled(config)` holds (`allow_live` can only veto:
+   `allow_live=True` cannot open a gate the flag keeps shut),
    and with `status:"unconfirmed"` unless the caller passes `confirmed=True` asserting a human
    confirmed THIS entry. Callers still pass `config` and `confirmed=True` (the dashboard scheduler is
    the only production caller); the in-dispatch check is defense in depth, not a license for callers to
-   skip their own gate. Default is off; while off, no network call (P95: the dispatch selftest
-   swaps in a recording client and observes zero calls, with a flag-on control).
+   skip their own gate. Default is off; while off, no network call: the dispatch selftest records
+   at `urllib.request.urlopen` and `socket.create_connection` for all four platforms and observes
+   zero calls, with a flag-on control.
    `<!-- verify: tools/publishing_compliance.py::live_publishing_enabled -->`
 4. **YouTube = upload-only, default private.** The upload path constructs NO monetary/analytics
    endpoint (upload host only), and `status.privacyStatus` defaults to `private`; public requires an
@@ -70,9 +72,13 @@ error}` result for one human-confirmed post." It never decides *whether* to post
    `python3 tools/oauth_flow.py --selftest`.
 7. Wizard OAuth callback: single-use `state` CSRF + no-clobber merge + flag flip —
    `python3 tools/wizard.py --selftest`.
-8. Flag off: `dispatch()` never reaches a platform client, observed with a recording client rather
-   than inferred from the `gated` status (a gate that returns `gated` after calling the client
-   fails it) — `PYTHONPATH=tools python3 -m publishing --selftest`.
+8. Flag off: `dispatch()` makes no network call on any platform, observed at `urllib.request.urlopen`
+   and `socket.create_connection` rather than inferred from the `gated` status (a gate that returns
+   `gated` after calling a client fails it) — `PYTHONPATH=tools python3 -m publishing --selftest`.
+9. Dashboard scheduler with the master flag off: every due confirmed item advances to
+   `ready_to_post` and no network call is made, observed at `urllib.request.urlopen` and
+   `socket.create_connection` through the real `_scheduler_loop`, and the scheduler tick never
+   calls `dispatch()` while the master flag is off — `python3 tools/dashboard/server.py --selftest`.
 
 ## Approval-gated changes
 Editing any of: `youtube._UPLOAD_SCOPES`, the default `privacyStatus`, a platform's PKCE mode

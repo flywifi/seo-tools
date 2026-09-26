@@ -561,6 +561,69 @@ def _remote_allowed_hosts(cli_hosts, key="remote_mcp_allowed_hosts", normalize=_
 _WRITE_LOCK = threading.Lock()
 
 
+def _schedule_post_impl(platform: str, caption: str, content_type: str, media_url: str = "",
+                        scheduled_datetime: str = "", hashtags: list | None = None,
+                        is_aigc: bool = False, ftc_disclosure: str = "", board_name: str = "",
+                        config: dict | None = None, creds: dict | None = None) -> dict:
+    """The whole body of the schedule_post MCP tool, callable without the mcp package so the
+    package-independent selftest tier executes the tool's real output. Builds a confirmation plan
+    and never publishes: the summary always carries human_review_required True and a status of
+    manual_required or awaiting_human_confirmation. config and creds default to the loaded config
+    and the credentials file; the selftest injects both. Defined above the mcp import guard
+    because _selftest_static runs before the server object exists."""
+    # Shared compliance + tier resolution (same helper the dashboard confirm path uses).
+    result = compliance.check(
+        platform,
+        caption=caption,
+        ftc_disclosure=ftc_disclosure,
+        is_aigc=is_aigc,
+        config=config if config is not None else _load_config(),
+        creds=creds,
+    )
+    tier = result["tier"]
+    connector = result["connector"]
+    effective_caption = result["effective_caption"]
+
+    if tier == "manual":
+        notes = "No direct-API publishing connector active. Use manual posting package below."
+    elif not result["has_credentials"]:
+        # This tool reports (does not hard-fail); the dashboard confirm path refuses instead.
+        notes = result["error"]
+    else:
+        notes = f"Connector ready: {connector}. Confirm to proceed."
+
+    # Build confirmation summary
+    summary = {
+        "platform": platform,
+        "content_type": content_type,
+        "publishing_tier": tier,
+        "connector_would_use": connector,
+        "scheduled_datetime": scheduled_datetime or None,
+        "caption_preview": effective_caption[:120] + "..." if len(effective_caption) > 120 else effective_caption,
+        "hashtags": hashtags or [],
+        "ftc_disclosure": result["ftc_disclosure"],
+        "ftc_disclosure_verified": result["ftc_disclosure_verified"],
+        "ftc_prepended": result["ftc_prepended"],
+        "aigc_flag_would_set": result["aigc_flag_set"],
+        "board_name": board_name or None,
+        "media_url_provided": bool(media_url),
+        "has_credentials": result["has_credentials"],
+        "human_review_required": True,
+        "status": "manual_required" if tier == "manual" else "awaiting_human_confirmation",
+        "notes": notes,
+    }
+
+    if tier == "manual":
+        summary["manual_posting_instructions"] = {
+            "instagram": "Open Instagram app → + → Reel/Photo → paste caption → add hashtags → post.",
+            "tiktok": "Open TikTok app → + → Upload → paste caption → add hashtags → post.",
+            "pinterest": f"Open Pinterest → + → Create Pin → upload media → paste description → select board '{board_name}' → publish.",
+            "youtube": "Open YouTube Studio → Create → Upload video → paste title/description → publish.",
+        }.get(platform, f"Open {platform} and post manually.")
+
+    return summary
+
+
 def _selftest_static() -> tuple:
     """P61 C19: the package-independent selftest tier. Runs with or without the mcp package;
     a missing package reduces coverage HONESTLY (reported, never a silent pass -- the P56 4C
@@ -596,6 +659,31 @@ def _selftest_static() -> tuple:
     _stale = _classification_problems(src.replace("def post_status(", "def post_status_renamed("))
     ok("a classified-but-missing tool is reported as a stale entry",
        any("post_status" in p and "stale entry" in p for p in _stale))
+    # schedule_post: the tool's whole body is _schedule_post_impl, so these pins execute its output
+    # on every platform and tier (config and credentials injected, no file read).
+    _plans = [_schedule_post_impl(_plat, "hello", "video", config=_cfg, creds=_creds)
+              for _plat in ("youtube", "instagram", "tiktok", "pinterest")
+              for _cfg, _creds in (({}, {}),
+                                   ({"capabilities": {f"{_plat}_publishing": True}}, {}),
+                                   ({"capabilities": {f"{_plat}_publishing": True}},
+                                    {_plat: {"publish": {"access_token": "t"}}}))]
+    ok("schedule_post always sets human_review_required: true on every platform and tier",
+       len(_plans) == 12 and all(_s.get("human_review_required") is True for _s in _plans))
+    ok("schedule_post returns a plan, never a completed post",
+       len(_plans) == 12
+       and {_s.get("status") for _s in _plans} <= {"manual_required", "awaiting_human_confirmation"}
+       and {_s.get("publishing_tier") for _s in _plans} == {"manual", "direct_api"})
+    import ast as _ast
+    _tool = next((_n for _n in _ast.parse(src).body
+                  if isinstance(_n, _ast.FunctionDef) and _n.name == "schedule_post"), None)
+    _stmts = [] if _tool is None else [
+        _st for _st in _tool.body
+        if not (isinstance(_st, _ast.Expr) and isinstance(_st.value, _ast.Constant))]
+    _ret = _stmts[0].value if len(_stmts) == 1 and isinstance(_stmts[0], _ast.Return) else None
+    ok("schedule_post's tool body returns the _schedule_post_impl summary unchanged",
+       isinstance(_ret, _ast.Call) and _ast.unparse(_ret.func) == "json.dumps" and bool(_ret.args)
+       and isinstance(_ret.args[0], _ast.Call)
+       and _ast.unparse(_ret.args[0].func) == "_schedule_post_impl")
     # P73 D6-F12: a malformed local config must be preserved, never clobbered.
     import tempfile as _tf
     with _tf.TemporaryDirectory() as _td:
@@ -1661,58 +1749,10 @@ def schedule_post(
         ftc_disclosure: One of: #ad, #gifted, #affiliate. Empty = no disclosure required.
         board_name: Pinterest board name (required when platform is pinterest).
     """
-    config = _load_config()
-
-    # Shared compliance + tier resolution (same helper the dashboard confirm path uses).
-    result = compliance.check(
-        platform,
-        caption=caption,
-        ftc_disclosure=ftc_disclosure,
-        is_aigc=is_aigc,
-        config=config,
-    )
-    tier = result["tier"]
-    connector = result["connector"]
-    effective_caption = result["effective_caption"]
-
-    if tier == "manual":
-        notes = "No direct-API publishing connector active. Use manual posting package below."
-    elif not result["has_credentials"]:
-        # This tool reports (does not hard-fail); the dashboard confirm path refuses instead.
-        notes = result["error"]
-    else:
-        notes = f"Connector ready: {connector}. Confirm to proceed."
-
-    # Build confirmation summary
-    summary = {
-        "platform": platform,
-        "content_type": content_type,
-        "publishing_tier": tier,
-        "connector_would_use": connector,
-        "scheduled_datetime": scheduled_datetime or None,
-        "caption_preview": effective_caption[:120] + "..." if len(effective_caption) > 120 else effective_caption,
-        "hashtags": hashtags or [],
-        "ftc_disclosure": result["ftc_disclosure"],
-        "ftc_disclosure_verified": result["ftc_disclosure_verified"],
-        "ftc_prepended": result["ftc_prepended"],
-        "aigc_flag_would_set": result["aigc_flag_set"],
-        "board_name": board_name or None,
-        "media_url_provided": bool(media_url),
-        "has_credentials": result["has_credentials"],
-        "human_review_required": True,
-        "status": "manual_required" if tier == "manual" else "awaiting_human_confirmation",
-        "notes": notes,
-    }
-
-    if tier == "manual":
-        summary["manual_posting_instructions"] = {
-            "instagram": "Open Instagram app → + → Reel/Photo → paste caption → add hashtags → post.",
-            "tiktok": "Open TikTok app → + → Upload → paste caption → add hashtags → post.",
-            "pinterest": f"Open Pinterest → + → Create Pin → upload media → paste description → select board '{board_name}' → publish.",
-            "youtube": "Open YouTube Studio → Create → Upload video → paste title/description → publish.",
-        }.get(platform, f"Open {platform} and post manually.")
-
-    return json.dumps(summary, indent=2)
+    return json.dumps(_schedule_post_impl(
+        platform, caption, content_type, media_url=media_url,
+        scheduled_datetime=scheduled_datetime, hashtags=hashtags, is_aigc=is_aigc,
+        ftc_disclosure=ftc_disclosure, board_name=board_name), indent=2)
 
 
 # ---------------------------------------------------------------------------

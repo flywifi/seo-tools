@@ -13,8 +13,9 @@ Invariants enforced:
       no en dashes (ranges written with "to"), no forbidden tokens in committed .md content.
   5.  Referential integrity: every backticked repo path in SKILL.md and MAINTAINER_README.md
       that starts with a known root and ends in .md/.json/.py/.js exists on disk.
-  6.  Hub integrity: every spoke directory is listed in the hub's downstream spokes, and the
-      hub carries the routing object schema.
+  6.  Hub integrity: every spoke directory is listed in the hub's downstream spokes, every name
+      in that list is a spoke directory under skills/, and the hub carries the routing object
+      schema.
   7.  Workflow atom resolution: every atom named in a workflow.json is an installed atom.
   8.  YAML frontmatter strict validation: every SKILL.md frontmatter parses with yaml.safe_load.
   9.  Atom eval coverage: every atom directory has evals/evals.json with at least 3 test cases.
@@ -117,10 +118,12 @@ Invariants enforced:
       fenced ```sources block or an inline `<!-- source: id -->` marker must exist in
       canonical-sources/source-registry.json with a matching url; unparseable blocks fail. Fail-closed
       like invariant 23: a doc citation forces a tracked registry entry.
-  53. Connector resolver smoke (P63): shared/connectors/connectors.py::resolve executes cleanly over
-      the committed connectors.json (resolve({}) — the pure default-flag path). Invariants 18/23/41
-      only inspect the registry statically; this one runs it, so a malformed entry the resolver
-      cannot process (e.g. a missing default_flag) fails the build instead of shipping.
+  53. Connector resolver smoke (P63): every committed connectors.json entry carries a default_flag
+      that is a bare string from the registry's own `states` list, and shared/connectors/
+      connectors.py runs cleanly over the committed registry: resolve({}), the --list table, and
+      the --plan text and --json output. Invariants 18/23/41 only inspect the registry statically;
+      this one runs it, so an entry with a missing or undeclared default, or one the resolver or
+      its CLI cannot process, fails the build instead of shipping.
   54. Payload-loader robustness (P63): tools/finance.py::_read_json and
       tools/obligations.py::_load_json keep their try/except guard so a bad CLI payload path or
       inline JSON yields the clean {"error","next_step"} envelope, never a raw traceback. The
@@ -359,23 +362,48 @@ def check_frontmatter_loads():
 
 
 def check_hub():
-    """Invariant 6."""
+    """Invariant 6: the hub's downstream spoke list and the skills/ spoke directories agree in
+    both directions, and the hub carries the routing object schema.
+
+    The list is the first fenced block under the hub's "## Downstream spokes" heading. A spoke
+    directory missing from it is an orphan the router never dispatches to; a listed name with no
+    skills/<name>/ directory is a spoke the router would dispatch to and never find. Both
+    directions prove themselves on a fixture before the real hub is read."""
+    def _spoke_gaps(section, actual):
+        """(orphans, missing): spoke directories the fenced list omits, and listed names that are
+        not spoke directories. None when the section has no fenced list."""
+        fence = re.search(r"```[^\n]*\n(.*?)```", section, re.S)
+        if fence is None:
+            return None
+        listed = set(re.findall(r"[a-z][a-z0-9-]*", fence.group(1)))
+        return sorted(actual - listed), sorted(listed - actual)
+
+    if _spoke_gaps("\n```\nreal-spoke ghost-spoke\n```\nother-spoke\n",
+                   {"real-spoke", "other-spoke"}) != (["other-spoke"], ["ghost-spoke"]):
+        problem("hub: spoke-list self-proof failed; a listed name with no spoke directory, or a "
+                "spoke directory outside the fenced list, is no longer detected")
+        return
     hub = ROOT / "skills" / "creator-core" / "SKILL.md"
     if not hub.exists():
         problem("missing hub skills/creator-core/SKILL.md")
         return
     text = hub.read_text(encoding="utf-8")
-    listed = set()
-    if "## Downstream spokes" in text:
-        listed = set(re.findall(r"[a-z][a-z-]+", text.split("## Downstream spokes")[-1]))
     actual = {
         p.name
         for p in (ROOT / "skills").iterdir()
         if p.is_dir() and p.name not in ("creator-core", "atoms")
     }
-    for spoke in sorted(actual):
-        if spoke not in listed:
+    gaps = None
+    if "## Downstream spokes" in text:
+        gaps = _spoke_gaps(text.split("## Downstream spokes")[-1], actual)
+    if gaps is None:
+        problem("hub SKILL.md has no fenced spoke list under '## Downstream spokes'")
+    else:
+        for spoke in gaps[0]:
             problem(f"orphan spoke skills/{spoke} not listed in hub downstream spokes")
+        for name in gaps[1]:
+            problem(f"hub downstream spokes lists '{name}', but skills/{name}/ is not a spoke "
+                    f"directory, so the router would dispatch to a spoke that does not exist")
     if '"request_classification"' not in text:
         problem("hub SKILL.md missing the routing object schema")
 
@@ -2872,36 +2900,83 @@ def check_doc_source_registry():
 
 
 def check_connector_resolver_smoke():
-    """Invariant 53: the connector resolver actually RUNS over the committed registry (P63).
+    """Invariant 53: every committed connector default is a declared state, and the resolver and
+    its CLI actually RUN over the committed registry (P63).
 
     Invariants 18/23/41 validate connectors.json statically but never execute
-    shared/connectors/connectors.py::resolve, which is how a malformed entry (google_drive_hub
-    shipping without default_flag, the P63 F-SWEEP-4 defect) crashed --plan/--list/--json and the
-    MCP get_connectors tool while the guard stayed green. This check dynamically imports the
-    resolver and calls resolve({}) — the pure default-flag path — so any entry the resolver cannot
-    process fails the build. Fail-closed: an exception of any kind is a problem, not an advisory.
+    shared/connectors/connectors.py. An entry that shipped without default_flag once crashed
+    --plan/--list/--json and the MCP get_connectors tool while the guard stayed green.
 
-    P95: it also asserts `default_flag` is PRESENT on every committed entry. The resolver reads the
-    field with a fallback (a malformed entry stays OFF rather than crashing), so executing it
-    could never catch a missing flag, while CLAUDE.md and the resolver's own comment both said
-    this invariant did."""
+    Half one: every entry's `default_flag` is a bare string from the registry's own `states` list.
+    The resolver reads the field with a fallback and keeps a value it does not recognise OFF
+    without saying why, so executing it can never catch a missing, misspelled or boolean default.
+    The dict form ({state, restricted_evidence, reason}) belongs in a per-deployment flags file and
+    is refused as a registry default: cmd_list prints the default as text and raises TypeError on
+    a dict.
+
+    Half two: resolve({}) (the pure default-flag path) and connectors.py --list, --plan and
+    --plan --json execute over the committed registry with stdout captured; load_flags is pinned
+    to {} so no gitignored local config is read. Fail-closed: an exception of any kind is a
+    problem, not an advisory.
+
+    Both halves prove themselves before the registry is judged: the validity rule on values it
+    must refuse and accept, and the CLI runner on a registry loader that raises, which each of the
+    three CLI paths must report."""
+    import contextlib
+    import importlib.util
+    import io
+
+    cli_paths = (("--list",), ("--plan",), ("--plan", "--json"))
+
+    def _cli_failures(mod):
+        out = []
+        for argv in cli_paths:
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    rc = mod.main(list(argv))
+            except (Exception, SystemExit) as exc:  # noqa: BLE001
+                out.append((" ".join(argv), f"{type(exc).__name__}: {exc}"))
+                continue
+            if rc != 0:
+                out.append((" ".join(argv), f"exit {rc}"))
+        return out
+
     tool = ROOT / "shared" / "connectors" / "connectors.py"
     if not tool.exists():
         problem("connector-resolver: shared/connectors/connectors.py is missing")
         return
     registry = ROOT / "shared" / "connectors" / "connectors.json"
     try:
-        entries = json.loads(registry.read_text(encoding="utf-8")).get("connectors", [])
+        reg = json.loads(registry.read_text(encoding="utf-8"))
+        entries = reg.get("connectors", [])
+        declared = reg.get("states")
     except (OSError, json.JSONDecodeError, AttributeError) as exc:
         problem(f"connector-resolver: shared/connectors/connectors.json is unreadable: {exc}")
         return
+    if not (isinstance(declared, list) and declared
+            and all(isinstance(s, str) and s for s in declared)):
+        problem("connector-resolver: connectors.json declares no `states` list of state names, so "
+                "no default_flag can be validated")
+        return
+    valid = set(declared)
+
+    def _valid_default(value):
+        return isinstance(value, str) and value in valid
+
+    must_refuse = ("availabel", True, 1, "", None, {"state": declared[0]})
+    if any(_valid_default(v) for v in must_refuse) or not all(_valid_default(s) for s in declared):
+        problem("connector-resolver: default_flag self-proof failed; the validity rule accepts a "
+                "misspelled, boolean, numeric, empty, missing or dict default, or refuses a "
+                "declared state")
+        return
     for i, entry in enumerate(entries):
-        if not isinstance(entry, dict) or not entry.get("default_flag"):
+        flag = entry.get("default_flag") if isinstance(entry, dict) else None
+        if not _valid_default(flag):
             cid = entry.get("id", f"#{i}") if isinstance(entry, dict) else f"#{i}"
-            problem(f"connector-resolver: connectors.json entry {cid!r} has no default_flag; every "
-                    f"registry entry must declare one (the resolver would silently treat it as "
-                    f"not_installed)")
-    import importlib.util
+            problem(f"connector-resolver: connectors.json entry {cid!r} has default_flag {flag!r}, "
+                    f"which is not one of the registry's declared states {declared}; the resolver "
+                    f"would keep the connector off without saying why")
+
     spec = importlib.util.spec_from_file_location("_connectors_smoke", tool)
     mod = importlib.util.module_from_spec(spec)
     try:
@@ -2914,6 +2989,22 @@ def check_connector_resolver_smoke():
     if not isinstance(plan, dict) or "active" not in plan:
         problem("connector-resolver: resolve({}) returned an unexpected shape "
                 f"({type(plan).__name__}); expected a plan dict with an 'active' key")
+    mod.load_flags = lambda path: {}
+    real_loader = mod.load_registry
+
+    def _raising_loader():
+        raise RuntimeError("self-proof registry loader")
+
+    mod.load_registry = _raising_loader
+    caught = {path for path, _ in _cli_failures(mod)}
+    mod.load_registry = real_loader
+    if caught != {"--list", "--plan", "--plan --json"}:
+        problem("connector-resolver: CLI self-proof failed; a registry loader that raises must be "
+                f"reported by --list, --plan and --plan --json, but only {sorted(caught)} were")
+        return
+    for path, detail in _cli_failures(mod):
+        problem(f"connector-resolver: `connectors.py {path}` failed over the committed registry: "
+                f"{detail}")
 
 
 def check_payload_loader_robustness():

@@ -8,8 +8,9 @@ enforces this over every tracked guidance file (an unlabeled machine-wide instru
 the build), and the code enforces its own half: no Creator OS tool ever writes into a
 machine-wide site-packages. The repo `.venv` is the only install target, so when it cannot be
 created the installer refuses with the remedy instead of falling back to the base interpreter
-(`tools/setup.py::install_dependencies`). A PEP 668 marker is not what protects you -- a plain
-machine-wide interpreter carries no such marker and pip would have accepted the write.
+(`tools/setup.py::install_dependencies`, `tools/wizard.py::_install_uv`). A PEP 668 marker is
+not what protects you -- a plain machine-wide interpreter carries no such marker and pip would
+have accepted the write.
 
 ## Approved locations (where Creator OS installs things)
 

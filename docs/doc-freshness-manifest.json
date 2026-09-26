@@ -12,19 +12,19 @@
       "sources": {
         "tools/dependency_currency.py": "1baed783a1b74360b3486c090e936768ba265db45073f37012ad68227380988d",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "116747816ad6e03330eebd8d93cf2e2fa17e48eabfebc94a8c81dd32a34f0af7"
+        "tools/sync_check.py": "f7ff756bb3656da6f208b041a7170459c2b927a09597e11ac3f3f258e0abcf66"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
       "sources": {
-        "tools/publishing/__init__.py": "3fb2d2e4749aa7a83a181495c00f1fd3b0d85d4b3e28122dd651434162a2271e",
+        "tools/publishing/__init__.py": "810de9bc75cce2005ae92c867a55e457da7d0ebc5544d74f629cb21334f6d1f3",
         "tools/publishing/youtube.py": "c16c7873a7f80dedbf73b130761e3a212da2b0bfeac46a266f822733b81e5310",
         "tools/publishing/instagram.py": "dcf27cd8030ad18df8e3068040afd7e98f12416d0b9295f954ea734b5d8f7ca4",
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
         "tools/publishing/_http.py": "e4e0e3612c2d68956850f8de5d22f00760b9633b227edb4e3839f72f784e86d0",
         "tools/oauth_flow.py": "91d1a3d4433ce41d4ba2bdc661084857ac6e48aecbbcb84200ba34c5896b62cb",
-        "tools/publishing_compliance.py": "b41e092bbb13d0ed16afc78f8383d0028a466bedbe1a51892c779ee01bf04d02"
+        "tools/publishing_compliance.py": "eae5c012e12ce090d49ba9cec5a5c9c8b561d3b0e2668cbe99e954e8825ea70d"
       }
     },
     "docs/PUBLISHING.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "0d7f10932221e2386abbcf0130c06e5a7ab4bad541b9e4d335e1533c5dfce2d5",
+        "tools/wizard.py": "e2eba73bf4a7b16256a7da01cf8dc3dd58713552829a852d569a25235145ae44",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -53,7 +53,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "ee2b7345bcd4bbbe4cb4c0d4130cdd3354de702f209468b541fc712e150b3a22"
+        "tools/mcp_server.py": "c0009d775a415b5fad3e642c12cf8badc2b9dd0e384cf5b8a8ab8d7db57bb656"
       }
     },
     "docs/TRANSITIONS.md": {

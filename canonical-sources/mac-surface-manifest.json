@@ -8,8 +8,8 @@
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
   "files": {
-    "AGENTS.md": "abbcd0fa0350814e70ce64ba72f03890d2d7e117d15ac312633e4413e1e53d8d",
-    "CLAUDE.md": "a271ed8d0dfff2313d8a23758142a2f4adc5bad2f5392cdb0a74c5436c8dab90",
+    "AGENTS.md": "3d6eecc2728330baf3e374b8fdea443142e77f8b5aa5ca88ef25adce591c56ca",
+    "CLAUDE.md": "95e116181ce5d7492820005ec1264fccc10a2d2637cf501bc2a3b412e2d878f3",
     "Start Creator OS Setup.bat": "e9c01d9d41b8e805a387146df1e2a9692b51224192f100f5316ea055a030b75e",
     "Start Creator OS Setup.command": "ca39fd0df9f87ce983db603f887f8ebb13118f1b697607147832f48ce08814be",
     "canonical-sources/data-currency-map.json": "432a89fc60ea9cf0980871a26e8a419211c02678ceae1c2e7984d86dc8609c23",
@@ -28,7 +28,7 @@
     "docs/DOC-MAINTENANCE.md": "1daa228256bd362e14ef83d4cbd60f57f039cf34aeaca4204d76217069090618",
     "docs/DRIVE-HUB.md": "54e642fc07f37ab169ad45e56777c9c957ec4d4796f80e52631e465373f1cb0a",
     "docs/FRESHNESS.md": "e93fc803ac6652658f18c000d4674fd0cb7dae982d36e040fca98b3d0fc935cd",
-    "docs/INSTALL-SCOPE.md": "c803ebf20ca1a8b8539631abcba88c58f95f9f45687e60a8f039746e6b87c964",
+    "docs/INSTALL-SCOPE.md": "5e20dff216726e3f8eda89a061571ec371529c491c60e109c3d3ba358be2ae09",
     "docs/MAC-VALIDATION.md": "7967f90f8917e006f6b9710b7ea0f5ca599f3d3128d74e79b7cc057e730226dd",
     "docs/MACOS-MAINTENANCE.md": "327b0267a9858a24a8dad0b1cccdb3ed8e36a286cc1fa3122b2b37e56ee03bf2",
     "docs/PUBLISHING.md": "2c1794c6bd955691dbe4d7217bc91fd5b20279b5c4640f52261771e83fdfc8b8",
@@ -81,7 +81,7 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "4e87fcde95a22a258002b673e0d5065ee3c40acef994a86626bbcb21524c6fb8",
     "tools/acquire.py": "a37ac480a88ebc8da389535c9a056a3ccc5f45e75427f7af691031d945c46f5b",
-    "tools/claim-proof-manifest.json": "1e28d0c12542dd1e7bfcc5fb1ef269f04f5eb4d0e4324dce1d72609fd2159a47",
+    "tools/claim-proof-manifest.json": "00416ddbbb235d6f13797125d0dea12422ca6b41b60409ebd7c12d845229ed02",
     "tools/count_truth.py": "aa42b07bf3a936830607b01688c1c2463bf2e75347a82a9a0e592e7c26bfdfbc",
     "tools/env_paths.py": "6e3615e67d38803696ef401be865b31bddc540e01350edaaf595fc4b6b441a37",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
@@ -91,8 +91,8 @@
     "tools/library_complete.py": "9c434cd16fcfa79577c5a0675342b5bf3863320cd5d7e060535637d9292eb8a3",
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/readonly_bash_guard.py": "3a39375073aa3d40d5ac0a3a6c1e2a1f48680bb28c6efde772a9012828e9a38b",
-    "tools/secret_scan.py": "fe30c95c457ee9f98b9daedbe59b97e9032c736ec0b1ab0ccfa359ca3df7f898",
-    "tools/setup.py": "363a0a7bf96aa0d6702c370b3800c9bafd5817eeda214651b2ae0b3d474b71d7",
+    "tools/secret_scan.py": "24fd3c43e1f91796b5d86eb78bcf6518a65e2f30f22a085c91a82455211fb8f3",
+    "tools/setup.py": "2aabf59a6e55814733e8c74fdb68328604e2f39e64d0e9cb6fb2df1f580e87ab",
     "tools/transcribe.py": "fd035c3023b9a851cc55bd0acb9a6993e4c405fcc910a52c2006524cf4047753",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
@@ -100,7 +100,7 @@
     "tools/videoedit/fcpxml.py": "0a83956f732d314a0ae6e3ba2b146b9a4fd6b7977fb5b540db67c33064efc5a5",
     "tools/videoedit/preflight.py": "e2fc9fe54b3794959aa3a619f5f4188233123ca77b9e5cf05e384f21cad38e4e",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "0d7f10932221e2386abbcf0130c06e5a7ab4bad541b9e4d335e1533c5dfce2d5"
+    "tools/wizard.py": "e2eba73bf4a7b16256a7da01cf8dc3dd58713552829a852d569a25235145ae44"
   },
   "excluded": {}
 }

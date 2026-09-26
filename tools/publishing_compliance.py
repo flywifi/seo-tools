@@ -161,13 +161,14 @@ def check(
 
 
 def _selftest() -> int:
-    """Offline test of the publishing gate (config + creds injected; no filesystem, no network).
+    """Offline test of the publishing gate (config + creds injected; no network; the one file read
+    is the committed creator-os-config.json, never the gitignored local override).
 
     Locks the safety-relevant contract the dashboard and MCP surfaces both depend on: the master flag
     is OFF by default, an unknown platform and a direct_api tier without credentials both hard-fail,
     a stored publish (or back-compat root) token is detected, human review is always required, the FTC
-    disclosure is prepended when missing, and the AIGC flag is TikTok-only. Added in P56 (the module
-    previously had no selftest, so `publishing_compliance.py --selftest` was a silent no-op)."""
+    disclosure is prepended when missing, the AIGC flag is TikTok-only, and the committed
+    creator-os-config.json ships the master flag off."""
     failures: list[str] = []
 
     ran = [0]
@@ -185,6 +186,14 @@ def _selftest() -> int:
     ok(flag_enabled({"capabilities": {"x": True}}, "x") is True, "flag_enabled bare bool")
     ok(flag_enabled({"capabilities": {"x": {"enabled": True}}}, "x") is True, "flag_enabled object form")
     ok(flag_enabled({"capabilities": {"x": {"enabled": False}}}, "x") is False, "flag_enabled disabled object")
+    # The committed creator-os-config.json ships the master gate off. Only the committed file is
+    # read here, never the gitignored local override a person may turn on deliberately.
+    try:
+        committed = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        committed = None
+    ok(isinstance(committed, dict) and live_publishing_enabled(committed) is False,
+       "the committed creator-os-config.json ships live_publishing_enabled off")
 
     # 2) Unknown platform hard-fails.
     r = check("vimeo", config={}, creds={})

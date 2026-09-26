@@ -64,6 +64,13 @@ PATTERNS = [
         r"\s*:\s*\"([^\"]{8,})\"")),
     ("session_link", re.compile(r"claude\.ai/code/session_[A-Za-z0-9]+")),
     ("email_address", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
+    # North American phone numbers: (NNN) NNN-NNNN and NNN-NNN-NNNN, NNN.NNN.NNNN or NNN NNN NNNN,
+    # each with an optional +1 or 1 prefix (1-800-...) and with letters such as an x extension
+    # allowed right after the last digit. Area and exchange codes start 2 to 9 as the numbering plan
+    # requires, and a match may not sit inside a longer dotted or dashed number, so dates,
+    # versions, ISBNs and ports stay clean. Bare 10-digit runs and non-NANP numbers are not matched.
+    ("phone_number", re.compile(
+        r"(?<![\w.+-])(?:\+1[ .-]?|1[ .-])?(?:\([2-9]\d{2}\)[ .-]?|[2-9]\d{2}[ .-])[2-9]\d{2}[ .-]\d{4}(?!\d)(?![-.]\d)")),
 ]
 
 # Dollar figures are suspect ONLY inside committed pipeline/ files (blank templates by contract).
@@ -359,6 +366,21 @@ def selftest():
     cred = '"client_' + 'secret": "' + "s" * 12 + '"'
     placeholder = '"client_' + 'secret": "REPLACE_' + 'WITH_CLIENT_SECRET"'
     email = "someone" + "@gmail.com"
+    # Phone fixtures are concatenated too, so no phone-shaped string sits in this file at rest.
+    phones = ("(415" + ") 555-" + "0199", "+1 415" + " 555 " + "0199", "415." + "555." + "0199",
+              "1-800" + "-555-" + "1234", "1.415" + ".555." + "0199", "(415)" + "-555-" + "0199x12")
+    not_phones = ("2026-09-25", "v2.312.4567", "ISBN 978-0-306-40615-7", "port 8766",
+                  "1234 Market St", "12.345.678.9012")
+    _check("phone number detected in the paren, +1, 1-prefix, dotted and extension NANP shapes",
+           all(any(x["pattern_id"] == "phone_number" for x in scan_text(p, "docs/a.md", al))
+               for p in phones), f, ran)
+    unmatched = ("415" + "5550199", "415/" + "555-" + "0199", "415 - " + "555 - " + "0199")
+    _check("one digit run, slash and spaced-dash phone forms are NOT phone findings",
+           not any(x["pattern_id"] == "phone_number"
+                   for s in unmatched for x in scan_text(s, "docs/a.md", al)), f, ran)
+    _check("dates, versions, ISBNs, ports and street numbers are NOT phone findings",
+           not any(x["pattern_id"] == "phone_number"
+                   for s in not_phones for x in scan_text(s, "docs/a.md", al)), f, ran)
 
     _check("aws key detected", any(x["pattern_id"] == "aws_access_key"
                                    for x in scan_text(aws, "a.md", al)), f, ran)
@@ -411,7 +433,7 @@ def selftest():
            _is_probably_text(b"just ordinary text\nwith lines"), f, ran)
     _check("binary sniff: NUL-bearing bytes are skipped as binary",
            not _is_probably_text(b"PK\x03\x04\x00binaryblob"), f, ran)
-    _check("forbidden suffixes cover the audited leak classes",
+    _check("forbidden suffixes cover the known leak classes",
            all(s in FORBIDDEN_DATA_SUFFIXES
                for s in (".xlsm", ".kdbx", ".sqlite", ".vcf", ".qbw", ".pst", ".zip", ".pdf",
                          ".heic", ".pem", ".key", ".csv")), f, ran)

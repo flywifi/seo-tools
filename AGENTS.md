@@ -37,6 +37,12 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
 - No em dashes in user-facing output (scripts, captions, pitch copy). Internal docs may use them.
 - Write ranges with "to" ("3 to 5 clips"), everywhere.
 - No real CRM data or PII in the repo; real data lives only in gitignored `*.local.*` files.
+  The build detects tracked `*.local.*` files (invariant 19), non-template `pipeline/` files and
+  forbidden data-file types (invariant 20), and known secret formats, non-allowlisted email
+  addresses, North American phone numbers whose digit groups are split by a dash, dot, single
+  space or area-code parenthesis, and `pipeline/` dollar figures in tracked content (invariant
+  21); a name, a postal address, or a phone number written as one digit run, with slashes, or
+  with spaced dashes is not detected.
 - `canonical-sources/source-registry.json` is written ONLY through `tools/registry_io.py`
   (`load_registry`/`save_registry`), the single shared write implementation. Five tools funnel
   through it (`source_currency`, `dependency_currency`, `traversal_engine accept`,
@@ -45,8 +51,9 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
 - `tools/traversal_engine.py` is the only writer of `traversal-candidates.json` and
   `traversal-visited.json`. Do not edit `shared/connectors/connectors.json` for
   deployment-specific state; that belongs in the gitignored local config.
-- Human confirmation before every post: `schedule_post` never publishes without an explicit
-  human confirmation step, and `live_publishing_enabled` defaults off.
+- Human confirmation before every post: the `schedule_post` MCP tool always sets
+  `human_review_required: true` and returns a plan rather than publishing, the dashboard marks a
+  post confirmed only when a human clicks Confirm, and `live_publishing_enabled` defaults off.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **A commit subject names the mechanism it changed.** A stage pushed before its verification stage
   returns says what the code now does, not the property it aims at; the property is reported after

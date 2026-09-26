@@ -458,7 +458,7 @@ def _selftest() -> int:
     _wiz_src = (ROOT / "tools" / "wizard.py").read_text(encoding="utf-8")
     ok(_marker not in _self_src and _marker not in _wiz_src,
        "the machine-wide pip override is gone from setup.py and wizard.py (P93 source pin)")
-    # (c) P93-4, the gap the P93 adversarial pass found: the PEP 668 branch above only covers an
+    # (c) P93-4: the PEP 668 branch above only covers an
     # interpreter that MARKS itself externally-managed. A plain machine-wide interpreter (a
     # python.org framework build, /usr/local) raises no such error, so the old
     # `target = venv_py or PYTHON` fallback installed straight into a shared site-packages with
@@ -482,6 +482,85 @@ def _selftest() -> int:
        "no .venv: every requirements set is refused with the user-scoped remedy (P93-4)")
     ok(any(r["item"] == "uv" and r["ok"] is False for r in _res),
        "no .venv: the uv step is refused too, not silently installed (P93-4)")
+
+    # Install target, observed where it matters: the argv of every subprocess the install path
+    # starts. Only this module's `subprocess` name and env_paths' .venv lookup are swapped (no pip,
+    # venv or network runs); ensure_venv, _pip_install and _install_playwright_browser stay real,
+    # so a wrong interpreter anywhere on the path (a fallback in ensure_venv or
+    # install_dependencies, or `py = PYTHON` inside a helper) shows up as an argv[0] that is not
+    # the .venv interpreter.
+    class _ArgvRecorder:
+        returncode, stdout, stderr = 0, "", ""
+
+        def __init__(self):
+            self.calls = []
+
+        def run(self, cmd, *a, **k):
+            self.calls.append([str(x) for x in cmd])
+            return self
+
+    _fake_venv_py = str(ROOT / ".venv-selftest-absent" / "bin" / "python3")
+    _pip_words = "-m pip install".split()
+    _rec_venv, _rec_none = _ArgvRecorder(), _ArgvRecorder()
+    _saved = (globals()["subprocess"], env_paths.venv_python, env_paths.which)
+    try:
+        env_paths.which = lambda name: None
+        env_paths.venv_python = lambda *a, **k: Path(_fake_venv_py)
+        globals()["subprocess"] = _rec_venv
+        install_dependencies()
+        env_paths.venv_python = lambda *a, **k: None
+        globals()["subprocess"] = _rec_none
+        install_dependencies()
+    finally:
+        globals()["subprocess"], env_paths.venv_python, env_paths.which = _saved
+    _expected_pips = sum(1 for f, _ in REQUIREMENTS_SETS if (ROOT / f).exists()) + 1
+    _venv_pips = [c for c in _rec_venv.calls if c[1:4] == _pip_words]
+    ok(len(_venv_pips) == _expected_pips
+       and all(c[0] == _fake_venv_py for c in _rec_venv.calls),
+       ".venv present: every pip and Playwright subprocess runs the .venv interpreter, never the "
+       "base interpreter")
+    ok(_rec_none.calls == [[PYTHON, "-m", "venv", str(ROOT / ".venv")]],
+       "no .venv: install_dependencies runs only the .venv creation attempt and no pip or "
+       "Playwright subprocess, so pip cannot run in the base interpreter")
+    # Every pip install command in the tree is built in one of two functions, setup.py's
+    # _pip_install and wizard.py's _install_uv, and the pins above and in wizard.py's selftest
+    # record the interpreter each of them runs. The file set is derived from the tree: every .py
+    # under the repo except hidden, build and cache directories (.venv, .git, dist, __pycache__).
+    # A command assembled at run time from non-literal parts is outside what this census reads.
+    import ast as _ast
+    import os as _os
+
+    def _pip_argv_sites(node, rel, fn, out):
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            fn = node.name
+        if isinstance(node, (_ast.List, _ast.Tuple)):
+            words = {e.value for e in node.elts
+                     if isinstance(e, _ast.Constant) and isinstance(e.value, str)}
+            if "pip" in words and "install" in words:
+                out.add((rel, fn))
+        for child in _ast.iter_child_nodes(node):
+            _pip_argv_sites(child, rel, fn, out)
+
+    _pip_sites = set()
+    for _dir, _subdirs, _files in _os.walk(ROOT):
+        _subdirs[:] = sorted(d for d in _subdirs if not d.startswith(".")
+                             and d not in ("dist", "node_modules", "__pycache__"))
+        for _name in sorted(_files):
+            if not _name.endswith(".py"):
+                continue
+            _p = Path(_dir) / _name
+            _rel = _p.relative_to(ROOT).as_posix()
+            try:
+                _pip_argv_sites(_ast.parse(_p.read_text(encoding="utf-8")), _rel, "<module>",
+                                _pip_sites)
+            except (OSError, SyntaxError, UnicodeDecodeError, ValueError):
+                _pip_sites.add((_rel, "<unreadable>"))
+    _pip_expected = {("tools/setup.py", "_pip_install"), ("tools/wizard.py", "_install_uv")}
+    if _pip_sites != _pip_expected:
+        print(f"  [note] pip install commands found at: {sorted(_pip_sites)}")
+    ok(_pip_sites == _pip_expected,
+       "pip census: every pip install command in the tree is built in setup.py::_pip_install or "
+       "wizard.py::_install_uv")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
