@@ -1,0 +1,176 @@
+{
+  "_comment": "Labelled cases for drift invariant 60's claim detector. tools/sync_check.py::_claim_case_problems reads them and documents what each list means; check_claim_proof fails the build when the detector disagrees with any case, and _claim_case_blindness fails it when a branch narrowed to its first positive still passes every case. A regression pin, not a precision measurement.",
+  "positive": {
+    "each": [
+      "Each requirements set installs into the repo .venv.",
+      "The checker computes drift from each registry entry's own pin."
+    ],
+    "will_not": [
+      "Setup will not fall back to the base interpreter.",
+      "The dashboard won't publish while the flag is off.",
+      "The wizard won’t ask for sudo."
+    ],
+    "never": [
+      "Creator OS never writes outside the user account.",
+      "The wizard will never ask for an admin password."
+    ],
+    "always": [
+      "The gate always refuses an unsigned payload.",
+      "Setup always prints the remedy when it stops."
+    ],
+    "every": [
+      "Every spoke resolves to an installed atom.",
+      "The guard reads every tracked file.",
+      "Everything the wizard downloads lands in the home folder.",
+      "Everyone who runs setup gets the same .venv.",
+      "It works everywhere the repo is cloned.",
+      "Everybody gets the user-scoped route."
+    ],
+    "all": [
+      "All seven requirement sets land in the private .venv.",
+      "Setup writes all of its files under the home folder."
+    ],
+    "no_ever": [
+      "No tool here ever touches a shared site-packages.",
+      "No sudo, ever.",
+      "No sudo; ever.",
+      "No sudo: ever.",
+      "No sudo -- ever.",
+      "No sudo — ever.",
+      "No sudo – ever.",
+      "No sudo (ever)."
+    ],
+    "nothing": [
+      "Nothing is released until the gates pass.",
+      "The dashboard sends nothing to a platform while the flag is off."
+    ],
+    "only": [
+      "The repo .venv is the only install target.",
+      "Setup writes only inside the home folder."
+    ],
+    "none": [
+      "The installer writes none of it outside the home folder.",
+      "None of the tools needs sudo.",
+      "Nobody posts on the creator's behalf.",
+      "No one can publish without a confirmation step."
+    ],
+    "cannot": [
+      "The dashboard cannot publish without a confirmation step.",
+      "The wizard can't write outside the home folder.",
+      "The wizard can’t write outside the home folder.",
+      "Setup can not fall back to the base interpreter."
+    ],
+    "bare_no": [
+      "No code path installs machine-wide.",
+      "No code path in this repo installs machine-wide.",
+      "No tool is allowed to write there.",
+      "No installer can reach /usr/local.",
+      "The dashboard makes no network call.",
+      "Setup runs with no network access.",
+      "The wizard writes no file outside the repo.",
+      "No installer writes `/usr/local`.",
+      "No post may be published without a human confirmation step.",
+      "There is no fallback to the base interpreter.",
+      "There are no machine-wide installs.",
+      "There's no fallback to the base interpreter.",
+      "There’s no second install location.",
+      "No data persists.",
+      "No one-click installer exists.",
+      "No state remains."
+    ]
+  },
+  "negative": [
+    "No admin rights needed for the user-scoped route.",
+    "no admin rights needed",
+    "No extra permissions required.",
+    "No need to do anything else.",
+    "There is no need to restart.",
+    "There's no need to restart.",
+    "The two tools talk to each other.",
+    "The installer reports the result of a step honestly and stops on failure.",
+    "No terminal needed.",
+    "Nonetheless the report is advisory.",
+    "Everyday setup takes about five minutes.",
+    "The script quotes \"No sudo is required\" from the uv docs.",
+    "Setup asks for the repo folder, then installs the requirements.",
+    "Knowledge of the tools helps.",
+    "No changes.",
+    "No extra dependencies."
+  ],
+  "escape_positive": [
+    "Setup refuses, except with ALLOW_SYSTEM set.",
+    "Excepting ALLOW_SYSTEM, setup refuses.",
+    "Excluding the ALLOW_SYSTEM path, setup refuses.",
+    "Barring an ALLOW_SYSTEM override, setup refuses.",
+    "Aside from ALLOW_SYSTEM, setup refuses.",
+    "Apart from ALLOW_SYSTEM, setup refuses.",
+    "Other than ALLOW_SYSTEM, setup refuses.",
+    "Save if ALLOW_SYSTEM is set, setup refuses.",
+    "ALLOW_SYSTEM overrides it.",
+    "A flag can override that.",
+    "The flag overrode it.",
+    "ALLOW_SYSTEM bypasses it.",
+    "The flag bypassed them.",
+    "Users who opted out get the base interpreter.",
+    "Users can opt-out.",
+    "Setup refuses unless ALLOW_SYSTEM is set.",
+    "Setup refuses, except when ALLOW_SYSTEM is set.",
+    "Setup refuses, except if ALLOW_SYSTEM is set.",
+    "Setup refuses, except where ALLOW_SYSTEM is set.",
+    "Setup refuses, except for the ALLOW_SYSTEM path.",
+    "With the exception of ALLOW_SYSTEM, setup refuses.",
+    "Apart from when ALLOW_SYSTEM is set, setup refuses.",
+    "Other than when ALLOW_SYSTEM is set, setup refuses.",
+    "Save when ALLOW_SYSTEM is set, setup refuses.",
+    "Save for ALLOW_SYSTEM, setup refuses.",
+    "Provided that ALLOW_SYSTEM is unset, setup refuses.",
+    "Providing that ALLOW_SYSTEM is unset, setup refuses.",
+    "So long as ALLOW_SYSTEM is unset, setup refuses.",
+    "As long as ALLOW_SYSTEM is unset, setup refuses.",
+    "Setup writes there only if asked.",
+    "Setup refuses, but if ALLOW_SYSTEM is set it installs.",
+    "ALLOW_SYSTEM overrides this.",
+    "Admins may override this.",
+    "ALLOW_SYSTEM bypasses this.",
+    "A flag bypassed this.",
+    "Users can opt out of this."
+  ],
+  "escape_negative": [
+    "Setup is the one exception to the rule.",
+    "Wrap the call in `try/except` and report the error.",
+    "The exceptions register lists Apple CLT git.",
+    "Setup overrides the default port.",
+    "Only the maintainer can publish.",
+    "Other tools read the file."
+  ],
+  "units": [
+    {"name": "text under a heading is its own unit", "text": "## Rules\nSetup never writes outside home.\n", "expect": [[2, "Setup never writes outside home."]]},
+    {"name": "a line starting #1 is text, not a heading", "text": "#1 rule: the installer never writes outside home.\n", "expect": [[1, "#1 rule: the installer never writes outside home."]]},
+    {"name": "a multi-line bullet is one unit", "text": "- first promise\n  continues here\n\n- second promise\n", "expect": [[1, "- first promise continues here"], [4, "- second promise"]]},
+    {"name": "a heading is not a unit", "text": "## A heading that says every\n", "expect": []},
+    {"name": "a paragraph, a numbered item and a table row", "text": "Setup asks first.\nIt then installs.\n1. Step one.\n| a | b |\n", "expect": [[1, "Setup asks first. It then installs."], [3, "1. Step one."], [4, "| a | b |"]]}
+  ],
+  "sections": [
+    {"name": "the slice runs from the line after the start marker to the end marker", "text": "# Doc\n## Rules\n- Setup never writes outside home.\n## Next\n- Every tool is signed.\n", "markers": ["## Rules", "## Next"], "expect": [[3, "- Setup never writes outside home."]]},
+    {"name": "a mention of the end marker inside the section does not end it", "text": "## Rules\n- See `## Next` for more.\n- Every tool is signed.\n## Next\n", "markers": ["## Rules", "## Next"], "expect": [[2, "- See `## Next` for more."], [3, "- Every tool is signed."]]},
+    {"name": "a marker that starts no line is missing", "text": "Intro mentions ## Rules.\n## Next\n", "markers": ["## Rules", "## Next"], "error": "no line that starts with"},
+    {"name": "a marker that starts two lines is ambiguous", "text": "## Rules\na\n## Rules\n## Next\n", "markers": ["## Rules", "## Next"], "error": "2 lines that start with"}
+  ],
+  "sweep": [
+    {"name": "an exemption with no flagged word exempts nothing", "text": "- Setup asks for the repo folder.\n", "exempt": ["Setup asks for the repo folder."], "expect": ["exempts nothing"]},
+    {"name": "an exemption in no unit exempts nothing", "text": "- Agents never post directly.\n", "exempt": ["Agents never post directly.", "Every tool is signed."], "expect": ["sits in no unit"]},
+    {"name": "an exemption that declares an exception clause is live", "text": "- Setup asks first, unless told otherwise.\n", "exempt": ["unless told otherwise"], "expect": []},
+    {"name": "text under a heading is scanned", "text": "## Rules\nSetup never writes outside home.\n", "expect": ["case.md:2 makes a universal claim"]},
+    {"name": "an exception in the next unit fails", "text": "- Setup never writes outside home.\n- Except when ALLOW_SYSTEM=1 is set, setup installs into the base interpreter.\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:2 attaches an exception"]},
+    {"name": "a marker inside a code span is not an exception", "text": "- Wrap the call in `try/except` and report it.\n", "expect": []},
+    {"name": "an unbound claim fails", "text": "- The wizard never writes outside home.\n", "expect": ["case.md:1 makes a universal claim"]},
+    {"name": "a bound claim passes", "text": "- The wizard never writes outside home.\n", "bound": ["The wizard never writes outside home."], "expect": []},
+    {"name": "an exempt claim passes", "text": "- Agents never post directly.\n", "exempt": ["Agents never post directly."], "expect": []},
+    {"name": "one binding covers one occurrence across units", "text": "- The dashboard makes no network call.\n\n- The wizard makes no network call.\n", "bound": ["makes no network call"], "expect": ["case.md:3 makes a universal claim"]},
+    {"name": "one binding covers one occurrence inside a unit", "text": "- The dashboard makes no network call, and the wizard makes no network call.\n", "bound": ["makes no network call"], "expect": ["case.md:1 makes a universal claim"]},
+    {"name": "a universal appended to a bound bullet is read", "text": "- Setup never writes outside home, and every tool is signed.\n", "bound": ["Setup never writes outside home"], "expect": ["case.md:1 makes a universal claim"]},
+    {"name": "an exception beside a bound promise fails", "text": "- Setup never writes outside home unless ALLOW_SYSTEM is set.\n", "bound": ["Setup never writes outside home"], "expect": ["case.md:1 attaches an exception"]},
+    {"name": "a declared exception passes", "text": "- Setup never writes outside home unless ALLOW_SYSTEM is set.\n", "bound": ["Setup never writes outside home unless ALLOW_SYSTEM is set."], "expect": []},
+    {"name": "a unit the detector does not flag passes", "text": "- Setup asks for the repo folder.\n", "expect": []}
+  ]
+}

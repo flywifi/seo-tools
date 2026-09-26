@@ -130,9 +130,9 @@
     },
     "AGENTS.md": {
       "sources": {
-        "CLAUDE.md": "0405550bb23097072cb7fd34e27bbb576fa9ed486c904e689cce2d3a4fea1123"
+        "CLAUDE.md": "a271ed8d0dfff2313d8a23758142a2f4adc5bad2f5392cdb0a74c5436c8dab90"
       },
-      "projection": "32bbfe447e6226400dc652f65d9573d99eed43cef3118e4e70b8e34499d81006"
+      "projection": "abbcd0fa0350814e70ce64ba72f03890d2d7e117d15ac312633e4413e1e53d8d"
     },
     "implementation/gemini/system-instruction.md": {
       "sources": {

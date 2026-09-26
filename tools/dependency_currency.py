@@ -31,6 +31,8 @@ import os
 import re
 import ssl
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -117,7 +119,34 @@ def classify_drift(entry, latest, latest_date):
 
 # ── network (stdlib; honors env proxy + CA bundle; never raises) ─────────────
 
-def _http_get_json(url, timeout=12):
+# The only hosts this tool sends a request to. A URL on any other host, or a redirect to one, is
+# refused before anything is sent; the token-free selftest pin checks both refusals.
+_ALLOWED_HOSTS = ("pypi.org", "api.github.com")
+
+
+def _host_allowed(url):
+    """True when `url` is an https URL on one of _ALLOWED_HOSTS."""
+    try:
+        parts = urllib.parse.urlsplit(url)
+        return parts.scheme == "https" and parts.hostname in _ALLOWED_HOSTS
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+class _AllowedHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect only when its target is on one of _ALLOWED_HOSTS."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _host_allowed(newurl):
+            raise urllib.error.HTTPError(newurl, code, "redirect to a host outside "
+                                         "_ALLOWED_HOSTS refused", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _http_get_json(url, timeout=12, opener=None):
+    if not _host_allowed(url):
+        return None, (f"refused: {str(url)[:120]!r} is not an https URL on "
+                      f"{' or '.join(_ALLOWED_HOSTS)}")
     ctx = ssl.create_default_context()
     if os.path.exists(CA_BUNDLE):
         try:
@@ -132,8 +161,10 @@ def _http_get_json(url, timeout=12):
         if token:
             headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
+    opener = opener or urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx),
+                                                   _AllowedHostRedirect())
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+        with opener.open(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8")), None
     except Exception as exc:  # noqa: BLE001
         return None, f"{type(exc).__name__}: {str(exc)[:160]}"
@@ -240,6 +271,94 @@ def apply_stamps(registry, results, saver=registry_io.save_registry):
 
 # ── selftest (pure logic + injected fetcher; no network) ─────────────────────
 
+# ── token-free pin: what the maintenance path can reach, read statically ─────
+
+# Standard-library modules the maintenance path may not import: each can start a process, load
+# code by a computed name, or open a connection without going through _http_get_json.
+_REFUSED_STDLIB = {"subprocess", "multiprocessing", "concurrent", "importlib", "runpy", "ctypes",
+                   "pty", "webbrowser", "asyncio", "pkgutil", "zipimport", "builtins", "code",
+                   "codeop", "pickle", "marshal", "shelve", "_posixsubprocess", "socket",
+                   "socketserver", "http", "ftplib", "smtplib", "imaplib", "poplib", "nntplib",
+                   "telnetlib", "xmlrpc"}
+_SPAWN_CALLS = {"system", "popen", "Popen", "fork", "forkpty", "posix_spawn", "posix_spawnp",
+                "startfile", "__import__", "import_module", "exec", "eval", "vars", "globals",
+                "locals"}
+# Calls that open a connection. Only _http_get_json, which refuses other hosts, may make them.
+_NET_CALLS = {"urlopen", "urlretrieve", "build_opener", "install_opener", "OpenerDirector",
+              "create_connection", "get_server_certificate", "wrap_socket", "socket"}
+_NET_FUNCTION = "_http_get_json"
+_TOKEN_FREE_ENV = {"REQUESTS_CA_BUNDLE", "GITHUB_TOKEN", "GH_TOKEN"}
+_ENVIRON_NAMES = ("environ", "environb")
+
+
+def _import_closure(path, seen=None):
+    """(modules, calls, env, net) for the code `path` runs outside its selftests, read
+    statically and following sibling modules in its folder. modules: the top-level names it
+    imports. calls: its process-spawning or dynamic-code calls (os.system, os.exec*/spawn*,
+    Popen, fork, __import__, exec, eval, vars, globals, locals, and a getattr on os or sys or
+    with a computed name). env: the environment variables it reads through os.environ,
+    os.environb or os.getenv, with "?" for a read whose name is not a string literal. net:
+    "function:call" for each call in _NET_CALLS made outside _http_get_json. Only the functions
+    named selftest and _selftest are skipped."""
+    import ast
+    seen = {path.stem} if seen is None else seen
+    mods, calls, env, net = set(), set(), set(), set()
+    environs, handled = [], set()
+    stack = [(ast.parse(path.read_text(encoding="utf-8")), "")]
+    while stack:
+        node, fn = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name in ("selftest", "_selftest"):
+                continue
+            fn = fn or node.name
+        stack.extend((child, fn) for child in ast.iter_child_nodes(node))
+        if getattr(node, "attr", getattr(node, "id", None)) in _ENVIRON_NAMES:
+            environs.append(node)
+        names = []
+        if isinstance(node, ast.Import):
+            names = [a.name for a in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module or ""] if not node.level else [""]
+        elif isinstance(node, ast.Subscript):
+            base = node.value
+            if getattr(base, "attr", getattr(base, "id", None)) in _ENVIRON_NAMES:
+                handled.add(id(base))
+                key = node.slice
+                env.add(key.value if isinstance(key, ast.Constant) and isinstance(key.value, str)
+                        else "?")
+        elif isinstance(node, ast.Call):
+            f = node.func
+            name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+            if name in _SPAWN_CALLS or re.fullmatch(r"(?:exec|spawn)[lv]p?e?", name):
+                calls.add(name)
+            if name == "getattr" and (len(node.args) < 2 or not isinstance(node.args[1], ast.Constant)
+                                      or getattr(node.args[0], "id", None) in ("os", "sys")):
+                calls.add(name)
+            if name in _NET_CALLS and fn != _NET_FUNCTION:
+                net.add(f"{fn or '<module>'}:{name}")
+            base = getattr(f, "value", None)
+            is_environ = getattr(base, "attr", getattr(base, "id", None)) in _ENVIRON_NAMES
+            if (name in ("get", "pop", "setdefault") and is_environ) or name in ("getenv", "getenvb"):
+                if is_environ:
+                    handled.add(id(base))
+                arg = node.args[0] if node.args else None
+                env.add(arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                        else "?")
+        for n in names:
+            top = n.split(".")[0]
+            mods.add(top)
+            sibling = path.parent / f"{top}.py"
+            if top and top not in seen and sibling.exists():
+                seen.add(top)
+                more = _import_closure(sibling, seen)
+                mods |= more[0]
+                calls |= more[1]
+                env |= more[2]
+                net |= more[3]
+    env |= {"?" for node in environs if id(node) not in handled}
+    return mods, calls, env, net
+
+
 def selftest():
     checks = []
 
@@ -312,6 +431,35 @@ def selftest():
     ok("advisory not stamped", apply_stamps({"sources": [{"id": "dep-ffmpeg"}]}, [adv],
         saver=writes2.append)["stamped"] == [])
     ok("no write when nothing stamped", len(writes2) == 0)
+
+    # The maintenance path is read statically, so an import that would fail at runtime (a model
+    # SDK that is not installed) is still seen. The host checks hand _http_get_json a recording
+    # opener, so nothing is sent.
+    mods, calls, env, net = _import_closure(Path(__file__).resolve())
+    sent = []
+
+    class _RecordingOpener:
+        def open(self, req, timeout=None):
+            sent.append(req.full_url)
+            raise OSError("recorded, not sent")
+
+    off_host = _http_get_json("https://pypi.org.example.com/pypi/x/json", opener=_RecordingOpener())
+    on_host = _http_get_json("https://pypi.org/pypi/x/json", opener=_RecordingOpener())
+    try:
+        _AllowedHostRedirect().redirect_request(urllib.request.Request("https://pypi.org/pypi/x/json"),
+                                                None, 302, "Found", {},
+                                                "https://models.example.com/v1/messages")
+        redirect_refused = False
+    except urllib.error.HTTPError:
+        redirect_refused = True
+    ok("token-free: outside its selftests the import closure is the standard library plus "
+       "registry_io and atomic_io, starts no process, makes network calls only from "
+       "_http_get_json, which sends requests only to pypi.org and api.github.com, and reads "
+       "GITHUB_TOKEN or GH_TOKEN as its one credential",
+       mods <= (set(sys.stdlib_module_names) - _REFUSED_STDLIB) | {"registry_io", "atomic_io"}
+       and not calls and not net and env <= _TOKEN_FREE_ENV
+       and _ALLOWED_HOSTS == ("pypi.org", "api.github.com") and off_host[0] is None
+       and on_host[0] is None and sent == ["https://pypi.org/pypi/x/json"] and redirect_refused)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

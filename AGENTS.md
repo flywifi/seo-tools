@@ -60,7 +60,8 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   an audit-record file (`tools/secret_scan.py::audit_record_name`: a text file name that carries a
   date, with a review keyword in the name or a directory above it, or a path on `AUDIT_RECORD_PATHS`).
 - **Claims about this repo's own behavior need executed evidence.** A universal claim ("no",
-  "never", "every", "all", "only", "nothing", "always", "none", "cannot") in a commit subject, a
+  "never", "every", "everything", "all", "each", "only", "nothing", "always", "none", "nobody",
+  "cannot", "will not") in a commit subject, a
   doc sentence, or a report either names the executed pin proving it or is narrowed to what was
   tested. Test the PROPERTY claimed, not the
   mechanism changed. The independent pass runs BEFORE the claim is reported or merged

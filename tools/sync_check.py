@@ -3538,23 +3538,35 @@ def _install_scope_scan(lines):
     return hits
 
 
+def _detector_pin_from(man, key):
+    """The branch names manifest `man` records for detector `key` under detector_branches, or []
+    when the table, the key, or a non-empty list of names is missing. _coverage_proof reports []
+    as a problem, so a manifest that loses the table fails closed instead of skipping the pin."""
+    table = man.get("detector_branches") if isinstance(man, dict) else None
+    names = table.get(key) if isinstance(table, dict) else None
+    if isinstance(names, list) and names and all(isinstance(n, str) for n in names):
+        return names
+    return []
+
+
 def _claim_pinned_branches():
-    """The claim-proof branch names recorded in the manifest, or None when it is unreadable."""
+    """The claim-proof branch names recorded in the manifest ([] when missing or malformed), or
+    None when the manifest itself is unreadable, which invariant 60 reports."""
     try:
         man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    return man.get("detector_branches", {}).get("claim_proof")
+    return _detector_pin_from(man, "claim_proof")
 
 
 def _install_scope_pinned_branches():
-    """The install-scope branch names recorded in the claim-proof manifest, or None when it is
-    unreadable (its own invariant reports that)."""
+    """The install-scope branch names recorded in the claim-proof manifest ([] when missing or
+    malformed), or None when the manifest is unreadable (invariant 60 reports that)."""
     try:
         man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    return man.get("detector_branches", {}).get("install_scope")
+    return _detector_pin_from(man, "install_scope")
 
 
 def check_install_scope():
@@ -3694,29 +3706,41 @@ def _install_scope_exempt_problems(exempt, hits_by_file):
     return out
 
 
-# P94: the claim-proof detector. A universal claim about this repo's own behavior is a promise;
-# each branch below is a distinct way of making one, and the coverage proof exercises every branch
-# by name so deleting one fails the build rather than narrowing what the gate sees (the P70 lesson
-# from invariant 58, the P93 lesson from invariant 59).
+# The claim-proof detector. A universal claim about this repo's own behavior is a promise; each
+# branch below is one way of phrasing one. tools/claim-proof-cases.json holds labelled sentences
+# for every branch, and check_claim_proof fails the build when a branch stops flagging its
+# positives, flags a negative, or can be narrowed to its first positive without a case noticing.
 _CLAIM_BRANCHES = {
     "never": r"\bnever\b",
     "always": r"\balways\b",
-    "every": r"\bevery\b",
+    "every": r"\bevery(?:thing|one|body|where)?\b",
     "all": r"\ball\b",
-    "no_ever": r"\bno\s+\w+(?:[\s,;]+\w+){0,3}[\s,;]+ever\b",
+    "each": r"\beach\b(?!\s+other\b)",
+    # "no X ever" with up to three words between, and any of space , ; : ( ) - or an en or em dash
+    # as separators ("No sudo, ever.", "No sudo -- ever.", "No sudo (ever).").
+    "no_ever": r"\bno\s+\w+(?:[\s,;:()\u2013\u2014-]+\w+){0,3}[\s,;:()\u2013\u2014-]+ever\b",
     "nothing": r"\bnothing\b",
     "only": r"\bonly\b",
-    "none": r"\bnone\b",
-    "cannot": r"\b(?:cannot|can['\u2019]t)\b",
-    # P95: bare "no" as a promise ("no code path installs ...", "makes no network call"), aiming
-    # not to flag innocuous forms ("no terminal needed"; the independent pass on P95 found "no
-    # admin rights needed" IS flagged). Measured on a 21-case labelled set drawn from the corpus,
-    # not committed: precision 1.00, recall 0.89; the pass found further misses ("There is no
-    # fallback ..."). ORDER IS LOAD-BEARING: this branch must follow no_ever, because alternation
-    # reports the first branch that matches at a position, and listed before it this branch
-    # would claim "no X ever" sentences from no_ever.
-    "bare_no": (r"(?<![\"\u201c])\bno\s+(?:\w[\w./-]*\s+){0,3}"
-                r"(?:is|are|was|were|will|can|ever|\w+s(?=\s+\w))\b"
+    "none": r"\b(?:none|nobody|no\s+one)\b(?!-)",
+    "cannot": r"\b(?:cannot|can\s+not|can['\u2019]t)\b",
+    "will_not": r"\b(?:will\s+not|won['\u2019]t)\b",
+    # Bare "no" used as a promise. A word pattern, not a parser; tools/claim-proof-cases.json
+    # records sentences it must and must not flag. It reads an existential ("There is no
+    # fallback"), a verb directly before "no" ("makes no network call"), and "no" followed within
+    # three words by a modal, by a verb ending in s and then another word ("No installer writes
+    # `/usr/local`"), or by a sentence-final verb from a short list ("No data persists."). "no
+    # need", a quoted "no" and "no X needed/required/necessary" are not read as promises. Not
+    # seen: more than three words before the verb ("No code path in the repo installs ..."), a
+    # past participle ("No real CRM data or PII committed"), and a sentence-final verb outside
+    # the list. A plural noun followed by a word reads as a verb, so "No changes to the profile"
+    # is flagged. ORDER: this branch must follow no_ever and none, because alternation reports the
+    # first branch that matches at a position.
+    "bare_no": (r"\bthere(?:\s+(?:is|are|was|were|will\s+be)|['\u2019]s)\s+no\s+(?!need\b)\w"
+                r"|(?<![\"\u201c])\bno\s+(?!need\b)(?:\w[\w./-]*\s+){0,3}"
+                r"(?:(?:is|are|was|were|will|can|may|must|shall|should|has|have|ever)\b"
+                r"|\w+s\b(?=\s+[\w`'\"/~(\[])(?!\s+(?:needed|required|necessary)\b)"
+                r"|(?:persists|exists|remains|happens|occurs|survives|stays|proceeds|continues"
+                r"|succeeds|lingers)\b(?=\s*(?:[.;:!,)]|$)))"
                 r"|\b(?:makes?|writes?|installs?|invokes?|issues?|sends?|queues?|publishes?|reads?|"
                 r"touch(?:es)?|performs?|runs?\s+with|lands?\s+in|with)\s+no\s+\w"),
 }
@@ -3725,18 +3749,21 @@ _CLAIM_MANIFEST_PATH = ROOT / "tools" / "claim-proof-manifest.json"
 
 
 def _coverage_proof(kind, branches, fixtures, fires, pinned=None):
-    """Shared detector self-proof (P94). A detector with N branches can lose one silently: the
-    regex narrows, the gate still prints clean, and the coverage claim quietly becomes false
-    (invariant 58's deriver, P70; invariant 59's scan list, P93). This asserts the two properties
+    """Shared detector self-proof. A detector with N branches can lose one silently: the regex
+    narrows and the gate still prints clean. This asserts the two properties
     that stop that: EVERY branch has a named fixture, and every fixture actually FIRES its own
     branch. Returns a problem string, or None when the proof holds.
 
     `fires(name, sample)` is the detector's own scan, returning truthy when `sample` trips the
     branch called `name`."""
+    if pinned is not None and not pinned:
+        return (f"{kind}: tools/claim-proof-manifest.json records no usable branch-name list for "
+                f"this detector (detector_branches is missing, or its entry is empty or not a list "
+                f"of names), so removing a branch together with its fixture would go unnoticed")
     if pinned is not None:
-        # Fixture/branch agreement alone only catches a HALF delete. Pinning the branch names
-        # means deleting a branch AND its fixture in one edit still fails, which is the realistic
-        # way a detector narrows (found by P94's own adversarial pass).
+        # Fixture/branch agreement alone only catches a half delete. With the branch names
+        # recorded in the manifest, deleting a branch AND its fixture in one edit still fails.
+        # pinned is None only when the manifest itself is unreadable, which invariant 60 reports.
         lost = sorted(set(pinned) - set(branches))
         if lost:
             return (f"{kind}: branch(es) {lost} are recorded in tools/claim-proof-manifest.json "
@@ -3786,45 +3813,75 @@ def _claim_norm(text):
     return " ".join(text.split())
 
 
-# P94-5: an exception clause can reverse a bound promise without using a single universal word
-# ("...refuses, except when ALLOW_SYSTEM is set, which installs into the shared site-packages").
-# The remainder scan cannot see that, so escape-hatch markers sitting in a bound unit are surfaced
-# on their own. Found by P94's own pre-report audit.
-# P95 widened the list after an independent pass reversed a bound promise with "except where",
-# "with the exception of" and "provided that". A reversal that uses NO marker at all ("..., and
-# ALLOW_SYSTEM installs into the shared site-packages") needs semantics a word list does not have;
-# that residual is named in ADR 0066, not claimed closed.
+# An exception clause can reverse a bound promise without a universal word ("...refuses, except
+# when ALLOW_SYSTEM is set, which installs into the shared site-packages"). _claim_sweep looks for
+# these markers in every unit of the corpus after bound text and code spans are removed, so a
+# marker in the bullet after a bound promise is read too. A reversal with no marker word at all
+# ("..., and ALLOW_SYSTEM installs into the shared site-packages") needs semantics a word list
+# does not have, and is not seen.
 _CLAIM_ESCAPE_RE = re.compile(
-    r"\b(unless|except when|except if|except where|except for|with the exception of|"
-    r"apart from when|other than when|save when|save for|provided that|providing that|"
-    r"so long as|as long as|only if|but if|override[sd]? this|bypass(?:es|ed)? this|"
-    r"opt out of this)\b", re.I)
+    r"\b(unless|except(?:ing)?|excluding|barring|aside from|apart from|other than|save when|"
+    r"save for|save if|with the exception of|provided that|providing that|so long as|as long as|"
+    r"only if|but if|(?:overr(?:ide|ides|ided|iding|idden|ode)|bypass(?:es|ed|ing)?)\s+"
+    r"(?:this|it|that|them)|opt(?:s|ed|ing)?[\s-]+out)\b", re.I)
+
+
+_CLAIM_HEADING_RE = re.compile(r"#{1,6}(?:\s|$)")
 
 
 def _claim_units(text, line_offset=0):
     """(line, unit_text) for each claim UNIT in a markdown slice: a bullet, numbered item, table
     row, or paragraph. Units, not lines, because a promise spans the lines of its bullet and a
-    reader binds the promise, not the line. Headings are titles, not promises, and are skipped."""
+    reader binds the promise, not the line. An ATX heading (one to six "#" then a space or the
+    line end) is a title, not a promise: it is skipped, and the lines under it start a new unit.
+    A line such as "#1 rule: ..." is ordinary text."""
     units, cur, start = [], [], None
     for i, line in enumerate(text.splitlines(), start=line_offset + 1):
         s = line.strip()
-        is_start = bool(s.startswith(("- ", "* ", "|")) or re.match(r"^\d+\. ", s) or s.startswith("#"))
+        heading = bool(_CLAIM_HEADING_RE.match(s))
+        is_start = heading or bool(s.startswith(("- ", "* ", "|")) or re.match(r"^\d+\. ", s))
         if is_start or not s:
             if cur:
                 units.append((start, " ".join(cur)))
-            cur, start = ([s], i) if s else ([], None)
+            cur, start = ([s], i) if s and not heading else ([], None)
         else:
             if not cur:
                 start = i
             cur.append(s)
     if cur:
         units.append((start, " ".join(cur)))
-    return [(ln, u) for ln, u in units if not u.lstrip().startswith("#")]
+    return units
+
+
+def _claim_section(text, markers):
+    """(line_offset, body) for the slice of `text` that a corpus entry names, or a problem string.
+    Each marker must start exactly one line, followed by a non-word character or the line end, so
+    a mention inside a line (for example in backticks) is not a marker. The body runs from the
+    line after the start marker to the line before the end marker."""
+    if not (isinstance(markers, (list, tuple)) and len(markers) == 2
+            and all(isinstance(m, str) and m for m in markers)):
+        return f"has a malformed section entry {markers!r}; it needs [start marker, end marker]"
+    found = []
+    for marker in markers:
+        hits = [m.start() for m in re.finditer(r"(?m)^" + re.escape(marker) + r"(?!\w)", text)]
+        if not hits:
+            return f"has no line that starts with the section marker {marker!r}"
+        if len(hits) > 1:
+            return (f"has {len(hits)} lines that start with the section marker {marker!r}; "
+                    f"exactly one must")
+        found.append(hits[0])
+    start, end = found
+    nl = text.find("\n", start)
+    body_start = len(text) if nl < 0 else nl + 1
+    if end < body_start:
+        return f"has the section end marker {markers[1]!r} before its start marker {markers[0]!r}"
+    return text.count("\n", 0, body_start), text[body_start:end]
 
 
 def _claim_corpus_units(spec):
     """Yield (doc, line, unit) over the manifest's declared corpus. A corpus entry may name a
-    section slice so a promise list can be guarded without guarding a whole file of prose."""
+    section, [start heading, end heading], so a promise list can be guarded without guarding a
+    whole file of prose; _claim_section finds the markers at line starts only."""
     for rel, cfg in sorted(spec.items()):
         path = ROOT / rel
         if not path.exists():
@@ -3834,18 +3891,232 @@ def _claim_corpus_units(spec):
         section = (cfg or {}).get("section")
         offset = 0
         if section:
-            head, sep, rest = text.partition(section[0])
-            if not sep:
-                problem(f"claim-proof: {rel} no longer contains the section marker {section[0]!r}")
+            got = _claim_section(text, section)
+            if isinstance(got, str):
+                problem(f"claim-proof: {rel} {got}")
                 continue
-            body, sep2, _ = rest.partition(section[1])
-            if not sep2:
-                problem(f"claim-proof: {rel} no longer contains the section end marker {section[1]!r}")
-                continue
-            offset = (head + section[0]).count("\n")
-            text = body
+            offset, text = got
         for ln, unit in _claim_units(text, offset):
             yield rel, ln, unit
+
+
+_CLAIM_CASES_PATH = ROOT / "tools" / "claim-proof-cases.json"
+_CLAIM_CASE_LISTS = ("negative", "escape_positive", "escape_negative", "units", "sections",
+                     "sweep")
+
+
+def _claim_escape_hit(text, escape=None):
+    """The first exception marker in `text`, or None. Code spans are removed first, so a
+    `try/except` in backticks is not an exception clause."""
+    return (escape or _CLAIM_ESCAPE_RE).search(re.sub(r"`[^`]*`", " ", text))
+
+
+def _claim_sweep(units, bound, exempt=(), pattern=None, escape=None):
+    """The reverse enrolment sweep over (doc, line, unit) triples; returns problem strings.
+    `bound` lists (doc, text) for every claim and exemption. Each binding is subtracted once, from
+    the first unit of its doc that still contains it, so it covers one occurrence of its text and
+    a promise appended to a bound unit is still read. A unit the detector flags fails when its
+    remainder is still flagged.
+    Exception markers: a marker left in any unit's remainder fails, whether or not the unit holds
+    a flagged word or bound text, because it can reverse a promise nearby without a universal
+    word. Code spans are removed before the marker search.
+    `exempt` holds the indices in `bound` that are exemptions. An exemption must do work: its
+    text must carry a flagged word or an exception marker, and it must be subtracted inside some
+    unit; otherwise it fails, because it exempts nothing and overstates what the gate exempts."""
+    pattern = pattern or _CLAIM_PATTERN
+    out, consumed = [], set()
+    for rel, ln, unit in units:
+        norm = _claim_norm(unit)
+        remainder = norm
+        for idx, (r, t) in enumerate(bound):
+            if r != rel or idx in consumed:
+                continue
+            needle = _claim_norm(t)
+            if needle and needle in remainder:
+                remainder = remainder.replace(needle, " ", 1)
+                consumed.add(idx)
+        esc = _claim_escape_hit(remainder, escape)
+        if esc:
+            out.append(f"claim-proof: {rel}:{ln} attaches an exception ({esc.group(0)!r}) that no "
+                       f"binding declares: {remainder.strip()[:90]!r}. An exception clause can "
+                       f"reverse a promise nearby without a universal word, so bind or exempt the "
+                       f"clause explicitly, or reword it")
+            continue
+        if pattern.search(norm) is None:
+            continue
+        left = pattern.search(remainder)
+        if left is not None:
+            out.append(f"claim-proof: {rel}:{ln} makes a universal claim ({left.group(0)!r}) that "
+                       f"nothing binds: {remainder.strip()[:90]!r}. Add it to "
+                       f"tools/claim-proof-manifest.json with the invariant or selftest pin that "
+                       f"proves it, list it as an exemption with a written reason, or narrow the "
+                       f"sentence to what is actually tested")
+    for idx in sorted(exempt):
+        rel, text = bound[idx]
+        norm = _claim_norm(text)
+        if pattern.search(norm) is None and _claim_escape_hit(norm, escape) is None:
+            out.append(f"claim-proof: the exemption for {text[:50]!r} in {rel} exempts nothing: its "
+                       f"text carries no word the detector flags and no exception marker. Drop "
+                       f"the entry")
+        elif idx not in consumed:
+            out.append(f"claim-proof: the exemption for {text[:50]!r} in {rel} sits in no unit of "
+                       f"the guarded corpus, so it exempts nothing. Drop it, or point it at text "
+                       f"the corpus covers")
+    return out
+
+
+def _claim_load_cases():
+    """The labelled detector cases in tools/claim-proof-cases.json, or a problem string when the
+    file is missing, unreadable, or has no `positive` table."""
+    try:
+        cases = json.loads(_CLAIM_CASES_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return (f"claim-proof: tools/claim-proof-cases.json is missing or unreadable ({exc}); the "
+                f"detector cannot check itself without its labelled cases")
+    if not isinstance(cases, dict) or not isinstance(cases.get("positive"), dict):
+        return ("claim-proof: tools/claim-proof-cases.json has no `positive` table of labelled "
+                "cases per branch")
+    return cases
+
+
+def _claim_case_problems(cases, pattern=None, escape=None):
+    """Problems where the detector disagrees with its labelled cases. `positive` maps every
+    branch to at least two sentences whose first match must come from that branch; `negative`
+    sentences must not be flagged; `escape_positive` and `escape_negative` sentences must and
+    must not carry an exception marker; `units` cases give the expected _claim_units result;
+    `sections` cases give the expected _claim_section result, as units or an error substring;
+    `sweep` cases run _claim_sweep over a small document (`bound` and `exempt` texts) and list,
+    in order, a substring of each problem it must report. `pattern` and `escape` default to the
+    live detector; _claim_case_blindness passes narrowed copies."""
+    pattern = pattern or _CLAIM_PATTERN
+    out = []
+    for key in _CLAIM_CASE_LISTS:
+        if not isinstance(cases.get(key), list) or not cases[key]:
+            out.append(f"claim-proof: tools/claim-proof-cases.json has no {key!r} cases")
+    pos = cases.get("positive") if isinstance(cases.get("positive"), dict) else {}
+    for name in _CLAIM_BRANCHES:
+        got = pos.get(name)
+        if not isinstance(got, list) or len(got) < 2:
+            out.append(f"claim-proof: branch {name!r} needs at least two labelled positive cases")
+            continue
+        for s in got:
+            hit = pattern.search(s)
+            if hit is None or hit.lastgroup != name:
+                who = "nothing flags it" if hit is None else f"{hit.lastgroup!r} flags it first"
+                out.append(f"claim-proof: the labelled case {s!r} must be flagged by the {name!r} "
+                           f"branch, but {who}")
+    for name in sorted(set(pos) - set(_CLAIM_BRANCHES)):
+        out.append(f"claim-proof: tools/claim-proof-cases.json has positives for {name!r}, which is "
+                   f"not a detector branch")
+    for s in cases.get("negative") or []:
+        hit = pattern.search(s)
+        if hit:
+            out.append(f"claim-proof: the labelled negative {s!r} is flagged by {hit.lastgroup!r} "
+                       f"({hit.group(0)!r})")
+    if len(cases.get("escape_positive") or []) < 2:
+        out.append("claim-proof: tools/claim-proof-cases.json needs at least two escape_positive "
+                   "cases")
+    for s in cases.get("escape_positive") or []:
+        if not _claim_escape_hit(s, escape):
+            out.append(f"claim-proof: the exception marker in the labelled case {s!r} is not seen")
+    for s in cases.get("escape_negative") or []:
+        hit = _claim_escape_hit(s, escape)
+        if hit:
+            out.append(f"claim-proof: {s!r} is read as an exception ({hit.group(0)!r}) but is "
+                       f"labelled as none")
+    for case in cases.get("units") or []:
+        try:
+            got = [[ln, u] for ln, u in _claim_units(case["text"])]
+            if got != case["expect"]:
+                out.append(f"claim-proof: unit case {case.get('name')!r} expected "
+                           f"{case['expect']}, got {got}")
+        except (KeyError, TypeError, AttributeError) as exc:
+            out.append(f"claim-proof: unit case {case!r} is malformed ({exc})")
+    for case in cases.get("sections") or []:
+        try:
+            got = _claim_section(case["text"], case["markers"])
+            if isinstance(got, str):
+                good = "error" in case and case["error"] in got
+            else:
+                got = [[ln, u] for ln, u in _claim_units(got[1], got[0])]
+                good = "error" not in case and got == case["expect"]
+            if not good:
+                out.append(f"claim-proof: section case {case.get('name')!r} got {got!r}")
+        except (KeyError, TypeError, AttributeError) as exc:
+            out.append(f"claim-proof: section case {case!r} is malformed ({exc})")
+    for case in cases.get("sweep") or []:
+        try:
+            units = [("case.md", ln, u) for ln, u in _claim_units(case["text"])]
+            bound = [("case.md", t) for t in case.get("bound", [])]
+            exempt = set(range(len(bound), len(bound) + len(case.get("exempt", []))))
+            bound += [("case.md", t) for t in case.get("exempt", [])]
+            got = _claim_sweep(units, bound, exempt, pattern, escape)
+            want = case["expect"]
+            if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+                out.append(f"claim-proof: sweep case {case.get('name')!r} expected {want}, got "
+                           f"{[g[:80] for g in got]}")
+        except (KeyError, TypeError, AttributeError) as exc:
+            out.append(f"claim-proof: sweep case {case!r} is malformed ({exc})")
+    return out
+
+
+def _claim_case_blindness(cases):
+    """Problems when the labelled cases cannot tell a branch, or the exception-marker list, from
+    a copy of its own first case: each in turn is replaced by re.escape(first case), and some
+    case must then fail. Cases that all read one way would otherwise let a branch shrink to a
+    single sentence unnoticed."""
+    out = []
+    pos = cases.get("positive") or {}
+    for name in _CLAIM_BRANCHES:
+        first = (pos.get(name) or [None])[0]
+        if not isinstance(first, str):
+            continue
+        narrowed = "|".join(f"(?P<{k}>{re.escape(first) if k == name else v})"
+                            for k, v in _CLAIM_BRANCHES.items())
+        if not _claim_case_problems(cases, pattern=re.compile(narrowed, re.I)):
+            out.append(f"claim-proof: the labelled cases cannot tell the {name!r} branch from a "
+                       f"copy of its first case; add a positive phrased another way")
+    first = (cases.get("escape_positive") or [None])[0]
+    if isinstance(first, str) and not _claim_case_problems(
+            cases, escape=re.compile(re.escape(first), re.I)):
+        out.append("claim-proof: the labelled cases cannot tell the exception-marker list from a "
+                   "copy of its first case; add an escape_positive with another marker")
+    return out
+
+
+
+# The helpers check_claim_proof must call for the labelled cases and the corpus sweep to be read.
+_CLAIM_WIRING = ("_claim_load_cases", "_claim_case_problems", "_claim_case_blindness",
+                 "_claim_corpus_units", "_claim_sweep")
+
+
+def _claim_wiring_problems(source=None):
+    """Problems when check_claim_proof no longer calls a helper named in _CLAIM_WIRING from its
+    own body. A call inside a nested function, or under an `if` or `while` whose test is a
+    constant, does not count. Without this, deleting the call that runs the labelled cases or the
+    corpus sweep leaves the build green while nothing is checked. `source` defaults to this file."""
+    try:
+        tree = ast.parse(source if source is not None else Path(__file__).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        return [f"claim-proof: could not parse this file to check what check_claim_proof calls: {exc}"]
+    fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "check_claim_proof"),
+              None)
+    if fn is None:
+        return ["claim-proof: check_claim_proof is not defined at module level"]
+    called, stack = set(), list(fn.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            continue
+        if isinstance(node, (ast.If, ast.While)) and isinstance(node.test, ast.Constant):
+            stack.extend(node.body if node.test.value else node.orelse)
+            continue
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            called.add(node.func.id)
+        stack.extend(ast.iter_child_nodes(node))
+    return [f"claim-proof: check_claim_proof no longer calls {name}(), so the labelled cases or the "
+            f"corpus sweep it runs are not read; restore the call"
+            for name in _CLAIM_WIRING if name not in called]
 
 
 # P95: a selftest pin proves a claim only when it is a call to a check helper this module
@@ -5507,48 +5778,45 @@ def _claim_multi_proof_self_proof():
 
 
 def check_claim_proof():
-    """Invariant 60: claim-proof binding (P94). A universal claim about this repo's own behavior
-    ("never", "every", "all", "only", "nothing", "always", "none", "cannot", "no ... ever", and a
-    bare "no" used as a promise -- P95) inside the guarded corpus must be bound in
-    tools/claim-proof-manifest.json to either an enforced drift invariant or a NAMED selftest pin
-    the battery actually executes -- or listed as an exemption with a written reason, for a
-    standing instruction to the agent that no code can prove.
+    """Invariant 60: claim-proof binding. A universal claim about this repo's own behavior in the
+    guarded corpus (the manifest's `corpus`) must be bound in tools/claim-proof-manifest.json to
+    an enforced drift invariant or a NAMED selftest pin the battery executes, or be listed as an
+    exemption with a written reason, for a standing instruction to the agent that no code can
+    prove. A universal claim here means a unit the detector flags: the word patterns in
+    _CLAIM_BRANCHES. A promise phrased without them is not seen.
 
-    Static refusal rules (P95) reject a pin that cannot fail when the call is off the selftest's
-    live call path, goes to a helper this module does not define or that never tests its
-    condition, or has a condition whose truth is fixed. P94's independent pass showed a parked
-    function and `ok(1 == 1, ...)` certifying promises; P95's harness added a tuple, `x == x`,
-    `x or True` and a helper that never tests its argument. The rules are incomplete: the
-    independent pass on P95 found pins that cannot fail and still pass (addendum to
-    docs/p94-claim-proof-audit-2026-09-24.md).
+    The static refusal rules in _claim_pins reject a selftest pin whose call is off the
+    selftest's live call path, goes to a helper this module does not define or that never tests
+    its condition, or has a condition whose truth is fixed. They recognise the shapes they list;
+    a pin that cannot fail in another way can still pass.
 
-    This exists because P93 shipped "no code path installs machine-wide" as a commit subject while
-    the fallback it denied was still on line 138 of the file it changed, and shipped "every
-    remaining brew install sits under a label" while three live files did not. Both sentences
-    passed every existing guard: documentation truth checks paths, symbols, counts, URLs and
-    hashes, and a universal sentence names none of those.
+    Route records tie an install route the docs recommend to the code that must detect it: the
+    check fails when a listed doc stops recommending the route, or when a prober stops pointing
+    at the route's install location. The reverse enrolment sweep (_claim_sweep, whose docstring
+    gives its rules) fails on a flagged unit of the corpus that no binding covers.
 
-    Two further bindings ride along. ROUTE records tie an install route the docs RECOMMEND to the
-    code that must DETECT it, because P93 recommended nvm and uv while env_paths searched neither,
-    so the wizard reported "Node.js not detected" after issuing its own nvm command. And a reverse
-    enrolment sweep (the shape of invariant 48's) fails when a universal claim joins the corpus
-    bound to nothing, so the promise list cannot grow unproven.
+    Before any of that, the detector checks itself against tools/claim-proof-cases.json
+    (_claim_case_problems): each branch flags at least two labelled positives, the negatives stay
+    unflagged, and the escape, unit and sweep cases give their recorded results. Each branch in
+    turn replaced by a copy of its first positive must make some case fail
+    (_claim_case_blindness). A missing or unreadable case file is a problem, not a skipped check.
+    The cases are a regression pin, not a precision measurement: a branch narrowed to exactly its
+    listed positives still passes.
 
-    The detector proves itself against one fixture per branch before it scans, so deleting a
-    branch fails the build instead of quietly shrinking coverage."""
-    # --- coverage proof: one fixture per branch, by name ---
-    fixtures = {
-        "never": "Creator OS never writes outside the user account.",
-        "always": "The gate always refuses an unsigned payload.",
-        "every": "Every spoke resolves to an installed atom.",
-        "all": "All seven requirement sets land in the private .venv.",
-        "no_ever": "No tool here ever touches a shared site-packages.",
-        "nothing": "Nothing is released until the gates pass.",
-        "only": "The repo .venv is the only install target.",
-        "none": "The installer writes none of it outside the home folder.",
-        "cannot": "The dashboard cannot publish without a confirmation step.",
-        "bare_no": "No code path in this repo installs machine-wide.",
-    }
+    The function first reads its own source (_claim_wiring_problems) and fails when it no
+    longer calls a helper named in _CLAIM_WIRING, so deleting the call that runs the cases or
+    the sweep fails the build."""
+    # --- wiring: the self-proof and the sweep below are read only while these calls exist ---
+    for msg in _claim_wiring_problems():
+        problem(msg)
+    # --- detector self-proof: the committed labelled cases, before anything is scanned ---
+    cases = _claim_load_cases()
+    if isinstance(cases, str):
+        problem(cases)
+        return
+    fixtures = {name: got[0] for name, got in cases["positive"].items()
+                if isinstance(got, list) and got and isinstance(got[0], str)}
+
     def _claim_fires(name, sample):
         hit = _CLAIM_PATTERN.search(sample)
         return hit is not None and hit.lastgroup == name
@@ -5558,16 +5826,20 @@ def check_claim_proof():
     if gap:
         problem(gap)
         return
-    if _CLAIM_PATTERN.search("The installer reports each result honestly and stops on failure."):
-        problem("claim-proof: detector self-proof failed -- a sentence making no universal claim "
-                "was flagged")
+    bad = _claim_case_problems(cases) or _claim_case_blindness(cases)
+    if bad:
+        for msg in bad:
+            problem(msg)
         return
-    if len(_claim_units("- first promise\n  continues here\n\n- second promise\n")) != 2:
-        problem("claim-proof: detector self-proof failed -- a multi-line bullet did not read as "
-                "one claim unit")
-        return
-    if _claim_units("## A heading that says every\n"):
-        problem("claim-proof: detector self-proof failed -- a heading was read as a promise")
+    # The branch-name pin fails closed: a manifest that loses detector_branches, or holds a
+    # malformed entry for a detector, is a problem rather than a skipped pin.
+    if (_detector_pin_from({}, "claim_proof") != []
+            or _detector_pin_from({"detector_branches": ["all"]}, "claim_proof") != []
+            or _detector_pin_from({"detector_branches": {"claim_proof": "all"}}, "claim_proof") != []
+            or _coverage_proof("claim-proof", {"x": ""}, {"x": ""}, lambda name, s: True,
+                               pinned=[]) is None):
+        problem("claim-proof: detector self-proof failed -- a missing or malformed "
+                "detector_branches entry no longer fails the branch-name pin")
         return
     # Self-proofs of the pin rules and of how a proof reference resolves: each returns None, or
     # what broke.
@@ -5635,6 +5907,7 @@ def check_claim_proof():
                     f"{detail}")
         bound.append((rel, text))
 
+    exempt_ids = set()
     for entry in man.get("exempt", []):
         rel, text, why = entry.get("doc"), entry.get("claim"), entry.get("why") or ""
         if not (rel and text):
@@ -5646,6 +5919,7 @@ def check_claim_proof():
             continue
         path = ROOT / rel
         if path.exists() and _claim_norm(text) in _claim_norm(path.read_text(encoding="utf-8")):
+            exempt_ids.add(len(bound))
             bound.append((rel, text))
         else:
             problem(f"claim-proof: the exemption for {text[:50]!r} no longer matches any text in "
@@ -5674,8 +5948,7 @@ def check_claim_proof():
             body = path.read_text(encoding="utf-8")
             if symbol:
                 # Resolve the SYMBOL, not the token: a prober that keeps the path in a comment
-                # while its actual lookup moved would otherwise pass (found by this check's own
-                # red-team pass, which mutated USER_BIN and watched the gate stay silent).
+                # while its actual lookup moved would otherwise pass.
                 value = _claim_symbol_value(path, symbol)
                 if value is None:
                     problem(f"claim-proof: route prober {rel} does not resolve to a module-level "
@@ -5690,47 +5963,9 @@ def check_claim_proof():
                         f"recommend {cmd!r} which installs there. A route we recommend has to be "
                         f"a route we can find, or the advice dead-ends")
 
-    # --- reverse enrolment sweep: a universal claim bound to nothing is the P93 failure ---
-    consumed = set()
-    for rel, ln, unit in _claim_corpus_units(man.get("corpus", {})):
-        # Subtract what IS bound, then look at what is left. Matching the whole unit would let a
-        # new universal appended to an already-bound bullet ride in on its neighbour's binding --
-        # the defect P94's own adversarial pass found in this very check. Each binding covers ONE
-        # occurrence in its doc (P95): subtracting every occurrence let a short bound phrase
-        # ("makes no network call") whitelist any later sentence that repeated its words.
-        remainder = _claim_norm(unit)
-        for idx, (r, t) in enumerate(bound):
-            if r != rel or idx in consumed:
-                continue
-            needle = _claim_norm(t)
-            if needle and needle in remainder:
-                remainder = remainder.replace(needle, " ", 1)
-                consumed.add(idx)
-        # Bindings are consumed in document order BEFORE the hit test, so a bound phrase whose
-        # own unit makes no universal claim still uses up its binding there.
-        if _CLAIM_PATTERN.search(unit) is None:
-            continue
-        # An escape hatch next to a bound promise must be declared, even when it uses no
-        # universal word: it changes what the bound sentence means.
-        if len(remainder) < len(_claim_norm(unit)):          # something in this unit IS bound
-            # No guard on "this doc declares an escape somewhere": bound text is already
-            # subtracted, so a marker still standing in the remainder is by definition NOT part
-            # of any declared claim. The first cut skipped the whole FILE when one bound entry
-            # anywhere in it contained "unless", which silently disabled this check.
-            esc = _CLAIM_ESCAPE_RE.search(remainder)
-            if esc:
-                problem(f"claim-proof: {rel}:{ln} attaches an exception ({esc.group(0)!r}) to a "
-                        f"bound promise without declaring it: {remainder.strip()[:90]!r}. An "
-                        f"escape hatch changes what the promise means, so bind or exempt the "
-                        f"clause explicitly, or narrow the promise to match it")
-                continue
-        left = _CLAIM_PATTERN.search(remainder)
-        if left is None:
-            continue
-        problem(f"claim-proof: {rel}:{ln} makes a universal claim ({left.group(0)!r}) that nothing "
-                f"binds: {remainder.strip()[:90]!r}. Add it to tools/claim-proof-manifest.json "
-                f"with the invariant or selftest pin that proves it, list it as an exemption with "
-                f"a written reason, or narrow the sentence to what is actually tested")
+    # --- reverse enrolment sweep: a flagged unit bound to nothing fails ---
+    for msg in _claim_sweep(list(_claim_corpus_units(man.get("corpus", {}))), bound, exempt_ids):
+        problem(msg)
 
 
 def _ci_parity_problems(text, battery):

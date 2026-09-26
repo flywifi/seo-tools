@@ -19,6 +19,12 @@
     },
     {
       "doc": "CLAUDE.md",
+      "claim": "runs with no model tokens: outside its selftests, the code it runs imports only the standard library plus `registry_io` and `atomic_io`, starts no process, sends requests only to `pypi.org` and `api.github.com`, and reads one credential from the environment, a GitHub token",
+      "proof": "tools/dependency_currency.py::selftest::token-free: outside its selftests the import closure",
+      "why": "The selftest reads the import closure of dependency_currency.py statically, skipping the functions named selftest and _selftest. It fails on a module outside the standard library other than registry_io and atomic_io, on a refused standard-library module (subprocess, multiprocessing, concurrent, importlib, runpy, ctypes, pty, webbrowser, asyncio, pkgutil, zipimport, builtins, code, codeop, pickle, marshal, shelve, _posixsubprocess, socket, socketserver, http, ftplib, smtplib, imaplib, poplib, nntplib, telnetlib, xmlrpc), on a process-spawning or dynamic-code call, on a network call outside _http_get_json, on an environment read other than REQUESTS_CA_BUNDLE, GITHUB_TOKEN or GH_TOKEN, and when _ALLOWED_HOSTS is anything but pypi.org and api.github.com. It also hands _http_get_json a recording opener: a URL on another host is refused before anything is sent, and a redirect to another host is refused. It reads code, not traffic: a credential read from a file is not seen. A model request needs a model host, which the host check refuses, or a process or model client, which the closure check refuses; the conclusion rests on pypi.org and api.github.com serving no model inference."
+    },
+    {
+      "doc": "CLAUDE.md",
       "claim": "No real CRM data or PII committed to the repo",
       "proof": "invariant:21",
       "why": "check_secret_content reads every tracked text file; invariants 19 and 20 cover the filename and pipeline-allowlist halves."
@@ -139,11 +145,6 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "Claims about this repo's own behavior meet the same bar as a plan",
-      "why": "The claims rule itself, and it quotes the trigger words it governs. Invariant 60 enforces the rule; a self-binding entry would be circular, so it is exempted with this reason instead."
-    },
-    {
-      "doc": "CLAUDE.md",
       "claim": "Installs are user-scoped by default: everything lands under the user's home folder",
       "why": "The policy statement whose two provable halves are bound separately above (invariant 59 for the guidance labeling, the setup.py pin for the code side). This opening sentence is the summary of those bindings."
     },
@@ -169,33 +170,13 @@
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "caches (pip, Playwright's browser)",
-      "why": "A table row naming third-party cache locations those tools choose; this repo does not control them and no guard can assert their behavior."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
       "claim": "wizard state, staged bundles, `dist/` builds -- all gitignored",
       "why": "A table row about gitignore coverage, which drift invariant 19 enforces for tracked .local. files; the row itself is descriptive."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "nvm, per its README install script",
-      "why": "A table row describing a third-party installer's documented behavior; the repo-side obligation (that we can find what it installs) is bound as a route record instead."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "already inside the repo `.venv` after `--install-deps`",
-      "why": "A table row naming the STT default; the enforceable half is the venv-only install pin bound above."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
       "claim": "none needed -- the repository is public",
-      "why": "A statement about GitHub repository visibility, verified out of band against the GitHub API in P92-2; no local guard can assert a remote's visibility."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "`shared/connectors/connectors.json` is the source of truth for the connector registry",
-      "why": "Names which file is authoritative for maintainers, a convention about where to edit; invariant 53 proves the committed registry resolves, not that no other file claims authority."
+      "why": "A statement about GitHub repository visibility, a property of the remote that no local guard in this repo can assert."
     },
     {
       "doc": "CLAUDE.md",
@@ -209,23 +190,13 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "A universal claim (\"no\", \"never\", \"every\", \"all\", \"only\", \"nothing\", \"always\", \"none\", \"cannot\") in a",
+      "claim": "A universal claim (\"no\", \"never\", \"every\", \"everything\", \"all\", \"each\", \"only\", \"nothing\", \"always\", \"none\", \"nobody\", \"cannot\", \"will not\") in a",
       "why": "this sentence QUOTES the trigger vocabulary the rule governs; the words are the subject of the sentence rather than a promise being made."
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "drift invariant 60 fails the build when a bound\n  claim drifts from its proof, when a named pin is renamed away, when a recommended install\n  route stops being detectable, or when an unproven universal claim joins the list",
-      "why": "invariant 60's own behavior, proven by the fail-then-pass fixtures embedded in check_claim_proof that run on every battery pass through the drift guard rather than by a selftest pin (sync_check is exempt from the selftest sweep because executing it IS its test)."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "is the token-free version-drift checker for pip packages, system\n  binaries, and MCP servers",
-      "why": "describes the tool's purpose and read surface for maintainers; invariant 25 constrains only the requirements-versus-registry pin, not the tool's design."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "The resolver (`shared/connectors/connectors.py`) reads this file plus, automatically,",
-      "why": "describes which files the resolver consults, a design note for maintainers rather than a promise a guard can execute."
+      "claim": "Write ranges with \"to\" everywhere, including internal docs",
+      "why": "A writing instruction to the agent. Invariant 4 fails the build on an en dash in .md files under shared/, protocols/, skills/, docs/, examples/ and canonical-sources/; a hyphen range, and any file outside those folders, is unchecked, so 'everywhere' is doctrine rather than a checked property."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -241,21 +212,6 @@
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "auth only if a machine must PUSH",
       "why": "states when GitHub credentials are needed, a fact about GitHub's access model that no local guard can assert."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "commit subject, a doc sentence, a CHANGELOG entry, or a report to the owner either names\n  the executed pin that proves it or is narrowed to what was actually tested",
-      "why": "the claims rule's own statement of scope, which reaches a chat report to the owner; no guard can read a chat message, so this half is doctrine enforced by judgment rather than by the build."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "Test the PROPERTY\n  claimed, not the mechanism changed",
-      "why": "an instruction about how to choose a test, not an assertion about repo behavior that a test could confirm."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "Policy, approved locations, and the one exception (Apple CLT git):",
-      "why": "points at the policy page and names the single exception; the enforceable halves are bound separately to invariant 59 and the setup.py pin."
     },
     {
       "doc": "CLAUDE.md",
@@ -301,21 +257,6 @@
       "doc": "CLAUDE.md",
       "claim": "When a\n  check fails, report it honestly with the output; never claim a skipped step ran.",
       "why": "an instruction governing what the agent says in a report; nothing in the build can read a chat message, so this is doctrine enforced by judgment."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "maintenance runs with no model tokens",
-      "why": "Describes how the tool is meant to be run: a deterministic stdlib script from cron or a shell, with no agent in the loop. Spending tokens needs an agent, which is outside anything the script's own code can assert."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "no sudo, ever",
-      "why": "Paraphrases nvm's own documented per-user install model, quoted from its README in the same cell. A property of a third-party installer that no code in this repo can prove."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "sees none of it",
-      "why": "The last step of a manual verification procedure the reader performs on their own machine with a second account. It says how to check, not what the code does."
     }
   ],
   "routes": [
@@ -348,19 +289,21 @@
       "why": "nvm keeps each node under $NVM_DIR/versions/node/<version>/bin (nvm.sh::nvm_version_path) and is sourced per shell. P93 made nvm the recommended Node route while env_paths could not see it, so the wizard looped users on 'Still not detecting Node.js 20 or higher' after issuing its own nvm command."
     }
   ],
-  "_detector_branches_why": "Recorded branch names for the two detectors that scan text. Fixture/branch agreement alone only catches a half delete; pinning the names means removing a branch AND its fixture in one edit still fails the build, the realistic way coverage narrows.",
+  "_detector_branches_why": "Recorded branch names for the two detectors that scan text. Fixture/branch agreement alone only catches a half delete; with the names recorded here, removing a branch AND its fixture in one edit still fails the build. A missing table, a missing key, or an entry that is not a non-empty list of names fails the check instead of skipping the pin.",
   "detector_branches": {
     "claim_proof": [
       "all",
       "always",
       "bare_no",
       "cannot",
+      "each",
       "every",
       "never",
       "no_ever",
       "none",
       "nothing",
-      "only"
+      "only",
+      "will_not"
     ],
     "install_scope": [
       "brew",

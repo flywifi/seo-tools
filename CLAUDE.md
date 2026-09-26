@@ -136,8 +136,9 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   file name with a suffix on `AUDIT_RECORD_TEXT_SUFFIXES` that carries a date and a review keyword (in
   the name or in a directory above it), or a path on `AUDIT_RECORD_PATHS`.
 - **Claims about this repo's own behavior meet the same bar as a plan: executed evidence, or
-  they are not written.** A universal claim ("no", "never", "every", "all", "only", "nothing",
-  "always", "none", "cannot") in a commit subject, a doc sentence, a CHANGELOG entry, or a report
+  they are not written.** A universal claim ("no", "never", "every", "everything",
+  "all", "each", "only", "nothing", "always", "none", "nobody", "cannot", "will not") in a commit
+  subject, a doc sentence, a CHANGELOG entry, or a report
   to the owner either names the executed pin that proves it or is narrowed to what was actually
   tested. Test the PROPERTY
   claimed, not the mechanism changed. The independent pass that checks a claim
@@ -146,10 +147,13 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   whose agents could not run is reported as DID NOT RUN rather than as clean, and the adversarial
   vectors are chosen by the reviewer rather than the author (section 7.2); and a new
   guard's scan set is derived from the tree, never a hand list of the files the change happened
-  to touch. The promises in this section and in `docs/INSTALL-SCOPE.md` are bound to their
-  proofs in `tools/claim-proof-manifest.json`; drift invariant 60 fails the build when a bound
-  claim drifts from its proof, when a named pin is renamed away, when a recommended install
-  route stops being detectable, or when an unproven universal claim joins the list. When a
+  to touch. The promises in this section and in `docs/INSTALL-SCOPE.md` that the detector flags are
+  bound to their proofs in `tools/claim-proof-manifest.json` or exempted there with a written
+  reason; drift invariant 60 fails the build when a bound claim drifts from its proof, when a
+  named pin is renamed away, when a recommended install route stops being detectable, or when a
+  sentence the detector flags (`tools/sync_check.py::_CLAIM_BRANCHES`) joins the list without a
+  binding or an exemption. The detector reads word patterns, so a promise phrased another way
+  is not seen. When a
   check fails, report it honestly with the output; never claim a skipped step ran.
 - Installs are user-scoped by default: everything lands under the user's home folder (repo
   `.venv`, `~/.local`, `~/Applications`, `~/Library`); nothing under `/Applications`,
@@ -180,7 +184,11 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   update-source`, and drift invariant 25 fails the build when a requirements specifier and the
   registry pin disagree. `report`/`check` are read-only; `check --apply` stamps
   `last_checked`/`latest_seen` for reachable entries via `registry_io` so routine currency
-  maintenance runs with no model tokens. Binary/manual entries degrade to advisory.
+  maintenance runs with no model tokens: outside its selftests, the code it runs imports only the
+  standard library plus `registry_io` and `atomic_io`, starts no process, sends requests only to
+  `pypi.org` and `api.github.com`, and reads one credential from the environment, a GitHub token
+  (`tools/dependency_currency.py --selftest` walks that import closure and checks the host
+  refusal). Binary/manual entries degrade to advisory.
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
   `traversal-visited.json`.
 - `shared/connectors/connectors.json` is the source of truth for the connector registry. The

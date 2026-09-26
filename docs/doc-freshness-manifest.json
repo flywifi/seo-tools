@@ -10,9 +10,9 @@
     },
     "docs/CURRENCY.md": {
       "sources": {
-        "tools/dependency_currency.py": "ca4faddd7f486f73081a13fce129441dbcbe7ddaa11750c765ecbe319ee88828",
+        "tools/dependency_currency.py": "1baed783a1b74360b3486c090e936768ba265db45073f37012ad68227380988d",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "8e369be51327ec1851742c333519b5a788f6f15e8967fc4fbb559f248649db13"
+        "tools/sync_check.py": "116747816ad6e03330eebd8d93cf2e2fa17e48eabfebc94a8c81dd32a34f0af7"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
