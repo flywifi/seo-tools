@@ -136,12 +136,22 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   commits made through the GitHub API).
 - **Audit output stays out of the repository.** Findings, verdicts, triage tables, pass records
   and a pass's change ledger are kept in the working plan outside the repository. A commit
-  carries the change and the docs that state what the code does; its prose describes behavior,
-  not how a defect was found. `STATE.md` and `ledger/ledger.json` record decisions and phases,
-  not review results or conversations. Drift invariant 20 and the pre-commit hook refuse a
+  carries the change and the docs that state what the code does; commit prose, `CHANGELOG.md`,
+  `STATE.md`, `ledger/ledger.json` and the ADRs state behavior and decisions, not how or by whom a
+  defect was found, and do not record review results or conversations. Drift invariant 20 and the pre-commit hook refuse a
   tracked or staged audit-record file as `tools/secret_scan.py::audit_record_name` defines it: a
-  file name with a suffix on `AUDIT_RECORD_TEXT_SUFFIXES` that carries a date and a review keyword (in
-  the name or in a directory above it), or a path on `AUDIT_RECORD_PATHS`.
+  path that carries a calendar date and a review keyword, either of them in the file name or in a
+  directory above it, where the file name carries a suffix on `AUDIT_RECORD_TEXT_SUFFIXES` or is
+  unsuffixed; or a path on `AUDIT_RECORD_PATHS` in any letter case. The date forms, the keywords
+  and the limits are listed at that rule.
+  `tools/secret_scan.py` also refuses a finding-id token in tracked text, staged lines and commit
+  messages (`AUDIT_RECORD_ID_PATTERNS`, run by invariant 21 and the hooks); its limits are listed
+  there.
+  `tools/secret_scan.py` refuses a severity tally and a pointer to a report committed to the
+  repository in tracked text and commit messages (`AUDIT_RECORD_REPORT_PATTERNS`); other
+  phrasings are held by review.
+  In `docs/adr/` and `ledger/ledger.json`, `tools/secret_scan.py` refuses the discovery phrasings
+  in `AUDIT_RECORD_NARRATION_RE`; other phrasings are held by review.
 - **Claims about this repo's own behavior meet the same bar as a plan: executed evidence, or
   they are not written.** A universal claim ("no", "never", "every", "everything",
   "all", "each", "only", "nothing", "always", "none", "nobody", "cannot", "will not") in a commit

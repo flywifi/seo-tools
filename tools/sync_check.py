@@ -1800,7 +1800,7 @@ def check_transitions():
                 problem(f"transitions: tools/wizard.py does not name surface id {sid!r} "
                         "(the wizard pickers must cover every surface)")
     # (f) packaging artifacts carry the version stamp so pasted packs can be compared with the
-    # repo VERSION and re-synced (E12).
+    # repo VERSION and re-synced.
     ci = ROOT / "implementation" / "gpt" / "web" / "custom-instructions.md"
     if ci.exists():
         ci_first = ci.read_text(encoding="utf-8").split("\n", 1)[0]

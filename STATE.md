@@ -185,13 +185,13 @@ Branch: `claude/repo-access-confirm-wxe50a`.
   pass); tag; PR.
 
 - P81: Remediation of the 24-hour audit of P80 (2026-09-06, docs/adr/0056-p81-audit-remediation.md).
-  Forty-nine findings closed in four commits after five read-only researchers extracted every
-  contract verbatim and every code change ran in a sandbox first. One atomic writer replaced four;
+  Closed in four commits. Every contract was taken verbatim from the code, and every code change
+  ran in a sandbox first. One atomic writer replaced four;
   the MCP server's 1.x non-loopback bind and its allow-list validation were fixed with an
   outcome-asserting selftest in both SDK majors; the packager and the manifest hash the same
   tracked set; the interpreter floor became one constant that the launcher, setup, and the
   interpreter picker share; eight guard sub-checks and a frozen-record rule now catch the prose,
-  index, schema, and writer classes behind the findings; the CI history is a command, and the
+  index, schema, and writer classes behind the defects; the CI history is a command, and the
   records were corrected to it. Not done, by decision: Python 3.13 (Resolve caps at 3.12; the rglob and audioop items are the 3.13 checklist); re-reading the Resolve ceiling on a Mac; pinning mcp-types (exact-pinned by mcp); a baseline for mcp-stats-compass; refusing to start when no allowed host is configured (the server warns); installing xmllint in CI (offered as a decision); running the Windows launcher probe (no cmd.exe here); running ci_history.py live (api.github.com is proxy-blocked here); tag; PR.
 
 - P80: Remediation of the P79 residue (2026-09-05, docs/adr/0055-p80-python-312-and-mcp-dual-major.md).

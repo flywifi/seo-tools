@@ -21,12 +21,12 @@ the repository and go to the maintainer. The repository receives the change itse
 that state what the code does, an ADR for a design decision, and CHANGELOG, STATE and ledger
 entries that describe behaviour and phase. Enforcement:
 
-- `tools/secret_scan.py::audit_record_name` names an audit record by path: a text file whose
-  name carries a date (ISO or compact) and a review keyword, the keyword in the file name or in
-  a directory above it, or an entry on `AUDIT_RECORD_PATHS`. Drift invariant 20 applies the rule
+- `tools/secret_scan.py::audit_record_name` names an audit record by path: a path that
+  carries a calendar date and a review keyword, either of them in the file name or in a directory
+  above it, or an entry on `AUDIT_RECORD_PATHS` in any letter case. Drift invariant 20 applies the rule
   to tracked files; the pre-commit gate applies it to staged names. Reasoned exemptions live in
-  `AUDIT_RECORD_EXEMPT`. An underscore or dotted date is not matched; the guard comment states
-  this limit, and a case pins it.
+  `AUDIT_RECORD_EXEMPT`. The guard comment lists the date forms, the keywords and the forms the
+  rule does not match, and selftest cases pin them.
 - The seven dated records under `docs/` are deleted. Their still-open operational steps move to
   `docs/MACOS-MAINTENANCE.md` as neutral procedure rows, and the Florida cost model moves into
   `docs/JURISDICTION-OVERLAY-PLAN.md` as design text.

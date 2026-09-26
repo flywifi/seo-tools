@@ -19,8 +19,8 @@ reason. Working through them showed the residue was not one thing:
   examined nothing.
 - **One was a decision not yet made**, namely whether to cut a release.
 
-Two discoveries reframed the phase. First, planning it by *executing* its own example assertions
-found a live production defect: `_extract_og_tags` built its regex with an unterminated character
+Two facts reframed the phase. First, `_extract_og_tags` carried a live production defect: it
+built its regex with an unterminated character
 class, so the property name was consumed inside the class, the pattern matched a single character,
 and every `og_*` field received the first meta tag's content. Those columns are persisted to the
 competitor snapshot index and surfaced to the creator, so a competitor's image URL was reported as
@@ -43,8 +43,8 @@ logic**. Selftest *discovery* was scripted; *enrolment* was not.
    five `save_registry` writers and a sixth would have traded one violation for another.
 3. **Planning depth is a repo convention.** A plan carries who/what/when/where/why/how per work
    package, risks with concrete mitigations, citable evidence, and **code that has been executed
-   and seen to pass**. A guessed contract is a defect in the plan. This ADR exists because the
-   planning pass that followed that rule found a live defect.
+   and seen to pass**. A guessed contract is a defect in the plan. Executed plan code runs the
+   logic a change depends on, which is how a defect like `_extract_og_tags` shows before it ships.
 
 ## What was deliberately left open, and why
 

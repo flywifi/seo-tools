@@ -19,7 +19,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   frozen dated-record machinery (a doc binds to code only; supersedes ADR 0056 decision 5).
   Drift invariant 20 and the pre-commit gate refuse audit-record file names
   (`tools/secret_scan.py::audit_record_name`: a date plus a review keyword in the file or a
-  directory above it, or a listed path; underscore and dotted dates are a stated limit). New
+  directory above it, or a listed path; the guard comment lists the forms it does not match). New
   `tools/commit_claims.py` checks commit subjects with invariant 60's detector in the
   commit-msg hook and a required CI range step; a flagged subject needs a resolving
   `Claim-Proof:` trailer. `docs/AUDIT-PROTOCOL.md` states the pass rules: one pinned commit per

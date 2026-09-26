@@ -12,7 +12,7 @@
       "sources": {
         "tools/dependency_currency.py": "1baed783a1b74360b3486c090e936768ba265db45073f37012ad68227380988d",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "a26662d1a0fc5a723a937a2d7a7eff34c6d265f505a0b040551fd1883c165084"
+        "tools/sync_check.py": "5faf11af6ad93b039f62bd8a449a548245a55e47ba5b49765e447a20ca4c3721"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "e2eba73bf4a7b16256a7da01cf8dc3dd58713552829a852d569a25235145ae44",
+        "tools/wizard.py": "2a86dc912a27b4297e095e3709e58e0a90bd5240ea1fbc13faa046216634ef8e",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -53,7 +53,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "c0009d775a415b5fad3e642c12cf8badc2b9dd0e384cf5b8a8ab8d7db57bb656"
+        "tools/mcp_server.py": "82ffa601ae0438edf6c1b15e7553f873451e440b18fb384695ffad880213d6a9"
       }
     },
     "docs/TRANSITIONS.md": {

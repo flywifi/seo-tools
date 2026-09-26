@@ -119,23 +119,48 @@ FORBIDDEN_DATA_SUFFIXES = (
 )
 
 # Audit-record file names. Review output (audit reports, remediation and readiness records, triage
-# tables, findings, a pass's ledger, notes, transcripts and minutes) is kept outside the
-# repository; the repository carries the change and the docs that describe behavior (CLAUDE.md,
-# Non-negotiables). A path names an audit record when its file name pairs a review keyword (whole
-# word, plural and -ed forms included) with a calendar date (ISO 2026-10-01 or compact 20261001,
-# either order) and carries a text suffix, or when it is listed in AUDIT_RECORD_PATHS (record names
-# that carry no date). Method docs and tools (AUDIT-PROTOCOL.md, persona_audit.py, an ADR titled
-# "...-audit-remediation") carry no date and do not match. Consumers: sync_check invariant 20
-# (tracked files) and scan_staged (the pre-commit gate).
-# Limit: the rule matches the dated and listed record names this repository has carried, and a
-# bare dated file under a keyword directory (docs/audits/2026-10-01.md) through the directory
-# name. An underscore or dotted date (audit_2026_10_01.md) is not matched; the selftest pins
-# that, so widening the rule is a deliberate change.
+# tables, findings, verdicts, pass records, a pass's ledger, notes, transcripts and minutes) is kept
+# outside the repository; the repository carries the change and the docs that describe behavior
+# (CLAUDE.md, Non-negotiables). A path names an audit record when it carries a review keyword
+# (AUDIT_RECORD_KEYWORD_RE: whole word, plural and -ed forms and four -ing forms included) and a
+# calendar date (AUDIT_RECORD_DATE_RE: year-month-day joined by a dash, underscore, dot, slash or
+# nothing; year-month with a separator; day-month-year or month-day-year; a month name with a
+# year), either of them in the file name or in a directory above it, and the file name has a
+# suffix on AUDIT_RECORD_TEXT_SUFFIXES or is unsuffixed; or when it is listed in
+# AUDIT_RECORD_PATHS, compared in any letter case. The path is NFKC-folded first, so fullwidth
+# digits and letters read as ASCII. Method docs and tools (AUDIT-PROTOCOL.md, persona_audit.py, an
+# ADR titled "...-audit-remediation") carry no date and do not match. Consumers: sync_check
+# invariant 20 (tracked files) and scan_staged (the pre-commit gate).
+# The path is also read as git prints it: a C-quoted name (one holding a byte above 0x7f, as
+# `git ls-files` and `git diff --name-only` print it) is unquoted before the fold. A lowercase
+# letter followed by a capital splits joined words (AuditReport_2026-10-01.md), format characters
+# such as a zero-width space are dropped, and a compact date may carry a time (20261001120000).
+# Limit: a record named with a word outside AUDIT_RECORD_KEYWORD_RE or run into another word in
+# one letter case (securityaudit), dated by a bare year, a two-digit year, a week or a quarter
+# (2026-W40, 2026-Q4), an unpadded month or day (2026-1-5), a month and day with no year, or in
+# words, spelled with look-alike letters from another script (a Cyrillic a), saved under a suffix
+# on neither AUDIT_RECORD_TEXT_SUFFIXES nor FORBIDDEN_DATA_SUFFIXES (a .png), or undated and not
+# listed, is not matched. A product path that pairs a keyword with a year-month (a JSON Schema
+# 2020-12 record file, release notes versioned 2026.10) is matched and needs an AUDIT_RECORD_EXEMPT
+# entry. The selftest pins each limit, so widening the rule is a deliberate change.
 AUDIT_RECORD_KEYWORD_RE = re.compile(
-    r"(?<![a-z])(?:audit|remediation|readiness|review|triage|finding|ledger|verification|note"
-    r"|addendum|addenda|session|transcript|discussion|minute)(?:s|es|ed|d)?(?![a-z])")
+    r"(?<![a-z])(?:(?:audit|remediation|readiness|review|triage|finding|ledger|verification|note"
+    r"|addendum|addenda|session|transcript|discussion|minute|report|verdict|record|pass"
+    r"|post-?mortem|retrospective|follow-?up|inspection|walkthrough|assessment|critique|debrief"
+    r"|investigation)(?:s|es|ed|d)?|auditing|reviewing|triaging|inspecting)(?![a-z])")
+_AR_Y = r"(?:19|20)[0-9]{2}"
+_AR_M = r"(?:0[1-9]|1[0-2])"
+_AR_D = r"(?:0[1-9]|[12][0-9]|3[01])"
+_AR_N = r"(?:0?[1-9]|[12][0-9]|3[01])"
+_AR_MON = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+           r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
 AUDIT_RECORD_DATE_RE = re.compile(
-    r"(?<![0-9])(?:19|20)[0-9]{2}(-?)(?:0[1-9]|1[0-2])\1(?:0[1-9]|[12][0-9]|3[01])(?![0-9])")
+    rf"(?<![0-9]){_AR_Y}([-_./]?){_AR_M}\1{_AR_D}(?![0-9])"
+    rf"|(?<![0-9]){_AR_Y}{_AR_M}{_AR_D}[0-9]{{4}}(?:[0-9]{{2}})?(?![0-9])"
+    rf"|(?<![0-9]){_AR_Y}[-_./]{_AR_M}(?![0-9])(?![-_./][0-9])"
+    rf"|(?<![0-9]){_AR_N}([-_./]){_AR_N}\2{_AR_Y}(?![0-9])"
+    rf"|(?<![a-z0-9])(?:{_AR_N}[-_. ]?)?{_AR_MON}(?![a-z])[-_. ]?(?:{_AR_N}[-_., ]*)?{_AR_Y}(?![0-9])"
+    rf"|(?<![0-9]){_AR_Y}[-_. ]?{_AR_MON}(?![a-z])")
 AUDIT_RECORD_TEXT_SUFFIXES = (
     ".md", ".markdown", ".mdx", ".txt", ".text", ".rst", ".adoc", ".org", ".html", ".htm", ".xml",
     ".json", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml", ".csv", ".tsv", ".log", ".ipynb",
@@ -151,23 +176,95 @@ AUDIT_RECORD_PATHS = (
 AUDIT_RECORD_EXEMPT = {}
 AUDIT_RECORD_MIN_REASON = 25
 
+# Discovery narration in the decision records (docs/adr/, ledger/ledger.json): a sentence that says
+# a review, pass or planning step found or flagged something, or that a defect was found. The
+# records state what was decided and what the code does. scan_text runs it on those paths.
+# The actors are a review, audit, auditor or refuter after a determiner (not a product tool's name:
+# hash, local, persona, deal, contract, quality, ar, human, source) and a named pass (adaptability,
+# planning, research, independent, review, audit, verification, refuter); and a defect, finding,
+# gap, bug, issue or problem that was found. A camera lens, a render pass, email verification, a
+# review queue and "the binary was found" are product prose and are not read.
+# Limit: other phrasings ("turning it on showed", "found by the review", a lens), words between
+# the actor and the verb other than a parenthesis or a listed adverb, and other files are not
+# read; the selftest pins that, and review holds them.
+AUDIT_RECORD_NARRATION_SCOPE = ("docs/adr/", "ledger/ledger.json")
+_AR_DET = r"(?:a|an|the|this|that|one|each|every)\s+"
+_AR_NOT_TOOL = r"(?!(?:hash|local|persona|deal|contract|quality|ar|human|source)\s)"
+AUDIT_RECORD_NARRATION_RE = re.compile(
+    rf"\b(?:{_AR_DET}{_AR_NOT_TOOL}(?:[\w-]+\s+)?(?:audit|review|auditor|refuter)s?"
+    r"|(?:independent|adaptability|planning|research|review|audit|verification|refuter)\s+pass(?:es)?)"
+    r"(?:\s+(?:\([^)]*\)|also|then|later|first|further|immediately|independently|itself)){0,3}"
+    r"\s+(?:found|flagged|surfaced|caught|spotted)\b"
+    r"|\b(?:defects?|findings?|gaps?|bugs?|issues?|problems?)\s+(?:were|was|had\s+been|have\s+been)"
+    r"\s+(?:\w+\s+)?found\b", re.I)
+
+# Review tallies and report pointers in tracked text: a severity count list (N high, N medium) and
+# a pointer to a report committed to the repository. Both point at review output kept outside the
+# repository. They join PATTERNS, so --tracked (invariant 21), --staged, --commit-messages and the
+# commit-msg hook refuse them.
+# Limit: other phrasings ("in the report", a report committed to the repository, a qualifier before
+# "report" outside the listed review words, a tally in words, a count after its label ("high: 5",
+# "high 5")) are not read, and a priority count written like a tally (3 high, 2 low tasks) is read;
+# the selftest pins that, and review holds them.
+AUDIT_RECORD_REPORT_PATTERNS = [
+    ("committed_report", re.compile(
+        r"\bcommitted\s+(?:(?:audit|review|readiness|production-readiness|findings?|remediation"
+        r"|triage|verification|integrity|security)\s+){0,2}report\b", re.I)),
+    ("severity_tally", re.compile(
+        r"\b\d+\s+(?:critical|high)(?:-severity)?s?(?![\w-])\s*(?:,|;|/|\+|\||and)\s*\|?\s*\d+\s+"
+        r"(?:medium|low)(?:-severity)?s?(?![\w-])", re.I)),
+]
+PATTERNS.extend(AUDIT_RECORD_REPORT_PATTERNS)
+
+# Finding-id tokens in tracked text. A comment or record that cites a review's finding id points at
+# output kept outside the repository, so the id has no committed referent; a phase tag (P73)
+# carries the history. The pattern reads a dimension-finding id (D6-F3), a phase-qualified id
+# (P57 F3, P73 D6-F3) and a bare F-number closed by a colon or parenthesis (F5:, (F9)). It joins
+# PATTERNS, so --tracked (invariant 21), --staged, --commit-messages and the commit-msg hook refuse
+# it, and tools/secret-scan-allowlist.json exempts a pinned false positive.
+# Limit: a letter-number id without an F (A3, G1) is not read, because ADR and scenario ids of
+# that shape have committed referents. A lower-case or slash-joined id (p57 f3, P57/F3) and an
+# F-number in running text (finding F3) are not read either; the selftest pins these. A
+# function-key name in parentheses or before a colon ((F12), F5:) reads as an id;
+# tools/secret-scan-allowlist.json exempts one pinned match with a written reason.
+AUDIT_RECORD_ID_PATTERNS = [
+    ("finding_id", re.compile(
+        r"\b(?:[A-Z]{1,3}\d{1,2}-F\d{1,3}|P\d{1,3}\s+(?:[A-Z]{1,3}\d{1,2}[-\s])?F\d{1,3})\b"
+        r"|(?<![\w-])F\d{1,2}(?=[:)])")),
+]
+PATTERNS.extend(AUDIT_RECORD_ID_PATTERNS)
+
 
 def audit_record_name(path):
     """Why `path` names an audit record, or None. Pure: reads nothing."""
-    rel = path.replace("\\", "/")
+    import unicodedata
+    if len(path) > 1 and path[0] == path[-1] == '"':
+        try:
+            path = re.sub(r"\\([0-7]{3})|\\(.)",
+                          lambda m: chr(int(m.group(1), 8)) if m.group(1) else
+                          {"n": "\n", "t": "\t"}.get(m.group(2), m.group(2)),
+                          path[1:-1]).encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    rel = "".join(c for c in unicodedata.normalize("NFKC", path)
+                  if unicodedata.category(c) != "Cf")
+    rel = rel.replace("\\", "/")
     if rel.startswith("./"):
         rel = rel[2:]
-    if rel in AUDIT_RECORD_PATHS:
+    if rel.lower() in {p.lower() for p in AUDIT_RECORD_PATHS}:
         return "listed in AUDIT_RECORD_PATHS"
-    base = rel.rsplit("/", 1)[-1].lower()
-    if not base.endswith(AUDIT_RECORD_TEXT_SUFFIXES):
+    # A lowercase letter followed by a capital splits joined words (AuditReport reads as
+    # audit-report).
+    low = re.sub(r"(?<=[a-z])(?=[A-Z])", "-", rel).lower()
+    base = low.rsplit("/", 1)[-1]
+    ext = base.rsplit(".", 1)[1] if "." in base.lstrip(".") else ""
+    # A text suffix, no suffix, or a date as the tail (audit.2026.10.01, review.2026-10-01).
+    if ext and not re.fullmatch(r"[0-9_-]+", ext) and not base.endswith(AUDIT_RECORD_TEXT_SUFFIXES):
         return None
-    key = AUDIT_RECORD_KEYWORD_RE.search(base)
-    if key is None:
-        # A bare dated file under a keyword directory (docs/audits/2026-10-01.md).
-        key = next((m for m in (AUDIT_RECORD_KEYWORD_RE.search(d)
-                                for d in rel.lower().split("/")[:-1]) if m), None)
-    date = AUDIT_RECORD_DATE_RE.search(base)
+    # The keyword and the date are each read over the whole path, so a dated or keyword
+    # directory counts (docs/audits/2026-10-01.md, docs/2026-10-01/notes.md).
+    key = AUDIT_RECORD_KEYWORD_RE.search(low)
+    date = AUDIT_RECORD_DATE_RE.search(low)
     if key and date:
         return f"review keyword {key.group(0)!r} with date {date.group(0)!r}"
     return None
@@ -249,7 +346,7 @@ def allowlist_problems(allowlist, tracked, read_bytes=None):
     exempt is not in the tree. --tracked runs this, so CI and drift invariant 21 fail on a stale
     entry."""
     read_bytes = read_bytes or (lambda rel: (ROOT / rel).read_bytes())
-    known = {pid for pid, _ in PATTERNS} | {"pipeline_amount", "author_email"}
+    known = {pid for pid, _ in PATTERNS} | {"pipeline_amount", "author_email", "review_narration"}
     out, keys = [], set()
     for e in allowlist.get("entries", []):
         path, pid = str(e.get("path", "")), str(e.get("pattern_id", ""))
@@ -303,6 +400,12 @@ def scan_text(text, path, allowlist=None):
             if _allowed(allowlist, path, "pipeline_amount", m.group(0)):
                 continue
             findings.append({"path": path, "pattern_id": "pipeline_amount", "match": m.group(0),
+                             "sha256": _match_sha256(m.group(0))})
+    if path.startswith(AUDIT_RECORD_NARRATION_SCOPE):
+        for m in AUDIT_RECORD_NARRATION_RE.finditer(text):
+            if _allowed(allowlist, path, "review_narration", m.group(0)):
+                continue
+            findings.append({"path": path, "pattern_id": "review_narration", "match": m.group(0),
                              "sha256": _match_sha256(m.group(0))})
     return findings
 
@@ -540,10 +643,87 @@ def selftest():
            all(audit_record_name(p) for p in (
                "docs/audits/2026-01-02.md", "notes/20260102.md", "reviews/2026/2026-01-02-q1.md")),
            f, ran)
-    _check("audit-record rule: the stated limit holds (an underscore or dotted date)",
-           not any(audit_record_name(p) for p in (
-               "docs/audit_2026_01_02.md", "docs/audit.2026.01.02.md")),
+    _check("audit-record rule: the date forms the rule states are flagged",
+           all(audit_record_name(p) for p in (
+               "docs/audit_2026_01_02.md", "docs/audit.2026.01.02.md", "docs/audit-2026-01.md",
+               "docs/audit-02-01-2026.md", "docs/audit-01-31-2026.md", "docs/audit-2026-jan-02.md",
+               "docs/audit-jan-2026.md", "docs/audit-2-january-2026.md",
+               "docs/reviews/2026/01/02.md", "docs/audit.2026.01.02")), f, ran)
+    _check("audit-record rule: a dated directory over an undated file, and an unsuffixed name",
+           all(audit_record_name(p) for p in (
+               "docs/2026-01-02/notes.md", "docs/audit-2026-01-02/report.md",
+               "docs/AUDIT-2026-01-02")), f, ran)
+    _check("audit-record rule: review words beyond the first list (report, verdict, pass record)",
+           all(audit_record_name(p) for p in (
+               "docs/pass-record-2026-01-02.md", "docs/verdicts-2026-01-02.md",
+               "security-report-2026-01-02.md", "postmortem-2026-01-02.md",
+               "post-mortem-2026-01-02.md", "retrospective-2026-01-02.md",
+               "followups-2026-01-02.md", "inspection-2026-01-02.md",
+               "walkthrough-2026-01-02.md", "auditing-2026-01-02.md", "p97-pass-2026-01-02.md")),
            f, ran)
+    _check("audit-record rule: a listed path in another letter case, and fullwidth digits",
+           all(audit_record_name(p) for p in tuple(x.lower() for x in AUDIT_RECORD_PATHS)
+               + ("docs/audit-２０２６-01-02.md",)), f, ran)
+    _check("audit-record rule: the stated limits hold (unlisted word, bare year, look-alike "
+           "letters, off-list suffix, undated name)",
+           not any(audit_record_name(p) for p in (
+               "docs/lessons-2026-01-02.md", "docs/audit-2026.md", "docs/аudit-2026-01-02.md",
+               "docs/review-2026-01-02.png", "docs/findings.md", "docs/reviews/p97.md",
+               "docs/securityaudit-2026-01-02.md", "docs/audit-26-01-02.md", "docs/audit-2026-W02.md",
+               "docs/audit-2026-Q1.md", "docs/audit-2026-1-2.md", "docs/audit-jan-02.md")), f, ran)
+    _check("audit-record rule: git-quoted, joined-word, format-character, timestamped and "
+           "date-tailed names are flagged",
+           all(audit_record_name(p) for p in (
+               '"docs/audit-\\357\\274\\222\\357\\274\\220\\357\\274\\222\\357\\274\\226-01-02.md"',
+               "docs/AuditReport_2026-01-02.md", "docs/SecurityReview-2026-01-02.md",
+               "docs/au​dit-2026-01-02.md", "docs/audit-20260102120000.md",
+               "docs/review.2026-01-02", "docs/.review-2026-01-02")), f, ran)
+    # Finding-id tokens (AUDIT_RECORD_ID_PATTERNS). Fixtures are concatenated.
+    def _fid(s):
+        return any(x["pattern_id"] == "finding_id" for x in scan_text(s, "tools/a.py", None))
+    _check("finding-id tokens are refused (D-F, phase-qualified and bare F forms)",
+           all(_fid(s) for s in ("# P73 D6" + "-F3: guard", "creds (P57" + " F3).",
+                                 "flow (P40" + " F1): x", "# 1b) F" + "5: guard", "seam (F" + "9).",
+                                 "D12" + "-F104 here", "# P73 D6" + " F3 guard")), f, ran)
+    _check("a function key in parentheses reads as a finding id (the stated limit)",
+           _fid("DevTools (F" + "12)"), f, ran)
+    _check("phase tags, letter-number ids and key names are not finding ids (the stated limit)",
+           not any(_fid(s) for s in ("(P57).", "# P73: guard", "ADR 0041 (A3)", "press F5 to reload",
+                                     "G1/G2 scenarios", "re-synced (E12).", "F-35 jet", "UTF-8)",
+                                     "(p57" + " f3)", "P57/" + "F3", "per finding" + " F3")),
+           f, ran)
+    # Report pointers and severity tallies (AUDIT_RECORD_REPORT_PATTERNS).
+    def _rep(s):
+        return any(x["pattern_id"] in ("committed_report", "severity_tally")
+                   for x in scan_text(s, "ledger/x.json", None))
+    _check("report pointers and severity tallies are refused",
+           all(_rep(s) for s in ("recorded as a committed" + " report",
+                                 "in a committed audit" + " report", "(5 high" + ", 22 medium, 22 low)",
+                                 "3 critical" + " / 4 low", "2 HIGH" + " and 1 MEDIUM",
+                                 "5 high-severity" + ", 22 medium-severity", "| 5 high" + " | 22 medium |")),
+           f, ran)
+    _check("other report and tally phrasings are not read (the stated limit)",
+           not any(_rep(s) for s in ("the parity report names the line",
+                                     "committed to the repo; the report",
+                                     "12 high-resolution images, 3 medium", "high: 5, medium: 22",
+                                     "forty-nine findings", "we committed to" + " report monthly",
+                                     "the committed parity" + " report",
+                                     "critical 0" + ", high 5, medium 22")), f, ran)
+    # Discovery narration in the decision records (AUDIT_RECORD_NARRATION_RE).
+    def _nar(s, p="docs/adr/0001-x.md"):
+        return any(x["pattern_id"] == "review_narration" for x in scan_text(s, p, None))
+    _check("discovery narration in ADRs and the ledger is refused",
+           all(_nar(s) for s in ("A review" + " found the registry", "the adaptability pass" + " found five",
+                                 "Two defects were" + " found", "the planning" + " pass flagged it",
+                                 "The auditors" + " caught it", "Several defects had" + " been found"))
+           and _nar("A review" + " found x", "ledger/ledger.json"), f, ran)
+    _check("narration outside the records, and other phrasings, are not read (the stated limit)",
+           not _nar("A review" + " found x", "docs/AUDIT-PROTOCOL.md")
+           and not any(_nar(s) for s in ("Turning it on showed that CI", "the file was not found",
+                                         "the review of every rule in the file found",
+                                         "the camera lens caught glare", "a render pass caught it",
+                                         "the binary was found on PATH", "the review queue flagged posts",
+                                         "the hash audit caught drift")), f, ran)
     _rec = "docs/review-2026-01-02.md"
     _check("audit-record exemption needs a written reason to exempt",
            audit_record_findings([_rec], {_rec: "short"})
@@ -557,13 +737,16 @@ def selftest():
            f, ran)
     # The staged gate reads added, copied, modified and renamed names; a staged deletion of a
     # record is how one leaves the tree, so it must not be refused.
+    # A fullwidth-dated name as git prints it (C-quoted, octal UTF-8 bytes).
+    _gq = '"docs/audit-' + "\\357\\274\\222\\357\\274\\220\\357\\274\\222\\357\\274\\226" + '-01-02.md"'
     _g = globals()
     _real_git = _g["_git"]
 
     def _fake_git(args, check=True):
         if args[:2] == ["diff", "--cached"] and "--name-only" in args:
             if "--diff-filter=d" in args:
-                return "docs/review-2026-01-02.md\n"
+                return ("docs/review-2026-01-02.md\ndocs/2026-01-02/notes.md\ndocs/AUDIT-2026-01-02\n"
+                        "docs/AuditReport_2026-01-02.md\n" + _gq + "\n")
             return "docs/review-2026-01-02.md\ndocs/remediation-2026-01-02.md\n"
         return ""
     _g["_git"] = _fake_git
@@ -572,12 +755,16 @@ def selftest():
                    if x["pattern_id"] == "audit_record_file"}
     finally:
         _g["_git"] = _real_git
-    _check("staged gate refuses an added audit record and passes a staged deletion",
-           _staged == {"docs/review-2026-01-02.md"}, f, ran)
+    _check("staged gate refuses an added audit record (a dated directory, an unsuffixed, a joined-word "
+           "and a git-quoted name included) and passes a staged deletion",
+           _staged == {"docs/review-2026-01-02.md", "docs/2026-01-02/notes.md", "docs/AUDIT-2026-01-02",
+                       "docs/AuditReport_2026-01-02.md", _gq}, f, ran)
     # Drift invariant 20 consumes the rule: run its check on a stubbed tracked list.
     import sync_check as _sc
     _real_ls, _saved = _sc._git_ls_files, list(_sc.PROBLEMS)
-    _sc._git_ls_files = lambda: ["docs/review-2026-01-02.md", "docs/AUDIT-PROTOCOL.md"]
+    _sc._git_ls_files = lambda: ["docs/review-2026-01-02.md", "docs/AUDIT-PROTOCOL.md",
+                                 "docs/2026-01-02/notes.md", "docs/AUDIT-2026-01-02",
+                                 "docs/AuditReport_2026-01-02.md", _gq]
     try:
         del _sc.PROBLEMS[:]
         _sc.check_pipeline_allowlist()
@@ -585,8 +772,9 @@ def selftest():
     finally:
         _sc._git_ls_files = _real_ls
         _sc.PROBLEMS[:] = _saved
-    _check("drift invariant 20 refuses a tracked audit record through this rule",
-           len(_inv20) == 1 and "docs/review-2026-01-02.md" in _inv20[0], f, ran)
+    _check("drift invariant 20 refuses a tracked audit record through this rule, including a "
+           "dated directory, an unsuffixed, a joined-word and a git-quoted name",
+           len(_inv20) == 5 and "docs/review-2026-01-02.md" in _inv20[0], f, ran)
 
     # Allowlist entries must still do work (allowlist_problems, run by --tracked).
     import hashlib as _hl

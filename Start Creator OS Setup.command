@@ -30,7 +30,7 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 # interpreter still exists and is still executable, so an -x test passes while the interpreter
 # is dead. Trusting -x meant PY was set to a broken interpreter, the working fallbacks were
 # never tried, and the user got a dyld / "No module named encodings" traceback instead of the
-# install instructions below -- defeating the entire point of this launcher (P73 D6-F10).
+# install instructions below -- defeating the entire point of this launcher (P73).
 PY=""
 if [ -x ".venv/bin/python3" ] && .venv/bin/python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 12) else 1)' >/dev/null 2>&1; then
   PY=".venv/bin/python3"

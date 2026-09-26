@@ -10,16 +10,16 @@ The repo had no definition of "production ready". `protocols/quality-gates.md` d
 **artifacts** (nine dimensions, no dimension below 3, Integrity and Safety at 4 or above), but
 nothing defined it for the system itself, so "is this ready?" had no checkable answer.
 
-Two further problems shaped the phase. First, earlier findings had never been committed: the phase's own commits shipped with no CHANGELOG, STATE, or ledger entry, and
-a code comment referenced a finding id with no committed referent. Second, the guard
+Two further problems shaped the phase. First, record-keeping had lapsed: the phase's own commits shipped with no CHANGELOG, STATE, or ledger entry, and
+a code comment cited an identifier with no committed referent. Second, the guard
 set was consistently retrospective. Every guard added over the preceding phases detected the drift
-that had already happened; the adaptability pass found five that would not catch the next one:
+that had already happened, and five of them would not catch the next one:
 the Mac signal vocabulary was pinned against shrinking but not growing, the count-truth invariant
 used a hand-curated enrolment list that had already been forgotten once, the projection manifest
 hashed sources but never the projection's own bytes, and the citation guards recognised only full
 URLs in specific containers.
 
-Two safety defects were found that were live rather than theoretical. The MCP annotation gate
+Two safety defects were live rather than theoretical. The MCP annotation gate
 classified tools by matching their **name** against a mutation-signal list; a tool the list did not
 anticipate silently inherited `readOnlyHint: True`, the hint clients use to skip a confirmation
 prompt, while complete OAuth upload clients sit behind a flag waiting to be ungated. And
@@ -28,7 +28,8 @@ the remote token and publishing flags in a gitignored file with no recovery path
 
 ## Decision
 
-1. **State the yardstick in the report, and score against exactly it.** Five criteria derived from
+1. **State the yardstick with the readiness verdict, and score against exactly it.** The verdict
+   is reported outside the repository. Five criteria derived from
    the repo's own artifact-gate philosophy: enforcement demonstrably enforces, safety boundaries
    hold, no dimension leaves open criticals, coverage is honestly bounded, and release mechanics
    are sound. The verdict separates "ready for use" from "ready to tag", because they turned out to
@@ -41,27 +42,28 @@ the remote token and publishing flags in a gitignored file with no recovery path
    replay — the synthetic unclassified tool now lives in the selftest forever.
 4. **Enrolment is swept, not curated.** Any document stating a global count must be enrolled or the
    build fails, because relying on someone to remember had already failed once.
-5. **Findings are claims until reproduced.** Every finding was re-derived independently
-   before it entered the ledger. This changed two conclusions and prevented two false fixes.
-6. **The audit records what it did not do.** Open findings carry written reasons; the unexercised
-   list states what this sandbox cannot reach; and the release stays the maintainer's decision.
+5. **A defect is a claim until reproduced.** A defect is reproduced before its fix is written,
+   and the fix is scoped to what the reproduction shows.
+6. **The phase states what it did not do.** The P73 ledger entry's explicit non-action and the
+   alternatives below give the reasons for what the phase deferred, and the release stays the
+   maintainer's decision.
 
 ## Alternatives considered
 
 - **Adopting the artifact Quality Gates as the system yardstick.** Rejected: those score a
   deliverable's content (voice, evidence, formatting), not whether a build's guards enforce.
-- **Fixing only the HIGH findings and deferring the structural ones.** Considered and rejected
+- **Fixing only the highest-impact defects and deferring the structural ones.** Considered and rejected
   in favour of full scope. The four forward-coverage guards were the
   most valuable work in the phase, and three of them would have been deferred.
 - **Writing selftests for all 37 uncovered tools.** Rejected as a rebuild rather than a repair.
-  Recommended instead as a guard requiring new tools to declare coverage or be exempted with a
-  reason.
+  A guard requiring new tools to declare coverage or be exempted with a reason is the smaller
+  alternative, and enforcing it is a policy left to the maintainer.
 - **Making the degraded-behavior parity check bidirectional and blocking.** Deferred: it would turn
-  an advisory into a build failure across a config surface this audit did not otherwise touch. The
-  exact six uncovered capabilities are named in the report so the fix is mechanical.
+  an advisory into a build failure across a config surface this phase did not otherwise touch. The
+  phase filled the six missing degraded entries instead.
 - **Hand-editing the registry to re-band unmeetable check intervals.** Rejected: it would violate
-  the single-writer rule. The absence of a sanctioned verb for `check_interval_days` and
-  `validated_version` is recorded as the actual finding.
+  the single-writer rule. The registry writer first needs a sanctioned verb for
+  `check_interval_days` and `validated_version`.
 
 ## Consequences
 

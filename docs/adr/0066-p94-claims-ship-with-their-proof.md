@@ -140,9 +140,8 @@ pass-counts drifting across six finance atom docs with nothing catching them.
   join the list unproven without failing the build.
 - A recommended install route that the code stops being able to detect fails the build, which is
   the class that dead-ended the P93 setup path on a real Mac.
-- The CI parity step now asserts what its name promises. Turning it on immediately found that CI
-  was not running three battery gates; hash audit and source sync were added, and preflight push
-  is declared with its reason.
+- The CI parity step now asserts what its name promises. CI runs the hash audit
+  and source sync gates, and preflight push is declared with its reason.
 - Exemptions are the honest residue: each one states why no code can prove that sentence, and a
   reviewer can argue with the reason.
 - The claims rule binds reports, not only files. That part is doctrine, because no guard reads

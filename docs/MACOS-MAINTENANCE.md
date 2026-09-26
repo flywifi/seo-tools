@@ -1,14 +1,14 @@
 # macOS maintenance notes (for maintainers)
 
 The non-negotiable macOS invariants and the reasoning behind them, so a future edit does not silently
-re-break what the P53 stress test found and P54 fixed. User-facing setup lives in `docs/SETUP_MAC.md`;
-this file is the maintainer's "why." A full hands-on verification checklist (the behaviors that can
-only be confirmed on real hardware) was produced by the P53 stress test.
+re-break what P54 fixed. User-facing setup lives in `docs/SETUP_MAC.md`; this file is the
+maintainer's "why." The behaviors that can only be confirmed on real hardware are listed under
+"What only a real Mac can confirm (hands-on)" below.
 
 **Current target:** macOS 26 (Tahoe), the last Intel release; macOS 15 (Sequoia) is the prior version.
 Apple Silicon uses `/opt/homebrew`; Intel uses `/usr/local`. This environment is Linux, so every
 macOS behavior below is verified here only at the mechanism level (OS-simulated) — behavioral
-confirmation is the hands-on checklist.
+confirmation is the hands-on list below.
 
 ## Non-negotiable invariants
 
@@ -79,7 +79,7 @@ Gatekeeper block on a downloaded `.zip` and the Open-Anyway flow; the CLT dialog
 real PEP 668 error on a Homebrew Python and that `.venv` sidesteps it; brew tools invisible under a
 double-click and that the launcher's PATH export fixes it; Claude Desktop spawn-PATH + Quit/relaunch;
 TCC folder prompts; Safari HTTPS-Only vs Chrome for the OAuth callback; Rosetta prompts; Metal-vs-CPU
-whisper runtimes. These are the P53 hands-on checklist items; the code/copy here is verified by
+whisper runtimes. These need real hardware; the code/copy here is verified by
 simulation + selftests.
 
 ## Declared sources

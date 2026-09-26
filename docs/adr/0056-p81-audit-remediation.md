@@ -6,13 +6,13 @@
 
 ## Context
 
-The six P80 commits carried forty-nine deficiencies. Five were high severity: the
+The six P80 commits carried defects. The most consequential: the
 records misdated the CI history by four weeks and named one cause where there were two; the MCP
 server answered 421 to every request on a non-loopback bind under the 1.x SDK because FastMCP freezes
 its DNS-rebinding settings at construction for the default host; the skill packager zipped every file
 on disk while the manifest hashed only tracked files; the launcher refused a 3.11 venv that the
 interpreter picker then handed every tool to; and the setup guide still recommended Python 3.13 three
-lines under `brew install python@3.12`. The forty-nine reduced to nine classes: proving the named path
+lines under `brew install python@3.12`. The defects reduce to nine classes: proving the named path
 and not its neighbours; editing a list of sites instead of sweeping after the edit; writing records from
 intent rather than evidence; editing a dated record in place; trusting operator input without a shape
 check; copying a pattern without its contract; weakening a validation to make a gate pass; bypassing a

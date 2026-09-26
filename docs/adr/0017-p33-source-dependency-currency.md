@@ -5,7 +5,7 @@
 
 ## Context
 
-A review found the registry seeded but dormant (all entries never checked), real cadence bugs (legal/cost categories missing from traversal-config so treated as 7-day-due; stale MCP-spec and TikTok URLs; duplicate and placeholder entries), and a structural blind spot: pip packages, system binaries, and MCP servers added across P8-P32 were untracked and drifted silently. The requirement was accurate checks and token-free mundane updating.
+The registry was seeded but dormant (all entries never checked), real cadence bugs (legal/cost categories missing from traversal-config so treated as 7-day-due; stale MCP-spec and TikTok URLs; duplicate and placeholder entries), and a structural blind spot: pip packages, system binaries, and MCP servers added across P8-P32 were untracked and drifted silently. The requirement was accurate checks and token-free mundane updating.
 
 ## Decision
 

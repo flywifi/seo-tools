@@ -9,8 +9,8 @@
 Claude on the web and ChatGPT on the web need to read the repo and walk a non-technical user
 through setup, with the wizard's story holding across modalities. The walkthrough did not work: the knowledge pack contained zero setup content, its upgrade
 pointer named a repo path a web user cannot open, and every "no terminal" doc began with "open
-`implementation/...`" without saying how a person with no checkout obtains the file. A research
-pass (2026-09-20) also found the surfaces themselves had moved: on 2026-09-16 Anthropic merged
+`implementation/...`" without saying how a person with no checkout obtains the file. By
+2026-09-20 the surfaces themselves had also moved: on 2026-09-16 Anthropic merged
 Claude chat and Cowork into one Claude (support article 16761823, staged rollout from Pro and
 Max); claude.ai Projects gained a GitHub connector into project knowledge with manual sync
 (support article 10167454); skill ZIP uploads are consumer-facing on every plan (support

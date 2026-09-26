@@ -4548,7 +4548,7 @@ def _selftest() -> int:
     check(store["youtube"].get(_AT) == "IMPORT_READ_TOKEN", "importer token was clobbered")
     check(_get("oauth_pending_youtube") is None, "pending state not consumed (single-use)")
 
-    # 1b) F5: cross-site POST guard (_origin_allowed). A foreign Origin/Referer is refused; the
+    # 1b) Cross-site POST guard (_origin_allowed). A foreign Origin/Referer is refused; the
     # wizard's own loopback origin passes; a non-browser caller with neither is allowed.
     check(_origin_allowed(None, None) is True, "no-Origin/no-Referer should be allowed (local caller)")
     check(_origin_allowed(f"http://127.0.0.1:{PORT}", None) is True, "same-origin 127.0.0.1 must pass")
@@ -4557,7 +4557,7 @@ def _selftest() -> int:
     check(_origin_allowed(None, "https://evil.example/x") is False, "cross-site Referer must be refused")
     check(_origin_allowed("http://127.0.0.1:9999", None) is False, "wrong-port Origin must be refused")
 
-    # 1c) F11: nightly_branch git-ref validation (feeds `git pull origin <branch>`).
+    # 1c) nightly_branch git-ref validation (feeds `git pull origin <branch>`).
     check(_valid_git_ref("claude/my-branch") and _valid_git_ref("main"), "valid refs must pass")
     check(not _valid_git_ref("--upload-pack=touch /tmp/x"), "leading-dash ref must be refused")
     check(not _valid_git_ref("a/../b") and not _valid_git_ref("x;rm -rf") and not _valid_git_ref(""),
@@ -4613,7 +4613,7 @@ def _selftest() -> int:
 
     _OAUTH_TRANSPORT = None
 
-    # 4) macOS screens render offline via the _os()/_arch() seam (F9).
+    # 4) macOS screens render offline via the _os()/_arch() seam.
     global _OS_OVERRIDE, _ARCH_OVERRIDE
     _OS_OVERRIDE, _ARCH_OVERRIDE = "mac", "arm64"
     try:
@@ -4626,7 +4626,7 @@ def _selftest() -> int:
     finally:
         _OS_OVERRIDE, _ARCH_OVERRIDE = None, None
 
-    # 5) Port-collision mechanism (F6): a second bind on the same port raises OSError (the friendly
+    # 5) Port-collision mechanism: a second bind on the same port raises OSError (the friendly
     #    exit path in main() depends on this being catchable).
     try:
         s1 = _Server(("127.0.0.1", 0), _Handler)

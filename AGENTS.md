@@ -61,11 +61,18 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   (`tools/commit_claims.py`) refuse a subject invariant 60's detector flags when its
   `Claim-Proof:` trailer is absent or does not resolve.
 - **Audit output stays out of the repository.** Findings, verdicts, triage tables, pass records
-  and change ledgers are kept in the working plan outside the repository; commit prose describes
-  behavior, not how a defect was found. `STATE.md` and `ledger/ledger.json` record decisions and
-  phases, not review results or conversations. Drift invariant 20 and the pre-commit hook refuse
-  an audit-record file (`tools/secret_scan.py::audit_record_name`: a text file name that carries a
-  date, with a review keyword in the name or a directory above it, or a path on `AUDIT_RECORD_PATHS`).
+  and change ledgers are kept in the working plan outside the repository; commit prose,
+  `CHANGELOG.md`, `STATE.md`, `ledger/ledger.json` and the ADRs state behavior and decisions, not
+  how or by whom a defect was found, and do not record review results or conversations. Drift invariant 20 and the pre-commit hook refuse
+  an audit-record file (`tools/secret_scan.py::audit_record_name`: a path with a calendar date and a
+  review keyword in the file name or a directory above it, whose file name carries a text suffix or
+  is unsuffixed, or a path on `AUDIT_RECORD_PATHS` in any letter case; the limits are listed at the
+  rule).
+  `tools/secret_scan.py` also refuses a finding-id token in tracked text and commit messages
+  (`AUDIT_RECORD_ID_PATTERNS`).
+  It refuses a severity tally and a pointer to a report committed to the repository
+  (`AUDIT_RECORD_REPORT_PATTERNS`).
+  In ADRs and the ledger it refuses the discovery phrasings in `AUDIT_RECORD_NARRATION_RE`.
 - **Claims about this repo's own behavior need executed evidence.** A universal claim ("no",
   "never", "every", "everything", "all", "each", "only", "nothing", "always", "none", "nobody",
   "cannot", "will not") in a commit subject, a

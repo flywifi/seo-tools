@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shared interpreter/PATH helpers for a Mac-friendly launch and install.
 
-Two macOS realities drive this module (see docs/SETUP_MAC.md and the P53 stress test):
+Two macOS realities drive this module (see docs/SETUP_MAC.md and docs/MACOS-MAINTENANCE.md):
 
 1. The "private toolbox": dependencies install into a repo-local ``.venv`` so a Homebrew Python
    (which follows PEP 668 and refuses global package installs) is never touched. The app's heavy

@@ -524,7 +524,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
 
 def _save_publish_creds(platform, updated):
-    """Persist a client's refreshed/rotated publish-creds (P57 F3).
+    """Persist a client's refreshed/rotated publish-creds (P57).
 
     Called by a publishing client (via the persist callable threaded through
     dispatch) when a token refresh occurred -- notably TikTok, whose refresh_token

@@ -646,7 +646,7 @@ def _selftest_static() -> tuple:
     ok(f"every tool name explicitly classified ({len(probs)} problem(s))", not probs)
     for pb in probs:
         print(f"       {pb}")
-    # P73 D6-F4: prove the gate is fail-CLOSED, not merely quiet. A tool whose name matches no
+    # P73: prove the gate is fail-CLOSED, not merely quiet. A tool whose name matches no
     # mutation signal must still be refused when unclassified -- that is the whole defect.
     # The decorator is assembled rather than written literally: a newline escape immediately
     # followed by the decorator reads as an email address to tools/secret_scan.py, and keeping
@@ -684,7 +684,7 @@ def _selftest_static() -> tuple:
        isinstance(_ret, _ast.Call) and _ast.unparse(_ret.func) == "json.dumps" and bool(_ret.args)
        and isinstance(_ret.args[0], _ast.Call)
        and _ast.unparse(_ret.args[0].func) == "_schedule_post_impl")
-    # P73 D6-F12: a malformed local config must be preserved, never clobbered.
+    # P73: a malformed local config must be preserved, never clobbered.
     import tempfile as _tf
     with _tf.TemporaryDirectory() as _td:
         _p = Path(_td) / "creator-os-config.local.json"
@@ -703,7 +703,7 @@ def _selftest_static() -> tuple:
         _cfg3, _bak3, _err3 = _read_local_config_for_write(Path(_td) / "absent.json")
         ok("an absent local config is an empty dict, not an error",
            _err3 is None and _bak3 is None and _cfg3 == {})
-    # P73 D6-F11: a corrupt cache DB must get the rebuild hint, not a bare traceback.
+    # P73: a corrupt cache DB must get the rebuild hint, not a bare traceback.
     _corrupt = _cache_failure("sqlite3.DatabaseError: file is not a database")
     ok("a corrupt cache index returns a rebuild hint",
        "hint" in _corrupt and "index.local.db" in _corrupt["hint"])

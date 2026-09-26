@@ -296,7 +296,7 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     if (len(proof) != 3 or "b.md needs" not in proof[0] or "c.md is both" not in proof[1]
             or "d.md is not a tracked" not in proof[2]):
         stale_excluded.append(f"the excluded-map check failed its own fixture ({proof!r})")
-    # P73 D6-F3: files carrying a macOS concept the vocabulary has never heard of. Not coverage
+    # P73: files carrying a macOS concept the vocabulary has never heard of. Not coverage
     # failures -- proposals to widen MAC_SIGNALS, surfaced so the vocabulary gets reviewed when
     # macOS grows a new concept rather than only when someone happens to notice.
     candidates = []
