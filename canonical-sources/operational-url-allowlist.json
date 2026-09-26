@@ -1,9 +1,9 @@
 {
-  "_comment": "P49 WS3: operational-URL provenance sidecar. Drift invariant 46 (check_url_provenance) requires every http(s):// literal in tools/**/*.py to be accounted for by exactly one of: (a) a host in source-registry.json (data/reference sources), (b) a base domain listed here (infrastructure/plumbing endpoints), or (c) an excluded-by-rule host (example/placeholder/localhost/schema namespace). This file covers bucket (b): endpoints the code calls that are NOT re-checkable data sources. Entries are BASE DOMAINS; the invariant matches a host if it equals or is a subdomain of a listed domain. Add a new endpoint here (with a reason) rather than letting an undeclared URL ship. Doc bibliographies (docs/**, planning JSONs) are out of scope by rule -- the guard scans executable code only.",
+  "_comment": "P49 WS3: operational-URL provenance sidecar. Drift invariant 46 (check_url_provenance) requires every http(s):// literal in tools/**/*.py to be accounted for by at least one of: (a) a host in source-registry.json (data/reference sources), (b) a base domain listed here (infrastructure/plumbing endpoints), or (c) an excluded-by-rule host (example/placeholder/localhost/schema namespace). This file covers bucket (b): endpoints the code calls that are NOT re-checkable data sources. Entries are BASE DOMAINS; the invariant matches a host if it equals or is a subdomain of a listed domain. Add a new endpoint here (with a reason) rather than letting an undeclared URL ship. Invariant 46 fails an entry that matches no URL host in tools/**/*.py, whose hosts are all covered by another entry here, or that is listed twice; a host the registry also covers may stay listed. Doc bibliographies (docs/**, planning JSONs) are out of scope by rule -- the guard scans executable code only.",
   "version": "0.1.0",
   "allowed": [
     {"host": "googleapis.com", "category": "platform-api", "reason": "YouTube Data/Analytics API + Google OAuth token endpoint (www.googleapis.com, youtubeanalytics.googleapis.com, oauth2.googleapis.com)"},
-    {"host": "google.com", "category": "oauth-endpoint", "reason": "Google OAuth 2.0 authorization endpoint for the publishing loopback flow (accounts.google.com/o/oauth2/v2/auth)"},
+    {"host": "google.com", "category": "oauth-endpoint", "reason": "Google OAuth 2.0 authorization endpoint for the publishing loopback flow (accounts.google.com/o/oauth2/v2/auth), and the Google Cloud Console link shown in the wizard OAuth setup (console.cloud.google.com)"},
     {"host": "tiktok.com", "category": "oauth-endpoint", "reason": "TikTok Login Kit authorization endpoint for the publishing loopback flow (www.tiktok.com/v2/auth/authorize)"},
     {"host": "youtube.com", "category": "platform-surface", "reason": "YouTube Studio + watch/channel URLs (studio.youtube.com, www.youtube.com)"},
     {"host": "youtu.be", "category": "platform-surface", "reason": "YouTube short-link host used when building a video permalink"},
@@ -11,7 +11,6 @@
     {"host": "pinterest.com", "category": "platform-api", "reason": "Pinterest API v5 + pin/profile surface (api.pinterest.com, www.pinterest.com)"},
     {"host": "tiktokapis.com", "category": "platform-api", "reason": "TikTok Content Posting / Display API (open.tiktokapis.com)"},
     {"host": "tiktokv.com", "category": "platform-surface", "reason": "TikTok share-link host used in a sample parse path"},
-    {"host": "cloud.google.com", "category": "setup-console", "reason": "Google Cloud Console link shown in the wizard OAuth setup"},
     {"host": "census.gov", "category": "geocoding", "reason": "US Census geocoder used by the offline jurisdiction geocoding seam"},
     {"host": "easypost.com", "category": "carrier-api", "reason": "EasyPost shipment-tracking API (tasks/shipments lane)"},
     {"host": "ship24.com", "category": "carrier-api", "reason": "Ship24 shipment-tracking API (tasks/shipments lane)"},

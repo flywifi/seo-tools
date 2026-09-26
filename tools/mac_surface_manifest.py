@@ -214,7 +214,9 @@ def reconcile(root: Path = ROOT, manifest_path: Path | None = None, accept_new: 
         "_comment": "P69/P70 macOS surface completeness gate. `files` = the macOS surface this repo "
                     "tracks, each recorded at the sha256 it carried when a human last blessed it; the "
                     "hash proves the bytes have not moved since, not that anyone re-read them today. "
-                    "`excluded` = a derived match a human ruled NOT a macOS surface, with the reason. "
+                    "`excluded` = a derived match a human ruled NOT a macOS surface, with a reason of 25+ "
+                    "characters; an exclusion that is untracked, no longer derives or is also in "
+                    "`files` fails invariant 58. "
                     "Adding a path nobody has ruled on requires `reconcile --accept-new`, so entering "
                     "this file is an act rather than a default. Drift invariant 58 fails the build "
                     "when a derived match is in neither map, when a recorded file's sha moves, when a "
@@ -235,12 +237,35 @@ def reconcile(root: Path = ROOT, manifest_path: Path | None = None, accept_new: 
     return manifest
 
 
+MIN_EXCLUDED_REASON = 25
+
+
+def excluded_problems(excluded, files, tracked, derived):
+    """Entries in the `excluded` map that do no work, as messages. An exclusion must name a
+    tracked file that still derives (otherwise it excludes nothing), must not also be recorded in
+    `files`, and must carry a written reason of MIN_EXCLUDED_REASON+ characters. reconcile() keeps
+    `excluded` as it is, so these are reported for a human to act on, never pruned."""
+    out = []
+    for rel, why in sorted(excluded.items()):
+        if len(str(why).strip()) < MIN_EXCLUDED_REASON:
+            out.append(f"excluded {rel} needs a written reason of {MIN_EXCLUDED_REASON}+ characters")
+        if rel in files:
+            out.append(f"{rel} is both recorded in `files` and excluded; keep one")
+        if rel not in tracked:
+            out.append(f"excluded {rel} is not a tracked file; drop it from `excluded`")
+        elif rel not in derived:
+            out.append(f"excluded {rel} no longer derives, so the exclusion does nothing; drop it "
+                       f"from `excluded`")
+    return out
+
+
 def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
-    """Two-way result: {'unaudited': [...], 'changed': [...], 'missing': [...], 'note': str|None}.
+    """Two-way result: {'unaudited': [...], 'changed': [...], 'missing': [...], 'stale_excluded':
+    [...], 'note': str|None}; stale_excluded lists exclusions that do no work (excluded_problems).
     All-empty == the audited set still equals the live Mac surface. Never raises."""
     manifest_path = manifest_path or MANIFEST_PATH
     empty = {"unaudited": [], "changed": [], "missing": [], "undetectable": [],
-             "deriver_drift": [], "vocabulary_candidates": [], "note": None}
+             "deriver_drift": [], "vocabulary_candidates": [], "stale_excluded": [], "note": None}
     if not manifest_path.exists():
         return dict(empty, note="manifest missing; run 'python3 tools/mac_surface_manifest.py reconcile'")
     try:
@@ -265,6 +290,12 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     # token that used to catch it -- coverage narrowed without a single file "changing".
     derived_set = set(derived)
     undetectable = [r for r in files if r not in derived_set and (root / r).exists()]
+    stale_excluded = excluded_problems(excluded, files, set(tracked), derived_set)
+    proof = excluded_problems({"a.md": "r" * 30, "b.md": "short", "c.md": "r" * 30, "d.md": "r" * 30},
+                              {"c.md": "x"}, {"a.md", "b.md", "c.md"}, {"a.md", "b.md", "c.md"})
+    if (len(proof) != 3 or "b.md needs" not in proof[0] or "c.md is both" not in proof[1]
+            or "d.md is not a tracked" not in proof[2]):
+        stale_excluded.append(f"the excluded-map check failed its own fixture ({proof!r})")
     # P73 D6-F3: files carrying a macOS concept the vocabulary has never heard of. Not coverage
     # failures -- proposals to widen MAC_SIGNALS, surfaced so the vocabulary gets reviewed when
     # macOS grows a new concept rather than only when someone happens to notice.
@@ -295,7 +326,7 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     return {"unaudited": sorted(unaudited), "changed": sorted(changed),
             "missing": sorted(missing), "undetectable": sorted(undetectable),
             "deriver_drift": deriver_drift, "vocabulary_candidates": sorted(candidates),
-            "note": None}
+            "stale_excluded": stale_excluded, "note": None}
 
 
 def selftest() -> int:

@@ -100,7 +100,8 @@ Invariants enforced:
   45. content-vs-digest silent staleness (P47, advisory, loud): registry sources re-verified after the
       freshness baseline as_of are surfaced (the digest excludes content).
   46. URL provenance (P49 WS3): every http(s) literal in tools/**/*.py resolves to a source-registry
-      host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host.
+      host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host;
+      each sidecar entry must account for a host no other entry covers.
   47. Knowledge-pack projection staleness (P49 WS7; blocking since P79): when a shared engine/protocol a knowledge
       file projects changes sha since the projection manifest was reconciled, the file is surfaced.
   48. Doc-count truth (P49 WS2): live architecture/setup docs must state the true global totals
@@ -147,13 +148,21 @@ Invariants enforced:
       eval_lint.py (case structure) leave open: a well-formed case with a fabricated key.
   58. Mac-surface completeness (P69): every tracked file carrying a macOS signal is either
       audited in canonical-sources/mac-surface-manifest.json at a recorded sha256, or
-      listed in its `excluded` map with a reason. Two-way: a new Mac surface fails as
+      listed in its `excluded` map with a reason (an exclusion must name a tracked file that
+      still derives and carry a 25+ character reason). Two-way: a new Mac surface fails as
       unaudited; an edited audited surface fails as changed. tools/mac_surface_manifest.py.
   59. Install-scope policy (P93): every machine-wide install instruction in the live setup
       guidance (sudo package commands, brew install, npm install -g, the pip system-override
-      flag, command-anchored pip install) carries the "machine-wide"/"whole computer" label
-      within two lines, so user-scoped stays the default. Policy: docs/INSTALL-SCOPE.md.
+      flag, command-anchored pip install, a copy, move, link, redirect or download into
+      /Applications, /usr/local or /opt/homebrew, a drag into the Applications folder) carries the
+      "machine-wide"/"whole computer" label
+      on its line, above it in its paragraph, or on either of the two lines
+      just above the blank line before that paragraph, so user-scoped stays the default.
+      Policy: docs/INSTALL-SCOPE.md.
+      It reads every tracked file except binaries (a NUL byte in the first 8 KiB).
       The detector self-proves on embedded fail-then-pass fixtures before every scan.
+      Exemptions are exact tracked paths that must still carry an unlabeled install and may
+      not name a file tools/claim-proof-manifest.json binds.
   60. Claim-proof binding (P94): a universal claim about this repo's own behavior inside the
       guarded corpus (CLAUDE.md's non-negotiables, docs/INSTALL-SCOPE.md) is bound in
       tools/claim-proof-manifest.json to an enforced invariant or a NAMED selftest pin the
@@ -1207,10 +1216,29 @@ def _git_last_commit_date(rel):
 
 
 # Dated records quote what was true when they were written; live claims are swept, these are not.
-HISTORY_PREFIXES = ("docs/adr/", "ledger/", "CHANGELOG.md", "STATE.md", "docs/ROADMAP.md", "examples/",
-                    "docs/production-readiness-", "docs/remediation-", "docs/integrity-currency-audit-",
-                    "docs/persona-audit", "docs/CROSS-MODALITY-AUDIT.md", "docs/video-tooling-",
-                    "canonical-sources/volatile-corrections.")
+# Each entry must still skip at least one sweep hit (_prefix_work_problems), so a record that no
+# longer quotes a stale fact goes back to being swept.
+HISTORY_PREFIXES = ("docs/adr/", "ledger/", "CHANGELOG.md", "canonical-sources/volatile-corrections.")
+
+
+def _prefix_work_problems(where, prefixes, hits_by_file):
+    """Entries in a sweep's skip tuple that do no work, given {path: hit count} for every file the
+    sweep reads (skipped files included: counted, not reported). An entry that is empty, repeated
+    or inside another entry is redundant; one that matches no file the sweep reads, or whose files
+    carry no hit, skips nothing. Pure, so the sweep proves it on a fixture before use."""
+    out = []
+    for key in prefixes:
+        under = [n for rel, n in hits_by_file.items() if rel.startswith(key)]
+        if (not key or prefixes.count(key) > 1
+                or any(o != key and key.startswith(o) for o in prefixes)):
+            out.append(f"{where}: the skip entry {key!r} is empty, repeated or inside another "
+                       f"entry; drop it")
+        elif not under:
+            out.append(f"{where}: the skip entry {key!r} matches no file this sweep reads; drop it")
+        elif not sum(under):
+            out.append(f"{where}: the skip entry {key!r} skips nothing (no file under it trips "
+                       f"the sweep); drop it so those files are swept like any other")
+    return out
 
 
 def _privacy_git_unavailable(invariant):
@@ -2463,14 +2491,48 @@ def check_content_vs_digest():
                  f"may lag detected content -> run tools/build_freshness_bundle.py --apply to re-stamp")
 
 
+def _url_allow_problems(entries, code_hosts):
+    """Operational-allowlist entries that do no work, given the non-excluded URL hosts in
+    tools/**/*.py. Each entry needs a host and a reason, and must account for at least one of those
+    hosts that no OTHER entry covers. Registry coverage does not count against an entry: an
+    operational endpoint stays listed even when a data source shares its host, so retiring that
+    source cannot strand it. A host listed twice is reported as a duplicate. Pure, so the check
+    proves it on a fixture before use."""
+    def covered(h, allowed):
+        return any(h == a or h.endswith("." + a) for a in allowed)
+    hosts = [str(e.get("host", "")).lower() for e in entries]
+    out = []
+    for i, (host, e) in enumerate(zip(hosts, entries)):
+        others = hosts[:i] + hosts[i + 1:]
+        if not host or not str(e.get("reason", "")).strip():
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} needs a host and "
+                       f"a reason")
+            continue
+        if hosts.count(host) > 1:
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} is listed more "
+                       f"than once; keep one")
+            continue
+        mine = sorted(h for h in code_hosts if covered(h, [host]))
+        if not mine:
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} matches no URL "
+                       f"host in tools/**/*.py; drop it")
+        elif all(covered(h, others) for h in mine):
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} accounts for "
+                       f"nothing on its own ({', '.join(mine)} already covered by another entry); "
+                       f"drop it and move its reason there")
+    return out
+
+
 def check_url_provenance():
     """Invariant 46: URL provenance (P49 WS3). Every http(s):// literal in tools/**/*.py must be
-    ACCOUNTED FOR by exactly one of: (a) a host in canonical-sources/source-registry.json (data/reference
+    ACCOUNTED FOR by at least one of: (a) a host in canonical-sources/source-registry.json (data/reference
     sources), (b) a base domain in canonical-sources/operational-url-allowlist.json (infra/plumbing
     endpoints, each with a written reason), or (c) an excluded-by-rule host (example/placeholder host,
     localhost, or a schema/XML namespace). Anything else is an undeclared endpoint and fails the build,
     so a typo'd or unvetted URL cannot ship silently. STATIC only: this never fetches a URL. Scope is
-    executable code (tools/**/*.py); doc bibliographies are out of scope by rule.
+    executable code (tools/**/*.py); doc bibliographies are out of scope by rule. Each allowlist
+    entry must carry a reason and account for at least one of those hosts that no other entry
+    covers (_url_allow_problems); registry coverage does not count against it.
 
     DEV-TRAP: an inline f-string that builds a URL host from a cfg.get(...) call inside the braces
     parses as an undeclared host (the static grep stops at the first quote, capturing a dotted token).
@@ -2497,6 +2559,7 @@ def check_url_provenance():
         if u.startswith("http"):
             reg_hosts.add(urllib.parse.urlparse(u).netloc.lower().split(":")[0])
     allow_hosts = {e.get("host", "").lower() for e in allow_doc.get("allowed", []) if e.get("host")}
+    code_hosts = set()
     schema_hosts = {"www.w3.org", "w3.org", "www.opengis.net", "opengis.net",
                     "schema.org", "json-schema.org", "www.google.com/recaptcha"}
 
@@ -2523,12 +2586,24 @@ def check_url_provenance():
             if host in seen:
                 continue
             seen.add(host)
+            if not excluded(host):
+                code_hosts.add(host)
             if excluded(host) or covered(host, reg_hosts) or covered(host, allow_hosts):
                 continue
             problem(f"url-provenance: {py.relative_to(ROOT)} hardcodes an undeclared URL host "
                     f"{host!r}; add it to source-registry.json (if it is a re-checkable data source) or "
                     f"canonical-sources/operational-url-allowlist.json (if it is an operational endpoint, "
                     f"with a reason), or it is a genuine placeholder that the exclusion rules should cover")
+    proof = _url_allow_problems([{"host": "a.com", "reason": "r"}, {"host": "sub.a.com", "reason": "r"},
+                                 {"host": "idle.org", "reason": "r"}, {"host": "", "reason": ""},
+                                 {"host": "dup.net", "reason": "r"}, {"host": "dup.net", "reason": "r"}],
+                                {"x.a.com", "sub.a.com", "dup.net"})
+    if [(m.split("'")[1], "more than once" in m) for m in proof] != [
+            ("sub.a.com", False), ("idle.org", False), ("", False), ("dup.net", True), ("dup.net", True)]:
+        problem(f"url-provenance: self-proof failed -- _url_allow_problems returned {proof!r}; a "
+                f"redundant, an idle, a reasonless and a repeated entry must each be reported")
+    for msg in _url_allow_problems(allow_doc.get("allowed", []), code_hosts):
+        problem(msg)
 
 
 def check_projection_staleness():
@@ -2633,14 +2708,21 @@ def check_doc_count_truth():
                 "atoms": "atoms", "scenarios": "scenarios"}
     # Historical records legitimately quote the counts that were true when they were written.
     # This mirrors the scoping the curated list already assumes (see this check's docstring).
-    skip_prefixes = ("docs/adr/", "ledger/", "CHANGELOG.md", "STATE.md", "docs/ROADMAP.md",
-                     "examples/", "docs/production-readiness-",
-                     # A dated audit record: its body quotes the counts that were true at P39 and
-                     # it says so in its own opening line. Same class as an ADR.
-                     "docs/CROSS-MODALITY-AUDIT.md")
+    # Each entry must still skip a hit (_prefix_work_problems); one that skips nothing is dropped
+    # so its files are swept.
+    skip_prefixes = ("docs/adr/", "CHANGELOG.md", "STATE.md")
+    proof = _prefix_work_problems("x", ("live/", "dead/", "gone/", "live/sub/"),
+                                  {"live/a.md": 1, "dead/b.md": 0, "live/sub/c.md": 0})
+    if [m.split("'")[1] for m in proof] != ["dead/", "gone/", "live/sub/"]:
+        problem(f"doc-count-truth: skip-entry self-proof failed -- _prefix_work_problems returned "
+                f"{proof!r}; an entry that skips nothing must be reported")
+    skip_hits = {}
     for rel in (_git_ls_files() or []):
-        if rel in enrolled or rel.startswith(skip_prefixes) or not rel.endswith(".md"):
+        if rel in enrolled or not rel.endswith(".md"):
             continue
+        skipped = rel.startswith(skip_prefixes)
+        if skipped:
+            skip_hits[rel] = 0
         p = ROOT / rel
         if not p.exists():
             continue
@@ -2648,12 +2730,17 @@ def check_doc_count_truth():
         for kw, key in keywords.items():
             for m in re.finditer(rf"(\d+)\s+{re.escape(kw)}\b", text):
                 if int(m.group(1)) == truth[key]:
+                    if skipped:
+                        skip_hits[rel] += 1
+                        break
                     problem(
                         f"doc-count-truth: {rel} states '{m.group(1)} {kw}' but is NOT enrolled in "
                         f"the count-truth list, so it can drift silently. Add "
                         f"(\"{rel}\", \"{key}\", \"{kw}\") to checks[] in check_doc_count_truth, or "
                         f"reword the sentence so it does not state a global count.")
                     break
+    for msg in _prefix_work_problems("doc-count-truth", skip_prefixes, skip_hits):
+        problem(msg)
     # P81: the Python floor is one constant (tools/env_paths.PYTHON_FLOOR); prose that names another
     # minor version as the floor or the recommendation is a live falsehood (P80 left two behind).
     try:
@@ -2666,9 +2753,18 @@ def check_doc_count_truth():
     floor_re = re.compile(r"(?:Python|python)\s*(?:>=\s*)?3\.(\d{1,2})\s+or\s+(?:later|newer)|python@3\.(\d{1,2})|\(3\.(\d{1,2}) recommended\)")
     pin_re = re.compile(r">=1\.28,<2|numpy below 2\.5|deferred mcp 2\.x")
     tracked = _git_ls_files() or []
+    history_hits = {}
     for rel in tracked:
-        if rel.startswith(HISTORY_PREFIXES) or not rel.endswith((".md", ".py", ".command", ".bat", ".txt", ".json")):
+        if not rel.endswith((".md", ".py", ".command", ".bat", ".txt", ".json")):
             continue
+        report = problem
+        if rel.startswith(HISTORY_PREFIXES):
+            # A dated record is read too, but its hits are only counted, so each
+            # HISTORY_PREFIXES entry can be shown to skip something.
+            history_hits[rel] = 0
+
+            def report(_msg, _rel=rel):
+                history_hits[_rel] += 1
         try:
             lines = (ROOT / rel).read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError:
@@ -2678,12 +2774,14 @@ def check_doc_count_truth():
                 minors = [int(next(g for g in m.groups() if g)) for m in floor_re.finditer(line)]
                 stale = [v for v in minors if v != floor_minor]
                 if stale and f"3.{floor_minor}" not in line:
-                    problem(f"doc-floor-truth: {rel}:{i} names Python 3.{stale[0]} where the floor is 3.{floor_minor} "
+                    report(f"doc-floor-truth: {rel}:{i} names Python 3.{stale[0]} where the floor is 3.{floor_minor} "
                             f"(tools/env_paths.PYTHON_FLOOR); fix the prose, or name the floor on the same line")
             m = pin_re.search(line)
             if m:
-                problem(f"doc-floor-truth: {rel}:{i} states a retired pin or work state ({m.group(0)!r}); "
-                        f"registry hints move via source_currency update-source --extraction-hint")
+                report(f"doc-floor-truth: {rel}:{i} states a retired pin or work state ({m.group(0)!r}); "
+                       f"registry hints move via source_currency update-source --extraction-hint")
+    for msg in _prefix_work_problems("doc-floor-truth", HISTORY_PREFIXES, history_hits):
+        problem(msg)
     # P81: every ADR is reachable from the index (0053 to 0055 were not).
     idx_path = ROOT / "docs" / "adr" / "README.md"
     if idx_path.exists():
@@ -2735,43 +2833,78 @@ def _module_symbols(pyfile):
     return names
 
 
+def _verify_marker_error(spec):
+    """Why a `<!-- verify: spec -->` marker does not resolve, or None when it does."""
+    path, _, symbol = spec.partition("::")
+    if path.split("/")[0] not in KNOWN_ROOTS:
+        return f"verify marker `{spec}` path is not under a known repo root"
+    resolved = ROOT / path
+    if not resolved.exists():
+        return f"verify marker references missing path `{path}`"
+    if symbol:
+        if resolved.suffix != ".py":
+            return f"verify marker `{spec}` names a symbol but `{path}` is not a .py file"
+        syms = _module_symbols(resolved)
+        if syms is None:
+            return f"verify marker `{spec}`: could not parse `{path}`"
+        if symbol not in syms:
+            return f"verify marker `{spec}`: symbol `{symbol}` is not defined in `{path}`"
+    return None
+
+
+def _doc_verify_allow_problems(allow_list, seen, error_of):
+    """Entries in tools/doc-verify-allowlist.json that do no work: repeated, naming no marker the
+    scan met (`seen`), or naming a marker that resolves without the exemption (`error_of(spec)` is
+    None). Pure, so the check proves it on a fixture before use."""
+    out = [f"doc-verify-allowlist: {s!r} is listed more than once"
+           for s in sorted({s for s in allow_list if allow_list.count(s) > 1})]
+    for s in sorted(set(allow_list)):
+        if s not in seen:
+            out.append(f"doc-verify-allowlist: {s!r} names no verify marker in the scanned docs; "
+                       f"drop it")
+        elif error_of(s) is None:
+            out.append(f"doc-verify-allowlist: {s!r} resolves without the exemption, so it exempts "
+                       f"nothing; drop it")
+    return out
+
+
 def check_doc_symbol_refs():
     """Invariant 49: doc symbol references (P52). A `<!-- verify: path[::symbol] -->` marker in a
     maintainer/SKILL/doc file asserts the named code still exists: the path must resolve, and a
     ::symbol must be a module-level def/class/assignment (or Class.method) in that .py module. This
     extends the path-only check (invariant 5) to catch a renamed or removed symbol that prose still
     names. Exemptions for dynamically-defined/optional symbols live in tools/doc-verify-allowlist.json
-    ({"exempt": ["path::symbol", ...]})."""
-    allow = set()
+    ({"exempt": ["path::symbol", ...]}). An exemption must still do work: it must name a marker the
+    scan meets, and that marker must fail to resolve without it; a stale or repeated entry fails
+    the build (_doc_verify_allow_problems)."""
+    allow_list = []
     ap = ROOT / "tools" / "doc-verify-allowlist.json"
     if ap.exists():
         try:
-            allow = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
-        except (OSError, json.JSONDecodeError):
-            allow = set()
+            allow_list = json.loads(ap.read_text(encoding="utf-8")).get("exempt", [])
+        except (OSError, json.JSONDecodeError, AttributeError) as exc:
+            problem(f"doc-verify-allowlist: unreadable ({exc}); fix the JSON")
+    if not isinstance(allow_list, list) or not all(isinstance(s, str) for s in allow_list):
+        problem("doc-verify-allowlist: 'exempt' must be a list of path::symbol strings")
+        allow_list = []
+    proof = _doc_verify_allow_problems(["a.py::x", "b.py::y", "c.py::z", "c.py::z"], {"a.py::x", "b.py::y"},
+                                       lambda s: None if s == "b.py::y" else "unresolved")
+    if [m.split("'")[1] for m in proof] != ["c.py::z", "b.py::y", "c.py::z"]:
+        problem(f"doc-verify-allowlist: self-proof failed -- _doc_verify_allow_problems returned "
+                f"{proof!r}; a repeated, a resolving and an unused exemption must each be reported")
+    allow, seen = set(allow_list), set()
     for target in _reference_scan_files():
         rel = target.relative_to(ROOT)
         for m in VERIFY_RE.finditer(target.read_text(encoding="utf-8")):
             spec = m.group(1)
             if spec in allow:
+                seen.add(spec)
                 continue
-            path, _, symbol = spec.partition("::")
-            if path.split("/")[0] not in KNOWN_ROOTS:
-                problem(f"{rel}: verify marker `{spec}` path is not under a known repo root")
-                continue
-            resolved = ROOT / path
-            if not resolved.exists():
-                problem(f"{rel}: verify marker references missing path `{path}`")
-                continue
-            if symbol:
-                if resolved.suffix != ".py":
-                    problem(f"{rel}: verify marker `{spec}` names a symbol but `{path}` is not a .py file")
-                    continue
-                syms = _module_symbols(resolved)
-                if syms is None:
-                    problem(f"{rel}: verify marker `{spec}`: could not parse `{path}`")
-                elif symbol not in syms:
-                    problem(f"{rel}: verify marker `{spec}`: symbol `{symbol}` is not defined in `{path}`")
+            err = _verify_marker_error(spec)
+            if err:
+                problem(f"{rel}: {err}")
+    for msg in _doc_verify_allow_problems(allow_list, seen, _verify_marker_error):
+        problem(msg)
 
 
 def check_tools_maintainer():
@@ -2791,6 +2924,38 @@ SOURCES_BLOCK_RE = re.compile(r"^```sources[ \t]*\n(.*?)^```[ \t]*$", re.DOTALL 
 SOURCE_MARKER_RE = re.compile(r"<!--\s*source:\s*([A-Za-z0-9][A-Za-z0-9_-]*)\s*-->")
 
 
+DOC_SOURCE_MIN_REASON = 25
+
+
+def _doc_source_allow_problems(doc, registry_ids, used):
+    """Problems with tools/doc-source-allowlist.json, given the registered ids and the exempt ids
+    the scan met (in a sources block, a source marker or a shorthand help-article citation). An
+    exempt id skips the registry lookup AND the url comparison, so exempting a registered id would
+    hide a wrong url: that is refused. "exempt" and "_reasons" must name the same ids, each reason
+    must be written out, and an id no scanned doc uses exempts nothing. Pure, so the check proves
+    it on a fixture before use."""
+    ex = doc.get("exempt", []) if isinstance(doc, dict) else None
+    reasons = doc.get("_reasons", {}) if isinstance(doc, dict) else None
+    if not isinstance(ex, list) or not isinstance(reasons, dict):
+        return ["doc-source-allowlist: 'exempt' must be a list and '_reasons' a map"]
+    out = [f"doc-source-allowlist: {i!r} is listed more than once in exempt"
+           for i in sorted({i for i in ex if ex.count(i) > 1})]
+    for i in sorted(set(ex) | set(reasons)):
+        if i not in ex:
+            out.append(f"doc-source-allowlist: {i!r} has a reason in _reasons but is not in "
+                       f"exempt; drop the reason")
+        elif len(str(reasons.get(i, "")).strip()) < DOC_SOURCE_MIN_REASON:
+            out.append(f"doc-source-allowlist: {i!r} needs a written reason of "
+                       f"{DOC_SOURCE_MIN_REASON}+ characters in _reasons")
+        elif i in registry_ids:
+            out.append(f"doc-source-allowlist: {i!r} is a registered source; exempting it only "
+                       f"skips the url check, so drop the exemption")
+        elif i not in used:
+            out.append(f"doc-source-allowlist: {i!r} is used by no scanned sources block, marker "
+                       f"or help-article citation, so it exempts nothing; drop it")
+    return out
+
+
 def check_doc_source_registry():
     """Invariant 52: doc-declared source registration (P55). A maintainer/SKILL/doc file that declares
     the external sources its claims rest on - a fenced ```sources block holding a JSON array of
@@ -2803,7 +2968,11 @@ def check_doc_source_registry():
     the seed file; the human registers it via source_currency seed-sources). Enforcement is opt-in per
     doc - a file with no block and no marker is unaffected. Exemptions for illustrative/example ids
     live in tools/doc-source-allowlist.json ({"exempt": ["the-id", ...]}, each with a written reason
-    in _comments)."""
+    in its "_reasons" map). An exempt id skips the registry lookup, the url comparison and the
+    shorthand help-article check, so the allowlist is held to four rules
+    (_doc_source_allow_problems): "exempt" and "_reasons" name the same ids, each reason is
+    written out, no exempt id is a registered source, and each exempt id is still used by a
+    scanned sources block, marker or shorthand citation."""
     reg_path = ROOT / "canonical-sources" / "source-registry.json"
     try:
         reg = json.loads(reg_path.read_text(encoding="utf-8"))
@@ -2811,14 +2980,25 @@ def check_doc_source_registry():
         problem(f"doc-source-registry: source-registry.json unreadable: {exc}")
         return
     registry = {s.get("id"): s.get("url") for s in reg.get("sources", []) if s.get("id")}
-    exempt = set()
+    exempt, allow_doc, used = set(), {}, set()
     ap = ROOT / "tools" / "doc-source-allowlist.json"
     if ap.exists():
         try:
-            exempt = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
-        except (OSError, json.JSONDecodeError):
-            exempt = set()
-    # P82 (audit F17): the sources-block pass also covers implementation/**/*.md, where the
+            allow_doc = json.loads(ap.read_text(encoding="utf-8"))
+            exempt = set(allow_doc.get("exempt", []))
+        except (OSError, json.JSONDecodeError, AttributeError, TypeError) as exc:
+            problem(f"doc-source-allowlist: unreadable ({exc}); fix the JSON")
+            exempt, allow_doc = set(), {}
+    proof = _doc_source_allow_problems(
+        {"exempt": ["ok-id", "reg-id", "idle-id", "bare-id"],
+         "_reasons": {"ok-id": "r" * 25, "reg-id": "r" * 25, "idle-id": "r" * 25,
+                      "orphan-id": "r" * 25, "bare-id": "short"}},
+        {"reg-id"}, {"ok-id", "reg-id", "bare-id"})
+    if [m.split("'")[1] for m in proof] != ["bare-id", "idle-id", "orphan-id", "reg-id"]:
+        problem(f"doc-source-allowlist: self-proof failed -- _doc_source_allow_problems returned "
+                f"{proof!r}; a short reason, an unused id, an orphan reason and a registered id "
+                f"must each be reported")
+    # P82: the sources-block pass also covers implementation/**/*.md, where the
     # packaging READMEs declare the plan-fact authorities. LOCAL union only --
     # _reference_scan_files() is shared with invariants 5 and 49 and must stay narrow.
     _scan_targets = list(_reference_scan_files()) + [
@@ -2842,6 +3022,7 @@ def check_doc_source_registry():
                     continue
                 sid = item["id"]
                 if sid in exempt:
+                    used.add(sid)
                     continue
                 if sid not in registry:
                     problem(f"{rel}: declared source id '{sid}' is not in source-registry.json; "
@@ -2853,11 +3034,13 @@ def check_doc_source_registry():
                             f"(declared {item['url']!r}, registry {registry[sid]!r}); reconcile "
                             f"whichever is stale (update-source for the registry side)")
         for mid in SOURCE_MARKER_RE.findall(text):
+            if mid in exempt:
+                used.add(mid)
             if mid not in registry and mid not in exempt:
                 problem(f"{rel}: source marker references id '{mid}' which is not in "
                         f"source-registry.json (seed it or exempt it with a reason)")
 
-    # P73 D6-F7: this invariant only ever saw a fenced block or an explicit marker, and
+    # P73: this invariant only ever saw a fenced block or an explicit marker, and
     # invariant 46 only ever matched a full https:// URL. A shorthand citation -- "help/12584461",
     # "help.openai.com/en/articles/8096356" -- was therefore invisible to BOTH, which is how a
     # load-bearing plan-eligibility claim shipped in two live docs with no registry entry. The
@@ -2866,7 +3049,7 @@ def check_doc_source_registry():
     # the registry entry is required.
     known_articles = {m for url in registry.values() if url
                       for m in re.findall(r"/articles/(\d{4,})", url)}
-    # P82 (audit F17): line-based, not prefix-anchored. The old pattern required the id to sit
+    # P82: line-based, not prefix-anchored. The old pattern required the id to sit
     # immediately after the prefix, so a comma list -- "articles 8554397, 8798878", exactly how
     # ADR 0052 leaked an unregistered id -- slipped it. Any line naming the help host yields its
     # 7-8 digit tokens (word-bounded, so comma-grouped figures and shorter noise stay out).
@@ -2890,6 +3073,8 @@ def check_doc_source_registry():
             if _help_line.search(line):
                 arts.extend(_article_id.findall(line))
         for art in arts:
+            if art in exempt:
+                used.add(art)
             if art in known_articles or art in seen or art in exempt:
                 continue
             seen.add(art)
@@ -2897,6 +3082,8 @@ def check_doc_source_registry():
                     f"source has that article id. A scheme-less citation is still a citation: "
                     f"seed it (tools/source_sync.py reconcile, then source_currency seed-sources) "
                     f"so the currency system tracks it.")
+    for msg in _doc_source_allow_problems(allow_doc, set(registry), used):
+        problem(msg)
 
 
 def check_connector_resolver_smoke():
@@ -3526,6 +3713,8 @@ def check_mac_surface_completeness():
                 f"`python3 tools/mac_surface_manifest.py reconcile`)")
     for rel in res["missing"]:
         problem(f"mac-surface: recorded file {rel} is missing (deleted or moved); reconcile the manifest")
+    for msg in res.get("stale_excluded", []):
+        problem(f"mac-surface: {msg} (canonical-sources/mac-surface-manifest.json)")
     for rel in res.get("undetectable", []):
         problem(f"mac-surface: {rel} is recorded but no longer derives -- the signal set narrowed and "
                 f"coverage shrank silently; restore the signal or re-bless deliberately")
@@ -3544,7 +3733,7 @@ def check_mac_surface_completeness():
 
 # P93-4: the install-scope detector. Each branch is a DISTINCT way to install machine-wide, and
 # the check's coverage proof exercises every one of them by name, so deleting a branch fails the
-# build instead of silently shrinking what the gate sees (the P70 lesson from invariant 58).
+# build instead of silently shrinking what the gate sees.
 _INSTALL_SCOPE_BRANCHES = {
     "brew": r"brew\s+(?:install|reinstall)\b",
     "sudo-pkg": r"sudo\s+(?:-\S+\s+)*(?:apt|apt-get|dnf|yum|pacman|zypper|port|snap|installer|"
@@ -3557,41 +3746,86 @@ _INSTALL_SCOPE_BRANCHES = {
     "pip-command": r"(?:^|[>`\"'\(:;$|]|\s{2}|\b(?:Run|run|then|Then):\s*|^\s*[-*]\s+)"
                    r"\s*(?:python3?\s+-m\s+)?pip3?\s+install\b",
     "macos-pkg": r"(?:installer\s+-pkg\b|python\.org/downloads|universal2\s+(?:\.pkg|installer|build))",
+    # A copy, link, redirect or download whose DESTINATION is /Applications, or a drag into the
+    # Applications folder. The per-user ~/Applications never matches, and neither does a path
+    # that is only listed or read ("ls /Applications").
+    "applications-dir": r"(?:\b(?:cp|mv|ditto|rsync|ln|install\s+(?:-\S+\s+)+)[^\n|;&>]*\s[`'\"]?"
+                        r"|>>?\s*[`'\"]?|\btee\s+(?:-a\s+)?[`'\"]?)/Applications\b"
+                        r"|\b(?:[Dd]rag|[Mm]ove|[Cc]opy|[Pp]ut)\b(?:[^\n.;]|\.(?=\S)){0,60}?\b(?:into|to|in)\s+"
+                        r"(?:the\s+|your\s+)?[`'\"]?(?:/Applications\b|Applications\s+folder\b)",
+    # A write whose destination is under /usr/local or /opt/homebrew: the last argument of cp, mv,
+    # ln, ditto, rsync or install, a shell redirect, tee, curl -o/--output, --prefix, or prose
+    # that moves, copies, puts, places or saves something into it. A path there that is only a
+    # source ("cp /opt/homebrew/bin/ffmpeg ~/bin/ffmpeg") or is named in prose without one of
+    # those verbs does not match.
+    "system-prefix-write": r"\b(?:cp|mv|ditto|rsync|ln|install\s+(?:-\S+\s+)+)[^\n|;&>]*\s[`'\"]?"
+                           r"(?:/usr/local|/opt/homebrew)(?:/[^\s|;&`'\"]*)?(?=[`'\"]|\s*(?:$|[|;&)#]))"
+                           r"|>>?\s*[`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|\btee\s+(?:-a\s+)?[`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|\s(?:-o|--output)\s+[`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|--prefix[= ][`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|\b(?:[Mm]ove|[Cc]opy|[Pp]ut|[Pp]lace|[Ss]ave)\b(?:[^\n.;]|\.(?=\S)){0,60}?"
+                           r"\b(?:into|to|in)\s+(?:the\s+)?[`'\"]?(?:/usr/local|/opt/homebrew)\b",
 }
 _INSTALL_SCOPE_PATTERN = re.compile("|".join(f"(?:{p})" for p in _INSTALL_SCOPE_BRANCHES.values()))
 _INSTALL_SCOPE_LABEL = re.compile(r"(whole computer|machine-wide|machine wide)", re.I)
 
-# Paths whose install lines are NOT this repo's live guidance. Each entry carries its reason; a
-# path is exempt when it starts with a listed prefix or matches a listed name.
-# P95: every entry must still exempt something; _install_scope_exempt_problems fails the build
-# on one that does not (CHANGELOG.md, ledger/, docs/production-readiness-, docs/AUDIT- and the
-# secret-scan allowlist were dropped for exempting nothing).
+# Files whose install lines are NOT this repo's live guidance, each with its reason. A key is one
+# exact tracked path, never a prefix, so a new file beside an exempt one is scanned.
+# _install_scope_exempt_problems fails the build on a key that is not a tracked file, that names a
+# file tools/claim-proof-manifest.json binds (corpus, install-route doc or route prober), that has
+# no reason, or whose file no longer carries an unlabeled install.
+_ADR_REASON = "decision record: it quotes the state of the world when the decision was made"
+_REGISTRY_REASON = ("registry and reference DATA about third-party sources (extraction hints, "
+                    "seeds); it describes what those tools are and instructs nobody to install")
+_VIDEO_EVAL_REASON = "third-party tool evaluation: records those vendors' own install facts"
 _INSTALL_SCOPE_EXEMPT = {
-    "docs/adr/": "decision records: they quote the state of the world when the decision was made",
+    ".github/workflows/ci.yml": "CI workflow steps run in an ephemeral single-use container that "
+                                "is destroyed after the run; nothing there installs onto a "
+                                "person's machine",
     "STATE.md": "phase log: historical record of each pass",
-    "docs/VIDEO_TOOLING_EVAL": "third-party tool evaluation: records those vendors' own install facts",
-    "docs/video-tooling-": "third-party tool evaluation evidence, same reason",
-    "tools/sync_check.py": "this file: it holds the detector's own deliberately unlabeled fixtures",
+    "canonical-sources/dependency-sources-seed.json": _REGISTRY_REASON,
+    "canonical-sources/operational-url-allowlist.json": "allowlist data: a host reason names the "
+                                                        "Homebrew install script the code links "
+                                                        "to; it instructs nobody",
+    "canonical-sources/source-registry.json": _REGISTRY_REASON,
+    "docs/VIDEO_TOOLING_EVAL.md": _VIDEO_EVAL_REASON,
+    "docs/adr/0038-p54-macos-venv-and-path-fixes.md": _ADR_REASON,
+    "docs/adr/0055-p80-python-312-and-mcp-dual-major.md": _ADR_REASON,
+    "docs/adr/0056-p81-audit-remediation.md": _ADR_REASON,
+    "docs/adr/0065-p93-user-scoped-installs-default.md": _ADR_REASON,
+    "docs/video-tooling-integration-evidence.json": _VIDEO_EVAL_REASON,
+    "docs/video-tooling-spike-evidence.json": _VIDEO_EVAL_REASON,
     "tools/mac_surface_manifest.py": "holds the mac-surface SIGNAL tokens (one is the literal "
                                      "'brew install'); a detector vocabulary, not an instruction",
-    ".github/": "CI workflow steps run in an ephemeral single-use container that is destroyed "
-                "after the run; nothing there installs onto a person's machine",
-    "canonical-sources/": "registry and reference DATA about third-party sources (extraction "
-                          "hints, allowlist reasons, seeds); it describes what those tools are, "
-                          "it does not instruct anyone to install anything",
+    "tools/sync_check.py": "this file: it holds the detector's own deliberately unlabeled fixtures",
 }
 
-# Extensions worth reading as guidance. Anything else (images, archives, notebooks) is skipped.
-_INSTALL_SCOPE_SUFFIXES = (".md", ".py", ".json", ".txt", ".sh", ".command", ".yml", ".yaml", ".js")
+def _install_scope_texts(tracked, read_bytes):
+    """{path: lines} for every tracked file invariant 59 reads: all of them except binaries. A
+    file is binary when a NUL byte appears in its first 8 KiB, the same sniff invariant 21 uses
+    (tools/secret_scan.py::_is_probably_text). There is no list of names or suffixes, so a .bat
+    launcher, an .html page or an extensionless script is read like any other text file.
+    Unreadable paths are left out."""
+    out = {}
+    for rel in tracked:
+        try:
+            data = read_bytes(rel)
+        except OSError:
+            continue
+        if b"\x00" in data[:8192]:
+            continue
+        out[rel] = data.decode("utf-8", errors="replace").splitlines()
+    return out
 
 
 def _install_scope_governed(lines, i):
     """Is line ``i`` covered by a machine-wide label? A label is a HEADING: it governs the block
     it introduces, and only downward. So look at the instruction's own contiguous non-blank
-    paragraph, then at up to two lines above that paragraph (across at most one blank separator,
-    the 'Machine-wide alternative:' + blank + command shape). Never look below the instruction:
-    the P93 adversarial pass showed a label introducing the NEXT section would otherwise bless the
-    user-scoped command sitting above it."""
+    paragraph, then at the two lines just above the blank line that precedes that paragraph
+    (the 'Machine-wide alternative:' + blank + command shape). Never look below the instruction:
+    a label introducing the NEXT section would otherwise bless the user-scoped command sitting
+    above it."""
     start = i
     while start > 0 and lines[start - 1].strip():
         start -= 1
@@ -3663,18 +3897,23 @@ def _install_scope_pinned_branches():
 def check_install_scope():
     """Invariant 59: install-scope policy (P93, widened P93-4). Every machine-wide install
     instruction anywhere in the repo's LIVE guidance -- brew, a sudo package command, MacPorts,
-    a global npm/pipx install, the pip system-override flag, a command-anchored pip install, or
+    a global npm/pipx install, the pip system-override flag, a command-anchored pip install, a
+    copy/move/link/redirect/download into /Applications, /usr/local or /opt/homebrew, a drag into the
+    Applications folder, or
     a macOS .pkg/python.org download -- must carry the label "machine-wide"/"whole computer" on
-    its own line or in the two lines above it, so the user-scoped default (docs/INSTALL-SCOPE.md:
+    its own line, on a line above it in the same paragraph, or on either of the two lines just
+    above the blank line that precedes that paragraph, so the user-scoped default (docs/INSTALL-SCOPE.md:
     home folder only, repo .venv, ~/.local, ~/.nvm) can never silently stop being the default.
 
-    The denominator is DERIVED, not listed: every tracked text file is scanned, minus the
-    _INSTALL_SCOPE_EXEMPT paths (historical records and third-party evaluations, each with a
-    written reason). The first cut of this check scanned a hardcoded 16-file allowlist, and the
-    P93 adversarial pass found live machine-wide instructions in six files outside it --
-    including the repo-root double-click launcher, the entry point for non-technical Mac users.
-    A closed list can only shrink silently; a derived one cannot. P95: the exemptions are held to
-    the same standard -- one that matches no tracked file, or exempts nothing, fails the build.
+    The denominator is derived, not listed: every tracked file that is not binary (a NUL byte in
+    its first 8 KiB, the invariant-21 sniff) is scanned whatever its name, minus the
+    exact paths in _INSTALL_SCOPE_EXEMPT, each with a written reason, so a new file is scanned
+    without anyone listing it. Every run checks the map: a key names exactly one tracked file (a
+    prefix, a directory or the empty key is refused), still carries at least one unlabeled
+    install, and is never a file tools/claim-proof-manifest.json binds (a corpus file, an
+    install-route doc or a route prober). That never-exempt set is derived from the manifest, and
+    a missing or renamed "corpus" or "routes" key fails the build. A new unlabeled install inside
+    a file that is already exempt is not reported.
 
     The check proves itself before scanning: EVERY branch in _INSTALL_SCOPE_BRANCHES must flag
     its own fixture and stay clean once labeled, so deleting a branch fails the build rather than
@@ -3692,6 +3931,8 @@ def check_install_scope():
         "pip-override": "pip install x --break-system-" + "packages",
         "pip-command": "Run: pip install uv",
         "macos-pkg": "installer -pkg python.pkg -target /",
+        "applications-dir": "Drag Claude.app into your Applications folder.",
+        "system-prefix-write": "curl https://x > /usr/local/bin/x",
     }
     gap = _coverage_proof("install-scope", _INSTALL_SCOPE_BRANCHES, fixtures,
                           lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1,
@@ -3707,6 +3948,22 @@ def check_install_scope():
                             "ever touches the base interpreter."]):
         problem("install-scope: detector self-proof failed -- prose 'no real pip install' flagged")
         return
+    # A path under /opt/homebrew or /usr/local that is only read or only named in prose, and the
+    # per-user ~/Applications folder, are not machine-wide writes.
+    for sample in ("cp /opt/homebrew/bin/ffmpeg ~/bin/ffmpeg",
+                   "the install location is /usr/local/bin on Intel Macs",
+                   "mkdir -p ~/Applications, then drag the app into ~/Applications",
+                   "ls /Applications"):
+        if _install_scope_scan([sample]):
+            problem(f"install-scope: detector self-proof failed -- {sample!r} flagged; only a write "
+                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
+            return
+    for sample in ("Move Foo.app to the Applications folder.", "Copy the binary to /usr/local/bin.",
+                   "cp ffmpeg /usr/local/bin  # then run it"):
+        if not _install_scope_scan([sample]):
+            problem(f"install-scope: detector self-proof failed -- {sample!r} not flagged; a write "
+                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
+            return
     if _install_scope_scan(["brew install ffmpeg", "",
                             "Machine-wide alternative (affects the whole computer):"]) != [(1, "brew install")]:
         problem("install-scope: detector self-proof failed -- a label BELOW an instruction blessed "
@@ -3727,6 +3984,15 @@ def check_install_scope():
         problem("install-scope: detector self-proof failed -- a label leaked past its block into "
                 "a later, unrelated instruction")
         return
+    # The scan set is every tracked non-binary file, whatever its name.
+    readable = _install_scope_texts(
+        ["Start.bat", "VERSION", "page.html", "logo.png"],
+        {"Start.bat": b"@echo off\r\n", "VERSION": b"1.0\n", "page.html": b"<p>x</p>\n",
+         "logo.png": b"\x89PNG\r\n\x1a\n\x00\x00"}.__getitem__)
+    if sorted(readable) != ["Start.bat", "VERSION", "page.html"]:
+        problem(f"install-scope: detector self-proof failed -- the file reader returned "
+                f"{sorted(readable)!r}; every tracked file except a binary must be read")
+        return
     # A fenced `sources` block is citation data (invariant 52's domain), never an instruction.
     if _install_scope_scan(["```sources", '{"id": "x", "url": "https://www.python.org/downloads/macos/"}',
                             "```"]):
@@ -3734,11 +4000,24 @@ def check_install_scope():
                 "block was read as an install instruction")
         return
 
-    stale = _install_scope_exempt_problems({"live/": "r", "dead/": "r", "gone/": "r"},
-                                           {"live/a.md": 2, "dead/b.md": 0, "other.md": 1})
-    if len(stale) != 2 or "'dead/' is stale" not in stale[0] or "'gone/' matches no" not in stale[1]:
-        problem(f"install-scope: detector self-proof failed -- the stale-exemption check returned "
-                f"{stale!r}; an exemption that does no work must be reported")
+    shape = _install_scope_exempt_problems(
+        {"live.md": "r", "dead.md": "r", "gone.md": "r", "dir/": "r", "": "r", "bound.md": "r",
+         "bare.md": " "},
+        {"live.md": 2, "dead.md": 0, "dir/x.md": 1, "bound.md": 1, "bare.md": 1}, {"bound.md"})
+    want = ["'' is not a tracked file", "'bare.md' has no written reason", "'bound.md' names a file",
+            "'dead.md' is stale", "'dir/' is not a tracked file", "'gone.md' is not a tracked file"]
+    if len(shape) != len(want) or any(w not in m for w, m in zip(want, shape)):
+        problem(f"install-scope: detector self-proof failed -- the exemption-map check returned "
+                f"{shape!r}; a prefix, a stale entry, a missing reason and a bound file must each "
+                f"be reported")
+        return
+    floor = (_install_scope_never_exempt({"corpus": {"a.md": {}}, "install_routes": []})[0],
+             _install_scope_never_exempt({"corpus": {"a.md": {}},
+                                          "routes": [{"in": ["b.md"], "prober": ["t.py::X"]}]})[0])
+    if floor != (None, {"a.md", "b.md", "t.py"}):
+        problem(f"install-scope: detector self-proof failed -- the never-exempt derivation returned "
+                f"{floor!r}; a renamed 'routes' key must fail and a complete manifest must yield "
+                f"its corpus, route docs and probers")
         return
 
     # --- derived denominator: every tracked text file, minus the written-reason exemptions ---
@@ -3756,44 +4035,89 @@ def check_install_scope():
                  "the machine-wide-install gate could not scan anything")
         return
     hits_by_file = {}
+    texts = _install_scope_texts(tracked, lambda rel: (ROOT / rel).read_bytes())
     for rel in tracked:
         hits_by_file[rel] = 0
-        if not rel.endswith(_INSTALL_SCOPE_SUFFIXES):
-            continue
-        p = ROOT / rel
-        try:
-            lines = p.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeDecodeError):
-            continue
+        lines = texts.get(rel)
+        if lines is None:
+            continue                # binary, or unreadable
         hits = _install_scope_scan(lines)
         hits_by_file[rel] = len(hits)
-        if any(rel == k or rel.startswith(k) for k in _INSTALL_SCOPE_EXEMPT):
+        if rel in _INSTALL_SCOPE_EXEMPT:
             continue                # scanned anyway, so the staleness check below can count it
         for lineno, frag in hits:
             problem(f"install-scope: {rel}:{lineno}: unlabeled machine-wide install: {frag} "
                     f"(lead with the user-scoped route, or put 'machine-wide alternative "
-                    f"(affects the whole computer)' on that line or the two above it; "
+                    f"(affects the whole computer)' on that line or above it in the same paragraph; "
                     f"docs/INSTALL-SCOPE.md)")
-    for msg in _install_scope_exempt_problems(_INSTALL_SCOPE_EXEMPT, hits_by_file):
+    never, why = _install_scope_never_exempt(_install_scope_manifest())
+    if never is None:
+        problem(f"install-scope: the never-exempt set cannot be derived from "
+                f"tools/claim-proof-manifest.json ({why}); restore its corpus and routes keys")
+        never = set()
+    for rel in sorted(p for p in never if p not in hits_by_file):
+        problem(f"install-scope: tools/claim-proof-manifest.json binds {rel}, which is not a tracked "
+                f"file; the never-exempt set no longer matches the tree")
+    for msg in _install_scope_exempt_problems(_INSTALL_SCOPE_EXEMPT, hits_by_file, never):
         problem(msg)
 
 
-def _install_scope_exempt_problems(exempt, hits_by_file):
-    """Stale entries in the exemption map, given {tracked path: unlabeled-install count}. Pure,
-    so the gate proves it before use. P95: an exemption shrinks invariant 59's denominator, and
-    nothing checked that one still did any work -- five of thirteen exempted nothing at all, one of
-    them a living protocol filed under "dated audit records". The sibling rule is selftest_sweep's
-    "is BOTH exempt and covered; drop the stale exemption"."""
+def _install_scope_manifest():
+    """tools/claim-proof-manifest.json as a dict, or None when it is unreadable."""
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return man if isinstance(man, dict) else None
+
+
+def _install_scope_never_exempt(man):
+    """(paths, None) or (None, reason). The files invariant 59 never exempts, derived from the
+    claim-proof manifest: the guarded corpus files (its "corpus" keys), every install-route doc
+    (each route's "in" list) and every route prober's file (each route's "prober" list, before any
+    ::symbol). Floor: the manifest must still carry a non-empty "corpus" map and a non-empty
+    "routes" list whose every route has non-empty "in" and "prober" lists, so a missing or renamed
+    key fails the build instead of silently emptying this set."""
+    if not isinstance(man, dict):
+        return None, "the manifest is unreadable"
+    corpus, routes = man.get("corpus"), man.get("routes")
+    if not isinstance(corpus, dict) or not corpus:
+        return None, "it has no non-empty 'corpus' map"
+    if not isinstance(routes, list) or not routes:
+        return None, "it has no non-empty 'routes' list"
+    out = set(corpus)
+    for n, route in enumerate(routes):
+        ins = route.get("in") if isinstance(route, dict) else None
+        probers = route.get("prober") if isinstance(route, dict) else None
+        if not isinstance(ins, list) or not ins or not isinstance(probers, list) or not probers:
+            return None, f"route {n} has no non-empty 'in' and 'prober' lists"
+        out.update(str(p) for p in ins)
+        out.update(str(p).split("::")[0] for p in probers)
+    return out, None
+
+
+def _install_scope_exempt_problems(exempt, hits_by_file, never_exempt=frozenset()):
+    """Problems with the exemption map, given {tracked path: unlabeled-install count} and the
+    never-exempt set. Pure, so the gate proves it on a fixture before use. A key must be one exact
+    tracked path (a prefix, a directory or the empty key names no tracked file and is refused),
+    must carry a written reason, must not name a never-exempt file, and must still carry at least
+    one unlabeled install. The sibling rule is selftest_sweep's "is BOTH exempt and covered; drop
+    the stale exemption"."""
     out = []
     for key in sorted(exempt):
-        under = [n for rel, n in hits_by_file.items() if rel == key or rel.startswith(key)]
-        if not under:
-            out.append(f"install-scope: the exemption {key!r} matches no tracked file; drop the "
-                       f"entry")
-        elif not sum(under):
-            out.append(f"install-scope: the exemption {key!r} is stale: nothing under it carries "
-                       f"an unlabeled machine-wide install, so it exempts nothing. Drop it so those "
-                       f"files are scanned like any other")
+        if not str(exempt[key]).strip():
+            out.append(f"install-scope: the exemption {key!r} has no written reason")
+        if key not in hits_by_file:
+            out.append(f"install-scope: the exemption {key!r} is not a tracked file; a key names "
+                       f"exactly one tracked path (no prefixes), so correct or drop it")
+        elif key in never_exempt:
+            out.append(f"install-scope: the exemption {key!r} names a file "
+                       f"tools/claim-proof-manifest.json binds (corpus, install-route doc or route "
+                       f"prober); it is never exempt, so label its install lines instead")
+        elif not hits_by_file[key]:
+            out.append(f"install-scope: the exemption {key!r} is stale: the file carries no "
+                       f"unlabeled machine-wide install, so it exempts nothing. Drop it so the "
+                       f"file is scanned like any other")
     return out
 
 

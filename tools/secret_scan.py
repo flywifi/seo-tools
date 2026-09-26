@@ -13,7 +13,7 @@ Modes:
   python3 tools/secret_scan.py --selftest
 
 Exit 1 on any finding. False positives are exempted in tools/secret-scan-allowlist.json
-(path + pattern_id + reason, every entry justified). The commit-message backstop only checks
+(path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop only checks
 commits after the policy boundary SHA recorded in the allowlist file (history predating the
 hygiene policy carries session trailers by design and is not rewritten).
 
@@ -23,6 +23,7 @@ so this file never trips itself or an external scanner.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -216,11 +217,68 @@ def _load_allowlist():
     return json.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
 
 
-def _allowed(allowlist, path, pattern_id):
+def _match_sha256(text):
+    """The pin an allowlist entry stores for the one match it exempts (its full matched text)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _allowed(allowlist, path, pattern_id, text=None):
+    """Does an entry exempt this finding? An entry pins the exact text it exempts as the sha256
+    `match_sha256`, so it covers that one false positive and never a later, different match of
+    the same pattern in the same file; an entry with no pin exempts nothing. With `text=None`
+    (tools/install_hooks.py's author-email lookup passes no text) any pinned entry for the path
+    and pattern counts, since there is nothing to compare."""
     for e in allowlist.get("entries", []):
-        if e.get("path") == path and e.get("pattern_id") == pattern_id:
+        if e.get("path") != path or e.get("pattern_id") != pattern_id:
+            continue
+        pin = e.get("match_sha256")
+        if pin and (text is None or pin == _match_sha256(text)):
             return True
     return False
+
+
+ALLOWLIST_MIN_REASON = 25
+
+
+def allowlist_problems(allowlist, tracked, read_bytes=None):
+    """Allowlist entries that do no work, as messages. An entry must name a known pattern id and
+    carry a written reason of ALLOWLIST_MIN_REASON+ characters. An entry for a file must name a
+    tracked path and still exempt something: scanning the file with that entry alone must report
+    fewer matches of its pattern than scanning it with no allowlist. Entries for commit messages
+    ('commit-message', 'commit:<sha12>') are checked for id and reason only, because the text they
+    exempt is not in the tree. --tracked runs this, so CI and drift invariant 21 fail on a stale
+    entry."""
+    read_bytes = read_bytes or (lambda rel: (ROOT / rel).read_bytes())
+    known = {pid for pid, _ in PATTERNS} | {"pipeline_amount", "author_email"}
+    out, keys = [], set()
+    for e in allowlist.get("entries", []):
+        path, pid = str(e.get("path", "")), str(e.get("pattern_id", ""))
+        where = f"allowlist entry ({path}, {pid})"
+        key = (path, pid, e.get("match_sha256"))
+        if key in keys:
+            out.append(f"{where}: listed more than once")
+        keys.add(key)
+        if pid not in known:
+            out.append(f"{where}: unknown pattern_id")
+            continue
+        if len(str(e.get("reason", "")).strip()) < ALLOWLIST_MIN_REASON:
+            out.append(f"{where}: needs a written reason of {ALLOWLIST_MIN_REASON}+ characters")
+        if path == "commit-message" or path.startswith("commit:"):
+            continue
+        if path not in tracked:
+            out.append(f"{where}: the path is not tracked; drop the entry")
+            continue
+        try:
+            text = read_bytes(path).decode("utf-8", errors="replace")
+        except OSError:
+            out.append(f"{where}: the file cannot be read")
+            continue
+        bare = sum(f["pattern_id"] == pid for f in scan_text(text, path, None))
+        kept = sum(f["pattern_id"] == pid for f in scan_text(text, path, {"entries": [e]}))
+        if kept >= bare:
+            out.append(f"{where}: exempts nothing (no {pid} match in the file is removed by it); "
+                       f"drop it")
+    return out
 
 
 def scan_text(text, path, allowlist=None):
@@ -233,15 +291,19 @@ def scan_text(text, path, allowlist=None):
                 continue
             if pid == "email_address" and EMAIL_ALLOW_RE.search(m.group(0)):
                 continue
-            if _allowed(allowlist, path, pid):
+            if _allowed(allowlist, path, pid, m.group(0)):
                 continue
             snippet = m.group(0)
             if len(snippet) > 60:
                 snippet = snippet[:57] + "..."
-            findings.append({"path": path, "pattern_id": pid, "match": snippet})
-    if path.startswith("pipeline/") and not _allowed(allowlist, path, "pipeline_amount"):
+            findings.append({"path": path, "pattern_id": pid, "match": snippet,
+                             "sha256": _match_sha256(m.group(0))})
+    if path.startswith("pipeline/"):
         for m in AMOUNT_RE.finditer(text):
-            findings.append({"path": path, "pattern_id": "pipeline_amount", "match": m.group(0)})
+            if _allowed(allowlist, path, "pipeline_amount", m.group(0)):
+                continue
+            findings.append({"path": path, "pattern_id": "pipeline_amount", "match": m.group(0),
+                             "sha256": _match_sha256(m.group(0))})
     return findings
 
 
@@ -336,8 +398,9 @@ def scan_commit_messages(rng, allowlist):
         where = f"commit:{sha[:12]}"
         for f in scan_text(body, where, allowlist):
             findings.append(f)
-        if email and not EMAIL_ALLOW_RE.search(email) and not _allowed(allowlist, where, "author_email"):
-            findings.append({"path": where, "pattern_id": "author_email", "match": email})
+        if email and not EMAIL_ALLOW_RE.search(email) and not _allowed(allowlist, where, "author_email", email):
+            findings.append({"path": where, "pattern_id": "author_email", "match": email,
+                             "sha256": _match_sha256(email)})
     return findings
 
 
@@ -351,7 +414,8 @@ def _check(label, cond, failures, ran):
 def selftest():
     f = []
     ran = [0]
-    al = {"entries": [{"path": "x.md", "pattern_id": "session_link", "reason": "test"}]}
+    al = {"entries": [{"path": "x.md", "pattern_id": "session_link", "reason": "test",
+                       "match_sha256": _match_sha256("claude." + "ai/code/session_" + "abc123XYZ")}]}
     # Fixtures concatenated so this file never contains a real-looking token at rest.
     aws = "AK" + "IA" + "ABCDEFGHIJKLMNOP"
     gh = "gh" + "p_" + "a" * 36
@@ -524,6 +588,44 @@ def selftest():
     _check("drift invariant 20 refuses a tracked audit record through this rule",
            len(_inv20) == 1 and "docs/review-2026-01-02.md" in _inv20[0], f, ran)
 
+    # Allowlist entries must still do work (allowlist_problems, run by --tracked).
+    import hashlib as _hl
+    pin = _hl.sha256(sess[len("https://"):].encode("utf-8")).hexdigest()
+    files = {"live.md": ("see " + sess).encode("utf-8"), "clean.md": b"nothing here"}
+    probs = allowlist_problems({"entries": [
+        {"path": "live.md", "pattern_id": "session_link", "reason": "r" * 30, "match_sha256": pin},
+        {"path": "clean.md", "pattern_id": "session_link", "reason": "r" * 30, "match_sha256": pin},
+        {"path": "gone.md", "pattern_id": "session_link", "reason": "r" * 30, "match_sha256": pin},
+        {"path": "live.md", "pattern_id": "no_such_id", "reason": "r" * 30},
+        {"path": "commit-message", "pattern_id": "author_email", "reason": "short"},
+    ]}, {"live.md", "clean.md"}, files.__getitem__)
+    _check("allowlist: an entry that still exempts a match is kept",
+           not any("(live.md, session_link)" in p for p in probs), f, ran)
+    _check("allowlist: an entry whose file has no such match is reported",
+           any("(clean.md, session_link): exempts nothing" in p for p in probs), f, ran)
+    _check("allowlist: an entry for an untracked path is reported",
+           any("(gone.md, session_link): the path is not tracked" in p for p in probs), f, ran)
+    _check("allowlist: an unknown pattern id is reported",
+           any("(live.md, no_such_id): unknown pattern_id" in p for p in probs), f, ran)
+    _check("allowlist: a commit-message entry is held to a written reason",
+           any("(commit-message, author_email): needs a written reason" in p for p in probs), f, ran)
+    _check("allowlist: nothing else is reported", len(probs) == 4, f, ran)
+
+    # Each entry pins the exact text it exempts (match_sha256).
+    later = "https://claude." + "ai/code/session_" + "laterREAL999"
+    _check("a pinned entry does not exempt a later, different match in the same file",
+           [x["pattern_id"] for x in scan_text(sess + " " + later, "x.md", al)] == ["session_link"],
+           f, ran)
+    _check("an entry without match_sha256 exempts nothing",
+           any(x["pattern_id"] == "session_link" for x in scan_text(
+               sess, "x.md", {"entries": [{"path": "x.md", "pattern_id": "session_link",
+                                           "reason": "test"}]})), f, ran)
+    _check("a pinned pipeline amount exempts only that amount",
+           [x["match"] for x in scan_text("fee $2,500.00 then $9,999.00", "pipeline/x.json", {
+               "entries": [{"path": "pipeline/x.json", "pattern_id": "pipeline_amount",
+                            "reason": "test", "match_sha256": _match_sha256("$2,500.00")}]})]
+           == ["$9,999.00"], f, ran)
+
     n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
@@ -539,9 +641,10 @@ def _report(findings, mode):
     if findings:
         print(f"secret-scan [{mode}]: {len(findings)} finding(s)")
         for x in findings:
-            print(f"  - {x['path']}: {x['pattern_id']}: {x['match']}")
+            pin = f" [sha256 {x['sha256']}]" if x.get("sha256") else ""
+            print(f"  - {x['path']}: {x['pattern_id']}: {x['match']}{pin}")
         print("If a finding is a verified false positive, exempt it in "
-              "tools/secret-scan-allowlist.json with a reason.")
+              "tools/secret-scan-allowlist.json with a reason and its sha256 as match_sha256.")
         return 1
     print(f"secret-scan [{mode}]: clean")
     return 0
@@ -558,7 +661,12 @@ def main(argv):
     if a.selftest:
         return selftest()
     if a.tracked:
-        return _report(scan_tracked(allowlist), "tracked")
+        findings = scan_tracked(allowlist)
+        if findings is not None:
+            tracked = {p.strip() for p in (_git(["ls-files"]) or "").splitlines() if p.strip()}
+            findings += [{"path": "tools/secret-scan-allowlist.json", "pattern_id": "allowlist",
+                          "match": msg} for msg in allowlist_problems(allowlist, tracked)]
+        return _report(findings, "tracked")
     if a.staged:
         return _report(scan_staged(allowlist), "staged")
     if a.commit_messages:
