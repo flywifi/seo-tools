@@ -81,7 +81,7 @@ if str(ROOT / "tools") not in sys.path:
 # is by ancestry (git rev-list), not by date, so a backdated commit is still checked. A clone that
 # does not contain this commit cannot tell which commits predate it; --range then reports that it
 # could not run, which fails closed in CI.
-CLAIM_SUBJECT_BOUNDARY = "c2028266e346023b7dcffcf035a94a03c1d3218b"
+CLAIM_SUBJECT_BOUNDARY = "4dfaad859fb3dbeb066233374b5904685cff23d4"
 
 TRAILER_RE = re.compile(r"^claim-proof:[ \t]*(\S.*?)[ \t]*$", re.M | re.I)
 # The subject forms git and GitHub generate for a merge commit: git merge and git pull, GitHub's
