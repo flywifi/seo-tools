@@ -376,71 +376,200 @@ def check_frontmatter_loads():
                 problem(f"{rel}: frontmatter references missing path {ref}")
 
 
+_HUB_SPOKE_HEADING = re.compile(r"^ {0,3}#{1,6}[ \t]+downstream spokes\b.*$", re.I | re.M)
+_HUB_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+_HUB_SPOKE_MENTION = re.compile(r"downstream[\W_]+spokes", re.I)
+
+
+def _hub_spoke_list(text):
+    """(names, None) for the hub's downstream spoke list, or (None, why it cannot be read). The
+    list is the one fenced block (``` or ~~~) under the one heading whose text starts "Downstream
+    spokes", at any level and in any case, read up to the next heading; each whitespace-separated
+    word in it is a listed name. The router reads the first such heading and its first fence, so
+    a second such heading, a second fence, text beside the fence, or an unclosed fence is refused
+    rather than read one way here and another way by the router. Any other line that names
+    "Downstream spokes" (any separator, any case) is refused too, so a setext or HTML heading, or
+    one spaced another way, cannot hold a list the router reads first. A list under a heading
+    that names it in other words ("Spokes (downstream)") is not read."""
+    heads = list(_HUB_SPOKE_HEADING.finditer(text))
+    if not heads:
+        return None, "has no '## Downstream spokes' heading"
+    if len(heads) > 1:
+        lines = [text.count("\n", 0, m.start()) + 1 for m in heads]
+        return None, (f"has {len(heads)} 'Downstream spokes' headings (lines {lines}); exactly "
+                      f"one must, because the router reads the first")
+    head_line = text.count("\n", 0, heads[0].start()) + 1
+    others = [n for n, ln in enumerate(text.split("\n"), 1)
+              if n != head_line and _HUB_SPOKE_MENTION.search(ln)]
+    if others:
+        return None, (f"names 'Downstream spokes' outside its one heading (lines {others}); a "
+                      f"setext or HTML heading there, or one spaced another way, is read by the "
+                      f"router and not here")
+    blocks, fence, cur, stray = [], None, [], []
+    for line in text[heads[0].end():].split("\n")[1:]:
+        if fence is None:
+            m = _HUB_FENCE.match(line)
+            if m:
+                fence, cur = m.group(1), []
+            elif re.match(r" {0,3}#{1,6}(?:[ \t]|$)", line):
+                break
+            elif line.strip():
+                stray.append(line.strip())
+        elif re.fullmatch(r" {0,3}" + re.escape(fence[0]) + "{%d,}[ \t]*" % len(fence), line):
+            blocks.append("\n".join(cur))
+            fence = None
+        else:
+            cur.append(line)
+    if fence is not None:
+        return None, "has a fence under '## Downstream spokes' that is never closed"
+    if stray:
+        return None, (f"carries text outside the fenced spoke list ({stray[0][:60]!r}); the "
+                      f"section holds only the fence")
+    if len(blocks) != 1:
+        return None, (f"has {len(blocks)} fenced blocks under '## Downstream spokes'; exactly one "
+                      f"must")
+    return blocks[0].split(), None
+
+
 def check_hub():
     """Invariant 6: the hub's downstream spoke list and the skills/ spoke directories agree in
     both directions, and the hub carries the routing object schema.
 
-    The list is the first fenced block under the hub's "## Downstream spokes" heading. A spoke
-    directory missing from it is an orphan the router never dispatches to; a listed name with no
-    skills/<name>/ directory is a spoke the router would dispatch to and never find. Both
-    directions prove themselves on a fixture before the real hub is read."""
-    def _spoke_gaps(section, actual):
-        """(orphans, missing): spoke directories the fenced list omits, and listed names that are
-        not spoke directories. None when the section has no fenced list."""
-        fence = re.search(r"```[^\n]*\n(.*?)```", section, re.S)
-        if fence is None:
-            return None
-        listed = set(re.findall(r"[a-z][a-z0-9-]*", fence.group(1)))
-        return sorted(actual - listed), sorted(listed - actual)
+    _hub_spoke_list reads the list the way the router does and refuses a hub it cannot read one
+    way. A listed name must be a skill name (NAME_RE) with a skills/<name>/SKILL.md; a listed
+    name without one is a spoke the router would dispatch to and never find. A spoke directory
+    missing from the list is an orphan the router never dispatches to. The reading and both
+    directions prove themselves on fixtures before the real hub is read."""
+    def _spoke_gaps(names, entries):
+        """(orphans, missing, malformed) for listed names against (name, has_skill_md) spoke
+        directory entries: directories the list omits, listed skill names with no SKILL.md, and
+        listed words that are not skill names."""
+        good = {n for n in names if NAME_RE.match(n)}
+        dirs = {n for n, _ in entries}
+        installed = {n for n, has_md in entries if has_md}
+        return (sorted(dirs - good), sorted(good - installed),
+                sorted(n for n in names if not NAME_RE.match(n)))
 
-    if _spoke_gaps("\n```\nreal-spoke ghost-spoke\n```\nother-spoke\n",
-                   {"real-spoke", "other-spoke"}) != (["other-spoke"], ["ghost-spoke"]):
-        problem("hub: spoke-list self-proof failed; a listed name with no spoke directory, or a "
-                "spoke directory outside the fenced list, is no longer detected")
+    fx = "## Downstream spokes\n\n```\nreal-spoke ghost-spoke no-md Bad_Name\n```\n\n## Next\nx\n"
+    names = _hub_spoke_list(fx)[0]
+    refused = [_hub_spoke_list(t)[1] or "" for t in (
+        fx + "### downstream spokes (mirror)\n```\nreal-spoke\n```\n",
+        "## Downstream spokes\n~~~\nghost-spoke\n~~~\n```\nreal-spoke\n```\n",
+        "## Downstream spokes\n- ghost-spoke\n```\nreal-spoke\n```\n",
+        "Downstream spokes\n=================\n```\nghost-spoke\n```\n\n" + fx)]
+    if (names is None
+            or _spoke_gaps(names, [("real-spoke", True), ("other-spoke", True), ("no-md", False)])
+            != (["other-spoke"], ["ghost-spoke", "no-md"], ["Bad_Name"])
+            or "2 'Downstream spokes' headings" not in refused[0]
+            or "2 fenced blocks" not in refused[1] or "outside the fenced" not in refused[2]
+            or "outside its one heading" not in refused[3]):
+        problem("hub: spoke-list self-proof failed; a listed name with no skills/<name>/SKILL.md, "
+                "a spoke directory outside the list, or a hub with two spoke headings, two fences "
+                "or text beside the fence is no longer detected")
         return
     hub = ROOT / "skills" / "creator-core" / "SKILL.md"
     if not hub.exists():
         problem("missing hub skills/creator-core/SKILL.md")
         return
     text = hub.read_text(encoding="utf-8")
-    actual = {
-        p.name
-        for p in (ROOT / "skills").iterdir()
-        if p.is_dir() and p.name not in ("creator-core", "atoms")
-    }
-    gaps = None
-    if "## Downstream spokes" in text:
-        gaps = _spoke_gaps(text.split("## Downstream spokes")[-1], actual)
-    if gaps is None:
-        problem("hub SKILL.md has no fenced spoke list under '## Downstream spokes'")
+    entries = [(p.name, (p / "SKILL.md").is_file()) for p in (ROOT / "skills").iterdir()
+               if p.is_dir() and p.name not in ("creator-core", "atoms")]
+    names, why = _hub_spoke_list(text)
+    if names is None:
+        problem(f"hub SKILL.md {why}")
     else:
-        for spoke in gaps[0]:
+        orphans, missing, malformed = _spoke_gaps(names, entries)
+        for spoke in orphans:
             problem(f"orphan spoke skills/{spoke} not listed in hub downstream spokes")
-        for name in gaps[1]:
-            problem(f"hub downstream spokes lists '{name}', but skills/{name}/ is not a spoke "
-                    f"directory, so the router would dispatch to a spoke that does not exist")
+        for name in missing:
+            problem(f"hub downstream spokes lists '{name}', but skills/{name}/SKILL.md does not "
+                    f"exist, so the router would dispatch to a spoke that does not exist")
+        for name in malformed:
+            problem(f"hub downstream spokes lists {name!r}, which is not a skill name")
     if '"request_classification"' not in text:
         problem("hub SKILL.md missing the routing object schema")
 
 
+_WORKFLOW_ATOM_KEY = re.compile(r"atom", re.I)
+
+
+def _workflow_atom_refs(data, where=""):
+    """(json path, value) for every value a workflow.json holds under a key whose name contains
+    "atom" (`atom`, `shortcut_atoms`, `reference_atoms`, or a key added later), at any depth; a
+    list value yields each item. Keys are matched by name, not from a list of the keys in use, so
+    an atom named under a new key is read. A value that is not a string is returned as is, for
+    the caller to refuse."""
+    out = []
+    if isinstance(data, dict):
+        for key, val in data.items():
+            path = f"{where}/{key}"
+            if _WORKFLOW_ATOM_KEY.search(str(key)):
+                out += [(path, v) for v in (val if isinstance(val, list) else [val])]
+            else:
+                out += _workflow_atom_refs(val, path)
+    elif isinstance(data, list):
+        for i, item in enumerate(data):
+            out += _workflow_atom_refs(item, f"{where}[{i}]")
+    return out
+
+
+def _workflow_pairs(pairs):
+    """A workflow.json object as a dict. A key written twice in one object is refused: json.loads
+    keeps only the last value, so an atom named under the first copy would be in the file and
+    never checked."""
+    keys = [k for k, _ in pairs]
+    twice = sorted({k for k in keys if keys.count(k) > 1})
+    if twice:
+        raise ValueError(f"the key {twice[0]!r} is written twice in one object")
+    return dict(pairs)
+
+
 def check_workflows():
-    """Invariant 7."""
+    """Invariant 7: every atom a workflow.json names is installed. Every value under a key whose
+    name contains "atom" is read, at any depth (_workflow_atom_refs), and must name a
+    skills/atoms/<name>/ directory that holds a SKILL.md. Both rules prove themselves on a
+    fixture before the real workflows are read, and a key written twice in one object is refused
+    (_workflow_pairs). An atom named under a key without "atom" in its name is not read."""
+    def _installed(entries):
+        """Names among (name, is_dir, has_skill_md) entries that are a directory with a SKILL.md."""
+        return {name for name, is_dir, has_md in entries if is_dir and has_md}
+
+    def _twice_refused(text):
+        """True when a JSON text with a key written twice in one object is refused."""
+        try:
+            json.loads(text, object_pairs_hook=_workflow_pairs)
+        except ValueError:
+            return True
+        return False
+
+    refs = [v for _, v in _workflow_atom_refs(
+        {"steps": [{"atom": "real", "reference_atoms": ["real", "ghost-a"]},
+                   {"branch": {"fallback_atom": "ghost-b"}, "note": "ghost-c"}],
+         "shortcut_atoms": ["real", 7]})]
+    if (refs != ["real", "real", "ghost-a", "ghost-b", "real", 7]
+            or _installed([("real", True, True), ("no-md", True, False), ("f", False, False)])
+            != {"real"}
+            or not _twice_refused('{"atom": "ghost-a", "atom": "real"}')):
+        problem("workflows: self-proof failed; an atom named under a key other than steps[].atom "
+                "and shortcut_atoms, an atom directory without its SKILL.md, or a key written "
+                "twice in one object is no longer detected")
+        return
     atoms_dir = ROOT / "skills" / "atoms"
-    available = (
-        {p.name for p in atoms_dir.iterdir() if p.is_dir()} if atoms_dir.exists() else set()
-    )
+    installed = _installed([(p.name, p.is_dir(), (p / "SKILL.md").is_file())
+                            for p in atoms_dir.iterdir()] if atoms_dir.exists() else [])
     for wf in sorted((ROOT / "skills").rglob("workflow.json")):
         rel = wf.relative_to(ROOT)
         try:
-            data = json.loads(wf.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
+            data = json.loads(wf.read_text(encoding="utf-8"), object_pairs_hook=_workflow_pairs)
+        except ValueError as exc:
             problem(f"{rel}: invalid JSON ({exc})")
             continue
-        named = [s.get("atom") for s in data.get("steps", []) if s.get("atom")]
-        named += list(data.get("shortcut_atoms", []))
-        for atom in named:
-            if atom not in available:
-                problem(f"{rel}: references unknown atom '{atom}'")
+        for path, atom in _workflow_atom_refs(data):
+            if not isinstance(atom, str) or not atom:
+                problem(f"{rel}: {path} holds {atom!r}, which is not an atom name")
+            elif atom not in installed:
+                problem(f"{rel}: references unknown atom '{atom}' at {path}; "
+                        f"skills/atoms/{atom}/SKILL.md does not exist")
 
 
 def check_yaml_strict():
@@ -4236,15 +4365,26 @@ def _claim_norm(text):
 
 # An exception clause can reverse a bound promise without a universal word ("...refuses, except
 # when ALLOW_SYSTEM is set, which installs into the shared site-packages"). _claim_sweep looks for
-# these markers in every unit of the corpus after bound text and code spans are removed, so a
-# marker in the bullet after a bound promise is read too. A reversal with no marker word at all
+# these markers in every unit of the corpus after bound text is removed, so a marker in the
+# bullet after a bound promise is read too; a code span keeps only its plain words
+# (_claim_code_words), with nothing added around them, so a clause written in backticks is read
+# and `un`less reads as the word it renders as. A marker is matched between characters that are
+# not letters or digits, so `_unless_` emphasis does not hide it, and "but", "yet", "though",
+# "although" or "however" before "if", "when" or "where" is read with or without a comma. A
+# sentence, bullet, numbered item, table cell or heading that opens with "If", "Whenever",
+# "And if", "And when", "Or if" or "Or when" is read as a condition. One that opens with a bare
+# "When" or "Where" is not, and neither is "and if" or "or when" inside a sentence, since those
+# open or join ordinary descriptions in the corpus. A reversal with no marker word at all
 # ("..., and ALLOW_SYSTEM installs into the shared site-packages") needs semantics a word list
 # does not have, and is not seen.
 _CLAIM_ESCAPE_RE = re.compile(
-    r"\b(unless|except(?:ing)?|excluding|barring|aside from|apart from|other than|save when|"
+    r"(?<![^\W_])(unless|except(?:ing)?|excluding|barring|aside from|apart from|other than|save when|"
     r"save for|save if|with the exception of|provided that|providing that|so long as|as long as|"
-    r"only if|but if|(?:overr(?:ide|ides|ided|iding|idden|ode)|bypass(?:es|ed|ing)?)\s+"
-    r"(?:this|it|that|them)|opt(?:s|ed|ing)?[\s-]+out)\b", re.I)
+    r"only if|(?:but|yet|though|although|however)[\s,]+(?:if|when(?:ever)?|where(?:ver)?)|"
+    r"(?:^\s*(?:[-*+>|]|#{1,6}|\d+[.)])?\s*|(?<=[.;!?|])\s+)"
+    r"(?:(?:and|or)\s+(?:if|when(?:ever)?)|if|whenever)|"
+    r"(?:overr(?:ide|ides|ided|iding|idden|ode)|bypass(?:es|ed|ing)?)\s+"
+    r"(?:this|it|that|them)|opt(?:s|ed|ing)?[\s-]+out)(?![^\W_])", re.I)
 
 
 _CLAIM_HEADING_RE = re.compile(r"#{1,6}(?:\s|$)")
@@ -4252,10 +4392,11 @@ _CLAIM_HEADING_RE = re.compile(r"#{1,6}(?:\s|$)")
 
 def _claim_units(text, line_offset=0):
     """(line, unit_text) for each claim UNIT in a markdown slice: a bullet, numbered item, table
-    row, or paragraph. Units, not lines, because a promise spans the lines of its bullet and a
+    row, paragraph, or heading. Units, not lines, because a promise spans the lines of its bullet and a
     reader binds the promise, not the line. An ATX heading (one to six "#" then a space or the
-    line end) is a title, not a promise: it is skipped, and the lines under it start a new unit.
-    A line such as "#1 rule: ..." is ordinary text."""
+    line end) is a unit of its own, read like any other: a promise or an exception clause written
+    as a heading is still read, and the lines under it start a new unit. A line such as
+    "#1 rule: ..." is ordinary text."""
     units, cur, start = [], [], None
     for i, line in enumerate(text.splitlines(), start=line_offset + 1):
         s = line.strip()
@@ -4265,6 +4406,8 @@ def _claim_units(text, line_offset=0):
             if cur:
                 units.append((start, " ".join(cur)))
             cur, start = ([s], i) if s and not heading else ([], None)
+            if heading:
+                units.append((i, s))
         else:
             if not cur:
                 start = i
@@ -4321,15 +4464,200 @@ def _claim_corpus_units(spec):
             yield rel, ln, unit
 
 
+def _claim_fact_text(path):
+    """The text of a file an exemption's facts are re-read from, or None when it is missing or
+    cannot be read as UTF-8. The caller reports each fact it then cannot re-read; a source it
+    cannot read is never taken as empty."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _gitignore_glob(pat):
+    """A compiled regex for one .gitignore glob as git reads it: `*` and `?` stop at a `/`, `**/`
+    spans any number of directories, a trailing `/**` spans everything below, and `[...]` is a
+    class (`[!...]` negated)."""
+    out, i = [], 0
+    while i < len(pat):
+        if pat.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pat.startswith("/**", i) and i + 3 == len(pat):
+            out.append("/.*")
+            i += 3
+        elif pat[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pat[i] == "?":
+            out.append("[^/]")
+            i += 1
+        elif pat[i] == "[" and pat.find("]", i + 2) != -1:
+            j = pat.find("]", i + 2)
+            body = pat[i + 1:j]
+            out.append("[" + ("^" + body[1:] if body.startswith("!") else body) + "]")
+            i = j + 1
+        else:
+            out.append(re.escape(pat[i]))
+            i += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def _claim_path_symbol(spec):
+    """The repo path that `<file>::<NAME>` names: NAME's module-level assignment in <file>, read as
+    ROOT / "a" / "b" (a chain of `/` from ROOT over string literals), with a trailing `/` kept
+    when the spec ends in one. None when the file is missing, unreadable or not Python, or when
+    the name or that shape is missing."""
+    import ast
+    mod, _, name = spec.partition("::")
+    as_dir = name.endswith("/")
+    name = name.rstrip("/")
+    path = ROOT / mod
+    text = _claim_fact_text(path) if mod and name else None
+    try:
+        body = ast.parse(text).body if text is not None else []
+    except (SyntaxError, ValueError):
+        body = []
+    for node in body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name
+                                                for t in node.targets):
+            parts, v = [], node.value
+            while (isinstance(v, ast.BinOp) and isinstance(v.op, ast.Div)
+                   and isinstance(v.right, ast.Constant) and isinstance(v.right.value, str)):
+                parts.insert(0, v.right.value)
+                v = v.left
+            if isinstance(v, ast.Name) and v.id == "ROOT" and parts:
+                return "/".join(parts) + ("/" if as_dir else "")
+            return None
+    return None
+
+
+def _claim_gitignored(rel, gitignore_text):
+    """True when the root .gitignore text ignores the repo path `rel`. Reads the forms the root
+    file uses: blank and `#` lines, `!` negation (the last matching pattern wins), a trailing `/`
+    for a directory only, a pattern holding a `/` anchored at the root, and any other pattern
+    matched against one path component; a path under an ignored directory is ignored, and a
+    `rel` ending in `/` is a directory. Globs are read by _gitignore_glob; nested .gitignore files
+    are not read."""
+    pats = []
+    for raw in gitignore_text.splitlines():
+        s = raw.strip()
+        if not s or s.startswith("#"):
+            continue
+        neg = s.startswith("!")
+        s = s[1:] if neg else s
+        pats.append((neg, s.strip("/"), s.endswith("/"), "/" in s.rstrip("/")))
+    parts = [p for p in rel.split("/") if p]
+    for i in range(1, len(parts) + 1):
+        is_dir, sub, state = i < len(parts) or rel.endswith("/"), "/".join(parts[:i]), False
+        for neg, pat, dir_only, anchored in pats:
+            if (is_dir or not dir_only) and _gitignore_glob(pat).match(
+                    sub if anchored else parts[i - 1]):
+                state = not neg
+        if state:
+            return True
+    return False
+
+
+# The fact kinds an exemption's `holds` can declare, and the wording in its `why` that says the
+# reason rests on a fact of that kind.
+_CLAIM_HOLDS_KINDS = {"gitignored": re.compile(r"gitignor", re.I),
+                      "route": re.compile(r"route record", re.I)}
+
+
+def _claim_holds_problems(entry, routes, gitignore_text):
+    """Problems with the facts an exemption's written reason rests on, for the two kinds a check
+    can re-read. `holds.gitignored` lists repo paths the root .gitignore must ignore; an entry
+    written `<file>::<NAME>` is the path that NAME is assigned in <file> (_claim_path_symbol), so
+    the check follows the code when the path moves. `holds.route` names the `recommends` value of
+    a route record the manifest must still hold. A `why` or exempted text that mentions
+    gitignore, or a route record, must declare the matching kind, so a reason of that kind cannot
+    rest on a fact nothing re-reads. A literal path entry is a sample: a code path it does not
+    name is not read. A fact source that is missing or unreadable (the root .gitignore, passed as
+    None; a `routes` value that is not a list; the file a `<file>::<NAME>` entry names) is
+    reported, never read as empty. A reason of any other kind is read by
+    people, not by this check."""
+    where = f"the exemption for {str(entry.get('claim'))[:50]!r} in {entry.get('doc')}"
+    holds, why = entry.get("holds", {}), entry.get("why") or ""
+    if not isinstance(holds, dict):
+        return [f"claim-proof: {where} has a `holds` value that is not a mapping"]
+    out = [f"claim-proof: {where} declares `holds.{k}`, which no check reads"
+           for k in sorted(set(holds) - set(_CLAIM_HOLDS_KINDS))]
+    out += [f"claim-proof: {where} gives a reason that rests on a {k} fact but declares no "
+            f"`holds.{k}`, so nothing re-reads it" for k, said in _CLAIM_HOLDS_KINDS.items()
+            if said.search(why + " " + str(entry.get("claim") or "")) and k not in holds]
+    if "gitignored" in holds:
+        paths = holds["gitignored"]
+        if not (isinstance(paths, list) and paths and all(isinstance(p, str) and p for p in paths)):
+            out.append(f"claim-proof: {where} needs `holds.gitignored` to be a non-empty list of "
+                       f"repo paths")
+        elif gitignore_text is None:
+            out.append(f"claim-proof: {where} rests on gitignore facts, but the root .gitignore is "
+                       f"missing or unreadable, so they cannot be re-read")
+        else:
+            for p in paths:
+                rel = _claim_path_symbol(p) if "::" in p else p
+                if rel is None:
+                    out.append(f"claim-proof: {where} names {p!r}, which does not resolve to a "
+                               f"ROOT / \"...\" assignment")
+                elif not _claim_gitignored(rel, gitignore_text):
+                    out.append(f"claim-proof: {where} rests on {rel!r} being gitignored, but the "
+                               f"root .gitignore does not ignore it")
+    if "route" in holds and not isinstance(routes, list):
+        out.append(f"claim-proof: {where} rests on the route record for {holds['route']!r}, but "
+                   f"the manifest's `routes` value is missing or not a list, so it cannot be re-read")
+    elif "route" in holds and not any(isinstance(r, dict) and r.get("recommends") == holds["route"]
+                                      for r in routes):
+        out.append(f"claim-proof: {where} rests on the route record for {holds['route']!r}, which "
+                   f"tools/claim-proof-manifest.json no longer holds")
+    return out
+
+
+def _claim_holds_self_proof():
+    """None when _claim_holds_problems reads its fixtures right, else what broke."""
+    ign = "# c\n*.local.json\ndist/\n"
+    gi = {"claim": "x", "doc": "d", "why": "all gitignored",
+          "holds": {"gitignored": ["dist/a/b.zip", "w.local.json"]}}
+    rt = {"claim": "x", "doc": "d", "why": "bound as a route record", "holds": {"route": "nvm"}}
+    for n, got in ((0, _claim_holds_problems(gi, [], ign)),
+                   (1, _claim_holds_problems(gi, [], "*.local.json\n")),
+                   (1, _claim_holds_problems(gi, [], ign + "!dist/\n")),
+                   (1, _claim_holds_problems(dict(gi, holds={}), [], ign)),
+                   (1, _claim_holds_problems(dict(gi, why="a descriptive table row",
+                                                  claim="all gitignored", holds={}), [], ign)),
+                   (1, _claim_holds_problems(gi, [], "*.local.json\ndist/*.zip\n")),
+                   (0, _claim_holds_problems(rt, [{"recommends": "nvm"}], "")),
+                   (1, _claim_holds_problems(rt, [], "")),
+                   (1, _claim_holds_problems(gi, [], None)),
+                   (1, _claim_holds_problems(rt, None, "")),
+                   (1, _claim_holds_problems(dict(rt, holds={"route": "nvm", "x": 1}),
+                                             [{"recommends": "nvm"}], ""))):
+        if len(got) != n:
+            return f"an exemption `holds` fixture gave {got!r}, expected {n} problem(s)"
+    if (_claim_fact_text(ROOT / "tools" / "claim-proof-absent.fixture") is not None
+            or _claim_path_symbol("tools/claim-proof-absent.fixture::X") is not None):
+        return "a missing fact source was read as text instead of reported"
+    return None
+
+
 _CLAIM_CASES_PATH = ROOT / "tools" / "claim-proof-cases.json"
 _CLAIM_CASE_LISTS = ("negative", "escape_positive", "escape_negative", "units", "sections",
                      "sweep")
 
 
+def _claim_code_words(span):
+    """The plain words of a code span: tokens of letters, hyphen-joined or not. A token holding
+    any other character (`try/except`, `CREATOR_OS_SYSTEM_PIP=1`, `--opt-out`) is code rather than
+    a word, and is dropped."""
+    return " ".join(w for w in span.split() if re.fullmatch(r"[A-Za-z]+(?:-[A-Za-z]+)*", w))
+
+
 def _claim_escape_hit(text, escape=None):
-    """The first exception marker in `text`, or None. Code spans are removed first, so a
-    `try/except` in backticks is not an exception clause."""
-    return (escape or _CLAIM_ESCAPE_RE).search(re.sub(r"`[^`]*`", " ", text))
+    """The first exception marker in `text`, or None. Each code span is reduced to its plain
+    words first (_claim_code_words), so `try/except` in backticks is not an exception clause
+    while a clause written in backticks (`unless X is set`) is still read."""
+    return (escape or _CLAIM_ESCAPE_RE).search(
+        re.sub(r"`([^`]*)`", lambda m: _claim_code_words(m.group(1)), text))
 
 
 def _claim_sweep(units, bound, exempt=(), pattern=None, escape=None):
@@ -6612,7 +6940,9 @@ def check_claim_proof():
     Route records tie an install route the docs recommend to the code that must detect it: the
     check fails when a listed doc stops recommending the route, or when a prober stops pointing
     at the route's install location. The reverse enrolment sweep (_claim_sweep, whose docstring
-    gives its rules) fails on a flagged unit of the corpus that no binding covers.
+    gives its rules) fails on a flagged unit of the corpus that no binding covers. An exemption
+    whose written reason rests on a gitignore fact or a route record declares that fact under
+    `holds`, and _claim_holds_problems re-reads it.
 
     The manifest's `guarded_text` records hold rule text outside the corpus: the section 7 rules
     of docs/AUDIT-PROTOCOL.md and the AGENTS.md restatements of CLAUDE.md claims
@@ -6681,7 +7011,8 @@ def check_claim_proof():
                        _claim_label_self_proof,
                        _claim_entry_self_proof,
                        _claim_guard_self_proof,
-                       _claim_case_self_proof):
+                       _claim_case_self_proof,
+                       _claim_holds_self_proof):
         failed = _claim_bounded(self_proof, _CLAIM_FIXTURE_SECONDS)
         if failed:
             problem(f"claim-proof: self-proof failed -- {failed}")
@@ -6740,6 +7071,7 @@ def check_claim_proof():
         bound.append((rel, text))
 
     exempt_ids = set()
+    gitignore = _claim_fact_text(ROOT / ".gitignore")  # None is reported per gitignore fact
     for entry in man.get("exempt", []):
         rel, text, why = entry.get("doc"), entry.get("claim"), entry.get("why") or ""
         if not (rel and text):
@@ -6749,6 +7081,8 @@ def check_claim_proof():
             problem(f"claim-proof: the exemption for {text[:50]!r} in {rel} needs a written reason "
                     f"of at least 25 characters; a bare exemption is how a promise goes unproven")
             continue
+        for msg in _claim_holds_problems(entry, man.get("routes"), gitignore):
+            problem(msg)
         path = ROOT / rel
         if path.exists() and _claim_norm(text) in _claim_norm(path.read_text(encoding="utf-8")):
             exempt_ids.add(len(bound))
@@ -6812,6 +7146,62 @@ def check_claim_proof():
         problem(msg)
 
 
+# The two CI lines that end the commit hygiene step (the commit-message secret scan, then the
+# scanner that refuses a flagged commit subject), and the shell forms that can end that step with
+# success whatever those lines return.
+_COMMIT_SECRET_LINE = 'python3 tools/secret_scan.py --commit-messages "$RANGE"'
+_COMMIT_CLAIMS_LINE = 'python3 tools/commit_claims.py --range "$RANGE"'
+_CI_SOFT_FAIL = re.compile(r"\btrap\b|<<|\balias\b|\bfunction\b|\b\w+\s*\(\s*\)|\bPATH="
+                           r"|\b(?:eval|exec|hash|source|cd|pushd|popd|enable)\b|(?:^|[;&|(]\s*)\.\s"
+                           r"|\bset\s[^;&|]*\+"
+                           r"|\bexit\b(?!\s+[1-9]\d*\s*$)")
+
+
+def _commit_claims_step_problems(steps, runtime_env=frozenset({"PATH"})):
+    """Problems with the CI step that runs tools/commit_claims.py, held to a gate step's standard
+    as far as a multi-line step can be: exactly one step runs the script; it is blocking by the
+    parity reader's rules (battery._steps_from_doc: no `if:`, continue-on-error, shell, env or
+    working-directory change); its last line is exactly _COMMIT_CLAIMS_LINE, so the script's exit
+    code is the step's; the line before it is exactly _COMMIT_SECRET_LINE, so a failing
+    commit-message scan fails the step too; no line of it sets a trap, opens a here-document,
+    defines a function or alias, assigns PATH, runs eval, exec, hash, source, `.`, cd, pushd, popd
+    or enable, runs `set` with a `+` option (`set +e`), or exits with anything but a non-zero
+    literal; no line that ends in a backslash is followed by either scanner line, which it would
+    join as an argument; and no line assigns a variable in `runtime_env` (the caller
+    passes battery._RUNTIME_ENV) or a PYTHON* or GIT_* variable, the names the parity reader gates
+    in `env:`. A reversal outside those forms (a RANGE that selects no commits, a line that
+    replaces the interpreter on disk) is not read; a gate step has the same limit."""
+    hits = [st for st in steps if any("tools/commit_claims.py" in ln for ln in st["run"])]
+    if len(hits) != 1:
+        return [f"ci-parity: {len(hits)} CI steps run tools/commit_claims.py; exactly one blocking "
+                f"step must, ending with: {_COMMIT_CLAIMS_LINE}"]
+    st = hits[0]
+    name = st["name"] or st["run"][0]
+    out = []
+    if st["gates"]:
+        out.append(f"ci-parity: the commit-subject step {name!r} does not block "
+                   f"({', '.join(st['gates'])})")
+    if st["run"][-1] != _COMMIT_CLAIMS_LINE:
+        out.append(f"ci-parity: the commit-subject step {name!r} ends with {st['run'][-1]!r}; it "
+                   f"must end with exactly {_COMMIT_CLAIMS_LINE!r} so the script's exit code is "
+                   f"the step's")
+    out += [f"ci-parity: the commit-subject step {name!r} runs {ln!r}, which can end the step "
+            f"with success whatever the script returns" for ln in st["run"] if _CI_SOFT_FAIL.search(ln)]
+    if len(st["run"]) < 2 or st["run"][-2] != _COMMIT_SECRET_LINE:
+        out.append(f"ci-parity: the commit-subject step {name!r} must run exactly "
+                   f"{_COMMIT_SECRET_LINE!r} on the line before the scanner line, so a failing "
+                   f"commit-message scan fails the step")
+    out += [f"ci-parity: the commit-subject step {name!r} joins {prev!r} onto {ln!r} with a "
+            f"trailing backslash, so that scanner becomes an argument"
+            for prev, ln in zip(st["run"], st["run"][1:])
+            if prev.endswith("\\") and ln in (_COMMIT_SECRET_LINE, _COMMIT_CLAIMS_LINE)]
+    out += [f"ci-parity: the commit-subject step {name!r} assigns {var} in {ln!r}, which changes "
+            f"how the scanner runs" for ln in st["run"]
+            for var in re.findall(r"(?:^|[\s;&|(])([A-Za-z_]\w*)\+?=", ln)
+            if var in runtime_env or var.startswith(("PYTHON", "GIT_"))]
+    return out
+
+
 def _ci_parity_problems(text, battery):
     missing, _, stale, _, _ = battery.parity_report(text)
     return [f"ci-parity: {line}" for line in missing + stale]
@@ -6824,7 +7214,9 @@ def check_ci_parity():
     cannot read the workflow. The drift guard is a battery gate with its own CI step, so the
     comparison runs in CI even without the `--check-parity` step. Before the scan the check proves
     itself on a fixture whose drift-guard step is disabled with `if: false`; a battery.py that
-    cannot load or run is reported as a problem, not a crash."""
+    cannot load or run is reported as a problem, not a crash. The step that runs
+    tools/commit_claims.py runs several lines, so it is not a gate; _commit_claims_step_problems
+    holds it to the gate standard in the forms it lists, after proving itself on fixtures."""
     import types
     path = ROOT / "tools" / "battery.py"
     try:
@@ -6836,8 +7228,40 @@ def check_ci_parity():
         if not any("the drift guard gate" in p for p in _ci_parity_problems(probe, battery)):
             problem("ci-parity: self-proof failed: a drift-guard step disabled with `if: false` was counted")
             return
+        head = "on: push\njobs:\n  j:\n    runs-on: x\n    steps:\n      - run: |\n"
+        body = ('          RANGE=a..b\n          python3 tools/secret_scan.py --commit-messages "$RANGE"\n'
+                '          python3 tools/commit_claims.py --range "$RANGE"\n')
+        if (_commit_claims_step_problems(battery._ci_steps(head + body))
+                or not _commit_claims_step_problems(
+                    battery._ci_steps(head + body.replace('"\n', '" || true\n')))
+                or not _commit_claims_step_problems(
+                    battery._ci_steps(head + body.replace("RANGE=a..b", "trap 'exit 0' EXIT")))
+                or not _commit_claims_step_problems(
+                    battery._ci_steps(head + body.replace("RANGE=a..b", "hash -p /bin/true python3")))
+                or not _commit_claims_step_problems(
+                    battery._ci_steps(head + body.replace("RANGE=a..b\n", "RANGE=a..b\n          : \\\n")))
+                or not _commit_claims_step_problems(
+                    battery._ci_steps(head + body.replace("RANGE=a..b", "export PYTHONPATH=stub")),
+                    battery._RUNTIME_ENV)
+                or not _commit_claims_step_problems(
+                    battery._ci_steps(head + body.replace("RANGE=a..b", "set +e")))
+                or not _commit_claims_step_problems(battery._ci_steps(
+                    head + body.replace('messages "$RANGE"', 'messages "$RANGE" || true')))):
+            problem("ci-parity: self-proof failed: a commit-subject step that ends in `|| true`, "
+                    "sets a trap, runs hash, joins a line onto a scanner, sets PYTHONPATH, runs "
+                    "`set +e` or soft-fails its commit-message scan was counted as blocking, or a "
+                    "blocking one was refused")
+            return
         wf = ROOT / ".github" / "workflows" / "ci.yml"
-        for line in _ci_parity_problems(wf.read_text(encoding="utf-8"), battery):
+        text = wf.read_text(encoding="utf-8")
+        for line in _ci_parity_problems(text, battery):
+            problem(line)
+        try:
+            steps = battery._ci_steps(text)
+        except battery.WorkflowSyntaxError:
+            steps = None  # the parity report above already names the line it cannot read
+        for line in (_commit_claims_step_problems(steps, battery._RUNTIME_ENV)
+                     if steps is not None else []):
             problem(line)
     except Exception as exc:  # noqa: BLE001
         problem(f"ci-parity: the parity report could not run: {type(exc).__name__}: {exc}")

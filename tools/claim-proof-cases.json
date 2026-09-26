@@ -133,7 +133,21 @@
     "Admins may override this.",
     "ALLOW_SYSTEM bypasses this.",
     "A flag bypassed this.",
-    "Users can opt out of this."
+    "Users can opt out of this.",
+    "Setup refuses (`unless ALLOW_SYSTEM=1` is exported).",
+    "Setup refuses. But when ALLOW_SYSTEM is set it installs.",
+    "Setup refuses; yet whenever ALLOW_SYSTEM is set it installs.",
+    "Setup refuses, however, if ALLOW_SYSTEM is set it installs.",
+    "Setup refuses, though where ALLOW_SYSTEM is set it installs.",
+    "Setup refuses. If ALLOW_SYSTEM is set it installs.",
+    "- If ALLOW_SYSTEM is set, setup installs.",
+    "Setup refuses. And when ALLOW_SYSTEM is set it installs.",
+    "Setup refuses. But, if ALLOW_SYSTEM is set, it installs.",
+    "Setup refuses _unless_ ALLOW_SYSTEM is set.",
+    "Setup refuses (`un`less ALLOW_SYSTEM is set).",
+    "### If ALLOW_SYSTEM is set, setup installs.",
+    "| Setup | refuses | If ALLOW_SYSTEM is set it installs |",
+    "1) If ALLOW_SYSTEM is set, setup installs."
   ],
   "escape_negative": [
     "Setup is the one exception to the rule.",
@@ -141,13 +155,21 @@
     "The exceptions register lists Apple CLT git.",
     "Setup overrides the default port.",
     "Only the maintainer can publish.",
-    "Other tools read the file."
+    "Other tools read the file.",
+    "Set `CREATOR_OS_SYSTEM_PIP=1` to see the refusal.",
+    "The `--opt-out` flag is documented.",
+    "But the wizard asks first.",
+    "Where the wizard runs, it asks first.",
+    "When the wizard runs, it asks first.",
+    "Setup asks first; the wizard, when asked, explains why.",
+    "The `if` keyword starts a branch.",
+    "Setup asks first, and when a tool is missing it says which."
   ],
   "units": [
-    {"name": "text under a heading is its own unit", "text": "## Rules\nSetup never writes outside home.\n", "expect": [[2, "Setup never writes outside home."]]},
+    {"name": "a heading and the text under it are two units", "text": "## Rules\nSetup never writes outside home.\n", "expect": [[1, "## Rules"], [2, "Setup never writes outside home."]]},
     {"name": "a line starting #1 is text, not a heading", "text": "#1 rule: the installer never writes outside home.\n", "expect": [[1, "#1 rule: the installer never writes outside home."]]},
     {"name": "a multi-line bullet is one unit", "text": "- first promise\n  continues here\n\n- second promise\n", "expect": [[1, "- first promise continues here"], [4, "- second promise"]]},
-    {"name": "a heading is not a unit", "text": "## A heading that says every\n", "expect": []},
+    {"name": "a heading of any level is a unit of its own", "text": "## A heading that says every\n#### Every post ships ####\n", "expect": [[1, "## A heading that says every"], [2, "#### Every post ships ####"]]},
     {"name": "a paragraph, a numbered item and a table row", "text": "Setup asks first.\nIt then installs.\n1. Step one.\n| a | b |\n", "expect": [[1, "Setup asks first. It then installs."], [3, "1. Step one."], [4, "| a | b |"]]}
   ],
   "sections": [
@@ -163,6 +185,9 @@
     {"name": "text under a heading is scanned", "text": "## Rules\nSetup never writes outside home.\n", "expect": ["case.md:2 makes a universal claim"]},
     {"name": "an exception in the next unit fails", "text": "- Setup never writes outside home.\n- Except when ALLOW_SYSTEM=1 is set, setup installs into the base interpreter.\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:2 attaches an exception"]},
     {"name": "a marker inside a code span is not an exception", "text": "- Wrap the call in `try/except` and report it.\n", "expect": []},
+    {"name": "a clause written in a code span beside a bound promise is read", "text": "- Setup never writes outside home (`unless ALLOW_SYSTEM=1` is exported).\n", "bound": ["Setup never writes outside home"], "expect": ["case.md:1 attaches an exception"]},
+    {"name": "a sentence opening with If beside a bound promise is read", "text": "- Setup never writes outside home. If ALLOW_SYSTEM is set it installs.\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:1 attaches an exception"]},
+    {"name": "but when beside a bound promise is read", "text": "- Setup never writes outside home. But when ALLOW_SYSTEM is set it installs.\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:1 attaches an exception"]},
     {"name": "an unbound claim fails", "text": "- The wizard never writes outside home.\n", "expect": ["case.md:1 makes a universal claim"]},
     {"name": "a bound claim passes", "text": "- The wizard never writes outside home.\n", "bound": ["The wizard never writes outside home."], "expect": []},
     {"name": "an exempt claim passes", "text": "- Agents never post directly.\n", "exempt": ["Agents never post directly."], "expect": []},
@@ -171,6 +196,8 @@
     {"name": "a universal appended to a bound bullet is read", "text": "- Setup never writes outside home, and every tool is signed.\n", "bound": ["Setup never writes outside home"], "expect": ["case.md:1 makes a universal claim"]},
     {"name": "an exception beside a bound promise fails", "text": "- Setup never writes outside home unless ALLOW_SYSTEM is set.\n", "bound": ["Setup never writes outside home"], "expect": ["case.md:1 attaches an exception"]},
     {"name": "a declared exception passes", "text": "- Setup never writes outside home unless ALLOW_SYSTEM is set.\n", "bound": ["Setup never writes outside home unless ALLOW_SYSTEM is set."], "expect": []},
-    {"name": "a unit the detector does not flag passes", "text": "- Setup asks for the repo folder.\n", "expect": []}
+    {"name": "a unit the detector does not flag passes", "text": "- Setup asks for the repo folder.\n", "expect": []},
+    {"name": "a universal promise written as a heading is read", "text": "### Every scheduled post publishes automatically\n- Setup asks first.\n", "expect": ["case.md:1 makes a universal claim"]},
+    {"name": "an exception written as a heading after a bound promise is read", "text": "- Setup never writes outside home.\n### Unless ALLOW_SYSTEM is set\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:2 attaches an exception"]}
   ]
 }

@@ -82,7 +82,7 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "4e87fcde95a22a258002b673e0d5065ee3c40acef994a86626bbcb21524c6fb8",
     "tools/acquire.py": "a37ac480a88ebc8da389535c9a056a3ccc5f45e75427f7af691031d945c46f5b",
-    "tools/claim-proof-manifest.json": "778ca62892886803e6ff12805d8f2bfe4ca8f093541adbfc840c9a5a5e3cfc51",
+    "tools/claim-proof-manifest.json": "1f6d3b35b4a29b6632105e1ac1555c210bb635551d693edc54d5eafbfc5daba2",
     "tools/count_truth.py": "aa42b07bf3a936830607b01688c1c2463bf2e75347a82a9a0e592e7c26bfdfbc",
     "tools/env_paths.py": "557821435c7bdd2bc725354312d33d062ce6a90f43f155389a45e58f952f094d",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",

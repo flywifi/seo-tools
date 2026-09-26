@@ -12,7 +12,7 @@
       "sources": {
         "tools/dependency_currency.py": "1baed783a1b74360b3486c090e936768ba265db45073f37012ad68227380988d",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "2130a3a1a88664347300f38554a9427a9da5504fd57b6249e6ff2bbdcb9bdb4a"
+        "tools/sync_check.py": "e8a5d459f1cadae7b18e58db5859fe322181e3265d114393d5a0868e5127ad19"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {

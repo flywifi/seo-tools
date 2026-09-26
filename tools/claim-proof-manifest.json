@@ -39,7 +39,7 @@
       "doc": "CLAUDE.md",
       "claim": "Every spoke in the hub's downstream list exists;",
       "proof": "invariant:6",
-      "why": "check_hub parses the fenced list under the hub's \"## Downstream spokes\" heading and fails on a listed name with no skills/<name>/ directory, and on a spoke directory the list omits; a fixture self-proof of both directions runs first."
+      "why": "check_hub reads the one fenced block under the hub's one \"Downstream spokes\" heading as the router does, refusing a second such heading, a second fence or text beside it, and fails on a listed name with no skills/<name>/SKILL.md and on a spoke directory the list omits; fixture self-proofs of the reading and both directions run first."
     },
     {
       "doc": "CLAUDE.md",
@@ -177,7 +177,7 @@
       "doc": "CLAUDE.md",
       "claim": "every atom a workflow names is installed.",
       "proof": "invariant:7",
-      "why": "check_workflows fails on any atom a workflow.json step or shortcut_atoms entry names that has no skills/atoms/<name>/ directory."
+      "why": "check_workflows reads every value under a workflow.json key whose name contains \"atom\" (steps[].atom, steps[].reference_atoms, shortcut_atoms and any key added later), at any depth, and fails unless it names a skills/atoms/<name>/ directory holding a SKILL.md; a fixture self-proof of both rules runs first."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -235,7 +235,8 @@
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "wizard state, staged bundles, `dist/` builds -- all gitignored",
-      "why": "A table row about gitignore coverage, which drift invariant 19 enforces for tracked .local. files; the row itself is descriptive."
+      "why": "A table row naming where local working state lands. Its gitignore fact is re-read through `holds.gitignored`, which resolves the paths from the code that writes them: the wizard state file (tools/wizard.py::_STATE_PATH), the staged upload bundles (tools/wizard.py::_BUNDLE_ROOT) and the dist/ build folder (tools/package_skill.py::DIST) must each be ignored by the root .gitignore.",
+      "holds": {"gitignored": ["tools/wizard.py::_STATE_PATH", "tools/wizard.py::_BUNDLE_ROOT/", "tools/package_skill.py::DIST/"]}
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -265,7 +266,8 @@
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "(Microsoft 365 lane only)",
-      "why": "scopes which lane needs Node at all; the detectability obligation for that route is bound as a route record instead."
+      "why": "scopes which lane needs Node at all; the detectability obligation for that route is bound as a route record instead, which `holds.route` names so the exemption fails when that record is gone.",
+      "holds": {"route": "nvm-sh/nvm"}
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -321,6 +323,16 @@
       "doc": "CLAUDE.md",
       "claim": "When a\n  check fails, report it honestly with the output; never claim a skipped step ran.",
       "why": "an instruction governing what the agent says in a report; nothing in the build can read a chat message, so this is doctrine enforced by judgment."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "# Install scope: user-only by default",
+      "why": "the page title naming the policy; the policy's enforceable halves are bound in the sentences under it, to invariant 59 for the guidance and to the tools/setup.py and tools/wizard.py pins for the code."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "## Verifying an install stayed user-only",
+      "why": "a section title introducing the checks a person can run by hand after an install; it names a goal of those checks rather than a behavior of this repo's code."
     }
   ],
   "_boundaries_why": "Pin-boundary records (docs/AUDIT-PROTOCOL.md section 7.3). A claim describes what a person reaches through a CLI entry, a tool or a runtime default; each `::selftest::` proof the claims use names that entry here as `tools/x.py::name` or `tools/x.py::Class.method`. Invariant 60 fails on a proof with no record, a name the module does not define, and a pin whose function never calls its entry while the record states no `gap` of at least 25 characters naming it. A `gap` is a recorded limit: move the pin to the entry or narrow the claim.",
