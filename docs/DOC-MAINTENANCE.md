@@ -61,7 +61,7 @@ symbol, path, or count is verifiable, so it is verified.
 8. **Claim-proof binding** (invariant 60, P94). The six guardrails above all check TOKENS inside
    prose: paths, symbols, counts, URLs, source ids, hashes. A universal sentence -- "Creator OS
    never installs machine-wide", "every remaining `brew install` carries the label" -- names none
-   of those, so until P94 nothing checked it, and two such sentences shipped false. In the
+   of those, so no token check can see it. In the
    guarded corpus (CLAUDE.md's non-negotiables and `docs/INSTALL-SCOPE.md`) every universal claim
    is now recorded in `tools/claim-proof-manifest.json`: bound to an enforced drift invariant or
    to a NAMED selftest pin the battery executes, or exempted with a written reason when it is an
@@ -69,19 +69,21 @@ symbol, path, or count is verifiable, so it is verified.
    same manifest binds each recommended install route to the code that must detect it. A reverse
    enrolment sweep fails when a universal claim joins the corpus bound to nothing, matching at
    claim granularity rather than by paragraph so a new promise cannot ride in on a neighbour's
-   binding, and each binding covers one occurrence of its text. P95 added static refusal rules for
+   binding, and each binding covers one occurrence of its text. Static refusal rules reject
    pins that cannot fail (off the selftest's call path, a helper that does not test its
-   condition, a condition whose truth is fixed); they are incomplete, and the known gaps are in
-   the addendum to docs/p94-claim-proof-audit-2026-09-24.md. This guardrail is narrow ON PURPOSE: the repo carries 2,846 lines with absolutes, and
+   condition, a condition whose truth is fixed); they are incomplete, and some pins that cannot
+   fail still pass them. This guardrail is narrow ON PURPOSE: the repo carries 2,846 lines with absolutes, and
    guarding all of them would be an annotation project nobody maintains.
 
 ## Process conventions
 
-- **Dated records are append-only (P81).** A remediation record or audit report describes the tree
-  at its date. Later facts go in an `## Addendum <date>` section at its end; `tools/doc_freshness.py`
-  freezes the body above that heading and the drift guard fails on any other edit.
+- **Review records stay outside the repository.** Audit notes, findings, verdicts, triage and
+  change ledgers live in the working plan outside the repository and are reported to the owner
+  (`docs/AUDIT-PROTOCOL.md` sections 6 and 8). The repository receives the change: code, docs, an
+  ADR for a design decision, and the `CHANGELOG.md`, `STATE.md` and `ledger/ledger.json` entries,
+  each describing behaviour rather than the review that led to it.
 - **Consumer census before a fix (P81).** Before changing a value or a file set, paste the
-  `grep -rn` of every consumer into the plan; P80's three high-severity misses were neighbours of
+  `grep -rn` of every consumer into the plan; high-severity misses cluster in the neighbours of
   the changed line.
 - **The battery is `python3 tools/battery.py` (P81):** raw exit codes, refuses on unstaged tracked
   edits; CLAUDE.md's block names it. A `flock` sidecar on a Drive-mirrored checkout is
@@ -130,12 +132,11 @@ Do not present it as a cited industry standard.
    staleness manifests if a bound source legitimately changed.
 6. Add a `CHANGELOG.md` entry under Unreleased; record any architectural decision as an ADR.
 
-## Guard-shallowness backlog (P65 audit) — closed in P67
+## Agent-contract invariants 14, 16 and 17 are property checks (P67)
 
-The P65 full-system audit designed false-negative recipes against three agent-contract invariants
-whose checks were marker- or substring-based. P66 hardened invariants 15/36/54/55 for real and
-closed every VERIFIED instance; these three were deferred (deepening all at once risked a
-false-positive storm against a green tree). **P67 rebuilt all three as property checks**, each
+Invariants 14, 16 and 17 began as marker or substring checks, which a crafted false negative can
+pass. They followed the P66 hardening of invariants 15/36/54/55 separately, because deepening all
+at once risked a false-positive storm against a green tree. **P67 rebuilt all three as property checks**, each
 tuned against the real tree (5 agent defs, 5 workflows stay green) with a crafted-bad proof:
 
 - **Invariant 14 (agent-definition sections)** — `check_agent_contracts`. Now parses the
@@ -156,7 +157,7 @@ tuned against the real tree (5 agent defs, 5 workflows stay green) with a crafte
   (`Write`/`Edit`/`NotebookEdit`); a def that quotes "READ-ONLY" while listing a mutation tool as
   allowed now fails.
 
-The class rule going forward (from the audit): a guard must verify the PROPERTY it protects, not
+The class rule: a guard must verify the PROPERTY it protects, not
 the presence of a token that usually accompanies the property.
 
 ## Eval testing model (P67-D)

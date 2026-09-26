@@ -302,7 +302,7 @@ def selftest() -> int:
     ok("unreadable ticket surfaces as error, no raise",
        len(entries) == 1 and entries[0]["error"] and entries[0]["data"] is None)
 
-    # P61 C2: free-text injection screening on tickets.
+    # P61: free-text injection screening on tickets.
     base = {"job_id": str(uuid.uuid4()), "created_at": _utcnow(), "origin": "web",
             "requested_by": None, "job_type": "library_analyze", "params": {},
             "input_refs": [], "priority": "normal", "consent_note": None,

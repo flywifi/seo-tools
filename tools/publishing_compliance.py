@@ -201,7 +201,7 @@ def _selftest() -> int:
     r = check("youtube", config=YT_ON, creds={"youtube": {"access_token": "t"}})
     ok(r["has_credentials"] is True, "root-level token should count (back-compat)")
 
-    # 4) manual tier passes with no creds (documents F7: the network gate is separate from this tier gate).
+    # 4) manual tier passes with no creds (the network gate is separate from this tier gate).
     r = check("youtube", config={}, creds={})
     ok(r["tier"] == "manual" and r["ok"] is True and r["has_credentials"] is False,
        "manual tier should pass with no creds")

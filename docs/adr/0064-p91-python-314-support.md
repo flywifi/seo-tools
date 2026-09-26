@@ -6,8 +6,8 @@
 
 ## Context
 
-The owner's Mac ships `python3` = 3.14.6 and the owner decided the repo formally supports
-Python 3.14 and later. The floor was already a floor (`env_paths.PYTHON_FLOOR = (3, 12)`), so
+Python 3.14 is the current CPython line on macOS (3.14.6 is in use), and the repo formally
+supports Python 3.14 and later. The floor was already a floor (`env_paths.PYTHON_FLOOR = (3, 12)`), so
 3.14 passed every gate mechanically -- it had just never been validated. A validation pass on
 CPython 3.14.0rc2 (the newest 3.14 the validation container could obtain) found the battery
 already at 12 of 13 gates, all seven requirements files installing cleanly (including the

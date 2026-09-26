@@ -404,7 +404,7 @@ def selftest():
     ok("email masked", red["email"] == "m***@h***.example")
     ok("account_id stays clear", red["account_id"] == "acct-hearthline-001")
 
-    # P64 AUDIT-F2 boundary case: a >NAME_MAX (255-byte) --records arg must yield the clean
+    # P64 whole-path boundary case: a >NAME_MAX (255-byte) --records arg must yield the clean
     # envelope + exit 1, never a raw OSError traceback (the whole-path rule).
     import io as _io
     import contextlib as _cl

@@ -5,7 +5,7 @@
 
 ## Context
 
-The version 0.1.0 is stamped internally but no release/tag artifact exists yet, so the release-only poll returned no_release and the self-update path was inert. The user asked for a backup based on the most recent branch updates, framed as stable vs nightly channels. Read-only, never-nag, opt-in; reverts to release comparison automatically once a release is cut.
+The version 0.1.0 is stamped internally but no release/tag artifact exists yet, so the release-only poll returned no_release and the self-update path was inert. A backup based on the most recent branch updates is needed, framed as stable vs nightly channels. Read-only, never-nag, opt-in; reverts to release comparison automatically once a release is cut.
 
 ## Decision
 

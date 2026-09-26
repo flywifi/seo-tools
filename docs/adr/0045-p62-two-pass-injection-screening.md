@@ -13,9 +13,8 @@ computed for every file, persisted only when it SEALED one, and dropped for the 
 that flow to a session. So the cheap always-on layer never informed the authoritative layer, and a
 reworded injection (which scores CLEAN offline) got no benefit from the pre-filter having run.
 
-The user asked whether the offline scanner could be a genuine FIRST pass that hands its notes to the
-AI for a SECOND pass that understands rewordings, with availability differing by modality. Three
-decisions were made explicitly: **ENG-ALL** (implement the handoff in the Claude atoms where it can
+Goal: the offline scanner is a genuine FIRST pass that hands its notes to the AI for a SECOND
+pass that understands rewordings, with availability differing by modality. Three decisions: **ENG-ALL** (implement the handoff in the Claude atoms where it can
 be enforced, and instruct it in the ChatGPT/Gemini packaging where it can only be advised);
 **RECONCILE-FULL** (offline note becomes an advisory prior, the session writes an authoritative
 verdict, and a reconciliation triple is persisted); **SEAL-TERMINAL** (the AI second pass runs only
@@ -50,7 +49,7 @@ says so.
 
 ## Alternatives rejected
 
-- **Keep the two tiers independent (status quo).** Rejected by the user: the cheap layer never
+- **Keep the two tiers independent (status quo).** Rejected: the cheap layer never
   informed the authoritative one, wasting the pre-filter's signal and provenance.
 - **Have the AI auto-re-examine sealed files.** Rejected (SEAL-TERMINAL): releasing a false positive
   is a deliberate human move, keeping the seal a hard boundary and the attack surface small.
@@ -65,6 +64,5 @@ escalates and is not routed; every drop-folder record carries its provenance tri
 are documented (`docs/INJECTION-TWO-PASS.md`): the prior is advisory, the envelope is a mitigation
 not a guarantee, and every downstream action stays human-confirmed. Counts unchanged
 (22/106/130/10; a new schema file and a new doc are not counted entities). **Open follow-up:** the
-per-engine vendor-doc citations in `docs/INJECTION-TWO-PASS.md` are research-pending (a research
-pass was interrupted by a session-usage limit); the architecture and OWASP framing are firsthand and
+per-engine vendor-doc citations in `docs/INJECTION-TWO-PASS.md` are research-pending; the architecture and OWASP framing are firsthand and
 stable.

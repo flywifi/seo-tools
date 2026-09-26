@@ -588,7 +588,7 @@ def _selftest():
            resolve_source_path({"top": [{"t": "x"}]}, "top[0].t") == "x"
            and resolve_source_path({"top": []}, "top[0].t") is None)
 
-    # P64 AUDIT-F2 boundary case: a >NAME_MAX (255-byte) template ref must yield the clean
+    # P64 whole-path boundary case: a >NAME_MAX (255-byte) template ref must yield the clean
     # envelope + exit 1 through the CLI dispatch, never a raw OSError traceback.
     import io as _io
     import contextlib as _cl

@@ -37,7 +37,7 @@ import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loo
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 import atomic_io  # noqa: E402  (sibling module in tools/; the one atomic writer, P81)
 
-# P73 D6-F9: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
+# P73: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
 # derived from this port and docs/PUBLISHING.md tells you to register
 # http://127.0.0.1:8765/oauth/<platform>/callback with Google, Meta, TikTok and Pinterest as an
 # EXACT match. Changing the port therefore breaks every already-registered redirect URI until you
@@ -1679,7 +1679,7 @@ def _write_storage_folder(folder: str):
 
     Returns (written_path, prior_folder) where prior_folder is the previous filesystem-MCP root if a
     DIFFERENT one existed (so the caller can surface the replacement instead of silently clobbering it;
-    P57 F6). Callers must confine `folder` first with _confined_folder()."""
+    P57). Callers must confine `folder` first with _confined_folder()."""
     config = _read_claude_config()
     config.setdefault("mcpServers", {})
     prior_args = (config["mcpServers"].get("filesystem") or {}).get("args") or []
@@ -3123,7 +3123,7 @@ _IMPORT_ATTEMPTS = {
 
 
 def _valid_git_ref(ref):
-    """P57 F11: accept only a plain git branch/ref that cannot be read by git as an option or
+    """P57: accept only a plain git branch/ref that cannot be read by git as an option or
     traverse. Letters/digits/._/- , no leading dash, no '..', 1..200 chars. This value crosses into
     `git pull origin <branch>` (tools/update.py) and into a rendered page, so a rejected value never
     reaches the config or the network."""
@@ -3135,7 +3135,7 @@ def _valid_git_ref(ref):
 
 
 def _origin_allowed(origin, referer, port=PORT):
-    """P57 F5: decide whether a mutating POST is same-origin (CSRF defense).
+    """P57: decide whether a mutating POST is same-origin (CSRF defense).
 
     A browser attaches an `Origin` header to a cross-site form POST; when it is absent it attaches
     `Referer`. A cross-site attacker page (evil.example) therefore carries a foreign Origin/Referer
@@ -3153,7 +3153,7 @@ def _origin_allowed(origin, referer, port=PORT):
 
 
 def _confined_folder(folder, *, allow_home=False):
-    """P57 F4/F6: resolve a user-typed folder and confine it to the user's home tree.
+    """P57: resolve a user-typed folder and confine it to the user's home tree.
 
     Returns (ok, realpath, reason). A browser text field (or a CSRF POST) must not be
     able to point the recursive import glob or the filesystem-MCP root at arbitrary
@@ -3181,7 +3181,7 @@ def _confined_folder(folder, *, allow_home=False):
 def _import_targets(folder, kind):
     """Resolve the file(s) to feed a parser for this target kind, within the export folder."""
     import glob as _glob
-    # F4 (defense in depth): never enumerate outside the user's home tree, even if a caller
+    # Defense in depth: never enumerate outside the user's home tree, even if a caller
     # passed an unconfined path. The HTTP handler also gates with _confined_folder, but the
     # recursive glob must not trust its caller. realpath resolves symlinks before the test.
     ok_folder, _real, _why = _confined_folder(folder, allow_home=True)
@@ -3379,7 +3379,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def _read_body(self) -> str:
-        """Read the request body safely (P58 A4a): a malformed Content-Length degrades to empty (no
+        """Read the request body safely (P58): a malformed Content-Length degrades to empty (no
         traceback), and no more than _MAX_BODY bytes are ever read into memory. Wizard forms are tiny,
         so the cap is invisible to normal use and bounds a hostile oversized POST."""
         try:
@@ -3565,7 +3565,7 @@ anything, and closing this window does not stop the work.</p>
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
 
-        # F5: reject cross-site POSTs. Every state-changing endpoint below writes config, credentials,
+        # Reject cross-site POSTs. Every state-changing endpoint below writes config, credentials,
         # an MCP root, or runs a subprocess; without this a website the user merely visits could
         # auto-submit a form to http://127.0.0.1:8765/api/* and drive those side effects. The OAuth
         # GET callback keeps its single-use `state` check; this covers the whole mutating POST surface.
@@ -3596,7 +3596,7 @@ anything, and closing this window does not stop the work.</p>
             return
 
         if path == "/api/recheck-creator-os":
-            # P85-1 (A-4 "Check again"): re-read the config and re-run the probe, e.g. after the
+            # P85-1 ("Check again"): re-read the config and re-run the probe, e.g. after the
             # Claude Desktop restart. Never starts a new install; only re-derives the truth.
             servers = _read_claude_config().get("mcpServers") or {}
             e = servers.get("creator-os") or {}
@@ -3745,7 +3745,7 @@ anything, and closing this window does not stop the work.</p>
                 return
 
             # action == scan
-            # F4: confine the scan to the user's home tree (realpath, symlink-resolved). A folder
+            # Confine the scan to the user's home tree (realpath, symlink-resolved). A folder
             # field or CSRF POST must not drive a recursive read of /, /etc, ~/.ssh, etc.
             ok_folder, expanded, why = _confined_folder(folder, allow_home=False)
             if not ok_folder:
@@ -4040,9 +4040,9 @@ anything, and closing this window does not stop the work.</p>
                 channel = "stable"
             updates = {"channel": channel}
             ny = (data.get("nightly_branch") or "").strip()
-            # F11: this value is later passed to `git pull origin <branch>` (update.py). Reject anything
+            # This value is later passed to `git pull origin <branch>` (update.py). Reject anything
             # that is not a plain git ref so it cannot be read by git as an option (leading '-') or
-            # traverse ('..'). F10: it is also reflected into the page, so a rejected value never
+            # traverse ('..'). It is also reflected into the page, so a rejected value never
             # reaches the config or the response.
             if channel == "nightly" and ny:
                 if not _valid_git_ref(ny):
@@ -4075,7 +4075,7 @@ anything, and closing this window does not stop the work.</p>
 
         if path == "/api/write-storage-folder":
             # Item 7c: register a filesystem MCP scoped to ONE user-chosen folder.
-            # F6: confine to a real sub-folder of the user's home (never '/', $HOME itself, or a
+            # Confine to a real sub-folder of the user's home (never '/', $HOME itself, or a
             # system dir) so the connector cannot be scoped to the whole disk, and surface (do not
             # silently clobber) any pre-existing filesystem-MCP scope.
             data = self._read_form()
@@ -4230,7 +4230,7 @@ anything, and closing this window does not stop the work.</p>
             screen_fn = _PUBLISHING_SCREENS[plat]
             pending = _get(f"oauth_pending_{plat}") or {}
             _set(**{f"oauth_pending_{plat}": None})
-            # F5: require that THIS wizard started the flow (pending exists). The manual-paste path
+            # Require that THIS wizard started the flow (pending exists). The manual-paste path
             # cannot verify the OAuth `state` (the user pastes only the code), so binding it to a
             # locally-initiated pending flow stops an injected code from being exchanged.
             if not pending:

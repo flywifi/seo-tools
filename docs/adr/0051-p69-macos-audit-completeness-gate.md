@@ -13,12 +13,12 @@ Compressor/Resolve/CommandPost/FCP probes. All of it has only ever been simulate
 from Linux, and every Apple, Homebrew, python.org, and whisper source backing it sat at
 `last_checked: null`.
 
-Two prior audits (P53, P56) produced hands-on macOS checklists that lived only in session
-scratchpad and are now gone. That is the failure mode this ADR addresses: a macOS audit's coverage
-claim has never survived the session that produced it. Worse, even a committed findings document
+Two earlier macOS reviews (P53, P56) produced hands-on checklists that were never committed and
+are now gone. That is the failure mode this ADR addresses: a macOS review's coverage claim had
+never outlived the working notes that produced it. Worse, even a committed findings document
 decays immediately, because nothing prevents a new file carrying macOS behavior from landing next
-week and never being audited, and nothing prevents an audited file from being rewritten after the
-audit signed off on it.
+week and never being audited, and nothing prevents an audited file from being rewritten after it
+was signed off.
 
 `docs/AUDIT-PROTOCOL.md` section 1 already requires coverage sets to be derived rather than
 recalled, and section 5 requires a closing unexercised list. Neither was mechanically enforced for
@@ -79,23 +79,21 @@ The audit closes with a build-enforced gate rather than a document.
   human decision at exactly the moment a macOS surface changes.
 - Adding a file that mentions macOS incidentally will trip the gate once, and is resolved by either
   auditing it or excluding it with a reason. The exclusion map keeps that decision written down.
-- **A second independent pass, over the already-remediated tree, found the remediation had traded
-  one defect for another.** The three video-tooling files moved from a false-rationale skip into an
+- **The first remediation traded one defect for another.** The three video-tooling files moved from a false-rationale skip into an
   unreviewed bless, and 15 files in total entered the manifest in a single `reconcile` during P69-5
-  labelled "audited" though nobody had read them; 8 turned out to be `Final Cut` false positives.
+  labelled "audited" without review; 8 turned out to be `Final Cut` false positives.
   That is what motivated the `--accept-new` gate and the "recorded, not audited" wording throughout.
   The lesson worth keeping: a guard that reports success is not evidence the work behind it happened.
-- **The first cut of this gate was itself defective, and the independent adversarial pass required
-  by AUDIT-PROTOCOL section 7 is what caught it.** The deriver was in its own `SKIP_PREFIXES` and
+- **The first cut of this gate was itself defective.** The deriver was in its own `SKIP_PREFIXES` and
   nothing hashed it, so deleting tokens from `MAC_SIGNALS` shrank the audited set while the guard
-  still reported "complete" -- the verifier proved it by removing three tokens and watching the
-  build stay green. That is the same class of failure the alternatives section credits the
+  still reported "complete" -- removing three tokens left the
+  build green. That is the same class of failure the alternatives section credits the
   derivation with catching, left unguarded in the guard itself. The denominator pin and the
   "audited but no longer derives" check exist because of that finding, and both are covered by the
-  tool's selftest. The same pass also found that three video-tooling evidence files had been
+  tool's selftest. Three video-tooling evidence files had also been
   skipped under a stated "append-only telemetry" rationale that was factually false (one commit
   each); they are tracked normally now.
-- The audit's fresh-fetch pass is recorded in the registry stamps rather than in prose, so the next
+- The P69 fresh-fetch pass is recorded in the registry stamps rather than in prose, so the next
   re-verification starts from real dates instead of `null`.
 - Behaviors that need real Mac hardware (the Gatekeeper dialog, the TCC prompt, Rosetta, live
   post-2026-09-01 Homebrew behavior, a real Desktop MCP spawn, Drive mirror latency) remain

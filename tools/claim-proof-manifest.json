@@ -1,6 +1,6 @@
 {
   "_comment": "P94 claim-proof binding (drift invariant 60, tools/sync_check.py::check_claim_proof). A universal claim about this repo's own behavior is a promise, and a promise ships with the executed proof that keeps it. `claims` bind a verbatim sentence to either an enforced drift invariant (`invariant:N`) or a NAMED selftest pin the battery actually runs (`tools/x.py::selftest::<label substring>`). `exempt` records a universal that no code can prove -- a standing instruction to the agent -- with a written reason. `routes` bind an install route the docs RECOMMEND to the code that must DETECT it. `corpus` is the guarded set: a universal claim there that appears in none of the three lists fails the build.",
-  "_why": "P93 shipped the commit subject 'no code path installs machine-wide' while the fallback it denied sat on line 138 of the file it changed, and shipped 'every remaining brew install sits under a label' while three live files did not. Both passed every existing guard, because documentation truth checks paths, symbols, counts, URLs and hashes, and a universal sentence names none of those.",
+  "_why": "Documentation truth checks paths, symbols, counts, URLs and hashes, and a universal sentence names none of those, so no token check can see it; this manifest ties each such sentence to an executed proof or a written exemption.",
   "corpus": {
     "CLAUDE.md": {
       "section": [
@@ -289,18 +289,8 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "P93 proved a refusal for PEP 668 interpreters and\n  claimed it for every machine-wide one",
-      "why": "a worked example of the mistake the rule exists to prevent, describing a past defect rather than asserting a current property of the code."
-    },
-    {
-      "doc": "CLAUDE.md",
       "claim": "`report`/`check` are read-only",
       "why": "describes the currency checker's two read-only verbs for maintainers; no guard asserts a CLI verb writes nothing."
-    },
-    {
-      "doc": "CLAUDE.md",
-      "claim": "so seven requirements sets still installed into a shared\n  site-packages under a commit saying they could not",
-      "why": "the second half of the P93 worked example; it recounts what went wrong once, not a property of the code as it stands."
     },
     {
       "doc": "CLAUDE.md",

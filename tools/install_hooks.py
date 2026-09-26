@@ -54,7 +54,7 @@ problems = []
 msg = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
 problems += secret_scan.scan_text(msg, "commit-message", allowlist)
 
-# P74 D1-5: the author-email rule. ADR 0015 says it is enforced by this hook AND the CI backstop;
+# P74: the author-email rule. ADR 0015 says it is enforced by this hook AND the CI backstop;
 # this half simply did not exist, so a personal address could enter git metadata locally and only
 # be caught after the fact (and the CI half scans an empty range on a direct main push). The rule
 # is IMPORTED from secret_scan rather than restated, so the hook and the backstop cannot drift.

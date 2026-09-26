@@ -103,8 +103,7 @@ Invariants enforced:
       (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md (invariant 3 covers skills/ only).
   51. Doc freshness (P52; blocking since P79): when a code file a doc documents (tools/doc_freshness.py
       DOC_SOURCES) changes sha since the doc-freshness manifest was reconciled, the doc is surfaced as
-      possibly stale (a content-hash signal, not a prose diff); dated records are frozen above their
-      Addendum section (P81).
+      possibly stale (a content-hash signal, not a prose diff).
   52. Doc-declared source registration (P55): every id a maintainer/SKILL/doc file declares in a
       fenced ```sources block or an inline `<!-- source: id -->` marker must exist in
       canonical-sources/source-registry.json with a matching url; unparseable blocks fail. Fail-closed
@@ -635,7 +634,7 @@ def check_schema_verification_fields():
     """Invariant 15: agent output schemas have verification envelope fields, and every agent
     DEFINITION's prose names them too (P66: the schemas enforced the envelope while four agent
     definitions' Output format sections omitted it, so an agent following its written contract
-    would emit output its own schema rejects — the P65 F-AGENT-ENVELOPE finding).
+    would emit output its own schema rejects).
 
     The skip set lists DATA CONTRACTS that live in shared/schemas/ but are not agent output
     schemas: the envelope definitions themselves, and compute-job.json (the P60 job ticket/result
@@ -761,7 +760,7 @@ _REQ_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*(.*)$")
 
 
 def _requirement_lines():
-    """name -> (file:line, specifier) for every requirement line, plus problems. P80 A2 read the raw
+    """name -> (file:line, specifier) for every requirement line, plus problems. P80 read the raw
     remainder of the line as the pin; P81 strips what is not a version pin (a PEP 508 marker, a --hash,
     a continuation), skips direct references (they carry a URL, not a version), and refuses a package
     pinned differently in two files (the old dict silently kept the alphabetically last file)."""
@@ -1568,13 +1567,13 @@ def check_currency_map():
     for required in ("shared/connectors/connectors.json", "shared/integrations-engine.md"):
         if required not in tracked:
             problem(f"currency-map: required embedded-fact artifact '{required}' is not in embedded_fact_files")
-    # P79 F1: tier vocabulary. The field was validated nowhere (argparse help text only), and one
+    # P79: tier vocabulary. The field was validated nowhere (argparse help text only), and one
     # entry carried "primary" -- neither T1 nor T3, so citation grading could not place it.
     for s in reg.get("sources", []):
         if isinstance(s, dict) and s.get("tier") not in ("T1", "T2", "T3"):
             problem(f"currency-map: source '{s.get('id')}' has tier {s.get('tier')!r}; the vocabulary "
                     f"is T1|T2|T3 (fix via source_currency update-source --tier)")
-    # P80 A2: the pin chain. dependency_currency reads ONLY the entry's pinned_constraint (never the
+    # P80: the pin chain. dependency_currency reads ONLY the entry's pinned_constraint (never the
     # requirements files), so a specifier the registry does not mirror silently disables out-of-pin
     # detection for that package. Data fix: source_currency update-source --pinned-constraint.
     reqs, req_problems = _requirement_lines()
@@ -1591,7 +1590,7 @@ def check_currency_map():
         if spec != pin:
             problem(f"currency-map: dependency '{s['id']}' pinned_constraint {pin!r} disagrees with {loc} "
                     f"({spec!r}); fix via source_currency update-source {s['id']} --pinned-constraint '{spec}'")
-    # P79 F2: the six blind spots of the original check (P78 audit F9). Same invariant, wider.
+    # P79: six checks the original version missed. Same invariant, wider.
     valid_status = {"watched", "dated", "static", "tool-managed"}
     base = ROOT / "canonical-sources"
     for e in cmap.get("files", []):
@@ -1619,7 +1618,7 @@ def check_currency_map():
         if sub not in mapped and sub not in infra:
             problem(f"currency-map: {rel} is tracked but neither mapped in files[] nor excused in "
                     f"_infrastructure; classify it (watched|dated|static|tool-managed)")
-    # P81 G-7: a re-validation entry that cannot be re-run is not evidence (P80 dropped `command`).
+    # P81: a re-validation entry that cannot be re-run is not evidence (P80 dropped `command`).
     ev_path = ROOT / "docs" / "video-tooling-integration-evidence.json"
     if ev_path.exists():
         try:
@@ -1633,7 +1632,7 @@ def check_currency_map():
                 miss = sorted(req - set(c))
                 if miss:
                     problem(f"currency-map: {ev_path.name} revalidation {r.get('date')} check {c.get('id')} lacks {miss}")
-    # P81 G-8: the map's review stamp must not predate its own last edit.
+    # P81: the map's review stamp must not predate its own last edit.
     cd = _git_last_commit_date("canonical-sources/data-currency-map.json")
     if cd is None:
         advisory("currency-map: as_of vs commit date DID NOT RUN (not a git checkout)")
@@ -1951,8 +1950,8 @@ def check_registry_writer_count():
     if missing:
         advisory(f"registry-writers: expected registry writer(s) not detected: {missing}; the writer "
                  f"list in registry_io.py + CLAUDE.md may be stale")
-    # P81 G-6: one atomic writer. A bare write_text() on a local-config / credential / register path
-    # outside tools/atomic_io.py is the class behind C-2/C-7/C-8 (ten sites at P81 planning).
+    # P81: one atomic writer. A bare write_text() on a local-config / credential / register path
+    # outside tools/atomic_io.py is the defect class ten sites once shared.
     _target = re.compile(r"\.local\.json|local_path|creds_path|CREDS_PATH|CONFIG_LOCAL_PATH|REGISTER_PATH|FINANCE_DIR")
     _allow = {("tools/handoff_sim.py", "OB.REGISTER_PATH"): "simulator tamper fixture; proves the verifier notices"}
     for f in sorted(list(tools_dir.rglob("*.py")) + list((ROOT / "shared").rglob("*.py"))):
@@ -2308,10 +2307,10 @@ def check_doc_count_truth():
         ("skills/atoms/post-status/MAINTAINER_README.md", "invariants", "invariants"),
         ("skills/atoms/publish-draft/MAINTAINER_README.md", "invariants", "invariants"),
         ("skills/atoms/schedule-post/MAINTAINER_README.md", "invariants", "invariants"),
-        # P73 D1-3: AGENTS.md states the invariant count but was unguarded, so it could drift
+        # P73: AGENTS.md states the invariant count but was unguarded, so it could drift
         # exactly the way the four guarded docs could not.
         ("AGENTS.md", "invariants", "invariants"),
-        # Found by the reverse sweep below on its first run (P73 D6-F5), which is the point:
+        # Found by the reverse sweep below on its first run (P73), which is the point:
         # enrolment is no longer a thing anyone has to remember.
         ("README.md", "spokes", "spokes"),
         ("docs/SETUP_MAC.md", "mcp_tools", "tool definitions"),
@@ -2328,9 +2327,8 @@ def check_doc_count_truth():
                 problem(f"doc-count-truth: {rel} states '{n} {kw}' but the tree has {truth[key]} "
                         f"{kw}; correct the doc (counts are computed by tools/count_truth.py)")
 
-    # P73 D6-F5: the list above is curated, and curation has already been forgotten once --
-    # AGENTS.md shipped in P72 stating the invariant count with no guard, and only a hand audit
-    # caught it. Enrolment must not depend on remembering. Sweep every tracked doc for a global
+    # P73: the list above is curated, and curation can be forgotten (AGENTS.md shipped in P72
+    # stating the invariant count with no guard). Enrolment must not depend on remembering. Sweep every tracked doc for a global
     # count claim and require that the file be enrolled above.
     enrolled = {rel for rel, _, _ in checks}
     keywords = {"spokes": "spokes", "invariants": "invariants", "tool definitions": "mcp_tools",
@@ -2358,7 +2356,7 @@ def check_doc_count_truth():
                         f"(\"{rel}\", \"{key}\", \"{kw}\") to checks[] in check_doc_count_truth, or "
                         f"reword the sentence so it does not state a global count.")
                     break
-    # P81 G-1: the Python floor is one constant (tools/env_paths.PYTHON_FLOOR); prose that names another
+    # P81: the Python floor is one constant (tools/env_paths.PYTHON_FLOOR); prose that names another
     # minor version as the floor or the recommendation is a live falsehood (P80 left two behind).
     try:
         sys.path.insert(0, str(ROOT / "tools"))
@@ -2388,7 +2386,7 @@ def check_doc_count_truth():
             if m:
                 problem(f"doc-floor-truth: {rel}:{i} states a retired pin or work state ({m.group(0)!r}); "
                         f"registry hints move via source_currency update-source --extraction-hint")
-    # P81 G-3: every ADR is reachable from the index (0053 to 0055 were not).
+    # P81: every ADR is reachable from the index (0053 to 0055 were not).
     idx_path = ROOT / "docs" / "adr" / "README.md"
     if idx_path.exists():
         listed = set(re.findall(r"\[(\d{4})\]\(", idx_path.read_text(encoding="utf-8")))
@@ -2397,7 +2395,7 @@ def check_doc_count_truth():
             if n != "0000" and n not in listed:
                 problem(f"adr-index: docs/adr/{pf.name} has no row in docs/adr/README.md; add "
                         f"`| [{n}]({pf.name}) | <title> | <date> | Accepted |`")
-    # P81 G-4: one heading per category under [Unreleased] (P80 appended a second Fixed and Changed).
+    # P81: one heading per category under [Unreleased] (P80 appended a second Fixed and Changed).
     cl = ROOT / "CHANGELOG.md"
     if cl.exists():
         seen, in_unreleased = {}, False
@@ -2653,14 +2651,14 @@ def check_payload_loader_robustness():
     widened P64).
 
     Layer 1 (P63): the named payload loaders keep a try/except in their body (the invariant-35
-    sibling). Widened in P64 to cover the loaders C4/C5 guarded in tasks.py and doctemplates.py,
+    sibling). Widened in P64 to cover the loaders guarded in tasks.py and doctemplates.py,
     plus a call-site rule for accounts.py (its guard lives at the caller).
-    Layer 2 (P64, the RC5 fix): inside tools/finance.py and tools/obligations.py main/_main, NO
+    Layer 2 (P64): inside tools/finance.py and tools/obligations.py main/_main, NO
     argparse-derived value may reach a filesystem call (exists/read_text/write_text/open/
-    read_bytes/stat/glob/iterdir/unlink, widened P66 per the audit's FS_CALLS gap) outside a
-    try — the P63 guard protected two function bodies while the AUDIT-F2 crash lived one line
+    read_bytes/stat/glob/iterdir/unlink, widened P66 to the full FS_CALLS set) outside a
+    try — the P63 guard protected two function bodies while a long-path crash lived one line
     upstream in the dispatch; this layer guards the CLASS, not the line.
-    Layer 3 (P66): the sixteen CLIs the P65 audit caught raw-tracebacking on a >255-byte path
+    Layer 3 (P66): the sixteen CLIs that raw-tracebacked on a >255-byte path
     keep their thin-main boundary — main() must try-wrap the _main() dispatch with an OSError
     handler. Behavior is proven by per-tool boundary probes; this guards the structure so the
     wrapper cannot be silently removed. Fail-closed."""
@@ -2735,15 +2733,15 @@ def check_payload_loader_robustness():
                             if isinstance(x, ast.Name)} & tainted:
                         problem(f"payload-loader: {path.name}:{node.lineno} "
                                 f".{node.func.attr}() on an argparse-derived value outside a "
-                                f"try (the AUDIT-F2 whole-path rule); wrap it so a bad or "
+                                f"try (the whole-path rule); wrap it so a bad or "
                                 f">255-byte path yields the clean envelope")
                 elif isinstance(node.func, ast.Name) and node.func.id == "open":
                     if {x.id for arg in node.args for x in ast.walk(arg)
                             if isinstance(x, ast.Name)} & tainted:
                         problem(f"payload-loader: {path.name}:{node.lineno} open() on an "
-                                f"argparse-derived value outside a try (the AUDIT-F2 "
+                                f"argparse-derived value outside a try (the "
                                 f"whole-path rule)")
-    # Layer 3: the P66 thin-main boundary on the sixteen P65-audited CLIs.
+    # Layer 3: the P66 thin-main boundary on the sixteen path-taking CLIs.
     thin_main_files = [
         ROOT / "tools" / "import_parse.py",
         ROOT / "tools" / "library_complete.py",
@@ -2793,9 +2791,9 @@ def check_surface_origin_completeness():
 
     tools/handoff/queue.py::ALLOWED_ORIGINS and the origin enum in
     shared/schemas/compute-job.json are the independent oracle for "where work comes from";
-    shared/cross-modality/transitions.json is the model of "where Creator OS runs". AUDIT-F1
-    (the cowork origin shipping in P60 while the surface model went two days without a Cowork
-    row) happened because nothing reconciled them. This check asserts (a) the two enums are
+    shared/cross-modality/transitions.json is the model of "where Creator OS runs". The cowork
+    origin once shipped (P60) while the surface model went two days without a Cowork row,
+    because nothing reconciled them. This check asserts (a) the two enums are
     identical, and (b) every enum value is claimed by at least one surface's `origins` list or
     the documented `_residual_origin_note`. Fail-closed."""
     import ast
@@ -2893,7 +2891,7 @@ def check_registry_content_digest():
     """Invariant 56 (blocking since P79; advisory P66-P78): source-registry.json content matches the digest its sanctioned
     writer stamped (P66). CLAUDE.md's "written only through registry_io" was machine-enforced
     for ADD/REMOVE of ids (the invariant-26 freshness digest) but purely conventional for an
-    in-place content edit to an existing entry — the P65 F-REGISTRY-HANDEDIT repro changed a
+    in-place content edit to an existing entry — a P65 test changed a
     source's name by hand and every check stayed green. save_registry now stamps
     `_content_digest` over sources[]; this check recomputes it. Blocking since P79 (the traversal
     tool no longer instructs hand edits, so every legitimate write has a sanctioned path). Recovery
@@ -2958,8 +2956,8 @@ def _dict_keys_in_function(py_path, func_name):
 
 def check_eval_output_keys():
     """Invariant 57: eval output-key truth (P68). Every eval case's `expected_output_keys` must be
-    a key the skill's backing tool actually emits, not a prose-derived invention. The P67-D audit
-    found eight eval keys (coverage_summary, anchor_source, aging_followups, invoice_task_draft,
+    a key the skill's backing tool actually emits, not a prose-derived invention. In P67 there were
+    eight eval keys (coverage_summary, anchor_source, aging_followups, invoice_task_draft,
     billable_milestones, scheduled_tasks, untrusted_body_handled, injection_flag) that appear in
     zero tool code -- structurally valid cases with fabricated expectations that invariant 9 (case
     count) and eval_lint.py (case structure) both pass. tools/eval_key_manifest.json names each
@@ -3048,7 +3046,7 @@ def check_invariant_catalog():
     plus the merged ones (catches the stale 'header lists 1-23 while code implements more' drift),
     and (e) every check_* function that CARRIES an 'Invariant N' label is actually called in
     main() — without (e) the top-numbered invariant could be silently dropped from main() while
-    its dead docstring keeps every count reading correct (the P65 keystone finding).
+    its dead docstring keeps every count reading correct.
     Keeps the invariant catalog a single source of truth: a mislabeled, unlabeled, or undocumented
     check cannot slip in silently."""
     import ast
@@ -3136,15 +3134,15 @@ def check_mac_surface_completeness():
     change-detection over a mechanically derived set, NOT that a human re-read anything today: a
     recorded sha256 means the bytes have not moved since someone blessed that path. Entering the
     manifest requires `reconcile --accept-new`, so a path cannot join the tracked set by inaction --
-    the P70 review found 15 files had done exactly that in one command, 8 of them false positives
-    nobody had read. The macOS audit's coverage guarantee, enforced.
+    before P70, 15 files had done exactly that in one command, 8 of them false positives
+    nobody had read. This is the Mac-surface coverage guarantee, enforced.
     tools/mac_surface_manifest.py derives the Mac surface mechanically (a token sweep over every
     tracked text file) rather than trusting a memorized list, and every derived match must resolve
     to EITHER canonical-sources/mac-surface-manifest.json's `files` map (audited, at a recorded
     sha256) OR its `excluded` map (judged not-a-Mac-surface, with a written reason). This guard
     fails the build in both directions: a NEW file carrying Mac behavior is `unaudited` until a
     human audits it, and an ALREADY-AUDITED file whose bytes moved is `changed` until it is
-    re-audited. A third property closes the hole the P69 adversarial pass found in the first cut of
+    re-audited. A third property closes a hole in the first cut of
     this guard: the deriver is pinned (module + signal-set sha256) and every audited file must STILL
     derive, so narrowing the signal vocabulary -- which would otherwise shrink the denominator while
     the guard reported "complete" -- fails here instead. Without all three, "every Mac surface was
@@ -3173,7 +3171,7 @@ def check_mac_surface_completeness():
     for msg in res.get("deriver_drift", []):
         problem(f"mac-surface: {msg}; the denominator changed, so re-audit and "
                 f"`python3 tools/mac_surface_manifest.py reconcile`")
-    # P73 D6-F3: the widening trigger. The checks above all guard against the denominator
+    # P73: the widening trigger. The checks above all guard against the denominator
     # SHRINKING; this one notices a file using a macOS concept the vocabulary never learned, so
     # the gate cannot report "complete" while being blind to a new category. Advisory: it is a
     # prompt to review the vocabulary, not a verdict about the file.

@@ -114,7 +114,7 @@ entry:
    unchanged). Illustrative ids used in documentation examples are exempted in
    `tools/doc-source-allowlist.json`, each with a written reason.
 
-The corpus the invariant sweeps was widened in P82 after the ChatGPT audit found three blind
+The corpus the invariant sweeps was widened in P82 to close three blind
 spots. The fenced-block pass now also covers `implementation/**/*.md`, where the packaging READMEs
 declare the plan-fact authorities. The shorthand pass — which catches scheme-less citations like
 `help/12584461` — is now line-based rather than prefix-anchored, so a comma list ("articles

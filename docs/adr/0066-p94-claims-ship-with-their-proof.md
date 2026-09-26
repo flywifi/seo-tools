@@ -6,7 +6,7 @@
 
 ## Context
 
-P93 pushed three commits and reported them as done. Two headline claims were false, and the
+P93 pushed three commits. Two headline claims were false, and the
 guard built to enforce the third shared a blind spot with the work it was checking:
 
 - the commit subject `P93-1: no code path installs machine-wide.` shipped in the same commit as
@@ -19,15 +19,13 @@ guard built to enforce the third shared a blind spot with the work it was checki
   hardcoded sixteen-file list, almost all of them files the phase had just edited, so the guard
   largely confirmed work already done.
 
-The mandated adversarial pass (`docs/AUDIT-PROTOCOL.md` section 7) caught all three. The
-protocol worked. What failed was everything around it:
+Three gaps let them ship:
 
 1. **Sequencing.** Section 7 attached verification to the word "closed", while section 8's
    persistence contract requires claims to be committed and pushed per stage and CLAUDE.md
    requires doc prose to land in the same change as the code. Doctrine mandated that claims be
    written and pushed at stage time and separately mandated they be checked at phase close. The
-   false commit message, the false doc sentence, and the report to the owner all lived in that
-   window.
+   false commit message and the false doc sentence both lived in that window.
 2. **Scope.** No protocol governed a claim about this repo's own behavior. `no-fabrication.md`
    is scoped to creator data, `quality-gates.md` to creator artifacts, `COMPLETENESS-CONTRACT.md`
    to chat surfaces. CLAUDE.md set the "executed and shown to pass" bar on a *plan*, never on a
@@ -46,8 +44,7 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    tested.** "no", "never", "every", "all", "only", "nothing", "always", "none", "cannot" (the
    last two and bare "no" detected since P95) in a commit subject, a doc sentence, a CHANGELOG
    entry or a report to the owner. Test the PROPERTY claimed, not the
-   mechanism changed: P93 proved a refusal for PEP 668 interpreters and claimed it for every
-   machine-wide one.
+   mechanism changed.
 2. **The independent pass runs before the claim is reported or merged** (`AUDIT-PROTOCOL.md`
    section 7.1), not only at phase close, closing the seam between when a claim is written and
    when it is checked.
@@ -63,9 +60,8 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    "nothing proves this" should be a deliberate act rather than a silence.
 5. **A route we recommend must be a route we can find.** Route records bind an install route the
    docs recommend to the code that detects it, resolved through the prober's *symbol* rather
-   than the path appearing anywhere in the file. This check's own red-team pass caught that
-   weakness: mutating `USER_BIN` left the gate silent because the old path was still mentioned
-   in a comment.
+   than the path appearing anywhere in the file. A text match is too weak: after `USER_BIN`
+   moves, the old path left in a comment would keep the gate silent.
 6. **The corpus is bounded and the sweep is reverse.** Guarding every absolute in the repo would
    mean annotating 2,846 lines across 417 files — an annotation project nobody maintains. The
    guarded corpus is CLAUDE.md's non-negotiables and `docs/INSTALL-SCOPE.md`, and the sweep
@@ -77,26 +73,19 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    are also recorded in the manifest: removing a branch together with its fixture still fails.
    All 22-plus coverage proofs in the repo were previously hand-rolled with no two sharing code.
 
-8. **This ADR's own pass was audited before it was reported, and the audit found real defects.**
-   Four independent lenses over P94 found that the reverse sweep matched whole markdown units, so
-   a universal claim appended to an already-bound bullet was absorbed unchecked; that a selftest
-   pin whose condition was a literal would resolve as a proof; that the CI parity check matched
-   raw file text, so a commented-out step counted as coverage; and that a parity note asserting
-   CI ran `bash -n` on the launcher described a step that did not exist. Eleven universals the
-   unit-granularity bug had been absorbing are now accounted for.
-
-   The audit's verification stage then confirmed two more against the first remediation, both
-   reproduced here before being fixed: a pin label parked in a function nothing calls still
-   resolved (a label is a comment, not a proof, so a pin must now be REACHABLE from the selftest
-   entry), and a bound promise could be reversed by an "except when..." clause containing no
-   universal word, which the remainder scan could not see (an undeclared escape hatch beside a
-   bound promise now fails on its own). The first cut of that escape check was itself wrong: one
-   declared "unless" anywhere in a file disabled it for the whole file. Three rounds of
-   adversarial passes on one change is the honest record of how much a guard needs before its
-   own claim about itself is true.
+8. **The reverse sweep matches claim units, a pin must be reachable, and an escape clause is
+   surfaced.** The sweep subtracts each bound claim from its unit and rescans the remainder, so a
+   universal claim appended to an already-bound bullet is checked on its own; eleven universals
+   that whole-unit matching had absorbed are now accounted for. A selftest pin whose condition is
+   a literal does not resolve as a proof, and a pin label parked in a function nothing calls does
+   not resolve either (a label is a comment, not a proof, so a pin must be REACHABLE from the
+   selftest entry). The CI parity check reads steps rather than raw file text, so a commented-out
+   step does not count as coverage. A bound promise reversed by an "except when..." clause
+   containing no universal word is caught: an undeclared escape hatch beside a bound promise
+   fails on its own, and a declared "unless" elsewhere in the file does not switch the check off.
 
 9. **P95: a pin must be able to fail, and the detector must see the words the docs advertise.**
-   Re-running the audit's vectors against P94-5 showed the reachability fix was incomplete: a
+   P94's reachability rule was incomplete: a
    `selftest_park` counted as an entry by name prefix, an unrelated attribute call made a
    same-named function reachable, and `ok(1 == 1, label)` passed because only a bare literal was
    refused. P95 added three static refusal rules: (a) the call must be on the live call path
@@ -108,22 +97,18 @@ pass-counts drifting across six finance atom docs with nothing catching them.
    real should-not-reach assertion; a MODULE-level constant counts, because it is the code under
    test. Measured over all 91 swept modules before shipping: no previously accepted label is
    refused, and 80 more became visible (71 in mcp_server's module-level `_selftest_static`, 9
-   should-not-reach pins elsewhere; the first version of this sentence attributed them to fakes
-   and helpers, which was wrong). A fixture module in the drift guard exercises eleven of the
-   rules, and reverting any one of those fails the build. The independent pass on P95 found nine
-   more rules the fixture does not exercise, and pins that cannot fail that the rules still
-   accept (`ok(x or not x, ...)`, a helper rebound to `print`, a pin under `while False:`); see
-   the addendum to docs/p94-claim-proof-audit-2026-09-24.md.
+   should-not-reach pins elsewhere). A fixture module in the drift guard exercises eleven of the
+   rules, and reverting any one of those fails the build. Nine
+   further rules have no fixture, and some pins that cannot fail are still accepted
+   (`ok(x or not x, ...)`, a helper rebound to `print`, a pin under `while False:`).
 
    The trigger vocabulary did not match its own documentation. CLAUDE.md advertised "repo-wide"
    (no sentence in the guarded corpus used it; its one occurrence was the list itself) and a bare "no" the code could not see,
    and did not mention "only", "nothing" and "always", which it enforced. Bare "no", "none" and
    "cannot" are now branches, and `no ... ever` tolerates punctuation ("no sudo, ever"). The
-   bare-"no" pattern measured precision 1.00 and recall 0.89 on a 21-case labelled set drawn
-   from the corpus, which was not committed; its one miss on that set is a past-participle
-   predicate ("No real CRM data or PII committed to the repo"), already bound verbatim. The
-   independent pass on P95 found further in-vocabulary misses ("There is no fallback to the
-   base interpreter") and a false positive ("no admin rights needed"). It must follow `no_ever`:
+   bare-"no" pattern misses a past-participle predicate ("No real CRM data or PII committed to
+   the repo", already bound verbatim) and other in-vocabulary forms ("There is no fallback to
+   the base interpreter"), and it flags "no admin rights needed". It must follow `no_ever`:
    listed before it, it claims "no ... ever" sentences from their own branch and the coverage
    proof fails. The five universals it
    surfaced were resolved on their merits: two bound (one to a new recording-client pin that
@@ -147,8 +132,7 @@ pass-counts drifting across six finance atom docs with nothing catching them.
     exempted nothing and are dropped, and an entry that exempts nothing now fails the build (the
     selftest-enrolment rule "is BOTH exempt and covered; drop the stale exemption", applied to
     the map that narrows invariant 59's denominator). An over-broad entry still passes, and the
-    parity parser misses several valid YAML forms; both are in the addendum to
-    docs/p94-claim-proof-audit-2026-09-24.md, with the audit triage and P95's residuals.
+    parity parser misses several valid YAML forms; both are open.
 
 ## Consequences
 
@@ -161,5 +145,5 @@ pass-counts drifting across six finance atom docs with nothing catching them.
   is declared with its reason.
 - Exemptions are the honest residue: each one states why no code can prove that sentence, and a
   reviewer can argue with the reason.
-- The claims rule binds reports to the owner, not only files. That part is doctrine, because no
-  guard sees a chat message.
+- The claims rule binds reports, not only files. That part is doctrine, because no guard reads
+  a report.

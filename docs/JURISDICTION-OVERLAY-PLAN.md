@@ -5,12 +5,12 @@ research and the design for adding an OPTIONAL jurisdictional-overlay bucket on 
 `canonical-sources/construction/` building-code base. It is advisory planning information, never a
 legal or permitting determination.
 
-Research base: 6 agents (offline-GIS feasibility; internal scoop/construction architecture map; FL
+Research base: six cited research strands (offline-GIS feasibility; internal scoop/construction architecture map; FL
 overlay data sources; NC overlay data sources; rules-as-data/conflict-resolution prior art;
 geospatial data currency + caching), all URL-cited; key citations preserved in Section 8.
 
 ## 1. Verdict
-Most of the pasted six-level overlay matrix can become an optional `canonical-sources/jurisdiction/`
+Most of the proposed six-level overlay matrix can become an optional `canonical-sources/jurisdiction/`
 bucket that plugs into the scoop cache, the construction base, and the P36 freshness system, entirely
 offline-first. The one honest caveat: **true geospatial capability is 100% net-new** — today
 "jurisdiction" is only a string key (`"FL"/"NC"`) plus hand-authored county to climate-zone tables;
@@ -82,7 +82,7 @@ Not every overlay is a polygon. Three kinds:
   only; not an official or legal determination; not a substitute for a FEMA flood determination;
   boundaries may be simplified and may lag the source."
 
-## 6. Research corrections to the source payload (verified)
+## 6. Corrections to the proposed overlay matrix (verified)
 - Rutherford County has NO steep-slope ordinance and no countywide zoning; there is no "Chapter 150 -
   Steep Slope Construction Controls." Controls reduce to Watershed/Flood/Subdivision/Solar ordinances;
   county GIS exposes parcels+flood only, so slope must be DEM-derived.
@@ -174,3 +174,65 @@ Not every overlay is a polygon. Three kinds:
 - No heavy C GIS deps in the required path; reprojection avoided via server-side outSR=4326.
 - No scraping of Municode/AmLegal or copyrighted code text; facts only.
 - Large net-new geospatial capability; ship Phase 1 (offline engine + model, zero network) first.
+
+## 10. Statewide seeding cost model (Florida)
+
+Seeding the bucket for all 67 Florida counties is two different jobs. The county-and-statewide
+layer (flood, water district, wind region, HVHZ, code edition, SB 4D, NRHP historic, land use) is
+cheap and largely automatable, about 2 to 4 weeks of engineering, because most overlays are single
+statewide layers or one nationwide endpoint. The local zoning and historic-district design-review
+layer is a months-long, partly manual data-curation program: no statewide dataset shortcuts it,
+and platform Terms of Service bar bulk scraping of the code text.
+
+| Tier | Overlay | How it scales to 67 counties | Effort |
+|---|---|---|---|
+| 0. Statewide-uniform | FL Building Code (8th/2023), SB 4D milestone | 1 record each, covers all 67 | trivial |
+| 0. Nationwide live | FEMA flood (NFHL layer 28) | 1 endpoint, every county, zero per-county setup | done (P37) |
+| 1. Small fixed set | HVHZ (2 counties), 5 Water Management Districts, Wind-Borne Debris Region, SLR | a handful of records; WMD/WBDR need geometry, not FIPS | ~1 week |
+| 2. Per-county, statewide-backed | county FIPS scaffold (67), NRHP historic (points), land use / future land use | ~6 to 8 statewide endpoints + a generated 67-row scaffold | ~1 to 2 weeks |
+| 3. Long tail | local zoning + setbacks, local historic districts (design review) | ~478 distinct jurisdictions; setbacks per zoning district = thousands of rows; no statewide roll-up; ToS-limited | months, partly manual |
+
+Statewide aggregators cover the cheap tiers in one fetch each: the nationwide FEMA NFHL endpoint
+(already wired in P37); the Florida Building Code (8th Edition, 2023) and SB 4D (Fla. Stat.
+553.899), which apply statewide by building attributes rather than by county; and the Florida
+Geographic Data Library, the State GIO portal, FDOT, FDEP and NPS/FNAI layers for water districts,
+land use, transportation and NRHP historic places.
+
+Three modeling traps:
+
+1. **WMD and WBDR are not county attributes.** Water Management District boundaries follow
+   watersheds, so roughly 12 to 18 counties are split across two or more districts and a
+   county-FIPS lookup misassigns them. The Wind-Borne Debris Region is a wind-speed contour, not a
+   county list. Both are geometry rules; only HVHZ (Miami-Dade and Broward) is county-keyed.
+2. **Local zoning has no statewide dataset.** Zoning is home rule: 67 counties plus about 411
+   municipalities is roughly 478 zoning jurisdictions, and setbacks vary per zoning district, so the
+   real unit count is in the thousands.
+3. **Local historic districts are the long tail.** Districts that trigger design review are
+   locally designated; the 88 Certified Local Governments are a floor for jurisdictions with an
+   active program, and each holds its boundary only in its own GIS.
+
+Only about 35 of 67 counties, plus the large cities, publish queryable open ArcGIS zoning or overlay
+services; the rest are PDF-map or records-request only (a planning estimate, not an enumeration).
+Municode and American Legal Publishing bar bulk reproduction, so the licensing tiers in section 5
+apply: cite the adopted-edition fact and the ordinance section, and take setback values from each
+jurisdiction's own table or GIS.
+
+Seeding approach: build the statewide and county tiers as one phase (a 67-row county FIPS scaffold,
+about 8 statewide endpoints registered as geometry references, WMD and WBDR geometry rules with
+split-county handling, currency wiring and the drift invariant). Handle the long tail on demand:
+a user working in one jurisdiction supplies that jurisdiction's boundary through the existing
+user-supplied-boundary path when it is needed.
+
+Estimates still to verify: the municipality count (about 411, drifting with incorporations); the
+35/32 open-data split; the 12 to 18 split-county range against the WMD boundary layer; NRHP
+district-polygon completeness (NPS spatial data is historically point-centroid); and whether a 9th
+edition of the Florida Building Code has been adopted.
+
+Sources: https://www.flsenate.gov/Laws/Statutes/2025/553.899 ;
+https://www.floridabuilding.org/bc/bc_default.aspx ;
+https://floridadep.gov/owper/water-policy/content/water-management-districts ;
+https://fgdl.org/explore-data/ ; https://geodata.floridagio.gov/ ;
+https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28 ;
+https://dos.fl.gov/historical/preservation/certified-local-governments/ ;
+https://www.nps.gov/subjects/nationalregister/data-downloads.htm ; https://library.municode.com/fl ;
+https://amlegal.com/terms-of-use

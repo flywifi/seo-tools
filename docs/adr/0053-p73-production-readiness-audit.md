@@ -10,9 +10,8 @@ The repo had no definition of "production ready". `protocols/quality-gates.md` d
 **artifacts** (nine dimensions, no dimension below 3, Integrity and Safety at 4 or above), but
 nothing defined it for the system itself, so "is this ready?" had no checkable answer.
 
-Two further problems shaped the phase. First, prior audits' findings had died with the sessions
-that produced them: the phase's own commits shipped with no CHANGELOG, STATE, or ledger entry, and
-a code comment referenced a finding id (`P73 D1-3`) with no committed referent. Second, the guard
+Two further problems shaped the phase. First, earlier findings had never been committed: the phase's own commits shipped with no CHANGELOG, STATE, or ledger entry, and
+a code comment referenced a finding id with no committed referent. Second, the guard
 set was consistently retrospective. Every guard added over the preceding phases detected the drift
 that had already happened; the adaptability pass found five that would not catch the next one:
 the Mac signal vocabulary was pinned against shrinking but not growing, the count-truth invariant
@@ -42,7 +41,7 @@ the remote token and publishing flags in a gitignored file with no recovery path
    replay — the synthetic unclassified tool now lives in the selftest forever.
 4. **Enrolment is swept, not curated.** Any document stating a global count must be enrolled or the
    build fails, because relying on someone to remember had already failed once.
-5. **Agent findings are claims until reproduced.** Every finding was re-derived by the main loop
+5. **Findings are claims until reproduced.** Every finding was re-derived independently
    before it entered the ledger. This changed two conclusions and prevented two false fixes.
 6. **The audit records what it did not do.** Open findings carry written reasons; the unexercised
    list states what this sandbox cannot reach; and the release stays the maintainer's decision.
@@ -51,8 +50,8 @@ the remote token and publishing flags in a gitignored file with no recovery path
 
 - **Adopting the artifact Quality Gates as the system yardstick.** Rejected: those score a
   deliverable's content (voice, evidence, formatting), not whether a build's guards enforce.
-- **Fixing only the HIGH findings and deferring the structural ones.** Considered and explicitly
-  overruled by the maintainer in favour of full scope. The four forward-coverage guards were the
+- **Fixing only the HIGH findings and deferring the structural ones.** Considered and rejected
+  in favour of full scope. The four forward-coverage guards were the
   most valuable work in the phase, and three of them would have been deferred.
 - **Writing selftests for all 37 uncovered tools.** Rejected as a rebuild rather than a repair.
   Recommended instead as a guard requiring new tools to declare coverage or be exempted with a

@@ -178,7 +178,7 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
 | Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |
 | Codex CLI/desktop/IDE | maintainer | `[mcp_servers.creator-os]` in `~/.codex/config.toml` + root `AGENTS.md` | shared config (learn.chatgpt.com/docs/extend/mcp); AGENTS.md 32 KiB budget |
-| Plugin directory | public distribution (not us) | none by design | requires verified org; overkill for one household |
+| Plugin directory | public distribution (not us) | none by design | requires verified org; overkill for a single-user install |
 
 ```sources
 [

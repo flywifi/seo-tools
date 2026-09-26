@@ -6,7 +6,7 @@
 
 ## Context
 
-A read-only audit of the six P80 commits found forty-nine deficiencies. Five were high severity: the
+The six P80 commits carried forty-nine deficiencies. Five were high severity: the
 records misdated the CI history by four weeks and named one cause where there were two; the MCP
 server answered 421 to every request on a non-loopback bind under the 1.x SDK because FastMCP freezes
 its DNS-rebinding settings at construction for the default host; the skill packager zipped every file
@@ -31,8 +31,8 @@ process gate; and applying half of a data change.
    hashed as empty.
 4. The interpreter floor is one constant, `env_paths.PYTHON_FLOOR`; the launcher probe embeds it, setup
    imports it, the interpreter picker enforces it, and invariant 48 sweeps prose against it.
-5. Dated records are frozen above an `## Addendum` heading; the P79 record is restored and extended by
-   an addendum instead of being edited.
+5. Dated records are frozen above an `## Addendum` heading. Review records are no longer committed
+   (`docs/DOC-MAINTENANCE.md`, Process conventions), so no tracked file carries such a heading.
 6. Claims about CI cite `tools/ci_history.py` output; the P80 records are corrected through errata and
    a ledger field, not by rewriting history.
 7. The gate is `tools/battery.py`: raw exit codes, refusal on unstaged tracked edits.
@@ -59,7 +59,7 @@ process gate; and applying half of a data change.
 Per-site fixes without a shared writer (would leave the next writer bare); asserting `transport_security
 is not None` (passes a settings object with empty lists, which denies everything); hashing the zip
 instead of the tree (mtimes make it non-reproducible); a new numbered invariant per sweep (the catalog
-and every count sentence would move); editing the P79 record in place a second time (the failure being
+and every count sentence would move); editing a dated record in place a second time (the failure being
 fixed).
 
 ## Consequences

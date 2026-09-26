@@ -5,7 +5,7 @@
 
 ## Context
 
-Research found the existing currency machinery was built but dormant (126 of 139 sources never stamped, no content-hash baseline ever run, CI read-only with no loop closure, no MCP mutating surface) and that facts duplicated in engine/config prose were untracked, and that the four knowledge-only surfaces had no regeneration path and no visible as-of date. The owner set two hard constraints: the freshness system must never push/pull/propose to GitHub or generate homework for anyone, and each user's refreshed data must live only in a store that user controls. The append-only overlay + union-merge (reused from the P35 task store) makes a shared store concurrency-safe and keeps the repo a read-only, download-only baseline the owner updates only by their own manual choice.
+Research found the existing currency machinery was built but dormant (126 of 139 sources never stamped, no content-hash baseline ever run, CI read-only with no loop closure, no MCP mutating surface) and that facts duplicated in engine/config prose were untracked, and that the four knowledge-only surfaces had no regeneration path and no visible as-of date. Two hard constraints apply: the freshness system must never push/pull/propose to GitHub or generate homework for anyone, and each user's refreshed data must live only in a store that user controls. The append-only overlay + union-merge (reused from the P35 task store) makes a shared store concurrency-safe and keeps the repo a read-only, download-only baseline the owner updates only by their own manual choice.
 
 ## Decision
 

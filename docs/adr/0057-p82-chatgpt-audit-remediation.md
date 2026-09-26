@@ -6,7 +6,7 @@
 
 ## Context
 
-A read-only audit of every ChatGPT-facing artifact found nineteen standing misalignments: four
+Every ChatGPT-facing artifact was reviewed; nineteen standing misalignments turned up: four
 live contract defects, a cluster of stale product facts behind fetch-blocked authorities, and an
 enforcement class whose checks all pointed inward. The repo's effective ChatGPT knowledge cutoff
 was the P72 parity pass; several OpenAI product changes landed after it with no mechanism in the
@@ -26,7 +26,7 @@ an answer.
    non-blocking advisory embedded in drift invariant 43, which already runs in CI. Advisory
    volume is bounded deliberately: one summary line plus per-source lines for T1 sources only,
    because 112 sources were blocked when this landed and enumerating them all would drown the
-   signal. The audit's own lesson applies here: a drowned advisory is an unread advisory.
+   signal. The same lesson applies here: a drowned advisory is an unread advisory.
 2. **The function specs carry no `strict` flag.** Strict mode requires `additionalProperties`
    false and every property listed as required; these schemas deliberately use optional
    parameters with defaults. The fix was to remove the undocumented `returns` key instead, whose

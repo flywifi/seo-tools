@@ -321,7 +321,7 @@ def rate_floor_for(card, fmt):
 
 
 def _tier_gaps(card, benchmark_range, benchmark_tier=None):
-    """F8: benchmark comparisons need a known subscriber tier. Returns a list of gap/flag dicts:
+    """Benchmark comparisons need a known subscriber tier. Returns a list of gap/flag dicts:
     tier unknown while a benchmark is attached -> benchmark_tier_assumed gap; tier known and the
     payload declares the benchmark's tier and they differ -> benchmark_tier_mismatch gap."""
     if not benchmark_range:
@@ -1096,7 +1096,7 @@ def selftest():
     pp = proposal_price(500, 30, rate_floor=800, benchmark_range={"low": 200, "high": 700})
     _check("price: above-benchmark flag raised", len(pp["flags"]) == 1, f)
 
-    # P40-1 (F4): rate-floor-only pricing works, with the honest no-cost-basis gap
+    # P40-1: rate-floor-only pricing works, with the honest no-cost-basis gap
     pp = proposal_price(rate_floor=600, benchmark_range={"low": 500, "high": 3000})
     _check("price: rate-floor-only computes 600.00", pp["price_floor"] == "600.00"
            and pp["bound"] == "negotiation_floor", f)
@@ -1111,7 +1111,7 @@ def selftest():
            pp["price_floor"] == "600.00"
            and any(g["gap_type"] == "partial_cost_inputs" for g in pp["gaps"]), f)
 
-    # P40-1 (F6): package pricing
+    # P40-1: package pricing
     pk = price_package({"line_items": [
         {"label": "long_form", "rate_floor": 600},
         {"label": "tiktok", "rate_floor": 200}]})
@@ -1131,7 +1131,7 @@ def selftest():
     pk = price_package({"line_items": [{"label": "a", "rate_floor": "99.999"}]})
     _check("package: sum quantized to cents once", pk["package_floor"] == "100.00", f)
 
-    # P40-2 (F5): rate card load + format resolution (temp-dir sandbox, never the real repo files)
+    # P40-2: rate card load + format resolution (temp-dir sandbox, never the real repo files)
     import tempfile
     with tempfile.TemporaryDirectory() as td:
         fin = Path(td) / "pipeline" / "finance"
@@ -1151,7 +1151,7 @@ def selftest():
         rf, gap = rate_floor_for(card, "tiktok_dedicated")
         _check("ratecard: null base_rate -> no_rate_card_entry gap, never a guess",
                rf is None and gap["gap_type"] == "no_rate_card_entry", f)
-    # P40-2 (F8): tier gaps
+    # P40-2: tier gaps
     tg = _tier_gaps({"subscriber_tier": None}, {"low": 500, "high": 3000})
     _check("tier: unknown tier + benchmark -> benchmark_tier_assumed",
            tg and tg[0]["gap_type"] == "benchmark_tier_assumed", f)
@@ -1211,7 +1211,7 @@ def selftest():
     _check("invoice: missing figures become gaps, never estimates",
            any(g["gap_type"] == "missing_amount" for g in inv2["gaps"])
            and any(g["gap_type"] == "missing_terms" for g in inv2["gaps"]), f)
-    # P63 F-SWEEP-2: a plain-English terms string must gap-flag, never crash (AttributeError).
+    # P63: a plain-English terms string must gap-flag, never crash (AttributeError).
     try:
         inv3 = build_invoice({"deal_id": "d", "terms": "net-30",
                               "line_items": [{"description": "x", "unit_price": "100.00"}]}, t)
@@ -1220,7 +1220,7 @@ def selftest():
                and inv3["total"] == "100.00", f)
     except Exception:  # noqa: BLE001
         _check("invoice: string terms -> malformed_terms gap, no crash", False, f)
-    # P63 F-SWEEP-1: a bad payload path raises the tagged PayloadError (never a raw OSError),
+    # P63: a bad payload path raises the tagged PayloadError (never a raw OSError),
     # and main() converts it to the clean {"error","next_step"} envelope with exit 1.
     try:
         _read_json("/nonexistent/payload.json")
@@ -1239,7 +1239,7 @@ def selftest():
         err_obj = {}
     _check("payload loader: inline JSON -> clean error dict + exit 1",
            rc_bad == 1 and "error" in err_obj and "next_step" in err_obj, f)
-    # P64 AUDIT-F2: a >NAME_MAX (255-byte) arg must yield the clean envelope on every
+    # P64: a >NAME_MAX (255-byte) arg must yield the clean envelope on every
     # path-taking lane (JSON payload, CSV reconcile, manifest verify) -- Path.resolve()/open()/
     # read_text() raise ENAMETOOLONG that exists() pre-checks do not suppress.
     long_arg = "x" * 300

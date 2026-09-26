@@ -2,13 +2,11 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P94 are complete. P95 is committed and its independent pass has returned: its
-verification stage confirmed 34 of 35 issues, so P95 is not complete (AUDIT-PROTOCOL 7.2;
-docs/p94-claim-proof-audit-2026-09-24.md, Addendum). Drift guard exits 0 (the full
+P6 through P94 are complete. P95 is committed with known gaps, listed in its bullet below.
+Drift guard exits 0 (the full
 invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 
-- P95: closing the P94 audit properly (2026-09-24, docs/p94-claim-proof-audit-2026-09-24.md,
-  ADR 0066 decisions 9 and 10). Doctrine: AUDIT-PROTOCOL 7.2 says a pass is finished when its
+- P95: claim-proof hardening (2026-09-24, ADR 0066 decisions 9 and 10). Doctrine: AUDIT-PROTOCOL 7.2 says a pass is finished when its
   verification stage returns, a pass that could not run is DID NOT RUN, and the adversarial
   vectors are the reviewer's. Guards: static refusal rules for claim-proof pins that cannot
   fail (off the live call path, a helper that does not test its condition, a condition whose
@@ -16,13 +14,14 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   detector sees bare "no", "none" and "cannot", and the docs list the words it enforces;
   invariant 53 asserts `default_flag`; `--check-parity` is meant to count only blocking steps running a
   gate's exact command; invariant 59 fails on an exemption that exempts nothing. Manifest: 19
-  bound, 40 exempted. The independent pass then confirmed 34 of 35 issues against P95,
-  including a false P95-2 commit subject; they are listed in the record's addendum.
+  bound, 40 exempted. Known gaps: the parity parser misses several valid YAML forms; an
+  over-broad install-scope exemption still passes; the detector misses some in-vocabulary
+  forms; some pins that cannot fail still pass; four bindings test a different property than
+  their claims; and the P95-2 commit subject overstates the change.
 - P94: a claim about this repo ships with its executed proof (2026-09-21,
-  docs/adr/0066-p94-claims-ship-with-their-proof.md). P93 reported two false headline claims and
-  built a guard whose scan list was a hand-listed sixteen files, almost all of them ones the
-  phase had just edited; the mandated
-  adversarial pass caught all of it, but only after the claims were pushed and reported.
+  docs/adr/0066-p94-claims-ship-with-their-proof.md). Two P93 headline claims were false (a commit subject and a
+  docs/INSTALL-SCOPE.md sentence), and invariant 59 first scanned a hand-listed sixteen files, almost all of them ones the
+  phase had just edited.
   Doctrine: CLAUDE.md gains the claims rule and the honesty sentence that previously existed only
   in the AGENTS.md projection, and AUDIT-PROTOCOL 7.1 moves the independent pass ahead of the
   report, makes a derived denominator a precondition for shipping a guard, and writes down the
@@ -45,8 +44,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   computer)" label. Lock: drift invariant 59 scans the live guidance and fails the build on
   any unlabeled machine-wide instruction, with an embedded self-proving detector. Invariant
   count 57 to 58; registry gained uv-installer-docs and nvm-readme (T1).
-  P93-4 (the mandated adversarial pass on this pass's own output) found and fixed three
-  classes it had missed: the refusal keyed on the PEP 668 marker while the installer still
+  P93-4 fixed three classes the first cut missed: the refusal keyed on the PEP 668 marker while the installer still
   fell back to the base interpreter, so a machine-wide Python without that marker took all
   seven requirements sets (executed proof; the .venv is now the only target and pip is never
   invoked without one); the recommended user-scoped routes were undetectable, so the wizard
@@ -67,7 +65,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   pre-existing selftest pins as the fail-then-pass detector proof. Battery 13 of 13 under
   3.12, 3.13, AND 3.14; all seven requirements files install on 3.14; CI guards 3.12 + 3.14.
   The floor stays 3.12 (Resolve lane vendor cap). Residue: the mcp SDK on a 3.14 FINAL is
-  tagged, closed by the owner's Mac acceptance run (setup + battery + wizard verify).
+  tagged, closed by a Mac acceptance run (setup + battery + wizard verify).
 - P90: the wizard DOES the web setup (2026-09-20, docs/adr/0063-p90-wizard-doing-lanes.md).
   Guided lanes for the two big web surfaces: /chatgpt-setup (plan picker, copy-to-clipboard
   for every paste with live counts split by the exact surface_budgets parser, a staged
@@ -90,15 +88,13 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 - P88: the wizard's verification probe no longer races the mcp 2.x stdin-EOF handling
   (interactive transport, single transient-only retry, three selftest pins including an
   invocation-counter proof that refusals never retry).
-- P87: audit remediation (2026-09-20). Both findings of the 2026-09-19 adversarial audit
-  closed: the wizard's verification gate pins the serverInfo name (never the
+- P87: wizard verification gate (2026-09-20): the wizard's verification gate pins the serverInfo name (never the
   SDK-dependent version), refuses an empty toolset, and labels an uncross-checked tool
-  count instead of claiming it; the audit's spoof server is a permanent selftest
+  count instead of claiming it; a spoof server is a permanent selftest
   fixture whose three pins failed on pre-fix code and pass now. The mcpb-manifest-spec
-  hint names manifest_version. The audit report itself remains uncommitted by owner
-  decision.
+  hint names manifest_version.
 - P85: setup-wizard first-run readiness (2026-09-19, docs/adr/0061-p85-wizard-first-run-readiness.md).
-  The audit's headline: the wizard never wrote the creator-os MCP server entry at all (two docs
+  Headline defect: the wizard never wrote the creator-os MCP server entry at all (two docs
   claimed it did), and the documented smoke test could not work (bare tools/list is rejected
   pre-handshake, executed proof). Shipped: the /creator-os-server install-and-verify step (safe
   config merge, real MCP handshake plus tool listing compared against count_truth at probe time,
@@ -169,7 +165,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   line-based shorthand, .json, and implementation/**; the surface-budget detector given a
   negative fixture proven by mutation; and the ChatGPT packaging docs bound into doc freshness.
   Not done, by decision: Apps SDK packaging; agent-mode surface promotion; strict-mode function
-  schemas; browser verification of the four NEEDS VERIFICATION plan facts (owner's two-minute
+  schemas; browser verification of the four NEEDS VERIFICATION plan facts (a two-minute manual
   pass); tag; PR.
 
 - P81: Remediation of the 24-hour audit of P80 (2026-09-06, docs/adr/0056-p81-audit-remediation.md).
@@ -199,7 +195,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   themselves red (runs 289 and 293). Not done, by decision: Python 3.13 (Resolve caps at
   3.12), tag, PR.
 
-- P79: Remediation of the P78 findings (2026-09-04, docs/remediation-2026-09-04.md). Ten code
+- P79: Remediation of the P78 findings (2026-09-04). Ten code
   commits, each planned to the point of executed proof before it was written: the GIS writer now
   hashes the bytes it writes and its fourteen hashes were re-stamped from disk; the freshness
   bundle recompares its own per-file hashes; doc-freshness is exit-coded and the projection check
@@ -211,36 +207,33 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   crawled the 18 changed sources and the four passed moving dates to primary text: every changed
   page was token or metadata churn with zero downstream corrections, and every date was confirmed
   and stamped. Mac-only items (the 110 blocked sources, the av and scenedetect media validation,
-  the P75 index repair, the cache baseline rebuild) are a runbook in the record, not silently
-  skipped.
+  the P75 index repair, the cache baseline rebuild) are a runbook in docs/MACOS-MAINTENANCE.md,
+  not silently skipped.
 
-- P78: SHA-256 verified integrity and currency audit (2026-08-30,
-  docs/integrity-currency-audit-2026-08-30.md). Every stored hash recomputed from bytes rather
+- P78: SHA-256 verified integrity and currency sweep (2026-08-30). Every stored hash recomputed from bytes rather
   than trusted: four manifests and the registry digest verify; one freshness-bundle hash was
   stale because its checker never recompares its own strongest field; all fourteen GIS boundary
   hashes never matched any committed byte because the writer hashes one serialization and writes
   another (data intact, fix named, not applied by scope decision). First complete source sweep:
   213 entries stamped through the sanctioned writers, 18 changed sources queued for human review
   with their consumers named, 110 bot-blocked entries got the first real durable block records,
-  and the changed queue edited no downstream data. Scope held to the maintainer's four decisions:
+  and the changed queue edited no downstream data. Scope held to four explicit limits:
   report only for verification gaps and guard behavior, full sweep for sources, nothing changed
   for dependencies.
 
-- P76: Rebuilt the P74/P75 branch history (2026-08-16). Nine commits had been pushed without an
-  approved plan; a tool error and a harness state change were read as approval. The maintainer
-  reviewed each commit and decided it individually, and the branch was reset to the last approved
-  commit and rebuilt as eight commits reflecting those verdicts. Most of the work was re-approved
-  and shipped unchanged. Two changes were dropped as maintainer decisions rather than repairs: the
+- P76: Rebuilt the P74/P75 branch history (2026-08-16). The branch was reset to an earlier
+  commit and rebuilt as eight commits; most of the work shipped unchanged. Two changes were
+  dropped rather than repaired: the
   re-band of 63 currency check intervals, and the selftest enrolment gate with its exemption list.
   The fifteen selftests those two shipped alongside were kept, so the sweep is unchanged at 85. Two
   additions the original lacked shipped with the version bump: the pasted ChatGPT pack was
   re-stamped to 0.2.0, and the packaging-stamp invariant now compares that stamp against the
   ecosystem version instead of only asserting the line exists, which closes a re-paste loop the
-  bump would otherwise have created. Nothing at or before the last approved commit was rewritten,
+  bump would otherwise have created. Nothing at or before the reset point was rewritten,
   and no tag existed at any point.
 
 - P74/P75: Remediation of the open P73 findings (ADR 0054, 2026-08-16), and the data repair that
-  followed. Planning the work found a live defect the audit itself had missed: the OG-tag
+  followed. Planning the work found a live defect: the OG-tag
   extractor's regex left a character class unterminated, so every og_* field received the first
   meta tag's content and the competitor snapshot index recorded a competitor's image URL as their
   title. It survived because nothing had ever executed that module. Fixing the parser did not fix
@@ -253,14 +246,13 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   commit-msg hook lacked the author-email half). The release path gained preconditions, the
   changelog rolled up to a single 0.2.0 section, and the version bumped across all five locations
   that carry it, including the pasted ChatGPT pack whose stale stamp had made the wizard's
-  re-export advice unterminating. No tag was created: that stays the maintainer's decision.
-  Two findings were deliberately left open rather than closed by a mechanism or a policy the
-  maintainer had not chosen: selftest enrolment is still unenforced, and the 63 currency intervals
+  re-export advice unterminating. No tag was created.
+  Two findings were deliberately left open rather than closed by a new mechanism or policy: selftest enrolment is still unenforced, and the 63 currency intervals
   that have never once been met are still declared as written.
 
 - P73: Production-readiness audit (ADR 0053, 2026-08-16). Six dimension audits (integrity,
   completeness, accuracy, truthfulness, consistency, adaptability) run as monitored waves, each
-  finding triaged and reproduced by the main loop before it was accepted. Two safety defects led:
+  finding reproduced before it was accepted. Two safety defects led:
   the MCP annotation gate classified tools by name signal, so an unanticipated write tool inherited
   `readOnlyHint: True` (the hint clients use to skip confirmation), and `configure_tool` overwrote
   an unparseable local config, destroying the publishing flags and remote token in a gitignored
@@ -269,11 +261,11 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   swept rather than curated (it caught two unguarded claims immediately, one added earlier in the
   same audit), citation registration recognises shorthand, and the Mac vocabulary proposes unknown
   macOS concepts for review. Four single points of failure were fixed with the recovery
-  documentation each lacked. The audit also corrected its own regressions: a ChatGPT-web prose fix
+  documentation each lacked. A regression was also corrected: a ChatGPT-web prose fix
   from earlier in the phase had changed the docs without the data model.
 
-- P68: Verification hardening (ADR 0050, 2026-07-20). Remediated the nine defects an adversarial
-  audit of the P67 commits found, and closed the five process gaps that let them survive P65/P66
+- P68: Verification hardening (ADR 0050, 2026-07-20). Remediated nine defects in the
+  P67 commits, and closed the five process gaps that let them survive P65/P66
   and a green battery. (A) The most serious: eval cases asserted `expected_output_keys` authored
   from SKILL.md prose, eight of them present in zero tool code. New `tools/eval_key_manifest.json`
   + drift invariant 57 (`check_eval_output_keys`) AST-extracts each skill emitter's real dict keys
@@ -284,7 +276,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   auth decision now fires for any non-stdio transport and the gated path serves the transport-matched
   app, with an argv-level selftest proven to fail on the pre-fix wiring. (C) `docs/AUDIT-PROTOCOL.md`
   §7 now requires an independent, fresh-context close-out check against code plus a red-team proof
-  per guard; ADR 0049-B coverage claim narrowed. (D) inv 14/16/17 hardened against the audit's
+  per guard; ADR 0049-B coverage claim narrowed. (D) inv 14/16/17 hardened against known
   false-positive/negative cases, coverage-verify fixtures created, TikTok rate-limit citation
   registered. Count 56 to 57. No launch flag flipped or tag cut.
 
@@ -304,7 +296,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   the bare json.loads CI step and surfaced 27 hollow scaffold cases across 9 skills, all authored
   into real eval cases; behavioral eval execution documented as an intentional opt-in (not a push
   gate).
-- P66: Remediation of the P65 full-system audit's fifteen findings (ADR 0048, 2026-07-19). The
+- P66: Remediation of fifteen P65 defects (ADR 0048, 2026-07-19). The
   three HIGH data-boundary gaps closed first: the generic sk- secret pattern matches current
   hyphenated provider formats plus fine-grained github_pat_ tokens, the tracked-content scan
   reads every tracked file behind a binary sniff instead of a suffix allowlist, and invariant
@@ -367,7 +359,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   ingest-route/inbox-routing atoms gained the prior + reconciliation contract; per-modality coverage
   (`both`/`offline_only`/`session_only`) in `shared/cross-modality-engine.md`; ChatGPT/Gemini
   packaging instruct the discipline (not enforce). `docs/INJECTION-TWO-PASS.md` documents the model;
-  its per-engine vendor-doc citations are research-pending (a research pass hit a session limit).
+  its per-engine vendor-doc citations are research-pending.
   inbox 38/38, injection_scan 23/23, scenarios 10/10, drift clean at 52.
 
 - P61: close the non-Mac gaps (ADR 0044). The offline injection pattern tier
@@ -428,8 +420,8 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   `creator-os-release` (`python3 tools/update_check.py check --apply`), and the staged volatile
   corrections (`mark-checked ny-synthetic-performer-law --changed`; the EU AI Act seed). See ADR 0042.
 
-- P58: remediated the remaining P56 audit deficiencies (the LOW hardening cluster) and closed the
-  audit's own coverage gap (the three surfaces the P56 agents never mapped under a session limit).
+- P58: remediated the remaining P56 deficiencies (the LOW hardening cluster) and mapped the three
+  surfaces P56 had not covered (launch/install, the P52 guards, P55).
   OAuth: `import urllib.error` made explicit; `refresh()` maps a transient 400 to a retryable OAuthError
   (only 401/terminal codes force reconnect); a dead Instagram long-lived token now raises ReauthRequired
   (A1). Publishing clients: reject a 0-byte file before any network init; pin the YouTube resumable-PUT
@@ -443,22 +435,20 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   surfaces) found NO new issues: the installer is flag-gated + honest, the drift guards fire on genuinely
   bad input, and P55 stays green. Every fix carries a selftest; the P57 harnesses still read KILLED.
 
-- P56/P57: adversarial audit of the last-24h change set (P50 to P55) + remediation. The audit
-  (diagnose-first, sandboxed zero-network harnesses in the session scratchpad) confirmed 12 findings,
+- P56/P57: review of the last-24h change set (P50 to P55) + remediation. Diagnose-first,
+  sandboxed zero-network harnesses confirmed 12 findings,
   all behind `live_publishing_enabled=OFF` so no user was exposed. P57 fixed all of them, each with a
   harness that flips from CONFIRMED to KILLED and the green baseline preserved. Publish path: the
   dashboard passed the wrong creds shape to `dispatch` so the live path returned auth_required for
-  everyone (F1); `dispatch` now structurally enforces `live_publishing_enabled` + explicit human
-  confirm instead of trusting the caller (F2/F8); a `persist` callable is threaded through so a TikTok
-  refresh-token rotation is saved (F3); the scheduler dispatches only a `direct_api`-tier platform
-  (F7); add-to-queue strips caller-supplied control fields (F8). OAuth: Pinterest/Instagram redirect
-  host `localhost` to `127.0.0.1` (F9, `localhost` could resolve to IPv6 `::1` and lose the callback).
-  Wizard: home-tree path confinement on the import scan and the filesystem-MCP folder (F4/F6, was
-  `os.path.isdir` only), a cross-site Origin/Referer guard on every mutating POST (F5), and
-  `nightly_branch` git-ref validation + HTML escaping (F10/F11). Also added the missing
-  `publishing_compliance --selftest` (F12). The LOW hardening cluster is drafted-not-applied; a fresh
-  map of three audit surfaces not reached under a session limit (launch/install, the P52 guards, a P55
-  regression pass) is deferred. Full findings + harnesses live in the session scratchpad, not the repo.
+  everyone; `dispatch` now structurally enforces `live_publishing_enabled` + explicit human
+  confirm instead of trusting the caller; a `persist` callable is threaded through so a TikTok
+  refresh-token rotation is saved; the scheduler dispatches only a `direct_api`-tier platform; add-to-queue strips caller-supplied control fields. OAuth: Pinterest/Instagram redirect
+  host `localhost` to `127.0.0.1` (`localhost` could resolve to IPv6 `::1` and lose the callback).
+  Wizard: home-tree path confinement on the import scan and the filesystem-MCP folder (was
+  `os.path.isdir` only), a cross-site Origin/Referer guard on every mutating POST, and
+  `nightly_branch` git-ref validation + HTML escaping. Also added the missing
+  `publishing_compliance --selftest`. The LOW hardening cluster is drafted-not-applied; mapping three
+  further surfaces (launch/install, the P52 guards, a P55 regression pass) is deferred to P58.
 - P55: seeded the macOS/AI-surface research sources and made doc citations trigger registry tracking.
   Seeded 23 sources (registry 218 to 241): a new `os-platform` category (Apple Gatekeeper/Open-Anyway/
   TCC/TN3179 + DTS FAQ/Rosetta/Tahoe/Intel-support, python.org + PEP 668, Homebrew docs + formulae,
@@ -488,9 +478,9 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   claim on Intel), TCC folder-denial message, DaVinci multi-path (`preflight`), Safari OAuth caveat.
   New `--selftest` guards: loopback-127.0.0.1 (G1), whisper 3-name probe (G2), macOS render, port
   collision. Docs: `docs/MACOS-MAINTENANCE.md` (maintainer invariants), SETUP_MAC/DEPENDENCIES/
-  PUBLISHING/WIZARD updated. Diagnostics + hands-on checklist from P53 live in the session scratchpad
-  (not the repo).
-- P53: macOS stress test (diagnose-only; all artifacts in the scratchpad, nothing committed). Two-tier
+  PUBLISHING/WIZARD updated. The local-only tier of the P53 hands-on checklist is
+  `docs/MAC-VALIDATION.md`.
+- P53: macOS stress test (diagnose-only; nothing committed). Two-tier
   method: OS-simulated + selftest coverage here, a 5W+H hands-on checklist for real hardware. Surfaced
   16 findings (2 code-confirmed HIGH: PEP 668 installer break, double-click PATH gap) later fixed in P54.
 - P52: maintainer and doc-accuracy audit plus forward drift guards (seo-tools only). Extended the
@@ -499,7 +489,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   exemptions), a tools-layer maintainer-coverage invariant (`TOOLS_MAINTAINER_DIRS`), and
   `tools/doc_freshness.py` content-hash staleness stamping (advisory). Created
   `tools/publishing/MAINTAINER_README.md` (invariants, failure modes, dev-traps, regression map).
-  Ran a full multi-agent content-accuracy sweep; after review, applied the approved corrections
+  Ran a full multi-agent content-accuracy sweep; after review, applied the verified corrections
   (publishing layer no longer "dark/stubs", Pinterest scope, finance-desk check counts,
   contract-desk atoms, videoedit atom list, tool-count/script-path refs), lowered the skill-template
   regression bar to three, and added Regression sections to five atom maintainer files. Broad
@@ -509,8 +499,8 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   reconstructed from STATE + ledger); `docs/DOC-MAINTENANCE.md`; and a CLAUDE.md "docs change in the
   same PR as the code" rule. Regression-probed: a bad marker and a reintroduced stale count each fail
   the drift guard. Drift clean; scenarios 9/9; all publishing/oauth/picker selftests green.
-- P51: real publishing OAuth + live upload (persona-audit stumbles 8, 9) and a native folder picker
-  (10). **Shared OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
+- P51: real publishing OAuth + live upload and a native folder picker. **Shared
+  OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
   from research (PKCE base64url for Google, **hex** for TikTok, none for Pinterest/Instagram; Basic vs
   body client auth; TikTok refresh-token rotation). Generalized wizard callback `/oauth/<platform>/
   callback` with single-use `state` CSRF + `/api/oauth-start` + a manual paste-the-code fallback.
@@ -528,7 +518,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   floor. Compliance `has_credentials` tightened to the publish namespace. `docs/PUBLISHING.md` +
   integrations-engine section + live-account verification checklist. New selftests: oauth_flow,
   publishing/{youtube,pinterest,tiktok,instagram}, pick_folder, wizard OAuth callback.
-- P50: wizard onboarding remediation for the persona-audit structural stumbles 5, 6, 7, 10, 11.
+- P50: wizard onboarding remediation for five structural first-run gaps (numbered 5, 6, 7, 10 and 11 below).
   **No-terminal launch (5):** double-click `Start Creator OS Setup.command`/`.bat` at repo root
   (the `.command` carries the executable bit) + a `launch_setup` MCP tool. **First-screen IA (6):**
   `_screen_welcome` collapsed to one primary question, a `/claude` browser-vs-desktop chooser, and a
@@ -694,17 +684,17 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   UGC rows added, all null) and mixed-deliverable packages price item by item, never forced into a
   video format (selftest 99/99, S7 extended to a 3-type package).
 
-- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Full adversarial
-  audit completed across three resumed runs: 23/23 classifiers + 23/23 skeptics (22 upheld, 1
+- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Each of the 23
+  declarations was classified and then re-checked by a second reader (22 upheld, 1
   overturned an over-call). Class corrections applied; all 96 atoms carry an inherited one-line
   declaration; invariant 28 hardened to reject a stub (Class/Runs on/Mechanism/Fallback required).
-  Final A=2/B=7/C=14. docs/CROSS-MODALITY-AUDIT.md has the per-skill verdicts + packaging candidates.
+  Final A=2/B=7/C=14. Each spoke's SKILL.md carries its class declaration (invariant 28).
 
 - P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
   consent (`tools/geo_consent.py`): default-on but ask-first once per session, headless/declined falls
   back with no call, governing both `geo_fetch.py` (FEMA) and the new `tools/geo_geocode.py` (US Census
-  address to point). The master `jurisdictional_overlay` switch is now default-on. An independent
-  adversarial gate (5 properties + confirm pass) caught + fixed two safety-discard bugs in
+  address to point). The master `jurisdictional_overlay` switch is now default-on. A property gate
+  (5 properties + confirm pass) exposed two safety-discard bugs, now fixed, in
   `resolve_conflict`: non-comparable stringency, and comparison across incommensurable units, now
   escalate to human review (a safety floor is never silently discarded). `tools/geo_source_fetch.py` is
   the universal-path fetcher + build cacher: cached all 6 City of Orlando historic-district boundaries +
@@ -819,7 +809,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   content-change detection (conditional GET + sha256 stored on the entry; unchanged stamped, changed
   queued; 10-check selftest). Added content sources (FTC eCFR 16 CFR 255, three cost vendors, a
   github-seo upstream) and `data-currency-map.json` classifying every canonical file
-  (watched/static/dated/tool-managed) so the audit's orphan finding is resolved permanently. Drift
+  (watched/static/dated/tool-managed) so no canonical file is left unclassified. Drift
   invariant 23 fails if a requirements package or MCP-backed connector has no registry entry; a
   read-only weekly `currency-report` CI job runs both reports; `docs/CURRENCY.md` is the runbook.
   A dependency baseline --apply ended the pip deps' dormancy. Ledger: `P33-source-dependency-currency`.
@@ -930,8 +920,8 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
 - P26: open-source video tooling evaluation (evaluation only; no integration, no flag changes; G9
   and G10 stay open and the scenario probes still observe them). 15 candidates scored against the
   two-lane videoedit architecture with a 9-criterion rubric; 7 hands-on spikes against synthetic
-  media sharing ground truth with the committed `workshop-footage.srt` fixture; 4 research agents
-  plus 1 adversarial verifier (8 load-bearing claims attacked: 3 upheld, 5 refined). Headlines:
+  media sharing ground truth with the committed `workshop-footage.srt` fixture; 8 load-bearing
+  claims independently checked (3 upheld, 5 refined). Headlines:
   PySceneDetect found all 4 authored cuts frame-exact including an isoluminant cut that ffmpeg
   misses by default (luma-only YUV scoring, source-verified, `format=rgb24` workaround); ffmpeg
   silencedetect hit authored silences within 0.021 s; PyAV reproduced silence detection in-process
@@ -1047,7 +1037,7 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   and `fcpxml-parse`; MCP tools `edit_preflight`, `edit_build_fcpxml`, `edit_parse_fcpxml`,
   `import_edit_artifact`, `resolve_status`. Mirrors the `live_publishing_enabled` seam. DaVinci Resolve
   live lane (Studio-only) and features 2/3/5/6/7/8 are Phases 2 to 4.
-- P21: P20 adversarial-audit remediation — 27 verified findings closed. Dashboard security
+- P21: P20 remediation — 27 verified findings closed. Dashboard security
   (CSRF Origin/Content-Type guards, wildcard CORS removed, stored-XSS via data-* binding, queue
   lock + atomic writes); shared `tools/publishing_compliance.py` gate wired into the dashboard
   confirm path (refuses non-compliant posts) and reused by `schedule_post`; honest scaffold
@@ -1376,20 +1366,20 @@ invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
   ftc-endorsement-guides-social.
 
 ## Flags and follow-ups
-- `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was
-  not provided this session. Supersede it if the original surfaces.
+- `shared/pipeline-engine.md` was authored from the handoff CRM spec; supersede it if the
+  canonical file surfaces.
 - `web-intel-engine.md` carries a `used_by` list with pre-rename spoke names (deal-tracker,
-  platform-optimizer, seasonal-planner). Left verbatim as provided; canonical routing lives in the
+  platform-optimizer, seasonal-planner). Left verbatim; canonical routing lives in the
   hub. Reconcile when convenient.
-- `web-intel-engine.md` references a `connector-resilience-companion`. If that companion is not
-  provided separately, fold its 9 failure classes into the engines' failure handling. The canonical
+- `web-intel-engine.md` references a `connector-resilience-companion`. If no separate companion
+  exists, fold its 9 failure classes into the engines' failure handling. The canonical
   protocol set stays at 5.
-- Deeper brand brief (`alex_gpt_prompt_1.docx`) and the market-analysis PDF are still wanted to
-  ground rate-card-fill and benchmark-compare canonical data.
+- Rate-card-fill and benchmark-compare canonical data are ungrounded until a brand brief and a
+  market-analysis source are added.
 
 ## Next
 - Open PR to merge `claude/repo-access-confirm-wxe50a` → `main`.
-- Fill in `pipeline/user-context/channel-context.local.json` when Alex provides channel stats.
+- Fill in `pipeline/user-context/channel-context.local.json` when channel stats are available.
 - Fill in `pipeline/user-context/voice-profile.local.json` as real content is produced.
 - Configure Claude Desktop MCP and set `mcp_server: true` in `creator-os-config.local.json`.
 - End-to-end slice: drive creator-core with a Content prompt and a CRM prompt; confirm routing

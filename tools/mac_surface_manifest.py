@@ -23,8 +23,7 @@ a written reason). Drift invariant 58 then enforces:
                recorded file must STILL derive. Weakening the signal set is the one attack that would
                otherwise leave the gate green while shrinking what it looks at: drop a token and the
                files that token used to catch stop deriving, which fails here rather than silently
-               narrowing coverage. Found by the P69 adversarial pass, which proved the unpinned
-               version stayed green after three tokens were deleted.
+               narrowing coverage. An unpinned deriver stays green after tokens are deleted.
 
 Fail-closed in every direction, so "no macOS file changed unnoticed" is a build property
 rather than a claim. Human review remains a human act; this only makes skipping it visible.
@@ -45,7 +44,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "canonical-sources" / "mac-surface-manifest.json"
 
-# Mac-signal tokens. Deliberately high-signal: the audit's raw sweep over-matched ~100 files on the
+# Mac-signal tokens. Deliberately high-signal: a raw token sweep over-matched ~100 files on the
 # injection-risk constant QUARANTINE and on argparse's `args.command`, so neither bare "quarantine"
 # nor bare "command" is a signal here. Anchored spellings only ("com.apple.quarantine" IS a signal).
 MAC_SIGNALS = (
@@ -83,7 +82,7 @@ MAC_SIGNALS = (
 )
 SIGNAL_RE = re.compile("|".join(MAC_SIGNALS), re.IGNORECASE)
 
-# P73 D6-F3: MAC_SIGNALS is pinned against NARROWING (signals_sha + the deriver-drift check), so
+# P73: MAC_SIGNALS is pinned against NARROWING (signals_sha + the deriver-drift check), so
 # deleting a token fails the build. Nothing fired in the other direction: a new file using a
 # macOS concept this vocabulary has never heard of simply never enters the denominator, and the
 # completeness gate reports "complete" while being blind to it. These are macOS-specific concepts
@@ -111,9 +110,8 @@ CANDIDATE_RE = re.compile("|".join(CANDIDATE_SIGNALS), re.IGNORECASE)
 
 # Self-reference and append-only-record skips ONLY. Everything else that a human judged "not a Mac
 # surface" belongs in the manifest's `excluded` map, with its reason written down, so the decision is
-# reviewable. (The P69 adversarial pass caught an earlier version of this tuple carrying three
-# video-tooling evidence files under a stated "append-only telemetry" rationale that was factually
-# false -- each has a single commit -- so they are audited normally now.)
+# reviewable. (An earlier version of this tuple skipped three video-tooling evidence files as
+# "append-only telemetry"; each has a single commit, so they are recorded normally now.)
 SKIP_PREFIXES = (
     # Self-reference: these three quote the signal tokens themselves, so they always match and could
     # never stabilize. The deriver and the guard are covered instead by the `deriver` pin below.
@@ -326,7 +324,7 @@ def selftest() -> int:
         ok("derive skips a non-Mac file", "plain.py" not in d)
         ok("derive ignores QUARANTINE/args.command false positives", "noisy.py" not in d)
 
-        # P73 D6-F3: the widening trigger. A file using a macOS concept the vocabulary has never
+        # P73: the widening trigger. A file using a macOS concept the vocabulary has never
         # learned must be PROPOSED for review, not silently left out of the denominator.
         ok("a notarization file does not derive (the vocabulary gap is real)",
            derive(root, ["tools/macish.py"]) and not CANDIDATE_RE.search("x = 1") and
@@ -371,8 +369,8 @@ def selftest() -> int:
         _rec()
         ok("integrity: clean after re-bless", not _chk()["changed"])
 
-        # DIRECTION 3 (denominator): an audited file that stops deriving must be caught. This is the
-        # P69 adversarial finding: without it, deleting a signal token silently shrinks coverage.
+        # DIRECTION 3 (denominator): an audited file that stops deriving must be caught. Without
+        # it, deleting a signal token silently shrinks coverage.
         g = globals()  # patch THIS module's global, not a re-imported copy (run as __main__)
         saved = g["SIGNAL_RE"]
         try:

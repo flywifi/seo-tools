@@ -2,7 +2,7 @@
 
 Creator OS is built for creators, not developers. This is the protocol for verifying, on a schedule,
 that a non-technical person can actually get through the setup wizard. It has two halves: a
-machine-checkable harness (`tools/persona_audit.py`) and a human walkthrough recorded in a dated log.
+machine-checkable harness (`tools/persona_audit.py`) and a human walkthrough whose notes stay outside the repository.
 
 **Scope, stated honestly:** this protocol covers the wizard's GET screens and the guided setup
 journey — nothing else. Auditing everything beyond the wizard (the eleven cross-modality surfaces
@@ -59,6 +59,7 @@ python3 tools/persona_audit.py            # the machine report (green/amber/red 
 python3 tools/persona_audit.py --selftest  # CI gate: fails on render error / orphan / token leak
 ```
 
-Then walk the happy path as Alex, record findings in a new `docs/persona-audit-<date>.md` (copy the most
-recent one as a template), fix the low-risk stumbles, and list the structural ones for the maintainer.
+Then walk the happy path as Alex with the stumble taxonomy above as the checklist, keeping the
+findings in working notes outside the repository; fix the low-risk stumbles, and report the
+structural ones to the owner as a plan.
 Re-run after any wizard change.

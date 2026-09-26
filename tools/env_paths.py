@@ -44,7 +44,7 @@ NVM_NODE_SUBDIR = "versions/node"
 PYTHON_FLOOR = (3, 12)   # THE floor. tools/setup.py imports it; the launcher's probe string embeds it
                          # P91: validated THROUGH 3.14 (battery 13/13 on 3.12/3.13/3.14); the floor
                          # stays 3.12 for the Resolve live-control lane (vendor cap, ADR 0064).
-                         # (asserted by _selftest); docs are swept against it by drift invariant 48 (P81 G-1).
+                         # (asserted by _selftest); docs are swept against it by drift invariant 48 (P81).
 
 
 def repo_root() -> Path:
@@ -52,7 +52,7 @@ def repo_root() -> Path:
 
 
 def venv_python(root=None):
-    """The repo ``.venv`` interpreter if it exists, RUNS, and meets PYTHON_FLOOR; else None (P81 B-5).
+    """The repo ``.venv`` interpreter if it exists, RUNS, and meets PYTHON_FLOOR; else None (P81).
     P80 taught the launcher to refuse an old venv; this function still handed every heavy tool to it,
     so a 3.11 venv produced a wizard on system 3.12 spawning tools on 3.11 that setup.py then refused."""
     base = Path(root) if root is not None else ROOT
@@ -169,7 +169,7 @@ def _selftest() -> int:
         ok(venv_python(root) is None, "venv_python None when no .venv")
         ok(app_python(root) == sys.executable, "app_python falls back to sys.executable")
 
-        # P81 B-5: a venv is selected only when it RUNS and meets PYTHON_FLOOR.
+        # P81: a venv is selected only when it RUNS and meets PYTHON_FLOOR.
         vbin = root / ".venv" / "bin"
         vbin.mkdir(parents=True)
         vpy = vbin / "python3"

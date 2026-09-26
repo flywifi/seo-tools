@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """hash_audit.py -- recompute every stored hash in the repo and compare it to the bytes on disk (P79).
 
-Why this exists: the P78 audit found that hashes stored by one code path and verified by none rot
+Why this exists: hashes stored by one code path and verified by none rot
 silently -- fourteen GIS boundary hashes had never matched a committed byte, and a packaged-knowledge
 hash sat stale for weeks. A stored hash is only evidence if something recomputes it. This is that
 something, in one verb, for every store the repo carries.
 
-Rules (each is a constraint the P78 census established, not a preference):
+Rules (each is a constraint the stores themselves impose, not a preference):
   * disk-only: never fetches; the fetch-defaulting modules (construction_fetch, geo_source_fetch,
     project_docs' API lane) are never called;
   * never creates a store: gitignored stores that are absent report `not_applicable`, never ok
@@ -280,7 +280,7 @@ def selftest():
         # never creates: the absent paths must still be absent after the run
         run(root)
         ok("run() creates no store", not (root / "pipeline").exists() and not (root / "shared").exists())
-        # freshness-bundle per-file path (the F1 class)
+        # freshness-bundle per-file path (a hash stored but never recomputed)
         (root / "implementation").mkdir(); k = root / "implementation" / "k.md"; k.write_text("knowledge")
         (root / "implementation" / "freshness-bundle.json").write_text(json.dumps(
             {"managed_files": [{"file": "implementation/k.md", "sha256": _sha_text(k)}]}))

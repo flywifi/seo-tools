@@ -47,7 +47,7 @@ the transcript floor.
 With everything off, the system still writes out the *plan* (markers, chapters, captions, export
 specs) AND the interchange files; it just does not touch an app or render. Most switches have a
 `*_disabled` note in `creator-os-config.json` explaining the fallback; a few capabilities do not
-yet carry one (P73 D4).
+yet carry one.
 
 ## What runs where
 

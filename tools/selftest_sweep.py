@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Creator OS behavioral selftest sweep (P66).
 
-The P65 audit found that CI ran only three --selftest invocations while the tree carries dozens
-of behavioral selftests: a selftest regression could merge green (F-CI-COVERAGE). This runner
+CI once ran only three --selftest invocations while the tree carries dozens of behavioral
+selftests, so a selftest regression could merge green. This runner
 DISCOVERS every Python CLI under tools/ and shared/ that exposes a selftest (an argparse
 `--selftest` flag or a `selftest` subcommand) and runs each in a subprocess. Discovery is
 scripted, never a hand-list, so the CI battery cannot drift from the tree. All selftests are

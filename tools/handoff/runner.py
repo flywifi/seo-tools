@@ -45,15 +45,15 @@ def _tool(name: str) -> str:
 def _build_transcribe(params, inputs, hub_root):
     if len(inputs) != 1:
         return None, "transcribe_media needs exactly one input_ref (the media file)"
-    # P61 D4: write the SRT under the hub results, not next to the input inside Inbox/Processed.
+    # P61: write the SRT under the hub results, not next to the input inside Inbox/Processed.
     out_dir = str(Path(hub_root) / "Jobs" / "results")
     return [_tool("transcribe.py"), "run", inputs[0], "--out-dir", out_dir], None
 
 
 def _build_transcript_normalize(params, inputs, hub_root):
-    # P61 C9: a dropped transcript has no library record to attach to (R3); normalizing it into
+    # P61: a dropped transcript has no library record to attach to; normalizing it into
     # segments + silence gaps + suggested chapters is the useful, fully-offline follow-up. Attaching
-    # to a library video_key stays session work. P63 F-SWEEP-3: the tool's --normalize flag emits
+    # to a library video_key stays session work. P63: the tool's --normalize flag emits
     # the ONE combined object (the previous three-flag argv silently collapsed to gap-metrics only
     # because the CLI modes were mutually exclusive); the selftest RUNS this argv and asserts all
     # three keys so the shortfall cannot recur.
@@ -64,7 +64,7 @@ def _build_transcript_normalize(params, inputs, hub_root):
 
 
 def _build_library_complete(params, inputs, hub_root):
-    # P61 C10 (R1 fix): the real CLI is `match|complete --export-dir DIR [--write]`, NOT positional
+    # P61: the real CLI is `match|complete --export-dir DIR [--write]`, NOT positional
     # inputs (the shipped builder produced an argparse error on every run). --write is appended ONLY
     # when the ticket asks (params.apply) AND the LOCAL job_store_writes_enabled capability is on
     # (decision WRITE-OPTIN); a forged ticket flag alone can never enable a store write.
@@ -121,7 +121,7 @@ def _build_project_docs(params, inputs, hub_root):
 
 
 def _build_keyword_offline(params, inputs, hub_root):
-    # P61 C16 (decision KW-FULL): the offline keyword report over the committed library + the
+    # P61 (decision KW-FULL): the offline keyword report over the committed library + the
     # scoop cache. Zero network, honesty envelope structural (search_volumes always null).
     query = params.get("query")
     if not isinstance(query, str) or not query.strip():
@@ -148,9 +148,9 @@ JOB_BUILDERS = {
 }
 
 
-# P61 C18 (R7): report-style job types whose done result is ALSO delivered to <hub>/Outbox/ --
+# P61: report-style job types whose done result is ALSO delivered to <hub>/Outbox/ --
 # the documented "deliverables for the human" area that nothing wrote until now. transcribe_media
-# stays out (its artifact is the SRT under Jobs/results, C11); failed jobs never deliver.
+# stays out (its artifact is the SRT under Jobs/results); failed jobs never deliver.
 OUTBOX_TYPES = {"library_analyze", "finance_report", "inbox_scan", "import_parse_preview",
                 "keyword_offline", "transcript_normalize"}
 
@@ -338,7 +338,7 @@ def selftest() -> int:
     ok("exactly one subprocess", len(calls) == 1)
     ok("argv is the real tool, not a shell", calls[0][1].endswith("video_library.py"))
 
-    # P61 C18 (R7): a done report-type job ALSO delivers its stdout JSON to <hub>/Outbox/.
+    # P61: a done report-type job ALSO delivers its stdout JSON to <hub>/Outbox/.
     ob_files = sorted((hub / "Outbox").glob("library_analyze.*.mac.json"))
     result_doc = json.loads(q.result_path(hub, t["job_id"]).read_text())
     ok("done outbox-type job delivers to Outbox",
@@ -364,7 +364,7 @@ def selftest() -> int:
        sorted(r["status"] for r in res) == ["done", "duplicate_skipped"])
 
     # structural refusals: disallowed type, unwired type, escaping ref, malformed json, bad params.
-    # P61 C16: every schema type now has a builder, so the unwired-refusal branch (kept for
+    # P61: every schema type now has a builder, so the unwired-refusal branch (kept for
     # future types) is exercised by temporarily popping a wired key -- coverage without a
     # permanently-unwired vehicle.
     q._atomic_write_json(q.hub_paths(hub)["queue"] / "bad1.json", {**t2, "job_id": str(__import__("uuid").uuid4()), "job_type": "publish"})
@@ -394,7 +394,7 @@ def selftest() -> int:
     ok("timeout result says so",
        "timed out" in json.loads(q.result_path(hub, t3["job_id"]).read_text())["error"])
 
-    # P61 C18: a failed job never delivers to Outbox, and non-JSON stdout is never delivered.
+    # P61: a failed job never delivers to Outbox, and non-JSON stdout is never delivered.
     def fail_spawn(argv, **kw):
         return types.SimpleNamespace(returncode=3, stdout='{"ok": false}', stderr="boom")
     before_ob = len(list((hub / "Outbox").glob("*.json")))
@@ -419,12 +419,12 @@ def selftest() -> int:
     ok("gate off -> gated, queue untouched",
        res[0]["status"] == "gated" and len(q.read_queue(hub)) == 1)
 
-    # P61 C11: the transcribe builder points the SRT at the hub results, not next to the input.
+    # P61: the transcribe builder points the SRT at the hub results, not next to the input.
     argv_t, _ = _build_transcribe({}, ["Inbox/Processed/2026-07-17/clip.mp4"], hub)
     ok("transcribe writes under Jobs/results",
        "--out-dir" in argv_t and argv_t[argv_t.index("--out-dir") + 1].endswith("Jobs/results"))
 
-    # P61 C9 + P63 F-SWEEP-3: transcript_normalize builds the transcripts.py --normalize argv,
+    # P61 + P63: transcript_normalize builds the transcripts.py --normalize argv,
     # and the argv is RUN against a committed fixture with the output shape asserted (the shipped
     # three-flag argv passed an argv-string check while silently delivering gap metrics only).
     argv_n, err_n = _build_transcript_normalize({}, ["Inbox/Processed/2026-07-17/talk.srt"], hub)
@@ -438,20 +438,20 @@ def selftest() -> int:
         norm_out = json.loads(proc_n.stdout)
     except (json.JSONDecodeError, ValueError):
         norm_out = {}
-    ok("transcript_normalize RUN delivers segments + silences + chapters (F-SWEEP-3 can't recur)",
+    ok("transcript_normalize RUN delivers segments + silences + chapters",
        proc_n.returncode == 0 and norm_out.get("segments") and norm_out.get("silences")
        and norm_out.get("chapters"))
 
-    # P61 C10 (R1 fix): the library_complete builder now passes --export-dir (the shipped builder
+    # P61: the library_complete builder now passes --export-dir (the shipped builder
     # produced an argparse error). Run the built argv against an empty temp dir: argparse must accept.
     export_dir = tempfile.mkdtemp()
     argv_lc, err_lc = _build_library_complete({"command": "match"}, [export_dir], hub)
     ok("library_complete builds --export-dir argv", err_lc is None and "--export-dir" in argv_lc)
     proc_lc = subprocess.run([env_paths.app_python(str(ROOT))] + argv_lc,
                              capture_output=True, text=True, timeout=60, cwd=str(ROOT))
-    ok("library_complete argv is argparse-accepted (R1 can't recur)", proc_lc.returncode == 0)
+    ok("library_complete argv is argparse-accepted", proc_lc.returncode == 0)
 
-    # P61 C10 WRITE-OPTIN: --write appears only when the ticket asks AND the local capability is on.
+    # P61 (decision WRITE-OPTIN): --write appears only when the ticket asks AND the local capability is on.
     _orig_cap = globals()["capability_enabled"]
     try:
         globals()["capability_enabled"] = lambda name, config=None: False
@@ -463,7 +463,7 @@ def selftest() -> int:
     finally:
         globals()["capability_enabled"] = _orig_cap
 
-    # P61 C16: keyword_offline builds the real report argv; params are validated at the builder.
+    # P61: keyword_offline builds the real report argv; params are validated at the builder.
     argv_k, err_k = _build_keyword_offline({"query": "dresser makeover"}, [], hub)
     ok("keyword_offline builds the report argv",
        err_k is None and argv_k[0].endswith("keyword_offline.py") and

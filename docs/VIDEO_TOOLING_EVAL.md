@@ -26,9 +26,8 @@ titles, reframe, gaps).
 Fifteen candidates were assessed: 9 criteria (weights summing to 100), hard gates (headless
 operation, no GUI interaction, every maintenance/license cell sourced or marked unverified per
 `protocols/no-fabrication.md`), plus time-boxed hands-on spikes for the G9-critical candidates.
-Four read-only research agents gathered web evidence (official sites, PyPI/npm/Homebrew registry
-JSON, license files); a fifth adversarial agent independently attacked the eight load-bearing
-claims before aggregation (3 upheld, 5 refined; refinements are folded into the tool sections
+Web evidence came from official sites, PyPI/npm/Homebrew registry JSON and license
+files; the eight load-bearing claims were independently checked before aggregation (3 upheld, 5 refined; refinements are folded into the tool sections
 below and flagged as adversarially verified where they changed a conclusion). License scoring distinguishes execution models: GPL invoked as a subprocess
 scores 4 (no linking), GPL imported/linked scores 2, non-OSI terms score 0 to 1.
 

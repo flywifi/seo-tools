@@ -6,9 +6,8 @@
 
 ## Context
 
-The owner asked whether Claude on the web or ChatGPT on the web could read the repo and walk a
-non-technical user through setup, and whether the wizard's story held across modalities. The
-answer was no on the walkthrough: the knowledge pack contained zero setup content, its upgrade
+Claude on the web and ChatGPT on the web need to read the repo and walk a non-technical user
+through setup, with the wizard's story holding across modalities. The walkthrough did not work: the knowledge pack contained zero setup content, its upgrade
 pointer named a repo path a web user cannot open, and every "no terminal" doc began with "open
 `implementation/...`" without saying how a person with no checkout obtains the file. A research
 pass (2026-09-20) also found the surfaces themselves had moved: on 2026-09-16 Anthropic merged

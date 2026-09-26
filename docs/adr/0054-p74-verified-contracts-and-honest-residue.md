@@ -17,7 +17,7 @@ reason. Working through them showed the residue was not one thing:
   the commit-msg hook and the CI backstop. The hook half did not exist, and the CI half scanned
   `origin/main..HEAD`, which is empty once a push to main lands — so it reported success having
   examined nothing.
-- **One was a decision the maintainer had not made yet**, namely whether to cut a release.
+- **One was a decision not yet made**, namely whether to cut a release.
 
 Two discoveries reframed the phase. First, planning it by *executing* its own example assertions
 found a live production defect: `_extract_og_tags` built its regex with an unterminated character
@@ -44,7 +44,7 @@ logic**. Selftest *discovery* was scripted; *enrolment* was not.
 3. **Planning depth is a repo convention.** A plan carries who/what/when/where/why/how per work
    package, risks with concrete mitigations, citable evidence, and **code that has been executed
    and seen to pass**. A guessed contract is a defect in the plan. This ADR exists because the
-   planning pass that followed that rule is what found the defect the audit had missed.
+   planning pass that followed that rule found a live defect.
 
 ## What was deliberately left open, and why
 

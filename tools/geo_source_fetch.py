@@ -96,7 +96,7 @@ def _slug(s):
 
 
 def _vertex_count(geometry_or_fc):
-    """Total coordinate pairs across ALL rings/polygons. P79 A1c: the previous
+    """Total coordinate pairs across ALL rings/polygons. P79: the previous
     len(coordinates[0]) counted the outer ring only, so a polygon with a hole under-reported
     (the zoning cache recorded 128 for a [128, 5]-ring polygon = 133 pairs)."""
     g = geometry_or_fc
@@ -118,9 +118,9 @@ def _vertex_count(geometry_or_fc):
 
 def _write_geojson(name, feature_collection, source_url, license_str, extra=None):
     os.makedirs(CACHE_DIR, exist_ok=True)
-    # P79 A1a: serialize ONCE, hash the written bytes, write the hashed bytes. The previous form
+    # P79: serialize ONCE, hash the written bytes, write the hashed bytes. The previous form
     # hashed a sort_keys-compact dump but wrote an indent=2 dump, so no stored sha ever matched
-    # a file on disk (P78 audit F2, 14/14). indent=2 without sort_keys reproduces the existing
+    # a file on disk (14 of 14). indent=2 without sort_keys reproduces the existing
     # cache byte-for-byte, so this is byte-compatible with every committed boundary file.
     body = json.dumps(feature_collection, indent=2)
     sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
@@ -199,7 +199,7 @@ def resolve(address):
 
 
 def rehash_from_disk(cache_dir=None):
-    """P79 A1b: repair the F2 defect. Re-stamp MANIFEST.json + every provenance sidecar from the
+    """P79: repair the hash/serialization mismatch. Re-stamp MANIFEST.json + every provenance sidecar from the
     bytes actually on disk (and re-count vertices with _vertex_count). No network. Returns the
     number of files re-stamped."""
     cache_dir = cache_dir or CACHE_DIR

@@ -106,9 +106,7 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   "always", "none", "cannot") in a commit subject, a doc sentence, a CHANGELOG entry, or a report
   to the owner either names the executed pin that proves it or is narrowed to what was actually
   tested. Test the PROPERTY
-  claimed, not the mechanism changed: P93 proved a refusal for PEP 668 interpreters and claimed
-  it for every machine-wide one, so seven requirements sets still installed into a shared
-  site-packages under a commit saying they could not. The independent pass that checks a claim
+  claimed, not the mechanism changed. The independent pass that checks a claim
   runs BEFORE the claim is reported or merged (`docs/AUDIT-PROTOCOL.md` section 7.1), the claim
   waits for that pass's verification stage to return rather than its first findings, a pass
   whose agents could not run is reported as DID NOT RUN rather than as clean, and the adversarial
@@ -181,9 +179,9 @@ anything beyond a trivial edit carries all of:
   module, call the function, paste what it returned.
 
 If a contract was guessed rather than verified, that is a defect in the plan, not a surprise to
-discover mid-implementation. Verifying beats assuming every time: the P74 planning pass ran its own
-example assertions and found a live regex defect that had been silently corrupting competitor
-metadata, plus nine function contracts that differed from their obvious reading. The planning phase
+discover mid-implementation. Verifying beats assuming: running a plan's own example
+assertions is what exposes a regex that silently corrupts data, or a function whose contract
+differs from its obvious reading. The planning phase
 is expected to be the majority of the work.
 
 ## Documentation truth (docs change in the same PR as the code)

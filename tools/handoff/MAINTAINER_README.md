@@ -78,7 +78,7 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   or outside `Inbox/`; it appends to the gitignored ledger atomically.
 - `sweep_quarantine` seals QUARANTINE/BLOCK files into `Inbox/Quarantine/<date>/` with their
   findings (the second writer; details under "The sealed Quarantine area" below).
-Fail-closed for text (P61 audit): a transcript the offline tier could not read as text (binary
+Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
 Two-pass handoff (P62): the offline verdict is pass 1. Every routed / needs-review record carries
 its `offline_pattern_scan` prior AND `pass2_pending: true`, so a Claude session that later reads the
@@ -102,7 +102,7 @@ instruction channel. It FAILS CLOSED: if `injection_scan` cannot be imported, a 
 free text is refused, never silently passed.
 `<!-- verify: tools/handoff/queue.py::_screen_free_text -->`
 
-## Job builders (P61 additions and the R1 fix)
+## Job builders (P61 additions and the library_complete argv fix)
 - `transcript_normalize` (new): a dropped transcript has no library record to attach to, so the job
   normalizes it into segments + silence gaps + suggested chapters via
   `shared/docintel/transcripts.py --normalize` (the ONE combined object; P63 — the earlier
@@ -120,14 +120,14 @@ free text is refused, never silently passed.
   proposal-only.
 - `transcribe_media`: the builder passes `--out-dir <hub>/Jobs/results` so the SRT lands beside the
   result, not inside `Inbox/Processed/`.
-- **Outbox delivery (P61, R7)**: a report-style job that finishes `done` (the `OUTBOX_TYPES` set)
+- **Outbox delivery (P61)**: a report-style job that finishes `done` (the `OUTBOX_TYPES` set)
   also gets its stdout JSON delivered atomically to `<hub>/Outbox/<job_type>.<stamp>Z.mac.json`,
   with `outputs[]` listing both files. Failed jobs and non-JSON stdout never deliver;
   `transcribe_media` stays out (its artifact is the SRT). Transport B's `poll_once` uploads
   staged Outbox artifacts too (create-only; a hub without an Outbox folder degrades to
   results-only, never a failed pass).
   `<!-- verify: tools/handoff/runner.py::_deliver_outbox -->`
-- **API-lane token refresh (P61, R6)**: `project_docs._api_token` now reuses the watcher's proven
+- **API-lane token refresh (P61)**: `project_docs._api_token` now reuses the watcher's proven
   refresh path (`oauth_flow.get_valid_access_token` + `_persist_publish_creds`) instead of reading
   the stored access token verbatim, so the Docs lane no longer 401s an hour after connect. A dead
   grant degrades to the honest "reconnect on /drive-hub" note.

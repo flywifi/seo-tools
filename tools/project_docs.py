@@ -217,7 +217,7 @@ def project_api(token, folder_name="Creator OS", transport=None, pack=None,
 def _api_token(transport=None, persist=None, creds_path=None):
     """The drive_api_polling credential (never the publishing ones). Returns (token|None, note).
 
-    P61 C17 (R6): Google access tokens live about an hour, so reading the stored token verbatim
+    P61: Google access tokens live about an hour, so reading the stored token verbatim
     401s on every run after the first. This now reuses the watcher's proven path --
     oauth_flow.get_valid_access_token refreshes a near-expiry token, and a returned update is
     persisted via watcher._persist_publish_creds (both injectable for the selftest). A dead grant
@@ -341,7 +341,7 @@ def selftest() -> int:
     finally:
         ROOT = real_root
 
-    # P61 C17 (R6): the API-lane token refreshes and persists instead of 401ing after an hour.
+    # P61: the API-lane token refreshes and persists instead of 401ing after an hour.
     import time as _time
     _AT = "access" + "_token"  # key built at runtime: the secret scanner must never see a literal token pair in a fixture
     now = int(_time.time())

@@ -72,6 +72,5 @@ All three connector CLI paths and the MCP `get_connectors` tool return the evide
 segments 20 / silences 3 / chapters 3 on the fixture); the finance/obligations CLIs fail cleanly.
 Invariant count moves 52 to 54 (the only count change); negative tests confirmed both new
 invariants fire on the pre-fix tree. Selftests grew: transcripts 7/7 (new), runner 27/27,
-finance 102/102, obligations 16/16. The sweep log (`scratchpad/mac-sweep-2026-07-18.md`, local)
-records the full evidence trail; the harness-artifact non-defects it lists were verified correct
+finance 102/102, obligations 16/16. The harness-artifact non-defects the sweep found were verified correct
 and left untouched.

@@ -547,7 +547,7 @@ def selftest():
        d2["winner"] == "county-strict" and d2["human_review_required"] is False)
 
     # conflict: floor vs local with SAME direction but DIFFERENT units (mph vs ft) -> incommensurable
-    # -> human review; the safety floor is NEVER discarded by comparing across units (P38-2 finding 2).
+    # -> human review; the safety floor is NEVER discarded by comparing across units (P38-2).
     wind_floor = {"id": "wind-floor", "jurisdiction_level": "state", "preemption_type": "floor",
                   "stringency": {"value": 175, "direction": "higher_is_stricter", "unit": "mph_design_wind"}}
     height_cap = {"id": "height-cap", "jurisdiction_level": "municipal", "preemption_type": "none",
@@ -565,7 +565,7 @@ def selftest():
     d3 = resolve_conflict(hist, hvhz_rule)
     ok("genuine conflict -> human review required", d3["human_review_required"] is True and d3["winner"] is None)
 
-    # FIX (P38-2 adversarial finding): a safety FLOOR vs a lower-authority rule the engine cannot rank
+    # FIX (P38-2): a safety FLOOR vs a lower-authority rule the engine cannot rank
     # on a common stringency scale is a GENUINE conflict -> human review, NEVER decided by an unrelated
     # specificity integer (which previously let a municipal aesthetic rule silently discard a state
     # safety floor). Unequal specificity (5 vs 6) must NOT auto-resolve here.

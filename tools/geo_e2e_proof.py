@@ -141,7 +141,7 @@ def proof():
     d2 = geo_consent.gate(ON, "a flood lookup", session={}, asker=None)
     ok("fresh session, no asker -> consent_required (belt-and-suspenders)", d2["code"] == "consent_required")
 
-    # 9) REAL-record conflict regression (P38-2 adversarial finding): the SHIPPED canonical records
+    # 9) REAL-record conflict regression (P38-2): the SHIPPED canonical records
     # must escalate a safety-floor vs lower-purpose-rule collision to human review, never auto-resolve
     # by an unrelated specificity integer. This runs against the real files (not synthetic) so the
     # silent-discard bug can never come back unnoticed.

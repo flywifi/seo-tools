@@ -75,14 +75,14 @@ def _record_url(source: str) -> str:
     """Provenance URL for a knowledge record (connector citations require a non-empty url;
     developers.openai.com/api/docs/mcp). The cache stores `source` REPO-RELATIVE (it already
     starts with canonical-sources/; shared/cache/cache.py::str(jf.relative_to(ROOT))), so no
-    prefix is added here -- the P72 adversarial pass caught the doubled-segment 404 this
+    prefix is added here -- a doubled segment returned 404, which this
     comment now guards against."""
     return f"https://github.com/flywifi/seo-tools/blob/main/{source}"
 
 
 def _search_impl(query: str, db_path=None) -> dict:
     """Pure connector-contract search over the cache index (stdlib only, testable without the
-    mcp package -- the P61 C19 pattern). Returns {"results": [{"id","title","url"}]}."""
+    mcp package -- the P61 package-independent pattern). Returns {"results": [{"id","title","url"}]}."""
     import sqlite3
     db = pathlib_Path(db_path) if db_path else _CACHE_DB
     if not db.exists():
@@ -148,7 +148,7 @@ _WRITE_TOOLS = {
     "launch_setup":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "submit_compute_job": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     # Writes a caller-supplied overlay path via source_currency check --apply; the wrapper's
-    # overlay_path-required guard is the ONLY thing keeping it off the repo registry (P72 D3) --
+    # overlay_path-required guard is the ONLY thing keeping it off the repo registry (P72) --
     # that guard is load-bearing, do not remove it.
     "currency_detect_changes": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
 }
@@ -158,7 +158,7 @@ _READ_DESPITE_NAME = {
     "video_library_import_status",  # status READ; "import" names what it reports on
     # Computes the next task state and returns it; tasks.transition() appends to the history list
     # in memory and re-folds, but NEVER calls save_register -- persisting is a separate,
-    # human-confirmed step. Mutation-sounding, non-persisting (P73 D6-F4).
+    # human-confirmed step. Mutation-sounding, non-persisting (P73).
     "task_transition",
 }
 # Every remaining tool, each read as a pure read. Enrolment is explicit BECAUSE the old default
@@ -200,7 +200,7 @@ def _classification_problems(src: str) -> list:
     _DEFAULT_READONLY, i.e. readOnlyHint=True. MCP clients use readOnlyHint to decide whether to
     skip the confirmation prompt, and tools/publishing/ already holds complete OAuth upload
     clients waiting to be ungated, so the fail-open default sat one plausible tool name away from
-    a live upload running unconfirmed. Fail closed instead (P73 D6-F4).
+    a live upload running unconfirmed. Fail closed instead (P73).
     """
     problems = []
     names = _static_tool_names(src)
@@ -219,7 +219,7 @@ def _classification_problems(src: str) -> list:
     return problems
 
 
-# The two helpers below are defined ABOVE the mcp package import on purpose (P61 C19): they are
+# The two helpers below are defined ABOVE the mcp package import on purpose (P61): they are
 # pure stdlib logic, and the --selftest package-independent tier must be able to exercise them in
 # a sandbox where the mcp package is not installed. The server-start path is unchanged.
 
@@ -240,10 +240,10 @@ def _load_config() -> dict:
             for key, val in local.get("capabilities", {}).items():
                 base.setdefault("capabilities", {})[key] = val
         except (OSError, json.JSONDecodeError) as exc:
-            # P73 D6-F12 precursor: swallowing this silently reverted EVERY capability to the
+            # P73: swallowing this silently reverted EVERY capability to the
             # committed defaults with no signal, so a user whose local config had one bad comma
             # saw features quietly turn themselves off. stderr, never stdout: stdout is the
-            # stdio JSON-RPC channel and printing there corrupts the protocol (P61 C19).
+            # stdio JSON-RPC channel and printing there corrupts the protocol (P61).
             print(f"[creator-os] WARNING: {CONFIG_LOCAL_PATH} did not parse ({exc}); falling back "
                   f"to committed defaults. Your local capability flags are NOT in effect.",
                   file=sys.stderr)
@@ -254,13 +254,13 @@ def _read_local_config_for_write(path) -> tuple:
     """Read the gitignored local config for a read-modify-write cycle. Returns
     (config_dict, backup_path_or_None, error_or_None).
 
-    P73 D6-F12: the previous inline version treated a JSONDecodeError as "empty file" and then
+    P73: the previous inline version treated a JSONDecodeError as "empty file" and then
     overwrote it, destroying remote_mcp_token, live_publishing_enabled, the workspace flags and
     the update channel. That file is gitignored, so nothing could restore it. Back the bytes up
     before the caller writes, mirroring tools/wizard.py::_write_claude_config, and refuse
     outright if even the backup fails -- losing the data is worse than refusing the toggle.
 
-    Lives above the mcp package import (P61 C19) so the package-independent selftest tier can
+    Lives above the mcp package import (P61) so the package-independent selftest tier can
     exercise it in a sandbox where the mcp package is not installed.
     """
     if not path.exists():
@@ -290,12 +290,12 @@ _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malform
 def _cache_failure(err: str) -> dict:
     """Shape a failed cache subprocess into a tool result.
 
-    P73 D6-F11: an ABSENT index already returned a clear error plus a rebuild hint, but a CORRUPT
+    P73: an ABSENT index already returned a clear error plus a rebuild hint, but a CORRUPT
     one (power loss mid `cache.py --build`) passed the .exists() guard and surfaced a raw
     sqlite3.DatabaseError traceback into the MCP result, with no hint that rebuilding fixes it.
     Corruption is the case where the user most needs to be told what to do.
 
-    Above the mcp package import (P61 C19) so the package-independent selftest tier can reach it.
+    Above the mcp package import (P61) so the package-independent selftest tier can reach it.
     """
     msg = (err or "").strip()
     if any(m in msg.lower() for m in _CORRUPT_DB_MARKERS):
@@ -329,7 +329,7 @@ def _handoff_gates() -> str | None:
 
 # NOTE: the empty string is deliberately NOT here. Python's socket layer treats host="" as
 # ALL interfaces, so accepting it as loopback let `--host ""` (or a wrapper doing --host "$H"
-# with H unset) bind publicly with no token and no --insecure (P73 D4).
+# with H unset) bind publicly with no token and no --insecure (P73).
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
@@ -424,7 +424,7 @@ def _select_server_class():
     """(cls, is_v2). 2.x first: under 2.x `mcp.server.fastmcp` is a stub module that raises a pointed
     ModuleNotFoundError by design, so the order matters. Only the ABSENCE of the 2.x module falls through
     to the 1.x arm; a 2.x install whose own dependency is missing re-raises so the real cause is shown
-    (P81 C-4: the old bare `except ImportError` reported "neither class" for a broken 2.x install)."""
+    (P81: the old bare `except ImportError` reported "neither class" for a broken 2.x install)."""
     try:
         from mcp.server.mcpserver import MCPServer as _cls
         return _cls, True
@@ -480,7 +480,7 @@ def _normalize_allowed_hosts(values):
     """Validate the operator's allow-list. Accepts a list/tuple (or ONE bare str) of 'host', 'host:port',
     '[v6]', '[v6]:port', or IPv4. Rejects URLs, paths, '*', whitespace, and non-list types with the reason,
     because the SDK's _validate_host compares these strings literally: a URL or '*' can never match a
-    Host header and would silently disable the whole surface (P81 C-3/C-5)."""
+    Host header and would silently disable the whole surface (P81)."""
     if isinstance(values, str):
         values = [values]
     if not isinstance(values, (list, tuple)):
@@ -523,7 +523,7 @@ _ORIGIN_RE = re.compile(r"^https?://[^/\s]+$")
 
 
 def _normalize_allowed_origins(values):
-    """'https://host[:port]' entries for browser-based clients (P81 C-6). Same shape rules as hosts."""
+    """'https://host[:port]' entries for browser-based clients (P81). Same shape rules as hosts."""
     if isinstance(values, str):
         values = [values]
     if not isinstance(values, (list, tuple)):
@@ -1147,7 +1147,7 @@ def currency_detect_changes(overlay_path: str, apply: bool = False, category: st
         category: Optional category filter.
         only: Optional single source id.
     """
-    # LOAD-BEARING guard (P72 D3): without overlay_path the underlying CLI would stamp the
+    # LOAD-BEARING guard (P72): without overlay_path the underlying CLI would stamp the
     # committed source registry itself. This check is what confines a hosted endpoint's writes
     # to the caller's own store; treat any refactor of it as a security change.
     if not overlay_path:
@@ -1727,7 +1727,7 @@ def post_status(
 ) -> str:
     """Report what is known about a previously scheduled post, and where to check it by hand.
 
-    HONEST SCOPE (P73 D4-5): this reads the per-platform publishing FLAG only. It does not call a
+    HONEST SCOPE (P73): this reads the per-platform publishing FLAG only. It does not call a
     connector, so it never returns a live status. When the flag is off it returns status: unknown
     with a manual check URL for the platform; when the flag is on it names the connector that
     would be responsible. The Creator OS status vocabulary (published, scheduled, processing,
@@ -2489,7 +2489,7 @@ def launch_setup() -> str:
     }, indent=2)
 
 
-# _handoff_gates moved above the mcp package import (P61 C19) so the package-independent
+# _handoff_gates moved above the mcp package import (P61) so the package-independent
 # selftest tier can exercise both refusal strings without the package installed.
 
 
@@ -2641,7 +2641,7 @@ def _apply_annotations() -> tuple:
 
 if __name__ == "__main__":
     if _SELFTEST:
-        # P61 C19 full tier: the package imported and every tool above registered live.
+        # P61 full tier: the package imported and every tool above registered live.
         _live = None
         try:
             _live = len(mcp._tool_manager._tools)  # the tool manager's registry (same private name in both majors; the public list_tools() fallback follows)
@@ -2744,7 +2744,7 @@ if __name__ == "__main__":
         print(("ok   " if _conc_ok else "FAIL ") + "concurrent configure_tool writes serialise and stay parseable (P80)")
 
         def _selftest_transport_policy(ok_fn, is_v2, server_cls, loopback_hosts, allowed_hosts_settings):
-            """G-9 (P81): the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
+            """P81: the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
             obtained WITHOUT binding a socket and fed to the SDK middleware; the assertion is the deny/pass
             OUTCOME for a Host header, identical in mcp 1.28.1, 1.29.1 and 2.1.1. Asserting the outcome, not
             `settings is not None`: TransportSecuritySettings() with empty lists is enabled and denies everything.
@@ -2860,7 +2860,7 @@ if __name__ == "__main__":
             if _security is not None:
                 mcp.settings.transport_security = _security
             elif not _is_loopback:
-                # P81 C-1: FastMCP computed its DNS-rebinding settings in __init__ for the DEFAULT host
+                # P81: FastMCP computed its DNS-rebinding settings in __init__ for the DEFAULT host
                 # (loopback) because the server is constructed before argparse. For a non-loopback bind the
                 # SDK's own rule is "no automatic protection"; mirror it, or every request to a public bind
                 # is answered 421 with no diagnostic. Must run before the app is built (the SDK caches it).
