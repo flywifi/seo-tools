@@ -75,3 +75,4 @@ added beyond what those records state. New decisions get the next number via
 | [0064](0064-p91-python-314-support.md) | Validated through Python 3.14; the floor stays 3.12 for the narrowest lane | 2026-09-20 | Accepted |
 | [0065](0065-p93-user-scoped-installs-default.md) | Installs are user-scoped by default; machine-wide is a labeled choice | 2026-09-20 | Accepted |
 | [0066](0066-p94-claims-ship-with-their-proof.md) | A claim about this repo's own behavior ships with its executed proof | 2026-09-21 | Accepted |
+| [0067](0067-p96-guards-prove-their-own-coverage.md) | Review output stays outside the repository, and guards prove their own coverage | 2026-09-26 | Accepted |

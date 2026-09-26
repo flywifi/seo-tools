@@ -2,10 +2,26 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P94 are complete. P95 is committed with known gaps, listed in its bullet below.
-Drift guard exits 0 (the full
-invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P96 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
+Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P96: remediation pass (2026-09-26, ADR 0067). Review output stays outside the repository:
+  seven dated records deleted (Mac runbook and Florida cost model migrated), AUDIT-PROTOCOL
+  rewritten as rules (one pinned commit per pass via tools/tree_pin.py, mechanism-not-property
+  subjects via tools/commit_claims.py in the commit-msg hook and a CI range step, DID NOT RUN
+  reporting), invariant 20 and the pre-commit gate refuse audit-record file names, and
+  doc_freshness binds docs to code only. Guards prove their own coverage: invariant 60 checks
+  its detector against committed cases (tools/claim-proof-cases.json) with wider vocabulary and
+  fail-closed wiring; the pin resolver refuses listed shapes of a pin that cannot fail, each
+  rule group pinned by a case module; CI parity reads ci.yml with a fail-closed YAML-subset
+  reader and runs as invariant 61; the version gate joins the battery (14 gates). Bindings
+  observe the property at its boundary: publishing selftests record at the network seam with
+  explicit configs, install selftests record subprocess argv, invariant 53 executes the
+  resolver CLI, invariant 6 checks both hub directions. Exemption maps: exact paths, does-work
+  rules, full non-binary scan set, /Applications and /usr/local install-scope branches. Agent
+  definitions enforce read-only via frontmatter; the auditor runs behind a Bash guard in a
+  worktree; verdicts carry did_not_run. The P95 known gaps listed below are closed by this
+  pass.
 - P95: claim-proof hardening (2026-09-24, ADR 0066 decisions 9 and 10). Doctrine: AUDIT-PROTOCOL 7.2 says a pass is finished when its
   verification stage returns, a pass that could not run is DID NOT RUN, and the adversarial
   vectors are the reviewer's. Guards: static refusal rules for claim-proof pins that cannot

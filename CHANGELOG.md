@@ -13,6 +13,45 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P96: review output stays outside the repository (ADR 0067). The seven dated records under
+  `docs/` are deleted, with the Mac-only procedures moved to `docs/MACOS-MAINTENANCE.md` and the
+  Florida cost model to `docs/JURISDICTION-OVERLAY-PLAN.md`; `tools/doc_freshness.py` drops the
+  frozen dated-record machinery (a doc binds to code only; supersedes ADR 0056 decision 5).
+  Drift invariant 20 and the pre-commit gate refuse audit-record file names
+  (`tools/secret_scan.py::audit_record_name`: a date plus a review keyword in the file or a
+  directory above it, or a listed path; underscore and dotted dates are a stated limit). New
+  `tools/commit_claims.py` checks commit subjects with invariant 60's detector in the
+  commit-msg hook and a required CI range step; a flagged subject needs a resolving
+  `Claim-Proof:` trailer. `docs/AUDIT-PROTOCOL.md` states the pass rules: one pinned commit per
+  pass (`tools/tree_pin.py` prints and verifies the tree fingerprint), mechanism-not-property
+  subjects before a pass returns, and DID NOT RUN reporting.
+- P96: guards prove their own coverage with committed cases. Invariant 60's detector checks
+  itself against `tools/claim-proof-cases.json` (per-branch positives, negatives, escape, unit
+  and sweep cases; a blindness check; fail-closed wiring), gains each/everything/nobody,
+  will-not/can-not, existential-no and contraction forms, wider escape markers read in every
+  corpus unit with code spans stripped, and line-anchored corpus section markers. The pin
+  resolver refuses listed shapes of a pin that cannot fail (dead code, rebound or decorated
+  helpers, fixed-truth conditions, builtins), each rule group pinned by its own case module,
+  with multi-proof claims, a 16-character unique-label rule and fail-closed sweep membership.
+  CI parity reads ci.yml with a fail-closed YAML-subset reader (42 pinned reader cases; needs
+  propagation; declared checkout/shell/env/container forms gate coverage) and runs as drift
+  invariant 61; the version gate joins the battery (14 gates; invariant count 60 to 61 across
+  count docs). Agent definitions enforce read-only through frontmatter `disallowedTools`
+  (Write, Edit, NotebookEdit, Agent, writing MCP tools; the auditor loses every MCP tool and
+  runs in a worktree behind `tools/readonly_bash_guard.py`); the verification verdict gains
+  `did_not_run` and deal-review escalates a missing verifier.
+- P96: bound claims observe the property at its boundary. Publishing: `_scheduler_tick` passes
+  `allow_live=None`, dispatch treats `allow_live` as veto-only, selftests record at urlopen and
+  socket across all four platform clients with the flag off, pass explicit configs, and pin the
+  committed config shipping `live_publishing_enabled` false; `schedule_post` is pinned in the
+  package-independent tier. Install: setup and wizard selftests record subprocess argv with the
+  pip-building helpers left real, plus a tree-wide pip census. Invariant 53 validates
+  `default_flag` against declared states and executes the resolver CLI paths; invariant 6
+  checks each listed spoke exists; `secret_scan` gains a separator-form NANP phone pattern.
+  Invariant 59 reads every non-binary tracked file, keys its exemption map on exact paths with
+  a never-exempt floor from the claim-proof manifest, and detects writes into /Applications,
+  /usr/local and /opt/homebrew; the five exemption maps and the skip tuples fail on entries
+  that do no work, and secret-scan entries pin the sha256 of the text they exempt.
 - P94: drift invariant 60 (claim-proof binding) and tools/claim-proof-manifest.json. Every universal claim about this repo's own behavior in CLAUDE.md's non-negotiables and
   docs/INSTALL-SCOPE.md is now accounted for: 17 are bound to an enforced invariant or a NAMED
   selftest pin the battery executes, and 37 are recorded as exemptions with written reasons
