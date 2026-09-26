@@ -41,7 +41,7 @@
       "properties": {
         "overall": {
           "type": "string",
-          "enum": ["pass", "pass_with_flags", "fail"]
+          "enum": ["pass", "pass_with_flags", "fail", "did_not_run"]
         },
         "verified_claims": {
           "type": "integer"

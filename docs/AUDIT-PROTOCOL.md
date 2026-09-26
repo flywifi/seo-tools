@@ -1,9 +1,7 @@
 # The audit protocol (P64)
 
 How to run a full Creator OS audit so that its COVERAGE is accounted for, not just its findings.
-This document exists because two real defects (the missing Cowork surface and the ENAMETOOLONG
-traceback class) survived multiple otherwise-thorough audits — not because the audits were sloppy,
-but because each one improvised its scope from memory and measured itself by checks-passed, a
+An audit that improvises its scope from memory and measures itself by checks passed has a
 numerator with no denominator. Every section below closes one of the root causes recorded in ADR
 0047. `docs/PERSONA-AUDIT.md` remains the dedicated protocol for the wizard's GET screens; this
 document governs everything else.
@@ -54,18 +52,16 @@ model facts on every run (the S10 `cowork-surface-model` leg), so the model cann
 from what this walkthrough assumes. Honesty rule: legs that this sandbox can only simulate (real
 Gatekeeper dialogs, a live Cowork session, real OAuth consent screens) are labeled
 `[not exercised on the real surface]` in the notes and land on the hands-on checklist — they are
-never reported as exercised. The special trap this section exists for: the auditor itself runs in
-a Cowork-class remote sandbox; treating one's own runtime as an edge case inverts the real usage
-distribution.
+never reported as exercised. An auditor running in a Cowork-class remote sandbox is itself on one
+of the rows; treating one's own runtime as an edge case inverts the real usage distribution.
 
 ## 4. Harness honesty (a defect is not a defect until re-verified)
 
 Before recording a finding, re-verify it is not an artifact of the audit harness itself: the
 wrong function under test, a wrong argument shape, a stale line anchor, an output key the harness
-misspelled. The 2026-07-18 sweep produced five such artifacts (a wrong `fetch_retention`
-signature, a `| tail` pipe masking an exit code, a legacy three-flag probe, a wrong
-`project_docs.check` argument, a nested output key) — each was investigated and reclassified with
-a written rationale instead of shipping as a defect. Record reclassified non-defects in the notes
+misspelled. Typical harness artifacts: a wrong function signature, a `| tail` pipe masking an
+exit code, a legacy probe, a wrong argument shape, a nested output key. Each is investigated and
+reclassified with a written rationale instead of shipping as a defect. Record reclassified non-defects in the notes
 with their rationale; they are evidence of discipline, not noise.
 
 ## 5. The mandatory closing step: the unexercised list
@@ -73,9 +69,8 @@ with their rationale; they are evidence of discipline, not noise.
 An audit deliverable ENDS with a section named "Not exercised", listing every §1 surface, every
 §1 origin, and every §2 input class the audit did not exercise, each with a reason. An audit
 without this section is incomplete by definition — no matter how many checks passed. This is the
-step that converts "117 PASS" from a numerator into a coverage statement, and it is the step
-that would have surfaced the Cowork gap on its own: an honest closing list on 2026-07-18 would
-have had to say "origin `cowork`: not exercised".
+step that converts a PASS count from a numerator into a coverage statement: an origin nobody
+exercised appears on the list by name ("origin `cowork`: not exercised").
 
 The committed home for the Mac hands-on unexercised list is `docs/MAC-VALIDATION.md` — a local-only,
 two-phase runbook with a results-log template in this same shape. Its closing "Not exercised" line
@@ -84,27 +79,27 @@ green local pass reads as coverage, not a bare pass.
 
 ## 6. Deliverable shape (resumable by a cold session)
 
-The notes format proven by `scratchpad/mac-sweep-2026-07-18.md` and
-`scratchpad/mac-audit-final-2026-07-18.md`:
+An audit's notes carry, in order:
 
 1. A remediation-ready summary index FIRST (finding ids, one-line each, severity).
 2. Per finding: exact `file:line`, the reproduction (command + observed vs expected), severity,
    and status (confirmed / reclassified-artifact / needs-follow-up).
 3. The PASS ledger (what ran clean, so the next audit does not redo it blindly).
 4. The §5 unexercised list.
-5. Notes live in the scratchpad, never committed; findings that become work get a plan with the
-   repo's resume-protocol + change-ledger structure.
+5. **Audit records stay outside the repository.** The notes, findings, verdicts and change
+   ledger live in the working plan outside the repository (section 8) and are reported to the
+   owner. What lands in the repository is the change itself: the fix, its docs, an ADR when a
+   design decision was made, and the `CHANGELOG.md`, `STATE.md` and `ledger/ledger.json`
+   entries, each describing behaviour rather than the audit that led to it.
 
 ## 7. Independent adversarial close-out (claims checked against code, not prose) — P68
 
 Sections 1 to 6 give an audit a machine-checked denominator and an honest unexercised list, and
-section 4 makes the auditor re-verify a finding against the harness. What they did NOT require is
-the step that would have caught the P67 defects: a check of the phase's own claims against
-**ground-truth code**, by a reader who did not write them. The P67-D eval cases asserted output
-keys authored from SKILL.md *prose* (`coverage_summary`, `billable_milestones`, `nudge_date`), and
-the same-author close-out re-confirmed them against the same mental model; the P67-B auth fail-safe
-was reasoned about only through its documented entry point (`--serve-remote`), not the full argv
-surface. A green battery and a self-review passed both. Therefore:
+section 4 makes the auditor re-verify a finding against the harness. What they do not require is a
+check of the phase's own claims against **ground-truth code**, by a reader who did not write
+them. Eval assertions authored from SKILL.md *prose*, and a fail-safe reasoned about only through
+its documented entry point rather than the full argv surface, pass a green battery and a
+self-review alike. Therefore:
 
 - A phase is not "closed" until an **independent** pass — a fresh-context subagent, or a distinct
   reading that deliberately does not trust the phase's prose — re-derives each material claim from
@@ -113,8 +108,7 @@ surface. A green battery and a self-review passed both. Therefore:
   say X" is never the evidence; "the code does X, read here" is.
 - Every guard or fail-safe a phase adds must ship with a **red-team proof**: run it against the
   pre-change tree and show it FAILS on the exact defect it targets, then against the fixed tree and
-  show it passes. A guard never shown catching its own target is unverified code (the P67-B gated
-  path shipped with a "covered by selftest" claim that covered only the pieces that could run).
+  show it passes. A guard never shown catching its own target is unverified code.
 - This composes with the existing close-out discipline recorded in the ledger — "a proof that
   fails on the pre-change tree, the full battery green after, docs changed in the same commit" —
   and with the runtime analog already in `CLAUDE.md` (every workflow's adversarial verification
@@ -123,15 +117,11 @@ surface. A green battery and a self-review passed both. Therefore:
 
 ### 7.1 When the pass runs (P94)
 
-The three clauses above say what the independent pass must do. They said nothing about *when*,
-and the gap was load-bearing: section 8's persistence contract requires claims to be "committed
-and pushed per stage", and `CLAUDE.md`'s documentation-truth rule requires doc prose to land in
-the same change as the code. Both mandate that a claim be written and pushed at stage time,
-while section 7 attached its verification to the word "closed". In P93 a commit subject reading
-"no code path installs machine-wide", a policy doc asserting every remaining `brew install`
-carried its label, and a report to the owner saying both were done all shipped inside that
-window; the phase-close pass then found all three false. The pass was not late by its own
-wording, and that is the defect.
+The three clauses above say what the independent pass must do; this section says *when*.
+Section 8's persistence contract has fixes "committed and pushed per stage", and `CLAUDE.md`'s
+documentation-truth rule has doc prose land in the same change as the code, so a claim is written
+and pushed at stage time. A pass attached only to the word "closed" checks claims after they have
+shipped.
 
 - **The independent pass runs BEFORE the claim is reported or merged**, not only at phase close.
   A universal claim that has not survived it is reported narrowed to what was actually tested,
@@ -140,24 +130,26 @@ wording, and that is the defect.
 - **A guard's denominator is DERIVED, never recalled.** Section 1 already says this about an
   audit's coverage sets; it binds a new guard's scan set too. A hand-maintained list of files
   to check is the alternative `docs/adr/0051` already rejected for invariant 58 ("a memorized
-  denominator"), and P93 shipped it anyway for invariant 59 — scanning a hand-listed sixteen files, almost all of them ones the phase had just edited, so
-  the guard largely confirmed work already done. If a list is
+  denominator"): a scan list made of the files a change touched mostly confirms work already
+  done. If a list is
   genuinely unavoidable, every entry carries a written reason, and the exemption map is the
   list, not the scan set.
-- **Remediation that touches the same guard earns a second pass.** P70 is the recorded case: the
-  P69 remediation traded one defect for another, and only a second independent reading caught
-  that the manifest "claimed more than it delivered". A fix authored by the same reader who
-  found the defect is not independently verified.
+- **Remediation that touches the same guard earns a second pass.** A remediation can trade one
+  defect for another, and a fix authored by the same reader who found the defect is not
+  independently verified.
+- **A pass reads one pinned commit.** Every agent in a pass reads the same commit and reports
+  the SHA it read (`tools/tree_pin.py`); findings from agents that read different trees are
+  not merged into one verdict.
+- **A commit pushed before the pass returns states the mechanism changed, not the property.**
+  Its subject names what the change does ("refuse the install when no .venv exists"), not the
+  property the pass has yet to verify ("nothing installs machine-wide"); `tools/commit_claims.py`
+  checks the subject.
 
 ### 7.2 When the pass is finished (P95)
 
-Section 7.1 says the independent pass runs before a claim is reported. It does not say when the
-pass is FINISHED, and P94 showed the gap twice. First, the pass was launched, its lenses returned
-findings, the author read them, fixed what they named, and reported to the owner, while the
-refutation stage was still running; that stage then came back confirming two defects the report
-had described as fixed. Second, an earlier run of the same pass returned "total: 0 findings"
-while every one of its four agents had died on a usage limit. Starting a pass is not finishing
-it, and a pass that could not run did not pass.
+Section 7.1 says the independent pass runs before a claim is reported. This section says when the
+pass is FINISHED: starting a pass is not finishing it, and a pass that could not run did not
+pass.
 
 - **A pass is complete when its verification stage has returned.** A lens finding is REPORTED;
   only the refutation round moves it to VERIFIED or KILLED, which is the status ladder section 8
@@ -165,48 +157,40 @@ it, and a pass that could not run did not pass.
   found, waits for that round. Reporting off first-stage output is reporting an unverified claim.
 - **A pass that could not run is DID NOT RUN, never clean.** A zero from a checker whose agents
   never executed is the same defect as a guard that scans nothing, and it takes the same
-  treatment the drift guard gives a non-git copy: say DID NOT RUN, name what went unchecked, and
-  do not let it read as a pass. `CLAUDE.md` already says "never claim a skipped step ran"; a pass
-  whose agents died is a skipped step.
-- **The adversarial vectors are not chosen by the author.** P94-5 reported "nine adversarial
-  mutations, all caught". They were nine the author picked, so they confirmed the author's own
-  fix, which is the shape section 7.1 forbids for a guard's scan set, applied to its test set. An
-  independent pass that chose its own vectors then broke three of the fixes: a function merely
-  NAMED like a selftest counted as reachable, a tautology written as a comparison passed as a
-  real condition, and a disabled CI step still counted as coverage. Author-chosen mutations prove
-  the fix does what the author meant; only reviewer-chosen ones test whether it does what it
-  claims.
-- **Record an involuntarily incomplete pass as incomplete.** Section 8 item 6's non-action list
+  treatment the drift guard gives a non-git copy: report DID NOT RUN to the owner, name what went
+  unchecked, and do not let it read as a pass. `CLAUDE.md` already says "never claim a skipped
+  step ran"; a pass whose agents did not execute is a skipped step.
+- **The adversarial vectors are not chosen by the author.** Mutations the author
+  picks confirm the fix the author meant, which is the shape section 7.1 forbids for a guard's
+  scan set, applied to its test set. Only vectors the reviewer picks test whether the fix does
+  what it claims (a function merely NAMED like a selftest, a tautology written as a comparison,
+  a disabled CI step).
+- **Report an involuntarily incomplete pass as incomplete.** Section 8 item 6's non-action list
   and the ledger's `explicit_non_action` field both cover what a phase *chose* not to do. A pass
-  that died is not a choice. The precedents are ADR 0043, which lists "the three research
-  subagents launched for this phase died at start" among its evidence and names the compensating
-  work, and ADR 0045, which records a usage-limit interruption by narrowing the claim to the part
-  that was verified firsthand. Do the same: name the dead pass, and narrow the claim.
+  that stopped partway is not a choice: report it to the owner as incomplete, name what it did not
+  cover, and narrow the claim to what was verified firsthand.
 
 ```sources
 []
 ```
 
-## 8. Plan structure (what section 6 part 5 refers to)
+## 8. Plan structure (what section 6 item 5 refers to)
 
-Section 6 says findings that become work "get a plan with the repo's resume-protocol and
-change-ledger structure". That structure is defined here, because it was previously named without
-being written down anywhere.
-
-A working plan for audit remediation is a single file that is simultaneously the plan and the
-record. It carries:
+A working plan for audit remediation is a single file, kept outside the repository, that is
+simultaneously the plan and the record. It carries:
 
 1. **A resume protocol, first.** Where the work is (repo, branch, HEAD at plan time), what the
    task is in two sentences, and the exact first commands a session with zero memory should run.
    State explicitly that the ledger outranks any recollection, and that git outranks the ledger:
    if a row disagrees with the tree, trust the tree and fix the row.
-2. **A persistence contract.** What is written where, and when. Findings are written the moment
-   they are confirmed, never batched to the end. Fixes are committed and pushed per stage, so an
-   interruption loses at most one stage. Conclusions end up in a committed artifact, because an
-   uncommitted plan file does not survive the machine.
+2. **A persistence contract.** What is written where, and when. Findings are written to the plan the
+   moment they are confirmed, never batched to the end. Fixes are committed and pushed per stage,
+   so an interruption loses at most one stage. The plan and its ledger live outside the
+   repository, somewhere that survives the machine; their conclusions reach the owner in a
+   report, and the repository receives only the changes (section 6 item 5).
 3. **The baseline battery**, with the numbers expected at the start, so a later session can tell a
    regression from a pre-existing state.
-4. **A change ledger**: an append-only table of findings, one row each, carrying an id, the
+4. **A change ledger** (part of the plan, so never committed): an append-only table of findings, one row each, carrying an id, the
    dimension, a severity, the claim with its `file:line`, and a status that moves through
    REPORTED to VERIFIED or KILLED, then FIXED at a commit, then REPLAYED where a guard was
    touched. Strike rows through; never delete them. A killed finding keeps the reproduction

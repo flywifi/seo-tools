@@ -78,7 +78,7 @@ You MAY:
 Return your findings as structured data. The main loop will decide what to do with them.
 ```
 
-### Five agent roles
+### Six agent roles
 
 Each role has a defined research scope, engine context, and output schema.
 
@@ -120,6 +120,13 @@ observed prices with URL and date, expense vs capex classification, cited time-r
   findings are proposals and only the human writes the cost library
   (canonical-sources/cost-library/costs.json).
 
+**Auditor** — a read-only review of a change against a pinned commit: it re-runs checks,
+reproduces each finding, and reports the commit it read (`audited_commit`).
+- Tools: Read, Glob, Grep, read-only Bash, WebSearch, WebFetch; no MCP tools (`mcp__*` removed)
+- Isolation: its own git worktree of the local HEAD (`isolation: worktree`, and
+  `worktree.baseRef` "head" in `.claude/settings.json`)
+- Bash guard: `tools/readonly_bash_guard.py` runs as a PreToolUse hook on its Bash calls
+
 ### 2.1 Machine-readable agent contracts
 
 Every agent definition file in `.claude/agents/*.md` must contain these four sections:
@@ -133,9 +140,22 @@ Every agent definition file in `.claude/agents/*.md` must contain these four sec
 4. **`## Output format`** — the JSON Schema the agent must return, referencing the canonical
    schema from `shared/schemas/`.
 
-The drift guard (invariant 14) validates that all four sections are present in every agent
-definition file. The forbidden tools section must list Write, Edit, and NotebookEdit. Invariant 17
-validates the verbatim read-only marker is present.
+Every definition also starts with YAML frontmatter on line 1, because Claude Code treats a file
+without it as documentation and applies none of its tool rules:
+- `name` equal to the file name (the `agentType` workflows pass) and a `description`;
+- `disallowedTools` listing Write, Edit, NotebookEdit, Agent (so no nested subagent) and the
+  GitHub and Google Drive MCP servers (`mcp__github`, `mcp__Google_Drive`); the auditor lists
+  `mcp__*` instead and sets `isolation: worktree`;
+- no `isolation` on the five product agents: a worktree of HEAD lacks the ignored and uncommitted
+  local data they read (`*.local.json`, `*.local.db`, deal records not yet committed), so they
+  run in the main checkout.
+
+The drift guard (invariant 14) validates the four sections, the frontmatter, and the auditor's
+wiring (`.claude/settings.json` runs `tools/readonly_bash_guard.py` on Bash, skipping it when
+the file is absent, and sets `worktree.baseRef` to "head"). The forbidden tools section must
+list Write, Edit, and NotebookEdit. Invariant 17 validates the verbatim read-only marker is
+present. Bash stays write-capable: the Bash items in the forbidden section are instructions, and
+the guard refuses only the write forms it recognizes.
 
 ---
 
@@ -461,7 +481,10 @@ to the user. This is never delegated to another agent.
    - Flags unsourced numbers (view counts, dollar amounts, percentages without citations)
    - Validates confidence-tier alignment (high confidence requires at least 1 T1 source)
    - Checks minority report adequacy (retrieval gaps exist but minority_report is null)
-   - Returns a verification verdict: pass, pass_with_flags, or fail
+   - Returns a verification verdict: pass, pass_with_flags, fail, or did_not_run. The workflow
+     records did_not_run when the verifier returned nothing, deal-review routes it to human review
+     the same way as fail, and drift invariant 15 keeps the verdict enum identical across the
+     schemas and the workflows
    The verification result is recorded as a `shared/schemas/verification-decision.json` record
    in the workflow output. The main loop appends it to `ledger/ledger.json`. Findings that fail
    verification are flagged with `human_review_required: true`.

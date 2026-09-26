@@ -21,7 +21,7 @@ const VERIFICATION_SCHEMA = {
   properties: {
     discrepancies_found: { type: 'boolean' },
     discrepancy_details: { type: 'array', items: { type: 'string' } },
-    verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+    verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail', 'did_not_run'] },
     minority_report: { type: ['object', 'null'] },
     confidence_evidence: { type: 'object' },
     source_citations: { type: 'array' },

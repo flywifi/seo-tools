@@ -9,7 +9,7 @@ The pipeline holds real CRM facts, contacts, and money; none of it may leak into
 
 ## Decision
 
-Keep all real data in gitignored `.local` files; commit only schemas and blank structures. Enforce at rest with allowlist-invert gitignore, force-add detection (invariant 20), a content secret scanner (invariant 21, CI), per-clone git hooks, and a commit-message backstop bounded by a policy SHA.
+Keep all real data in gitignored `.local` files; commit only schemas and blank structures. Enforce at rest with allowlist-invert gitignore, force-add detection (invariant 20, whose tracked-name scan also refuses audit-record file names), a content secret scanner (invariant 21, CI), per-clone git hooks, and a commit-message backstop bounded by a policy SHA.
 
 ## Consequences
 

@@ -24,8 +24,15 @@ Invariants enforced:
   13. Routing table completeness: all request_classification values appear in the routing table.
   14. Agent contract blocks: every .claude/agents/*.md has Operating rules, Forbidden tools,
       Allowed tools, and Output format sections; Forbidden tools lists Write, Edit, NotebookEdit.
+      Each starts with YAML frontmatter whose name equals the file name and whose disallowedTools
+      removes Write, Edit, NotebookEdit, Agent and the GitHub/Google Drive MCP write tools; the
+      auditor definition exists, removes every MCP tool and sets isolation: worktree, and the
+      product agents set no isolation; .claude/settings.json runs tools/readonly_bash_guard.py on
+      Bash (skipped when the file is absent) and sets worktree.baseRef "head".
   15. Schema verification fields: every shared/schemas/*.json (except envelope and decision schemas)
-      has minority_report, confidence_evidence, source_citations in its properties.
+      has minority_report, confidence_evidence, source_citations in its properties; the verdict
+      enum of the envelope, the decision record and each workflow VERIFICATION_SCHEMA agree and
+      carry did_not_run, which a workflow records and escalates when its verifier returns nothing.
   16. Workflow verification step: every .claude/workflows/*.js contains an adversarial verification
       marker (VERIFICATION_SCHEMA, adversarial-verify, cross-verify, verify-research,
       verify-seasonal, independent-review).
@@ -42,7 +49,9 @@ Invariants enforced:
   20. Pipeline tracked-file allowlist: every git-tracked file under pipeline/ is on the explicit
       PIPELINE_TRACKED_ALLOWLIST (blank templates and schemas only), and no financial-export or
       secret file type (.csv/.xlsx/.xls/.ofx/.qfx/.pem/.key/.env*) is tracked anywhere in the
-      repo. Catches force-adds and gitignore rule gaps. Fails closed in CI.
+      repo, and no audit-record file is tracked (tools/secret_scan.py::audit_record_name; the
+      pre-commit gate applies the same rule to staged names). Catches force-adds and gitignore
+      rule gaps. Fails closed in CI.
   21. Content secret scan: tools/secret_scan.py --tracked finds no API keys, private keys,
       credential values, session links, or non-allowlisted email addresses in tracked file
       content (the filename invariants 19 and 20 are blind to content).
@@ -592,8 +601,145 @@ def _workflow_consumes_agent_output(text):
     return False
 
 
+# Agent is listed because a nested subagent is configured on its own and can hold Write and Edit.
+AGENT_MUTATION_TOOLS = ("Write", "Edit", "NotebookEdit", "Agent")
+# Remote write tools of the MCP servers this project is used with (GitHub and Google Drive).
+# Every agent definition's frontmatter must remove them; a server-level entry (mcp__<server> or
+# mcp__<server>__*) or mcp__* covers each one, as Claude Code's disallowedTools does.
+AGENT_MCP_WRITE_TOOLS = (
+    "mcp__github__push_files", "mcp__github__create_or_update_file", "mcp__github__delete_file",
+    "mcp__Google_Drive__create_file", "mcp__Google_Drive__update_file",
+    "mcp__Google_Drive__trash_file", "mcp__Google_Drive__copy_file",
+)
+AUDITOR_AGENT = "auditor"
+# The hook exits 0 when the guard file is absent; a bare `python3 <missing file>` exits 2, which
+# Claude Code treats as a block on every Bash call in the project.
+GUARD_HOOK_COMMAND = ('test ! -f "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py" || '
+                      'python3 "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"')
+_UNSAFE_PERMISSION_MODES = {"acceptEdits", "bypassPermissions", "dontAsk", "auto"}
+
+
+def _agent_frontmatter(text):
+    """Top-level keys of an agent definition's YAML frontmatter, or None when it has none.
+    Claude Code loads a file as an agent only when `---` is its first line and the block names the
+    agent. Without PyYAML (CI's 3.14 leg) a small reader handles the subset agent files use:
+    `key: value`, a comma-separated value, a [flow, list], or a block list of `- item` lines."""
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---\n", 3)
+    if end < 0:
+        return None
+    block = text[4:end]
+    if HAS_YAML:
+        try:
+            data = yaml.safe_load(block)
+        except yaml.YAMLError:
+            return {}
+        return data if isinstance(data, dict) else {}
+    data, key = {}, None
+    for line in block.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        m = re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", line)
+        if m:
+            key, val = m.group(1), m.group(2).strip()
+            data[key] = val.strip("'\"") if val else []
+            continue
+        m = re.match(r"^\s+-\s+(.*)$", line)
+        if m and key and isinstance(data.get(key), list):
+            data[key].append(m.group(1).strip().strip("'\""))
+    return data
+
+
+def _fm_tool_set(value):
+    """A frontmatter tools/disallowedTools value (comma string, [flow list] or YAML list) as a set."""
+    items = value if isinstance(value, list) else str(value or "").strip().strip("[]").split(",")
+    return {str(t).strip().strip("'\"") for t in items if str(t).strip().strip("'\"")}
+
+
+def _fm_denies(deny, tool):
+    if tool in deny:
+        return True
+    parts = tool.split("__")
+    if len(parts) < 3 or parts[0] != "mcp":
+        return False
+    return "mcp__*" in deny or f"mcp__{parts[1]}" in deny or f"mcp__{parts[1]}__*" in deny
+
+
+def _agent_frontmatter_problems(rel, stem, text):
+    fm = _agent_frontmatter(text)
+    if fm is None:
+        return [f"{rel}: no YAML frontmatter on line 1; Claude Code loads the file as documentation, "
+                f"not as an agent, so none of its tool rules apply"]
+    out = []
+    name = str(fm.get("name") or "")
+    if not name:
+        out.append(f"{rel}: frontmatter has no `name`")
+    elif name != stem:
+        out.append(f"{rel}: frontmatter name '{name}' must equal the file name '{stem}' "
+                   f"(workflows pass it as agentType)")
+    if not str(fm.get("description") or "").strip():
+        out.append(f"{rel}: frontmatter has no `description`")
+    deny, tools = _fm_tool_set(fm.get("disallowedTools")), _fm_tool_set(fm.get("tools"))
+    missing = [t for t in AGENT_MUTATION_TOOLS + AGENT_MCP_WRITE_TOOLS if not _fm_denies(deny, t)]
+    if missing:
+        out.append(f"{rel}: frontmatter disallowedTools does not remove {', '.join(missing)}")
+    granted = sorted(tools & set(AGENT_MUTATION_TOOLS))
+    if granted:
+        out.append(f"{rel}: frontmatter tools grants mutation tool(s) {', '.join(granted)}")
+    mode = str(fm.get("permissionMode") or "")
+    if mode in _UNSAFE_PERMISSION_MODES:
+        out.append(f"{rel}: frontmatter permissionMode '{mode}' lets the agent act without review")
+    if name == AUDITOR_AGENT:
+        if str(fm.get("isolation") or "") != "worktree":
+            out.append(f"{rel}: the auditor must set `isolation: worktree`")
+        if "mcp__*" not in deny:
+            out.append(f"{rel}: the auditor's disallowedTools must include `mcp__*` (it uses no MCP tool)")
+    elif fm.get("isolation"):
+        out.append(f"{rel}: a product agent must not set `isolation`; a worktree of HEAD lacks the "
+                   f"ignored and uncommitted local data it reads (*.local.json, *.local.db)")
+    return out
+
+
+def _auditor_wiring_problems(names):
+    """The auditor definition exists, and .claude/settings.json runs the Bash guard for it."""
+    out = []
+    if AUDITOR_AGENT not in names:
+        out.append(f".claude/agents: no definition named '{AUDITOR_AGENT}' (the read-only reviewer the "
+                   f"Bash guard is scoped to)")
+    try:
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return out + [f".claude/settings.json: unreadable ({exc}); it wires the auditor's Bash guard"]
+    if not isinstance(settings, dict):
+        return out + [".claude/settings.json: not a JSON object"]
+    if (settings.get("worktree") or {}).get("baseRef") != "head":
+        out.append('.claude/settings.json: worktree.baseRef must be "head" so an isolated agent reads '
+                   'the local HEAD, not the remote default branch')
+    wired = False
+    for entry in (settings.get("hooks") or {}).get("PreToolUse") or []:
+        if isinstance(entry, dict) and "Bash" in str(entry.get("matcher", "")).split("|"):
+            wired = wired or any(isinstance(h, dict) and h.get("command") == GUARD_HOOK_COMMAND
+                                 for h in entry.get("hooks") or [])
+    if not wired:
+        out.append(f".claude/settings.json: no PreToolUse hook on Bash runs `{GUARD_HOOK_COMMAND}` "
+                   f"(it skips the guard when the file is absent, so a missing file cannot block "
+                   f"every Bash call)")
+    try:
+        tree = ast.parse((ROOT / "tools" / "readonly_bash_guard.py").read_text(encoding="utf-8"))
+        guarded = next((ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                        and any(getattr(t, "id", None) == "GUARDED_AGENT_TYPES" for t in n.targets)), ())
+    except (OSError, SyntaxError, ValueError) as exc:
+        return out + [f"tools/readonly_bash_guard.py: unreadable ({exc})"]
+    if AUDITOR_AGENT not in guarded:
+        out.append(f"tools/readonly_bash_guard.py: GUARDED_AGENT_TYPES does not include '{AUDITOR_AGENT}'")
+    return out
+
+
 def check_agent_contracts():
-    """Invariant 14: agent definitions have required contract sections."""
+    """Invariant 14: agent definitions have required contract sections, YAML frontmatter that
+    removes the write tools (the part Claude Code enforces), and the auditor's isolation and
+    Bash-guard wiring."""
     agents_dir = ROOT / ".claude" / "agents"
     if not agents_dir.exists():
         return
@@ -604,6 +750,7 @@ def check_agent_contracts():
         "## Output format",
     ]
     forbidden_tools_must_list = ["Write", "Edit", "NotebookEdit"]
+    names = set()
     for md in sorted(agents_dir.glob("*.md")):
         rel = md.relative_to(ROOT)
         text = md.read_text(encoding="utf-8")
@@ -618,7 +765,7 @@ def check_agent_contracts():
             for tool_name in forbidden_tools_must_list:
                 if tool_name not in forbidden_block:
                     problem(f"{rel}: Forbidden tools section missing '{tool_name}'")
-        # Property (P67, hardened P68): the allowlist must actually list a real tool. A header with
+        # Property: the allowlist must actually list a real tool. A header with
         # no parseable '- Tool' bullets is an empty allowlist that grants nothing; a bullet that is
         # only a placeholder ('- none', '- n/a', '- TBD', '- see above') is an empty allowlist
         # dressed as a full one. The bare section-present check above would pass both.
@@ -628,10 +775,109 @@ def check_agent_contracts():
             if not _real:
                 problem(f"{rel}: Allowed tools section lists no real tool (empty or placeholder-only "
                         f"allowlist defeats the explicit-allowlist contract)")
+        for msg in _agent_frontmatter_problems(rel, md.stem, text):
+            problem(msg)
+        names.add(str((_agent_frontmatter(text) or {}).get("name") or ""))
+    for msg in _auditor_wiring_problems(names):
+        problem(msg)
+    # The matcher itself: mcp__* removes MCP tools only, never a built-in tool such as Write.
+    if _fm_denies({"mcp__*"}, "Write") or not _fm_denies({"mcp__*"}, AGENT_MCP_WRITE_TOOLS[0]):
+        problem("tools/sync_check.py: _fm_denies must treat mcp__* as covering MCP tools only")
+
+
+_VERDICT_ENUM_RE = re.compile(r"\b(?:overall_verdict|verdict)\s*:\s*\{[^{}]*?\benum\s*:\s*\[([^\]]*)\]")
+_VERDICT_FAIL_ESCALATES_RE = re.compile(
+    r"(?:overall_verdict|verification_verdict)\s*===\s*'fail'\s*\)\s*\{[^{}]*"
+    r"human_review_required\s*=\s*true")
+_VERDICT_DNR_ESCALATES_RE = re.compile(
+    r"'did_not_run'[^{}]*\)\s*\{[^{}]*human_review_required\s*=\s*true")
+_VERDICT_RECORDED_RE = re.compile(r"\bverification_verdict\s*[:=][^;\n]*'did_not_run'")
+
+
+def _js_object_at(text, start):
+    """The balanced `{...}` literal that opens at text[start], skipping quoted strings and
+    comments; None when it never closes."""
+    depth, i, n = 0, start, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "'\"`":
+            j = i + 1
+            while j < n and text[j] != ch:
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+            continue
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+        i += 1
+    return None
+
+
+def _workflow_verdict_schema(text):
+    """(schema_text, enum_values) for a workflow's `const VERIFICATION_SCHEMA = {...}`. (None, None)
+    when the workflow defines none; values None when the verdict enum cannot be read. The enum is
+    read inside the schema's own braces, so a later object's enum cannot stand in for it."""
+    m = re.search(r"\bconst\s+VERIFICATION_SCHEMA\s*=\s*\{", text)
+    if not m:
+        return None, None
+    obj = _js_object_at(text, m.end() - 1)
+    if obj is None:
+        return "", None
+    em = _VERDICT_ENUM_RE.search(obj)
+    if not em:
+        return obj, None
+    return obj, [a or b for a, b in re.findall(r"'([^']*)'|\"([^\"]*)\"", em.group(1))]
+
+
+def _check_verdict_parity(schemas_dir):
+    """Invariant 15, verdict part (see check_schema_verification_fields)."""
+    try:
+        env = json.loads((schemas_dir / "verification-envelope.json").read_text(encoding="utf-8"))
+        canon = env["$defs"]["verification_verdict"]["properties"]["overall_verdict"]["enum"]
+        dec = json.loads((schemas_dir / "verification-decision.json").read_text(encoding="utf-8"))
+        dec_enum = dec["properties"]["verification_verdict"]["properties"]["overall"]["enum"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        problem(f"verdict-enum: the verdict enum cannot be read from shared/schemas/ ({exc!r})")
+        return
+    if "did_not_run" not in canon:
+        problem("verdict-enum: verification-envelope.json overall_verdict lacks 'did_not_run', so a "
+                "verifier that returned nothing can only be recorded as a pass or a fail")
+    if dec_enum != canon:
+        problem(f"verdict-enum: verification-decision.json overall enum {dec_enum} != envelope "
+                f"{canon}")
+    wf_dir = ROOT / ".claude" / "workflows"
+    for js in sorted(wf_dir.glob("*.js")) if wf_dir.exists() else []:
+        rel = js.relative_to(ROOT)
+        text = js.read_text(encoding="utf-8")
+        obj, vals = _workflow_verdict_schema(text)
+        if obj is None:
+            continue
+        if vals != canon:
+            problem(f"verdict-enum: {rel} VERIFICATION_SCHEMA verdict enum {vals} != envelope {canon}")
+            continue
+        rest = text.replace(obj, "", 1)
+        if re.search(r"\bschema\s*:\s*VERIFICATION_SCHEMA\b", rest) and not _VERDICT_RECORDED_RE.search(rest):
+            problem(f"verdict-enum: {rel} runs a verifier but does not record 'did_not_run' in a "
+                    f"verification_verdict field when it returns nothing, so a dead verifier reads like a skipped step")
+        if _VERDICT_FAIL_ESCALATES_RE.search(rest) and not _VERDICT_DNR_ESCALATES_RE.search(rest):
+            problem(f"verdict-enum: {rel} routes a 'fail' verdict to human review but not "
+                    f"'did_not_run'; a verifier that did not run is not a pass")
 
 
 def check_schema_verification_fields():
-    """Invariant 15: agent output schemas have verification envelope fields, and every agent
+    """Invariant 15: agent output schemas have verification envelope fields, the verification
+    verdict enum agrees across the schemas and workflows (Verdict parity, below), and every agent
     DEFINITION's prose names them too (P66: the schemas enforced the envelope while four agent
     definitions' Output format sections omitted it, so an agent following its written contract
     would emit output its own schema rejects).
@@ -639,7 +885,14 @@ def check_schema_verification_fields():
     The skip set lists DATA CONTRACTS that live in shared/schemas/ but are not agent output
     schemas: the envelope definitions themselves, and compute-job.json (the P60 job ticket/result
     contract; tickets are validated inputs, not agent findings, so a verification envelope would
-    be meaningless on them)."""
+    be meaningless on them).
+
+    Verdict parity: the overall_verdict enum in verification-envelope.json is canonical. The
+    decision record's `overall` enum and the verdict enum inside each workflow's
+    VERIFICATION_SCHEMA must equal it, and it must carry `did_not_run`, the value a workflow
+    records when its verifier returned nothing. A workflow that passes VERIFICATION_SCHEMA to an
+    agent assigns `did_not_run` to a verification_verdict field outside the schema, and a
+    workflow that routes a failing verdict to human review routes `did_not_run` the same way."""
     schemas_dir = ROOT / "shared" / "schemas"
     if not schemas_dir.exists():
         return
@@ -672,6 +925,7 @@ def check_schema_verification_fields():
                 if f"`{field}`" not in text and f"`{field}[]`" not in text:
                     problem(f"{rel}: the agent definition never names the verification envelope "
                             f"field '{field}'; the def prose and the output schema must agree")
+    _check_verdict_parity(schemas_dir)
 
 
 def check_workflow_verification():
@@ -892,6 +1146,8 @@ except ImportError:  # imported as a module with tools/ not on sys.path
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from secret_scan import FORBIDDEN_DATA_SUFFIXES as FORBIDDEN_TRACKED_SUFFIXES
 FORBIDDEN_TRACKED_BASENAMES = re.compile(r"^\.env(\.|$)")
+# Invariant 20 (third part): audit-record file names, one rule shared with the --staged gate.
+from secret_scan import audit_exempt_problems, audit_record_findings  # noqa: E402
 
 
 def _git_ls_files():
@@ -962,7 +1218,7 @@ def check_local_privacy():
 
 def check_pipeline_allowlist():
     """Invariant 20: tracked files under pipeline/ must be on the explicit allowlist, and no
-    financial-export or secret file type is tracked anywhere.
+    financial-export or secret file type, and no audit-record file, is tracked anywhere.
 
     The gitignore's allowlist-invert rules stop accidents; this catches force-adds
     (`git add -f`) and rule gaps. A bank CSV, a hand-dropped invoices.json under
@@ -973,6 +1229,17 @@ def check_pipeline_allowlist():
     if tracked is None:
         _privacy_git_unavailable(20)
         return
+    # Audit-record names (tools/secret_scan.py::audit_record_name). The rule is run on a fixture
+    # first, so a rule that has stopped matching fails here instead of reporting clean.
+    if not audit_record_findings(["docs/review-2026-01-02.md"], {}):
+        problem("privacy: the audit-record name rule flags nothing on its own fixture "
+                "(tools/secret_scan.py::audit_record_name); invariant 20 cannot vouch for names")
+    for f in audit_record_findings(tracked):
+        problem(f"privacy: audit record is tracked by git ({f['match']}): {f['path']}. Review "
+                f"output is kept outside the repository; remove the file, or exempt it in "
+                f"tools/secret_scan.py::AUDIT_RECORD_EXEMPT with a written reason")
+    for msg in audit_exempt_problems(tracked):
+        problem(f"privacy: {msg}")
     for path in tracked:
         if path.startswith("pipeline/") and path not in PIPELINE_TRACKED_ALLOWLIST:
             problem(

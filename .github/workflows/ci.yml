@@ -35,14 +35,12 @@ jobs:
         run: python3 tools/source_sync.py check
       - name: Secret scan (tracked content)
         run: python3 tools/secret_scan.py --tracked
-      - name: Commit hygiene backstop (messages + author emails after the policy boundary)
+      - name: Commit hygiene backstop (messages, author emails and claim subjects after the policy boundaries)
         run: |
-          # P74 D1-4: origin/main..HEAD is EMPTY once a push to main lands, so on a direct main
-          # push this step scanned nothing while still reporting success. The policy boundary SHA
-          # has always been recorded but was never used to bound the range. Prefer the branch
-          # range when it is non-empty; otherwise fall back to the boundary. scan_commit_messages
-          # already skips commits at or before the boundary internally, so the wider range does
-          # not re-litigate history.
+          # origin/main..HEAD is empty once a push to main lands, so the range falls back to the
+          # policy boundary SHA when the branch range is empty. Both scanners skip commits at or
+          # before their own boundary (secret_scan: commit_policy_boundary in the allowlist file;
+          # commit_claims: CLAIM_SUBJECT_BOUNDARY), so the wider range does not re-check history.
           git fetch origin main --depth=200 || true
           BOUNDARY=$(python3 -c "import json;print(json.load(open('tools/secret-scan-allowlist.json')).get('commit_policy_boundary',''))")
           RANGE=""
@@ -61,6 +59,7 @@ jobs:
           fi
           echo "commit hygiene: scanning $RANGE"
           python3 tools/secret_scan.py --commit-messages "$RANGE"
+          python3 tools/commit_claims.py --range "$RANGE"
       - name: Version consistency
         run: python3 tools/version.py --check
       - name: Scenario suite (10 cross-skill behavioral scenarios)

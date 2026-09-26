@@ -137,7 +137,7 @@ Do not present it as a cited industry standard.
 Invariants 14, 16 and 17 began as marker or substring checks, which a crafted false negative can
 pass. They followed the P66 hardening of invariants 15/36/54/55 separately, because deepening all
 at once risked a false-positive storm against a green tree. **P67 rebuilt all three as property checks**, each
-tuned against the real tree (5 agent defs, 5 workflows stay green) with a crafted-bad proof:
+tuned against the real tree (every agent definition and workflow stays green) with a crafted-bad proof:
 
 - **Invariant 14 (agent-definition sections)** — `check_agent_contracts`. Now parses the
   `## Allowed tools (explicit allowlist)` body (via `_allowed_tool_tokens`) and requires at least

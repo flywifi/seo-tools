@@ -159,7 +159,9 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    Numbers), delimited and columnar exports (CSV/TSV/Parquet), financial application files
    (OFX/QFX/QBW/QBB/QIF/TAX), credential and key stores (PEM/KEY/P12/KDBX/keychain/.p8), databases
    and backups (SQLite/MDB/BAK/SQL dumps), email and contacts (PST/MBOX/EML/VCF), archives,
-   office binaries (DOCX/PDF), and GPS-bearing capture media; invariant 19 keeps `.local.` files
+   office binaries (DOCX/PDF), and GPS-bearing capture media. It also refuses a tracked audit-record file
+   (`tools/secret_scan.py::audit_record_name`; the pre-commit hook applies the same rule to staged
+   names). Invariant 19 keeps `.local.` files
    untracked. Both fail closed in CI, and print a loud DID-NOT-RUN advisory in a non-git copy.
 2. **Content scanning.** `tools/secret_scan.py` (stdlib, offline) scans EVERY tracked file that
    passes a binary sniff (no suffix gate, so a stray `secrets.conf` or extensionless credential

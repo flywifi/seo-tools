@@ -7,9 +7,13 @@ CLAUDE.md). Two hooks are installed:
 - pre-commit: runs `tools/secret_scan.py --staged` — blocks staged secrets (API keys, key
   blocks, credential values, session links, personal emails) AND any staged file whose name
   matches the forbidden classes (.local., .csv/.xlsx/.xls, .ofx/.qfx, .pem/.key, .env*).
+  It also refuses a staged audit-record file name (tools/secret_scan.py::audit_record_name);
+  a staged deletion passes, since removing the file is the fix.
 - commit-msg: scans the commit message itself — blocks claude.ai session links, non-allowlisted
   email addresses, and other secret patterns from ever entering commit metadata (the
   over-sharing vector the hygiene policy exists to stop).
+  It also runs tools/commit_claims.py: a subject the invariant-60 claim detector flags needs a
+  resolving Claim-Proof: trailer (the check fails open locally when it cannot import).
 
 The CI guard job is the backstop for clones that skipped this (tracked-content scan plus the
 commit-message scan bounded by the policy SHA in tools/secret-scan-allowlist.json).
@@ -41,9 +45,7 @@ python3 - "$1" <<'PY'
 import sys
 import subprocess
 from pathlib import Path
-# P74: the previous version also inserted str(Path(__file__).resolve()) here. Inside this heredoc
-# __file__ is "<stdin>", so that resolved to <cwd>/<stdin> -- a path that does not exist. Harmless
-# but wrong, and import-order sensitive if anything ever shadowed a stdlib name from cwd.
+# Inside this heredoc __file__ is "<stdin>", so the tools/ directory comes from git itself.
 top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
                      text=True).stdout.strip()
 sys.path.insert(0, top + "/tools")
@@ -54,10 +56,8 @@ problems = []
 msg = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
 problems += secret_scan.scan_text(msg, "commit-message", allowlist)
 
-# P74: the author-email rule. ADR 0015 says it is enforced by this hook AND the CI backstop;
-# this half simply did not exist, so a personal address could enter git metadata locally and only
-# be caught after the fact (and the CI half scans an empty range on a direct main push). The rule
-# is IMPORTED from secret_scan rather than restated, so the hook and the backstop cannot drift.
+# P74: the author-email rule. It is imported from secret_scan rather than restated (ADR 0015),
+# so this hook and the CI backstop apply one rule.
 author = subprocess.run(["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True,
                         text=True).stdout.strip()
 email = author.partition("<")[2].partition(">")[0].strip() if "<" in author else ""
@@ -68,10 +68,23 @@ if email and not secret_scan.EMAIL_ALLOW_RE.search(email) \\
         and not secret_scan._allowed(allowlist, "commit-message", "author_email"):
     problems.append({"pattern_id": "author_email", "match": email})
 
+# Commit-subject claims (tools/commit_claims.py): a subject the invariant-60 detector flags needs a
+# resolving Claim-Proof: trailer. This check fails open, with a DID-NOT-RUN line, when it cannot be
+# imported; the CI commit hygiene step over the pushed commits fails closed.
+try:
+    import commit_claims
+    problems += commit_claims.message_problems(msg)
+except Exception as exc:  # noqa: BLE001
+    print(f"commit-msg hook: claim-subject check DID NOT RUN ({type(exc).__name__}: {exc}); "
+          "the CI commit hygiene step still checks this subject")
+
 if problems:
     print("commit-msg hook: commit rejected (commit and PR hygiene, CLAUDE.md):")
     for f in problems:
         print(f"  - {f['pattern_id']}: {f['match']}")
+    if any(f["pattern_id"].startswith("claim_") for f in problems):
+        print("  Name the mechanism the commit changed, or add a Claim-Proof: trailer naming the")
+        print("  invariant or selftest pin that proves the claim (tools/commit_claims.py).")
     if any(f["pattern_id"] == "author_email" for f in problems):
         print("  Set the repo-local noreply address:")
         print("    git config user.email '<your-github-noreply-address>'")

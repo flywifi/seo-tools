@@ -1,0 +1,18 @@
+{
+  "worktree": {
+    "baseRef": "head"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test ! -f \"${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py\" || python3 \"${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

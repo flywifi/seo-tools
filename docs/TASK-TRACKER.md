@@ -166,7 +166,7 @@ See `docs/DEPLOYMENT.md` (capability matrix) and `docs/LOCAL_CONTEXT.md`.
 - **Privacy / data at rest.** The register, recurrence rules, shipments, and payment schedule hold
   the same gitignored-class data as the rest of the CRM: real records live in `.local.json`
   (invariant 19: no tracked `.local.` files; invariant 20: only blank templates tracked under
-  `pipeline/`). What is written to the Google Drive store is the same data class — the redaction and
+  `pipeline/`, and no forbidden file type or audit-record file name anywhere). What is written to the Google Drive store is the same data class — the redaction and
   no-PII-in-commits rules apply equally to it. Secrets stay in the host keychain / connector OAuth /
   env, never in the store or the repo.
 - **No legal advice.** The tracker reports what a cited clause says and when a computed date falls;

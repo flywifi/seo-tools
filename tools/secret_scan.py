@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS content secret scanner (P31).
 
-The filename invariants (19, 20) keep real-data FILES out of git; this scanner keeps secret
+The filename invariants (19, 20) keep real-data FILES and audit-record files out of git; this scanner keeps secret
 CONTENT out: API keys, private-key blocks, credential values pasted into committed JSON,
 personal email addresses, claude.ai session links, and dollar-amount figures inside committed
 pipeline/ files (which must be blank templates). Pure stdlib, no network, read-only.
@@ -110,6 +110,91 @@ FORBIDDEN_DATA_SUFFIXES = (
     ".aac", ".flac",
 )
 
+# Audit-record file names. Review output (audit reports, remediation and readiness records, triage
+# tables, findings, a pass's ledger, notes, transcripts and minutes) is kept outside the
+# repository; the repository carries the change and the docs that describe behavior (CLAUDE.md,
+# Non-negotiables). A path names an audit record when its file name pairs a review keyword (whole
+# word, plural and -ed forms included) with a calendar date (ISO 2026-10-01 or compact 20261001,
+# either order) and carries a text suffix, or when it is listed in AUDIT_RECORD_PATHS (record names
+# that carry no date). Method docs and tools (AUDIT-PROTOCOL.md, persona_audit.py, an ADR titled
+# "...-audit-remediation") carry no date and do not match. Consumers: sync_check invariant 20
+# (tracked files) and scan_staged (the pre-commit gate).
+# Limit: the rule matches the dated and listed record names this repository has carried, and a
+# bare dated file under a keyword directory (docs/audits/2026-10-01.md) through the directory
+# name. An underscore or dotted date (audit_2026_10_01.md) is not matched; the selftest pins
+# that, so widening the rule is a deliberate change.
+AUDIT_RECORD_KEYWORD_RE = re.compile(
+    r"(?<![a-z])(?:audit|remediation|readiness|review|triage|finding|ledger|verification|note"
+    r"|addendum|addenda|session|transcript|discussion|minute)(?:s|es|ed|d)?(?![a-z])")
+AUDIT_RECORD_DATE_RE = re.compile(
+    r"(?<![0-9])(?:19|20)[0-9]{2}(-?)(?:0[1-9]|1[0-2])\1(?:0[1-9]|[12][0-9]|3[01])(?![0-9])")
+AUDIT_RECORD_TEXT_SUFFIXES = (
+    ".md", ".markdown", ".mdx", ".txt", ".text", ".rst", ".adoc", ".org", ".html", ".htm", ".xml",
+    ".json", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml", ".csv", ".tsv", ".log", ".ipynb",
+)
+AUDIT_RECORD_PATHS = (
+    "docs/CROSS-MODALITY-AUDIT.md",
+    "docs/FL-COUNTY-SEEDING-EFFORT.md",
+)
+# Filename findings do not pass through _allowed() (that map is keyed by content pattern), so the
+# name rule has its own exemption map: {path: reason}. A reason shorter than
+# AUDIT_RECORD_MIN_REASON does not exempt, and invariant 20 reports an entry that no longer does
+# work (path untracked, or the rule no longer matches it).
+AUDIT_RECORD_EXEMPT = {}
+AUDIT_RECORD_MIN_REASON = 25
+
+
+def audit_record_name(path):
+    """Why `path` names an audit record, or None. Pure: reads nothing."""
+    rel = path.replace("\\", "/")
+    if rel.startswith("./"):
+        rel = rel[2:]
+    if rel in AUDIT_RECORD_PATHS:
+        return "listed in AUDIT_RECORD_PATHS"
+    base = rel.rsplit("/", 1)[-1].lower()
+    if not base.endswith(AUDIT_RECORD_TEXT_SUFFIXES):
+        return None
+    key = AUDIT_RECORD_KEYWORD_RE.search(base)
+    if key is None:
+        # A bare dated file under a keyword directory (docs/audits/2026-10-01.md).
+        key = next((m for m in (AUDIT_RECORD_KEYWORD_RE.search(d)
+                                for d in rel.lower().split("/")[:-1]) if m), None)
+    date = AUDIT_RECORD_DATE_RE.search(base)
+    if key and date:
+        return f"review keyword {key.group(0)!r} with date {date.group(0)!r}"
+    return None
+
+
+def audit_record_findings(paths, exempt=None):
+    """Findings for the audit-record names among `paths`, minus reasoned exemptions."""
+    exempt = AUDIT_RECORD_EXEMPT if exempt is None else exempt
+    findings = []
+    for path in paths:
+        why = audit_record_name(path)
+        if why is None:
+            continue
+        if len((exempt.get(path) or "").strip()) >= AUDIT_RECORD_MIN_REASON:
+            continue
+        findings.append({"path": path, "pattern_id": "audit_record_file", "match": why})
+    return findings
+
+
+def audit_exempt_problems(tracked, exempt=None):
+    """Exemption entries that do no work or carry no reviewable reason."""
+    exempt = AUDIT_RECORD_EXEMPT if exempt is None else exempt
+    tracked = set(tracked)
+    problems = []
+    for path, reason in sorted(exempt.items()):
+        if len((reason or "").strip()) < AUDIT_RECORD_MIN_REASON:
+            problems.append(f"audit-record exemption for {path} needs a written reason of at least "
+                            f"{AUDIT_RECORD_MIN_REASON} characters")
+        elif path not in tracked:
+            problems.append(f"audit-record exemption for {path} names an untracked file; drop it")
+        elif audit_record_name(path) is None:
+            problems.append(f"audit-record exemption for {path} exempts nothing (the name rule "
+                            f"does not match it); drop it")
+    return problems
+
 
 def _is_probably_text(data):
     """Binary sniff: NUL byte in the head means binary (the injection_scan convention). The
@@ -185,8 +270,10 @@ def scan_tracked(allowlist):
 
 
 def scan_staged(allowlist):
-    """Scan only staged ADDED lines plus staged filenames (the pre-commit surface)."""
-    names = _git(["diff", "--cached", "--name-only"])
+    """Scan only staged ADDED lines plus staged filenames (the pre-commit surface). Staged
+    deletions are not names being added, so --diff-filter=d leaves them out: deleting a forbidden
+    file or an audit record is the fix, not a finding."""
+    names = _git(["diff", "--cached", "--name-only", "--diff-filter=d"])
     if names is None:
         return None
     findings = []
@@ -199,6 +286,7 @@ def scan_staged(allowlist):
                 or re.match(r"^\.env(\.|$)", base):
             findings.append({"path": path, "pattern_id": "forbidden_staged_file",
                              "match": base})
+    findings.extend(audit_record_findings([p.strip() for p in names.splitlines() if p.strip()]))
     diff = _git(["diff", "--cached", "--unified=0"])
     if diff is None:
         return findings
@@ -332,6 +420,87 @@ def selftest():
     _check("allowed web-graphic and text suffixes are NOT forbidden",
            not any(s in FORBIDDEN_DATA_SUFFIXES
                    for s in (".png", ".svg", ".md", ".json", ".py", ".srt", ".mlt")), f, ran)
+
+    # Audit-record file names (invariant 20 and the --staged gate). Fixture names are synthetic.
+    _check("audit-record rule: a review keyword with an ISO date is flagged",
+           all(audit_record_name(p) for p in (
+               "docs/phase-audit-2026-01-02.md", "docs/release-readiness-2026-01-02.md",
+               "docs/remediation-2026-01-02.md", "docs/tool-audit-2026-01-02.md",
+               "docs/source-audit-2026-01-02.md")), f, ran)
+    _check("audit-record rule: compact dates, date-first order, word forms and text suffixes",
+           all(audit_record_name(p) for p in (
+               "notes/2026-01-02-review.txt", "session-transcript-20260102.json",
+               "20260102_triaged.yaml", "minutes-2026-01-02.html", "findings.2026-01-02.rst",
+               "ledger-2026-01-02.jsonl", "addendum-2026-01-02.md", "discussion-20260102.md",
+               "audited-2026-01-02.txt", "reviews-2026-01-02.md", "verification-2026-01-02.log")),
+           f, ran)
+    _check("audit-record rule: every AUDIT_RECORD_PATHS entry is flagged",
+           bool(AUDIT_RECORD_PATHS) and all(audit_record_name(p) for p in AUDIT_RECORD_PATHS),
+           f, ran)
+    _check("audit-record rule: method docs and dated non-review data are not flagged",
+           not any(audit_record_name(p) for p in (
+               "docs/AUDIT-PROTOCOL.md", "docs/PERSONA-AUDIT.md", "tools/persona_audit.py",
+               "tools/hash_audit.py", "tools/local_audit.py",
+               "docs/adr/0056-p81-audit-remediation.md",
+               "canonical-sources/volatile-corrections.2026-07-14.json",
+               "skills/quality-review/SKILL.md", "skills/atoms/contract-triage/SKILL.md",
+               "ledger/ledger.json")), f, ran)
+    _check("audit-record rule: needs a whole keyword, a real date and a text suffix",
+           not any(audit_record_name(p) for p in (
+               "reviewer-2026-01-02.md", "notebook-2026-01-02.md", "audit-2026-13-02.md",
+               "audit-2026-01-32.md", "review-2026-01-02.py", "review-2026-0102.md",
+               "audit-v2026.md", "docs/reviewer/2026-01-02.md")), f, ran)
+    _check("audit-record rule: a bare dated file under a keyword directory is flagged",
+           all(audit_record_name(p) for p in (
+               "docs/audits/2026-01-02.md", "notes/20260102.md", "reviews/2026/2026-01-02-q1.md")),
+           f, ran)
+    _check("audit-record rule: the stated limit holds (an underscore or dotted date)",
+           not any(audit_record_name(p) for p in (
+               "docs/audit_2026_01_02.md", "docs/audit.2026.01.02.md")),
+           f, ran)
+    _rec = "docs/review-2026-01-02.md"
+    _check("audit-record exemption needs a written reason to exempt",
+           audit_record_findings([_rec], {_rec: "short"})
+           and not audit_record_findings([_rec], {_rec: "a fixture the name rule is tested on"}),
+           f, ran)
+    _check("audit-record exemption that does no work is reported",
+           audit_exempt_problems([], {_rec: "a fixture the name rule is tested on"})
+           and audit_exempt_problems(["docs/plain.md"],
+                                     {"docs/plain.md": "a fixture the name rule is tested on"})
+           and not audit_exempt_problems([_rec], {_rec: "a fixture the name rule is tested on"}),
+           f, ran)
+    # The staged gate reads added, copied, modified and renamed names; a staged deletion of a
+    # record is how one leaves the tree, so it must not be refused.
+    _g = globals()
+    _real_git = _g["_git"]
+
+    def _fake_git(args, check=True):
+        if args[:2] == ["diff", "--cached"] and "--name-only" in args:
+            if "--diff-filter=d" in args:
+                return "docs/review-2026-01-02.md\n"
+            return "docs/review-2026-01-02.md\ndocs/remediation-2026-01-02.md\n"
+        return ""
+    _g["_git"] = _fake_git
+    try:
+        _staged = {x["path"] for x in scan_staged({"entries": []})
+                   if x["pattern_id"] == "audit_record_file"}
+    finally:
+        _g["_git"] = _real_git
+    _check("staged gate refuses an added audit record and passes a staged deletion",
+           _staged == {"docs/review-2026-01-02.md"}, f, ran)
+    # Drift invariant 20 consumes the rule: run its check on a stubbed tracked list.
+    import sync_check as _sc
+    _real_ls, _saved = _sc._git_ls_files, list(_sc.PROBLEMS)
+    _sc._git_ls_files = lambda: ["docs/review-2026-01-02.md", "docs/AUDIT-PROTOCOL.md"]
+    try:
+        del _sc.PROBLEMS[:]
+        _sc.check_pipeline_allowlist()
+        _inv20 = list(_sc.PROBLEMS)
+    finally:
+        _sc._git_ls_files = _real_ls
+        _sc.PROBLEMS[:] = _saved
+    _check("drift invariant 20 refuses a tracked audit record through this rule",
+           len(_inv20) == 1 and "docs/review-2026-01-02.md" in _inv20[0], f, ran)
 
     n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")

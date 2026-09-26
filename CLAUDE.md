@@ -64,9 +64,16 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 `MAINTAINER_README.md`. Spokes carry a `workflow.json` that composes atoms.
 
 ## Agent orchestration
-- Subagents are **read-only research tools**. They read files, query MCP tools, search the web,
-  and return structured findings. They never create, edit, write, or delete files. They never
-  commit or push. The main loop aggregates findings and proposes changes to the user.
+- Subagents are **read-only research tools**: they read files, query MCP tools, search the web,
+  and return structured findings, and their operating rules forbid creating, editing, or deleting
+  files and committing or pushing. Claude Code enforces each definition's YAML frontmatter:
+  `disallowedTools` removes Write, Edit, NotebookEdit and Agent from every agent, the GitHub and
+  Google Drive MCP servers' tools from the five product agents, and every MCP tool from the
+  `auditor`, which also runs in its own git worktree. Other MCP servers stay inherited by the
+  product agents. Bash stays write-capable for every agent: for the `auditor`, a PreToolUse hook
+  (`tools/readonly_bash_guard.py`) refuses the write forms it recognizes, and a script that writes
+  as a side effect still passes it. The main loop aggregates findings and proposes changes to the
+  user.
 - Every agent prompt must include the read-only operating rules block from
   `shared/research-orchestration-engine.md`.
 - Agent output must use a JSON Schema (passed via the `schema` option on `agent()` in workflows,
@@ -76,21 +83,31 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   competitor analysis, or citation chain traversal. Single-source lookups do not warrant an agent.
 - Agent definitions live in `.claude/agents/`. Workflow scripts live in `.claude/workflows/`.
   Structured output schemas live in `shared/schemas/`.
-- The five agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
-  `deal-reviewer`, `cost-researcher`. Each has a scoped tool list and engine set defined in its
-  agent definition file.
+- The six agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
+  `deal-reviewer`, `cost-researcher`, and `auditor` (a read-only review of a change against a
+  pinned commit). Each has a scoped tool list defined in its agent definition file; the five
+  product roles also name their engines.
 - Every agent output must include `minority_report`, `confidence_evidence`, and `source_citations`
   fields (the verification envelope defined in `shared/schemas/verification-envelope.json`).
 - Every workflow includes an adversarial verification step — a second agent that independently
   challenges the primary agent's claims before the main loop aggregates findings.
 - Agent definitions must include explicit `## Forbidden tools (machine-enforced)` and
   `## Allowed tools (explicit allowlist)` sections. See `shared/research-orchestration-engine.md`
-  Section 2.1 for the contract specification.
+  Section 2.1 for the contract specification. Each file also starts with YAML frontmatter
+  (`name`, `description`, `disallowedTools`); a file without it is loaded as documentation, not
+  as an agent, and none of its tool rules apply.
+- Bracket a read-only pass with `python3 tools/tree_pin.py pin` before it and
+  `python3 tools/tree_pin.py verify '<pin>'` after it; verify exits 1 and names what moved (HEAD,
+  tracked changes, untracked or ignored files by size and mtime, refs, `.git/config` and
+  `.git/hooks`). This is the backstop for a write the tool rules miss. It excludes `.venv/`,
+  `dist/`, `__pycache__/`, `.claude/worktrees/` and the `worktree-*` branches of isolated agents,
+  and it does not see writes outside the repository or to other files under `.git`.
 - `tools/validate_agent_output.py` is the offline fabrication detection tool. It checks source
   citations against the registry, validates confidence-tier alignment, and flags unsourced numbers.
 - Drift guard invariants 14 to 17 structurally enforce agent contracts: agent definition sections
-  (14), schema verification fields (15), workflow verification steps (16), and the read-only
-  mandate marker (17).
+  and frontmatter, plus the auditor's worktree isolation and Bash-guard wiring (14), schema
+  verification fields (15), workflow verification steps (16), and the read-only mandate marker
+  (17).
 
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
 - No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).
@@ -101,6 +118,22 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   flag instead.
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
+- **A commit subject names the mechanism it changed.** A stage pushed before its verification stage
+  returns says in its subject what the code now does, not the property the stage aims at; the
+  property is reported after that verification returns, narrowed to what survived. `tools/commit_claims.py` runs invariant 60's detector on the subject: the commit-msg
+  hook and a blocking step in the CI guard job refuse a flagged subject whose `Claim-Proof:`
+  trailer is absent or does not resolve. Merge, revert and autosquash subjects that restate a
+  checked subject are skipped. The CI step covers the commits after
+  `CLAIM_SUBJECT_BOUNDARY` that the hook does not see (`--no-verify`, clones without the hooks,
+  commits made through the GitHub API).
+- **Audit output stays out of the repository.** Findings, verdicts, triage tables, pass records
+  and a pass's change ledger are kept in the working plan outside the repository. A commit
+  carries the change and the docs that state what the code does; its prose describes behavior,
+  not how a defect was found. `STATE.md` and `ledger/ledger.json` record decisions and phases,
+  not review results or conversations. Drift invariant 20 and the pre-commit hook refuse a
+  tracked or staged audit-record file as `tools/secret_scan.py::audit_record_name` defines it: a
+  file name with a suffix on `AUDIT_RECORD_TEXT_SUFFIXES` that carries a date and a review keyword (in
+  the name or in a directory above it), or a path on `AUDIT_RECORD_PATHS`.
 - **Claims about this repo's own behavior meet the same bar as a plan: executed evidence, or
   they are not written.** A universal claim ("no", "never", "every", "all", "only", "nothing",
   "always", "none", "cannot") in a commit subject, a doc sentence, a CHANGELOG entry, or a report
@@ -204,7 +237,7 @@ Nothing leaves this machine that reveals more than the code change itself:
   never a personal address.
 - After cloning, run `python3 tools/install_hooks.py` once: the pre-commit hook runs
   `tools/secret_scan.py --staged` (blocks staged secrets, `.local.` files, CSV/spreadsheet
-  exports, key material, `.env*`), and the commit-msg hook rejects messages carrying session
+  exports, key material, `.env*`, audit-record file names), and the commit-msg hook rejects messages carrying session
   links, emails, or secret patterns.
 - CI backstops clones that skipped the hooks: the guard job scans all tracked content
   (invariant 21) and every commit message plus author email after the policy boundary SHA
@@ -218,7 +251,8 @@ Nothing leaves this machine that reveals more than the code change itself:
   stores (PEM/KEY/P12/KDBX/keychain), databases, backups, email/contacts (PST/MBOX/VCF), archives,
   office binaries, capture media, or `.env*`; the single list is
   `tools/secret_scan.py::FORBIDDEN_DATA_SUFFIXES`, shared by the drift guard, the pre-commit hook,
-  and CI), and 21 (content scan of EVERY tracked text file, binary-sniffed rather than
+  and CI; audit-record file names are refused by the same invariant through
+  `tools/secret_scan.py::audit_record_name`), and 21 (content scan of EVERY tracked text file, binary-sniffed rather than
   suffix-gated) fail the build on violation and fail closed in CI. In a non-git copy all three
   print a loud DID-NOT-RUN advisory instead of silently passing.
 

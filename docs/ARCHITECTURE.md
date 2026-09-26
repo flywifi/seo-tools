@@ -388,12 +388,18 @@ returned, never retries silently, and never fabricates API fields.
 Creator OS uses subagents for large research tasks that span multiple sources, platforms, or
 citation chains. The orchestration model is defined in `shared/research-orchestration-engine.md`.
 
-**Read-only mandate.** All subagents are read-only research tools. They read files, query MCP
-tools and APIs, search the web, and return structured findings. They never create, edit, write,
-or delete files. They never commit or push. The main loop (or the user) is the only actor that
-modifies the repository.
+**Read-only mandate.** All subagents are read-only research tools by instruction: they read
+files, query MCP tools and APIs, search the web, and return structured findings, and their
+operating rules forbid creating, editing, or deleting files and committing or pushing. Claude
+Code enforces the YAML frontmatter of each definition in `.claude/agents/`: `disallowedTools`
+removes Write, Edit, NotebookEdit, Agent and the GitHub and Google Drive MCP tools, and the
+auditor also loses every other MCP tool and runs in its own git worktree; the product agents run
+in the main checkout, where the ignored local data they read lives. Bash stays write-capable; the
+auditor's Bash calls pass through `tools/readonly_bash_guard.py`, which refuses only the write
+forms it recognizes. The main loop (or the user) is the only actor meant to modify the
+repository.
 
-**Five agent roles:**
+**Six agent roles:**
 
 | Agent | Purpose | Scoped tools |
 |---|---|---|
@@ -402,6 +408,7 @@ modifies the repository.
 | content-writer | Script, caption, pin, and pitch drafting with full voice context | cache_query, quality_score |
 | deal-reviewer | Deal evidence audit, usage rights, exclusivity, quality scoring | quality_score |
 | cost-researcher | Vendor and product price research for cost estimates and proposals | cache_query, source_staleness, WebSearch, WebFetch |
+| auditor | Read-only review of a change against a pinned commit, in its own git worktree | Read, Glob, Grep, read-only Bash (guarded), WebSearch, WebFetch; no MCP tools |
 
 Agent definitions live in `.claude/agents/`. Each definition is a system prompt that includes
 the read-only operating rules, scoped engine and protocol lists, permitted data sources, and
