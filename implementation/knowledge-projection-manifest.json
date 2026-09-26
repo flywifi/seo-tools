@@ -30,7 +30,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
-        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479",
+        "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2",
         "protocols/research-citation.md": "7c09987b8649f909fe6ecdf07d85cb038f809659ae9e217814766c57d1469e59"
       },
       "projection": "e116041b8a5041f98d82e2b35936a929972e6620fb5b4bdffbcee6783efb3bc9"
@@ -53,7 +53,7 @@
         "shared/integrations-engine.md": "e9055fd3249e00a7d8aff0434f00e603ce7632928d1cf1172a93f5163df3d906",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
-        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
+        "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2"
       },
       "projection": "ff0e15ff456b9ac7b2bd05bc1562808e2e405d8839f5e701c577b239f2376361"
     },
@@ -63,7 +63,7 @@
         "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
-        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479"
+        "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2"
       },
       "projection": "0c0c3c12a5f92cb3c98bae09572271c9bb0e32b88dbe5dbfd40d640cfa35112a"
     },
@@ -130,9 +130,9 @@
     },
     "AGENTS.md": {
       "sources": {
-        "CLAUDE.md": "e59e118377032106554f46ca99c66d8ff7fad62d2caeefee2860f3560b04d687"
+        "CLAUDE.md": "0e20ba49f32d3be11563c09810527d34e6dd60fcf09155321ad53a5666224707"
       },
-      "projection": "c7e45d11328b59f9c46bb55eef2895ea02473ff0ebafc56d70a504679021690b"
+      "projection": "0db018e4ac48e68dcfc69094a5d5326ab1211529db9efac502f088ffb51b5d76"
     },
     "implementation/gemini/system-instruction.md": {
       "sources": {
@@ -154,7 +154,7 @@
         "implementation/gpt/project/README.md": "f11ecd712b7be116c67697516d9956099ac6d6f3d4da0c3bc9838fdb630a8ab8",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
-        "protocols/quality-gates.md": "5cbfff29509cf046ddc01d3c7d6f3954942de44e1e00cbeb39862469b674d479",
+        "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2",
         "protocols/research-citation.md": "7c09987b8649f909fe6ecdf07d85cb038f809659ae9e217814766c57d1469e59",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
         "shared/audience-engine.md": "3fa1de5e5e1bef99f35b0169ac1b8ab605e78c5894a451703c035083a460cb76",

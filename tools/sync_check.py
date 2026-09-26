@@ -9,8 +9,9 @@ Invariants enforced:
   1.  Canonical engines + protocols (tools/sync_manifest.json) all exist.
   2.  Every SKILL.md has valid frontmatter with a hyphen-case `name` and a `description`.
   3.  Every skill directory with a SKILL.md also carries a MAINTAINER_README.md.
-  4.  Formatting rule (protocols/formatting-metadata.md): no em dashes in user-facing output,
-      no en dashes (ranges written with "to"), no forbidden tokens in committed .md content.
+  4.  Formatting rule (protocols/formatting-metadata.md): no em dashes in user-facing output
+      (read in the committed `examples/` .md files, EM_DASH_DIRS), no en dashes (ranges written
+      with "to"), no forbidden tokens in committed .md content.
   5.  Referential integrity: every backticked repo path in SKILL.md and MAINTAINER_README.md
       that starts with a known root and ends in .md/.json/.py/.js exists on disk.
   6.  Hub integrity: every spoke directory is listed in the hub's downstream spokes, every name
@@ -169,6 +170,11 @@ Invariants enforced:
       battery executes, or carries a written-reason exemption. Route records additionally tie a
       recommended install route to the code that detects it. A reverse enrolment sweep fails on
       any unbound universal claim, so the promise list cannot grow unproven.
+      The manifest's `guarded_text` records keep the section 7 rules of docs/AUDIT-PROTOCOL.md and
+      the AGENTS.md restatements of CLAUDE.md claims in place.
+      Each `::selftest::` proof a claim uses names, in the manifest's `boundaries`, the entry its
+      claim describes; the pin's function calls it, or the record states a gap naming it.
+      A claim bound to `invariant:N` shares a subject word with entry N of this catalog.
   61. CI parity (P96): tools/battery.py's parity report over .github/workflows/ci.yml finds, for
       each battery gate, a blocking step running exactly its command or a CI_PARITY_NOTES reason,
       no stale note, and a workflow it can read. Self-proves on a fixture before the scan.
@@ -4502,6 +4508,9 @@ def _claim_case_blindness(cases):
 
 # The helpers check_claim_proof must call for the labelled cases and the corpus sweep to be read.
 _CLAIM_WIRING = ("_claim_load_cases", "_claim_case_problems", "_claim_case_blindness",
+                 "_claim_subject_problems",
+                 "_claim_boundary_problems",
+                 "_claim_guarded_text_problems",
                  "_claim_corpus_units", "_claim_sweep")
 
 
@@ -6192,6 +6201,401 @@ def _claim_multi_proof_self_proof():
     return None
 
 
+# Rule text outside the guarded corpus (docs/AUDIT-PROTOCOL.md section 7.3). The rules in section 7
+# of docs/AUDIT-PROTOCOL.md, and the AGENTS.md sentences that restate a bound or exempted CLAUDE.md
+# sentence, sit outside the corpus, so the manifest's `guarded_text` records hold them. Each
+# record's `text` must still occur in its `doc`. A record with `mirror_of` sits in AGENTS.md and
+# names the `claim` of a CLAUDE.md claims or exempt entry, so rewording that CLAUDE.md sentence
+# without its AGENTS.md restatement fails. Every bold-lead bullet in section 7 must appear in a
+# record's text, so a new rule there joins the set. The match is on words: a rule deleted together
+# with its record is a manifest diff rather than a failure, a restatement narrowed in meaning while
+# the recorded words stay passes, and which CLAUDE.md sentences carry an AGENTS.md record is
+# chosen by hand.
+_CLAIM_RULE_DOC = "docs/AUDIT-PROTOCOL.md"
+_CLAIM_RULE_SECTION = ["## 7.", "## 8."]
+_CLAIM_BOLD_LEAD_RE = re.compile(r"(?m)^- (\*\*.+?\*\*)")
+
+
+def _claim_guarded_text_problems(man, read=None):
+    """Problems with the manifest's `guarded_text` records: a missing list, a malformed or
+    duplicate record, a reason shorter than 25 characters, a `text` its `doc` no longer carries, a
+    `mirror_of` outside AGENTS.md or naming no CLAUDE.md claims or exempt entry, and a bold-lead
+    bullet in section 7 of docs/AUDIT-PROTOCOL.md that no record's text holds. `read(rel)` returns
+    a doc's text, or None when it is missing, and defaults to reading the file under ROOT."""
+    def _disk(rel):
+        path = ROOT / rel
+        return path.read_text(encoding="utf-8") if path.exists() else None
+    read = read or _disk
+    table = man.get("guarded_text")
+    if not isinstance(table, list):
+        return ["claim-proof: tools/claim-proof-manifest.json has no `guarded_text` list, so the "
+                "rule text outside the corpus can be deleted silently"]
+    claude = {_claim_norm(str(e.get("claim", ""))) for key in ("claims", "exempt")
+              for e in man.get(key, []) if isinstance(e, dict) and e.get("doc") == "CLAUDE.md"}
+    out, seen, held = [], set(), {}
+    for rec in table:
+        if not (isinstance(rec, dict) and all(isinstance(rec.get(k), str) and rec[k].strip()
+                                              for k in ("doc", "text", "why"))):
+            out.append(f"claim-proof: malformed guarded_text record {rec!r}; it needs `doc`, "
+                       f"`text` and `why`")
+            continue
+        doc, text = rec["doc"], _claim_norm(rec["text"])
+        if (doc, text) in seen:
+            out.append(f"claim-proof: two guarded_text records hold {text[:60]!r} in {doc}")
+            continue
+        seen.add((doc, text))
+        held.setdefault(doc, []).append(text)
+        if len(rec["why"].strip()) < 25:
+            out.append(f"claim-proof: the guarded_text record for {text[:50]!r} needs a written "
+                       f"reason of at least 25 characters")
+        body = read(doc)
+        if body is None:
+            out.append(f"claim-proof: guarded_text names missing doc {doc}")
+        elif text not in _claim_norm(body):
+            out.append(f"claim-proof: {doc} no longer carries the guarded text {text[:70]!r}; "
+                       f"restore it, or change the rule and its record in the same change")
+        if "mirror_of" in rec:
+            mirror = rec["mirror_of"]
+            if doc != "AGENTS.md" or not isinstance(mirror, str):
+                out.append(f"claim-proof: the guarded_text record for {text[:50]!r} has a "
+                           f"`mirror_of`, which only an AGENTS.md record naming a CLAUDE.md "
+                           f"claim carries")
+            elif _claim_norm(mirror) not in claude:
+                out.append(f"claim-proof: the AGENTS.md text {text[:50]!r} restates "
+                           f"{mirror[:50]!r}, which no CLAUDE.md claims or exempt entry carries; "
+                           f"restate the reworded CLAUDE.md sentence in AGENTS.md and update the "
+                           f"record")
+    rules = read(_CLAIM_RULE_DOC)
+    got = _claim_section(rules, _CLAIM_RULE_SECTION) if rules is not None else "is missing"
+    if isinstance(got, str):
+        out.append(f"claim-proof: {_CLAIM_RULE_DOC} {got}; its section 7 rules cannot be read")
+        return out
+    for lead in _CLAIM_BOLD_LEAD_RE.findall(got[1]):
+        lead = _claim_norm(lead)
+        if not any(lead in text for text in held.get(_CLAIM_RULE_DOC, [])):
+            out.append(f"claim-proof: the rule {lead[:70]!r} in section 7 of {_CLAIM_RULE_DOC} "
+                       f"has no guarded_text record; record it so deleting it fails")
+    return out
+
+
+def _claim_guarded_text_self_proof():
+    """None when the guarded-text rule refuses a missing list, a malformed, duplicate or
+    short-reason record, text its doc lost, a stray or unmatched `mirror_of` and an unrecorded
+    section 7 rule, and accepts recorded rules and a matched restatement, else what differs."""
+    rules = ("## 7. Close-out\n\n- **Rule one.** Body of rule one.\n\n### 7.1 More\n\n"
+             "- **Rule two.** Body of rule two.\n\n## 8. Plan\n\n- **Not a rule here.** Body.\n")
+    docs = {_CLAIM_RULE_DOC: rules, "AGENTS.md": "A short restatement of the claim.\n"}
+    why = "a fixture reason of enough characters"
+    one = {"doc": _CLAIM_RULE_DOC, "text": "**Rule one.** Body of rule one.", "why": why}
+    two = {"doc": _CLAIM_RULE_DOC, "text": "**Rule two.** Body of rule two.", "why": why}
+    mirror = {"doc": "AGENTS.md", "text": "A short restatement of the claim.", "why": why,
+              "mirror_of": "The claim sentence."}
+    for table, lost, want in (
+            ([one, two, mirror], None, []),
+            (None, None, ["has no `guarded_text` list"]),
+            ([one], None, ["has no guarded_text record"]),
+            ([one, two, one], None, ["two guarded_text records"]),
+            ([one, dict(two, why="short")], None, ["at least 25 characters"]),
+            ([one, two, {"doc": _CLAIM_RULE_DOC}], None, ["malformed"]),
+            ([one, two], "Body of rule two.", ["no longer carries"]),
+            ([one, two, dict(mirror, doc=_CLAIM_RULE_DOC, text="Body of rule one.")], None,
+             ["only an AGENTS.md record"]),
+            ([one, two, dict(mirror, mirror_of="Another sentence.")], None,
+             ["no CLAUDE.md claims or exempt entry"])):
+        man = {"exempt": [{"doc": "CLAUDE.md", "claim": "The claim sentence.", "why": why}]}
+        if table is not None:
+            man["guarded_text"] = table
+        text = dict(docs)
+        if lost:
+            text[_CLAIM_RULE_DOC] = rules.replace(lost, "")
+        got = _claim_guarded_text_problems(man, read=lambda rel, _t=text: _t.get(rel))
+        if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+            return f"the guarded-text rule gave {[g[:60] for g in got]} for {table}"
+    return None
+
+
+# The pin-boundary rule (docs/AUDIT-PROTOCOL.md section 7.3). A claim describes what a person
+# reaches: a CLI entry, a tool, or a runtime default. A pin that calls a helper beneath that entry
+# proves the helper, and code added between the helper and the entry is not seen. So each
+# `::selftest::` proof a claim uses has a `boundaries` record in the manifest naming that entry
+# (`tools/x.py::name` or `tools/x.py::Class.method`). Live code in the function holding the pin
+# must call it, or the record carries a `gap` of at least _CLAIM_MIN_GAP characters that names the
+# entry and says what the pin does not run.
+# When the claim names `tools/*.py` modules, the boundary sits in one of them or the record
+# carries a gap. The check reads calls by name: a call made for another pin in the same function
+# counts for this one, a call through a module-level helper is not followed (the record states a
+# gap), a pin that calls the entry with injected state around the default still passes, and which
+# entry is outermost is the reviewer's call.
+_CLAIM_MIN_GAP = 25
+_CLAIM_MODULE_RE = re.compile(r"tools/[\w./-]+\.py")
+
+
+def _claim_boundary_defined(source, symbol):
+    """True when `symbol` (`name` or `Class.method`) is defined at module level in `source`."""
+    head, _, tail = symbol.partition(".")
+    for node in ast.parse(source).body:
+        if isinstance(node, _CLAIM_FNDEF + (ast.ClassDef,)) and node.name == head:
+            if not tail:
+                return True
+            return isinstance(node, ast.ClassDef) and any(
+                isinstance(m, _CLAIM_FNDEF) and m.name == tail for m in node.body)
+    return False
+
+
+def _claim_pin_calls(source, label, symbol):
+    """True when live code in a function that makes the pin call labelled with `label`, or in a
+    function nested in it that such code names, calls `symbol`: `name(...)` where those functions
+    do not bind `name` themselves, or, for `Class.method`, `x.method(...)` where they also name
+    `Class`. Code under a fixed-false test or after a return is pruned (_claim_live_nodes); an
+    assignment, a bare reference, a nested function nothing names, and a call in a selftest-named
+    function that holds no such pin do not count."""
+    cls, _, name = symbol.rpartition(".")
+    holders = []
+    for fn in ast.walk(ast.parse(source)):
+        if not isinstance(fn, _CLAIM_FNDEF):
+            continue
+        for call in _claim_live_nodes(fn, lambda _name: None):
+            if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) \
+                    and call.func.id in _CLAIM_PIN_HELPERS and any(
+                        isinstance(a, ast.Constant) and isinstance(a.value, str)
+                        and label in a.value for a in call.args):
+                holders.append(fn)
+                break
+    seen, loads, bound = set(), set(), set()
+    name_call = attr_call = False
+    while holders:
+        fn = holders.pop()
+        if fn in seen:
+            continue
+        seen.add(fn)
+        live = list(_claim_live_nodes(fn, lambda _name: None))
+        here = {n.id for n in live if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+        loads |= here
+        bound.update(a.arg for a in ast.walk(fn.args) if isinstance(a, ast.arg))
+        for node in live:
+            if isinstance(node, _CLAIM_FNDEF):
+                bound.add(node.name)
+                if node.name in here:
+                    holders.append(node)
+            elif isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
+                bound.add(node.id)
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == name:
+                    name_call = True
+                elif isinstance(node.func, ast.Attribute) and node.func.attr == name:
+                    attr_call = True
+    if cls:
+        return attr_call and cls in loads
+    return name_call and name not in bound
+
+
+def _claim_boundary_problems(man, read=None):
+    """Problems under the pin-boundary rule for every `::selftest::` proof the manifest's claims
+    use: a proof with no `boundaries` record, a malformed or duplicate record, a boundary name the
+    module does not define, a `gap` shorter than _CLAIM_MIN_GAP or not naming the entry, a pin
+    that does not call its boundary with no gap, a boundary outside the modules the claim names
+    with no gap, and a record for a proof no claim uses. `read(rel)` returns a module's source and
+    defaults to reading the file under ROOT."""
+    read = read or (lambda rel: (ROOT / rel).read_text(encoding="utf-8"))
+    used = {}
+    for entry in man.get("claims", []):
+        proofs, bad = _claim_entry_proofs(entry) if isinstance(entry, dict) else ([], "bad")
+        for p in proofs:
+            if not bad and "::selftest::" in p:
+                used.setdefault(p, set()).update(
+                    _CLAIM_MODULE_RE.findall(str(entry.get("claim", ""))))
+    table = man.get("boundaries")
+    if not isinstance(table, list):
+        return ["claim-proof: tools/claim-proof-manifest.json has no `boundaries` list, so no "
+                "selftest proof says which entry its claim describes"]
+    out, records = [], {}
+    for rec in table:
+        ok_shape = (isinstance(rec, dict) and isinstance(rec.get("proof"), str)
+                    and isinstance(rec.get("boundary"), str)
+                    and rec["boundary"].count("::") == 1 and all(rec["boundary"].split("::")))
+        if not ok_shape:
+            out.append(f"claim-proof: malformed boundaries record {rec!r}; it needs `proof` and "
+                       f"`boundary` as `tools/x.py::name`")
+        elif rec["proof"] in records:
+            out.append(f"claim-proof: two boundaries records name the proof {rec['proof'][:70]!r}")
+        else:
+            records[rec["proof"]] = rec
+    for proof in sorted(used):
+        rec = records.pop(proof, None)
+        if rec is None:
+            out.append(f"claim-proof: the proof {proof[:80]!r} has no boundaries record; name the "
+                       f"CLI entry, tool or runtime default its claim describes as "
+                       f"`tools/x.py::name` (docs/AUDIT-PROTOCOL.md section 7.3)")
+            continue
+        mod, _, symbol = rec["boundary"].partition("::")
+        pin_mod, _, label = proof.partition("::selftest::")
+        entry_name = symbol.rpartition(".")[2]
+        try:
+            defined = _claim_boundary_defined(read(mod), symbol)
+            reached = _claim_pin_calls(read(pin_mod), label.strip(), symbol)
+        except (OSError, SyntaxError, ValueError) as exc:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} or its pin module could not "
+                       f"be read ({type(exc).__name__}: {exc})")
+            continue
+        gap = rec.get("gap")
+        has_gap = (isinstance(gap, str) and len(gap.strip()) >= _CLAIM_MIN_GAP
+                   and re.search(r"(?<!\w)" + re.escape(entry_name) + r"(?!\w)", gap) is not None)
+        off_module = bool(used[proof]) and mod not in used[proof]
+        if not defined:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} is not defined at module "
+                       f"level in {mod}")
+        elif "gap" in rec and not has_gap:
+            out.append(f"claim-proof: the gap on the boundaries record for {label.strip()[:60]!r} "
+                       f"is shorter than {_CLAIM_MIN_GAP} characters or does not name "
+                       f"{entry_name!r}; say what the pin does not run of that entry")
+        elif not has_gap and not reached:
+            out.append(f"claim-proof: the pin {label.strip()[:60]!r} in {pin_mod} never calls "
+                       f"its boundary {rec['boundary']!r}, and its record states no gap; move the "
+                       f"pin to the entry, or record what it does not run and narrow the claim")
+        elif not has_gap and off_module:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} is not in a module the "
+                       f"claim names ({', '.join(sorted(used[proof]))}), and its record states no "
+                       f"gap saying why")
+    for proof in sorted(records):
+        out.append(f"claim-proof: the boundaries record for {proof[:70]!r} serves no claim; "
+                   f"drop it")
+    return out
+
+
+def _claim_boundary_self_proof():
+    """None when the pin-boundary rule still refuses a missing, undefined, shadowed, dead-code,
+    uncalled, unnamed-nested, wrong-class and wrong-module boundary, a short or unnamed gap, a
+    malformed and an unused record, and accepts a called boundary and a stated gap,
+    else what differs."""
+    miss = ('def entry():\n    return 1\n\ndef helper():\n    return 2\n\n'
+            'class C:\n    def m(self):\n        return 3\n\n'
+            'def selftest_other():\n    entry()\n\n'
+            'def _selftest():\n    ok(helper() == 2, "pin label for the fixture")\n'
+            '    if False:\n        entry()\n    ref = entry\n    obj = object()\n    obj.m()\n'
+            '    def _unnamed():\n        entry()\n')
+    call = miss.replace('    ref = entry\n', '    ok(entry() == 1, "another pin")\n')
+    shadow = call.replace('    ok(entry() == 1', '    entry = helper\n    ok(entry() == 1')
+    proof = "m.py::selftest::pin label for the fixture"
+    gap = "the fixture pin calls helper, not entry"
+
+    def one(boundary, src=miss, gap_text=None, claim="c", extra=()):
+        rec = {"proof": proof, "boundary": boundary}
+        if gap_text is not None:
+            rec["gap"] = gap_text
+        return ([rec] + list(extra), src, claim)
+    for (records, src, claim), want in (
+            (one("m.py::helper"), []),
+            (one("m.py::entry", gap_text=gap), []),
+            (one("m.py::entry"), ["never calls"]),
+            (one("m.py::entry", gap_text="short"), ["does not name"]),
+            (one("m.py::entry", gap_text="the fixture pin runs only its helper"),
+             ["does not name"]),
+            (one("m.py::missing", gap_text=gap), ["not defined"]),
+            (one("m.py::C.m"), ["never calls"]),
+            (one("m.py::entry", src=call), []),
+            (one("m.py::entry", src=call, gap_text=gap), []),
+            (one("m.py::entry", src=shadow), ["never calls"]),
+            (one("m.py::entry", src=call, claim="see tools/other.py"), ["not in a module"]),
+            (one("m.py::entry", src=call, gap_text=gap, claim="see tools/other.py"), []),
+            (([], miss, "c"), ["has no boundaries record"]),
+            (one("m.py::helper", extra=[{"proof": "m.py::selftest::unused",
+                                         "boundary": "m.py::helper"}]), ["serves no claim"]),
+            ((([{"proof": proof, "boundary": "helper"}]), miss, "c"),
+             ["malformed", "has no boundaries record"])):
+        man = {"claims": [{"doc": "d", "claim": claim, "proof": proof}], "boundaries": records}
+        got = _claim_boundary_problems(man, read=lambda rel, _s=src: _s)
+        if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+            return f"the pin-boundary rule gave {[g[:60] for g in got]} for {records}"
+    return None
+
+
+# An `invariant:N` binding shares its subject with the catalog (docs/AUDIT-PROTOCOL.md section
+# 7.3). A claim bound to `invariant:N` and entry N of this module's "Invariants enforced" catalog
+# share a word of four or more letters that at most _CLAIM_SUBJECT_SPREAD catalog entries use, and
+# a claim that names "invariant M" in its text is bound to M. A shared word shows that the catalog
+# names the claim's subject, not that the invariant reads every form the claim covers: a claim
+# bound to the invariant for its subject passes while that invariant misses some of the claim's
+# forms, and a claim that shares a rare word with an unrelated entry passes too.
+_CLAIM_SUBJECT_SPREAD = 3
+_CLAIM_WORD_RE = re.compile(r"[a-z][a-z0-9_]{3,}")
+
+
+def _claim_catalog(doc):
+    """{number: entry text} for the "Invariants enforced:" list in a module docstring. An entry
+    runs from its "  N." line to the next one."""
+    out, cur = {}, None
+    if "Invariants enforced:" not in doc:
+        return out
+    for line in doc.split("Invariants enforced:", 1)[1].splitlines():
+        hit = re.match(r"\s{2}(\d+)\.\s+(.*)", line)
+        if hit:
+            cur = int(hit.group(1))
+            out[cur] = hit.group(2)
+        elif cur is not None and line.strip():
+            out[cur] += " " + line.strip()
+    return out
+
+
+def _claim_subject_problems(man, catalog):
+    """Problems for each manifest claim bound to `invariant:N` whose N the catalog does not list,
+    whose text shares no subject word with catalog entry N (a word of four or more letters that at
+    most _CLAIM_SUBJECT_SPREAD entries use), or whose text names an invariant it is not bound to.
+    `catalog` maps each invariant number to its entry text (_claim_catalog)."""
+    def words(text):
+        return set(_CLAIM_WORD_RE.findall(text.lower()))
+    spread = {}
+    for entry_text in catalog.values():
+        for word in words(entry_text):
+            spread[word] = spread.get(word, 0) + 1
+    out = []
+    for entry in man.get("claims", []):
+        proofs, bad = _claim_entry_proofs(entry) if isinstance(entry, dict) else ([], "bad")
+        if bad:
+            continue
+        text = str(entry.get("claim", ""))
+        bound = {int(p.strip().split(":", 1)[1]) for p in proofs
+                 if re.fullmatch(r"invariant:\d+", p.strip())}
+        for n in sorted(bound):
+            if n not in catalog:
+                out.append(f"claim-proof: {text[:60]!r} is bound to invariant {n}, which the "
+                           f"catalog in tools/sync_check.py does not list")
+            elif not [w for w in words(text) & words(catalog[n])
+                      if spread[w] <= _CLAIM_SUBJECT_SPREAD]:
+                out.append(f"claim-proof: {text[:60]!r} is bound to invariant {n}, but the claim "
+                           f"and catalog entry {n} share no word that names a subject; bind it to "
+                           f"the invariant that reads it, or say in entry {n} what it reads")
+        for named in sorted({int(m) for m in re.findall(r"\binvariants?\s+(\d+)", text, re.I)}
+                            - bound):
+            out.append(f"claim-proof: {text[:60]!r} names invariant {named} but is bound to "
+                       f"{' + '.join(proofs)}")
+    return out
+
+
+def _claim_subject_self_proof():
+    """None when the subject rule accepts a claim sharing a rare catalog word and refuses one that
+    shares only common words, one bound to an unlisted invariant and one naming another
+    invariant, and the catalog reader reads a two-line entry, else what differs."""
+    catalog = {1: "Hub integrity: every spoke is listed in the downstream list.",
+               2: "Workflow atoms: every atom a workflow names is installed.",
+               3: "Every file is listed.", 4: "Every name is listed.", 5: "Every path is listed."}
+    for claim, proof, want in (
+            ("Every spoke in the downstream list exists", "invariant:1", []),
+            ("Every guard always holds", "invariant:1", ["share no word"]),
+            ("Every listed item is listed", "invariant:1", ["share no word"]),
+            ("Every spoke exists", "invariant:9", ["does not list"]),
+            ("invariant 2 checks every spoke", "invariant:1", ["names invariant 2"]),
+            ("every atom a workflow names is installed", "tools/x.py::selftest::atoms", [])):
+        got = _claim_subject_problems(
+            {"claims": [{"doc": "d", "claim": claim, "proof": proof}]}, catalog)
+        if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+            return f"the subject rule gave {[g[:60] for g in got]} for {claim!r} on {proof}"
+    doc = ("Title.\n\nInvariants enforced:\n  1.  First: spoke.\n      more spoke text.\n"
+           "  2.  Second.\n")
+    if _claim_catalog(doc) != {1: "First: spoke. more spoke text.", 2: "Second."}:
+        return f"the catalog reader gave {_claim_catalog(doc)}"
+    return None
+
+
 def check_claim_proof():
     """Invariant 60: claim-proof binding. A universal claim about this repo's own behavior in the
     guarded corpus (the manifest's `corpus`) must be bound in tools/claim-proof-manifest.json to
@@ -6209,6 +6613,16 @@ def check_claim_proof():
     check fails when a listed doc stops recommending the route, or when a prober stops pointing
     at the route's install location. The reverse enrolment sweep (_claim_sweep, whose docstring
     gives its rules) fails on a flagged unit of the corpus that no binding covers.
+
+    The manifest's `guarded_text` records hold rule text outside the corpus: the section 7 rules
+    of docs/AUDIT-PROTOCOL.md and the AGENTS.md restatements of CLAUDE.md claims
+    (_claim_guarded_text_problems, whose comment gives its rules).
+
+    Each `::selftest::` proof a claim uses has a `boundaries` record naming the entry its claim
+    describes (_claim_boundary_problems, whose comment gives its rules).
+
+    A claim bound to `invariant:N` shares a subject word with entry N of the module's invariant
+    catalog, and a claim that names an invariant is bound to it (_claim_subject_problems).
 
     Before any of that, the detector checks itself against tools/claim-proof-cases.json
     (_claim_case_problems): each branch flags at least two labelled positives, the negatives stay
@@ -6259,6 +6673,9 @@ def check_claim_proof():
     # Self-proofs of the pin rules and of how a proof reference resolves: each returns None, or
     # what broke.
     for self_proof in (_claim_pin_self_proof,
+                       _claim_subject_self_proof,
+                       _claim_boundary_self_proof,
+                       _claim_guarded_text_self_proof,
                        _claim_multi_proof_self_proof,
                        _claim_cost_self_proof,
                        _claim_label_self_proof,
@@ -6377,6 +6794,18 @@ def check_claim_proof():
                 problem(f"claim-proof: {mod} no longer looks in {lands!r}, but the docs still "
                         f"recommend {cmd!r} which installs there. A route we recommend has to be "
                         f"a route we can find, or the advice dead-ends")
+
+    # --- guarded text: the section 7 rules and the AGENTS.md restatements still stand ---
+    for msg in _claim_guarded_text_problems(man):
+        problem(msg)
+
+    # --- pin boundary: each selftest proof names the entry its claim describes ---
+    for msg in _claim_boundary_problems(man):
+        problem(msg)
+
+    # --- invariant subject: each invariant binding shares a word with its catalog entry ---
+    for msg in _claim_subject_problems(man, _claim_catalog(ast.get_docstring(tree) or "")):
+        problem(msg)
 
     # --- reverse enrolment sweep: a flagged unit bound to nothing fails ---
     for msg in _claim_sweep(list(_claim_corpus_units(man.get("corpus", {}))), bound, exempt_ids):

@@ -59,7 +59,13 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   returns says what the code now does, not the property it aims at; the property is reported after
   that verification returns. The commit-msg hook and a CI guard step
   (`tools/commit_claims.py`) refuse a subject invariant 60's detector flags when its
-  `Claim-Proof:` trailer is absent or does not resolve.
+  `Claim-Proof:` trailer is absent or does not resolve; it reads whether the trailer resolves,
+  not whether the named proof tests the subject's claim.
+  The CI step skips the commits `CLAIM_SUBJECT_BOUNDARY` reaches by ancestry, and fails
+  closed when that commit is not in the clone.
+  A merge commit is skipped when its subject has a form git or GitHub generates; a merge
+  subject written by hand is checked.
+  The subject is the message's first paragraph, as `git log --format=%s` prints it.
 - **Audit output stays out of the repository.** Findings, verdicts, triage tables, pass records
   and change ledgers are kept in the working plan outside the repository; commit prose,
   `CHANGELOG.md`, `STATE.md`, `ledger/ledger.json` and the ADRs state behavior and decisions, not
@@ -78,11 +84,17 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   "cannot", "will not") in a commit subject, a
   doc sentence, or a report either names the executed pin proving it or is narrowed to what was
   tested. Test the PROPERTY claimed, not the
-  mechanism changed. The independent pass runs BEFORE the claim is reported or merged
+  mechanism changed. A new pin or detector branch lands with at least three falsifying mutations
+  chosen by a reviewer who did not write it, committed as cases (7.2). The independent pass runs BEFORE the claim is reported or merged
   (`docs/AUDIT-PROTOCOL.md` 7.1), the claim waits for that pass's verification stage rather than
   its first findings, a pass that could not run is reported as DID NOT RUN, and the adversarial
-  vectors are the reviewer's, not the author's (7.2). A guard's scan set is derived from the
-  tree, never a hand list of the files the change touched.
+  vectors are the reviewer's, not the author's (7.2). Each selftest proof names the entry
+  its claim describes in the manifest's `boundaries`, and invariant 60 fails when the pin does not
+  call it and no gap naming it is recorded (7.3). A guard's scan set is derived from the
+  tree, never a hand list of the files the change touched. A change that narrows a scan set ships a
+  committed case for what it stopped reading (7.1).
+  An invariant that enumerates JSON keys takes them from the schema in `shared/schemas/` when
+  one exists (7.1).
 - Installs are user-scoped by default: everything lands under the user's home folder, and any
   machine-wide route carries the label "machine-wide alternative (affects the whole computer)"
   (`docs/INSTALL-SCOPE.md`; drift invariant 59; the code side refuses PEP 668 overrides).

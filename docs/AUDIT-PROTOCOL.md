@@ -134,6 +134,19 @@ shipped.
   done. If a list is
   genuinely unavoidable, every entry carries a written reason, and the exemption map is the
   list, not the scan set.
+- **Narrowing a scan set ships a case for what it stops reading.** A change that removes text or
+  files from what a guard reads (a skipped heading, a stripped code span, a file sniffed as
+  binary, a key or suffix no longer read, a later occurrence read in place of the first) commits
+  a case that places a violation inside the removed set and records the result: the guard still
+  reports it, or the case pins the miss as a written limit. No invariant tells a deliberate
+  narrowing from an accidental one in a diff; the committed case is what makes the removed set
+  visible to the next reader.
+- **A checker takes JSON keys from the schema.** An invariant that enumerates the keys of a JSON
+  file (the atom names a `workflow.json` step carries, the fields of an agent output) takes them
+  from that file's schema in `shared/schemas/` when one exists, and fails on a key it does not
+  recognise rather than skipping it. Where no schema exists, the keys the committed files
+  actually use are the denominator, derived from the tree as section 1 derives a coverage set. A
+  hand list of keys checks the fields its author remembered.
 - **Remediation that touches the same guard earns a second pass.** A remediation can trade one
   defect for another, and a fix authored by the same reader who found the defect is not
   independently verified.
@@ -169,6 +182,67 @@ pass.
   and the ledger's `explicit_non_action` field both cover what a phase *chose* not to do. A pass
   that stopped partway is not a choice: report it to the owner as incomplete, name what it did not
   cover, and narrow the claim to what was verified firsthand.
+- **A new pin or detector branch lands with three falsifying mutations.** Before it is committed,
+  a reviewer who did not write it picks at least three edits to the code under test that break
+  the property the pin names (the revert of the fix does not count as one), runs the pin against
+  each, and sees each go red. The mutations are committed as cases beside the pin: a selftest
+  check, or a labelled case in the detector's case file such as `tools/claim-proof-cases.json`,
+  each saying what it changes. A mutation the pin survives is a defect in the pin, not a case to
+  drop.
+
+### 7.3 What a binding proves (P97)
+
+A binding in `tools/claim-proof-manifest.json` proves what its proof runs or reads. A claim
+describes what a person reaches: a CLI entry (`tools/setup.py --install-deps`), a tool
+(`schedule_post`), or a runtime default (the flag value `load_config` resolves when no local
+override exists). A pin that calls a helper beneath that boundary proves the helper, and code added
+between the helper and the boundary goes unseen. An invariant bound to a claim proves what that
+invariant reads, and an exemption's written reason proves only what a check re-reads of it.
+
+- **A claim-proof pin binds at the outermost boundary its claim describes**: the CLI entry, tool
+  or default-resolution path a person hits, not the function the change touched. A pin that reads
+  a committed file proves the file, not the value the code resolves from it.
+- **The manifest names the boundary.** Every `::selftest::` proof in
+  `tools/claim-proof-manifest.json` has a `boundaries` record naming that entry as
+  `tools/x.py::name` or `tools/x.py::Class.method`. Drift invariant 60 (`_claim_boundary_problems`
+  <!-- verify: tools/sync_check.py::_claim_boundary_problems -->) fails when the record is
+  missing, when the module does not define the name, or when no live code in the function holding
+  the pin calls it and the record carries no `gap` of at least 25 characters that names the entry
+  and says what the pin does not run. When the claim names `tools/*.py` modules, a boundary in
+  another module also needs a gap. A `gap` is a recorded limit to close: move the pin to the
+  entry, or narrow the claim to what the pin runs.
+- **What the boundary check does not see.** It reads calls by name. A call made for another pin
+  in the same function counts for every pin there; a call through a module-level helper is not
+  followed, so such a pin records a gap; a pin that calls the entry with injected state around the
+  default still passes; and which entry is outermost is the reviewer's judgement, so a record that
+  names a helper as its boundary passes.
+- **An `invariant:N` binding shares its subject with catalog entry N.** A claim bound to
+  `invariant:N` and entry N of the `Invariants enforced` catalog in `tools/sync_check.py` share a
+  word that names the claim's subject, and a claim that names an invariant is bound to that one.
+  Drift invariant 60 (`_claim_subject_problems`
+  <!-- verify: tools/sync_check.py::_claim_subject_problems -->) fails when the claim and entry N
+  share no word of four or more letters that at most three catalog entries use, or when the claim
+  names an invariant it is not bound to. A shared word shows that the catalog names the subject,
+  not that the invariant reads every form the claim covers: a claim bound to the invariant for its
+  subject still passes while that invariant misses some of the claim's forms, so the reviewer reads
+  the invariant's scan against each form the claim names.
+- **A written reason that rests on a repo fact declares the fact.** An exemption's `why` is read
+  by people. When it rests on a fact a check can re-read (a path the root `.gitignore` ignores, a
+  route record the manifest holds), the exemption declares that fact under `holds` in
+  `tools/claim-proof-manifest.json`, and drift invariant 60 re-reads it; a reason that declares
+  nothing is a standing instruction, not proof. A written reason in any exemption map carries at
+  least 25 characters.
+- **Rule text outside the guarded corpus is recorded in the manifest.** Each bold-lead rule in
+  this section 7, and each AGENTS.md sentence that restates a bound or exempted CLAUDE.md
+  sentence, has a `guarded_text` record in `tools/claim-proof-manifest.json`. Drift invariant 60
+  (`_claim_guarded_text_problems`
+  <!-- verify: tools/sync_check.py::_claim_guarded_text_problems -->) fails when a recorded text is
+  gone from its doc, when a section 7 rule has no record, and when an AGENTS.md record's
+  `mirror_of` names a CLAUDE.md sentence that no claims or exempt entry carries, so a CLAUDE.md
+  rule reworded without its AGENTS.md restatement fails. What it does not see: a rule deleted
+  together with its record, which is a manifest diff for the reviewer; a restatement narrowed in
+  meaning while the recorded words stay; and a CLAUDE.md sentence whose AGENTS.md restatement has
+  no record, which only invariant 47's hash signal flags until the projection is reconciled.
 
 ```sources
 []

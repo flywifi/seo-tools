@@ -8,8 +8,8 @@
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
   "files": {
-    "AGENTS.md": "c7e45d11328b59f9c46bb55eef2895ea02473ff0ebafc56d70a504679021690b",
-    "CLAUDE.md": "e59e118377032106554f46ca99c66d8ff7fad62d2caeefee2860f3560b04d687",
+    "AGENTS.md": "0db018e4ac48e68dcfc69094a5d5326ab1211529db9efac502f088ffb51b5d76",
+    "CLAUDE.md": "0e20ba49f32d3be11563c09810527d34e6dd60fcf09155321ad53a5666224707",
     "Start Creator OS Setup.bat": "34999e9153a88f9bd2add1e20e36b8f04b8ba534d132f82f140027ceef0313fc",
     "Start Creator OS Setup.command": "d88d201412c4b7cb7cdd1e0aa01a377cbda5b5b698ac92ef34110daf8bf1296a",
     "canonical-sources/data-currency-map.json": "432a89fc60ea9cf0980871a26e8a419211c02678ceae1c2e7984d86dc8609c23",
@@ -20,7 +20,7 @@
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
     "creator-os-config.json": "d3e33b4c7d19705a438e2dd528423e469ef6cbf6a51a68f3c9ce12718380acd2",
     "docs/ARCHITECTURE.md": "836223117553f4083512ac0f0a808cc3aef8e510b025c27d992c7570ce3978dd",
-    "docs/AUDIT-PROTOCOL.md": "e736b1ed635abbb2cbee882832df62ba3cc427a24d46e4016ba4fe2d5ebfa663",
+    "docs/AUDIT-PROTOCOL.md": "0e4bf0b678babb4a6f233b49cb8cb4ec02bb38d1fa55aa517b727378bc306eb2",
     "docs/CONTENT-IMPORT.md": "a7e617f7c69dfd95912d3993fabfe47b8c08bc3adfaacd015db954d8d4c38db9",
     "docs/CURRENCY.md": "eae4bc6ba5d9568a3c9954e3235352d1312a6b4e034f43bd72be0709e16d888d",
     "docs/DEPENDENCIES.md": "b5859b2963906ae1844e7c32a1f0d5c82f842634f9ce67ae5b2b16c025959a8d",
@@ -82,7 +82,7 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "4e87fcde95a22a258002b673e0d5065ee3c40acef994a86626bbcb21524c6fb8",
     "tools/acquire.py": "a37ac480a88ebc8da389535c9a056a3ccc5f45e75427f7af691031d945c46f5b",
-    "tools/claim-proof-manifest.json": "7bc3e88663ae76f8fe33703e1dc1f9fa50cc9e1edeeba419c0321d063751214f",
+    "tools/claim-proof-manifest.json": "778ca62892886803e6ff12805d8f2bfe4ca8f093541adbfc840c9a5a5e3cfc51",
     "tools/count_truth.py": "aa42b07bf3a936830607b01688c1c2463bf2e75347a82a9a0e592e7c26bfdfbc",
     "tools/env_paths.py": "557821435c7bdd2bc725354312d33d062ce6a90f43f155389a45e58f952f094d",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",

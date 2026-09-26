@@ -128,12 +128,17 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **A commit subject names the mechanism it changed.** A stage pushed before its verification stage
   returns says in its subject what the code now does, not the property the stage aims at; the
-  property is reported after that verification returns, narrowed to what survived. `tools/commit_claims.py` runs invariant 60's detector on the subject: the commit-msg
+  property is reported after that verification returns, narrowed to what survived. `tools/commit_claims.py` runs invariant 60's detector on the subject (the message's first paragraph, as
+  `git log --format=%s` prints it): the commit-msg
   hook and a blocking step in the CI guard job refuse a flagged subject whose `Claim-Proof:`
-  trailer is absent or does not resolve. Merge, revert and autosquash subjects that restate a
-  checked subject are skipped. The CI step covers the commits after
-  `CLAIM_SUBJECT_BOUNDARY` that the hook does not see (`--no-verify`, clones without the hooks,
-  commits made through the GitHub API).
+  trailer is absent or does not resolve. A merge commit (MERGE_HEAD in the hook, two or more parents in
+  the CI step) is skipped when its subject has a form git or GitHub generates; a merge subject
+  written by hand is checked. Revert and autosquash subjects that restate a checked subject are
+  skipped. The CI step covers the commits that
+  `CLAIM_SUBJECT_BOUNDARY` does not reach by ancestry, and fails closed when that commit is not in
+  the clone. It covers commits the hook does not see (`--no-verify`, clones without the hooks,
+  commits made through the GitHub API). The check reads whether a trailer resolves, not whether
+  the named proof tests the subject's claim.
 - **Audit output stays out of the repository.** Findings, verdicts, triage tables, pass records
   and a pass's change ledger are kept in the working plan outside the repository. A commit
   carries the change and the docs that state what the code does; commit prose, `CHANGELOG.md`,
@@ -158,19 +163,27 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   subject, a doc sentence, a CHANGELOG entry, or a report
   to the owner either names the executed pin that proves it or is narrowed to what was actually
   tested. Test the PROPERTY
-  claimed, not the mechanism changed. The independent pass that checks a claim
+  claimed, not the mechanism changed. Each new pin or detector branch lands with at least three
+  falsifying mutations, chosen and run by a reviewer who did not write it and committed as cases
+  beside it. The independent pass that checks a claim
   runs BEFORE the claim is reported or merged (`docs/AUDIT-PROTOCOL.md` section 7.1), the claim
   waits for that pass's verification stage to return rather than its first findings, a pass
   whose agents could not run is reported as DID NOT RUN rather than as clean, and the adversarial
   vectors are chosen by the reviewer rather than the author (section 7.2); and a new
   guard's scan set is derived from the tree, never a hand list of the files the change happened
-  to touch. The promises in this section and in `docs/INSTALL-SCOPE.md` that the detector flags are
+  to touch. Every change that removes text or files from a guard's scan set ships a
+  committed case for the removed set. A new or changed invariant that enumerates a JSON
+  file's keys takes them from its schema in `shared/schemas/` when one exists, and never skips a
+  key of that kind it does not recognise. The promises in this section and in `docs/INSTALL-SCOPE.md` that the detector flags are
   bound to their proofs in `tools/claim-proof-manifest.json` or exempted there with a written
   reason; drift invariant 60 fails the build when a bound claim drifts from its proof, when a
   named pin is renamed away, when a recommended install route stops being detectable, or when a
   sentence the detector flags (`tools/sync_check.py::_CLAIM_BRANCHES`) joins the list without a
   binding or an exemption. The detector reads word patterns, so a promise phrased another way
-  is not seen. When a
+  is not seen. Each `::selftest::` proof also names, in the manifest's
+  `boundaries`, the CLI entry, tool or runtime default its claim describes, and invariant 60
+  fails when no live code in the pin's function calls that entry and the record states no
+  gap naming it (`docs/AUDIT-PROTOCOL.md` section 7.3). When a
   check fails, report it honestly with the output; never claim a skipped step ran.
 - Installs are user-scoped by default: everything lands under the user's home folder (repo
   `.venv`, `~/.local`, `~/Applications`, `~/Library`); nothing under `/Applications`,

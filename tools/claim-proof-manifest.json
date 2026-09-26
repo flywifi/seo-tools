@@ -13,6 +13,12 @@
   "claims": [
     {
       "doc": "CLAUDE.md",
+      "claim": "Each `::selftest::` proof also names, in the manifest's `boundaries`, the CLI entry, tool or runtime default its claim describes, and invariant 60 fails when no live code in the pin's function calls that entry and the record states no gap naming it",
+      "proof": "invariant:60",
+      "why": "check_claim_proof runs _claim_boundary_problems over every `::selftest::` proof the claims use: a proof with no boundaries record, a boundary name its module does not define, and a pin whose function never calls its boundary while the record states no gap of 25 characters naming it each fail. _claim_boundary_self_proof shows those refusals on a fixture first, and _CLAIM_WIRING fails the build when the call is removed."
+    },
+    {
+      "doc": "CLAUDE.md",
       "claim": "No em dashes in user-facing output",
       "proof": "invariant:4",
       "why": "invariant 4 (check_formatting) proves the no-em-dash rule over committed examples/ content, which is the scope the same bullet states; the wider instruction to the agent is covered by the formatting protocol it cites."
@@ -183,6 +189,21 @@
   "exempt": [
     {
       "doc": "CLAUDE.md",
+      "claim": "Each new pin or detector branch lands with at least three falsifying mutations, chosen and run by a reviewer who did not write it and committed as cases beside it",
+      "why": "Who chose and ran a mutation is not recorded anywhere code can read, and whether an edit falsifies a property is a reviewer's judgement; docs/AUDIT-PROTOCOL.md section 7.2 states the rule, and the committed mutation cases run in the battery with the pin."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "A new or changed invariant that enumerates a JSON file's keys takes them from its schema in `shared/schemas/` when one exists, and never skips a key of that kind it does not recognise",
+      "why": "A rule for how a new or changed invariant is written, not a property every current checker is shown to have; a checker that follows it is proven by its own invariant's cases, and docs/AUDIT-PROTOCOL.md section 7.1 states the rule."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Every change that removes text or files from a guard's scan set ships a committed case for the removed set",
+      "why": "A rule for how a guard change is made. Whether an edit narrows a scan set is a reading of the diff that no drift invariant performs; docs/AUDIT-PROTOCOL.md section 7.1 states the rule, and each guard's own cases carry the committed case it asks for."
+    },
+    {
+      "doc": "CLAUDE.md",
       "claim": "Never fabricate data, metrics, rates, brands, or sources",
       "why": "A standing instruction to the agent about generated output, not a property of this repo's code. protocols/no-fabrication.md governs it and no guard can prove a negative about future generations."
     },
@@ -302,6 +323,64 @@
       "why": "an instruction governing what the agent says in a report; nothing in the build can read a chat message, so this is doctrine enforced by judgment."
     }
   ],
+  "_boundaries_why": "Pin-boundary records (docs/AUDIT-PROTOCOL.md section 7.3). A claim describes what a person reaches through a CLI entry, a tool or a runtime default; each `::selftest::` proof the claims use names that entry here as `tools/x.py::name` or `tools/x.py::Class.method`. Invariant 60 fails on a proof with no record, a name the module does not define, and a pin whose function never calls its entry while the record states no `gap` of at least 25 characters naming it. A `gap` is a recorded limit: move the pin to the entry or narrow the claim.",
+  "boundaries": [
+    {
+      "proof": "tools/dependency_currency.py::selftest::token-free: outside its selftests the import closure",
+      "boundary": "tools/dependency_currency.py::main",
+      "gap": "The pin reads the module's source statically (_import_closure over its own file, main and what it calls included) rather than running main."
+    },
+    {
+      "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
+      "boundary": "tools/setup.py::run_install_deps",
+      "gap": "The census reads every .py file statically for pip install argv literals rather than running run_install_deps or the wizard; an argv built from parts is outside what it reads."
+    },
+    {
+      "proof": "tools/publishing_compliance.py::selftest::the committed creator-os-config.json ships live_publishing_enabled off",
+      "boundary": "tools/publishing_compliance.py::load_config",
+      "gap": "The pin reads the committed creator-os-config.json directly. load_config, which live_publishing_enabled() calls when it is given no config, is not run by a selftest, so the flag it resolves with no creator-os-config.local.json present is not checked."
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::every flag on: a post no human confirmed never reaches the network",
+      "boundary": "tools/dashboard/server.py::_scheduler_loop",
+      "gap": "The pin runs _scheduler_loop for one pass through _run_scheduler_once with _load_config, _load_queue and the credential loader replaced, so the config the loop resolves at run time from the committed and local files is not read."
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::scheduler flag off: every due item advances to ready_to_post and no network call is made",
+      "boundary": "tools/dashboard/server.py::_scheduler_loop",
+      "gap": "The pin runs _scheduler_loop for one pass through _run_scheduler_once with _load_config, _load_queue and the credential loader replaced, so the config the loop resolves at run time from the committed and local files is not read."
+    },
+    {
+      "proof": "tools/mcp_server.py::selftest::schedule_post always sets human_review_required: true on every platform and tier",
+      "boundary": "tools/mcp_server.py::schedule_post",
+      "gap": "The pin calls _schedule_post_impl, whose result schedule_post returns as JSON with its arguments passed through; the selftest does not import the mcp package that schedule_post's decorator needs."
+    },
+    {
+      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
+      "boundary": "tools/setup.py::run_install_deps",
+      "gap": "The pin calls install_dependencies(); run_install_deps, the --install-deps entry that calls it, is not run by a selftest, so what that entry does after install_dependencies returns is not checked."
+    },
+    {
+      "proof": "tools/setup.py::selftest::no .venv: install_dependencies runs only the .venv creation attempt",
+      "boundary": "tools/setup.py::run_install_deps",
+      "gap": "The pin calls install_dependencies(); run_install_deps, the --install-deps entry that calls it, is not run by a selftest, so what that entry does after install_dependencies returns is not checked."
+    },
+    {
+      "proof": "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
+      "boundary": "tools/wizard.py::_Handler.do_POST",
+      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it and decides what happens when it refuses, is not run by a selftest, so code added there after a refusal is not checked."
+    },
+    {
+      "proof": "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
+      "boundary": "tools/wizard.py::_Handler.do_POST",
+      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it and decides what happens when it refuses, is not run by a selftest, so code added there after a refusal is not checked."
+    },
+    {
+      "proof": "tools/secret_scan.py::selftest::phone number detected in the paren, +1, 1-prefix, dotted and extension NANP shapes",
+      "boundary": "tools/secret_scan.py::scan_tracked",
+      "gap": "The pin calls scan_text on literal strings; scan_tracked, which invariant 21 runs through --tracked, also skips a file _is_probably_text reads as binary, and no selftest runs it."
+    }
+  ],
   "routes": [
     {
       "recommends": "astral.sh/uv/install.sh",
@@ -330,6 +409,128 @@
         "tools/env_paths.py::NVM_NODE_SUBDIR"
       ],
       "why": "nvm keeps each node under $NVM_DIR/versions/node/<version>/bin (nvm.sh::nvm_version_path) and is sourced per shell. P93 made nvm the recommended Node route while env_paths could not see it, so the wizard looped users on 'Still not detecting Node.js 20 or higher' after issuing its own nvm command."
+    }
+  ],
+  "_guarded_text_why": "Rule text outside the guarded corpus (docs/AUDIT-PROTOCOL.md section 7.3). Each record's `text` must still occur in its `doc`, every bold-lead rule in section 7 of docs/AUDIT-PROTOCOL.md needs a record, and an AGENTS.md record's `mirror_of` names the `claim` of the CLAUDE.md claims or exempt entry it restates, so changing one side alone fails invariant 60.",
+  "guarded_text": [
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A written reason that rests on a repo fact declares the fact.** An exemption's `why` is read by people. When it rests on a fact a check can re-read (a path the root `.gitignore` ignores, a route record the manifest holds), the exemption declares that fact under `holds`",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**An `invariant:N` binding shares its subject with catalog entry N.** A claim bound to `invariant:N` and entry N of the `Invariants enforced` catalog in `tools/sync_check.py` share a word that names the claim's subject, and a claim that names an invariant is bound to that one.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A new pin or detector branch lands with three falsifying mutations.** Before it is committed, a reviewer who did not write it picks at least three edits to the code under test that break the property the pin names (the revert of the fix does not count as one), runs the pin against each, and sees each go red.",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "A new pin or detector branch lands with at least three falsifying mutations chosen by a reviewer who did not write it, committed as cases (7.2).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "Each new pin or detector branch lands with at least three falsifying mutations, chosen and run by a reviewer who did not write it and committed as cases beside it"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A checker takes JSON keys from the schema.** An invariant that enumerates the keys of a JSON file (the atom names a `workflow.json` step carries, the fields of an agent output) takes them from that file's schema in `shared/schemas/` when one exists, and fails on a key it does not recognise rather than skipping it.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "An invariant that enumerates JSON keys takes them from the schema in `shared/schemas/` when one exists (7.1).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "A new or changed invariant that enumerates a JSON file's keys takes them from its schema in `shared/schemas/` when one exists, and never skips a key of that kind it does not recognise"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Narrowing a scan set ships a case for what it stops reading.** A change that removes text or files from what a guard reads (a skipped heading, a stripped code span, a file sniffed as binary, a key or suffix no longer read, a later occurrence read in place of the first) commits a case that places a violation inside the removed set and records the result",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "protocols/quality-gates.md",
+      "text": "The same bar applies to this repository's own guards: a change that removes text or files from what a drift-guard invariant or scanner reads is not released without a committed case for the removed set",
+      "why": "The scan-narrowing rule where the release gates are read; the file sits outside the guarded corpus."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "A change that narrows a scan set ships a committed case for what it stopped reading (7.1).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "Every change that removes text or files from a guard's scan set ships a committed case for the removed set"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**The manifest names the boundary.** Every `::selftest::` proof in `tools/claim-proof-manifest.json` has a `boundaries` record naming that entry as `tools/x.py::name` or `tools/x.py::Class.method`.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**What the boundary check does not see.** It reads calls by name.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "Each selftest proof names the entry its claim describes in the manifest's `boundaries`, and invariant 60 fails when the pin does not call it and no gap naming it is recorded (7.3).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "Each `::selftest::` proof also names, in the manifest's `boundaries`, the CLI entry, tool or runtime default its claim describes, and invariant 60 fails when no live code in the pin's function calls that entry and the record states no gap naming it"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**The independent pass runs BEFORE the claim is reported or merged**, not only at phase close. A universal claim that has not survived it is reported narrowed to what was actually tested, or not made.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A guard's denominator is DERIVED, never recalled.** Section 1 already says this about an audit's coverage sets; it binds a new guard's scan set too.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Remediation that touches the same guard earns a second pass.** A remediation can trade one defect for another, and a fix authored by the same reader who found the defect is not independently verified.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A pass reads one pinned commit.** Every agent in a pass reads the same commit and reports the SHA it read (`tools/tree_pin.py`); findings from agents that read different trees are not merged into one verdict.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A commit pushed before the pass returns states the mechanism changed, not the property.**",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A pass is complete when its verification stage has returned.** A lens finding is REPORTED; only the refutation round moves it to VERIFIED or KILLED",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A pass that could not run is DID NOT RUN, never clean.** A zero from a checker whose agents never executed is the same defect as a guard that scans nothing",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**The adversarial vectors are not chosen by the author.** Mutations the author picks confirm the fix the author meant",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Report an involuntarily incomplete pass as incomplete.**",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A claim-proof pin binds at the outermost boundary its claim describes**: the CLI entry, tool or default-resolution path a person hits, not the function the change touched.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Rule text outside the guarded corpus is recorded in the manifest.** Each bold-lead rule in this section 7, and each AGENTS.md sentence that restates a bound or exempted CLAUDE.md sentence, has a `guarded_text` record in `tools/claim-proof-manifest.json`.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
     }
   ],
   "_detector_branches_why": "Recorded branch names for the two detectors that scan text. Fixture/branch agreement alone only catches a half delete; with the names recorded here, removing a branch AND its fixture in one edit still fails the build. A missing table, a missing key, or an entry that is not a non-empty list of names fails the check instead of skipping the pin.",

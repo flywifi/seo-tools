@@ -47,3 +47,7 @@ released, not softened, and not partially shipped. Fix the cause and re-score.
    specific fixes for anything below threshold.
 4. The skill fixes and re-scores until it passes.
 5. Only then is the artifact released. For CRM artifacts, record the verdict alongside the record.
+
+The same bar applies to this repository's own guards: a change that removes text or files from
+what a drift-guard invariant or scanner reads is not released without a committed case for the
+removed set (`docs/AUDIT-PROTOCOL.md` section 7.1).
