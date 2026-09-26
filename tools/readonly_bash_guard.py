@@ -8,23 +8,42 @@ once, so the main loop and the product agents are unaffected.
 
 For a guarded agent it parses the command and refuses (exit 2, reason on stderr) when it finds:
   - output redirection to anything but /dev/null or another file descriptor;
-  - an environment assignment (VAR=..., env VAR=..., export VAR=...) outside SAFE_ENV_VARS:
-    GIT_EXTERNAL_DIFF, GIT_CONFIG_*, LESSOPEN and similar variables make a read command run a
-    program;
-  - command substitution, process substitution, or backquotes (the inner command is not visible);
+  - a variable set outside SAFE_ENV_VARS (VAR=..., env VAR=..., export VAR[=...], printf -v VAR,
+    and ${VAR:=...} or ${VAR=...} outside single quotes): GIT_EXTERNAL_DIFF, GIT_CONFIG_*,
+    LESSOPEN and similar variables make a read command run a program;
+  - command substitution, process substitution, or backquotes (the inner command is not visible),
+    also in the body of a heredoc whose delimiter is unquoted, and a heredoc operator it cannot
+    read. A << inside quotes or a comment, and the <<< here-string, start no heredoc, so the
+    lines after them are checked as commands;
   - a command that is not on the read-only list (rm, mv, cp, tee, pip, curl, sh -c, xargs ...);
-  - a git subcommand outside the read-only set, or a read-only one with a write option;
+  - a git subcommand outside the read-only set, or a read-only one with a write option. Global
+    options that take a value (-C, --git-dir, --namespace ...) are skipped with their value;
+    after git remote, stash, worktree, reflog or notes the next word must be a read word; git
+    branch and tag refuse a write option in any spelling (-vD, --del, --set-upstream-to=X) and
+    a name without a listing option, which creates it; git config needs --get, --get-all,
+    --get-regexp or --list;
   - sed -i or a sed w/e command, find -delete/-exec, sort -o/--compress-program, awk with
     system() or redirection, and the write options of listed read commands (tree -o,
-    xxd OUTFILE, file -C, rg --pre, less -o, date -s, hostname NAME);
-  - python -m with a module outside PY_READ_MODULES, unless it is one of this repo's tools;
-  - Python code (python -c or a heredoc body) that calls a direct file-write API;
+    xxd OUTFILE, file -C, rg --pre, less -o, date -s, hostname NAME), read as getopt reads
+    them: a short option inside a cluster (sed -Ei, sort -ro, python -Sc) or with its value
+    attached, and a long option with =value or cut to a prefix (sed --in-pl, sort --outp); a sed
+    or awk program read from a file (-f) is not seen;
+  - python -m with a module outside PY_READ_MODULES (timeit is not on it: it runs its
+    statement arguments), unless it is one of this repo's tools, and python -m sysconfig
+    --generate-posix-vars;
+  - Python code (python -c or a heredoc body) that calls a direct file-write API: a regex, and
+    when the code parses an ast pass (open(), Path.open, io.FileIO and ZipFile with a literal
+    write mode whatever the first argument is, os.open with a write flag, shelve.open, and
+    getattr(obj, 'write_text') with a literal name);
   - a repo script invoked with a known write verb (reconcile, --apply, --write ...), or a script
     whose run creates files (setup, wizard, battery, the temp-directory selftests).
 
 This is pattern matching, so it cannot make Bash read-only: a script that writes as a side effect
-of an ordinary-looking invocation, an import with side effects, or open() with the mode held in a
-variable all pass. The selftest pins those misses as ALLOWED on purpose, so the limit is tested
+of an ordinary-looking invocation, an import with side effects, open() or os.open with the mode
+or flags held in a variable, getattr with the method name held in a variable, a module imported
+under another name (import os as o), Path.replace (str.replace has the same name) and a library
+that opens its own file (logging.FileHandler) all pass. The selftest pins those misses as
+ALLOWED on purpose, so the limit is tested
 rather than assumed: Bash stays write-capable for the guarded agent, and the guard only narrows it.
 
   python3 tools/readonly_bash_guard.py                 # hook mode: JSON on stdin
@@ -34,11 +53,13 @@ rather than assumed: Bash stays write-capable for the guarded agent, and the gua
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
 import shlex
 import sys
+import warnings
 
 GUARDED_AGENT_TYPES = ("auditor",)
 
@@ -63,29 +84,43 @@ GIT_READ = frozenset({
     "version", "help", "diff-tree", "diff-index", "diff-files", "annotate", "range-diff",
     "show-branch", "verify-commit", "verify-tag",
 })
-# Subcommands that read in some forms and write in others: allowed with no arguments (the listing
-# form) or when the first argument is a read form and no argument is a write form.
-GIT_CONDITIONAL = {
-    "branch": ({"-a", "-r", "--all", "--remotes", "--list", "-l", "-v", "-vv", "--contains",
-                "--no-contains", "--show-current", "--merged", "--no-merged", "--points-at"},
-               {"-d", "-D", "-m", "-M", "-c", "-C", "--delete", "--move", "--copy", "-f",
-                "--force", "-u", "--set-upstream-to", "--unset-upstream", "--edit-description"}),
+# Global options whose value is the next argument. The value is skipped with the option, so
+# `git --namespace log commit` is read as commit, the subcommand git runs.
+GIT_VALUE_GLOBALS = frozenset({"-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix",
+                               "--attr-source"})
+# Subcommands with a subcommand word of their own: (options allowed before the word, read words,
+# whether the bare form only lists). Any other word or leading option is refused.
+GIT_SUBCOMMAND_READS = {
+    "remote": ({"-v", "--verbose"}, {"show", "get-url"}, True),
+    "stash": (set(), {"list", "show"}, False),
+    "worktree": (set(), {"list"}, False),
+    "reflog": (set(), {"show"}, True),
+    "notes": (set(), {"list", "show"}, True),
+}
+# Option-driven subcommands: (options that select the listing form, write options, short options
+# that take a value). A write option is refused however it is spelled (see _selects). A branch
+# or tag name with no listing option creates that branch or tag, so it is refused too.
+GIT_OPTION_MODES = {
+    "branch": ({"-l", "--list", "--contains", "--no-contains", "--merged", "--no-merged",
+                "--points-at"},
+               {"-d", "-D", "-m", "-M", "-c", "-C", "-f", "-u", "--delete", "--move", "--copy",
+                "--force", "--set-upstream-to", "--unset-upstream", "--edit-description"}, "u"),
     "tag": ({"-l", "--list", "--contains", "--no-contains", "--points-at", "--merged",
-             "--no-merged", "-n"}, {"-d", "--delete", "-a", "-s", "-f", "-m", "-F", "--force"}),
-    "stash": ({"list", "show"}, set()),
-    "worktree": ({"list"}, set()),
-    "remote": ({"-v", "--verbose", "show", "get-url"}, set()),
-    "reflog": ({"show"}, set()),
-    "config": ({"--get", "--get-all", "--get-regexp", "--list", "-l", "--show-origin"}, set()),
-    "notes": ({"list", "show"}, set()),
+             "--no-merged", "-n"},
+            {"-d", "-a", "-s", "-f", "-m", "-F", "-u", "-e", "--delete", "--annotate", "--sign",
+             "--force", "--message", "--file", "--local-user", "--edit"}, "mFun"),
+    "config": ({"-l", "--list", "--get", "--get-all", "--get-regexp"},
+               {"-e", "--edit", "--add", "--unset", "--unset-all", "--replace-all",
+                "--rename-section", "--remove-section"}, "ft"),
 }
 GIT_WRITE_OPTIONS = ("--output", "-O", "--open-files-in-pager", "--ext-diff")
 PY_REFUSED_MODULES = frozenset({"pip", "pip3", "venv", "ensurepip", "compileall", "py_compile",
                                 "http.server", "zipapp", "virtualenv"})
 # python -m modules that only read. Any other module is refused (zipfile, tarfile, gzip, sqlite3,
-# cProfile -o and pydoc -w all write), except this repo's own tools.<name>, checked as scripts.
+# cProfile -o and pydoc -w all write, and timeit runs its statement arguments as Python), except
+# this repo's own tools.<name>, checked as scripts.
 PY_READ_MODULES = frozenset({"json.tool", "tokenize", "ast", "dis", "platform", "sysconfig",
-                             "site", "timeit", "base64", "calendar"})
+                             "site", "base64", "calendar"})
 # Environment variables a command may set. Any other can point git, a pager or an interpreter at a
 # program, for example GIT_EXTERNAL_DIFF, GIT_CONFIG_COUNT/KEY/VALUE, LESSOPEN or PAGER.
 SAFE_ENV_VARS = frozenset({"PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS", "LC_ALL", "LANG", "TZ",
@@ -110,15 +145,40 @@ PY_WRITE_RE = re.compile(
     r"\.write_(?:text|bytes)\s*\("
     r"|\bopen\s*\([^)]*?,\s*(?:mode\s*=\s*)?[rbt]?['\"][^'\"]*[wax+]"
     r"|\bos\.(?:remove|unlink|rmdir|removedirs|rename|renames|replace|makedirs|mkdir|mkfifo"
-    r"|chmod|chown|symlink|link|truncate|system|popen|exec\w*|spawn\w*|utime)\s*\("
+    r"|chmod|chown|lchown|lchmod|mknod|symlink|link|truncate|system|popen|exec\w*|spawn\w*"
+    r"|posix_spawn\w*|utime)\s*\("
     r"|\bshutil\.\w+\s*\("
-    r"|\.(?:unlink|mkdir|rmdir|touch|symlink_to|hardlink_to|chmod)\s*\("
+    r"|\.(?:unlink|mkdir|rmdir|touch|symlink_to|hardlink_to|chmod|lchmod|rename)\s*\("
+    r"|\burlretrieve\s*\("
     r"|\btempfile\.\w+"
     r"|\bsqlite3\.connect\s*\("
     r"|\b__import__\s*\("
     r"|\bfrom\s+(?:os|shutil|tempfile)\s+import\b"
 )
 _SEP_CHARS = set(";&|()")
+# Short options that take a value, per command: in a cluster such as -Ei or -ro, getopt reads
+# option letters up to the first of these, and the rest of the token is that option's value.
+SHORT_VALUE_LETTERS = {"sed": "efl", "sort": "kotST", "date": "dfrI", "less": "bhjkoOpPtTxyz#D",
+                       "tree": "LPIoHT", "file": "efFmP"}
+GIT_SHORT_VALUE_LETTERS = {"grep": "efABCm"}
+GIT_DEFAULT_SHORT_VALUES = "nSGUMCBlXI"
+
+
+def _selects(arg, options, values="", abbrev=True):
+    """True when one argument selects one of `options` as getopt reads it: a short option alone,
+    inside a cluster (-Ei, -ro) or with its value attached (-oout), reading letters up to the
+    first one in `values`; a long option in full or with =value; and, when `abbrev`, a long
+    option cut to a prefix, which getopt_long and git accept when the prefix is unambiguous."""
+    if arg.startswith("--"):
+        name = arg.split("=", 1)[0]
+        return len(name) > 2 and any(o == name or (abbrev and o.startswith(name))
+                                     for o in options if o.startswith("--"))
+    letters = []
+    for ch in arg[1:] if arg.startswith("-") else "":
+        letters.append(ch)
+        if ch in values:
+            break
+    return any(len(o) == 2 and o[0] == "-" and o[1] in letters for o in options)
 
 
 def _split_lines(cmd):
@@ -175,27 +235,122 @@ def _expansion_outside_single_quotes(line):
     return False
 
 
-_HEREDOC_RE = re.compile(r"<<(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+def _heredoc_ops(line, quote):
+    """Scan one physical line that starts in quote state `quote` (None, "'", '"' or "$'").
+    Returns (operators, quote state at the end of the line), or None when a delimiter cannot be
+    read. An operator is (strip_tabs, delimiter, quoted) for each << the shell reads: outside
+    quotes and comments, and not the <<< here-string. The delimiter is the next shell word with
+    its quotes removed; quoted is True when any part of it was quoted, which stops the shell
+    expanding the body."""
+    ops, i, n = [], 0, len(line)
+    while i < n:
+        c = line[i]
+        if quote:
+            if c == "\\" and quote != "'":
+                i += 2
+                continue
+            if c == quote[-1]:
+                quote = None
+        elif c == "\\":
+            i += 2
+            continue
+        elif line.startswith("$'", i):
+            quote, i = "$'", i + 2
+            continue
+        elif c in "'\"":
+            quote = c
+        elif c == "#" and (i == 0 or line[i - 1] in " \t;&|()<>"):
+            break
+        elif line.startswith("<<<", i):
+            i += 3
+            continue
+        elif line.startswith("<<", i):
+            i += 2
+            dash = line.startswith("-", i)
+            i += 1 if dash else 0
+            while i < n and line[i] in " \t":
+                i += 1
+            word, quoted = [], False
+            while i < n and line[i] not in " \t;&|<>()":
+                ch = line[i]
+                if ch in "'\"":
+                    end = line.find(ch, i + 1)
+                    if end < 0:
+                        return None
+                    word.append(line[i + 1:end])
+                    quoted, i = True, end + 1
+                elif ch == "\\" and i + 1 < n:
+                    word.append(line[i + 1])
+                    quoted, i = True, i + 2
+                else:
+                    word.append(ch)
+                    i += 1
+            if not word:
+                return None
+            ops.append((dash, "".join(word), quoted))
+            continue
+        i += 1
+    return ops, quote
 
 
 def _take_heredocs(cmd):
-    """Remove heredoc bodies; return (shell_text, [bodies])."""
-    out, bodies, pending, body = [], [], [], []
+    """Remove heredoc bodies; return (shell_text, [(body, quoted)], refusal or None)."""
+    out, bodies, pending, body, quote = [], [], [], [], None
     for line in cmd.split("\n"):
         if pending:
-            dash, delim = pending[0]
+            dash, delim, quoted = pending[0]
             if (line.lstrip("\t") if dash else line) == delim:
-                bodies.append("\n".join(body))
+                bodies.append(("\n".join(body), quoted))
                 body = []
                 pending.pop(0)
             else:
                 body.append(line)
             continue
         out.append(line)
-        pending.extend((m.group(1) == "-", m.group(3)) for m in _HEREDOC_RE.finditer(line))
+        scan = _heredoc_ops(line, quote)
+        if scan is None or (scan[0] and scan[1]):
+            return "\n".join(out), bodies, "a heredoc operator the guard cannot read"
+        ops, quote = scan
+        pending.extend(ops)
     if pending:
-        bodies.append("\n".join(body))
-    return "\n".join(out), bodies
+        bodies.append(("\n".join(body), pending[0][2]))
+    return "\n".join(out), bodies, None
+
+
+def _body_expansion(body):
+    """Why the body of a heredoc with an unquoted delimiter is refused: the shell runs its $( )
+    and backquotes and performs its ${NAME:=word} assignments."""
+    live = re.sub(r"\\.", "", body, flags=re.S)
+    if "$(" in live or "`" in live:
+        return "the shell runs the command substitutions in an unquoted heredoc; quote the delimiter"
+    m = _ASSIGN_EXPANSION_RE.search(live)
+    return _check_env(m.group(1)) if m else None
+
+
+# ${NAME:=word} and ${NAME=word} assign NAME while the shell expands them.
+_ASSIGN_EXPANSION_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):?=")
+
+
+def _live_text(line):
+    """`line` with single-quoted text and backslash-escaped characters blanked, leaving the text
+    the shell expands."""
+    out, quote, i = [], None, 0
+    while i < len(line):
+        c = line[i]
+        if quote == "'":
+            quote = None if c == "'" else quote
+            c = " "
+        elif c == "\\":
+            out.append("  ")
+            i += 2
+            continue
+        elif c == '"':
+            quote = None if quote == '"' else '"'
+        elif c == "'" and quote is None:
+            quote, c = "'", " "
+        out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def _segments(line):
@@ -241,22 +396,36 @@ def _check_git(args):
         a = args[i]
         if a == "-c" or a.startswith("--config-env") or a.startswith("--exec-path"):
             return "git -c / --config-env / --exec-path can make git run a command"
-        i += 2 if a == "-C" else 1
+        i += 2 if a in GIT_VALUE_GLOBALS else 1
     if i >= len(args):
         return None
     sub, rest = args[i], args[i + 1:]
+    values = GIT_SHORT_VALUE_LETTERS.get(sub, GIT_DEFAULT_SHORT_VALUES)
     for a in rest:
-        if a.startswith(GIT_WRITE_OPTIONS):
+        if _selects(a, GIT_WRITE_OPTIONS, values):
             return f"git {sub} {a} writes a file or runs an external program"
     if sub in GIT_READ:
         return None
-    if sub in GIT_CONDITIONAL:
-        reads, writes = GIT_CONDITIONAL[sub]
-        if not rest:
-            return None if sub != "stash" else "git stash with no arguments stashes changes"
-        if rest[0] in reads and not any(a in writes for a in rest):
+    if sub in GIT_SUBCOMMAND_READS:
+        lead, reads, bare = GIT_SUBCOMMAND_READS[sub]
+        words = list(rest)
+        while words and words[0] in lead:
+            words.pop(0)
+        if not words:
+            return None if bare else f"git {sub} with no subcommand word is not a read-only form"
+        return None if words[0] in reads else f"git {sub} {words[0]} is not a read-only form"
+    if sub in GIT_OPTION_MODES:
+        listing, writes, values = GIT_OPTION_MODES[sub]
+        hit = next((a for a in rest if _selects(a, writes, values)), None)
+        if hit:
+            return f"git {sub} {hit} is a write form"
+        listed = any(_selects(a, listing, values, abbrev=False) for a in rest)
+        if sub == "config":
+            return None if listed or rest[:1] in (["list"], ["get"]) else (
+                "git config without --get, --get-all, --get-regexp or --list can set a value")
+        if listed or all(a.startswith("-") for a in rest):
             return None
-        return f"git {sub} {' '.join(rest[:2])} is not a read-only form"
+        return f"git {sub} with a name and no listing option creates a {sub}"
     return f"git {sub} can change the repository"
 
 
@@ -267,9 +436,75 @@ def _check_repo_args(rest):
     return None
 
 
+# The ast pass runs when the code parses. It reads open() and its relatives with a literal mode
+# ('w', 'a', 'x', 'r+', 'wb' ...) whatever the first argument is, os.open with a write flag,
+# shelve/dbm.open unless the flag is 'r', and getattr(obj, 'name') when obj.name( is a call the
+# regex refuses.
+_PY_WRITE_MODE_RE = re.compile(r"[rbtU]*[wax+][rwaxbt+U]*")
+_PY_OPENERS = frozenset({"open", "FileIO", "ZipFile", "TarFile"})
+# Modules whose open() takes the path first and the mode second. A method .open on any other
+# object (Path(...).open('w'), ZipFile.open(name, 'w')) is read with its first two arguments.
+_PY_PATH_FIRST = frozenset({"io", "codecs", "gzip", "bz2", "lzma", "tarfile", "builtins"})
+_PY_OS_WRITE_FLAGS = frozenset({"O_WRONLY", "O_RDWR", "O_CREAT", "O_APPEND", "O_TRUNC", "O_EXCL",
+                                "O_TMPFILE"})
+_PY_OS_WRITE_BITS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
+
+
+def _py_literal(node):
+    return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
+
+
+def _py_write_call(node):
+    """The write one ast.Call makes with literal arguments, or None."""
+    f = node.func
+    name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
+    owner = f.value.id if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) else ""
+    kw = {k.arg: k.value for k in node.keywords if k.arg}
+    args = list(node.args)
+    if name == "getattr" and len(args) > 1 and _py_literal(args[1]):
+        m = PY_WRITE_RE.search(f"{ast.unparse(args[0])}.{_py_literal(args[1])}(")
+        return m.group(0).strip() if m else None
+    if name == "open" and owner == "os":
+        flags = args[1] if len(args) > 1 else kw.get("flags")
+        for n in ast.walk(flags) if flags is not None else ():
+            if (getattr(n, "id", None) in _PY_OS_WRITE_FLAGS
+                    or getattr(n, "attr", None) in _PY_OS_WRITE_FLAGS
+                    or (isinstance(n, ast.Constant) and type(n.value) is int
+                        and n.value & _PY_OS_WRITE_BITS)):
+                return "os.open with a write flag"
+        return None
+    if name == "open" and owner in ("shelve", "dbm"):
+        flag = args[1] if len(args) > 1 else kw.get("flag")
+        return None if _py_literal(flag) == "r" else f"{owner}.open creates or writes a database"
+    if name in _PY_OPENERS:
+        method = name == "open" and isinstance(f, ast.Attribute) and owner not in _PY_PATH_FIRST
+        for c in (args[:2] if method else args[1:2]) + [kw.get("mode")]:
+            s = _py_literal(c)
+            if s and _PY_WRITE_MODE_RE.fullmatch(s):
+                return f"{name}() with mode {s!r}"
+    return None
+
+
+def _python_ast_write(code):
+    """The first write call the ast pass finds, or None. Code that does not parse as Python (a
+    heredoc body fed to cat) is left to the regex."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            tree = ast.parse(code)
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        return None
+    for node in ast.walk(tree):
+        what = _py_write_call(node) if isinstance(node, ast.Call) else None
+        if what:
+            return what
+    return None
+
+
 def _check_python_code(code):
     m = PY_WRITE_RE.search(code or "")
-    return f"Python code calls a file-write API ({m.group(0).strip()})" if m else None
+    what = m.group(0).strip() if m else _python_ast_write(code or "")
+    return f"Python code calls a file-write API ({what})" if what else None
 
 
 def _check_script(name, rest):
@@ -288,26 +523,39 @@ def _check_env(assignment):
             f"{', '.join(sorted(SAFE_ENV_VARS))} may be set")
 
 
+def _python_option(a):
+    """(option, value attached in the same token) for a python option cluster: -Sc CODE and
+    -cCODE are -c, -Im MOD is -m, -Xutf8 is -X. Any other token is returned as it is."""
+    if a.startswith("-") and not a.startswith("--"):
+        for j, ch in enumerate(a[1:], 1):
+            if ch in "cmXW":
+                return "-" + ch, a[j + 1:]
+    return a, ""
+
+
 def _check_python(args):
     i, script = 0, None
     while i < len(args):
-        a = args[i]
+        a, attached = _python_option(args[i])
+        following = ([attached] if attached else []) + args[i + 1:]
         if a == "-c":
-            return _check_python_code(args[i + 1] if i + 1 < len(args) else "")
+            return _check_python_code(following[0] if following else "")
         if a == "-m":
-            mod = args[i + 1] if i + 1 < len(args) else ""
-            rest = args[i + 2:]
+            mod = following[0] if following else ""
+            rest = following[1:]
             if mod in PY_REFUSED_MODULES:
                 return f"python -m {mod} installs or writes files"
             if mod.startswith("tools."):
                 return _check_script(mod.rsplit(".", 1)[1] + ".py", rest)
             if mod not in PY_READ_MODULES:
                 return f"python -m {mod} is not on the read-only module list"
+            if mod == "sysconfig" and "--generate-posix-vars" in rest:
+                return "python -m sysconfig --generate-posix-vars writes build files"
             if mod == "json.tool" and len([a for a in rest if not a.startswith("-")]) > 1:
                 return "python -m json.tool with an output file writes it"
             return _check_repo_args(rest)
-        if a in ("-X", "-W"):
-            i += 2
+        if a in ("-X", "-W", "--check-hash-based-pycs"):
+            i += 1 if attached else 2
             continue
         if a == "-":
             return None
@@ -360,7 +608,7 @@ def _check_argv(argv):
                                          "-fprint0", "-fprintf", "-fls")]
         return f"find {bad[0]} can change files" if bad else None
     if name in ("sed", "gsed"):
-        if any(a.startswith("-i") or a.startswith("--in-place") for a in args):
+        if any(_selects(a, ("-i", "--in-place"), SHORT_VALUE_LETTERS["sed"]) for a in args):
             return "sed -i edits files in place"
         if any(re.search(r"(^|[;}\s])[wWe]\s|/[wWe]\s*\S", a) for a in args if not a.startswith("-")):
             return "a sed w/W/e command writes a file or runs a command"
@@ -370,14 +618,15 @@ def _check_argv(argv):
             return "the awk program redirects output or runs a command"
         return None
     if name == "sort":
-        if any(a.startswith(("-o", "--output", "--compress-program")) for a in args):
+        if any(_selects(a, ("-o", "--output", "--compress-program"), SHORT_VALUE_LETTERS["sort"])
+               for a in args):
             return "sort -o or --compress-program writes a file or runs a program"
         return None
     if name == "uniq":
         positional = [a for a in args if not a.startswith("-")]
         return "uniq with an output file writes it" if len(positional) > 1 else None
     bad = READ_COMMAND_WRITE_OPTIONS.get(name, ())
-    hit = next((a for a in args if bad and a.startswith(bad)), None)
+    hit = next((a for a in args if _selects(a, bad, SHORT_VALUE_LETTERS.get(name, ""))), None)
     if hit:
         return f"{name} {hit} writes a file, runs a program or changes the system"
     if name == "xxd":
@@ -393,9 +642,13 @@ def _check_argv(argv):
             return "xxd with an output file writes it"
     if name == "hostname" and any(not a.startswith("-") for a in args):
         return "hostname NAME changes the system name"
+    if name == "printf" and args[:1] and args[0].startswith("-v"):
+        why = _check_env(args[0][2:] or (args[1] if len(args) > 1 else ""))
+        if why:
+            return why
     if name == "export":
         for a in args:
-            why = _check_env(a) if "=" in a else None
+            why = None if a.startswith("-") else _check_env(a)
             if why:
                 return why
     if name in READ_COMMANDS:
@@ -407,9 +660,11 @@ def guard(cmd):
     """(allowed, reason) for one Bash command string."""
     if not isinstance(cmd, str):
         return False, "no command string"
-    shell, bodies = _take_heredocs(cmd)
-    for body in bodies:
-        why = _check_python_code(body)
+    shell, bodies, why = _take_heredocs(cmd)
+    if why:
+        return False, why
+    for body, quoted in bodies:
+        why = (None if quoted else _body_expansion(body)) or _check_python_code(body)
         if why:
             return False, f"heredoc body: {why}"
     lines, err = _split_lines(shell)
@@ -420,6 +675,9 @@ def guard(cmd):
             continue
         if _expansion_outside_single_quotes(line):
             return False, "command or process substitution hides the inner command; run it separately"
+        m = _ASSIGN_EXPANSION_RE.search(_live_text(line))
+        if m and _check_env(m.group(1)):
+            return False, _check_env(m.group(1))
         segs, why = _segments(line)
         if why:
             return False, why
@@ -455,16 +713,29 @@ ALLOW_CASES = [
     "git branch -a",
     "git branch --contains 9d4148c",
     "git worktree list",
+    "git remote -v",
+    "git branch -vv",
+    "git tag -n5 -l 'v*'",
+    "git config --get user.name",
+    "git --git-dir .git log -1",
     "cd /repo && grep -n 'def main' tools/*.py | head",
     "ls -la .claude/agents >/dev/null 2>&1",
     "find . -name '*.md' -newer CLAUDE.md",
     "sed -n '1,40p' CLAUDE.md",
+    "sed -En 's/a/b/p' CLAUDE.md",
+    "sort -rn -k2,2 -t, notes.txt",
+    "rg --pretty --pre-glob '*.gz' foo",
+    "python3 -Bc 'print(1)'",
     "awk '{print $1}' file.txt | sort | uniq -c",
     "python3 tools/count_truth.py",
     "PYTHONDONTWRITEBYTECODE=1 python3 tools/sync_check.py",
     "python3 -c 'import json; print(json.load(open(\"a.json\"))[\"x\"])'",
+    "python3 -c \"import os; print(os.read(os.open('a.json', os.O_RDONLY), 9))\"",
+    "python3 -c \"import pathlib; print(pathlib.Path('a.json').open().read(9))\"",
     "python3 - <<'EOF'\nimport pathlib\nprint(pathlib.Path('CLAUDE.md').read_text()[:10])\nif 2 > 1: print('ok')\nEOF",
     "grep -c '$(' notes.txt",
+    "cat <<'EOF'\n$(this stays text)\nEOF",
+    "cat <<< 'a b' | wc -w",
     "echo 'a > b' | wc -c",
     "python3 -m json.tool data.json",
     "env GIT_OPTIONAL_LOCKS=0 git status --porcelain",
@@ -472,7 +743,11 @@ ALLOW_CASES = [
     "xxd -l 64 CLAUDE.md",
     "LC_ALL=C sort notes.txt",
     "export LC_ALL=C; git log -1",
+    "printf '%s' done",
+    "echo '${PAGER:=x}'",
+    ": \"${LC_ALL:=C}\"; git log -1",
     "python3 -m tokenize tools/tree_pin.py",
+    "python3 -m sysconfig",
 ]
 REFUSE_CASES = [
     "echo x > notes.md",
@@ -489,6 +764,16 @@ REFUSE_CASES = [
     "sh script.sh",
     "sed -i 's/a/b/' f",
     "sed 's/a/b/w out' f",
+    "sed -Ei 's/a/b/' f",
+    "sed -ni p f",
+    "sort -ro out.txt in.txt",
+    "sed --in-pl 's/a/b/' f",
+    "sort --outp out.txt in.txt",
+    "date --se=2020-01-01",
+    "less --log-f=log.txt CLAUDE.md",
+    "git grep --open-f=./x.sh main",
+    "python3 -Sc 'open(\"x\",\"w\")'",
+    "python3 -Im zipfile -c out.zip tools",
     "find . -name '*.pyc' -delete",
     "find . -exec rm {} ;",
     "sort -o out.txt in.txt",
@@ -501,6 +786,13 @@ REFUSE_CASES = [
     "git stash",
     "git branch -D old",
     "git tag -a v1 -m x",
+    "git remote -v add evil https://example.invalid/x.git",
+    "git --namespace log commit -m x",
+    "git branch -v newbranch",
+    "git branch -vv --set-upstream-to=origin/x",
+    "git branch -a -vD old",
+    "git branch -a --del old",
+    "git config --show-origin core.pager cat",
     "git -c core.pager=sh log",
     "git diff --output=patch.diff",
     "pip download requests",
@@ -516,11 +808,19 @@ REFUSE_CASES = [
     "cat $(git ls-files) | wc -l",
     "echo `id`",
     "diff <(git show HEAD:a) a",
+    "cat <<EOF\n$(rm -rf build)\nEOF",
+    "echo '<<EOF'\nrm -rf build\nEOF",
+    "cat <<< x\nrm -rf build",
+    "cat <<E\"OF\"\nhello\nEOF\nrm -rf build",
+    "echo hi # <<EOF\nrm -rf build\nEOF",
     "cat a 1<> b",
     "sudo ls",
     "npm install",
     "GIT_EXTERNAL_DIFF=./x.sh git diff",
     "export GIT_EXTERNAL_DIFF=./x.sh; git diff",
+    "printf -v LESSOPEN '|./x.sh %s'; less CLAUDE.md",
+    "export GIT_EXTERNAL_DIFF",
+    ": \"${GIT_EXTERNAL_DIFF:=./x.sh}\"; git diff",
     "env GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=./x.sh git status",
     "LESSOPEN='|./x.sh %s' less CLAUDE.md",
     "tree -o out.txt",
@@ -534,15 +834,30 @@ REFUSE_CASES = [
     "python3 -m json.tool a.json b.json",
     "python3 -m zipfile -c out.zip tools",
     "python3 -m sqlite3 new.db",
+    "python3 -m timeit -n1 \"import os; os.remove('x')\"",
+    "python3 -m sysconfig --generate-posix-vars",
     "python3 -m tools.battery",
     "python3 -c \"__import__('os').remove('x')\"",
     "python3 -c 'from os import remove; remove(\"x\")'",
+    "python3 -c \"import pathlib; pathlib.Path('x').open('w').write('y')\"",
+    "python3 -c \"import pathlib; pathlib.Path('x').open(mode='a')\"",
+    "python3 -c \"import os; os.open('out.txt', os.O_CREAT | os.O_WRONLY)\"",
+    "python3 -c \"import io; io.FileIO('x', 'w')\"",
+    "python3 -c \"open(str('x'), 'w')\"",
+    "python3 -c \"import pathlib; getattr(pathlib.Path('x'), 'write_text')('y')\"",
+    "python3 -c \"import pathlib; pathlib.Path('a').rename('b')\"",
 ]
 # Known misses: writes the patterns cannot see. They are ALLOWED here on purpose, so the selftest
 # fails if the guard's documented limit ever changes without the docs changing with it.
 KNOWN_MISSES = [
     "python3 tools/some_new_writer.py",
+    "sed -f edit.sed notes.txt",
+    "awk -f prog.awk notes.txt",
     "python3 -c 'import m'",
+    "python3 -c \"import pathlib; n = 'write_text'; getattr(pathlib.Path('x'), n)('y')\"",
+    "python3 -c \"import os as o; o.remove('x')\"",
+    "python3 -c \"import pathlib; pathlib.Path('a').replace('b')\"",
+    "python3 -c \"import logging; logging.FileHandler('x.log')\"",
     "python3 -c 'm=\"w\"; f=open(\"x\", m)'",
     "python3 -c 'import subprocess; subprocess.run([\"git\",\"commit\"])'",
 ]

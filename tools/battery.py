@@ -222,13 +222,13 @@ def _selftest_parity(ok):
         CI_PARITY_NOTES.clear()
         CI_PARITY_NOTES.update({"gamma": "covered by a superset step, fixture reason"})
         on = "on:\n  push:\n    branches: ['**']\n"
-        wf = (on + "jobs:\n  guard:\n    runs-on: x\n    steps:\n"
+        wf = (on + "jobs:\n  guard:\n    runs-on: ubuntu-latest\n    steps:\n"
               "      - name: A\n        run: python3 tools/alpha.py check\n"
               "      - name: B\n        if: false\n        run: python3 tools/beta.py\n"
               "      - name: D\n        continue-on-error: true\n        run: python3 tools/delta.py\n"
               "      - name: E\n        run: |\n          set +e\n          python3 tools/epsilon.py\n"
               "      - name: V\n        run: python3 tools/version.py --check\n")
-        nightly = ("  nightly:\n    if: github.event_name == 'schedule'\n    runs-on: x\n    steps:\n"
+        nightly = ("  nightly:\n    if: github.event_name == 'schedule'\n    runs-on: ubuntu-latest\n    steps:\n"
                    "      - name: Z\n        run: python3 tools/zeta.py\n")
         missing, noted, stale, ci_only, cond = parity_report(wf + nightly)
         ok("parity: a blocking step running the exact command covers its gate",
@@ -264,7 +264,7 @@ def _selftest_parity(ok):
             missing = report(text)
             return len(missing) == 1 and "cannot be read" in missing[0]
 
-        head = on + "jobs:\n  j:\n    runs-on: x\n"
+        head = on + "jobs:\n  j:\n    runs-on: ubuntu-latest\n"
         step = "      - run: python3 tools/alpha.py check\n"
         job = head + "    steps:\n" + step
         ok("parity: `if: success()`, `if: true` and `if: ${{ always() }}` steps count",
@@ -289,8 +289,8 @@ def _selftest_parity(ok):
         ok("parity: a quoted `if` key is read", counts(job + "        'if': false\n") is False)
         ok("parity: `-   run:` items, a job key with a trailing comment and a job body indented six are read",
            counts(head + "    steps:\n      -   run: python3 tools/alpha.py check\n          if: false\n") is False
-           and counts(on + "jobs:\n  j:   # c\n    if: false\n    runs-on: x\n    steps:\n" + step) is False
-           and counts(on + "jobs:\n  j:\n      if: false\n      runs-on: x\n      steps:\n"
+           and counts(on + "jobs:\n  j:   # c\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n" + step) is False
+           and counts(on + "jobs:\n  j:\n      if: false\n      runs-on: ubuntu-latest\n      steps:\n"
                       "        - run: python3 tools/alpha.py check\n") is False)
         ok("parity: a `run:` item outside `steps:` is not a step",
            counts(head + "    strategy:\n      matrix:\n        include:\n"
@@ -298,10 +298,10 @@ def _selftest_parity(ok):
         ok("parity: a `steps:` value that is not a list, or a step that is not a mapping, counts no gate",
            refused(head + "    steps: 5\n") and refused(head + "    steps:\n      - x\n"))
         ok("parity: a job without `steps:` (a reusable-workflow call) runs no gate and does not stop the read",
-           counts(on + "jobs:\n  r:\n    uses: ./.github/workflows/x.yml\n  j:\n    runs-on: x\n    steps:\n" + step) is True
+           counts(on + "jobs:\n  r:\n    uses: ./.github/workflows/x.yml\n  j:\n    runs-on: ubuntu-latest\n    steps:\n" + step) is True
            and counts(on + "jobs:\n  r:\n    uses: ./.github/workflows/x.yml\n") is False)
         ok("parity: comments after `jobs:` and a job key, and a step list at its key's indentation, count",
-           counts(on + "jobs:   # c\n  j:   # c\n    runs-on: x\n    steps:\n    - run: python3 tools/alpha.py check\n") is True)
+           counts(on + "jobs:   # c\n  j:   # c\n    runs-on: ubuntu-latest\n    steps:\n    - run: python3 tools/alpha.py check\n") is True)
         ok("parity: a folded `run:` value counts",
            counts(head + "    steps:\n      - run: >-\n          python3 tools/alpha.py\n          check\n") is True)
         ok("parity: a `run:` value on the next line counts",
@@ -336,36 +336,36 @@ def _selftest_parity(ok):
         ok("parity: a non-mapping `defaults` or `defaults.run` is not coverage",
            counts(job.replace("jobs:\n", "defaults:\n  run: x\njobs:\n")) is False
            and counts(job.replace("jobs:\n", "defaults: x\njobs:\n")) is False)
-        nd = (on + "jobs:\n  nightly:\n    if: github.event_name == 'schedule'\n    runs-on: x\n"
-              "    steps:\n      - run: echo\n  after:\n    needs: nightly\n{cond}    runs-on: x\n"
+        nd = (on + "jobs:\n  nightly:\n    if: github.event_name == 'schedule'\n    runs-on: ubuntu-latest\n"
+              "    steps:\n      - run: echo\n  after:\n    needs: nightly\n{cond}    runs-on: ubuntu-latest\n"
               "    steps:\n      - run: python3 tools/alpha.py check\n")
         ok("parity: a job that needs a job with a gate is not coverage", counts(nd.format(cond="")) is False)
         ok("parity: needs plus `if: success()` or `if: true` is not coverage (GitHub adds success())",
            counts(nd.format(cond="    if: success()\n")) is False and counts(nd.format(cond="    if: true\n")) is False)
         ok("parity: needs plus `if: always()` counts, and only always() exempts",
            counts(nd.format(cond="    if: always()\n")) is True and _ALWAYS_ONLY == {"always()", "${{ always() }}"})
-        chain = (nd.format(cond="") + "  last:\n    needs: [after]\n    runs-on: x\n    steps:\n"
+        chain = (nd.format(cond="") + "  last:\n    needs: [after]\n    runs-on: ubuntu-latest\n    steps:\n"
                  "      - run: python3 tools/beta.py\n")
         ok("parity: needs propagates through a chain of jobs", any("beta" in m for m in report(chain)))
         ok("parity: needs propagates through jobs written before the jobs they need",
-           any("beta" in m for m in report(on + "jobs:\n  last:\n    needs: after\n    runs-on: x\n    steps:\n"
+           any("beta" in m for m in report(on + "jobs:\n  last:\n    needs: after\n    runs-on: ubuntu-latest\n    steps:\n"
                                             "      - run: python3 tools/beta.py\n  after:\n    needs: nightly\n"
-                                            "    runs-on: x\n    steps:\n      - run: echo\n  nightly:\n"
-                                            "    if: github.event_name == 'schedule'\n    runs-on: x\n"
+                                            "    runs-on: ubuntu-latest\n    steps:\n      - run: echo\n  nightly:\n"
+                                            "    if: github.event_name == 'schedule'\n    runs-on: ubuntu-latest\n"
                                             "    steps:\n      - run: echo\n")))
         ok("parity: needs naming a job the workflow does not define counts no gate",
            refused(nd.format(cond="").replace("needs: nightly", "needs: ghost")))
-        multi = parity_report(on + "jobs:\n  j:\n    runs-on: x\n    steps:\n      - name: M\n"
+        multi = parity_report(on + "jobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - name: M\n"
                               "        run: |\n          echo scanning\n          python3 tools/omega.py --all $R\n")[3]
         ok("parity: a command on one line of a multi-line step is reported as CI-only",
            multi == ["python3 tools/omega.py --all $R (one line of step 'M')"])
-        co = (on + "jobs:\n  j:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n"
+        co = (on + "jobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
               "        with:\n          ref: v0.1.0\n      - run: python3 tools/alpha.py check\n")
         ok("parity: a step after a checkout setting `ref:`, `repository:` or `path:` is not coverage",
            all(counts(co.replace("ref: v0.1.0", f"{k}: v")) is False for k in ("ref", "repository", "path")))
         ok("parity: a checkout with only fetch-depth leaves later steps blocking",
            counts(co.replace("ref: v0.1.0", "fetch-depth: 0")) is True)
-        envd = on + "jobs:\n  j:\n    runs-on: x\n{job}    steps:\n      - run: python3 tools/alpha.py check\n{step}"
+        envd = on + "jobs:\n  j:\n    runs-on: ubuntu-latest\n{job}    steps:\n      - run: python3 tools/alpha.py check\n{step}"
 
         def env_counts(job="", step=""):
             return counts(envd.format(job=job, step=step))
@@ -380,16 +380,95 @@ def _selftest_parity(ok):
            counts(job.replace("jobs:\n", "env:\n  BASH_ENV: x\njobs:\n")) is False
            and env_counts(step="        env: ${{ fromJSON(vars.E) }}\n") is False)
         ok("parity: an unrelated `env:` leaves the step blocking", env_counts(step="        env:\n          TZ: UTC\n") is True)
-        flaky = on + ("jobs:\n  flaky:\n    continue-on-error: true\n    runs-on: x\n    steps:\n"
+        flaky = on + ("jobs:\n  flaky:\n    continue-on-error: true\n    runs-on: ubuntu-latest\n    steps:\n"
                       "      - name: K\n        run: python3 tools/alpha.py check\n")
         ok("parity: a job-level continue-on-error before `steps:` is not coverage",
            any("alpha" in m for m in parity_report(flaky)[0]))
-        steps = _ci_steps(on + "jobs:\n  j:\n    runs-on: x\n    steps:\n"
+        steps = _ci_steps(on + "jobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
                           "      - name: S\n        if: success()\n        with:\n          if: false\n"
                           "        run: python3 tools/alpha.py check\n"
                           "      # - name: C\n      #   run: python3 tools/beta.py\n")
         ok("parity: `if: success()` does not gate a step, a key under `with:` is not a step key, and a "
            "commented-out step does not exist", [(s["name"], s["gates"]) for s in steps] == [("S", [])])
+        ok("parity: only a first word that is exactly python, python3 or python3.<digits> is dropped",
+           counts(job.replace("python3 tools", "python tools")) is True
+           and counts(job.replace("python3 tools", "python3.12 tools")) is True
+           and all(counts(job.replace("python3 tools", f"{w} tools")) is False
+                   for w in ("python3.||true", "python3.12&true", "python3.12;true", "python3.12|true",
+                             "python3.", "python3.x", "python3.1a")))
+        ok("parity: ANSI-C quoting before a `#` does not hide `|| true` from the reader",
+           counts(head + "    steps:\n      - run: |\n          python3.$'\\' tools/alpha.py check #' || true\n") is False
+           and counts(head + "    steps:\n      - run: \"python3.$'\\\\' tools/alpha.py check #' || true\"\n") is False)
+        ok("parity: a `#` inside quotes or inside a word stays in the step's command, and an unquoted "
+           "`#` that starts a word ends it",
+           [s["run"] for s in _ci_steps(head + "    steps:\n      - run: |\n          echo 'a #b' \"c #d\" g\\ #h\n"
+                                        "          x;#y\n          z # w\n          $'e\\' #f' i#j #k\n")]
+           == [["echo 'a #b' \"c #d\" g\\ #h", "x;", "z", "$'e\\' #f' i#j"]])
+        ok("parity: an `env:` variable named BASH* (an exported function BASH_FUNC_<name>%% included) "
+           "or LD_* is not coverage",
+           all(env_counts(step=f"        env:\n          {v}: x\n") is False
+               for v in ("BASH_FUNC_python3%%", "BASH_COMPAT", "BASH_XTRACEFD", "LD_AUDIT", "LD_BIND_NOW"))
+           and env_counts(job="    env:\n      BASH_FUNC_python3%%: '() { true; }'\n") is False
+           and counts(job.replace("jobs:\n", "env:\n  LD_AUDIT: x\njobs:\n")) is False
+           and _RUNTIME_ENV_PREFIXES == ("BASH", "LD_", "PYTHON", "GIT_"))
+        ok("parity: a checkout input other than fetch-depth, fetch-tags, persist-credentials or "
+           "show-progress, in any letter case, or a non-mapping `with:`, is not coverage",
+           all(counts(co.replace("ref: v0.1.0", k)) is False
+               for k in ("Ref: v", "REPOSITORY: o/r", "Path: p", "sparse-checkout: docs",
+                         "sparse-checkout-cone-mode: false", "clean: false", "filter: blob:none",
+                         "submodules: true", "lfs: true", "github-server-url: https://x"))
+           and counts(co.replace("        with:\n          ref: v0.1.0\n", "        with: x\n")) is False
+           and all(counts(co.replace("ref: v0.1.0", k)) is True
+                   for k in ("Fetch-Depth: 0", "fetch-tags: true", "persist-credentials: false",
+                             "show-progress: false"))
+           and _CHECKOUT_INPUTS == {"fetch-depth", "fetch-tags", "persist-credentials", "show-progress"})
+        ok("parity: a job with steps whose `runs-on:` is not one `ubuntu-` label is not coverage",
+           all(counts(job.replace("runs-on: ubuntu-latest", f"runs-on: {r}")) is False
+               for r in ("windows-latest", "macos-latest", "x", "self-hosted", "[ubuntu-latest]",
+                         "${{ matrix.os }}", "ubuntu", "windows-ubuntu-latest", "ubuntu-latest x"))
+           and counts(job.replace("runs-on: ubuntu-latest", "runs-on: ubuntu-24.04")) is True
+           and counts(job.replace("    runs-on: ubuntu-latest\n", "")) is False)
+        mx = head + "    strategy:\n      matrix:\n{m}    steps:\n" + step
+        ok("parity: a matrix of non-empty lists, with include mappings, fail-fast and max-parallel, counts",
+           counts(mx.format(m="        py: ['3.12', '3.14']\n")) is True
+           and counts(mx.format(m="        py: ['3.12']\n        include:\n          - py: '3.13'\n")) is True
+           and counts(head + "    strategy:\n      fail-fast: false\n      max-parallel: 1\n      matrix:\n"
+                      "        py: [a]\n    steps:\n" + step) is True)
+        ok("parity: a matrix `exclude:`, an empty or expression vector or matrix, or another strategy key "
+           "is not coverage",
+           all(counts(mx.format(m=m)) is False
+               for m in ("        py: ['3.12']\n        exclude:\n          - py: '3.12'\n",
+                         "        py: []\n", "        py: ${{ fromJSON(vars.P) }}\n", "        include: []\n",
+                         "        include: [x]\n"))
+           and counts(head + "    strategy: ${{ fromJSON(vars.S) }}\n    steps:\n" + step) is False
+           and counts(head + "    strategy:\n      matrix: ${{ fromJSON(vars.M) }}\n    steps:\n" + step) is False
+           and counts(head + "    strategy:\n      matrix: {}\n    steps:\n" + step) is False
+           and counts(head + "    strategy:\n      other: 1\n      matrix:\n        py: [a]\n    steps:\n"
+                      + step) is False)
+        ok("parity: limit: a `run:` step that checks out another commit before a gate leaves it counted",
+           counts(head + "    steps:\n      - run: git checkout HEAD~40\n" + step) is True)
+        ok("parity: a `#` after an operator starts a comment, a `#` after an escaped double quote does not, "
+           "and a quoted ` #` stays on the CI-only line",
+           [s["run"] for s in _ci_steps(head + "    steps:\n      - run: |\n          a&#b\n          a|#b\n"
+                                        "          (#b\n          a<#b\n          echo \"a\\\" #b\" c\n")]
+           == [["a&", "a|", "(", "a<", "echo \"a\\\" #b\" c"]]
+           and parity_report(head + "    steps:\n      - name: M\n        run: |\n          echo x\n"
+                             "          python3 tools/omega.py 'a #b'\n")[3]
+           == ["python3 tools/omega.py 'a #b' (one line of step 'M')"])
+        ok("parity: no gate's CI words hold $, a backtick, a quote or a backslash, which the comment cut "
+           "and shlex do not read the way bash does",
+           all(not set(w) & set("$`'\"\\") for n, argv in saved_gates for w in CI_EQUIVALENT.get(n, argv)))
+        ok("parity: the checkout rule reads any actions/checkout version or letter case and holds for "
+           "every later step in the job",
+           all(counts(co.replace("ref: v0.1.0", "Ref: v0.1.0").replace("actions/checkout@v4", u)) is False
+               for u in ("actions/checkout@v5", "Actions/Checkout@0123abc", "actions/checkout@main"))
+           and counts(co.replace("ref: v0.1.0", "Ref: v0.1.0").replace(
+               "      - run: python3 tools/alpha.py check\n",
+               "      - run: echo\n      - run: python3 tools/alpha.py check\n")) is False)
+        ok("parity: a `runs-on:` label that holds an expression is not coverage",
+           counts(job.replace("runs-on: ubuntu-latest", "runs-on: ubuntu-${{matrix.v}}")) is False)
+        ok("parity: a matrix `include:` with one entry that is not a mapping is not coverage",
+           counts(mx.format(m="        include:\n          - py: a\n          - x\n")) is False)
         CI_PARITY_NOTES["retired"] = "a gate that no longer exists, fixture reason"
         stale = parity_report(wf + nightly)[2]
         ok("parity: a note naming no battery gate is flagged stale",
@@ -403,7 +482,8 @@ def _selftest_parity(ok):
 def ci_parity(workflow=None) -> int:
     """Compare the battery roster with CI (.github/workflows/ci.yml unless another workflow path
     is passed). A gate counts when a step that _ci_steps reads as blocking runs exactly the gate's
-    command as its whole step; a leading `python` or `python3` is dropped. P94 matched the script
+    command as its whole step; a first word that is exactly python, python3 or python3.<minor> is
+    dropped. P94 matched the script
     path in the step text, so a step disabled with `if: false`, or `source_sync.py reconcile`
     standing in for `source_sync.py check`, still counted.
     A workflow that _yaml_subset refuses counts no gate, and the report names the line.
@@ -414,7 +494,8 @@ def ci_parity(workflow=None) -> int:
     after the interpreter is a tools/ script or bash and that is not a gate.
 
     Limits of this reading:
-      * what an earlier step or action does to the checkout, to a gate script or to the
+      * what an earlier step or action does to the checkout (a `run: git checkout HEAD~40` before
+        the gates leaves them counted), to a gate script or to the
         environment ($GITHUB_ENV, $GITHUB_PATH), the runner image, and workflow files other than
         the one read are outside it."""
     wf = Path(workflow) if workflow else ROOT / ".github" / "workflows" / "ci.yml"
@@ -536,21 +617,62 @@ _ALWAYS_ONLY = {"always()", "${{ always() }}"}
 
 
 # Variables that change a step's shell start-up, interpreter or search path, or whether a gate
-# fails closed when git is unavailable (CI); _env_gates also gates PYTHON* and GIT_* variables.
+# fails closed when git is unavailable (CI); _env_gates also gates every name that starts with one
+# of _RUNTIME_ENV_PREFIXES. BASH covers BASH_ENV, BASHOPTS and an exported function
+# (BASH_FUNC_<name>%%, which bash imports at start-up and which can stand in for python3); LD_
+# covers the loader (LD_PRELOAD, LD_AUDIT, LD_LIBRARY_PATH).
 _RUNTIME_ENV = {"BASH_ENV", "ENV", "PATH", "SHELLOPTS", "BASHOPTS", "LD_PRELOAD", "LD_LIBRARY_PATH",
                 "CI"}
+_RUNTIME_ENV_PREFIXES = ("BASH", "LD_", "PYTHON", "GIT_")
 
 
 def _env_gates(block, where):
-    """Gates from an `env:` block that sets a _RUNTIME_ENV, PYTHON* or GIT_* variable, or that is
-    not a mapping."""
+    """Gates from an `env:` block that sets a _RUNTIME_ENV variable or a variable whose name starts
+    with one of _RUNTIME_ENV_PREFIXES, or that is not a mapping."""
     env = block.get("env")
     if env is None:
         return []
     if not isinstance(env, dict):
         return [f"{where} env: {_txt(env)}"]
     return [f"{where} env sets {k}" for k in env
-            if str(k) in _RUNTIME_ENV or str(k).startswith(("PYTHON", "GIT_"))]
+            if str(k) in _RUNTIME_ENV or str(k).startswith(_RUNTIME_ENV_PREFIXES)]
+
+
+# actions/checkout inputs that keep the checkout the pushed commit's whole tree at the workspace
+# root. Any other input (ref, repository, path, sparse-checkout, filter, clean, submodules, lfs,
+# github-server-url and the rest) makes later steps in the job non-coverage. GitHub reads step
+# inputs without regard to letter case, so keys are compared lower-cased.
+_CHECKOUT_INPUTS = {"fetch-depth", "fetch-tags", "persist-credentials", "show-progress"}
+
+
+# The `runs-on:` values read as a Linux runner, where a step without `shell:` runs under bash -e.
+# A Windows runner's default shell is pwsh, and a self-hosted or expression label names no known OS.
+_LINUX_RUNNER = re.compile(r"ubuntu-[0-9a-z.-]+")
+
+
+def _strategy_gates(job):
+    """Gates from a job's `strategy:`. The reading models a mapping of fail-fast, max-parallel and a
+    `matrix:` whose vectors are non-empty lists and whose `include:` is a non-empty list of
+    mappings; `exclude:`, an expression, an empty matrix or another key could remove the
+    combination a gate runs in, so each is a gate."""
+    s = job.get("strategy")
+    if s is None:
+        return []
+    if not isinstance(s, dict) or any(k not in ("matrix", "fail-fast", "max-parallel") for k in s):
+        return [f"job strategy: {_txt(s)}"]
+    m = s.get("matrix")
+    if m is None:
+        return []
+    if not isinstance(m, dict) or not m:
+        return [f"job strategy.matrix: {_txt(m)}"]
+    gates = []
+    for k, v in m.items():
+        good = isinstance(v, list) and len(v) > 0 and k != "exclude"
+        if k == "include":
+            good = good and all(isinstance(x, dict) for x in v)
+        if not good:
+            gates.append(f"job strategy.matrix.{k}: {_txt(v)}")
+    return gates
 
 
 def _steps_from_doc(doc):
@@ -565,10 +687,15 @@ def _steps_from_doc(doc):
         `defaults.run.working-directory`, or sets `defaults` or `defaults.run` to a non-mapping
       * its job needs, directly or through other jobs, a job with a gate, and its own `if:` is not
         always() (GitHub skips a job whose needed job was skipped unless its `if:` is always())
-      * an earlier `actions/checkout` step in its job sets `ref:`, `repository:` or `path:`
-      * the workflow, the job or the step sets in `env:` BASH_ENV, ENV, PATH, SHELLOPTS, BASHOPTS,
-        LD_PRELOAD, LD_LIBRARY_PATH, CI, or a PYTHON* or GIT_* variable, or sets `env:` to a
+      * an earlier `actions/checkout` step in its job sets a `with:` input other than fetch-depth,
+        fetch-tags, persist-credentials or show-progress, in any letter case, or sets `with:` to a
+        non-mapping
+      * the workflow, the job or the step sets in `env:` ENV, PATH, SHELLOPTS, CI, or a variable
+        whose name starts with BASH (BASH_ENV, BASHOPTS, an exported function BASH_FUNC_<name>%%),
+        LD_, PYTHON or GIT_, or sets `env:` to a
         non-mapping, or the job sets `container:`; any other `env:` variable leaves it blocking
+      * the job has `steps:` and its `runs-on:` is not one `ubuntu-` runner label (_LINUX_RUNNER)
+      * the job's `strategy:` is outside what _strategy_gates models (a matrix `exclude:` among them)
     Workflow, job and step keys not named here are not read."""
     if not isinstance(doc, dict) or not isinstance(doc.get("jobs"), dict):
         raise WorkflowSyntaxError(0, "the workflow has no `jobs:` mapping")
@@ -582,9 +709,14 @@ def _steps_from_doc(doc):
             raise WorkflowSyntaxError(0, f"job {jid!r} is not a mapping")
         gates = list(base)
         gates += _env_gates(job, "job")
+        if job.get("steps") is not None:
+            runner = job.get("runs-on")
+            if not (isinstance(runner, str) and _LINUX_RUNNER.fullmatch(runner)):
+                gates.append(f"job runs-on: {_txt(runner)}")
         if job.get("container") is not None:
             gates.append(f"job container: {_txt(job['container'])}")
         gates += _defaults_gates(job, "job")
+        gates += _strategy_gates(job)
         if _txt(job.get("if", True)) not in _ALWAYS_RUNS:
             gates.append(f"job if: {_txt(job['if'])}")
         if job.get("continue-on-error", False) is not False:
@@ -630,13 +762,16 @@ def _steps_from_doc(doc):
             if st.get("continue-on-error", False) is not False:
                 gates.append(f"continue-on-error: {_txt(st['continue-on-error'])}")
             text = "" if st.get("run") is None else str(st["run"])
-            run = [ln.strip().split(" #", 1)[0].rstrip() for ln in text.split("\n")]
+            run = [_shell_comment_cut(ln.strip()) for ln in text.split("\n")]
             steps.append({"job": str(jid), "name": _txt(st.get("name", "")),
                           "run": [ln for ln in run if ln and not ln.startswith("#")], "gates": gates})
-            inputs = st.get("with") if isinstance(st.get("with"), dict) else {}
+            inputs = st.get("with")
             if _txt(st.get("uses", "")).lower().startswith("actions/checkout"):
-                moved += [f"an earlier checkout sets {k}: {_txt(inputs[k])}"
-                          for k in ("ref", "repository", "path") if k in inputs]
+                if inputs is not None and not isinstance(inputs, dict):
+                    moved.append(f"an earlier checkout sets with: {_txt(inputs)}")
+                elif inputs:
+                    moved += [f"an earlier checkout sets {k}: {_txt(v)}" for k, v in inputs.items()
+                              if str(k).lower() not in _CHECKOUT_INPUTS]
     return steps
 
 
@@ -1042,19 +1177,56 @@ def _yaml_subset(text):
     return _Subset(text).parse()
 
 
+# The first words _step_command drops: python, python3 and python3.<minor>, matched whole.
+_INTERPRETER = re.compile(r"python3?|python3\.[0-9]+")
+
+
 def _step_command(step):
     """A step's single command as shell words, python interpreter dropped; None when the step runs
     anything else as well. A gate must be the WHOLE step: `x || true`, `set +e` earlier in a
-    block, or a trailing `; exit 0` would each mask its exit code."""
+    block, or a trailing `; exit 0` would each mask its exit code. The first word is dropped only
+    when _INTERPRETER matches all of it, so a first word that holds a shell operator or quoting
+    (`python3.||true`, `python3.$'...'`) stays a word and the step matches no gate."""
     if len(step["run"]) != 1:
         return None
     try:
         words = shlex.split(step["run"][0])
     except ValueError:
         return None
-    if words and (words[0] in ("python", "python3") or words[0].startswith("python3.")):
+    if words and _INTERPRETER.fullmatch(words[0]):
         words = words[1:]
     return words
+
+
+def _shell_comment_cut(line):
+    """A `run:` line without its shell comment: the text before the first `#` that starts a word
+    outside quotes, as bash reads it. Single quotes, double quotes, $'...' and backslash escapes
+    are tracked, and a word starts after a blank or one of ;&|()<>. A line whose quote does not
+    close is returned whole, and shlex then refuses it."""
+    q, start, i = "", True, 0
+    while i < len(line):
+        c = line[i]
+        if q:
+            if c == "\\" and q != "'":
+                i += 2
+                continue
+            if c == q[-1]:
+                q = ""
+            i += 1
+            continue
+        if c == "#" and start:
+            return line[:i].rstrip()
+        if c == "\\":
+            i, start = i + 2, False
+            continue
+        if c == "$" and line[i + 1:i + 2] in ("'", '"'):
+            q, i, start = ("$'" if line[i + 1] == "'" else '"'), i + 2, False
+            continue
+        if c in "'\"":
+            q = c
+        start = c in " \t;&|()<>"
+        i += 1
+    return line.rstrip()
 
 
 # Gates CI covers by a different route than running the gate's own command, each with its reason.

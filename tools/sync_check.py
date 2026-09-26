@@ -7223,12 +7223,12 @@ def check_ci_parity():
         battery = types.ModuleType("_battery_parity")
         battery.__file__ = str(path)
         exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), battery.__dict__)
-        probe = ("on: push\njobs:\n  j:\n    runs-on: x\n    steps:\n"
+        probe = ("on: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
                  "      - if: false\n        run: python3 tools/sync_check.py\n")
         if not any("the drift guard gate" in p for p in _ci_parity_problems(probe, battery)):
             problem("ci-parity: self-proof failed: a drift-guard step disabled with `if: false` was counted")
             return
-        head = "on: push\njobs:\n  j:\n    runs-on: x\n    steps:\n      - run: |\n"
+        head = "on: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n"
         body = ('          RANGE=a..b\n          python3 tools/secret_scan.py --commit-messages "$RANGE"\n'
                 '          python3 tools/commit_claims.py --range "$RANGE"\n')
         if (_commit_claims_step_problems(battery._ci_steps(head + body))
