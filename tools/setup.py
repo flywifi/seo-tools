@@ -500,7 +500,7 @@ def _selftest() -> int:
             return self
 
     _fake_venv_py = str(ROOT / ".venv-selftest-absent" / "bin" / "python3")
-    _pip_words = "-m pip install".split()
+    _pip_words = ["-m", "pip"]
     _rec_venv, _rec_none = _ArgvRecorder(), _ArgvRecorder()
     _saved = (globals()["subprocess"], env_paths.venv_python, env_paths.which)
     try:
@@ -514,7 +514,7 @@ def _selftest() -> int:
     finally:
         globals()["subprocess"], env_paths.venv_python, env_paths.which = _saved
     _expected_pips = sum(1 for f, _ in REQUIREMENTS_SETS if (ROOT / f).exists()) + 1
-    _venv_pips = [c for c in _rec_venv.calls if c[1:4] == _pip_words]
+    _venv_pips = [c for c in _rec_venv.calls if c[1:3] == _pip_words]
     ok(len(_venv_pips) == _expected_pips
        and all(c[0] == _fake_venv_py for c in _rec_venv.calls),
        ".venv present: every pip and Playwright subprocess runs the .venv interpreter, never the "
@@ -522,26 +522,220 @@ def _selftest() -> int:
     ok(_rec_none.calls == [[PYTHON, "-m", "venv", str(ROOT / ".venv")]],
        "no .venv: install_dependencies runs only the .venv creation attempt and no pip or "
        "Playwright subprocess, so pip cannot run in the base interpreter")
+    # The same property at the CLI entry the wizard's "Set up my computer" screen runs
+    # (`setup.py --install-deps --json`) and the plain form a person types. main() is driven with
+    # no .venv obtainable under each way the .venv attempt can fail: it exits 0 and leaves no
+    # .venv; it exits 1 with output carrying every string literal in this module, so a branch on
+    # that output meets its own operand; and it raises. Every way this process can start another
+    # is recorded: this module's `subprocess` name, subprocess.Popen and the fork_exec it runs (so
+    # a Popen bound to another name first is seen), os.system and the os exec/spawn/fork family,
+    # any name in this module or env_paths bound to one of those, and an import of pip. The only
+    # start allowed is the .venv creation attempt, and the entry exits 1 with every requirements
+    # set refused. A start made from native code (a C extension, ctypes), or on Windows by a Popen
+    # bound to another name in some other module (it reaches _winapi.CreateProcess), is outside
+    # what this records.
+    import ast as _ast_cli
+    import contextlib as _cl
+    import io as _io
+    import os as _os_proc
+    import re as _re_proc
+    import subprocess as _sp_mod
+    _procs = []
+    _all_words = " ".join(sorted({_n.value for _n in _ast_cli.walk(_ast_cli.parse(
+        Path(__file__).read_text(encoding="utf-8")))
+        if isinstance(_n, _ast_cli.Constant) and isinstance(_n.value, str)}))
+
+    def _argv(cmd):
+        return [str(x) for x in cmd] if isinstance(cmd, (list, tuple)) else [str(cmd)]
+
+    def _refuse(tag):
+        def _rec(cmd=None, *a, **k):
+            _procs.append((tag, _argv(cmd)))
+            raise OSError("selftest: process start refused")
+        return _rec
+
+    class _ModuleRecorder:
+        """Stands in for this module's `subprocess`: every function it is asked for records the
+        argv, then raises OSError when `raises` is set and otherwise returns a finished process
+        carrying this recorder's returncode, stdout and stderr."""
+        returncode, stdout, stderr, raises = 0, "", "", False
+
+        def __getattr__(self, name):
+            def _rec(cmd=None, *a, **k):
+                _procs.append((name, _argv(cmd)))
+                if self.raises:
+                    raise OSError(_all_words)
+                return self
+            return _rec
+
+    class _PipImportRefused:
+        def find_spec(self, name, path=None, target=None):
+            if name.split(".")[0] in ("pip", "ensurepip"):
+                _procs.append(("import", [name]))
+                raise ImportError(f"selftest: import of {name} refused")
+            return None
+
+    _os_starts = [n for n in dir(_os_proc) if _re_proc.fullmatch(
+        r"system|popen|fork|forkpty|posix_spawnp?|(?:exec|spawn)[lv]p?e?", n)]
+    _starters = [getattr(_os_proc, n) for n in _os_starts] + [
+        f for f in (_sp_mod.Popen, getattr(_sp_mod, "_fork_exec", None)) if f is not None]
+    _aliases = [(ns, k) for ns in (globals(), env_paths.__dict__) for k, v in list(ns.items())
+                if any(v is f for f in _starters)]
+    _cached_pip = {k: v for k, v in sys.modules.items() if k.split(".")[0] in ("pip", "ensurepip")}
+    _saved_cli = (globals()["subprocess"], env_paths.venv_python, env_paths.which, sys.argv,
+                  _sp_mod.Popen, getattr(_sp_mod, "_fork_exec", None),
+                  {n: getattr(_os_proc, n) for n in _os_starts},
+                  [(ns, k, ns[k]) for ns, k in _aliases])
+    _finder = _PipImportRefused()
+    _exits, _outs = [], []
+    try:
+        env_paths.venv_python = lambda *a, **k: None
+        env_paths.which = lambda name: None
+        _sp_mod.Popen = _refuse("Popen")
+        if _saved_cli[5] is not None:
+            _sp_mod._fork_exec = _refuse("fork_exec")
+        for _n in _os_starts:
+            setattr(_os_proc, _n, _refuse(_n))
+        for _ns, _k in _aliases:
+            _ns[_k] = _refuse(_k)
+        for _k in _cached_pip:
+            del sys.modules[_k]
+        sys.meta_path.insert(0, _finder)
+        for _rc, _text, _raises in ((0, "", False), (1, _all_words, False), (1, "", True)):
+            _mod = _ModuleRecorder()
+            _mod.returncode, _mod.stdout, _mod.stderr, _mod.raises = _rc, _text, _text, _raises
+            globals()["subprocess"] = _mod
+            for _cli in (["--install-deps", "--json"], ["--install-deps"]):
+                sys.argv = ["setup.py", *_cli]
+                _buf = _io.StringIO()
+                try:
+                    with _cl.redirect_stdout(_buf):
+                        main()
+                    _exits.append(None)
+                except SystemExit as _exc:
+                    _exits.append(_exc.code)
+                except Exception as _exc:  # noqa: BLE001 - a crash on this path is a failed pin
+                    _exits.append(repr(_exc))
+                _outs.append(_buf.getvalue())
+    finally:
+        if _finder in sys.meta_path:
+            sys.meta_path.remove(_finder)
+        sys.modules.update(_cached_pip)
+        (globals()["subprocess"], env_paths.venv_python, env_paths.which, sys.argv,
+         _sp_mod.Popen, _fork_saved, _os_saved, _alias_saved) = _saved_cli
+        if _fork_saved is not None:
+            _sp_mod._fork_exec = _fork_saved
+        for _n, _f in _os_saved.items():
+            setattr(_os_proc, _n, _f)
+        for _ns, _k, _f in _alias_saved:
+            _ns[_k] = _f
+    _venv_try = ("run", [PYTHON, "-m", "venv", str(ROOT / ".venv")])
+    _cli_sets = []
+    for _o in _outs[0::2]:
+        try:
+            _cli_sets.append([r for r in json.loads(_o)["results"]
+                              if str(r.get("item", "")).startswith("requirements-")])
+        except (ValueError, KeyError, TypeError, AttributeError):
+            _cli_sets.append([])
+    ok(_procs == [_venv_try] * 6 and _exits == [1] * 6 and len(_cli_sets) == 3
+       and all(len(s) == len(REQUIREMENTS_SETS)
+               and all(r.get("ok") is False and "never installs into a machine-wide"
+                       in str(r.get("detail")) for r in s) for s in _cli_sets),
+       "no .venv: the --install-deps CLI entry starts only the .venv creation attempt and exits 1 "
+       "with every requirements set refused, so pip cannot run in the base interpreter")
     # Every pip install command in the tree is built in one of two functions, setup.py's
     # _pip_install and wizard.py's _install_uv, and the pins above and in wizard.py's selftest
     # record the interpreter each of them runs. The file set is derived from the tree: every .py
     # under the repo except hidden, build and cache directories (.venv, .git, dist, __pycache__).
-    # A command assembled at run time from non-literal parts is outside what this census reads.
+    # Within one function (or a module's top level) the census reads every literal an argv can be
+    # assembled from: list, tuple and set elements, `+`, `+=` and append/extend/insert operands,
+    # names bound to such literals there or at module level, a string handed to a process call
+    # or to split() (split into words), and an import of pip itself. A pip executable is any
+    # name pip, pip3 or pip3.N, bare, at the end of a path or glued to -m. A %-formatted or
+    # .format() string is read as its template, and a conditional as both of its branches. A word
+    # made by a call (join, chr), read from a file or the environment, or assembled across two
+    # functions is outside what this census reads.
     import ast as _ast
     import os as _os
+    import re as _re
+    _pip_exe = _re.compile(r"(?:-m)?(?:.*[/\\])?pip(?:\d+(?:\.\d+)*)?(?:\.exe)?")
+    _proc_calls = {"run", "Popen", "call", "check_call", "check_output", "system", "popen",
+                   "getoutput", "getstatusoutput", "create_subprocess_exec",
+                   "create_subprocess_shell", "run_module", "run_path", "import_module",
+                   "__import__", "posix_spawn", "posix_spawnp", "execl", "execlp", "execv",
+                   "execvp", "spawnl", "spawnlp", "spawnv", "spawnvp", "split"}
 
-    def _pip_argv_sites(node, rel, fn, out):
-        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
-            fn = node.name
-        if isinstance(node, (_ast.List, _ast.Tuple)):
-            words = {e.value for e in node.elts
-                     if isinstance(e, _ast.Constant) and isinstance(e.value, str)}
-            if "pip" in words and "install" in words:
-                out.add((rel, fn))
-        for child in _ast.iter_child_nodes(node):
-            _pip_argv_sites(child, rel, fn, out)
+    def _pip_argv_sites(tree, rel, out):
+        scopes = (_ast.FunctionDef, _ast.AsyncFunctionDef)
+        bound = {}
 
-    _pip_sites = set()
+        def fold(n, fn):
+            """(words, is_one_string): the literal words expression `n` is built from."""
+            if isinstance(n, _ast.Constant) and isinstance(n.value, str):
+                return [n.value], True
+            if isinstance(n, _ast.JoinedStr):
+                return ["".join(v.value if isinstance(v, _ast.Constant) else " "
+                                for v in n.values)], True
+            if isinstance(n, _ast.BinOp) and isinstance(n.op, _ast.Mod):
+                return fold(n.left, fn)
+            if (isinstance(n, _ast.Call) and isinstance(n.func, _ast.Attribute)
+                    and n.func.attr == "format"):
+                return fold(n.func.value, fn)
+            if isinstance(n, _ast.IfExp):
+                return fold(n.body, fn)[0] + fold(n.orelse, fn)[0], False
+            if isinstance(n, _ast.BinOp) and isinstance(n.op, _ast.Add):
+                (lw, ls), (rw, rs) = fold(n.left, fn), fold(n.right, fn)
+                return ([lw[0] + rw[0]], True) if ls and rs else (lw + rw, False)
+            if isinstance(n, (_ast.List, _ast.Tuple, _ast.Set)):
+                return [w for e in n.elts for w in fold(e, fn)[0]], False
+            if isinstance(n, _ast.Starred):
+                return fold(n.value, fn)[0], False
+            if isinstance(n, _ast.Name):
+                return bound.get((fn, n.id)) or bound.get((None, n.id)) or ([], False)
+            return [], False
+
+        def walk(node, fn, visit):
+            if isinstance(node, scopes):
+                fn = node.name
+            visit(node, fn)
+            for child in _ast.iter_child_nodes(node):
+                walk(child, fn, visit)
+
+        def bind(node, fn):
+            target = (node.targets[0] if isinstance(node, _ast.Assign) and len(node.targets) == 1
+                      else node.target if isinstance(node, _ast.AugAssign) else None)
+            if isinstance(target, _ast.Name):
+                words, one = fold(node.value, fn)
+                if words:
+                    old = bound.get((fn, target.id), ([], True))[0]
+                    bound[(fn, target.id)] = (old + words, one and not old)
+
+        def read(node, fn):
+            words = out.setdefault((rel, fn or "<module>"), set())
+            if isinstance(node, (_ast.List, _ast.Tuple, _ast.Set)):
+                words.update(fold(node, fn)[0])
+            elif isinstance(node, _ast.AugAssign) and isinstance(node.op, _ast.Add):
+                words.update(fold(node.value, fn)[0])
+            elif isinstance(node, (_ast.Import, _ast.ImportFrom)):
+                mods = [a.name for a in node.names] + [getattr(node, "module", None) or ""]
+                words.update("pip" for m in mods if m.split(".")[0] in ("pip", "ensurepip"))
+            elif isinstance(node, _ast.Call):
+                f = node.func
+                name = f.attr if isinstance(f, _ast.Attribute) else getattr(f, "id", "")
+                if name in ("append", "extend", "insert"):
+                    for arg in node.args:
+                        words.update(fold(arg, fn)[0])
+                if name in _proc_calls:
+                    first = [f.value] if name == "split" and isinstance(f, _ast.Attribute) else []
+                    for arg in first + node.args[:1]:
+                        for w in fold(arg, fn)[0]:
+                            words.update(w.split())
+
+        for _ in range(2):  # twice, so a name bound from another bound name resolves
+            walk(tree, None, bind)
+        walk(tree, None, read)
+
+    _pip_words_by_site = {}
     for _dir, _subdirs, _files in _os.walk(ROOT):
         _subdirs[:] = sorted(d for d in _subdirs if not d.startswith(".")
                              and d not in ("dist", "node_modules", "__pycache__"))
@@ -551,16 +745,78 @@ def _selftest() -> int:
             _p = Path(_dir) / _name
             _rel = _p.relative_to(ROOT).as_posix()
             try:
-                _pip_argv_sites(_ast.parse(_p.read_text(encoding="utf-8")), _rel, "<module>",
-                                _pip_sites)
-            except (OSError, SyntaxError, UnicodeDecodeError, ValueError):
-                _pip_sites.add((_rel, "<unreadable>"))
+                _pip_argv_sites(_ast.parse(_p.read_text(encoding="utf-8")), _rel,
+                                _pip_words_by_site)
+            except (OSError, SyntaxError, UnicodeDecodeError, ValueError, RecursionError):
+                _pip_words_by_site[(_rel, "<unreadable>")] = None
+    _pip_sites = {site for site, words in _pip_words_by_site.items()
+                  if words is None
+                  or ("install" in words and any(_pip_exe.fullmatch(w) for w in words))}
+    # The census reads each assembly form it names: a fixture per form comes back as a site.
+    _fixture_sites = {}
+    _fixtures = (
+        'def f():\n    c = [sys.executable, "-m", "pip"]\n    c += ["install", "x"]\n',
+        'def f():\n    run(["pip3", "install", "x"])\n',
+        'P = "pip"\ndef f():\n    run([sys.executable, "-m", P, "install", "x"])\n',
+        'def f():\n    c = [py, "-m"]\n    c.append("pi" + "p")\n    c.extend(["install"])\n',
+        'def f():\n    run("env pip install x".split())\n',
+        'def f():\n    os.system(f"{py} -m pip install x")\n',
+        'def f():\n    import pip\n    pip.main(["install", "x"])\n')
+    _fixtures += (
+        'def f():\n    os.system("%s -m pip install x" % py)\n',
+        'def f():\n    run("{} -m pip install x".format(py), shell=True)\n',
+        'def f(rm=False):\n    run([py, "-m", "pip", "install" if not rm else "uninstall", "x"])\n',
+        'def f():\n    run([py, "-mpip", "install", "x"])\n',
+    )
+    for _i, _fx in enumerate(_fixtures):
+        _pip_argv_sites(_ast.parse(_fx), f"fixture{_i}", _fixture_sites)
+    ok({site[0] for site, words in _fixture_sites.items()
+        if "install" in words and any(_pip_exe.fullmatch(w) for w in words)}
+       == {f"fixture{_i}" for _i in range(len(_fixtures))},
+       "pip census self-check: a split argv, pip3, a module-level pip name, an appended "
+       "concatenated word, a split string, an f-string command and pip imported in-process "
+       "are each read as a pip install site, and so are a %-formatted and a .format() command, "
+       "an action word chosen by a conditional and a -mpip flag")
     _pip_expected = {("tools/setup.py", "_pip_install"), ("tools/wizard.py", "_install_uv")}
     if _pip_sites != _pip_expected:
         print(f"  [note] pip install commands found at: {sorted(_pip_sites)}")
     ok(_pip_sites == _pip_expected,
        "pip census: every pip install command in the tree is built in setup.py::_pip_install or "
        "wizard.py::_install_uv")
+    _pip_named = {site for site, words in _pip_words_by_site.items()
+                  if words is None or any(_pip_exe.fullmatch(w) for w in words)}
+    _pip_readers = {("tools/setup.py", "_selftest"), ("tools/wizard.py", "_selftest"),
+                    ("tools/setup.py", "find_spec"), ("tools/setup.py", "read"),
+                    ("tools/readonly_bash_guard.py", "<module>")}
+    if not _pip_named <= _pip_expected | _pip_readers:
+        print(f"  [note] pip program named at: {sorted(_pip_named - _pip_expected - _pip_readers)}")
+    ok(_pip_named <= _pip_expected | _pip_readers,
+       "pip census: the pip program is named only in the two install functions, the setup and "
+       "wizard selftests with their census helpers, and the Bash guard's refused-module table")
+    _syn_map = {}
+    _pip_argv_sites(_ast.parse(
+        "PREFIX = ('pip',)\n"
+        "def split_argv(py):\n    cmd = [py, '-m', 'pip']\n    cmd += ['install', 'x']\n"
+        "def pip3_argv():\n    return ['pip3', 'install', 'x']\n"
+        "def path_argv():\n    return ['/usr/bin/pip3.12', 'install', 'x']\n"
+        "def joined(py):\n    return [py, '-m', 'pip', 'ins' + 'tall', 'x']\n"
+        "def in_process():\n    from pip._internal.cli.main import main\n"
+        "    return main(['install', 'x'])\n"
+        "def prefix(py):\n    return [py, '-m', 'pip']\n"
+        "def venv_only(py):\n    return [py, '-m', 'venv', '.venv']\n"),
+        "syn.py", _syn_map)
+    _syn = {site for site, words in _syn_map.items()
+            if words is not None and "install" in words
+            and any(_pip_exe.fullmatch(w) for w in words)}
+    _syn_named = {site for site, words in _syn_map.items()
+                  if words is None or any(_pip_exe.fullmatch(w) for w in words)}
+    _syn_want = {("syn.py", n) for n in (
+        "split_argv", "pip3_argv", "path_argv", "joined", "in_process")}
+    ok(_syn == _syn_want,
+       "pip census reads an argv split across statements, pip3, a path to pip, literals joined "
+       "with + and an in-process pip import, and not a venv command")
+    ok(_syn_named == _syn_want | {("syn.py", "prefix"), ("syn.py", "<module>")},
+       "pip census names a helper or a module constant that holds the pip program")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:

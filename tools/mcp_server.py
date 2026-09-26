@@ -667,8 +667,35 @@ def _selftest_static() -> tuple:
                                    ({"capabilities": {f"{_plat}_publishing": True}}, {}),
                                    ({"capabilities": {f"{_plat}_publishing": True}},
                                     {_plat: {"publish": {"access_token": "t"}}}))]
-    ok("schedule_post always sets human_review_required: true on every platform and tier",
-       len(_plans) == 12 and all(_s.get("human_review_required") is True for _s in _plans))
+    # The same plans with every other argument filled: one at a time and all together with a
+    # realistic post (a public media URL, a timestamp, hashtags, the AIGC flag, a disclosure, a
+    # board, a long caption), with hashtag lists of 0, 3, 10 and 40 entries, and all together
+    # with each string literal in this module, so a value a condition in the code compares
+    # against meets its own operand here.
+    import ast as _ast_sp
+    _real_post = {"caption": "x" * 600, "content_type": "reel",
+                  "media_url": "https://cdn.example.invalid/v.mp4",
+                  "scheduled_datetime": "2030-01-01T09:00:00Z", "hashtags": ["#a", "#b"],
+                  "is_aigc": True, "ftc_disclosure": "#ad", "board_name": "Main board"}
+    _literals = sorted({_n.value for _n in _ast_sp.walk(_ast_sp.parse(src))
+                        if isinstance(_n, _ast_sp.Constant) and isinstance(_n.value, str)})
+    _fills = [{_k: _v} for _k, _v in _real_post.items()] + [_real_post] + [
+        {"hashtags": [f"#t{_i}" for _i in range(_n)]} for _n in (0, 3, 10, 40)] + [
+        {"caption": _l, "content_type": _l, "media_url": _l, "scheduled_datetime": _l,
+         "hashtags": [_l], "is_aigc": True, "ftc_disclosure": _l, "board_name": _l}
+        for _l in _literals]
+    _adv = [_schedule_post_impl(_plat, **dict({"caption": "hello", "content_type": "video"}, **_f),
+                                config=_cfg, creds=_creds)
+            for _f in _fills
+            for _plat in ("youtube", "instagram", "tiktok", "pinterest")
+            for _cfg, _creds in (({}, {}),
+                                 ({"capabilities": {f"{_plat}_publishing": True}}, {}),
+                                 ({"capabilities": {f"{_plat}_publishing": True}},
+                                  {_plat: {"publish": {"access_token": "t"}}}))]
+    ok("schedule_post always sets human_review_required: true on every platform and tier, "
+       "whatever its other arguments carry",
+       len(_plans) == 12 and len(_adv) == 12 * len(_fills)
+       and all(_s.get("human_review_required") is True for _s in _plans + _adv))
     ok("schedule_post returns a plan, never a completed post",
        len(_plans) == 12
        and {_s.get("status") for _s in _plans} <= {"manual_required", "awaiting_human_confirmation"}
@@ -684,6 +711,39 @@ def _selftest_static() -> tuple:
        isinstance(_ret, _ast.Call) and _ast.unparse(_ret.func) == "json.dumps" and bool(_ret.args)
        and isinstance(_ret.args[0], _ast.Call)
        and _ast.unparse(_ret.args[0].func) == "_schedule_post_impl")
+    # And in the impl's source: the only write of human_review_required is the summary literal's
+    # own `True`, and the summary is used in exactly three ways: built once from a dict literal
+    # with no ** spread, given a key other than human_review_required by a plain subscript
+    # assignment, and returned. Any other use (handed to a call or a method, |=, bound to another
+    # name) fails the pin, and every return hands back that summary.
+    _impl = next((_n for _n in _ast.parse(src).body
+                  if isinstance(_n, _ast.FunctionDef) and _n.name == "_schedule_post_impl"), None)
+    _nodes = [] if _impl is None else list(_ast.walk(_impl))
+    _parent = {id(_c): _n for _n in _nodes for _c in _ast.iter_child_nodes(_n)}
+    _hrr = [_v for _n in _nodes if isinstance(_n, _ast.Dict) for _k, _v in zip(_n.keys, _n.values)
+            if isinstance(_k, _ast.Constant) and _k.value == "human_review_required"]
+
+    def _summary_use(_n):
+        _p = _parent.get(id(_n))
+        if isinstance(_p, _ast.Assign) and _p.targets == [_n]:
+            return "build" if isinstance(_p.value, _ast.Dict) and None not in _p.value.keys else "x"
+        if isinstance(_p, _ast.Return):
+            return "return"
+        if (isinstance(_p, _ast.Subscript) and _p.value is _n and isinstance(_p.ctx, _ast.Store)
+                and isinstance(_p.slice, _ast.Constant)
+                and _p.slice.value != "human_review_required"
+                and isinstance(_parent.get(id(_p)), _ast.Assign)):
+            return "set"
+        return "x"
+
+    _uses = [_summary_use(_n) for _n in _nodes if isinstance(_n, _ast.Name) and _n.id == "summary"]
+    _returns = [_n for _n in _nodes if isinstance(_n, _ast.Return)]
+    ok("schedule_post's summary carries human_review_required only as the literal True and is "
+       "returned without a later write",
+       _impl is not None and len(_hrr) == 1 and isinstance(_hrr[0], _ast.Constant)
+       and _hrr[0].value is True and _uses.count("build") == 1 and "x" not in _uses
+       and bool(_returns)
+       and all(isinstance(_r.value, _ast.Name) and _r.value.id == "summary" for _r in _returns))
     # P73: a malformed local config must be preserved, never clobbered.
     import tempfile as _tf
     with _tf.TemporaryDirectory() as _td:

@@ -194,6 +194,19 @@ def _selftest() -> int:
         committed = None
     ok(isinstance(committed, dict) and live_publishing_enabled(committed) is False,
        "the committed creator-os-config.json ships live_publishing_enabled off")
+    # The runtime default: live_publishing_enabled() with no argument resolves through
+    # load_config(), the path the dashboard's main() and dispatch() without a config take, here
+    # with the gitignored local override pointed at a file that does not exist, so only the
+    # committed file and the resolution code decide the answer.
+    saved_local = CONFIG_LOCAL_PATH
+    globals()["CONFIG_LOCAL_PATH"] = ROOT / ".creator-os-config.selftest-absent.local.json"
+    try:
+        default_live, default_cfg = live_publishing_enabled(), load_config()
+    finally:
+        globals()["CONFIG_LOCAL_PATH"] = saved_local
+    ok(default_live is False and flag_enabled(default_cfg, "live_publishing_enabled") is False
+       and isinstance(default_cfg.get("capabilities"), dict),
+       "with no local override, live_publishing_enabled() resolves off through load_config")
 
     # 2) Unknown platform hard-fails.
     r = check("vimeo", config={}, creds={})

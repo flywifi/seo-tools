@@ -37,12 +37,23 @@ ALLOWLIST_PATH = ROOT / "tools" / "secret-scan-allowlist.json"
 # Value shapes that are placeholders, not secrets (committed config snippets use these).
 PLACEHOLDER_RE = re.compile(r"REPLACE|YOUR_|<[^>]+>|^null$|EXAMPLE|CHANGEME|TBD_", re.I)
 
-# Emails that are always fine: bot/noreply identities and documentation domains, including the
-# RFC 2606 reserved names (.example TLD, example.com/org) used by the fictional fixtures.
+# Emails that are always fine: the Anthropic noreply identity, GitHub noreply addresses, and the
+# RFC 2606 documentation names (example.com, example.org and any name under the .example
+# top-level domain) used by the fictional fixtures. The pattern must match the whole address,
+# anchored at both ends, so a local part that only ends in noreply (jane.noreply@...), a domain
+# that only ends in an allowed name (myexample.com) or extends one (anthropic.com.evil.io), a
+# misspelt domain, and an author email with a second @ are findings. The address pattern reads
+# letters, digits and . _ % + - in a local part, so a local part that joins noreply with any other
+# character (an apostrophe, !, /) is read from noreply on and passes.
 EMAIL_ALLOW_RE = re.compile(
-    r"(noreply@anthropic\.com|@users\.noreply\.github\.com|@example\.(com|org)|@test\.com"
-    r"|\.example)$", re.I
+    r"\A(?:noreply@anthropic\.com|[A-Za-z0-9._%+-]+@(?:users\.noreply\.github\.com"
+    r"|example\.(?:com|org)|(?:[A-Za-z0-9-]+\.)+example))\Z", re.I
 )
+# In text the address match stops before a digit, _ or - that follows the last letters of a
+# domain, so an allowed address counts only when nothing that continues a domain follows the
+# match: a letter, digit, _ or -, or a dot followed by one. An allowed address directly followed
+# by _x.io is a finding; a closing bracket, quote or sentence-ending dot is not a continuation.
+EMAIL_DOMAIN_CONT_RE = re.compile(r"[A-Za-z0-9_-]|\.[A-Za-z0-9_-]")
 
 PATTERNS = [
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
@@ -66,12 +77,14 @@ PATTERNS = [
     ("session_link", re.compile(r"claude\.ai/code/session_[A-Za-z0-9]+")),
     ("email_address", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
     # North American phone numbers: (NNN) NNN-NNNN and NNN-NNN-NNNN, NNN.NNN.NNNN or NNN NNN NNNN,
-    # each with an optional +1 or 1 prefix (1-800-...) and with letters such as an x extension
-    # allowed right after the last digit. Area and exchange codes start 2 to 9 as the numbering plan
-    # requires, and a match may not sit inside a longer dotted or dashed number, so dates,
-    # versions, ISBNs and ports stay clean. Bare 10-digit runs and non-NANP numbers are not matched.
+    # each with an optional +1 or 1 prefix written with a dash, dot or space after it or flush
+    # against the area code (1-800-..., 1(415)..., 1415-...), and with letters such as an x
+    # extension allowed right after the last digit. Area and exchange codes start 2 to 9 as the
+    # numbering plan requires, and a match may not sit inside a longer dotted or dashed number, so
+    # dates, versions, ISBNs and ports stay clean. Bare 10-digit runs and non-NANP numbers are not
+    # matched. The selftest builds every prefix, area-code and separator combination.
     ("phone_number", re.compile(
-        r"(?<![\w.+-])(?:\+1[ .-]?|1[ .-])?(?:\([2-9]\d{2}\)[ .-]?|[2-9]\d{2}[ .-])[2-9]\d{2}[ .-]\d{4}(?!\d)(?![-.]\d)")),
+        r"(?<![\w.+-])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]?|[2-9]\d{2}[ .-])[2-9]\d{2}[ .-]\d{4}(?!\d)(?![-.]\d)")),
 ]
 
 # Dollar figures are suspect ONLY inside committed pipeline/ files (blank templates by contract).
@@ -386,7 +399,8 @@ def scan_text(text, path, allowlist=None):
         for m in rx.finditer(text):
             if pid == "credential_value" and PLACEHOLDER_RE.search(m.group(2)):
                 continue
-            if pid == "email_address" and EMAIL_ALLOW_RE.search(m.group(0)):
+            if (pid == "email_address" and EMAIL_ALLOW_RE.search(m.group(0))
+                    and not EMAIL_DOMAIN_CONT_RE.match(text, m.end())):
                 continue
             if _allowed(allowlist, path, pid, m.group(0)):
                 continue
@@ -548,6 +562,40 @@ def selftest():
     _check("dates, versions, ISBNs, ports and street numbers are NOT phone findings",
            not any(x["pattern_id"] == "phone_number"
                    for s in not_phones for x in scan_text(s, "docs/a.md", al)), f, ran)
+    # Every prefix (none, +1 or 1, each flush or followed by a space, dot or dash), every area-code
+    # form (parenthesised with or without a following separator, or bare with one) and every
+    # exchange separator, the bare dash and space forms included. Built from digit pieces at run
+    # time so no phone-shaped string sits in this file.
+    _area, _exch, _line = "4" + "15", "55" + "5", "01" + "99"
+    _prefixes = [""] + [p + s for p in ("+1", "1") for s in ("", " ", ".", "-")]
+    _areas = (["(" + _area + ")" + s for s in ("", " ", ".", "-")]
+              + [_area + s for s in (" ", ".", "-")])
+    _combos = [p + a + _exch + s + _line
+               for p in _prefixes for a in _areas for s in (" ", ".", "-")]
+    _missed = [c for c in _combos
+               if not any(x["pattern_id"] == "phone_number"
+                          for x in scan_text("call " + c + " today", "docs/a.md"))]
+    if _missed:
+        print(f"  [note] {len(_missed)} of {len(_combos)} phone forms missed, e.g. {_missed[:3]}")
+    _check("phone number detected in every prefix, area-code and separator combination, bare dash "
+           "and space forms included", not _missed, f, ran)
+    # The same forms with every leading digit the numbering plan allows (2 to 9) in the area and
+    # exchange codes, every digit leading the line number, and the number set inside quotes, after
+    # a tel: or key= prefix, in a table cell, in a tag or in brackets. Built from digit pieces.
+    _nums = ([_d + "15-" + _exch + "-" + _line for _d in "23456789"]
+             + [_area + "-" + _d + "55-" + _line for _d in "23456789"]
+             + [_area + "-" + _exch + "-" + _d * 4 for _d in "0123456789"])
+    _wraps = (("", ""), ("tel:", ""), ('"', '"'), ("'", "'"), ("| ", " |"), ("<td>", "</td>"),
+              ("phone=", "&x=1"), ("[", "]"), ("\n", "\n"))
+    _shown = [_area + "-" + _exch + "-" + _line, "(" + _area + ") " + _exch + "-" + _line,
+              "+1 " + _area + " " + _exch + " " + _line]
+    _missed = [s for s in _nums + [a + s + b for a, b in _wraps for s in _shown]
+               if not any(x["pattern_id"] == "phone_number" for x in scan_text(s, "docs/a.md"))]
+    if _missed:
+        print(f"  [note] phone forms missed: {_missed[:3]}")
+    _check("phone number detected for every leading area and exchange digit 2 to 9, every leading "
+           "line digit, and inside quotes, tel: and key= prefixes, table cells, tags and brackets",
+           not _missed, f, ran)
 
     _check("aws key detected", any(x["pattern_id"] == "aws_access_key"
                                    for x in scan_text(aws, "a.md", al)), f, ran)
@@ -585,6 +633,69 @@ def selftest():
            not scan_text("noreply@anthropic.com", "a.md", al), f, ran)
     _check("github noreply email is NOT a finding",
            not scan_text("12345+user@users.noreply.github.com", "a.md", al), f, ran)
+    _check("an address whose local part only ends in noreply is a finding",
+           all(any(x["pattern_id"] == "email_address" for x in scan_text(e, "a.md", al))
+               for e in ("jane." + "noreply@anthropic.com", "jane+" + "noreply@anthropic.com")),
+           f, ran)
+    _check("an address at test.com, a registered domain rather than a reserved one, is a finding",
+           any(x["pattern_id"] == "email_address"
+               for x in scan_text("someone" + "@test.com", "a.md", al)), f, ran)
+    _check("an address at a domain that only ends in an allowed name, extends one, runs on past "
+           "one or misspells one is a finding",
+           all(any(x["pattern_id"] == "email_address" for x in scan_text(e, "a.md", al)) for e in (
+               "jane@my" + "example.com", "jane@example.com" + ".evil.io",
+               "jane@my" + "example.org", "jane@corp.example" + ".evil.io",
+               "jane@my" + "users.noreply.github.com", "noreply@anthropic.com" + ".evil.io",
+               "noreply@my" + "anthropic.com", "noreply@anthr" + "0pic.com",
+               "noreply@anthropic.com" + "_x.evil.io", "jane@example.com" + "9x",
+               "jane@example.org" + "-x")), f, ran)
+    _check("an author email is allowed only when the whole value is one allowed address",
+           not any(EMAIL_ALLOW_RE.search(e) for e in (
+               "jane@gm" + "ail.com@example.com", "jane " + "noreply@anthropic.com",
+               "noreply@anthropic.com" + ".evil.io"))
+           and all(EMAIL_ALLOW_RE.search(e) for e in (
+               "noreply" + "@anthropic.com", "12345+user" + "@users.noreply.github.com")), f, ran)
+    _check("an allowed address followed by a bracket, a quote or a sentence-ending dot is NOT a "
+           "finding",
+           not any(x["pattern_id"] == "email_address" for s in (
+               "Co-Authored-By: Claude <noreply" + "@anthropic.com>", "(jane" + "@example.com).",
+               '"owner": "jane' + '@corp.example",', "mail noreply" + "@anthropic.com.\n")
+               for x in scan_text(s, "a.md", al)), f, ran)
+    # Content findings do not depend on the path that carries the text (only pipeline_amount is
+    # path-scoped). The path set is every tracked path when git answers, plus a floor that holds
+    # without git, so a suffix or directory carve-out anywhere in the tree turns this check red.
+    _samples = (email, gh, aws, slack, sk_proj, pem, bearer, sess, cred, phones[0])
+    _want = [sorted(x["pattern_id"] for x in scan_text(s, "a.md")) for s in _samples]
+    _paths = {"a.md", "a.json", "a.py", "a.txt", "a", "pipeline/deals/a.json", "docs/a.yaml"}
+    try:
+        _paths.update(p.strip() for p in (_git(["ls-files"], check=False) or "").splitlines()
+                      if p.strip())
+    except OSError:
+        pass
+    _moved = sorted(p for p in _paths
+                    if [sorted(x["pattern_id"] for x in scan_text(s, p))
+                        for s in _samples] != _want)
+    if _moved:
+        print(f"  [note] findings differ at {len(_moved)} path(s), e.g. {_moved[:3]}")
+    _check("content findings are the same at every tracked path and at .md, .json, .py, .txt, "
+           "extensionless and pipeline/ paths", all(_want) and not _moved, f, ran)
+    _check("addresses at common personal mail providers are findings",
+           all(any(x["pattern_id"] == "email_address" for x in scan_text("jane@" + d, "a.md", al))
+               for d in ("gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com",
+                         "proton.me", "aol.com")), f, ran)
+    # The same samples inside a JSON document, a YAML value and a table row, and before or after
+    # more than 64 KB of other text, so a carve-out keyed on the shape of the file or on the
+    # position of the match also turns this red.
+    _fill = "lorem ipsum " * 6000
+    _docs = (('{\n  "owner": [\n    ', '\n  ]\n}\n'), ("owner: ", "\n"), ("| ", " |\n"),
+             (_fill + "\n", "\n"), ("\n", "\n" + _fill))
+    _shifted = [w[0][:12] for w in _docs
+                if [sorted(x["pattern_id"] for x in scan_text(w[0] + s + w[1], "a.md"))
+                    for s in _samples] != _want]
+    if _shifted:
+        print(f"  [note] findings differ inside: {_shifted}")
+    _check("content findings are the same inside a JSON document, a YAML value and a table row, "
+           "and before or after more than 64 KB of other text", not _shifted, f, ran)
     _check("allowlisted path+pattern is exempt",
            not any(x["pattern_id"] == "session_link"
                    for x in scan_text(sess, "x.md", al)), f, ran)

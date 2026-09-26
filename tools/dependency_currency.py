@@ -283,28 +283,49 @@ _REFUSED_STDLIB = {"subprocess", "multiprocessing", "concurrent", "importlib", "
 _SPAWN_CALLS = {"system", "popen", "Popen", "fork", "forkpty", "posix_spawn", "posix_spawnp",
                 "startfile", "__import__", "import_module", "exec", "eval", "vars", "globals",
                 "locals"}
-# Calls that open a connection. Only _http_get_json, which refuses other hosts, may make them.
+# Names that open a connection: a call, a urllib handler or opener, or a handler's open method.
+# Only _http_get_json, which refuses other hosts, may use them.
 _NET_CALLS = {"urlopen", "urlretrieve", "build_opener", "install_opener", "OpenerDirector",
-              "create_connection", "get_server_certificate", "wrap_socket", "socket"}
+              "create_connection", "get_server_certificate", "wrap_socket", "socket",
+              "HTTPHandler", "HTTPSHandler", "FTPHandler", "URLopener", "FancyURLopener",
+              "http_open", "https_open", "ftp_open", "do_open", "open_http", "open_https"}
 _NET_FUNCTION = "_http_get_json"
 _TOKEN_FREE_ENV = {"REQUESTS_CA_BUNDLE", "GITHUB_TOKEN", "GH_TOKEN"}
 _ENVIRON_NAMES = ("environ", "environb")
+# Referenced names that reach an object by a computed name: a namespace dict, attribute lookup by
+# string, the builtins, or operator's getters.
+_DYNAMIC_REFS = {"__dict__", "__getattribute__", "__builtins__", "attrgetter", "methodcaller"}
 
 
-def _import_closure(path, seen=None):
+def _import_closure(path, seen=None, source=None):
     """(modules, calls, env, net) for the code `path` runs outside its selftests, read
     statically and following sibling modules in its folder. modules: the top-level names it
     imports. calls: its process-spawning or dynamic-code calls (os.system, os.exec*/spawn*,
     Popen, fork, __import__, exec, eval, vars, globals, locals, and a getattr on os or sys or
     with a computed name). env: the environment variables it reads through os.environ,
     os.environb or os.getenv, with "?" for a read whose name is not a string literal. net:
-    "function:call" for each call in _NET_CALLS made outside _http_get_json. Only the functions
-    named selftest and _selftest are skipped."""
+    "function:call" for each call in _NET_CALLS made outside _http_get_json. A name an import
+    binds is read as what it imports (`from os import environ as e`, `import os as o`), and a
+    name in _NET_CALLS or _SPAWN_CALLS counts wherever it is referenced, not only where it is
+    called, so binding urlopen or os.system to another name first is still seen (a getenv
+    referenced other than as a call reads as "?"); a `__dict__`, `__getattribute__` or
+    `__builtins__` reference, `sys.modules`, and operator's attrgetter and methodcaller count as
+    dynamic-code calls. Only the functions named selftest and _selftest are skipped."""
     import ast
     seen = {path.stem} if seen is None else seen
     mods, calls, env, net = set(), set(), set(), set()
-    environs, handled = [], set()
-    stack = [(ast.parse(path.read_text(encoding="utf-8")), "")]
+    environs, getenvs, handled = [], [], set()
+    tree = ast.parse(source if source is not None else path.read_text(encoding="utf-8"))
+    aliases = {a.asname: a.name.split(".")[-1] for n in ast.walk(tree)
+               if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names if a.asname}
+
+    def name_of(n):
+        """The name `n` refers to, an import alias read as the name it imports."""
+        if isinstance(n, ast.Attribute):
+            return n.attr
+        return aliases.get(n.id, n.id) if isinstance(n, ast.Name) else None
+
+    stack = [(tree, "")]
     while stack:
         node, fn = stack.pop()
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -312,8 +333,17 @@ def _import_closure(path, seen=None):
                 continue
             fn = fn or node.name
         stack.extend((child, fn) for child in ast.iter_child_nodes(node))
-        if getattr(node, "attr", getattr(node, "id", None)) in _ENVIRON_NAMES:
+        ref = name_of(node)
+        if ref in _ENVIRON_NAMES:
             environs.append(node)
+        if ref in ("getenv", "getenvb"):
+            getenvs.append(node)
+        if ref in _NET_CALLS and fn != _NET_FUNCTION:
+            net.add(f"{fn or '<module>'}:{ref}")
+        if ref is not None and (ref in _SPAWN_CALLS or ref in _DYNAMIC_REFS
+                                or re.fullmatch(r"(?:exec|spawn)[lv]p?e?", ref)
+                                or (ref == "modules" and name_of(node.value) == "sys")):
+            calls.add(ref)
         names = []
         if isinstance(node, ast.Import):
             names = [a.name for a in node.names]
@@ -321,26 +351,25 @@ def _import_closure(path, seen=None):
             names = [node.module or ""] if not node.level else [""]
         elif isinstance(node, ast.Subscript):
             base = node.value
-            if getattr(base, "attr", getattr(base, "id", None)) in _ENVIRON_NAMES:
+            if name_of(base) in _ENVIRON_NAMES:
                 handled.add(id(base))
                 key = node.slice
                 env.add(key.value if isinstance(key, ast.Constant) and isinstance(key.value, str)
                         else "?")
         elif isinstance(node, ast.Call):
             f = node.func
-            name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+            name = name_of(f) or ""
             if name in _SPAWN_CALLS or re.fullmatch(r"(?:exec|spawn)[lv]p?e?", name):
                 calls.add(name)
             if name == "getattr" and (len(node.args) < 2 or not isinstance(node.args[1], ast.Constant)
-                                      or getattr(node.args[0], "id", None) in ("os", "sys")):
+                                      or name_of(node.args[0]) in ("os", "sys")):
                 calls.add(name)
             if name in _NET_CALLS and fn != _NET_FUNCTION:
                 net.add(f"{fn or '<module>'}:{name}")
             base = getattr(f, "value", None)
-            is_environ = getattr(base, "attr", getattr(base, "id", None)) in _ENVIRON_NAMES
+            is_environ = name_of(base) in _ENVIRON_NAMES
             if (name in ("get", "pop", "setdefault") and is_environ) or name in ("getenv", "getenvb"):
-                if is_environ:
-                    handled.add(id(base))
+                handled.add(id(base) if is_environ else id(f))
                 arg = node.args[0] if node.args else None
                 env.add(arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
                         else "?")
@@ -355,7 +384,7 @@ def _import_closure(path, seen=None):
                 calls |= more[1]
                 env |= more[2]
                 net |= more[3]
-    env |= {"?" for node in environs if id(node) not in handled}
+    env |= {"?" for node in environs + getenvs if id(node) not in handled}
     return mods, calls, env, net
 
 
@@ -460,6 +489,28 @@ def selftest():
        and not calls and not net and env <= _TOKEN_FREE_ENV
        and _ALLOWED_HOSTS == ("pypi.org", "api.github.com") and off_host[0] is None
        and on_host[0] is None and sent == ["https://pypi.org/pypi/x/json"] and redirect_refused)
+
+    # The closure reader over a fixture holding each binding form it reads: an aliased environ
+    # read, an aliased urlopen, build_opener bound to a name, a getattr on os imported under
+    # another name inside a function, an os.__dict__ lookup, a getenv bound to a name, a
+    # handler's https_open and a URLopener.
+    _fx = ('from os import environ as _e\n'
+           'from urllib.request import urlopen as _u\n'
+           '_o = urllib.request.build_opener\n'
+           'def a():\n    return _e.get("FIXTURE_KEY")\n'
+           'def b(url):\n    return _u(url)\n'
+           'def c():\n    import os as _os\n    return getattr(_os, "system")\n'
+           'def d():\n    return os.__dict__["system"]\n')
+    _fx += ('_g = os.getenv\n'
+            'def e(r):\n    return urllib.request.HTTPSHandler().https_open(r)\n'
+            'def f(u):\n    return urllib.request.URLopener().open(u)\n')
+    _fx_mods, _fx_calls, _fx_env, _fx_net = _import_closure(Path(__file__).resolve(), source=_fx)
+    ok("closure self-check: an aliased environ read, an aliased urlopen, a name bound to "
+       "build_opener, a getattr on a lazily imported os alias and an os.__dict__ lookup are "
+       "each seen, and so are a getenv bound to a name, a handler's https_open and a URLopener",
+       "FIXTURE_KEY" in _fx_env and "?" in _fx_env
+       and {"<module>:build_opener", "b:urlopen", "e:https_open", "f:URLopener"} <= _fx_net
+       and {"getattr", "__dict__"} <= _fx_calls)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

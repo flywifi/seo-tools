@@ -10,7 +10,7 @@
     },
     "docs/CURRENCY.md": {
       "sources": {
-        "tools/dependency_currency.py": "1baed783a1b74360b3486c090e936768ba265db45073f37012ad68227380988d",
+        "tools/dependency_currency.py": "ebc10d8226f8a295ea30a8634d0c74e29fda0ca3ea5fd74f603d4bb14eeb19aa",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
         "tools/sync_check.py": "e8a5d459f1cadae7b18e58db5859fe322181e3265d114393d5a0868e5127ad19"
       }
@@ -24,7 +24,7 @@
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
         "tools/publishing/_http.py": "e4e0e3612c2d68956850f8de5d22f00760b9633b227edb4e3839f72f784e86d0",
         "tools/oauth_flow.py": "91d1a3d4433ce41d4ba2bdc661084857ac6e48aecbbcb84200ba34c5896b62cb",
-        "tools/publishing_compliance.py": "eae5c012e12ce090d49ba9cec5a5c9c8b561d3b0e2668cbe99e954e8825ea70d"
+        "tools/publishing_compliance.py": "e920e3a023a50b091483d5a987e6a8e5b14cfb73914b50000d3ad5c91d1d57c0"
       }
     },
     "docs/PUBLISHING.md": {
@@ -53,7 +53,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "82ffa601ae0438edf6c1b15e7553f873451e440b18fb384695ffad880213d6a9"
+        "tools/mcp_server.py": "3f5cc09c4b8ff2c3acfc10b11c87b4710383fb53489f976dd4c71cb86682ed15"
       }
     },
     "docs/TRANSITIONS.md": {
