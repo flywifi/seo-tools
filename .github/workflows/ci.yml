@@ -25,7 +25,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Drift guard
         run: python3 tools/sync_check.py
-      - name: Battery parity (asserts CI runs every battery gate)
+      - name: Battery parity (compares the battery gate roster with this file's blocking steps)
         run: python3 tools/battery.py --check-parity
       - name: Launcher syntax (bash -n on the double-click entry point)
         run: bash -n 'Start Creator OS Setup.command'

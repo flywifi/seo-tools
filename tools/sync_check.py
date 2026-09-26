@@ -157,6 +157,9 @@ Invariants enforced:
       battery executes, or carries a written-reason exemption. Route records additionally tie a
       recommended install route to the code that detects it. A reverse enrolment sweep fails on
       any unbound universal claim, so the promise list cannot grow unproven.
+  61. CI parity (P96): tools/battery.py's parity report over .github/workflows/ci.yml finds, for
+      each battery gate, a blocking step running exactly its command or a CI_PARITY_NOTES reason,
+      no stale note, and a workflow it can read. Self-proves on a fixture before the scan.
 """
 import ast
 import json
@@ -3847,11 +3850,24 @@ def _claim_corpus_units(spec):
 
 # P95: a selftest pin proves a claim only when it is a call to a check helper this module
 # defines, made from code the selftest actually runs, whose condition could actually be false.
+# Whether a condition can be false is undecidable, so these rules refuse listed shapes and are
+# not complete: a pin outside them, such as `ok(len(r) >= 0, ...)`, is accepted whether or not it
+# can fail. The residual-* cases in _CLAIM_CASES_REBINDING_AND_DEAD_CODE are such shapes, among
+# them a helper rebound through `globals()[...] = ...` or `setattr()`, which the rebinding rule
+# (_claim_helper_rebound) does not read.
 _CLAIM_PIN_HELPERS = {"ok", "check", "_check", "_ok", "c"}
-_CLAIM_PIN_ENTRIES = ("selftest", "_selftest")
 _CLAIM_FNDEF = (ast.FunctionDef, ast.AsyncFunctionDef)
 _CLAIM_PURE_BUILTINS = {"bool", "len", "str", "int", "float", "repr", "abs", "tuple", "list",
                         "set", "frozenset", "dict", "min", "max", "sorted", "sum", "any", "all"}
+# A name that no scope binds is a builtin. Dunders are left out: `__name__` and `__file__` are
+# module globals whose values change from run to run.
+_CLAIM_BUILTIN_NAMES = frozenset(n for n in dir(__import__("builtins")) if not n.startswith("__"))
+_CLAIM_BUILTIN = ("builtin", None)
+_CLAIM_COMPARE_OPS = {
+    ast.Eq: lambda a, b: a == b, ast.NotEq: lambda a, b: a != b, ast.Lt: lambda a, b: a < b,
+    ast.LtE: lambda a, b: a <= b, ast.Gt: lambda a, b: a > b, ast.GtE: lambda a, b: a >= b,
+    ast.Is: lambda a, b: a is b, ast.IsNot: lambda a, b: a is not b,
+    ast.In: lambda a, b: a in b, ast.NotIn: lambda a, b: a not in b}
 
 
 def _claim_own_nodes(node):
@@ -3895,6 +3911,43 @@ def _claim_lookup(name, scope, parent, defs):
         scope = parent.get(scope)
 
 
+def _claim_binds(scope, name):
+    """How many times the scope's own code binds `name`: assignment or deletion, import,
+    parameter, def or class, except-as, or match capture. Global and nonlocal declarations are
+    read by _claim_helper_rebound across the whole defining scope instead."""
+    count = 0
+    for n in _claim_own_nodes(scope):
+        if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del)):
+            count += n.id == name
+        elif isinstance(n, ast.alias):
+            count += (n.asname or n.name).split(".")[0] == name
+        elif isinstance(n, ast.arg):
+            count += n.arg == name
+        elif isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,)):
+            count += n.name == name
+        elif isinstance(n, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+            count += n.name == name
+        elif isinstance(n, ast.MatchMapping):
+            count += n.rest == name
+    return count
+
+
+def _claim_helper_rebound(name, scope, parent, defs, tree):
+    """True when a call to `name` from `scope` may not reach the helper _claim_lookup finds: a
+    scope on the way binds the name, the defining scope binds it more than once, the helper is
+    decorated, or code anywhere inside the defining scope declares the name global or nonlocal."""
+    while True:
+        node = tree if scope is None else scope
+        hit = defs.get(scope, {}).get(name)
+        if hit is not None:
+            return (_claim_binds(node, name) != 1 or bool(getattr(hit, "decorator_list", None))
+                    or any(isinstance(n, (ast.Global, ast.Nonlocal)) and name in n.names
+                           for n in ast.walk(node)))
+        if scope is None or _claim_binds(node, name):
+            return True
+        scope = parent.get(scope)
+
+
 def _claim_stored_names(node, whole):
     """How many times a scope binds each name. `whole` also counts nested scopes, which can rebind
     an outer name through nonlocal/global; any non-assignment binding counts as two, since such a
@@ -3923,7 +3976,7 @@ def _claim_stored_names(node, whole):
 def _claim_immutable_binding(node):
     """True when a value bound to a name keeps its value for good. A name bound once to `[]` is NOT
     fixed: `targets = []` then `targets.append(...)` is how a real selftest records calls, and
-    treating it as a constant rejected the P93-4 pin during P95's own development."""
+    treating it as a constant would refuse such a pin as fixed."""
     if isinstance(node, (ast.Constant, ast.Tuple, ast.Lambda, ast.GeneratorExp, ast.JoinedStr,
                          ast.Compare, ast.Name)):
         return True
@@ -3938,6 +3991,46 @@ def _claim_immutable_binding(node):
                                  "frozenset", "any", "all"})
 
 
+def _claim_known_value(node, resolve):
+    """(True, value) for a literal, a builtin name no scope binds, or a local bound once to one of
+    those; else (False, None). Lets `if str is bytes:` and `off = False; if off:` be evaluated. A
+    chain of names that leads back to itself is not known."""
+    seen = set()
+    while isinstance(node, ast.Name) and node not in seen:
+        seen.add(node)
+        bound = resolve(node.id)
+        if bound is _CLAIM_BUILTIN:
+            return True, getattr(__import__("builtins"), node.id)
+        if bound is None or bound[0] is None:
+            return False, None
+        node, resolve = bound
+    if isinstance(node, ast.Constant):
+        return True, node.value
+    return False, None
+
+
+def _claim_memo(kind, placeholder):
+    """Memoise an analysis function per (node, resolver) for one _claim_pins call; the resolver
+    carries the memo as `resolve.memo`. The key holds the node itself, not id(node), so a node
+    freed and re-allocated during the call cannot hit a stale entry. A node re-entered while it is
+    still being evaluated (a binding cycle such as `a = b or b; b = a or a`) reads as
+    `placeholder`, which means not fixed."""
+    def wrap(raw):
+        def run(node, resolve):
+            memo = getattr(resolve, "memo", None)
+            if memo is None:
+                return raw(node, resolve)
+            key = (kind, node, resolve)
+            if key not in memo:
+                memo[key] = placeholder
+                memo[key] = raw(node, resolve)
+            return memo[key]
+        run.__name__, run.__doc__ = raw.__name__, raw.__doc__
+        return run
+    return wrap
+
+
+@_claim_memo("value", False)
 def _claim_value_fixed(node, resolve):
     """True when the node's VALUE cannot depend on anything the program computes."""
     rec = lambda n: _claim_value_fixed(n, resolve)  # noqa: E731
@@ -3963,29 +4056,38 @@ def _claim_value_fixed(node, resolve):
         return rec(node.value)
     if isinstance(node, ast.Name):
         bound = resolve(node.id)
+        if bound is _CLAIM_BUILTIN:
+            return True
         return bound is not None and bound[0] is not None and \
             _claim_value_fixed(bound[0], bound[1])
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
-        return resolve(node.func.id) == ("builtin",) and all(map(rec, node.args))
+        return node.func.id in _CLAIM_PURE_BUILTINS and resolve(node.func.id) is _CLAIM_BUILTIN \
+            and all(map(rec, node.args))
     return False
 
 
+@_claim_memo("truth", (False, None))
 def _claim_truth(node, resolve):
     """(fixed, value): fixed is True when the node's TRUTH cannot depend on anything the program
     computes; value is that truth when safely known, else None. A pin whose condition has a fixed
-    truth cannot fail, so it proves nothing. P94 rejected only a bare literal; P95 found that
-    `ok(1 == 1, ...)`, a tuple (always truthy), `x == x`, `x or True` and a name bound to a
-    constant all still passed as proofs."""
+    truth cannot fail, so it proves nothing. Fixed shapes include a literal, `1 == 1`, a tuple
+    (always truthy), `x == x`, `x or True` and a name bound once to a constant."""
     rec = lambda n: _claim_truth(n, resolve)  # noqa: E731
     if isinstance(node, ast.Constant):
         return True, bool(node.value)
-    if isinstance(node, ast.Compare) and all(
-            isinstance(p, ast.Constant) for p in [node.left] + node.comparators):
-        try:
-            return True, bool(eval(compile(ast.Expression(node), "<pin>", "eval"),  # noqa: S307
-                                   {"__builtins__": {}}))
-        except Exception:  # noqa: BLE001 - e.g. unorderable constants: still fixed
-            return True, None
+    if isinstance(node, ast.Name):
+        known, value = _claim_known_value(node, resolve)
+        if known and value is not NotImplemented:      # its truth is an error from 3.14 on
+            return True, bool(value)                   # a builtin object is truthy
+    if isinstance(node, ast.Compare):
+        known = [_claim_known_value(p, resolve) for p in [node.left] + node.comparators]
+        if all(k for k, _ in known):
+            vals = [v for _, v in known]
+            try:
+                return True, all(bool(_CLAIM_COMPARE_OPS[type(op)](a, b))
+                                 for op, a, b in zip(node.ops, vals, vals[1:]))
+            except Exception:  # noqa: BLE001 - e.g. unorderable constants: still fixed
+                return True, None
     if _claim_value_fixed(node, resolve):
         return True, None
     if isinstance(node, (ast.Lambda, ast.GeneratorExp)):
@@ -4009,6 +4111,13 @@ def _claim_truth(node, resolve):
         fixed, val = rec(node.operand)
         return (True, None if val is None else not val) if fixed else (False, None)
     if isinstance(node, ast.BoolOp):
+        plain = {ast.dump(v) for v in node.values if not any(
+            isinstance(x, (ast.Call, ast.NamedExpr, ast.Await, ast.Yield, ast.YieldFrom))
+            for x in ast.walk(v))}
+        if any(isinstance(v, ast.UnaryOp) and isinstance(v.op, ast.Not)
+               and ast.dump(v.operand) in plain for v in node.values):
+            return True, isinstance(node.op, ast.Or)   # `x or not x`, `x and not x`
+    if isinstance(node, ast.BoolOp):
         parts = [rec(v) for v in node.values]
         decider = isinstance(node.op, ast.Or)          # Or is decided by a True, And by a False
         if any(f and v is decider for f, v in parts):
@@ -4021,6 +4130,8 @@ def _claim_truth(node, resolve):
             return True, True                          # x == x: reflexive, cannot fail
         if isinstance(node.ops[0], (ast.NotEq, ast.IsNot, ast.Lt, ast.Gt)):
             return True, False
+    if isinstance(node, ast.Attribute) and node.attr == "__class__":
+        return True, True                              # a class object is truthy
     if isinstance(node, ast.IfExp):
         tf, tv = rec(node.test)
         if tf and tv is not None:
@@ -4028,52 +4139,242 @@ def _claim_truth(node, resolve):
         (bf, bv), (of, ov) = rec(node.body), rec(node.orelse)
         return (True, bv) if (bf and of and bv is not None and bv == ov) else (False, None)
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
-            and node.func.id == "bool" and resolve("bool") == ("builtin",) \
+            and node.func.id == "bool" and resolve("bool") is _CLAIM_BUILTIN \
             and len(node.args) == 1 and not node.keywords:
         return rec(node.args[0])
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords \
+            and resolve(node.func.id) is _CLAIM_BUILTIN:
+        if node.func.id == "type" and len(node.args) == 1:
+            return True, True                          # type(x) is a class object
+        if node.func.id == "isinstance" and len(node.args) == 2 \
+                and _claim_known_value(node.args[1], resolve) == (True, object):
+            return True, True                          # everything is an object
     return False, None
 
 
-def _claim_condition_param(helper):
-    """The first parameter the helper's body tests for truth, or None. A helper that never tests
-    its condition (prints the label and returns) certifies nothing, however real the call looks."""
+# Methods that keep a value in a container for a later truth test (`checks.append((c, m))`).
+_CLAIM_STORE_METHODS = {"append", "add", "appendleft"}
+
+
+def _claim_defining_scope(name, scope, parent, defs):
+    """The scope whose definition of `name` _claim_lookup finds (None = the module)."""
+    while scope is not None and name not in defs.get(scope, {}):
+        scope = parent.get(scope)
+    return scope
+
+
+def _claim_test_records(nodes):
+    """(expression, falsy_branch) for each truth test among `nodes`: an `if`, `while`, `assert` or
+    conditional-expression test, a comprehension condition, or a `bool()` argument, with one
+    leading `not` removed. falsy_branch is True when some code runs only when the expression is
+    falsy: `if not x:`, an `else`, a failing `assert x`, `[... if not x]`."""
+    out = []
+    for n in nodes:
+        pairs = []
+        if isinstance(n, (ast.If, ast.While)):
+            pairs.append((n.test, bool(n.orelse), True))
+        elif isinstance(n, ast.IfExp):
+            pairs.append((n.test, True, True))
+        elif isinstance(n, ast.Assert):
+            pairs.append((n.test, True, False))
+        elif isinstance(n, ast.comprehension):
+            pairs.extend((t, False, True) for t in n.ifs)
+        elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "bool":
+            pairs.extend((a, False, False) for a in n.args)
+        for test, on_false, on_true in pairs:
+            if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+                test, on_false = test.operand, on_true
+            out.append((test, on_false))
+    return out
+
+
+def _claim_is_direct(expr, name):
+    """True when the expression's truth is `name`'s own truth: `name` or `bool(name)`."""
+    if isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name) and expr.func.id == "bool" \
+            and len(expr.args) == 1 and not expr.keywords:
+        expr = expr.args[0]
+    return isinstance(expr, ast.Name) and expr.id == name
+
+
+def _claim_later_tests(definer, container):
+    """{position: falsy_branch} for the elements of `container` that `definer`'s own code tests for
+    truth while iterating it by name (`for c, m in checks: if not c:`, `[n for n, c in checks if
+    not c]`); position None is the whole element."""
+    found = {}
+    for n in _claim_own_nodes(definer):
+        if not (isinstance(n, (ast.For, ast.AsyncFor, ast.comprehension))
+                and isinstance(n.iter, ast.Name) and n.iter.id == container):
+            continue
+        tgt = n.target
+        slots = ({e.id: i for i, e in enumerate(tgt.elts) if isinstance(e, ast.Name)}
+                 if isinstance(tgt, ast.Tuple) else
+                 {tgt.id: None} if isinstance(tgt, ast.Name) else {})
+        body = [n] if isinstance(n, ast.comprehension) else [x for st in n.body for x in ast.walk(st)]
+        for test, on_false in _claim_test_records(body):
+            names = {x.id for x in ast.walk(test) if isinstance(x, ast.Name)}
+            for var, pos in slots.items():
+                if var in names:
+                    found[pos] = found.get(pos, False) or (on_false and _claim_is_direct(test, var))
+    return found
+
+
+def _claim_guard_nodes(helper):
+    """The helper's nodes outside the branches of its own truth tests. A test nested in another
+    test's branch (`raise SystemExit(msg if msg else "failed")` under `if not cond:`) shapes what a
+    failure says, not whether the helper fails, so it does not make a parameter part of the
+    condition."""
+    stack = [helper.body] if isinstance(helper, ast.Lambda) else list(helper.body)
+    while stack:
+        cur = stack.pop()
+        yield cur
+        if isinstance(cur, (ast.If, ast.While, ast.IfExp, ast.Assert)):
+            stack.append(cur.test)
+        elif not isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+            stack.extend(ast.iter_child_nodes(cur))
+
+
+def _claim_helper_tests(helper, definer):
+    """The helper's truth tests outside its failure branches (_claim_test_records over
+    _claim_guard_nodes), plus each value it stores into a container it does not own
+    (`checks.append((cond, msg))`) at a position that `definer`, the scope defining the helper,
+    later tests."""
+    own = {a.arg for a in ast.walk(helper.args) if isinstance(a, ast.arg)}
+    own |= {n.id for n in ast.walk(helper) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)}
+    tests = _claim_test_records(_claim_guard_nodes(helper))
+    for n in ast.walk(helper):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                and n.func.attr in _CLAIM_STORE_METHODS and isinstance(n.func.value, ast.Name) \
+                and n.func.value.id not in own and len(n.args) == 1 and not n.keywords:
+            kept = n.args[0]
+            for pos, on_false in _claim_later_tests(definer, n.func.value.id).items():
+                if pos is None:
+                    tests.append((kept, on_false))
+                elif isinstance(kept, ast.Tuple) and pos < len(kept.elts):
+                    tests.append((kept.elts[pos], on_false))
+    return tests
+
+
+def _claim_condition_verdict(name, helper, tests, call, resolve):
+    """Why the call cannot fail, or None when it can. The condition is every parameter the helper
+    tests (`tests`, from _claim_helper_tests), not only the first: the call is refused when none
+    is tested, when it passes none of them, or when every one it passes has a fixed truth. The
+    exception is a should-not-reach pin (`ok(False, ...)` after a call that must raise): a
+    known-false argument is accepted when the helper has a branch that runs only when that
+    parameter is falsy (`if not cond:`, an `else`, `assert cond`, or a kept value tested with `if
+    not c:`). So with `if expected != actual:`, `check(label, 0, 0)` is refused and
+    `check(label, 3, computed)` counts. Whether that falsy branch reports a failure is not
+    checked."""
     params = [a.arg for a in helper.args.posonlyargs + helper.args.args + helper.args.kwonlyargs]
-    tested = set()
-    for node in ast.walk(helper):
-        tests = []
-        if isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
-            tests.append(node.test)
-        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
-                and node.func.id == "bool":
-            tests.extend(node.args)
-        for t in tests:
-            tested.update(n.id for n in ast.walk(t) if isinstance(n, ast.Name))
-    return next((p for p in params if p in tested), None)
+    mentioned = {x.id for test, _ in tests for x in ast.walk(test) if isinstance(x, ast.Name)}
+    tested = [p for p in params if p in mentioned]
+    if not tested:
+        return f"{name}() never tests any of its arguments, so it cannot fail"
+    positional = [a.arg for a in helper.args.posonlyargs + helper.args.args]
+    bound = {positional[i]: a for i, a in enumerate(call.args)
+             if i < len(positional) and not isinstance(a, ast.Starred)}
+    bound.update({k.arg: k.value for k in call.keywords if k.arg})
+    passed = [p for p in tested if p in bound]
+    if not passed:
+        return f"the call passes nothing for the parameters {name}() tests ({', '.join(tested)})"
+    truths = {p: _claim_truth(bound[p], resolve) for p in passed}
+    falsy = {p for p in passed for test, on_false in tests if on_false and _claim_is_direct(test, p)}
+    if any(truths[p] == (True, False) and p in falsy for p in passed):
+        return None
+    if all(fixed for fixed, _ in truths.values()):
+        return ("every argument it passes for a tested parameter has a truth that cannot depend "
+                "on anything the code computes (a literal, a constant, or an expression whose "
+                "truth is fixed), so it cannot fail")
+    return None
+
+
+# Calls that end the process, so nothing after them in the same block runs.
+_CLAIM_EXITS = {("sys", "exit"), ("os", "_exit"), (None, "exit"), (None, "quit")}
+
+
+def _claim_exits(st, resolve):
+    """True when a statement never completes normally, so what follows it in its block never
+    runs: return/raise/break/continue; a call to sys.exit(), os._exit(), exit() or quit(); an
+    `assert` whose test is fixed false; an `if` whose live branches all end that way; a `with`
+    whose body does; a `try` whose `finally` does, or whose body (or `else`) and every handler do;
+    a `while` with a fixed-true test and no `break`. A context manager that swallows an exception
+    (`with suppress(E): raise E`) is not modelled, so code after it reads as dead."""
+    ends = lambda stmts: any(_claim_exits(s, resolve) for s in stmts)  # noqa: E731
+    if isinstance(st, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+        return True
+    if isinstance(st, ast.Expr) and isinstance(st.value, ast.Call):
+        f = st.value.func
+        key = ((f.value.id, f.attr) if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name)
+               else (None, f.id) if isinstance(f, ast.Name) else None)
+        return key in _CLAIM_EXITS
+    if isinstance(st, ast.Assert):
+        return _claim_truth(st.test, resolve) == (True, False)
+    if isinstance(st, ast.If):
+        fixed, val = _claim_truth(st.test, resolve)
+        if fixed and val is not None:
+            return ends(st.body if val else st.orelse)
+        return ends(st.body) and ends(st.orelse)
+    if isinstance(st, (ast.With, ast.AsyncWith)):
+        return ends(st.body)
+    if isinstance(st, (ast.Try, ast.TryStar)):
+        return ends(st.finalbody) or ((ends(st.body) or ends(st.orelse))
+                                      and all(ends(h.body) for h in st.handlers))
+    if isinstance(st, ast.While) and _claim_truth(st.test, resolve) == (True, True):
+        stack = list(st.body)
+        while stack:
+            cur = stack.pop()
+            if isinstance(cur, ast.Break):
+                return False
+            if not isinstance(cur, (ast.For, ast.AsyncFor, ast.While, ast.Lambda, ast.ClassDef)
+                              + _CLAIM_FNDEF):
+                stack.extend(ast.iter_child_nodes(cur))
+        return True
+    return False
 
 
 def _claim_live_nodes(node, resolve):
-    """Like _claim_own_nodes, but skipping code that can never run: the body of an `if` whose test
-    is fixed false (or its else when fixed true), and statements after a return/raise/break/
-    continue in the same block. Otherwise `if False: ok(False, label)` would pass as a proof."""
+    """Like _claim_own_nodes, but skipping code that can never run: the body of an `if` or `while`
+    whose test is fixed false (the `else` when fixed true), a `for` over an empty literal, and
+    statements after one that never completes normally in the same block (_claim_exits).
+    Otherwise `if False: ok(False, label)` would pass as a proof."""
     def block(stmts):
         for st in stmts:
             yield from one(st)
-            if isinstance(st, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+            if _claim_exits(st, resolve):
                 return
 
     def one(cur):
         yield cur
         if isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
             return
-        if isinstance(cur, (ast.If, ast.IfExp)):
+        if isinstance(cur, (ast.If, ast.IfExp, ast.While)):
             fixed, val = _claim_truth(cur.test, resolve)
             yield from one(cur.test)
             body = cur.body if isinstance(cur.body, list) else [cur.body]
             orelse = cur.orelse if isinstance(cur.orelse, list) else [cur.orelse]
             if not (fixed and val is False):
-                yield from (block(body) if isinstance(cur, ast.If) else one(body[0]))
+                yield from block(body)
             if not (fixed and val is True):
-                yield from (block(orelse) if isinstance(cur, ast.If) else one(orelse[0]))
+                yield from block(orelse)
+            return
+        if isinstance(cur, (ast.For, ast.AsyncFor)):
+            yield from one(cur.target)
+            yield from one(cur.iter)
+            it = cur.iter
+            empty = ((isinstance(it, (ast.Tuple, ast.List, ast.Set)) and not it.elts)
+                     or (isinstance(it, ast.Dict) and not it.keys)
+                     or (isinstance(it, ast.Constant) and it.value in ("", b"")))
+            if not empty:
+                yield from block(cur.body)
+            yield from block(cur.orelse)
+            return
+        if isinstance(cur, ast.BoolOp):
+            # `and`/`or` stop at an operand whose fixed truth decides them (`0 and f()`), so the
+            # operands after it never run.
+            decider = isinstance(cur.op, ast.Or)
+            for value in cur.values:
+                yield from one(value)
+                if _claim_truth(value, resolve) == (True, decider):
+                    return
             return
         for _field, value in ast.iter_fields(cur):
             if isinstance(value, list):
@@ -4092,10 +4393,11 @@ def _claim_live_nodes(node, resolve):
         yield from block(node.body)
 
 
-def _claim_pins(source):
+def _claim_pins(source, extra_entries=()):
     """(label, reason) for every candidate pin in a module's source, or None if it cannot be
     parsed. `reason` is None when the pin counts as a proof, else why it does not, so the gate can
-    say WHY a label that exists is refused."""
+    say WHY a label that exists is refused. `extra_entries` names functions another file runs as
+    this module's selftest (a package __main__ that imports and calls its `_selftest`)."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -4111,9 +4413,15 @@ def _claim_pins(source):
             if isinstance(target, ast.Name):
                 assigns[(scope, target.id)] = n.value
 
-    def resolver(scope, depth=0):
+    memo, resolvers = {}, {}
+
+    def resolver(scope):
+        """The resolver for one scope, built once, so every lookup shares `memo` (_claim_memo)."""
+        if scope in resolvers:
+            return resolvers[scope]
+
         def resolve(name):
-            """(bound value node, its resolver), ("builtin",), or None when not fixed."""
+            """(bound value node, its resolver), _CLAIM_BUILTIN, or None when not fixed."""
             s = scope
             while True:
                 c = counts.get(s, {})
@@ -4122,13 +4430,15 @@ def _claim_pins(source):
                     # A MODULE-level name is the code under test: `check(len(BANNED) >= 6, ...)`
                     # fails the day someone empties BANNED, so it is a real regression guard.
                     val = assigns.get((s, name))
-                    if s is not None and c[name] == 1 and val is not None and depth < 20 \
+                    if s is not None and c[name] == 1 and val is not None \
                             and _claim_immutable_binding(val):
-                        return val, resolver(s, depth + 1)
+                        return val, resolver(s)
                     return None
                 if s is None:
-                    return ("builtin",) if name in _CLAIM_PURE_BUILTINS else None
+                    return _CLAIM_BUILTIN if name in _CLAIM_BUILTIN_NAMES else None
                 s = parent.get(s)
+        resolve.memo = memo
+        resolvers[scope] = resolve
         return resolve
 
 
@@ -4149,17 +4459,22 @@ def _claim_pins(source):
                 stack.extend(uses(fn))
         return seen
 
-    # Entries: `selftest`/`_selftest`, plus any selftest-named function on the CLI's own call path
-    # (source_currency dispatches `selftest_detect` from `_main`). A name PREFIX alone is not an
-    # entry -- P95 found `def selftest_park()`, called by nothing, counted as run -- and an
-    # attribute call like `obj.park()` never makes this module's `park` reachable.
+    # Entries: the selftest-named functions the module's own top-level code reaches (its
+    # `__main__` block and what that calls, e.g. source_currency's `_main` dispatching
+    # `selftest_detect`), plus `extra_entries`. A function named `selftest` that nothing on that
+    # path uses is not an entry, a name prefix alone is not one (`def selftest_park()` called by
+    # nothing), and an attribute call like `obj.park()` never makes this module's `park`
+    # reachable. Any live reference counts, not only a call: `print(_selftest)` makes it an entry
+    # although nothing runs it.
     top = defs[None]
     cli = closure(uses(tree))
-    entries = [top[n] for n in _CLAIM_PIN_ENTRIES if n in top]
-    entries += [f for f in cli if isinstance(f, _CLAIM_FNDEF) and "selftest" in f.name.lower()]
+    entries = [f for f in cli if isinstance(f, _CLAIM_FNDEF) and "selftest" in f.name.lower()]
+    entries += [top[n] for n in extra_entries if n in top]
     reachable = closure(entries)
 
     out = []
+    rebound = {}
+    helper_tests = {}
     for fn in parent:
         for call in _claim_live_nodes(fn, resolver(fn)):
             if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
@@ -4172,27 +4487,25 @@ def _claim_pins(source):
                 continue
             name, reason = call.func.id, None
             helper = _claim_lookup(name, fn, parent, defs)
+            if helper is not None and (name, fn) not in rebound:
+                rebound[(name, fn)] = _claim_helper_rebound(name, fn, parent, defs, tree)
             if fn not in reachable:
                 reason = (f"it sits in {fn.name}(), which nothing on the selftest's call path "
                           f"uses, so it never runs")
             elif helper is None:
                 reason = f"{name}() is not defined in this module, so what it checks cannot be read"
+            elif rebound[(name, fn)]:
+                reason = (f"{name} is bound more than once where the helper is defined, or rebound "
+                          f"between this call and that definition (an assignment, import, "
+                          f"parameter, decorator, or global/nonlocal declaration), so the call "
+                          f"may not run the helper that is read")
             else:
-                cond = _claim_condition_param(helper)
-                params = [a.arg for a in helper.args.posonlyargs + helper.args.args]
-                bound = {params[i]: a for i, a in enumerate(call.args)
-                         if i < len(params) and not isinstance(a, ast.Starred)}
-                bound.update({k.arg: k.value for k in call.keywords if k.arg})
-                if cond is None:
-                    reason = f"{name}() never tests any of its arguments, so it cannot fail"
-                elif cond not in bound:
-                    reason = f"the call passes nothing for {name}()'s condition {cond!r}"
-                else:
-                    fixed, val = _claim_truth(bound[cond], resolver(fn))
-                    if fixed and val is not False:
-                        reason = ("its condition cannot depend on anything the code computes (a "
-                                  "literal, a constant, or an expression whose truth is fixed), "
-                                  "so it cannot fail")
+                if helper not in helper_tests:
+                    definer = _claim_defining_scope(name, fn, parent, defs)
+                    helper_tests[helper] = _claim_helper_tests(
+                        helper, tree if definer is None else definer)
+                reason = _claim_condition_verdict(name, helper, helper_tests[helper], call,
+                                                  resolver(fn))
             out.append((label, reason))
     return out
 
@@ -4209,9 +4522,11 @@ def _claim_pin_labels(pyfile):
     return None if pins is None else [lab for lab, why in pins if why is None]
 
 
-# P95: one fixture module per refusal rule, run before every scan so a rule cannot regress
-# silently. Each fake pin below reproduces a way a label could pass as a proof while proving
-# nothing; only the labels in _CLAIM_PIN_FIXTURE_PROOFS may be accepted.
+# The fixture module, analysed before every scan. Each fake pin below reproduces a way a label
+# could pass as a proof while proving nothing. _CLAIM_PIN_FIXTURE_KINDS names the outcome of every
+# label and _claim_pin_self_proof compares every (label, outcome) pair, so a rule that stops
+# refusing, or refuses for another reason, fails the build. _CLAIM_CASES_RULE_BRANCHES has a case
+# for each branch of the refusal and pruning rules that this fixture does not reach.
 _CLAIM_PIN_FIXTURE = """
 TABLE = ("a", "b", "c")
 
@@ -4258,15 +4573,678 @@ def _check(label, cond, failures):
 
 def c(cond, msg):
     print(msg)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
 """
-_CLAIM_PIN_FIXTURE_PROOFS = {"real", "module-constant", "label-first", "callback", "should-not-reach"}
-# Every label must still be SEEN (and refused), except "dead-branch": code under `if False:` is
-# pruned before it is a candidate. If pruning regresses, its `ok(False, ...)` reads as a
-# should-not-reach proof and the accepted set above changes, so that rule is covered too.
-_CLAIM_PIN_FIXTURE_ALL = _CLAIM_PIN_FIXTURE_PROOFS | {
-    "nested-uncalled", "literal-compare", "tuple-truthy", "reflexive", "or-true",
-    "local-constant", "extra-arg", "swallowed", "undefined-helper", "name-prefix",
-    "attribute-only"}
+# The outcome of each fixture label: `accepted` or a refusal kind (_CLAIM_REASON_KINDS). Two pins
+# share "should-not-reach": `ok(False, ...)` after a call that must raise counts, and `ok(True,
+# ...)` in the handler does not. "dead-branch" is absent: code under `if False:` is pruned before
+# it is a candidate.
+_CLAIM_PIN_FIXTURE_KINDS = {
+    "nested-uncalled": ("unreachable",), "callback": ("accepted",), "real": ("accepted",),
+    "literal-compare": ("fixed",), "tuple-truthy": ("fixed",), "reflexive": ("fixed",),
+    "or-true": ("fixed",), "local-constant": ("fixed",), "module-constant": ("accepted",),
+    "extra-arg": ("fixed",), "label-first": ("accepted",), "swallowed": ("untested",),
+    "undefined-helper": ("undefined",), "should-not-reach": ("accepted", "fixed"),
+    "name-prefix": ("unreachable",), "attribute-only": ("unreachable",)}
+
+
+def _claim_pin_self_proof():
+    """None when every fixture pin gets the outcome _CLAIM_PIN_FIXTURE_KINDS names and every rule
+    for resolving a proof reference holds (_claim_resolution_self_proof), else what differs."""
+    pins = _claim_pins(_CLAIM_PIN_FIXTURE)
+    if pins is None:
+        return "the pin fixture no longer parses"
+    got = {(lab, _claim_reason_kind(why)) for lab, why in pins}
+    want = {(lab, kind) for lab, kinds in _CLAIM_PIN_FIXTURE_KINDS.items() for kind in kinds}
+    if got != want:
+        return (f"fixture outcomes differ from _CLAIM_PIN_FIXTURE_KINDS: missing "
+                f"{sorted(want - got)[:5]}, unexpected {sorted(got - want)[:5]}")
+    return _claim_resolution_self_proof()
+
+
+def _claim_resolution_self_proof():
+    """None when a malformed, missing, unswept or unparsable proof reference is still refused,
+    else the reference that resolved."""
+    not_python = str((ROOT / "CLAUDE.md").resolve())
+    for proof, sweep, words in (
+            ("invariant:x", set(), "malformed"),
+            ("tools/no-such-module.py::selftest::" + "x" * 20, set(), "does not exist"),
+            ("tools/sync_check.py::selftest::" + "x" * 20, set(), "exposes no selftest"),
+            ("CLAUDE.md::selftest::" + "x" * 20, {not_python: ()}, "could not be parsed")):
+        resolved, detail = _claim_resolve_proof(proof, {1}, sweep)
+        if resolved or words not in detail:
+            return f"the proof reference {proof!r} was not refused as {words!r}: {detail!r}"
+    return None
+
+
+# Case modules for the pin rules, analysed before every scan. Every label in them ends in
+# `=<kind>`, the outcome the rules must give it: `accepted`, a refusal kind (_CLAIM_REASON_KINDS),
+# or `unseen` for a pin that pruning removes before it is a candidate. _claim_case_self_proof
+# compares every (label, kind) pair, so a rule that stops refusing, or refuses for another reason,
+# fails the build.
+_CLAIM_CASES_BUILTINS = """
+import sys
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    r = state()
+    ok(len, "builtin-name=fixed")
+    ok(print, "builtin-print=fixed")
+    kind = str
+    ok(kind == str, "builtin-bound-compare=fixed")
+    if str is bytes:
+        ok(r == 5, "builtin-compare-dead=unseen")
+    if kind is bytes:
+        ok(r, "dead-bound-compare=unseen")
+    ok([len] == [str], "builtin-in-list-compare=fixed")
+    if len:
+        pass
+    else:
+        ok(r, "builtin-truthy-else=unseen")
+    if NotImplemented:
+        pass
+    else:
+        ok(r == 7, "notimplemented-else=accepted")
+    ok(type(r), "type-object=fixed")
+    ok(isinstance(r, object), "isinstance-object=fixed")
+    ok(isinstance(r, int), "isinstance-live=accepted")
+    off = False
+    if off:
+        ok(r, "local-false-guard=unseen")
+    name_a = name_b
+    name_b = name_a
+    if name_a:
+        ok(r == 8, "name-cycle=accepted")
+    _shadowed()
+
+def _shadowed():
+    len = state()
+    _check("shadowed-builtin=accepted", len, [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_REBINDING_AND_DEAD_CODE = """
+import sys, os
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    r = state()
+    ok(r.__class__, "class-attr=fixed")
+    ok(r or not r, "excluded-middle=fixed")
+    ok(r or not r.x, "not-excluded-middle=accepted")
+    ok(len(r) >= 0, "residual-len-nonnegative=accepted")
+    ok(hash(r) == hash(r), "residual-hash-reflexive=accepted")
+    while False:
+        ok(r, "dead-while=unseen")
+    while True:
+        ok(r == 2, "live-while=accepted")
+        break
+    else:
+        ok(r == 3, "dead-while-else=unseen")
+    for _ in ():
+        ok(r, "empty-for=unseen")
+    for _ in "":
+        ok(r, "empty-for-str=unseen")
+    for _ in (r,):
+        ok(r == 4, "nonempty-for=accepted")
+    _rebound_local()
+    _rebound_param()
+    _rebound_import()
+    _rebound_decorator()
+    _rebound_nonlocal()
+    _rebound_inner()
+    _rebound_except()
+    _rebound_match_rest()
+    _residual_globals()
+    _residual_setattr()
+    _after_exit()
+    _after_os_exit()
+    _after_builtin_exit()
+    _after_if_return(r)
+    _after_with_return()
+    _after_try_finally()
+    _after_loop()
+    _after_loop_inner_break()
+    _after_loop_if_break()
+    _after_assert()
+    _after_maybe_return(r)
+    _after_try_handler()
+
+def _rebound_local():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    ok = print
+    ok(state(), "rebound-assign=rebound")
+
+def _rebound_param(_check=print):
+    _check("rebound-param=rebound", state(), [])
+
+def _rebound_import():
+    from builtins import print as _ok
+    _ok(state(), "rebound-import=rebound")
+
+def _rebound_decorator():
+    @wrap
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    ok(state(), "rebound-decorator=rebound")
+
+def _rebound_nonlocal():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    def swap():
+        nonlocal ok
+        ok = print
+    swap()
+    ok(state(), "rebound-nonlocal=rebound")
+
+def _rebound_inner():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    def inner():
+        ok = print
+        ok(state(), "rebound-inner=rebound")
+    inner()
+
+def _rebound_except():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    try:
+        load()
+    except ValueError as ok:
+        pass
+    ok(state(), "rebound-except=rebound")
+
+def _rebound_match_rest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    match state():
+        case {**ok}:
+            pass
+    ok(state(), "rebound-match-rest=rebound")
+
+def _residual_globals():
+    globals()["_check"] = print
+    _check("residual-globals-rebind=accepted", state(), [])
+
+def _residual_setattr():
+    setattr(sys.modules[__name__], "_check", print)
+    _check("residual-setattr-rebind=accepted", state(), [])
+
+def _after_exit():
+    sys.exit(0)
+    _check("after-exit=unseen", state(), [])
+
+def _after_os_exit():
+    os._exit(0)
+    _check("after-os-exit=unseen", state(), [])
+
+def _after_builtin_exit():
+    exit(0)
+    _check("after-builtin-exit=unseen", state(), [])
+
+def _after_if_return(r):
+    if True:
+        return
+    _check("after-if-return=unseen", r, [])
+
+def _after_with_return():
+    with open("x"):
+        return
+    _check("after-with-return=unseen", state(), [])
+
+def _after_try_finally():
+    try:
+        return
+    finally:
+        pass
+    _check("after-try-finally=unseen", state(), [])
+
+def _after_loop():
+    while True:
+        state()
+    _check("after-loop=unseen", state(), [])
+
+def _after_loop_inner_break():
+    while True:
+        for x in state():
+            break
+    _check("after-loop-inner-break=unseen", state(), [])
+
+def _after_loop_if_break():
+    while True:
+        if state():
+            break
+    _check("after-loop-if-break=accepted", state(), [])
+
+def _after_assert():
+    assert False
+    _check("after-assert=unseen", state(), [])
+
+def _after_maybe_return(r):
+    if r:
+        return
+    _check("after-maybe-return=accepted", r, [])
+
+def _after_try_handler():
+    try:
+        return
+    except ValueError:
+        pass
+    _check("after-try-handler=accepted", state(), [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+def _ok(cond, msg):
+    if not cond:
+        raise SystemExit(msg)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_RULE_BRANCHES = """
+import sys
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    r = state()
+    same = True
+    ok(r, "abc")
+    ok(cond=r, msg="keyword-label=accepted")
+    ok(msg="missing-condition=unbound")
+    ok(*r, "starred-call=unbound")
+    ok(r is r, "reflexive-is=fixed")
+    ok(r.x <= r.x, "reflexive-attr=fixed")
+    ok(r[0] >= r[0], "reflexive-subscript=fixed")
+    ok(not (r != r), "irreflexive-negated=fixed")
+    ok(not (r > r), "strict-irreflexive-negated=fixed")
+    ok(r() == r(), "call-not-reflexive=accepted")
+    ok(1 < "a", "unorderable=fixed")
+    ok(-1 + 2, "binop-constant=fixed")
+    ok([1, 2] == [1, 2], "list-compare=fixed")
+    ok({1: 2} == {1}, "dict-set-compare=fixed")
+    ok(f"{1}" == "1", "fstring-compare=fixed")
+    ok((1 if True else 2) == 1, "ifexp-compare=fixed")
+    ok((z := 1) == 1, "walrus-compare=fixed")
+    ok(~1 == -2, "unary-compare=fixed")
+    ok((1 or 2) == 1, "boolop-compare=fixed")
+    ok(len("ab") == 2, "call-compare=fixed")
+    ok(len(r) == 2, "call-live=accepted")
+    ok([*r] == [], "starred-compare=accepted")
+    ok({**r} == {}, "dict-unpack-compare=accepted")
+    ok(sorted("ba", key=len) == [], "keyword-call-compare=accepted")
+    ok(lambda: r, "lambda-truthy=fixed")
+    ok((x for x in r), "generator-truthy=fixed")
+    ok([r], "list-truthy=fixed")
+    ok([*r], "starred-list=accepted")
+    ok({"k": r}, "dict-truthy=fixed")
+    ok({**r}, "dict-unpack=accepted")
+    ok(f"x{r}", "fstring-literal=fixed")
+    ok(f"{r}", "fstring-bare=accepted")
+    ok((w := r), "walrus-live=accepted")
+    ok((w2 := (r,)), "walrus-tuple=fixed")
+    ok(not not (r,), "double-not=fixed")
+    ok(not r, "not-live=accepted")
+    ok(not (r and False), "and-false-negated=fixed")
+    ok((r,) and [r], "and-all-truthy=fixed")
+    ok(r and (r,), "and-mixed=accepted")
+    ok((r,) if True else r, "ifexp-fixed-test=fixed")
+    ok(1 if r else 2, "ifexp-same-truth=fixed")
+    ok(1 if r else 0, "ifexp-mixed=accepted")
+    ok(bool((r,)), "bool-tuple=fixed")
+    ok(bool(r), "bool-live=accepted")
+    pair = (1, 2)
+    ok(pair, "local-tuple=fixed")
+    fn0 = lambda: 1
+    ok(fn0, "local-lambda=fixed")
+    gen0 = (x for x in r)
+    ok(gen0, "local-generator=fixed")
+    txt0 = f"v{r}"
+    ok(txt0, "local-fstring=fixed")
+    cmp0 = 1 == 1
+    ok(cmp0, "local-compare=fixed")
+    alias0 = same
+    ok(alias0, "local-alias=fixed")
+    neg0 = not same
+    ok(not neg0, "local-not=fixed")
+    minus0 = -1
+    ok(minus0, "local-negative=fixed")
+    ok(minus0 + 1, "local-binop=fixed")
+    either0 = same or pair
+    ok(either0, "local-boolop=fixed")
+    pick0 = 1 if r else 2
+    ok(pick0, "local-ifexp=fixed")
+    size0 = len("abc")
+    ok(size0, "local-len-constant=fixed")
+    flag0: bool = True
+    ok(flag0, "annotated-constant=fixed")
+    twice = True
+    twice = True
+    ok(twice, "bound-twice=accepted")
+    imp0 = True
+    import os as imp0
+    ok(imp0, "import-rebinds=accepted")
+    exc0 = True
+    try:
+        load()
+    except ValueError as exc0:
+        pass
+    ok(exc0, "except-rebinds=accepted")
+    fnb = True
+    def fnb():
+        pass
+    ok(fnb, "def-rebinds=accepted")
+    klass = True
+    class klass:
+        pass
+    ok(klass, "class-rebinds=accepted")
+    outer_flag = True
+    def _inner_rebind():
+        nonlocal outer_flag
+        outer_flag = False
+    ok(outer_flag, "nonlocal-rebinds=accepted")
+    if True:
+        pass
+    else:
+        ok(r, "dead-else=unseen")
+    if r:
+        pass
+    else:
+        ok(r == 4, "live-else=accepted")
+    if 1 == 2:
+        ok(r, "dead-constant-compare=unseen")
+    if not ((r,) and [r]):
+        pass
+    else:
+        ok(r == 6, "not-unknown-else=accepted")
+    for x in r:
+        ok(x, "live-for=accepted")
+    ok(r, "dead-ifexp=unseen") if False else None
+    ok(r, "live-ifexp=accepted") if r else None
+    _stops()
+    _with_body_return()
+    _param_bound(r)
+    _global_bound()
+    _lambda_helper()
+    _nested_lookup()
+    _def_in_block()
+
+def _stops():
+    for x in state():
+        if x:
+            continue
+            _check("after-continue=unseen", x, [])
+        break
+        _check("after-break=unseen", x, [])
+    if state():
+        raise ValueError()
+        _check("after-raise=unseen", state(), [])
+    return
+    _check("after-return=unseen", state(), [])
+
+def _with_body_return():
+    with open("x"):
+        return
+        _check("after-return-in-with=unseen", state(), [])
+
+def _param_bound(p):
+    p = True
+    _check("param-bound=accepted", p, [])
+
+def _global_bound():
+    global gflag
+    gflag = True
+    _check("global-bound=accepted", gflag, [])
+
+def _lambda_helper():
+    c = lambda cond, msg: None if cond else fail(msg)
+    c(state(), "lambda-helper=accepted")
+
+def _nested_lookup():
+    def ok(cond, msg):
+        print(msg)
+    def inner():
+        ok(state(), "nearest-helper=untested")
+    inner()
+
+def _def_in_block():
+    if True:
+        def ok(cond, msg):
+            if not cond:
+                raise SystemExit(msg)
+    ok(state(), "helper-in-block=accepted")
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_ENTRIES = """
+import sys
+
+def _selftest():
+    r = state()
+    0 and _check("short-circuit-and=unseen", r, [])
+    1 or _check("short-circuit-or=unseen", r, [])
+    r and _check("short-circuit-live=accepted", r, [])
+
+def selftest():
+    _check("undispatched-selftest=unreachable", state(), [])
+
+def selftest_short():
+    _check("short-circuit-entry=unreachable", state(), [])
+
+def selftest_printed():
+    _check("residual-printed-entry=accepted", state(), [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    print(selftest_printed)
+    if 0 and selftest_short():
+        pass
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_ANALYSIS_COST = """
+import sys
+
+def _selftest():
+    _binding_cycle()
+    _long_chain()
+
+def _binding_cycle():
+    loop_a = loop_b or loop_b
+    loop_b = loop_a or loop_a
+    _check("binding-cycle=accepted", loop_a, [])
+
+def _long_chain():
+    k0 = True; k1 = k0; k2 = k1; k3 = k2; k4 = k3; k5 = k4; k6 = k5; k7 = k6; k8 = k7
+    k9 = k8; k10 = k9; k11 = k10; k12 = k11; k13 = k12; k14 = k13; k15 = k14; k16 = k15
+    k17 = k16; k18 = k17; k19 = k18; k20 = k19; k21 = k20; k22 = k21; k23 = k22; k24 = k23
+    _check("long-constant-chain=fixed", k24, [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_CONDITIONS = """
+import sys
+
+def _selftest():
+    _group_cases()
+    _stored_cases()
+    _stored_untested()
+    _stored_comprehension()
+    _stored_whole()
+    _stored_bool_cases()
+    _assert_helper()
+    _bool_tested()
+    _bool_direct()
+    _formatted_detail()
+
+def _group_cases():
+    fails = []
+    def check(label, expected, actual):
+        if expected != actual:
+            fails.append(label)
+    check("zero-equals-zero=fixed", 0, 0)
+    check("computed-actual=accepted", 3, state())
+    _ok(False, "quiet-false=fixed")
+    _ok(state(), "quiet-live=accepted")
+
+def _stored_cases():
+    results = []
+    def ok(cond, msg):
+        results.append((cond, msg))
+    ok(state(), "stored-later=accepted")
+    ok(False, "stored-should-not-reach=accepted")
+    ok(True, "stored-constant=fixed")
+    for good, why in results:
+        if not good:
+            raise SystemExit(why)
+
+def _stored_untested():
+    kept = []
+    def ok(cond, msg):
+        kept.append((cond, msg))
+    ok(state(), "stored-never-tested=untested")
+    return kept
+
+def _stored_comprehension():
+    results = []
+    def ok(cond, msg):
+        results.append((cond, msg))
+    ok(False, "stored-comprehension=accepted")
+    return [m for c, m in results if not c]
+
+def _stored_whole():
+    seen = []
+    def ok(cond, msg):
+        seen.append(cond)
+    ok(False, "stored-whole-should-not-reach=accepted")
+    for item in seen:
+        if not item:
+            raise SystemExit("failed")
+
+def _stored_bool_cases():
+    results = []
+    def ok(cond, msg):
+        results.append((bool(cond), msg))
+    ok(False, "stored-bool-should-not-reach=accepted")
+    for good, why in results:
+        if not good:
+            raise SystemExit(why)
+
+def _assert_helper():
+    def ok(cond, msg):
+        assert cond, msg
+    ok(False, "assert-should-not-reach=accepted")
+
+def _bool_tested():
+    def ok(cond, msg):
+        log(bool(cond), msg)
+    ok(state(), "bool-tested=accepted")
+
+def _bool_direct():
+    def ok(cond, msg):
+        if not bool(cond):
+            raise SystemExit(msg)
+    ok(False, "bool-direct-should-not-reach=accepted")
+
+def _formatted_detail():
+    def check(label, cond, detail):
+        if not cond:
+            raise SystemExit(label + (detail if detail else ""))
+    check("detail-only-in-message=fixed", True, state())
+
+def _ok(cond, msg):
+    if cond:
+        print(msg)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_PIN_CASES = (
+    _CLAIM_CASES_CONDITIONS,
+    _CLAIM_CASES_ANALYSIS_COST,
+    _CLAIM_CASES_ENTRIES,
+    _CLAIM_CASES_RULE_BRANCHES,
+    _CLAIM_CASES_REBINDING_AND_DEAD_CODE,
+    _CLAIM_CASES_BUILTINS,
+)
+_CLAIM_PIN_CASE_RE = re.compile(r'"([a-z0-9-]+=([a-z]+))"')
+_CLAIM_REASON_KINDS = (("never runs", "unreachable"), ("is not defined", "undefined"),
+                       ("rebound", "rebound"), ("never tests", "untested"),
+                       ("passes nothing", "unbound"), ("cannot depend", "fixed"))
+
+
+def _claim_reason_kind(why):
+    """The kind of a pin's refusal reason, or `accepted` when the pin counts as a proof."""
+    if why is None:
+        return "accepted"
+    return next((kind for key, kind in _CLAIM_REASON_KINDS if key in why), why)
+
+
+def _claim_case_failure(source):
+    """None when every pin in a case module gets the outcome its label names, else what differs."""
+    pins = _claim_pins(source)
+    if pins is None:
+        return "a pin case module no longer parses"
+    want = {(m.group(1), m.group(2)) for m in _CLAIM_PIN_CASE_RE.finditer(source)
+            if m.group(2) != "unseen"}
+    got = {(lab, _claim_reason_kind(why)) for lab, why in pins}
+    if got != want:
+        return (f"pin case outcomes differ from the kinds their labels name: missing "
+                f"{sorted(want - got)[:5]}, unexpected {sorted(got - want)[:5]}")
+    return None
+
+
+def _claim_case_self_proof():
+    """None when every module in _CLAIM_PIN_CASES passes _claim_case_failure, else what differs."""
+    return next(filter(None, map(_claim_case_failure, _CLAIM_PIN_CASES)), None)
+
+
+def _claim_main_entries(source, pkg):
+    """Selftest-named names a package's __main__ imports from the package and loads on its live
+    top-level path. `python -m <pkg>` runs those, so they are the package __init__'s entries."""
+    tree = ast.parse(source)
+    imported = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and (n.module == pkg or (n.level and not n.module)):
+            for a in n.names:
+                imported[a.asname or a.name] = a.name
+    live = {x.id for x in _claim_live_nodes(tree, lambda name: None)
+            if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Load)}
+    return tuple(sorted({imported[k] for k in live
+                         if k in imported and "selftest" in imported[k].lower()}))
 
 
 def _claim_selftest_modules():
@@ -4274,22 +5252,90 @@ def _claim_selftest_modules():
     runs is not a proof, so membership here is what makes `tools/x.py::selftest::...` resolvable."""
     try:
         import selftest_sweep
-        mods = {str(Path(p).resolve()) for p, _ in selftest_sweep.discover()}
+        # Each module maps to the extra entries _claim_pins needs for it.
+        mods = {str(Path(p).resolve()): () for p, _ in selftest_sweep.discover()}
         # A package selftest runs as `python -m <pkg> --selftest`, whose __main__ imports the
-        # package's own _selftest, so its pins live in the package __init__ (P95).
+        # package's own _selftest, so its pins live in the package __init__ and its entries are
+        # the selftest-named names that __main__ loads on its live path (_claim_main_entries).
         for _label, argv in getattr(selftest_sweep, "PACKAGE_ENTRIES", []):
             if "-m" in argv and argv.index("-m") + 1 < len(argv):
-                init = ROOT / "tools" / argv[argv.index("-m") + 1] / "__init__.py"
+                pkg = argv[argv.index("-m") + 1]
+                init = ROOT / "tools" / pkg / "__init__.py"
                 if init.exists():
-                    mods.add(str(init.resolve()))
+                    main_text = (ROOT / "tools" / pkg / "__main__.py").read_text(encoding="utf-8")
+                    mods[str(init.resolve())] = _claim_main_entries(main_text, pkg)
         return mods
-    except Exception:  # noqa: BLE001 - a broken sweep is reported by its own gate, not this one
-        return None
+    except Exception as exc:  # noqa: BLE001 - _claim_swept refuses every `::selftest::` proof
+        return f"{type(exc).__name__}: {exc}"
+
+
+# A `::selftest::` proof must quote at least this much of the label of exactly one pin.
+_CLAIM_MIN_LABEL = 16
+
+
+def _claim_swept(mod, path, selftest_mods):
+    """None when the sweep runs a selftest for `path`, else why a pin there cannot count. An
+    unreadable sweep (_claim_selftest_modules returned text or None, not a set or dict of paths)
+    refuses every module: fail closed."""
+    if not isinstance(selftest_mods, (set, dict)):
+        return (f"the selftest sweep could not be read ({selftest_mods or 'no detail'}), so "
+                f"whether {mod}'s selftest runs cannot be checked; fix tools/selftest_sweep.py")
+    if str(Path(path).resolve()) not in selftest_mods:
+        return (f"{mod} exposes no selftest the sweep runs, so a pin inside it is never executed "
+                f"and cannot prove anything")
+    return None
+
+
+def _claim_match_label(mod, label, pins):
+    """(ok, detail) for a `::selftest::` label against a module's pins. After stripping, it must be
+    at least _CLAIM_MIN_LABEL characters and be contained in exactly one distinct pin label, and
+    every pin carrying that label must count as a proof: a label written on two pins, one of them
+    refused, does not resolve."""
+    label = label.strip()
+    if len(label) < _CLAIM_MIN_LABEL:
+        return False, (f"the proof label {label!r} is shorter than {_CLAIM_MIN_LABEL} characters; "
+                       f"quote enough of the pin's label to name one pin")
+    hits = sorted({lab for lab, _ in pins if label in lab})
+    if len(hits) > 1:
+        return False, (f"{label!r} is contained in {len(hits)} different pin labels in {mod} "
+                       f"({', '.join(repr(h) for h in hits[:3])}); quote enough of one label to "
+                       f"name it alone")
+    refused = next((why for lab, why in pins if label in lab and why is not None), None)
+    if refused:
+        return False, (f"{mod} has a pin labelled {label!r}, but it does not count as a "
+                       f"proof: {refused}")
+    if hits:
+        return True, ""
+    return False, (f"{mod} has no selftest pin whose label contains {label!r}; the pin "
+                   f"was renamed or removed, so the claim is no longer proven")
+
+
+def _claim_label_self_proof():
+    """None when a short, ambiguous or partly refused `::selftest::` label, and a module the sweep
+    does not list or cannot report, are still refused, else what resolved."""
+    pins = [("a pin label long enough", None), ("a pin label long enough, again", None),
+            ("short-unique xyz", None), ("a refused pin label here", "why"),
+            ("a label written on two pins", None), ("a label written on two pins", "why")]
+    if _claim_match_label("m.py", "xyz", pins)[0] \
+            or _claim_match_label("m.py", "a pin label long enough", pins)[0] \
+            or not _claim_match_label("m.py", "long enough, again", pins)[0] \
+            or "does not count" not in _claim_match_label("m.py", "a refused pin label", pins)[1] \
+            or _claim_match_label("m.py", "a label written on two", pins)[0]:
+        return (f"a `::selftest::` label shorter than {_CLAIM_MIN_LABEL} characters, matching "
+                f"more than one pin label, or carried by a refused pin resolved, or a unique one "
+                f"did not")
+    here = ROOT / "tools" / "x.py"
+    if any(_claim_swept("tools/x.py", here, sweep) is None
+           for sweep in (None, "ImportError: no sweep", set())):
+        return "a `::selftest::` proof resolved while the sweep was unreadable or did not list it"
+    return None
 
 
 def _claim_resolve_proof(proof, enforced, selftest_mods):
     """(ok, detail) for one proof reference. Two forms: `invariant:N` (a labeled check registered
-    in main()) and `tools/x.py::selftest::<label substring>` (a named pin the sweep executes)."""
+    in main()) and `tools/x.py::selftest::<label substring>` (a named pin the sweep executes; the
+    substring must name exactly one pin label (_claim_match_label), and when the sweep cannot be
+    read the proof is refused (_claim_swept))."""
     if proof.startswith("invariant:"):
         raw = proof.split(":", 1)[1].strip()
         if not raw.isdigit():
@@ -4304,25 +5350,160 @@ def _claim_resolve_proof(proof, enforced, selftest_mods):
         path = ROOT / mod
         if not path.exists():
             return False, f"proof module {mod} does not exist"
-        if selftest_mods is not None and str(path.resolve()) not in selftest_mods:
-            return False, (f"{mod} exposes no selftest the sweep runs, so a pin inside it is "
-                           f"never executed and cannot prove anything")
+        unswept = _claim_swept(mod, path, selftest_mods)
+        if unswept:
+            return False, unswept
         try:
-            pins = _claim_pins(path.read_text(encoding="utf-8"))
+            extra = (selftest_mods.get(str(path.resolve()), ())
+                     if isinstance(selftest_mods, dict) else ())
+            pins = _claim_pins(path.read_text(encoding="utf-8"), extra)
         except OSError:
             pins = None
+        except Exception as exc:  # noqa: BLE001 - e.g. RecursionError, UnicodeDecodeError
+            return False, (f"{mod} could not be analysed ({type(exc).__name__}: {exc}), so no "
+                           f"pin in it can be resolved")
         if pins is None:
             return False, f"proof module {mod} could not be parsed"
-        if any(label in lab for lab, why in pins if why is None):
-            return True, ""
-        refused = next((why for lab, why in pins if label in lab), None)
-        if refused:
-            return False, (f"{mod} has a pin labelled {label!r}, but it does not count as a "
-                           f"proof: {refused}")
-        return False, (f"{mod} has no selftest pin whose label contains {label!r}; the pin "
-                       f"was renamed or removed, so the claim is no longer proven")
+        return _claim_match_label(mod, label, pins)
     return False, (f"unrecognized proof form {proof!r}; use `invariant:N` or "
                    f"`tools/x.py::selftest::<pin label>`")
+
+
+def _claim_guard_self_proof():
+    """None when main() calls check_claim_proof() inside a try whose `except Exception` handler
+    calls problem(), so an exception in invariant 60 is reported instead of stopping the drift
+    guard or passing silently; else what is missing."""
+    main_def = next((n for n in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
+                     if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+
+    def calls(nodes, name):
+        return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == name
+                   for s in nodes for c in ast.walk(s))
+    if main_def is not None and any(
+            isinstance(t, ast.Try) and calls(t.body, "check_claim_proof")
+            and any((h.type is None or (isinstance(h.type, ast.Name)
+                                        and h.type.id in ("Exception", "BaseException")))
+                    and calls(h.body, "problem") for h in t.handlers)
+            for t in ast.walk(main_def)):
+        return None
+    return ("main() must call check_claim_proof() inside try/except, with an `except Exception` "
+            "handler that calls problem(), so an exception in this check is reported instead of "
+            "stopping the drift guard or passing silently")
+
+
+def _claim_entry_self_proof():
+    """None when a package __main__'s selftest entry follows the call it makes, and a package
+    __init__ pin counts only when that entry is passed in, else what broke."""
+    main = ('import sys\nfrom pkg import _selftest, helper\n'
+            'if __name__ == "__main__":\n    sys.exit(_selftest())\n')
+    if _claim_main_entries(main, "pkg") != ("_selftest",) \
+            or _claim_main_entries(main.replace("_selftest())", "0)"), "pkg") != ():
+        return "a package __main__'s selftest entry is not read from the call it makes"
+    init = ('def _selftest():\n    _check("package-entry-pin", state(), [])\n'
+            'def _check(label, cond, failures):\n    if not cond:\n        failures.append(label)\n')
+    if [why is None for _, why in _claim_pins(init, ("_selftest",))] != [True] \
+            or [why is None for _, why in _claim_pins(init)] != [False]:
+        return "a package __init__ pin does not follow whether its __main__ runs the selftest"
+    return None
+
+
+# The self-proofs normally take well under a second; past this bound one counts as failed.
+_CLAIM_FIXTURE_SECONDS = 20
+
+
+def _claim_bounded(fn, seconds):
+    """fn()'s result when it returns within `seconds`, else text saying why not. fn runs on a
+    daemon thread, so an analysis that stops terminating fails the check instead of hanging the
+    drift guard, and an exception inside it comes back as text instead of being raised."""
+    import threading
+    box = {}
+
+    def run():
+        try:
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - returned as a problem, not raised
+            box["error"] = f"{type(exc).__name__}: {exc}"
+
+    worker = threading.Thread(target=run, name="claim-self-proof", daemon=True)
+    worker.start()
+    worker.join(seconds)
+    name = getattr(fn, "__name__", "a self-proof")
+    if worker.is_alive():
+        return f"{name} did not finish within {seconds} s"
+    if "error" in box:
+        return f"{name} raised {box['error']}"
+    return box.get("value")
+
+
+def _claim_cost_self_proof():
+    """None when each self-proof runs through _claim_bounded, an exception inside a bounded
+    self-proof comes back as text, and _claim_resolve_proof turns an exception raised while
+    analysing a proof module into a refused binding, else what broke."""
+    if "ZeroDivisionError" not in str(_claim_bounded(lambda: 1 // 0, _CLAIM_FIXTURE_SECONDS)):
+        return "an exception inside a bounded self-proof was not returned as text"
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    defs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    if not any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+               and c.func.id == "_claim_bounded"
+               for c in ast.walk(defs.get("check_claim_proof", ast.Pass()))):
+        return "check_claim_proof() must run each self-proof through _claim_bounded"
+    if not any(
+            isinstance(t, ast.Try)
+            and any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                    and c.func.id == "_claim_pins" for s in t.body for c in ast.walk(s))
+            and any(isinstance(h.type, ast.Name) and h.type.id == "Exception"
+                    and isinstance(h.body[-1], ast.Return) for h in t.handlers)
+            for t in ast.walk(defs.get("_claim_resolve_proof", ast.Pass()))):
+        return ("_claim_resolve_proof must turn an exception raised while analysing a proof module "
+                "(RecursionError, UnicodeDecodeError) into a refused binding")
+    return None
+
+
+def _claim_entry_proofs(entry):
+    """(proofs, error) for one manifest claim: `proof` names one proof reference and `proofs` a
+    non-empty list of them, every one of which must resolve. An entry with both, or neither, is
+    an error."""
+    if "proof" in entry and "proofs" in entry:
+        return [], "carries both `proof` and `proofs`; keep one"
+    if "proofs" in entry:
+        many = entry["proofs"]
+        if not (isinstance(many, list) and many
+                and all(isinstance(p, str) and p.strip() for p in many)):
+            return [], "has a `proofs` value that is not a non-empty list of proof references"
+        if len(set(many)) != len(many):
+            return [], "lists the same proof twice in `proofs`"
+        return list(many), None
+    one = entry.get("proof")
+    if not (isinstance(one, str) and one.strip()):
+        return [], "is missing doc/claim/proof"
+    return [one], None
+
+
+def _claim_proof_failures(proofs, enforced, selftest_mods):
+    """[(proof, detail)] for each of a claim's proof references that does not resolve."""
+    out = []
+    for proof in proofs:
+        ok, detail = _claim_resolve_proof(proof, enforced, selftest_mods)
+        if not ok:
+            out.append((proof, detail))
+    return out
+
+
+def _claim_multi_proof_self_proof():
+    """None when manifest entries read as the right number of proofs and a claim with two proofs
+    reports exactly the one that does not resolve, else what broke."""
+    for entry, count in (({"proof": "invariant:1"}, 1),
+                         ({"proofs": ["invariant:1", "invariant:2"]}, 2),
+                         ({"proof": "invariant:1", "proofs": ["invariant:1"]}, 0),
+                         ({"proofs": []}, 0), ({"proofs": "invariant:1"}, 0), ({}, 0),
+                         ({"proofs": ["invariant:1", 7]}, 0),
+                         ({"proofs": ["invariant:1", "invariant:1"]}, 0)):
+        if len(_claim_entry_proofs(entry)[0]) != count:
+            return f"the manifest entry {entry} did not read as {count} proof(s)"
+    failing = _claim_proof_failures(["invariant:1", "invariant:2"], {1}, set())
+    if [proof for proof, _ in failing] != ["invariant:2"]:
+        return "a claim with two proofs did not report exactly the one that does not resolve"
+    return None
 
 
 def check_claim_proof():
@@ -4388,13 +5569,19 @@ def check_claim_proof():
     if _claim_units("## A heading that says every\n"):
         problem("claim-proof: detector self-proof failed -- a heading was read as a promise")
         return
-    pins = _claim_pins(_CLAIM_PIN_FIXTURE) or []
-    accepted = {lab for lab, why in pins if why is None}
-    if accepted != _CLAIM_PIN_FIXTURE_PROOFS or {lab for lab, _ in pins} != _CLAIM_PIN_FIXTURE_ALL:
-        problem(f"claim-proof: pin self-proof failed -- the fixture's accepted pins are "
-                f"{sorted(accepted)}, expected {sorted(_CLAIM_PIN_FIXTURE_PROOFS)}. A rule that "
-                f"refuses a fake proof (unreachable, tautological, or unchecked) has regressed")
-        return
+    # Self-proofs of the pin rules and of how a proof reference resolves: each returns None, or
+    # what broke.
+    for self_proof in (_claim_pin_self_proof,
+                       _claim_multi_proof_self_proof,
+                       _claim_cost_self_proof,
+                       _claim_label_self_proof,
+                       _claim_entry_self_proof,
+                       _claim_guard_self_proof,
+                       _claim_case_self_proof):
+        failed = _claim_bounded(self_proof, _CLAIM_FIXTURE_SECONDS)
+        if failed:
+            problem(f"claim-proof: self-proof failed -- {failed}")
+            return
 
     if not _CLAIM_MANIFEST_PATH.exists():
         problem("claim-proof: tools/claim-proof-manifest.json is missing (invariant 60 cannot run)")
@@ -4427,10 +5614,13 @@ def check_claim_proof():
     # --- every bound claim still says what it said, and its proof still resolves ---
     bound = []
     for entry in man.get("claims", []):
-        rel, text, proof = entry.get("doc"), entry.get("claim"), entry.get("proof")
-        if not (rel and text and proof):
-            problem(f"claim-proof: manifest claim entry is missing doc/claim/proof: {entry}")
+        rel, text = entry.get("doc"), entry.get("claim")
+        proofs, bad = _claim_entry_proofs(entry)
+        if bad or not (rel and text):
+            problem(f"claim-proof: manifest claim entry {bad or 'is missing doc/claim/proof'}: "
+                    f"{entry}")
             continue
+        proof = " + ".join(proofs)
         path = ROOT / rel
         if not path.exists():
             problem(f"claim-proof: bound claim names missing doc {rel}")
@@ -4440,9 +5630,8 @@ def check_claim_proof():
                     f"changed but its proof did not: re-read {proof} and update the binding, or "
                     f"narrow the claim to what is actually tested")
             continue
-        ok, detail = _claim_resolve_proof(proof, enforced, selftest_mods)
-        if not ok:
-            problem(f"claim-proof: {rel} claims {text[:60]!r} on the strength of {proof}, but "
+        for one, detail in _claim_proof_failures(proofs, enforced, selftest_mods):
+            problem(f"claim-proof: {rel} claims {text[:60]!r} on the strength of {one}, but "
                     f"{detail}")
         bound.append((rel, text))
 
@@ -4544,6 +5733,37 @@ def check_claim_proof():
                 f"a written reason, or narrow the sentence to what is actually tested")
 
 
+def _ci_parity_problems(text, battery):
+    missing, _, stale, _, _ = battery.parity_report(text)
+    return [f"ci-parity: {line}" for line in missing + stale]
+
+
+def check_ci_parity():
+    """Invariant 61: CI parity (P96). Runs tools/battery.py's parity report over
+    .github/workflows/ci.yml and fails when a battery gate has no blocking CI step running exactly
+    its command (and no CI_PARITY_NOTES reason), when a parity note is stale, or when the report
+    cannot read the workflow. The drift guard is a battery gate with its own CI step, so the
+    comparison runs in CI even without the `--check-parity` step. Before the scan the check proves
+    itself on a fixture whose drift-guard step is disabled with `if: false`; a battery.py that
+    cannot load or run is reported as a problem, not a crash."""
+    import types
+    path = ROOT / "tools" / "battery.py"
+    try:
+        battery = types.ModuleType("_battery_parity")
+        battery.__file__ = str(path)
+        exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), battery.__dict__)
+        probe = ("on: push\njobs:\n  j:\n    runs-on: x\n    steps:\n"
+                 "      - if: false\n        run: python3 tools/sync_check.py\n")
+        if not any("the drift guard gate" in p for p in _ci_parity_problems(probe, battery)):
+            problem("ci-parity: self-proof failed: a drift-guard step disabled with `if: false` was counted")
+            return
+        wf = ROOT / ".github" / "workflows" / "ci.yml"
+        for line in _ci_parity_problems(wf.read_text(encoding="utf-8"), battery):
+            problem(line)
+    except Exception as exc:  # noqa: BLE001
+        problem(f"ci-parity: the parity report could not run: {type(exc).__name__}: {exc}")
+
+
 def main():
     manifest = load_manifest()
     check_canonical(manifest)
@@ -4602,7 +5822,12 @@ def main():
     check_registry_content_digest()
     check_eval_output_keys()
     check_install_scope()
-    check_claim_proof()
+    try:
+        check_claim_proof()
+    except Exception as exc:  # noqa: BLE001 - reported as a problem line, not a traceback
+        problem(f"claim-proof: invariant 60 stopped before it finished ({type(exc).__name__}: "
+                f"{exc}); the claims after that point were not checked")
+    check_ci_parity()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

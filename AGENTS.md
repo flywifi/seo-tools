@@ -18,7 +18,8 @@ python3 tools/battery.py --py /usr/bin/python3.12   # second interpreter when a 
 ```
 It runs the drift guard, scenarios, the selftest sweep, doc freshness, projections, count truth
 (never restate counts by hand), hash audit, source sync, the package manifest check, eval lint,
-preflight, the staged secret scan, and the launcher syntax check (`--list` prints the roster).
+preflight, the staged secret scan, the launcher syntax check, and the version check (`--list`
+prints the roster).
 If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manifest.py reconcile`
 (a NEW file needs `--accept-new` after review). If you stamp any registry source, run
 `python3 tools/build_freshness_bundle.py --apply`.
