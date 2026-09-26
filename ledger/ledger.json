@@ -486,7 +486,7 @@
       "status": "accepted"
     },
     {
-      "id": "P78-integrity-currency-audit",
+      "id": "P78-integrity-currency",
       "date": "2026-08-30",
       "phase": "P78",
       "decision": "Ran the first SHA-256 verified integrity census (every stored hash recomputed from current bytes) and the first complete source-currency sweep, writing only registry stamps through the sanctioned writers plus the mandated freshness rituals, and recorded everything else as findings in a committed report.",
