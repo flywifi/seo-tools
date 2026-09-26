@@ -13,6 +13,35 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P97: claim pins bind at the entry a person runs (ADR 0068). Invariant 60 reads a `boundaries`
+  record per `::selftest::` proof naming the CLI entry, tool or runtime default the claim
+  describes, and fails when no live code in the pin's function calls that entry and no gap is
+  recorded. setup's selftest drives `--install-deps` through main() under each `.venv` failure
+  mode recording every process start; the pip census reads assembled argv (fragments,
+  pip3/paths, %-format, .format(), conditional words, -mpip); the publishing default is pinned
+  at dashboard startup with the local override absent; the five mutating dashboard endpoints and
+  `schedule_post` are pinned over filled and fuzzed bodies; the dependency-currency closure
+  reader follows aliases and lazy imports. New pins and detector branches land with three
+  reviewer-run falsifying mutations committed as cases; scan-set narrowings ship a case for the
+  removed set; key-enumerating invariants take keys from the schema.
+- P97: checkers parse their sources as their consumers do. Invariant 7 reads atom keys at any
+  depth and requires each atom's SKILL.md; invariant 6 reads the hub's single downstream heading
+  and fence and refuses duplicates and shadows; invariant 60 scans heading text as a unit,
+  widens exception markers with code spans read inline, and re-validates exemption reasons that
+  assert checkable facts, failing closed on an unreadable source. `commit_claims` checks the
+  first paragraph as `%s` prints it, bounds its range by ancestry (failing closed without the
+  boundary commit), skips only generated merge and revert forms, and folds Unicode with pinned
+  confusable cases. `battery` cuts comments where bash does, matches gates as whole-step token
+  lists with an exact interpreter word, and gates BASH*/LD_* env names, case-variant checkout
+  inputs, sparse-checkout forms, non-ubuntu runners and unmodelled strategy shapes.
+  `readonly_bash_guard` parses option clusters, long-option prefixes, git subcommand grammar,
+  variable setters, Python writes via ast and heredocs with quote awareness; its remaining
+  misses are listed in `KNOWN_MISSES` with selftest lines.
+- P97: the audit-record name rule reads the path as git prints it (NFKC-folded, unquoted, the
+  review keyword and calendar date anywhere in the path, widened date forms), and committed
+  pattern lists refuse finding-id tokens, severity tallies, committed-report pointers and the
+  ADR/ledger discovery phrasings, each with limits stated at the rule. The phone pattern reads
+  flush and separator-form 1/+1 prefixes; the email allowlist anchors whole addresses.
 - P96: review output stays outside the repository (ADR 0067). The seven dated records under
   `docs/` are deleted, with the Mac-only procedures moved to `docs/MACOS-MAINTENANCE.md` and the
   Florida cost model to `docs/JURISDICTION-OVERLAY-PLAN.md`; `tools/doc_freshness.py` drops the

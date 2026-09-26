@@ -76,3 +76,4 @@ added beyond what those records state. New decisions get the next number via
 | [0065](0065-p93-user-scoped-installs-default.md) | Installs are user-scoped by default; machine-wide is a labeled choice | 2026-09-20 | Accepted |
 | [0066](0066-p94-claims-ship-with-their-proof.md) | A claim about this repo's own behavior ships with its executed proof | 2026-09-21 | Accepted |
 | [0067](0067-p96-guards-prove-their-own-coverage.md) | Review output stays outside the repository, and guards prove their own coverage | 2026-09-26 | Accepted |
+| [0068](0068-p97-pins-bind-at-entries-guards-parse.md) | Pins bind at the entry a person runs, and guards parse before they match | 2026-09-27 | Accepted |

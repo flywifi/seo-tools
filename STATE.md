@@ -2,9 +2,23 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P96 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
+P6 through P97 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
 Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P97: remediation pass (2026-09-27, ADR 0068). Claim pins bind at the entry a person runs:
+  invariant 60 reads a boundaries record per selftest proof and fails when the pin's function
+  does not call its entry and no gap is recorded; the install, publishing-default, human
+  confirmation, schedule_post and dependency-currency pins execute their entries with fuzzed
+  inputs and process-start recorders. Checkers parse as their consumers do: invariants 6 and 7
+  (single heading and fence, schema-deep atom keys, SKILL.md required), invariant 60 (heading
+  units, inline code spans, reason-fact re-validation failing closed), commit_claims
+  (ancestry-bounded whole-paragraph subjects, generated-form merge skips, Unicode folding),
+  battery parity (quote-aware comment cuts, exact interpreter words, BASH*/LD_* env, checkout
+  and runner gating) and the Bash guard (getopt-style options, git grammar, ast writes,
+  heredocs; KNOWN_MISSES listed with cases). The audit-record rule reads paths as git prints
+  them with committed id, tally, pointer and narration patterns. New pins land with three
+  reviewer-run mutations committed as cases; scan-set narrowings ship a case for the removed
+  set.
 - P96: remediation pass (2026-09-26, ADR 0067). Review output stays outside the repository:
   seven dated records deleted (Mac runbook and Florida cost model migrated), AUDIT-PROTOCOL
   rewritten as rules (one pinned commit per pass via tools/tree_pin.py, mechanism-not-property
