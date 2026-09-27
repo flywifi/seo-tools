@@ -260,6 +260,18 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
         return super().do_GET()
 
+    # The POST routes: request path -> handler method name. do_POST dispatches through this table
+    # only, and the selftest drives every route in it through do_POST.
+    POST_ROUTES = {
+        "/api/queue": "_handle_add_to_queue",
+        "/api/import-report": "_handle_import_report",
+        "/api/schedule": "_handle_schedule",
+        "/api/toggle-platform": "_handle_toggle_platform",
+        "/api/update-caption": "_handle_update_caption",
+        "/api/update-schedule": "_handle_update_schedule",
+        "/api/delete-item": "_handle_delete_item",
+    }
+
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -273,19 +285,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         if body is None:
             return
 
-        handlers = {
-            "/api/queue": self._handle_add_to_queue,
-            "/api/import-report": self._handle_import_report,
-            "/api/schedule": self._handle_schedule,
-            "/api/toggle-platform": self._handle_toggle_platform,
-            "/api/update-caption": self._handle_update_caption,
-            "/api/update-schedule": self._handle_update_schedule,
-            "/api/delete-item": self._handle_delete_item,
-        }
-        handler = handlers.get(path)
-        if handler is None:
+        name = self.POST_ROUTES.get(path)
+        if name is None:
             return self._json_response({"error": "not found"}, status=404)
-        return handler(body)
+        return getattr(self, name)(body)
 
     # ── mutation handlers (all guarded by _queue_lock) ─────────────
 
@@ -816,6 +819,47 @@ def _selftest_due_queue(content, status="scheduled"):
     return {"queue": [{"id": "selftest", "platforms": {p: dict(entry) for p in PLATFORMS}}]}
 
 
+def _loop_passes_config_through():
+    """True when _scheduler_loop hands each tick the config its pass loaded, unchanged: in its
+    source the name `config` is bound once, by `config = _load_config()`, and read once, as the
+    second positional argument of the one _scheduler_tick call, and the loop's body is exactly
+    its committed statements, so it rebinds nothing (not _load_config, not compliance) on a later
+    pass. No pass count, clock or queue state in the loop can then change the flags a tick sees,
+    however long it runs. A change made inside _load_config, compliance.load_config or
+    _scheduler_tick, or by code outside the loop (another thread), is outside this check."""
+    import ast
+    loop = next((n for n in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
+                 if isinstance(n, ast.FunctionDef) and n.name == "_scheduler_loop"), None)
+    if loop is None:
+        return False
+    body = loop.body[1:] if (loop.body and isinstance(loop.body[0], ast.Expr)
+                             and isinstance(loop.body[0].value, ast.Constant)) else loop.body
+    shape = ("while not _shutdown.is_set():\n"
+             "    _shutdown.wait(60)\n"
+             "    if _shutdown.is_set():\n"
+             "        break\n"
+             "    config = _load_config()\n"
+             "    creds = compliance.load_credentials()\n"
+             "    now = datetime.now(timezone.utc)\n"
+             "    with _queue_lock:\n"
+             "        queue = _load_queue()\n"
+             "        if _scheduler_tick(queue, config, creds, now):\n"
+             "            _save_queue(queue)\n")
+    names = [n for n in ast.walk(loop) if isinstance(n, ast.Name) and n.id == "config"]
+    binds = [n for n in ast.walk(loop) if isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign,
+                                                          ast.NamedExpr))
+             and any(isinstance(t, ast.Name) and t.id == "config"
+                     for t in (n.targets if isinstance(n, ast.Assign) else [n.target]))]
+    ticks = [n for n in ast.walk(loop) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name) and n.func.id == "_scheduler_tick"]
+    return (len(names) == 2 and len(binds) == 1 and isinstance(binds[0], ast.Assign)
+            and len(binds[0].targets) == 1
+            and ast.dump(binds[0].value) == ast.dump(ast.parse("_load_config()", mode="eval").body)
+            and len(ticks) == 1 and len(ticks[0].args) == 4 and not ticks[0].keywords
+            and isinstance(ticks[0].args[1], ast.Name) and ticks[0].args[1].id == "config"
+            and [ast.dump(s) for s in body] == [ast.dump(s) for s in ast.parse(shape).body])
+
+
 def _selftest() -> int:
     """Offline: _apply_dispatch_result records every dispatch outcome honestly."""
     checks = []
@@ -936,6 +980,80 @@ def _selftest() -> int:
         ok("every flag on: a post no human confirmed never reaches the network",
            net.calls == [] and handed == [] and len(entries) == 8
            and len(imported) == 8 * len(values))
+        # Every POST route the server registers, read from DashboardHandler.POST_ROUTES (the table
+        # do_POST dispatches through), runs through do_POST itself with every publishing flag on,
+        # the credentials loaded and a draft queued on every platform, under a body whose every
+        # field answers each value in turn. Only the Confirm route (/api/schedule) may confirm a
+        # post, so no other route may call dispatch(), reach the network, or leave a post
+        # scheduled or marked reviewed. do_POST is held to its exact committed shape (read the path,
+        # check the origin, read the body, dispatch through the table) and the handler defines no
+        # request method beyond do_GET, do_OPTIONS and do_POST, so a POST route can only be added
+        # through the table this drives. GET routes, and code inside _origin_ok, _read_body and
+        # _json_response (replaced on the instance here), are outside this pin.
+        import ast
+        routed, route_marks = [], []
+        g["_load_config"] = lambda: every_flag_on
+        compliance.load_credentials = lambda: creds
+        publishing.dispatch = _dispatch_seen
+        try:
+            with _NetRecorder() as route_net:
+                for route in sorted(DashboardHandler.POST_ROUTES):
+                    if route == "/api/schedule":
+                        continue
+                    for v in values:
+                        for p in PLATFORMS:
+                            own = _selftest_due_queue(content, status="draft")
+                            g["_load_queue"] = lambda own=own: own
+                            post = DashboardHandler.__new__(DashboardHandler)
+                            post.path = route
+                            post._origin_ok = lambda: True
+                            post._read_body = lambda v=v, p=p: _EveryKey(
+                                v, item_id="selftest", id="selftest", platform=p)
+                            post._json_response = lambda data, status=200: replies.append(status)
+                            try:
+                                post.do_POST()
+                            except Exception:  # noqa: BLE001 - a body a handler cannot read
+                                pass
+                            routed.append(route)
+                            route_marks += [
+                                pd for it in own.get("queue", []) if isinstance(it, dict)
+                                for pd in (it.get("platforms") or {}).values()
+                                if isinstance(pd, dict) and (pd.get("status") == "scheduled"
+                                                             or pd.get("human_review_required"))]
+        finally:
+            publishing.dispatch = real_dispatch
+            compliance.load_credentials = lambda: {}
+            g.update(_load_queue=lambda: store, _load_config=lambda: {})
+        do_post_shape = (
+            "def do_POST(self):\n"
+            "    parsed = urlparse(self.path)\n"
+            "    path = parsed.path\n"
+            "    if not self._origin_ok():\n"
+            "        return self._json_response({'error': 'cross-origin request rejected'},\n"
+            "                                   status=403)\n"
+            "    body = self._read_body()\n"
+            "    if body is None:\n"
+            "        return\n"
+            "    name = self.POST_ROUTES.get(path)\n"
+            "    if name is None:\n"
+            "        return self._json_response({'error': 'not found'}, status=404)\n"
+            "    return getattr(self, name)(body)\n")
+        handler_cls = next(n for n in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
+                           if isinstance(n, ast.ClassDef) and n.name == "DashboardHandler")
+        verbs = sorted(m.name for m in handler_cls.body
+                       if isinstance(m, ast.FunctionDef) and m.name.startswith("do_"))
+        do_post = next(m for m in handler_cls.body
+                       if isinstance(m, ast.FunctionDef) and m.name == "do_POST")
+        own_paths = [n.value for n in ast.walk(do_post) if isinstance(n, ast.Constant)
+                     and isinstance(n.value, str) and n.value.startswith("/")]
+        ok("every POST route but Confirm, driven through do_POST from the route table it "
+           "dispatches through with every flag on, never calls dispatch(), reaches the network "
+           "or confirms a post",
+           handed == [] and route_net.calls == [] and route_marks == []
+           and len(routed) == (len(DashboardHandler.POST_ROUTES) - 1) * len(values) * len(PLATFORMS)
+           and "/api/schedule" in DashboardHandler.POST_ROUTES
+           and own_paths == [] and verbs == ["do_GET", "do_OPTIONS", "do_POST"]
+           and ast.dump(do_post) == ast.dump(ast.parse(do_post_shape).body[0]))
         DashboardHandler._handle_schedule(req, {"item_id": "hc", "platform": "youtube"})
         confirmed = store["queue"][0]["platforms"]["youtube"]
         ok("Confirm marks the post scheduled with human_review_required (the probe sees the transition)",
@@ -944,6 +1062,95 @@ def _selftest() -> int:
             dict(content, platform="youtube", caption="changed after Confirm")]})
         ok("an import over a confirmed post replaces it with a draft that needs Confirm again",
            store["queue"][0]["platforms"]["youtube"].get("status") == "draft")
+        # GET routes. do_GET is held to its exact committed form (get_shape), so every GET route
+        # it serves is read from it: each literal it compares the path with, each prefix it tests
+        # (with "selftest", the queued draft's id, appended) and an unknown path. Each runs through
+        # do_GET itself with every publishing flag on, the credentials loaded and a draft queued
+        # on every platform, dispatch() and the network recorded: no GET route calls dispatch(),
+        # reaches the network or changes a queued post, and a crash fails the pin. Code in a
+        # helper do_GET calls (the queue, finance and task readers, the plan and credential
+        # status, the static file handler) is covered as far as these requests run it.
+        import ast as _ast_get
+        import io as _io_get
+        get_shape = (
+            "def do_GET(self):\n"
+            "    parsed = urlparse(self.path)\n"
+            "    path = parsed.path\n"
+            "    if path == '/' or path == '':\n"
+            "        self.path = '/index.html'\n"
+            "        return super().do_GET()\n"
+            "    if path.startswith('/static/'):\n"
+            "        self.path = path[len('/static'):]\n"
+            "        return super().do_GET()\n"
+            "    if path == '/api/queue':\n"
+            "        with _queue_lock:\n"
+            "            return self._json_response(_load_queue())\n"
+            "    if path == '/api/ar':\n"
+            "        try:\n"
+            "            return self._json_response(finance.ar_scan(None, None))\n"
+            "        except Exception as exc:\n"
+            "            return self._json_response({'error': str(exc)}, status=500)\n"
+            "    if path == '/api/tasks':\n"
+            "        try:\n"
+            "            from datetime import date as _date\n"
+            "            reg = _tasks.load_register('local_fs')\n"
+            "            return self._json_response(_tasks.scan(reg, _date.today()))\n"
+            "        except Exception as exc:\n"
+            "            return self._json_response({'error': str(exc)}, status=500)\n"
+            "    if path == '/api/publishing-plan':\n"
+            "        return self._json_response(_get_publishing_plan(_load_config()))\n"
+            "    if path == '/api/credentials-status':\n"
+            "        return self._json_response(_get_credentials_status())\n"
+            "    if path.startswith('/api/status/'):\n"
+            "        item_id = path.split('/api/status/', 1)[1]\n"
+            "        with _queue_lock:\n"
+            "            queue = _load_queue()\n"
+            "        for item in queue.get('queue', []):\n"
+            "            if item.get('id') == item_id:\n"
+            "                return self._json_response(item)\n"
+            "        return self._json_response({'error': 'not found'}, status=404)\n"
+            "    return super().do_GET()\n")
+        do_get = next(m for c in _ast_get.parse(Path(__file__).read_text(encoding="utf-8")).body
+                      if isinstance(c, _ast_get.ClassDef) and c.name == "DashboardHandler"
+                      for m in c.body if isinstance(m, _ast_get.FunctionDef) and m.name == "do_GET")
+        get_paths = sorted(
+            {n.comparators[0].value for n in _ast_get.walk(do_get)
+             if isinstance(n, _ast_get.Compare) and _ast_get.unparse(n.left) == "path"
+             and isinstance(n.comparators[0], _ast_get.Constant)}
+            | {n.args[0].value + "selftest" for n in _ast_get.walk(do_get)
+               if isinstance(n, _ast_get.Call) and _ast_get.unparse(n.func) == "path.startswith"}
+            | {"/selftest-unknown"})
+        get_handed, get_changed, get_crashed = [], [], []
+        g["_load_config"] = lambda: every_flag_on
+        compliance.load_credentials = lambda: creds
+        publishing.dispatch = lambda platform, *a, **k: get_handed.append(platform) or {}
+        try:
+            with _NetRecorder() as get_net:
+                for get_path in get_paths:
+                    own = _selftest_due_queue(content, status="draft")
+                    before = json.dumps(own, sort_keys=True)
+                    g["_load_queue"] = lambda own=own: own
+                    get = DashboardHandler.__new__(DashboardHandler)
+                    get.path, get.headers, get.command = get_path, {}, "GET"
+                    get.request_version, get.requestline = "HTTP/1.1", "GET " + get_path
+                    get.client_address, get.directory = ("127.0.0.1", 0), str(STATIC_DIR)
+                    get.wfile = _io_get.BytesIO()
+                    get._json_response = lambda data, status=200: None
+                    try:
+                        get.do_GET()
+                    except Exception as exc:  # noqa: BLE001 - a crash on a GET route fails the pin
+                        get_crashed.append((get_path, repr(exc)))
+                    if json.dumps(own, sort_keys=True) != before:
+                        get_changed.append(get_path)
+        finally:
+            publishing.dispatch = real_dispatch
+            compliance.load_credentials = lambda: {}
+            g.update(_load_queue=lambda: store, _load_config=lambda: {})
+        ok("every GET route, driven through do_GET with every flag on, never calls dispatch(), "
+           "reaches the network or changes a queued post",
+           get_handed == [] and get_net.calls == [] and get_changed == [] and get_crashed == []
+           and len(get_paths) == 10
+           and _ast_get.dump(do_get) == _ast_get.dump(_ast_get.parse(get_shape).body[0]))
     finally:
         g.update(saved)
         compliance.load_credentials = saved_creds
@@ -1014,6 +1221,7 @@ def _selftest() -> int:
     import contextlib
     import io
     targets, seen_main, queues, snapshot = [], [], [], dict(globals())
+    loaded = []
 
     class _NoServer:
         def __init__(self, *args, **kwargs):
@@ -1048,6 +1256,13 @@ def _selftest() -> int:
         with contextlib.redirect_stdout(io.StringIO()):
             main()
         globals()["_scheduler_tick"] = _tick_seen_main
+        real_load = globals()["_load_config"]
+
+        def _load_seen():
+            loaded.append(real_load())
+            return loaded[-1]
+
+        globals()["_load_config"] = _load_seen
         with _NetRecorder() as net:
             _run_scheduler_once(_fresh_queue, None, creds, loop=targets[0] if targets else None,
                                 passes=3)
@@ -1062,7 +1277,9 @@ def _selftest() -> int:
        len(targets) == 1 and len(seen_main) == 3 and len(queues) == 3 and net.calls == []
        and not any(compliance.live_publishing_enabled(c) for c in seen_main)
        and all({pd["status"] for pd in qq["queue"][0]["platforms"].values()} == {"ready_to_post"}
-               for qq in queues))
+               for qq in queues)
+       and len(loaded) == 3 and all(a is b for a, b in zip(loaded, seen_main))
+       and _loop_passes_config_through())
     # The tick's own master-flag check, observed at dispatch(): with the master flag off the tick
     # never calls it, even with every platform flag on; with both flags on it calls it per platform.
     routed = []

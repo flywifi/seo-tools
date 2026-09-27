@@ -6820,16 +6820,50 @@ def _claim_guarded_text_self_proof():
 # must call it, or the record carries a `gap` of at least _CLAIM_MIN_GAP characters that names the
 # entry and says what the pin does not run.
 # When the claim names `tools/*.py` modules, the boundary sits in one of them or the record
-# carries a gap. The check reads calls by name: a call made for another pin in the same function
-# counts for this one, a call through a module-level helper is not followed (the record states a
+# carries a gap. The check reads calls by name, and for each pin only the code counted for it
+# (_claim_pin_stmts): the statement making the pin call, the statements before it back to the
+# previous pin call, and earlier statements (not another pin's call) that set a name that code
+# reads, so a call made for another pin counts for this one only when this pin reads what it
+# set. A call through a module-level helper is not followed (the record states a
 # gap), a pin that calls the entry with injected state around the default still passes, and which
 # entry is outermost is the reviewer's call.
+# A boundary must be live, with or without a gap: code that runs outside the selftests reaches
+# it (_claim_boundary_live: module-level code and, transitively, what that code loads, not code
+# under a fixed-false test or in a function nothing that runs names; for `Class.method`, the
+# method is a `do_*` request method or is named as an attribute), or it is defined with a
+# decorator that registers it. A gap records what a pin does not run of a live entry; it does
+# not excuse naming a function nothing reaches. Reading is by name, so a local variable that
+# shares the entry's name counts as a load of it.
+# `tools/x.py::__main__` names the file run as a script. It is defined when the module has an
+# `if __name__ == "__main__":` block at top level, and a pin reaches it when live code in its
+# function passes, as an argument of a call, the namespace a compile/exec runs the source in (a
+# dict literal holding "__name__": "__main__"), or passes run_name="__main__"; a namespace only
+# assigned does not count.
 _CLAIM_MIN_GAP = 25
 _CLAIM_MODULE_RE = re.compile(r"tools/[\w./-]+\.py")
 
 
+def _claim_is_main(node):
+    """True when `node` is the string literal "__main__"."""
+    return isinstance(node, ast.Constant) and node.value == "__main__"
+
+
+def _claim_main_ns(node):
+    """True when `node` is a dict literal holding "__name__": "__main__"."""
+    return isinstance(node, ast.Dict) and any(
+        isinstance(k, ast.Constant) and k.value == "__name__" and _claim_is_main(v)
+        for k, v in zip(node.keys, node.values))
+
+
 def _claim_boundary_defined(source, symbol):
-    """True when `symbol` (`name` or `Class.method`) is defined at module level in `source`."""
+    """True when `symbol` (`name` or `Class.method`) is defined at module level in `source`, or,
+    for `__main__`, when the module has a top-level `if __name__ == "__main__":` block."""
+    if symbol == "__main__":
+        return any(isinstance(node, ast.If) and isinstance(node.test, ast.Compare)
+                   and isinstance(node.test.left, ast.Name) and node.test.left.id == "__name__"
+                   and len(node.test.ops) == 1 and isinstance(node.test.ops[0], ast.Eq)
+                   and _claim_is_main(node.test.comparators[0])
+                   for node in ast.parse(source).body)
     head, _, tail = symbol.partition(".")
     for node in ast.parse(source).body:
         if isinstance(node, _CLAIM_FNDEF + (ast.ClassDef,)) and node.name == head:
@@ -6840,9 +6874,131 @@ def _claim_boundary_defined(source, symbol):
     return False
 
 
+def _claim_boundary_live(source, symbol):
+    """True when code that runs outside the selftests can reach `symbol`; always for `__main__`.
+    The module's top-level code runs, and so does the live code (_claim_live_nodes: not code under
+    a fixed-false test) of every module-level function or class that running code loads by name,
+    transitively, of every definition carrying a decorator (which registers it), and of every
+    function, lambda or class nested in running code; a function whose name contains "selftest"
+    never runs. `name` is reached when running code loads it; `Class.method` when the class is
+    and the method is a `do_*` request method the server framework dispatches or is named as an
+    attribute in running code."""
+    if symbol == "__main__":
+        return True
+    head, _, tail = symbol.partition(".")
+    tree = ast.parse(source)
+    defs = {n.name: n for n in tree.body if isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,))}
+    todo = [tree] + [n for n in defs.values() if n.decorator_list]
+    loaded, attrs, done = set(), set(), set()
+    while todo:
+        scope = todo.pop()
+        if id(scope) in done or "selftest" in getattr(scope, "name", ""):
+            continue
+        done.add(id(scope))
+        if scope is not tree and getattr(scope, "decorator_list", None):
+            loaded.add(scope.name)
+        for node in _claim_live_nodes(scope, lambda _name: None):
+            if node is not scope and isinstance(node, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+                if scope is not tree:
+                    todo.append(node)
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                loaded.add(node.id)
+                if node.id in defs:
+                    todo.append(defs[node.id])
+            elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+                attrs.add(node.attr)
+    return head in loaded and (not tail or tail.startswith("do_") or tail in attrs)
+
+
+def _claim_pin_stmts(fn, pin):
+    """The ids of the statements of `fn` whose live code counts for the pin call `pin` (the
+    rule comment above): the statement making it and the header of each compound statement
+    around it; in each block that holds it, from the innermost out, the statements before it
+    back to the nearest one that makes another pin-helper call; and then, until nothing is
+    added, each statement before it, other than one making a pin-helper call, that sets or hands
+    on a local name counted code reads."""
+    def heads(st):
+        out, todo = [], [st]
+        while todo:
+            cur = todo.pop()
+            out.append(cur)
+            if not isinstance(cur, _CLAIM_FNDEF + (ast.ClassDef, ast.Lambda)) or cur is st:
+                todo.extend(c for c in ast.iter_child_nodes(cur) if not isinstance(c, ast.stmt))
+        return out
+
+    def blocks(st):
+        if isinstance(st, _CLAIM_FNDEF + (ast.ClassDef,)):
+            return []
+        subs = [getattr(st, f, None) for f in ("body", "orelse", "finalbody")]
+        subs += [h.body for h in getattr(st, "handlers", [])]
+        subs += [c.body for c in getattr(st, "cases", [])]
+        return [b for b in subs if isinstance(b, list) and b and isinstance(b[0], ast.stmt)]
+
+    def is_pin(node):
+        return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in _CLAIM_PIN_HELPERS and node is not pin)
+
+    def base(node):
+        while isinstance(node, (ast.Attribute, ast.Subscript, ast.Starred)):
+            node = node.value
+        return node.id if isinstance(node, ast.Name) else None
+
+    def reads(st):
+        own = heads(st) if not isinstance(st, _CLAIM_FNDEF + (ast.ClassDef,)) else list(ast.walk(st))
+        inner = {n.id for c in own if isinstance(c, ast.comprehension)
+                 for n in ast.walk(c.target) if isinstance(n, ast.Name)}
+        return {n.id for n in own if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)
+                and n.id not in inner and n.id not in _CLAIM_PIN_HELPERS}
+
+    def sets(st, want):
+        if isinstance(st, _CLAIM_FNDEF + (ast.ClassDef,)):
+            return st.name in want
+        for n in heads(st):
+            if isinstance(n, (ast.Name, ast.Attribute, ast.Subscript)) \
+                    and not isinstance(n.ctx, ast.Load) and base(n) in want:
+                return True
+            if isinstance(n, ast.alias) and (n.asname or n.name).split(".")[0] in want:
+                return True
+            if isinstance(n, ast.Call) and (
+                    (isinstance(n.func, ast.Attribute) and base(n.func) in want)
+                    or any(base(a) in want for a in n.args + [k.value for k in n.keywords])):
+                return True
+        return False
+
+    units, todo, path = [], [(fn.body, i) for i in range(len(fn.body))], []
+    while todo:
+        blk, i = todo.pop()
+        units.append(blk[i])
+        if any(n is pin for n in ast.walk(blk[i])):
+            path.append((blk, i))
+        todo.extend((b, j) for b in blocks(blk[i]) for j in range(len(b)))
+    path.sort(key=lambda bi: len(list(ast.walk(bi[0][bi[1]]))))
+    chosen = {id(blk[i]) for blk, i in path}
+    for blk, i in path:
+        for st in reversed(blk[:i]):
+            if any(is_pin(n) for n in ast.walk(st)):
+                break
+            chosen.update(id(s) for s in ast.walk(st) if isinstance(s, ast.stmt))
+        else:
+            continue
+        break
+    line = path[0][0][path[0][1]].lineno if path else 0
+    want = set().union(*[reads(st) for st in units if id(st) in chosen])
+    grew = True
+    while grew:
+        grew = False
+        for st in units:
+            if (id(st) not in chosen and st.lineno < line and sets(st, want)
+                    and not any(is_pin(n) for n in heads(st))):
+                chosen.add(id(st))
+                want |= reads(st)
+                grew = True
+    return chosen
+
+
 def _claim_pin_calls(source, label, symbol):
-    """True when live code in a function that makes the pin call labelled with `label`, or in a
-    function nested in it that such code names, calls `symbol`: `name(...)` where those functions
+    """True when live code counted for the pin call labelled with `label` (_claim_pin_stmts) in
+    the function making it, or in a function nested in it that such code names, calls `symbol`: `name(...)` where those functions
     do not bind `name` themselves, or, for `Class.method`, `x.method(...)` where they also name
     `Class`. Code under a fixed-false test or after a return is pruned (_claim_live_nodes); an
     assignment, a bare reference, a nested function nothing names, and a call in a selftest-named
@@ -6857,16 +7013,25 @@ def _claim_pin_calls(source, label, symbol):
                     and call.func.id in _CLAIM_PIN_HELPERS and any(
                         isinstance(a, ast.Constant) and isinstance(a.value, str)
                         and label in a.value for a in call.args):
-                holders.append(fn)
+                holders.append((fn, call))
                 break
     seen, loads, bound = set(), set(), set()
-    name_call = attr_call = False
+    name_call = attr_call = script_ns = False
     while holders:
-        fn = holders.pop()
+        fn, pin = holders.pop()
         if fn in seen:
             continue
         seen.add(fn)
         live = list(_claim_live_nodes(fn, lambda _name: None))
+        if pin is not None:
+            owned = _claim_pin_stmts(fn, pin)
+            owner, todo = {}, [(s, s) for s in fn.body]
+            while todo:
+                st, cur = todo.pop()
+                owner[id(cur)] = st
+                for c in ast.iter_child_nodes(cur):
+                    todo.append((c, c) if isinstance(c, ast.stmt) else (st, c))
+            live = [n for n in live if id(owner.get(id(n))) in owned]
         here = {n.id for n in live if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
         loads |= here
         bound.update(a.arg for a in ast.walk(fn.args) if isinstance(a, ast.arg))
@@ -6874,7 +7039,7 @@ def _claim_pin_calls(source, label, symbol):
             if isinstance(node, _CLAIM_FNDEF):
                 bound.add(node.name)
                 if node.name in here:
-                    holders.append(node)
+                    holders.append((node, None))
             elif isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
                 bound.add(node.id)
             elif isinstance(node, ast.Call):
@@ -6882,6 +7047,11 @@ def _claim_pin_calls(source, label, symbol):
                     name_call = True
                 elif isinstance(node.func, ast.Attribute) and node.func.attr == name:
                     attr_call = True
+                script_ns |= any(
+                    (k.arg == "run_name" and _claim_is_main(k.value)) or _claim_main_ns(k.value)
+                    for k in node.keywords) or any(_claim_main_ns(a) for a in node.args)
+    if symbol == "__main__":
+        return script_ns
     if cls:
         return attr_call and cls in loads
     return name_call and name not in bound
@@ -6930,6 +7100,7 @@ def _claim_boundary_problems(man, read=None):
         entry_name = symbol.rpartition(".")[2]
         try:
             defined = _claim_boundary_defined(read(mod), symbol)
+            live = defined and _claim_boundary_live(read(mod), symbol)
             reached = _claim_pin_calls(read(pin_mod), label.strip(), symbol)
         except (OSError, SyntaxError, ValueError) as exc:
             out.append(f"claim-proof: the boundary {rec['boundary']!r} or its pin module could not "
@@ -6942,6 +7113,10 @@ def _claim_boundary_problems(man, read=None):
         if not defined:
             out.append(f"claim-proof: the boundary {rec['boundary']!r} is not defined at module "
                        f"level in {mod}")
+        elif not live:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} is defined but nothing "
+                       f"outside the selftests reaches it (no code that runs in {mod} loads "
+                       f"it); a gap does not excuse a dead entry, so name the one a person runs")
         elif "gap" in rec and not has_gap:
             out.append(f"claim-proof: the gap on the boundaries record for {label.strip()[:60]!r} "
                        f"is shorter than {_CLAIM_MIN_GAP} characters or does not name "
@@ -6961,11 +7136,15 @@ def _claim_boundary_problems(man, read=None):
 
 
 def _claim_boundary_self_proof():
-    """None when the pin-boundary rule still refuses a missing, undefined, shadowed, dead-code,
-    uncalled, unnamed-nested, wrong-class and wrong-module boundary, a short or unnamed gap, a
-    malformed and an unused record, and accepts a called boundary and a stated gap,
+    """None when the pin-boundary rule still refuses a missing, undefined, unreached (dead, with or
+    without a gap), shadowed, dead-code,
+    uncalled, unnamed-nested, wrong-class and wrong-module boundary, a call made only for another
+    pin, a short or unnamed gap, a
+    malformed and an unused record, and a script boundary with no script block or a pin that never
+    runs it, and accepts a called boundary, a stated gap and a pin that runs the script,
     else what differs."""
-    miss = ('def entry():\n    return 1\n\ndef helper():\n    return 2\n\n'
+    miss = ('def main():\n    entry()\n    helper()\n    C().m()\n\nSERVE = main\n\n'
+            'def entry():\n    return 1\n\ndef helper():\n    return 2\n\n'
             'class C:\n    def m(self):\n        return 3\n\n'
             'def selftest_other():\n    entry()\n\n'
             'def _selftest():\n    ok(helper() == 2, "pin label for the fixture")\n'
@@ -6973,8 +7152,24 @@ def _claim_boundary_self_proof():
             '    def _unnamed():\n        entry()\n')
     call = miss.replace('    ref = entry\n', '    ok(entry() == 1, "another pin")\n')
     shadow = call.replace('    ok(entry() == 1', '    entry = helper\n    ok(entry() == 1')
+    own = miss.replace('    ok(helper() == 2, "pin label', '    ok(entry() == 1, "pin label')
+    own_shadow = own.replace('    ok(entry() == 1', '    entry = helper\n    ok(entry() == 1')
+    before = miss.replace('def _selftest():\n', 'def _selftest():\n    ok(entry() == 1, "another pin")\n')
+    flows = miss.replace('def _selftest():\n    ok(helper() == 2',
+                         'def _selftest():\n    got = entry()\n    ok(got == 1, "another pin")\n'
+                         '    ok(helper() == 2 and got')
     proof = "m.py::selftest::pin label for the fixture"
     gap = "the fixture pin calls helper, not entry"
+    dead = miss + ('def dead():\n    return 4\n\nclass D:\n    def m(self):\n        return 5\n\n'
+                   '@register\ndef tool():\n    return 6\n')
+    dead_called = dead.replace('    ref = entry\n', '    ok(dead() == 4, "another pin")\n')
+    dead2 = dead + ('def _nobody():\n    dead()\n\nif False:\n    dead()\n\n'
+                    'class L:\n    def gone(self):\n        return 7\n\n'
+                    '    def do_GET(self):\n        return 8\n\nSERVER = L\n')
+    script = miss + 'if __name__ == "__main__":\n    entry()\n'
+    pin_line = '    ok(helper() == 2, "pin label for the fixture")\n'
+    script_run = script.replace(pin_line, '    run_as({"__name__": "__main__"})\n' + pin_line)
+    script_built = script.replace(pin_line, '    ns = {"__name__": "__main__"}\n' + pin_line)
 
     def one(boundary, src=miss, gap_text=None, claim="c", extra=()):
         rec = {"proof": proof, "boundary": boundary}
@@ -6990,11 +7185,31 @@ def _claim_boundary_self_proof():
              ["does not name"]),
             (one("m.py::missing", gap_text=gap), ["not defined"]),
             (one("m.py::C.m"), ["never calls"]),
-            (one("m.py::entry", src=call), []),
+            (one("m.py::entry", src=call), ["never calls"]),
+            (one("m.py::entry", src=before), ["never calls"]),
+            (one("m.py::entry", src=own), []),
+            (one("m.py::entry", src=flows), []),
+            (one("m.py::entry", src=own_shadow), ["never calls"]),
             (one("m.py::entry", src=call, gap_text=gap), []),
             (one("m.py::entry", src=shadow), ["never calls"]),
-            (one("m.py::entry", src=call, claim="see tools/other.py"), ["not in a module"]),
+            (one("m.py::entry", src=own, claim="see tools/other.py"), ["not in a module"]),
             (one("m.py::entry", src=call, gap_text=gap, claim="see tools/other.py"), []),
+            (one("m.py::__main__"), ["not defined"]),
+            (one("m.py::__main__", src=script), ["never calls"]),
+            (one("m.py::__main__", src=script_run), []),
+            (one("m.py::__main__", src=script_built), ["never calls"]),
+            (one("m.py::dead", src=dead, gap_text="the fixture pin never runs dead at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::dead", src=dead_called), ["nothing outside the selftests"]),
+            (one("m.py::D.m", src=dead, gap_text="the fixture pin never runs m on D at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::tool", src=dead, gap_text="the fixture pin never runs tool at all"), []),
+            (one("m.py::dead", src=dead2, gap_text="the fixture pin never runs dead at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::L.gone", src=dead2, gap_text="the fixture pin never runs gone at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::L.do_GET", src=dead2,
+                 gap_text="the fixture pin never runs do_GET at all"), []),
             (([], miss, "c"), ["has no boundaries record"]),
             (one("m.py::helper", extra=[{"proof": "m.py::selftest::unused",
                                          "boundary": "m.py::helper"}]), ["serves no claim"]),

@@ -707,10 +707,33 @@ def _selftest_static() -> tuple:
         _st for _st in _tool.body
         if not (isinstance(_st, _ast.Expr) and isinstance(_st.value, _ast.Constant))]
     _ret = _stmts[0].value if len(_stmts) == 1 and isinstance(_stmts[0], _ast.Return) else None
+    # The tool body is one exact expression: json.dumps of the impl called with each of the
+    # tool's own parameters passed straight through (the ones without a default by position, the
+    # rest by keyword), with indent=2 and nothing else. Any other argument to either call (an
+    # encoder class, a default= hook, a changed or extra value) or any wrapping expression fails.
+    _sig = None if _tool is None else _tool.args
+    _names = [] if _sig is None else [_a.arg for _a in _sig.args]
+    _npos = len(_names) - (0 if _sig is None else len(_sig.defaults))
+    # The name json in this module is the standard library's: bound only by a plain
+    # `import json`, never assigned, redefined, imported under that name from elsewhere or patched
+    # (json.<attr> = ...). A rebinding through globals() or setattr() is outside this check.
+    _json_binds = [_n for _n in _ast.walk(_ast.parse(src))
+                   if (isinstance(_n, _ast.Name) and _n.id == "json"
+                       and not isinstance(_n.ctx, _ast.Load))
+                   or (isinstance(_n, _ast.Attribute) and not isinstance(_n.ctx, _ast.Load)
+                       and isinstance(_n.value, _ast.Name) and _n.value.id == "json")
+                   or (isinstance(_n, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef))
+                       and _n.name == "json")
+                   or (isinstance(_n, (_ast.Import, _ast.ImportFrom))
+                       and any((_a.asname or _a.name.split(".")[0]) == "json"
+                               and (isinstance(_n, _ast.ImportFrom) or _a.name != "json")
+                               for _a in _n.names))]
+    _want = ("json.dumps(_schedule_post_impl(" + ", ".join(
+        _names[:_npos] + [f"{_n}={_n}" for _n in _names[_npos:]]) + "), indent=2)")
     ok("schedule_post's tool body returns the _schedule_post_impl summary unchanged",
-       isinstance(_ret, _ast.Call) and _ast.unparse(_ret.func) == "json.dumps" and bool(_ret.args)
-       and isinstance(_ret.args[0], _ast.Call)
-       and _ast.unparse(_ret.args[0].func) == "_schedule_post_impl")
+       _ret is not None and _sig is not None and not _sig.posonlyargs and not _sig.kwonlyargs
+       and _sig.vararg is None and _sig.kwarg is None and len(_names) == 9
+       and _ast.dump(_ret) == _ast.dump(_ast.parse(_want, mode="eval").body) and _json_binds == [])
     # And in the impl's source: the only write of human_review_required is the summary literal's
     # own `True`, and the summary is used in exactly three ways: built once from a dict literal
     # with no ** spread, given a key other than human_review_required by a plain subscript

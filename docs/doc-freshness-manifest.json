@@ -10,9 +10,9 @@
     },
     "docs/CURRENCY.md": {
       "sources": {
-        "tools/dependency_currency.py": "ebc10d8226f8a295ea30a8634d0c74e29fda0ca3ea5fd74f603d4bb14eeb19aa",
+        "tools/dependency_currency.py": "6bbd0e2f49bcd15beca90e5db9fdd2832c98e47231ad0691d8d22645c9254097",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "7f7dc9d9a64165015862691595b076dc5033c8cca8c9f6c8b1182d031083bc51"
+        "tools/sync_check.py": "dd0cf1eeea78cb78a70ee92466e3baba29bc19b1e4fd67b625b9de47289e912c"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -38,7 +38,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "2a86dc912a27b4297e095e3709e58e0a90bd5240ea1fbc13faa046216634ef8e",
+        "tools/wizard.py": "40c350a647576ddd9c39776901df59685497d3a8e420347914d7fd0e0b0fed97",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -53,7 +53,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "3f5cc09c4b8ff2c3acfc10b11c87b4710383fb53489f976dd4c71cb86682ed15"
+        "tools/mcp_server.py": "0544bd7a66ea3caccc52dd7743dfa8fdc6ea31674897365c691dff19123cee7d"
       }
     },
     "docs/TRANSITIONS.md": {

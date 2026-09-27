@@ -27,7 +27,7 @@
       "doc": "CLAUDE.md",
       "claim": "runs with no model tokens: outside its selftests, the code it runs imports only the standard library plus `registry_io` and `atomic_io`, starts no process, sends requests only to `pypi.org` and `api.github.com`, and reads one credential from the environment, a GitHub token",
       "proof": "tools/dependency_currency.py::selftest::token-free: outside its selftests the import closure",
-      "why": "The selftest reads the import closure of dependency_currency.py statically, skipping the functions named selftest and _selftest. It fails on a module outside the standard library other than registry_io and atomic_io, on a refused standard-library module (subprocess, multiprocessing, concurrent, importlib, runpy, ctypes, pty, webbrowser, asyncio, pkgutil, zipimport, builtins, code, codeop, pickle, marshal, shelve, _posixsubprocess, socket, socketserver, http, ftplib, smtplib, imaplib, poplib, nntplib, telnetlib, xmlrpc), on a process-spawning or dynamic-code call, on a network call outside _http_get_json, on an environment read other than REQUESTS_CA_BUNDLE, GITHUB_TOKEN or GH_TOKEN, and when _ALLOWED_HOSTS is anything but pypi.org and api.github.com. A name an import binds is read as what it imports (`from os import environ as e`, or `import os as o` inside a function), and a network or process-spawning name counts wherever it is referenced, not only where it is called, so binding urlopen, os.system or os.getenv to another name first is still seen, and a urllib handler, a handler's open method or a URLopener used directly counts as a network call; a self-check runs the reader over a fixture holding each of those forms. It also hands _http_get_json a recording opener: a URL on another host is refused before anything is sent, and a redirect to another host is refused. It reads code, not traffic: a credential read from a file is not seen. A model request needs a model host, which the host check refuses, or a process or model client, which the closure check refuses; the conclusion rests on pypi.org and api.github.com serving no model inference."
+      "why": "The selftest reads the import closure of dependency_currency.py statically, skipping the module-level functions named selftest and _selftest. It fails on a module outside _ALLOWED_STDLIB (the standard-library modules read for process starts, an allowlist, so platform or pydoc fails until read and added) other than registry_io and atomic_io, on a refused standard-library module (subprocess, multiprocessing, concurrent, importlib, runpy, ctypes, pty, webbrowser, asyncio, pkgutil, zipimport, builtins, code, codeop, pickle, marshal, shelve, _posixsubprocess, socket, socketserver, http, ftplib, smtplib, imaplib, poplib, nntplib, telnetlib, xmlrpc), on a process-spawning or dynamic-code call, on a network call outside _http_get_json, on an environment read other than REQUESTS_CA_BUNDLE, GITHUB_TOKEN or GH_TOKEN, and when _ALLOWED_HOSTS is anything but pypi.org and api.github.com. A name an import binds is read as what it imports (`from os import environ as e`, or `import os as o` inside a function), and a network or process-spawning name counts wherever it is referenced, not only where it is called, so binding urlopen, os.system or os.getenv to another name first is still seen, and a urllib handler, a handler's open method or a URLopener used directly counts as a network call; a self-check runs the reader over a fixture holding each of those forms. It also hands _http_get_json a recording opener: a URL on another host is refused before anything is sent, and a redirect to another host is refused. It reads code, not traffic: a credential read from a file is not seen. A model request needs a model host, which the host check refuses, or a process or model client, which the closure check refuses; the conclusion rests on pypi.org and api.github.com serving no model inference."
     },
     {
       "doc": "CLAUDE.md",
@@ -51,7 +51,7 @@
       "doc": "CLAUDE.md",
       "claim": "the code side never writes into a machine-wide site-packages at all",
       "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
-      "why": "the census parses every .py file in the tree (hidden, build and cache directories excluded) and, within each function or module top level, reads every literal a pip argv can be assembled from: list, tuple and set elements, +, += and append/extend/insert operands, names bound to them there or at module level, a string handed to a process call or to split(), and an import of pip; a pip executable is pip, pip3 or pip3.N, bare or path-qualified. It fails unless the only pip install sites are setup.py::_pip_install and wizard.py::_install_uv, a self-check shows each assembly form is read, and the install-target pins in the setup.py and wizard.py selftests record the interpreter each of those two runs pip with, including the --install-deps CLI entry with no .venv. A %-formatted or .format() command is read as its template, a conditional as both of its branches, and a -m glued to pip as the pip executable; a word made by a call (join, chr) or assembled across two functions is outside what the census reads."
+      "why": "the census parses every .py file in the tree (hidden, build and cache directories excluded) and, within each function or module top level, reads every literal a pip argv can be assembled from: list, tuple and set elements, +, += and append/extend/insert operands, names bound to them there or at module level, a string handed to a process call or to split(), and an import of pip; a pip executable is pip, pip3 or pip3.N, bare or path-qualified. It fails unless the only pip install sites are setup.py::_pip_install and wizard.py::_install_uv, a self-check shows each assembly form is read, and the install-target pins in the setup.py and wizard.py selftests record the interpreter each of those two runs pip with, including the --install-deps CLI entry with no .venv. A %-formatted or .format() command is read as its template, a conditional as both of its branches, and a -m glued to pip as the pip executable. A site is keyed by file, qualified name and line, so a nested function or a method named like an install function is a site of its own, and the census also reads a dict value through a subscript, bytes literals, walrus, annotated and chained assignments, a name bound in an enclosing function, a parameter default, a constant inside f-string braces, an `or` operand and a process call's keyword arguments; a word made by a call (join, chr), read from the environment, returned by another function, held in an attribute, fetched by getattr or captured by a match pattern is outside what the census reads, and a fixture per such shape pins that."
     },
     {
       "doc": "CLAUDE.md",
@@ -63,7 +63,7 @@
       "doc": "CLAUDE.md",
       "claim": "is gated behind the `live_publishing_enabled` flag (default off)",
       "proof": "tools/dashboard/server.py::selftest::started through main() with no local override: three scheduler passes read live_publishing_enabled off",
-      "why": "the dashboard selftest runs main() with its HTTP server, browser and thread start stubbed, then runs the target main() handed the scheduler thread for three passes, each over a fresh due queue, with the config loader main() left in place (the committed creator-os-config.json, the gitignored local override pointed at a file that does not exist). Every config the tick receives has the master flag off, no network call is made, and every due item is at ready_to_post. Sibling pins: one pass of the real loop with the real _load_config reads the flag off, live_publishing_enabled() with no argument resolves off through load_config with no local override (the path dispatch() takes when handed no config), and the committed file ships the flag off."
+      "why": "the dashboard selftest runs main() with its HTTP server, browser and thread start stubbed, then runs the target main() handed the scheduler thread for three passes, each over a fresh due queue, with the config loader main() left in place (the committed creator-os-config.json, the gitignored local override pointed at a file that does not exist). Every config the tick receives has the master flag off and is the object that pass's _load_config() call returned, no network call is made, and every due item is at ready_to_post. The loop's source binds `config` once from _load_config() and reads it only as the tick's config argument, and the loop's body is held to its committed statements, so no pass count or uptime inside the loop can change the flags a tick sees or rebind what loads them; a change inside _load_config, compliance.load_config or the tick, or made by code outside the loop, is outside the pin. Sibling pins: one pass of the real loop with the real _load_config reads the flag off, live_publishing_enabled() with no argument resolves off through load_config with no local override (the path dispatch() takes when handed no config), and the committed file ships the flag off."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -92,7 +92,11 @@
     {
       "doc": "CLAUDE.md",
       "claim": "**Human confirmation required before every post.**",
-      "proof": "tools/dashboard/server.py::selftest::every flag on: a post no human confirmed never reaches the network",
+      "proofs": [
+        "tools/dashboard/server.py::selftest::every GET route, driven through do_GET",
+        "tools/dashboard/server.py::selftest::every flag on: a post no human confirmed never reaches the network",
+        "tools/dashboard/server.py::selftest::every POST route but Confirm, driven through do_POST"
+      ],
       "why": "the dashboard selftest sends forged confirmation fields through the add, import, caption, toggle and schedule endpoints, plus import rows and request bodies for the import, add, caption, toggle and schedule-edit endpoints that answer every field the handler reads with each value in turn (the usual truthy and status forms, a URL, a due timestamp and every literal in server.py, once as sent and once already due). It then runs the real scheduler loop with every publishing flag on while recording at publishing.dispatch, urllib.request.urlopen, socket.create_connection and socket.socket.connect, and observes zero calls. Sibling pins show every imported or edited entry stays a draft, an import over a confirmed post returns it to draft, Confirm does mark the post scheduled, and dispatch() refuses an entry not passed confirmed=True."
     },
     {
@@ -110,8 +114,8 @@
     {
       "doc": "CLAUDE.md",
       "claim": "the repo `.venv` is the only install target",
-      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
-      "why": "install_dependencies runs with env_paths reporting a .venv path and the module's subprocess swapped for an argv recorder while ensure_venv, _pip_install and _install_playwright_browser stay real; every recorded argv[0] must be that path, so a fallback to the base interpreter in install_dependencies or inside _pip_install fails the pin."
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "why": "setup.py runs as the script (its source executed as __main__) with --install-deps --json while env_paths reports a .venv path and every `import subprocess` gets an argv recorder, once with every pip and Playwright step succeeding and once with every one failing; ensure_venv, install_dependencies, _pip_install and _install_playwright_browser stay real, and every recorded argv[0] must be that path. Both install helpers take the interpreter as a required argument and refuse an empty one, or any interpreter other than the .venv's, before any process starts, so a fallback or retry through them to the base interpreter starts nothing on any path, and a pip start built outside them fails the pip census (within the argv forms it reads)."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
@@ -122,20 +126,20 @@
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "The repo `.venv` is the only install target",
-      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
-      "why": "the setup.py argv-recorder pin: with a .venv present, every pip and Playwright subprocess install_dependencies starts runs the .venv interpreter."
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "why": "the setup.py argv-recorder pin at the script entry: with a .venv present, every pip and Playwright subprocess `setup.py --install-deps --json` starts runs the .venv interpreter, whether each step succeeds or fails."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "so when it cannot be\ncreated the installer refuses with the remedy instead of falling back to the base interpreter",
       "proof": "tools/setup.py::selftest::no .venv: the --install-deps CLI entry starts only the .venv creation attempt",
-      "why": "the pin drives setup.py's main() with --install-deps --json (the wizard's call) and with --install-deps while env_paths finds no .venv and ensure_venv stays real, once for each way the .venv attempt can fail (it exits 0 and leaves no .venv, it exits 1 with output carrying every string literal in setup.py, and it raises), and records every process start: this module's subprocess name, subprocess.Popen and the fork_exec it runs, os.system and the os exec/spawn/fork family, any name in setup.py or env_paths bound to one of those, and an import of pip in-process. The only start is the `python -m venv` creation attempt (recorded, not run), the entry exits 1, and every requirements set is refused with the remedy text; sibling pins check install_dependencies alone the same way."
+      "why": "the pin runs setup.py as the script (its source executed as __main__, so module-level code and the script block at the bottom of the file run, with every `import subprocess` answered by the recorder) with --install-deps --json (the wizard's call) and with --install-deps while env_paths finds no .venv and ensure_venv stays real, once for each way the .venv attempt can fail (it exits 0 and leaves no .venv, it exits 1 with output carrying every string literal in setup.py, and it raises), and records every process start: this module's subprocess name, subprocess.Popen and the fork_exec it runs, os.system and the os exec/spawn/fork family, any name in setup.py or env_paths bound to one of those, and an import of pip in-process. The only start is the `python -m venv` creation attempt (recorded, not run), the entry exits 1, and every requirements set is refused with the remedy text; sibling pins check install_dependencies alone the same way."
     },
     {
       "doc": "CLAUDE.md",
       "claim": "when it cannot be created the installer refuses with the remedy rather than falling back to the base interpreter",
       "proof": "tools/setup.py::selftest::no .venv: the --install-deps CLI entry starts only the .venv creation attempt",
-      "why": "the pin drives the installer's CLI entry, main() with --install-deps --json and with --install-deps, while env_paths finds no .venv and ensure_venv stays real, once for each way the .venv attempt can fail (exit 0 with no .venv, exit 1 with output carrying every string literal in setup.py, a raised error), recording every process start (this module's subprocess name, subprocess.Popen and the fork_exec it runs, os.system and the os exec/spawn/fork family, any name in setup.py or env_paths bound to one of those, an import of pip in-process): only the `python -m venv` creation attempt starts (recorded, not run), the entry exits 1, and every requirements set is refused with the remedy text, so nothing falls back to the base interpreter."
+      "why": "the pin runs the installer as the script a person or the wizard starts (setup.py's source executed as __main__, so module-level code and the script block at the bottom of the file run, with every `import subprocess` answered by the recorder) with --install-deps --json and with --install-deps, while env_paths finds no .venv and ensure_venv stays real, once for each way the .venv attempt can fail (exit 0 with no .venv, exit 1 with output carrying every string literal in setup.py, a raised error), recording every process start (this module's subprocess name, subprocess.Popen and the fork_exec it runs, os.system and the os exec/spawn/fork family, any name in setup.py or env_paths bound to one of those, an import of pip in-process): only the `python -m venv` creation attempt starts (recorded, not run), the entry exits 1, and every requirements set is refused with the remedy text, so nothing falls back to the base interpreter."
     },
     {
       "doc": "CLAUDE.md",
@@ -146,14 +150,20 @@
     {
       "doc": "CLAUDE.md",
       "claim": "`tools/wizard.py::_install_uv`)",
-      "proof": "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
-      "why": "names the wizard's own uv install as the second code path; its selftest pin runs _install_uv with no .venv and requires a refusal and zero subprocess calls, and a sibling pin requires the one pip call to use the .venv interpreter when a .venv exists."
+      "proofs": [
+        "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
+        "tools/wizard.py::selftest::every POST route that reaches an installer, driven through do_POST"
+      ],
+      "why": "names the wizard's own uv install as the second code path; its selftest pin runs _install_uv with no .venv and requires a refusal and zero subprocess calls, and a sibling pin requires the one pip call to use the .venv interpreter when a .venv exists. A third pin drives every POST route whose code names _install_uv or _run_setup through _Handler.do_POST, with no .venv and with one, and allows only setup.py's --install-deps --json entry and pip run by the .venv interpreter."
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "`tools/wizard.py::_install_uv`)",
-      "proof": "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
-      "why": "the wizard selftest runs _install_uv with a .venv present and requires exactly one subprocess call, a pip install whose argv[0] is the .venv interpreter; a sibling pin covers the no-.venv refusal."
+      "proofs": [
+        "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
+        "tools/wizard.py::selftest::every POST route that reaches an installer, driven through do_POST"
+      ],
+      "why": "the wizard selftest runs _install_uv with a .venv present and requires exactly one subprocess call, a pip install whose argv[0] is the .venv interpreter; a sibling pin covers the no-.venv refusal. A third pin drives every POST route whose code names _install_uv or _run_setup through _Handler.do_POST, with no .venv and with one, and allows only setup.py's --install-deps --json entry and pip run by the .venv interpreter."
     },
     {
       "doc": "CLAUDE.md",
@@ -182,8 +192,8 @@
     {
       "doc": "docs/INSTALL-SCOPE.md",
       "claim": "| the repo's `.venv/` | every Python package",
-      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
-      "why": "the row says every Python package lands in the repo .venv; the setup.py pin runs install_dependencies with an argv recorder and requires every pip and Playwright subprocess to run the .venv interpreter."
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "why": "the row says every Python package lands in the repo .venv; the setup.py pin runs `setup.py --install-deps --json` as the script with an argv recorder and requires every pip and Playwright subprocess to run the .venv interpreter, whether each step succeeds or fails."
     }
   ],
   "exempt": [
@@ -361,24 +371,35 @@
       "gap": "The pin runs _scheduler_loop for one pass through _run_scheduler_once with _load_config, _load_queue and the credential loader replaced, so the config the loop resolves at run time from the committed and local files is not read."
     },
     {
+      "proof": "tools/dashboard/server.py::selftest::every POST route but Confirm, driven through do_POST",
+      "boundary": "tools/dashboard/server.py::DashboardHandler.do_POST"
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::every GET route, driven through do_GET",
+      "boundary": "tools/dashboard/server.py::DashboardHandler.do_GET"
+    },
+    {
       "proof": "tools/dashboard/server.py::selftest::scheduler flag off: every due item advances to ready_to_post and no network call is made",
       "boundary": "tools/dashboard/server.py::_scheduler_loop",
       "gap": "The pin runs _scheduler_loop for one pass through _run_scheduler_once with _load_config, _load_queue and the credential loader replaced, so the config the loop resolves at run time from the committed and local files is not read."
     },
     {
-      "proof": "tools/setup.py::selftest::.venv present: every pip and Playwright subprocess runs the .venv interpreter",
-      "boundary": "tools/setup.py::run_install_deps",
-      "gap": "The pin calls install_dependencies(); run_install_deps, the --install-deps entry that calls it, is not run by a selftest, so what that entry does after install_dependencies returns is not checked."
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "boundary": "tools/setup.py::__main__"
     },
     {
       "proof": "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
       "boundary": "tools/wizard.py::_Handler.do_POST",
-      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it and decides what happens when it refuses, is not run by a selftest, so code added there after a refusal is not checked."
+      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it, is run by the sibling route pin (every POST route that reaches an installer, driven through do_POST), not by this one."
     },
     {
       "proof": "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
       "boundary": "tools/wizard.py::_Handler.do_POST",
-      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it and decides what happens when it refuses, is not run by a selftest, so code added there after a refusal is not checked."
+      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it, is run by the sibling route pin (every POST route that reaches an installer, driven through do_POST), not by this one."
+    },
+    {
+      "proof": "tools/wizard.py::selftest::every POST route that reaches an installer, driven through do_POST",
+      "boundary": "tools/wizard.py::_Handler.do_POST"
     },
     {
       "proof": "tools/secret_scan.py::selftest::phone number detected in the paren, +1, 1-prefix, dotted and extension NANP shapes",
@@ -392,11 +413,11 @@
     {
       "proof": "tools/mcp_server.py::selftest::schedule_post always sets human_review_required: true on every platform and tier, whatever its other arguments carry",
       "boundary": "tools/mcp_server.py::_schedule_post_impl",
-      "gap": "The MCP tool schedule_post is a thin registration wrapper that returns _schedule_post_impl(...) unchanged; the pin executes the impl, and the wrapper body is source-checked, not run."
+      "gap": "The MCP tool schedule_post is a thin registration wrapper that returns _schedule_post_impl(...) unchanged; the pin executes the impl, and the wrapper body is source-checked, not run: it must be exactly json.dumps(_schedule_post_impl(<each tool parameter passed through>), indent=2), so no encoder or other argument can rewrite the summary on the wire, and the name json is bound in the module only by a plain `import json`, never assigned, redefined or patched; a rebinding through globals() or setattr() is outside the check."
     },
     {
       "proof": "tools/setup.py::selftest::no .venv: the --install-deps CLI entry starts only the .venv creation attempt",
-      "boundary": "tools/setup.py::main"
+      "boundary": "tools/setup.py::__main__"
     }
   ],
   "routes": [

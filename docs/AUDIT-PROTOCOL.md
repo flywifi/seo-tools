@@ -211,8 +211,11 @@ invariant reads, and an exemption's written reason proves only what a check re-r
   and says what the pin does not run. When the claim names `tools/*.py` modules, a boundary in
   another module also needs a gap. A `gap` is a recorded limit to close: move the pin to the
   entry, or narrow the claim to what the pin runs.
-- **What the boundary check does not see.** It reads calls by name. A call made for another pin
-  in the same function counts for every pin there; a call through a module-level helper is not
+- **What the boundary check does not see.** It reads calls by name. For each pin it reads only
+  the code counted for it: the statement making the pin call, the statements before it back to
+  the previous pin call in the same function, and earlier statements (not another pin's call)
+  that set a name that code reads, so a call made for another pin counts only when this pin
+  reads what it set; a call through a module-level helper is not
   followed, so such a pin records a gap; a pin that calls the entry with injected state around the
   default still passes; and which entry is outermost is the reviewer's judgement, so a record that
   names a helper as its boundary passes.

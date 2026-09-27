@@ -280,9 +280,31 @@ _REFUSED_STDLIB = {"subprocess", "multiprocessing", "concurrent", "importlib", "
                    "codeop", "pickle", "marshal", "shelve", "_posixsubprocess", "socket",
                    "socketserver", "http", "ftplib", "smtplib", "imaplib", "poplib", "nntplib",
                    "telnetlib", "xmlrpc"}
+# The standard-library modules the maintenance path may import. Each was read for the calls in it
+# that start a process, and none does except through the os functions that _SPAWN_CALLS and
+# _SPAWN_NAME_RE name (the process-management functions of the os module documentation, and the
+# private helpers os.py builds them from).
+# The set is an allowlist: a module not read that way fails the pin until it is read and added,
+# including one whose functions start a process under an ordinary name (platform.architecture()
+# and platform.processor() run `file` and `uname`; pydoc's pagers run a shell).
+_ALLOWED_STDLIB = frozenset({"__future__", "argparse", "ast", "contextlib", "datetime", "fcntl",
+                             "hashlib", "json", "os", "pathlib", "re", "ssl", "stat", "sys",
+                             "urllib"})
+_CLOSURE_SIBLINGS = frozenset({"registry_io", "atomic_io"})
+
+
+def _closure_modules_ok(mods):
+    """True when every module the maintenance path imports is in _ALLOWED_STDLIB or is one of
+    its two sibling helpers, registry_io and atomic_io."""
+    return set(mods) <= _ALLOWED_STDLIB | _CLOSURE_SIBLINGS
+
+
 _SPAWN_CALLS = {"system", "popen", "Popen", "fork", "forkpty", "posix_spawn", "posix_spawnp",
                 "startfile", "__import__", "import_module", "exec", "eval", "vars", "globals",
                 "locals"}
+# The os exec*/spawn* family, with the private helpers os.py builds it from (_execvpe, _spawnvef),
+# which start a process under a name outside the documented family.
+_SPAWN_NAME_RE = re.compile(r"_?(?:exec|spawn)[lv]p?e?f?")
 # Names that open a connection: a call, a urllib handler or opener, or a handler's open method.
 # Only _http_get_json, which refuses other hosts, may use them.
 _NET_CALLS = {"urlopen", "urlretrieve", "build_opener", "install_opener", "OpenerDirector",
@@ -300,7 +322,7 @@ _DYNAMIC_REFS = {"__dict__", "__getattribute__", "__builtins__", "attrgetter", "
 def _import_closure(path, seen=None, source=None):
     """(modules, calls, env, net) for the code `path` runs outside its selftests, read
     statically and following sibling modules in its folder. modules: the top-level names it
-    imports. calls: its process-spawning or dynamic-code calls (os.system, os.exec*/spawn*,
+    imports. calls: its process-spawning or dynamic-code calls (os.system, os.exec*/spawn* and os's private _execvpe and _spawnvef,
     Popen, fork, __import__, exec, eval, vars, globals, locals, and a getattr on os or sys or
     with a computed name). env: the environment variables it reads through os.environ,
     os.environb or os.getenv, with "?" for a read whose name is not a string literal. net:
@@ -310,12 +332,18 @@ def _import_closure(path, seen=None, source=None):
     called, so binding urlopen or os.system to another name first is still seen (a getenv
     referenced other than as a call reads as "?"); a `__dict__`, `__getattribute__` or
     `__builtins__` reference, `sys.modules`, and operator's attrgetter and methodcaller count as
-    dynamic-code calls. Only the functions named selftest and _selftest are skipped."""
+    dynamic-code calls. Only the module-level functions named selftest and _selftest are
+    skipped; a method or nested function with either name is read like the rest of the code,
+    and a reference to selftest or _selftest outside main and the `if __name__ == "__main__":`
+    block counts as a dynamic-code call, so live code cannot reach a skipped function."""
     import ast
     seen = {path.stem} if seen is None else seen
     mods, calls, env, net = set(), set(), set(), set()
     environs, getenvs, handled = [], [], set()
     tree = ast.parse(source if source is not None else path.read_text(encoding="utf-8"))
+    main_block = {id(n) for top in tree.body
+                  if isinstance(top, ast.If) and "__main__" in ast.unparse(top.test)
+                  for n in ast.walk(top)}
     aliases = {a.asname: a.name.split(".")[-1] for n in ast.walk(tree)
                if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names if a.asname}
 
@@ -329,11 +357,14 @@ def _import_closure(path, seen=None, source=None):
     while stack:
         node, fn = stack.pop()
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.name in ("selftest", "_selftest"):
+            if node.name in ("selftest", "_selftest") and node in tree.body:
                 continue
             fn = fn or node.name
         stack.extend((child, fn) for child in ast.iter_child_nodes(node))
         ref = name_of(node)
+        if (isinstance(node, ast.Name) and node.id in ("selftest", "_selftest")
+                and fn != "main" and id(node) not in main_block):
+            calls.add(node.id)
         if ref in _ENVIRON_NAMES:
             environs.append(node)
         if ref in ("getenv", "getenvb"):
@@ -341,7 +372,7 @@ def _import_closure(path, seen=None, source=None):
         if ref in _NET_CALLS and fn != _NET_FUNCTION:
             net.add(f"{fn or '<module>'}:{ref}")
         if ref is not None and (ref in _SPAWN_CALLS or ref in _DYNAMIC_REFS
-                                or re.fullmatch(r"(?:exec|spawn)[lv]p?e?", ref)
+                                or _SPAWN_NAME_RE.fullmatch(ref)
                                 or (ref == "modules" and name_of(node.value) == "sys")):
             calls.add(ref)
         names = []
@@ -359,7 +390,7 @@ def _import_closure(path, seen=None, source=None):
         elif isinstance(node, ast.Call):
             f = node.func
             name = name_of(f) or ""
-            if name in _SPAWN_CALLS or re.fullmatch(r"(?:exec|spawn)[lv]p?e?", name):
+            if name in _SPAWN_CALLS or _SPAWN_NAME_RE.fullmatch(name):
                 calls.add(name)
             if name == "getattr" and (len(node.args) < 2 or not isinstance(node.args[1], ast.Constant)
                                       or name_of(node.args[0]) in ("os", "sys")):
@@ -481,14 +512,34 @@ def selftest():
         redirect_refused = False
     except urllib.error.HTTPError:
         redirect_refused = True
+    _named = _import_closure(Path(__file__).resolve(), source=(
+        "import os\nclass T:\n    def selftest(self):\n        os.system('x')\n"
+        "def f():\n    def _selftest():\n        os.popen('x')\n"
+        "def selftest():\n    os.fork()\n"))[1]
+    ok("token-free: only the module-level selftest functions are skipped; a method or nested "
+       "function named selftest or _selftest is read", _named == {"system", "popen"})
+    _reached = _import_closure(Path(__file__).resolve(), source=(
+        "import os\ndef _selftest():\n    os.system('x')\ndef check():\n    _selftest()\n"
+        "def main():\n    return _selftest()\nif __name__ == '__main__':\n    selftest()\n"))[1]
+    ok("token-free: live code that calls a skipped selftest function is read as a dynamic-code "
+       "call, and main and the script block may call it", _reached == {"_selftest"})
     ok("token-free: outside its selftests the import closure is the standard library plus "
        "registry_io and atomic_io, starts no process, makes network calls only from "
        "_http_get_json, which sends requests only to pypi.org and api.github.com, and reads "
        "GITHUB_TOKEN or GH_TOKEN as its one credential",
-       mods <= (set(sys.stdlib_module_names) - _REFUSED_STDLIB) | {"registry_io", "atomic_io"}
+       _closure_modules_ok(mods) and _ALLOWED_STDLIB <= set(sys.stdlib_module_names)
+       and not _ALLOWED_STDLIB & _REFUSED_STDLIB
        and not calls and not net and env <= _TOKEN_FREE_ENV
        and _ALLOWED_HOSTS == ("pypi.org", "api.github.com") and off_host[0] is None
        and on_host[0] is None and sent == ["https://pypi.org/pypi/x/json"] and redirect_refused)
+    ok("token-free: the import allowlist refuses a standard-library module not read for process "
+       "starts (platform, pydoc) and accepts the modules the maintenance path imports",
+       not _closure_modules_ok({"platform"}) and not _closure_modules_ok({"pydoc"})
+       and _closure_modules_ok({"json", "os", "urllib", "registry_io", "atomic_io"}))
+    _private = _import_closure(Path(__file__).resolve(), source=(
+        "import os\nos._execvpe('x', ['x'])\nfrom os import _spawnvef as sv\nsv(1, 'x', ['x'], {}, None)\n"))[1]
+    ok("token-free: os's private process helpers (_execvpe, _spawnvef) count as process starts, "
+       "called directly or under another name", {"_execvpe", "_spawnvef"} <= _private)
 
     # The closure reader over a fixture holding each binding form it reads: an aliased environ
     # read, an aliased urlopen, build_opener bound to a name, a getattr on os imported under
