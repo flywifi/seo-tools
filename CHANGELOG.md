@@ -175,15 +175,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ### Fixed
 - The commit-message backstop's policy boundary (`tools/secret-scan-allowlist.json`) is the full
-  SHA of the P78-2 commit, the newest commit whose message the current message rules refuse, so
-  the push-to-main fallback range starts after it. Its `_comment` and the `secret_scan`
-  docstrings describe the boundary as the point before which messages are not re-checked. A
-  selftest case runs the scan over a scripted history whose git stub answers only the exact
-  arguments the scan passes: the boundary commit and its ancestors are skipped, and the commits
-  after it, a side-branch commit that git log lists after the boundary included, are scanned.
-  Seven committed mutations of the scan (no skip, a skip that stops at the boundary, a widened
-  or capped `rev-list`, a first-parent `log`, and a skip set widened to every commit or
-  narrowed to the boundary alone) each fail that case.
+  SHA of the P78-2 commit, the newest commit whose message the message rules refused when it was
+  set, so the push-to-main fallback range starts after it. Its `_comment` and the `secret_scan`
+  docstrings say that the boundary commit and its ancestors are not re-checked. A selftest case
+  runs the scan over a scripted history framed as git log frames it, whose git stub answers only
+  the exact arguments the scan passes: the boundary commit and its ancestors are skipped, the
+  commits after it (a side-branch commit that git log lists after the boundary included) are
+  scanned, a boundary git cannot resolve skips no commit, and a range git cannot list returns
+  None. Ten committed mutations of the scan (no skip, a skip that stops at the boundary, a
+  widened or capped `rev-list`, a first-parent `log`, a skip set widened to every commit or
+  narrowed to the boundary alone, records read without trimming git's newline, an unresolvable
+  boundary that skips every commit, and an unlistable range read as clean) each fail that case.
   A second case checks that the boundary is written as 40 lowercase hex characters.
 - P95 (correction to the P95 record, 2026-09-24): the subject `P95-2: a claim-proof pin counts only when it can fail.` is false as a
   universal and is immutable in pushed history; the P95 entries here and in ADR 0066 are

@@ -16,8 +16,10 @@ Exit 1 on any finding. False positives are exempted in tools/secret-scan-allowli
 (path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop checks
 the commits after the policy boundary SHA recorded in the allowlist file: the boundary commit and
 its ancestors are not re-checked, because history is not rewritten (some predate the message
-rules, and some carry text a later rule refuses); the selftest pins that limit and runs
-falsifying mutations of the scan against it.
+rules, and some carry text a later rule refuses). The selftest runs the scan over a scripted
+history framed as git log frames it and checks that limit, a boundary git cannot resolve (no
+commit skipped) and a range git cannot list (the scan returns None); ten committed mutations of
+the scan each fail that check.
 
 Fails closed under CI when git is unavailable. Fixture strings in the selftest are concatenated
 so this file never trips itself or an external scanner.
@@ -1271,21 +1273,26 @@ def selftest():
     _log_args = ["log", "x..y", "--format=%H%x00%ae%x00%B%x01"]
 
     def _log_git(args, check=True):
+        # git log ends each record with a newline after the %x01 separator.
         if list(args) == _log_args:
-            return "".join(f"{s}\x0012345+dev@users.noreply.github.com\x00{_fid_msg}\x01"
+            return "".join(f"{s}\x0012345+dev@users.noreply.github.com\x00{_fid_msg}\x01\n"
                            for s in (_new_c, _bnd_c, _side_c, _old_c))
         if list(args) == ["rev-list", _bnd_c]:
             return f"{_bnd_c}\n{_old_c}\n"
         return None
 
     def _backstop_holds(scan):
+        every = sorted("commit:" + s[:12] for s in (_new_c, _bnd_c, _side_c, _old_c))
         bounded = scan("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})
         unbounded = scan("x..y", {"entries": []})
-        return (bounded is not None and unbounded is not None
+        unresolved = scan("x..y", {"entries": [], "commit_policy_boundary": "e" * 40})
+        unlisted = scan("x..z", {"entries": [], "commit_policy_boundary": _bnd_c})
+        return (bounded is not None and unbounded is not None and unresolved is not None
+                and unlisted is None
                 and sorted(x["path"] for x in bounded)
                 == sorted("commit:" + s[:12] for s in (_new_c, _side_c))
-                and sorted(x["path"] for x in unbounded)
-                == sorted("commit:" + s[:12] for s in (_new_c, _bnd_c, _side_c, _old_c)))
+                and sorted(x["path"] for x in unbounded) == every
+                and sorted(x["path"] for x in unresolved) == every)
     _saved_git = globals()["_git"]
     globals()["_git"] = _log_git
     try:
@@ -1294,7 +1301,8 @@ def selftest():
         globals()["_git"] = _saved_git
     _check("commit-message backstop: the boundary commit and its ancestors are not re-checked (the "
            "stated limit) and the commits after the boundary, a side-branch commit listed after it "
-           "included, are scanned", _backstop_ok, f, ran)
+           "included, are scanned; a boundary git cannot resolve skips no commit, and a range git "
+           "cannot list returns None", _backstop_ok, f, ran)
     # Falsifying mutations of scan_commit_messages, each run against the same scripted history;
     # the check above must fail for every one. An anchor that no longer occurs exactly once in the
     # source fails this check, so an edit to the scan updates these cases with it.
@@ -1312,6 +1320,11 @@ def selftest():
         ("rev-list capped at one commit", '["rev-list", boundary]',
          '["rev-list", boundary, "--max-count=1"]'),
         ("log walks first parents only", '["log", rng,', '["log", "--first-parent", rng,'),
+        ("records read without trimming git's newline", "        record = record.strip()\n", ""),
+        ("an unresolvable boundary skips every commit", "        if prior:\n",
+         "        if not prior:\n            return []\n        if prior:\n"),
+        ("a range git cannot list reads as clean", "    if log is None:\n        return None\n",
+         "    if log is None:\n        return []\n"),
     )
     _survivors = []
     for _label, _old, _new in _mutants:
