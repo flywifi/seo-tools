@@ -17,9 +17,10 @@ Exit 1 on any finding. False positives are exempted in tools/secret-scan-allowli
 the commits after the policy boundary SHA recorded in the allowlist file: the boundary commit and
 its ancestors are not re-checked, because history is not rewritten (some predate the message
 rules, and some carry text a later rule refuses). The selftest runs the scan over a scripted
-history framed as git log frames it and checks that limit, a boundary git cannot resolve (no
-commit skipped) and a range git cannot list (the scan returns None); ten committed mutations of
-the scan each fail that check.
+history framed as git log frames it, with a git stub that answers any call it does not script as
+_git does when git fails, and checks that limit, the content and author-email findings of each
+commit, a boundary git cannot resolve (no commit skipped) and a range git cannot list (the scan
+returns None); eighteen committed mutations of the scan each fail that check.
 
 Fails closed under CI when git is unavailable. Fixture strings in the selftest are concatenated
 so this file never trips itself or an external scanner.
@@ -1266,33 +1267,47 @@ def selftest():
                        for x in scan_text("fee " + s, "pipeline/deals/x.json")), f, ran)
     # The commit-message backstop skips the boundary commit and its ancestors (the stated limit)
     # and scans the commits after it, including a side-branch commit that git log lists after the
-    # boundary. Each scripted commit carries a finding id, and the stub answers only the exact git
-    # arguments the scan passes.
-    _old_c, _bnd_c, _side_c, _new_c = "a" * 40, "b" * 40, "d" * 40, "c" * 40
-    _fid_msg = "P1: tidy\n\nsee F" + "5: detail\n"
+    # boundary. The scripted history is framed as git log frames it: each record ends with a
+    # newline after the %x01 separator, a git-written body ends with a newline, and a GitHub merge
+    # body does not. It holds a finding id in a merge record, in a subject line and past the first
+    # 64 characters of a body, a clean commit, and a personal author email on a later commit, on
+    # the boundary and on an ancestor. The stub answers the exact git arguments the scan passes,
+    # and any other call as _git does when git fails: None when checked, empty output when not.
+    _personal, _noreply = "someone" + "@gmail.com", "12345+dev@users.noreply.github.com"
+    _fid = "see F" + "5: detail"
+    _merge_c, _subj_c, _deep_c, _clean_c = "f" * 40, "c" * 40, "2" * 40, "1" * 40
+    _mail_c, _bnd_c, _side_c, _old_c = "3" * 40, "b" * 40, "d" * 40, "a" * 40
+    _history = (  # (sha, author email, message), newest first as git log lists them
+        (_merge_c, _noreply, "Merge pull request #7 from example/topic\n\nP1: " + _fid),
+        (_subj_c, _noreply, "P1: " + _fid + "\n\nThe body is clean.\n"),
+        (_deep_c, _noreply, "P1: tidy\n\n" + "tidy the loader and its cache; " * 3 + _fid + "\n"),
+        (_clean_c, _noreply, "P1: tidy the loader\n"),
+        (_mail_c, _personal, "P1: tidy the loader\n"),
+        (_bnd_c, _personal, "P1: " + _fid + "\n"),
+        (_side_c, _noreply, "P1: " + _fid + "\n"),
+        (_old_c, _personal, "P1: " + _fid + "\n"),
+    )
+    _after = sorted(("commit:" + s[:12], p) for s, p in (
+        (_merge_c, "finding_id"), (_subj_c, "finding_id"), (_deep_c, "finding_id"),
+        (_mail_c, "author_email"), (_side_c, "finding_id")))
+    _every = sorted(_after + [("commit:" + s[:12], p) for s in (_bnd_c, _old_c)
+                              for p in ("finding_id", "author_email")])
     _log_args = ["log", "x..y", "--format=%H%x00%ae%x00%B%x01"]
 
     def _log_git(args, check=True):
-        # git log ends each record with a newline after the %x01 separator.
         if list(args) == _log_args:
-            return "".join(f"{s}\x0012345+dev@users.noreply.github.com\x00{_fid_msg}\x01\n"
-                           for s in (_new_c, _bnd_c, _side_c, _old_c))
+            return "".join(f"{s}\x00{e}\x00{m}\x01\n" for s, e, m in _history)
         if list(args) == ["rev-list", _bnd_c]:
             return f"{_bnd_c}\n{_old_c}\n"
-        return None
+        return None if check else ""
 
     def _backstop_holds(scan):
-        every = sorted("commit:" + s[:12] for s in (_new_c, _bnd_c, _side_c, _old_c))
-        bounded = scan("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})
-        unbounded = scan("x..y", {"entries": []})
-        unresolved = scan("x..y", {"entries": [], "commit_policy_boundary": "e" * 40})
-        unlisted = scan("x..z", {"entries": [], "commit_policy_boundary": _bnd_c})
-        return (bounded is not None and unbounded is not None and unresolved is not None
-                and unlisted is None
-                and sorted(x["path"] for x in bounded)
-                == sorted("commit:" + s[:12] for s in (_new_c, _side_c))
-                and sorted(x["path"] for x in unbounded) == every
-                and sorted(x["path"] for x in unresolved) == every)
+        def pairs(found):
+            return None if found is None else sorted((x["path"], x["pattern_id"]) for x in found)
+        return (pairs(scan("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})) == _after
+                and pairs(scan("x..y", {"entries": []})) == _every
+                and pairs(scan("x..y", {"entries": [], "commit_policy_boundary": "e" * 40})) == _every
+                and scan("x..z", {"entries": [], "commit_policy_boundary": _bnd_c}) is None)
     _saved_git = globals()["_git"]
     globals()["_git"] = _log_git
     try:
@@ -1301,8 +1316,9 @@ def selftest():
         globals()["_git"] = _saved_git
     _check("commit-message backstop: the boundary commit and its ancestors are not re-checked (the "
            "stated limit) and the commits after the boundary, a side-branch commit listed after it "
-           "included, are scanned; a boundary git cannot resolve skips no commit, and a range git "
-           "cannot list returns None", _backstop_ok, f, ran)
+           "and a GitHub merge record included, are scanned for content and author email; a "
+           "boundary git cannot resolve skips no commit, and a range git cannot list returns None",
+           _backstop_ok, f, ran)
     # Falsifying mutations of scan_commit_messages, each run against the same scripted history;
     # the check above must fail for every one. An anchor that no longer occurs exactly once in the
     # source fails this check, so an edit to the scan updates these cases with it.
@@ -1325,6 +1341,25 @@ def selftest():
          "        if not prior:\n            return []\n        if prior:\n"),
         ("a range git cannot list reads as clean", "    if log is None:\n        return None\n",
          "    if log is None:\n        return []\n"),
+        ("the range listed with the exit code ignored", '%B%x01"], check=True)',
+         '%B%x01"], check=False)'),
+        ("an empty rev-list skips every commit", "        if prior:\n",
+         '        if prior == "":\n            return []\n        if prior:\n'),
+        ("the boundary and its ancestors keep the author-email check",
+         "        if sha in boundary_and_before:\n            continue\n",
+         '        if sha in boundary_and_before:\n            body = ""\n'),
+        ("GitHub merge records skipped", '        email, _, body = rest.partition("\\x00")\n',
+         '        email, _, body = rest.partition("\\x00")\n'
+         '        if body.startswith("Merge pull request #"):\n            continue\n'),
+        ("only the last paragraph scanned", "scan_text(body, where, allowlist)",
+         'scan_text(body.strip().split("\\n\\n")[-1], where, allowlist)'),
+        ("only the first 64 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[:64], where, allowlist)"),
+        ("author email not checked", "        if email and not EMAIL_ALLOW_RE",
+         "        if False and email and not EMAIL_ALLOW_RE"),
+        ("every commit flagged", '        where = f"commit:{sha[:12]}"\n',
+         '        where = f"commit:{sha[:12]}"\n'
+         '        findings.append({"path": where, "pattern_id": "finding_id", "match": ""})\n'),
     )
     _survivors = []
     for _label, _old, _new in _mutants:

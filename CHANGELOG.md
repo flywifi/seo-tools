@@ -178,15 +178,22 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SHA of the P78-2 commit, the newest commit whose message the message rules refused when it was
   set, so the push-to-main fallback range starts after it. Its `_comment` and the `secret_scan`
   docstrings say that the boundary commit and its ancestors are not re-checked. A selftest case
-  runs the scan over a scripted history framed as git log frames it, whose git stub answers only
-  the exact arguments the scan passes: the boundary commit and its ancestors are skipped, the
-  commits after it (a side-branch commit that git log lists after the boundary included) are
-  scanned, a boundary git cannot resolve skips no commit, and a range git cannot list returns
-  None. Ten committed mutations of the scan (no skip, a skip that stops at the boundary, a
-  widened or capped `rev-list`, a first-parent `log`, a skip set widened to every commit or
-  narrowed to the boundary alone, records read without trimming git's newline, an unresolvable
-  boundary that skips every commit, and an unlistable range read as clean) each fail that case.
-  A second case checks that the boundary is written as 40 lowercase hex characters.
+  runs the scan over a scripted history framed as git log frames it, whose git stub answers the
+  exact arguments the scan passes and any other call as `_git` does when git fails (None when
+  checked, empty output when not). The history holds a finding id in a GitHub merge record, in a
+  subject line and past the first 64 characters of a body, a clean commit, and a personal author
+  email on a later commit, on the boundary and on an ancestor; the case compares each commit's
+  findings by pattern. The boundary commit and its ancestors are skipped, the commits after it
+  (a side-branch commit that git log lists after the boundary included) are scanned, a boundary
+  git cannot resolve skips no commit, and a range git cannot list returns None. Eighteen
+  committed mutations of the scan each fail that case: no skip, a skip that stops at the
+  boundary, a widened or capped `rev-list`, a first-parent `log`, a skip set widened to every
+  commit or narrowed to the boundary alone, records read without trimming git's newline, an
+  unresolvable or empty `rev-list` that skips every commit, an unlistable range read as clean or
+  listed with the exit code ignored, the boundary and its ancestors kept for the author-email
+  check, GitHub merge records skipped, only the last paragraph or the first 64 characters
+  scanned, the author-email check removed, and every commit flagged. A second case checks that
+  the boundary is written as 40 lowercase hex characters.
 - P95 (correction to the P95 record, 2026-09-24): the subject `P95-2: a claim-proof pin counts only when it can fail.` is false as a
   universal and is immutable in pushed history; the P95 entries here and in ADR 0066 are
   narrowed to what was tested. Also corrected: the "80 pins" attribution, "exercises every
