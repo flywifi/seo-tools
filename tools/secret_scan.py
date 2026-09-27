@@ -2,7 +2,7 @@
 """Creator OS content secret scanner (P31).
 
 The filename invariants (19, 20) keep real-data FILES and audit-record files out of git; this scanner keeps secret
-CONTENT out: API keys, private-key blocks, credential values pasted into committed JSON,
+CONTENT out: API keys in the vendor formats PATTERNS lists, private-key blocks, credential values in committed JSON, YAML and .env text,
 personal email addresses, claude.ai session links, and dollar-amount figures inside committed
 pipeline/ files (which must be blank templates). Pure stdlib, no network, read-only.
 
@@ -29,6 +29,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,40 +56,102 @@ EMAIL_ALLOW_RE = re.compile(
 # by _x.io is a finding; a closing bracket, quote or sentence-ending dot is not a continuation.
 EMAIL_DOMAIN_CONT_RE = re.compile(r"[A-Za-z0-9_-]|\.[A-Za-z0-9_-]")
 
+# credential_value keys and values (PATTERNS). A key is one of these names in any letter case, its
+# words joined by _, - or nothing (api_key, apiKey, API-KEY), after any prefix of letters, digits,
+# _ and - (stripe_api_key, access_token, client_secret, dbPassword, nextPageToken); a .env key is
+# upper case (GITHUB_TOKEN). A YAML or .env value is read from these characters up to a space, a
+# quote or #, so an expression (os.environ[...], get_password()) is not read as a value, and a
+# value that starts with / or . (a file path) is not read.
+_CRED_KEY = (r"[A-Za-z0-9_-]*?(?:api[_-]?key|client[_-]?id|password|passwd|secret(?:[_-]?key)?"
+             r"|private[_-]?key|token)")
+_CRED_ENV_KEY = r"[A-Z0-9_]*(?:API_?KEY|CLIENT_ID|PASSWORD|PASSWD|SECRET(?:_KEY)?|PRIVATE_KEY|TOKEN)"
+_CRED_VAL = r"[A-Za-z0-9._~+/=:@!*-]{8,}"
+
 PATTERNS = [
-    ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    # Long-term (AKIA) and temporary (ASIA) access key ids.
+    ("aws_access_key", re.compile(r"(?:AKIA|ASIA)[0-9A-Z]{16}")),
     # Classic gh?_ prefixes plus fine-grained github_pat_ tokens.
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,}")),
-    ("slack_token", re.compile(r"xox[abpr]-[A-Za-z0-9-]{10,}")),
-    ("stripe_key", re.compile(r"[sp]k_live_[A-Za-z0-9]{16,}")),
+    # Bot, user, app, refresh and config tokens, the app-level xapp- token.
+    ("slack_token", re.compile(r"xox[abprse]-[A-Za-z0-9-]{10,}|xapp-\d-[A-Za-z0-9-]{10,}")),
+    ("stripe_key", re.compile(r"[spr]k_live_[A-Za-z0-9]{16,}")),
     # The body allows - and _ so the CURRENT provider formats match: OpenAI sk-proj-/sk-svcacct-/
     # sk-admin- and Anthropic sk-ant-api03-/sk-ant-oat01- keys are base64url with hyphenated
     # prefixes; the old alnum-only class missed every one of them.
     ("generic_sk_key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
-    ("private_key_block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
-    ("bearer_header", re.compile(r"(?i)authorization:\s*bearer\s+[A-Za-z0-9._\-]{16,}")),
+    # PEM and OpenSSH blocks, the PGP armor header (PRIVATE KEY BLOCK), the SSH2 header written
+    # with four dashes and spaces, and the first line of a PuTTY key file.
+    ("private_key_block", re.compile(
+        r"-{4,5} ?BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)? ?-{4,5}|(?m:^[ \t]*PuTTY-User-Key-File-\d+:)")),
+    # An Authorization value in a header line, a JSON or dict pair (a quoted key) or an assignment
+    # (authorization=): the Bearer scheme under bearer_header; a scheme from the IANA HTTP
+    # authentication scheme registry (Basic, Digest, Negotiate, ...) or a common vendor scheme
+    # (Token, ApiKey, Key, SSWS) with a 12+ character credential, and an X-Api-Key value, under
+    # authorization_header. A credential is read in the token68 characters. Not read: a value
+    # with no scheme word or under another scheme word, and another header name (X-Auth-Token), by
+    # these two patterns; the selftest pins that.
+    ("bearer_header", re.compile(
+        r"(?i)authorization[\"']?\s*[:=]\s*[\"']?bearer\s+[A-Za-z0-9._~+/=-]{16,}")),
+    ("authorization_header", re.compile(
+        r"(?i)\bauthorization[\"']?\s*[:=]\s*[\"']?"
+        r"(?:basic|digest|dpop|gnap|hoba|mutual|negotiate|ntlm|oauth|privatetoken|scram-sha-(?:1|256)"
+        r"|vapid|concealed|token|api-?key|key|ssws)\s+"
+        r"[A-Za-z0-9._~+/=-]{12,}|\bx-api-key[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{16,}")),
     # DEV-TRAP: this flags a literal "access_token": "<8+ chars>" even in FAKE test fixtures (only
     # REPLACE_/YOUR_/<...>-style placeholders are exempt). In tests bind the key to a variable
     # (AT = "access_token"; {AT: "FAKE"}) rather than allowlisting a real-looking value. See
     # tools/publishing/MAINTAINER_README.md "Contributor gotchas".
+    # A credential key (_CRED_KEY) with a value of 8+ characters in a JSON pair, a single-quoted
+    # Python dict pair, a YAML line (key: value) or a .env line (KEY=value, optionally after
+    # export). Not read: a keyword argument or an assignment in code with a lower-case name
+    # (password="..."), and a key name outside _CRED_KEY.
     ("credential_value", re.compile(
-        r"\"(api_key|apikey|access_token|refresh_token|client_secret|client_id|password|token)\""
-        r"\s*:\s*\"([^\"]{8,})\"")),
-    ("session_link", re.compile(r"claude\.ai/code/session_[A-Za-z0-9]+")),
+        rf"\"{_CRED_KEY}\"\s*:\s*\"([^\"]{{8,}})\"|'{_CRED_KEY}'\s*:\s*'([^'\n]{{8,}})'"
+        rf"|^[ \t-]*{_CRED_KEY}[ \t]*:[ \t]*[\"']?((?![./]){_CRED_VAL})(?=[\"']?[ \t]*(?:#|$))"
+        rf"|(?-i:^(?:export[ \t]+)?{_CRED_ENV_KEY}[ \t]*=[ \t]*[\"']?((?![./]){_CRED_VAL})"
+        rf"(?=[\"']?[ \t]*(?:#|$)))", re.I | re.M)),
+    # A host is case-insensitive, so the link is read in any letter case; a percent-encoded link
+    # is read through the decoded reading (_text_views); a JSON-escaped slash (\/) is read. An
+    # HTML-entity slash (&#47;) is not read; the selftest pins that.
+    ("session_link", re.compile(r"(?i)claude\.ai\\?/code\\?/session_[A-Za-z0-9]+")),
+    # Vendor formats are read by their fixed prefix and length. A secret with no fixed prefix (an
+    # AWS secret access key, a password) and a vendor format not listed in PATTERNS (Azure, Twilio,
+    # a Google OAuth client secret) are not read; the selftest pins one of each.
+    ("google_api_key", re.compile(r"AIza[0-9A-Za-z_-]{35}")),
+    ("gitlab_token", re.compile(r"glpat-[0-9A-Za-z_-]{20,}")),
+    ("slack_webhook", re.compile(r"hooks\.slack\.com/services/T[A-Za-z0-9]+/B[A-Za-z0-9]+/[A-Za-z0-9]+")),
+    ("npm_token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
+    ("huggingface_token", re.compile(r"\bhf_[A-Za-z0-9]{34,}\b")),
+    ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")),
+    ("sendgrid_key", re.compile(r"\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b")),
+    ("pypi_token", re.compile(r"\bpypi-AgE[A-Za-z0-9_-]{50,}")),
     ("email_address", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
     # North American phone numbers: (NNN) NNN-NNNN and NNN-NNN-NNNN, NNN.NNN.NNNN or NNN NNN NNNN,
     # each with an optional +1 or 1 prefix written with a dash, dot or space after it or flush
     # against the area code (1-800-..., 1(415)..., 1415-...), and with letters such as an x
     # extension allowed right after the last digit. Area and exchange codes start 2 to 9 as the
-    # numbering plan requires, and a match may not sit inside a longer dotted or dashed number, so
+    # numbering plan requires, and a match may not follow a letter or digit or sit inside a longer
+    # dotted or dashed number (an underscore before it, as in a tel_ key, does not block it), so
     # dates, versions, ISBNs and ports stay clean. Bare 10-digit runs and non-NANP numbers are not
     # matched. The selftest builds every prefix, area-code and separator combination.
     ("phone_number", re.compile(
-        r"(?<![\w.+-])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]?|[2-9]\d{2}[ .-])[2-9]\d{2}[ .-]\d{4}(?!\d)(?![-.]\d)")),
+        r"(?<![^\W_])(?<![.+-])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]?|[2-9]\d{2}[ .-])[2-9]\d{2}[ .-]\d{4}(?!\d)(?![-.]\d)")),
 ]
 
 # Dollar figures are suspect ONLY inside committed pipeline/ files (blank templates by contract).
-AMOUNT_RE = re.compile(r"\$\s?[0-9][0-9,]{2,}(\.[0-9]{2})?")
+# Read: a currency sign (every character of Unicode category Sc: $, the pound, euro, yen and
+# rupee signs; a fullwidth sign folds to these) before or after a figure of any length, with an
+# optional k, M or B suffix ($12, $5k, $1.5M, 5000 followed by a euro sign); a currency code in
+# _AMOUNT_CODE before or after a figure; a figure followed by dollars, euros or pounds. A figure
+# written in words and a currency code outside _AMOUNT_CODE are not read.
+_AMOUNT_SIGN = "[" + re.escape("".join(chr(c) for c in range(sys.maxunicode + 1)
+                                        if unicodedata.category(chr(c)) == "Sc")) + "]"
+_AMOUNT_FIG = r"\d[\d,]*(?:\.\d+)?"
+_AMOUNT_CODE = r"(?:usd|eur|gbp|cad|aud|chf|jpy|inr)"
+AMOUNT_RE = re.compile(
+    rf"{_AMOUNT_SIGN}\s?{_AMOUNT_FIG}(?:\s?[kmb]\b)?|\b{_AMOUNT_FIG}(?:\s?[kmb])?\s?{_AMOUNT_SIGN}"
+    rf"|\b{_AMOUNT_CODE}\s?{_AMOUNT_FIG}"
+    rf"|\b{_AMOUNT_FIG}(?:\s?[kmb])?\s?(?:dollars|euros|pounds|{_AMOUNT_CODE})\b", re.I)
 
 # Data-at-rest forbidden tracked suffixes. The SINGLE shared list consumed by three enforcement
 # points so they can never drift apart: sync_check invariant 20 (tracked files), the --staged
@@ -140,8 +203,9 @@ FORBIDDEN_DATA_SUFFIXES = (
 # nothing; year-month with a separator; day-month-year or month-day-year; a month name with a
 # year), either of them in the file name or in a directory above it, and the file name has a
 # suffix on AUDIT_RECORD_TEXT_SUFFIXES or is unsuffixed; or when it is listed in
-# AUDIT_RECORD_PATHS, compared in any letter case. The path is NFKC-folded first, so fullwidth
-# digits and letters read as ASCII. Method docs and tools (AUDIT-PROTOCOL.md, persona_audit.py, an
+# AUDIT_RECORD_PATHS, compared in any letter case. The path is folded first (fold_text), so
+# fullwidth digits and letters, digits from other scripts, and a Unicode dash or minus sign used as
+# a date separator read as ASCII. Method docs and tools (AUDIT-PROTOCOL.md, persona_audit.py, an
 # ADR titled "...-audit-remediation") carry no date and do not match. Consumers: sync_check
 # invariant 20 (tracked files) and scan_staged (the pre-commit gate).
 # The path is also read as git prints it: a C-quoted name (one holding a byte above 0x7f, as
@@ -192,65 +256,109 @@ AUDIT_RECORD_MIN_REASON = 25
 # Discovery narration in the decision records (docs/adr/, ledger/ledger.json): a sentence that says
 # a review, pass or planning step found or flagged something, or that a defect was found. The
 # records state what was decided and what the code does. scan_text runs it on those paths.
-# The actors are a review, audit, auditor or refuter after a determiner (not a product tool's name:
-# hash, local, persona, deal, contract, quality, ar, human, source) and a named pass (adaptability,
-# planning, research, independent, review, audit, verification, refuter); and a defect, finding,
-# gap, bug, issue or problem that was found. A camera lens, a render pass, email verification, a
-# review queue and "the binary was found" are product prose and are not read.
-# Limit: other phrasings ("turning it on showed", "found by the review", a lens), words between
+# The actors are a review, audit, auditor, reviewer, verifier or refuter after a determiner (not a
+# product tool's name: hash, local, persona, deal, contract, quality, ar, human, source) and a named
+# pass (adaptability, planning, research, independent, review, audit, verification, refuter); and a
+# defect, finding, gap, bug, issue or problem that was found. One verb set, _AR_VERB, serves both
+# forms (a review found, flagged, surfaced, caught, spotted, identified, detected or uncovered it;
+# a gap was found, flagged, ...). A camera lens, a render pass, email verification, a review queue
+# and "the binary was found" are product prose and are not read.
+# Limit: other phrasings ("turning it on showed", "found by the review", a lens, a verb outside
+# _AR_VERB such as noticed or confirmed), words between
 # the actor and the verb other than a parenthesis or a listed adverb, and other files are not
 # read; the selftest pins that, and review holds them.
 AUDIT_RECORD_NARRATION_SCOPE = ("docs/adr/", "ledger/ledger.json")
 _AR_DET = r"(?:a|an|the|this|that|one|each|every)\s+"
 _AR_NOT_TOOL = r"(?!(?:hash|local|persona|deal|contract|quality|ar|human|source)\s)"
+_AR_VERB = r"(?:found|flagged|surfaced|caught|spotted|identified|detected|uncovered)"
 AUDIT_RECORD_NARRATION_RE = re.compile(
-    rf"\b(?:{_AR_DET}{_AR_NOT_TOOL}(?:[\w-]+\s+)?(?:audit|review|auditor|refuter)s?"
+    rf"\b(?:{_AR_DET}{_AR_NOT_TOOL}(?:[\w-]+\s+)?(?:audit|review|auditor|reviewer|verifier|refuter)s?"
     r"|(?:independent|adaptability|planning|research|review|audit|verification|refuter)\s+pass(?:es)?)"
     r"(?:\s+(?:\([^)]*\)|also|then|later|first|further|immediately|independently|itself)){0,3}"
-    r"\s+(?:found|flagged|surfaced|caught|spotted)\b"
+    rf"\s+{_AR_VERB}\b"
     r"|\b(?:defects?|findings?|gaps?|bugs?|issues?|problems?)\s+(?:were|was|had\s+been|have\s+been)"
-    r"\s+(?:\w+\s+)?found\b", re.I)
+    rf"\s+(?:\w+\s+)?{_AR_VERB}\b", re.I)
 
-# Review tallies and report pointers in tracked text: a severity count list (N high, N medium) and
+# Review tallies and report pointers in tracked text: a severity count list (two counts, each
+# followed by a word from one severity set, _AR_SEV, in either order: N high, N medium; N critical,
+# N major; N minor, N nits; N blockers, N warnings; N P1, N P2; N Sev1, N Sev2) and
 # a pointer to a report committed to the repository. Both point at review output kept outside the
 # repository. They join PATTERNS, so --tracked (invariant 21), --staged, --commit-messages and the
 # commit-msg hook refuse them.
 # Limit: other phrasings ("in the report", a report committed to the repository, a qualifier before
 # "report" outside the listed review words, a tally in words, a count after its label ("high: 5",
-# "high 5")) are not read, and a priority count written like a tally (3 high, 2 low tasks) is read;
-# the selftest pins that, and review holds them.
+# "high 5"), a count on a word outside _AR_SEV (3 errors, 5 warnings)) are not read, and a priority
+# count written like a tally (3 high, 2 low tasks) is read; the selftest pins that, and review holds
+# them.
+_AR_SEV = r"(?:critical|high|medium|low|major|minor|blocker|warning|nit|P[0-4]|sev[0-4])"
 AUDIT_RECORD_REPORT_PATTERNS = [
     ("committed_report", re.compile(
         r"\bcommitted\s+(?:(?:audit|review|readiness|production-readiness|findings?|remediation"
         r"|triage|verification|integrity|security)\s+){0,2}report\b", re.I)),
     ("severity_tally", re.compile(
-        r"\b\d+\s+(?:critical|high)(?:-severity)?s?(?![\w-])\s*(?:,|;|/|\+|\||and)\s*\|?\s*\d+\s+"
-        r"(?:medium|low)(?:-severity)?s?(?![\w-])", re.I)),
+        rf"\b\d+\s+{_AR_SEV}(?:-severity)?s?(?![\w-])"
+        r"\s*(?:,|;|/|\+|\||and)\s*\|?\s*\d+\s+"
+        rf"{_AR_SEV}(?:-severity)?s?(?![\w-])", re.I)),
 ]
 PATTERNS.extend(AUDIT_RECORD_REPORT_PATTERNS)
 
 # Finding-id tokens in tracked text. A comment or record that cites a review's finding id points at
 # output kept outside the repository, so the id has no committed referent; a phase tag (P73)
 # carries the history. The pattern reads a dimension-finding id (D6-F3), a phase-qualified id
-# (P57 F3, P73 D6-F3) and a bare F-number closed by a colon or parenthesis (F5:, (F9)). It joins
+# (P57 F3, P101-F3, P73 D6-F3) and a bare F-number of up to three digits closed by a colon, a
+# parenthesis or a square bracket (F5:, (F9), [F3], F123:); an en dash between the parts is read
+# through the folded reading (_text_views). It joins
 # PATTERNS, so --tracked (invariant 21), --staged, --commit-messages and the commit-msg hook refuse
 # it, and tools/secret-scan-allowlist.json exempts a pinned false positive.
 # Limit: a letter-number id without an F (A3, G1) is not read, because ADR and scenario ids of
-# that shape have committed referents. A lower-case or slash-joined id (p57 f3, P57/F3) and an
-# F-number in running text (finding F3) are not read either; the selftest pins these. A
+# that shape have committed referents. A lower-case id, an id joined by a slash, an underscore
+# or a dot (p57 f3, P57/F3, P101_F3, D6.F3) and an
+# F-number in running text (finding F3) or closed by a full stop (F3.) are not read either; the
+# selftest pins these. A
 # function-key name in parentheses or before a colon ((F12), F5:) reads as an id;
 # tools/secret-scan-allowlist.json exempts one pinned match with a written reason.
 AUDIT_RECORD_ID_PATTERNS = [
     ("finding_id", re.compile(
-        r"\b(?:[A-Z]{1,3}\d{1,2}-F\d{1,3}|P\d{1,3}\s+(?:[A-Z]{1,3}\d{1,2}[-\s])?F\d{1,3})\b"
-        r"|(?<![\w-])F\d{1,2}(?=[:)])")),
+        r"\b(?:[A-Z]{1,3}\d{1,2}-F\d{1,3}|P\d{1,3}(?:\s+|-)(?:[A-Z]{1,3}\d{1,2}[-\s])?F\d{1,3})\b"
+        r"|(?<![\w-])F\d{1,3}(?=[:)\]])")),
 ]
 PATTERNS.extend(AUDIT_RECORD_ID_PATTERNS)
 
 
+# Characters outside category Pd that render as a dash and that NFKC leaves alone: the minus sign,
+# the modifier-letter minus, the hyphen bullet, the heavy minus sign, the Ogham space mark, the
+# box-drawing horizontals and the horizontal line extension. fold_text reads each as '-'.
+_DASH_LOOKALIKES = frozenset("−˗⁃➖ ─━⎯")
+
+
+def fold_text(text):
+    """`text` as the content patterns and the audit-record rule read it: NFKC (fullwidth letters,
+    digits and signs, the small and fullwidth at signs and dollar signs read as ASCII), format
+    characters (Unicode category Cf: a zero-width space, a bidi mark, a soft hyphen) dropped, every
+    dash (category Pd, the non-breaking hyphen and en dash included) and every character in
+    _DASH_LOOKALIKES read as '-', and every decimal digit (category Nd) read as its ASCII digit.
+    A character that only resembles a dash or a dot and is not listed (a middle dot, a box-drawing
+    corner) and a letter from another script (a Cyrillic look-alike) are not folded. ASCII text is
+    returned unchanged."""
+    import unicodedata
+    if text.isascii():
+        return text
+    out = []
+    for c in unicodedata.normalize("NFKC", text):
+        cat = unicodedata.category(c)
+        if cat == "Cf":
+            continue
+        if cat == "Pd" or c in _DASH_LOOKALIKES:
+            out.append("-")
+        elif cat == "Nd" and ord(c) > 127:
+            out.append(str(unicodedata.digit(c)))
+        else:
+            out.append(c)
+    return "".join(out)
+
+
 def audit_record_name(path):
     """Why `path` names an audit record, or None. Pure: reads nothing."""
-    import unicodedata
     if len(path) > 1 and path[0] == path[-1] == '"':
         try:
             path = re.sub(r"\\([0-7]{3})|\\(.)",
@@ -259,8 +367,7 @@ def audit_record_name(path):
                           path[1:-1]).encode("latin-1").decode("utf-8")
         except (UnicodeEncodeError, UnicodeDecodeError):
             pass
-    rel = "".join(c for c in unicodedata.normalize("NFKC", path)
-                  if unicodedata.category(c) != "Cf")
+    rel = fold_text(path)
     rel = rel.replace("\\", "/")
     if rel.startswith("./"):
         rel = rel[2:]
@@ -391,13 +498,50 @@ def allowlist_problems(allowlist, tracked, read_bytes=None):
     return out
 
 
+def _text_views(text):
+    """The readings of `text` the patterns run on: the text as written, the text folded
+    (fold_text), and the folded text percent-decoded (urllib.parse.unquote, then folded again)
+    when it carries a %. Decoding runs once, so a doubly encoded character (%2540) is read as its
+    single encoding, and an HTML entity (&#64;) is not decoded; the selftest pins that. A reading
+    equal to an earlier one is dropped. The written text stays a
+    reading because folding can remove a match: a phone number after an em dash is read with the
+    em dash, and folded it follows a hyphen, which the phone pattern refuses."""
+    import urllib.parse
+    views = [text]
+    folded = fold_text(text)
+    if folded != text:
+        views.append(folded)
+    if "%" in folded:
+        decoded = fold_text(urllib.parse.unquote(folded))
+        if decoded not in views:
+            views.append(decoded)
+    return views
+
+
 def scan_text(text, path, allowlist=None):
-    """Findings in one text blob. path is used for allowlist lookups and pipeline scoping."""
+    """Findings in one text blob. path is used for allowlist lookups and pipeline scoping. The
+    patterns run on every reading _text_views gives; a match (pattern id and matched text) found
+    in more than one reading is reported as often as the one reading that holds it most often."""
     allowlist = allowlist or {"entries": []}
+    findings, counted = [], {}
+    for view in _text_views(text):
+        here = {}
+        for f in _scan_view(view, path, allowlist):
+            key = (f["pattern_id"], f["sha256"])
+            here[key] = here.get(key, 0) + 1
+            if here[key] > counted.get(key, 0):
+                findings.append(f)
+        for key, n in here.items():
+            counted[key] = max(counted.get(key, 0), n)
+    return findings
+
+
+def _scan_view(text, path, allowlist):
+    """Findings in one reading of a text blob (scan_text)."""
     findings = []
     for pid, rx in PATTERNS:
         for m in rx.finditer(text):
-            if pid == "credential_value" and PLACEHOLDER_RE.search(m.group(2)):
+            if pid == "credential_value" and PLACEHOLDER_RE.search(m.group(m.lastindex)):
                 continue
             if (pid == "email_address" and EMAIL_ALLOW_RE.search(m.group(0))
                     and not EMAIL_DOMAIN_CONT_RE.match(text, m.end())):
@@ -925,6 +1069,177 @@ def selftest():
                             "reason": "test", "match_sha256": _match_sha256("$2,500.00")}]})]
            == ["$9,999.00"], f, ran)
 
+    # Folding (fold_text, _text_views). Fixtures are built from code points at run time.
+    _ph = _area + "{d}" + _exch + "{d}" + _line
+    _check("a phone number joined by an en dash, a non-breaking hyphen or a minus sign is detected",
+           all(any(x["pattern_id"] == "phone_number" for x in scan_text(_ph.format(d=chr(c)), "docs/a.md"))
+               for c in (0x2013, 0x2011, 0x2212)), f, ran)
+    _check("a phone number in fullwidth or Arabic-Indic digits is detected",
+           all(any(x["pattern_id"] == "phone_number" for x in scan_text(
+               "".join(chr(z + int(ch)) if ch.isdigit() else ch for ch in _ph.format(d="-")),
+               "docs/a.md")) for z in (0xFF10, 0x0660)), f, ran)
+    _check("an address with a zero-width space after the at sign, a fullwidth or small at sign, or "
+           "a percent-encoded at sign is detected",
+           all(any(x["pattern_id"] == "email_address" for x in scan_text("jane" + a + "gmail.com", "a.md"))
+               for a in ("@" + chr(0x200B), chr(0xFF20), chr(0xFE6B), "%" + "40")), f, ran)
+    _check("the written text stays a reading: a phone number after an em dash is detected",
+           any(x["pattern_id"] == "phone_number" for x in scan_text(
+               "call" + chr(0x2014) + _area + "-" + _exch + "-" + _line, "docs/a.md")), f, ran)
+    _check("a match found in the written and the folded reading is reported once",
+           [x["pattern_id"] for x in scan_text(email + " " + chr(0x2013), "a.md")]
+           == ["email_address"], f, ran)
+    _check("a fullwidth dollar sign in a pipeline/ file and an en-dash finding id are detected",
+           any(x["pattern_id"] == "pipeline_amount"
+               for x in scan_text(chr(0xFF04) + "2,500", "pipeline/deals/x.json"))
+           and _fid("D6" + chr(0x2013) + "F3 here"), f, ran)
+    _check("audit-record rule: a date joined by a hyphen, non-breaking hyphen, en dash or minus "
+           "sign is flagged",
+           all(audit_record_name("docs/audit-2026" + chr(c) + "01" + chr(c) + "02.md")
+               for c in (0x2010, 0x2011, 0x2013, 0x2212)), f, ran)
+    _check("a phone number joined by a dash look-alike outside category Pd (a hyphen bullet, a "
+           "modifier-letter minus) is detected, and a percent-encoded fullwidth at sign is folded "
+           "after decoding",
+           all(any(x["pattern_id"] == "phone_number" for x in scan_text(_ph.format(d=chr(c)), "docs/a.md"))
+               for c in (0x2043, 0x02D7))
+           and any(x["pattern_id"] == "email_address"
+                   for x in scan_text("jane" + "%EF%BC" + "%A0" + "gmail.com", "a.md")), f, ran)
+    _check("a doubly percent-encoded or HTML-entity at sign is not decoded (the stated limit)",
+           not any(x["pattern_id"] == "email_address" for s in (
+               "jane" + "%25" + "40gmail.com", "jane" + "&#" + "64;gmail.com")
+               for x in scan_text(s, "a.md")), f, ran)
+    _sl = ("https://CLAUDE." + "AI/CODE/session_" + "abc123XYZ", "https://Claude." + "ai/code/session_" + "abc123XYZ",
+           "https://claude." + "ai%2Fcode%2F" + "session_" + "abc123XYZ")
+    _check("a session link with the host in another letter case or with percent-encoded slashes "
+           "is detected",
+           all(any(x["pattern_id"] == "session_link" for x in scan_text(s, "a.md")) for s in _sl),
+           f, ran)
+    _check("a session link with JSON-escaped slashes is detected",
+           any(x["pattern_id"] == "session_link" for x in scan_text(
+               "https:\\/\\/claude." + "ai\\/code\\/session_" + "abc123XYZ", "a.json")), f, ran)
+    _check("a session link with HTML-entity slashes is not read (the stated limit)",
+           not any(x["pattern_id"] == "session_link" for x in scan_text(
+               "https://claude." + "ai&#47;code&#47;session_" + "abc123XYZ", "a.md")), f, ran)
+    _b64 = "c29tZW9uZT" + "podW50ZXIyaHVudGVyMg=="
+    _check("an Authorization bearer value under a quoted JSON key is detected",
+           any(x["pattern_id"] == "bearer_header"
+               for x in scan_text('{"Author' + 'ization": "Bearer ' + "t" * 24 + '"}', "a.json")),
+           f, ran)
+    _check("Authorization with the Basic or Token scheme, and an X-Api-Key header, are detected",
+           all(any(x["pattern_id"] == "authorization_header" for x in scan_text(s, "a.md")) for s in (
+               "Authorization: " + "Basic " + _b64, "Authorization: " + "Token " + "t" * 32,
+               "X-Api-" + "Key: " + "k" * 32)), f, ran)
+    _check("a placeholder or variable Authorization value is not a finding",
+           not any(x["pattern_id"] in ("bearer_header", "authorization_header") for s in (
+               "Authorization: Basic <base64 of user:pass>", "Authorization: token ${GITHUB_TOKEN}",
+               "Authorization: " + "Bearer " + "t" * 8) for x in scan_text(s, "a.md")), f, ran)
+    _check("a bearer credential with / or + in it is detected; prose after Authorization: is not",
+           any(x["pattern_id"] == "bearer_header" for x in scan_text(
+               "Authorization: " + "Bearer " + "ab/cd+ef" + "g" * 20, "a.md"))
+           and not any(x["pattern_id"] in ("bearer_header", "authorization_header") for s in (
+               "Authorization: uses OAuth2/OpenID-Connect", "authorization: see docs/security/overview.md")
+               for x in scan_text(s, "a.md")), f, ran)
+    _check("a Bearer header is one finding; a value with no scheme word or another scheme word, and "
+           "an X-Auth-Token header, are not read by the header patterns (the stated limit)",
+           [x["pattern_id"] for x in scan_text(bearer, "a.md")] == ["bearer_header"]
+           and not any(x["pattern_id"] in ("bearer_header", "authorization_header") for s in (
+               "Authorization: " + "k" * 32, "Authorization: " + "Custom " + "t" * 32,
+               "curl -H 'X-Auth-" + "Token: " + "k" * 32 + "'") for x in scan_text(s, "a.md")), f, ran)
+    _sv = "s" * 16
+    _check("credential values under camelCase, upper-case and other credential keys, in a "
+           "single-quoted dict, a YAML line and a .env line are detected",
+           all(any(x["pattern_id"] == "credential_value" for x in scan_text(s, "a.txt")) for s in (
+               '{"api' + 'Key": "' + _sv + '"}', '{"API' + '_KEY": "' + _sv + '"}',
+               '{"sec' + 'ret": "' + _sv + '"}', '{"private' + '_key": "' + _sv + '"}',
+               "{'pass" + "word': '" + _sv + "'}", "api" + "_key: " + _sv + "\n",
+               "API" + "_KEY=" + _sv + "\n", "export GITHUB" + "_TOKEN=" + _sv + "\n")), f, ran)
+    _check("an expression, a type, a placeholder and a CI secret reference are not credential values",
+           not any(x["pattern_id"] == "credential_value" for s in (
+               'API_KEY = os.environ["API_KEY"]\n', "    password: Optional[str]\n",
+               "api_key: YOUR_API_KEY_HERE\n", "token: ${{ secrets.GITHUB_TOKEN }}\n",
+               "password = get_password()\n") for x in scan_text(s, "a.txt")), f, ran)
+    _check("credential values under a prefixed key and under passwd and auth_token keys are "
+           "detected; a YAML or .env file path is not a value",
+           all(any(x["pattern_id"] == "credential_value" for x in scan_text(s, "a.txt")) for s in (
+               '{"stripe_api' + '_key": "' + _sv + '"}', '{"db_pass' + 'word": "' + _sv + '"}',
+               '{"auth' + '_token": "' + _sv + '"}', "pass" + "wd: " + _sv + "\n",
+               "AUTH" + "_TOKEN=" + _sv + "\n"))
+           and not any(x["pattern_id"] == "credential_value" for s in (
+               "  secret: /run/secrets/db" + "_password\n", "DB_PASS" + "WORD=/run/secrets/db" + "_password\n")
+               for x in scan_text(s, "a.txt")), f, ran)
+    _check("PGP, SSH2 and PuTTY private-key headers are detected",
+           all(any(x["pattern_id"] == "private_key_block" for x in scan_text(s, "a.txt")) for s in (
+               "-----BEGIN PGP " + "PRIVATE KEY BLOCK-----", "---- BEGIN SSH2 ENCRYPTED " + "PRIVATE KEY ----",
+               "PuTTY-User-" + "Key-File-3: ssh-ed25519\n")), f, ran)
+    _check("an indented PuTTY key-file header is detected",
+           any(x["pattern_id"] == "private_key_block"
+               for x in scan_text("    PuTTY-User-" + "Key-File-3: ssh-ed25519\n", "a.md")), f, ran)
+    _kf = {"aws_access_key": "AS" + "IA" + "ABCDEFGHIJKLMNOP", "google_api_key": "AI" + "za" + "A" * 35,
+           "gitlab_token": "gl" + "pat-" + "a" * 20, "slack_token": "xa" + "pp-1-" + "A1B2C3D4E5-123-abc",
+           "slack_webhook": "https://hooks." + "slack.com/services/" + "T0000000/B0000000/" + "a" * 24,
+           "stripe_key": "rk" + "_live_" + "a" * 24, "npm_token": "np" + "m_" + "a" * 36,
+           "huggingface_token": "h" + "f_" + "a" * 34,
+           "jwt": "ey" + "J" + "a" * 12 + ".ey" + "J" + "b" * 12 + "." + "c" * 12,
+           "sendgrid_key": "S" + "G." + "a" * 22 + "." + "b" * 43, "pypi_token": "py" + "pi-AgE" + "a" * 60}
+    _missed = [k for k, s in _kf.items() if not any(x["pattern_id"] == k for x in scan_text(s, "a.md"))]
+    if _missed:
+        print(f"  [note] key formats missed: {_missed}")
+    _check("AWS temporary, Google, GitLab, Slack app and webhook, Stripe restricted, npm, Hugging "
+           "Face, JWT, SendGrid and PyPI key formats are detected", not _missed, f, ran)
+    _check("a Slack refresh token is detected",
+           any(x["pattern_id"] == "slack_token" for x in scan_text("xo" + "xe-1-" + "abcdefghij12", "a.md")),
+           f, ran)
+    _check("a secret with no fixed prefix (a 40-character AWS secret access key body) and a vendor "
+           "format not in PATTERNS (a Google OAuth client secret) are not read (the stated limit)",
+           not scan_text("a" * 20 + "/" + "B" * 19, "a.md")
+           and not scan_text("GOC" + "SPX-" + "a" * 28, "a.md"), f, ran)
+    _check("a phone number after an underscore key prefix is detected; after a letter it is not",
+           any(x["pattern_id"] == "phone_number"
+               for x in scan_text("tel_" + _area + "-" + _exch + "-" + _line, "docs/a.md"))
+           and not any(x["pattern_id"] == "phone_number"
+                       for x in scan_text("id" + _area + "-" + _exch + "-" + _line, "docs/a.md")), f, ran)
+    _check("a three-digit bare F-number, a dash-joined phase id and a bracketed id are refused",
+           all(_fid(s) for s in ("item F" + "123: guard", "P101" + "-F3 here", "see [F" + "3]")), f, ran)
+    _check("an F-number closed by a full stop is not read (the stated limit)",
+           not _fid("see F" + "3."), f, ran)
+    _check("an id joined by an underscore or a dot, and a bare F-number of four digits, are not read "
+           "(the stated limit)",
+           not any(_fid(s) for s in ("P101" + "_F3 here", "D6" + ".F3 here", "item F" + "1234: guard")),
+           f, ran)
+    _check("tallies on the major/minor, blocker/warning and P1/P2 scales are refused",
+           all(_rep(s) for s in ("3 major" + ", 2 minor", "2 blockers" + ", 5 warnings", "4 P1" + ", 6 P2")),
+           f, ran)
+    _check("tallies pairing any two severity words, in either order, are refused",
+           all(_rep(s) for s in ("3 critical" + ", 2 major", "2 medium" + ", 1 low", "4 minor" + ", 2 nits",
+                                 "1 Sev1" + ", 2 Sev2", "1 P3" + ", 2 P0")), f, ran)
+    _check("a count list on a word outside the severity set is not read (the stated limit)",
+           not _rep("3 errors" + ", 5 warnings"), f, ran)
+    _check("narration by a reviewer or verifier, and identified or detected, is refused",
+           all(_nar(s) for s in ("A reviewer" + " found the gap", "the verifier" + " caught it",
+                                 "The review" + " identified the gap", "Two gaps were" + " detected")),
+           f, ran)
+    _check("an unlisted adverb between the actor and the verb is not read (the stated limit)",
+           not _nar("the review quickly" + " found it"), f, ran)
+    _check("narration with uncovered, and passive flagged, surfaced and identified, is refused",
+           all(_nar(s) for s in ("The review" + " uncovered the gap", "Two gaps were" + " flagged",
+                                 "a gap was" + " surfaced", "the bug was" + " identified")), f, ran)
+    _check("a verb outside _AR_VERB is not read (the stated limit)",
+           not any(_nar(s) for s in ("the verifier" + " noticed it", "The reviewer" + " confirmed the gap")),
+           f, ran)
+    _check("pipeline/ figures with a k or M suffix, a currency code, a trailing dollars, a pound "
+           "sign or two digits are detected",
+           all(any(x["pattern_id"] == "pipeline_amount" for x in scan_text("fee " + s, "pipeline/deals/x.json"))
+               for s in ("$" + "5k", "$" + "1.5M", "USD " + "5000", "5,000" + " dollars",
+                         chr(0xA3) + "1,500", "$" + "12")), f, ran)
+    _check("pipeline/ figures after a yen or rupee sign, before a euro sign, after CHF and before "
+           "euros are detected",
+           all(any(x["pattern_id"] == "pipeline_amount" for x in scan_text("fee " + s, "pipeline/deals/x.json"))
+               for s in (chr(0xA5) + "5000", chr(0x20B9) + "5,000", "5000 " + chr(0x20AC), "CHF " + "5000",
+                         "5,000" + " euros")), f, ran)
+    _check("a k suffix is part of the pipeline/ match; a figure in words and a currency code outside "
+           "_AMOUNT_CODE are not read (the stated limit)",
+           [x["match"] for x in scan_text("fee $" + "5k", "pipeline/x.json")] == ["$" + "5k"]
+           and not any(x["pattern_id"] == "pipeline_amount" for s in ("five thousand dollars", "SEK " + "5000")
+                       for x in scan_text("fee " + s, "pipeline/deals/x.json")), f, ran)
     n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1

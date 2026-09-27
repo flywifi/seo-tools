@@ -7,7 +7,9 @@ verification returns, narrowed to what survived (CLAUDE.md, Non-negotiables). Th
 runs drift invariant 60's claim detector (tools/sync_check.py::_CLAIM_PATTERN) on the subject. A
 flagged subject is accepted when the message carries a `Claim-Proof:` trailer that resolves the way
 a claim-proof manifest entry does (`invariant:N`, or `tools/x.py::selftest::<pin label>`); it is
-refused otherwise.
+refused otherwise. A `Claim-Proof:` line counts only inside the message's trailer block as git
+interpret-trailers reads it (_trailer_block), so a line in the subject paragraph or in a paragraph
+followed by more prose is not a trailer, and a proof is read in ASCII.
 
 The subject is git's subject: the message's first paragraph with its lines joined by spaces (what
 `git log --format=%s` prints), not its first line alone. As in git, a line ends at a newline
@@ -42,14 +44,19 @@ Subjects that restate other subjects are handled rather than flagged:
     paragraph after the amend! subject) is checked.
 
 The commit-msg hook reads its message file the way git's default cleanup stores it, comment lines
-dropped. A `#` line that git keeps (`git commit -m`, `--cleanup=verbatim` or `whitespace`) is not
-the hook's subject; the --range walk reads the stored message, `#` lines included, and checks it.
+dropped, and cuts it at git's exact cut line (GIT_CUT_LINE, which `git commit --verbose` writes);
+a `#` line that only resembles the cut line is a comment line, dropped like any other. git cuts
+there only under --verbose or --cleanup=scissors, so a hand-typed exact cut line under the default
+cleanup is cut by the hook and kept by git. A `#` line that git keeps (`git commit -m`,
+`--cleanup=verbatim` or `whitespace`) is not the hook's subject; the --range walk reads the stored
+message, `#` lines and cut lines included, and checks it.
 
 The claim detector reads ASCII word patterns. The subject is folded first (NFKD; format characters
 and combining marks dropped; NFKC), and a subject that still carries a character outside ASCII
-other than punctuation or a space (a Cyrillic or Greek look-alike letter, or a symbol such as
-U+212E that reads as a letter) is refused. A promise phrased outside the detector's vocabulary
-("without exception", "bulletproof") is not seen.
+other than a space, a dash, a quotation mark or one of SUBJECT_MARKS is refused: a Cyrillic or
+Greek look-alike letter, a symbol such as U+212E, and punctuation that reads as a letter (an
+inverted exclamation mark for i, a Hebrew paseq for l, a dagger for t) included. A promise phrased
+outside the detector's vocabulary ("without exception", "bulletproof") is not seen.
 
 A Claim-Proof trailer is checked for resolution, not relevance: an enforced invariant or an
 executed pin resolves whatever claim the subject makes, and whether it proves that claim is left
@@ -84,6 +91,14 @@ if str(ROOT / "tools") not in sys.path:
 CLAIM_SUBJECT_BOUNDARY = "4dfaad859fb3dbeb066233374b5904685cff23d4"
 
 TRAILER_RE = re.compile(r"^claim-proof:[ \t]*(\S.*?)[ \t]*$", re.M | re.I)
+# git interpret-trailers' reading of a trailer block (trailer.c): the message's last paragraph,
+# never the subject paragraph, whose lines are all trailers (a token of letters, digits and
+# hyphens, optional spaces or tabs, then ':'), each optionally followed by continuation lines that
+# start with a space or a tab; or whose trailers are at least a quarter of its lines when one of
+# them is a line git writes itself (GIT_TRAILER_PREFIXES, each with its trailing space). A # line
+# is a comment line to git and is skipped; a continuation line after it counts as prose.
+TRAILER_LINE_RE = re.compile(r"^[A-Za-z0-9-]+[ \t]*:")
+GIT_TRAILER_PREFIXES = ("Signed-off-by: ", "(cherry picked from commit ")
 # The subject forms git and GitHub generate for a merge commit: git merge and git pull, GitHub's
 # merge and update-branch buttons, and the test merge a pull_request CI run checks out. A merge
 # commit whose subject has one of these forms is skipped, and the names in it are not read. A ref
@@ -100,6 +115,9 @@ AUTOSQUASH_RE = re.compile(r"^(fixup|squash|amend)! (.*)$")
 # line holding only these is blank. A no-break space, a form feed and a Unicode line or paragraph
 # separator are not among them.
 GIT_SPACE = " \t\r"
+# The line git's --verbose and scissors cleanup cut the message at (wt_status_locate_end in git's
+# wt-status.c): the comment character, a space and this text, alone on its line.
+GIT_CUT_LINE = "# " + "-" * 24 + " >8 " + "-" * 24
 
 
 def _git(args, check=True):
@@ -117,10 +135,10 @@ def _message_lines(msg, stored=False):
     """The message lines the rule reads. A stored message (`stored`: what `git log` prints for a
     commit in the --range walk) is read as it is, `#` lines and scissors lines included. The file
     the commit-msg hook receives is read the way git's default cleanup stores it: comment lines
-    dropped, and everything below the scissors line of `git commit --verbose` cut."""
+    dropped, and everything from git's exact cut line (GIT_CUT_LINE) down cut."""
     out = []
     for line in msg.split("\n"):
-        if not stored and line.startswith("# ") and ">8" in line and "-----" in line:
+        if not stored and line == GIT_CUT_LINE:
             break
         if not stored and line.startswith("#"):
             continue
@@ -143,6 +161,35 @@ def _paragraphs(lines):
     if cur:
         out.append(cur)
     return out
+
+
+def _trailer_block(lines):
+    """The lines of the message's trailer block as git interpret-trailers reads it (the rule at
+    TRAILER_LINE_RE), or [] when it has none."""
+    paragraphs = _paragraphs(lines)
+    if len(paragraphs) < 2:
+        return []
+    block = paragraphs[-1]
+    trailers = others = 0
+    recognised = after_trailer = False
+    for line in block:
+        if line.startswith("#"):
+            after_trailer = False
+            continue
+        if line[:1] in (" ", "\t"):
+            if not after_trailer:
+                others += 1
+            continue
+        git_line = line.startswith(GIT_TRAILER_PREFIXES)
+        after_trailer = git_line or bool(TRAILER_LINE_RE.match(line))
+        recognised = recognised or git_line
+        if after_trailer:
+            trailers += 1
+        else:
+            others += 1
+    if trailers and (not others or (recognised and trailers * 3 >= others)):
+        return block
+    return []
 
 
 def subject_to_check(msg, known_subjects=None, stored=False):
@@ -230,11 +277,19 @@ def _fold(text):
     return unicodedata.normalize("NFKC", text)
 
 
+# Marks outside ASCII a subject may keep besides spaces (Zs), dashes (Pd) and quotation marks (Pi,
+# Pf): a bullet, a middle dot, the pilcrow sign and primes. The section sign and the daggers are
+# not marks a subject may keep: they read as the letters s and t.
+SUBJECT_MARKS = frozenset("•·¶′″")
+
+
 def _foreign(text):
-    """The characters in `text` outside ASCII other than punctuation (P*) and spaces (Zs)."""
+    """The characters in `text` outside ASCII other than spaces (Zs), dashes (Pd), quotation marks
+    (Pi, Pf) and SUBJECT_MARKS. Other punctuation is foreign, so a mark that reads as a letter is
+    refused."""
     return sorted({c for c in text if ord(c) > 127
-                   and not unicodedata.category(c).startswith("P")
-                   and unicodedata.category(c) != "Zs"})
+                   and unicodedata.category(c) not in ("Zs", "Pd", "Pi", "Pf")
+                   and c not in SUBJECT_MARKS})
 
 
 def message_problems(msg, known_subjects=None, is_merge=None, stored=False):
@@ -258,7 +313,7 @@ def message_problems(msg, known_subjects=None, is_merge=None, stored=False):
                               f"the claim detector reads ASCII words, so spell the subject in "
                               f"ASCII (punctuation such as a dash or a quote mark may stay)"}]
         return []
-    proofs = TRAILER_RE.findall("\n".join(_message_lines(msg, stored)))
+    proofs = TRAILER_RE.findall("\n".join(_trailer_block(_message_lines(msg, stored))))
     if not proofs:
         return [{"pattern_id": "claim_subject",
                  "match": f"{hit.group(0)!r} in {subject!r}: name the mechanism the commit "
@@ -530,6 +585,59 @@ def selftest():
            for line in ci.splitlines()),
        "the CI commit hygiene step runs the subject check over the commit range")
 
+    ok(ids("P1: every guard holds\nClaim-Proof: invariant:60\n") == ["claim_subject"]
+       and ids("P1: every guard holds\n\nClaim-Proof: invariant:60\n\nmore prose after\n")
+       == ["claim_subject"],
+       "a Claim-Proof line outside git's trailer block (in the subject paragraph, or before more "
+       "prose) is not a trailer")
+    ok(ids("P1: every guard holds\n\nbody\n\nClaim-Proof: invariant:60\n"
+           "Co-Authored-By: A <noreply@anthropic.com>\n") == []
+       and ids("P1: every guard holds\n\nSigned-off-by: A <noreply@anthropic.com>\n"
+               "Claim-Proof: invariant:60\nsee the note above\n") == [],
+       "a Claim-Proof line in git's trailer block passes (all trailers, or a quarter of the lines "
+       "with a Signed-off-by line)")
+    ok(ids("P1: every guard holds\n\nClaim-Proof: invariant:60\nsee the note above\n")
+       == ["claim_subject"],
+       "a last paragraph mixing a trailer with prose and no line git writes is not a trailer block")
+    ok(ids("P1: every guard holds\n\nClaim-Proof: invariant:" + chr(0x666) + chr(0x660) + "\n")
+       == ["claim_proof_unresolved"],
+       "a proof written with digits from another script does not resolve")
+    _sob = "P1: every guard holds\n\nSigned-off-by: A <noreply@anthropic.com>\nClaim-Proof: invariant:60\n"
+    ok(ids(_sob + "p\n" * 6) == [] and ids(_sob + "p\n" * 7) == ["claim_subject"],
+       "the quarter rule: two trailers with a Signed-off-by line carry six prose lines, not seven")
+    ok(ids("P1: every guard holds\n\nSigned-off-by:A\nClaim-Proof: invariant:60\np\np\n") == ["claim_subject"],
+       "Signed-off-by without its space is not a line git writes")
+    ok(ids("P1: every guard holds\n\nClaim-Proof: invariant:60\n  continued\n") == []
+       and [p["pattern_id"] for p in message_problems(
+           "P1: every guard holds\n\nClaim-Proof: invariant:60\n# note\n", known, is_merge=False, stored=True)] == [],
+       "a continuation line and a stored # line inside the trailer block keep it a trailer block")
+    ok(ids("P1: every guard holds\n\n(cherry picked from commit " + "a" * 40 + ")\n"
+           "Claim-Proof: invariant:60\np\np\n") == []
+       and ids("P1: every guard holds\n\nClaim-Proof: invariant:60\nsee this: it holds\n") == ["claim_subject"],
+       "a cherry-pick line is a line git writes; a line whose colon follows two words is not a trailer")
+    _cut = "# " + "-" * 24 + " >8 " + "-" * 24
+    ok(ids("# ----- >8 -----\nP1: every guard holds\n") == ["claim_subject"],
+       "a # line that only resembles git's cut line is a comment line, not a cut")
+    ok(ids(_cut + "\nP1: every guard holds\n") == []
+       and ids("P1: every guard holds\n" + _cut + "\n") == ["claim_subject"],
+       "the hook cuts at git's exact cut line, as --verbose cleanup does")
+    ok(ids(_cut + " x\nP1: every guard holds\n") == ["claim_subject"],
+       "a cut line followed by more text on its line is not git's cut line")
+    ok(ids(_cut + " \nP1: every guard holds\n") == ["claim_subject"]
+       and [p["pattern_id"] for p in message_problems(_cut + "\nP1: every guard holds\n", known,
+                                                       is_merge=False, stored=True)] == ["claim_subject"],
+       "a cut line with trailing space is not a cut, and a stored message is not cut")
+    ok(ids("P96: noth" + chr(0xA1) + "ng leaks\n") == ["claim_subject_non_ascii"]
+       and ids("P96: a" + chr(0x5C0) * 2 + " guards hold\n") == ["claim_subject_non_ascii"]
+       and ids("P96: a" + chr(0x2016) + " guards hold\n") == ["claim_subject_non_ascii"],
+       "a subject spelled with punctuation that reads as a letter is refused")
+    ok(ids("P96: tidy the loader " + chr(0x2013) + " the " + chr(0x2018) + "cafe" + chr(0x2019)
+           + " case, " + chr(0xB6) + "2\n") == [],
+       "a dash, a quotation mark and a listed mark pass")
+    ok(all(ids(s) == ["claim_subject_non_ascii"] for s in (
+           "P96: no" + chr(0x2020) + "hing leaks\n", "P96: alway" + chr(0xA7) + " holds\n",
+           "P96: eve" + chr(0x300C) + "y guard\n")),
+       "a dagger, a section sign or a bracket in place of a letter is refused")
     n = ran[0]
     print(f"commit_claims selftest: {'PASS' if not failures else 'FAIL'} "
           f"({n - len(failures)} of {n} checks)")

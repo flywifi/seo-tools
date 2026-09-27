@@ -7,7 +7,7 @@
         "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2"
       },
-      "projection": "95a037d1d69d56152f7b3c5602d9ecdd07cdfedd7a2f8744f2f4fa066ffb180e"
+      "projection": "30371ffaeec7c45f68739115f1686824e561294d49cb61f8bad936cfb62cab2e"
     },
     "implementation/claude/project/knowledge/02-brand-voice.md": {
       "sources": {
@@ -16,14 +16,14 @@
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd"
       },
-      "projection": "fc69a3065a480de3592dd80e01152fc74e40c43aa13e76c1c2ce5b222b121e02"
+      "projection": "e2434aeb2a21b07af5048c546654885ca76d92773615c6520b9336dbfeeff6d4"
     },
     "implementation/claude/project/knowledge/03-platform-seo.md": {
       "sources": {
         "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6"
       },
-      "projection": "68352019d540ceb9350f46889a63f33be87bafcf5ed92c14c6a09412336719ca"
+      "projection": "856dfd1f9837c84ede3c0a36c8ad3e2fd9d64640bf7e25fd9d891db71b95819f"
     },
     "implementation/claude/project/knowledge/04-protocols.md": {
       "sources": {
@@ -33,7 +33,7 @@
         "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2",
         "protocols/research-citation.md": "7c09987b8649f909fe6ecdf07d85cb038f809659ae9e217814766c57d1469e59"
       },
-      "projection": "e116041b8a5041f98d82e2b35936a929972e6620fb5b4bdffbcee6783efb3bc9"
+      "projection": "e8306224d796ce8e7b5f9d4fb4b2a670f02e7f7a71046cb5849c0dadbfb6317f"
     },
     "implementation/claude/project/knowledge/05-content-spokes.md": {
       "sources": {
@@ -43,7 +43,7 @@
         "shared/audience-engine.md": "3fa1de5e5e1bef99f35b0169ac1b8ab605e78c5894a451703c035083a460cb76",
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2"
       },
-      "projection": "6c7071dabe65f61f58c1b6d56820efdc3461d02c956b9e2f81a2be67326b36a5"
+      "projection": "0e18f5041ce9561af6dd00fba0f3efb9573e3fb1ab3e7e90d4bd28a136d87a75"
     },
     "implementation/claude/project/knowledge/06-document-spoke.md": {
       "sources": {
@@ -55,7 +55,7 @@
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd",
         "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2"
       },
-      "projection": "ff0e15ff456b9ac7b2bd05bc1562808e2e405d8839f5e701c577b239f2376361"
+      "projection": "5452f7b5baae557d0a7973ff5bbfafe9059f014c630846d2023aede51b245f24"
     },
     "implementation/claude/project/knowledge/07-pipeline-spokes.md": {
       "sources": {
@@ -65,7 +65,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2"
       },
-      "projection": "0c0c3c12a5f92cb3c98bae09572271c9bb0e32b88dbe5dbfd40d640cfa35112a"
+      "projection": "0440b0ec17c9210e7de220892affda1a0cf2f71fac8be3edd2fe371a0399a2fd"
     },
     "implementation/claude/project/knowledge/08-key-atoms.md": {
       "sources": {
@@ -79,7 +79,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd"
       },
-      "projection": "dbfe4fa79527b77d98fea72080930ebfef459576bd7861aeeed30958ef24b17b"
+      "projection": "996678913cf39ec9a0ea9434986547f5bce8fa112207bf8a438437792d76b414"
     },
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
@@ -90,7 +90,7 @@
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "f11ecd712b7be116c67697516d9956099ac6d6f3d4da0c3bc9838fdb630a8ab8"
       },
-      "projection": "49fd2fafd1c481966b90f00a9d4c7b29ffddacb3734bf0603e0bec654cdc52e5"
+      "projection": "f8f855bf79d67b1afda6c1cd8a73b6ae8d5197388b5ab14f25f5ee0bdee03964"
     },
     "implementation/claude/project/system-prompt.md": {
       "sources": {
@@ -99,7 +99,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
       },
-      "projection": "2e58282aac7c6cf0cad48793a3266731d2110595e3a53f2b2f8c52d461ce0b59"
+      "projection": "85907457e82a764660e039dfd88f74175456298af201e7dd5dcb3ead15af60b4"
     },
     "implementation/gpt/web/custom-instructions.md": {
       "sources": {
@@ -109,7 +109,7 @@
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
         "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
       },
-      "projection": "3f6b36ebfdd1c5c85c9cdaf1858c64c1d6cdc62cc1adedb3a7010b2c73144579"
+      "projection": "1905a2ca63655b0df18a9708b03e71d11296a2f3570a5442c7f9b71121c5c365"
     },
     "implementation/gpt/web/custom-instructions-compact.md": {
       "sources": {
@@ -117,7 +117,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae"
       },
-      "projection": "86f6e9a851dd4c9194d51b43fd781ec06b7ce69c2d8d56c7775e17cb902c0923"
+      "projection": "750d8033da1cf172efac16df1b70c3c4e34f33ec8c4078cb3a4da1e0c94705f8"
     },
     "implementation/gpt/project/project-instructions.md": {
       "sources": {
@@ -126,7 +126,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299"
       },
-      "projection": "e651d4decc9c16c2d0e58674166742c7ec5009e9cee3db26b5bdb56950b774ff"
+      "projection": "d3bb61fb7113e6393749f40782cad2d5e565787bb3084d47c43f9287709d4981"
     },
     "AGENTS.md": {
       "sources": {
@@ -142,7 +142,7 @@
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6",
         "shared/tasks-engine.md": "2a5bc3272a0e1f939860f42004063dfa4a79a08bbf30cb5438cd13641108838b"
       },
-      "projection": "15af0d0ca103d808a72b60842304fbeb2941566ace773234f634525b3c5ea4a2"
+      "projection": "3dea71a13d04cc1b610e94638681c5b836303cac0249462ca9594ec0955c5455"
     },
     "implementation/claude/project/creator-os-combined.md": {
       "sources": {
@@ -171,7 +171,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "shared/web-intel-engine.md": "75ad0b196a12daae58c38428c84f505fc0f214b04246781c03515e66bef5e271"
       },
-      "projection": "962e28e07754086917c89f2505b14db22b8cae339e0e4d79006e1e18a36ad70a"
+      "projection": "087dec9a6cdc45204e0ed8485ca3d126f4b68454b239cf3bc9f10220d07ce81f"
     }
   }
 }

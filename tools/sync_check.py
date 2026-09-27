@@ -5628,11 +5628,15 @@ def _claim_pin_self_proof():
 
 
 def _claim_resolution_self_proof():
-    """None when a malformed, missing, unswept or unparsable proof reference is still refused,
+    """None when a malformed (digits outside ASCII included), missing, unswept or unparsable proof
+    reference is still refused,
     else the reference that resolved."""
     not_python = str((ROOT / "CLAUDE.md").resolve())
     for proof, sweep, words in (
             ("invariant:x", set(), "malformed"),
+            ("invariant:" + chr(0x661), set(), "malformed"),
+            ("invariant:" + chr(0xFF11), set(), "malformed"),
+            ("invariant:" + chr(0xB9), set(), "malformed"),
             ("tools/no-such-module.py::selftest::" + "x" * 20, set(), "does not exist"),
             ("tools/sync_check.py::selftest::" + "x" * 20, set(), "exposes no selftest"),
             ("CLAUDE.md::selftest::" + "x" * 20, {not_python: ()}, "could not be parsed")):
@@ -6361,7 +6365,9 @@ def _claim_resolve_proof(proof, enforced, selftest_mods):
     read the proof is refused (_claim_swept))."""
     if proof.startswith("invariant:"):
         raw = proof.split(":", 1)[1].strip()
-        if not raw.isdigit():
+        # An invariant number is written in ASCII digits: int() also reads digits from another
+        # script (Arabic-Indic, fullwidth), and isdigit() also accepts a superscript int() refuses.
+        if not (raw.isascii() and raw.isdigit()):
             return False, f"malformed invariant reference {proof!r}"
         num = int(raw)
         if num not in enforced:
