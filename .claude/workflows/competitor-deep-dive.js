@@ -169,7 +169,7 @@ const VERIFICATION_SCHEMA = {
     flagged_claims: { type: 'array', items: { type: 'object', properties: { claim: { type: 'string' }, issue: { type: 'string' }, severity: { type: 'string' } }, required: ['claim', 'issue'] } },
     confidence_valid: { type: 'boolean' },
     minority_report_adequate: { type: 'boolean' },
-    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail', 'did_not_run'] },
   },
   required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
 }
@@ -204,5 +204,6 @@ return {
   profiles: validProfiles,
   gaps,
   verification,
+  verification_verdict: verification ? verification.overall_verdict : 'did_not_run',
   status: gaps ? 'complete' : 'gaps_analysis_failed',
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""ci_history.py -- green/red transitions of this branch's GitHub Actions runs (P81 G-10 / RC-3).
+"""ci_history.py -- green/red transitions of this branch's GitHub Actions runs (P81).
 
-The P80 records said "CI had been red since 2026-08-16"; the Actions history showed the last green
-run on 2026-07-19 and TWO causes, not one. A claim about CI in a record must cite this tool's
+A claim that "CI had been red since 2026-08-16" was once wrong: the Actions history showed the last
+green run on 2026-07-19 and TWO causes, not one. A claim about CI must cite this tool's
 output, not memory. Modes:
 
   * live:        paginate /repos/<owner>/<repo>/actions/runs?branch=<b>&per_page=100 (reads

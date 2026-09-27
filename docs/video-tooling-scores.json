@@ -649,7 +649,7 @@
         "sourced_cells": true
       },
       "verdict": "interchange target, not a dependency: emit .kdenlive/MLT XML; render via melt; no scripting API exists to gate a Lane B on",
-      "minority_report": "License shown as GPL-3.0-only on apps.kde.org but historical packaging elsewhere says GPL-2.0-or-later; repo LICENSES/ dir unreadable this session (GitHub scope). Some community posts run melt directly on .kdenlive files; the official path routes through a generated render script. macOS build quality relative to Linux: unverified.",
+      "minority_report": "License shown as GPL-3.0-only on apps.kde.org but historical packaging elsewhere says GPL-2.0-or-later; repo LICENSES/ dir unreadable at evaluation time (GitHub scope). Some community posts run melt directly on .kdenlive files; the official path routes through a generated render script. macOS build quality relative to Linux: unverified.",
       "confidence": "high on cadence/automation-surface absence; medium on exact license variant",
       "evidence_ref": "official docs + KDE appstream + brew cask",
       "sources": [

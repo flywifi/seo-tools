@@ -80,7 +80,7 @@ CONFIG: dict[str, dict] = {
         "client_id_param": "client_id",
         "extra_auth_params": {},
         "redirect_path": "/oauth/pinterest/callback",
-        "redirect_host": "127.0.0.1",   # P57 F9: the wizard binds 127.0.0.1 only; localhost can
+        "redirect_host": "127.0.0.1",   # P57: the wizard binds 127.0.0.1 only; localhost can
                                         # resolve to IPv6 ::1 and lose the callback. Register
                                         # http://127.0.0.1:8765/oauth/pinterest/callback.
         "rotates_refresh": True,       # continuous refresh token
@@ -97,7 +97,7 @@ CONFIG: dict[str, dict] = {
         "client_id_param": "client_id",
         "extra_auth_params": {},
         "redirect_path": "/oauth/instagram/callback",
-        "redirect_host": "127.0.0.1",   # P57 F9: match the wizard's 127.0.0.1 bind (localhost may
+        "redirect_host": "127.0.0.1",   # P57: match the wizard's 127.0.0.1 bind (localhost may
                                         # resolve to ::1). Loopback acceptance by Meta is still
                                         # UNVERIFIED; the manual-code paste fallback exists.
         "rotates_refresh": False,      # refresh returns a fresh 60-day access token, no refresh_token
@@ -421,7 +421,7 @@ def _selftest() -> int:
     check(make_pkce("pinterest") == (None, None), "pinterest must not use PKCE")
     check(make_pkce("instagram") == (None, None), "instagram must not use PKCE")
 
-    # 1b) F9: every platform's redirect_uri is on the 127.0.0.1 loopback the wizard binds --
+    # 1b) Every platform's redirect_uri is on the 127.0.0.1 loopback the wizard binds --
     # `localhost` can resolve to IPv6 ::1 and lose the callback (Pinterest/Instagram regressed here).
     for _p in ("youtube", "tiktok", "pinterest", "instagram"):
         check(redirect_uri(_p, 8765).startswith("http://127.0.0.1:8765/"),

@@ -19,7 +19,7 @@ and `README.md`; a symbol-reference invariant (`verify:` markers of the form `pa
 against the AST, with an allowlist for dynamic/optional symbols); a tools-layer maintainer-coverage invariant
 (`TOOLS_MAINTAINER_DIRS`); and `tools/doc_freshness.py` content-hash staleness stamping (advisory).
 Created `tools/publishing/MAINTAINER_README.md`. Ran a full multi-agent, cite-or-drop content-
-accuracy sweep and, after human review, applied only the approved corrections; lowered the
+accuracy sweep and, after human review, applied only the verified corrections; lowered the
 skill-template regression bar to three and backfilled Regression sections on five atoms; retrofitted
 61 `verify:` markers across 43 docs. Added process conventions: advisory `.github/CODEOWNERS`
 (`@flywifi`), `docs/adr/` (MADR), root `CHANGELOG.md` (Keep a Changelog + SemVer),

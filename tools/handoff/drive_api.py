@@ -83,7 +83,7 @@ def resolve_hub_folders(token, folder_name, transport):
         if err:
             return None, err
         ids[sub] = sid
-    # P61 C18: Outbox is a direct child of the hub root. A missing Outbox folder never fails the
+    # P61: Outbox is a direct child of the hub root. A missing Outbox folder never fails the
     # pass (older hubs may lack it); delivery just degrades to Jobs/results only.
     ob_id, ob_err = find_folder(token, "Outbox", transport, parent_id=root_id)
     ids["outbox"] = None if ob_err else ob_id
@@ -167,7 +167,7 @@ def poll_once(staging_hub, token, folder_name, transport=_default_transport, run
                                         mime="application/json" if rf.suffix == ".json" else "text/plain")
                 if fid:
                     uploaded += 1
-        # P61 C18: Outbox artifacts written by the runner into the LOCAL staging hub would be
+        # P61: Outbox artifacts written by the runner into the LOCAL staging hub would be
         # stranded on this transport; upload them too (create-only, same rule as results).
         ob_dir = Path(staging_hub) / "Outbox"
         if ids.get("outbox") and ob_dir.is_dir():
@@ -220,7 +220,7 @@ def selftest() -> int:
         for e in entries:
             q.write_result(hub, e["data"]["job_id"], "done", outputs=[])
             q.archive_ticket(hub, e["path"])
-        # P61 C18: the runner also writes Outbox deliverables into the staging hub; poll_once
+        # P61: the runner also writes Outbox deliverables into the staging hub; poll_once
         # must upload them or they are stranded on this transport.
         ob = Path(hub) / "Outbox"
         ob.mkdir(parents=True, exist_ok=True)

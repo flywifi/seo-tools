@@ -5,7 +5,7 @@
 
 ## Context
 
-Automated guarantees stopped at coverage and shape, not currency; version/identity numbers advanced by hand with nothing linking them; the only recurring red-X was structural (empty competitor-snapshot dir). Diagnose-only per the approved plan: detection + a cited, prioritized correction backlog with exact unexecuted apply commands, one approved mutation (the baseline release) left as a hand-off because this environment has no gh and no release API.
+Automated guarantees stopped at coverage and shape, not currency; version/identity numbers advanced by hand with nothing linking them; the only recurring red-X was structural (empty competitor-snapshot dir). Diagnose-only per the plan: detection + a cited, prioritized correction backlog with exact unexecuted apply commands, one approved mutation (the baseline release) left as a hand-off because this environment has no gh and no release API.
 
 ## Decision
 

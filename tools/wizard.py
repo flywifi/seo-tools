@@ -37,7 +37,7 @@ import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loo
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 import atomic_io  # noqa: E402  (sibling module in tools/; the one atomic writer, P81)
 
-# P73 D6-F9: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
+# P73: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
 # derived from this port and docs/PUBLISHING.md tells you to register
 # http://127.0.0.1:8765/oauth/<platform>/callback with Google, Meta, TikTok and Pinterest as an
 # EXACT match. Changing the port therefore breaks every already-registered redirect URI until you
@@ -316,7 +316,8 @@ def _install_uv() -> tuple[bool, str]:
     # P93: the .venv is the ONLY install target. app_python() falls back to sys.executable, which
     # on a python.org or /usr/local build is a machine-wide site-packages that pip would accept
     # without any PEP 668 error, so this resolves the venv directly and refuses when it is absent
-    # (docs/INSTALL-SCOPE.md).
+    # (docs/INSTALL-SCOPE.md). _selftest pins both branches at the argv of the subprocess this
+    # starts: no .venv starts none, and with one pip runs only with the .venv interpreter.
     vp = env_paths.venv_python()
     if vp is None:
         return False, _NO_VENV_REFUSAL_UV
@@ -1679,7 +1680,7 @@ def _write_storage_folder(folder: str):
 
     Returns (written_path, prior_folder) where prior_folder is the previous filesystem-MCP root if a
     DIFFERENT one existed (so the caller can surface the replacement instead of silently clobbering it;
-    P57 F6). Callers must confine `folder` first with _confined_folder()."""
+    P57). Callers must confine `folder` first with _confined_folder()."""
     config = _read_claude_config()
     config.setdefault("mcpServers", {})
     prior_args = (config["mcpServers"].get("filesystem") or {}).get("args") or []
@@ -3123,7 +3124,7 @@ _IMPORT_ATTEMPTS = {
 
 
 def _valid_git_ref(ref):
-    """P57 F11: accept only a plain git branch/ref that cannot be read by git as an option or
+    """P57: accept only a plain git branch/ref that cannot be read by git as an option or
     traverse. Letters/digits/._/- , no leading dash, no '..', 1..200 chars. This value crosses into
     `git pull origin <branch>` (tools/update.py) and into a rendered page, so a rejected value never
     reaches the config or the network."""
@@ -3135,7 +3136,7 @@ def _valid_git_ref(ref):
 
 
 def _origin_allowed(origin, referer, port=PORT):
-    """P57 F5: decide whether a mutating POST is same-origin (CSRF defense).
+    """P57: decide whether a mutating POST is same-origin (CSRF defense).
 
     A browser attaches an `Origin` header to a cross-site form POST; when it is absent it attaches
     `Referer`. A cross-site attacker page (evil.example) therefore carries a foreign Origin/Referer
@@ -3153,7 +3154,7 @@ def _origin_allowed(origin, referer, port=PORT):
 
 
 def _confined_folder(folder, *, allow_home=False):
-    """P57 F4/F6: resolve a user-typed folder and confine it to the user's home tree.
+    """P57: resolve a user-typed folder and confine it to the user's home tree.
 
     Returns (ok, realpath, reason). A browser text field (or a CSRF POST) must not be
     able to point the recursive import glob or the filesystem-MCP root at arbitrary
@@ -3181,7 +3182,7 @@ def _confined_folder(folder, *, allow_home=False):
 def _import_targets(folder, kind):
     """Resolve the file(s) to feed a parser for this target kind, within the export folder."""
     import glob as _glob
-    # F4 (defense in depth): never enumerate outside the user's home tree, even if a caller
+    # Defense in depth: never enumerate outside the user's home tree, even if a caller
     # passed an unconfined path. The HTTP handler also gates with _confined_folder, but the
     # recursive glob must not trust its caller. realpath resolves symlinks before the test.
     ok_folder, _real, _why = _confined_folder(folder, allow_home=True)
@@ -3379,7 +3380,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def _read_body(self) -> str:
-        """Read the request body safely (P58 A4a): a malformed Content-Length degrades to empty (no
+        """Read the request body safely (P58): a malformed Content-Length degrades to empty (no
         traceback), and no more than _MAX_BODY bytes are ever read into memory. Wizard forms are tiny,
         so the cap is invisible to normal use and bounds a hostile oversized POST."""
         try:
@@ -3565,7 +3566,7 @@ anything, and closing this window does not stop the work.</p>
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
 
-        # F5: reject cross-site POSTs. Every state-changing endpoint below writes config, credentials,
+        # Reject cross-site POSTs. Every state-changing endpoint below writes config, credentials,
         # an MCP root, or runs a subprocess; without this a website the user merely visits could
         # auto-submit a form to http://127.0.0.1:8765/api/* and drive those side effects. The OAuth
         # GET callback keeps its single-use `state` check; this covers the whole mutating POST surface.
@@ -3596,7 +3597,7 @@ anything, and closing this window does not stop the work.</p>
             return
 
         if path == "/api/recheck-creator-os":
-            # P85-1 (A-4 "Check again"): re-read the config and re-run the probe, e.g. after the
+            # P85-1 ("Check again"): re-read the config and re-run the probe, e.g. after the
             # Claude Desktop restart. Never starts a new install; only re-derives the truth.
             servers = _read_claude_config().get("mcpServers") or {}
             e = servers.get("creator-os") or {}
@@ -3745,7 +3746,7 @@ anything, and closing this window does not stop the work.</p>
                 return
 
             # action == scan
-            # F4: confine the scan to the user's home tree (realpath, symlink-resolved). A folder
+            # Confine the scan to the user's home tree (realpath, symlink-resolved). A folder
             # field or CSRF POST must not drive a recursive read of /, /etc, ~/.ssh, etc.
             ok_folder, expanded, why = _confined_folder(folder, allow_home=False)
             if not ok_folder:
@@ -4040,9 +4041,9 @@ anything, and closing this window does not stop the work.</p>
                 channel = "stable"
             updates = {"channel": channel}
             ny = (data.get("nightly_branch") or "").strip()
-            # F11: this value is later passed to `git pull origin <branch>` (update.py). Reject anything
+            # This value is later passed to `git pull origin <branch>` (update.py). Reject anything
             # that is not a plain git ref so it cannot be read by git as an option (leading '-') or
-            # traverse ('..'). F10: it is also reflected into the page, so a rejected value never
+            # traverse ('..'). It is also reflected into the page, so a rejected value never
             # reaches the config or the response.
             if channel == "nightly" and ny:
                 if not _valid_git_ref(ny):
@@ -4075,7 +4076,7 @@ anything, and closing this window does not stop the work.</p>
 
         if path == "/api/write-storage-folder":
             # Item 7c: register a filesystem MCP scoped to ONE user-chosen folder.
-            # F6: confine to a real sub-folder of the user's home (never '/', $HOME itself, or a
+            # Confine to a real sub-folder of the user's home (never '/', $HOME itself, or a
             # system dir) so the connector cannot be scoped to the whole disk, and surface (do not
             # silently clobber) any pre-existing filesystem-MCP scope.
             data = self._read_form()
@@ -4230,7 +4231,7 @@ anything, and closing this window does not stop the work.</p>
             screen_fn = _PUBLISHING_SCREENS[plat]
             pending = _get(f"oauth_pending_{plat}") or {}
             _set(**{f"oauth_pending_{plat}": None})
-            # F5: require that THIS wizard started the flow (pending exists). The manual-paste path
+            # Require that THIS wizard started the flow (pending exists). The manual-paste path
             # cannot verify the OAuth `state` (the user pastes only the code), so binding it to a
             # locally-initiated pending flow stops an injected code from being exchanged.
             if not pending:
@@ -4547,7 +4548,7 @@ def _selftest() -> int:
     check(store["youtube"].get(_AT) == "IMPORT_READ_TOKEN", "importer token was clobbered")
     check(_get("oauth_pending_youtube") is None, "pending state not consumed (single-use)")
 
-    # 1b) F5: cross-site POST guard (_origin_allowed). A foreign Origin/Referer is refused; the
+    # 1b) Cross-site POST guard (_origin_allowed). A foreign Origin/Referer is refused; the
     # wizard's own loopback origin passes; a non-browser caller with neither is allowed.
     check(_origin_allowed(None, None) is True, "no-Origin/no-Referer should be allowed (local caller)")
     check(_origin_allowed(f"http://127.0.0.1:{PORT}", None) is True, "same-origin 127.0.0.1 must pass")
@@ -4556,7 +4557,7 @@ def _selftest() -> int:
     check(_origin_allowed(None, "https://evil.example/x") is False, "cross-site Referer must be refused")
     check(_origin_allowed("http://127.0.0.1:9999", None) is False, "wrong-port Origin must be refused")
 
-    # 1c) F11: nightly_branch git-ref validation (feeds `git pull origin <branch>`).
+    # 1c) nightly_branch git-ref validation (feeds `git pull origin <branch>`).
     check(_valid_git_ref("claude/my-branch") and _valid_git_ref("main"), "valid refs must pass")
     check(not _valid_git_ref("--upload-pack=touch /tmp/x"), "leading-dash ref must be refused")
     check(not _valid_git_ref("a/../b") and not _valid_git_ref("x;rm -rf") and not _valid_git_ref(""),
@@ -4612,7 +4613,7 @@ def _selftest() -> int:
 
     _OAUTH_TRANSPORT = None
 
-    # 4) macOS screens render offline via the _os()/_arch() seam (F9).
+    # 4) macOS screens render offline via the _os()/_arch() seam.
     global _OS_OVERRIDE, _ARCH_OVERRIDE
     _OS_OVERRIDE, _ARCH_OVERRIDE = "mac", "arm64"
     try:
@@ -4625,7 +4626,7 @@ def _selftest() -> int:
     finally:
         _OS_OVERRIDE, _ARCH_OVERRIDE = None, None
 
-    # 5) Port-collision mechanism (F6): a second bind on the same port raises OSError (the friendly
+    # 5) Port-collision mechanism: a second bind on the same port raises OSError (the friendly
     #    exit path in main() depends on this being catchable).
     try:
         s1 = _Server(("127.0.0.1", 0), _Handler)
@@ -4811,7 +4812,7 @@ def _selftest() -> int:
     check(_crash["running"] is False and "boom" in str(_crash.get("result", {}).get("error", "")),
           "crashed worker did not store a terminal error")
 
-    # P87 (audit F-1): the verification gate refuses an impostor and an empty toolset, and the
+    # P87: the verification gate refuses an impostor and an empty toolset, and the
     # PASS wording never claims a count it did not confirm. These three pins FAILED on the
     # pre-P87 code (executed detector proof) -- if they ever fail again, the gate regressed.
     import tempfile as _tf2
@@ -4950,6 +4951,176 @@ def _selftest() -> int:
     _pop_state_keys("chatgpt_plan", "chatgpt_accept_1")
     check(_get("chatgpt_plan") is None and _get("chatgpt_accept_1") is None,
           "lane reset left chatgpt state behind")
+
+    # _install_uv's install target, observed at the argv of the subprocess it starts. Only calls
+    # made from this thread are recorded; a call from any other thread goes to the real module,
+    # so a worker left running by the tests above cannot pollute the record.
+    _real_subprocess, _me, _uv_calls = subprocess, threading.get_ident(), []
+
+    class _UvRecorder:
+        returncode, stdout, stderr = 0, "", ""
+
+        def __getattr__(self, name):
+            return getattr(_real_subprocess, name)
+
+        def run(self, cmd, *a, **k):
+            if threading.get_ident() != _me:
+                return _real_subprocess.run(cmd, *a, **k)
+            _uv_calls.append([str(x) for x in cmd])
+            return self
+
+    _uv_fake = ROOT / ".venv-selftest-absent" / "bin" / "python3"
+    _saved_vp = env_paths.venv_python
+    try:
+        globals()["subprocess"] = _UvRecorder()
+        env_paths.venv_python = lambda *a, **k: None
+        _uv_none = _install_uv()
+        _uv_none_calls = list(_uv_calls)
+        env_paths.venv_python = lambda *a, **k: _uv_fake
+        _uv_venv = _install_uv()
+    finally:
+        globals()["subprocess"] = _real_subprocess
+        env_paths.venv_python = _saved_vp
+    _uv_venv_calls = _uv_calls[len(_uv_none_calls):]
+    check(_uv_none[0] is False and _uv_none_calls == [],
+          "no .venv: _install_uv refuses and starts no subprocess, so uv cannot land in a base "
+          "interpreter")
+    check(_uv_venv[0] is True and len(_uv_venv_calls) == 1
+          and _uv_venv_calls[0][0] == str(_uv_fake) and "pip" in _uv_venv_calls[0],
+          ".venv present: _install_uv runs pip only with the .venv interpreter")
+    # The POST routes do_POST serves, read from its own route tests. do_POST is held to its
+    # committed form: the path read, the cross-site check (a _send of constants and a return),
+    # then only `if path == "<literal>":` blocks that never rebind path, the last carrying an
+    # `elif` chain of the same kind and a final `else`, so every route it serves is one of those
+    # literals (the final `else` is driven as an unknown path). A route reaches an installer when
+    # its block, or a module function or _Handler method it names, followed through the ones
+    # those name, names _install_uv or _run_setup: the pip census in setup.py's selftest holds
+    # every pip install command in the tree to setup.py's _pip_install and this module's
+    # _install_uv, and _run_setup starts setup.py, whose own pins cover the script. A function
+    # reached only through a string (globals(), getattr) is outside what this reads. A later
+    # commit can rebind the checked symbols at runtime (do_POST, _install_uv, _run_setup); code
+    # review, the drift guard on the diff and tools/tree_pin.py govern that class, not this pin.
+    import ast as _ast_r
+    _wtree = _ast_r.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
+    _hcls = next(n for n in _wtree.body if isinstance(n, _ast_r.ClassDef) and n.name == "_Handler")
+    _wdefs = {n.name: n for n in _wtree.body + _hcls.body
+              if isinstance(n, (_ast_r.FunctionDef, _ast_r.AsyncFunctionDef)) and n.name != "do_POST"}
+    _dp = next(m for m in _hcls.body if isinstance(m, _ast_r.FunctionDef) and m.name == "do_POST")
+    _guard = _dp.body[1] if len(_dp.body) > 2 else None
+    _refusal = _guard.body[0].value if isinstance(_guard, _ast_r.If) and _guard.body \
+        and isinstance(_guard.body[0], _ast_r.Expr) else None
+    _form_ok = (_ast_r.unparse(_dp.body[0]) == "path = urllib.parse.urlparse(self.path).path"
+                and isinstance(_refusal, _ast_r.Call) and not _guard.orelse
+                and _ast_r.unparse(_guard.test) == ("not _origin_allowed(self.headers.get('Origin'), "
+                                                    "self.headers.get('Referer'))")
+                and len(_guard.body) == 2 and _ast_r.unparse(_guard.body[1]) == "return"
+                and _ast_r.unparse(_refusal.func) == "self._send"
+                and all(isinstance(_a, _ast_r.Constant)
+                        for _a in _refusal.args + [_k.value for _k in _refusal.keywords]))
+    _blocks, _chain = {}, list(_dp.body[2:])
+    while _chain and _form_ok:
+        _st = _chain.pop(0)
+        _t = getattr(_st, "test", None)
+        _lit = (_t.comparators[0].value if isinstance(_st, _ast_r.If)
+                and isinstance(_t, _ast_r.Compare) and _ast_r.unparse(_t.left) == "path"
+                and len(_t.ops) == 1 and isinstance(_t.ops[0], _ast_r.Eq)
+                and isinstance(_t.comparators[0], _ast_r.Constant)
+                and isinstance(_t.comparators[0].value, str) else None)
+        if _lit is None or _lit in _blocks or (_st.orelse and _chain):
+            _form_ok = False
+            break
+        _blocks[_lit] = _st.body
+        if len(_st.orelse) == 1 and isinstance(_st.orelse[0], _ast_r.If):
+            _chain = [_st.orelse[0]]
+        elif _st.orelse:
+            _blocks["/api/selftest-unknown"] = _st.orelse
+    _form_ok = _form_ok and not any(
+        isinstance(_n, _ast_r.Name) and _n.id == "path" and not isinstance(_n.ctx, _ast_r.Load)
+        for _b in _blocks.values() for _s in _b for _n in _ast_r.walk(_s))
+
+    def _named(nodes):
+        return ({_n.id for _n in nodes if isinstance(_n, _ast_r.Name)}
+                | {_n.attr for _n in nodes if isinstance(_n, _ast_r.Attribute)})
+
+    def _reaches(block):
+        todo, seen = _named([_n for _s in block for _n in _ast_r.walk(_s)]), set()
+        while todo - seen:
+            name = sorted(todo - seen)[0]
+            seen.add(name)
+            if name in ("_install_uv", "_run_setup"):
+                return True
+            if name in _wdefs:
+                todo |= _named(list(_ast_r.walk(_wdefs[name])))
+        return False
+    _install_routes = sorted(_r for _r, _b in _blocks.items() if _reaches(_b))
+    # Each of those routes runs through do_POST itself, with no .venv and with one, uv not on
+    # PATH, a form whose every field answers "selftest", and every process start this thread makes
+    # recorded, not run; the Claude config, the capability flag, the wizard state and the job
+    # thread (run inline) are stubbed. The only starts allowed are setup.py's --install-deps --json
+    # entry and, with a .venv, pip run by the .venv interpreter; a crash fails the pin. A branch on
+    # a form value other than "selftest" and a start made from another thread are outside it.
+    import contextlib as _ctx_r
+    import io as _io_r
+    _route_starts, _route_runs = [], {}
+
+    class _EveryField(dict):
+        def get(self, key, default=None):
+            return "selftest"
+
+        def __getitem__(self, key):
+            return "selftest"
+
+    class _StartRecorder:
+        returncode, stdout, stderr = 0, "", ""
+
+        def __getattr__(self, name):
+            def _rec(cmd=None, *a, **k):
+                if threading.get_ident() != _me:
+                    return getattr(_real_subprocess, name)(cmd, *a, **k)
+                _route_starts.append([str(x) for x in cmd] if isinstance(cmd, (list, tuple))
+                                     else [str(cmd)])
+                return self
+            return _rec
+
+    _route_stubs = {"subprocess": _StartRecorder(), "_read_claude_config": lambda: {},
+                    "_write_claude_config": lambda config: ROOT / ".selftest-absent.json",
+                    "_update_capability_flag": lambda key, value: None,
+                    "_set": lambda **kwargs: None, "_start_job": lambda name, fn: (fn(), True)[1]}
+    _route_saved = ({_k: globals()[_k] for _k in _route_stubs},
+                    env_paths.venv_python, env_paths.which)
+    try:
+        globals().update(_route_stubs)
+        env_paths.which = lambda *a, **k: None
+        for _vp in (None, _uv_fake):
+            env_paths.venv_python = lambda *a, _vp=_vp, **k: _vp
+            for _route in _install_routes:
+                del _route_starts[:]
+                _post = _Handler.__new__(_Handler)
+                _post.path, _post.headers = _route, {}
+                _post._read_form = _EveryField
+                _post._read_body = lambda: ""
+                _post._send = lambda body, status=200, content_type="text/html": None
+                _post._redirect = lambda location: None
+                try:
+                    with _ctx_r.redirect_stdout(_io_r.StringIO()):
+                        _post.do_POST()
+                except Exception as _exc:  # noqa: BLE001 - a crash on this path is a failed pin
+                    _route_starts.append(["crash", repr(_exc)])
+                _route_runs[(_vp is not None, _route)] = list(_route_starts)
+    finally:
+        globals().update(_route_saved[0])
+        env_paths.venv_python, env_paths.which = _route_saved[1:]
+    _setup_entry = [str(ROOT / "tools" / "setup.py"), "--install-deps", "--json"]
+    check(_form_ok and {"/api/install-deps", "/api/write-google"} <= set(_install_routes)
+          and len(_route_runs) == 2 * len(_install_routes)
+          and all(_argv[1:] == _setup_entry or (_venv and _argv[0] == str(_uv_fake)
+                                                and _argv[1:3] == ["-m", "pip"])
+                  for (_venv, _r), _starts in _route_runs.items() for _argv in _starts)
+          and _route_runs[(False, "/api/write-google")] == []
+          and [_a[0] for _a in _route_runs[(True, "/api/write-google")]] == [str(_uv_fake)]
+          and all(len(_route_runs[(_v, "/api/install-deps")]) == 1 for _v in (False, True)),
+          "every POST route that reaches an installer, driven through do_POST with no .venv and "
+          "with one, starts pip only with the .venv interpreter")
 
     if failures:
         print("wizard selftest FAILED:")

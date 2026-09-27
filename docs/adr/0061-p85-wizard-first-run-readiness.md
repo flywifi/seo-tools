@@ -6,7 +6,7 @@
 
 ## Context
 
-An audit ahead of the next real install found that `tools/wizard.py` never wrote the
+Ahead of the next real install, `tools/wizard.py` turned out never to have written the
 `creator-os` MCP server entry into Claude Desktop's config — the flagship integration existed
 only as a manual snippet with a placeholder path, while two docs claimed the wizard handled it.
 Executing the documented smoke test also proved it broken (a bare `tools/list` is rejected
@@ -38,7 +38,7 @@ adopted, installed, or shipped; only design patterns were compared.**
    Creator OS installs exactly one server, runs no background service from the wizard, collects
    nothing, and ships English copy; adding those surfaces would be scope without a user.
 6. The double-click launcher was audited and left untouched: its interpreter probing (including
-   the dead-venv trap from P73 D6-F10), Homebrew PATH handling, and Gatekeeper wording already
+   the dead-venv trap handled in P73), Homebrew PATH handling, and Gatekeeper wording already
    meet the bar. A Python-floor guard was added to `main()` instead, because the docs also
    invite `python3 tools/wizard.py` directly, bypassing the launcher.
 

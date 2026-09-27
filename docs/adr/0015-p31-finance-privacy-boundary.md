@@ -5,7 +5,7 @@
 
 ## Context
 
-The prior boundary was filename convention only: no gitignore rules for exports, no content scanning, no commit hygiene enforcement. P31 layers accident prevention (allowlist-invert gitignore), force-add detection (invariant 20), content scanning (secret_scan.py, invariant 21, CI), per-clone git hooks, a CI commit-message backstop bounded by a policy SHA, and a written non-negotiable policy. Features then ship with structural safeties: redaction for anything leaving the machine, proposal-only reconciliation with an in-repo non-local CSV refusal, and dunning drafts that are never sent.
+The prior boundary was filename convention only: no gitignore rules for exports, no content scanning, no commit hygiene enforcement. P31 layers accident prevention (allowlist-invert gitignore), force-add detection (invariant 20; its tracked-name scan now also refuses audit-record file names), content scanning (secret_scan.py, invariant 21, CI), per-clone git hooks, a CI commit-message backstop bounded by a policy SHA, and a written non-negotiable policy. Features then ship with structural safeties: redaction for anything leaving the machine, proposal-only reconciliation with an in-repo non-local CSV refusal, and dunning drafts that are never sent.
 
 ## Decision
 

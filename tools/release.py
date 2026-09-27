@@ -99,7 +99,7 @@ def check(getter=None, offline=False):
 def preconditions(version=None, root=ROOT):
     """Everything that must hold before a tag may be cut. Returns a list of reasons to refuse.
 
-    P74 PRE-1: execute() previously checked only that `gh` existed and that --yes was passed, so
+    P74: execute() previously checked only that `gh` existed and that --yes was passed, so
     it would happily tag a tree whose version triple disagreed, whose CHANGELOG had no section for
     the version being cut, or where the tag already existed. A release is outward-facing and
     irreversible; the guard belongs before the first git command, not in the operator's memory.
@@ -206,7 +206,7 @@ def selftest():
     ok("execute refuses without gh and runs nothing", res["executed"] is False and not calls)
     ok("execute refusal carries the ready plan", "commands" in res["plan"])
 
-    # P74 PRE-1: each precondition must be able to refuse, with no git side effects.
+    # P74: each precondition must be able to refuse, with no git side effects.
     import tempfile as _tf, json as _json
     with _tf.TemporaryDirectory() as _td:
         _r = Path(_td)

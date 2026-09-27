@@ -1,14 +1,14 @@
 # macOS maintenance notes (for maintainers)
 
 The non-negotiable macOS invariants and the reasoning behind them, so a future edit does not silently
-re-break what the P53 stress test found and P54 fixed. User-facing setup lives in `docs/SETUP_MAC.md`;
-this file is the maintainer's "why." A full hands-on verification checklist (the behaviors that can
-only be confirmed on real hardware) was produced by the P53 stress test.
+re-break what P54 fixed. User-facing setup lives in `docs/SETUP_MAC.md`; this file is the
+maintainer's "why." The behaviors that can only be confirmed on real hardware are listed under
+"What only a real Mac can confirm (hands-on)" below.
 
 **Current target:** macOS 26 (Tahoe), the last Intel release; macOS 15 (Sequoia) is the prior version.
 Apple Silicon uses `/opt/homebrew`; Intel uses `/usr/local`. This environment is Linux, so every
 macOS behavior below is verified here only at the mechanism level (OS-simulated) — behavioral
-confirmation is the hands-on checklist.
+confirmation is the hands-on list below.
 
 ## Non-negotiable invariants
 
@@ -79,7 +79,7 @@ Gatekeeper block on a downloaded `.zip` and the Open-Anyway flow; the CLT dialog
 real PEP 668 error on a Homebrew Python and that `.venv` sidesteps it; brew tools invisible under a
 double-click and that the launcher's PATH export fixes it; Claude Desktop spawn-PATH + Quit/relaunch;
 TCC folder prompts; Safari HTTPS-Only vs Chrome for the OAuth callback; Rosetta prompts; Metal-vs-CPU
-whisper runtimes. These are the P53 hands-on checklist items; the code/copy here is verified by
+whisper runtimes. These need real hardware; the code/copy here is verified by
 simulation + selftests.
 
 ## Declared sources
@@ -135,7 +135,7 @@ Every source this document **declares** (the `sources` block above, 13 entries) 
 `last_checked` date except the ones named below. That denominator is deliberately the doc's own
 declared set, which is reproducible by reading the block; an earlier version cited "23 of 27
 macOS-relevant sources", a set no field in the registry marks and no tool derives, and which
-`CHANGELOG.md` separately called 26 (P73 D2-1/D2-2).
+`CHANGELOG.md` separately called 26 (P73).
 
 Of the declared set, only `apple-local-network-privacy-faq` remains unstamped. These are the
 mechanical reasons, covering both the declared set and the adjacent dependency entries:
@@ -169,6 +169,23 @@ the CDN returns a different Xet content hash that will not match the pin and loo
 Note the guarantee's shape: this confirms the pin equals the LFS object id the repository declares,
 which is the same assurance any whisper.cpp user gets, not an independent re-hash of the bytes. An
 earlier note claiming these hashes could not be verified without downloading gigabytes was wrong.
+
+## Checks that need the Mac or residential egress
+
+Some checks cannot run from a cloud container: bot-walled sources refuse its egress, the GitHub
+releases API is unreachable through its proxy, and the media and cache baselines need real media
+and local caches. Run these on the Mac, from a residential connection:
+
+| item | command on the machine that has the data or the egress |
+|---|---|
+| bot-blocked registry sources (each carries a durable block record) | `python3 tools/source_currency.py check --detect-changes --apply`; a success clears each block record automatically |
+| self-release stamp (`creator-os-release` stays unstamped until this runs) | `python3 tools/update_check.py check --apply` |
+| av and scenedetect baselines | re-run the golden-cut check from `docs/video-tooling-integration-evidence.json` with real media (expects cuts at 60.0, 150.0, 240.0, 330.0), then `python3 tools/source_currency.py update-source dep-av --validated-version 18.1.0` and `python3 tools/source_currency.py update-source dep-scenedetect --validated-version 0.7.1` |
+| scoop cache baseline | `python3 tools/hash_audit.py` reports the local baseline as report-only MISMATCH when entries legitimately changed since the last build; `python3 shared/cache/cache.py --build` re-baselines |
+| competitor snapshot index repair | `python3 tools/competitor_snapshot.py --check-og`, then `--parse`, then `--check-og` again |
+| freshness scheduler | install per `docs/CURRENCY.md` "Weekly automation" |
+
+<!-- verify: tools/source_currency.py --> <!-- verify: tools/update_check.py --> <!-- verify: tools/hash_audit.py --> <!-- verify: tools/competitor_snapshot.py --> <!-- verify: shared/cache/cache.py -->
 
 ## When you change any of this
 Update `docs/SETUP_MAC.md` and this file in the same change (the CLAUDE.md docs-in-same-PR rule); keep

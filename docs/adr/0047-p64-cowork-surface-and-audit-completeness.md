@@ -5,11 +5,10 @@
 
 ## Context
 
-The 2026-07-18 final audit left two open findings, and the user asked the harder question behind
-them: why did multiple otherwise-thorough audits miss both, and what makes the next pass more
-complete?
+Two defects survived several otherwise-thorough reviews. The design question behind them: why
+were both missed, and what makes the next pass more complete?
 
-1. **AUDIT-F1 — Cowork absent from the surface model.** The cross-modality model
+1. **Cowork absent from the surface model.** The cross-modality model
    (`shared/cross-modality/transitions.json`) held nine surfaces and no Cowork row, while an
    independent artifact built by a different phase for a different purpose —
    `tools/handoff/queue.py::ALLOWED_ORIGINS` and the byte-identical `compute-job.json` origin
@@ -17,7 +16,7 @@ complete?
    vocabularies. Cowork is Anthropic's own product, a common way people run Creator OS, and the
    class of runtime the auditor itself executes in; treating it as a footnote inverted the real
    usage distribution.
-2. **AUDIT-F2 — the ENAMETOOLONG class.** `pathlib.Path.exists()` suppresses
+2. **The ENAMETOOLONG class.** `pathlib.Path.exists()` suppresses
    ENOENT/ENOTDIR/EBADF/ELOOP but not errno 36, so a >255-byte path component makes `exists()`
    itself raise where a short bad path returns False. A 322-byte argument to
    `obligations.py --scan` produced a raw OSError traceback one line ABOVE the P63 loader guard;

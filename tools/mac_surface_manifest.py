@@ -23,8 +23,7 @@ a written reason). Drift invariant 58 then enforces:
                recorded file must STILL derive. Weakening the signal set is the one attack that would
                otherwise leave the gate green while shrinking what it looks at: drop a token and the
                files that token used to catch stop deriving, which fails here rather than silently
-               narrowing coverage. Found by the P69 adversarial pass, which proved the unpinned
-               version stayed green after three tokens were deleted.
+               narrowing coverage. An unpinned deriver stays green after tokens are deleted.
 
 Fail-closed in every direction, so "no macOS file changed unnoticed" is a build property
 rather than a claim. Human review remains a human act; this only makes skipping it visible.
@@ -45,7 +44,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "canonical-sources" / "mac-surface-manifest.json"
 
-# Mac-signal tokens. Deliberately high-signal: the audit's raw sweep over-matched ~100 files on the
+# Mac-signal tokens. Deliberately high-signal: a raw token sweep over-matched ~100 files on the
 # injection-risk constant QUARANTINE and on argparse's `args.command`, so neither bare "quarantine"
 # nor bare "command" is a signal here. Anchored spellings only ("com.apple.quarantine" IS a signal).
 MAC_SIGNALS = (
@@ -83,7 +82,7 @@ MAC_SIGNALS = (
 )
 SIGNAL_RE = re.compile("|".join(MAC_SIGNALS), re.IGNORECASE)
 
-# P73 D6-F3: MAC_SIGNALS is pinned against NARROWING (signals_sha + the deriver-drift check), so
+# P73: MAC_SIGNALS is pinned against NARROWING (signals_sha + the deriver-drift check), so
 # deleting a token fails the build. Nothing fired in the other direction: a new file using a
 # macOS concept this vocabulary has never heard of simply never enters the denominator, and the
 # completeness gate reports "complete" while being blind to it. These are macOS-specific concepts
@@ -111,9 +110,8 @@ CANDIDATE_RE = re.compile("|".join(CANDIDATE_SIGNALS), re.IGNORECASE)
 
 # Self-reference and append-only-record skips ONLY. Everything else that a human judged "not a Mac
 # surface" belongs in the manifest's `excluded` map, with its reason written down, so the decision is
-# reviewable. (The P69 adversarial pass caught an earlier version of this tuple carrying three
-# video-tooling evidence files under a stated "append-only telemetry" rationale that was factually
-# false -- each has a single commit -- so they are audited normally now.)
+# reviewable. (An earlier version of this tuple skipped three video-tooling evidence files as
+# "append-only telemetry"; each has a single commit, so they are recorded normally now.)
 SKIP_PREFIXES = (
     # Self-reference: these three quote the signal tokens themselves, so they always match and could
     # never stabilize. The deriver and the guard are covered instead by the `deriver` pin below.
@@ -216,7 +214,9 @@ def reconcile(root: Path = ROOT, manifest_path: Path | None = None, accept_new: 
         "_comment": "P69/P70 macOS surface completeness gate. `files` = the macOS surface this repo "
                     "tracks, each recorded at the sha256 it carried when a human last blessed it; the "
                     "hash proves the bytes have not moved since, not that anyone re-read them today. "
-                    "`excluded` = a derived match a human ruled NOT a macOS surface, with the reason. "
+                    "`excluded` = a derived match a human ruled NOT a macOS surface, with a reason of 25+ "
+                    "characters; an exclusion that is untracked, no longer derives or is also in "
+                    "`files` fails invariant 58. "
                     "Adding a path nobody has ruled on requires `reconcile --accept-new`, so entering "
                     "this file is an act rather than a default. Drift invariant 58 fails the build "
                     "when a derived match is in neither map, when a recorded file's sha moves, when a "
@@ -237,12 +237,35 @@ def reconcile(root: Path = ROOT, manifest_path: Path | None = None, accept_new: 
     return manifest
 
 
+MIN_EXCLUDED_REASON = 25
+
+
+def excluded_problems(excluded, files, tracked, derived):
+    """Entries in the `excluded` map that do no work, as messages. An exclusion must name a
+    tracked file that still derives (otherwise it excludes nothing), must not also be recorded in
+    `files`, and must carry a written reason of MIN_EXCLUDED_REASON+ characters. reconcile() keeps
+    `excluded` as it is, so these are reported for a human to act on, never pruned."""
+    out = []
+    for rel, why in sorted(excluded.items()):
+        if len(str(why).strip()) < MIN_EXCLUDED_REASON:
+            out.append(f"excluded {rel} needs a written reason of {MIN_EXCLUDED_REASON}+ characters")
+        if rel in files:
+            out.append(f"{rel} is both recorded in `files` and excluded; keep one")
+        if rel not in tracked:
+            out.append(f"excluded {rel} is not a tracked file; drop it from `excluded`")
+        elif rel not in derived:
+            out.append(f"excluded {rel} no longer derives, so the exclusion does nothing; drop it "
+                       f"from `excluded`")
+    return out
+
+
 def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
-    """Two-way result: {'unaudited': [...], 'changed': [...], 'missing': [...], 'note': str|None}.
+    """Two-way result: {'unaudited': [...], 'changed': [...], 'missing': [...], 'stale_excluded':
+    [...], 'note': str|None}; stale_excluded lists exclusions that do no work (excluded_problems).
     All-empty == the audited set still equals the live Mac surface. Never raises."""
     manifest_path = manifest_path or MANIFEST_PATH
     empty = {"unaudited": [], "changed": [], "missing": [], "undetectable": [],
-             "deriver_drift": [], "vocabulary_candidates": [], "note": None}
+             "deriver_drift": [], "vocabulary_candidates": [], "stale_excluded": [], "note": None}
     if not manifest_path.exists():
         return dict(empty, note="manifest missing; run 'python3 tools/mac_surface_manifest.py reconcile'")
     try:
@@ -267,7 +290,13 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     # token that used to catch it -- coverage narrowed without a single file "changing".
     derived_set = set(derived)
     undetectable = [r for r in files if r not in derived_set and (root / r).exists()]
-    # P73 D6-F3: files carrying a macOS concept the vocabulary has never heard of. Not coverage
+    stale_excluded = excluded_problems(excluded, files, set(tracked), derived_set)
+    proof = excluded_problems({"a.md": "r" * 30, "b.md": "short", "c.md": "r" * 30, "d.md": "r" * 30},
+                              {"c.md": "x"}, {"a.md", "b.md", "c.md"}, {"a.md", "b.md", "c.md"})
+    if (len(proof) != 3 or "b.md needs" not in proof[0] or "c.md is both" not in proof[1]
+            or "d.md is not a tracked" not in proof[2]):
+        stale_excluded.append(f"the excluded-map check failed its own fixture ({proof!r})")
+    # P73: files carrying a macOS concept the vocabulary has never heard of. Not coverage
     # failures -- proposals to widen MAC_SIGNALS, surfaced so the vocabulary gets reviewed when
     # macOS grows a new concept rather than only when someone happens to notice.
     candidates = []
@@ -297,7 +326,7 @@ def check(root: Path = ROOT, manifest_path: Path | None = None) -> dict:
     return {"unaudited": sorted(unaudited), "changed": sorted(changed),
             "missing": sorted(missing), "undetectable": sorted(undetectable),
             "deriver_drift": deriver_drift, "vocabulary_candidates": sorted(candidates),
-            "note": None}
+            "stale_excluded": stale_excluded, "note": None}
 
 
 def selftest() -> int:
@@ -326,7 +355,7 @@ def selftest() -> int:
         ok("derive skips a non-Mac file", "plain.py" not in d)
         ok("derive ignores QUARANTINE/args.command false positives", "noisy.py" not in d)
 
-        # P73 D6-F3: the widening trigger. A file using a macOS concept the vocabulary has never
+        # P73: the widening trigger. A file using a macOS concept the vocabulary has never
         # learned must be PROPOSED for review, not silently left out of the denominator.
         ok("a notarization file does not derive (the vocabulary gap is real)",
            derive(root, ["tools/macish.py"]) and not CANDIDATE_RE.search("x = 1") and
@@ -371,8 +400,8 @@ def selftest() -> int:
         _rec()
         ok("integrity: clean after re-bless", not _chk()["changed"])
 
-        # DIRECTION 3 (denominator): an audited file that stops deriving must be caught. This is the
-        # P69 adversarial finding: without it, deleting a signal token silently shrinks coverage.
+        # DIRECTION 3 (denominator): an audited file that stops deriving must be caught. Without
+        # it, deleting a signal token silently shrinks coverage.
         g = globals()  # patch THIS module's global, not a re-imported copy (run as __main__)
         saved = g["SIGNAL_RE"]
         try:

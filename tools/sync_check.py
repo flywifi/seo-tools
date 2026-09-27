@@ -9,12 +9,14 @@ Invariants enforced:
   1.  Canonical engines + protocols (tools/sync_manifest.json) all exist.
   2.  Every SKILL.md has valid frontmatter with a hyphen-case `name` and a `description`.
   3.  Every skill directory with a SKILL.md also carries a MAINTAINER_README.md.
-  4.  Formatting rule (protocols/formatting-metadata.md): no em dashes in user-facing output,
-      no en dashes (ranges written with "to"), no forbidden tokens in committed .md content.
+  4.  Formatting rule (protocols/formatting-metadata.md): no em dashes in user-facing output
+      (read in the committed `examples/` .md files, EM_DASH_DIRS), no en dashes (ranges written
+      with "to"), no forbidden tokens in committed .md content.
   5.  Referential integrity: every backticked repo path in SKILL.md and MAINTAINER_README.md
       that starts with a known root and ends in .md/.json/.py/.js exists on disk.
-  6.  Hub integrity: every spoke directory is listed in the hub's downstream spokes, and the
-      hub carries the routing object schema.
+  6.  Hub integrity: every spoke directory is listed in the hub's downstream spokes, every name
+      in that list is a spoke directory under skills/, and the hub carries the routing object
+      schema.
   7.  Workflow atom resolution: every atom named in a workflow.json is an installed atom.
   8.  YAML frontmatter strict validation: every SKILL.md frontmatter parses with yaml.safe_load.
   9.  Atom eval coverage: every atom directory has evals/evals.json with at least 3 test cases.
@@ -24,8 +26,15 @@ Invariants enforced:
   13. Routing table completeness: all request_classification values appear in the routing table.
   14. Agent contract blocks: every .claude/agents/*.md has Operating rules, Forbidden tools,
       Allowed tools, and Output format sections; Forbidden tools lists Write, Edit, NotebookEdit.
+      Each starts with YAML frontmatter whose name equals the file name and whose disallowedTools
+      removes Write, Edit, NotebookEdit, Agent and the GitHub/Google Drive MCP write tools; the
+      auditor definition exists, removes every MCP tool and sets isolation: worktree, and the
+      product agents set no isolation; .claude/settings.json runs tools/readonly_bash_guard.py on
+      Bash (skipped when the file is absent) and sets worktree.baseRef "head".
   15. Schema verification fields: every shared/schemas/*.json (except envelope and decision schemas)
-      has minority_report, confidence_evidence, source_citations in its properties.
+      has minority_report, confidence_evidence, source_citations in its properties; the verdict
+      enum of the envelope, the decision record and each workflow VERIFICATION_SCHEMA agree and
+      carry did_not_run, which a workflow records and escalates when its verifier returns nothing.
   16. Workflow verification step: every .claude/workflows/*.js contains an adversarial verification
       marker (VERIFICATION_SCHEMA, adversarial-verify, cross-verify, verify-research,
       verify-seasonal, independent-review).
@@ -42,7 +51,9 @@ Invariants enforced:
   20. Pipeline tracked-file allowlist: every git-tracked file under pipeline/ is on the explicit
       PIPELINE_TRACKED_ALLOWLIST (blank templates and schemas only), and no financial-export or
       secret file type (.csv/.xlsx/.xls/.ofx/.qfx/.pem/.key/.env*) is tracked anywhere in the
-      repo. Catches force-adds and gitignore rule gaps. Fails closed in CI.
+      repo, and no audit-record file is tracked (tools/secret_scan.py::audit_record_name; the
+      pre-commit gate applies the same rule to staged names). Catches force-adds and gitignore
+      rule gaps. Fails closed in CI.
   21. Content secret scan: tools/secret_scan.py --tracked finds no API keys, private keys,
       credential values, session links, or non-allowlisted email addresses in tracked file
       content (the filename invariants 19 and 20 are blind to content).
@@ -90,7 +101,8 @@ Invariants enforced:
   45. content-vs-digest silent staleness (P47, advisory, loud): registry sources re-verified after the
       freshness baseline as_of are surfaced (the digest excludes content).
   46. URL provenance (P49 WS3): every http(s) literal in tools/**/*.py resolves to a source-registry
-      host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host.
+      host, the operational-url-allowlist sidecar, or an excluded-by-rule placeholder/schema host;
+      each sidecar entry must account for a host no other entry covers.
   47. Knowledge-pack projection staleness (P49 WS7; blocking since P79): when a shared engine/protocol a knowledge
       file projects changes sha since the projection manifest was reconciled, the file is surfaced.
   48. Doc-count truth (P49 WS2): live architecture/setup docs must state the true global totals
@@ -103,16 +115,17 @@ Invariants enforced:
       (TOOLS_MAINTAINER_DIRS) must carry a MAINTAINER_README.md (invariant 3 covers skills/ only).
   51. Doc freshness (P52; blocking since P79): when a code file a doc documents (tools/doc_freshness.py
       DOC_SOURCES) changes sha since the doc-freshness manifest was reconciled, the doc is surfaced as
-      possibly stale (a content-hash signal, not a prose diff); dated records are frozen above their
-      Addendum section (P81).
+      possibly stale (a content-hash signal, not a prose diff).
   52. Doc-declared source registration (P55): every id a maintainer/SKILL/doc file declares in a
       fenced ```sources block or an inline `<!-- source: id -->` marker must exist in
       canonical-sources/source-registry.json with a matching url; unparseable blocks fail. Fail-closed
       like invariant 23: a doc citation forces a tracked registry entry.
-  53. Connector resolver smoke (P63): shared/connectors/connectors.py::resolve executes cleanly over
-      the committed connectors.json (resolve({}) — the pure default-flag path). Invariants 18/23/41
-      only inspect the registry statically; this one runs it, so a malformed entry the resolver
-      cannot process (e.g. a missing default_flag) fails the build instead of shipping.
+  53. Connector resolver smoke (P63): every committed connectors.json entry carries a default_flag
+      that is a bare string from the registry's own `states` list, and shared/connectors/
+      connectors.py runs cleanly over the committed registry: resolve({}), the --list table, and
+      the --plan text and --json output. Invariants 18/23/41 only inspect the registry statically;
+      this one runs it, so an entry with a missing or undeclared default, or one the resolver or
+      its CLI cannot process, fails the build instead of shipping.
   54. Payload-loader robustness (P63): tools/finance.py::_read_json and
       tools/obligations.py::_load_json keep their try/except guard so a bad CLI payload path or
       inline JSON yields the clean {"error","next_step"} envelope, never a raw traceback. The
@@ -136,13 +149,36 @@ Invariants enforced:
       eval_lint.py (case structure) leave open: a well-formed case with a fabricated key.
   58. Mac-surface completeness (P69): every tracked file carrying a macOS signal is either
       audited in canonical-sources/mac-surface-manifest.json at a recorded sha256, or
-      listed in its `excluded` map with a reason. Two-way: a new Mac surface fails as
+      listed in its `excluded` map with a reason (an exclusion must name a tracked file that
+      still derives and carry a 25+ character reason). Two-way: a new Mac surface fails as
       unaudited; an edited audited surface fails as changed. tools/mac_surface_manifest.py.
   59. Install-scope policy (P93): every machine-wide install instruction in the live setup
       guidance (sudo package commands, brew install, npm install -g, the pip system-override
-      flag, command-anchored pip install) carries the "machine-wide"/"whole computer" label
-      within two lines, so user-scoped stays the default. Policy: docs/INSTALL-SCOPE.md.
+      flag, command-anchored pip install, a copy, move, link, redirect or download into
+      /Applications, /usr/local or /opt/homebrew, a drag into the Applications folder) carries the
+      "machine-wide"/"whole computer" label
+      on its line, above it in its paragraph, or on either of the two lines
+      just above the blank line before that paragraph, so user-scoped stays the default.
+      Policy: docs/INSTALL-SCOPE.md.
+      It reads every tracked file except binaries (a NUL byte in the first 8 KiB).
       The detector self-proves on embedded fail-then-pass fixtures before every scan.
+      Exemptions are exact tracked paths that must still carry an unlabeled install and may
+      not name a file tools/claim-proof-manifest.json binds.
+  60. Claim-proof binding (P94): a universal claim about this repo's own behavior inside the
+      guarded corpus (CLAUDE.md's non-negotiables, docs/INSTALL-SCOPE.md) is bound in
+      tools/claim-proof-manifest.json to an enforced invariant or a NAMED selftest pin the
+      battery executes, or carries a written-reason exemption. Route records additionally tie a
+      recommended install route to the code that detects it. A reverse enrolment sweep fails on
+      any unbound universal claim, so the promise list cannot grow unproven.
+      The manifest's `guarded_text` records keep the section 7 rules of docs/AUDIT-PROTOCOL.md and
+      the AGENTS.md restatements of CLAUDE.md claims in place.
+      Each `::selftest::` proof a claim uses names, in the manifest's `boundaries`, the entry its
+      claim describes; the pin's function calls it, or the record states a gap naming it.
+      A claim bound to `invariant:N` shares a subject word with entry N of this catalog.
+  61. CI parity (P96): tools/battery.py's parity report over .github/workflows/ci.yml finds, for
+      each battery gate, a blocking step running exactly its command or a CI_PARITY_NOTES reason,
+      no stale note, and a workflow it can read. The commit hygiene step blocks and its run
+      block equals _COMMIT_HYGIENE_RUN byte for byte. Self-proves on fixtures before the scan.
 """
 import ast
 import json
@@ -150,6 +186,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 try:
@@ -341,46 +378,319 @@ def check_frontmatter_loads():
                 problem(f"{rel}: frontmatter references missing path {ref}")
 
 
+_HUB_SPOKE_HEADING = re.compile(r"^ {0,3}#{1,6}[ \t]+downstream spokes\b.*$", re.I | re.M)
+_HUB_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+_HUB_SPOKE_MENTION = re.compile(r"downstream[\W_]+spokes", re.I)
+
+
+def _hub_spoke_list(text):
+    """(names, None) for the hub's downstream spoke list, or (None, why it cannot be read). The
+    list is the one fenced block (``` or ~~~) under the one heading whose text starts "Downstream
+    spokes", at any level and in any case, read up to the next heading; each whitespace-separated
+    word in it is a listed name. The router reads the first such heading and its first fence, so
+    a second such heading, a second fence, text beside the fence, or an unclosed fence is refused
+    rather than read one way here and another way by the router. Any other line that names
+    "Downstream spokes" (any separator, any case) is refused too, so a setext or HTML heading, or
+    one spaced another way, cannot hold a list the router reads first. The text is folded first
+    (_text_fold), so a heading split by an invisible character or written in fullwidth letters is
+    read as the heading it renders as. A heading spelled with a letter of another script that
+    looks Latin is not folded and is not read as the heading (the self-proof pins that limit). A
+    list under a heading
+    that names it in other words ("Spokes (downstream)") is not read."""
+    text = _text_fold(text)
+    heads = list(_HUB_SPOKE_HEADING.finditer(text))
+    if not heads:
+        return None, "has no '## Downstream spokes' heading"
+    if len(heads) > 1:
+        lines = [text.count("\n", 0, m.start()) + 1 for m in heads]
+        return None, (f"has {len(heads)} 'Downstream spokes' headings (lines {lines}); exactly "
+                      f"one must, because the router reads the first")
+    head_line = text.count("\n", 0, heads[0].start()) + 1
+    others = [n for n, ln in enumerate(text.split("\n"), 1)
+              if n != head_line and _HUB_SPOKE_MENTION.search(ln)]
+    if others:
+        return None, (f"names 'Downstream spokes' outside its one heading (lines {others}); a "
+                      f"setext or HTML heading there, or one spaced another way, is read by the "
+                      f"router and not here")
+    blocks, fence, cur, stray = [], None, [], []
+    for line in text[heads[0].end():].split("\n")[1:]:
+        if fence is None:
+            m = _HUB_FENCE.match(line)
+            if m:
+                fence, cur = m.group(1), []
+            elif re.match(r" {0,3}#{1,6}(?:[ \t]|$)", line):
+                break
+            elif line.strip():
+                stray.append(line.strip())
+        elif re.fullmatch(r" {0,3}" + re.escape(fence[0]) + "{%d,}[ \t]*" % len(fence), line):
+            blocks.append("\n".join(cur))
+            fence = None
+        else:
+            cur.append(line)
+    if fence is not None:
+        return None, "has a fence under '## Downstream spokes' that is never closed"
+    if stray:
+        return None, (f"carries text outside the fenced spoke list ({stray[0][:60]!r}); the "
+                      f"section holds only the fence")
+    if len(blocks) != 1:
+        return None, (f"has {len(blocks)} fenced blocks under '## Downstream spokes'; exactly one "
+                      f"must")
+    return blocks[0].split(), None
+
+
+
+def _hub_route_list():
+    """(names, None) for the `downstream_spokes` list of the hub workflow.json route step, or
+    (None, why it cannot be read): exactly one step key of that name, holding a list of strings."""
+    path = ROOT / "skills" / "creator-core" / "workflow.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return None, f"cannot be read ({exc}), so its route spoke list is not compared"
+    lists = [v for _, key, v in _workflow_keys(data)[1] if key == "downstream_spokes"]
+    if len(lists) != 1 or not isinstance(lists[0], list) or not all(
+            isinstance(n, str) for n in lists[0]):
+        return None, (f"holds {len(lists)} downstream_spokes value(s); exactly one list of spoke "
+                      f"names must, naming the spokes the hub SKILL.md list names")
+    return lists[0], None
+
+
+def _hub_route_gaps(names, route):
+    """Problems where the hub workflow.json route list `route` and the hub SKILL.md list `names`
+    disagree: a name in one and not the other, or a name the route list holds twice."""
+    out = [f"hub workflow.json route step lists {n!r} in downstream_spokes, which the hub SKILL.md "
+           f"spoke list does not" for n in route if n not in names]
+    out += [f"hub SKILL.md spoke list names {n!r}, which the hub workflow.json route step's "
+            f"downstream_spokes omits" for n in names if n not in route]
+    out += [f"hub workflow.json route step lists {n!r} more than once"
+            for n in sorted({n for n in route if route.count(n) > 1})]
+    return out
+
+
 def check_hub():
-    """Invariant 6."""
+    """Invariant 6: the hub's downstream spoke list and the skills/ spoke directories agree in
+    both directions, and the hub carries the routing object schema.
+
+    _hub_spoke_list reads the list the way the router does and refuses a hub it cannot read one
+    way. A listed name must be a skill name (NAME_RE) with a skills/<name>/SKILL.md; a listed
+    name without one is a spoke the router would dispatch to and never find. A spoke directory
+    missing from the list is an orphan the router never dispatches to. The reading and both
+    directions prove themselves on fixtures before the real hub is read. The route step of the hub
+    workflow.json carries its own `downstream_spokes` list, which the router also reads; it must
+    name the same spokes as the SKILL.md list (_hub_route_list, _hub_route_gaps)."""
+    def _spoke_gaps(names, entries):
+        """(orphans, missing, malformed) for listed names against (name, has_skill_md) spoke
+        directory entries: directories the list omits, listed skill names with no SKILL.md, and
+        listed words that are not skill names."""
+        good = {n for n in names if NAME_RE.match(n)}
+        dirs = {n for n, _ in entries}
+        installed = {n for n, has_md in entries if has_md}
+        return (sorted(dirs - good), sorted(good - installed),
+                sorted(n for n in names if not NAME_RE.match(n)))
+
+    fx = "## Downstream spokes\n\n```\nreal-spoke ghost-spoke no-md Bad_Name\n```\n\n## Next\nx\n"
+    names = _hub_spoke_list(fx)[0]
+    refused = [_hub_spoke_list(t)[1] or "" for t in (
+        fx + "### downstream spokes (mirror)\n```\nreal-spoke\n```\n",
+        "## Downstream spokes\n~~~\nghost-spoke\n~~~\n```\nreal-spoke\n```\n",
+        "## Downstream spokes\n- ghost-spoke\n```\nreal-spoke\n```\n",
+        "Downstream spokes\n=================\n```\nghost-spoke\n```\n\n" + fx,
+        "## Down​stream spokes\n```\nghost-spoke\n```\n\n" + fx,
+        "## Down­stream spokes\n```\nghost-spoke\n```\n\n" + fx,
+        "## Downㅤstream spokes\n```\nghost-spoke\n```\n\n" + fx,
+        "## Ｄownstream spokes\n```\nghost-spoke\n```\n\n" + fx)]
+    if (names is None
+            or _spoke_gaps(names, [("real-spoke", True), ("other-spoke", True), ("no-md", False)])
+            != (["other-spoke"], ["ghost-spoke", "no-md"], ["Bad_Name"])
+            or "2 'Downstream spokes' headings" not in refused[0]
+            or "2 fenced blocks" not in refused[1] or "outside the fenced" not in refused[2]
+            or _hub_route_gaps(["a", "b"], ["b", "a"])
+            or [len(_hub_route_gaps(["a", "b"], r)) for r in (["a", "b", "g"], ["a"], ["a", "b", "a"])]
+            != [1, 1, 1]
+            or "outside its one heading" not in refused[3]
+            or any("2 'Downstream spokes' headings" not in r for r in refused[4:])
+            or _hub_spoke_list("## Dоwnstream spokes\n```\nghost-spoke\n```\n\n" + fx)[0] != names):
+        problem("hub: spoke-list self-proof failed; a listed name with no skills/<name>/SKILL.md, "
+                "a spoke directory outside the list, or a hub with two spoke headings, two fences "
+                "or text beside the fence, or a route list naming other spokes, is no longer detected")
+        return
     hub = ROOT / "skills" / "creator-core" / "SKILL.md"
     if not hub.exists():
         problem("missing hub skills/creator-core/SKILL.md")
         return
     text = hub.read_text(encoding="utf-8")
-    listed = set()
-    if "## Downstream spokes" in text:
-        listed = set(re.findall(r"[a-z][a-z-]+", text.split("## Downstream spokes")[-1]))
-    actual = {
-        p.name
-        for p in (ROOT / "skills").iterdir()
-        if p.is_dir() and p.name not in ("creator-core", "atoms")
-    }
-    for spoke in sorted(actual):
-        if spoke not in listed:
+    entries = [(p.name, (p / "SKILL.md").is_file()) for p in (ROOT / "skills").iterdir()
+               if p.is_dir() and p.name not in ("creator-core", "atoms")]
+    names, why = _hub_spoke_list(text)
+    if names is None:
+        problem(f"hub SKILL.md {why}")
+    else:
+        orphans, missing, malformed = _spoke_gaps(names, entries)
+        for spoke in orphans:
             problem(f"orphan spoke skills/{spoke} not listed in hub downstream spokes")
+        for name in missing:
+            problem(f"hub downstream spokes lists '{name}', but skills/{name}/SKILL.md does not "
+                    f"exist, so the router would dispatch to a spoke that does not exist")
+        for name in malformed:
+            problem(f"hub downstream spokes lists {name!r}, which is not a skill name")
+        route, why_route = _hub_route_list()
+        if route is None:
+            problem(f"hub skills/creator-core/workflow.json {why_route}")
+        else:
+            for msg in _hub_route_gaps(names, route):
+                problem(msg)
     if '"request_classification"' not in text:
         problem("hub SKILL.md missing the routing object schema")
 
 
+_WORKFLOW_ATOM_KEY = re.compile(r"atom", re.I)
+
+# The keys a workflow.json may use at its top level and in a step, with the kind of value each
+# holds: "atom" values name skills/atoms/<name>/ directories, "spoke" values name skills/<name>/
+# spoke directories, "data" values are read by the model and not checked. No workflow schema
+# exists, so the set is the keys the committed workflows use. A key outside it is refused until it
+# is added here with its kind, so an atom or spoke named under a new key is not skipped.
+_WORKFLOW_KEYS = {
+    "top": {"_comment": "data", "boundaries": "data", "description": "data",
+            "engines_required": "data", "hard_rules": "data", "id": "data", "note": "data",
+            "notes": "data", "protocols": "data", "shortcut_atoms": "atom", "skill": "data",
+            "spoke": "spoke", "steps": "data", "stop_conditions": "data", "version": "data"},
+    "step": {"action": "data", "atom": "atom", "classification_enum": "data", "condition": "data",
+             "description": "data", "downstream_spokes": "spoke", "engine_map": "data",
+             "gates": "data", "id": "data", "input_from": "data", "label": "data", "note": "data",
+             "notes": "data", "optional": "data", "output_format": "data", "output_to": "data",
+             "protocols": "data", "reference_atoms": "atom", "repeat": "data",
+             "safe_defaults": "data", "skip_if": "data", "step": "data"},
+}
+
+
+def _workflow_keys(data):
+    """(unknown, spokes) for a workflow.json: the JSON paths of top-level and step keys outside
+    _WORKFLOW_KEYS (a top level or a `steps` item that is not an object, or a `steps` value that
+    is not a list, is reported the same way), and (path, key, value) for each key of the "spoke"
+    kind. Values under a "data" key are not read here; _workflow_atom_refs reads every key with
+    "atom" in its name at any depth."""
+    if not isinstance(data, dict):
+        return ["/ (not an object)"], []
+    unknown, spokes, levels = [], [], [("", data, _WORKFLOW_KEYS["top"])]
+    steps = data.get("steps", [])
+    if not isinstance(steps, list):
+        unknown.append("/steps (not a list)")
+        steps = []
+    for i, st in enumerate(steps):
+        if isinstance(st, dict):
+            levels.append((f"/steps[{i}]", st, _WORKFLOW_KEYS["step"]))
+        else:
+            unknown.append(f"/steps[{i}] (not an object)")
+    for where, obj, known in levels:
+        for key, val in obj.items():
+            kind = known.get(key)
+            if kind is None:
+                unknown.append(f"{where}/{key}")
+            elif kind == "spoke":
+                spokes.append((f"{where}/{key}", key, val))
+    return unknown, spokes
+
+
+def _workflow_atom_refs(data, where=""):
+    """(json path, value) for every value a workflow.json holds under a key whose name contains
+    "atom" (`atom`, `shortcut_atoms`, `reference_atoms`, or a key added later), at any depth; a
+    list value yields each item. Keys are matched by name, not from a list of the keys in use, so
+    an atom named under a new key is read. A value that is not a string is returned as is, for
+    the caller to refuse."""
+    out = []
+    if isinstance(data, dict):
+        for key, val in data.items():
+            path = f"{where}/{key}"
+            if _WORKFLOW_ATOM_KEY.search(str(key)):
+                out += [(path, v) for v in (val if isinstance(val, list) else [val])]
+            else:
+                out += _workflow_atom_refs(val, path)
+    elif isinstance(data, list):
+        for i, item in enumerate(data):
+            out += _workflow_atom_refs(item, f"{where}[{i}]")
+    return out
+
+
+def _workflow_pairs(pairs):
+    """A workflow.json object as a dict. A key written twice in one object is refused: json.loads
+    keeps only the last value, so an atom named under the first copy would be in the file and
+    never checked."""
+    keys = [k for k, _ in pairs]
+    twice = sorted({k for k in keys if keys.count(k) > 1})
+    if twice:
+        raise ValueError(f"the key {twice[0]!r} is written twice in one object")
+    return dict(pairs)
+
+
 def check_workflows():
-    """Invariant 7."""
+    """Invariant 7: every atom a workflow.json names is installed. Every value under a key whose
+    name contains "atom" is read, at any depth (_workflow_atom_refs), and must name a
+    skills/atoms/<name>/ directory that holds a SKILL.md. Both rules prove themselves on a
+    fixture before the real workflows are read, and a key written twice in one object is refused
+    (_workflow_pairs). A top-level or step key outside _WORKFLOW_KEYS is refused (_workflow_keys),
+    so an atom or spoke named under a new key is not skipped, and each value under a key of the
+    "spoke" kind must name a skills/<name>/ directory that holds a SKILL.md. Values nested under a
+    "data" key are read only for keys with "atom" in their name."""
+    def _installed(entries):
+        """Names among (name, is_dir, has_skill_md) entries that are a directory with a SKILL.md."""
+        return {name for name, is_dir, has_md in entries if is_dir and has_md}
+
+    def _twice_refused(text):
+        """True when a JSON text with a key written twice in one object is refused."""
+        try:
+            json.loads(text, object_pairs_hook=_workflow_pairs)
+        except ValueError:
+            return True
+        return False
+
+    refs = [v for _, v in _workflow_atom_refs(
+        {"steps": [{"atom": "real", "reference_atoms": ["real", "ghost-a"]},
+                   {"branch": {"fallback_atom": "ghost-b"}, "note": "ghost-c"}],
+         "shortcut_atoms": ["real", 7]})]
+    if (refs != ["real", "real", "ghost-a", "ghost-b", "real", 7]
+            or _installed([("real", True, True), ("no-md", True, False), ("f", False, False)])
+            != {"real"}
+            or not _twice_refused('{"atom": "ghost-a", "atom": "real"}')
+            or _workflow_keys({"spoke": "s", "compose_with": "ghost-atom",
+                               "steps": [{"atom": "a", "fallback_spoke": "g",
+                                          "downstream_spokes": ["x"]}, "loose"]})
+            != (["/steps[1] (not an object)", "/compose_with", "/steps[0]/fallback_spoke"],
+                [("/spoke", "spoke", "s"), ("/steps[0]/downstream_spokes", "downstream_spokes",
+                                             ["x"])])):
+        problem("workflows: self-proof failed; an atom named under a key other than steps[].atom "
+                "and shortcut_atoms, an atom directory without its SKILL.md, or a key written "
+                "twice in one object, or a key outside _WORKFLOW_KEYS, is no longer detected")
+        return
     atoms_dir = ROOT / "skills" / "atoms"
-    available = (
-        {p.name for p in atoms_dir.iterdir() if p.is_dir()} if atoms_dir.exists() else set()
-    )
+    installed = _installed([(p.name, p.is_dir(), (p / "SKILL.md").is_file())
+                            for p in atoms_dir.iterdir()] if atoms_dir.exists() else [])
+    spoke_dirs = {p.name for p in (ROOT / "skills").iterdir()
+                  if p.is_dir() and p.name not in ("creator-core", "atoms")
+                  and (p / "SKILL.md").is_file()}
     for wf in sorted((ROOT / "skills").rglob("workflow.json")):
         rel = wf.relative_to(ROOT)
         try:
-            data = json.loads(wf.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
+            data = json.loads(wf.read_text(encoding="utf-8"), object_pairs_hook=_workflow_pairs)
+        except ValueError as exc:
             problem(f"{rel}: invalid JSON ({exc})")
             continue
-        named = [s.get("atom") for s in data.get("steps", []) if s.get("atom")]
-        named += list(data.get("shortcut_atoms", []))
-        for atom in named:
-            if atom not in available:
-                problem(f"{rel}: references unknown atom '{atom}'")
+        unknown, spoke_refs = _workflow_keys(data)
+        for path in unknown:
+            problem(f"{rel}: {path} is a key outside _WORKFLOW_KEYS in tools/sync_check.py; add it "
+                    f"there with the kind of value it holds (atom, spoke or data), so a name under "
+                    f"it is checked rather than skipped")
+        for path, _, val in spoke_refs:
+            for name in (val if isinstance(val, list) else [val]):
+                if not isinstance(name, str) or name not in spoke_dirs:
+                    problem(f"{rel}: {path} names {name!r}, which is not a spoke directory with "
+                            f"a SKILL.md under skills/")
+        for path, atom in _workflow_atom_refs(data):
+            if not isinstance(atom, str) or not atom:
+                problem(f"{rel}: {path} holds {atom!r}, which is not an atom name")
+            elif atom not in installed:
+                problem(f"{rel}: references unknown atom '{atom}' at {path}; "
+                        f"skills/atoms/{atom}/SKILL.md does not exist")
 
 
 def check_yaml_strict():
@@ -587,8 +897,145 @@ def _workflow_consumes_agent_output(text):
     return False
 
 
+# Agent is listed because a nested subagent is configured on its own and can hold Write and Edit.
+AGENT_MUTATION_TOOLS = ("Write", "Edit", "NotebookEdit", "Agent")
+# Remote write tools of the MCP servers this project is used with (GitHub and Google Drive).
+# Every agent definition's frontmatter must remove them; a server-level entry (mcp__<server> or
+# mcp__<server>__*) or mcp__* covers each one, as Claude Code's disallowedTools does.
+AGENT_MCP_WRITE_TOOLS = (
+    "mcp__github__push_files", "mcp__github__create_or_update_file", "mcp__github__delete_file",
+    "mcp__Google_Drive__create_file", "mcp__Google_Drive__update_file",
+    "mcp__Google_Drive__trash_file", "mcp__Google_Drive__copy_file",
+)
+AUDITOR_AGENT = "auditor"
+# The hook exits 0 when the guard file is absent; a bare `python3 <missing file>` exits 2, which
+# Claude Code treats as a block on every Bash call in the project.
+GUARD_HOOK_COMMAND = ('test ! -f "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py" || '
+                      'python3 "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"')
+_UNSAFE_PERMISSION_MODES = {"acceptEdits", "bypassPermissions", "dontAsk", "auto"}
+
+
+def _agent_frontmatter(text):
+    """Top-level keys of an agent definition's YAML frontmatter, or None when it has none.
+    Claude Code loads a file as an agent only when `---` is its first line and the block names the
+    agent. Without PyYAML (CI's 3.14 leg) a small reader handles the subset agent files use:
+    `key: value`, a comma-separated value, a [flow, list], or a block list of `- item` lines."""
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---\n", 3)
+    if end < 0:
+        return None
+    block = text[4:end]
+    if HAS_YAML:
+        try:
+            data = yaml.safe_load(block)
+        except yaml.YAMLError:
+            return {}
+        return data if isinstance(data, dict) else {}
+    data, key = {}, None
+    for line in block.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        m = re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", line)
+        if m:
+            key, val = m.group(1), m.group(2).strip()
+            data[key] = val.strip("'\"") if val else []
+            continue
+        m = re.match(r"^\s+-\s+(.*)$", line)
+        if m and key and isinstance(data.get(key), list):
+            data[key].append(m.group(1).strip().strip("'\""))
+    return data
+
+
+def _fm_tool_set(value):
+    """A frontmatter tools/disallowedTools value (comma string, [flow list] or YAML list) as a set."""
+    items = value if isinstance(value, list) else str(value or "").strip().strip("[]").split(",")
+    return {str(t).strip().strip("'\"") for t in items if str(t).strip().strip("'\"")}
+
+
+def _fm_denies(deny, tool):
+    if tool in deny:
+        return True
+    parts = tool.split("__")
+    if len(parts) < 3 or parts[0] != "mcp":
+        return False
+    return "mcp__*" in deny or f"mcp__{parts[1]}" in deny or f"mcp__{parts[1]}__*" in deny
+
+
+def _agent_frontmatter_problems(rel, stem, text):
+    fm = _agent_frontmatter(text)
+    if fm is None:
+        return [f"{rel}: no YAML frontmatter on line 1; Claude Code loads the file as documentation, "
+                f"not as an agent, so none of its tool rules apply"]
+    out = []
+    name = str(fm.get("name") or "")
+    if not name:
+        out.append(f"{rel}: frontmatter has no `name`")
+    elif name != stem:
+        out.append(f"{rel}: frontmatter name '{name}' must equal the file name '{stem}' "
+                   f"(workflows pass it as agentType)")
+    if not str(fm.get("description") or "").strip():
+        out.append(f"{rel}: frontmatter has no `description`")
+    deny, tools = _fm_tool_set(fm.get("disallowedTools")), _fm_tool_set(fm.get("tools"))
+    missing = [t for t in AGENT_MUTATION_TOOLS + AGENT_MCP_WRITE_TOOLS if not _fm_denies(deny, t)]
+    if missing:
+        out.append(f"{rel}: frontmatter disallowedTools does not remove {', '.join(missing)}")
+    granted = sorted(tools & set(AGENT_MUTATION_TOOLS))
+    if granted:
+        out.append(f"{rel}: frontmatter tools grants mutation tool(s) {', '.join(granted)}")
+    mode = str(fm.get("permissionMode") or "")
+    if mode in _UNSAFE_PERMISSION_MODES:
+        out.append(f"{rel}: frontmatter permissionMode '{mode}' lets the agent act without review")
+    if name == AUDITOR_AGENT:
+        if str(fm.get("isolation") or "") != "worktree":
+            out.append(f"{rel}: the auditor must set `isolation: worktree`")
+        if "mcp__*" not in deny:
+            out.append(f"{rel}: the auditor's disallowedTools must include `mcp__*` (it uses no MCP tool)")
+    elif fm.get("isolation"):
+        out.append(f"{rel}: a product agent must not set `isolation`; a worktree of HEAD lacks the "
+                   f"ignored and uncommitted local data it reads (*.local.json, *.local.db)")
+    return out
+
+
+def _auditor_wiring_problems(names):
+    """The auditor definition exists, and .claude/settings.json runs the Bash guard for it."""
+    out = []
+    if AUDITOR_AGENT not in names:
+        out.append(f".claude/agents: no definition named '{AUDITOR_AGENT}' (the read-only reviewer the "
+                   f"Bash guard is scoped to)")
+    try:
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return out + [f".claude/settings.json: unreadable ({exc}); it wires the auditor's Bash guard"]
+    if not isinstance(settings, dict):
+        return out + [".claude/settings.json: not a JSON object"]
+    if (settings.get("worktree") or {}).get("baseRef") != "head":
+        out.append('.claude/settings.json: worktree.baseRef must be "head" so an isolated agent reads '
+                   'the local HEAD, not the remote default branch')
+    wired = False
+    for entry in (settings.get("hooks") or {}).get("PreToolUse") or []:
+        if isinstance(entry, dict) and "Bash" in str(entry.get("matcher", "")).split("|"):
+            wired = wired or any(isinstance(h, dict) and h.get("command") == GUARD_HOOK_COMMAND
+                                 for h in entry.get("hooks") or [])
+    if not wired:
+        out.append(f".claude/settings.json: no PreToolUse hook on Bash runs `{GUARD_HOOK_COMMAND}` "
+                   f"(it skips the guard when the file is absent, so a missing file cannot block "
+                   f"every Bash call)")
+    try:
+        tree = ast.parse((ROOT / "tools" / "readonly_bash_guard.py").read_text(encoding="utf-8"))
+        guarded = next((ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                        and any(getattr(t, "id", None) == "GUARDED_AGENT_TYPES" for t in n.targets)), ())
+    except (OSError, SyntaxError, ValueError) as exc:
+        return out + [f"tools/readonly_bash_guard.py: unreadable ({exc})"]
+    if AUDITOR_AGENT not in guarded:
+        out.append(f"tools/readonly_bash_guard.py: GUARDED_AGENT_TYPES does not include '{AUDITOR_AGENT}'")
+    return out
+
+
 def check_agent_contracts():
-    """Invariant 14: agent definitions have required contract sections."""
+    """Invariant 14: agent definitions have required contract sections, YAML frontmatter that
+    removes the write tools (the part Claude Code enforces), and the auditor's isolation and
+    Bash-guard wiring."""
     agents_dir = ROOT / ".claude" / "agents"
     if not agents_dir.exists():
         return
@@ -599,6 +1046,7 @@ def check_agent_contracts():
         "## Output format",
     ]
     forbidden_tools_must_list = ["Write", "Edit", "NotebookEdit"]
+    names = set()
     for md in sorted(agents_dir.glob("*.md")):
         rel = md.relative_to(ROOT)
         text = md.read_text(encoding="utf-8")
@@ -613,7 +1061,7 @@ def check_agent_contracts():
             for tool_name in forbidden_tools_must_list:
                 if tool_name not in forbidden_block:
                     problem(f"{rel}: Forbidden tools section missing '{tool_name}'")
-        # Property (P67, hardened P68): the allowlist must actually list a real tool. A header with
+        # Property: the allowlist must actually list a real tool. A header with
         # no parseable '- Tool' bullets is an empty allowlist that grants nothing; a bullet that is
         # only a placeholder ('- none', '- n/a', '- TBD', '- see above') is an empty allowlist
         # dressed as a full one. The bare section-present check above would pass both.
@@ -623,18 +1071,124 @@ def check_agent_contracts():
             if not _real:
                 problem(f"{rel}: Allowed tools section lists no real tool (empty or placeholder-only "
                         f"allowlist defeats the explicit-allowlist contract)")
+        for msg in _agent_frontmatter_problems(rel, md.stem, text):
+            problem(msg)
+        names.add(str((_agent_frontmatter(text) or {}).get("name") or ""))
+    for msg in _auditor_wiring_problems(names):
+        problem(msg)
+    # The matcher itself: mcp__* removes MCP tools only, never a built-in tool such as Write.
+    if _fm_denies({"mcp__*"}, "Write") or not _fm_denies({"mcp__*"}, AGENT_MCP_WRITE_TOOLS[0]):
+        problem("tools/sync_check.py: _fm_denies must treat mcp__* as covering MCP tools only")
+
+
+_VERDICT_ENUM_RE = re.compile(r"\b(?:overall_verdict|verdict)\s*:\s*\{[^{}]*?\benum\s*:\s*\[([^\]]*)\]")
+_VERDICT_FAIL_ESCALATES_RE = re.compile(
+    r"(?:overall_verdict|verification_verdict)\s*===\s*'fail'\s*\)\s*\{[^{}]*"
+    r"human_review_required\s*=\s*true")
+_VERDICT_DNR_ESCALATES_RE = re.compile(
+    r"'did_not_run'[^{}]*\)\s*\{[^{}]*human_review_required\s*=\s*true")
+_VERDICT_RECORDED_RE = re.compile(r"\bverification_verdict\s*[:=][^;\n]*'did_not_run'")
+
+
+def _js_object_at(text, start):
+    """The balanced `{...}` literal that opens at text[start], skipping quoted strings and
+    comments; None when it never closes."""
+    depth, i, n = 0, start, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "'\"`":
+            j = i + 1
+            while j < n and text[j] != ch:
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+            continue
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+        i += 1
+    return None
+
+
+def _workflow_verdict_schema(text):
+    """(schema_text, enum_values) for a workflow's `const VERIFICATION_SCHEMA = {...}`. (None, None)
+    when the workflow defines none; values None when the verdict enum cannot be read. The enum is
+    read inside the schema's own braces, so a later object's enum cannot stand in for it."""
+    m = re.search(r"\bconst\s+VERIFICATION_SCHEMA\s*=\s*\{", text)
+    if not m:
+        return None, None
+    obj = _js_object_at(text, m.end() - 1)
+    if obj is None:
+        return "", None
+    em = _VERDICT_ENUM_RE.search(obj)
+    if not em:
+        return obj, None
+    return obj, [a or b for a, b in re.findall(r"'([^']*)'|\"([^\"]*)\"", em.group(1))]
+
+
+def _check_verdict_parity(schemas_dir):
+    """Invariant 15, verdict part (see check_schema_verification_fields)."""
+    try:
+        env = json.loads((schemas_dir / "verification-envelope.json").read_text(encoding="utf-8"))
+        canon = env["$defs"]["verification_verdict"]["properties"]["overall_verdict"]["enum"]
+        dec = json.loads((schemas_dir / "verification-decision.json").read_text(encoding="utf-8"))
+        dec_enum = dec["properties"]["verification_verdict"]["properties"]["overall"]["enum"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        problem(f"verdict-enum: the verdict enum cannot be read from shared/schemas/ ({exc!r})")
+        return
+    if "did_not_run" not in canon:
+        problem("verdict-enum: verification-envelope.json overall_verdict lacks 'did_not_run', so a "
+                "verifier that returned nothing can only be recorded as a pass or a fail")
+    if dec_enum != canon:
+        problem(f"verdict-enum: verification-decision.json overall enum {dec_enum} != envelope "
+                f"{canon}")
+    wf_dir = ROOT / ".claude" / "workflows"
+    for js in sorted(wf_dir.glob("*.js")) if wf_dir.exists() else []:
+        rel = js.relative_to(ROOT)
+        text = js.read_text(encoding="utf-8")
+        obj, vals = _workflow_verdict_schema(text)
+        if obj is None:
+            continue
+        if vals != canon:
+            problem(f"verdict-enum: {rel} VERIFICATION_SCHEMA verdict enum {vals} != envelope {canon}")
+            continue
+        rest = text.replace(obj, "", 1)
+        if re.search(r"\bschema\s*:\s*VERIFICATION_SCHEMA\b", rest) and not _VERDICT_RECORDED_RE.search(rest):
+            problem(f"verdict-enum: {rel} runs a verifier but does not record 'did_not_run' in a "
+                    f"verification_verdict field when it returns nothing, so a dead verifier reads like a skipped step")
+        if _VERDICT_FAIL_ESCALATES_RE.search(rest) and not _VERDICT_DNR_ESCALATES_RE.search(rest):
+            problem(f"verdict-enum: {rel} routes a 'fail' verdict to human review but not "
+                    f"'did_not_run'; a verifier that did not run is not a pass")
 
 
 def check_schema_verification_fields():
-    """Invariant 15: agent output schemas have verification envelope fields, and every agent
+    """Invariant 15: agent output schemas have verification envelope fields, the verification
+    verdict enum agrees across the schemas and workflows (Verdict parity, below), and every agent
     DEFINITION's prose names them too (P66: the schemas enforced the envelope while four agent
     definitions' Output format sections omitted it, so an agent following its written contract
-    would emit output its own schema rejects — the P65 F-AGENT-ENVELOPE finding).
+    would emit output its own schema rejects).
 
     The skip set lists DATA CONTRACTS that live in shared/schemas/ but are not agent output
     schemas: the envelope definitions themselves, and compute-job.json (the P60 job ticket/result
     contract; tickets are validated inputs, not agent findings, so a verification envelope would
-    be meaningless on them)."""
+    be meaningless on them).
+
+    Verdict parity: the overall_verdict enum in verification-envelope.json is canonical. The
+    decision record's `overall` enum and the verdict enum inside each workflow's
+    VERIFICATION_SCHEMA must equal it, and it must carry `did_not_run`, the value a workflow
+    records when its verifier returned nothing. A workflow that passes VERIFICATION_SCHEMA to an
+    agent assigns `did_not_run` to a verification_verdict field outside the schema, and a
+    workflow that routes a failing verdict to human review routes `did_not_run` the same way."""
     schemas_dir = ROOT / "shared" / "schemas"
     if not schemas_dir.exists():
         return
@@ -667,6 +1221,7 @@ def check_schema_verification_fields():
                 if f"`{field}`" not in text and f"`{field}[]`" not in text:
                     problem(f"{rel}: the agent definition never names the verification envelope "
                             f"field '{field}'; the def prose and the output schema must agree")
+    _check_verdict_parity(schemas_dir)
 
 
 def check_workflow_verification():
@@ -755,7 +1310,7 @@ _REQ_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*(.*)$")
 
 
 def _requirement_lines():
-    """name -> (file:line, specifier) for every requirement line, plus problems. P80 A2 read the raw
+    """name -> (file:line, specifier) for every requirement line, plus problems. P80 read the raw
     remainder of the line as the pin; P81 strips what is not a version pin (a PEP 508 marker, a --hash,
     a continuation), skips direct references (they carry a URL, not a version), and refuses a package
     pinned differently in two files (the old dict silently kept the alphabetically last file)."""
@@ -887,6 +1442,8 @@ except ImportError:  # imported as a module with tools/ not on sys.path
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from secret_scan import FORBIDDEN_DATA_SUFFIXES as FORBIDDEN_TRACKED_SUFFIXES
 FORBIDDEN_TRACKED_BASENAMES = re.compile(r"^\.env(\.|$)")
+# Invariant 20 (third part): audit-record file names, one rule shared with the --staged gate.
+from secret_scan import audit_exempt_problems, audit_record_findings  # noqa: E402
 
 
 def _git_ls_files():
@@ -915,10 +1472,29 @@ def _git_last_commit_date(rel):
 
 
 # Dated records quote what was true when they were written; live claims are swept, these are not.
-HISTORY_PREFIXES = ("docs/adr/", "ledger/", "CHANGELOG.md", "STATE.md", "docs/ROADMAP.md", "examples/",
-                    "docs/production-readiness-", "docs/remediation-", "docs/integrity-currency-audit-",
-                    "docs/persona-audit", "docs/CROSS-MODALITY-AUDIT.md", "docs/video-tooling-",
-                    "canonical-sources/volatile-corrections.")
+# Each entry must still skip at least one sweep hit (_prefix_work_problems), so a record that no
+# longer quotes a stale fact goes back to being swept.
+HISTORY_PREFIXES = ("docs/adr/", "ledger/", "CHANGELOG.md", "canonical-sources/volatile-corrections.")
+
+
+def _prefix_work_problems(where, prefixes, hits_by_file):
+    """Entries in a sweep's skip tuple that do no work, given {path: hit count} for every file the
+    sweep reads (skipped files included: counted, not reported). An entry that is empty, repeated
+    or inside another entry is redundant; one that matches no file the sweep reads, or whose files
+    carry no hit, skips nothing. Pure, so the sweep proves it on a fixture before use."""
+    out = []
+    for key in prefixes:
+        under = [n for rel, n in hits_by_file.items() if rel.startswith(key)]
+        if (not key or prefixes.count(key) > 1
+                or any(o != key and key.startswith(o) for o in prefixes)):
+            out.append(f"{where}: the skip entry {key!r} is empty, repeated or inside another "
+                       f"entry; drop it")
+        elif not under:
+            out.append(f"{where}: the skip entry {key!r} matches no file this sweep reads; drop it")
+        elif not sum(under):
+            out.append(f"{where}: the skip entry {key!r} skips nothing (no file under it trips "
+                       f"the sweep); drop it so those files are swept like any other")
+    return out
 
 
 def _privacy_git_unavailable(invariant):
@@ -957,7 +1533,7 @@ def check_local_privacy():
 
 def check_pipeline_allowlist():
     """Invariant 20: tracked files under pipeline/ must be on the explicit allowlist, and no
-    financial-export or secret file type is tracked anywhere.
+    financial-export or secret file type, and no audit-record file, is tracked anywhere.
 
     The gitignore's allowlist-invert rules stop accidents; this catches force-adds
     (`git add -f`) and rule gaps. A bank CSV, a hand-dropped invoices.json under
@@ -968,6 +1544,17 @@ def check_pipeline_allowlist():
     if tracked is None:
         _privacy_git_unavailable(20)
         return
+    # Audit-record names (tools/secret_scan.py::audit_record_name). The rule is run on a fixture
+    # first, so a rule that has stopped matching fails here instead of reporting clean.
+    if not audit_record_findings(["docs/review-2026-01-02.md"], {}):
+        problem("privacy: the audit-record name rule flags nothing on its own fixture "
+                "(tools/secret_scan.py::audit_record_name); invariant 20 cannot vouch for names")
+    for f in audit_record_findings(tracked):
+        problem(f"privacy: audit record is tracked by git ({f['match']}): {f['path']}. Review "
+                f"output is kept outside the repository; remove the file, or exempt it in "
+                f"tools/secret_scan.py::AUDIT_RECORD_EXEMPT with a written reason")
+    for msg in audit_exempt_problems(tracked):
+        problem(f"privacy: {msg}")
     for path in tracked:
         if path.startswith("pipeline/") and path not in PIPELINE_TRACKED_ALLOWLIST:
             problem(
@@ -1469,7 +2056,7 @@ def check_transitions():
                 problem(f"transitions: tools/wizard.py does not name surface id {sid!r} "
                         "(the wizard pickers must cover every surface)")
     # (f) packaging artifacts carry the version stamp so pasted packs can be compared with the
-    # repo VERSION and re-synced (E12).
+    # repo VERSION and re-synced.
     ci = ROOT / "implementation" / "gpt" / "web" / "custom-instructions.md"
     if ci.exists():
         ci_first = ci.read_text(encoding="utf-8").split("\n", 1)[0]
@@ -1562,13 +2149,13 @@ def check_currency_map():
     for required in ("shared/connectors/connectors.json", "shared/integrations-engine.md"):
         if required not in tracked:
             problem(f"currency-map: required embedded-fact artifact '{required}' is not in embedded_fact_files")
-    # P79 F1: tier vocabulary. The field was validated nowhere (argparse help text only), and one
+    # P79: tier vocabulary. The field was validated nowhere (argparse help text only), and one
     # entry carried "primary" -- neither T1 nor T3, so citation grading could not place it.
     for s in reg.get("sources", []):
         if isinstance(s, dict) and s.get("tier") not in ("T1", "T2", "T3"):
             problem(f"currency-map: source '{s.get('id')}' has tier {s.get('tier')!r}; the vocabulary "
                     f"is T1|T2|T3 (fix via source_currency update-source --tier)")
-    # P80 A2: the pin chain. dependency_currency reads ONLY the entry's pinned_constraint (never the
+    # P80: the pin chain. dependency_currency reads ONLY the entry's pinned_constraint (never the
     # requirements files), so a specifier the registry does not mirror silently disables out-of-pin
     # detection for that package. Data fix: source_currency update-source --pinned-constraint.
     reqs, req_problems = _requirement_lines()
@@ -1585,7 +2172,7 @@ def check_currency_map():
         if spec != pin:
             problem(f"currency-map: dependency '{s['id']}' pinned_constraint {pin!r} disagrees with {loc} "
                     f"({spec!r}); fix via source_currency update-source {s['id']} --pinned-constraint '{spec}'")
-    # P79 F2: the six blind spots of the original check (P78 audit F9). Same invariant, wider.
+    # P79: six checks the original version missed. Same invariant, wider.
     valid_status = {"watched", "dated", "static", "tool-managed"}
     base = ROOT / "canonical-sources"
     for e in cmap.get("files", []):
@@ -1613,7 +2200,7 @@ def check_currency_map():
         if sub not in mapped and sub not in infra:
             problem(f"currency-map: {rel} is tracked but neither mapped in files[] nor excused in "
                     f"_infrastructure; classify it (watched|dated|static|tool-managed)")
-    # P81 G-7: a re-validation entry that cannot be re-run is not evidence (P80 dropped `command`).
+    # P81: a re-validation entry that cannot be re-run is not evidence (P80 dropped `command`).
     ev_path = ROOT / "docs" / "video-tooling-integration-evidence.json"
     if ev_path.exists():
         try:
@@ -1627,7 +2214,7 @@ def check_currency_map():
                 miss = sorted(req - set(c))
                 if miss:
                     problem(f"currency-map: {ev_path.name} revalidation {r.get('date')} check {c.get('id')} lacks {miss}")
-    # P81 G-8: the map's review stamp must not predate its own last edit.
+    # P81: the map's review stamp must not predate its own last edit.
     cd = _git_last_commit_date("canonical-sources/data-currency-map.json")
     if cd is None:
         advisory("currency-map: as_of vs commit date DID NOT RUN (not a git checkout)")
@@ -1945,8 +2532,8 @@ def check_registry_writer_count():
     if missing:
         advisory(f"registry-writers: expected registry writer(s) not detected: {missing}; the writer "
                  f"list in registry_io.py + CLAUDE.md may be stale")
-    # P81 G-6: one atomic writer. A bare write_text() on a local-config / credential / register path
-    # outside tools/atomic_io.py is the class behind C-2/C-7/C-8 (ten sites at P81 planning).
+    # P81: one atomic writer. A bare write_text() on a local-config / credential / register path
+    # outside tools/atomic_io.py is the defect class ten sites once shared.
     _target = re.compile(r"\.local\.json|local_path|creds_path|CREDS_PATH|CONFIG_LOCAL_PATH|REGISTER_PATH|FINANCE_DIR")
     _allow = {("tools/handoff_sim.py", "OB.REGISTER_PATH"): "simulator tamper fixture; proves the verifier notices"}
     for f in sorted(list(tools_dir.rglob("*.py")) + list((ROOT / "shared").rglob("*.py"))):
@@ -2160,14 +2747,48 @@ def check_content_vs_digest():
                  f"may lag detected content -> run tools/build_freshness_bundle.py --apply to re-stamp")
 
 
+def _url_allow_problems(entries, code_hosts):
+    """Operational-allowlist entries that do no work, given the non-excluded URL hosts in
+    tools/**/*.py. Each entry needs a host and a reason, and must account for at least one of those
+    hosts that no OTHER entry covers. Registry coverage does not count against an entry: an
+    operational endpoint stays listed even when a data source shares its host, so retiring that
+    source cannot strand it. A host listed twice is reported as a duplicate. Pure, so the check
+    proves it on a fixture before use."""
+    def covered(h, allowed):
+        return any(h == a or h.endswith("." + a) for a in allowed)
+    hosts = [str(e.get("host", "")).lower() for e in entries]
+    out = []
+    for i, (host, e) in enumerate(zip(hosts, entries)):
+        others = hosts[:i] + hosts[i + 1:]
+        if not host or not str(e.get("reason", "")).strip():
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} needs a host and "
+                       f"a reason")
+            continue
+        if hosts.count(host) > 1:
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} is listed more "
+                       f"than once; keep one")
+            continue
+        mine = sorted(h for h in code_hosts if covered(h, [host]))
+        if not mine:
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} matches no URL "
+                       f"host in tools/**/*.py; drop it")
+        elif all(covered(h, others) for h in mine):
+            out.append(f"url-provenance: operational-url-allowlist entry {host!r} accounts for "
+                       f"nothing on its own ({', '.join(mine)} already covered by another entry); "
+                       f"drop it and move its reason there")
+    return out
+
+
 def check_url_provenance():
     """Invariant 46: URL provenance (P49 WS3). Every http(s):// literal in tools/**/*.py must be
-    ACCOUNTED FOR by exactly one of: (a) a host in canonical-sources/source-registry.json (data/reference
+    ACCOUNTED FOR by at least one of: (a) a host in canonical-sources/source-registry.json (data/reference
     sources), (b) a base domain in canonical-sources/operational-url-allowlist.json (infra/plumbing
     endpoints, each with a written reason), or (c) an excluded-by-rule host (example/placeholder host,
     localhost, or a schema/XML namespace). Anything else is an undeclared endpoint and fails the build,
     so a typo'd or unvetted URL cannot ship silently. STATIC only: this never fetches a URL. Scope is
-    executable code (tools/**/*.py); doc bibliographies are out of scope by rule.
+    executable code (tools/**/*.py); doc bibliographies are out of scope by rule. Each allowlist
+    entry must carry a reason and account for at least one of those hosts that no other entry
+    covers (_url_allow_problems); registry coverage does not count against it.
 
     DEV-TRAP: an inline f-string that builds a URL host from a cfg.get(...) call inside the braces
     parses as an undeclared host (the static grep stops at the first quote, capturing a dotted token).
@@ -2194,6 +2815,7 @@ def check_url_provenance():
         if u.startswith("http"):
             reg_hosts.add(urllib.parse.urlparse(u).netloc.lower().split(":")[0])
     allow_hosts = {e.get("host", "").lower() for e in allow_doc.get("allowed", []) if e.get("host")}
+    code_hosts = set()
     schema_hosts = {"www.w3.org", "w3.org", "www.opengis.net", "opengis.net",
                     "schema.org", "json-schema.org", "www.google.com/recaptcha"}
 
@@ -2220,12 +2842,24 @@ def check_url_provenance():
             if host in seen:
                 continue
             seen.add(host)
+            if not excluded(host):
+                code_hosts.add(host)
             if excluded(host) or covered(host, reg_hosts) or covered(host, allow_hosts):
                 continue
             problem(f"url-provenance: {py.relative_to(ROOT)} hardcodes an undeclared URL host "
                     f"{host!r}; add it to source-registry.json (if it is a re-checkable data source) or "
                     f"canonical-sources/operational-url-allowlist.json (if it is an operational endpoint, "
                     f"with a reason), or it is a genuine placeholder that the exclusion rules should cover")
+    proof = _url_allow_problems([{"host": "a.com", "reason": "r"}, {"host": "sub.a.com", "reason": "r"},
+                                 {"host": "idle.org", "reason": "r"}, {"host": "", "reason": ""},
+                                 {"host": "dup.net", "reason": "r"}, {"host": "dup.net", "reason": "r"}],
+                                {"x.a.com", "sub.a.com", "dup.net"})
+    if [(m.split("'")[1], "more than once" in m) for m in proof] != [
+            ("sub.a.com", False), ("idle.org", False), ("", False), ("dup.net", True), ("dup.net", True)]:
+        problem(f"url-provenance: self-proof failed -- _url_allow_problems returned {proof!r}; a "
+                f"redundant, an idle, a reasonless and a repeated entry must each be reported")
+    for msg in _url_allow_problems(allow_doc.get("allowed", []), code_hosts):
+        problem(msg)
 
 
 def check_projection_staleness():
@@ -2302,10 +2936,10 @@ def check_doc_count_truth():
         ("skills/atoms/post-status/MAINTAINER_README.md", "invariants", "invariants"),
         ("skills/atoms/publish-draft/MAINTAINER_README.md", "invariants", "invariants"),
         ("skills/atoms/schedule-post/MAINTAINER_README.md", "invariants", "invariants"),
-        # P73 D1-3: AGENTS.md states the invariant count but was unguarded, so it could drift
+        # P73: AGENTS.md states the invariant count but was unguarded, so it could drift
         # exactly the way the four guarded docs could not.
         ("AGENTS.md", "invariants", "invariants"),
-        # Found by the reverse sweep below on its first run (P73 D6-F5), which is the point:
+        # Found by the reverse sweep below on its first run (P73), which is the point:
         # enrolment is no longer a thing anyone has to remember.
         ("README.md", "spokes", "spokes"),
         ("docs/SETUP_MAC.md", "mcp_tools", "tool definitions"),
@@ -2322,23 +2956,29 @@ def check_doc_count_truth():
                 problem(f"doc-count-truth: {rel} states '{n} {kw}' but the tree has {truth[key]} "
                         f"{kw}; correct the doc (counts are computed by tools/count_truth.py)")
 
-    # P73 D6-F5: the list above is curated, and curation has already been forgotten once --
-    # AGENTS.md shipped in P72 stating the invariant count with no guard, and only a hand audit
-    # caught it. Enrolment must not depend on remembering. Sweep every tracked doc for a global
+    # P73: the list above is curated, and curation can be forgotten (AGENTS.md shipped in P72
+    # stating the invariant count with no guard). Enrolment must not depend on remembering. Sweep every tracked doc for a global
     # count claim and require that the file be enrolled above.
     enrolled = {rel for rel, _, _ in checks}
     keywords = {"spokes": "spokes", "invariants": "invariants", "tool definitions": "mcp_tools",
                 "atoms": "atoms", "scenarios": "scenarios"}
     # Historical records legitimately quote the counts that were true when they were written.
     # This mirrors the scoping the curated list already assumes (see this check's docstring).
-    skip_prefixes = ("docs/adr/", "ledger/", "CHANGELOG.md", "STATE.md", "docs/ROADMAP.md",
-                     "examples/", "docs/production-readiness-",
-                     # A dated audit record: its body quotes the counts that were true at P39 and
-                     # it says so in its own opening line. Same class as an ADR.
-                     "docs/CROSS-MODALITY-AUDIT.md")
+    # Each entry must still skip a hit (_prefix_work_problems); one that skips nothing is dropped
+    # so its files are swept.
+    skip_prefixes = ("docs/adr/", "CHANGELOG.md", "STATE.md")
+    proof = _prefix_work_problems("x", ("live/", "dead/", "gone/", "live/sub/"),
+                                  {"live/a.md": 1, "dead/b.md": 0, "live/sub/c.md": 0})
+    if [m.split("'")[1] for m in proof] != ["dead/", "gone/", "live/sub/"]:
+        problem(f"doc-count-truth: skip-entry self-proof failed -- _prefix_work_problems returned "
+                f"{proof!r}; an entry that skips nothing must be reported")
+    skip_hits = {}
     for rel in (_git_ls_files() or []):
-        if rel in enrolled or rel.startswith(skip_prefixes) or not rel.endswith(".md"):
+        if rel in enrolled or not rel.endswith(".md"):
             continue
+        skipped = rel.startswith(skip_prefixes)
+        if skipped:
+            skip_hits[rel] = 0
         p = ROOT / rel
         if not p.exists():
             continue
@@ -2346,13 +2986,18 @@ def check_doc_count_truth():
         for kw, key in keywords.items():
             for m in re.finditer(rf"(\d+)\s+{re.escape(kw)}\b", text):
                 if int(m.group(1)) == truth[key]:
+                    if skipped:
+                        skip_hits[rel] += 1
+                        break
                     problem(
                         f"doc-count-truth: {rel} states '{m.group(1)} {kw}' but is NOT enrolled in "
                         f"the count-truth list, so it can drift silently. Add "
                         f"(\"{rel}\", \"{key}\", \"{kw}\") to checks[] in check_doc_count_truth, or "
                         f"reword the sentence so it does not state a global count.")
                     break
-    # P81 G-1: the Python floor is one constant (tools/env_paths.PYTHON_FLOOR); prose that names another
+    for msg in _prefix_work_problems("doc-count-truth", skip_prefixes, skip_hits):
+        problem(msg)
+    # P81: the Python floor is one constant (tools/env_paths.PYTHON_FLOOR); prose that names another
     # minor version as the floor or the recommendation is a live falsehood (P80 left two behind).
     try:
         sys.path.insert(0, str(ROOT / "tools"))
@@ -2364,9 +3009,18 @@ def check_doc_count_truth():
     floor_re = re.compile(r"(?:Python|python)\s*(?:>=\s*)?3\.(\d{1,2})\s+or\s+(?:later|newer)|python@3\.(\d{1,2})|\(3\.(\d{1,2}) recommended\)")
     pin_re = re.compile(r">=1\.28,<2|numpy below 2\.5|deferred mcp 2\.x")
     tracked = _git_ls_files() or []
+    history_hits = {}
     for rel in tracked:
-        if rel.startswith(HISTORY_PREFIXES) or not rel.endswith((".md", ".py", ".command", ".bat", ".txt", ".json")):
+        if not rel.endswith((".md", ".py", ".command", ".bat", ".txt", ".json")):
             continue
+        report = problem
+        if rel.startswith(HISTORY_PREFIXES):
+            # A dated record is read too, but its hits are only counted, so each
+            # HISTORY_PREFIXES entry can be shown to skip something.
+            history_hits[rel] = 0
+
+            def report(_msg, _rel=rel):
+                history_hits[_rel] += 1
         try:
             lines = (ROOT / rel).read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError:
@@ -2376,13 +3030,15 @@ def check_doc_count_truth():
                 minors = [int(next(g for g in m.groups() if g)) for m in floor_re.finditer(line)]
                 stale = [v for v in minors if v != floor_minor]
                 if stale and f"3.{floor_minor}" not in line:
-                    problem(f"doc-floor-truth: {rel}:{i} names Python 3.{stale[0]} where the floor is 3.{floor_minor} "
+                    report(f"doc-floor-truth: {rel}:{i} names Python 3.{stale[0]} where the floor is 3.{floor_minor} "
                             f"(tools/env_paths.PYTHON_FLOOR); fix the prose, or name the floor on the same line")
             m = pin_re.search(line)
             if m:
-                problem(f"doc-floor-truth: {rel}:{i} states a retired pin or work state ({m.group(0)!r}); "
-                        f"registry hints move via source_currency update-source --extraction-hint")
-    # P81 G-3: every ADR is reachable from the index (0053 to 0055 were not).
+                report(f"doc-floor-truth: {rel}:{i} states a retired pin or work state ({m.group(0)!r}); "
+                       f"registry hints move via source_currency update-source --extraction-hint")
+    for msg in _prefix_work_problems("doc-floor-truth", HISTORY_PREFIXES, history_hits):
+        problem(msg)
+    # P81: every ADR is reachable from the index (0053 to 0055 were not).
     idx_path = ROOT / "docs" / "adr" / "README.md"
     if idx_path.exists():
         listed = set(re.findall(r"\[(\d{4})\]\(", idx_path.read_text(encoding="utf-8")))
@@ -2391,7 +3047,7 @@ def check_doc_count_truth():
             if n != "0000" and n not in listed:
                 problem(f"adr-index: docs/adr/{pf.name} has no row in docs/adr/README.md; add "
                         f"`| [{n}]({pf.name}) | <title> | <date> | Accepted |`")
-    # P81 G-4: one heading per category under [Unreleased] (P80 appended a second Fixed and Changed).
+    # P81: one heading per category under [Unreleased] (P80 appended a second Fixed and Changed).
     cl = ROOT / "CHANGELOG.md"
     if cl.exists():
         seen, in_unreleased = {}, False
@@ -2433,43 +3089,78 @@ def _module_symbols(pyfile):
     return names
 
 
+def _verify_marker_error(spec):
+    """Why a `<!-- verify: spec -->` marker does not resolve, or None when it does."""
+    path, _, symbol = spec.partition("::")
+    if path.split("/")[0] not in KNOWN_ROOTS:
+        return f"verify marker `{spec}` path is not under a known repo root"
+    resolved = ROOT / path
+    if not resolved.exists():
+        return f"verify marker references missing path `{path}`"
+    if symbol:
+        if resolved.suffix != ".py":
+            return f"verify marker `{spec}` names a symbol but `{path}` is not a .py file"
+        syms = _module_symbols(resolved)
+        if syms is None:
+            return f"verify marker `{spec}`: could not parse `{path}`"
+        if symbol not in syms:
+            return f"verify marker `{spec}`: symbol `{symbol}` is not defined in `{path}`"
+    return None
+
+
+def _doc_verify_allow_problems(allow_list, seen, error_of):
+    """Entries in tools/doc-verify-allowlist.json that do no work: repeated, naming no marker the
+    scan met (`seen`), or naming a marker that resolves without the exemption (`error_of(spec)` is
+    None). Pure, so the check proves it on a fixture before use."""
+    out = [f"doc-verify-allowlist: {s!r} is listed more than once"
+           for s in sorted({s for s in allow_list if allow_list.count(s) > 1})]
+    for s in sorted(set(allow_list)):
+        if s not in seen:
+            out.append(f"doc-verify-allowlist: {s!r} names no verify marker in the scanned docs; "
+                       f"drop it")
+        elif error_of(s) is None:
+            out.append(f"doc-verify-allowlist: {s!r} resolves without the exemption, so it exempts "
+                       f"nothing; drop it")
+    return out
+
+
 def check_doc_symbol_refs():
     """Invariant 49: doc symbol references (P52). A `<!-- verify: path[::symbol] -->` marker in a
     maintainer/SKILL/doc file asserts the named code still exists: the path must resolve, and a
     ::symbol must be a module-level def/class/assignment (or Class.method) in that .py module. This
     extends the path-only check (invariant 5) to catch a renamed or removed symbol that prose still
     names. Exemptions for dynamically-defined/optional symbols live in tools/doc-verify-allowlist.json
-    ({"exempt": ["path::symbol", ...]})."""
-    allow = set()
+    ({"exempt": ["path::symbol", ...]}). An exemption must still do work: it must name a marker the
+    scan meets, and that marker must fail to resolve without it; a stale or repeated entry fails
+    the build (_doc_verify_allow_problems)."""
+    allow_list = []
     ap = ROOT / "tools" / "doc-verify-allowlist.json"
     if ap.exists():
         try:
-            allow = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
-        except (OSError, json.JSONDecodeError):
-            allow = set()
+            allow_list = json.loads(ap.read_text(encoding="utf-8")).get("exempt", [])
+        except (OSError, json.JSONDecodeError, AttributeError) as exc:
+            problem(f"doc-verify-allowlist: unreadable ({exc}); fix the JSON")
+    if not isinstance(allow_list, list) or not all(isinstance(s, str) for s in allow_list):
+        problem("doc-verify-allowlist: 'exempt' must be a list of path::symbol strings")
+        allow_list = []
+    proof = _doc_verify_allow_problems(["a.py::x", "b.py::y", "c.py::z", "c.py::z"], {"a.py::x", "b.py::y"},
+                                       lambda s: None if s == "b.py::y" else "unresolved")
+    if [m.split("'")[1] for m in proof] != ["c.py::z", "b.py::y", "c.py::z"]:
+        problem(f"doc-verify-allowlist: self-proof failed -- _doc_verify_allow_problems returned "
+                f"{proof!r}; a repeated, a resolving and an unused exemption must each be reported")
+    allow, seen = set(allow_list), set()
     for target in _reference_scan_files():
         rel = target.relative_to(ROOT)
         for m in VERIFY_RE.finditer(target.read_text(encoding="utf-8")):
             spec = m.group(1)
             if spec in allow:
+                seen.add(spec)
                 continue
-            path, _, symbol = spec.partition("::")
-            if path.split("/")[0] not in KNOWN_ROOTS:
-                problem(f"{rel}: verify marker `{spec}` path is not under a known repo root")
-                continue
-            resolved = ROOT / path
-            if not resolved.exists():
-                problem(f"{rel}: verify marker references missing path `{path}`")
-                continue
-            if symbol:
-                if resolved.suffix != ".py":
-                    problem(f"{rel}: verify marker `{spec}` names a symbol but `{path}` is not a .py file")
-                    continue
-                syms = _module_symbols(resolved)
-                if syms is None:
-                    problem(f"{rel}: verify marker `{spec}`: could not parse `{path}`")
-                elif symbol not in syms:
-                    problem(f"{rel}: verify marker `{spec}`: symbol `{symbol}` is not defined in `{path}`")
+            err = _verify_marker_error(spec)
+            if err:
+                problem(f"{rel}: {err}")
+    for msg in _doc_verify_allow_problems(allow_list, seen, _verify_marker_error):
+        problem(msg)
 
 
 def check_tools_maintainer():
@@ -2489,6 +3180,38 @@ SOURCES_BLOCK_RE = re.compile(r"^```sources[ \t]*\n(.*?)^```[ \t]*$", re.DOTALL 
 SOURCE_MARKER_RE = re.compile(r"<!--\s*source:\s*([A-Za-z0-9][A-Za-z0-9_-]*)\s*-->")
 
 
+DOC_SOURCE_MIN_REASON = 25
+
+
+def _doc_source_allow_problems(doc, registry_ids, used):
+    """Problems with tools/doc-source-allowlist.json, given the registered ids and the exempt ids
+    the scan met (in a sources block, a source marker or a shorthand help-article citation). An
+    exempt id skips the registry lookup AND the url comparison, so exempting a registered id would
+    hide a wrong url: that is refused. "exempt" and "_reasons" must name the same ids, each reason
+    must be written out, and an id no scanned doc uses exempts nothing. Pure, so the check proves
+    it on a fixture before use."""
+    ex = doc.get("exempt", []) if isinstance(doc, dict) else None
+    reasons = doc.get("_reasons", {}) if isinstance(doc, dict) else None
+    if not isinstance(ex, list) or not isinstance(reasons, dict):
+        return ["doc-source-allowlist: 'exempt' must be a list and '_reasons' a map"]
+    out = [f"doc-source-allowlist: {i!r} is listed more than once in exempt"
+           for i in sorted({i for i in ex if ex.count(i) > 1})]
+    for i in sorted(set(ex) | set(reasons)):
+        if i not in ex:
+            out.append(f"doc-source-allowlist: {i!r} has a reason in _reasons but is not in "
+                       f"exempt; drop the reason")
+        elif len(str(reasons.get(i, "")).strip()) < DOC_SOURCE_MIN_REASON:
+            out.append(f"doc-source-allowlist: {i!r} needs a written reason of "
+                       f"{DOC_SOURCE_MIN_REASON}+ characters in _reasons")
+        elif i in registry_ids:
+            out.append(f"doc-source-allowlist: {i!r} is a registered source; exempting it only "
+                       f"skips the url check, so drop the exemption")
+        elif i not in used:
+            out.append(f"doc-source-allowlist: {i!r} is used by no scanned sources block, marker "
+                       f"or help-article citation, so it exempts nothing; drop it")
+    return out
+
+
 def check_doc_source_registry():
     """Invariant 52: doc-declared source registration (P55). A maintainer/SKILL/doc file that declares
     the external sources its claims rest on - a fenced ```sources block holding a JSON array of
@@ -2501,7 +3224,11 @@ def check_doc_source_registry():
     the seed file; the human registers it via source_currency seed-sources). Enforcement is opt-in per
     doc - a file with no block and no marker is unaffected. Exemptions for illustrative/example ids
     live in tools/doc-source-allowlist.json ({"exempt": ["the-id", ...]}, each with a written reason
-    in _comments)."""
+    in its "_reasons" map). An exempt id skips the registry lookup, the url comparison and the
+    shorthand help-article check, so the allowlist is held to four rules
+    (_doc_source_allow_problems): "exempt" and "_reasons" name the same ids, each reason is
+    written out, no exempt id is a registered source, and each exempt id is still used by a
+    scanned sources block, marker or shorthand citation."""
     reg_path = ROOT / "canonical-sources" / "source-registry.json"
     try:
         reg = json.loads(reg_path.read_text(encoding="utf-8"))
@@ -2509,14 +3236,25 @@ def check_doc_source_registry():
         problem(f"doc-source-registry: source-registry.json unreadable: {exc}")
         return
     registry = {s.get("id"): s.get("url") for s in reg.get("sources", []) if s.get("id")}
-    exempt = set()
+    exempt, allow_doc, used = set(), {}, set()
     ap = ROOT / "tools" / "doc-source-allowlist.json"
     if ap.exists():
         try:
-            exempt = set(json.loads(ap.read_text(encoding="utf-8")).get("exempt", []))
-        except (OSError, json.JSONDecodeError):
-            exempt = set()
-    # P82 (audit F17): the sources-block pass also covers implementation/**/*.md, where the
+            allow_doc = json.loads(ap.read_text(encoding="utf-8"))
+            exempt = set(allow_doc.get("exempt", []))
+        except (OSError, json.JSONDecodeError, AttributeError, TypeError) as exc:
+            problem(f"doc-source-allowlist: unreadable ({exc}); fix the JSON")
+            exempt, allow_doc = set(), {}
+    proof = _doc_source_allow_problems(
+        {"exempt": ["ok-id", "reg-id", "idle-id", "bare-id"],
+         "_reasons": {"ok-id": "r" * 25, "reg-id": "r" * 25, "idle-id": "r" * 25,
+                      "orphan-id": "r" * 25, "bare-id": "short"}},
+        {"reg-id"}, {"ok-id", "reg-id", "bare-id"})
+    if [m.split("'")[1] for m in proof] != ["bare-id", "idle-id", "orphan-id", "reg-id"]:
+        problem(f"doc-source-allowlist: self-proof failed -- _doc_source_allow_problems returned "
+                f"{proof!r}; a short reason, an unused id, an orphan reason and a registered id "
+                f"must each be reported")
+    # P82: the sources-block pass also covers implementation/**/*.md, where the
     # packaging READMEs declare the plan-fact authorities. LOCAL union only --
     # _reference_scan_files() is shared with invariants 5 and 49 and must stay narrow.
     _scan_targets = list(_reference_scan_files()) + [
@@ -2540,6 +3278,7 @@ def check_doc_source_registry():
                     continue
                 sid = item["id"]
                 if sid in exempt:
+                    used.add(sid)
                     continue
                 if sid not in registry:
                     problem(f"{rel}: declared source id '{sid}' is not in source-registry.json; "
@@ -2551,11 +3290,13 @@ def check_doc_source_registry():
                             f"(declared {item['url']!r}, registry {registry[sid]!r}); reconcile "
                             f"whichever is stale (update-source for the registry side)")
         for mid in SOURCE_MARKER_RE.findall(text):
+            if mid in exempt:
+                used.add(mid)
             if mid not in registry and mid not in exempt:
                 problem(f"{rel}: source marker references id '{mid}' which is not in "
                         f"source-registry.json (seed it or exempt it with a reason)")
 
-    # P73 D6-F7: this invariant only ever saw a fenced block or an explicit marker, and
+    # P73: this invariant only ever saw a fenced block or an explicit marker, and
     # invariant 46 only ever matched a full https:// URL. A shorthand citation -- "help/12584461",
     # "help.openai.com/en/articles/8096356" -- was therefore invisible to BOTH, which is how a
     # load-bearing plan-eligibility claim shipped in two live docs with no registry entry. The
@@ -2564,7 +3305,7 @@ def check_doc_source_registry():
     # the registry entry is required.
     known_articles = {m for url in registry.values() if url
                       for m in re.findall(r"/articles/(\d{4,})", url)}
-    # P82 (audit F17): line-based, not prefix-anchored. The old pattern required the id to sit
+    # P82: line-based, not prefix-anchored. The old pattern required the id to sit
     # immediately after the prefix, so a comma list -- "articles 8554397, 8798878", exactly how
     # ADR 0052 leaked an unregistered id -- slipped it. Any line naming the help host yields its
     # 7-8 digit tokens (word-bounded, so comma-grouped figures and shorter noise stay out).
@@ -2588,6 +3329,8 @@ def check_doc_source_registry():
             if _help_line.search(line):
                 arts.extend(_article_id.findall(line))
         for art in arts:
+            if art in exempt:
+                used.add(art)
             if art in known_articles or art in seen or art in exempt:
                 continue
             seen.add(art)
@@ -2595,22 +3338,88 @@ def check_doc_source_registry():
                     f"source has that article id. A scheme-less citation is still a citation: "
                     f"seed it (tools/source_sync.py reconcile, then source_currency seed-sources) "
                     f"so the currency system tracks it.")
+    for msg in _doc_source_allow_problems(allow_doc, set(registry), used):
+        problem(msg)
 
 
 def check_connector_resolver_smoke():
-    """Invariant 53: the connector resolver actually RUNS over the committed registry (P63).
+    """Invariant 53: every committed connector default is a declared state, and the resolver and
+    its CLI actually RUN over the committed registry (P63).
 
     Invariants 18/23/41 validate connectors.json statically but never execute
-    shared/connectors/connectors.py::resolve, which is how a malformed entry (google_drive_hub
-    shipping without default_flag, the P63 F-SWEEP-4 defect) crashed --plan/--list/--json and the
-    MCP get_connectors tool while the guard stayed green. This check dynamically imports the
-    resolver and calls resolve({}) — the pure default-flag path — so any entry the resolver cannot
-    process fails the build. Fail-closed: an exception of any kind is a problem, not an advisory."""
+    shared/connectors/connectors.py. An entry that shipped without default_flag once crashed
+    --plan/--list/--json and the MCP get_connectors tool while the guard stayed green.
+
+    Half one: every entry's `default_flag` is a bare string from the registry's own `states` list.
+    The resolver reads the field with a fallback and keeps a value it does not recognise OFF
+    without saying why, so executing it can never catch a missing, misspelled or boolean default.
+    The dict form ({state, restricted_evidence, reason}) belongs in a per-deployment flags file and
+    is refused as a registry default: cmd_list prints the default as text and raises TypeError on
+    a dict.
+
+    Half two: resolve({}) (the pure default-flag path) and connectors.py --list, --plan and
+    --plan --json execute over the committed registry with stdout captured; load_flags is pinned
+    to {} so no gitignored local config is read. Fail-closed: an exception of any kind is a
+    problem, not an advisory.
+
+    Both halves prove themselves before the registry is judged: the validity rule on values it
+    must refuse and accept, and the CLI runner on a registry loader that raises, which each of the
+    three CLI paths must report."""
+    import contextlib
+    import importlib.util
+    import io
+
+    cli_paths = (("--list",), ("--plan",), ("--plan", "--json"))
+
+    def _cli_failures(mod):
+        out = []
+        for argv in cli_paths:
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    rc = mod.main(list(argv))
+            except (Exception, SystemExit) as exc:  # noqa: BLE001
+                out.append((" ".join(argv), f"{type(exc).__name__}: {exc}"))
+                continue
+            if rc != 0:
+                out.append((" ".join(argv), f"exit {rc}"))
+        return out
+
     tool = ROOT / "shared" / "connectors" / "connectors.py"
     if not tool.exists():
         problem("connector-resolver: shared/connectors/connectors.py is missing")
         return
-    import importlib.util
+    registry = ROOT / "shared" / "connectors" / "connectors.json"
+    try:
+        reg = json.loads(registry.read_text(encoding="utf-8"))
+        entries = reg.get("connectors", [])
+        declared = reg.get("states")
+    except (OSError, json.JSONDecodeError, AttributeError) as exc:
+        problem(f"connector-resolver: shared/connectors/connectors.json is unreadable: {exc}")
+        return
+    if not (isinstance(declared, list) and declared
+            and all(isinstance(s, str) and s for s in declared)):
+        problem("connector-resolver: connectors.json declares no `states` list of state names, so "
+                "no default_flag can be validated")
+        return
+    valid = set(declared)
+
+    def _valid_default(value):
+        return isinstance(value, str) and value in valid
+
+    must_refuse = ("availabel", True, 1, "", None, {"state": declared[0]})
+    if any(_valid_default(v) for v in must_refuse) or not all(_valid_default(s) for s in declared):
+        problem("connector-resolver: default_flag self-proof failed; the validity rule accepts a "
+                "misspelled, boolean, numeric, empty, missing or dict default, or refuses a "
+                "declared state")
+        return
+    for i, entry in enumerate(entries):
+        flag = entry.get("default_flag") if isinstance(entry, dict) else None
+        if not _valid_default(flag):
+            cid = entry.get("id", f"#{i}") if isinstance(entry, dict) else f"#{i}"
+            problem(f"connector-resolver: connectors.json entry {cid!r} has default_flag {flag!r}, "
+                    f"which is not one of the registry's declared states {declared}; the resolver "
+                    f"would keep the connector off without saying why")
+
     spec = importlib.util.spec_from_file_location("_connectors_smoke", tool)
     mod = importlib.util.module_from_spec(spec)
     try:
@@ -2623,6 +3432,22 @@ def check_connector_resolver_smoke():
     if not isinstance(plan, dict) or "active" not in plan:
         problem("connector-resolver: resolve({}) returned an unexpected shape "
                 f"({type(plan).__name__}); expected a plan dict with an 'active' key")
+    mod.load_flags = lambda path: {}
+    real_loader = mod.load_registry
+
+    def _raising_loader():
+        raise RuntimeError("self-proof registry loader")
+
+    mod.load_registry = _raising_loader
+    caught = {path for path, _ in _cli_failures(mod)}
+    mod.load_registry = real_loader
+    if caught != {"--list", "--plan", "--plan --json"}:
+        problem("connector-resolver: CLI self-proof failed; a registry loader that raises must be "
+                f"reported by --list, --plan and --plan --json, but only {sorted(caught)} were")
+        return
+    for path, detail in _cli_failures(mod):
+        problem(f"connector-resolver: `connectors.py {path}` failed over the committed registry: "
+                f"{detail}")
 
 
 def check_payload_loader_robustness():
@@ -2630,14 +3455,14 @@ def check_payload_loader_robustness():
     widened P64).
 
     Layer 1 (P63): the named payload loaders keep a try/except in their body (the invariant-35
-    sibling). Widened in P64 to cover the loaders C4/C5 guarded in tasks.py and doctemplates.py,
+    sibling). Widened in P64 to cover the loaders guarded in tasks.py and doctemplates.py,
     plus a call-site rule for accounts.py (its guard lives at the caller).
-    Layer 2 (P64, the RC5 fix): inside tools/finance.py and tools/obligations.py main/_main, NO
+    Layer 2 (P64): inside tools/finance.py and tools/obligations.py main/_main, NO
     argparse-derived value may reach a filesystem call (exists/read_text/write_text/open/
-    read_bytes/stat/glob/iterdir/unlink, widened P66 per the audit's FS_CALLS gap) outside a
-    try — the P63 guard protected two function bodies while the AUDIT-F2 crash lived one line
+    read_bytes/stat/glob/iterdir/unlink, widened P66 to the full FS_CALLS set) outside a
+    try — the P63 guard protected two function bodies while a long-path crash lived one line
     upstream in the dispatch; this layer guards the CLASS, not the line.
-    Layer 3 (P66): the sixteen CLIs the P65 audit caught raw-tracebacking on a >255-byte path
+    Layer 3 (P66): the sixteen CLIs that raw-tracebacked on a >255-byte path
     keep their thin-main boundary — main() must try-wrap the _main() dispatch with an OSError
     handler. Behavior is proven by per-tool boundary probes; this guards the structure so the
     wrapper cannot be silently removed. Fail-closed."""
@@ -2712,15 +3537,15 @@ def check_payload_loader_robustness():
                             if isinstance(x, ast.Name)} & tainted:
                         problem(f"payload-loader: {path.name}:{node.lineno} "
                                 f".{node.func.attr}() on an argparse-derived value outside a "
-                                f"try (the AUDIT-F2 whole-path rule); wrap it so a bad or "
+                                f"try (the whole-path rule); wrap it so a bad or "
                                 f">255-byte path yields the clean envelope")
                 elif isinstance(node.func, ast.Name) and node.func.id == "open":
                     if {x.id for arg in node.args for x in ast.walk(arg)
                             if isinstance(x, ast.Name)} & tainted:
                         problem(f"payload-loader: {path.name}:{node.lineno} open() on an "
-                                f"argparse-derived value outside a try (the AUDIT-F2 "
+                                f"argparse-derived value outside a try (the "
                                 f"whole-path rule)")
-    # Layer 3: the P66 thin-main boundary on the sixteen P65-audited CLIs.
+    # Layer 3: the P66 thin-main boundary on the sixteen path-taking CLIs.
     thin_main_files = [
         ROOT / "tools" / "import_parse.py",
         ROOT / "tools" / "library_complete.py",
@@ -2770,9 +3595,9 @@ def check_surface_origin_completeness():
 
     tools/handoff/queue.py::ALLOWED_ORIGINS and the origin enum in
     shared/schemas/compute-job.json are the independent oracle for "where work comes from";
-    shared/cross-modality/transitions.json is the model of "where Creator OS runs". AUDIT-F1
-    (the cowork origin shipping in P60 while the surface model went two days without a Cowork
-    row) happened because nothing reconciled them. This check asserts (a) the two enums are
+    shared/cross-modality/transitions.json is the model of "where Creator OS runs". The cowork
+    origin once shipped (P60) while the surface model went two days without a Cowork row,
+    because nothing reconciled them. This check asserts (a) the two enums are
     identical, and (b) every enum value is claimed by at least one surface's `origins` list or
     the documented `_residual_origin_note`. Fail-closed."""
     import ast
@@ -2870,7 +3695,7 @@ def check_registry_content_digest():
     """Invariant 56 (blocking since P79; advisory P66-P78): source-registry.json content matches the digest its sanctioned
     writer stamped (P66). CLAUDE.md's "written only through registry_io" was machine-enforced
     for ADD/REMOVE of ids (the invariant-26 freshness digest) but purely conventional for an
-    in-place content edit to an existing entry — the P65 F-REGISTRY-HANDEDIT repro changed a
+    in-place content edit to an existing entry — a P65 test changed a
     source's name by hand and every check stayed green. save_registry now stamps
     `_content_digest` over sources[]; this check recomputes it. Blocking since P79 (the traversal
     tool no longer instructs hand edits, so every legitimate write has a sanctioned path). Recovery
@@ -2935,8 +3760,8 @@ def _dict_keys_in_function(py_path, func_name):
 
 def check_eval_output_keys():
     """Invariant 57: eval output-key truth (P68). Every eval case's `expected_output_keys` must be
-    a key the skill's backing tool actually emits, not a prose-derived invention. The P67-D audit
-    found eight eval keys (coverage_summary, anchor_source, aging_followups, invoice_task_draft,
+    a key the skill's backing tool actually emits, not a prose-derived invention. In P67 there were
+    eight eval keys (coverage_summary, anchor_source, aging_followups, invoice_task_draft,
     billable_milestones, scheduled_tasks, untrusted_body_handled, injection_flag) that appear in
     zero tool code -- structurally valid cases with fabricated expectations that invariant 9 (case
     count) and eval_lint.py (case structure) both pass. tools/eval_key_manifest.json names each
@@ -3025,7 +3850,7 @@ def check_invariant_catalog():
     plus the merged ones (catches the stale 'header lists 1-23 while code implements more' drift),
     and (e) every check_* function that CARRIES an 'Invariant N' label is actually called in
     main() — without (e) the top-numbered invariant could be silently dropped from main() while
-    its dead docstring keeps every count reading correct (the P65 keystone finding).
+    its dead docstring keeps every count reading correct.
     Keeps the invariant catalog a single source of truth: a mislabeled, unlabeled, or undocumented
     check cannot slip in silently."""
     import ast
@@ -3113,15 +3938,15 @@ def check_mac_surface_completeness():
     change-detection over a mechanically derived set, NOT that a human re-read anything today: a
     recorded sha256 means the bytes have not moved since someone blessed that path. Entering the
     manifest requires `reconcile --accept-new`, so a path cannot join the tracked set by inaction --
-    the P70 review found 15 files had done exactly that in one command, 8 of them false positives
-    nobody had read. The macOS audit's coverage guarantee, enforced.
+    before P70, 15 files had done exactly that in one command, 8 of them false positives
+    nobody had read. This is the Mac-surface coverage guarantee, enforced.
     tools/mac_surface_manifest.py derives the Mac surface mechanically (a token sweep over every
     tracked text file) rather than trusting a memorized list, and every derived match must resolve
     to EITHER canonical-sources/mac-surface-manifest.json's `files` map (audited, at a recorded
     sha256) OR its `excluded` map (judged not-a-Mac-surface, with a written reason). This guard
     fails the build in both directions: a NEW file carrying Mac behavior is `unaudited` until a
     human audits it, and an ALREADY-AUDITED file whose bytes moved is `changed` until it is
-    re-audited. A third property closes the hole the P69 adversarial pass found in the first cut of
+    re-audited. A third property closes a hole in the first cut of
     this guard: the deriver is pinned (module + signal-set sha256) and every audited file must STILL
     derive, so narrowing the signal vocabulary -- which would otherwise shrink the denominator while
     the guard reported "complete" -- fails here instead. Without all three, "every Mac surface was
@@ -3144,13 +3969,15 @@ def check_mac_surface_completeness():
                 f"`python3 tools/mac_surface_manifest.py reconcile`)")
     for rel in res["missing"]:
         problem(f"mac-surface: recorded file {rel} is missing (deleted or moved); reconcile the manifest")
+    for msg in res.get("stale_excluded", []):
+        problem(f"mac-surface: {msg} (canonical-sources/mac-surface-manifest.json)")
     for rel in res.get("undetectable", []):
         problem(f"mac-surface: {rel} is recorded but no longer derives -- the signal set narrowed and "
                 f"coverage shrank silently; restore the signal or re-bless deliberately")
     for msg in res.get("deriver_drift", []):
         problem(f"mac-surface: {msg}; the denominator changed, so re-audit and "
                 f"`python3 tools/mac_surface_manifest.py reconcile`")
-    # P73 D6-F3: the widening trigger. The checks above all guard against the denominator
+    # P73: the widening trigger. The checks above all guard against the denominator
     # SHRINKING; this one notices a file using a macOS concept the vocabulary never learned, so
     # the gate cannot report "complete" while being blind to a new category. Advisory: it is a
     # prompt to review the vocabulary, not a verdict about the file.
@@ -3162,7 +3989,7 @@ def check_mac_surface_completeness():
 
 # P93-4: the install-scope detector. Each branch is a DISTINCT way to install machine-wide, and
 # the check's coverage proof exercises every one of them by name, so deleting a branch fails the
-# build instead of silently shrinking what the gate sees (the P70 lesson from invariant 58).
+# build instead of silently shrinking what the gate sees.
 _INSTALL_SCOPE_BRANCHES = {
     "brew": r"brew\s+(?:install|reinstall)\b",
     "sudo-pkg": r"sudo\s+(?:-\S+\s+)*(?:apt|apt-get|dnf|yum|pacman|zypper|port|snap|installer|"
@@ -3175,43 +4002,86 @@ _INSTALL_SCOPE_BRANCHES = {
     "pip-command": r"(?:^|[>`\"'\(:;$|]|\s{2}|\b(?:Run|run|then|Then):\s*|^\s*[-*]\s+)"
                    r"\s*(?:python3?\s+-m\s+)?pip3?\s+install\b",
     "macos-pkg": r"(?:installer\s+-pkg\b|python\.org/downloads|universal2\s+(?:\.pkg|installer|build))",
+    # A copy, link, redirect or download whose DESTINATION is /Applications, or a drag into the
+    # Applications folder. The per-user ~/Applications never matches, and neither does a path
+    # that is only listed or read ("ls /Applications").
+    "applications-dir": r"(?:\b(?:cp|mv|ditto|rsync|ln|install\s+(?:-\S+\s+)+)[^\n|;&>]*\s[`'\"]?"
+                        r"|>>?\s*[`'\"]?|\btee\s+(?:-a\s+)?[`'\"]?)/Applications\b"
+                        r"|\b(?:[Dd]rag|[Mm]ove|[Cc]opy|[Pp]ut)\b(?:[^\n.;]|\.(?=\S)){0,60}?\b(?:into|to|in)\s+"
+                        r"(?:the\s+|your\s+)?[`'\"]?(?:/Applications\b|Applications\s+folder\b)",
+    # A write whose destination is under /usr/local or /opt/homebrew: the last argument of cp, mv,
+    # ln, ditto, rsync or install, a shell redirect, tee, curl -o/--output, --prefix, or prose
+    # that moves, copies, puts, places or saves something into it. A path there that is only a
+    # source ("cp /opt/homebrew/bin/ffmpeg ~/bin/ffmpeg") or is named in prose without one of
+    # those verbs does not match.
+    "system-prefix-write": r"\b(?:cp|mv|ditto|rsync|ln|install\s+(?:-\S+\s+)+)[^\n|;&>]*\s[`'\"]?"
+                           r"(?:/usr/local|/opt/homebrew)(?:/[^\s|;&`'\"]*)?(?=[`'\"]|\s*(?:$|[|;&)#]))"
+                           r"|>>?\s*[`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|\btee\s+(?:-a\s+)?[`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|\s(?:-o|--output)\s+[`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|--prefix[= ][`'\"]?(?:/usr/local|/opt/homebrew)\b"
+                           r"|\b(?:[Mm]ove|[Cc]opy|[Pp]ut|[Pp]lace|[Ss]ave)\b(?:[^\n.;]|\.(?=\S)){0,60}?"
+                           r"\b(?:into|to|in)\s+(?:the\s+)?[`'\"]?(?:/usr/local|/opt/homebrew)\b",
 }
 _INSTALL_SCOPE_PATTERN = re.compile("|".join(f"(?:{p})" for p in _INSTALL_SCOPE_BRANCHES.values()))
 _INSTALL_SCOPE_LABEL = re.compile(r"(whole computer|machine-wide|machine wide)", re.I)
 
-# Paths whose install lines are NOT this repo's live guidance. Each entry carries its reason; a
-# path is exempt when it starts with a listed prefix or matches a listed name.
+# Files whose install lines are NOT this repo's live guidance, each with its reason. A key is one
+# exact tracked path, never a prefix, so a new file beside an exempt one is scanned.
+# _install_scope_exempt_problems fails the build on a key that is not a tracked file, that names a
+# file tools/claim-proof-manifest.json binds (corpus, install-route doc or route prober), that has
+# no reason, or whose file no longer carries an unlabeled install.
+_ADR_REASON = "decision record: it quotes the state of the world when the decision was made"
+_REGISTRY_REASON = ("registry and reference DATA about third-party sources (extraction hints, "
+                    "seeds); it describes what those tools are and instructs nobody to install")
+_VIDEO_EVAL_REASON = "third-party tool evaluation: records those vendors' own install facts"
 _INSTALL_SCOPE_EXEMPT = {
-    "docs/adr/": "decision records: they quote the state of the world when the decision was made",
-    "CHANGELOG.md": "release history: entries describe what WAS, and are never re-edited",
+    ".github/workflows/ci.yml": "CI workflow steps run in an ephemeral single-use container that "
+                                "is destroyed after the run; nothing there installs onto a "
+                                "person's machine",
     "STATE.md": "phase log: historical record of each pass",
-    "ledger/": "the dated decision ledger: append-only history",
-    "docs/production-readiness-": "a dated audit record, frozen at its run date",
-    "docs/VIDEO_TOOLING_EVAL": "third-party tool evaluation: records those vendors' own install facts",
-    "docs/video-tooling-": "third-party tool evaluation evidence, same reason",
-    "docs/AUDIT-": "dated audit protocol records",
-    "tools/sync_check.py": "this file: it holds the detector's own deliberately unlabeled fixtures",
-    "tools/secret-scan-allowlist.json": "a scanner allowlist of literal strings, not guidance",
+    "canonical-sources/dependency-sources-seed.json": _REGISTRY_REASON,
+    "canonical-sources/operational-url-allowlist.json": "allowlist data: a host reason names the "
+                                                        "Homebrew install script the code links "
+                                                        "to; it instructs nobody",
+    "canonical-sources/source-registry.json": _REGISTRY_REASON,
+    "docs/VIDEO_TOOLING_EVAL.md": _VIDEO_EVAL_REASON,
+    "docs/adr/0038-p54-macos-venv-and-path-fixes.md": _ADR_REASON,
+    "docs/adr/0055-p80-python-312-and-mcp-dual-major.md": _ADR_REASON,
+    "docs/adr/0056-p81-audit-remediation.md": _ADR_REASON,
+    "docs/adr/0065-p93-user-scoped-installs-default.md": _ADR_REASON,
+    "docs/video-tooling-integration-evidence.json": _VIDEO_EVAL_REASON,
+    "docs/video-tooling-spike-evidence.json": _VIDEO_EVAL_REASON,
     "tools/mac_surface_manifest.py": "holds the mac-surface SIGNAL tokens (one is the literal "
                                      "'brew install'); a detector vocabulary, not an instruction",
-    ".github/": "CI workflow steps run in an ephemeral single-use container that is destroyed "
-                "after the run; nothing there installs onto a person's machine",
-    "canonical-sources/": "registry and reference DATA about third-party sources (extraction "
-                          "hints, allowlist reasons, seeds); it describes what those tools are, "
-                          "it does not instruct anyone to install anything",
+    "tools/sync_check.py": "this file: it holds the detector's own deliberately unlabeled fixtures",
 }
 
-# Extensions worth reading as guidance. Anything else (images, archives, notebooks) is skipped.
-_INSTALL_SCOPE_SUFFIXES = (".md", ".py", ".json", ".txt", ".sh", ".command", ".yml", ".yaml", ".js")
+def _install_scope_texts(tracked, read_bytes):
+    """{path: lines} for every tracked file invariant 59 reads: all of them except binaries. A
+    file is binary when a NUL byte appears in its first 8 KiB, the same sniff invariant 21 uses
+    (tools/secret_scan.py::_is_probably_text). There is no list of names or suffixes, so a .bat
+    launcher, an .html page or an extensionless script is read like any other text file.
+    Unreadable paths are left out."""
+    out = {}
+    for rel in tracked:
+        try:
+            data = read_bytes(rel)
+        except OSError:
+            continue
+        if b"\x00" in data[:8192]:
+            continue
+        out[rel] = data.decode("utf-8", errors="replace").splitlines()
+    return out
 
 
 def _install_scope_governed(lines, i):
     """Is line ``i`` covered by a machine-wide label? A label is a HEADING: it governs the block
     it introduces, and only downward. So look at the instruction's own contiguous non-blank
-    paragraph, then at up to two lines above that paragraph (across at most one blank separator,
-    the 'Machine-wide alternative:' + blank + command shape). Never look below the instruction:
-    the P93 adversarial pass showed a label introducing the NEXT section would otherwise bless the
-    user-scoped command sitting above it."""
+    paragraph, then at the two lines just above the blank line that precedes that paragraph
+    (the 'Machine-wide alternative:' + blank + command shape). Never look below the instruction:
+    a label introducing the NEXT section would otherwise bless the user-scoped command sitting
+    above it."""
     start = i
     while start > 0 and lines[start - 1].strip():
         start -= 1
@@ -3249,20 +4119,57 @@ def _install_scope_scan(lines):
     return hits
 
 
+def _detector_pin_from(man, key):
+    """The branch names manifest `man` records for detector `key` under detector_branches, or []
+    when the table, the key, or a non-empty list of names is missing. _coverage_proof reports []
+    as a problem, so a manifest that loses the table fails closed instead of skipping the pin."""
+    table = man.get("detector_branches") if isinstance(man, dict) else None
+    names = table.get(key) if isinstance(table, dict) else None
+    if isinstance(names, list) and names and all(isinstance(n, str) for n in names):
+        return names
+    return []
+
+
+def _claim_pinned_branches():
+    """The claim-proof branch names recorded in the manifest ([] when missing or malformed), or
+    None when the manifest itself is unreadable, which invariant 60 reports."""
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return _detector_pin_from(man, "claim_proof")
+
+
+def _install_scope_pinned_branches():
+    """The install-scope branch names recorded in the claim-proof manifest ([] when missing or
+    malformed), or None when the manifest is unreadable (invariant 60 reports that)."""
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return _detector_pin_from(man, "install_scope")
+
+
 def check_install_scope():
     """Invariant 59: install-scope policy (P93, widened P93-4). Every machine-wide install
     instruction anywhere in the repo's LIVE guidance -- brew, a sudo package command, MacPorts,
-    a global npm/pipx install, the pip system-override flag, a command-anchored pip install, or
+    a global npm/pipx install, the pip system-override flag, a command-anchored pip install, a
+    copy/move/link/redirect/download into /Applications, /usr/local or /opt/homebrew, a drag into the
+    Applications folder, or
     a macOS .pkg/python.org download -- must carry the label "machine-wide"/"whole computer" on
-    its own line or in the two lines above it, so the user-scoped default (docs/INSTALL-SCOPE.md:
+    its own line, on a line above it in the same paragraph, or on either of the two lines just
+    above the blank line that precedes that paragraph, so the user-scoped default (docs/INSTALL-SCOPE.md:
     home folder only, repo .venv, ~/.local, ~/.nvm) can never silently stop being the default.
 
-    The denominator is DERIVED, not listed: every tracked text file is scanned, minus the
-    _INSTALL_SCOPE_EXEMPT paths (historical records and third-party evaluations, each with a
-    written reason). The first cut of this check scanned a hardcoded 16-file allowlist, and the
-    P93 adversarial pass found live machine-wide instructions in six files outside it --
-    including the repo-root double-click launcher, the entry point for non-technical Mac users.
-    A closed list can only shrink silently; a derived one cannot.
+    The denominator is derived, not listed: every tracked file that is not binary (a NUL byte in
+    its first 8 KiB, the invariant-21 sniff) is scanned whatever its name, minus the
+    exact paths in _INSTALL_SCOPE_EXEMPT, each with a written reason, so a new file is scanned
+    without anyone listing it. Every run checks the map: a key names exactly one tracked file (a
+    prefix, a directory or the empty key is refused), still carries at least one unlabeled
+    install, and is never a file tools/claim-proof-manifest.json binds (a corpus file, an
+    install-route doc or a route prober). That never-exempt set is derived from the manifest, and
+    a missing or renamed "corpus" or "routes" key fails the build. A new unlabeled install inside
+    a file that is already exempt is not reported.
 
     The check proves itself before scanning: EVERY branch in _INSTALL_SCOPE_BRANCHES must flag
     its own fixture and stay clean once labeled, so deleting a branch fails the build rather than
@@ -3280,17 +4187,16 @@ def check_install_scope():
         "pip-override": "pip install x --break-system-" + "packages",
         "pip-command": "Run: pip install uv",
         "macos-pkg": "installer -pkg python.pkg -target /",
+        "applications-dir": "Drag Claude.app into your Applications folder.",
+        "system-prefix-write": "curl https://x > /usr/local/bin/x",
     }
-    missing = sorted(set(_INSTALL_SCOPE_BRANCHES) - set(fixtures))
-    if missing:
-        problem(f"install-scope: branch(es) {missing} have no coverage fixture; every branch must "
-                f"be proven to fire, or the gate can narrow silently")
+    gap = _coverage_proof("install-scope", _INSTALL_SCOPE_BRANCHES, fixtures,
+                          lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1,
+                          pinned=_install_scope_pinned_branches())
+    if gap:
+        problem(gap)
         return
     for name, sample in fixtures.items():
-        if len(_install_scope_scan(["intro", "", sample])) != 1:
-            problem(f"install-scope: detector self-proof failed -- the '{name}' branch did not "
-                    f"flag its fixture ({sample!r}); coverage shrank")
-            return
         if _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample]):
             problem(f"install-scope: detector self-proof failed -- the labeled '{name}' fixture flagged")
             return
@@ -3298,6 +4204,22 @@ def check_install_scope():
                             "ever touches the base interpreter."]):
         problem("install-scope: detector self-proof failed -- prose 'no real pip install' flagged")
         return
+    # A path under /opt/homebrew or /usr/local that is only read or only named in prose, and the
+    # per-user ~/Applications folder, are not machine-wide writes.
+    for sample in ("cp /opt/homebrew/bin/ffmpeg ~/bin/ffmpeg",
+                   "the install location is /usr/local/bin on Intel Macs",
+                   "mkdir -p ~/Applications, then drag the app into ~/Applications",
+                   "ls /Applications"):
+        if _install_scope_scan([sample]):
+            problem(f"install-scope: detector self-proof failed -- {sample!r} flagged; only a write "
+                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
+            return
+    for sample in ("Move Foo.app to the Applications folder.", "Copy the binary to /usr/local/bin.",
+                   "cp ffmpeg /usr/local/bin  # then run it"):
+        if not _install_scope_scan([sample]):
+            problem(f"install-scope: detector self-proof failed -- {sample!r} not flagged; a write "
+                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
+            return
     if _install_scope_scan(["brew install ffmpeg", "",
                             "Machine-wide alternative (affects the whole computer):"]) != [(1, "brew install")]:
         problem("install-scope: detector self-proof failed -- a label BELOW an instruction blessed "
@@ -3318,11 +4240,40 @@ def check_install_scope():
         problem("install-scope: detector self-proof failed -- a label leaked past its block into "
                 "a later, unrelated instruction")
         return
+    # The scan set is every tracked non-binary file, whatever its name.
+    readable = _install_scope_texts(
+        ["Start.bat", "VERSION", "page.html", "logo.png"],
+        {"Start.bat": b"@echo off\r\n", "VERSION": b"1.0\n", "page.html": b"<p>x</p>\n",
+         "logo.png": b"\x89PNG\r\n\x1a\n\x00\x00"}.__getitem__)
+    if sorted(readable) != ["Start.bat", "VERSION", "page.html"]:
+        problem(f"install-scope: detector self-proof failed -- the file reader returned "
+                f"{sorted(readable)!r}; every tracked file except a binary must be read")
+        return
     # A fenced `sources` block is citation data (invariant 52's domain), never an instruction.
     if _install_scope_scan(["```sources", '{"id": "x", "url": "https://www.python.org/downloads/macos/"}',
                             "```"]):
         problem("install-scope: detector self-proof failed -- a citation row in a fenced sources "
                 "block was read as an install instruction")
+        return
+
+    shape = _install_scope_exempt_problems(
+        {"live.md": "r", "dead.md": "r", "gone.md": "r", "dir/": "r", "": "r", "bound.md": "r",
+         "bare.md": " "},
+        {"live.md": 2, "dead.md": 0, "dir/x.md": 1, "bound.md": 1, "bare.md": 1}, {"bound.md"})
+    want = ["'' is not a tracked file", "'bare.md' has no written reason", "'bound.md' names a file",
+            "'dead.md' is stale", "'dir/' is not a tracked file", "'gone.md' is not a tracked file"]
+    if len(shape) != len(want) or any(w not in m for w, m in zip(want, shape)):
+        problem(f"install-scope: detector self-proof failed -- the exemption-map check returned "
+                f"{shape!r}; a prefix, a stale entry, a missing reason and a bound file must each "
+                f"be reported")
+        return
+    floor = (_install_scope_never_exempt({"corpus": {"a.md": {}}, "install_routes": []})[0],
+             _install_scope_never_exempt({"corpus": {"a.md": {}},
+                                          "routes": [{"in": ["b.md"], "prober": ["t.py::X"]}]})[0])
+    if floor != (None, {"a.md", "b.md", "t.py"}):
+        problem(f"install-scope: detector self-proof failed -- the never-exempt derivation returned "
+                f"{floor!r}; a renamed 'routes' key must fail and a complete manifest must yield "
+                f"its corpus, route docs and probers")
         return
 
     # --- derived denominator: every tracked text file, minus the written-reason exemptions ---
@@ -3339,21 +4290,3419 @@ def check_install_scope():
         advisory("install-scope DID NOT RUN: no git file listing available (non-git copy); "
                  "the machine-wide-install gate could not scan anything")
         return
+    hits_by_file = {}
+    texts = _install_scope_texts(tracked, lambda rel: (ROOT / rel).read_bytes())
     for rel in tracked:
-        if not rel.endswith(_INSTALL_SCOPE_SUFFIXES):
-            continue
-        if any(rel == k or rel.startswith(k) for k in _INSTALL_SCOPE_EXEMPT):
-            continue
-        p = ROOT / rel
-        try:
-            lines = p.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeDecodeError):
-            continue
-        for lineno, frag in _install_scope_scan(lines):
+        hits_by_file[rel] = 0
+        lines = texts.get(rel)
+        if lines is None:
+            continue                # binary, or unreadable
+        hits = _install_scope_scan(lines)
+        hits_by_file[rel] = len(hits)
+        if rel in _INSTALL_SCOPE_EXEMPT:
+            continue                # scanned anyway, so the staleness check below can count it
+        for lineno, frag in hits:
             problem(f"install-scope: {rel}:{lineno}: unlabeled machine-wide install: {frag} "
                     f"(lead with the user-scoped route, or put 'machine-wide alternative "
-                    f"(affects the whole computer)' on that line or the two above it; "
+                    f"(affects the whole computer)' on that line or above it in the same paragraph; "
                     f"docs/INSTALL-SCOPE.md)")
+    never, why = _install_scope_never_exempt(_install_scope_manifest())
+    if never is None:
+        problem(f"install-scope: the never-exempt set cannot be derived from "
+                f"tools/claim-proof-manifest.json ({why}); restore its corpus and routes keys")
+        never = set()
+    for rel in sorted(p for p in never if p not in hits_by_file):
+        problem(f"install-scope: tools/claim-proof-manifest.json binds {rel}, which is not a tracked "
+                f"file; the never-exempt set no longer matches the tree")
+    for msg in _install_scope_exempt_problems(_INSTALL_SCOPE_EXEMPT, hits_by_file, never):
+        problem(msg)
+
+
+def _install_scope_manifest():
+    """tools/claim-proof-manifest.json as a dict, or None when it is unreadable."""
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return man if isinstance(man, dict) else None
+
+
+def _install_scope_never_exempt(man):
+    """(paths, None) or (None, reason). The files invariant 59 never exempts, derived from the
+    claim-proof manifest: the guarded corpus files (its "corpus" keys), every install-route doc
+    (each route's "in" list) and every route prober's file (each route's "prober" list, before any
+    ::symbol). Floor: the manifest must still carry a non-empty "corpus" map and a non-empty
+    "routes" list whose every route has non-empty "in" and "prober" lists, so a missing or renamed
+    key fails the build instead of silently emptying this set."""
+    if not isinstance(man, dict):
+        return None, "the manifest is unreadable"
+    corpus, routes = man.get("corpus"), man.get("routes")
+    if not isinstance(corpus, dict) or not corpus:
+        return None, "it has no non-empty 'corpus' map"
+    if not isinstance(routes, list) or not routes:
+        return None, "it has no non-empty 'routes' list"
+    out = set(corpus)
+    for n, route in enumerate(routes):
+        ins = route.get("in") if isinstance(route, dict) else None
+        probers = route.get("prober") if isinstance(route, dict) else None
+        if not isinstance(ins, list) or not ins or not isinstance(probers, list) or not probers:
+            return None, f"route {n} has no non-empty 'in' and 'prober' lists"
+        out.update(str(p) for p in ins)
+        out.update(str(p).split("::")[0] for p in probers)
+    return out, None
+
+
+def _install_scope_exempt_problems(exempt, hits_by_file, never_exempt=frozenset()):
+    """Problems with the exemption map, given {tracked path: unlabeled-install count} and the
+    never-exempt set. Pure, so the gate proves it on a fixture before use. A key must be one exact
+    tracked path (a prefix, a directory or the empty key names no tracked file and is refused),
+    must carry a written reason, must not name a never-exempt file, and must still carry at least
+    one unlabeled install. The sibling rule is selftest_sweep's "is BOTH exempt and covered; drop
+    the stale exemption"."""
+    out = []
+    for key in sorted(exempt):
+        if not str(exempt[key]).strip():
+            out.append(f"install-scope: the exemption {key!r} has no written reason")
+        if key not in hits_by_file:
+            out.append(f"install-scope: the exemption {key!r} is not a tracked file; a key names "
+                       f"exactly one tracked path (no prefixes), so correct or drop it")
+        elif key in never_exempt:
+            out.append(f"install-scope: the exemption {key!r} names a file "
+                       f"tools/claim-proof-manifest.json binds (corpus, install-route doc or route "
+                       f"prober); it is never exempt, so label its install lines instead")
+        elif not hits_by_file[key]:
+            out.append(f"install-scope: the exemption {key!r} is stale: the file carries no "
+                       f"unlabeled machine-wide install, so it exempts nothing. Drop it so the "
+                       f"file is scanned like any other")
+    return out
+
+
+# The claim-proof detector. A universal claim about this repo's own behavior is a promise; each
+# branch below is one way of phrasing one. tools/claim-proof-cases.json holds labelled sentences
+# for every branch, and check_claim_proof fails the build when a branch stops flagging its
+# positives, flags a negative, or can be narrowed to its first positive without a case noticing.
+_CLAIM_BRANCHES = {
+    "never": r"\bnever\b",
+    "always": r"\balways\b",
+    "every": r"\bevery(?:thing|one|body|where)?\b",
+    "all": r"\ball\b",
+    "each": r"\beach\b(?!\s+other\b)",
+    # "no X ever" with up to three words between, and any of space , ; : ( ) - or an en or em dash
+    # as separators ("No sudo, ever.", "No sudo -- ever.", "No sudo (ever).").
+    "no_ever": r"\bno\s+\w+(?:[\s,;:()\u2013\u2014-]+\w+){0,3}[\s,;:()\u2013\u2014-]+ever\b",
+    "nothing": r"\bnothing\b",
+    "only": r"\bonly\b",
+    "none": r"\b(?:none|nobody|no\s+one)\b(?!-)",
+    "cannot": r"\b(?:cannot|can\s+not|can['\u2019]t)\b",
+    "will_not": r"\b(?:will\s+not|won['\u2019]t)\b",
+    # Bare "no" used as a promise. A word pattern, not a parser; tools/claim-proof-cases.json
+    # records sentences it must and must not flag. It reads an existential ("There is no
+    # fallback"), a verb directly before "no" ("makes no network call"), and "no" followed within
+    # three words by a modal, by a verb ending in s and then another word ("No installer writes
+    # `/usr/local`"), or by a sentence-final verb from a short list ("No data persists."). "no
+    # need", a quoted "no" and "no X needed/required/necessary" are not read as promises. Not
+    # seen: more than three words before the verb ("No code path in the repo installs ..."), a
+    # past participle ("No real CRM data or PII committed"), and a sentence-final verb outside
+    # the list. A plural noun followed by a word reads as a verb, so "No changes to the profile"
+    # is flagged. ORDER: this branch must follow no_ever and none, because alternation reports the
+    # first branch that matches at a position.
+    "bare_no": (r"\bthere(?:\s+(?:is|are|was|were|will\s+be)|['\u2019]s)\s+no\s+(?!need\b)\w"
+                r"|(?<![\"\u201c])\bno\s+(?!need\b)(?:\w[\w./-]*\s+){0,3}"
+                r"(?:(?:is|are|was|were|will|can|may|must|shall|should|has|have|ever)\b"
+                r"|\w+s\b(?=\s+[\w`'\"/~(\[])(?!\s+(?:needed|required|necessary)\b)"
+                r"|(?:persists|exists|remains|happens|occurs|survives|stays|proceeds|continues"
+                r"|succeeds|lingers)\b(?=\s*(?:[.;:!,)]|$)))"
+                r"|\b(?:makes?|writes?|installs?|invokes?|issues?|sends?|queues?|publishes?|reads?|"
+                r"touch(?:es)?|performs?|runs?\s+with|lands?\s+in|with)\s+no\s+\w"),
+}
+_CLAIM_PATTERN = re.compile("|".join(f"(?P<{k}>{v})" for k, v in _CLAIM_BRANCHES.items()), re.I)
+_CLAIM_MANIFEST_PATH = ROOT / "tools" / "claim-proof-manifest.json"
+
+
+def _coverage_proof(kind, branches, fixtures, fires, pinned=None):
+    """Shared detector self-proof. A detector with N branches can lose one silently: the regex
+    narrows and the gate still prints clean. This asserts the two properties
+    that stop that: EVERY branch has a named fixture, and every fixture actually FIRES its own
+    branch. Returns a problem string, or None when the proof holds.
+
+    `fires(name, sample)` is the detector's own scan, returning truthy when `sample` trips the
+    branch called `name`."""
+    if pinned is not None and not pinned:
+        return (f"{kind}: tools/claim-proof-manifest.json records no usable branch-name list for "
+                f"this detector (detector_branches is missing, or its entry is empty or not a list "
+                f"of names), so removing a branch together with its fixture would go unnoticed")
+    if pinned is not None:
+        # Fixture/branch agreement alone only catches a half delete. With the branch names
+        # recorded in the manifest, deleting a branch AND its fixture in one edit still fails.
+        # pinned is None only when the manifest itself is unreadable, which invariant 60 reports.
+        lost = sorted(set(pinned) - set(branches))
+        if lost:
+            return (f"{kind}: branch(es) {lost} are recorded in tools/claim-proof-manifest.json "
+                    f"but no longer exist in the detector; coverage shrank. Restore them, or "
+                    f"remove them from the manifest deliberately with a reason")
+        added = sorted(set(branches) - set(pinned))
+        if added:
+            return (f"{kind}: branch(es) {added} exist in the detector but are not recorded in "
+                    f"tools/claim-proof-manifest.json; record them so the set cannot shrink later")
+    missing = sorted(set(branches) - set(fixtures))
+    if missing:
+        return (f"{kind}: branch(es) {missing} have no coverage fixture; every branch must be "
+                f"proven to fire, or the gate can narrow silently")
+    extra = sorted(set(fixtures) - set(branches))
+    if extra:
+        return (f"{kind}: fixture(s) {extra} name no branch; a fixture for a branch that no "
+                f"longer exists is a coverage claim with nothing behind it")
+    for name in sorted(fixtures):
+        if not fires(name, fixtures[name]):
+            return (f"{kind}: detector self-proof failed -- the {name!r} branch did not flag its "
+                    f"fixture ({fixtures[name]!r}); coverage shrank")
+    return None
+
+
+def _claim_symbol_value(pyfile, symbol):
+    """The string a module-level assignment binds, or None. Used so a route prober is checked on
+    the constant its detection actually reads rather than on the path appearing anywhere in the
+    file, comments included."""
+    try:
+        tree = ast.parse(Path(pyfile).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return None
+    for node in tree.body:
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, ast.AnnAssign) else [])
+        for tgt in targets:
+            if isinstance(tgt, ast.Name) and tgt.id == symbol:
+                val = node.value
+                if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                    return val.value
+    return None
+
+
+# Letters Unicode lists as default-ignorable (the Hangul fillers), which render as nothing and are
+# neither format characters nor marks, so the category test in _text_fold does not drop them.
+_FOLD_DROP = frozenset("ᅟᅠㅤﾠ")
+
+
+def _text_fold(text):
+    """`text` as a reader sees it: NFKD, then format characters (Cf: zero-width spaces and
+    joiners, the soft hyphen, bidi controls), combining marks and the Hangul fillers (_FOLD_DROP)
+    dropped, then NFKC; tools/commit_claims.py::_fold applies the same fold to a subject, less the
+    Hangul fillers. A word split by an invisible character, or written in fullwidth or accented
+    letters, reads as the plain word; line breaks are kept. A letter of another script that looks
+    like a Latin one (Cyrillic U+0435 for "e", U+043E for "o") is not folded, so a word or a
+    heading spelled with it is not read: tools/claim-proof-cases.json pins that limit for the
+    sweep, and the check_hub self-proof pins it for the spoke-list heading."""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text
+                   if c not in _FOLD_DROP and unicodedata.category(c) not in ("Cf", "Mn", "Me"))
+    return unicodedata.normalize("NFKC", text)
+
+
+def _claim_norm(text):
+    """Folded (_text_fold), whitespace-normalized text. A bound claim is matched on words, not line
+    breaks: re-wrapping a paragraph is not a change to the promise, but changing what it says is.
+    The fold comes first, so an invisible character inside a word or a fullwidth letter hides no
+    flagged word and no exception marker from the sweep."""
+    return " ".join(_text_fold(text).split())
+
+
+# An exception clause can reverse a bound promise without a universal word ("...refuses, except
+# when ALLOW_SYSTEM is set, which installs into the shared site-packages"). _claim_sweep looks for
+# these markers in every unit of the corpus after bound text is removed, so a marker in the
+# bullet after a bound promise is read too; a code span keeps only its plain words
+# (_claim_code_words), with nothing added around them, so a clause written in backticks is read
+# and `un`less reads as the word it renders as. A marker is matched between characters that are
+# not letters or digits, so `_unless_` emphasis does not hide it, and "but", "yet", "though",
+# "although" or "however" before "if", "when" or "where" is read with or without a comma. A
+# sentence, bullet, numbered item, table cell or heading that opens with "If", "Whenever",
+# "And if", "And when", "Or if" or "Or when" is read as a condition. One that opens with a bare
+# "When" or "Where" is not, and neither is "and if" or "or when" inside a sentence, since those
+# open or join ordinary descriptions in the corpus. A reversal with no marker word at all
+# ("..., and ALLOW_SYSTEM installs into the shared site-packages") needs semantics a word list
+# does not have, and is not seen. A marker phrase outside the list ("in case X is set", "but in
+# case X is set", "should X be set") is not seen either; tools/claim-proof-cases.json pins each
+# among the escape_negative cases as that limit.
+_CLAIM_ESCAPE_RE = re.compile(
+    r"(?<![^\W_])(unless|except(?:ing)?|excluding|barring|aside from|apart from|other than|"
+    r"save wh(?:en(?:ever)?|ere(?:ver)?)|"
+    r"save for|save if|with the exception of|provided that|providing that|so long as|as long as|"
+    r"only if|(?:but|yet|though|although|however)[\s,]+(?:if|when(?:ever)?|where(?:ver)?)|"
+    r"(?:^\s*(?:[-*+>|]|#{1,6}|\d+[.)])?\s*|(?<=[.;!?|])\s+)"
+    r"(?:(?:and|or)\s+(?:if|when(?:ever)?)|if|whenever)|"
+    r"(?:overr(?:ide|ides|ided|iding|idden|ode)|bypass(?:es|ed|ing)?)\s+"
+    r"(?:this|it|that|them)|opt(?:s|ed|ing)?[\s-]+out)(?![^\W_])", re.I)
+
+
+_CLAIM_HEADING_RE = re.compile(r"#{1,6}(?:\s|$)")
+
+
+def _claim_units(text, line_offset=0):
+    """(line, unit_text) for each claim UNIT in a markdown slice: a bullet, numbered item, table
+    row, paragraph, or heading. Units, not lines, because a promise spans the lines of its bullet and a
+    reader binds the promise, not the line. An ATX heading (one to six "#" then a space or the
+    line end) is a unit of its own, read like any other: a promise or an exception clause written
+    as a heading is still read, and the lines under it start a new unit. A line such as
+    "#1 rule: ..." is ordinary text."""
+    units, cur, start = [], [], None
+    for i, line in enumerate(text.splitlines(), start=line_offset + 1):
+        s = line.strip()
+        heading = bool(_CLAIM_HEADING_RE.match(s))
+        is_start = heading or bool(s.startswith(("- ", "* ", "|")) or re.match(r"^\d+\. ", s))
+        if is_start or not s:
+            if cur:
+                units.append((start, " ".join(cur)))
+            cur, start = ([s], i) if s and not heading else ([], None)
+            if heading:
+                units.append((i, s))
+        else:
+            if not cur:
+                start = i
+            cur.append(s)
+    if cur:
+        units.append((start, " ".join(cur)))
+    return units
+
+
+def _claim_section(text, markers):
+    """(line_offset, body) for the slice of `text` that a corpus entry names, or a problem string.
+    Each marker must start exactly one line, followed by a non-word character or the line end, so
+    a mention inside a line (for example in backticks) is not a marker. The body runs from the
+    line after the start marker to the line before the end marker."""
+    if not (isinstance(markers, (list, tuple)) and len(markers) == 2
+            and all(isinstance(m, str) and m for m in markers)):
+        return f"has a malformed section entry {markers!r}; it needs [start marker, end marker]"
+    found = []
+    for marker in markers:
+        hits = [m.start() for m in re.finditer(r"(?m)^" + re.escape(marker) + r"(?!\w)", text)]
+        if not hits:
+            return f"has no line that starts with the section marker {marker!r}"
+        if len(hits) > 1:
+            return (f"has {len(hits)} lines that start with the section marker {marker!r}; "
+                    f"exactly one must")
+        found.append(hits[0])
+    start, end = found
+    nl = text.find("\n", start)
+    body_start = len(text) if nl < 0 else nl + 1
+    if end < body_start:
+        return f"has the section end marker {markers[1]!r} before its start marker {markers[0]!r}"
+    return text.count("\n", 0, body_start), text[body_start:end]
+
+
+def _claim_corpus_units(spec):
+    """Yield (doc, line, unit) over the manifest's declared corpus. A corpus entry may name a
+    section, [start heading, end heading], so a promise list can be guarded without guarding a
+    whole file of prose; _claim_section finds the markers at line starts only."""
+    for rel, cfg in sorted(spec.items()):
+        path = ROOT / rel
+        if not path.exists():
+            problem(f"claim-proof: corpus file {rel} is missing; correct the manifest deliberately")
+            continue
+        text = path.read_text(encoding="utf-8")
+        section = (cfg or {}).get("section")
+        offset = 0
+        if section:
+            got = _claim_section(text, section)
+            if isinstance(got, str):
+                problem(f"claim-proof: {rel} {got}")
+                continue
+            offset, text = got
+        for ln, unit in _claim_units(text, offset):
+            yield rel, ln, unit
+
+
+def _claim_fact_text(path):
+    """The text of a file an exemption's facts are re-read from, or None when it is missing or
+    cannot be read as UTF-8. The caller reports each fact it then cannot re-read; a source it
+    cannot read is never taken as empty."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _gitignore_glob(pat):
+    """A compiled regex for one .gitignore glob as git reads it: `*` and `?` stop at a `/`, `**/`
+    spans any number of directories, a trailing `/**` spans everything below, and `[...]` is a
+    class (`[!...]` negated)."""
+    out, i = [], 0
+    while i < len(pat):
+        if pat.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pat.startswith("/**", i) and i + 3 == len(pat):
+            out.append("/.*")
+            i += 3
+        elif pat[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pat[i] == "?":
+            out.append("[^/]")
+            i += 1
+        elif pat[i] == "[" and pat.find("]", i + 2) != -1:
+            j = pat.find("]", i + 2)
+            body = pat[i + 1:j]
+            out.append("[" + ("^" + body[1:] if body.startswith("!") else body) + "]")
+            i = j + 1
+        else:
+            out.append(re.escape(pat[i]))
+            i += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def _claim_path_symbol(spec):
+    """The repo path that `<file>::<NAME>` names: NAME's module-level assignment in <file>, read as
+    ROOT / "a" / "b" (a chain of `/` from ROOT over string literals), with a trailing `/` kept
+    when the spec ends in one. None when the file is missing, unreadable or not Python, or when
+    the name or that shape is missing."""
+    import ast
+    mod, _, name = spec.partition("::")
+    as_dir = name.endswith("/")
+    name = name.rstrip("/")
+    path = ROOT / mod
+    text = _claim_fact_text(path) if mod and name else None
+    try:
+        body = ast.parse(text).body if text is not None else []
+    except (SyntaxError, ValueError):
+        body = []
+    for node in body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name
+                                                for t in node.targets):
+            parts, v = [], node.value
+            while (isinstance(v, ast.BinOp) and isinstance(v.op, ast.Div)
+                   and isinstance(v.right, ast.Constant) and isinstance(v.right.value, str)):
+                parts.insert(0, v.right.value)
+                v = v.left
+            if isinstance(v, ast.Name) and v.id == "ROOT" and parts:
+                return "/".join(parts) + ("/" if as_dir else "")
+            return None
+    return None
+
+
+def _claim_gitignored(rel, gitignore_text):
+    """True when the root .gitignore text ignores the repo path `rel`. Reads the forms the root
+    file uses: blank and `#` lines, `!` negation (the last matching pattern wins), a trailing `/`
+    for a directory only, a pattern holding a `/` anchored at the root, and any other pattern
+    matched against one path component; a path under an ignored directory is ignored, and a
+    `rel` ending in `/` is a directory. Globs are read by _gitignore_glob; nested .gitignore files
+    are not read."""
+    pats = []
+    for raw in gitignore_text.splitlines():
+        s = raw.strip()
+        if not s or s.startswith("#"):
+            continue
+        neg = s.startswith("!")
+        s = s[1:] if neg else s
+        pats.append((neg, s.strip("/"), s.endswith("/"), "/" in s.rstrip("/")))
+    parts = [p for p in rel.split("/") if p]
+    for i in range(1, len(parts) + 1):
+        is_dir, sub, state = i < len(parts) or rel.endswith("/"), "/".join(parts[:i]), False
+        for neg, pat, dir_only, anchored in pats:
+            if (is_dir or not dir_only) and _gitignore_glob(pat).match(
+                    sub if anchored else parts[i - 1]):
+                state = not neg
+        if state:
+            return True
+    return False
+
+
+# The fact kinds an exemption's `holds` can declare, and the word stems in its `why` (or its
+# claim) that say the reason rests on a fact of that kind. A kind is read when both its stems
+# occur, in any order and any form ("gitignored", "git ignores", "ignored by git"; "route record",
+# "the routing record", "the manifest records this route"), not from one phrase. A reason that
+# states the fact without both stems of its kind ("excluded from version control", "git never
+# tracks these paths") is read by people, not by this check; _claim_holds_self_proof pins that
+# limit.
+_CLAIM_HOLDS_KINDS = {"gitignored": re.compile(r"(?=.*\bgit)(?=.*ignor)", re.I | re.S),
+                      "route": re.compile(r"(?=.*\brout(?:e|ing))(?=.*\brecord)", re.I | re.S)}
+
+
+def _claim_holds_problems(entry, routes, gitignore_text):
+    """Problems with the facts an exemption's written reason rests on, for the two kinds a check
+    can re-read. `holds.gitignored` lists repo paths the root .gitignore must ignore; an entry
+    written `<file>::<NAME>` is the path that NAME is assigned in <file> (_claim_path_symbol), so
+    the check follows the code when the path moves. `holds.route` names the `recommends` value of
+    a route record the manifest must still hold. A `why` or exempted text that mentions
+    git and ignoring, or a route and a record (_CLAIM_HOLDS_KINDS), must declare the matching
+    kind, so a reason of that kind cannot
+    rest on a fact nothing re-reads. A literal path entry is a sample: a code path it does not
+    name is not read. A fact source that is missing or unreadable (the root .gitignore, passed as
+    None; a `routes` value that is not a list; the file a `<file>::<NAME>` entry names) is
+    reported, never read as empty. A reason of any other kind is read by
+    people, not by this check."""
+    where = f"the exemption for {str(entry.get('claim'))[:50]!r} in {entry.get('doc')}"
+    holds, why = entry.get("holds", {}), entry.get("why") or ""
+    if not isinstance(holds, dict):
+        return [f"claim-proof: {where} has a `holds` value that is not a mapping"]
+    out = [f"claim-proof: {where} declares `holds.{k}`, which no check reads"
+           for k in sorted(set(holds) - set(_CLAIM_HOLDS_KINDS))]
+    out += [f"claim-proof: {where} gives a reason that rests on a {k} fact but declares no "
+            f"`holds.{k}`, so nothing re-reads it" for k, said in _CLAIM_HOLDS_KINDS.items()
+            if said.search(why + " " + str(entry.get("claim") or "")) and k not in holds]
+    if "gitignored" in holds:
+        paths = holds["gitignored"]
+        if not (isinstance(paths, list) and paths and all(isinstance(p, str) and p for p in paths)):
+            out.append(f"claim-proof: {where} needs `holds.gitignored` to be a non-empty list of "
+                       f"repo paths")
+        elif gitignore_text is None:
+            out.append(f"claim-proof: {where} rests on gitignore facts, but the root .gitignore is "
+                       f"missing or unreadable, so they cannot be re-read")
+        else:
+            for p in paths:
+                rel = _claim_path_symbol(p) if "::" in p else p
+                if rel is None:
+                    out.append(f"claim-proof: {where} names {p!r}, which does not resolve to a "
+                               f"ROOT / \"...\" assignment")
+                elif not _claim_gitignored(rel, gitignore_text):
+                    out.append(f"claim-proof: {where} rests on {rel!r} being gitignored, but the "
+                               f"root .gitignore does not ignore it")
+    if "route" in holds and not isinstance(routes, list):
+        out.append(f"claim-proof: {where} rests on the route record for {holds['route']!r}, but "
+                   f"the manifest's `routes` value is missing or not a list, so it cannot be re-read")
+    elif "route" in holds and not any(isinstance(r, dict) and r.get("recommends") == holds["route"]
+                                      for r in routes):
+        out.append(f"claim-proof: {where} rests on the route record for {holds['route']!r}, which "
+                   f"tools/claim-proof-manifest.json no longer holds")
+    return out
+
+
+def _claim_holds_self_proof():
+    """None when _claim_holds_problems reads its fixtures right, else what broke."""
+    ign = "# c\n*.local.json\ndist/\n"
+    gi = {"claim": "x", "doc": "d", "why": "all gitignored",
+          "holds": {"gitignored": ["dist/a/b.zip", "w.local.json"]}}
+    rt = {"claim": "x", "doc": "d", "why": "bound as a route record", "holds": {"route": "nvm"}}
+    for n, got in ((0, _claim_holds_problems(gi, [], ign)),
+                   (1, _claim_holds_problems(gi, [], "*.local.json\n")),
+                   (1, _claim_holds_problems(gi, [], ign + "!dist/\n")),
+                   (1, _claim_holds_problems(dict(gi, holds={}), [], ign)),
+                   (1, _claim_holds_problems(dict(gi, why="a descriptive table row",
+                                                  claim="all gitignored", holds={}), [], ign)),
+                   (1, _claim_holds_problems(gi, [], "*.local.json\ndist/*.zip\n")),
+                   (0, _claim_holds_problems(rt, [{"recommends": "nvm"}], "")),
+                   (1, _claim_holds_problems(rt, [], "")),
+                   (1, _claim_holds_problems(gi, [], None)),
+                   (1, _claim_holds_problems(rt, None, "")),
+                   (1, _claim_holds_problems(dict(rt, holds={"route": "nvm", "x": 1}),
+                                             [{"recommends": "nvm"}], "")),
+                   (1, _claim_holds_problems(dict(gi, why="git ignores these paths through the root "
+                                                  "ignore file", holds={}), [], ign)),
+                   (1, _claim_holds_problems(dict(gi, why="the paths are ignored by git",
+                                                  holds={}), [], ign)),
+                   (1, _claim_holds_problems(dict(rt, why="the manifest records this route",
+                                                  holds={}), [], "")),
+                   (1, _claim_holds_problems(dict(rt, why="the routing record lists this path",
+                                                  holds={}), [], "")),
+                   (0, _claim_holds_problems(dict(gi, why="git never tracks these paths",
+                                                  holds={}), [], ign)),
+                   (0, _claim_holds_problems(dict(gi, why="the paths are excluded from version "
+                                                  "control", holds={}), [], ign))):
+        if len(got) != n:
+            return f"an exemption `holds` fixture gave {got!r}, expected {n} problem(s)"
+    if (_claim_fact_text(ROOT / "tools" / "claim-proof-absent.fixture") is not None
+            or _claim_path_symbol("tools/claim-proof-absent.fixture::X") is not None):
+        return "a missing fact source was read as text instead of reported"
+    return None
+
+
+_CLAIM_CASES_PATH = ROOT / "tools" / "claim-proof-cases.json"
+_CLAIM_CASE_LISTS = ("negative", "escape_positive", "escape_negative", "units", "sections",
+                     "sweep")
+
+
+def _claim_code_words(span):
+    """The plain words of a code span: tokens of letters, hyphen-joined or not. A token holding
+    any other character (`try/except`, `CREATOR_OS_SYSTEM_PIP=1`, `--opt-out`) is code rather than
+    a word, and is dropped."""
+    return " ".join(w for w in span.split() if re.fullmatch(r"[A-Za-z]+(?:-[A-Za-z]+)*", w))
+
+
+def _claim_escape_hit(text, escape=None):
+    """The first exception marker in `text`, or None. Each code span is reduced to its plain
+    words first (_claim_code_words), so `try/except` in backticks is not an exception clause
+    while a clause written in backticks (`unless X is set`) is still read."""
+    return (escape or _CLAIM_ESCAPE_RE).search(
+        re.sub(r"`([^`]*)`", lambda m: _claim_code_words(m.group(1)), text))
+
+
+def _claim_sweep(units, bound, exempt=(), pattern=None, escape=None):
+    """The reverse enrolment sweep over (doc, line, unit) triples; returns problem strings.
+    `bound` lists (doc, text) for every claim and exemption. Each binding is subtracted once, from
+    the first unit of its doc that still contains it, so it covers one occurrence of its text and
+    a promise appended to a bound unit is still read. A unit the detector flags fails when its
+    remainder is still flagged.
+    Exception markers: a marker left in any unit's remainder fails, whether or not the unit holds
+    a flagged word or bound text, because it can reverse a promise nearby without a universal
+    word. Code spans are removed before the marker search.
+    `exempt` holds the indices in `bound` that are exemptions. An exemption must do work: its
+    text must carry a flagged word or an exception marker, and it must be subtracted inside some
+    unit; otherwise it fails, because it exempts nothing and overstates what the gate exempts."""
+    pattern = pattern or _CLAIM_PATTERN
+    out, consumed = [], set()
+    for rel, ln, unit in units:
+        norm = _claim_norm(unit)
+        remainder = norm
+        for idx, (r, t) in enumerate(bound):
+            if r != rel or idx in consumed:
+                continue
+            needle = _claim_norm(t)
+            if needle and needle in remainder:
+                remainder = remainder.replace(needle, " ", 1)
+                consumed.add(idx)
+        esc = _claim_escape_hit(remainder, escape)
+        if esc:
+            out.append(f"claim-proof: {rel}:{ln} attaches an exception ({esc.group(0)!r}) that no "
+                       f"binding declares: {remainder.strip()[:90]!r}. An exception clause can "
+                       f"reverse a promise nearby without a universal word, so bind or exempt the "
+                       f"clause explicitly, or reword it")
+            continue
+        if pattern.search(norm) is None:
+            continue
+        left = pattern.search(remainder)
+        if left is not None:
+            out.append(f"claim-proof: {rel}:{ln} makes a universal claim ({left.group(0)!r}) that "
+                       f"nothing binds: {remainder.strip()[:90]!r}. Add it to "
+                       f"tools/claim-proof-manifest.json with the invariant or selftest pin that "
+                       f"proves it, list it as an exemption with a written reason, or narrow the "
+                       f"sentence to what is actually tested")
+    for idx in sorted(exempt):
+        rel, text = bound[idx]
+        norm = _claim_norm(text)
+        if pattern.search(norm) is None and _claim_escape_hit(norm, escape) is None:
+            out.append(f"claim-proof: the exemption for {text[:50]!r} in {rel} exempts nothing: its "
+                       f"text carries no word the detector flags and no exception marker. Drop "
+                       f"the entry")
+        elif idx not in consumed:
+            out.append(f"claim-proof: the exemption for {text[:50]!r} in {rel} sits in no unit of "
+                       f"the guarded corpus, so it exempts nothing. Drop it, or point it at text "
+                       f"the corpus covers")
+    return out
+
+
+def _claim_load_cases():
+    """The labelled detector cases in tools/claim-proof-cases.json, or a problem string when the
+    file is missing, unreadable, or has no `positive` table."""
+    try:
+        cases = json.loads(_CLAIM_CASES_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return (f"claim-proof: tools/claim-proof-cases.json is missing or unreadable ({exc}); the "
+                f"detector cannot check itself without its labelled cases")
+    if not isinstance(cases, dict) or not isinstance(cases.get("positive"), dict):
+        return ("claim-proof: tools/claim-proof-cases.json has no `positive` table of labelled "
+                "cases per branch")
+    return cases
+
+
+def _claim_case_problems(cases, pattern=None, escape=None):
+    """Problems where the detector disagrees with its labelled cases. `positive` maps every
+    branch to at least two sentences whose first match must come from that branch; `negative`
+    sentences must not be flagged; `escape_positive` and `escape_negative` sentences must and
+    must not carry an exception marker; `units` cases give the expected _claim_units result;
+    `sections` cases give the expected _claim_section result, as units or an error substring;
+    `sweep` cases run _claim_sweep over a small document (`bound` and `exempt` texts) and list,
+    in order, a substring of each problem it must report. `pattern` and `escape` default to the
+    live detector; _claim_case_blindness passes narrowed copies."""
+    pattern = pattern or _CLAIM_PATTERN
+    out = []
+    for key in _CLAIM_CASE_LISTS:
+        if not isinstance(cases.get(key), list) or not cases[key]:
+            out.append(f"claim-proof: tools/claim-proof-cases.json has no {key!r} cases")
+    pos = cases.get("positive") if isinstance(cases.get("positive"), dict) else {}
+    for name in _CLAIM_BRANCHES:
+        got = pos.get(name)
+        if not isinstance(got, list) or len(got) < 2:
+            out.append(f"claim-proof: branch {name!r} needs at least two labelled positive cases")
+            continue
+        for s in got:
+            hit = pattern.search(s)
+            if hit is None or hit.lastgroup != name:
+                who = "nothing flags it" if hit is None else f"{hit.lastgroup!r} flags it first"
+                out.append(f"claim-proof: the labelled case {s!r} must be flagged by the {name!r} "
+                           f"branch, but {who}")
+    for name in sorted(set(pos) - set(_CLAIM_BRANCHES)):
+        out.append(f"claim-proof: tools/claim-proof-cases.json has positives for {name!r}, which is "
+                   f"not a detector branch")
+    for s in cases.get("negative") or []:
+        hit = pattern.search(s)
+        if hit:
+            out.append(f"claim-proof: the labelled negative {s!r} is flagged by {hit.lastgroup!r} "
+                       f"({hit.group(0)!r})")
+    if len(cases.get("escape_positive") or []) < 2:
+        out.append("claim-proof: tools/claim-proof-cases.json needs at least two escape_positive "
+                   "cases")
+    for s in cases.get("escape_positive") or []:
+        if not _claim_escape_hit(s, escape):
+            out.append(f"claim-proof: the exception marker in the labelled case {s!r} is not seen")
+    for s in cases.get("escape_negative") or []:
+        hit = _claim_escape_hit(s, escape)
+        if hit:
+            out.append(f"claim-proof: {s!r} is read as an exception ({hit.group(0)!r}) but is "
+                       f"labelled as none")
+    for case in cases.get("units") or []:
+        try:
+            got = [[ln, u] for ln, u in _claim_units(case["text"])]
+            if got != case["expect"]:
+                out.append(f"claim-proof: unit case {case.get('name')!r} expected "
+                           f"{case['expect']}, got {got}")
+        except (KeyError, TypeError, AttributeError) as exc:
+            out.append(f"claim-proof: unit case {case!r} is malformed ({exc})")
+    for case in cases.get("sections") or []:
+        try:
+            got = _claim_section(case["text"], case["markers"])
+            if isinstance(got, str):
+                good = "error" in case and case["error"] in got
+            else:
+                got = [[ln, u] for ln, u in _claim_units(got[1], got[0])]
+                good = "error" not in case and got == case["expect"]
+            if not good:
+                out.append(f"claim-proof: section case {case.get('name')!r} got {got!r}")
+        except (KeyError, TypeError, AttributeError) as exc:
+            out.append(f"claim-proof: section case {case!r} is malformed ({exc})")
+    for case in cases.get("sweep") or []:
+        try:
+            units = [("case.md", ln, u) for ln, u in _claim_units(case["text"])]
+            bound = [("case.md", t) for t in case.get("bound", [])]
+            exempt = set(range(len(bound), len(bound) + len(case.get("exempt", []))))
+            bound += [("case.md", t) for t in case.get("exempt", [])]
+            got = _claim_sweep(units, bound, exempt, pattern, escape)
+            want = case["expect"]
+            if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+                out.append(f"claim-proof: sweep case {case.get('name')!r} expected {want}, got "
+                           f"{[g[:80] for g in got]}")
+        except (KeyError, TypeError, AttributeError) as exc:
+            out.append(f"claim-proof: sweep case {case!r} is malformed ({exc})")
+    return out
+
+
+def _claim_case_blindness(cases):
+    """Problems when the labelled cases cannot tell a branch, or the exception-marker list, from
+    a copy of its own first case: each in turn is replaced by re.escape(first case), and some
+    case must then fail. Cases that all read one way would otherwise let a branch shrink to a
+    single sentence unnoticed."""
+    out = []
+    pos = cases.get("positive") or {}
+    for name in _CLAIM_BRANCHES:
+        first = (pos.get(name) or [None])[0]
+        if not isinstance(first, str):
+            continue
+        narrowed = "|".join(f"(?P<{k}>{re.escape(first) if k == name else v})"
+                            for k, v in _CLAIM_BRANCHES.items())
+        if not _claim_case_problems(cases, pattern=re.compile(narrowed, re.I)):
+            out.append(f"claim-proof: the labelled cases cannot tell the {name!r} branch from a "
+                       f"copy of its first case; add a positive phrased another way")
+    first = (cases.get("escape_positive") or [None])[0]
+    if isinstance(first, str) and not _claim_case_problems(
+            cases, escape=re.compile(re.escape(first), re.I)):
+        out.append("claim-proof: the labelled cases cannot tell the exception-marker list from a "
+                   "copy of its first case; add an escape_positive with another marker")
+    return out
+
+
+
+# The helpers check_claim_proof must call for the labelled cases and the corpus sweep to be read.
+_CLAIM_WIRING = ("_claim_load_cases", "_claim_case_problems", "_claim_case_blindness",
+                 "_claim_subject_problems",
+                 "_claim_boundary_problems",
+                 "_claim_guarded_text_problems",
+                 "_claim_corpus_units", "_claim_sweep")
+
+
+def _claim_wiring_problems(source=None):
+    """Problems when check_claim_proof no longer calls a helper named in _CLAIM_WIRING from its
+    own body. A call inside a nested function, or under an `if` or `while` whose test is a
+    constant, does not count. Without this, deleting the call that runs the labelled cases or the
+    corpus sweep leaves the build green while nothing is checked. `source` defaults to this file."""
+    try:
+        tree = ast.parse(source if source is not None else Path(__file__).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        return [f"claim-proof: could not parse this file to check what check_claim_proof calls: {exc}"]
+    fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "check_claim_proof"),
+              None)
+    if fn is None:
+        return ["claim-proof: check_claim_proof is not defined at module level"]
+    called, stack = set(), list(fn.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            continue
+        if isinstance(node, (ast.If, ast.While)) and isinstance(node.test, ast.Constant):
+            stack.extend(node.body if node.test.value else node.orelse)
+            continue
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            called.add(node.func.id)
+        stack.extend(ast.iter_child_nodes(node))
+    return [f"claim-proof: check_claim_proof no longer calls {name}(), so the labelled cases or the "
+            f"corpus sweep it runs are not read; restore the call"
+            for name in _CLAIM_WIRING if name not in called]
+
+
+# P95: a selftest pin proves a claim only when it is a call to a check helper this module
+# defines, made from code the selftest actually runs, whose condition could actually be false.
+# Whether a condition can be false is undecidable, so these rules refuse listed shapes and are
+# not complete: a pin outside them, such as `ok(len(r) >= 0, ...)`, is accepted whether or not it
+# can fail. The residual-* cases in _CLAIM_CASES_REBINDING_AND_DEAD_CODE are such shapes, among
+# them a helper rebound through `globals()[...] = ...` or `setattr()`, which the rebinding rule
+# (_claim_helper_rebound) does not read.
+_CLAIM_PIN_HELPERS = {"ok", "check", "_check", "_ok", "c"}
+_CLAIM_FNDEF = (ast.FunctionDef, ast.AsyncFunctionDef)
+_CLAIM_PURE_BUILTINS = {"bool", "len", "str", "int", "float", "repr", "abs", "tuple", "list",
+                        "set", "frozenset", "dict", "min", "max", "sorted", "sum", "any", "all"}
+# A name that no scope binds is a builtin. Dunders are left out: `__name__` and `__file__` are
+# module globals whose values change from run to run.
+_CLAIM_BUILTIN_NAMES = frozenset(n for n in dir(__import__("builtins")) if not n.startswith("__"))
+_CLAIM_BUILTIN = ("builtin", None)
+_CLAIM_COMPARE_OPS = {
+    ast.Eq: lambda a, b: a == b, ast.NotEq: lambda a, b: a != b, ast.Lt: lambda a, b: a < b,
+    ast.LtE: lambda a, b: a <= b, ast.Gt: lambda a, b: a > b, ast.GtE: lambda a, b: a >= b,
+    ast.Is: lambda a, b: a is b, ast.IsNot: lambda a, b: a is not b,
+    ast.In: lambda a, b: a in b, ast.NotIn: lambda a, b: a not in b}
+
+
+def _claim_own_nodes(node):
+    """The nodes of a function (or module) body, not descending into nested functions, lambdas or
+    classes: a call written inside a nested def runs only if that def is itself used."""
+    stack = list(ast.iter_child_nodes(node))
+    while stack:
+        cur = stack.pop()
+        yield cur
+        if not isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+            stack.extend(ast.iter_child_nodes(cur))
+
+
+def _claim_scopes(tree):
+    """(parent, defs): each function's enclosing function (None = module) and each scope's
+    functions by name, including `ok = lambda ...` helpers. Lookups walk this chain as Python
+    does, so a nested `ok` resolves to its own definition, not a same-named one elsewhere."""
+    parent, defs = {}, {None: {}}
+
+    def visit(node, owner):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, _CLAIM_FNDEF):
+                parent[child] = owner
+                defs.setdefault(owner, {})[child.name] = child
+                defs.setdefault(child, {})
+                visit(child, child)
+            elif isinstance(child, ast.Assign) and isinstance(child.value, ast.Lambda) \
+                    and len(child.targets) == 1 and isinstance(child.targets[0], ast.Name):
+                defs.setdefault(owner, {})[child.targets[0].id] = child.value
+            elif not isinstance(child, (ast.Lambda, ast.ClassDef)):
+                visit(child, owner)
+    visit(tree, None)
+    return parent, defs
+
+
+def _claim_lookup(name, scope, parent, defs):
+    while True:
+        hit = defs.get(scope, {}).get(name)
+        if hit is not None or scope is None:
+            return hit
+        scope = parent.get(scope)
+
+
+def _claim_binds(scope, name):
+    """How many times the scope's own code binds `name`: assignment or deletion, import,
+    parameter, def or class, except-as, or match capture. Global and nonlocal declarations are
+    read by _claim_helper_rebound across the whole defining scope instead."""
+    count = 0
+    for n in _claim_own_nodes(scope):
+        if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del)):
+            count += n.id == name
+        elif isinstance(n, ast.alias):
+            count += (n.asname or n.name).split(".")[0] == name
+        elif isinstance(n, ast.arg):
+            count += n.arg == name
+        elif isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,)):
+            count += n.name == name
+        elif isinstance(n, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+            count += n.name == name
+        elif isinstance(n, ast.MatchMapping):
+            count += n.rest == name
+    return count
+
+
+def _claim_helper_rebound(name, scope, parent, defs, tree):
+    """True when a call to `name` from `scope` may not reach the helper _claim_lookup finds: a
+    scope on the way binds the name, the defining scope binds it more than once, the helper is
+    decorated, or code anywhere inside the defining scope declares the name global or nonlocal."""
+    while True:
+        node = tree if scope is None else scope
+        hit = defs.get(scope, {}).get(name)
+        if hit is not None:
+            return (_claim_binds(node, name) != 1 or bool(getattr(hit, "decorator_list", None))
+                    or any(isinstance(n, (ast.Global, ast.Nonlocal)) and name in n.names
+                           for n in ast.walk(node)))
+        if scope is None or _claim_binds(node, name):
+            return True
+        scope = parent.get(scope)
+
+
+def _claim_stored_names(node, whole):
+    """How many times a scope binds each name. `whole` also counts nested scopes, which can rebind
+    an outer name through nonlocal/global; any non-assignment binding counts as two, since such a
+    name never holds one fixed value."""
+    counts = {}
+    for n in (ast.walk(node) if whole else _claim_own_nodes(node)):
+        names = []
+        if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del)):
+            names = [n.id]
+        elif isinstance(n, (ast.Global, ast.Nonlocal)):
+            names = list(n.names) * 2
+        elif isinstance(n, ast.alias):
+            names = [(n.asname or n.name).split(".")[0]] * 2
+        elif isinstance(n, ast.ExceptHandler) and n.name:
+            names = [n.name] * 2
+        elif isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,)) and n is not node:
+            names = [n.name] * 2
+        elif isinstance(n, ast.arguments):
+            names = [a.arg for a in n.posonlyargs + n.args + n.kwonlyargs] * 2
+            names += [a.arg for a in (n.vararg, n.kwarg) if a] * 2
+        for name in names:
+            counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def _claim_immutable_binding(node):
+    """True when a value bound to a name keeps its value for good. A name bound once to `[]` is NOT
+    fixed: `targets = []` then `targets.append(...)` is how a real selftest records calls, and
+    treating it as a constant would refuse such a pin as fixed."""
+    if isinstance(node, (ast.Constant, ast.Tuple, ast.Lambda, ast.GeneratorExp, ast.JoinedStr,
+                         ast.Compare, ast.Name)):
+        return True
+    if isinstance(node, ast.UnaryOp):
+        return isinstance(node.op, ast.Not) or isinstance(node.operand, ast.Constant)
+    if isinstance(node, ast.BoolOp):
+        return all(_claim_immutable_binding(v) for v in node.values)
+    if isinstance(node, ast.IfExp):
+        return _claim_immutable_binding(node.body) and _claim_immutable_binding(node.orelse)
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in {"bool", "len", "str", "int", "float", "repr", "abs", "tuple",
+                                 "frozenset", "any", "all"})
+
+
+def _claim_known_value(node, resolve):
+    """(True, value) for a literal, a builtin name no scope binds, or a local bound once to one of
+    those; else (False, None). Lets `if str is bytes:` and `off = False; if off:` be evaluated. A
+    chain of names that leads back to itself is not known."""
+    seen = set()
+    while isinstance(node, ast.Name) and node not in seen:
+        seen.add(node)
+        bound = resolve(node.id)
+        if bound is _CLAIM_BUILTIN:
+            return True, getattr(__import__("builtins"), node.id)
+        if bound is None or bound[0] is None:
+            return False, None
+        node, resolve = bound
+    if isinstance(node, ast.Constant):
+        return True, node.value
+    return False, None
+
+
+def _claim_memo(kind, placeholder):
+    """Memoise an analysis function per (node, resolver) for one _claim_pins call; the resolver
+    carries the memo as `resolve.memo`. The key holds the node itself, not id(node), so a node
+    freed and re-allocated during the call cannot hit a stale entry. A node re-entered while it is
+    still being evaluated (a binding cycle such as `a = b or b; b = a or a`) reads as
+    `placeholder`, which means not fixed."""
+    def wrap(raw):
+        def run(node, resolve):
+            memo = getattr(resolve, "memo", None)
+            if memo is None:
+                return raw(node, resolve)
+            key = (kind, node, resolve)
+            if key not in memo:
+                memo[key] = placeholder
+                memo[key] = raw(node, resolve)
+            return memo[key]
+        run.__name__, run.__doc__ = raw.__name__, raw.__doc__
+        return run
+    return wrap
+
+
+@_claim_memo("value", False)
+def _claim_value_fixed(node, resolve):
+    """True when the node's VALUE cannot depend on anything the program computes."""
+    rec = lambda n: _claim_value_fixed(n, resolve)  # noqa: E731
+    if isinstance(node, ast.Constant):
+        return True
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return all(not isinstance(e, ast.Starred) and rec(e) for e in node.elts)
+    if isinstance(node, ast.Dict):
+        return None not in node.keys and all(map(rec, node.keys + node.values))
+    if isinstance(node, ast.JoinedStr):
+        return all(rec(v.value) for v in node.values if isinstance(v, ast.FormattedValue))
+    if isinstance(node, ast.UnaryOp):
+        return rec(node.operand)
+    if isinstance(node, ast.BinOp):
+        return rec(node.left) and rec(node.right)
+    if isinstance(node, ast.BoolOp):
+        return all(map(rec, node.values))
+    if isinstance(node, ast.Compare):
+        return all(map(rec, [node.left] + node.comparators))
+    if isinstance(node, ast.IfExp):
+        return rec(node.test) and rec(node.body) and rec(node.orelse)
+    if isinstance(node, ast.NamedExpr):
+        return rec(node.value)
+    if isinstance(node, ast.Name):
+        bound = resolve(node.id)
+        if bound is _CLAIM_BUILTIN:
+            return True
+        return bound is not None and bound[0] is not None and \
+            _claim_value_fixed(bound[0], bound[1])
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+        return node.func.id in _CLAIM_PURE_BUILTINS and resolve(node.func.id) is _CLAIM_BUILTIN \
+            and all(map(rec, node.args))
+    return False
+
+
+@_claim_memo("truth", (False, None))
+def _claim_truth(node, resolve):
+    """(fixed, value): fixed is True when the node's TRUTH cannot depend on anything the program
+    computes; value is that truth when safely known, else None. A pin whose condition has a fixed
+    truth cannot fail, so it proves nothing. Fixed shapes include a literal, `1 == 1`, a tuple
+    (always truthy), `x == x`, `x or True` and a name bound once to a constant."""
+    rec = lambda n: _claim_truth(n, resolve)  # noqa: E731
+    if isinstance(node, ast.Constant):
+        return True, bool(node.value)
+    if isinstance(node, ast.Name):
+        known, value = _claim_known_value(node, resolve)
+        if known and value is not NotImplemented:      # its truth is an error from 3.14 on
+            return True, bool(value)                   # a builtin object is truthy
+    if isinstance(node, ast.Compare):
+        known = [_claim_known_value(p, resolve) for p in [node.left] + node.comparators]
+        if all(k for k, _ in known):
+            vals = [v for _, v in known]
+            try:
+                return True, all(bool(_CLAIM_COMPARE_OPS[type(op)](a, b))
+                                 for op, a, b in zip(node.ops, vals, vals[1:]))
+            except Exception:  # noqa: BLE001 - e.g. unorderable constants: still fixed
+                return True, None
+    if _claim_value_fixed(node, resolve):
+        return True, None
+    if isinstance(node, (ast.Lambda, ast.GeneratorExp)):
+        return True, True
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        if any(isinstance(e, ast.Starred) for e in node.elts):
+            return False, None
+        return True, bool(node.elts)
+    if isinstance(node, ast.Dict):
+        return (False, None) if None in node.keys else (True, bool(node.keys))
+    if isinstance(node, ast.JoinedStr):
+        lit = any(isinstance(v, ast.Constant) and v.value for v in node.values)
+        return (True, True) if lit else (False, None)
+    if isinstance(node, ast.Name):
+        bound = resolve(node.id)
+        return _claim_truth(bound[0], bound[1]) if bound and bound[0] is not None \
+            else (False, None)
+    if isinstance(node, ast.NamedExpr):
+        return rec(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        fixed, val = rec(node.operand)
+        return (True, None if val is None else not val) if fixed else (False, None)
+    if isinstance(node, ast.BoolOp):
+        plain = {ast.dump(v) for v in node.values if not any(
+            isinstance(x, (ast.Call, ast.NamedExpr, ast.Await, ast.Yield, ast.YieldFrom))
+            for x in ast.walk(v))}
+        if any(isinstance(v, ast.UnaryOp) and isinstance(v.op, ast.Not)
+               and ast.dump(v.operand) in plain for v in node.values):
+            return True, isinstance(node.op, ast.Or)   # `x or not x`, `x and not x`
+    if isinstance(node, ast.BoolOp):
+        parts = [rec(v) for v in node.values]
+        decider = isinstance(node.op, ast.Or)          # Or is decided by a True, And by a False
+        if any(f and v is decider for f, v in parts):
+            return True, decider
+        return (True, None) if all(f for f, _ in parts) else (False, None)
+    if isinstance(node, ast.Compare) and len(node.ops) == 1 \
+            and ast.dump(node.left) == ast.dump(node.comparators[0]) \
+            and isinstance(node.left, (ast.Name, ast.Attribute, ast.Subscript)):
+        if isinstance(node.ops[0], (ast.Eq, ast.Is, ast.LtE, ast.GtE)):
+            return True, True                          # x == x: reflexive, cannot fail
+        if isinstance(node.ops[0], (ast.NotEq, ast.IsNot, ast.Lt, ast.Gt)):
+            return True, False
+    if isinstance(node, ast.Attribute) and node.attr == "__class__":
+        return True, True                              # a class object is truthy
+    if isinstance(node, ast.IfExp):
+        tf, tv = rec(node.test)
+        if tf and tv is not None:
+            return rec(node.body if tv else node.orelse)
+        (bf, bv), (of, ov) = rec(node.body), rec(node.orelse)
+        return (True, bv) if (bf and of and bv is not None and bv == ov) else (False, None)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+            and node.func.id == "bool" and resolve("bool") is _CLAIM_BUILTIN \
+            and len(node.args) == 1 and not node.keywords:
+        return rec(node.args[0])
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords \
+            and resolve(node.func.id) is _CLAIM_BUILTIN:
+        if node.func.id == "type" and len(node.args) == 1:
+            return True, True                          # type(x) is a class object
+        if node.func.id == "isinstance" and len(node.args) == 2 \
+                and _claim_known_value(node.args[1], resolve) == (True, object):
+            return True, True                          # everything is an object
+    return False, None
+
+
+# Methods that keep a value in a container for a later truth test (`checks.append((c, m))`).
+_CLAIM_STORE_METHODS = {"append", "add", "appendleft"}
+
+
+def _claim_defining_scope(name, scope, parent, defs):
+    """The scope whose definition of `name` _claim_lookup finds (None = the module)."""
+    while scope is not None and name not in defs.get(scope, {}):
+        scope = parent.get(scope)
+    return scope
+
+
+def _claim_test_records(nodes):
+    """(expression, falsy_branch) for each truth test among `nodes`: an `if`, `while`, `assert` or
+    conditional-expression test, a comprehension condition, or a `bool()` argument, with one
+    leading `not` removed. falsy_branch is True when some code runs only when the expression is
+    falsy: `if not x:`, an `else`, a failing `assert x`, `[... if not x]`."""
+    out = []
+    for n in nodes:
+        pairs = []
+        if isinstance(n, (ast.If, ast.While)):
+            pairs.append((n.test, bool(n.orelse), True))
+        elif isinstance(n, ast.IfExp):
+            pairs.append((n.test, True, True))
+        elif isinstance(n, ast.Assert):
+            pairs.append((n.test, True, False))
+        elif isinstance(n, ast.comprehension):
+            pairs.extend((t, False, True) for t in n.ifs)
+        elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "bool":
+            pairs.extend((a, False, False) for a in n.args)
+        for test, on_false, on_true in pairs:
+            if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+                test, on_false = test.operand, on_true
+            out.append((test, on_false))
+    return out
+
+
+def _claim_is_direct(expr, name):
+    """True when the expression's truth is `name`'s own truth: `name` or `bool(name)`."""
+    if isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name) and expr.func.id == "bool" \
+            and len(expr.args) == 1 and not expr.keywords:
+        expr = expr.args[0]
+    return isinstance(expr, ast.Name) and expr.id == name
+
+
+def _claim_later_tests(definer, container):
+    """{position: falsy_branch} for the elements of `container` that `definer`'s own code tests for
+    truth while iterating it by name (`for c, m in checks: if not c:`, `[n for n, c in checks if
+    not c]`); position None is the whole element."""
+    found = {}
+    for n in _claim_own_nodes(definer):
+        if not (isinstance(n, (ast.For, ast.AsyncFor, ast.comprehension))
+                and isinstance(n.iter, ast.Name) and n.iter.id == container):
+            continue
+        tgt = n.target
+        slots = ({e.id: i for i, e in enumerate(tgt.elts) if isinstance(e, ast.Name)}
+                 if isinstance(tgt, ast.Tuple) else
+                 {tgt.id: None} if isinstance(tgt, ast.Name) else {})
+        body = [n] if isinstance(n, ast.comprehension) else [x for st in n.body for x in ast.walk(st)]
+        for test, on_false in _claim_test_records(body):
+            names = {x.id for x in ast.walk(test) if isinstance(x, ast.Name)}
+            for var, pos in slots.items():
+                if var in names:
+                    found[pos] = found.get(pos, False) or (on_false and _claim_is_direct(test, var))
+    return found
+
+
+def _claim_guard_nodes(helper):
+    """The helper's nodes outside the branches of its own truth tests. A test nested in another
+    test's branch (`raise SystemExit(msg if msg else "failed")` under `if not cond:`) shapes what a
+    failure says, not whether the helper fails, so it does not make a parameter part of the
+    condition."""
+    stack = [helper.body] if isinstance(helper, ast.Lambda) else list(helper.body)
+    while stack:
+        cur = stack.pop()
+        yield cur
+        if isinstance(cur, (ast.If, ast.While, ast.IfExp, ast.Assert)):
+            stack.append(cur.test)
+        elif not isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+            stack.extend(ast.iter_child_nodes(cur))
+
+
+def _claim_helper_tests(helper, definer):
+    """The helper's truth tests outside its failure branches (_claim_test_records over
+    _claim_guard_nodes), plus each value it stores into a container it does not own
+    (`checks.append((cond, msg))`) at a position that `definer`, the scope defining the helper,
+    later tests."""
+    own = {a.arg for a in ast.walk(helper.args) if isinstance(a, ast.arg)}
+    own |= {n.id for n in ast.walk(helper) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)}
+    tests = _claim_test_records(_claim_guard_nodes(helper))
+    for n in ast.walk(helper):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                and n.func.attr in _CLAIM_STORE_METHODS and isinstance(n.func.value, ast.Name) \
+                and n.func.value.id not in own and len(n.args) == 1 and not n.keywords:
+            kept = n.args[0]
+            for pos, on_false in _claim_later_tests(definer, n.func.value.id).items():
+                if pos is None:
+                    tests.append((kept, on_false))
+                elif isinstance(kept, ast.Tuple) and pos < len(kept.elts):
+                    tests.append((kept.elts[pos], on_false))
+    return tests
+
+
+def _claim_condition_verdict(name, helper, tests, call, resolve):
+    """Why the call cannot fail, or None when it can. The condition is every parameter the helper
+    tests (`tests`, from _claim_helper_tests), not only the first: the call is refused when none
+    is tested, when it passes none of them, or when every one it passes has a fixed truth. The
+    exception is a should-not-reach pin (`ok(False, ...)` after a call that must raise): a
+    known-false argument is accepted when the helper has a branch that runs only when that
+    parameter is falsy (`if not cond:`, an `else`, `assert cond`, or a kept value tested with `if
+    not c:`). So with `if expected != actual:`, `check(label, 0, 0)` is refused and
+    `check(label, 3, computed)` counts. Whether that falsy branch reports a failure is not
+    checked."""
+    params = [a.arg for a in helper.args.posonlyargs + helper.args.args + helper.args.kwonlyargs]
+    mentioned = {x.id for test, _ in tests for x in ast.walk(test) if isinstance(x, ast.Name)}
+    tested = [p for p in params if p in mentioned]
+    if not tested:
+        return f"{name}() never tests any of its arguments, so it cannot fail"
+    positional = [a.arg for a in helper.args.posonlyargs + helper.args.args]
+    bound = {positional[i]: a for i, a in enumerate(call.args)
+             if i < len(positional) and not isinstance(a, ast.Starred)}
+    bound.update({k.arg: k.value for k in call.keywords if k.arg})
+    passed = [p for p in tested if p in bound]
+    if not passed:
+        return f"the call passes nothing for the parameters {name}() tests ({', '.join(tested)})"
+    truths = {p: _claim_truth(bound[p], resolve) for p in passed}
+    falsy = {p for p in passed for test, on_false in tests if on_false and _claim_is_direct(test, p)}
+    if any(truths[p] == (True, False) and p in falsy for p in passed):
+        return None
+    if all(fixed for fixed, _ in truths.values()):
+        return ("every argument it passes for a tested parameter has a truth that cannot depend "
+                "on anything the code computes (a literal, a constant, or an expression whose "
+                "truth is fixed), so it cannot fail")
+    return None
+
+
+# Calls that end the process, so nothing after them in the same block runs.
+_CLAIM_EXITS = {("sys", "exit"), ("os", "_exit"), (None, "exit"), (None, "quit")}
+
+
+def _claim_exits(st, resolve):
+    """True when a statement never completes normally, so what follows it in its block never
+    runs: return/raise/break/continue; a call to sys.exit(), os._exit(), exit() or quit(); an
+    `assert` whose test is fixed false; an `if` whose live branches all end that way; a `with`
+    whose body does; a `try` whose `finally` does, or whose body (or `else`) and every handler do;
+    a `while` with a fixed-true test and no `break`. A context manager that swallows an exception
+    (`with suppress(E): raise E`) is not modelled, so code after it reads as dead."""
+    ends = lambda stmts: any(_claim_exits(s, resolve) for s in stmts)  # noqa: E731
+    if isinstance(st, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+        return True
+    if isinstance(st, ast.Expr) and isinstance(st.value, ast.Call):
+        f = st.value.func
+        key = ((f.value.id, f.attr) if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name)
+               else (None, f.id) if isinstance(f, ast.Name) else None)
+        return key in _CLAIM_EXITS
+    if isinstance(st, ast.Assert):
+        return _claim_truth(st.test, resolve) == (True, False)
+    if isinstance(st, ast.If):
+        fixed, val = _claim_truth(st.test, resolve)
+        if fixed and val is not None:
+            return ends(st.body if val else st.orelse)
+        return ends(st.body) and ends(st.orelse)
+    if isinstance(st, (ast.With, ast.AsyncWith)):
+        return ends(st.body)
+    if isinstance(st, (ast.Try, ast.TryStar)):
+        return ends(st.finalbody) or ((ends(st.body) or ends(st.orelse))
+                                      and all(ends(h.body) for h in st.handlers))
+    if isinstance(st, ast.While) and _claim_truth(st.test, resolve) == (True, True):
+        stack = list(st.body)
+        while stack:
+            cur = stack.pop()
+            if isinstance(cur, ast.Break):
+                return False
+            if not isinstance(cur, (ast.For, ast.AsyncFor, ast.While, ast.Lambda, ast.ClassDef)
+                              + _CLAIM_FNDEF):
+                stack.extend(ast.iter_child_nodes(cur))
+        return True
+    return False
+
+
+def _claim_live_nodes(node, resolve):
+    """Like _claim_own_nodes, but skipping code that can never run: the body of an `if` or `while`
+    whose test is fixed false (the `else` when fixed true), a `for` over an empty literal, and
+    statements after one that never completes normally in the same block (_claim_exits).
+    Otherwise `if False: ok(False, label)` would pass as a proof."""
+    def block(stmts):
+        for st in stmts:
+            yield from one(st)
+            if _claim_exits(st, resolve):
+                return
+
+    def one(cur):
+        yield cur
+        if isinstance(cur, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+            return
+        if isinstance(cur, (ast.If, ast.IfExp, ast.While)):
+            fixed, val = _claim_truth(cur.test, resolve)
+            yield from one(cur.test)
+            body = cur.body if isinstance(cur.body, list) else [cur.body]
+            orelse = cur.orelse if isinstance(cur.orelse, list) else [cur.orelse]
+            if not (fixed and val is False):
+                yield from block(body)
+            if not (fixed and val is True):
+                yield from block(orelse)
+            return
+        if isinstance(cur, (ast.For, ast.AsyncFor)):
+            yield from one(cur.target)
+            yield from one(cur.iter)
+            it = cur.iter
+            empty = ((isinstance(it, (ast.Tuple, ast.List, ast.Set)) and not it.elts)
+                     or (isinstance(it, ast.Dict) and not it.keys)
+                     or (isinstance(it, ast.Constant) and it.value in ("", b"")))
+            if not empty:
+                yield from block(cur.body)
+            yield from block(cur.orelse)
+            return
+        if isinstance(cur, ast.BoolOp):
+            # `and`/`or` stop at an operand whose fixed truth decides them (`0 and f()`), so the
+            # operands after it never run.
+            decider = isinstance(cur.op, ast.Or)
+            for value in cur.values:
+                yield from one(value)
+                if _claim_truth(value, resolve) == (True, decider):
+                    return
+            return
+        for _field, value in ast.iter_fields(cur):
+            if isinstance(value, list):
+                if value and isinstance(value[0], ast.stmt):
+                    yield from block(value)
+                else:
+                    for v in value:
+                        if isinstance(v, ast.AST):
+                            yield from one(v)
+            elif isinstance(value, ast.AST):
+                yield from one(value)
+
+    if isinstance(node, ast.Lambda):
+        yield from one(node.body)
+    else:
+        yield from block(node.body)
+
+
+def _claim_pins(source, extra_entries=()):
+    """(label, reason) for every candidate pin in a module's source, or None if it cannot be
+    parsed. `reason` is None when the pin counts as a proof, else why it does not, so the gate can
+    say WHY a label that exists is refused. `extra_entries` names functions another file runs as
+    this module's selftest (a package __main__ that imports and calls its `_selftest`)."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+    parent, defs = _claim_scopes(tree)
+    counts, assigns = {None: _claim_stored_names(tree, False)}, {}
+    for scope in [None] + list(parent):
+        if scope is not None:
+            counts[scope] = _claim_stored_names(scope, True)
+        for n in _claim_own_nodes(tree if scope is None else scope):
+            target = (n.targets[0] if isinstance(n, ast.Assign) and len(n.targets) == 1 else
+                      n.target if isinstance(n, ast.AnnAssign) and n.value is not None else None)
+            if isinstance(target, ast.Name):
+                assigns[(scope, target.id)] = n.value
+
+    memo, resolvers = {}, {}
+
+    def resolver(scope):
+        """The resolver for one scope, built once, so every lookup shares `memo` (_claim_memo)."""
+        if scope in resolvers:
+            return resolvers[scope]
+
+        def resolve(name):
+            """(bound value node, its resolver), _CLAIM_BUILTIN, or None when not fixed."""
+            s = scope
+            while True:
+                c = counts.get(s, {})
+                if name in c:
+                    # Only a name the selftest's own code binds can make a check self-fulfilling.
+                    # A MODULE-level name is the code under test: `check(len(BANNED) >= 6, ...)`
+                    # fails the day someone empties BANNED, so it is a real regression guard.
+                    val = assigns.get((s, name))
+                    if s is not None and c[name] == 1 and val is not None \
+                            and _claim_immutable_binding(val):
+                        return val, resolver(s)
+                    return None
+                if s is None:
+                    return _CLAIM_BUILTIN if name in _CLAIM_BUILTIN_NAMES else None
+                s = parent.get(s)
+        resolve.memo = memo
+        resolvers[scope] = resolve
+        return resolve
+
+
+    def uses(fn):
+        """Functions a live piece of code uses by name: a call, or a callback handed over."""
+        for ref in _claim_live_nodes(fn, resolver(fn if fn is not tree else None)):
+            if isinstance(ref, ast.Name) and isinstance(ref.ctx, ast.Load):
+                hit = _claim_lookup(ref.id, None if fn is tree else fn, parent, defs)
+                if hit is not None:
+                    yield hit
+
+    def closure(starts):
+        seen, stack = set(), list(starts)
+        while stack:
+            fn = stack.pop()
+            if fn not in seen:
+                seen.add(fn)
+                stack.extend(uses(fn))
+        return seen
+
+    # Entries: the selftest-named functions the module's own top-level code reaches (its
+    # `__main__` block and what that calls, e.g. source_currency's `_main` dispatching
+    # `selftest_detect`), plus `extra_entries`. A function named `selftest` that nothing on that
+    # path uses is not an entry, a name prefix alone is not one (`def selftest_park()` called by
+    # nothing), and an attribute call like `obj.park()` never makes this module's `park`
+    # reachable. Any live reference counts, not only a call: `print(_selftest)` makes it an entry
+    # although nothing runs it.
+    top = defs[None]
+    cli = closure(uses(tree))
+    entries = [f for f in cli if isinstance(f, _CLAIM_FNDEF) and "selftest" in f.name.lower()]
+    entries += [top[n] for n in extra_entries if n in top]
+    reachable = closure(entries)
+
+    out = []
+    rebound = {}
+    helper_tests = {}
+    for fn in parent:
+        for call in _claim_live_nodes(fn, resolver(fn)):
+            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                    and call.func.id in _CLAIM_PIN_HELPERS):
+                continue
+            label = next((a.value for a in list(call.args) + [k.value for k in call.keywords]
+                          if isinstance(a, ast.Constant) and isinstance(a.value, str)
+                          and len(a.value) > 3), None)
+            if label is None:
+                continue
+            name, reason = call.func.id, None
+            helper = _claim_lookup(name, fn, parent, defs)
+            if helper is not None and (name, fn) not in rebound:
+                rebound[(name, fn)] = _claim_helper_rebound(name, fn, parent, defs, tree)
+            if fn not in reachable:
+                reason = (f"it sits in {fn.name}(), which nothing on the selftest's call path "
+                          f"uses, so it never runs")
+            elif helper is None:
+                reason = f"{name}() is not defined in this module, so what it checks cannot be read"
+            elif rebound[(name, fn)]:
+                reason = (f"{name} is bound more than once where the helper is defined, or rebound "
+                          f"between this call and that definition (an assignment, import, "
+                          f"parameter, decorator, or global/nonlocal declaration), so the call "
+                          f"may not run the helper that is read")
+            else:
+                if helper not in helper_tests:
+                    definer = _claim_defining_scope(name, fn, parent, defs)
+                    helper_tests[helper] = _claim_helper_tests(
+                        helper, tree if definer is None else definer)
+                reason = _claim_condition_verdict(name, helper, helper_tests[helper], call,
+                                                  resolver(fn))
+            out.append((label, reason))
+    return out
+
+
+def _claim_pin_labels(pyfile):
+    """Labels of the pins in a module that count as proofs, or None when it cannot be read or
+    parsed. Resolved by AST, never by importing, so a claim's proof is checked without executing
+    anything (the count_truth approach)."""
+    try:
+        text = Path(pyfile).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    pins = _claim_pins(text)
+    return None if pins is None else [lab for lab, why in pins if why is None]
+
+
+# The fixture module, analysed before every scan. Each fake pin below reproduces a way a label
+# could pass as a proof while proving nothing. _CLAIM_PIN_FIXTURE_KINDS names the outcome of every
+# label and _claim_pin_self_proof compares every (label, outcome) pair, so a rule that stops
+# refusing, or refuses for another reason, fails the build. _CLAIM_CASES_RULE_BRANCHES has a case
+# for each branch of the refusal and pruning rules that this fixture does not reach.
+_CLAIM_PIN_FIXTURE = """
+TABLE = ("a", "b", "c")
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    def unused():
+        ok(state(), "nested-uncalled")
+    def fake(url):
+        ok(url.startswith("https"), "callback")
+    r = state()
+    same = True
+    ok(r == 1, "real")
+    ok(1 == 1, "literal-compare")
+    ok((r, "why"), "tuple-truthy")
+    ok(r == r, "reflexive")
+    ok(r or True, "or-true")
+    ok(same, "local-constant")
+    ok(len(TABLE) > 2, "module-constant")
+    _check("extra-arg", True, [])
+    _check("label-first", r, [])
+    c(r, "swallowed")
+    check(r, "undefined-helper")
+    obj.park()
+    run(fake)
+    if False:
+        ok(False, "dead-branch")
+    try:
+        load()
+        ok(False, "should-not-reach")
+    except ValueError:
+        ok(True, "should-not-reach")
+
+def selftest_park():
+    _check("name-prefix", state(), [])
+
+def park():
+    _check("attribute-only", state(), [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+def c(cond, msg):
+    print(msg)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+# The outcome of each fixture label: `accepted` or a refusal kind (_CLAIM_REASON_KINDS). Two pins
+# share "should-not-reach": `ok(False, ...)` after a call that must raise counts, and `ok(True,
+# ...)` in the handler does not. "dead-branch" is absent: code under `if False:` is pruned before
+# it is a candidate.
+_CLAIM_PIN_FIXTURE_KINDS = {
+    "nested-uncalled": ("unreachable",), "callback": ("accepted",), "real": ("accepted",),
+    "literal-compare": ("fixed",), "tuple-truthy": ("fixed",), "reflexive": ("fixed",),
+    "or-true": ("fixed",), "local-constant": ("fixed",), "module-constant": ("accepted",),
+    "extra-arg": ("fixed",), "label-first": ("accepted",), "swallowed": ("untested",),
+    "undefined-helper": ("undefined",), "should-not-reach": ("accepted", "fixed"),
+    "name-prefix": ("unreachable",), "attribute-only": ("unreachable",)}
+
+
+def _claim_pin_self_proof():
+    """None when every fixture pin gets the outcome _CLAIM_PIN_FIXTURE_KINDS names and every rule
+    for resolving a proof reference holds (_claim_resolution_self_proof), else what differs."""
+    pins = _claim_pins(_CLAIM_PIN_FIXTURE)
+    if pins is None:
+        return "the pin fixture no longer parses"
+    got = {(lab, _claim_reason_kind(why)) for lab, why in pins}
+    want = {(lab, kind) for lab, kinds in _CLAIM_PIN_FIXTURE_KINDS.items() for kind in kinds}
+    if got != want:
+        return (f"fixture outcomes differ from _CLAIM_PIN_FIXTURE_KINDS: missing "
+                f"{sorted(want - got)[:5]}, unexpected {sorted(got - want)[:5]}")
+    return _claim_resolution_self_proof()
+
+
+def _claim_resolution_self_proof():
+    """None when a malformed (digits outside ASCII included), missing, unswept or unparsable proof
+    reference is still refused,
+    else the reference that resolved."""
+    not_python = str((ROOT / "CLAUDE.md").resolve())
+    for proof, sweep, words in (
+            ("invariant:x", set(), "malformed"),
+            ("invariant:" + chr(0x661), set(), "malformed"),
+            ("invariant:" + chr(0xFF11), set(), "malformed"),
+            ("invariant:" + chr(0xB9), set(), "malformed"),
+            ("tools/no-such-module.py::selftest::" + "x" * 20, set(), "does not exist"),
+            ("tools/sync_check.py::selftest::" + "x" * 20, set(), "exposes no selftest"),
+            ("CLAUDE.md::selftest::" + "x" * 20, {not_python: ()}, "could not be parsed")):
+        resolved, detail = _claim_resolve_proof(proof, {1}, sweep)
+        if resolved or words not in detail:
+            return f"the proof reference {proof!r} was not refused as {words!r}: {detail!r}"
+    return None
+
+
+# Case modules for the pin rules, analysed before every scan. Every label in them ends in
+# `=<kind>`, the outcome the rules must give it: `accepted`, a refusal kind (_CLAIM_REASON_KINDS),
+# or `unseen` for a pin that pruning removes before it is a candidate. _claim_case_self_proof
+# compares every (label, kind) pair, so a rule that stops refusing, or refuses for another reason,
+# fails the build.
+_CLAIM_CASES_BUILTINS = """
+import sys
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    r = state()
+    ok(len, "builtin-name=fixed")
+    ok(print, "builtin-print=fixed")
+    kind = str
+    ok(kind == str, "builtin-bound-compare=fixed")
+    if str is bytes:
+        ok(r == 5, "builtin-compare-dead=unseen")
+    if kind is bytes:
+        ok(r, "dead-bound-compare=unseen")
+    ok([len] == [str], "builtin-in-list-compare=fixed")
+    if len:
+        pass
+    else:
+        ok(r, "builtin-truthy-else=unseen")
+    if NotImplemented:
+        pass
+    else:
+        ok(r == 7, "notimplemented-else=accepted")
+    ok(type(r), "type-object=fixed")
+    ok(isinstance(r, object), "isinstance-object=fixed")
+    ok(isinstance(r, int), "isinstance-live=accepted")
+    off = False
+    if off:
+        ok(r, "local-false-guard=unseen")
+    name_a = name_b
+    name_b = name_a
+    if name_a:
+        ok(r == 8, "name-cycle=accepted")
+    _shadowed()
+
+def _shadowed():
+    len = state()
+    _check("shadowed-builtin=accepted", len, [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_REBINDING_AND_DEAD_CODE = """
+import sys, os
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    r = state()
+    ok(r.__class__, "class-attr=fixed")
+    ok(r or not r, "excluded-middle=fixed")
+    ok(r or not r.x, "not-excluded-middle=accepted")
+    ok(len(r) >= 0, "residual-len-nonnegative=accepted")
+    ok(hash(r) == hash(r), "residual-hash-reflexive=accepted")
+    while False:
+        ok(r, "dead-while=unseen")
+    while True:
+        ok(r == 2, "live-while=accepted")
+        break
+    else:
+        ok(r == 3, "dead-while-else=unseen")
+    for _ in ():
+        ok(r, "empty-for=unseen")
+    for _ in "":
+        ok(r, "empty-for-str=unseen")
+    for _ in (r,):
+        ok(r == 4, "nonempty-for=accepted")
+    _rebound_local()
+    _rebound_param()
+    _rebound_import()
+    _rebound_decorator()
+    _rebound_nonlocal()
+    _rebound_inner()
+    _rebound_except()
+    _rebound_match_rest()
+    _residual_globals()
+    _residual_setattr()
+    _after_exit()
+    _after_os_exit()
+    _after_builtin_exit()
+    _after_if_return(r)
+    _after_with_return()
+    _after_try_finally()
+    _after_loop()
+    _after_loop_inner_break()
+    _after_loop_if_break()
+    _after_assert()
+    _after_maybe_return(r)
+    _after_try_handler()
+
+def _rebound_local():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    ok = print
+    ok(state(), "rebound-assign=rebound")
+
+def _rebound_param(_check=print):
+    _check("rebound-param=rebound", state(), [])
+
+def _rebound_import():
+    from builtins import print as _ok
+    _ok(state(), "rebound-import=rebound")
+
+def _rebound_decorator():
+    @wrap
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    ok(state(), "rebound-decorator=rebound")
+
+def _rebound_nonlocal():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    def swap():
+        nonlocal ok
+        ok = print
+    swap()
+    ok(state(), "rebound-nonlocal=rebound")
+
+def _rebound_inner():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    def inner():
+        ok = print
+        ok(state(), "rebound-inner=rebound")
+    inner()
+
+def _rebound_except():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    try:
+        load()
+    except ValueError as ok:
+        pass
+    ok(state(), "rebound-except=rebound")
+
+def _rebound_match_rest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    match state():
+        case {**ok}:
+            pass
+    ok(state(), "rebound-match-rest=rebound")
+
+def _residual_globals():
+    globals()["_check"] = print
+    _check("residual-globals-rebind=accepted", state(), [])
+
+def _residual_setattr():
+    setattr(sys.modules[__name__], "_check", print)
+    _check("residual-setattr-rebind=accepted", state(), [])
+
+def _after_exit():
+    sys.exit(0)
+    _check("after-exit=unseen", state(), [])
+
+def _after_os_exit():
+    os._exit(0)
+    _check("after-os-exit=unseen", state(), [])
+
+def _after_builtin_exit():
+    exit(0)
+    _check("after-builtin-exit=unseen", state(), [])
+
+def _after_if_return(r):
+    if True:
+        return
+    _check("after-if-return=unseen", r, [])
+
+def _after_with_return():
+    with open("x"):
+        return
+    _check("after-with-return=unseen", state(), [])
+
+def _after_try_finally():
+    try:
+        return
+    finally:
+        pass
+    _check("after-try-finally=unseen", state(), [])
+
+def _after_loop():
+    while True:
+        state()
+    _check("after-loop=unseen", state(), [])
+
+def _after_loop_inner_break():
+    while True:
+        for x in state():
+            break
+    _check("after-loop-inner-break=unseen", state(), [])
+
+def _after_loop_if_break():
+    while True:
+        if state():
+            break
+    _check("after-loop-if-break=accepted", state(), [])
+
+def _after_assert():
+    assert False
+    _check("after-assert=unseen", state(), [])
+
+def _after_maybe_return(r):
+    if r:
+        return
+    _check("after-maybe-return=accepted", r, [])
+
+def _after_try_handler():
+    try:
+        return
+    except ValueError:
+        pass
+    _check("after-try-handler=accepted", state(), [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+def _ok(cond, msg):
+    if not cond:
+        raise SystemExit(msg)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_RULE_BRANCHES = """
+import sys
+
+def _selftest():
+    def ok(cond, msg):
+        if not cond:
+            raise SystemExit(msg)
+    r = state()
+    same = True
+    ok(r, "abc")
+    ok(cond=r, msg="keyword-label=accepted")
+    ok(msg="missing-condition=unbound")
+    ok(*r, "starred-call=unbound")
+    ok(r is r, "reflexive-is=fixed")
+    ok(r.x <= r.x, "reflexive-attr=fixed")
+    ok(r[0] >= r[0], "reflexive-subscript=fixed")
+    ok(not (r != r), "irreflexive-negated=fixed")
+    ok(not (r > r), "strict-irreflexive-negated=fixed")
+    ok(r() == r(), "call-not-reflexive=accepted")
+    ok(1 < "a", "unorderable=fixed")
+    ok(-1 + 2, "binop-constant=fixed")
+    ok([1, 2] == [1, 2], "list-compare=fixed")
+    ok({1: 2} == {1}, "dict-set-compare=fixed")
+    ok(f"{1}" == "1", "fstring-compare=fixed")
+    ok((1 if True else 2) == 1, "ifexp-compare=fixed")
+    ok((z := 1) == 1, "walrus-compare=fixed")
+    ok(~1 == -2, "unary-compare=fixed")
+    ok((1 or 2) == 1, "boolop-compare=fixed")
+    ok(len("ab") == 2, "call-compare=fixed")
+    ok(len(r) == 2, "call-live=accepted")
+    ok([*r] == [], "starred-compare=accepted")
+    ok({**r} == {}, "dict-unpack-compare=accepted")
+    ok(sorted("ba", key=len) == [], "keyword-call-compare=accepted")
+    ok(lambda: r, "lambda-truthy=fixed")
+    ok((x for x in r), "generator-truthy=fixed")
+    ok([r], "list-truthy=fixed")
+    ok([*r], "starred-list=accepted")
+    ok({"k": r}, "dict-truthy=fixed")
+    ok({**r}, "dict-unpack=accepted")
+    ok(f"x{r}", "fstring-literal=fixed")
+    ok(f"{r}", "fstring-bare=accepted")
+    ok((w := r), "walrus-live=accepted")
+    ok((w2 := (r,)), "walrus-tuple=fixed")
+    ok(not not (r,), "double-not=fixed")
+    ok(not r, "not-live=accepted")
+    ok(not (r and False), "and-false-negated=fixed")
+    ok((r,) and [r], "and-all-truthy=fixed")
+    ok(r and (r,), "and-mixed=accepted")
+    ok((r,) if True else r, "ifexp-fixed-test=fixed")
+    ok(1 if r else 2, "ifexp-same-truth=fixed")
+    ok(1 if r else 0, "ifexp-mixed=accepted")
+    ok(bool((r,)), "bool-tuple=fixed")
+    ok(bool(r), "bool-live=accepted")
+    pair = (1, 2)
+    ok(pair, "local-tuple=fixed")
+    fn0 = lambda: 1
+    ok(fn0, "local-lambda=fixed")
+    gen0 = (x for x in r)
+    ok(gen0, "local-generator=fixed")
+    txt0 = f"v{r}"
+    ok(txt0, "local-fstring=fixed")
+    cmp0 = 1 == 1
+    ok(cmp0, "local-compare=fixed")
+    alias0 = same
+    ok(alias0, "local-alias=fixed")
+    neg0 = not same
+    ok(not neg0, "local-not=fixed")
+    minus0 = -1
+    ok(minus0, "local-negative=fixed")
+    ok(minus0 + 1, "local-binop=fixed")
+    either0 = same or pair
+    ok(either0, "local-boolop=fixed")
+    pick0 = 1 if r else 2
+    ok(pick0, "local-ifexp=fixed")
+    size0 = len("abc")
+    ok(size0, "local-len-constant=fixed")
+    flag0: bool = True
+    ok(flag0, "annotated-constant=fixed")
+    twice = True
+    twice = True
+    ok(twice, "bound-twice=accepted")
+    imp0 = True
+    import os as imp0
+    ok(imp0, "import-rebinds=accepted")
+    exc0 = True
+    try:
+        load()
+    except ValueError as exc0:
+        pass
+    ok(exc0, "except-rebinds=accepted")
+    fnb = True
+    def fnb():
+        pass
+    ok(fnb, "def-rebinds=accepted")
+    klass = True
+    class klass:
+        pass
+    ok(klass, "class-rebinds=accepted")
+    outer_flag = True
+    def _inner_rebind():
+        nonlocal outer_flag
+        outer_flag = False
+    ok(outer_flag, "nonlocal-rebinds=accepted")
+    if True:
+        pass
+    else:
+        ok(r, "dead-else=unseen")
+    if r:
+        pass
+    else:
+        ok(r == 4, "live-else=accepted")
+    if 1 == 2:
+        ok(r, "dead-constant-compare=unseen")
+    if not ((r,) and [r]):
+        pass
+    else:
+        ok(r == 6, "not-unknown-else=accepted")
+    for x in r:
+        ok(x, "live-for=accepted")
+    ok(r, "dead-ifexp=unseen") if False else None
+    ok(r, "live-ifexp=accepted") if r else None
+    _stops()
+    _with_body_return()
+    _param_bound(r)
+    _global_bound()
+    _lambda_helper()
+    _nested_lookup()
+    _def_in_block()
+
+def _stops():
+    for x in state():
+        if x:
+            continue
+            _check("after-continue=unseen", x, [])
+        break
+        _check("after-break=unseen", x, [])
+    if state():
+        raise ValueError()
+        _check("after-raise=unseen", state(), [])
+    return
+    _check("after-return=unseen", state(), [])
+
+def _with_body_return():
+    with open("x"):
+        return
+        _check("after-return-in-with=unseen", state(), [])
+
+def _param_bound(p):
+    p = True
+    _check("param-bound=accepted", p, [])
+
+def _global_bound():
+    global gflag
+    gflag = True
+    _check("global-bound=accepted", gflag, [])
+
+def _lambda_helper():
+    c = lambda cond, msg: None if cond else fail(msg)
+    c(state(), "lambda-helper=accepted")
+
+def _nested_lookup():
+    def ok(cond, msg):
+        print(msg)
+    def inner():
+        ok(state(), "nearest-helper=untested")
+    inner()
+
+def _def_in_block():
+    if True:
+        def ok(cond, msg):
+            if not cond:
+                raise SystemExit(msg)
+    ok(state(), "helper-in-block=accepted")
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_ENTRIES = """
+import sys
+
+def _selftest():
+    r = state()
+    0 and _check("short-circuit-and=unseen", r, [])
+    1 or _check("short-circuit-or=unseen", r, [])
+    r and _check("short-circuit-live=accepted", r, [])
+
+def selftest():
+    _check("undispatched-selftest=unreachable", state(), [])
+
+def selftest_short():
+    _check("short-circuit-entry=unreachable", state(), [])
+
+def selftest_printed():
+    _check("residual-printed-entry=accepted", state(), [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    print(selftest_printed)
+    if 0 and selftest_short():
+        pass
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_ANALYSIS_COST = """
+import sys
+
+def _selftest():
+    _binding_cycle()
+    _long_chain()
+
+def _binding_cycle():
+    loop_a = loop_b or loop_b
+    loop_b = loop_a or loop_a
+    _check("binding-cycle=accepted", loop_a, [])
+
+def _long_chain():
+    k0 = True; k1 = k0; k2 = k1; k3 = k2; k4 = k3; k5 = k4; k6 = k5; k7 = k6; k8 = k7
+    k9 = k8; k10 = k9; k11 = k10; k12 = k11; k13 = k12; k14 = k13; k15 = k14; k16 = k15
+    k17 = k16; k18 = k17; k19 = k18; k20 = k19; k21 = k20; k22 = k21; k23 = k22; k24 = k23
+    _check("long-constant-chain=fixed", k24, [])
+
+def _check(label, cond, failures):
+    if not cond:
+        failures.append(label)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_CASES_CONDITIONS = """
+import sys
+
+def _selftest():
+    _group_cases()
+    _stored_cases()
+    _stored_untested()
+    _stored_comprehension()
+    _stored_whole()
+    _stored_bool_cases()
+    _assert_helper()
+    _bool_tested()
+    _bool_direct()
+    _formatted_detail()
+
+def _group_cases():
+    fails = []
+    def check(label, expected, actual):
+        if expected != actual:
+            fails.append(label)
+    check("zero-equals-zero=fixed", 0, 0)
+    check("computed-actual=accepted", 3, state())
+    _ok(False, "quiet-false=fixed")
+    _ok(state(), "quiet-live=accepted")
+
+def _stored_cases():
+    results = []
+    def ok(cond, msg):
+        results.append((cond, msg))
+    ok(state(), "stored-later=accepted")
+    ok(False, "stored-should-not-reach=accepted")
+    ok(True, "stored-constant=fixed")
+    for good, why in results:
+        if not good:
+            raise SystemExit(why)
+
+def _stored_untested():
+    kept = []
+    def ok(cond, msg):
+        kept.append((cond, msg))
+    ok(state(), "stored-never-tested=untested")
+    return kept
+
+def _stored_comprehension():
+    results = []
+    def ok(cond, msg):
+        results.append((cond, msg))
+    ok(False, "stored-comprehension=accepted")
+    return [m for c, m in results if not c]
+
+def _stored_whole():
+    seen = []
+    def ok(cond, msg):
+        seen.append(cond)
+    ok(False, "stored-whole-should-not-reach=accepted")
+    for item in seen:
+        if not item:
+            raise SystemExit("failed")
+
+def _stored_bool_cases():
+    results = []
+    def ok(cond, msg):
+        results.append((bool(cond), msg))
+    ok(False, "stored-bool-should-not-reach=accepted")
+    for good, why in results:
+        if not good:
+            raise SystemExit(why)
+
+def _assert_helper():
+    def ok(cond, msg):
+        assert cond, msg
+    ok(False, "assert-should-not-reach=accepted")
+
+def _bool_tested():
+    def ok(cond, msg):
+        log(bool(cond), msg)
+    ok(state(), "bool-tested=accepted")
+
+def _bool_direct():
+    def ok(cond, msg):
+        if not bool(cond):
+            raise SystemExit(msg)
+    ok(False, "bool-direct-should-not-reach=accepted")
+
+def _formatted_detail():
+    def check(label, cond, detail):
+        if not cond:
+            raise SystemExit(label + (detail if detail else ""))
+    check("detail-only-in-message=fixed", True, state())
+
+def _ok(cond, msg):
+    if cond:
+        print(msg)
+
+if __name__ == "__main__":
+    sys.exit(_selftest())
+"""
+_CLAIM_PIN_CASES = (
+    _CLAIM_CASES_CONDITIONS,
+    _CLAIM_CASES_ANALYSIS_COST,
+    _CLAIM_CASES_ENTRIES,
+    _CLAIM_CASES_RULE_BRANCHES,
+    _CLAIM_CASES_REBINDING_AND_DEAD_CODE,
+    _CLAIM_CASES_BUILTINS,
+)
+_CLAIM_PIN_CASE_RE = re.compile(r'"([a-z0-9-]+=([a-z]+))"')
+_CLAIM_REASON_KINDS = (("never runs", "unreachable"), ("is not defined", "undefined"),
+                       ("rebound", "rebound"), ("never tests", "untested"),
+                       ("passes nothing", "unbound"), ("cannot depend", "fixed"))
+
+
+def _claim_reason_kind(why):
+    """The kind of a pin's refusal reason, or `accepted` when the pin counts as a proof."""
+    if why is None:
+        return "accepted"
+    return next((kind for key, kind in _CLAIM_REASON_KINDS if key in why), why)
+
+
+def _claim_case_failure(source):
+    """None when every pin in a case module gets the outcome its label names, else what differs."""
+    pins = _claim_pins(source)
+    if pins is None:
+        return "a pin case module no longer parses"
+    want = {(m.group(1), m.group(2)) for m in _CLAIM_PIN_CASE_RE.finditer(source)
+            if m.group(2) != "unseen"}
+    got = {(lab, _claim_reason_kind(why)) for lab, why in pins}
+    if got != want:
+        return (f"pin case outcomes differ from the kinds their labels name: missing "
+                f"{sorted(want - got)[:5]}, unexpected {sorted(got - want)[:5]}")
+    return None
+
+
+def _claim_case_self_proof():
+    """None when every module in _CLAIM_PIN_CASES passes _claim_case_failure, else what differs."""
+    return next(filter(None, map(_claim_case_failure, _CLAIM_PIN_CASES)), None)
+
+
+def _claim_main_entries(source, pkg):
+    """Selftest-named names a package's __main__ imports from the package and loads on its live
+    top-level path. `python -m <pkg>` runs those, so they are the package __init__'s entries."""
+    tree = ast.parse(source)
+    imported = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and (n.module == pkg or (n.level and not n.module)):
+            for a in n.names:
+                imported[a.asname or a.name] = a.name
+    live = {x.id for x in _claim_live_nodes(tree, lambda name: None)
+            if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Load)}
+    return tuple(sorted({imported[k] for k in live
+                         if k in imported and "selftest" in imported[k].lower()}))
+
+
+def _claim_selftest_modules():
+    """Modules the battery actually EXECUTES a selftest for. A pin in a module the sweep never
+    runs is not a proof, so membership here is what makes `tools/x.py::selftest::...` resolvable."""
+    try:
+        import selftest_sweep
+        # Each module maps to the extra entries _claim_pins needs for it.
+        mods = {str(Path(p).resolve()): () for p, _ in selftest_sweep.discover()}
+        # A package selftest runs as `python -m <pkg> --selftest`, whose __main__ imports the
+        # package's own _selftest, so its pins live in the package __init__ and its entries are
+        # the selftest-named names that __main__ loads on its live path (_claim_main_entries).
+        for _label, argv in getattr(selftest_sweep, "PACKAGE_ENTRIES", []):
+            if "-m" in argv and argv.index("-m") + 1 < len(argv):
+                pkg = argv[argv.index("-m") + 1]
+                init = ROOT / "tools" / pkg / "__init__.py"
+                if init.exists():
+                    main_text = (ROOT / "tools" / pkg / "__main__.py").read_text(encoding="utf-8")
+                    mods[str(init.resolve())] = _claim_main_entries(main_text, pkg)
+        return mods
+    except Exception as exc:  # noqa: BLE001 - _claim_swept refuses every `::selftest::` proof
+        return f"{type(exc).__name__}: {exc}"
+
+
+# A `::selftest::` proof must quote at least this much of the label of exactly one pin.
+_CLAIM_MIN_LABEL = 16
+
+
+def _claim_swept(mod, path, selftest_mods):
+    """None when the sweep runs a selftest for `path`, else why a pin there cannot count. An
+    unreadable sweep (_claim_selftest_modules returned text or None, not a set or dict of paths)
+    refuses every module: fail closed."""
+    if not isinstance(selftest_mods, (set, dict)):
+        return (f"the selftest sweep could not be read ({selftest_mods or 'no detail'}), so "
+                f"whether {mod}'s selftest runs cannot be checked; fix tools/selftest_sweep.py")
+    if str(Path(path).resolve()) not in selftest_mods:
+        return (f"{mod} exposes no selftest the sweep runs, so a pin inside it is never executed "
+                f"and cannot prove anything")
+    return None
+
+
+def _claim_match_label(mod, label, pins):
+    """(ok, detail) for a `::selftest::` label against a module's pins. After stripping, it must be
+    at least _CLAIM_MIN_LABEL characters and be contained in exactly one distinct pin label, and
+    every pin carrying that label must count as a proof: a label written on two pins, one of them
+    refused, does not resolve."""
+    label = label.strip()
+    if len(label) < _CLAIM_MIN_LABEL:
+        return False, (f"the proof label {label!r} is shorter than {_CLAIM_MIN_LABEL} characters; "
+                       f"quote enough of the pin's label to name one pin")
+    hits = sorted({lab for lab, _ in pins if label in lab})
+    if len(hits) > 1:
+        return False, (f"{label!r} is contained in {len(hits)} different pin labels in {mod} "
+                       f"({', '.join(repr(h) for h in hits[:3])}); quote enough of one label to "
+                       f"name it alone")
+    refused = next((why for lab, why in pins if label in lab and why is not None), None)
+    if refused:
+        return False, (f"{mod} has a pin labelled {label!r}, but it does not count as a "
+                       f"proof: {refused}")
+    if hits:
+        return True, ""
+    return False, (f"{mod} has no selftest pin whose label contains {label!r}; the pin "
+                   f"was renamed or removed, so the claim is no longer proven")
+
+
+def _claim_label_self_proof():
+    """None when a short, ambiguous or partly refused `::selftest::` label, and a module the sweep
+    does not list or cannot report, are still refused, else what resolved."""
+    pins = [("a pin label long enough", None), ("a pin label long enough, again", None),
+            ("short-unique xyz", None), ("a refused pin label here", "why"),
+            ("a label written on two pins", None), ("a label written on two pins", "why")]
+    if _claim_match_label("m.py", "xyz", pins)[0] \
+            or _claim_match_label("m.py", "a pin label long enough", pins)[0] \
+            or not _claim_match_label("m.py", "long enough, again", pins)[0] \
+            or "does not count" not in _claim_match_label("m.py", "a refused pin label", pins)[1] \
+            or _claim_match_label("m.py", "a label written on two", pins)[0]:
+        return (f"a `::selftest::` label shorter than {_CLAIM_MIN_LABEL} characters, matching "
+                f"more than one pin label, or carried by a refused pin resolved, or a unique one "
+                f"did not")
+    here = ROOT / "tools" / "x.py"
+    if any(_claim_swept("tools/x.py", here, sweep) is None
+           for sweep in (None, "ImportError: no sweep", set())):
+        return "a `::selftest::` proof resolved while the sweep was unreadable or did not list it"
+    return None
+
+
+def _claim_resolve_proof(proof, enforced, selftest_mods):
+    """(ok, detail) for one proof reference. Two forms: `invariant:N` (a labeled check registered
+    in main()) and `tools/x.py::selftest::<label substring>` (a named pin the sweep executes; the
+    substring must name exactly one pin label (_claim_match_label), and when the sweep cannot be
+    read the proof is refused (_claim_swept))."""
+    if proof.startswith("invariant:"):
+        raw = proof.split(":", 1)[1].strip()
+        # An invariant number is written in ASCII digits: int() also reads digits from another
+        # script (Arabic-Indic, fullwidth), and isdigit() also accepts a superscript int() refuses.
+        if not (raw.isascii() and raw.isdigit()):
+            return False, f"malformed invariant reference {proof!r}"
+        num = int(raw)
+        if num not in enforced:
+            return False, (f"invariant {num} is not enforced (no check_* function carries that "
+                           f"label AND is registered in main())")
+        return True, ""
+    if "::selftest::" in proof:
+        mod, _, label = proof.partition("::selftest::")
+        path = ROOT / mod
+        if not path.exists():
+            return False, f"proof module {mod} does not exist"
+        unswept = _claim_swept(mod, path, selftest_mods)
+        if unswept:
+            return False, unswept
+        try:
+            extra = (selftest_mods.get(str(path.resolve()), ())
+                     if isinstance(selftest_mods, dict) else ())
+            pins = _claim_pins(path.read_text(encoding="utf-8"), extra)
+        except OSError:
+            pins = None
+        except Exception as exc:  # noqa: BLE001 - e.g. RecursionError, UnicodeDecodeError
+            return False, (f"{mod} could not be analysed ({type(exc).__name__}: {exc}), so no "
+                           f"pin in it can be resolved")
+        if pins is None:
+            return False, f"proof module {mod} could not be parsed"
+        return _claim_match_label(mod, label, pins)
+    return False, (f"unrecognized proof form {proof!r}; use `invariant:N` or "
+                   f"`tools/x.py::selftest::<pin label>`")
+
+
+def _claim_guard_self_proof():
+    """None when main() calls check_claim_proof() inside a try whose `except Exception` handler
+    calls problem(), so an exception in invariant 60 is reported instead of stopping the drift
+    guard or passing silently; else what is missing."""
+    main_def = next((n for n in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
+                     if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+
+    def calls(nodes, name):
+        return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == name
+                   for s in nodes for c in ast.walk(s))
+    if main_def is not None and any(
+            isinstance(t, ast.Try) and calls(t.body, "check_claim_proof")
+            and any((h.type is None or (isinstance(h.type, ast.Name)
+                                        and h.type.id in ("Exception", "BaseException")))
+                    and calls(h.body, "problem") for h in t.handlers)
+            for t in ast.walk(main_def)):
+        return None
+    return ("main() must call check_claim_proof() inside try/except, with an `except Exception` "
+            "handler that calls problem(), so an exception in this check is reported instead of "
+            "stopping the drift guard or passing silently")
+
+
+def _claim_entry_self_proof():
+    """None when a package __main__'s selftest entry follows the call it makes, and a package
+    __init__ pin counts only when that entry is passed in, else what broke."""
+    main = ('import sys\nfrom pkg import _selftest, helper\n'
+            'if __name__ == "__main__":\n    sys.exit(_selftest())\n')
+    if _claim_main_entries(main, "pkg") != ("_selftest",) \
+            or _claim_main_entries(main.replace("_selftest())", "0)"), "pkg") != ():
+        return "a package __main__'s selftest entry is not read from the call it makes"
+    init = ('def _selftest():\n    _check("package-entry-pin", state(), [])\n'
+            'def _check(label, cond, failures):\n    if not cond:\n        failures.append(label)\n')
+    if [why is None for _, why in _claim_pins(init, ("_selftest",))] != [True] \
+            or [why is None for _, why in _claim_pins(init)] != [False]:
+        return "a package __init__ pin does not follow whether its __main__ runs the selftest"
+    return None
+
+
+# The self-proofs normally take well under a second; past this bound one counts as failed.
+_CLAIM_FIXTURE_SECONDS = 20
+
+
+def _claim_bounded(fn, seconds):
+    """fn()'s result when it returns within `seconds`, else text saying why not. fn runs on a
+    daemon thread, so an analysis that stops terminating fails the check instead of hanging the
+    drift guard, and an exception inside it comes back as text instead of being raised."""
+    import threading
+    box = {}
+
+    def run():
+        try:
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - returned as a problem, not raised
+            box["error"] = f"{type(exc).__name__}: {exc}"
+
+    worker = threading.Thread(target=run, name="claim-self-proof", daemon=True)
+    worker.start()
+    worker.join(seconds)
+    name = getattr(fn, "__name__", "a self-proof")
+    if worker.is_alive():
+        return f"{name} did not finish within {seconds} s"
+    if "error" in box:
+        return f"{name} raised {box['error']}"
+    return box.get("value")
+
+
+def _claim_cost_self_proof():
+    """None when each self-proof runs through _claim_bounded, an exception inside a bounded
+    self-proof comes back as text, and _claim_resolve_proof turns an exception raised while
+    analysing a proof module into a refused binding, else what broke."""
+    if "ZeroDivisionError" not in str(_claim_bounded(lambda: 1 // 0, _CLAIM_FIXTURE_SECONDS)):
+        return "an exception inside a bounded self-proof was not returned as text"
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    defs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    if not any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+               and c.func.id == "_claim_bounded"
+               for c in ast.walk(defs.get("check_claim_proof", ast.Pass()))):
+        return "check_claim_proof() must run each self-proof through _claim_bounded"
+    if not any(
+            isinstance(t, ast.Try)
+            and any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                    and c.func.id == "_claim_pins" for s in t.body for c in ast.walk(s))
+            and any(isinstance(h.type, ast.Name) and h.type.id == "Exception"
+                    and isinstance(h.body[-1], ast.Return) for h in t.handlers)
+            for t in ast.walk(defs.get("_claim_resolve_proof", ast.Pass()))):
+        return ("_claim_resolve_proof must turn an exception raised while analysing a proof module "
+                "(RecursionError, UnicodeDecodeError) into a refused binding")
+    return None
+
+
+def _claim_entry_proofs(entry):
+    """(proofs, error) for one manifest claim: `proof` names one proof reference and `proofs` a
+    non-empty list of them, every one of which must resolve. An entry with both, or neither, is
+    an error."""
+    if "proof" in entry and "proofs" in entry:
+        return [], "carries both `proof` and `proofs`; keep one"
+    if "proofs" in entry:
+        many = entry["proofs"]
+        if not (isinstance(many, list) and many
+                and all(isinstance(p, str) and p.strip() for p in many)):
+            return [], "has a `proofs` value that is not a non-empty list of proof references"
+        if len(set(many)) != len(many):
+            return [], "lists the same proof twice in `proofs`"
+        return list(many), None
+    one = entry.get("proof")
+    if not (isinstance(one, str) and one.strip()):
+        return [], "is missing doc/claim/proof"
+    return [one], None
+
+
+def _claim_proof_failures(proofs, enforced, selftest_mods):
+    """[(proof, detail)] for each of a claim's proof references that does not resolve."""
+    out = []
+    for proof in proofs:
+        ok, detail = _claim_resolve_proof(proof, enforced, selftest_mods)
+        if not ok:
+            out.append((proof, detail))
+    return out
+
+
+def _claim_multi_proof_self_proof():
+    """None when manifest entries read as the right number of proofs and a claim with two proofs
+    reports exactly the one that does not resolve, else what broke."""
+    for entry, count in (({"proof": "invariant:1"}, 1),
+                         ({"proofs": ["invariant:1", "invariant:2"]}, 2),
+                         ({"proof": "invariant:1", "proofs": ["invariant:1"]}, 0),
+                         ({"proofs": []}, 0), ({"proofs": "invariant:1"}, 0), ({}, 0),
+                         ({"proofs": ["invariant:1", 7]}, 0),
+                         ({"proofs": ["invariant:1", "invariant:1"]}, 0)):
+        if len(_claim_entry_proofs(entry)[0]) != count:
+            return f"the manifest entry {entry} did not read as {count} proof(s)"
+    failing = _claim_proof_failures(["invariant:1", "invariant:2"], {1}, set())
+    if [proof for proof, _ in failing] != ["invariant:2"]:
+        return "a claim with two proofs did not report exactly the one that does not resolve"
+    return None
+
+
+# Rule text outside the guarded corpus (docs/AUDIT-PROTOCOL.md section 7.3). The rules in section 7
+# of docs/AUDIT-PROTOCOL.md, and the AGENTS.md sentences that restate a bound or exempted CLAUDE.md
+# sentence, sit outside the corpus, so the manifest's `guarded_text` records hold them. Each
+# record's `text` must still occur in its `doc`. A record with `mirror_of` sits in AGENTS.md and
+# names the `claim` of a CLAUDE.md claims or exempt entry, so rewording that CLAUDE.md sentence
+# without its AGENTS.md restatement fails. Every bold-lead bullet in section 7 must appear in a
+# record's text, so a new rule there joins the set. The match is on words: a rule deleted together
+# with its record is a manifest diff rather than a failure, a restatement narrowed in meaning while
+# the recorded words stay passes, and which CLAUDE.md sentences carry an AGENTS.md record is
+# chosen by hand.
+_CLAIM_RULE_DOC = "docs/AUDIT-PROTOCOL.md"
+_CLAIM_RULE_SECTION = ["## 7.", "## 8."]
+_CLAIM_BOLD_LEAD_RE = re.compile(r"(?m)^- (\*\*.+?\*\*)")
+
+
+def _claim_guarded_text_problems(man, read=None):
+    """Problems with the manifest's `guarded_text` records: a missing list, a malformed or
+    duplicate record, a reason shorter than 25 characters, a `text` its `doc` no longer carries, a
+    `mirror_of` outside AGENTS.md or naming no CLAUDE.md claims or exempt entry, and a bold-lead
+    bullet in section 7 of docs/AUDIT-PROTOCOL.md that no record's text holds. `read(rel)` returns
+    a doc's text, or None when it is missing, and defaults to reading the file under ROOT."""
+    def _disk(rel):
+        path = ROOT / rel
+        return path.read_text(encoding="utf-8") if path.exists() else None
+    read = read or _disk
+    table = man.get("guarded_text")
+    if not isinstance(table, list):
+        return ["claim-proof: tools/claim-proof-manifest.json has no `guarded_text` list, so the "
+                "rule text outside the corpus can be deleted silently"]
+    claude = {_claim_norm(str(e.get("claim", ""))) for key in ("claims", "exempt")
+              for e in man.get(key, []) if isinstance(e, dict) and e.get("doc") == "CLAUDE.md"}
+    out, seen, held = [], set(), {}
+    for rec in table:
+        if not (isinstance(rec, dict) and all(isinstance(rec.get(k), str) and rec[k].strip()
+                                              for k in ("doc", "text", "why"))):
+            out.append(f"claim-proof: malformed guarded_text record {rec!r}; it needs `doc`, "
+                       f"`text` and `why`")
+            continue
+        doc, text = rec["doc"], _claim_norm(rec["text"])
+        if (doc, text) in seen:
+            out.append(f"claim-proof: two guarded_text records hold {text[:60]!r} in {doc}")
+            continue
+        seen.add((doc, text))
+        held.setdefault(doc, []).append(text)
+        if len(rec["why"].strip()) < 25:
+            out.append(f"claim-proof: the guarded_text record for {text[:50]!r} needs a written "
+                       f"reason of at least 25 characters")
+        body = read(doc)
+        if body is None:
+            out.append(f"claim-proof: guarded_text names missing doc {doc}")
+        elif text not in _claim_norm(body):
+            out.append(f"claim-proof: {doc} no longer carries the guarded text {text[:70]!r}; "
+                       f"restore it, or change the rule and its record in the same change")
+        if "mirror_of" in rec:
+            mirror = rec["mirror_of"]
+            if doc != "AGENTS.md" or not isinstance(mirror, str):
+                out.append(f"claim-proof: the guarded_text record for {text[:50]!r} has a "
+                           f"`mirror_of`, which only an AGENTS.md record naming a CLAUDE.md "
+                           f"claim carries")
+            elif _claim_norm(mirror) not in claude:
+                out.append(f"claim-proof: the AGENTS.md text {text[:50]!r} restates "
+                           f"{mirror[:50]!r}, which no CLAUDE.md claims or exempt entry carries; "
+                           f"restate the reworded CLAUDE.md sentence in AGENTS.md and update the "
+                           f"record")
+    rules = read(_CLAIM_RULE_DOC)
+    got = _claim_section(rules, _CLAIM_RULE_SECTION) if rules is not None else "is missing"
+    if isinstance(got, str):
+        out.append(f"claim-proof: {_CLAIM_RULE_DOC} {got}; its section 7 rules cannot be read")
+        return out
+    for lead in _CLAIM_BOLD_LEAD_RE.findall(got[1]):
+        lead = _claim_norm(lead)
+        if not any(lead in text for text in held.get(_CLAIM_RULE_DOC, [])):
+            out.append(f"claim-proof: the rule {lead[:70]!r} in section 7 of {_CLAIM_RULE_DOC} "
+                       f"has no guarded_text record; record it so deleting it fails")
+    return out
+
+
+def _claim_guarded_text_self_proof():
+    """None when the guarded-text rule refuses a missing list, a malformed, duplicate or
+    short-reason record, text its doc lost, a stray or unmatched `mirror_of` and an unrecorded
+    section 7 rule, and accepts recorded rules and a matched restatement, else what differs."""
+    rules = ("## 7. Close-out\n\n- **Rule one.** Body of rule one.\n\n### 7.1 More\n\n"
+             "- **Rule two.** Body of rule two.\n\n## 8. Plan\n\n- **Not a rule here.** Body.\n")
+    docs = {_CLAIM_RULE_DOC: rules, "AGENTS.md": "A short restatement of the claim.\n"}
+    why = "a fixture reason of enough characters"
+    one = {"doc": _CLAIM_RULE_DOC, "text": "**Rule one.** Body of rule one.", "why": why}
+    two = {"doc": _CLAIM_RULE_DOC, "text": "**Rule two.** Body of rule two.", "why": why}
+    mirror = {"doc": "AGENTS.md", "text": "A short restatement of the claim.", "why": why,
+              "mirror_of": "The claim sentence."}
+    for table, lost, want in (
+            ([one, two, mirror], None, []),
+            (None, None, ["has no `guarded_text` list"]),
+            ([one], None, ["has no guarded_text record"]),
+            ([one, two, one], None, ["two guarded_text records"]),
+            ([one, dict(two, why="short")], None, ["at least 25 characters"]),
+            ([one, two, {"doc": _CLAIM_RULE_DOC}], None, ["malformed"]),
+            ([one, two], "Body of rule two.", ["no longer carries"]),
+            ([one, two, dict(mirror, doc=_CLAIM_RULE_DOC, text="Body of rule one.")], None,
+             ["only an AGENTS.md record"]),
+            ([one, two, dict(mirror, mirror_of="Another sentence.")], None,
+             ["no CLAUDE.md claims or exempt entry"])):
+        man = {"exempt": [{"doc": "CLAUDE.md", "claim": "The claim sentence.", "why": why}]}
+        if table is not None:
+            man["guarded_text"] = table
+        text = dict(docs)
+        if lost:
+            text[_CLAIM_RULE_DOC] = rules.replace(lost, "")
+        got = _claim_guarded_text_problems(man, read=lambda rel, _t=text: _t.get(rel))
+        if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+            return f"the guarded-text rule gave {[g[:60] for g in got]} for {table}"
+    return None
+
+
+# The pin-boundary rule (docs/AUDIT-PROTOCOL.md section 7.3). A claim describes what a person
+# reaches: a CLI entry, a tool, or a runtime default. A pin that calls a helper beneath that entry
+# proves the helper, and code added between the helper and the entry is not seen. So each
+# `::selftest::` proof a claim uses has a `boundaries` record in the manifest naming that entry
+# (`tools/x.py::name` or `tools/x.py::Class.method`). Live code in the function holding the pin
+# must call it, or the record carries a `gap` of at least _CLAIM_MIN_GAP characters that names the
+# entry and says what the pin does not run.
+# When the claim names `tools/*.py` modules, the boundary sits in one of them or the record
+# carries a gap. The check reads calls by name, and for each pin only the code counted for it
+# (_claim_pin_stmts): the statement making the pin call, the statements before it back to the
+# previous pin call, and earlier statements (not another pin's call) that set a name that code
+# reads, so a call made for another pin counts for this one only when this pin reads what it
+# set. A call through a module-level helper is not followed (the record states a
+# gap), a pin that calls the entry with injected state around the default still passes, and which
+# entry is outermost is the reviewer's call.
+# A boundary must be live, with or without a gap: code that runs outside the selftests reaches
+# it (_claim_boundary_live: module-level code and, transitively, what that code loads, not code
+# under a fixed-false test or in a function nothing that runs names; for `Class.method`, the
+# method is a `do_*` request method or is named as an attribute), or it is defined with a
+# decorator that registers it. A gap records what a pin does not run of a live entry; it does
+# not excuse naming a function nothing reaches. Reading is by name, so a local variable that
+# shares the entry's name counts as a load of it.
+# `tools/x.py::__main__` names the file run as a script. It is defined when the module has an
+# `if __name__ == "__main__":` block at top level, and a pin reaches it when live code in its
+# function passes, as an argument of a call, the namespace a compile/exec runs the source in (a
+# dict literal holding "__name__": "__main__"), or passes run_name="__main__"; a namespace only
+# assigned does not count.
+_CLAIM_MIN_GAP = 25
+_CLAIM_MODULE_RE = re.compile(r"tools/[\w./-]+\.py")
+
+
+def _claim_is_main(node):
+    """True when `node` is the string literal "__main__"."""
+    return isinstance(node, ast.Constant) and node.value == "__main__"
+
+
+def _claim_main_ns(node):
+    """True when `node` is a dict literal holding "__name__": "__main__"."""
+    return isinstance(node, ast.Dict) and any(
+        isinstance(k, ast.Constant) and k.value == "__name__" and _claim_is_main(v)
+        for k, v in zip(node.keys, node.values))
+
+
+def _claim_boundary_defined(source, symbol):
+    """True when `symbol` (`name` or `Class.method`) is defined at module level in `source`, or,
+    for `__main__`, when the module has a top-level `if __name__ == "__main__":` block."""
+    if symbol == "__main__":
+        return any(isinstance(node, ast.If) and isinstance(node.test, ast.Compare)
+                   and isinstance(node.test.left, ast.Name) and node.test.left.id == "__name__"
+                   and len(node.test.ops) == 1 and isinstance(node.test.ops[0], ast.Eq)
+                   and _claim_is_main(node.test.comparators[0])
+                   for node in ast.parse(source).body)
+    head, _, tail = symbol.partition(".")
+    for node in ast.parse(source).body:
+        if isinstance(node, _CLAIM_FNDEF + (ast.ClassDef,)) and node.name == head:
+            if not tail:
+                return True
+            return isinstance(node, ast.ClassDef) and any(
+                isinstance(m, _CLAIM_FNDEF) and m.name == tail for m in node.body)
+    return False
+
+
+def _claim_boundary_live(source, symbol):
+    """True when code that runs outside the selftests can reach `symbol`; always for `__main__`.
+    The module's top-level code runs, and so does the live code (_claim_live_nodes: not code under
+    a fixed-false test) of every module-level function or class that running code loads by name,
+    transitively, of every definition carrying a decorator (which registers it), and of every
+    function, lambda or class nested in running code; a function whose name contains "selftest"
+    never runs. `name` is reached when running code loads it; `Class.method` when the class is
+    and the method is a `do_*` request method the server framework dispatches or is named as an
+    attribute in running code."""
+    if symbol == "__main__":
+        return True
+    head, _, tail = symbol.partition(".")
+    tree = ast.parse(source)
+    defs = {n.name: n for n in tree.body if isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,))}
+    # A name bound exactly once in the module, at top level, to a literal resolves to it, so a
+    # reference under `if TYPE_CHECKING:` with `TYPE_CHECKING = False` is dead code here, the
+    # same rule the pin resolver applies. A name bound anywhere else stays unknown.
+    stores = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            stores[node.id] = stores.get(node.id, 0) + 1
+    consts = {}
+    for n in tree.body:
+        if (isinstance(n, ast.Assign) and len(n.targets) == 1
+                and isinstance(n.targets[0], ast.Name) and isinstance(n.value, ast.Constant)
+                and stores.get(n.targets[0].id) == 1):
+            consts[n.targets[0].id] = n.value
+        elif (isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
+                and isinstance(n.value, ast.Constant) and stores.get(n.target.id) == 1):
+            consts[n.target.id] = n.value
+
+    def _resolve(name):
+        if name in consts:
+            return consts[name], lambda _n: None
+        return None
+
+    todo = [tree] + [n for n in defs.values() if n.decorator_list]
+    loaded, attrs, done = set(), set(), set()
+    while todo:
+        scope = todo.pop()
+        if id(scope) in done or "selftest" in getattr(scope, "name", ""):
+            continue
+        done.add(id(scope))
+        if scope is not tree and getattr(scope, "decorator_list", None):
+            loaded.add(scope.name)
+        for node in _claim_live_nodes(scope, _resolve):
+            if node is not scope and isinstance(node, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
+                if scope is not tree:
+                    todo.append(node)
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                loaded.add(node.id)
+                if node.id in defs:
+                    todo.append(defs[node.id])
+            elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+                attrs.add(node.attr)
+    return head in loaded and (not tail or tail.startswith("do_") or tail in attrs)
+
+
+def _claim_pin_stmts(fn, pin):
+    """The ids of the statements of `fn` whose live code counts for the pin call `pin` (the
+    rule comment above): the statement making it and the header of each compound statement
+    around it; in each block that holds it, from the innermost out, the statements before it
+    back to the nearest one that makes another pin-helper call; and then, until nothing is
+    added, each statement before it, other than one making a pin-helper call, that sets or hands
+    on a local name counted code reads."""
+    def heads(st):
+        out, todo = [], [st]
+        while todo:
+            cur = todo.pop()
+            out.append(cur)
+            if not isinstance(cur, _CLAIM_FNDEF + (ast.ClassDef, ast.Lambda)) or cur is st:
+                todo.extend(c for c in ast.iter_child_nodes(cur) if not isinstance(c, ast.stmt))
+        return out
+
+    def blocks(st):
+        if isinstance(st, _CLAIM_FNDEF + (ast.ClassDef,)):
+            return []
+        subs = [getattr(st, f, None) for f in ("body", "orelse", "finalbody")]
+        subs += [h.body for h in getattr(st, "handlers", [])]
+        subs += [c.body for c in getattr(st, "cases", [])]
+        return [b for b in subs if isinstance(b, list) and b and isinstance(b[0], ast.stmt)]
+
+    def is_pin(node):
+        return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in _CLAIM_PIN_HELPERS and node is not pin)
+
+    def base(node):
+        while isinstance(node, (ast.Attribute, ast.Subscript, ast.Starred)):
+            node = node.value
+        return node.id if isinstance(node, ast.Name) else None
+
+    def reads(st):
+        own = heads(st) if not isinstance(st, _CLAIM_FNDEF + (ast.ClassDef,)) else list(ast.walk(st))
+        inner = {n.id for c in own if isinstance(c, ast.comprehension)
+                 for n in ast.walk(c.target) if isinstance(n, ast.Name)}
+        return {n.id for n in own if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)
+                and n.id not in inner and n.id not in _CLAIM_PIN_HELPERS}
+
+    def sets(st, want):
+        if isinstance(st, _CLAIM_FNDEF + (ast.ClassDef,)):
+            return st.name in want
+        for n in heads(st):
+            if isinstance(n, (ast.Name, ast.Attribute, ast.Subscript)) \
+                    and not isinstance(n.ctx, ast.Load) and base(n) in want:
+                return True
+            if isinstance(n, ast.alias) and (n.asname or n.name).split(".")[0] in want:
+                return True
+            if isinstance(n, ast.Call) and (
+                    (isinstance(n.func, ast.Attribute) and base(n.func) in want)
+                    or any(base(a) in want for a in n.args + [k.value for k in n.keywords])):
+                return True
+        return False
+
+    units, todo, path = [], [(fn.body, i) for i in range(len(fn.body))], []
+    while todo:
+        blk, i = todo.pop()
+        units.append(blk[i])
+        if any(n is pin for n in ast.walk(blk[i])):
+            path.append((blk, i))
+        todo.extend((b, j) for b in blocks(blk[i]) for j in range(len(b)))
+    path.sort(key=lambda bi: len(list(ast.walk(bi[0][bi[1]]))))
+    chosen = {id(blk[i]) for blk, i in path}
+    for blk, i in path:
+        for st in reversed(blk[:i]):
+            if any(is_pin(n) for n in ast.walk(st)):
+                break
+            chosen.update(id(s) for s in ast.walk(st) if isinstance(s, ast.stmt))
+        else:
+            continue
+        break
+    line = path[0][0][path[0][1]].lineno if path else 0
+    want = set().union(*[reads(st) for st in units if id(st) in chosen])
+    grew = True
+    while grew:
+        grew = False
+        for st in units:
+            if (id(st) not in chosen and st.lineno < line and sets(st, want)
+                    and not any(is_pin(n) for n in heads(st))):
+                chosen.add(id(st))
+                want |= reads(st)
+                grew = True
+    return chosen
+
+
+def _claim_pin_calls(source, label, symbol):
+    """True when live code counted for the pin call labelled with `label` (_claim_pin_stmts) in
+    the function making it, or in a function nested in it that such code names, calls `symbol`: `name(...)` where those functions
+    do not bind `name` themselves, or, for `Class.method`, `x.method(...)` where they also name
+    `Class`. Code under a fixed-false test or after a return is pruned (_claim_live_nodes); an
+    assignment, a bare reference, a nested function nothing names, and a call in a selftest-named
+    function that holds no such pin do not count."""
+    cls, _, name = symbol.rpartition(".")
+    holders = []
+    for fn in ast.walk(ast.parse(source)):
+        if not isinstance(fn, _CLAIM_FNDEF):
+            continue
+        for call in _claim_live_nodes(fn, lambda _name: None):
+            if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) \
+                    and call.func.id in _CLAIM_PIN_HELPERS and any(
+                        isinstance(a, ast.Constant) and isinstance(a.value, str)
+                        and label in a.value for a in call.args):
+                holders.append((fn, call))
+                break
+    seen, loads, bound = set(), set(), set()
+    name_call = attr_call = script_ns = False
+    while holders:
+        fn, pin = holders.pop()
+        if fn in seen:
+            continue
+        seen.add(fn)
+        live = list(_claim_live_nodes(fn, lambda _name: None))
+        if pin is not None:
+            owned = _claim_pin_stmts(fn, pin)
+            owner, todo = {}, [(s, s) for s in fn.body]
+            while todo:
+                st, cur = todo.pop()
+                owner[id(cur)] = st
+                for c in ast.iter_child_nodes(cur):
+                    todo.append((c, c) if isinstance(c, ast.stmt) else (st, c))
+            live = [n for n in live if id(owner.get(id(n))) in owned]
+        here = {n.id for n in live if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+        loads |= here
+        bound.update(a.arg for a in ast.walk(fn.args) if isinstance(a, ast.arg))
+        for node in live:
+            if isinstance(node, _CLAIM_FNDEF):
+                bound.add(node.name)
+                if node.name in here:
+                    holders.append((node, None))
+            elif isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
+                bound.add(node.id)
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == name:
+                    name_call = True
+                elif isinstance(node.func, ast.Attribute) and node.func.attr == name:
+                    attr_call = True
+                script_ns |= any(
+                    (k.arg == "run_name" and _claim_is_main(k.value)) or _claim_main_ns(k.value)
+                    for k in node.keywords) or any(_claim_main_ns(a) for a in node.args)
+    if symbol == "__main__":
+        return script_ns
+    if cls:
+        return attr_call and cls in loads
+    return name_call and name not in bound
+
+
+def _claim_boundary_problems(man, read=None):
+    """Problems under the pin-boundary rule for every `::selftest::` proof the manifest's claims
+    use: a proof with no `boundaries` record, a malformed or duplicate record, a boundary name the
+    module does not define, a `gap` shorter than _CLAIM_MIN_GAP or not naming the entry, a pin
+    that does not call its boundary with no gap, a boundary outside the modules the claim names
+    with no gap, and a record for a proof no claim uses. `read(rel)` returns a module's source and
+    defaults to reading the file under ROOT."""
+    read = read or (lambda rel: (ROOT / rel).read_text(encoding="utf-8"))
+    used = {}
+    for entry in man.get("claims", []):
+        proofs, bad = _claim_entry_proofs(entry) if isinstance(entry, dict) else ([], "bad")
+        for p in proofs:
+            if not bad and "::selftest::" in p:
+                used.setdefault(p, set()).update(
+                    _CLAIM_MODULE_RE.findall(str(entry.get("claim", ""))))
+    table = man.get("boundaries")
+    if not isinstance(table, list):
+        return ["claim-proof: tools/claim-proof-manifest.json has no `boundaries` list, so no "
+                "selftest proof says which entry its claim describes"]
+    out, records = [], {}
+    for rec in table:
+        ok_shape = (isinstance(rec, dict) and isinstance(rec.get("proof"), str)
+                    and isinstance(rec.get("boundary"), str)
+                    and rec["boundary"].count("::") == 1 and all(rec["boundary"].split("::")))
+        if not ok_shape:
+            out.append(f"claim-proof: malformed boundaries record {rec!r}; it needs `proof` and "
+                       f"`boundary` as `tools/x.py::name`")
+        elif rec["proof"] in records:
+            out.append(f"claim-proof: two boundaries records name the proof {rec['proof'][:70]!r}")
+        else:
+            records[rec["proof"]] = rec
+    for proof in sorted(used):
+        rec = records.pop(proof, None)
+        if rec is None:
+            out.append(f"claim-proof: the proof {proof[:80]!r} has no boundaries record; name the "
+                       f"CLI entry, tool or runtime default its claim describes as "
+                       f"`tools/x.py::name` (docs/AUDIT-PROTOCOL.md section 7.3)")
+            continue
+        mod, _, symbol = rec["boundary"].partition("::")
+        pin_mod, _, label = proof.partition("::selftest::")
+        entry_name = symbol.rpartition(".")[2]
+        try:
+            defined = _claim_boundary_defined(read(mod), symbol)
+            live = defined and _claim_boundary_live(read(mod), symbol)
+            reached = _claim_pin_calls(read(pin_mod), label.strip(), symbol)
+        except (OSError, SyntaxError, ValueError) as exc:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} or its pin module could not "
+                       f"be read ({type(exc).__name__}: {exc})")
+            continue
+        gap = rec.get("gap")
+        has_gap = (isinstance(gap, str) and len(gap.strip()) >= _CLAIM_MIN_GAP
+                   and re.search(r"(?<!\w)" + re.escape(entry_name) + r"(?!\w)", gap) is not None)
+        off_module = bool(used[proof]) and mod not in used[proof]
+        if not defined:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} is not defined at module "
+                       f"level in {mod}")
+        elif not live:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} is defined but nothing "
+                       f"outside the selftests reaches it (no code that runs in {mod} loads "
+                       f"it); a gap does not excuse a dead entry, so name the one a person runs")
+        elif "gap" in rec and not has_gap:
+            out.append(f"claim-proof: the gap on the boundaries record for {label.strip()[:60]!r} "
+                       f"is shorter than {_CLAIM_MIN_GAP} characters or does not name "
+                       f"{entry_name!r}; say what the pin does not run of that entry")
+        elif not has_gap and not reached:
+            out.append(f"claim-proof: the pin {label.strip()[:60]!r} in {pin_mod} never calls "
+                       f"its boundary {rec['boundary']!r}, and its record states no gap; move the "
+                       f"pin to the entry, or record what it does not run and narrow the claim")
+        elif not has_gap and off_module:
+            out.append(f"claim-proof: the boundary {rec['boundary']!r} is not in a module the "
+                       f"claim names ({', '.join(sorted(used[proof]))}), and its record states no "
+                       f"gap saying why")
+    for proof in sorted(records):
+        out.append(f"claim-proof: the boundaries record for {proof[:70]!r} serves no claim; "
+                   f"drop it")
+    return out
+
+
+def _claim_boundary_self_proof():
+    """None when the pin-boundary rule still refuses a missing, undefined, unreached (dead, with or
+    without a gap), shadowed, dead-code,
+    uncalled, unnamed-nested, wrong-class and wrong-module boundary, a call made only for another
+    pin, a short or unnamed gap, a
+    malformed and an unused record, and a script boundary with no script block or a pin that never
+    runs it, and accepts a called boundary, a stated gap and a pin that runs the script,
+    else what differs."""
+    miss = ('def main():\n    entry()\n    helper()\n    C().m()\n\nSERVE = main\n\n'
+            'def entry():\n    return 1\n\ndef helper():\n    return 2\n\n'
+            'class C:\n    def m(self):\n        return 3\n\n'
+            'def selftest_other():\n    entry()\n\n'
+            'def _selftest():\n    ok(helper() == 2, "pin label for the fixture")\n'
+            '    if False:\n        entry()\n    ref = entry\n    obj = object()\n    obj.m()\n'
+            '    def _unnamed():\n        entry()\n')
+    call = miss.replace('    ref = entry\n', '    ok(entry() == 1, "another pin")\n')
+    shadow = call.replace('    ok(entry() == 1', '    entry = helper\n    ok(entry() == 1')
+    own = miss.replace('    ok(helper() == 2, "pin label', '    ok(entry() == 1, "pin label')
+    own_shadow = own.replace('    ok(entry() == 1', '    entry = helper\n    ok(entry() == 1')
+    before = miss.replace('def _selftest():\n', 'def _selftest():\n    ok(entry() == 1, "another pin")\n')
+    flows = miss.replace('def _selftest():\n    ok(helper() == 2',
+                         'def _selftest():\n    got = entry()\n    ok(got == 1, "another pin")\n'
+                         '    ok(helper() == 2 and got')
+    proof = "m.py::selftest::pin label for the fixture"
+    gap = "the fixture pin calls helper, not entry"
+    dead = miss + ('def dead():\n    return 4\n\nclass D:\n    def m(self):\n        return 5\n\n'
+                   '@register\ndef tool():\n    return 6\n')
+    dead_called = dead.replace('    ref = entry\n', '    ok(dead() == 4, "another pin")\n')
+    dead2 = dead + ('def _nobody():\n    dead()\n\nif False:\n    dead()\n\n'
+                    'class L:\n    def gone(self):\n        return 7\n\n'
+                    '    def do_GET(self):\n        return 8\n\nSERVER = L\n')
+    dead3 = dead + ('TYPE_CHECKING = False\n\nif TYPE_CHECKING:\n    dead()\n')
+    dead4 = dead + ('FLAG = True\n\nif FLAG:\n    dead()\n')
+    script = miss + 'if __name__ == "__main__":\n    entry()\n'
+    pin_line = '    ok(helper() == 2, "pin label for the fixture")\n'
+    script_run = script.replace(pin_line, '    run_as({"__name__": "__main__"})\n' + pin_line)
+    script_built = script.replace(pin_line, '    ns = {"__name__": "__main__"}\n' + pin_line)
+
+    def one(boundary, src=miss, gap_text=None, claim="c", extra=()):
+        rec = {"proof": proof, "boundary": boundary}
+        if gap_text is not None:
+            rec["gap"] = gap_text
+        return ([rec] + list(extra), src, claim)
+    for (records, src, claim), want in (
+            (one("m.py::helper"), []),
+            (one("m.py::entry", gap_text=gap), []),
+            (one("m.py::entry"), ["never calls"]),
+            (one("m.py::entry", gap_text="short"), ["does not name"]),
+            (one("m.py::entry", gap_text="the fixture pin runs only its helper"),
+             ["does not name"]),
+            (one("m.py::missing", gap_text=gap), ["not defined"]),
+            (one("m.py::C.m"), ["never calls"]),
+            (one("m.py::entry", src=call), ["never calls"]),
+            (one("m.py::entry", src=before), ["never calls"]),
+            (one("m.py::entry", src=own), []),
+            (one("m.py::entry", src=flows), []),
+            (one("m.py::entry", src=own_shadow), ["never calls"]),
+            (one("m.py::entry", src=call, gap_text=gap), []),
+            (one("m.py::entry", src=shadow), ["never calls"]),
+            (one("m.py::entry", src=own, claim="see tools/other.py"), ["not in a module"]),
+            (one("m.py::entry", src=call, gap_text=gap, claim="see tools/other.py"), []),
+            (one("m.py::__main__"), ["not defined"]),
+            (one("m.py::__main__", src=script), ["never calls"]),
+            (one("m.py::__main__", src=script_run), []),
+            (one("m.py::__main__", src=script_built), ["never calls"]),
+            (one("m.py::dead", src=dead, gap_text="the fixture pin never runs dead at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::dead", src=dead_called), ["nothing outside the selftests"]),
+            (one("m.py::D.m", src=dead, gap_text="the fixture pin never runs m on D at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::tool", src=dead, gap_text="the fixture pin never runs tool at all"), []),
+            (one("m.py::dead", src=dead2, gap_text="the fixture pin never runs dead at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::L.gone", src=dead2, gap_text="the fixture pin never runs gone at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::L.do_GET", src=dead2,
+                 gap_text="the fixture pin never runs do_GET at all"), []),
+            (one("m.py::dead", src=dead3, gap_text="the fixture pin never runs dead at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::dead", src=dead4), ["never calls"]),
+            (([], miss, "c"), ["has no boundaries record"]),
+            (one("m.py::helper", extra=[{"proof": "m.py::selftest::unused",
+                                         "boundary": "m.py::helper"}]), ["serves no claim"]),
+            ((([{"proof": proof, "boundary": "helper"}]), miss, "c"),
+             ["malformed", "has no boundaries record"])):
+        man = {"claims": [{"doc": "d", "claim": claim, "proof": proof}], "boundaries": records}
+        got = _claim_boundary_problems(man, read=lambda rel, _s=src: _s)
+        if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+            return f"the pin-boundary rule gave {[g[:60] for g in got]} for {records}"
+    return None
+
+
+# An `invariant:N` binding shares its subject with the catalog (docs/AUDIT-PROTOCOL.md section
+# 7.3). A claim bound to `invariant:N` and entry N of this module's "Invariants enforced" catalog
+# share a word of four or more letters that at most _CLAIM_SUBJECT_SPREAD catalog entries use, and
+# a claim that names "invariant M" in its text is bound to M. A shared word shows that the catalog
+# names the claim's subject, not that the invariant reads every form the claim covers: a claim
+# bound to the invariant for its subject passes while that invariant misses some of the claim's
+# forms, and a claim that shares a rare word with an unrelated entry passes too.
+_CLAIM_SUBJECT_SPREAD = 3
+_CLAIM_WORD_RE = re.compile(r"[a-z][a-z0-9_]{3,}")
+
+
+def _claim_catalog(doc):
+    """{number: entry text} for the "Invariants enforced:" list in a module docstring. An entry
+    runs from its "  N." line to the next one."""
+    out, cur = {}, None
+    if "Invariants enforced:" not in doc:
+        return out
+    for line in doc.split("Invariants enforced:", 1)[1].splitlines():
+        hit = re.match(r"\s{2}(\d+)\.\s+(.*)", line)
+        if hit:
+            cur = int(hit.group(1))
+            out[cur] = hit.group(2)
+        elif cur is not None and line.strip():
+            out[cur] += " " + line.strip()
+    return out
+
+
+def _claim_subject_problems(man, catalog):
+    """Problems for each manifest claim bound to `invariant:N` whose N the catalog does not list,
+    whose text shares no subject word with catalog entry N (a word of four or more letters that at
+    most _CLAIM_SUBJECT_SPREAD entries use), or whose text names an invariant it is not bound to.
+    `catalog` maps each invariant number to its entry text (_claim_catalog)."""
+    def words(text):
+        return set(_CLAIM_WORD_RE.findall(text.lower()))
+    spread = {}
+    for entry_text in catalog.values():
+        for word in words(entry_text):
+            spread[word] = spread.get(word, 0) + 1
+    out = []
+    for entry in man.get("claims", []):
+        proofs, bad = _claim_entry_proofs(entry) if isinstance(entry, dict) else ([], "bad")
+        if bad:
+            continue
+        text = str(entry.get("claim", ""))
+        bound = {int(p.strip().split(":", 1)[1]) for p in proofs
+                 if re.fullmatch(r"invariant:\d+", p.strip())}
+        for n in sorted(bound):
+            if n not in catalog:
+                out.append(f"claim-proof: {text[:60]!r} is bound to invariant {n}, which the "
+                           f"catalog in tools/sync_check.py does not list")
+            elif not [w for w in words(text) & words(catalog[n])
+                      if spread[w] <= _CLAIM_SUBJECT_SPREAD]:
+                out.append(f"claim-proof: {text[:60]!r} is bound to invariant {n}, but the claim "
+                           f"and catalog entry {n} share no word that names a subject; bind it to "
+                           f"the invariant that reads it, or say in entry {n} what it reads")
+        for named in sorted({int(m) for m in re.findall(r"\binvariants?\s+(\d+)", text, re.I)}
+                            - bound):
+            out.append(f"claim-proof: {text[:60]!r} names invariant {named} but is bound to "
+                       f"{' + '.join(proofs)}")
+    return out
+
+
+def _claim_subject_self_proof():
+    """None when the subject rule accepts a claim sharing a rare catalog word and refuses one that
+    shares only common words, one bound to an unlisted invariant and one naming another
+    invariant, and the catalog reader reads a two-line entry, else what differs."""
+    catalog = {1: "Hub integrity: every spoke is listed in the downstream list.",
+               2: "Workflow atoms: every atom a workflow names is installed.",
+               3: "Every file is listed.", 4: "Every name is listed.", 5: "Every path is listed."}
+    for claim, proof, want in (
+            ("Every spoke in the downstream list exists", "invariant:1", []),
+            ("Every guard always holds", "invariant:1", ["share no word"]),
+            ("Every listed item is listed", "invariant:1", ["share no word"]),
+            ("Every spoke exists", "invariant:9", ["does not list"]),
+            ("invariant 2 checks every spoke", "invariant:1", ["names invariant 2"]),
+            ("every atom a workflow names is installed", "tools/x.py::selftest::atoms", [])):
+        got = _claim_subject_problems(
+            {"claims": [{"doc": "d", "claim": claim, "proof": proof}]}, catalog)
+        if len(got) != len(want) or any(w not in g for w, g in zip(want, got)):
+            return f"the subject rule gave {[g[:60] for g in got]} for {claim!r} on {proof}"
+    doc = ("Title.\n\nInvariants enforced:\n  1.  First: spoke.\n      more spoke text.\n"
+           "  2.  Second.\n")
+    if _claim_catalog(doc) != {1: "First: spoke. more spoke text.", 2: "Second."}:
+        return f"the catalog reader gave {_claim_catalog(doc)}"
+    return None
+
+
+def check_claim_proof():
+    """Invariant 60: claim-proof binding. A universal claim about this repo's own behavior in the
+    guarded corpus (the manifest's `corpus`) must be bound in tools/claim-proof-manifest.json to
+    an enforced drift invariant or a NAMED selftest pin the battery executes, or be listed as an
+    exemption with a written reason, for a standing instruction to the agent that no code can
+    prove. A universal claim here means a unit the detector flags: the word patterns in
+    _CLAIM_BRANCHES. A promise phrased without them is not seen.
+
+    The static refusal rules in _claim_pins reject a selftest pin whose call is off the
+    selftest's live call path, goes to a helper this module does not define or that never tests
+    its condition, or has a condition whose truth is fixed. They recognise the shapes they list;
+    a pin that cannot fail in another way can still pass.
+
+    Route records tie an install route the docs recommend to the code that must detect it: the
+    check fails when a listed doc stops recommending the route, or when a prober stops pointing
+    at the route's install location. The reverse enrolment sweep (_claim_sweep, whose docstring
+    gives its rules) fails on a flagged unit of the corpus that no binding covers. An exemption
+    whose written reason rests on a gitignore fact or a route record declares that fact under
+    `holds`, and _claim_holds_problems re-reads it.
+
+    The manifest's `guarded_text` records hold rule text outside the corpus: the section 7 rules
+    of docs/AUDIT-PROTOCOL.md and the AGENTS.md restatements of CLAUDE.md claims
+    (_claim_guarded_text_problems, whose comment gives its rules).
+
+    Each `::selftest::` proof a claim uses has a `boundaries` record naming the entry its claim
+    describes (_claim_boundary_problems, whose comment gives its rules).
+
+    A claim bound to `invariant:N` shares a subject word with entry N of the module's invariant
+    catalog, and a claim that names an invariant is bound to it (_claim_subject_problems).
+
+    Before any of that, the detector checks itself against tools/claim-proof-cases.json
+    (_claim_case_problems): each branch flags at least two labelled positives, the negatives stay
+    unflagged, and the escape, unit and sweep cases give their recorded results. Each branch in
+    turn replaced by a copy of its first positive must make some case fail
+    (_claim_case_blindness). A missing or unreadable case file is a problem, not a skipped check.
+    The cases are a regression pin, not a precision measurement: a branch narrowed to exactly its
+    listed positives still passes.
+
+    The function first reads its own source (_claim_wiring_problems) and fails when it no
+    longer calls a helper named in _CLAIM_WIRING, so deleting the call that runs the cases or
+    the sweep fails the build."""
+    # --- wiring: the self-proof and the sweep below are read only while these calls exist ---
+    for msg in _claim_wiring_problems():
+        problem(msg)
+    # --- detector self-proof: the committed labelled cases, before anything is scanned ---
+    cases = _claim_load_cases()
+    if isinstance(cases, str):
+        problem(cases)
+        return
+    fixtures = {name: got[0] for name, got in cases["positive"].items()
+                if isinstance(got, list) and got and isinstance(got[0], str)}
+
+    def _claim_fires(name, sample):
+        hit = _CLAIM_PATTERN.search(sample)
+        return hit is not None and hit.lastgroup == name
+
+    gap = _coverage_proof("claim-proof", _CLAIM_BRANCHES, fixtures, _claim_fires,
+                          pinned=_claim_pinned_branches())
+    if gap:
+        problem(gap)
+        return
+    bad = _claim_case_problems(cases) or _claim_case_blindness(cases)
+    if bad:
+        for msg in bad:
+            problem(msg)
+        return
+    # The branch-name pin fails closed: a manifest that loses detector_branches, or holds a
+    # malformed entry for a detector, is a problem rather than a skipped pin.
+    if (_detector_pin_from({}, "claim_proof") != []
+            or _detector_pin_from({"detector_branches": ["all"]}, "claim_proof") != []
+            or _detector_pin_from({"detector_branches": {"claim_proof": "all"}}, "claim_proof") != []
+            or _coverage_proof("claim-proof", {"x": ""}, {"x": ""}, lambda name, s: True,
+                               pinned=[]) is None):
+        problem("claim-proof: detector self-proof failed -- a missing or malformed "
+                "detector_branches entry no longer fails the branch-name pin")
+        return
+    # Self-proofs of the pin rules and of how a proof reference resolves: each returns None, or
+    # what broke.
+    for self_proof in (_claim_pin_self_proof,
+                       _claim_subject_self_proof,
+                       _claim_boundary_self_proof,
+                       _claim_guarded_text_self_proof,
+                       _claim_multi_proof_self_proof,
+                       _claim_cost_self_proof,
+                       _claim_label_self_proof,
+                       _claim_entry_self_proof,
+                       _claim_guard_self_proof,
+                       _claim_case_self_proof,
+                       _claim_holds_self_proof):
+        failed = _claim_bounded(self_proof, _CLAIM_FIXTURE_SECONDS)
+        if failed:
+            problem(f"claim-proof: self-proof failed -- {failed}")
+            return
+
+    if not _CLAIM_MANIFEST_PATH.exists():
+        problem("claim-proof: tools/claim-proof-manifest.json is missing (invariant 60 cannot run)")
+        return
+    try:
+        man = json.loads(_CLAIM_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problem(f"claim-proof: tools/claim-proof-manifest.json is unreadable: {exc}")
+        return
+
+    enforced = set()
+    try:
+        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+        label_re = re.compile(r"^Invariants?\s+(\d+(?:\s*(?:,|and)\s*\d+)*)")
+        main_node = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+        registered = set()
+        if main_node is not None:
+            registered = {n.func.id for n in ast.walk(main_node)
+                          if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+        for n in tree.body:
+            if isinstance(n, ast.FunctionDef) and n.name in registered:
+                m = label_re.match((ast.get_docstring(n) or "").strip())
+                if m:
+                    enforced.update(int(x) for x in re.findall(r"\d+", m.group(1)))
+    except (OSError, SyntaxError) as exc:
+        problem(f"claim-proof: could not parse this file to resolve invariant references: {exc}")
+        return
+    selftest_mods = _claim_selftest_modules()
+
+    # --- every bound claim still says what it said, and its proof still resolves ---
+    bound = []
+    for entry in man.get("claims", []):
+        rel, text = entry.get("doc"), entry.get("claim")
+        proofs, bad = _claim_entry_proofs(entry)
+        if bad or not (rel and text):
+            problem(f"claim-proof: manifest claim entry {bad or 'is missing doc/claim/proof'}: "
+                    f"{entry}")
+            continue
+        proof = " + ".join(proofs)
+        path = ROOT / rel
+        if not path.exists():
+            problem(f"claim-proof: bound claim names missing doc {rel}")
+            continue
+        if _claim_norm(text) not in _claim_norm(path.read_text(encoding="utf-8")):
+            problem(f"claim-proof: {rel} no longer contains the bound claim {text!r}. The sentence "
+                    f"changed but its proof did not: re-read {proof} and update the binding, or "
+                    f"narrow the claim to what is actually tested")
+            continue
+        for one, detail in _claim_proof_failures(proofs, enforced, selftest_mods):
+            problem(f"claim-proof: {rel} claims {text[:60]!r} on the strength of {one}, but "
+                    f"{detail}")
+        bound.append((rel, text))
+
+    exempt_ids = set()
+    gitignore = _claim_fact_text(ROOT / ".gitignore")  # None is reported per gitignore fact
+    for entry in man.get("exempt", []):
+        rel, text, why = entry.get("doc"), entry.get("claim"), entry.get("why") or ""
+        if not (rel and text):
+            problem(f"claim-proof: manifest exemption is missing doc/claim: {entry}")
+            continue
+        if len(why) < 25:
+            problem(f"claim-proof: the exemption for {text[:50]!r} in {rel} needs a written reason "
+                    f"of at least 25 characters; a bare exemption is how a promise goes unproven")
+            continue
+        for msg in _claim_holds_problems(entry, man.get("routes"), gitignore):
+            problem(msg)
+        path = ROOT / rel
+        if path.exists() and _claim_norm(text) in _claim_norm(path.read_text(encoding="utf-8")):
+            exempt_ids.add(len(bound))
+            bound.append((rel, text))
+        else:
+            problem(f"claim-proof: the exemption for {text[:50]!r} no longer matches any text in "
+                    f"{rel}; remove the stale entry or re-bind it")
+
+    # --- routes: a route the docs RECOMMEND must be a route the code can FIND ---
+    for entry in man.get("routes", []):
+        cmd, docs_in = entry.get("recommends"), entry.get("in") or []
+        lands, probers = entry.get("lands_in"), entry.get("prober") or []
+        if not (cmd and docs_in and lands and probers):
+            problem(f"claim-proof: route entry needs recommends/in/lands_in/prober: {entry}")
+            continue
+        for rel in docs_in:
+            path = ROOT / rel
+            if not path.exists():
+                problem(f"claim-proof: route doc {rel} is missing")
+            elif _claim_norm(cmd) not in _claim_norm(path.read_text(encoding="utf-8")):
+                problem(f"claim-proof: {rel} no longer recommends {cmd!r}; if the route changed, "
+                        f"update the route record so detection follows it")
+        for rel in probers:
+            mod, _, symbol = rel.partition("::")
+            path = ROOT / mod
+            if not path.exists():
+                problem(f"claim-proof: route prober {mod} is missing")
+                continue
+            body = path.read_text(encoding="utf-8")
+            if symbol:
+                # Resolve the SYMBOL, not the token: a prober that keeps the path in a comment
+                # while its actual lookup moved would otherwise pass.
+                value = _claim_symbol_value(path, symbol)
+                if value is None:
+                    problem(f"claim-proof: route prober {rel} does not resolve to a module-level "
+                            f"string assignment; the constant the detection depends on is gone")
+                elif lands not in value:
+                    problem(f"claim-proof: {mod} defines {symbol} as {value!r}, which no longer "
+                            f"points at {lands!r}, but the docs still recommend {cmd!r} which "
+                            f"installs there. A route we recommend has to be a route we can find, "
+                            f"or the advice dead-ends")
+            elif lands not in body:
+                problem(f"claim-proof: {mod} no longer looks in {lands!r}, but the docs still "
+                        f"recommend {cmd!r} which installs there. A route we recommend has to be "
+                        f"a route we can find, or the advice dead-ends")
+
+    # --- guarded text: the section 7 rules and the AGENTS.md restatements still stand ---
+    for msg in _claim_guarded_text_problems(man):
+        problem(msg)
+
+    # --- pin boundary: each selftest proof names the entry its claim describes ---
+    for msg in _claim_boundary_problems(man):
+        problem(msg)
+
+    # --- invariant subject: each invariant binding shares a word with its catalog entry ---
+    for msg in _claim_subject_problems(man, _claim_catalog(ast.get_docstring(tree) or "")):
+        problem(msg)
+
+    # --- reverse enrolment sweep: a flagged unit bound to nothing fails ---
+    for msg in _claim_sweep(list(_claim_corpus_units(man.get("corpus", {}))), bound, exempt_ids):
+        problem(msg)
+
+
+# The run block of the CI commit hygiene step, byte for byte as the workflow reader returns it (a
+# literal block scalar with its indentation removed). _commit_claims_step_problems reports any
+# difference, so a shell form in the block that ends the step with success whatever the scanners
+# return is reported without a list of such forms. A change to that step changes this constant
+# in the same commit.
+_COMMIT_HYGIENE_RUN = "\n".join((
+    "# origin/main..HEAD is empty once a push to main lands, so the range falls back to the",
+    "# policy boundary SHA when the branch range is empty. Both scanners skip commits at or",
+    "# before their own boundary (secret_scan: commit_policy_boundary in the allowlist file;",
+    "# commit_claims: CLAIM_SUBJECT_BOUNDARY), so the wider range does not re-check history.",
+    "git fetch origin main --depth=200 || true",
+    "BOUNDARY=$(python3 -c \"import json;print(json.load(open("
+    "'tools/secret-scan-allowlist.json')).get('commit_policy_boundary',''))\")",
+    'RANGE=""',
+    "if git rev-parse origin/main >/dev/null 2>&1 \\",
+    '   && [ -n "$(git rev-list --count origin/main..HEAD 2>/dev/null | tr -d 0)" ]; then',
+    '  RANGE="origin/main..HEAD"',
+    'elif [ -n "$BOUNDARY" ] && git cat-file -e "$BOUNDARY^{commit}" 2>/dev/null; then',
+    '  RANGE="$BOUNDARY..HEAD"',
+    "fi",
+    'if [ -z "$RANGE" ]; then',
+    "  # Fail closed: a hygiene backstop that cannot determine what to scan must not pass.",
+    "  # Reachable if the checkout is shallow past the boundary; fix with fetch-depth: 0.",
+    "  echo \"commit hygiene: cannot resolve a scan range (boundary '$BOUNDARY' unreachable\"",
+    '  echo "and origin/main absent or already merged). Refusing to report success."',
+    "  exit 1",
+    "fi",
+    'echo "commit hygiene: scanning $RANGE"',
+    'python3 tools/secret_scan.py --commit-messages "$RANGE"',
+    'python3 tools/commit_claims.py --range "$RANGE"',
+)) + "\n"
+
+
+def _commit_hygiene_fixture(run, step_keys=""):
+    """A workflow text whose one step carries `step_keys` and runs `run` as a literal block."""
+    body = "".join(("          " + ln if ln else "") + "\n" for ln in run.rstrip("\n").split("\n"))
+    return ("on: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - name: H\n"
+            + step_keys + "        run: |\n" + body)
+
+
+def _commit_claims_step_problems(text, battery):
+    """Problems with the CI step that runs tools/commit_claims.py, read from the workflow `text`
+    with the parity reader in `battery`: exactly one step's run block names the script; that step
+    is blocking by the parity reader's rules (battery._steps_from_doc: no `if:`,
+    continue-on-error, shell, env or working-directory change, among the rest it lists); and its
+    run block equals _COMMIT_HYGIENE_RUN byte for byte, comments included. A shell form in the
+    block that ends the step with success whatever the scanners return is therefore reported
+    without being named in a list. What an earlier step does to the checkout, to the scanner
+    scripts or to $GITHUB_ENV is not read; a gate step has the same limit."""
+    doc = battery._yaml_subset(text)
+    steps = battery._steps_from_doc(doc)
+    runs = ["" if st.get("run") is None else str(st["run"])
+            for job in doc["jobs"].values() for st in (job.get("steps") or [])]
+    hits = [(st, run) for st, run in zip(steps, runs) if "tools/commit_claims.py" in run]
+    if len(hits) != 1:
+        return [f"ci-parity: {len(hits)} CI steps name tools/commit_claims.py in their run block; "
+                f"exactly one blocking step must, and its run block must equal "
+                f"_COMMIT_HYGIENE_RUN in tools/sync_check.py"]
+    st, run = hits[0]
+    name = st["name"] or "commit hygiene"
+    out = []
+    if st["gates"]:
+        out.append(f"ci-parity: the commit hygiene step {name!r} does not block "
+                   f"({', '.join(st['gates'])})")
+    if run != _COMMIT_HYGIENE_RUN:
+        got, want = run.split("\n"), _COMMIT_HYGIENE_RUN.split("\n")
+        n = next((i for i, (a, b) in enumerate(zip(got, want)) if a != b), min(len(got), len(want)))
+
+        def at(lines):
+            return repr(lines[n]) if n < len(lines) else "the end of the block"
+
+        out.append(f"ci-parity: the run block of the commit hygiene step {name!r} differs from "
+                   f"_COMMIT_HYGIENE_RUN in tools/sync_check.py at its line {n + 1}: the step has "
+                   f"{at(got)} where the constant has {at(want)}. The block is held to the "
+                   f"constant byte for byte, so no shell form in it can end the step with "
+                   f"success unread; change the step and the constant together")
+    return out
+
+def _ci_parity_problems(text, battery):
+    missing, _, stale, _, _ = battery.parity_report(text)
+    return [f"ci-parity: {line}" for line in missing + stale]
+
+
+def check_ci_parity():
+    """Invariant 61: CI parity (P96). Runs tools/battery.py's parity report over
+    .github/workflows/ci.yml and fails when a battery gate has no blocking CI step running exactly
+    its command (and no CI_PARITY_NOTES reason), when a parity note is stale, or when the report
+    cannot read the workflow. The drift guard is a battery gate with its own CI step, so the
+    comparison runs in CI even without the `--check-parity` step. Before the scan the check proves
+    itself on a fixture whose drift-guard step is disabled with `if: false`; a battery.py that
+    cannot load or run is reported as a problem, not a crash. The step that runs
+    tools/commit_claims.py runs several lines, so it is not a gate; _commit_claims_step_problems
+    holds it to blocking and its run block to _COMMIT_HYGIENE_RUN, after proving itself on
+    fixtures."""
+    import types
+    path = ROOT / "tools" / "battery.py"
+    try:
+        battery = types.ModuleType("_battery_parity")
+        battery.__file__ = str(path)
+        exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), battery.__dict__)
+        probe = ("on: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
+                 "      - if: false\n        run: python3 tools/sync_check.py\n")
+        if not any("the drift guard gate" in p for p in _ci_parity_problems(probe, battery)):
+            problem("ci-parity: self-proof failed: a drift-guard step disabled with `if: false` was counted")
+            return
+        if not all(any("the drift guard gate" in p for p in _ci_parity_problems(t, battery)) for t in (
+                probe.replace("      - if: false\n", "      - env:\n          HOME: .ci-home\n"),
+                probe.replace("    steps:\n", "    env:\n      HOME: .ci-home\n    steps:\n"),
+                probe.replace("jobs:\n", "env:\n  XDG_CONFIG_HOME: x\njobs:\n"))):
+            problem("ci-parity: self-proof failed: a drift-guard step under a step, job or workflow "
+                    "`env:` that sets HOME or XDG_CONFIG_HOME was counted")
+            return
+        good = _COMMIT_HYGIENE_RUN
+        echo = 'echo "commit hygiene: scanning $RANGE"\n'
+        if (_commit_claims_step_problems(_commit_hygiene_fixture(good), battery)
+                or not all(_commit_claims_step_problems(_commit_hygiene_fixture(run), battery)
+                           for run in (good.replace(echo, echo + "set -n\n"),
+                                       good.replace(echo, echo[:-1] + " ||\n"),
+                                       good.replace(echo, echo + "shopt -u -o errexit\n"),
+                                       good.replace(echo, echo + "printf -v PATH %s .ci-bin\n"),
+                                       good.replace(echo, echo + "export -n CI\n"),
+                                       good.replace("# origin/main", "#  origin/main"),
+                                       good + "true\n"))
+                or not _commit_claims_step_problems(
+                    _commit_hygiene_fixture(good, "        continue-on-error: true\n"), battery)
+                or not _commit_claims_step_problems(
+                    _commit_hygiene_fixture(good) + _commit_hygiene_fixture(good).split(
+                        "    steps:\n", 1)[1], battery)):
+            problem("ci-parity: self-proof failed: a commit hygiene step whose run block differs "
+                    "from _COMMIT_HYGIENE_RUN (set -n, a trailing ||, shopt, printf -v PATH, "
+                    "export -n CI, an edited comment, an added line), that does not block, or that "
+                    "is run twice was counted, or the committed block was refused")
+            return
+        wf = ROOT / ".github" / "workflows" / "ci.yml"
+        text = wf.read_text(encoding="utf-8")
+        for line in _ci_parity_problems(text, battery):
+            problem(line)
+        try:
+            hygiene = _commit_claims_step_problems(text, battery)
+        except battery.WorkflowSyntaxError:
+            hygiene = []  # the parity report above already names the line it cannot read
+        for line in hygiene:
+            problem(line)
+    except Exception as exc:  # noqa: BLE001
+        problem(f"ci-parity: the parity report could not run: {type(exc).__name__}: {exc}")
 
 
 def main():
@@ -3414,6 +7763,12 @@ def main():
     check_registry_content_digest()
     check_eval_output_keys()
     check_install_scope()
+    try:
+        check_claim_proof()
+    except Exception as exc:  # noqa: BLE001 - reported as a problem line, not a traceback
+        problem(f"claim-proof: invariant 60 stopped before it finished ({type(exc).__name__}: "
+                f"{exc}); the claims after that point were not checked")
+    check_ci_parity()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

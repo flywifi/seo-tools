@@ -5,7 +5,7 @@
 
 ## Context
 
-S-3 found all 4 authored cuts frame-exact with zero false positives, including an isoluminant cut that ffmpeg missed; the adversarial pass source-verified the ffmpeg limitation (YUV path scores luma only) and its format=rgb24 workaround.
+S-3 found all 4 authored cuts frame-exact with zero false positives, including an isoluminant cut that ffmpeg missed; the ffmpeg limitation (YUV path scores luma only) and its format=rgb24 workaround are source-verified.
 
 ## Decision
 

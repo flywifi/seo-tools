@@ -74,3 +74,7 @@ added beyond what those records state. New decisions get the next number via
 | [0063](0063-p90-wizard-doing-lanes.md) | The wizard DOES the web setup: guided lanes that copy, stage, and verify | 2026-09-20 | Accepted |
 | [0064](0064-p91-python-314-support.md) | Validated through Python 3.14; the floor stays 3.12 for the narrowest lane | 2026-09-20 | Accepted |
 | [0065](0065-p93-user-scoped-installs-default.md) | Installs are user-scoped by default; machine-wide is a labeled choice | 2026-09-20 | Accepted |
+| [0066](0066-p94-claims-ship-with-their-proof.md) | A claim about this repo's own behavior ships with its executed proof | 2026-09-21 | Accepted |
+| [0067](0067-p96-guards-prove-their-own-coverage.md) | Review output stays outside the repository, and guards prove their own coverage | 2026-09-26 | Accepted |
+| [0068](0068-p97-pins-bind-at-entries-guards-parse.md) | Pins bind at the entry a person runs, and guards parse before they match | 2026-09-27 | Accepted |
+| [0069](0069-p98-fold-input-derive-sets.md) | Guards read normalised input, and pinned sets derive from the code that serves them | 2026-09-27 | Accepted |

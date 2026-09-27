@@ -18,7 +18,7 @@ P79 left three non-Mac items open. Researching each to primary text changed its 
   Resolve gate caps the scripting bridge at 3.12. Python 3.12 is the only version every lane agrees
   on. The Homebrew formula API gives python@3.12 a deprecation date of 2028-11-01 and python@3.13
   2029-11-01: recommending 3.12 costs one year of runway.
-- The MCP Python SDK went to 2.x. Two of the four breaks the P79 record listed were not breaks (the
+- The MCP Python SDK went to 2.x. Two of the four breaks listed in P79 were not breaks (the
   `mcp.types` alias is permanent and camelCase kwargs still construct; the tool registry internals
   are unchanged). The two real breaks were silent: a swallowed settings assignment made `--host`
   and `--port` no-ops, and the app factory's DNS-rebinding default answers 421 to the proxied Host

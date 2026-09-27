@@ -129,7 +129,7 @@ if (research) {
       flagged_claims: { type: 'array', items: { type: 'object', properties: { claim: { type: 'string' }, issue: { type: 'string' }, severity: { type: 'string' } }, required: ['claim', 'issue'] } },
       confidence_valid: { type: 'boolean' },
       minority_report_adequate: { type: 'boolean' },
-      overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+      overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail', 'did_not_run'] },
     },
     required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
   }
@@ -152,7 +152,7 @@ Verification checklist:
 Default to flagging if uncertain.`,
     { label: 'verify-research', phase: 'Verify', schema: VERIFICATION_SCHEMA }
   )
-  log(researchVerified ? `Research verification: ${researchVerified.overall_verdict}` : 'Research verification skipped')
+  log(researchVerified ? `Research verification: ${researchVerified.overall_verdict}` : 'Research verification DID NOT RUN (the verifier returned nothing)')
 }
 
 const keywordBrief = research
@@ -292,6 +292,7 @@ return {
   topic,
   research,
   researchVerified,
+  verification_verdict: researchVerified ? researchVerified.overall_verdict : 'did_not_run',
   draft: currentDraft,
   review,
   independentReview,

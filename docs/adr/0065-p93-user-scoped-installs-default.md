@@ -6,9 +6,9 @@
 
 ## Context
 
-The owner directed that anything Creator OS downloads or installs affects only the current
-user, never the whole computer, as the default style for the entire repository. An audit
-found the runtime already mostly user-scoped (the repo `.venv`, `~/.local/bin`, `~/Library`
+Anything Creator OS downloads or installs should affect only the current user, never the
+whole computer, as the default style for the entire repository. The runtime was already mostly
+user-scoped (the repo `.venv`, `~/.local/bin`, `~/Library`
 config, whisper models under `~/.creator-os`), but two code paths wrote machine-wide when no
 `.venv` existed (a pip system-override retry into Homebrew's shared site-packages, in
 `setup.py`'s dependency installer and the wizard's uv step), 52 live-guidance lines
@@ -21,7 +21,7 @@ policy, so it would have drifted back.
    into, the installer refuses with the exact remedy ("run `python3 tools/setup.py
    --install-deps` to create the repo's private `.venv`") and never invokes pip at all. The
    first cut of this decision keyed the refusal on the PEP 668 "externally-managed-environment"
-   string, which the adversarial pass proved insufficient: `install_dependencies` still fell
+   string, which was insufficient: `install_dependencies` still fell
    back to `target = venv_py or PYTHON`, and a machine-wide interpreter that carries no PEP 668
    marker (a python.org framework build, `/usr/local`) accepted the write silently. Executed
    proof: under that code all seven requirements sets installed into `/usr/local/bin/python3`
@@ -29,8 +29,8 @@ policy, so it would have drifted back.
    set is refused), plus the PEP 668 fixture and a source pin over both modules.
 2. **The label convention.** Machine-wide routes are kept, not deleted -- some users want
    Homebrew -- but every one sits under the literal label "machine-wide alternative (affects
-   the whole computer)" within two lines, and the user-scoped route leads. The owner's
-   directive governs defaults, not capabilities.
+   the whole computer)" within two lines, and the user-scoped route leads. The policy
+   governs defaults, not capabilities.
 3. **User-scoped defaults.** Python: the interpreter already present, else the uv standalone
    installer into `~/.local` (no sudo, per its docs). Node (Microsoft 365 lane only): nvm
    into `~/.nvm` (per-user by design, per its README). Speech-to-text: `faster-whisper`
@@ -44,11 +44,10 @@ policy, so it would have drifted back.
    forbids.
 5. **Drift invariant 59 locks the words, over a DERIVED denominator.** `check_install_scope()`
    scans every tracked text file, minus an exemption map whose every entry carries a written
-   reason (decision records, the changelog, the phase log, the ledger, dated audits,
-   third-party evaluations, registry data, CI workflows, and the two files that hold detector
-   vocabularies). The first cut scanned a hardcoded 16-file allowlist; the adversarial pass
-   found live machine-wide instructions in six files outside it, including the repo-root
-   double-click launcher. A closed list can only shrink silently. Labels govern downward
+   reason (decision records, the phase log, third-party evaluations, registry data, CI
+   workflows, and the two files that hold detector vocabularies). The first cut scanned a
+   hardcoded 16-file allowlist and missed live machine-wide instructions in six files outside
+   it, including the repo-root double-click launcher. A closed list can only shrink silently. Labels govern downward
    only (a heading introduces its block, so it cannot bless the command above it), fenced
    `sources` blocks are citation data and are skipped, and every regex branch carries its own
    fail-then-pass fixture so deleting one fails the build rather than narrowing coverage.
@@ -67,5 +66,5 @@ policy, so it would have drifted back.
 - A future unlabeled `brew install` in guidance is a build failure, not a review nit.
 - Machines that genuinely cannot create a `.venv` get an honest refusal with the remedy
   instead of a silent global write.
-- Dated records (ADRs, CHANGELOG, audit records, the video-tooling evaluations) keep their
+- Decision records, the phase log and the video-tooling evaluations keep their
   historical third-party install facts; the invariant scans only the live guidance.

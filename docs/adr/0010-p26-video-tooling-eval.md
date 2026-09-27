@@ -9,7 +9,7 @@ G9 (transcript-to-chapters/cuts) and the flagged-off shorts_reframe and render/e
 
 ## Decision
 
-Completed the open-source video tooling evaluation: 15 candidates scored against the two-lane videoedit architecture, 7 hands-on spikes (6 passed, 1 blocked by container network policy), 4 research agents plus 1 adversarial verification agent (3 of 8 load-bearing claims upheld, 5 refined).
+Completed the open-source video tooling evaluation: 15 candidates scored against the two-lane videoedit architecture, 7 hands-on spikes (6 passed, 1 blocked by container network policy), 8 load-bearing claims independently checked (3 upheld, 5 refined).
 
 ## Consequences
 

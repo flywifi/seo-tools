@@ -109,7 +109,7 @@
         },
         "confidence_valid": { "type": "boolean" },
         "minority_report_adequate": { "type": "boolean" },
-        "overall_verdict": { "type": "string", "enum": ["pass", "pass_with_flags", "fail"] }
+        "overall_verdict": { "type": "string", "enum": ["pass", "pass_with_flags", "fail", "did_not_run"] }
       },
       "required": ["verified_claims", "flagged_claims", "overall_verdict"]
     }

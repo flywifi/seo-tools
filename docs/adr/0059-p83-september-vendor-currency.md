@@ -49,8 +49,8 @@ controls, context-cost surfacing) became documented facts this repo distributes 
    in its extraction hint, until their consumer sets are merged on purpose. The Claude Code
    release-notes seed resolves to an undated GitHub changelog, so its hint records that only
    version-header diffing can detect change there.
-7. Deliberately not done: community-marketplace submission (outward distribution, the owner's
-   call), Secure MCP Tunnel support, atoms restructuring, the three changed social-importer
+7. Deliberately not done: community-marketplace submission (outward distribution, a release
+   decision), Secure MCP Tunnel support, atoms restructuring, the three changed social-importer
    seeds (their consumer tools need their own review before a stamp blesses the new content),
    and the 404-page-with-widget-markers classifier edge found while probing dead URLs (a 404
    classified blocked stays conservative; watch item with the P82-9 fixtures as the pattern).

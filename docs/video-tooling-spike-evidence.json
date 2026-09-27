@@ -1,5 +1,5 @@
 {
-  "_comment": "P26 empirical spike evidence for the open-source video tooling evaluation (docs/VIDEO_TOOLING_EVAL.md). One entry per spike, including the control and the blocked spike. Raw artifacts (media, exports, venv) live only in the session scratchpad and are identified here by sha256; nothing from the spike environment is committed.",
+  "_comment": "P26 empirical spike evidence for the open-source video tooling evaluation (docs/VIDEO_TOOLING_EVAL.md). One entry per spike, including the control and the blocked spike. Raw artifacts (media, exports, venv) were never committed and are identified here by sha256; nothing from the spike environment is committed.",
   "date": "2026-07-02",
   "environment": {
     "os": "Linux x86_64 (remote container)",
@@ -16,7 +16,7 @@
     }
   },
   "fixture": {
-    "file": "workshop-synth.mp4 (scratchpad only)",
+    "file": "workshop-synth.mp4 (not committed)",
     "sha256": "e2841070a55108310c2a2bf469bce118a339e1267a0a947d63f4ee85fe0be906",
     "generator": "ffmpeg lavfi: 5 solid-color scenes (red 0 to 60, green 60 to 150, blue 150 to 240, yellow 240 to 330, magenta 330 to 420) concatenated at 1280x720@30 (libx264 ultrafast crf 28); sine 440Hz 48kHz AAC muted via volume=0:enable=between() during the authored gaps",
     "ground_truth": {

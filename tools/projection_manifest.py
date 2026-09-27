@@ -95,7 +95,7 @@ def reconcile(root=ROOT):
         for s in sources:
             p = root / s
             rec[s] = _sha(p) if p.exists() else None
-        # P73 D6-F6: also pin the projection's OWN bytes. Recording only the sources meant a
+        # P73: also pin the projection's OWN bytes. Recording only the sources meant a
         # projection hand-edited into disagreement with its source was undetectable: the source
         # sha had not moved, so nothing flagged it. AGENTS.md carried a narrowed version of the
         # registry single-writer rule for a whole phase for exactly this reason.
@@ -127,7 +127,7 @@ def check(root=ROOT):
                  "note": f"manifest unreadable: {exc}"}]
     recorded = manifest.get("projections", {})
     stale = []
-    # P72 D6: a projection file that has been DELETED must not pass silently -- the manifest
+    # P72: a projection file that has been DELETED must not pass silently -- the manifest
     # records it, so its absence is staleness of the strongest kind.
     for kf in _projections(root):
         if not (root / kf).exists():
@@ -144,7 +144,7 @@ def check(root=ROOT):
                 continue
             if rec.get(s) != _sha(p):
                 changed.append(s)
-        # P73 D6-F6: a projection edited by hand, away from its source, is staleness too. Only
+        # P73: a projection edited by hand, away from its source, is staleness too. Only
         # report it when the sources are unchanged -- if a source moved, the projection is
         # SUPPOSED to be rewritten, and flagging both would just be noise.
         pp = root / kf
@@ -193,7 +193,7 @@ def selftest(root=ROOT):
     reconcile(d)
     ok("reconcile re-blesses and clears the signal", check(d) == [])
 
-    # P73 D6-F6: hand-editing a projection while its sources are untouched must be caught.
+    # P73: hand-editing a projection while its sources are untouched must be caught.
     target = _K + "04-protocols.md"
     (d / target).write_text("projection\nHAND EDITED, contradicts the source\n", encoding="utf-8")
     stale = check(d)

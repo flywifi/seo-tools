@@ -53,7 +53,7 @@ def save_registry(data: dict, path: Path = REGISTRY_PATH) -> None:
     os.replace onto the target. A bare write_text truncates the destination first, so an
     interrupt (Ctrl-C, a crash, a full disk) mid-write left a 5,500-line registry truncated with
     no backup and no recovery path. os.replace is atomic within a filesystem, so a reader either
-    sees the whole old file or the whole new one, never a half-written one (P73 D6-F8).
+    sees the whole old file or the whole new one, never a half-written one (P73).
     P81: delegates to tools/atomic_io.py, which also preserves the file's mode.
     """
     data["_content_digest"] = content_digest(data)

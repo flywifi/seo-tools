@@ -55,7 +55,7 @@ def load_source_registry():
 
 def load_authority_allowlist():
     """P66: a missing config file or key DISABLES the fabricated-URL rule, and that must be said
-    out loud, never silently returned as an empty list (the F-VALIDATE-ORPHAN finding)."""
+    out loud, never silently returned as an empty list."""
     path = ROOT / "canonical-sources" / "traversal-config.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))

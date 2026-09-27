@@ -6,8 +6,7 @@
 
 ## Context
 
-The household's primary creator prefers OpenAI products, and the requirement is that Creator OS
-works equally well on every OpenAI format: ChatGPT web, Projects, the desktop app, Codex (CLI,
+Requirement: Creator OS works equally well on every OpenAI format: ChatGPT web, Projects, the desktop app, Codex (CLI,
 desktop, IDE), MCP connectors, the API, and the 2026 plugin system. Research against OpenAI's
 official documentation (2026-08-15; two agent sweeps plus direct fetches, every fact carrying its
 URL in `docs/TRANSITIONS.md` and the connector runbook) found the existing packaging stale in one
@@ -59,7 +58,7 @@ One MCP server serves every OpenAI client; each surface gets only a thin artifac
   apart, and Actions live only inside Custom GPTs, which personal accounts can no longer build.
 - **Custom GPT as the primary OpenAI door.** Rejected on the workspace-only creation change.
 - **Plugin-directory submission.** Rejected for now: it requires a verified organization and
-  review, and an unlisted connector delivers the same tools to one household without either.
+  review, and an unlisted connector delivers the same tools to a single-user install without either.
 - **Trusting excerpt-sourced numbers as fetched facts.** Rejected: help.openai.com figures are
   marked excerpt-confidence in the registry and the docs say "not officially documented" where
   OpenAI has published no number.

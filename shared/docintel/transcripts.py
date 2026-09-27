@@ -195,7 +195,7 @@ def suggest_chapters(segments, min_gap_seconds=8.0, min_chapter_seconds=30.0):
 
 
 def normalize(parsed, min_gap_seconds=None):
-    """One combined object for the transcript_normalize job (P63 F-SWEEP-3): the parse payload
+    """One combined object for the transcript_normalize job (P63): the parse payload
     plus silence gaps plus suggested chapters, in a single dict. The single-mode CLI arms below
     stay untouched (the footage-analysis atom runs them as separate calls); this is the additive
     path a headless job uses so its Outbox artifact carries everything the docs promise.

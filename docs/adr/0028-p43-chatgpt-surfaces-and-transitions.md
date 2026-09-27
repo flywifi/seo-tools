@@ -5,7 +5,7 @@
 
 ## Context
 
-The audit showed OpenAI coverage was really custom-GPT-Action coverage, the ChatGPT desktop app was unknown to the repo, a load-bearing remote-MCP claim was documentation without an artifact, and no one owned transitions. The fixes ship runbooks, honest claims, and a data-driven transition guide rather than hosting or auth theater; unverifiable product facts are tagged, never asserted.
+OpenAI coverage was really custom-GPT-Action coverage, the ChatGPT desktop app was unknown to the repo, a load-bearing remote-MCP claim was documentation without an artifact, and no one owned transitions. The fixes ship runbooks, honest claims, and a data-driven transition guide rather than hosting or auth theater; unverifiable product facts are tagged, never asserted.
 
 ## Decision
 

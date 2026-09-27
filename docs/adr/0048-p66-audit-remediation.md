@@ -5,22 +5,22 @@
 
 ## Context
 
-The P65 full-system audit — the first run under `docs/AUDIT-PROTOCOL.md` — confirmed fifteen
-findings. None was a live wrong-output bug a user would hit today, and publishing/CRM/privacy
+P65, the first phase run under `docs/AUDIT-PROTOCOL.md`, confirmed fifteen
+defects. None was a live wrong-output bug a user would hit today, and publishing/CRM/privacy
 safety held; but three were HIGH because the underlying accident (committing a real credential
 or a financial spreadsheet) is realistic and the guard that exists to prevent it failed open:
 
-1. **F-SKPROJ-21.** The `generic_sk_key` pattern (`sk-` + alnum-only body) missed every current
+1. **Current key formats missed.** The `generic_sk_key` pattern (`sk-` + alnum-only body) missed every current
    provider key format — modern key bodies are base64url with hyphens and underscores — so the
    very keys issued today sailed through the content scan.
-2. **F-SUFFIX-21.** The tracked-content scan only read files whose suffix was on a text
+2. **Unlisted suffixes unscanned.** The tracked-content scan only read files whose suffix was on a text
    allowlist; a credential in `secrets.conf` or an extensionless `credentials` file was
    invisible to BOTH the content scan and the suffix blocklist.
-3. **F-XLSM-20.** The forbidden-suffix list held seven entries; a macro spreadsheet
+3. **Short forbidden-suffix list.** The forbidden-suffix list held seven entries; a macro spreadsheet
    (`budget.xlsm`), a password-manager database, a contacts export, or a mailbox committed
    clean.
 
-The remaining twelve findings shared one root cause the audit named the RC5/RC6 class: guards
+The remaining twelve findings shared one root cause, the RC5/RC6 class: guards
 verified the PRESENCE of tokens, not the PROPERTY they protect — the keystone invariant could
 not see a labeled-but-unregistered check, the residual-origin claim was a prose substring test,
 CI ran three of ~60 behavioral selftests, nine selftest summaries printed hardcoded
@@ -30,7 +30,7 @@ on a >255-byte path, and the "sanitized" competitor export never actually saniti
 
 ## Decision
 
-Fix every finding under three defaults the user approved:
+Fix every finding under three defaults:
 
 1. **Security first.** The three HIGH gaps plus the invariant-36 keystone shipped in the first
    commit. The scanner broadened the `sk-` body to `[A-Za-z0-9_-]`, added fine-grained
@@ -62,7 +62,7 @@ Fix every finding under three defaults the user approved:
 
 Structural additions beyond the findings' minimum: NEW advisory invariant 56 (count 55 to 56) —
 `registry_io.save_registry` stamps a `_content_digest` over `sources[]` and the guard
-recomputes it, so the audit's hand-edit repro (changing an existing entry's content in place)
+recomputes it, so a hand-edit repro (changing an existing entry's content in place)
 now surfaces; the invariant-42 writer census became AST-level so prose or a read-only import
 cannot false-positive it. CI gained the behavioral battery: `tools/selftest_sweep.py` discovers
 every CLI selftest by scripted grep (argparse flag, argv probe, subcommand, `-m` package
@@ -86,7 +86,7 @@ session tier per the two-pass model.
   cowork origin serves both Cowork modes); the affinity table encodes the true model instead.
 - **Immediate property-level rebuilds of invariants 14/16/17.** Deferred with drafted fixes;
   the backlog section in `docs/DOC-MAINTENANCE.md` is the tracking record.
-- **Blocking only `.xlsm`.** Rejected: the audit proved the CLASS (arbitrary sensitive formats
+- **Blocking only `.xlsm`.** Rejected: the defect is the CLASS (arbitrary sensitive formats
   commit clean), so the fix is the class-wide tiered list, not the instance.
 
 ## Consequences
@@ -97,6 +97,6 @@ the keystone top-drop fails naming the dropped check, all sixteen oversize-path 
 the clean envelope, the phantom-origin and registry hand-edit repros trip their checks, and a
 planted failing selftest reddens the CI sweep. The invariant count is 56 (one new advisory);
 scenarios hold at 10, surfaces at 11, agent roles at 5. The known residual risk is documented,
-not silent: the invariant 14/16/17 substring recipes (backlog), and the live-surface legs the
-audit listed under its not-exercised section (real macOS/Gatekeeper, live provider surfaces,
+not silent: the invariant 14/16/17 substring recipes (backlog), and the live-surface legs
+listed as not exercised (real macOS/Gatekeeper, live provider surfaces,
 live OAuth/publishing) remain hands-on items outside this remediation's scope.

@@ -974,7 +974,7 @@
           "brand_pitch",
           "pitch_review"
         ],
-        "note": "One classification carries the whole inbound-pitch flow (P40 F1): pitch_triage (deal-pipeline) chains pitch-extract, product-fit, proposal-price, gap-record, govern-artifact. brand_pitch and pitch_review stay pinned absent: pitch_triage subsumes the intent."
+        "note": "One classification carries the whole inbound-pitch flow (P40): pitch_triage (deal-pipeline) chains pitch-extract, product-fit, proposal-price, gap-record, govern-artifact. brand_pitch and pitch_review stay pinned absent: pitch_triage subsumes the intent."
       },
       "legs": [
         {

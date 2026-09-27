@@ -5,7 +5,7 @@
 
 ## Context
 
-An adversarial audit of the P67 commits found nine defects — most seriously, eval cases whose
+The P67 commits carried nine defects — most seriously, eval cases whose
 `expected_output_keys` were authored from SKILL.md prose and did not exist in any tool code
 (`coverage_summary` for `summary`, `billable_milestones` for `ready_to_bill`, `nudge_date` for
 `nudge_at`, and five more; eight keys appear in zero `.py` files). They survived a P65 full-system
@@ -36,7 +36,7 @@ proven against the defect it targets, in four slices on `claude/repo-access-conf
   pass that checks claims against code, plus a red-team proof per guard. ADR 0049-B's coverage
   claim is narrowed to what actually runs.
 - **D.** The P67-A guard property checks (inv 14/16/17) are hardened against the false-positive and
-  false-negative cases the audit found; missing eval fixtures are created; a doc-cited external
+  false-negative cases found after P67-A; missing eval fixtures are created; a doc-cited external
   authority (TikTok rate limit) is registered so invariant 52 tracks it.
 
 ## Consequences

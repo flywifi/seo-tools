@@ -8,8 +8,9 @@ enforces this over every tracked guidance file (an unlabeled machine-wide instru
 the build), and the code enforces its own half: no Creator OS tool ever writes into a
 machine-wide site-packages. The repo `.venv` is the only install target, so when it cannot be
 created the installer refuses with the remedy instead of falling back to the base interpreter
-(`tools/setup.py::install_dependencies`). A PEP 668 marker is not what protects you -- a plain
-machine-wide interpreter carries no such marker and pip would have accepted the write.
+(`tools/setup.py::install_dependencies`, `tools/wizard.py::_install_uv`). A PEP 668 marker is
+not what protects you -- a plain machine-wide interpreter carries no such marker and pip would
+have accepted the write.
 
 ## Approved locations (where Creator OS installs things)
 
@@ -27,7 +28,7 @@ machine-wide interpreter carries no such marker and pip would have accepted the 
 | Need | User-scoped default | Notes |
 |---|---|---|
 | Python 3.12 to 3.14 | the interpreter already on the machine; missing or too old: `curl -LsSf https://astral.sh/uv/install.sh | sh` then `uv python install 3.12` | uv installs to `~/.local/bin`, its Pythons to `~/.local/share/uv`; "No sudo is required" per its docs |
-| Node.js (Microsoft 365 lane only) | nvm, per its README install script | nvm "clones the nvm repository to `~/.nvm`" and is "designed to be installed per-user"; no sudo, ever |
+| Node.js (Microsoft 365 lane only) | nvm, per its README install script | nvm "clones the nvm repository to `~/.nvm`" and is "designed to be installed per-user"; its README adds "When using `nvm` you do not need `sudo` to globally install a module with `npm -g`" |
 | Speech-to-text | `faster-whisper` -- already inside the repo `.venv` after `--install-deps` | works on every platform, fully user-scoped |
 | GitHub access | none needed -- the repository is public; `git clone` works anonymously | auth only if a machine must PUSH |
 
@@ -47,9 +48,12 @@ machine-wide interpreter carries no such marker and pip would have accepted the 
 ## Verifying an install stayed user-only
 
 Before setup: `ls /opt/homebrew/bin 2>/dev/null | wc -l` and note the count; `ls /Applications`.
-After setup: both unchanged, and everything new sits under `~` (`~/.local`, `~/Applications`,
-`~/Library`, `~/projects/<repo>`, `~/.creator-os`). The strongest proof: a second user
-account on the same machine sees none of it.
+After setup, run both again and compare them with your notes. The user-scoped locations this
+page names are `~/.local`, `~/.nvm`, `~/Applications`, `~/Library`, `~/projects/<repo>` and
+`~/.creator-os`. A PATH check from a second user account on the same machine: there,
+`command -v uv node` should not print a path inside the first account's home folder. `git`
+from the Apple Command Line Tools is machine-level (see the exceptions register above), so that
+account finds it.
 
 ```sources
 [

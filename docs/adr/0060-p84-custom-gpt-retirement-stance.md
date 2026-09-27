@@ -6,8 +6,8 @@
 
 ## Context
 
-The user hand-delivered browser saves of the help.openai.com articles the container cannot fetch
-(Cloudflare challenge on datacenter egress). The Creating-and-editing-GPTs article (8554397, read
+Browser saves of the help.openai.com articles the container cannot fetch
+(Cloudflare challenge on datacenter egress) were read offline. The Creating-and-editing-GPTs article (8554397, read
 in full) states that Custom GPTs are being retired in favor of Plugins: Enterprise workspaces on
 2026-12-11 (public GPTs from affected workspaces included even when used from other plans), a
 migration flow targeted for 2026-09-17, and "other plans are expected to follow the same

@@ -75,14 +75,14 @@ def _record_url(source: str) -> str:
     """Provenance URL for a knowledge record (connector citations require a non-empty url;
     developers.openai.com/api/docs/mcp). The cache stores `source` REPO-RELATIVE (it already
     starts with canonical-sources/; shared/cache/cache.py::str(jf.relative_to(ROOT))), so no
-    prefix is added here -- the P72 adversarial pass caught the doubled-segment 404 this
+    prefix is added here -- a doubled segment returned 404, which this
     comment now guards against."""
     return f"https://github.com/flywifi/seo-tools/blob/main/{source}"
 
 
 def _search_impl(query: str, db_path=None) -> dict:
     """Pure connector-contract search over the cache index (stdlib only, testable without the
-    mcp package -- the P61 C19 pattern). Returns {"results": [{"id","title","url"}]}."""
+    mcp package -- the P61 package-independent pattern). Returns {"results": [{"id","title","url"}]}."""
     import sqlite3
     db = pathlib_Path(db_path) if db_path else _CACHE_DB
     if not db.exists():
@@ -148,7 +148,7 @@ _WRITE_TOOLS = {
     "launch_setup":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "submit_compute_job": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     # Writes a caller-supplied overlay path via source_currency check --apply; the wrapper's
-    # overlay_path-required guard is the ONLY thing keeping it off the repo registry (P72 D3) --
+    # overlay_path-required guard is the ONLY thing keeping it off the repo registry (P72) --
     # that guard is load-bearing, do not remove it.
     "currency_detect_changes": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
 }
@@ -158,7 +158,7 @@ _READ_DESPITE_NAME = {
     "video_library_import_status",  # status READ; "import" names what it reports on
     # Computes the next task state and returns it; tasks.transition() appends to the history list
     # in memory and re-folds, but NEVER calls save_register -- persisting is a separate,
-    # human-confirmed step. Mutation-sounding, non-persisting (P73 D6-F4).
+    # human-confirmed step. Mutation-sounding, non-persisting (P73).
     "task_transition",
 }
 # Every remaining tool, each read as a pure read. Enrolment is explicit BECAUSE the old default
@@ -200,7 +200,7 @@ def _classification_problems(src: str) -> list:
     _DEFAULT_READONLY, i.e. readOnlyHint=True. MCP clients use readOnlyHint to decide whether to
     skip the confirmation prompt, and tools/publishing/ already holds complete OAuth upload
     clients waiting to be ungated, so the fail-open default sat one plausible tool name away from
-    a live upload running unconfirmed. Fail closed instead (P73 D6-F4).
+    a live upload running unconfirmed. Fail closed instead (P73).
     """
     problems = []
     names = _static_tool_names(src)
@@ -219,7 +219,7 @@ def _classification_problems(src: str) -> list:
     return problems
 
 
-# The two helpers below are defined ABOVE the mcp package import on purpose (P61 C19): they are
+# The two helpers below are defined ABOVE the mcp package import on purpose (P61): they are
 # pure stdlib logic, and the --selftest package-independent tier must be able to exercise them in
 # a sandbox where the mcp package is not installed. The server-start path is unchanged.
 
@@ -240,10 +240,10 @@ def _load_config() -> dict:
             for key, val in local.get("capabilities", {}).items():
                 base.setdefault("capabilities", {})[key] = val
         except (OSError, json.JSONDecodeError) as exc:
-            # P73 D6-F12 precursor: swallowing this silently reverted EVERY capability to the
+            # P73: swallowing this silently reverted EVERY capability to the
             # committed defaults with no signal, so a user whose local config had one bad comma
             # saw features quietly turn themselves off. stderr, never stdout: stdout is the
-            # stdio JSON-RPC channel and printing there corrupts the protocol (P61 C19).
+            # stdio JSON-RPC channel and printing there corrupts the protocol (P61).
             print(f"[creator-os] WARNING: {CONFIG_LOCAL_PATH} did not parse ({exc}); falling back "
                   f"to committed defaults. Your local capability flags are NOT in effect.",
                   file=sys.stderr)
@@ -254,13 +254,13 @@ def _read_local_config_for_write(path) -> tuple:
     """Read the gitignored local config for a read-modify-write cycle. Returns
     (config_dict, backup_path_or_None, error_or_None).
 
-    P73 D6-F12: the previous inline version treated a JSONDecodeError as "empty file" and then
+    P73: the previous inline version treated a JSONDecodeError as "empty file" and then
     overwrote it, destroying remote_mcp_token, live_publishing_enabled, the workspace flags and
     the update channel. That file is gitignored, so nothing could restore it. Back the bytes up
     before the caller writes, mirroring tools/wizard.py::_write_claude_config, and refuse
     outright if even the backup fails -- losing the data is worse than refusing the toggle.
 
-    Lives above the mcp package import (P61 C19) so the package-independent selftest tier can
+    Lives above the mcp package import (P61) so the package-independent selftest tier can
     exercise it in a sandbox where the mcp package is not installed.
     """
     if not path.exists():
@@ -290,12 +290,12 @@ _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malform
 def _cache_failure(err: str) -> dict:
     """Shape a failed cache subprocess into a tool result.
 
-    P73 D6-F11: an ABSENT index already returned a clear error plus a rebuild hint, but a CORRUPT
+    P73: an ABSENT index already returned a clear error plus a rebuild hint, but a CORRUPT
     one (power loss mid `cache.py --build`) passed the .exists() guard and surfaced a raw
     sqlite3.DatabaseError traceback into the MCP result, with no hint that rebuilding fixes it.
     Corruption is the case where the user most needs to be told what to do.
 
-    Above the mcp package import (P61 C19) so the package-independent selftest tier can reach it.
+    Above the mcp package import (P61) so the package-independent selftest tier can reach it.
     """
     msg = (err or "").strip()
     if any(m in msg.lower() for m in _CORRUPT_DB_MARKERS):
@@ -329,7 +329,7 @@ def _handoff_gates() -> str | None:
 
 # NOTE: the empty string is deliberately NOT here. Python's socket layer treats host="" as
 # ALL interfaces, so accepting it as loopback let `--host ""` (or a wrapper doing --host "$H"
-# with H unset) bind publicly with no token and no --insecure (P73 D4).
+# with H unset) bind publicly with no token and no --insecure (P73).
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
@@ -424,7 +424,7 @@ def _select_server_class():
     """(cls, is_v2). 2.x first: under 2.x `mcp.server.fastmcp` is a stub module that raises a pointed
     ModuleNotFoundError by design, so the order matters. Only the ABSENCE of the 2.x module falls through
     to the 1.x arm; a 2.x install whose own dependency is missing re-raises so the real cause is shown
-    (P81 C-4: the old bare `except ImportError` reported "neither class" for a broken 2.x install)."""
+    (P81: the old bare `except ImportError` reported "neither class" for a broken 2.x install)."""
     try:
         from mcp.server.mcpserver import MCPServer as _cls
         return _cls, True
@@ -480,7 +480,7 @@ def _normalize_allowed_hosts(values):
     """Validate the operator's allow-list. Accepts a list/tuple (or ONE bare str) of 'host', 'host:port',
     '[v6]', '[v6]:port', or IPv4. Rejects URLs, paths, '*', whitespace, and non-list types with the reason,
     because the SDK's _validate_host compares these strings literally: a URL or '*' can never match a
-    Host header and would silently disable the whole surface (P81 C-3/C-5)."""
+    Host header and would silently disable the whole surface (P81)."""
     if isinstance(values, str):
         values = [values]
     if not isinstance(values, (list, tuple)):
@@ -523,7 +523,7 @@ _ORIGIN_RE = re.compile(r"^https?://[^/\s]+$")
 
 
 def _normalize_allowed_origins(values):
-    """'https://host[:port]' entries for browser-based clients (P81 C-6). Same shape rules as hosts."""
+    """'https://host[:port]' entries for browser-based clients (P81). Same shape rules as hosts."""
     if isinstance(values, str):
         values = [values]
     if not isinstance(values, (list, tuple)):
@@ -561,6 +561,69 @@ def _remote_allowed_hosts(cli_hosts, key="remote_mcp_allowed_hosts", normalize=_
 _WRITE_LOCK = threading.Lock()
 
 
+def _schedule_post_impl(platform: str, caption: str, content_type: str, media_url: str = "",
+                        scheduled_datetime: str = "", hashtags: list | None = None,
+                        is_aigc: bool = False, ftc_disclosure: str = "", board_name: str = "",
+                        config: dict | None = None, creds: dict | None = None) -> dict:
+    """The whole body of the schedule_post MCP tool, callable without the mcp package so the
+    package-independent selftest tier executes the tool's real output. Builds a confirmation plan
+    and never publishes: the summary always carries human_review_required True and a status of
+    manual_required or awaiting_human_confirmation. config and creds default to the loaded config
+    and the credentials file; the selftest injects both. Defined above the mcp import guard
+    because _selftest_static runs before the server object exists."""
+    # Shared compliance + tier resolution (same helper the dashboard confirm path uses).
+    result = compliance.check(
+        platform,
+        caption=caption,
+        ftc_disclosure=ftc_disclosure,
+        is_aigc=is_aigc,
+        config=config if config is not None else _load_config(),
+        creds=creds,
+    )
+    tier = result["tier"]
+    connector = result["connector"]
+    effective_caption = result["effective_caption"]
+
+    if tier == "manual":
+        notes = "No direct-API publishing connector active. Use manual posting package below."
+    elif not result["has_credentials"]:
+        # This tool reports (does not hard-fail); the dashboard confirm path refuses instead.
+        notes = result["error"]
+    else:
+        notes = f"Connector ready: {connector}. Confirm to proceed."
+
+    # Build confirmation summary
+    summary = {
+        "platform": platform,
+        "content_type": content_type,
+        "publishing_tier": tier,
+        "connector_would_use": connector,
+        "scheduled_datetime": scheduled_datetime or None,
+        "caption_preview": effective_caption[:120] + "..." if len(effective_caption) > 120 else effective_caption,
+        "hashtags": hashtags or [],
+        "ftc_disclosure": result["ftc_disclosure"],
+        "ftc_disclosure_verified": result["ftc_disclosure_verified"],
+        "ftc_prepended": result["ftc_prepended"],
+        "aigc_flag_would_set": result["aigc_flag_set"],
+        "board_name": board_name or None,
+        "media_url_provided": bool(media_url),
+        "has_credentials": result["has_credentials"],
+        "human_review_required": True,
+        "status": "manual_required" if tier == "manual" else "awaiting_human_confirmation",
+        "notes": notes,
+    }
+
+    if tier == "manual":
+        summary["manual_posting_instructions"] = {
+            "instagram": "Open Instagram app → + → Reel/Photo → paste caption → add hashtags → post.",
+            "tiktok": "Open TikTok app → + → Upload → paste caption → add hashtags → post.",
+            "pinterest": f"Open Pinterest → + → Create Pin → upload media → paste description → select board '{board_name}' → publish.",
+            "youtube": "Open YouTube Studio → Create → Upload video → paste title/description → publish.",
+        }.get(platform, f"Open {platform} and post manually.")
+
+    return summary
+
+
 def _selftest_static() -> tuple:
     """P61 C19: the package-independent selftest tier. Runs with or without the mcp package;
     a missing package reduces coverage HONESTLY (reported, never a silent pass -- the P56 4C
@@ -583,7 +646,7 @@ def _selftest_static() -> tuple:
     ok(f"every tool name explicitly classified ({len(probs)} problem(s))", not probs)
     for pb in probs:
         print(f"       {pb}")
-    # P73 D6-F4: prove the gate is fail-CLOSED, not merely quiet. A tool whose name matches no
+    # P73: prove the gate is fail-CLOSED, not merely quiet. A tool whose name matches no
     # mutation signal must still be refused when unclassified -- that is the whole defect.
     # The decorator is assembled rather than written literally: a newline escape immediately
     # followed by the decorator reads as an email address to tools/secret_scan.py, and keeping
@@ -596,7 +659,117 @@ def _selftest_static() -> tuple:
     _stale = _classification_problems(src.replace("def post_status(", "def post_status_renamed("))
     ok("a classified-but-missing tool is reported as a stale entry",
        any("post_status" in p and "stale entry" in p for p in _stale))
-    # P73 D6-F12: a malformed local config must be preserved, never clobbered.
+    # schedule_post: the tool's whole body is _schedule_post_impl, so these pins execute its output
+    # on every platform and tier (config and credentials injected, no file read).
+    _plans = [_schedule_post_impl(_plat, "hello", "video", config=_cfg, creds=_creds)
+              for _plat in ("youtube", "instagram", "tiktok", "pinterest")
+              for _cfg, _creds in (({}, {}),
+                                   ({"capabilities": {f"{_plat}_publishing": True}}, {}),
+                                   ({"capabilities": {f"{_plat}_publishing": True}},
+                                    {_plat: {"publish": {"access_token": "t"}}}))]
+    # The same plans with every other argument filled: one at a time and all together with a
+    # realistic post (a public media URL, a timestamp, hashtags, the AIGC flag, a disclosure, a
+    # board, a long caption), with hashtag lists of 0, 3, 10 and 40 entries, and all together
+    # with each string literal in this module, so a value a condition in the code compares
+    # against meets its own operand here.
+    import ast as _ast_sp
+    _real_post = {"caption": "x" * 600, "content_type": "reel",
+                  "media_url": "https://cdn.example.invalid/v.mp4",
+                  "scheduled_datetime": "2030-01-01T09:00:00Z", "hashtags": ["#a", "#b"],
+                  "is_aigc": True, "ftc_disclosure": "#ad", "board_name": "Main board"}
+    _literals = sorted({_n.value for _n in _ast_sp.walk(_ast_sp.parse(src))
+                        if isinstance(_n, _ast_sp.Constant) and isinstance(_n.value, str)})
+    _fills = [{_k: _v} for _k, _v in _real_post.items()] + [_real_post] + [
+        {"hashtags": [f"#t{_i}" for _i in range(_n)]} for _n in (0, 3, 10, 40)] + [
+        {"caption": _l, "content_type": _l, "media_url": _l, "scheduled_datetime": _l,
+         "hashtags": [_l], "is_aigc": True, "ftc_disclosure": _l, "board_name": _l}
+        for _l in _literals]
+    _adv = [_schedule_post_impl(_plat, **dict({"caption": "hello", "content_type": "video"}, **_f),
+                                config=_cfg, creds=_creds)
+            for _f in _fills
+            for _plat in ("youtube", "instagram", "tiktok", "pinterest")
+            for _cfg, _creds in (({}, {}),
+                                 ({"capabilities": {f"{_plat}_publishing": True}}, {}),
+                                 ({"capabilities": {f"{_plat}_publishing": True}},
+                                  {_plat: {"publish": {"access_token": "t"}}}))]
+    ok("schedule_post always sets human_review_required: true on every platform and tier, "
+       "whatever its other arguments carry",
+       len(_plans) == 12 and len(_adv) == 12 * len(_fills)
+       and all(_s.get("human_review_required") is True for _s in _plans + _adv))
+    ok("schedule_post returns a plan, never a completed post",
+       len(_plans) == 12
+       and {_s.get("status") for _s in _plans} <= {"manual_required", "awaiting_human_confirmation"}
+       and {_s.get("publishing_tier") for _s in _plans} == {"manual", "direct_api"})
+    import ast as _ast
+    _tool = next((_n for _n in _ast.parse(src).body
+                  if isinstance(_n, _ast.FunctionDef) and _n.name == "schedule_post"), None)
+    _stmts = [] if _tool is None else [
+        _st for _st in _tool.body
+        if not (isinstance(_st, _ast.Expr) and isinstance(_st.value, _ast.Constant))]
+    _ret = _stmts[0].value if len(_stmts) == 1 and isinstance(_stmts[0], _ast.Return) else None
+    # The tool body is one exact expression: json.dumps of the impl called with each of the
+    # tool's own parameters passed straight through (the ones without a default by position, the
+    # rest by keyword), with indent=2 and nothing else. Any other argument to either call (an
+    # encoder class, a default= hook, a changed or extra value) or any wrapping expression fails.
+    _sig = None if _tool is None else _tool.args
+    _names = [] if _sig is None else [_a.arg for _a in _sig.args]
+    _npos = len(_names) - (0 if _sig is None else len(_sig.defaults))
+    # The name json in this module is the standard library's: bound only by a plain
+    # `import json`, never assigned, redefined, imported under that name from elsewhere or patched
+    # (json.<attr> = ...). A rebinding through globals() or setattr() is outside this check, and a
+    # later commit can rebind the checked symbols at runtime (json, _schedule_post_impl); code
+    # review, the drift guard on the diff and tools/tree_pin.py govern that class, not this pin.
+    _json_binds = [_n for _n in _ast.walk(_ast.parse(src))
+                   if (isinstance(_n, _ast.Name) and _n.id == "json"
+                       and not isinstance(_n.ctx, _ast.Load))
+                   or (isinstance(_n, _ast.Attribute) and not isinstance(_n.ctx, _ast.Load)
+                       and isinstance(_n.value, _ast.Name) and _n.value.id == "json")
+                   or (isinstance(_n, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef))
+                       and _n.name == "json")
+                   or (isinstance(_n, (_ast.Import, _ast.ImportFrom))
+                       and any((_a.asname or _a.name.split(".")[0]) == "json"
+                               and (isinstance(_n, _ast.ImportFrom) or _a.name != "json")
+                               for _a in _n.names))]
+    _want = ("json.dumps(_schedule_post_impl(" + ", ".join(
+        _names[:_npos] + [f"{_n}={_n}" for _n in _names[_npos:]]) + "), indent=2)")
+    ok("schedule_post's tool body returns the _schedule_post_impl summary unchanged",
+       _ret is not None and _sig is not None and not _sig.posonlyargs and not _sig.kwonlyargs
+       and _sig.vararg is None and _sig.kwarg is None and len(_names) == 9
+       and _ast.dump(_ret) == _ast.dump(_ast.parse(_want, mode="eval").body) and _json_binds == [])
+    # And in the impl's source: the only write of human_review_required is the summary literal's
+    # own `True`, and the summary is used in exactly three ways: built once from a dict literal
+    # with no ** spread, given a key other than human_review_required by a plain subscript
+    # assignment, and returned. Any other use (handed to a call or a method, |=, bound to another
+    # name) fails the pin, and every return hands back that summary.
+    _impl = next((_n for _n in _ast.parse(src).body
+                  if isinstance(_n, _ast.FunctionDef) and _n.name == "_schedule_post_impl"), None)
+    _nodes = [] if _impl is None else list(_ast.walk(_impl))
+    _parent = {id(_c): _n for _n in _nodes for _c in _ast.iter_child_nodes(_n)}
+    _hrr = [_v for _n in _nodes if isinstance(_n, _ast.Dict) for _k, _v in zip(_n.keys, _n.values)
+            if isinstance(_k, _ast.Constant) and _k.value == "human_review_required"]
+
+    def _summary_use(_n):
+        _p = _parent.get(id(_n))
+        if isinstance(_p, _ast.Assign) and _p.targets == [_n]:
+            return "build" if isinstance(_p.value, _ast.Dict) and None not in _p.value.keys else "x"
+        if isinstance(_p, _ast.Return):
+            return "return"
+        if (isinstance(_p, _ast.Subscript) and _p.value is _n and isinstance(_p.ctx, _ast.Store)
+                and isinstance(_p.slice, _ast.Constant)
+                and _p.slice.value != "human_review_required"
+                and isinstance(_parent.get(id(_p)), _ast.Assign)):
+            return "set"
+        return "x"
+
+    _uses = [_summary_use(_n) for _n in _nodes if isinstance(_n, _ast.Name) and _n.id == "summary"]
+    _returns = [_n for _n in _nodes if isinstance(_n, _ast.Return)]
+    ok("schedule_post's summary carries human_review_required only as the literal True and is "
+       "returned without a later write",
+       _impl is not None and len(_hrr) == 1 and isinstance(_hrr[0], _ast.Constant)
+       and _hrr[0].value is True and _uses.count("build") == 1 and "x" not in _uses
+       and bool(_returns)
+       and all(isinstance(_r.value, _ast.Name) and _r.value.id == "summary" for _r in _returns))
+    # P73: a malformed local config must be preserved, never clobbered.
     import tempfile as _tf
     with _tf.TemporaryDirectory() as _td:
         _p = Path(_td) / "creator-os-config.local.json"
@@ -615,7 +788,7 @@ def _selftest_static() -> tuple:
         _cfg3, _bak3, _err3 = _read_local_config_for_write(Path(_td) / "absent.json")
         ok("an absent local config is an empty dict, not an error",
            _err3 is None and _bak3 is None and _cfg3 == {})
-    # P73 D6-F11: a corrupt cache DB must get the rebuild hint, not a bare traceback.
+    # P73: a corrupt cache DB must get the rebuild hint, not a bare traceback.
     _corrupt = _cache_failure("sqlite3.DatabaseError: file is not a database")
     ok("a corrupt cache index returns a rebuild hint",
        "hint" in _corrupt and "index.local.db" in _corrupt["hint"])
@@ -1147,7 +1320,7 @@ def currency_detect_changes(overlay_path: str, apply: bool = False, category: st
         category: Optional category filter.
         only: Optional single source id.
     """
-    # LOAD-BEARING guard (P72 D3): without overlay_path the underlying CLI would stamp the
+    # LOAD-BEARING guard (P72): without overlay_path the underlying CLI would stamp the
     # committed source registry itself. This check is what confines a hosted endpoint's writes
     # to the caller's own store; treat any refactor of it as a security change.
     if not overlay_path:
@@ -1661,58 +1834,10 @@ def schedule_post(
         ftc_disclosure: One of: #ad, #gifted, #affiliate. Empty = no disclosure required.
         board_name: Pinterest board name (required when platform is pinterest).
     """
-    config = _load_config()
-
-    # Shared compliance + tier resolution (same helper the dashboard confirm path uses).
-    result = compliance.check(
-        platform,
-        caption=caption,
-        ftc_disclosure=ftc_disclosure,
-        is_aigc=is_aigc,
-        config=config,
-    )
-    tier = result["tier"]
-    connector = result["connector"]
-    effective_caption = result["effective_caption"]
-
-    if tier == "manual":
-        notes = "No direct-API publishing connector active. Use manual posting package below."
-    elif not result["has_credentials"]:
-        # This tool reports (does not hard-fail); the dashboard confirm path refuses instead.
-        notes = result["error"]
-    else:
-        notes = f"Connector ready: {connector}. Confirm to proceed."
-
-    # Build confirmation summary
-    summary = {
-        "platform": platform,
-        "content_type": content_type,
-        "publishing_tier": tier,
-        "connector_would_use": connector,
-        "scheduled_datetime": scheduled_datetime or None,
-        "caption_preview": effective_caption[:120] + "..." if len(effective_caption) > 120 else effective_caption,
-        "hashtags": hashtags or [],
-        "ftc_disclosure": result["ftc_disclosure"],
-        "ftc_disclosure_verified": result["ftc_disclosure_verified"],
-        "ftc_prepended": result["ftc_prepended"],
-        "aigc_flag_would_set": result["aigc_flag_set"],
-        "board_name": board_name or None,
-        "media_url_provided": bool(media_url),
-        "has_credentials": result["has_credentials"],
-        "human_review_required": True,
-        "status": "manual_required" if tier == "manual" else "awaiting_human_confirmation",
-        "notes": notes,
-    }
-
-    if tier == "manual":
-        summary["manual_posting_instructions"] = {
-            "instagram": "Open Instagram app → + → Reel/Photo → paste caption → add hashtags → post.",
-            "tiktok": "Open TikTok app → + → Upload → paste caption → add hashtags → post.",
-            "pinterest": f"Open Pinterest → + → Create Pin → upload media → paste description → select board '{board_name}' → publish.",
-            "youtube": "Open YouTube Studio → Create → Upload video → paste title/description → publish.",
-        }.get(platform, f"Open {platform} and post manually.")
-
-    return json.dumps(summary, indent=2)
+    return json.dumps(_schedule_post_impl(
+        platform, caption, content_type, media_url=media_url,
+        scheduled_datetime=scheduled_datetime, hashtags=hashtags, is_aigc=is_aigc,
+        ftc_disclosure=ftc_disclosure, board_name=board_name), indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -1727,7 +1852,7 @@ def post_status(
 ) -> str:
     """Report what is known about a previously scheduled post, and where to check it by hand.
 
-    HONEST SCOPE (P73 D4-5): this reads the per-platform publishing FLAG only. It does not call a
+    HONEST SCOPE (P73): this reads the per-platform publishing FLAG only. It does not call a
     connector, so it never returns a live status. When the flag is off it returns status: unknown
     with a manual check URL for the platform; when the flag is on it names the connector that
     would be responsible. The Creator OS status vocabulary (published, scheduled, processing,
@@ -2489,7 +2614,7 @@ def launch_setup() -> str:
     }, indent=2)
 
 
-# _handoff_gates moved above the mcp package import (P61 C19) so the package-independent
+# _handoff_gates moved above the mcp package import (P61) so the package-independent
 # selftest tier can exercise both refusal strings without the package installed.
 
 
@@ -2641,7 +2766,7 @@ def _apply_annotations() -> tuple:
 
 if __name__ == "__main__":
     if _SELFTEST:
-        # P61 C19 full tier: the package imported and every tool above registered live.
+        # P61 full tier: the package imported and every tool above registered live.
         _live = None
         try:
             _live = len(mcp._tool_manager._tools)  # the tool manager's registry (same private name in both majors; the public list_tools() fallback follows)
@@ -2744,7 +2869,7 @@ if __name__ == "__main__":
         print(("ok   " if _conc_ok else "FAIL ") + "concurrent configure_tool writes serialise and stay parseable (P80)")
 
         def _selftest_transport_policy(ok_fn, is_v2, server_cls, loopback_hosts, allowed_hosts_settings):
-            """G-9 (P81): the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
+            """P81: the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
             obtained WITHOUT binding a socket and fed to the SDK middleware; the assertion is the deny/pass
             OUTCOME for a Host header, identical in mcp 1.28.1, 1.29.1 and 2.1.1. Asserting the outcome, not
             `settings is not None`: TransportSecuritySettings() with empty lists is enabled and denies everything.
@@ -2860,7 +2985,7 @@ if __name__ == "__main__":
             if _security is not None:
                 mcp.settings.transport_security = _security
             elif not _is_loopback:
-                # P81 C-1: FastMCP computed its DNS-rebinding settings in __init__ for the DEFAULT host
+                # P81: FastMCP computed its DNS-rebinding settings in __init__ for the DEFAULT host
                 # (loopback) because the server is constructed before argparse. For a non-loopback bind the
                 # SDK's own rule is "no automatic protection"; mirror it, or every request to a public bind
                 # is answered 421 with no diagnostic. Must run before the app is built (the SDK caches it).

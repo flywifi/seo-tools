@@ -4,7 +4,7 @@
 The keyword_offline compute job type was allowlisted in P60 but refused, because no offline
 keyword capability existed: 7 of the 8 canonical-sources/keyword-library files are dict-shaped
 and invisible to the scoop cache indexer (which only accepts list-of-dicts-with-text JSON). This
-tool is the real implementation the user chose over a thin cache wrapper: ONE structured,
+tool is a real implementation rather than a thin cache wrapper: ONE structured,
 deterministic, zero-network report built from
 
   - a recursive flattener over every keyword-library file (list-of-strings leaves become keyword

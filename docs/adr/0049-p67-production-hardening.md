@@ -5,16 +5,16 @@
 
 ## Context
 
-With the P65 audit findings remediated (P66) and the battery green, the question was "what stands
-between green-in-sandbox and shippable?" Three parallel read-only agents mapped it. The honest
+With the P65 defects remediated (P66) and the battery green, the question was "what stands
+between green-in-sandbox and shippable?" The honest
 verdict: no material engineering is half-done; what remains splits into true production gates that
 need real hardware/credentials (cutting the GitHub release, live OAuth/publish/Mac/provider/Drive
-validation) and in-repo hardening that is fully doable here. The user selected three in-repo
-slices and explicitly deferred release-cutting and the version bump.
+validation) and in-repo hardening that is fully doable here. Three in-repo
+slices were selected; release-cutting and the version bump were deferred.
 
 ## Decision
 
-**A. Guard-shallowness backlog (invariants 14/16/17) closed.** The P65 audit designed
+**A. Guard-shallowness backlog (invariants 14/16/17) closed.** P65 designed
 false-negative recipes against three agent-contract guards that were substring/marker tests; P66
 deferred them to avoid a false-positive storm. P67 rebuilt all three as property checks in
 `tools/sync_check.py`, each tuned against the real tree (5 agent defs, 5 workflows) with a
@@ -73,6 +73,6 @@ push gate, so the absence is recorded rather than silent.
 The three agent-contract guards now verify their property, not a token. The remote endpoint cannot
 silently expose an unauthenticated public bind. The docs no longer overstate stubs or understate
 built clients. The eval corpus is structurally guarded and no longer hollow. Not done here and
-handed off: cutting the GitHub release / 0.2.0 version bump (Tier A1/C1, deferred by the user), and
+handed off: cutting the GitHub release / 0.2.0 version bump (Tier A1/C1, deferred), and
 live-surface validation of OAuth/publishing/Mac/provider/Drive paths (needs real hardware and
 credentials). No launch flags were flipped; no git tag was cut.

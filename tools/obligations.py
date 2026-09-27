@@ -390,7 +390,7 @@ def selftest() -> int:
     expect("boolean offset_days rejected (no sneaky True==1)", o["raw_date"] is None)
     expect("non-dict rows skipped", len(compute(["junk", 42], t, 3)) == 0)
 
-    # P63 F-SWEEP-1: a bad payload path yields the clean {"error","next_step"} envelope + exit 1,
+    # P63: a bad payload path yields the clean {"error","next_step"} envelope + exit 1,
     # never a raw traceback (main() catches the tagged PayloadError from _load_json).
     import io
     import contextlib
@@ -404,7 +404,7 @@ def selftest() -> int:
     expect("bad payload path -> clean error dict + exit 1",
            rc_bad == 1 and "error" in err_obj and "next_step" in err_obj)
 
-    # P64 AUDIT-F2: a >NAME_MAX (255-byte) arg must yield the clean envelope, never a raw
+    # P64: a >NAME_MAX (255-byte) arg must yield the clean envelope, never a raw
     # OSError traceback -- Path.exists() does not suppress ENAMETOOLONG, so the dispatch-level
     # probe needs its own guard (the whole-path rule; widened invariant 54 locks it).
     long_arg = "x" * 300

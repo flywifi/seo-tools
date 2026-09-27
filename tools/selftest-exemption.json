@@ -3,7 +3,7 @@
   "_review": "Revisit when a file here gains real logic. 'Runner' and 'package marker' entries are permanent by nature; 'network-bound' entries become testable the day their pure seams are factored out, and that refactor is the right way to close them.",
   "exempt": {
     "tools/sync_check.py": "The drift guard itself. The battery runs it on every change, so executing it IS its test; a --selftest would be ceremony wrapped around the thing already under test.",
-    "tools/handoff_sim.py": "A 10-phase / 38-check end-to-end runner. Wiring it into the sweep is tracked separately (PRE-3) because its write phases need their sandbox redirect reviewed before it runs unattended.",
+    "tools/handoff_sim.py": "A 10-phase / 38-check end-to-end runner. It is not in the sweep because its write phases need their sandbox redirect reviewed before it runs unattended.",
     "tools/geo_e2e_proof.py": "Itself an end-to-end proof runner (17 checks) executed in the battery.",
     "tools/count_truth.py": "A runner whose entire output is the assertion; the battery runs it and invariant 48 checks its numbers against live docs.",
     "tools/version.py": "A runner: `version.py --check` is the assertion, and CI runs it.",

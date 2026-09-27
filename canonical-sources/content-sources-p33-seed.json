@@ -1,6 +1,6 @@
 [
   {
-    "_comment": "P33 content-source additions. Load via: python3 tools/source_currency.py seed-sources canonical-sources/content-sources-p33-seed.json. Fills coverage gaps the audit found: the live FTC eCFR text, a broader DIY cost-vendor base, and an upstream for the github-seo methodology data file.",
+    "_comment": "P33 content-source additions. Load via: python3 tools/source_currency.py seed-sources canonical-sources/content-sources-p33-seed.json. Fills coverage gaps: the live FTC eCFR text, a broader DIY cost-vendor base, and an upstream for the github-seo methodology data file.",
     "id": "ftc-ecfr-16-cfr-255",
     "name": "FTC Endorsement Guides, eCFR 16 CFR Part 255 (live text)",
     "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255",

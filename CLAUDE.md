@@ -37,7 +37,8 @@ python3 tools/battery.py --py /usr/bin/python3.12   # rerun under a second inter
 It runs, in order: the drift guard (`sync_check.py`), scenarios, the selftest sweep,
 `doc_freshness.py --check`, projections, `count_truth.py` (canonical counts; never restate counts by
 hand), `hash_audit.py`, `source_sync.py check`, `package_skill.py --check-manifest`, `eval_lint.py`,
-`preflight_push.py`, the staged secret scan, and the launcher syntax check. `--list` prints the roster.
+`preflight_push.py`, the staged secret scan, the launcher syntax check, and `version.py --check`.
+`--list` prints the roster.
 `tools/package_skill.py --all` is a BUILD step that writes `dist/`, not a validation step; CI runs
 it separately. Rituals: if you edit a macOS-relevant file, re-bless it with
 `python3 tools/mac_surface_manifest.py reconcile` (a NEW file needs `--accept-new` after review);
@@ -64,9 +65,16 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 `MAINTAINER_README.md`. Spokes carry a `workflow.json` that composes atoms.
 
 ## Agent orchestration
-- Subagents are **read-only research tools**. They read files, query MCP tools, search the web,
-  and return structured findings. They never create, edit, write, or delete files. They never
-  commit or push. The main loop aggregates findings and proposes changes to the user.
+- Subagents are **read-only research tools**: they read files, query MCP tools, search the web,
+  and return structured findings, and their operating rules forbid creating, editing, or deleting
+  files and committing or pushing. Claude Code enforces each definition's YAML frontmatter:
+  `disallowedTools` removes Write, Edit, NotebookEdit and Agent from every agent, the GitHub and
+  Google Drive MCP servers' tools from the five product agents, and every MCP tool from the
+  `auditor`, which also runs in its own git worktree. Other MCP servers stay inherited by the
+  product agents. Bash stays write-capable for every agent: for the `auditor`, a PreToolUse hook
+  (`tools/readonly_bash_guard.py`) refuses the write forms it recognizes, and a script that writes
+  as a side effect still passes it. The main loop aggregates findings and proposes changes to the
+  user.
 - Every agent prompt must include the read-only operating rules block from
   `shared/research-orchestration-engine.md`.
 - Agent output must use a JSON Schema (passed via the `schema` option on `agent()` in workflows,
@@ -76,21 +84,31 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   competitor analysis, or citation chain traversal. Single-source lookups do not warrant an agent.
 - Agent definitions live in `.claude/agents/`. Workflow scripts live in `.claude/workflows/`.
   Structured output schemas live in `shared/schemas/`.
-- The five agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
-  `deal-reviewer`, `cost-researcher`. Each has a scoped tool list and engine set defined in its
-  agent definition file.
+- The six agent roles are: `seo-researcher`, `competitor-analyst`, `content-writer`,
+  `deal-reviewer`, `cost-researcher`, and `auditor` (a read-only review of a change against a
+  pinned commit). Each has a scoped tool list defined in its agent definition file; the five
+  product roles also name their engines.
 - Every agent output must include `minority_report`, `confidence_evidence`, and `source_citations`
   fields (the verification envelope defined in `shared/schemas/verification-envelope.json`).
 - Every workflow includes an adversarial verification step — a second agent that independently
   challenges the primary agent's claims before the main loop aggregates findings.
 - Agent definitions must include explicit `## Forbidden tools (machine-enforced)` and
   `## Allowed tools (explicit allowlist)` sections. See `shared/research-orchestration-engine.md`
-  Section 2.1 for the contract specification.
+  Section 2.1 for the contract specification. Each file also starts with YAML frontmatter
+  (`name`, `description`, `disallowedTools`); a file without it is loaded as documentation, not
+  as an agent, and none of its tool rules apply.
+- Bracket a read-only pass with `python3 tools/tree_pin.py pin` before it and
+  `python3 tools/tree_pin.py verify '<pin>'` after it; verify exits 1 and names what moved (HEAD,
+  tracked changes, untracked or ignored files by size and mtime, refs, `.git/config` and
+  `.git/hooks`). This is the backstop for a write the tool rules miss. It excludes `.venv/`,
+  `dist/`, `__pycache__/`, `.claude/worktrees/` and the `worktree-*` branches of isolated agents,
+  and it does not see writes outside the repository or to other files under `.git`.
 - `tools/validate_agent_output.py` is the offline fabrication detection tool. It checks source
   citations against the registry, validates confidence-tier alignment, and flags unsourced numbers.
 - Drift guard invariants 14 to 17 structurally enforce agent contracts: agent definition sections
-  (14), schema verification fields (15), workflow verification steps (16), and the read-only
-  mandate marker (17).
+  and frontmatter, plus the auditor's worktree isolation and Bash-guard wiring (14), schema
+  verification fields (15), workflow verification steps (16), and the read-only mandate marker
+  (17).
 
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
 - No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).
@@ -100,7 +118,73 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Never fabricate data, metrics, rates, brands, or sources (`protocols/no-fabrication.md`). Null and
   flag instead.
 - No real CRM data or PII committed to the repo. The `pipeline/` store keeps real data gitignored.
+  What the build detects: drift invariant 19 refuses tracked personal `*.local.*` files;
+  invariant 20 refuses tracked `pipeline/` files beyond the blank templates and tracked data-file
+  types (the forbidden-suffix list in `tools/secret_scan.py`); invariant 21 scans tracked content
+  for known secret formats, non-allowlisted email addresses, North American phone numbers whose
+  digit groups are split by a dash, dot, single space or area-code parenthesis, and dollar
+  figures in `pipeline/` files. A name, a postal address, or a phone number written as one digit
+  run, with slashes, or with spaced dashes is not detected.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
+- **A commit subject names the mechanism it changed.** A stage pushed before its verification stage
+  returns says in its subject what the code now does, not the property the stage aims at; the
+  property is reported after that verification returns, narrowed to what survived. `tools/commit_claims.py` runs invariant 60's detector on the subject (the message's first paragraph, as
+  `git log --format=%s` prints it): the commit-msg
+  hook and a blocking step in the CI guard job refuse a flagged subject whose `Claim-Proof:`
+  trailer is absent or does not resolve. A merge commit (MERGE_HEAD in the hook, two or more parents in
+  the CI step) is skipped when its subject has a form git or GitHub generates; a merge subject
+  written by hand is checked. Revert and autosquash subjects that restate a checked subject are
+  skipped. The CI step covers the commits that
+  `CLAIM_SUBJECT_BOUNDARY` does not reach by ancestry, and fails closed when that commit is not in
+  the clone. It covers commits the hook does not see (`--no-verify`, clones without the hooks,
+  commits made through the GitHub API). The check reads whether a trailer resolves, not whether
+  the named proof tests the subject's claim.
+- **Audit output stays out of the repository.** Findings, verdicts, triage tables, pass records
+  and a pass's change ledger are kept in the working plan outside the repository. A commit
+  carries the change and the docs that state what the code does; commit prose, `CHANGELOG.md`,
+  `STATE.md`, `ledger/ledger.json` and the ADRs state behavior and decisions, not how or by whom a
+  defect was found, and do not record review results or conversations. Drift invariant 20 and the pre-commit hook refuse a
+  tracked or staged audit-record file as `tools/secret_scan.py::audit_record_name` defines it: a
+  path that carries a calendar date and a review keyword, either of them in the file name or in a
+  directory above it, where the file name carries a suffix on `AUDIT_RECORD_TEXT_SUFFIXES` or is
+  unsuffixed; or a path on `AUDIT_RECORD_PATHS` in any letter case. The date forms, the keywords
+  and the limits are listed at that rule.
+  `tools/secret_scan.py` also refuses a finding-id token in tracked text, staged lines and commit
+  messages (`AUDIT_RECORD_ID_PATTERNS`, run by invariant 21 and the hooks); its limits are listed
+  there.
+  `tools/secret_scan.py` refuses a severity tally and a pointer to a report committed to the
+  repository in tracked text and commit messages (`AUDIT_RECORD_REPORT_PATTERNS`); other
+  phrasings are held by review.
+  In `docs/adr/` and `ledger/ledger.json`, `tools/secret_scan.py` refuses the discovery phrasings
+  in `AUDIT_RECORD_NARRATION_RE`; other phrasings are held by review.
+- **Claims about this repo's own behavior meet the same bar as a plan: executed evidence, or
+  they are not written.** A universal claim ("no", "never", "every", "everything",
+  "all", "each", "only", "nothing", "always", "none", "nobody", "cannot", "will not") in a commit
+  subject, a doc sentence, a CHANGELOG entry, or a report
+  to the owner either names the executed pin that proves it or is narrowed to what was actually
+  tested. Test the PROPERTY
+  claimed, not the mechanism changed. Each new pin or detector branch lands with at least three
+  falsifying mutations, chosen and run by a reviewer who did not write it and committed as cases
+  beside it. The independent pass that checks a claim
+  runs BEFORE the claim is reported or merged (`docs/AUDIT-PROTOCOL.md` section 7.1), the claim
+  waits for that pass's verification stage to return rather than its first findings, a pass
+  whose agents could not run is reported as DID NOT RUN rather than as clean, and the adversarial
+  vectors are chosen by the reviewer rather than the author (section 7.2); and a new
+  guard's scan set is derived from the tree, never a hand list of the files the change happened
+  to touch. Every change that removes text or files from a guard's scan set ships a
+  committed case for the removed set. A new or changed invariant that enumerates a JSON
+  file's keys takes them from its schema in `shared/schemas/` when one exists, and never skips a
+  key of that kind it does not recognise. The promises in this section and in `docs/INSTALL-SCOPE.md` that the detector flags are
+  bound to their proofs in `tools/claim-proof-manifest.json` or exempted there with a written
+  reason; drift invariant 60 fails the build when a bound claim drifts from its proof, when a
+  named pin is renamed away, when a recommended install route stops being detectable, or when a
+  sentence the detector flags (`tools/sync_check.py::_CLAIM_BRANCHES`) joins the list without a
+  binding or an exemption. The detector reads word patterns, so a promise phrased another way
+  is not seen. Each `::selftest::` proof also names, in the manifest's
+  `boundaries`, the CLI entry, tool or runtime default its claim describes, and invariant 60
+  fails when no live code in the pin's function calls that entry and the record states no
+  gap naming it (`docs/AUDIT-PROTOCOL.md` section 7.3). When a
+  check fails, report it honestly with the output; never claim a skipped step ran.
 - Installs are user-scoped by default: everything lands under the user's home folder (repo
   `.venv`, `~/.local`, `~/Applications`, `~/Library`); nothing under `/Applications`,
   `/opt/homebrew`, or via `sudo` unless explicitly labeled "machine-wide alternative (affects
@@ -130,7 +214,11 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   update-source`, and drift invariant 25 fails the build when a requirements specifier and the
   registry pin disagree. `report`/`check` are read-only; `check --apply` stamps
   `last_checked`/`latest_seen` for reachable entries via `registry_io` so routine currency
-  maintenance runs with no model tokens. Binary/manual entries degrade to advisory.
+  maintenance runs with no model tokens: outside its selftests, the code it runs imports only the
+  standard library plus `registry_io` and `atomic_io`, starts no process, sends requests only to
+  `pypi.org` and `api.github.com`, and reads one credential from the environment, a GitHub token
+  (`tools/dependency_currency.py --selftest` walks that import closure and checks the host
+  refusal). Binary/manual entries degrade to advisory.
 - `tools/traversal_engine.py` is the only tool that writes to `traversal-candidates.json` and
   `traversal-visited.json`.
 - `shared/connectors/connectors.json` is the source of truth for the connector registry. The
@@ -139,10 +227,12 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   (copy `shared/connectors/feature-flags.example.json` to gitignored
   `creator-os-connectors.local.json`) is consulted only when passed explicitly via `--flags`.
   Do not edit `connectors.json` for deployment-specific state changes. Every registry entry
-  carries a `default_flag`; drift invariant 53 executes the resolver over the committed registry
-  so a malformed entry fails the build.
-- **Human confirmation required before every post.** `schedule-post` always sets
-  `human_review_required: true`. No connector call is made, and no post is queued or published,
+  carries a `default_flag` naming one of the registry's declared `states`; drift invariant 53
+  checks that and runs the resolver and its `--list` and `--plan` output over the committed
+  registry, so a missing or undeclared default, or an entry the resolver or its CLI cannot
+  process, fails the build.
+- **Human confirmation required before every post.** The `schedule_post` MCP tool
+  (`tools/mcp_server.py`) always sets `human_review_required: true`. No connector call is made, and no post is queued or published,
   without an explicit human confirmation step. Agents never post directly — they produce
   confirmation summaries for human review only. `tools/publishing_compliance.py` is the shared
   FTC/AIGC/tier/credential gate used by both `schedule_post` (which reports) and the dashboard
@@ -163,9 +253,9 @@ anything beyond a trivial edit carries all of:
   module, call the function, paste what it returned.
 
 If a contract was guessed rather than verified, that is a defect in the plan, not a surprise to
-discover mid-implementation. Verifying beats assuming every time: the P74 planning pass ran its own
-example assertions and found a live regex defect that had been silently corrupting competitor
-metadata, plus nine function contracts that differed from their obvious reading. The planning phase
+discover mid-implementation. Verifying beats assuming: running a plan's own example
+assertions is what exposes a regex that silently corrupts data, or a function whose contract
+differs from its obvious reading. The planning phase
 is expected to be the majority of the work.
 
 ## Documentation truth (docs change in the same PR as the code)
@@ -188,7 +278,7 @@ Nothing leaves this machine that reveals more than the code change itself:
   never a personal address.
 - After cloning, run `python3 tools/install_hooks.py` once: the pre-commit hook runs
   `tools/secret_scan.py --staged` (blocks staged secrets, `.local.` files, CSV/spreadsheet
-  exports, key material, `.env*`), and the commit-msg hook rejects messages carrying session
+  exports, key material, `.env*`, audit-record file names), and the commit-msg hook rejects messages carrying session
   links, emails, or secret patterns.
 - CI backstops clones that skipped the hooks: the guard job scans all tracked content
   (invariant 21) and every commit message plus author email after the policy boundary SHA
@@ -202,7 +292,8 @@ Nothing leaves this machine that reveals more than the code change itself:
   stores (PEM/KEY/P12/KDBX/keychain), databases, backups, email/contacts (PST/MBOX/VCF), archives,
   office binaries, capture media, or `.env*`; the single list is
   `tools/secret_scan.py::FORBIDDEN_DATA_SUFFIXES`, shared by the drift guard, the pre-commit hook,
-  and CI), and 21 (content scan of EVERY tracked text file, binary-sniffed rather than
+  and CI; audit-record file names are refused by the same invariant through
+  `tools/secret_scan.py::audit_record_name`), and 21 (content scan of EVERY tracked text file, binary-sniffed rather than
   suffix-gated) fail the build on violation and fail closed in CI. In a non-git copy all three
   print a loud DID-NOT-RUN advisory instead of silently passing.
 

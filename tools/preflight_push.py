@@ -141,7 +141,7 @@ def check_tracked_hygiene(scanner=secret_scan.scan_tracked, allowlist=None):
 
 
 def check_unstaged():
-    """P81 M-8: the mac-surface and package manifests derive from the INDEX, so reconciling or
+    """P81: the mac-surface and package manifests derive from the INDEX, so reconciling or
     pushing with unstaged tracked edits blesses bytes the commit will not carry."""
     import battery
     dirty = battery.unstaged_tracked()

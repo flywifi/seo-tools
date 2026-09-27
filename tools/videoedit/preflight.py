@@ -210,7 +210,7 @@ def selftest() -> int:
     ok("_importable answers True for the standard library", _importable("json") is True)
     ok("python_ok_for_resolve is a bool, not a guess",
        isinstance(p.get("python_ok_for_resolve"), bool))
-    ok("python_ok_for_creator_os reflects the floor (P81 B-18)",
+    ok("python_ok_for_creator_os reflects the floor (P81)",
        p.get("python_ok_for_creator_os") == (sys.version_info[:2] >= env_paths.PYTHON_FLOOR))
 
     print(f"preflight selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")

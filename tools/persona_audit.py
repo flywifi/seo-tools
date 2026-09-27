@@ -11,7 +11,7 @@ a YouTube creator, not a developer) would experience it:
 
 It also builds the screen-to-screen link graph and flags any ORPHAN route (reachable only by typing the
 URL). This is the machine-checkable half of docs/PERSONA-AUDIT.md; the human judgement (jargon walls,
-dead-ends, install friction) is recorded in the dated audit log alongside it.
+dead-ends, install friction) is the manual walkthrough that doc describes.
 
   python3 tools/persona_audit.py             # print the audit report (green / amber / red per screen)
   python3 tools/persona_audit.py --selftest   # exit 1 if any screen fails to render, an orphan exists,

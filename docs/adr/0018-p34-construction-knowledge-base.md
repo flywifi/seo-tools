@@ -5,7 +5,7 @@
 
 ## Context
 
-The creator's DIY home-decor work needs authoritative build reference that a stock model answers from memory and often gets wrong on dimensions, code sections, and jurisdiction. The defining constraint, confirmed by six URL-verified research agents, is that the building codes (IRC/NEC/AWC/APA/ACCA) are copyrighted and non-redistributable (APA even bans AI training). So the base is our own authored, cited prose keyed to code section numbers with links to the free viewers, built from genuinely reusable public-domain and open sources (DOE Building America, NREL BSD-3, Wikidata CC0, Wikimedia), never bulk-copied code text.
+The creator's DIY home-decor work needs authoritative build reference that a stock model answers from memory and often gets wrong on dimensions, code sections, and jurisdiction. The defining constraint, confirmed against URL-cited sources, is that the building codes (IRC/NEC/AWC/APA/ACCA) are copyrighted and non-redistributable (APA even bans AI training). So the base is our own authored, cited prose keyed to code section numbers with links to the free viewers, built from genuinely reusable public-domain and open sources (DOE Building America, NREL BSD-3, Wikidata CC0, Wikimedia), never bulk-copied code text.
 
 ## Decision
 

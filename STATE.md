@@ -2,8 +2,77 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P98 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
+Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P98: remediation pass (2026-09-27, ADR 0069). Guards fold input before matching (NFKC,
+  format characters, dash and digit look-alikes, percent decoding) across secret_scan,
+  commit_claims, the invariant 60 corpus and proof readers and the hub reader; pinned sets
+  derive from the serving code (endpoint routes from dispatch tables, workflow keys from a
+  registry, the hub fence against the route step) or are exact bytes (the CI commit-hygiene run
+  block equals a committed constant). Pins run setup.py as __main__ under the process recorder
+  with the interpreter a required argument; the census reads keyword, annotated, chained, dict,
+  bytes and walrus argv forms; the Bash guard reads a command as Bash builds it with the
+  remaining misses in KNOWN_MISSES (selftest 315/315). Each widened rule states its unread
+  forms with a pinned case.
+- P97: remediation pass (2026-09-27, ADR 0068). Claim pins bind at the entry a person runs:
+  invariant 60 reads a boundaries record per selftest proof and fails when the pin's function
+  does not call its entry and no gap is recorded; the install, publishing-default, human
+  confirmation, schedule_post and dependency-currency pins execute their entries with fuzzed
+  inputs and process-start recorders. Checkers parse as their consumers do: invariants 6 and 7
+  (single heading and fence, schema-deep atom keys, SKILL.md required), invariant 60 (heading
+  units, inline code spans, reason-fact re-validation failing closed), commit_claims
+  (ancestry-bounded whole-paragraph subjects, generated-form merge skips, Unicode folding),
+  battery parity (quote-aware comment cuts, exact interpreter words, BASH*/LD_* env, checkout
+  and runner gating) and the Bash guard (getopt-style options, git grammar, ast writes,
+  heredocs; KNOWN_MISSES listed with cases). The audit-record rule reads paths as git prints
+  them with committed id, tally, pointer and narration patterns. New pins land with three
+  reviewer-run mutations committed as cases; scan-set narrowings ship a case for the removed
+  set.
+- P96: remediation pass (2026-09-26, ADR 0067). Review output stays outside the repository:
+  seven dated records deleted (Mac runbook and Florida cost model migrated), AUDIT-PROTOCOL
+  rewritten as rules (one pinned commit per pass via tools/tree_pin.py, mechanism-not-property
+  subjects via tools/commit_claims.py in the commit-msg hook and a CI range step, DID NOT RUN
+  reporting), invariant 20 and the pre-commit gate refuse audit-record file names, and
+  doc_freshness binds docs to code only. Guards prove their own coverage: invariant 60 checks
+  its detector against committed cases (tools/claim-proof-cases.json) with wider vocabulary and
+  fail-closed wiring; the pin resolver refuses listed shapes of a pin that cannot fail, each
+  rule group pinned by a case module; CI parity reads ci.yml with a fail-closed YAML-subset
+  reader and runs as invariant 61; the version gate joins the battery (14 gates). Bindings
+  observe the property at its boundary: publishing selftests record at the network seam with
+  explicit configs, install selftests record subprocess argv, invariant 53 executes the
+  resolver CLI, invariant 6 checks both hub directions. Exemption maps: exact paths, does-work
+  rules, full non-binary scan set, /Applications and /usr/local install-scope branches. Agent
+  definitions enforce read-only via frontmatter; the auditor runs behind a Bash guard in a
+  worktree; verdicts carry did_not_run. The P95 known gaps listed below are closed by this
+  pass.
+- P95: claim-proof hardening (2026-09-24, ADR 0066 decisions 9 and 10). Doctrine: AUDIT-PROTOCOL 7.2 says a pass is finished when its
+  verification stage returns, a pass that could not run is DID NOT RUN, and the adversarial
+  vectors are the reviewer's. Guards: static refusal rules for claim-proof pins that cannot
+  fail (off the live call path, a helper that does not test its condition, a condition whose
+  truth is fixed); the
+  detector sees bare "no", "none" and "cannot", and the docs list the words it enforces;
+  invariant 53 asserts `default_flag`; `--check-parity` is meant to count only blocking steps running a
+  gate's exact command; invariant 59 fails on an exemption that exempts nothing. Manifest: 19
+  bound, 40 exempted. Known gaps: the parity parser misses several valid YAML forms; an
+  over-broad install-scope exemption still passes; the detector misses some in-vocabulary
+  forms; some pins that cannot fail still pass; four bindings test a different property than
+  their claims; and the P95-2 commit subject overstates the change.
+- P94: a claim about this repo ships with its executed proof (2026-09-21,
+  docs/adr/0066-p94-claims-ship-with-their-proof.md). Two P93 headline claims were false (a commit subject and a
+  docs/INSTALL-SCOPE.md sentence), and invariant 59 first scanned a hand-listed sixteen files, almost all of them ones the
+  phase had just edited.
+  Doctrine: CLAUDE.md gains the claims rule and the honesty sentence that previously existed only
+  in the AGENTS.md projection, and AUDIT-PROTOCOL 7.1 moves the independent pass ahead of the
+  report, makes a derived denominator a precondition for shipping a guard, and writes down the
+  P70 second-pass trigger. Machinery: drift invariant 60 accounts for every universal claim in the
+  non-negotiables and INSTALL-SCOPE: 17 bound to an enforced invariant or a named selftest pin
+  the battery runs, 37 exempted with written reasons as agent directives or third-party facts, binds each recommended install route to the code that detects it, and fails on any
+  unbound universal claim joining the corpus; seven adversarial mutations were caught against a
+  verified-clean baseline. The shared _coverage_proof helper now backs invariants 59 and 60, and
+  the CI parity step asserts what its name promises, which immediately showed CI was running
+  neither the hash audit nor source sync. Invariant count 58 to 59. The P93 commit-subject
+  overclaims are corrected in the changelog rather than rewritten in history.
 - P93: installs are user-scoped by default (2026-09-20,
   docs/adr/0065-p93-user-scoped-installs-default.md). Code: the two pip system-override
   fallbacks are gone; on a PEP 668 interpreter with no .venv the installer refuses with the
@@ -15,8 +84,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   computer)" label. Lock: drift invariant 59 scans the live guidance and fails the build on
   any unlabeled machine-wide instruction, with an embedded self-proving detector. Invariant
   count 57 to 58; registry gained uv-installer-docs and nvm-readme (T1).
-  P93-4 (the mandated adversarial pass on this pass's own output) found and fixed three
-  classes it had missed: the refusal keyed on the PEP 668 marker while the installer still
+  P93-4 fixed three classes the first cut missed: the refusal keyed on the PEP 668 marker while the installer still
   fell back to the base interpreter, so a machine-wide Python without that marker took all
   seven requirements sets (executed proof; the .venv is now the only target and pip is never
   invoked without one); the recommended user-scoped routes were undetectable, so the wizard
@@ -37,7 +105,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   pre-existing selftest pins as the fail-then-pass detector proof. Battery 13 of 13 under
   3.12, 3.13, AND 3.14; all seven requirements files install on 3.14; CI guards 3.12 + 3.14.
   The floor stays 3.12 (Resolve lane vendor cap). Residue: the mcp SDK on a 3.14 FINAL is
-  tagged, closed by the owner's Mac acceptance run (setup + battery + wizard verify).
+  tagged, closed by a Mac acceptance run (setup + battery + wizard verify).
 - P90: the wizard DOES the web setup (2026-09-20, docs/adr/0063-p90-wizard-doing-lanes.md).
   Guided lanes for the two big web surfaces: /chatgpt-setup (plan picker, copy-to-clipboard
   for every paste with live counts split by the exact surface_budgets parser, a staged
@@ -60,15 +128,13 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
 - P88: the wizard's verification probe no longer races the mcp 2.x stdin-EOF handling
   (interactive transport, single transient-only retry, three selftest pins including an
   invocation-counter proof that refusals never retry).
-- P87: audit remediation (2026-09-20). Both findings of the 2026-09-19 adversarial audit
-  closed: the wizard's verification gate pins the serverInfo name (never the
+- P87: wizard verification gate (2026-09-20): the wizard's verification gate pins the serverInfo name (never the
   SDK-dependent version), refuses an empty toolset, and labels an uncross-checked tool
-  count instead of claiming it; the audit's spoof server is a permanent selftest
+  count instead of claiming it; a spoof server is a permanent selftest
   fixture whose three pins failed on pre-fix code and pass now. The mcpb-manifest-spec
-  hint names manifest_version. The audit report itself remains uncommitted by owner
-  decision.
+  hint names manifest_version.
 - P85: setup-wizard first-run readiness (2026-09-19, docs/adr/0061-p85-wizard-first-run-readiness.md).
-  The audit's headline: the wizard never wrote the creator-os MCP server entry at all (two docs
+  Headline defect: the wizard never wrote the creator-os MCP server entry at all (two docs
   claimed it did), and the documented smoke test could not work (bare tools/list is rejected
   pre-handshake, executed proof). Shipped: the /creator-os-server install-and-verify step (safe
   config merge, real MCP handshake plus tool listing compared against count_truth at probe time,
@@ -139,17 +205,17 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   line-based shorthand, .json, and implementation/**; the surface-budget detector given a
   negative fixture proven by mutation; and the ChatGPT packaging docs bound into doc freshness.
   Not done, by decision: Apps SDK packaging; agent-mode surface promotion; strict-mode function
-  schemas; browser verification of the four NEEDS VERIFICATION plan facts (owner's two-minute
+  schemas; browser verification of the four NEEDS VERIFICATION plan facts (a two-minute manual
   pass); tag; PR.
 
 - P81: Remediation of the 24-hour audit of P80 (2026-09-06, docs/adr/0056-p81-audit-remediation.md).
-  Forty-nine findings closed in four commits after five read-only researchers extracted every
-  contract verbatim and every code change ran in a sandbox first. One atomic writer replaced four;
+  Closed in four commits. Every contract was taken verbatim from the code, and every code change
+  ran in a sandbox first. One atomic writer replaced four;
   the MCP server's 1.x non-loopback bind and its allow-list validation were fixed with an
   outcome-asserting selftest in both SDK majors; the packager and the manifest hash the same
   tracked set; the interpreter floor became one constant that the launcher, setup, and the
   interpreter picker share; eight guard sub-checks and a frozen-record rule now catch the prose,
-  index, schema, and writer classes behind the findings; the CI history is a command, and the
+  index, schema, and writer classes behind the defects; the CI history is a command, and the
   records were corrected to it. Not done, by decision: Python 3.13 (Resolve caps at 3.12; the rglob and audioop items are the 3.13 checklist); re-reading the Resolve ceiling on a Mac; pinning mcp-types (exact-pinned by mcp); a baseline for mcp-stats-compass; refusing to start when no allowed host is configured (the server warns); installing xmllint in CI (offered as a decision); running the Windows launcher probe (no cmd.exe here); running ci_history.py live (api.github.com is proxy-blocked here); tag; PR.
 
 - P80: Remediation of the P79 residue (2026-09-05, docs/adr/0055-p80-python-312-and-mcp-dual-major.md).
@@ -169,7 +235,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   themselves red (runs 289 and 293). Not done, by decision: Python 3.13 (Resolve caps at
   3.12), tag, PR.
 
-- P79: Remediation of the P78 findings (2026-09-04, docs/remediation-2026-09-04.md). Ten code
+- P79: Remediation of the P78 findings (2026-09-04). Ten code
   commits, each planned to the point of executed proof before it was written: the GIS writer now
   hashes the bytes it writes and its fourteen hashes were re-stamped from disk; the freshness
   bundle recompares its own per-file hashes; doc-freshness is exit-coded and the projection check
@@ -181,36 +247,33 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   crawled the 18 changed sources and the four passed moving dates to primary text: every changed
   page was token or metadata churn with zero downstream corrections, and every date was confirmed
   and stamped. Mac-only items (the 110 blocked sources, the av and scenedetect media validation,
-  the P75 index repair, the cache baseline rebuild) are a runbook in the record, not silently
-  skipped.
+  the P75 index repair, the cache baseline rebuild) are a runbook in docs/MACOS-MAINTENANCE.md,
+  not silently skipped.
 
-- P78: SHA-256 verified integrity and currency audit (2026-08-30,
-  docs/integrity-currency-audit-2026-08-30.md). Every stored hash recomputed from bytes rather
+- P78: SHA-256 verified integrity and currency sweep (2026-08-30). Every stored hash recomputed from bytes rather
   than trusted: four manifests and the registry digest verify; one freshness-bundle hash was
   stale because its checker never recompares its own strongest field; all fourteen GIS boundary
   hashes never matched any committed byte because the writer hashes one serialization and writes
   another (data intact, fix named, not applied by scope decision). First complete source sweep:
   213 entries stamped through the sanctioned writers, 18 changed sources queued for human review
   with their consumers named, 110 bot-blocked entries got the first real durable block records,
-  and the changed queue edited no downstream data. Scope held to the maintainer's four decisions:
+  and the changed queue edited no downstream data. Scope held to four explicit limits:
   report only for verification gaps and guard behavior, full sweep for sources, nothing changed
   for dependencies.
 
-- P76: Rebuilt the P74/P75 branch history (2026-08-16). Nine commits had been pushed without an
-  approved plan; a tool error and a harness state change were read as approval. The maintainer
-  reviewed each commit and decided it individually, and the branch was reset to the last approved
-  commit and rebuilt as eight commits reflecting those verdicts. Most of the work was re-approved
-  and shipped unchanged. Two changes were dropped as maintainer decisions rather than repairs: the
+- P76: Rebuilt the P74/P75 branch history (2026-08-16). The branch was reset to an earlier
+  commit and rebuilt as eight commits; most of the work shipped unchanged. Two changes were
+  dropped rather than repaired: the
   re-band of 63 currency check intervals, and the selftest enrolment gate with its exemption list.
   The fifteen selftests those two shipped alongside were kept, so the sweep is unchanged at 85. Two
   additions the original lacked shipped with the version bump: the pasted ChatGPT pack was
   re-stamped to 0.2.0, and the packaging-stamp invariant now compares that stamp against the
   ecosystem version instead of only asserting the line exists, which closes a re-paste loop the
-  bump would otherwise have created. Nothing at or before the last approved commit was rewritten,
+  bump would otherwise have created. Nothing at or before the reset point was rewritten,
   and no tag existed at any point.
 
 - P74/P75: Remediation of the open P73 findings (ADR 0054, 2026-08-16), and the data repair that
-  followed. Planning the work found a live defect the audit itself had missed: the OG-tag
+  followed. Planning the work found a live defect: the OG-tag
   extractor's regex left a character class unterminated, so every og_* field received the first
   meta tag's content and the competitor snapshot index recorded a competitor's image URL as their
   title. It survived because nothing had ever executed that module. Fixing the parser did not fix
@@ -223,14 +286,13 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   commit-msg hook lacked the author-email half). The release path gained preconditions, the
   changelog rolled up to a single 0.2.0 section, and the version bumped across all five locations
   that carry it, including the pasted ChatGPT pack whose stale stamp had made the wizard's
-  re-export advice unterminating. No tag was created: that stays the maintainer's decision.
-  Two findings were deliberately left open rather than closed by a mechanism or a policy the
-  maintainer had not chosen: selftest enrolment is still unenforced, and the 63 currency intervals
+  re-export advice unterminating. No tag was created.
+  Two findings were deliberately left open rather than closed by a new mechanism or policy: selftest enrolment is still unenforced, and the 63 currency intervals
   that have never once been met are still declared as written.
 
 - P73: Production-readiness audit (ADR 0053, 2026-08-16). Six dimension audits (integrity,
   completeness, accuracy, truthfulness, consistency, adaptability) run as monitored waves, each
-  finding triaged and reproduced by the main loop before it was accepted. Two safety defects led:
+  finding reproduced before it was accepted. Two safety defects led:
   the MCP annotation gate classified tools by name signal, so an unanticipated write tool inherited
   `readOnlyHint: True` (the hint clients use to skip confirmation), and `configure_tool` overwrote
   an unparseable local config, destroying the publishing flags and remote token in a gitignored
@@ -239,11 +301,11 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   swept rather than curated (it caught two unguarded claims immediately, one added earlier in the
   same audit), citation registration recognises shorthand, and the Mac vocabulary proposes unknown
   macOS concepts for review. Four single points of failure were fixed with the recovery
-  documentation each lacked. The audit also corrected its own regressions: a ChatGPT-web prose fix
+  documentation each lacked. A regression was also corrected: a ChatGPT-web prose fix
   from earlier in the phase had changed the docs without the data model.
 
-- P68: Verification hardening (ADR 0050, 2026-07-20). Remediated the nine defects an adversarial
-  audit of the P67 commits found, and closed the five process gaps that let them survive P65/P66
+- P68: Verification hardening (ADR 0050, 2026-07-20). Remediated nine defects in the
+  P67 commits, and closed the five process gaps that let them survive P65/P66
   and a green battery. (A) The most serious: eval cases asserted `expected_output_keys` authored
   from SKILL.md prose, eight of them present in zero tool code. New `tools/eval_key_manifest.json`
   + drift invariant 57 (`check_eval_output_keys`) AST-extracts each skill emitter's real dict keys
@@ -254,7 +316,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   auth decision now fires for any non-stdio transport and the gated path serves the transport-matched
   app, with an argv-level selftest proven to fail on the pre-fix wiring. (C) `docs/AUDIT-PROTOCOL.md`
   §7 now requires an independent, fresh-context close-out check against code plus a red-team proof
-  per guard; ADR 0049-B coverage claim narrowed. (D) inv 14/16/17 hardened against the audit's
+  per guard; ADR 0049-B coverage claim narrowed. (D) inv 14/16/17 hardened against known
   false-positive/negative cases, coverage-verify fixtures created, TikTok rate-limit citation
   registered. Count 56 to 57. No launch flag flipped or tag cut.
 
@@ -274,7 +336,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   the bare json.loads CI step and surfaced 27 hollow scaffold cases across 9 skills, all authored
   into real eval cases; behavioral eval execution documented as an intentional opt-in (not a push
   gate).
-- P66: Remediation of the P65 full-system audit's fifteen findings (ADR 0048, 2026-07-19). The
+- P66: Remediation of fifteen P65 defects (ADR 0048, 2026-07-19). The
   three HIGH data-boundary gaps closed first: the generic sk- secret pattern matches current
   hyphenated provider formats plus fine-grained github_pat_ tokens, the tracked-content scan
   reads every tracked file behind a binary sniff instead of a suffix allowlist, and invariant
@@ -337,7 +399,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   ingest-route/inbox-routing atoms gained the prior + reconciliation contract; per-modality coverage
   (`both`/`offline_only`/`session_only`) in `shared/cross-modality-engine.md`; ChatGPT/Gemini
   packaging instruct the discipline (not enforce). `docs/INJECTION-TWO-PASS.md` documents the model;
-  its per-engine vendor-doc citations are research-pending (a research pass hit a session limit).
+  its per-engine vendor-doc citations are research-pending.
   inbox 38/38, injection_scan 23/23, scenarios 10/10, drift clean at 52.
 
 - P61: close the non-Mac gaps (ADR 0044). The offline injection pattern tier
@@ -398,8 +460,8 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   `creator-os-release` (`python3 tools/update_check.py check --apply`), and the staged volatile
   corrections (`mark-checked ny-synthetic-performer-law --changed`; the EU AI Act seed). See ADR 0042.
 
-- P58: remediated the remaining P56 audit deficiencies (the LOW hardening cluster) and closed the
-  audit's own coverage gap (the three surfaces the P56 agents never mapped under a session limit).
+- P58: remediated the remaining P56 deficiencies (the LOW hardening cluster) and mapped the three
+  surfaces P56 had not covered (launch/install, the P52 guards, P55).
   OAuth: `import urllib.error` made explicit; `refresh()` maps a transient 400 to a retryable OAuthError
   (only 401/terminal codes force reconnect); a dead Instagram long-lived token now raises ReauthRequired
   (A1). Publishing clients: reject a 0-byte file before any network init; pin the YouTube resumable-PUT
@@ -413,22 +475,20 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   surfaces) found NO new issues: the installer is flag-gated + honest, the drift guards fire on genuinely
   bad input, and P55 stays green. Every fix carries a selftest; the P57 harnesses still read KILLED.
 
-- P56/P57: adversarial audit of the last-24h change set (P50 to P55) + remediation. The audit
-  (diagnose-first, sandboxed zero-network harnesses in the session scratchpad) confirmed 12 findings,
+- P56/P57: review of the last-24h change set (P50 to P55) + remediation. Diagnose-first,
+  sandboxed zero-network harnesses confirmed 12 findings,
   all behind `live_publishing_enabled=OFF` so no user was exposed. P57 fixed all of them, each with a
   harness that flips from CONFIRMED to KILLED and the green baseline preserved. Publish path: the
   dashboard passed the wrong creds shape to `dispatch` so the live path returned auth_required for
-  everyone (F1); `dispatch` now structurally enforces `live_publishing_enabled` + explicit human
-  confirm instead of trusting the caller (F2/F8); a `persist` callable is threaded through so a TikTok
-  refresh-token rotation is saved (F3); the scheduler dispatches only a `direct_api`-tier platform
-  (F7); add-to-queue strips caller-supplied control fields (F8). OAuth: Pinterest/Instagram redirect
-  host `localhost` to `127.0.0.1` (F9, `localhost` could resolve to IPv6 `::1` and lose the callback).
-  Wizard: home-tree path confinement on the import scan and the filesystem-MCP folder (F4/F6, was
-  `os.path.isdir` only), a cross-site Origin/Referer guard on every mutating POST (F5), and
-  `nightly_branch` git-ref validation + HTML escaping (F10/F11). Also added the missing
-  `publishing_compliance --selftest` (F12). The LOW hardening cluster is drafted-not-applied; a fresh
-  map of three audit surfaces not reached under a session limit (launch/install, the P52 guards, a P55
-  regression pass) is deferred. Full findings + harnesses live in the session scratchpad, not the repo.
+  everyone; `dispatch` now structurally enforces `live_publishing_enabled` + explicit human
+  confirm instead of trusting the caller; a `persist` callable is threaded through so a TikTok
+  refresh-token rotation is saved; the scheduler dispatches only a `direct_api`-tier platform; add-to-queue strips caller-supplied control fields. OAuth: Pinterest/Instagram redirect
+  host `localhost` to `127.0.0.1` (`localhost` could resolve to IPv6 `::1` and lose the callback).
+  Wizard: home-tree path confinement on the import scan and the filesystem-MCP folder (was
+  `os.path.isdir` only), a cross-site Origin/Referer guard on every mutating POST, and
+  `nightly_branch` git-ref validation + HTML escaping. Also added the missing
+  `publishing_compliance --selftest`. The LOW hardening cluster is drafted-not-applied; mapping three
+  further surfaces (launch/install, the P52 guards, a P55 regression pass) is deferred to P58.
 - P55: seeded the macOS/AI-surface research sources and made doc citations trigger registry tracking.
   Seeded 23 sources (registry 218 to 241): a new `os-platform` category (Apple Gatekeeper/Open-Anyway/
   TCC/TN3179 + DTS FAQ/Rosetta/Tahoe/Intel-support, python.org + PEP 668, Homebrew docs + formulae,
@@ -458,9 +518,9 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   claim on Intel), TCC folder-denial message, DaVinci multi-path (`preflight`), Safari OAuth caveat.
   New `--selftest` guards: loopback-127.0.0.1 (G1), whisper 3-name probe (G2), macOS render, port
   collision. Docs: `docs/MACOS-MAINTENANCE.md` (maintainer invariants), SETUP_MAC/DEPENDENCIES/
-  PUBLISHING/WIZARD updated. Diagnostics + hands-on checklist from P53 live in the session scratchpad
-  (not the repo).
-- P53: macOS stress test (diagnose-only; all artifacts in the scratchpad, nothing committed). Two-tier
+  PUBLISHING/WIZARD updated. The local-only tier of the P53 hands-on checklist is
+  `docs/MAC-VALIDATION.md`.
+- P53: macOS stress test (diagnose-only; nothing committed). Two-tier
   method: OS-simulated + selftest coverage here, a 5W+H hands-on checklist for real hardware. Surfaced
   16 findings (2 code-confirmed HIGH: PEP 668 installer break, double-click PATH gap) later fixed in P54.
 - P52: maintainer and doc-accuracy audit plus forward drift guards (seo-tools only). Extended the
@@ -469,7 +529,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   exemptions), a tools-layer maintainer-coverage invariant (`TOOLS_MAINTAINER_DIRS`), and
   `tools/doc_freshness.py` content-hash staleness stamping (advisory). Created
   `tools/publishing/MAINTAINER_README.md` (invariants, failure modes, dev-traps, regression map).
-  Ran a full multi-agent content-accuracy sweep; after review, applied the approved corrections
+  Ran a full multi-agent content-accuracy sweep; after review, applied the verified corrections
   (publishing layer no longer "dark/stubs", Pinterest scope, finance-desk check counts,
   contract-desk atoms, videoedit atom list, tool-count/script-path refs), lowered the skill-template
   regression bar to three, and added Regression sections to five atom maintainer files. Broad
@@ -479,8 +539,8 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   reconstructed from STATE + ledger); `docs/DOC-MAINTENANCE.md`; and a CLAUDE.md "docs change in the
   same PR as the code" rule. Regression-probed: a bad marker and a reintroduced stale count each fail
   the drift guard. Drift clean; scenarios 9/9; all publishing/oauth/picker selftests green.
-- P51: real publishing OAuth + live upload (persona-audit stumbles 8, 9) and a native folder picker
-  (10). **Shared OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
+- P51: real publishing OAuth + live upload and a native folder picker. **Shared
+  OAuth** (`tools/oauth_flow.py`): per-platform loopback flow capturing each divergence
   from research (PKCE base64url for Google, **hex** for TikTok, none for Pinterest/Instagram; Basic vs
   body client auth; TikTok refresh-token rotation). Generalized wizard callback `/oauth/<platform>/
   callback` with single-use `state` CSRF + `/api/oauth-start` + a manual paste-the-code fallback.
@@ -498,7 +558,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   floor. Compliance `has_credentials` tightened to the publish namespace. `docs/PUBLISHING.md` +
   integrations-engine section + live-account verification checklist. New selftests: oauth_flow,
   publishing/{youtube,pinterest,tiktok,instagram}, pick_folder, wizard OAuth callback.
-- P50: wizard onboarding remediation for the persona-audit structural stumbles 5, 6, 7, 10, 11.
+- P50: wizard onboarding remediation for five structural first-run gaps (numbered 5, 6, 7, 10 and 11 below).
   **No-terminal launch (5):** double-click `Start Creator OS Setup.command`/`.bat` at repo root
   (the `.command` carries the executable bit) + a `launch_setup` MCP tool. **First-screen IA (6):**
   `_screen_welcome` collapsed to one primary question, a `/claude` browser-vs-desktop chooser, and a
@@ -664,17 +724,17 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   UGC rows added, all null) and mixed-deliverable packages price item by item, never forced into a
   video format (selftest 99/99, S7 extended to a 3-type package).
 
-- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Full adversarial
-  audit completed across three resumed runs: 23/23 classifiers + 23/23 skeptics (22 upheld, 1
+- P39: audited + corrected the P38-7 cross-modality declarations against evidence. Each of the 23
+  declarations was classified and then re-checked by a second reader (22 upheld, 1
   overturned an over-call). Class corrections applied; all 96 atoms carry an inherited one-line
   declaration; invariant 28 hardened to reject a stub (Class/Runs on/Mechanism/Fallback required).
-  Final A=2/B=7/C=14. docs/CROSS-MODALITY-AUDIT.md has the per-skill verdicts + packaging candidates.
+  Final A=2/B=7/C=14. Each spoke's SKILL.md carries its class declaration (invariant 28).
 
 - P38: hardened the jurisdictional overlay and loaded REAL Orlando/Orange data. Unified live-network
   consent (`tools/geo_consent.py`): default-on but ask-first once per session, headless/declined falls
   back with no call, governing both `geo_fetch.py` (FEMA) and the new `tools/geo_geocode.py` (US Census
-  address to point). The master `jurisdictional_overlay` switch is now default-on. An independent
-  adversarial gate (5 properties + confirm pass) caught + fixed two safety-discard bugs in
+  address to point). The master `jurisdictional_overlay` switch is now default-on. A property gate
+  (5 properties + confirm pass) exposed two safety-discard bugs, now fixed, in
   `resolve_conflict`: non-comparable stringency, and comparison across incommensurable units, now
   escalate to human review (a safety floor is never silently discarded). `tools/geo_source_fetch.py` is
   the universal-path fetcher + build cacher: cached all 6 City of Orlando historic-district boundaries +
@@ -789,7 +849,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   content-change detection (conditional GET + sha256 stored on the entry; unchanged stamped, changed
   queued; 10-check selftest). Added content sources (FTC eCFR 16 CFR 255, three cost vendors, a
   github-seo upstream) and `data-currency-map.json` classifying every canonical file
-  (watched/static/dated/tool-managed) so the audit's orphan finding is resolved permanently. Drift
+  (watched/static/dated/tool-managed) so no canonical file is left unclassified. Drift
   invariant 23 fails if a requirements package or MCP-backed connector has no registry entry; a
   read-only weekly `currency-report` CI job runs both reports; `docs/CURRENCY.md` is the runbook.
   A dependency baseline --apply ended the pip deps' dormancy. Ledger: `P33-source-dependency-currency`.
@@ -900,8 +960,8 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
 - P26: open-source video tooling evaluation (evaluation only; no integration, no flag changes; G9
   and G10 stay open and the scenario probes still observe them). 15 candidates scored against the
   two-lane videoedit architecture with a 9-criterion rubric; 7 hands-on spikes against synthetic
-  media sharing ground truth with the committed `workshop-footage.srt` fixture; 4 research agents
-  plus 1 adversarial verifier (8 load-bearing claims attacked: 3 upheld, 5 refined). Headlines:
+  media sharing ground truth with the committed `workshop-footage.srt` fixture; 8 load-bearing
+  claims independently checked (3 upheld, 5 refined). Headlines:
   PySceneDetect found all 4 authored cuts frame-exact including an isoluminant cut that ffmpeg
   misses by default (luma-only YUV scoring, source-verified, `format=rgb24` workaround); ffmpeg
   silencedetect hit authored silences within 0.021 s; PyAV reproduced silence detection in-process
@@ -1017,7 +1077,7 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   and `fcpxml-parse`; MCP tools `edit_preflight`, `edit_build_fcpxml`, `edit_parse_fcpxml`,
   `import_edit_artifact`, `resolve_status`. Mirrors the `live_publishing_enabled` seam. DaVinci Resolve
   live lane (Studio-only) and features 2/3/5/6/7/8 are Phases 2 to 4.
-- P21: P20 adversarial-audit remediation — 27 verified findings closed. Dashboard security
+- P21: P20 remediation — 27 verified findings closed. Dashboard security
   (CSRF Origin/Content-Type guards, wildcard CORS removed, stored-XSS via data-* binding, queue
   lock + atomic writes); shared `tools/publishing_compliance.py` gate wired into the dashboard
   confirm path (refuses non-compliant posts) and reused by `schedule_post`; honest scaffold
@@ -1346,20 +1406,20 @@ P6 through P93 are complete. Drift guard exits 0 (the full invariant set). Branc
   ftc-endorsement-guides-social.
 
 ## Flags and follow-ups
-- `shared/pipeline-engine.md` was authored from the handoff CRM spec because the canonical file was
-  not provided this session. Supersede it if the original surfaces.
+- `shared/pipeline-engine.md` was authored from the handoff CRM spec; supersede it if the
+  canonical file surfaces.
 - `web-intel-engine.md` carries a `used_by` list with pre-rename spoke names (deal-tracker,
-  platform-optimizer, seasonal-planner). Left verbatim as provided; canonical routing lives in the
+  platform-optimizer, seasonal-planner). Left verbatim; canonical routing lives in the
   hub. Reconcile when convenient.
-- `web-intel-engine.md` references a `connector-resilience-companion`. If that companion is not
-  provided separately, fold its 9 failure classes into the engines' failure handling. The canonical
+- `web-intel-engine.md` references a `connector-resilience-companion`. If no separate companion
+  exists, fold its 9 failure classes into the engines' failure handling. The canonical
   protocol set stays at 5.
-- Deeper brand brief (`alex_gpt_prompt_1.docx`) and the market-analysis PDF are still wanted to
-  ground rate-card-fill and benchmark-compare canonical data.
+- Rate-card-fill and benchmark-compare canonical data are ungrounded until a brand brief and a
+  market-analysis source are added.
 
 ## Next
 - Open PR to merge `claude/repo-access-confirm-wxe50a` → `main`.
-- Fill in `pipeline/user-context/channel-context.local.json` when Alex provides channel stats.
+- Fill in `pipeline/user-context/channel-context.local.json` when channel stats are available.
 - Fill in `pipeline/user-context/voice-profile.local.json` as real content is produced.
 - Configure Claude Desktop MCP and set `mcp_server: true` in `creator-os-config.local.json`.
 - End-to-end slice: drive creator-core with a Content prompt and a CRM prompt; confirm routing

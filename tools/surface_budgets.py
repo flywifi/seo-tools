@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Surface budget checks (P72). External platforms impose hard caps that our packaged artifacts
-must fit inside, and the P72 audit found the shipped ChatGPT custom instructions had never been
+must fit inside, and until P72 the shipped ChatGPT custom instructions had never been
 size-validated: Box 2 alone (3,863 chars) could not have been pasted under the old 1,500-char
 cap, and the combined content exceeded the current 5,000-char cap under its stricter reading.
 Each budget below cites its authority. A failing budget means the artifact will not paste or
@@ -66,7 +66,7 @@ def check(root: Path = ROOT) -> list:
     for rel, cap, why in FILE_BUDGETS:
         p = root / rel
         if not p.exists():
-            # P72 D6: a budgeted artifact that vanished must not pass silently.
+            # P72: a budgeted artifact that vanished must not pass silently.
             problems.append(f"{rel}: missing (budgeted artifact; deleted or moved)")
             continue
         if len(p.read_bytes()) > cap:

@@ -5,9 +5,9 @@
 
 ## Context
 
-The P56 adversarial audit confirmed 12 findings; P57 fixed everything exploitable (ADR 0040) and left
-two things open: a LOW hardening cluster (drafted-not-applied in the audit findings log) and a coverage
-hole — three surfaces the P56 research agents never mapped when they hit a session limit. None of the
+P56 confirmed 12 findings; P57 fixed everything exploitable (ADR 0040) and left
+two things open: a LOW hardening cluster (drafted, not applied) and a coverage
+hole — three surfaces P56 never mapped. None of the
 LOW items is exploitable today (the publishing ones are all behind `live_publishing_enabled=OFF`), but
 they are real robustness/honesty gaps in credentialed network code, and "the three surfaces are clean"
 was assumed rather than proven.
@@ -36,7 +36,7 @@ form so two tabs cannot cross-approve each other's scan.
 
 **Deferred (A4d part 2 — ThreadingMixIn):** making the single-threaded wizard multi-threaded would
 introduce concurrency on the unlocked config-file read-modify-write paths (`_write_claude_config`,
-`_update_config_section`) that P57 F5/F8 just hardened. The finding (one slow scan freezes other tabs)
+`_update_config_section`) that P57 just hardened. The finding (one slow scan freezes other tabs)
 is MED and not exploitable on a single-user local tool; the regression risk outweighs the UX gain.
 Recorded here as a conscious trade, not a silent drop.
 
@@ -59,6 +59,6 @@ deliberately deferred with the rationale above.
   `wizard` (body-bound, config-backup, model-allowlist, batch-token), `publishing_compliance` (20/20)
 - Green baseline preserved: `sync_check.py` clean @ 52 invariants; `scenario_check.py` 9/9; the P57
   harnesses still read KILLED; `secret_scan --staged` clean each commit
-- Track B probes recorded in `scratchpad/audit/findings.md`
+- Track B (launch/install, the P52 guards as oracles, P55) found no new issues
 
 Ledger status at record time: `shipped`. Source: `ledger/ledger.json` id `P58-audit-hardening`.

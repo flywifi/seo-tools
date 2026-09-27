@@ -83,8 +83,7 @@ The static pack and its export path continue unchanged.
   macOS 12.1+; conflicting concurrent edits keep both copies.
   https://support.google.com/drive/answer/13401938 and
   https://support.google.com/drive/answer/12178485
-- The three research subagents launched for this phase died at start (empty output, unregistered
-  task ids); every fact above was gathered and verified directly instead.
+- Every fact above was gathered and verified directly against the cited pages.
 
 ## Consequences
 

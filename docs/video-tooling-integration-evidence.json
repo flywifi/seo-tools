@@ -1,5 +1,5 @@
 {
-  "_comment": "P29 integration evidence: the shipped tools/videoedit modules exercised live against the P26 spike goldens. Companion to docs/video-tooling-spike-evidence.json (P26, frozen). All media and installs lived in a throwaway scratchpad; only the raw stderr fixtures under tools/videoedit/fixtures/ entered the repo. P80 onward: `revalidations[]` holds later re-runs; the original run is never edited.",
+  "_comment": "P29 integration evidence: the shipped tools/videoedit modules exercised live against the P26 spike goldens. Companion to docs/video-tooling-spike-evidence.json (P26, frozen). All media and installs lived in a throwaway working directory; only the raw stderr fixtures under tools/videoedit/fixtures/ entered the repo. P80 onward: `revalidations[]` holds later re-runs; the original run is never edited.",
   "date": "2026-07-03",
   "environment": {
     "os": "Linux x86_64 (remote container)",
@@ -22,7 +22,7 @@
     }
   },
   "fixture_media": {
-    "file": "workshop-synth.mp4 (scratchpad only, regenerated from the recipe in docs/video-tooling-spike-evidence.json)",
+    "file": "workshop-synth.mp4 (not committed, regenerated from the recipe in docs/video-tooling-spike-evidence.json)",
     "sha256": "471098437753825e1c34903743bb592bffee24991e92efae6afca7e8b683e98f",
     "note": "hash differs from the P26 encode (encoder nondeterminism); ground truth timings identical: cuts 60/150/240/330, silences 92 to 104.5 / 210 to 218.5 / 300 to 320, duration 420.0"
   },

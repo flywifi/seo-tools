@@ -1,9 +1,8 @@
 # Mac validation runbook (local-only, two-phase)
 
 The committed, ordered checklist for validating Creator OS on a real Mac **without touching any
-external account**, then handing a clean install to a second user. It reconstructs into one place
-the local-only tier of the Mac hands-on checks that previously lived only in session scratchpad
-(the P53/P54 sweeps named in `docs/AUDIT-PROTOCOL.md` §6, now gone). Install mechanics live in
+external account**, then handing a clean install to a second user. It collects into one place
+the local-only tier of the Mac hands-on checks. Install mechanics live in
 `docs/SETUP_MAC.md`; the maintainer "why" behind the launcher/Gatekeeper behavior lives in
 `docs/MACOS-MAINTENANCE.md`; dependency posture in `docs/DEPENDENCIES.md`. This file is the
 run-it-and-record-it companion.
@@ -129,7 +128,7 @@ Local-only means no external account is touched in Phase 1. Every capability shi
 drift invariants 19 to 21 and the pre-commit secret scan. The Phase-2 reset guarantees the
 operator's test data does not bleed into the real user's setup.
 
-## Results log (copy per run; fill in on the Mac)
+## Results log (copy per run; fill in on the Mac; keep completed logs outside the repository)
 
 The `docs/AUDIT-PROTOCOL.md` §5/§6 shape: record outcome, then a closing "not exercised" list so a
 green result is a coverage statement, not a bare pass.
@@ -144,8 +143,8 @@ V4 MCP surface          : PASS / BLOCKED / NOT-RUN   tool count: ____  notes: __
 V5 offline engines      : PASS / BLOCKED / NOT-RUN   notes: ____
 
 Not exercised (deferred, real-account tiers): OAuth/publishing, Drive hub, remote-MCP connector.
-Not exercised (needs real Mac hardware; verified only against vendor documentation in the
-P69 audit, never run): the Gatekeeper block-and-Open-Anyway dialog, the TCC permission
+Not exercised (needs real Mac hardware; verified only against vendor documentation, never
+run): the Gatekeeper block-and-Open-Anyway dialog, the TCC permission
 prompt on a protected folder, Rosetta translation on Intel, live Homebrew behavior after
 the 2026-09-01 cask change, a real Claude Desktop MCP spawn, and Drive-for-desktop mirror
 materialization latency.

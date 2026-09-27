@@ -176,7 +176,7 @@ def check(root=ROOT):
             problems.append(f"{rel}: missing freshness marker (run --apply)")
         if rel not in listed:
             problems.append(f"{rel}: not recorded in the projection manifest")
-        # P79 A2: the per-file sha256 this manifest stores was write-only (P78 audit F1); a managed
+        # P79: the per-file sha256 this manifest stores was write-only; a managed
         # file edited after the last --apply kept its stale hash and nothing noticed. Recompute with
         # the writer's own recipe (sha256 of the utf-8 text) and refuse on disagreement.
         rec = recorded.get(rel)
@@ -256,11 +256,11 @@ def selftest():
     apply(d, as_of="2026-07-06")
     ok("re-apply clears the drift", check(d)[0] is True)
 
-    # P79 A2: a managed file edited BELOW its marker (marker intact, digest intact) must fail on
-    # the stored per-file sha -- the exact F1 class the P78 audit found live.
+    # P79: a managed file edited BELOW its marker (marker intact, digest intact) must fail on
+    # the stored per-file sha, or the write-only hash defect is back.
     kf.write_text(kf.read_text(encoding="utf-8") + "\nquiet edit after apply\n", encoding="utf-8")
     ok_, probs = check(d)
-    ok("per-file sha desync fails check (F1 class)",
+    ok("per-file sha desync fails check",
        ok_ is False and any("stored sha256 no longer matches" in p for p in probs))
     apply(d, as_of="2026-07-06")
     ok("re-apply re-stamps the per-file sha and clears it", check(d)[0] is True)

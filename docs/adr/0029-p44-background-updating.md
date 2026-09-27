@@ -5,7 +5,7 @@
 
 ## Context
 
-The user asked to keep Claude and ChatGPT users updated in the background to the fullest extent each modality allows, for non-technical users, while keeping private data local and never touching GitHub on their behalf. The research showed the honest ceilings differ sharply by surface (true-background only via plugin auto-update or a hosted connector; pasted knowledge is always a frozen re-upload; consumer GPT/Project knowledge has no write API), so the plan builds a read-only consent-gated check, a reversible consent-first data-migration path, and per-surface distribution guidance, tagging every unverifiable vendor claim NEEDS VERIFICATION rather than asserting it.
+Goal: keep Claude and ChatGPT users updated in the background to the fullest extent each modality allows, for non-technical users, while keeping private data local and never touching GitHub on their behalf. The research showed the honest ceilings differ sharply by surface (true-background only via plugin auto-update or a hosted connector; pasted knowledge is always a frozen re-upload; consumer GPT/Project knowledge has no write API), so the plan builds a read-only consent-gated check, a reversible consent-first data-migration path, and per-surface distribution guidance, tagging every unverifiable vendor claim NEEDS VERIFICATION rather than asserting it.
 
 ## Decision
 

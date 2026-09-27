@@ -1,0 +1,606 @@
+{
+  "_comment": "P94 claim-proof binding (drift invariant 60, tools/sync_check.py::check_claim_proof). A universal claim about this repo's own behavior is a promise, and a promise ships with the executed proof that keeps it. `claims` bind a verbatim sentence to either an enforced drift invariant (`invariant:N`) or a NAMED selftest pin the battery actually runs (`tools/x.py::selftest::<label substring>`). `exempt` records a universal that no code can prove -- a standing instruction to the agent -- with a written reason. `routes` bind an install route the docs RECOMMEND to the code that must DETECT it. `corpus` is the guarded set: a universal claim there that appears in none of the three lists fails the build.",
+  "_why": "Documentation truth checks paths, symbols, counts, URLs and hashes, and a universal sentence names none of those, so no token check can see it; this manifest ties each such sentence to an executed proof or a written exemption.",
+  "corpus": {
+    "CLAUDE.md": {
+      "section": [
+        "## Non-negotiables",
+        "## Planning depth"
+      ]
+    },
+    "docs/INSTALL-SCOPE.md": {}
+  },
+  "claims": [
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Each `::selftest::` proof also names, in the manifest's `boundaries`, the CLI entry, tool or runtime default its claim describes, and invariant 60 fails when no live code in the pin's function calls that entry and the record states no gap naming it",
+      "proof": "invariant:60",
+      "why": "check_claim_proof runs _claim_boundary_problems over every `::selftest::` proof the claims use: a proof with no boundaries record, a boundary name its module does not define, and a pin whose function never calls its boundary while the record states no gap of 25 characters naming it each fail. _claim_boundary_self_proof shows those refusals on a fixture first, and _CLAIM_WIRING fails the build when the call is removed."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "No em dashes in user-facing output",
+      "proof": "invariant:4",
+      "why": "invariant 4 (check_formatting) proves the no-em-dash rule over committed examples/ content, which is the scope the same bullet states; the wider instruction to the agent is covered by the formatting protocol it cites."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "runs with no model tokens: outside its selftests, the code it runs imports only the standard library plus `registry_io` and `atomic_io`, starts no process, sends requests only to `pypi.org` and `api.github.com`, and reads one credential from the environment, a GitHub token",
+      "proof": "tools/dependency_currency.py::selftest::token-free: outside its selftests the import closure",
+      "why": "The selftest reads the import closure of dependency_currency.py statically, skipping the module-level functions named selftest and _selftest. It fails on a module outside _ALLOWED_STDLIB (the standard-library modules read for process starts, an allowlist, so platform or pydoc fails until read and added) other than registry_io and atomic_io, on a refused standard-library module (subprocess, multiprocessing, concurrent, importlib, runpy, ctypes, pty, webbrowser, asyncio, pkgutil, zipimport, builtins, code, codeop, pickle, marshal, shelve, _posixsubprocess, socket, socketserver, http, ftplib, smtplib, imaplib, poplib, nntplib, telnetlib, xmlrpc), on a process-spawning or dynamic-code call, on a network call outside _http_get_json, on an environment read other than REQUESTS_CA_BUNDLE, GITHUB_TOKEN or GH_TOKEN, and when _ALLOWED_HOSTS is anything but pypi.org and api.github.com. A name an import binds is read as what it imports (`from os import environ as e`, or `import os as o` inside a function), and a network or process-spawning name counts wherever it is referenced, not only where it is called, so binding urlopen, os.system or os.getenv to another name first is still seen, and a urllib handler, a handler's open method or a URLopener used directly counts as a network call; a self-check runs the reader over a fixture holding each of those forms. It also hands _http_get_json a recording opener: a URL on another host is refused before anything is sent, and a redirect to another host is refused. It reads code, not traffic: a credential read from a file is not seen. A model request needs a model host, which the host check refuses, or a process or model client, which the closure check refuses; the conclusion rests on pypi.org and api.github.com serving no model inference."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "drift invariant 19 refuses tracked personal `*.local.*` files",
+      "proof": "invariant:19",
+      "why": "check_local_privacy fails when git ls-files lists a file whose basename matches the personal *.local.* pattern (fail-closed in CI when git is unavailable)."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Every spoke in the hub's downstream list exists;",
+      "proof": "invariant:6",
+      "why": "check_hub reads the one fenced block under the hub's one \"Downstream spokes\" heading as the router does, refusing a second such heading, a second fence or text beside it, and fails on a listed name with no skills/<name>/SKILL.md and on a spoke directory the list omits; fixture self-proofs of the reading and both directions run first."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Every registry entry carries a `default_flag` naming one of the registry's declared `states`; drift invariant 53 checks that and runs the resolver and its `--list` and `--plan` output over the committed registry, so a missing or undeclared default, or an entry the resolver or its CLI cannot process, fails the build.",
+      "proof": "invariant:53",
+      "why": "check_connector_resolver_smoke refuses any committed default_flag that is not a bare string from connectors.json's own `states` list (a self-proof on misspelled, boolean, numeric, empty, missing and dict values runs first), then executes resolve({}) and connectors.py --list, --plan and --plan --json over the committed registry and fails on any exception (a self-proof with a raising registry loader proves all three CLI paths run)."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "the code side never writes into a machine-wide site-packages at all",
+      "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
+      "why": "the census parses every .py file in the tree (hidden, build and cache directories excluded) and, within each function or module top level, reads every literal a pip argv can be assembled from: list, tuple and set elements, +, += and append/extend/insert operands, names bound to them there or at module level, a string handed to a process call or to split(), and an import of pip; a pip executable is pip, pip3 or pip3.N, bare or path-qualified. It fails unless the only pip install sites are setup.py::_pip_install and wizard.py::_install_uv, a self-check shows each assembly form is read, and the install-target pins in the setup.py and wizard.py selftests record the interpreter each of those two runs pip with, including the --install-deps CLI entry with no .venv. A %-formatted or .format() command is read as its template, a conditional as both of its branches, and a -m glued to pip as the pip executable. A site is keyed by file, qualified name and line, so a nested function or a method named like an install function is a site of its own, and the census also reads a dict value through a subscript, bytes literals, walrus, annotated and chained assignments, a name bound in an enclosing function, a parameter default, a constant inside f-string braces, an `or` operand and a process call's keyword arguments; a word made by a call (join, chr), read from the environment, returned by another function, held in an attribute, fetched by getattr or captured by a match pattern is outside what the census reads, and a fixture per such shape pins that."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Drift invariant 59 enforces the labeling across every tracked guidance file",
+      "proof": "invariant:59",
+      "why": "check_install_scope derives its denominator from git ls-files, so 'every tracked guidance file' is the scanned set rather than a hand list."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is gated behind the `live_publishing_enabled` flag (default off)",
+      "proof": "tools/dashboard/server.py::selftest::started through main() with no local override: three scheduler passes read live_publishing_enabled off",
+      "why": "the dashboard selftest runs main() with its HTTP server, browser and thread start stubbed, then runs the target main() handed the scheduler thread for three passes, each over a fresh due queue, with the config loader main() left in place (the committed creator-os-config.json, the gitignored local override pointed at a file that does not exist). Every config the tick receives has the master flag off and is the object that pass's _load_config() call returned, no network call is made, and every due item is at ready_to_post. The loop's source binds `config` once from _load_config() and reads it only as the tick's config argument, and the loop's body is held to its committed statements, so no pass count or uptime inside the loop can change the flags a tick sees or rebind what loads them; a change inside _load_config, compliance.load_config or the tick, or made by code outside the loop, is outside the pin. Sibling pins: one pass of the real loop with the real _load_config reads the flag off, live_publishing_enabled() with no argument resolves off through load_config with no local override (the path dispatch() takes when handed no config), and the committed file ships the flag off."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "no Creator OS tool ever writes into a machine-wide site-packages",
+      "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
+      "why": "the same pip census as the CLAUDE.md non-negotiable; this is the policy page's statement of it."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Every remaining `brew install`",
+      "proof": "invariant:59",
+      "why": "the completeness half of this sentence is exactly what check_install_scope proves over the derived denominator; it was false when the denominator was a 16-file list."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "The drift guard enforces this for `examples/` only.",
+      "proof": "invariant:4",
+      "why": "this sentence states the enforced scope exactly, and check_formatting is what enforces it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "nothing under `/Applications`,\n  `/opt/homebrew`, or via `sudo` unless explicitly labeled",
+      "proof": "invariant:59",
+      "why": "check_install_scope scans every tracked guidance file for exactly these machine-wide forms and fails on any that is unlabeled."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "**Human confirmation required before every post.**",
+      "proofs": [
+        "tools/dashboard/server.py::selftest::every GET route, driven through do_GET",
+        "tools/dashboard/server.py::selftest::every flag on: a post no human confirmed never reaches the network",
+        "tools/dashboard/server.py::selftest::every POST route but Confirm, driven through do_POST"
+      ],
+      "why": "the dashboard selftest sends forged confirmation fields through the add, import, caption, toggle and schedule endpoints, plus import rows and request bodies for the import, add, caption, toggle and schedule-edit endpoints that answer every field the handler reads with each value in turn (the usual truthy and status forms, a URL, a due timestamp and every literal in server.py, once as sent and once already due). It then runs the real scheduler loop with every publishing flag on while recording at publishing.dispatch, urllib.request.urlopen, socket.create_connection and socket.socket.connect, and observes zero calls. Sibling pins show every imported or edited entry stays a draft, an import over a confirmed post returns it to draft, Confirm does mark the post scheduled, and dispatch() refuses an entry not passed confirmed=True."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Nothing goes to `/Applications`, `/opt/homebrew`,\n`/usr/local`, or anywhere `sudo` is needed.",
+      "proof": "invariant:59",
+      "why": "the same derived-denominator scan proves no unlabeled instruction to install in those locations survives in the guidance."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "The `schedule_post` MCP tool (`tools/mcp_server.py`) always sets `human_review_required: true`",
+      "proof": "tools/mcp_server.py::selftest::schedule_post always sets human_review_required: true on every platform and tier, whatever its other arguments carry",
+      "why": "_selftest_static runs _schedule_post_impl, the whole body of the MCP tool, for all four platforms on the manual, direct_api-without-credentials and direct_api-with-token tiers, with every other argument empty, filled one at a time and together with a realistic post, with hashtag lists of 0, 3, 10 and 40 entries, and filled with each string literal in mcp_server.py, and asserts the flag is the value True on every summary. Structural pins assert the impl writes the flag only as the summary literal's True and uses the summary only to build it from a dict literal, set another key by plain assignment and return it, and that the tool returns that summary unchanged."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "the repo `.venv` is the only install target",
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "why": "setup.py runs as the script (its source executed as __main__) with --install-deps --json while env_paths reports a .venv path and every `import subprocess` gets an argv recorder, once with every pip and Playwright step succeeding and once with every one failing; ensure_venv, install_dependencies, _pip_install and _install_playwright_browser stay real, and every recorded argv[0] must be that path. Both install helpers take the interpreter as a required argument and refuse an empty one, or any interpreter other than the .venv's, before any process starts, so a fallback or retry through them to the base interpreter starts nothing on any path, and a pip start built outside them fails the pip census (within the argv forms it reads)."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Drift invariant 59\nenforces this over every tracked guidance file (an unlabeled machine-wide instruction fails\nthe build)",
+      "proof": "invariant:59",
+      "why": "check_install_scope derives its file set from git ls-files and fails on an unlabeled hit."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "The repo `.venv` is the only install target",
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "why": "the setup.py argv-recorder pin at the script entry: with a .venv present, every pip and Playwright subprocess `setup.py --install-deps --json` starts runs the .venv interpreter, whether each step succeeds or fails."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "so when it cannot be\ncreated the installer refuses with the remedy instead of falling back to the base interpreter",
+      "proof": "tools/setup.py::selftest::no .venv: the --install-deps CLI entry starts only the .venv creation attempt",
+      "why": "the pin runs setup.py as the script (its source executed as __main__, so module-level code and the script block at the bottom of the file run, with every `import subprocess` answered by the recorder) with --install-deps --json (the wizard's call) and with --install-deps while env_paths finds no .venv and ensure_venv stays real, once for each way the .venv attempt can fail (it exits 0 and leaves no .venv, it exits 1 with output carrying every string literal in setup.py, and it raises), and records every process start: this module's subprocess name, subprocess.Popen and the fork_exec it runs, os.system and the os exec/spawn/fork family, any name in setup.py or env_paths bound to one of those, and an import of pip in-process. The only start is the `python -m venv` creation attempt (recorded, not run), the entry exits 1, and every requirements set is refused with the remedy text; sibling pins check install_dependencies alone the same way."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "when it cannot be created the installer refuses with the remedy rather than falling back to the base interpreter",
+      "proof": "tools/setup.py::selftest::no .venv: the --install-deps CLI entry starts only the .venv creation attempt",
+      "why": "the pin runs the installer as the script a person or the wizard starts (setup.py's source executed as __main__, so module-level code and the script block at the bottom of the file run, with every `import subprocess` answered by the recorder) with --install-deps --json and with --install-deps, while env_paths finds no .venv and ensure_venv stays real, once for each way the .venv attempt can fail (exit 0 with no .venv, exit 1 with output carrying every string literal in setup.py, a raised error), recording every process start (this module's subprocess name, subprocess.Popen and the fork_exec it runs, os.system and the os exec/spawn/fork family, any name in setup.py or env_paths bound to one of those, an import of pip in-process): only the `python -m venv` creation attempt starts (recorded, not run), the entry exits 1, and every requirements set is refused with the remedy text, so nothing falls back to the base interpreter."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "advances items to `ready_to_post` for manual posting and makes no network call",
+      "proof": "tools/dashboard/server.py::selftest::scheduler flag off: every due item advances to ready_to_post and no network call is made",
+      "why": "the dashboard selftest runs the real _scheduler_loop for one pass with the master flag off (with no flags set, and with every platform flag on) over the fixture entries and over entries whose every field other than enabled, status and scheduled_datetime answers with each value in turn (a URL, the usual truthy forms and every literal in server.py), held in items whose every field other than id and platforms answers the same way; it records at urllib.request.urlopen, socket.create_connection, socket.socket.connect, connect_ex, sendto and sendmsg, and the socket module's name lookups, and observes zero calls with every due item at ready_to_post. A control proves the recorder sees a urlopen, a create_connection, a raw connect, a name lookup and a UDP sendto, a flag-on control proves it sees the upload attempt, and dispatch() independently refuses when the flag it reads is off."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "`tools/wizard.py::_install_uv`)",
+      "proofs": [
+        "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
+        "tools/wizard.py::selftest::every POST route that reaches an installer, driven through do_POST"
+      ],
+      "why": "names the wizard's own uv install as the second code path; its selftest pin runs _install_uv with no .venv and requires a refusal and zero subprocess calls, and a sibling pin requires the one pip call to use the .venv interpreter when a .venv exists. A third pin drives every POST route whose code names _install_uv or _run_setup through _Handler.do_POST, with no .venv and with one, and allows only setup.py's --install-deps --json entry and pip run by the .venv interpreter."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "`tools/wizard.py::_install_uv`)",
+      "proofs": [
+        "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
+        "tools/wizard.py::selftest::every POST route that reaches an installer, driven through do_POST"
+      ],
+      "why": "the wizard selftest runs _install_uv with a .venv present and requires exactly one subprocess call, a pip install whose argv[0] is the .venv interpreter; a sibling pin covers the no-.venv refusal. A third pin drives every POST route whose code names _install_uv or _run_setup through _Handler.do_POST, with no .venv and with one, and allows only setup.py's --install-deps --json entry and pip run by the .venv interpreter."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "invariant 20 refuses tracked `pipeline/` files beyond the blank templates and tracked data-file types",
+      "proof": "invariant:20",
+      "why": "check_pipeline_allowlist fails on a tracked pipeline/ file outside PIPELINE_TRACKED_ALLOWLIST and on any tracked file whose suffix is in secret_scan.FORBIDDEN_DATA_SUFFIXES."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "invariant 21 scans tracked content for known secret formats, non-allowlisted email addresses",
+      "proof": "invariant:21",
+      "why": "check_secret_content runs tools/secret_scan.py --tracked over every tracked text file: PATTERNS cover API keys, private keys, credential values, session links and non-allowlisted emails, and AMOUNT_RE covers dollar figures under pipeline/."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "North American phone numbers whose digit groups are split by a dash, dot, single space or area-code parenthesis",
+      "proof": "tools/secret_scan.py::selftest::phone number detected in the paren, +1, 1-prefix, dotted and extension NANP shapes",
+      "why": "the secret_scan selftest builds paren, +1, 1-prefix, dotted and extension fixtures by concatenation and requires a phone_number finding for each while dates, versions, ISBNs and ports stay clean; invariant 21 runs the same PATTERNS over tracked content. A single digit run, a slash-separated number and a spaced-dash number are not matched; the next sentence says so and a sibling selftest check pins it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "every atom a workflow names is installed.",
+      "proof": "invariant:7",
+      "why": "check_workflows reads every value under a workflow.json key whose name contains \"atom\" (steps[].atom, steps[].reference_atoms, shortcut_atoms and any key added later), at any depth, and fails unless it names a skills/atoms/<name>/ directory holding a SKILL.md; a fixture self-proof of both rules runs first."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "| the repo's `.venv/` | every Python package",
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "why": "the row says every Python package lands in the repo .venv; the setup.py pin runs `setup.py --install-deps --json` as the script with an argv recorder and requires every pip and Playwright subprocess to run the .venv interpreter, whether each step succeeds or fails."
+    }
+  ],
+  "exempt": [
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Each new pin or detector branch lands with at least three falsifying mutations, chosen and run by a reviewer who did not write it and committed as cases beside it",
+      "why": "Who chose and ran a mutation is not recorded anywhere code can read, and whether an edit falsifies a property is a reviewer's judgement; docs/AUDIT-PROTOCOL.md section 7.2 states the rule, and the committed mutation cases run in the battery with the pin."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "A new or changed invariant that enumerates a JSON file's keys takes them from its schema in `shared/schemas/` when one exists, and never skips a key of that kind it does not recognise",
+      "why": "A rule for how a new or changed invariant is written, not a property every current checker is shown to have; a checker that follows it is proven by its own invariant's cases, and docs/AUDIT-PROTOCOL.md section 7.1 states the rule."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Every change that removes text or files from a guard's scan set ships a committed case for the removed set",
+      "why": "A rule for how a guard change is made. Whether an edit narrows a scan set is a reading of the diff that no drift invariant performs; docs/AUDIT-PROTOCOL.md section 7.1 states the rule, and each guard's own cases carry the committed case it asks for."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Never fabricate data, metrics, rates, brands, or sources",
+      "why": "A standing instruction to the agent about generated output, not a property of this repo's code. protocols/no-fabrication.md governs it and no guard can prove a negative about future generations."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Nothing is released until it passes the Quality Gates",
+      "why": "A release-process directive routed through the quality-review skill; there is no code path a drift invariant can execute to prove a human followed it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Installs are user-scoped by default: everything lands under the user's home folder",
+      "why": "The policy statement whose provable halves are bound separately: invariant 59 for the guidance labeling, and for the code side the pip census and install-target pins in the tools/setup.py and tools/wizard.py selftests, which record the interpreter each pip subprocess runs in. This opening sentence summarises those bindings."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Agents never post directly",
+      "why": "a behavioral directive about how agents act; no guard can execute the negative. Its code-side boundary is bound through the bold headline of the same bullet, whose pin sends forged confirmation fields through the dashboard's add, import, caption, toggle and schedule-edit endpoints and observes no network call."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Those two fields are the only baselines it reads",
+      "why": "Describes dependency_currency's read surface, which invariant 25 constrains only at the requirements-versus-registry pin level; the read-surface half is maintainer documentation of the tool's design."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Everything Creator OS asks a person to download or install lands inside their own user",
+      "why": "The policy's opening statement of intent; its enforceable halves are bound separately, to invariant 59 for the guidance and to the pip census and install-target pins in the tools/setup.py and tools/wizard.py selftests for the code."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "wizard state, staged bundles, `dist/` builds -- all gitignored",
+      "why": "A table row naming where local working state lands. Its gitignore fact is re-read through `holds.gitignored`, which resolves the paths from the code that writes them: the wizard state file (tools/wizard.py::_STATE_PATH), the staged upload bundles (tools/wizard.py::_BUNDLE_ROOT) and the dist/ build folder (tools/package_skill.py::DIST) must each be ignored by the root .gitignore.",
+      "holds": {
+        "gitignored": [
+          "tools/wizard.py::_STATE_PATH",
+          "tools/wizard.py::_BUNDLE_ROOT/",
+          "tools/package_skill.py::DIST/"
+        ]
+      }
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "none needed -- the repository is public",
+      "why": "A statement about GitHub repository visibility, a property of the remote that no local guard in this repo can assert."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is written only through `tools/registry_io.py`",
+      "why": "invariant 42 counts the sanctioned registry writers but is labelled advisory in its own docstring and does not gate the build on a new writer, so this is a maintainer convention backed by an advisory census rather than a proven property."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is the only tool that writes to `traversal-candidates.json`",
+      "why": "no guard inspects traversal-candidates.json or traversal-visited.json at all; this is a maintainer convention with no executed proof behind it, recorded here honestly rather than bound to a check that does not cover it."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "A universal claim (\"no\", \"never\", \"every\", \"everything\", \"all\", \"each\", \"only\", \"nothing\", \"always\", \"none\", \"nobody\", \"cannot\", \"will not\") in a",
+      "why": "this sentence QUOTES the trigger vocabulary the rule governs; the words are the subject of the sentence rather than a promise being made."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "Write ranges with \"to\" everywhere, including internal docs",
+      "why": "A writing instruction to the agent. Invariant 4 fails the build on an en dash in .md files under shared/, protocols/, skills/, docs/, examples/ and canonical-sources/; a hyphen range, and any file outside those folders, is unchecked, so 'everywhere' is doctrine rather than a checked property."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "(Microsoft 365 lane only)",
+      "why": "scopes which lane needs Node at all; the detectability obligation for that route is bound as a route record instead, which `holds.route` names so the exemption fails when that record is gone.",
+      "holds": {
+        "route": "nvm-sh/nvm"
+      }
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "works on every platform, fully user-scoped",
+      "why": "describes faster-whisper's own portability, a property of that third-party package rather than of this repo's code."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "auth only if a machine must PUSH",
+      "why": "states when GitHub credentials are needed, a fact about GitHub's access model that no local guard can assert."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "it queries PyPI and GitHub Releases directly (stdlib, honoring the env proxy + CA bundle) and\n  computes drift from each registry entry's own `validated_version` and `pinned_constraint`",
+      "why": "describes how the currency checker works for maintainers; invariant 25 pins only the requirements-versus-registry agreement, not the tool's implementation."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "is consulted only when passed explicitly via `--flags`",
+      "why": "describes the resolver's flag-file precedence, a design note; invariant 53 proves the resolver executes over the committed registry, not this precedence rule."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "No connector call is made, and no post is queued or published,\n  without an explicit human confirmation step",
+      "why": "restates the bold headline in negative form. Its code half is bound through that headline's dashboard pin (a post no human confirmed never reaches the network with every flag on); 'no connector call' also covers read connectors an agent might call, which is an agent directive no code can execute."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "they produce\n  confirmation summaries for human review only",
+      "why": "a behavioral directive about what agents produce, enforced by the confirmation step rather than by a guard that can execute the negative."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "Machine-wide installation is always a labeled\nchoice a person makes deliberately, never a default this repo hands out.",
+      "why": "the policy's statement of intent; the enforceable half (that no unlabeled machine-wide instruction survives) is bound to invariant 59 in the following sentence."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "written by the apps/tools themselves, always per-user",
+      "why": "a table row describing where third-party apps place their own per-user config and caches; this repo neither writes nor controls those locations."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "`report`/`check` are read-only",
+      "why": "describes the currency checker's two read-only verbs for maintainers; no guard asserts a CLI verb writes nothing."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "a new\n  guard's scan set is derived from the tree, never a hand list of the files the change happened\n  to touch",
+      "why": "a process precondition for writing a guard, checked by the reviewer at design time; no build step can tell whether a denominator was derived or recalled."
+    },
+    {
+      "doc": "CLAUDE.md",
+      "claim": "When a\n  check fails, report it honestly with the output; never claim a skipped step ran.",
+      "why": "an instruction governing what the agent says in a report; nothing in the build can read a chat message, so this is doctrine enforced by judgment."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "# Install scope: user-only by default",
+      "why": "the page title naming the policy; the policy's enforceable halves are bound in the sentences under it, to invariant 59 for the guidance and to the tools/setup.py and tools/wizard.py pins for the code."
+    },
+    {
+      "doc": "docs/INSTALL-SCOPE.md",
+      "claim": "## Verifying an install stayed user-only",
+      "why": "a section title introducing the checks a person can run by hand after an install; it names a goal of those checks rather than a behavior of this repo's code."
+    }
+  ],
+  "_boundaries_why": "Pin-boundary records (docs/AUDIT-PROTOCOL.md section 7.3). A claim describes what a person reaches through a CLI entry, a tool or a runtime default; each `::selftest::` proof the claims use names that entry here as `tools/x.py::name` or `tools/x.py::Class.method`. Invariant 60 fails on a proof with no record, a name the module does not define, and a pin whose function never calls its entry while the record states no `gap` of at least 25 characters naming it. A `gap` is a recorded limit: move the pin to the entry or narrow the claim.",
+  "boundaries": [
+    {
+      "proof": "tools/dependency_currency.py::selftest::token-free: outside its selftests the import closure",
+      "boundary": "tools/dependency_currency.py::main",
+      "gap": "The pin reads the module's source statically (_import_closure over its own file, main and what it calls included) rather than running main."
+    },
+    {
+      "proof": "tools/setup.py::selftest::pip census: every pip install command in the tree is built in",
+      "boundary": "tools/setup.py::run_install_deps",
+      "gap": "The census reads every .py file statically for pip install argv literals rather than running run_install_deps or the wizard; an argv built from parts is outside what it reads."
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::every flag on: a post no human confirmed never reaches the network",
+      "boundary": "tools/dashboard/server.py::_scheduler_loop",
+      "gap": "The pin runs _scheduler_loop for one pass through _run_scheduler_once with _load_config, _load_queue and the credential loader replaced, so the config the loop resolves at run time from the committed and local files is not read."
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::every POST route but Confirm, driven through do_POST",
+      "boundary": "tools/dashboard/server.py::DashboardHandler.do_POST"
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::every GET route, driven through do_GET",
+      "boundary": "tools/dashboard/server.py::DashboardHandler.do_GET"
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::scheduler flag off: every due item advances to ready_to_post and no network call is made",
+      "boundary": "tools/dashboard/server.py::_scheduler_loop",
+      "gap": "The pin runs _scheduler_loop for one pass through _run_scheduler_once with _load_config, _load_queue and the credential loader replaced, so the config the loop resolves at run time from the committed and local files is not read."
+    },
+    {
+      "proof": "tools/setup.py::selftest::.venv present: the --install-deps script entry runs every pip and Playwright subprocess",
+      "boundary": "tools/setup.py::__main__"
+    },
+    {
+      "proof": "tools/wizard.py::selftest::no .venv: _install_uv refuses and starts no subprocess",
+      "boundary": "tools/wizard.py::_Handler.do_POST",
+      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it, is run by the sibling route pin (every POST route that reaches an installer, driven through do_POST), not by this one."
+    },
+    {
+      "proof": "tools/wizard.py::selftest::.venv present: _install_uv runs pip only with the .venv interpreter",
+      "boundary": "tools/wizard.py::_Handler.do_POST",
+      "gap": "The pin calls _install_uv directly; _Handler.do_POST, the /api/write-google handler that calls it, is run by the sibling route pin (every POST route that reaches an installer, driven through do_POST), not by this one."
+    },
+    {
+      "proof": "tools/wizard.py::selftest::every POST route that reaches an installer, driven through do_POST",
+      "boundary": "tools/wizard.py::_Handler.do_POST"
+    },
+    {
+      "proof": "tools/secret_scan.py::selftest::phone number detected in the paren, +1, 1-prefix, dotted and extension NANP shapes",
+      "boundary": "tools/secret_scan.py::scan_tracked",
+      "gap": "The pin calls scan_text on literal strings; scan_tracked, which invariant 21 runs through --tracked, also skips a file _is_probably_text reads as binary, and no selftest runs it."
+    },
+    {
+      "proof": "tools/dashboard/server.py::selftest::started through main() with no local override: three scheduler passes read live_publishing_enabled off",
+      "boundary": "tools/dashboard/server.py::main"
+    },
+    {
+      "proof": "tools/mcp_server.py::selftest::schedule_post always sets human_review_required: true on every platform and tier, whatever its other arguments carry",
+      "boundary": "tools/mcp_server.py::_schedule_post_impl",
+      "gap": "The MCP tool schedule_post is a thin registration wrapper that returns _schedule_post_impl(...) unchanged; the pin executes the impl, and the wrapper body is source-checked, not run: it must be exactly json.dumps(_schedule_post_impl(<each tool parameter passed through>), indent=2), so no encoder or other argument can rewrite the summary on the wire, and the name json is bound in the module only by a plain `import json`, never assigned, redefined or patched; a rebinding through globals() or setattr() is outside the check."
+    },
+    {
+      "proof": "tools/setup.py::selftest::no .venv: the --install-deps CLI entry starts only the .venv creation attempt",
+      "boundary": "tools/setup.py::__main__"
+    }
+  ],
+  "routes": [
+    {
+      "recommends": "astral.sh/uv/install.sh",
+      "in": [
+        "docs/INSTALL-SCOPE.md",
+        "docs/SETUP_MAC.md",
+        "tools/setup.py",
+        "tools/wizard.py",
+        "Start Creator OS Setup.command"
+      ],
+      "lands_in": ".local/bin",
+      "prober": [
+        "tools/env_paths.py::USER_BIN",
+        "Start Creator OS Setup.command"
+      ],
+      "why": "uv installs itself and `uv python install`'s pythonX.Y into ~/.local/bin (uv docs, Installing Python). P93 recommended this route while env_paths searched only the Homebrew prefixes and the launcher probed only machine-wide paths, so the Python its own message told the user to install was invisible."
+    },
+    {
+      "recommends": "nvm-sh/nvm",
+      "in": [
+        "docs/INSTALL-SCOPE.md",
+        "tools/wizard.py"
+      ],
+      "lands_in": "versions/node",
+      "prober": [
+        "tools/env_paths.py::NVM_NODE_SUBDIR"
+      ],
+      "why": "nvm keeps each node under $NVM_DIR/versions/node/<version>/bin (nvm.sh::nvm_version_path) and is sourced per shell. P93 made nvm the recommended Node route while env_paths could not see it, so the wizard looped users on 'Still not detecting Node.js 20 or higher' after issuing its own nvm command."
+    }
+  ],
+  "_guarded_text_why": "Rule text outside the guarded corpus (docs/AUDIT-PROTOCOL.md section 7.3). Each record's `text` must still occur in its `doc`, every bold-lead rule in section 7 of docs/AUDIT-PROTOCOL.md needs a record, and an AGENTS.md record's `mirror_of` names the `claim` of the CLAUDE.md claims or exempt entry it restates, so changing one side alone fails invariant 60.",
+  "guarded_text": [
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A written reason that rests on a repo fact declares the fact.** An exemption's `why` is read by people. When it rests on a fact a check can re-read (a path the root `.gitignore` ignores, a route record the manifest holds), the exemption declares that fact under `holds`",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**An `invariant:N` binding shares its subject with catalog entry N.** A claim bound to `invariant:N` and entry N of the `Invariants enforced` catalog in `tools/sync_check.py` share a word that names the claim's subject, and a claim that names an invariant is bound to that one.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A new pin or detector branch lands with three falsifying mutations.** Before it is committed, a reviewer who did not write it picks at least three edits to the code under test that break the property the pin names (the revert of the fix does not count as one), runs the pin against each, and sees each go red.",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "A new pin or detector branch lands with at least three falsifying mutations chosen by a reviewer who did not write it, committed as cases (7.2).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "Each new pin or detector branch lands with at least three falsifying mutations, chosen and run by a reviewer who did not write it and committed as cases beside it"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A checker takes JSON keys from the schema.** An invariant that enumerates the keys of a JSON file (the atom names a `workflow.json` step carries, the fields of an agent output) takes them from that file's schema in `shared/schemas/` when one exists, and fails on a key it does not recognise rather than skipping it.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "An invariant that enumerates JSON keys takes them from the schema in `shared/schemas/` when one exists (7.1).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "A new or changed invariant that enumerates a JSON file's keys takes them from its schema in `shared/schemas/` when one exists, and never skips a key of that kind it does not recognise"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Narrowing a scan set ships a case for what it stops reading.** A change that removes text or files from what a guard reads (a skipped heading, a stripped code span, a file sniffed as binary, a key or suffix no longer read, a later occurrence read in place of the first) commits a case that places a violation inside the removed set and records the result",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "protocols/quality-gates.md",
+      "text": "The same bar applies to this repository's own guards: a change that removes text or files from what a drift-guard invariant or scanner reads is not released without a committed case for the removed set",
+      "why": "The scan-narrowing rule where the release gates are read; the file sits outside the guarded corpus."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "A change that narrows a scan set ships a committed case for what it stopped reading (7.1).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "Every change that removes text or files from a guard's scan set ships a committed case for the removed set"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**The manifest names the boundary.** Every `::selftest::` proof in `tools/claim-proof-manifest.json` has a `boundaries` record naming that entry as `tools/x.py::name` or `tools/x.py::Class.method`.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**What the boundary check does not see.** It reads calls by name.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "AGENTS.md",
+      "text": "Each selftest proof names the entry its claim describes in the manifest's `boundaries`, and invariant 60 fails when the pin does not call it and no gap naming it is recorded (7.3).",
+      "why": "The AGENTS.md restatement of a CLAUDE.md sentence; it fails when either side changes alone.",
+      "mirror_of": "Each `::selftest::` proof also names, in the manifest's `boundaries`, the CLI entry, tool or runtime default its claim describes, and invariant 60 fails when no live code in the pin's function calls that entry and the record states no gap naming it"
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**The independent pass runs BEFORE the claim is reported or merged**, not only at phase close. A universal claim that has not survived it is reported narrowed to what was actually tested, or not made.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A guard's denominator is DERIVED, never recalled.** Section 1 already says this about an audit's coverage sets; it binds a new guard's scan set too.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Remediation that touches the same guard earns a second pass.** A remediation can trade one defect for another, and a fix authored by the same reader who found the defect is not independently verified.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A pass reads one pinned commit.** Every agent in a pass reads the same commit and reports the SHA it read (`tools/tree_pin.py`); findings from agents that read different trees are not merged into one verdict.",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A commit pushed before the pass returns states the mechanism changed, not the property.**",
+      "why": "A section 7.1 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A pass is complete when its verification stage has returned.** A lens finding is REPORTED; only the refutation round moves it to VERIFIED or KILLED",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A pass that could not run is DID NOT RUN, never clean.** A zero from a checker whose agents never executed is the same defect as a guard that scans nothing",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**The adversarial vectors are not chosen by the author.** Mutations the author picks confirm the fix the author meant",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Report an involuntarily incomplete pass as incomplete.**",
+      "why": "A section 7.2 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**A claim-proof pin binds at the outermost boundary its claim describes**: the CLI entry, tool or default-resolution path a person hits, not the function the change touched.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    },
+    {
+      "doc": "docs/AUDIT-PROTOCOL.md",
+      "text": "**Rule text outside the guarded corpus is recorded in the manifest.** Each bold-lead rule in this section 7, and each AGENTS.md sentence that restates a bound or exempted CLAUDE.md sentence, has a `guarded_text` record in `tools/claim-proof-manifest.json`.",
+      "why": "A section 7.3 rule of docs/AUDIT-PROTOCOL.md, outside the guarded corpus; deleting it fails invariant 60."
+    }
+  ],
+  "_detector_branches_why": "Recorded branch names for the two detectors that scan text. Fixture/branch agreement alone only catches a half delete; with the names recorded here, removing a branch AND its fixture in one edit still fails the build. A missing table, a missing key, or an entry that is not a non-empty list of names fails the check instead of skipping the pin.",
+  "detector_branches": {
+    "claim_proof": [
+      "all",
+      "always",
+      "bare_no",
+      "cannot",
+      "each",
+      "every",
+      "never",
+      "no_ever",
+      "none",
+      "nothing",
+      "only",
+      "will_not"
+    ],
+    "install_scope": [
+      "applications-dir",
+      "brew",
+      "macos-pkg",
+      "macports",
+      "npm-global",
+      "pip-command",
+      "pip-override",
+      "pipx-global",
+      "sudo-pkg",
+      "sudo-python",
+      "system-prefix-write"
+    ]
+  },
+  "premutation_proofs": []
+}

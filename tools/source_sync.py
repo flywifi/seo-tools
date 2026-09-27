@@ -55,7 +55,8 @@ def load_registry_urls(root=ROOT):
 
 
 def load_exempt_ids(root=ROOT):
-    """Illustrative/example ids exempted from enforcement (mirror of doc-verify-allowlist)."""
+    """Illustrative/example ids exempted from invariant 52: the "exempt" list of
+    tools/doc-source-allowlist.json, the same list tools/sync_check.py reads."""
     path = root / ALLOWLIST
     if not path.exists():
         return set()

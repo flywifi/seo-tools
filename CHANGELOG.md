@@ -13,6 +13,117 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P98: guards read normalised input and pinned sets derive from the serving code (ADR 0069).
+  secret_scan matches a folded copy of the text (NFKC, format characters, dash look-alikes,
+  decimal digits, percent decoding), reads Authorization schemes beyond Bearer, PGP armor,
+  further key-id formats and pipeline k/M/USD dollar forms, and states each rule's unread forms
+  with a pinned case; commit_claims accepts trailers only inside git's trailer block, matches
+  git's scissors cleanup, folds letter-like punctuation, and the invariant 60 proof resolver
+  folds digits. The CI commit-hygiene step's run block must equal a committed byte constant
+  (invariant 61); parity env gating moves to an allow-list; invariants 6 and 7 compare the hub's
+  fence with the route step's list and refuse unknown atom-kind workflow keys; corpus and hub
+  readers fold zero-width characters with committed cases. Claim pins run setup.py as __main__
+  for --install-deps under the process recorder with the interpreter a required argument;
+  endpoint pins derive route sets from the handlers' dispatch tables with a matching self-check;
+  the census reads keyword, annotated, chained, dict, bytes and walrus forms; the schedule_post
+  wrapper check compares the parsed call shape; boundaries records require a resolvable symbol.
+  readonly_bash_guard reads a command as Bash builds it (brace expansion, ANSI-C and locale
+  quoting, getopt-style env options with -S refused, stdin-delivered Python, expansion carriers,
+  arithmetic and array assignments, a sed program parser) and adds the archive, xattr and 3.14
+  pathlib write names; remaining misses live in KNOWN_MISSES with selftest lines.
+- P97: claim pins bind at the entry a person runs (ADR 0068). Invariant 60 reads a `boundaries`
+  record per `::selftest::` proof naming the CLI entry, tool or runtime default the claim
+  describes, and fails when no live code in the pin's function calls that entry and no gap is
+  recorded. setup's selftest drives `--install-deps` through main() under each `.venv` failure
+  mode recording every process start; the pip census reads assembled argv (fragments,
+  pip3/paths, %-format, .format(), conditional words, -mpip); the publishing default is pinned
+  at dashboard startup with the local override absent; the five mutating dashboard endpoints and
+  `schedule_post` are pinned over filled and fuzzed bodies; the dependency-currency closure
+  reader follows aliases and lazy imports. New pins and detector branches land with three
+  reviewer-run falsifying mutations committed as cases; scan-set narrowings ship a case for the
+  removed set; key-enumerating invariants take keys from the schema.
+- P97: checkers parse their sources as their consumers do. Invariant 7 reads atom keys at any
+  depth and requires each atom's SKILL.md; invariant 6 reads the hub's single downstream heading
+  and fence and refuses duplicates and shadows; invariant 60 scans heading text as a unit,
+  widens exception markers with code spans read inline, and re-validates exemption reasons that
+  assert checkable facts, failing closed on an unreadable source. `commit_claims` checks the
+  first paragraph as `%s` prints it, bounds its range by ancestry (failing closed without the
+  boundary commit), skips only generated merge and revert forms, and folds Unicode with pinned
+  confusable cases. `battery` cuts comments where bash does, matches gates as whole-step token
+  lists with an exact interpreter word, and gates BASH*/LD_* env names, case-variant checkout
+  inputs, sparse-checkout forms, non-ubuntu runners and unmodelled strategy shapes.
+  `readonly_bash_guard` parses option clusters, long-option prefixes, git subcommand grammar,
+  variable setters, Python writes via ast and heredocs with quote awareness; its remaining
+  misses are listed in `KNOWN_MISSES` with selftest lines.
+- P97: the audit-record name rule reads the path as git prints it (NFKC-folded, unquoted, the
+  review keyword and calendar date anywhere in the path, widened date forms), and committed
+  pattern lists refuse finding-id tokens, severity tallies, committed-report pointers and the
+  ADR/ledger discovery phrasings, each with limits stated at the rule. The phone pattern reads
+  flush and separator-form 1/+1 prefixes; the email allowlist anchors whole addresses.
+- P96: review output stays outside the repository (ADR 0067). The seven dated records under
+  `docs/` are deleted, with the Mac-only procedures moved to `docs/MACOS-MAINTENANCE.md` and the
+  Florida cost model to `docs/JURISDICTION-OVERLAY-PLAN.md`; `tools/doc_freshness.py` drops the
+  frozen dated-record machinery (a doc binds to code only; supersedes ADR 0056 decision 5).
+  Drift invariant 20 and the pre-commit gate refuse audit-record file names
+  (`tools/secret_scan.py::audit_record_name`: a date plus a review keyword in the file or a
+  directory above it, or a listed path; the guard comment lists the forms it does not match). New
+  `tools/commit_claims.py` checks commit subjects with invariant 60's detector in the
+  commit-msg hook and a required CI range step; a flagged subject needs a resolving
+  `Claim-Proof:` trailer. `docs/AUDIT-PROTOCOL.md` states the pass rules: one pinned commit per
+  pass (`tools/tree_pin.py` prints and verifies the tree fingerprint), mechanism-not-property
+  subjects before a pass returns, and DID NOT RUN reporting.
+- P96: guards prove their own coverage with committed cases. Invariant 60's detector checks
+  itself against `tools/claim-proof-cases.json` (per-branch positives, negatives, escape, unit
+  and sweep cases; a blindness check; fail-closed wiring), gains each/everything/nobody,
+  will-not/can-not, existential-no and contraction forms, wider escape markers read in every
+  corpus unit with code spans stripped, and line-anchored corpus section markers. The pin
+  resolver refuses listed shapes of a pin that cannot fail (dead code, rebound or decorated
+  helpers, fixed-truth conditions, builtins), each rule group pinned by its own case module,
+  with multi-proof claims, a 16-character unique-label rule and fail-closed sweep membership.
+  CI parity reads ci.yml with a fail-closed YAML-subset reader (42 pinned reader cases; needs
+  propagation; declared checkout/shell/env/container forms gate coverage) and runs as drift
+  invariant 61; the version gate joins the battery (14 gates; invariant count 60 to 61 across
+  count docs). Agent definitions enforce read-only through frontmatter `disallowedTools`
+  (Write, Edit, NotebookEdit, Agent, writing MCP tools; the auditor loses every MCP tool and
+  runs in a worktree behind `tools/readonly_bash_guard.py`); the verification verdict gains
+  `did_not_run` and deal-review escalates a missing verifier.
+- P96: bound claims observe the property at its boundary. Publishing: `_scheduler_tick` passes
+  `allow_live=None`, dispatch treats `allow_live` as veto-only, selftests record at urlopen and
+  socket across all four platform clients with the flag off, pass explicit configs, and pin the
+  committed config shipping `live_publishing_enabled` false; `schedule_post` is pinned in the
+  package-independent tier. Install: setup and wizard selftests record subprocess argv with the
+  pip-building helpers left real, plus a tree-wide pip census. Invariant 53 validates
+  `default_flag` against declared states and executes the resolver CLI paths; invariant 6
+  checks each listed spoke exists; `secret_scan` gains a separator-form NANP phone pattern.
+  Invariant 59 reads every non-binary tracked file, keys its exemption map on exact paths with
+  a never-exempt floor from the claim-proof manifest, and detects writes into /Applications,
+  /usr/local and /opt/homebrew; the five exemption maps and the skip tuples fail on entries
+  that do no work, and secret-scan entries pin the sha256 of the text they exempt.
+- P94: drift invariant 60 (claim-proof binding) and tools/claim-proof-manifest.json. Every universal claim about this repo's own behavior in CLAUDE.md's non-negotiables and
+  docs/INSTALL-SCOPE.md is now accounted for: 17 are bound to an enforced invariant or a NAMED
+  selftest pin the battery executes, and 37 are recorded as exemptions with written reasons
+  because they are instructions to the agent or facts about third-party software that no guard
+  can prove. The exemption count is the honest finding: most universals in that section are
+  directives, not properties of this repo's code. Route records additionally bind an install route the docs recommend to the
+  code that detects it, resolved through the prober's symbol rather than the path appearing
+  anywhere in the file. A reverse enrolment sweep fails when a universal claim joins the
+  corpus bound to nothing, matching at claim granularity so a new promise cannot ride in on a
+  neighbouring binding. Earlier cuts of this check
+  missed four shapes it now handles: a universal appended to an already-bound bullet, a proof citing a pin whose
+  condition was a literal, a proof citing a pin parked in a function nothing calls, and a bound
+  promise reversed by an "except when" clause carrying no universal word at all. A pin now has
+  to carry a real condition AND sit in a function reachable from the selftest entry, and an
+  undeclared escape hatch beside a bound promise fails on its own. Invariant count 58 to 59; ADR 0066 records the
+  decisions.
+- P94: `tools/battery.py --check-parity` asserts CI actually runs every battery gate. The CI
+  step was named "Battery parity (tools/battery.py --list matches the steps below)" and only
+  printed the roster; turning the real check on found that CI was running neither the hash
+  audit nor source sync. Both are now CI steps, and preflight push is declared with its
+  reason (it inspects a local working tree, which a CI checkout does not have).
+- P94: `_coverage_proof()` in tools/sync_check.py, shared by invariants 59 and 60: every
+  detector branch must have a fixture and every fixture must fire its own branch, and the branch names are pinned in the manifest, so deleting a branch fails the build whether
+  or not its fixture goes with it. All 22-plus coverage proofs in the repo were hand-rolled
+  before this, with no two sharing code.
 - P93: drift invariant 59 (install-scope policy). The guard scans EVERY tracked text file
   (a derived denominator, minus written-reason exemptions for historical records and
   third-party evaluations) for brew, sudo package commands, MacPorts, global npm/pipx
@@ -25,6 +136,32 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P95: docs/AUDIT-PROTOCOL.md section 7.2 says when a verification pass is finished. A claim
+  waits for the pass's verification stage to return, not its first findings (the REPORTED to
+  VERIFIED or KILLED ladder of section 8); a pass whose agents could not run is reported as DID
+  NOT RUN, never as clean; the adversarial vectors are chosen by the reviewer, not the author;
+  and a pass that died partway is recorded (the ADR 0043 and 0045 precedents). CLAUDE.md and
+  AGENTS.md carry the rule.
+- P95: `tools/battery.py --check-parity` is meant to count a gate only when a BLOCKING CI step
+  (no `if:` on the step or its job beyond always()/success(), no continue-on-error) runs exactly
+  the gate's command as the whole step. Its line parser misses several valid YAML forms that
+  defeat that (a job-level `if:` written after `steps:`, `needs:` on a skipped job, a folded
+  `|| true`, quoted keys). P94 matched the script path anywhere in the step text, so a
+  step disabled with `if: false`, or `source_sync.py reconcile` standing in for `check`, still
+  counted. The check now also prints commands CI runs that are not battery gates (it surfaced
+  `version.py --check`), lists conditional steps it did not count, and fails on a parity note
+  whose gate CI runs directly or that names no gate. Nine parity branches are pinned in
+  `battery.py --selftest`.
+- P95: invariant 60's trigger vocabulary now matches what the docs advertise. CLAUDE.md listed
+  "repo-wide" (no sentence in the guarded corpus used it; its one occurrence was that list) and
+  a bare "no" the detector could not see, and omitted "only", "nothing" and "always", which it
+  enforced. The detector gains bare "no" (it still misses some in-vocabulary forms, such as
+  "There is no fallback to the base interpreter", and flags "no admin rights needed"), "none", "cannot", and a
+  `no ... ever` that tolerates punctuation; CLAUDE.md,
+  AGENTS.md, ADR 0066 and the check's docstring now list the same words. The five universals the
+  new branches surfaced are resolved: two bound, three exempted with reasons (manifest: 19
+  bound, 40 exempted). The escape-clause list gains "except where", "with the exception of",
+  "provided that", "save for" and related forms.
 - P93: every install instruction across the live guidance defaults to user-scoped. The new
   policy page docs/INSTALL-SCOPE.md states the rule (home folder only, no sudo, no
   /Applications, /opt/homebrew, or /usr/local), the approved locations, the user-scoped
@@ -37,6 +174,51 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P95 (correction to the P95 record, 2026-09-24): the subject `P95-2: a claim-proof pin counts only when it can fail.` is false as a
+  universal and is immutable in pushed history; the P95 entries here and in ADR 0066 are
+  narrowed to what was tested. Also corrected: the "80 pins" attribution, "exercises every
+  rule", the "repo-wide" occurrence claim, and the unreproducible precision figure. Still open:
+  the parity parser's YAML gaps, over-broad install-scope
+  exemptions, detector recall and escape vocabulary, and four bindings whose pins test a
+  different property than their claims (the dashboard network call, `wizard._install_uv`,
+  `schedule_post`'s review flag, `default_flag` validity).
+- P95 (correction to the P94 record, 2026-09-24): the P94 entry above says a pin "has to carry
+  a real condition AND sit in a function reachable from the selftest entry". As shipped that was
+  not true: any function whose name began with "selftest" counted as an entry, an attribute call
+  made a same-named function reachable, and `ok(1 == 1, label)` passed because only a bare
+  literal was refused. P95 added static refusal rules: a pin is refused when the resolver does
+  not find it on the live call path (uses by name, skipping uncalled nested defs and dead `if`
+  branches), when its helper is not a module definition that tests its condition, or when its
+  condition's truth is fixed. They are refusal rules, not a guarantee: pins that cannot fail
+  still pass (for example `ok(x or not x, ...)`, a helper
+  rebound to `print`, a pin under `while False:`). A fixture module in the drift guard
+  exercises eleven of the rules, and reverting any one of those fails the build; nine
+  further rules have no fixture. Measured over all 91 swept modules: no previously
+  accepted label is refused, and 80 more became visible, 71 of them in mcp_server's
+  module-level `_selftest_static` and 9 should-not-reach pins in seven other modules.
+- P95: drift invariant 59's exemption map is checked for staleness. Five of its thirteen
+  entries exempted nothing, one of them the living AUDIT-PROTOCOL filed under "dated audit
+  protocol records"; they are dropped, and an entry that matches no tracked file or exempts
+  nothing now fails the build.
+- P95: a binding in tools/claim-proof-manifest.json now covers one occurrence of its text, not
+  every occurrence in the doc; a short bound phrase otherwise whitelisted any later sentence
+  that repeated its words.
+- P95: drift invariant 53 asserts `default_flag` is present on every connectors.json entry.
+  It previously only executed the resolver, which reads the field with a fallback, so the
+  CLAUDE.md sentence and the resolver's comment that credited it were both false. A present but
+  invalid value (a typo such as "availabel") still passes and silently leaves the connector off.
+- P95: the publishing dispatch selftest tests the property, not the status string. A
+  recording client observes zero platform calls with the flag off (and a flag-on control shows
+  the probe sees calls). A gate that returns "gated" after calling the client passed the old
+  status-only pin; it fails the new one. The claim-proof resolver now also resolves pins in
+  package selftests run as `python -m <pkg> --selftest`.
+- P94 (correction to the P93 record, 2026-09-21): two P93 commit subjects overclaimed and are
+  immutable in pushed history, so the correction is recorded here. `P93-1: no code path installs
+  machine-wide.` was false when written: the installer still fell back to the base interpreter,
+  so an interpreter that is machine-wide without a PEP 668 marker took all seven requirements
+  sets. `P93-2: every install instruction defaults to user-scoped.` was false for six live
+  surfaces, including the repo-root double-click launcher. Both were made true by P93-4; drift
+  invariant 60 now binds the surviving claims to the pins that prove them.
 - P93: Creator OS never installs machine-wide. The two code fallbacks that retried pip with
   the system-override flag into Homebrew's shared site-packages when no .venv existed
   (setup.py's dependency installer and the wizard's uv step) now refuse with the exact
@@ -44,7 +226,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Pinned twice: a fake PEP 668 interpreter fixture that failed against the pre-fix code
   (executed detector proof), and a source pin asserting the override string is gone from
   both modules.
-- P93-4: the P93 adversarial pass found that P93-1 had closed only HALF the machine-wide write.
+- P93-4: P93-1 had closed only HALF the machine-wide write.
   The refusal keyed on the PEP 668 "externally-managed-environment" string, but
   `install_dependencies` still fell back to `target = venv_py or PYTHON`, so on an interpreter
   that is machine-wide WITHOUT that marker (a python.org framework build, /usr/local) pip
@@ -165,8 +347,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   SDK majors, a hermetic negative fixture proving the surface-budget detector can fail,
   `source_currency.py update-source --remove-used-by`, and doc-freshness bindings for the
   ChatGPT-facing packaging docs (`docs/adr/0057-p82-chatgpt-audit-remediation.md`).
-- First complete currency sweep and a SHA-256 verified integrity census (P78), recorded in
-  `docs/integrity-currency-audit-2026-08-30.md`. Every stored hash in the tree was recomputed
+- First complete currency sweep and a SHA-256 verified integrity census (P78). Every stored
+  hash in the tree was recomputed
   from bytes: the mac-surface, projection, and doc-freshness manifests and the registry digest
   all verify; the freshness bundle held one stale per-file hash that its own checker never
   recompares; and all fourteen GIS boundary hashes turned out to describe a serialization that
@@ -175,9 +357,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   content hashes and conditional-request state: 18 sources changed since their last reading and
   are queued for human review, 110 are bot-blocked at this environment's egress and now carry
   the first real durable block records, and blocked was never conflated with stale. Dependency
-  drift and every deliberately-unchanged control are recorded in the report as findings.
+  drift was recorded, not changed, in this pass.
 
-- P79 remediation (2026-09-04, `docs/remediation-2026-09-04.md`): `tools/hash_audit.py`, one verb that
+- P79 remediation (2026-09-04): `tools/hash_audit.py`, one verb that
   recomputes every stored hash in the tree (tracked stores gate, gitignored stores report only);
   `implementation/skill-package-manifest.json`, a mtime-free sha256 per skill source tree with
   `package_skill.py --check-manifest` in CI; the selftest enrolment gate re-landed in the sweep with its
@@ -218,7 +400,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   silently pass. The full battery now runs 13 of 13 gates under 3.12, 3.13, AND 3.14.
 - P89: the cross-modality record's stale spots are squared. DEPLOYMENT.md's first-run
   checklist no longer claims to cover the browser-only options, and its MCP smoke test is the
-  full three-message handshake instead of the bare tools/list the P85 audit proved broken
+  full three-message handshake instead of the bare tools/list shown broken in P85
   (with the tool count printed, never hand-restated); the Custom GPT retirement steer and a
   ChatGPT Project option reached DEPLOYMENT.md at last, with the reported 2026-09-25
   creation-stop tagged as unverified secondary reporting; the recommended ChatGPT door's
@@ -231,13 +413,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   one run in five to ten (the server answered initialize, then exited cleanly in one second
   without the second reply). The probe is now interactive, closing stdin only after the
   reply, with one automatic retry reserved for transient first-start failures; deterministic
-  refusals never retry (proven by invocation counting in the selftest). This also corrects
-  the earlier in-chat "startup latency" reading of the same symptom.
+  refusals never retry (proven by invocation counting in the selftest). The symptom is a
+  transport race, not startup latency.
 - P87: the wizard's install-verification gate no longer passes a completed handshake with an
   empty toolset or an impostor server (the serverInfo name is pinned; the version never is,
   since the SDK majors report it differently), and an uncross-checked tool count is labeled
-  instead of rendered as "All N tools answered" -- both behaviors were demonstrated by the
-  2026-09-19 adversarial audit, and its spoof server is now a permanent selftest fixture.
+  instead of rendered as "All N tools answered" -- both behaviors are demonstrated by a
+  spoof server that is now a permanent selftest fixture.
 - P87: the mcpb-manifest-spec registry hint named a manifest field the current spec does
   not contain; it now names manifest_version (the shipped version value and date were
   already correct).
@@ -282,7 +464,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   reason for the evidence file said `tools/dependency_currency.py` reconciles against the requirements files, the
   evidence file, and the connector registry, or reads `check_interval_days`; it reads only the registry's
   `validated_version` and `pinned_constraint`. CLAUDE.md, docs/CURRENCY.md, and traversal-config.json now
-  say what the tool does. The P79 record wrongly said AGENTS.md carried the sentence and wrongly listed
+  say what the tool does. P79 had wrongly said AGENTS.md carried the sentence and wrongly listed
   `mcp.types` and `_tool_manager._tools` as mcp 2.x breaks.
 - `dep-faster-whisper` carried an empty pin while requirements-transcribe.txt says `>=1.0`.
 - The fcpxml selftest accepted only xmllint's validation levels, and the GitHub runner has no xmllint;
@@ -308,8 +490,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   iterated per character or crashed startup; the skill packager zipped a different file set than the
   manifest hashed and hashed an un-added skill as empty; the launcher refused a 3.11 venv that
   `env_paths` then handed every tool to; `docs/SETUP_MAC.md` still recommended 3.13; the P80 records
-  misdated the CI history; the P79 record contradicted itself after in-place edits and is restored
-  with an addendum.
+  misdated the CI history.
 
 ### Changed
 - P92: the 0.3.0 cut itself -- all five version locations and the custom-instructions
@@ -389,8 +570,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   should not be silenced by changing the data it describes.
 - Planning depth is a repo convention (P74): `CLAUDE.md` and `AGENTS.md` now require who/what/
   when/where/why/how per work package, risks with mitigations, citable evidence, and code that has
-  been executed rather than code that looks plausible. The standard had been stated repeatedly in
-  conversation and never written down.
+  been executed rather than code that looks plausible.
 - `source_currency.py update-source` gains `--check-interval-days`, `--validated-version` and
   `--pinned-constraint` (P74). These three registry fields had no sanctioned writer, so two
   recorded corrections were physically unapplicable: hand-editing the registry is forbidden and a
@@ -409,11 +589,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   competitor pages, third-party editor files and remote responses are where a silent defect
   reaches the creator as a fact, which is what the OG-extractor regex did for an unknown number of
   phases in a module nothing ever executed. Coverage is still not enforced — a new tool can still
-  ship with no selftest and nothing will notice — and that gap is recorded as an open finding in
-  the audit report rather than closed here.
-- `docs/production-readiness-2026-08-16.md` (P73): the committed six-dimension audit report,
-  its PASS ledger, the guard red-team results, the not-exercised boundary, and the release
-  preparation left for the maintainer's decision. ADR 0053 records the method.
+  ship with no selftest and nothing will notice — and that gap is open.
 - Forward-coverage for three guards (P73): the count-truth invariant sweeps every tracked document
   for a global count claim and fails when one is stated outside the enrolled set (it caught two
   unguarded claims on its first run); the source-registration invariant recognises scheme-less
@@ -446,8 +622,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - Eval output-key truth guard (P68-A): `tools/eval_key_manifest.json` + drift invariant 57
   (`check_eval_output_keys`). It AST-extracts the literal dict keys each skill's named emitter
   function(s) emit and enforces that every eval case key is in the skill's authoritative set AND
-  that the set is itself a subset of the emitted code keys, so a prose-invented key (the P67-D audit
-  found eight in zero tool code) is a build failure and the manifest cannot drift into fiction
+  that the set is itself a subset of the emitted code keys, so a prose-invented key (eight once appeared
+  in zero tool code) is a build failure and the manifest cannot drift into fiction
   either. Skills with no deterministic emitter mark each case `spec_only`. Complements eval_lint.py
   (structure) and invariant 9 (case count) with content-truth.
 - Argv-level remote-MCP selftest (P68-B): package-independent cases in `mcp_server.py --selftest`
@@ -465,9 +641,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (DaVinci Resolve/Compressor/CommandPost stubs, the `remote_mcp` store backend, the CEA-608 `.scc`
   deferral) with verify markers, so unbuilt paths are documented, not silent.
 - Invariant 36 keystone assertion (ADR 0048): a `check_*` function carrying an `Invariant N`
-  docstring label but never called in `main()` now fails the guard, closing the audit-proven
+  docstring label but never called in `main()` now fails the guard, closing the
   hole where the top-numbered invariant could be silently dropped while every count stayed green.
-- Invariant 54 Layer 3: the sixteen CLIs the P65 audit caught raw-tracebacking on a >255-byte
+- Invariant 54 Layer 3: the sixteen CLIs that raw-tracebacked on a >255-byte
   path keep their thin-main OSError boundary structurally (fails on the pre-fix tree naming all
   sixteen); the Layer 2 fs-call set gains `read_bytes`/`stat`/`glob`/`iterdir`/`unlink`.
 - Advisory invariant 56 (invariants 55 to 56): `registry_io.save_registry` stamps a
@@ -476,7 +652,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - `tools/selftest_sweep.py`: scripted discovery of every CLI selftest under `tools/` and
   `shared/` (argparse flag, argv probe, or subcommand; package entries via `-m`), run by the CI
   guard job alongside `scenario_check`, `count_truth`, and `doc_freshness --check` — the
-  behavioral battery the audit found absent from CI. 63+ selftests, seconds of runtime, and a
+  behavioral battery CI previously lacked. 63+ selftests, seconds of runtime, and a
   new tool's selftest is CI-gated automatically.
 - `tools/validate_agent_output.py --selftest`: offline fixtures for all five fabrication rules,
   schema auto-detect, and the end-to-end gate; the authority-allowlist loader now warns loudly
@@ -648,7 +824,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   deliberately NOT re-fetched and why, including the one page that truncated on both attempts, so
   the gap reads as an honest denominator rather than a cleared backlog.
 - Invariants 14, 16, 17 hardened again (P68-D) against the false-positive and false-negative cases
-  the P67 audit found: inv 16 counts a consuming reference only inside a real `${...}` interpolation
+  found after P67: inv 16 counts a consuming reference only inside a real `${...}` interpolation
   or as a bare/derived `agent()` argument (a prose mention no longer passes) and accepts
   variable-built and destructured agent results; inv 17 rejects an unqualified `- Bash` allow bullet
   (a bare shell can mutate the filesystem); inv 14 rejects a placeholder-only allowlist (`- none`).
@@ -695,7 +871,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (publishing layer no longer described as "dark/stubs", Pinterest scope, finance-desk check
   counts, contract-desk atom availability, videoedit atom list, tool-count and script-path
   references). The skill-template regression bar was lowered from five to three cases.
-- The branch history for this version was rebuilt (P76). Nine commits had been pushed without an approved plan; each was reviewed individually and the branch was reset to the last approved commit and rebuilt from those verdicts. Most of the work was re-approved and ships here unchanged. Two changes were dropped as maintainer decisions rather than repairs and are therefore **not** in this version: the selftest enrolment gate with its exemption list, and the re-band of 63 currency check intervals. The fifteen selftests the first of those shipped alongside were kept. `ledger/ledger.json` and `STATE.md` carry the full record.
+- The branch history for this version was rebuilt (P76). The branch was reset to an earlier commit and rebuilt, and most of the work ships here unchanged. Two changes are **not** in this version: the selftest enrolment gate with its exemption list, and the re-band of 63 currency check intervals. The fifteen selftests the first of those shipped alongside were kept. `ledger/ledger.json` and `STATE.md` carry the full record.
 
 ### Fixed
 - The release path had no preconditions (P74). `release.py execute()` checked only that `gh`
@@ -715,7 +891,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   pack shows a lower Packaging version than the wizard does, so a bump that left the stamp behind
   sent them round a loop with no exit: re-paste, still stale, re-paste again. The stamp check only
   asserted the line existed and never read the number, which is the unguarded-agreement-point
-  class the audit was built around. Red-teamed in both directions.
+  class. Red-teamed in both directions.
 - The commit-hygiene backstop scanned an empty range on a direct push to main (P74). CI used
   `origin/main..HEAD`, which is empty once such a push lands, so the step reported success having
   examined nothing; the policy boundary SHA was recorded but never used to bound the range. CI now
@@ -805,12 +981,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `reconcile` now refuses a path nobody has ruled on unless `--accept-new` is passed, the signal
   token `Final Cut` is narrowed to `Final Cut Pro` (it had matched eight files where the phrase
   means the edited video), and the wording throughout says recorded rather than audited.
-- macOS completeness gate self-defect (P69, found by the mandated independent adversarial pass):
+- macOS completeness gate self-defect (P69):
   the deriver sat in its own skip list and nothing hashed it, so deleting tokens from the signal
   vocabulary shrank the audited set while invariant 58 still reported complete. The manifest now
   pins the deriver (module and signal-set sha256) and the guard fails when an audited file stops
-  deriving, so a narrowed denominator is a build failure instead of a silent gap. The same pass
-  found three video-tooling evidence files skipped under a false append-only rationale (one commit
+  deriving, so a narrowed denominator is a build failure instead of a silent gap. Three video-tooling
+  evidence files were skipped under a false append-only rationale (one commit
   each); they are audited normally now, and a macOS moving date still resolved its registry source
   to the page that does not carry the claim, now seeded and repointed.
 - macOS setup guidance (P69): `docs/SETUP_MAC.md` named a different Python version than the
@@ -824,7 +1000,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   sliding window) and no total-video cap (verified 2026-07-19 against
   developers.tiktok.com/doc/tiktok-api-v2-rate-limit); stated in the importer and CONTENT-IMPORT,
   and the staged volatile-correction marked applied.
-- The three HIGH data-boundary gaps from the P65 audit (ADR 0048): the generic `sk-` secret
+- Three HIGH data-boundary gaps (ADR 0048): the generic `sk-` secret
   pattern now matches current hyphenated provider key formats and fine-grained `github_pat_`
   tokens; the tracked-content scan reads EVERY tracked file behind a binary sniff instead of a
   suffix allowlist; and invariant 20's forbidden tracked suffixes expand to a single shared
@@ -838,16 +1014,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   propagates its exit code, and the six with selftests carry a boundary case.
 - Invariant 55's residual-origin escape was a raw substring test and origin claims were not
   surface-checked: claims are now reconciled against an explicit `_residual_origins` list and a
-  per-origin surface-affinity table (the audit's phantom-origin repro now fails).
+  per-origin surface-affinity table (a phantom-origin repro now fails).
 - Four agent definitions omitted the verification envelope their own schemas require;
   invariant 15 now also asserts every definition's prose names all three envelope fields.
 - Nine selftest summaries printed hardcoded denominators (four already wrong: build_calc said
   24 of 24 while 29 ran, publishing_compliance 20 over 15, mediaprobe 17 over 19,
   scenario_check 13 over 14); every selftest count in the tree is now derived from a run counter.
-- Two prose-named symbols lacked verify markers (`sweep_quarantine`, `render_prior`);
-  `docs/CROSS-MODALITY-AUDIT.md` is headed as a historical P39 snapshot against the live
-  22-spoke tree.
-- Adversarial audit of the P61 ingest-screening and quarantine code closed five confirmed defects,
+- Two prose-named symbols lacked verify markers (`sweep_quarantine`, `render_prior`).
+- Five defects in the P61 ingest-screening and quarantine code are closed,
   each now pinned by an `inbox.py` selftest regression: a poisoned transcript that tripped the
   binary sniff (a NUL or high-byte payload) was format-routed WITHOUT the offline screen -- a
   text-format file the tier cannot read is now held for a session, never routed unscreened; the
@@ -930,7 +1104,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   cross-approve. `ftc_disclosure_verified` is documented as a presence check, not content validation.
   A map-and-verify pass over three previously-unaudited surfaces (installer, drift guards, source
   trigger) found no new issues.
-- Adversarial-audit remediation of the P50/P51 publishing + wizard code (all findings were behind
+- Remediation of the P50/P51 publishing + wizard code (all findings were behind
   `live_publishing_enabled=OFF`, so no user was exposed): the publish `dispatch()` now structurally
   enforces the live-publishing flag and an explicit human confirmation instead of trusting the caller,
   the dashboard passes the full credentials map (the live path returned "reconnect" for everyone

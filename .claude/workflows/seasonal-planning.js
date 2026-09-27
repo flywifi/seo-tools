@@ -172,7 +172,7 @@ const VERIFICATION_SCHEMA = {
     flagged_claims: { type: 'array', items: { type: 'object', properties: { claim: { type: 'string' }, issue: { type: 'string' }, severity: { type: 'string' } }, required: ['claim', 'issue'] } },
     confidence_valid: { type: 'boolean' },
     minority_report_adequate: { type: 'boolean' },
-    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail', 'did_not_run'] },
   },
   required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
 }
@@ -203,7 +203,7 @@ Default to flagging if uncertain.`,
   { label: 'verify-seasonal', phase: 'Verify', schema: VERIFICATION_SCHEMA }
 )
 
-log(verification ? `Seasonal verification: ${verification.overall_verdict}` : 'Verification skipped')
+log(verification ? `Seasonal verification: ${verification.overall_verdict}` : 'Seasonal verification DID NOT RUN (the verifier returned nothing)')
 
 // Phase 4: Calendar mapping with hub-cluster structure
 phase('Calendar')
@@ -244,6 +244,7 @@ return {
   trends,
   keywords,
   verification,
+  verification_verdict: verification ? verification.overall_verdict : 'did_not_run',
   calendar,
   status: calendar ? 'complete' : 'calendar_build_failed',
 }

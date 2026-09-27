@@ -57,7 +57,7 @@ def counts(root=ROOT):
     # invariants: how many the drift guard actually ENFORCES. Derived exactly the way the guard's
     # own catalog check (invariant 36) derives it -- a number is enforced when a check_* function
     # both CARRIES the label and is REGISTERED in main(). Counting the highest label instead
-    # inflated every doc claim by the retired numbers in MERGED_INVARIANTS (P73 D1-1: reported 58,
+    # inflated every doc claim by the retired numbers in MERGED_INVARIANTS (P73: reported 58,
     # enforced 57, so a doc correctly stating 57 would have FAILED invariant 48).
     invariants = _enforced_invariants(root)
     try:

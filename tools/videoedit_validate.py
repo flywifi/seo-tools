@@ -10,7 +10,7 @@ import this. It answers two questions:
      IMPORTANT -- what actually CALLS this: the app-driving lane (videoedit/__init__.py), the
      local renderer (mltxml.py::media_render) and reframe.py::shorts_reframe. Interchange writers
      (fcpxml.py, captions.py) do NOT consult it: those files are the deliverable and are always
-     written. Do not describe this helper as gating file generation in general (P73 D4 -- an
+     written. Do not describe this helper as gating file generation in general (P73: an
      earlier docstring said exactly that, correcting prose without adding a mechanism).
   2. Is a generated FCPXML VALID? `validate_fcpxml(...)` delegates to tools/videoedit/fcpxml.py
      (DTD-valid when a DTD is found, else well-formed) and returns the ok/level/errors contract.
@@ -116,7 +116,7 @@ def _main(argv) -> int:
 
 
 def _selftest() -> int:
-    """Offline proof of the two contracts this module owns (P73 D1-2: it had NO selftest and was
+    """Offline proof of the two contracts this module owns (P73: it had NO selftest and was
     absent from the sweep, so `fcpxml.validate` had no executed test path anywhere in the repo).
     Stdlib only; temp files; no config writes."""
     import tempfile
@@ -132,7 +132,7 @@ def _selftest() -> int:
     for feature in sorted(APP_DRIVING):
         # Feature flag ON, master OFF -> this is the ONLY fixture that reaches the master-gate
         # branch. Omitting the feature flag short-circuits on the earlier check and leaves the
-        # master gate untested while the label claims otherwise (P73 D4, on this file's own
+        # master gate untested while the label claims otherwise (P73, on this file's own
         # first version).
         cfg = {"capabilities": {"video_editing_enabled": False, feature: True}}
         allowed, reason = realization_allowed(feature, cfg)

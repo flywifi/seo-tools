@@ -814,14 +814,14 @@ def cmd_update_source(args, registry):
                        ("check_interval_days", getattr(args, "check_interval_days", None)),
                        ("validated_version", getattr(args, "validated_version", None)),
                        ("pinned_constraint", getattr(args, "pinned_constraint", None)),
-                       # P79 E6: scoped hashing region; the read path already exists at
+                       # P79: scoped hashing region; the read path already exists at
                        # classify_content_change (content_hash(body, entry.get("content_selector"))).
                        ("content_selector", getattr(args, "content_selector", None)),
-                       # P79 F3: structured form of the EXCERPT-CONFIDENCE prose convention. Tri-state:
+                       # P79: structured form of the EXCERPT-CONFIDENCE prose convention. Tri-state:
                        # an un-passed flag is None and therefore a no-op in this loop.
                        ("excerpt_confidence", getattr(args, "excerpt_confidence", None)),
                        ("excerpt_verified_at", getattr(args, "excerpt_verified_at", None)),
-                       # P81 M-5: the dependency checker's upstream is data; without a writer the only way
+                       # P81: the dependency checker's upstream is data; without a writer the only way
                        # to move dep-faster-whisper off the proxy-blocked GitHub feed was a hand edit.
                        ("upstream_api", getattr(args, "upstream_api", None)),
                        ("check_url", getattr(args, "check_url", None))):
@@ -829,7 +829,7 @@ def cmd_update_source(args, registry):
             entry[field] = val
             changed.append(field)
     if "url" in changed:
-        # P81 M-3: the stored content stamps describe the OLD page. Left in place, the next detect-changes
+        # P81: the stored content stamps describe the OLD page. Left in place, the next detect-changes
         # run reports a fabricated 'changed' (different page, different sha) or, worse, sends the old etag
         # to the new host and records a spurious 304 as 'unchanged'. Null them so the new URL is
         # first_seen on its next check.
@@ -1034,7 +1034,7 @@ def selftest_detect():
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
 
-    # P81 M-3: a --url change nulls the six content stamps; a same-URL call changes nothing.
+    # P81: a --url change nulls the six content stamps; a same-URL call changes nothing.
     import types as _types
     g = globals()
     _saved_save = g["save_registry"]
@@ -1051,7 +1051,7 @@ def selftest_detect():
             cmd_update_source(a, reg)
         out2 = json.loads(buf2.getvalue())
         e = reg["sources"][0]
-        ok("update-source --url clears the six content stamps (P81 M-3)",
+        ok("update-source --url clears the six content stamps (P81)",
            all(e[k] is None for k in ("content_sha256", "content_etag", "content_last_modified",
                                       "last_checked", "min_recheck_at", "last_changed_detected"))
            and sum(1 for c in out2["changed"] if c.endswith("=null")) == 6)

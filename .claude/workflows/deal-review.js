@@ -181,7 +181,7 @@ const VERIFICATION_SCHEMA = {
     confidence_valid: { type: 'boolean' },
     minority_report_adequate: { type: 'boolean' },
     cross_verification_issues: { type: 'array', items: { type: 'object', properties: { usage_claim: { type: 'string' }, exclusivity_claim: { type: 'string' }, contradiction: { type: 'string' } } } },
-    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail'] },
+    overall_verdict: { type: 'string', enum: ['pass', 'pass_with_flags', 'fail', 'did_not_run'] },
   },
   required: ['verified_claims', 'flagged_claims', 'overall_verdict'],
 }
@@ -244,7 +244,13 @@ const mergedReview = {
   ],
 }
 
-if (crossVerify && crossVerify.overall_verdict === 'fail') {
+// A verifier that returned nothing, or reported that it could not run, is not a pass: the review
+// goes to a human exactly as it does on a failing verdict.
+mergedReview.verification_verdict = crossVerify ? crossVerify.overall_verdict : 'did_not_run'
+if (mergedReview.verification_verdict === 'did_not_run') {
+  mergedReview.human_review_required = true
+  mergedReview.open_flags.push('Cross-verification did not run; usage rights and exclusivity were not cross-checked')
+} else if (mergedReview.verification_verdict === 'fail') {
   mergedReview.human_review_required = true
   mergedReview.open_flags.push('Cross-verification found contradictions between usage rights and exclusivity')
 }

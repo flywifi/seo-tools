@@ -9,8 +9,8 @@ The automated guards (`version.py --check`, invariant 38, `count_truth.py`, the 
 passed, but they are blind by design to several accuracy surfaces: dated stamps, selftest
 pass-counts quoted in maintainer prose, whether a CHANGELOG release heading corresponds to a real
 tag, and whether a result-mapping branch reports failures honestly. Two advisory signals
-(doc-freshness invariant 51 and the moving-date invariant 43) were firing uncleared. Four read-only
-research agents mapped the surfaces; every load-bearing lead was re-verified directly (count_truth,
+(doc-freshness invariant 51 and the moving-date invariant 43) were firing uncleared. The surfaces were
+mapped first; every load-bearing lead was re-verified directly (count_truth,
 version --check, doc_freshness --check, finance --selftest, git tags, the GitHub Releases API)
 before any change landed.
 
@@ -45,7 +45,7 @@ before any change landed.
 **Stale-by-decision (recorded, deliberately NOT changed, per review):**
 - The CHANGELOG `[0.1.0] - 2026-07-14` heading and its tag links refer to a GitHub release that has
   not been published (zero tags, zero releases), and `plugin.json` `autoUpdate: true` advertises the
-  release-driven update lane. Both stay as-is until the owner publishes the real release. Hand-off:
+  release-driven update lane. Both stay as-is until a real release is published. Hand-off:
   run `python3 tools/release.py --plan` where `gh` exists, or dispatch
   `.github/workflows/release.yml`.
 - The `creator-os-release` registry entry has `last_checked: null` against its 7-day interval.

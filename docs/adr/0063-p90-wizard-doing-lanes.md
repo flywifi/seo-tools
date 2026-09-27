@@ -6,9 +6,8 @@
 
 ## Context
 
-The owner's verdict on the P89 documentation work: the wizard "does not need more words, it
-needs more DOING especially for chat gpt... actual walkthrough menus and actual help and
-things that it sets up for the user." ChatGPT exposes no local config surface the wizard can
+The P89 documentation work added words where the wizard needed actions: walkthrough menus,
+in-product help, and steps it performs for the user, especially for ChatGPT. ChatGPT exposes no local config surface the wizard can
 write, so the automatable maximum is: prepare every artifact, validate it against the real
 caps, stage the exact files, and verify the outcome from pasted evidence. An inventory pass
 established the reusable rails (the first-run lane pattern, worker jobs, the token-gated

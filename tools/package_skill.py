@@ -49,11 +49,11 @@ def skill_dirs(root=None):
 
 _UNTRACKED_NOISE = ("__pycache__",)
 _UNTRACKED_SUFFIXES = (".pyc", ".pyo", ".tmp")
-_UNTRACKED_NAMES = (".DS_Store",)   # P81 B-4: Finder writes it into any browsed folder of a downloaded copy
+_UNTRACKED_NAMES = (".DS_Store",)   # P81: Finder writes it into any browsed folder of a downloaded copy
 
 
 class UntrackedSkill(ValueError):
-    """A skill directory inside a checkout with no tracked files (P81 B-2): hashing it would record the
+    """A skill directory inside a checkout with no tracked files (P81): hashing it would record the
     empty digest and 'verify' content git has never seen."""
 
 
@@ -73,7 +73,7 @@ def _git_tracked(d):
 def _source_files(d):
     """The files that ARE the skill, relative to d: the git-tracked set inside a checkout (P80: a
     __pycache__ written by a second interpreter must never move the hash), else every file that is not
-    interpreter/editor/Finder noise (a downloaded copy has no git). P81 B-1: package() and tree_sha()
+    interpreter/editor/Finder noise (a downloaded copy has no git). P81: package() and tree_sha()
     both use THIS set, so the manifest anchors exactly what the .skill archive contains."""
     d = Path(d)
     tracked = _git_tracked(d)
@@ -193,7 +193,7 @@ def package(skill_dir):
     DIST.mkdir(exist_ok=True)
     out = DIST / f"{skill_dir.name}.skill"
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-        for r in files:                       # P81 B-1: the SAME set tree_sha() hashes
+        for r in files:                       # P81: the SAME set tree_sha() hashes
             zf.write(skill_dir / r, str(Path(skill_dir.name) / r))
     print(f"  OK   {rel} -> dist/{out.name}")
     return True
@@ -278,9 +278,9 @@ def selftest():
         man = root / "implementation" / "skill-package-manifest.json"
         try:
             tree_sha(root / "skills" / "alpha")
-            ok("an un-added skill is refused, never hashed empty (P81 B-2)", False)
+            ok("an un-added skill is refused, never hashed empty (P81)", False)
         except UntrackedSkill:
-            ok("an un-added skill is refused, never hashed empty (P81 B-2)", True)
+            ok("an un-added skill is refused, never hashed empty (P81)", True)
         subprocess.run(["git", "-C", td, "add", "-A"], check=True)
         ok("reconcile writes a manifest with one hash per skill",
            reconcile_manifest(root, man) == 0 and len(json.loads(man.read_text())["skills"]) == 2)
@@ -297,7 +297,7 @@ def selftest():
         with zipfile.ZipFile(out, "w") as zf:
             for r in _source_files(root / "skills" / "alpha"):
                 zf.write(root / "skills" / "alpha" / r, str(Path("alpha") / r))
-        ok("the archive contains exactly the hashed set (P81 B-1)",
+        ok("the archive contains exactly the hashed set (P81)",
            sorted(zipfile.ZipFile(out).namelist()) == ["alpha/SKILL.md", "alpha/notes.md"])
         (root / "skills" / "alpha" / "notes.md").write_text("edited")
         drift, code = check_manifest(root, man)

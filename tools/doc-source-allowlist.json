@@ -1,7 +1,7 @@
 {
-  "_comment": "Invariant 52 exemptions: source ids that appear in a doc's ```sources block or <!-- source: id --> marker as ILLUSTRATIVE examples, not real declarations. Each entry needs a written reason in _reasons. Never exempt a real source; seed it instead (tools/source_sync.py reconcile).",
+  "_comment": "Invariant 52 exemptions: source ids that appear in a doc's ```sources block or <!-- source: id --> marker as ILLUSTRATIVE examples, not real declarations. Each entry needs a written reason in _reasons. Never exempt a real source; seed it instead (tools/source_sync.py reconcile). Drift invariant 52 fails when exempt and _reasons name different ids, when a reason is under 25 characters, when an exempt id is a registered source, or when no scanned doc still uses the id.",
   "_reasons": {
-    "an-example-id": "The placeholder id used by docs/DOC-MAINTENANCE.md and docs/CURRENCY.md to illustrate the sources-block convention."
+    "an-example-id": "The placeholder id used by docs/DOC-MAINTENANCE.md, docs/CURRENCY.md and docs/adr/0039-p55-doc-source-trigger.md to illustrate the source-marker convention."
   },
   "exempt": ["an-example-id"]
 }

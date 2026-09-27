@@ -31,6 +31,8 @@ import os
 import re
 import ssl
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -117,7 +119,34 @@ def classify_drift(entry, latest, latest_date):
 
 # ── network (stdlib; honors env proxy + CA bundle; never raises) ─────────────
 
-def _http_get_json(url, timeout=12):
+# The only hosts this tool sends a request to. A URL on any other host, or a redirect to one, is
+# refused before anything is sent; the token-free selftest pin checks both refusals.
+_ALLOWED_HOSTS = ("pypi.org", "api.github.com")
+
+
+def _host_allowed(url):
+    """True when `url` is an https URL on one of _ALLOWED_HOSTS."""
+    try:
+        parts = urllib.parse.urlsplit(url)
+        return parts.scheme == "https" and parts.hostname in _ALLOWED_HOSTS
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+class _AllowedHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect only when its target is on one of _ALLOWED_HOSTS."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _host_allowed(newurl):
+            raise urllib.error.HTTPError(newurl, code, "redirect to a host outside "
+                                         "_ALLOWED_HOSTS refused", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _http_get_json(url, timeout=12, opener=None):
+    if not _host_allowed(url):
+        return None, (f"refused: {str(url)[:120]!r} is not an https URL on "
+                      f"{' or '.join(_ALLOWED_HOSTS)}")
     ctx = ssl.create_default_context()
     if os.path.exists(CA_BUNDLE):
         try:
@@ -132,8 +161,10 @@ def _http_get_json(url, timeout=12):
         if token:
             headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
+    opener = opener or urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx),
+                                                   _AllowedHostRedirect())
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+        with opener.open(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8")), None
     except Exception as exc:  # noqa: BLE001
         return None, f"{type(exc).__name__}: {str(exc)[:160]}"
@@ -240,6 +271,154 @@ def apply_stamps(registry, results, saver=registry_io.save_registry):
 
 # ── selftest (pure logic + injected fetcher; no network) ─────────────────────
 
+# ── token-free pin: what the maintenance path can reach, read statically ─────
+
+# Standard-library modules the maintenance path may not import: each can start a process, load
+# code by a computed name, or open a connection without going through _http_get_json.
+_REFUSED_STDLIB = {"subprocess", "multiprocessing", "concurrent", "importlib", "runpy", "ctypes",
+                   "pty", "webbrowser", "asyncio", "pkgutil", "zipimport", "builtins", "code",
+                   "codeop", "pickle", "marshal", "shelve", "_posixsubprocess", "socket",
+                   "socketserver", "http", "ftplib", "smtplib", "imaplib", "poplib", "nntplib",
+                   "telnetlib", "xmlrpc"}
+# The standard-library modules the maintenance path may import. Each was read for the calls in it
+# that start a process, and none does except through the os functions that _SPAWN_CALLS and
+# _SPAWN_NAME_RE name (the process-management functions of the os module documentation, and the
+# private helpers os.py builds them from).
+# The set is an allowlist: a module not read that way fails the pin until it is read and added,
+# including one whose functions start a process under an ordinary name (platform.architecture()
+# and platform.processor() run `file` and `uname`; pydoc's pagers run a shell).
+_ALLOWED_STDLIB = frozenset({"__future__", "argparse", "ast", "contextlib", "datetime", "fcntl",
+                             "hashlib", "json", "os", "pathlib", "re", "ssl", "stat", "sys",
+                             "urllib"})
+_CLOSURE_SIBLINGS = frozenset({"registry_io", "atomic_io"})
+
+
+def _closure_modules_ok(mods):
+    """True when every module the maintenance path imports is in _ALLOWED_STDLIB or is one of
+    its two sibling helpers, registry_io and atomic_io."""
+    return set(mods) <= _ALLOWED_STDLIB | _CLOSURE_SIBLINGS
+
+
+_SPAWN_CALLS = {"system", "popen", "Popen", "fork", "forkpty", "posix_spawn", "posix_spawnp",
+                "startfile", "__import__", "import_module", "exec", "eval", "vars", "globals",
+                "locals"}
+# The os exec*/spawn* family, with the private helpers os.py builds it from (_execvpe, _spawnvef),
+# which start a process under a name outside the documented family.
+_SPAWN_NAME_RE = re.compile(r"_?(?:exec|spawn)[lv]p?e?f?")
+# Names that open a connection: a call, a urllib handler or opener, or a handler's open method.
+# Only _http_get_json, which refuses other hosts, may use them.
+_NET_CALLS = {"urlopen", "urlretrieve", "build_opener", "install_opener", "OpenerDirector",
+              "create_connection", "get_server_certificate", "wrap_socket", "socket",
+              "HTTPHandler", "HTTPSHandler", "FTPHandler", "URLopener", "FancyURLopener",
+              "http_open", "https_open", "ftp_open", "do_open", "open_http", "open_https"}
+_NET_FUNCTION = "_http_get_json"
+_TOKEN_FREE_ENV = {"REQUESTS_CA_BUNDLE", "GITHUB_TOKEN", "GH_TOKEN"}
+_ENVIRON_NAMES = ("environ", "environb")
+# Referenced names that reach an object by a computed name: a namespace dict, attribute lookup by
+# string, the builtins, or operator's getters.
+_DYNAMIC_REFS = {"__dict__", "__getattribute__", "__builtins__", "attrgetter", "methodcaller"}
+
+
+def _import_closure(path, seen=None, source=None):
+    """(modules, calls, env, net) for the code `path` runs outside its selftests, read
+    statically and following sibling modules in its folder. modules: the top-level names it
+    imports. calls: its process-spawning or dynamic-code calls (os.system, os.exec*/spawn* and os's private _execvpe and _spawnvef,
+    Popen, fork, __import__, exec, eval, vars, globals, locals, and a getattr on os or sys or
+    with a computed name). env: the environment variables it reads through os.environ,
+    os.environb or os.getenv, with "?" for a read whose name is not a string literal. net:
+    "function:call" for each call in _NET_CALLS made outside _http_get_json. A name an import
+    binds is read as what it imports (`from os import environ as e`, `import os as o`), and a
+    name in _NET_CALLS or _SPAWN_CALLS counts wherever it is referenced, not only where it is
+    called, so binding urlopen or os.system to another name first is still seen (a getenv
+    referenced other than as a call reads as "?"); a `__dict__`, `__getattribute__` or
+    `__builtins__` reference, `sys.modules`, and operator's attrgetter and methodcaller count as
+    dynamic-code calls. Only the module-level functions named selftest and _selftest are
+    skipped; a method or nested function with either name is read like the rest of the code,
+    and a reference to selftest or _selftest outside main and the `if __name__ == "__main__":`
+    block counts as a dynamic-code call, so live code cannot reach a skipped function."""
+    import ast
+    seen = {path.stem} if seen is None else seen
+    mods, calls, env, net = set(), set(), set(), set()
+    environs, getenvs, handled = [], [], set()
+    tree = ast.parse(source if source is not None else path.read_text(encoding="utf-8"))
+    main_block = {id(n) for top in tree.body
+                  if isinstance(top, ast.If) and "__main__" in ast.unparse(top.test)
+                  for n in ast.walk(top)}
+    aliases = {a.asname: a.name.split(".")[-1] for n in ast.walk(tree)
+               if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names if a.asname}
+
+    def name_of(n):
+        """The name `n` refers to, an import alias read as the name it imports."""
+        if isinstance(n, ast.Attribute):
+            return n.attr
+        return aliases.get(n.id, n.id) if isinstance(n, ast.Name) else None
+
+    stack = [(tree, "")]
+    while stack:
+        node, fn = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name in ("selftest", "_selftest") and node in tree.body:
+                continue
+            fn = fn or node.name
+        stack.extend((child, fn) for child in ast.iter_child_nodes(node))
+        ref = name_of(node)
+        if (isinstance(node, ast.Name) and node.id in ("selftest", "_selftest")
+                and fn != "main" and id(node) not in main_block):
+            calls.add(node.id)
+        if ref in _ENVIRON_NAMES:
+            environs.append(node)
+        if ref in ("getenv", "getenvb"):
+            getenvs.append(node)
+        if ref in _NET_CALLS and fn != _NET_FUNCTION:
+            net.add(f"{fn or '<module>'}:{ref}")
+        if ref is not None and (ref in _SPAWN_CALLS or ref in _DYNAMIC_REFS
+                                or _SPAWN_NAME_RE.fullmatch(ref)
+                                or (ref == "modules" and name_of(node.value) == "sys")):
+            calls.add(ref)
+        names = []
+        if isinstance(node, ast.Import):
+            names = [a.name for a in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module or ""] if not node.level else [""]
+        elif isinstance(node, ast.Subscript):
+            base = node.value
+            if name_of(base) in _ENVIRON_NAMES:
+                handled.add(id(base))
+                key = node.slice
+                env.add(key.value if isinstance(key, ast.Constant) and isinstance(key.value, str)
+                        else "?")
+        elif isinstance(node, ast.Call):
+            f = node.func
+            name = name_of(f) or ""
+            if name in _SPAWN_CALLS or _SPAWN_NAME_RE.fullmatch(name):
+                calls.add(name)
+            if name == "getattr" and (len(node.args) < 2 or not isinstance(node.args[1], ast.Constant)
+                                      or name_of(node.args[0]) in ("os", "sys")):
+                calls.add(name)
+            if name in _NET_CALLS and fn != _NET_FUNCTION:
+                net.add(f"{fn or '<module>'}:{name}")
+            base = getattr(f, "value", None)
+            is_environ = name_of(base) in _ENVIRON_NAMES
+            if (name in ("get", "pop", "setdefault") and is_environ) or name in ("getenv", "getenvb"):
+                handled.add(id(base) if is_environ else id(f))
+                arg = node.args[0] if node.args else None
+                env.add(arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                        else "?")
+        for n in names:
+            top = n.split(".")[0]
+            mods.add(top)
+            sibling = path.parent / f"{top}.py"
+            if top and top not in seen and sibling.exists():
+                seen.add(top)
+                more = _import_closure(sibling, seen)
+                mods |= more[0]
+                calls |= more[1]
+                env |= more[2]
+                net |= more[3]
+    env |= {"?" for node in environs + getenvs if id(node) not in handled}
+    return mods, calls, env, net
+
+
 def selftest():
     checks = []
 
@@ -312,6 +491,77 @@ def selftest():
     ok("advisory not stamped", apply_stamps({"sources": [{"id": "dep-ffmpeg"}]}, [adv],
         saver=writes2.append)["stamped"] == [])
     ok("no write when nothing stamped", len(writes2) == 0)
+
+    # The maintenance path is read statically, so an import that would fail at runtime (a model
+    # SDK that is not installed) is still seen. The host checks hand _http_get_json a recording
+    # opener, so nothing is sent.
+    mods, calls, env, net = _import_closure(Path(__file__).resolve())
+    sent = []
+
+    class _RecordingOpener:
+        def open(self, req, timeout=None):
+            sent.append(req.full_url)
+            raise OSError("recorded, not sent")
+
+    off_host = _http_get_json("https://pypi.org.example.com/pypi/x/json", opener=_RecordingOpener())
+    on_host = _http_get_json("https://pypi.org/pypi/x/json", opener=_RecordingOpener())
+    try:
+        _AllowedHostRedirect().redirect_request(urllib.request.Request("https://pypi.org/pypi/x/json"),
+                                                None, 302, "Found", {},
+                                                "https://models.example.com/v1/messages")
+        redirect_refused = False
+    except urllib.error.HTTPError:
+        redirect_refused = True
+    _named = _import_closure(Path(__file__).resolve(), source=(
+        "import os\nclass T:\n    def selftest(self):\n        os.system('x')\n"
+        "def f():\n    def _selftest():\n        os.popen('x')\n"
+        "def selftest():\n    os.fork()\n"))[1]
+    ok("token-free: only the module-level selftest functions are skipped; a method or nested "
+       "function named selftest or _selftest is read", _named == {"system", "popen"})
+    _reached = _import_closure(Path(__file__).resolve(), source=(
+        "import os\ndef _selftest():\n    os.system('x')\ndef check():\n    _selftest()\n"
+        "def main():\n    return _selftest()\nif __name__ == '__main__':\n    selftest()\n"))[1]
+    ok("token-free: live code that calls a skipped selftest function is read as a dynamic-code "
+       "call, and main and the script block may call it", _reached == {"_selftest"})
+    ok("token-free: outside its selftests the import closure is the standard library plus "
+       "registry_io and atomic_io, starts no process, makes network calls only from "
+       "_http_get_json, which sends requests only to pypi.org and api.github.com, and reads "
+       "GITHUB_TOKEN or GH_TOKEN as its one credential",
+       _closure_modules_ok(mods) and _ALLOWED_STDLIB <= set(sys.stdlib_module_names)
+       and not _ALLOWED_STDLIB & _REFUSED_STDLIB
+       and not calls and not net and env <= _TOKEN_FREE_ENV
+       and _ALLOWED_HOSTS == ("pypi.org", "api.github.com") and off_host[0] is None
+       and on_host[0] is None and sent == ["https://pypi.org/pypi/x/json"] and redirect_refused)
+    ok("token-free: the import allowlist refuses a standard-library module not read for process "
+       "starts (platform, pydoc) and accepts the modules the maintenance path imports",
+       not _closure_modules_ok({"platform"}) and not _closure_modules_ok({"pydoc"})
+       and _closure_modules_ok({"json", "os", "urllib", "registry_io", "atomic_io"}))
+    _private = _import_closure(Path(__file__).resolve(), source=(
+        "import os\nos._execvpe('x', ['x'])\nfrom os import _spawnvef as sv\nsv(1, 'x', ['x'], {}, None)\n"))[1]
+    ok("token-free: os's private process helpers (_execvpe, _spawnvef) count as process starts, "
+       "called directly or under another name", {"_execvpe", "_spawnvef"} <= _private)
+
+    # The closure reader over a fixture holding each binding form it reads: an aliased environ
+    # read, an aliased urlopen, build_opener bound to a name, a getattr on os imported under
+    # another name inside a function, an os.__dict__ lookup, a getenv bound to a name, a
+    # handler's https_open and a URLopener.
+    _fx = ('from os import environ as _e\n'
+           'from urllib.request import urlopen as _u\n'
+           '_o = urllib.request.build_opener\n'
+           'def a():\n    return _e.get("FIXTURE_KEY")\n'
+           'def b(url):\n    return _u(url)\n'
+           'def c():\n    import os as _os\n    return getattr(_os, "system")\n'
+           'def d():\n    return os.__dict__["system"]\n')
+    _fx += ('_g = os.getenv\n'
+            'def e(r):\n    return urllib.request.HTTPSHandler().https_open(r)\n'
+            'def f(u):\n    return urllib.request.URLopener().open(u)\n')
+    _fx_mods, _fx_calls, _fx_env, _fx_net = _import_closure(Path(__file__).resolve(), source=_fx)
+    ok("closure self-check: an aliased environ read, an aliased urlopen, a name bound to "
+       "build_opener, a getattr on a lazily imported os alias and an os.__dict__ lookup are "
+       "each seen, and so are a getenv bound to a name, a handler's https_open and a URLopener",
+       "FIXTURE_KEY" in _fx_env and "?" in _fx_env
+       and {"<module>:build_opener", "b:urlopen", "e:https_open", "f:URLopener"} <= _fx_net
+       and {"getattr", "__dict__"} <= _fx_calls)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

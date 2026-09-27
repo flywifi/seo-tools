@@ -15,7 +15,7 @@ lane read a stored access token verbatim and 401ed after about an hour; and the 
 selftest at all. P61 closed every one of these without a Mac; Mac-dependent behaviors stay on the
 ADR 0043 hands-on checklist untouched.
 
-Six decisions were made explicitly by the user during planning and are binding:
+Six decisions are binding:
 
 - **A-CONFIRM2.** Approval is a TWO-STEP work order: Approve files the batch, then a second
   screen lists the exact follow-up work (tailored when the user asked for something specific)
@@ -79,11 +79,11 @@ checks always run (config deep-merge, both Transport C refusal strings, a line-a
 tool count), and with the mcp package installed the full tier asserts live registered count ==
 static count. The first-ever live import ran in a sandbox venv (`mcp` resolved to 1.28.1 exactly
 as researched): 58 tools live, all checks pass. The `requirements-mcp.txt` pin is unchanged per
-the standing F2 deferral.
+the standing deferral.
 
 ## Alternatives rejected
 
-- **Auto-queueing follow-up work on approval.** Rejected by the user: the second screen exists so
+- **Auto-queueing follow-up work on approval.** Rejected: the second screen exists so
   the human and the machine agree on the exact work before any compute is committed.
 - **Parsing or acting on the amendment text.** Rejected as an instruction channel. The note is
   data by schema (`consent_note`), shown to the human who reviews the work, and additionally
@@ -91,7 +91,7 @@ the standing F2 deferral.
 - **Flag-in-place quarantine.** Rejected: a flagged trap left in the working folder can be
   re-scanned or re-proposed later. The sealed area is structurally unreachable, and nothing is
   deleted; moving a false positive back out is a deliberate human act.
-- **A thin cache wrapper for `keyword_offline`.** Rejected by the user in favor of the full tool:
+- **A thin cache wrapper for `keyword_offline`.** Rejected in favor of the full tool:
   seven of the eight library files are dict-shaped and invisible to the cache indexer, so a
   wrapper would have read almost none of the library.
 

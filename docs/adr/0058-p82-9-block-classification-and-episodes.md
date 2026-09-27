@@ -42,7 +42,7 @@ maintain currency, and the overdue alert could never fire on a maintained regist
 3. The backlog was re-swept through the fixed tools with per-source expected outcomes measured
    in advance and an authenticity spot-check on the most load-bearing recoveries before commit.
    Sources still blocked after the fix are genuinely refused for this automated context and
-   were handed to the owner on a browser checklist whose items end in exact closing commands.
+   are listed on a browser checklist whose items end in exact closing commands.
 4. The retired TikTok creator-portal source was re-homed to its probed successor page, verified
    through the same fetch-and-classify chain the sweep uses; the recommendation-algorithm fact
    continues to rest on the separate newsroom source.

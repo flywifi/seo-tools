@@ -1034,7 +1034,7 @@ def selftest() -> int:
     check("gd-roundtrip", reloaded["tasks"][0]["id"] == t["id"])
     check("gd-sheet-projection", saved["sheet_rows"][0][0] == "id" and len(saved["sheet_rows"]) == 2)
 
-    # P64 AUDIT-F2 boundary case: a >NAME_MAX (255-byte) register path raises the documented
+    # P64 whole-path boundary case: a >NAME_MAX (255-byte) register path raises the documented
     # ValueError (which the CLI translates to a clean envelope), never a raw OSError.
     try:
         load_register("local_fs", "x" * 300)

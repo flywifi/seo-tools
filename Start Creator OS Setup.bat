@@ -26,6 +26,9 @@ if %errorlevel%==0 (
 
 echo.
 echo Creator OS needs Python 3.12 or newer, and none was found on this PC.
+echo Machine-wide note (affects the whole computer): the installer's first screen ticks
+echo the py launcher's all-users option by default, which needs admin rights. Untick
+echo it to install Python for your account alone.
 echo Install it from https://www.python.org/downloads/windows/ then double-click
 echo this file again. On the first installer screen, check "Add python.exe to PATH".
 echo.
