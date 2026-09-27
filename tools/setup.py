@@ -996,6 +996,9 @@ def _selftest() -> int:
         '        run([py, "-m", self.t, "install", "x"])\n',
         'def f():\n    run([py, "-m", getattr(cfg, "tool"), "install", "x"])\n',
         'def f():\n    match "pip":\n        case m:\n            run([py, "-m", m, "install", "x"])\n',
+        'def f():\n    run([py, "-m", "%s" % "pip", "install", "x"])\n',
+        'def f():\n    with contextlib.nullcontext("pip") as m:\n'
+        '        run([py, "-m", m, "install", "x"])\n',
     )
     _out_sites = {}
     for _i, _fx in enumerate(_outside):
@@ -1003,7 +1006,8 @@ def _selftest() -> int:
     ok(not any("install" in words and any(_pip_exe.fullmatch(w) for w in words)
                for words in _out_sites.values()),
        "pip census limit as stated: a word made by join or chr, read from the environment, "
-       "returned by another function, held in an attribute or fetched by getattr is not read")
+       "returned by another function, held in an attribute, fetched by getattr, carried in a "
+       "%-format or with-as value, or bound by a match case is not read")
     _pip_expected = {("tools/setup.py", "_pip_install"), ("tools/wizard.py", "_install_uv")}
     _pip_site_names = sorted(site[:2] for site in _pip_sites)
     if _pip_site_names != sorted(_pip_expected):

@@ -716,7 +716,9 @@ def _selftest_static() -> tuple:
     _npos = len(_names) - (0 if _sig is None else len(_sig.defaults))
     # The name json in this module is the standard library's: bound only by a plain
     # `import json`, never assigned, redefined, imported under that name from elsewhere or patched
-    # (json.<attr> = ...). A rebinding through globals() or setattr() is outside this check.
+    # (json.<attr> = ...). A rebinding through globals() or setattr() is outside this check, and a
+    # later commit can rebind the checked symbols at runtime (json, _schedule_post_impl); code
+    # review, the drift guard on the diff and tools/tree_pin.py govern that class, not this pin.
     _json_binds = [_n for _n in _ast.walk(_ast.parse(src))
                    if (isinstance(_n, _ast.Name) and _n.id == "json"
                        and not isinstance(_n.ctx, _ast.Load))

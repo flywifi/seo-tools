@@ -56,7 +56,7 @@
     "docs/adr/0065-p93-user-scoped-installs-default.md": "520de99e38ba474c70f3ab84b059344ebea0e188072c59b88707cefa2a35052b",
     "docs/adr/0066-p94-claims-ship-with-their-proof.md": "c5c0442080a50afd1699b155ef3c0d3564c342f62aec3ac9088fc928f864ead3",
     "docs/adr/0067-p96-guards-prove-their-own-coverage.md": "0f125af5a5e6acfdfe66307483643b84357ca656fe6b7e642c9f5732369d9234",
-    "docs/adr/0069-p98-fold-input-derive-sets.md": "f6c0742a3a440cc8f085af7d64c13f42e477fa5c4e91261a2c30b189e6047fe3",
+    "docs/adr/0069-p98-fold-input-derive-sets.md": "3e0b9218287107fa4515fd52df8efb395f668a2599dc663be392f3745375e548",
     "docs/adr/README.md": "5de50eb93c85167ee8263027c19e4d75e16b33567ec70b63e9a9f6d425614c7e",
     "docs/video-tooling-integration-evidence.json": "92d6998a3a0a96ab12f53dde20e7558d1b858211fd93227fc44303f6d0d1015b",
     "docs/video-tooling-scores.json": "1df7a52e2df6f8ba5826f6aa8ef6b02a167d57ed02b8c446e24711f43b39b629",
@@ -94,8 +94,8 @@
     "tools/library_complete.py": "9c434cd16fcfa79577c5a0675342b5bf3863320cd5d7e060535637d9292eb8a3",
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/readonly_bash_guard.py": "efd6d506f388f958b3fe5e90ba1fb71375e374a9583414f881b80c66f068ca21",
-    "tools/secret_scan.py": "2bb2aaee023fd8b9522070562e8a79303c8e45c9eb5e57ff77b8662188b10269",
-    "tools/setup.py": "45fe04969be3ccb69e5bccffb1be740984dbbfa32a4ec602f2ad0ab51158f497",
+    "tools/secret_scan.py": "54bb74b4d9d3e9a56b0125a93d1f65ae6bf46985100700333d74ef92b229a377",
+    "tools/setup.py": "060af80153c95284c75aa0f3d7943437c6b793fd23a4519bb5d32daea7973f98",
     "tools/transcribe.py": "fd035c3023b9a851cc55bd0acb9a6993e4c405fcc910a52c2006524cf4047753",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
@@ -103,7 +103,7 @@
     "tools/videoedit/fcpxml.py": "0a83956f732d314a0ae6e3ba2b146b9a4fd6b7977fb5b540db67c33064efc5a5",
     "tools/videoedit/preflight.py": "e2fc9fe54b3794959aa3a619f5f4188233123ca77b9e5cf05e384f21cad38e4e",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "40c350a647576ddd9c39776901df59685497d3a8e420347914d7fd0e0b0fed97"
+    "tools/wizard.py": "9610fa1fa20c96872f624d66ee294c012dcc18517eafe850f2a1dd92437e45ec"
   },
   "excluded": {}
 }

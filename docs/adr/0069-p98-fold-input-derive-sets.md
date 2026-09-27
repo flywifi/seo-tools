@@ -63,7 +63,10 @@ archive, xattr and 3.14 pathlib write names. The misses that remain are listed i
 
 - An equivalent spelling of a refused form now hits the same rule as the plain spelling, and a
   set that grows with the code is covered without editing its pin.
-- The guard selftests grow to 315 checks (bash guard), 109 (secret scan) and 60
+- The guard selftests grow to 315 checks (bash guard), 111 (secret scan) and 62
   (commit_claims); every widened rule carries its open set at the rule with a pinned case.
 - The exact-byte CI step constant trades flexibility for closure: editing that step is a
   same-commit constant change by design.
+- The source-shape pins read committed text: a later commit can rebind the checked symbols at
+  runtime, and code review, the drift guard on the diff and `tools/tree_pin.py` govern that
+  class, not the pins. Each pin states this limit at its site.

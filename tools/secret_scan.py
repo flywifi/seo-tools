@@ -336,10 +336,13 @@ def fold_text(text):
     digits and signs, the small and fullwidth at signs and dollar signs read as ASCII), format
     characters (Unicode category Cf: a zero-width space, a bidi mark, a soft hyphen) dropped, every
     dash (category Pd, the non-breaking hyphen and en dash included) and every character in
-    _DASH_LOOKALIKES read as '-', and every decimal digit (category Nd) read as its ASCII digit.
-    A character that only resembles a dash or a dot and is not listed (a middle dot, a box-drawing
-    corner) and a letter from another script (a Cyrillic look-alike) are not folded. ASCII text is
-    returned unchanged."""
+    _DASH_LOOKALIKES read as '-', the ideographic full stop (NFKC folds its halfwidth form into
+    it) read as '.', and every decimal digit (category Nd) read as its ASCII digit.
+    An invisible default-ignorable code point outside category Cf (a variation selector, the
+    combining grapheme joiner, a Hangul filler) is NOT dropped and splits a keyword; a character
+    that only resembles a dash or a dot and is not listed (a middle dot, a box-drawing corner)
+    and a letter from another script (a Cyrillic look-alike) are not folded; the selftest pins
+    one case of each. ASCII text is returned unchanged."""
     import unicodedata
     if text.isascii():
         return text
@@ -350,6 +353,8 @@ def fold_text(text):
             continue
         if cat == "Pd" or c in _DASH_LOOKALIKES:
             out.append("-")
+        elif c == "。":
+            out.append(".")
         elif cat == "Nd" and ord(c) > 127:
             out.append(str(unicodedata.digit(c)))
         else:
@@ -521,7 +526,9 @@ def _text_views(text):
 def scan_text(text, path, allowlist=None):
     """Findings in one text blob. path is used for allowlist lookups and pipeline scoping. The
     patterns run on every reading _text_views gives; a match (pattern id and matched text) found
-    in more than one reading is reported as often as the one reading that holds it most often."""
+    in more than one reading is reported as often as the one reading that holds it most often.
+    One occurrence whose raw and folded readings match as DIFFERENT text (a digit run written
+    with non-ASCII digits, say) is keyed by each text, so it can be reported once per reading."""
     allowlist = allowlist or {"entries": []}
     findings, counted = [], {}
     for view in _text_views(text):
@@ -1119,6 +1126,17 @@ def selftest():
     _check("a session link with HTML-entity slashes is not read (the stated limit)",
            not any(x["pattern_id"] == "session_link" for x in scan_text(
                "https://claude." + "ai&#47;code&#47;session_" + "abc123XYZ", "a.md")), f, ran)
+    _check("a session link whose host dot is the ideographic full stop, or its halfwidth form, "
+           "is detected",
+           all(any(x["pattern_id"] == "session_link" for x in scan_text(
+               "https://claude" + chr(c) + "ai/code/session_" + "abc123XYZ", "a.md"))
+               for c in (0x3002, 0xFF61)), f, ran)
+    _check("an invisible code point outside category Cf splits a keyword, and a middle dot is "
+           "not read as a dash (the stated limits)",
+           not any(x["pattern_id"] == "session_link" for x in scan_text(
+               "https://claude." + "ai/code/ses" + chr(0x034F) + "sion_" + "abc123XYZ", "a.md"))
+           and not any(x["pattern_id"] == "phone_number"
+                       for x in scan_text(_ph.format(d=chr(0xB7)), "docs/a.md")), f, ran)
     _b64 = "c29tZW9uZT" + "podW50ZXIyaHVudGVyMg=="
     _check("an Authorization bearer value under a quoted JSON key is detected",
            any(x["pattern_id"] == "bearer_header"

@@ -4997,7 +4997,9 @@ def _selftest() -> int:
     # those name, names _install_uv or _run_setup: the pip census in setup.py's selftest holds
     # every pip install command in the tree to setup.py's _pip_install and this module's
     # _install_uv, and _run_setup starts setup.py, whose own pins cover the script. A function
-    # reached only through a string (globals(), getattr) is outside what this reads.
+    # reached only through a string (globals(), getattr) is outside what this reads. A later
+    # commit can rebind the checked symbols at runtime (do_POST, _install_uv, _run_setup); code
+    # review, the drift guard on the diff and tools/tree_pin.py govern that class, not this pin.
     import ast as _ast_r
     _wtree = _ast_r.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
     _hcls = next(n for n in _wtree.body if isinstance(n, _ast_r.ClassDef) and n.name == "_Handler")

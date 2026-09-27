@@ -989,7 +989,9 @@ def _selftest() -> int:
         # check the origin, read the body, dispatch through the table) and the handler defines no
         # request method beyond do_GET, do_OPTIONS and do_POST, so a POST route can only be added
         # through the table this drives. GET routes, and code inside _origin_ok, _read_body and
-        # _json_response (replaced on the instance here), are outside this pin.
+        # _json_response (replaced on the instance here), are outside this pin. A later commit can
+        # rebind the checked symbols at runtime (do_POST, a handler, the table); code review, the
+        # drift guard on the diff and tools/tree_pin.py govern that class, not this pin.
         import ast
         routed, route_marks = [], []
         g["_load_config"] = lambda: every_flag_on

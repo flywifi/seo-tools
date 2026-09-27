@@ -6888,6 +6888,28 @@ def _claim_boundary_live(source, symbol):
     head, _, tail = symbol.partition(".")
     tree = ast.parse(source)
     defs = {n.name: n for n in tree.body if isinstance(n, _CLAIM_FNDEF + (ast.ClassDef,))}
+    # A name bound exactly once in the module, at top level, to a literal resolves to it, so a
+    # reference under `if TYPE_CHECKING:` with `TYPE_CHECKING = False` is dead code here, the
+    # same rule the pin resolver applies. A name bound anywhere else stays unknown.
+    stores = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            stores[node.id] = stores.get(node.id, 0) + 1
+    consts = {}
+    for n in tree.body:
+        if (isinstance(n, ast.Assign) and len(n.targets) == 1
+                and isinstance(n.targets[0], ast.Name) and isinstance(n.value, ast.Constant)
+                and stores.get(n.targets[0].id) == 1):
+            consts[n.targets[0].id] = n.value
+        elif (isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
+                and isinstance(n.value, ast.Constant) and stores.get(n.target.id) == 1):
+            consts[n.target.id] = n.value
+
+    def _resolve(name):
+        if name in consts:
+            return consts[name], lambda _n: None
+        return None
+
     todo = [tree] + [n for n in defs.values() if n.decorator_list]
     loaded, attrs, done = set(), set(), set()
     while todo:
@@ -6897,7 +6919,7 @@ def _claim_boundary_live(source, symbol):
         done.add(id(scope))
         if scope is not tree and getattr(scope, "decorator_list", None):
             loaded.add(scope.name)
-        for node in _claim_live_nodes(scope, lambda _name: None):
+        for node in _claim_live_nodes(scope, _resolve):
             if node is not scope and isinstance(node, _CLAIM_FNDEF + (ast.Lambda, ast.ClassDef)):
                 if scope is not tree:
                     todo.append(node)
@@ -7166,6 +7188,8 @@ def _claim_boundary_self_proof():
     dead2 = dead + ('def _nobody():\n    dead()\n\nif False:\n    dead()\n\n'
                     'class L:\n    def gone(self):\n        return 7\n\n'
                     '    def do_GET(self):\n        return 8\n\nSERVER = L\n')
+    dead3 = dead + ('TYPE_CHECKING = False\n\nif TYPE_CHECKING:\n    dead()\n')
+    dead4 = dead + ('FLAG = True\n\nif FLAG:\n    dead()\n')
     script = miss + 'if __name__ == "__main__":\n    entry()\n'
     pin_line = '    ok(helper() == 2, "pin label for the fixture")\n'
     script_run = script.replace(pin_line, '    run_as({"__name__": "__main__"})\n' + pin_line)
@@ -7210,6 +7234,9 @@ def _claim_boundary_self_proof():
              ["nothing outside the selftests"]),
             (one("m.py::L.do_GET", src=dead2,
                  gap_text="the fixture pin never runs do_GET at all"), []),
+            (one("m.py::dead", src=dead3, gap_text="the fixture pin never runs dead at all"),
+             ["nothing outside the selftests"]),
+            (one("m.py::dead", src=dead4), ["never calls"]),
             (([], miss, "c"), ["has no boundaries record"]),
             (one("m.py::helper", extra=[{"proof": "m.py::selftest::unused",
                                          "boundary": "m.py::helper"}]), ["serves no claim"]),

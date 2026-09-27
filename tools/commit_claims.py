@@ -131,16 +131,28 @@ def _git(args, check=True):
     return out.stdout
 
 
+def _comment_char():
+    """The comment character git's default cleanup strips: `core.commentChar` when it is a single
+    character, else '#' ('auto' and multi-character `core.commentString` values fall back to '#',
+    a stated limit)."""
+    out = _git(["config", "core.commentChar"], check=False)
+    c = (out or "").strip()
+    return c if len(c) == 1 else "#"
+
+
 def _message_lines(msg, stored=False):
     """The message lines the rule reads. A stored message (`stored`: what `git log` prints for a
     commit in the --range walk) is read as it is, `#` lines and scissors lines included. The file
     the commit-msg hook receives is read the way git's default cleanup stores it: comment lines
-    dropped, and everything from git's exact cut line (GIT_CUT_LINE) down cut."""
+    (the configured comment character, _comment_char) dropped, and everything from git's exact
+    cut line (GIT_CUT_LINE, with that same character) down cut."""
+    cc = "#" if stored else _comment_char()
+    cut = cc + GIT_CUT_LINE[1:]
     out = []
     for line in msg.split("\n"):
-        if not stored and line == GIT_CUT_LINE:
+        if not stored and line == cut:
             break
-        if not stored and line.startswith("#"):
+        if not stored and line.startswith(cc):
             continue
         out.append(line.rstrip(GIT_SPACE))
     while out and not out[0].strip(GIT_SPACE):
@@ -538,6 +550,32 @@ def selftest():
     ok([p["pattern_id"] for p in message_problems(
         "# every guard always holds\nP96: tweak\n", known, is_merge=False, stored=True)]
        == ["claim_subject"], "a stored message keeps its # lines")
+
+    def config_git(cc):
+        def fake(args, check=True):
+            if list(args) == ["config", "core.commentChar"]:
+                return cc + "\n"
+            return None
+        return fake
+
+    def hook_ids_with_comment_char(cc, msg):
+        global _git
+        saved, _git = _git, config_git(cc)
+        try:
+            return ids(msg)
+        finally:
+            _git = saved
+
+    ok(hook_ids_with_comment_char(";", "; every guard always holds\nP96: tweak the guard\n") == []
+       and hook_ids_with_comment_char(
+           ";", "P96: tweak the guard\n; comment\n" + ";" + GIT_CUT_LINE[1:]
+           + "\nevery guard always holds\n") == []
+       and hook_ids_with_comment_char(
+           ";", "# every guard always holds\nP96: tweak the guard\n") == ["claim_subject"],
+       "the hook strips comment and cut lines with the configured core.commentChar, and a '#' "
+       "line is message text under another comment character")
+    ok(hook_ids_with_comment_char("auto", "# every guard always holds\nP96: tweak\n") == [],
+       "an 'auto' or unreadable core.commentChar falls back to '#'")
     history = [("8" * 40, "7" * 40, "P98: each pin names\nits own file\n"),
                ("7" * 40, "6" * 40, "P97: each guard reads its own file\n"),
                ("6" * 40, "a" * 40, "P95-2: every pin counts\nonce it can fail.\n")]
