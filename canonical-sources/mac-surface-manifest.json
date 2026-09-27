@@ -94,7 +94,7 @@
     "tools/library_complete.py": "9c434cd16fcfa79577c5a0675342b5bf3863320cd5d7e060535637d9292eb8a3",
     "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9",
     "tools/readonly_bash_guard.py": "efd6d506f388f958b3fe5e90ba1fb71375e374a9583414f881b80c66f068ca21",
-    "tools/secret_scan.py": "6551ce9251267bdd8363a9fe3cc359537f65216e06c0af07bd6c0362a85b98c6",
+    "tools/secret_scan.py": "3e438804b60a94b37e988d5acc2b5bb058df3e2fca9c861c24d48503b442282a",
     "tools/setup.py": "060af80153c95284c75aa0f3d7943437c6b793fd23a4519bb5d32daea7973f98",
     "tools/transcribe.py": "fd035c3023b9a851cc55bd0acb9a6993e4c405fcc910a52c2006524cf4047753",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",

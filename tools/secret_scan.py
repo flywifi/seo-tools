@@ -15,8 +15,9 @@ Modes:
 Exit 1 on any finding. False positives are exempted in tools/secret-scan-allowlist.json
 (path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop checks
 the commits after the policy boundary SHA recorded in the allowlist file: the boundary commit and
-its ancestors were checked under the message rules in force when they landed and are not
-re-checked, because history is not rewritten; the selftest pins that limit.
+its ancestors are not re-checked, because history is not rewritten (some predate the message
+rules, and some carry text a later rule refuses); the selftest pins that limit and runs
+falsifying mutations of the scan against it.
 
 Fails closed under CI when git is unavailable. Fixture strings in the selftest are concatenated
 so this file never trips itself or an external scanner.
@@ -644,8 +645,10 @@ def scan_staged(allowlist):
 
 def scan_commit_messages(rng, allowlist):
     """Scan commit messages and author emails in a range (the CI backstop). Bounded by the
-    policy SHA in the allowlist file: the boundary commit and its ancestors were checked under
-    the message rules in force when they landed and are skipped."""
+    policy SHA in the allowlist file: the boundary commit and its ancestors (`git rev-list
+    <boundary>`) are skipped, because history is not rewritten; some predate the message rules
+    and some carry text a later rule refuses. A boundary git cannot resolve skips nothing, so
+    every commit in the range is scanned."""
     boundary = allowlist.get("commit_policy_boundary")
     log = _git(["log", rng, "--format=%H%x00%ae%x00%B%x01"], check=True)
     if log is None:
@@ -1260,31 +1263,70 @@ def selftest():
            and not any(x["pattern_id"] == "pipeline_amount" for s in ("five thousand dollars", "SEK " + "5000")
                        for x in scan_text("fee " + s, "pipeline/deals/x.json")), f, ran)
     # The commit-message backstop skips the boundary commit and its ancestors (the stated limit)
-    # and scans the commits after it. Each scripted commit carries a finding id.
-    _old_c, _bnd_c, _new_c = "a" * 40, "b" * 40, "c" * 40
+    # and scans the commits after it, including a side-branch commit that git log lists after the
+    # boundary. Each scripted commit carries a finding id, and the stub answers only the exact git
+    # arguments the scan passes.
+    _old_c, _bnd_c, _side_c, _new_c = "a" * 40, "b" * 40, "d" * 40, "c" * 40
     _fid_msg = "P1: tidy\n\nsee F" + "5: detail\n"
+    _log_args = ["log", "x..y", "--format=%H%x00%ae%x00%B%x01"]
 
     def _log_git(args, check=True):
-        if args[:1] == ["log"]:
+        if list(args) == _log_args:
             return "".join(f"{s}\x0012345+dev@users.noreply.github.com\x00{_fid_msg}\x01"
-                           for s in (_new_c, _bnd_c, _old_c))
-        if args[:1] == ["rev-list"]:
-            return {_bnd_c: f"{_bnd_c}\n{_old_c}\n"}.get(args[1])
+                           for s in (_new_c, _bnd_c, _side_c, _old_c))
+        if list(args) == ["rev-list", _bnd_c]:
+            return f"{_bnd_c}\n{_old_c}\n"
         return None
+
+    def _backstop_holds(scan):
+        bounded = scan("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})
+        unbounded = scan("x..y", {"entries": []})
+        return (bounded is not None and unbounded is not None
+                and sorted(x["path"] for x in bounded)
+                == sorted("commit:" + s[:12] for s in (_new_c, _side_c))
+                and sorted(x["path"] for x in unbounded)
+                == sorted("commit:" + s[:12] for s in (_new_c, _bnd_c, _side_c, _old_c)))
     _saved_git = globals()["_git"]
     globals()["_git"] = _log_git
     try:
-        _bounded = scan_commit_messages("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})
-        _unbounded = scan_commit_messages("x..y", {"entries": []})
+        _backstop_ok = _backstop_holds(scan_commit_messages)
     finally:
         globals()["_git"] = _saved_git
     _check("commit-message backstop: the boundary commit and its ancestors are not re-checked (the "
-           "stated limit) and a commit after the boundary is scanned",
-           _bounded is not None and _unbounded is not None
-           and [x["path"] for x in _bounded] == ["commit:" + _new_c[:12]]
-           and sorted(x["path"] for x in _unbounded)
-           == sorted("commit:" + s[:12] for s in (_new_c, _bnd_c, _old_c)), f, ran)
-    _check("the committed commit-message boundary is a full 40-character commit SHA",
+           "stated limit) and the commits after the boundary, a side-branch commit listed after it "
+           "included, are scanned", _backstop_ok, f, ran)
+    # Falsifying mutations of scan_commit_messages, each run against the same scripted history;
+    # the check above must fail for every one. An anchor that no longer occurs exactly once in the
+    # source fails this check, so an edit to the scan updates these cases with it.
+    import inspect as _inspect
+    _scan_src = _inspect.getsource(scan_commit_messages)
+    _mutants = (
+        ("no skip", "        if sha in boundary_and_before:\n            continue\n", ""),
+        ("skip every commit once a boundary resolves", "if sha in boundary_and_before:",
+         "if boundary_and_before:"),
+        ("skip stops at the boundary", "if sha in boundary_and_before:\n            continue",
+         "if sha == boundary:\n            break"),
+        ("only the boundary itself skipped",
+         "{line.strip() for line in prior.splitlines() if line.strip()}", "{boundary}"),
+        ("rev-list over every ref", '["rev-list", boundary]', '["rev-list", boundary, "--all"]'),
+        ("rev-list capped at one commit", '["rev-list", boundary]',
+         '["rev-list", boundary, "--max-count=1"]'),
+        ("log walks first parents only", '["log", rng,', '["log", "--first-parent", rng,'),
+    )
+    _survivors = []
+    for _label, _old, _new in _mutants:
+        if _scan_src.count(_old) != 1:
+            _survivors.append(f"{_label} (anchor not found exactly once)")
+            continue
+        _ns = dict(globals(), _git=_log_git)
+        exec(compile(_scan_src.replace(_old, _new), "<scan_commit_messages mutant>", "exec"), _ns)
+        if _backstop_holds(_ns["scan_commit_messages"]):
+            _survivors.append(_label)
+    if _survivors:
+        print(f"  [note] mutations the backstop check did not catch: {_survivors}")
+    _check(f"commit-message backstop: each of {len(_mutants)} committed mutations of the scan fails "
+           f"the boundary check", not _survivors, f, ran)
+    _check("the committed commit-message boundary is written as 40 lowercase hex characters",
            re.fullmatch(r"[0-9a-f]{40}", str(_load_allowlist().get("commit_policy_boundary") or ""))
            is not None, f, ran)
     n = ran[0]
