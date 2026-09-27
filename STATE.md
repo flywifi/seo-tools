@@ -2,9 +2,19 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P97 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
+P6 through P98 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
 Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P98: remediation pass (2026-09-27, ADR 0069). Guards fold input before matching (NFKC,
+  format characters, dash and digit look-alikes, percent decoding) across secret_scan,
+  commit_claims, the invariant 60 corpus and proof readers and the hub reader; pinned sets
+  derive from the serving code (endpoint routes from dispatch tables, workflow keys from a
+  registry, the hub fence against the route step) or are exact bytes (the CI commit-hygiene run
+  block equals a committed constant). Pins run setup.py as __main__ under the process recorder
+  with the interpreter a required argument; the census reads keyword, annotated, chained, dict,
+  bytes and walrus argv forms; the Bash guard reads a command as Bash builds it with the
+  remaining misses in KNOWN_MISSES (selftest 315/315). Each widened rule states its unread
+  forms with a pinned case.
 - P97: remediation pass (2026-09-27, ADR 0068). Claim pins bind at the entry a person runs:
   invariant 60 reads a boundaries record per selftest proof and fails when the pin's function
   does not call its entry and no gap is recorded; the install, publishing-default, human

@@ -13,6 +13,24 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P98: guards read normalised input and pinned sets derive from the serving code (ADR 0069).
+  secret_scan matches a folded copy of the text (NFKC, format characters, dash look-alikes,
+  decimal digits, percent decoding), reads Authorization schemes beyond Bearer, PGP armor,
+  further key-id formats and pipeline k/M/USD dollar forms, and states each rule's unread forms
+  with a pinned case; commit_claims accepts trailers only inside git's trailer block, matches
+  git's scissors cleanup, folds letter-like punctuation, and the invariant 60 proof resolver
+  folds digits. The CI commit-hygiene step's run block must equal a committed byte constant
+  (invariant 61); parity env gating moves to an allow-list; invariants 6 and 7 compare the hub's
+  fence with the route step's list and refuse unknown atom-kind workflow keys; corpus and hub
+  readers fold zero-width characters with committed cases. Claim pins run setup.py as __main__
+  for --install-deps under the process recorder with the interpreter a required argument;
+  endpoint pins derive route sets from the handlers' dispatch tables with a matching self-check;
+  the census reads keyword, annotated, chained, dict, bytes and walrus forms; the schedule_post
+  wrapper check compares the parsed call shape; boundaries records require a resolvable symbol.
+  readonly_bash_guard reads a command as Bash builds it (brace expansion, ANSI-C and locale
+  quoting, getopt-style env options with -S refused, stdin-delivered Python, expansion carriers,
+  arithmetic and array assignments, a sed program parser) and adds the archive, xattr and 3.14
+  pathlib write names; remaining misses live in KNOWN_MISSES with selftest lines.
 - P97: claim pins bind at the entry a person runs (ADR 0068). Invariant 60 reads a `boundaries`
   record per `::selftest::` proof naming the CLI entry, tool or runtime default the claim
   describes, and fails when no live code in the pin's function calls that entry and no gap is
