@@ -13,9 +13,10 @@ Modes:
   python3 tools/secret_scan.py --selftest
 
 Exit 1 on any finding. False positives are exempted in tools/secret-scan-allowlist.json
-(path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop only checks
-commits after the policy boundary SHA recorded in the allowlist file (history predating the
-hygiene policy carries session trailers by design and is not rewritten).
+(path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop checks
+the commits after the policy boundary SHA recorded in the allowlist file: the boundary commit and
+its ancestors were checked under the message rules in force when they landed and are not
+re-checked, because history is not rewritten; the selftest pins that limit.
 
 Fails closed under CI when git is unavailable. Fixture strings in the selftest are concatenated
 so this file never trips itself or an external scanner.
@@ -643,8 +644,8 @@ def scan_staged(allowlist):
 
 def scan_commit_messages(rng, allowlist):
     """Scan commit messages and author emails in a range (the CI backstop). Bounded by the
-    policy SHA in the allowlist file: commits at or before the boundary predate the hygiene
-    policy and are skipped."""
+    policy SHA in the allowlist file: the boundary commit and its ancestors were checked under
+    the message rules in force when they landed and are skipped."""
     boundary = allowlist.get("commit_policy_boundary")
     log = _git(["log", rng, "--format=%H%x00%ae%x00%B%x01"], check=True)
     if log is None:
@@ -1258,6 +1259,34 @@ def selftest():
            [x["match"] for x in scan_text("fee $" + "5k", "pipeline/x.json")] == ["$" + "5k"]
            and not any(x["pattern_id"] == "pipeline_amount" for s in ("five thousand dollars", "SEK " + "5000")
                        for x in scan_text("fee " + s, "pipeline/deals/x.json")), f, ran)
+    # The commit-message backstop skips the boundary commit and its ancestors (the stated limit)
+    # and scans the commits after it. Each scripted commit carries a finding id.
+    _old_c, _bnd_c, _new_c = "a" * 40, "b" * 40, "c" * 40
+    _fid_msg = "P1: tidy\n\nsee F" + "5: detail\n"
+
+    def _log_git(args, check=True):
+        if args[:1] == ["log"]:
+            return "".join(f"{s}\x0012345+dev@users.noreply.github.com\x00{_fid_msg}\x01"
+                           for s in (_new_c, _bnd_c, _old_c))
+        if args[:1] == ["rev-list"]:
+            return {_bnd_c: f"{_bnd_c}\n{_old_c}\n"}.get(args[1])
+        return None
+    _saved_git = globals()["_git"]
+    globals()["_git"] = _log_git
+    try:
+        _bounded = scan_commit_messages("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})
+        _unbounded = scan_commit_messages("x..y", {"entries": []})
+    finally:
+        globals()["_git"] = _saved_git
+    _check("commit-message backstop: the boundary commit and its ancestors are not re-checked (the "
+           "stated limit) and a commit after the boundary is scanned",
+           _bounded is not None and _unbounded is not None
+           and [x["path"] for x in _bounded] == ["commit:" + _new_c[:12]]
+           and sorted(x["path"] for x in _unbounded)
+           == sorted("commit:" + s[:12] for s in (_new_c, _bnd_c, _old_c)), f, ran)
+    _check("the committed commit-message boundary is a full 40-character commit SHA",
+           re.fullmatch(r"[0-9a-f]{40}", str(_load_allowlist().get("commit_policy_boundary") or ""))
+           is not None, f, ran)
     n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1

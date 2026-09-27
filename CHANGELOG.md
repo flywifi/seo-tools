@@ -174,6 +174,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- The commit-message backstop's policy boundary (`tools/secret-scan-allowlist.json`) is the full
+  SHA of the P78-2 commit, the newest commit whose message the current message rules refuse, so
+  the push-to-main fallback range starts after it. Its `_comment` and the `secret_scan`
+  docstrings describe the boundary as the point before which messages are not re-checked, and a
+  selftest case pins that the boundary commit and its ancestors are skipped and a later commit
+  is scanned.
 - P95 (correction to the P95 record, 2026-09-24): the subject `P95-2: a claim-proof pin counts only when it can fail.` is false as a
   universal and is immutable in pushed history; the P95 entries here and in ADR 0066 are
   narrowed to what was tested. Also corrected: the "80 pins" attribution, "exercises every
