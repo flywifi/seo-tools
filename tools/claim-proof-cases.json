@@ -147,7 +147,10 @@
     "Setup refuses (`un`less ALLOW_SYSTEM is set).",
     "### If ALLOW_SYSTEM is set, setup installs.",
     "| Setup | refuses | If ALLOW_SYSTEM is set it installs |",
-    "1) If ALLOW_SYSTEM is set, setup installs."
+    "1) If ALLOW_SYSTEM is set, setup installs.",
+    "Setup writes packages to the project .venv, save where ALLOW_SYSTEM is exported.",
+    "Setup writes packages to the project .venv, save wherever ALLOW_SYSTEM is exported.",
+    "Setup writes packages to the project .venv, save whenever ALLOW_SYSTEM is exported."
   ],
   "escape_negative": [
     "Setup is the one exception to the rule.",
@@ -163,7 +166,10 @@
     "When the wizard runs, it asks first.",
     "Setup asks first; the wizard, when asked, explains why.",
     "The `if` keyword starts a branch.",
-    "Setup asks first, and when a tool is missing it says which."
+    "Setup asks first, and when a tool is missing it says which.",
+    "Setup writes packages to the project .venv; in case ALLOW_SYSTEM is exported it writes to the base interpreter.",
+    "Setup writes packages to the project .venv, but in case ALLOW_SYSTEM is exported it writes to the base interpreter.",
+    "Should ALLOW_SYSTEM be exported, setup writes packages to the base interpreter."
   ],
   "units": [
     {"name": "a heading and the text under it are two units", "text": "## Rules\nSetup never writes outside home.\n", "expect": [[1, "## Rules"], [2, "Setup never writes outside home."]]},
@@ -198,6 +204,11 @@
     {"name": "a declared exception passes", "text": "- Setup never writes outside home unless ALLOW_SYSTEM is set.\n", "bound": ["Setup never writes outside home unless ALLOW_SYSTEM is set."], "expect": []},
     {"name": "a unit the detector does not flag passes", "text": "- Setup asks for the repo folder.\n", "expect": []},
     {"name": "a universal promise written as a heading is read", "text": "### Every scheduled post publishes automatically\n- Setup asks first.\n", "expect": ["case.md:1 makes a universal claim"]},
-    {"name": "an exception written as a heading after a bound promise is read", "text": "- Setup never writes outside home.\n### Unless ALLOW_SYSTEM is set\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:2 attaches an exception"]}
+    {"name": "an exception written as a heading after a bound promise is read", "text": "- Setup never writes outside home.\n### Unless ALLOW_SYSTEM is set\n", "bound": ["Setup never writes outside home."], "expect": ["case.md:2 attaches an exception"]},
+    {"name": "a zero-width space inside an exception marker is read", "text": "- Setup writes to the project .venv; un​less ALLOW_SYSTEM is set, it writes to the base interpreter.\n", "expect": ["case.md:1 attaches an exception"]},
+    {"name": "a soft hyphen inside a universal word is read", "text": "- Ev­ery tool is signed.\n", "expect": ["case.md:1 makes a universal claim"]},
+    {"name": "a fullwidth letter in an exception marker is read", "text": "- Setup refuses, ｕnless ALLOW_SYSTEM is set.\n", "expect": ["case.md:1 attaches an exception"]},
+    {"name": "a Hangul filler inside an exception marker is read", "text": "- Setup refuses, unㅤless ALLOW_SYSTEM is set.\n", "expect": ["case.md:1 attaches an exception"]},
+    {"name": "limit: a Cyrillic letter inside an exception marker is not read", "text": "- Setup refuses, unlеss ALLOW_SYSTEM is set.\n", "expect": []}
   ]
 }

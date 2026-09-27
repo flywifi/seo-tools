@@ -483,9 +483,9 @@ def ci_parity(workflow=None) -> int:
     """Compare the battery roster with CI (.github/workflows/ci.yml unless another workflow path
     is passed). A gate counts when a step that _ci_steps reads as blocking runs exactly the gate's
     command as its whole step; a first word that is exactly python, python3 or python3.<minor> is
-    dropped. P94 matched the script
-    path in the step text, so a step disabled with `if: false`, or `source_sync.py reconcile`
-    standing in for `source_sync.py check`, still counted.
+    dropped. A step disabled with `if: false` counts no gate, and neither does a step whose
+    command names a gate's script with other arguments (`source_sync.py reconcile` in place of
+    `source_sync.py check`).
     A workflow that _yaml_subset refuses counts no gate, and the report names the line.
     Gates CI covers by a different route are declared in CI_PARITY_NOTES with a reason; a note
     whose gate CI now runs directly, or that names no gate, fails as stale. Steps that run a
@@ -616,26 +616,30 @@ def _defaults_gates(block, where):
 _ALWAYS_ONLY = {"always()", "${{ always() }}"}
 
 
-# Variables that change a step's shell start-up, interpreter or search path, or whether a gate
-# fails closed when git is unavailable (CI); _env_gates also gates every name that starts with one
-# of _RUNTIME_ENV_PREFIXES. BASH covers BASH_ENV, BASHOPTS and an exported function
-# (BASH_FUNC_<name>%%, which bash imports at start-up and which can stand in for python3); LD_
-# covers the loader (LD_PRELOAD, LD_AUDIT, LD_LIBRARY_PATH).
+# Variables known to change a step's shell start-up, interpreter or search path, or whether a
+# gate fails closed when git is unavailable (CI). BASH covers BASH_ENV, BASHOPTS and an exported
+# function (BASH_FUNC_<name>%%, which bash imports at start-up and which can stand in for
+# python3); LD_ covers the loader (LD_PRELOAD, LD_AUDIT, LD_LIBRARY_PATH). No such list is
+# complete (HOME moves Python's user site, whose usercustomize runs at start-up), so _env_gates
+# gates every name outside _ENV_KEEPS_BLOCKING, these among them.
 _RUNTIME_ENV = {"BASH_ENV", "ENV", "PATH", "SHELLOPTS", "BASHOPTS", "LD_PRELOAD", "LD_LIBRARY_PATH",
                 "CI"}
 _RUNTIME_ENV_PREFIXES = ("BASH", "LD_", "PYTHON", "GIT_")
 
+# The only `env:` names that leave a step blocking. TZ changes how a time is printed, not which
+# interpreter, search path or start-up file a step uses.
+_ENV_KEEPS_BLOCKING = frozenset({"TZ"})
+
 
 def _env_gates(block, where):
-    """Gates from an `env:` block that sets a _RUNTIME_ENV variable or a variable whose name starts
-    with one of _RUNTIME_ENV_PREFIXES, or that is not a mapping."""
+    """Gates from an `env:` block that sets any variable outside _ENV_KEEPS_BLOCKING, or that is
+    not a mapping."""
     env = block.get("env")
     if env is None:
         return []
     if not isinstance(env, dict):
         return [f"{where} env: {_txt(env)}"]
-    return [f"{where} env sets {k}" for k in env
-            if str(k) in _RUNTIME_ENV or str(k).startswith(_RUNTIME_ENV_PREFIXES)]
+    return [f"{where} env sets {k}" for k in env if str(k) not in _ENV_KEEPS_BLOCKING]
 
 
 # actions/checkout inputs that keep the checkout the pushed commit's whole tree at the workspace
@@ -690,10 +694,9 @@ def _steps_from_doc(doc):
       * an earlier `actions/checkout` step in its job sets a `with:` input other than fetch-depth,
         fetch-tags, persist-credentials or show-progress, in any letter case, or sets `with:` to a
         non-mapping
-      * the workflow, the job or the step sets in `env:` ENV, PATH, SHELLOPTS, CI, or a variable
-        whose name starts with BASH (BASH_ENV, BASHOPTS, an exported function BASH_FUNC_<name>%%),
-        LD_, PYTHON or GIT_, or sets `env:` to a
-        non-mapping, or the job sets `container:`; any other `env:` variable leaves it blocking
+      * the workflow, the job or the step sets in `env:` any variable but TZ (_ENV_KEEPS_BLOCKING;
+        PATH, HOME, CI and every BASH*, LD_*, PYTHON* or GIT_* name among the gated), or sets
+        `env:` to a non-mapping, or the job sets `container:`
       * the job has `steps:` and its `runs-on:` is not one `ubuntu-` runner label (_LINUX_RUNNER)
       * the job's `strategy:` is outside what _strategy_gates models (a matrix `exclude:` among them)
     Workflow, job and step keys not named here are not read."""

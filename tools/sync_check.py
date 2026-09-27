@@ -177,7 +177,8 @@ Invariants enforced:
       A claim bound to `invariant:N` shares a subject word with entry N of this catalog.
   61. CI parity (P96): tools/battery.py's parity report over .github/workflows/ci.yml finds, for
       each battery gate, a blocking step running exactly its command or a CI_PARITY_NOTES reason,
-      no stale note, and a workflow it can read. Self-proves on a fixture before the scan.
+      no stale note, and a workflow it can read. The commit hygiene step blocks and its run
+      block equals _COMMIT_HYGIENE_RUN byte for byte. Self-proves on fixtures before the scan.
 """
 import ast
 import json
@@ -185,6 +186,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 try:
@@ -389,8 +391,13 @@ def _hub_spoke_list(text):
     a second such heading, a second fence, text beside the fence, or an unclosed fence is refused
     rather than read one way here and another way by the router. Any other line that names
     "Downstream spokes" (any separator, any case) is refused too, so a setext or HTML heading, or
-    one spaced another way, cannot hold a list the router reads first. A list under a heading
+    one spaced another way, cannot hold a list the router reads first. The text is folded first
+    (_text_fold), so a heading split by an invisible character or written in fullwidth letters is
+    read as the heading it renders as. A heading spelled with a letter of another script that
+    looks Latin is not folded and is not read as the heading (the self-proof pins that limit). A
+    list under a heading
     that names it in other words ("Spokes (downstream)") is not read."""
+    text = _text_fold(text)
     heads = list(_HUB_SPOKE_HEADING.finditer(text))
     if not heads:
         return None, "has no '## Downstream spokes' heading"
@@ -431,6 +438,35 @@ def _hub_spoke_list(text):
     return blocks[0].split(), None
 
 
+
+def _hub_route_list():
+    """(names, None) for the `downstream_spokes` list of the hub workflow.json route step, or
+    (None, why it cannot be read): exactly one step key of that name, holding a list of strings."""
+    path = ROOT / "skills" / "creator-core" / "workflow.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return None, f"cannot be read ({exc}), so its route spoke list is not compared"
+    lists = [v for _, key, v in _workflow_keys(data)[1] if key == "downstream_spokes"]
+    if len(lists) != 1 or not isinstance(lists[0], list) or not all(
+            isinstance(n, str) for n in lists[0]):
+        return None, (f"holds {len(lists)} downstream_spokes value(s); exactly one list of spoke "
+                      f"names must, naming the spokes the hub SKILL.md list names")
+    return lists[0], None
+
+
+def _hub_route_gaps(names, route):
+    """Problems where the hub workflow.json route list `route` and the hub SKILL.md list `names`
+    disagree: a name in one and not the other, or a name the route list holds twice."""
+    out = [f"hub workflow.json route step lists {n!r} in downstream_spokes, which the hub SKILL.md "
+           f"spoke list does not" for n in route if n not in names]
+    out += [f"hub SKILL.md spoke list names {n!r}, which the hub workflow.json route step's "
+            f"downstream_spokes omits" for n in names if n not in route]
+    out += [f"hub workflow.json route step lists {n!r} more than once"
+            for n in sorted({n for n in route if route.count(n) > 1})]
+    return out
+
+
 def check_hub():
     """Invariant 6: the hub's downstream spoke list and the skills/ spoke directories agree in
     both directions, and the hub carries the routing object schema.
@@ -439,7 +475,9 @@ def check_hub():
     way. A listed name must be a skill name (NAME_RE) with a skills/<name>/SKILL.md; a listed
     name without one is a spoke the router would dispatch to and never find. A spoke directory
     missing from the list is an orphan the router never dispatches to. The reading and both
-    directions prove themselves on fixtures before the real hub is read."""
+    directions prove themselves on fixtures before the real hub is read. The route step of the hub
+    workflow.json carries its own `downstream_spokes` list, which the router also reads; it must
+    name the same spokes as the SKILL.md list (_hub_route_list, _hub_route_gaps)."""
     def _spoke_gaps(names, entries):
         """(orphans, missing, malformed) for listed names against (name, has_skill_md) spoke
         directory entries: directories the list omits, listed skill names with no SKILL.md, and
@@ -456,16 +494,25 @@ def check_hub():
         fx + "### downstream spokes (mirror)\n```\nreal-spoke\n```\n",
         "## Downstream spokes\n~~~\nghost-spoke\n~~~\n```\nreal-spoke\n```\n",
         "## Downstream spokes\n- ghost-spoke\n```\nreal-spoke\n```\n",
-        "Downstream spokes\n=================\n```\nghost-spoke\n```\n\n" + fx)]
+        "Downstream spokes\n=================\n```\nghost-spoke\n```\n\n" + fx,
+        "## Down​stream spokes\n```\nghost-spoke\n```\n\n" + fx,
+        "## Down­stream spokes\n```\nghost-spoke\n```\n\n" + fx,
+        "## Downㅤstream spokes\n```\nghost-spoke\n```\n\n" + fx,
+        "## Ｄownstream spokes\n```\nghost-spoke\n```\n\n" + fx)]
     if (names is None
             or _spoke_gaps(names, [("real-spoke", True), ("other-spoke", True), ("no-md", False)])
             != (["other-spoke"], ["ghost-spoke", "no-md"], ["Bad_Name"])
             or "2 'Downstream spokes' headings" not in refused[0]
             or "2 fenced blocks" not in refused[1] or "outside the fenced" not in refused[2]
-            or "outside its one heading" not in refused[3]):
+            or _hub_route_gaps(["a", "b"], ["b", "a"])
+            or [len(_hub_route_gaps(["a", "b"], r)) for r in (["a", "b", "g"], ["a"], ["a", "b", "a"])]
+            != [1, 1, 1]
+            or "outside its one heading" not in refused[3]
+            or any("2 'Downstream spokes' headings" not in r for r in refused[4:])
+            or _hub_spoke_list("## Dоwnstream spokes\n```\nghost-spoke\n```\n\n" + fx)[0] != names):
         problem("hub: spoke-list self-proof failed; a listed name with no skills/<name>/SKILL.md, "
                 "a spoke directory outside the list, or a hub with two spoke headings, two fences "
-                "or text beside the fence is no longer detected")
+                "or text beside the fence, or a route list naming other spokes, is no longer detected")
         return
     hub = ROOT / "skills" / "creator-core" / "SKILL.md"
     if not hub.exists():
@@ -486,11 +533,63 @@ def check_hub():
                     f"exist, so the router would dispatch to a spoke that does not exist")
         for name in malformed:
             problem(f"hub downstream spokes lists {name!r}, which is not a skill name")
+        route, why_route = _hub_route_list()
+        if route is None:
+            problem(f"hub skills/creator-core/workflow.json {why_route}")
+        else:
+            for msg in _hub_route_gaps(names, route):
+                problem(msg)
     if '"request_classification"' not in text:
         problem("hub SKILL.md missing the routing object schema")
 
 
 _WORKFLOW_ATOM_KEY = re.compile(r"atom", re.I)
+
+# The keys a workflow.json may use at its top level and in a step, with the kind of value each
+# holds: "atom" values name skills/atoms/<name>/ directories, "spoke" values name skills/<name>/
+# spoke directories, "data" values are read by the model and not checked. No workflow schema
+# exists, so the set is the keys the committed workflows use. A key outside it is refused until it
+# is added here with its kind, so an atom or spoke named under a new key is not skipped.
+_WORKFLOW_KEYS = {
+    "top": {"_comment": "data", "boundaries": "data", "description": "data",
+            "engines_required": "data", "hard_rules": "data", "id": "data", "note": "data",
+            "notes": "data", "protocols": "data", "shortcut_atoms": "atom", "skill": "data",
+            "spoke": "spoke", "steps": "data", "stop_conditions": "data", "version": "data"},
+    "step": {"action": "data", "atom": "atom", "classification_enum": "data", "condition": "data",
+             "description": "data", "downstream_spokes": "spoke", "engine_map": "data",
+             "gates": "data", "id": "data", "input_from": "data", "label": "data", "note": "data",
+             "notes": "data", "optional": "data", "output_format": "data", "output_to": "data",
+             "protocols": "data", "reference_atoms": "atom", "repeat": "data",
+             "safe_defaults": "data", "skip_if": "data", "step": "data"},
+}
+
+
+def _workflow_keys(data):
+    """(unknown, spokes) for a workflow.json: the JSON paths of top-level and step keys outside
+    _WORKFLOW_KEYS (a top level or a `steps` item that is not an object, or a `steps` value that
+    is not a list, is reported the same way), and (path, key, value) for each key of the "spoke"
+    kind. Values under a "data" key are not read here; _workflow_atom_refs reads every key with
+    "atom" in its name at any depth."""
+    if not isinstance(data, dict):
+        return ["/ (not an object)"], []
+    unknown, spokes, levels = [], [], [("", data, _WORKFLOW_KEYS["top"])]
+    steps = data.get("steps", [])
+    if not isinstance(steps, list):
+        unknown.append("/steps (not a list)")
+        steps = []
+    for i, st in enumerate(steps):
+        if isinstance(st, dict):
+            levels.append((f"/steps[{i}]", st, _WORKFLOW_KEYS["step"]))
+        else:
+            unknown.append(f"/steps[{i}] (not an object)")
+    for where, obj, known in levels:
+        for key, val in obj.items():
+            kind = known.get(key)
+            if kind is None:
+                unknown.append(f"{where}/{key}")
+            elif kind == "spoke":
+                spokes.append((f"{where}/{key}", key, val))
+    return unknown, spokes
 
 
 def _workflow_atom_refs(data, where=""):
@@ -529,7 +628,10 @@ def check_workflows():
     name contains "atom" is read, at any depth (_workflow_atom_refs), and must name a
     skills/atoms/<name>/ directory that holds a SKILL.md. Both rules prove themselves on a
     fixture before the real workflows are read, and a key written twice in one object is refused
-    (_workflow_pairs). An atom named under a key without "atom" in its name is not read."""
+    (_workflow_pairs). A top-level or step key outside _WORKFLOW_KEYS is refused (_workflow_keys),
+    so an atom or spoke named under a new key is not skipped, and each value under a key of the
+    "spoke" kind must name a skills/<name>/ directory that holds a SKILL.md. Values nested under a
+    "data" key are read only for keys with "atom" in their name."""
     def _installed(entries):
         """Names among (name, is_dir, has_skill_md) entries that are a directory with a SKILL.md."""
         return {name for name, is_dir, has_md in entries if is_dir and has_md}
@@ -549,14 +651,23 @@ def check_workflows():
     if (refs != ["real", "real", "ghost-a", "ghost-b", "real", 7]
             or _installed([("real", True, True), ("no-md", True, False), ("f", False, False)])
             != {"real"}
-            or not _twice_refused('{"atom": "ghost-a", "atom": "real"}')):
+            or not _twice_refused('{"atom": "ghost-a", "atom": "real"}')
+            or _workflow_keys({"spoke": "s", "compose_with": "ghost-atom",
+                               "steps": [{"atom": "a", "fallback_spoke": "g",
+                                          "downstream_spokes": ["x"]}, "loose"]})
+            != (["/steps[1] (not an object)", "/compose_with", "/steps[0]/fallback_spoke"],
+                [("/spoke", "spoke", "s"), ("/steps[0]/downstream_spokes", "downstream_spokes",
+                                             ["x"])])):
         problem("workflows: self-proof failed; an atom named under a key other than steps[].atom "
                 "and shortcut_atoms, an atom directory without its SKILL.md, or a key written "
-                "twice in one object is no longer detected")
+                "twice in one object, or a key outside _WORKFLOW_KEYS, is no longer detected")
         return
     atoms_dir = ROOT / "skills" / "atoms"
     installed = _installed([(p.name, p.is_dir(), (p / "SKILL.md").is_file())
                             for p in atoms_dir.iterdir()] if atoms_dir.exists() else [])
+    spoke_dirs = {p.name for p in (ROOT / "skills").iterdir()
+                  if p.is_dir() and p.name not in ("creator-core", "atoms")
+                  and (p / "SKILL.md").is_file()}
     for wf in sorted((ROOT / "skills").rglob("workflow.json")):
         rel = wf.relative_to(ROOT)
         try:
@@ -564,6 +675,16 @@ def check_workflows():
         except ValueError as exc:
             problem(f"{rel}: invalid JSON ({exc})")
             continue
+        unknown, spoke_refs = _workflow_keys(data)
+        for path in unknown:
+            problem(f"{rel}: {path} is a key outside _WORKFLOW_KEYS in tools/sync_check.py; add it "
+                    f"there with the kind of value it holds (atom, spoke or data), so a name under "
+                    f"it is checked rather than skipped")
+        for path, _, val in spoke_refs:
+            for name in (val if isinstance(val, list) else [val]):
+                if not isinstance(name, str) or name not in spoke_dirs:
+                    problem(f"{rel}: {path} names {name!r}, which is not a spoke directory with "
+                            f"a SKILL.md under skills/")
         for path, atom in _workflow_atom_refs(data):
             if not isinstance(atom, str) or not atom:
                 problem(f"{rel}: {path} holds {atom!r}, which is not an atom name")
@@ -4357,10 +4478,32 @@ def _claim_symbol_value(pyfile, symbol):
     return None
 
 
+# Letters Unicode lists as default-ignorable (the Hangul fillers), which render as nothing and are
+# neither format characters nor marks, so the category test in _text_fold does not drop them.
+_FOLD_DROP = frozenset("ᅟᅠㅤﾠ")
+
+
+def _text_fold(text):
+    """`text` as a reader sees it: NFKD, then format characters (Cf: zero-width spaces and
+    joiners, the soft hyphen, bidi controls), combining marks and the Hangul fillers (_FOLD_DROP)
+    dropped, then NFKC; tools/commit_claims.py::_fold applies the same fold to a subject, less the
+    Hangul fillers. A word split by an invisible character, or written in fullwidth or accented
+    letters, reads as the plain word; line breaks are kept. A letter of another script that looks
+    like a Latin one (Cyrillic U+0435 for "e", U+043E for "o") is not folded, so a word or a
+    heading spelled with it is not read: tools/claim-proof-cases.json pins that limit for the
+    sweep, and the check_hub self-proof pins it for the spoke-list heading."""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text
+                   if c not in _FOLD_DROP and unicodedata.category(c) not in ("Cf", "Mn", "Me"))
+    return unicodedata.normalize("NFKC", text)
+
+
 def _claim_norm(text):
-    """Whitespace-normalized text. A bound claim is matched on words, not line breaks: re-wrapping
-    a paragraph is not a change to the promise, but changing what it says is."""
-    return " ".join(text.split())
+    """Folded (_text_fold), whitespace-normalized text. A bound claim is matched on words, not line
+    breaks: re-wrapping a paragraph is not a change to the promise, but changing what it says is.
+    The fold comes first, so an invisible character inside a word or a fullwidth letter hides no
+    flagged word and no exception marker from the sweep."""
+    return " ".join(_text_fold(text).split())
 
 
 # An exception clause can reverse a bound promise without a universal word ("...refuses, except
@@ -4376,9 +4519,12 @@ def _claim_norm(text):
 # "When" or "Where" is not, and neither is "and if" or "or when" inside a sentence, since those
 # open or join ordinary descriptions in the corpus. A reversal with no marker word at all
 # ("..., and ALLOW_SYSTEM installs into the shared site-packages") needs semantics a word list
-# does not have, and is not seen.
+# does not have, and is not seen. A marker phrase outside the list ("in case X is set", "but in
+# case X is set", "should X be set") is not seen either; tools/claim-proof-cases.json pins each
+# among the escape_negative cases as that limit.
 _CLAIM_ESCAPE_RE = re.compile(
-    r"(?<![^\W_])(unless|except(?:ing)?|excluding|barring|aside from|apart from|other than|save when|"
+    r"(?<![^\W_])(unless|except(?:ing)?|excluding|barring|aside from|apart from|other than|"
+    r"save wh(?:en(?:ever)?|ere(?:ver)?)|"
     r"save for|save if|with the exception of|provided that|providing that|so long as|as long as|"
     r"only if|(?:but|yet|though|although|however)[\s,]+(?:if|when(?:ever)?|where(?:ver)?)|"
     r"(?:^\s*(?:[-*+>|]|#{1,6}|\d+[.)])?\s*|(?<=[.;!?|])\s+)"
@@ -4559,10 +4705,15 @@ def _claim_gitignored(rel, gitignore_text):
     return False
 
 
-# The fact kinds an exemption's `holds` can declare, and the wording in its `why` that says the
-# reason rests on a fact of that kind.
-_CLAIM_HOLDS_KINDS = {"gitignored": re.compile(r"gitignor", re.I),
-                      "route": re.compile(r"route record", re.I)}
+# The fact kinds an exemption's `holds` can declare, and the word stems in its `why` (or its
+# claim) that say the reason rests on a fact of that kind. A kind is read when both its stems
+# occur, in any order and any form ("gitignored", "git ignores", "ignored by git"; "route record",
+# "the routing record", "the manifest records this route"), not from one phrase. A reason that
+# states the fact without both stems of its kind ("excluded from version control", "git never
+# tracks these paths") is read by people, not by this check; _claim_holds_self_proof pins that
+# limit.
+_CLAIM_HOLDS_KINDS = {"gitignored": re.compile(r"(?=.*\bgit)(?=.*ignor)", re.I | re.S),
+                      "route": re.compile(r"(?=.*\brout(?:e|ing))(?=.*\brecord)", re.I | re.S)}
 
 
 def _claim_holds_problems(entry, routes, gitignore_text):
@@ -4571,7 +4722,8 @@ def _claim_holds_problems(entry, routes, gitignore_text):
     written `<file>::<NAME>` is the path that NAME is assigned in <file> (_claim_path_symbol), so
     the check follows the code when the path moves. `holds.route` names the `recommends` value of
     a route record the manifest must still hold. A `why` or exempted text that mentions
-    gitignore, or a route record, must declare the matching kind, so a reason of that kind cannot
+    git and ignoring, or a route and a record (_CLAIM_HOLDS_KINDS), must declare the matching
+    kind, so a reason of that kind cannot
     rest on a fact nothing re-reads. A literal path entry is a sample: a code path it does not
     name is not read. A fact source that is missing or unreadable (the root .gitignore, passed as
     None; a `routes` value that is not a list; the file a `<file>::<NAME>` entry names) is
@@ -4631,7 +4783,19 @@ def _claim_holds_self_proof():
                    (1, _claim_holds_problems(gi, [], None)),
                    (1, _claim_holds_problems(rt, None, "")),
                    (1, _claim_holds_problems(dict(rt, holds={"route": "nvm", "x": 1}),
-                                             [{"recommends": "nvm"}], ""))):
+                                             [{"recommends": "nvm"}], "")),
+                   (1, _claim_holds_problems(dict(gi, why="git ignores these paths through the root "
+                                                  "ignore file", holds={}), [], ign)),
+                   (1, _claim_holds_problems(dict(gi, why="the paths are ignored by git",
+                                                  holds={}), [], ign)),
+                   (1, _claim_holds_problems(dict(rt, why="the manifest records this route",
+                                                  holds={}), [], "")),
+                   (1, _claim_holds_problems(dict(rt, why="the routing record lists this path",
+                                                  holds={}), [], "")),
+                   (0, _claim_holds_problems(dict(gi, why="git never tracks these paths",
+                                                  holds={}), [], ign)),
+                   (0, _claim_holds_problems(dict(gi, why="the paths are excluded from version "
+                                                  "control", holds={}), [], ign))):
         if len(got) != n:
             return f"an exemption `holds` fixture gave {got!r}, expected {n} problem(s)"
     if (_claim_fact_text(ROOT / "tools" / "claim-proof-absent.fixture") is not None
@@ -7152,61 +7316,83 @@ def check_claim_proof():
         problem(msg)
 
 
-# The two CI lines that end the commit hygiene step (the commit-message secret scan, then the
-# scanner that refuses a flagged commit subject), and the shell forms that can end that step with
-# success whatever those lines return.
-_COMMIT_SECRET_LINE = 'python3 tools/secret_scan.py --commit-messages "$RANGE"'
-_COMMIT_CLAIMS_LINE = 'python3 tools/commit_claims.py --range "$RANGE"'
-_CI_SOFT_FAIL = re.compile(r"\btrap\b|<<|\balias\b|\bfunction\b|\b\w+\s*\(\s*\)|\bPATH="
-                           r"|\b(?:eval|exec|hash|source|cd|pushd|popd|enable)\b|(?:^|[;&|(]\s*)\.\s"
-                           r"|\bset\s[^;&|]*\+"
-                           r"|\bexit\b(?!\s+[1-9]\d*\s*$)")
+# The run block of the CI commit hygiene step, byte for byte as the workflow reader returns it (a
+# literal block scalar with its indentation removed). _commit_claims_step_problems reports any
+# difference, so a shell form in the block that ends the step with success whatever the scanners
+# return is reported without a list of such forms. A change to that step changes this constant
+# in the same commit.
+_COMMIT_HYGIENE_RUN = "\n".join((
+    "# origin/main..HEAD is empty once a push to main lands, so the range falls back to the",
+    "# policy boundary SHA when the branch range is empty. Both scanners skip commits at or",
+    "# before their own boundary (secret_scan: commit_policy_boundary in the allowlist file;",
+    "# commit_claims: CLAIM_SUBJECT_BOUNDARY), so the wider range does not re-check history.",
+    "git fetch origin main --depth=200 || true",
+    "BOUNDARY=$(python3 -c \"import json;print(json.load(open("
+    "'tools/secret-scan-allowlist.json')).get('commit_policy_boundary',''))\")",
+    'RANGE=""',
+    "if git rev-parse origin/main >/dev/null 2>&1 \\",
+    '   && [ -n "$(git rev-list --count origin/main..HEAD 2>/dev/null | tr -d 0)" ]; then',
+    '  RANGE="origin/main..HEAD"',
+    'elif [ -n "$BOUNDARY" ] && git cat-file -e "$BOUNDARY^{commit}" 2>/dev/null; then',
+    '  RANGE="$BOUNDARY..HEAD"',
+    "fi",
+    'if [ -z "$RANGE" ]; then',
+    "  # Fail closed: a hygiene backstop that cannot determine what to scan must not pass.",
+    "  # Reachable if the checkout is shallow past the boundary; fix with fetch-depth: 0.",
+    "  echo \"commit hygiene: cannot resolve a scan range (boundary '$BOUNDARY' unreachable\"",
+    '  echo "and origin/main absent or already merged). Refusing to report success."',
+    "  exit 1",
+    "fi",
+    'echo "commit hygiene: scanning $RANGE"',
+    'python3 tools/secret_scan.py --commit-messages "$RANGE"',
+    'python3 tools/commit_claims.py --range "$RANGE"',
+)) + "\n"
 
 
-def _commit_claims_step_problems(steps, runtime_env=frozenset({"PATH"})):
-    """Problems with the CI step that runs tools/commit_claims.py, held to a gate step's standard
-    as far as a multi-line step can be: exactly one step runs the script; it is blocking by the
-    parity reader's rules (battery._steps_from_doc: no `if:`, continue-on-error, shell, env or
-    working-directory change); its last line is exactly _COMMIT_CLAIMS_LINE, so the script's exit
-    code is the step's; the line before it is exactly _COMMIT_SECRET_LINE, so a failing
-    commit-message scan fails the step too; no line of it sets a trap, opens a here-document,
-    defines a function or alias, assigns PATH, runs eval, exec, hash, source, `.`, cd, pushd, popd
-    or enable, runs `set` with a `+` option (`set +e`), or exits with anything but a non-zero
-    literal; no line that ends in a backslash is followed by either scanner line, which it would
-    join as an argument; and no line assigns a variable in `runtime_env` (the caller
-    passes battery._RUNTIME_ENV) or a PYTHON* or GIT_* variable, the names the parity reader gates
-    in `env:`. A reversal outside those forms (a RANGE that selects no commits, a line that
-    replaces the interpreter on disk) is not read; a gate step has the same limit."""
-    hits = [st for st in steps if any("tools/commit_claims.py" in ln for ln in st["run"])]
+def _commit_hygiene_fixture(run, step_keys=""):
+    """A workflow text whose one step carries `step_keys` and runs `run` as a literal block."""
+    body = "".join(("          " + ln if ln else "") + "\n" for ln in run.rstrip("\n").split("\n"))
+    return ("on: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - name: H\n"
+            + step_keys + "        run: |\n" + body)
+
+
+def _commit_claims_step_problems(text, battery):
+    """Problems with the CI step that runs tools/commit_claims.py, read from the workflow `text`
+    with the parity reader in `battery`: exactly one step's run block names the script; that step
+    is blocking by the parity reader's rules (battery._steps_from_doc: no `if:`,
+    continue-on-error, shell, env or working-directory change, among the rest it lists); and its
+    run block equals _COMMIT_HYGIENE_RUN byte for byte, comments included. A shell form in the
+    block that ends the step with success whatever the scanners return is therefore reported
+    without being named in a list. What an earlier step does to the checkout, to the scanner
+    scripts or to $GITHUB_ENV is not read; a gate step has the same limit."""
+    doc = battery._yaml_subset(text)
+    steps = battery._steps_from_doc(doc)
+    runs = ["" if st.get("run") is None else str(st["run"])
+            for job in doc["jobs"].values() for st in (job.get("steps") or [])]
+    hits = [(st, run) for st, run in zip(steps, runs) if "tools/commit_claims.py" in run]
     if len(hits) != 1:
-        return [f"ci-parity: {len(hits)} CI steps run tools/commit_claims.py; exactly one blocking "
-                f"step must, ending with: {_COMMIT_CLAIMS_LINE}"]
-    st = hits[0]
-    name = st["name"] or st["run"][0]
+        return [f"ci-parity: {len(hits)} CI steps name tools/commit_claims.py in their run block; "
+                f"exactly one blocking step must, and its run block must equal "
+                f"_COMMIT_HYGIENE_RUN in tools/sync_check.py"]
+    st, run = hits[0]
+    name = st["name"] or "commit hygiene"
     out = []
     if st["gates"]:
-        out.append(f"ci-parity: the commit-subject step {name!r} does not block "
+        out.append(f"ci-parity: the commit hygiene step {name!r} does not block "
                    f"({', '.join(st['gates'])})")
-    if st["run"][-1] != _COMMIT_CLAIMS_LINE:
-        out.append(f"ci-parity: the commit-subject step {name!r} ends with {st['run'][-1]!r}; it "
-                   f"must end with exactly {_COMMIT_CLAIMS_LINE!r} so the script's exit code is "
-                   f"the step's")
-    out += [f"ci-parity: the commit-subject step {name!r} runs {ln!r}, which can end the step "
-            f"with success whatever the script returns" for ln in st["run"] if _CI_SOFT_FAIL.search(ln)]
-    if len(st["run"]) < 2 or st["run"][-2] != _COMMIT_SECRET_LINE:
-        out.append(f"ci-parity: the commit-subject step {name!r} must run exactly "
-                   f"{_COMMIT_SECRET_LINE!r} on the line before the scanner line, so a failing "
-                   f"commit-message scan fails the step")
-    out += [f"ci-parity: the commit-subject step {name!r} joins {prev!r} onto {ln!r} with a "
-            f"trailing backslash, so that scanner becomes an argument"
-            for prev, ln in zip(st["run"], st["run"][1:])
-            if prev.endswith("\\") and ln in (_COMMIT_SECRET_LINE, _COMMIT_CLAIMS_LINE)]
-    out += [f"ci-parity: the commit-subject step {name!r} assigns {var} in {ln!r}, which changes "
-            f"how the scanner runs" for ln in st["run"]
-            for var in re.findall(r"(?:^|[\s;&|(])([A-Za-z_]\w*)\+?=", ln)
-            if var in runtime_env or var.startswith(("PYTHON", "GIT_"))]
-    return out
+    if run != _COMMIT_HYGIENE_RUN:
+        got, want = run.split("\n"), _COMMIT_HYGIENE_RUN.split("\n")
+        n = next((i for i, (a, b) in enumerate(zip(got, want)) if a != b), min(len(got), len(want)))
 
+        def at(lines):
+            return repr(lines[n]) if n < len(lines) else "the end of the block"
+
+        out.append(f"ci-parity: the run block of the commit hygiene step {name!r} differs from "
+                   f"_COMMIT_HYGIENE_RUN in tools/sync_check.py at its line {n + 1}: the step has "
+                   f"{at(got)} where the constant has {at(want)}. The block is held to the "
+                   f"constant byte for byte, so no shell form in it can end the step with "
+                   f"success unread; change the step and the constant together")
+    return out
 
 def _ci_parity_problems(text, battery):
     missing, _, stale, _, _ = battery.parity_report(text)
@@ -7222,7 +7408,8 @@ def check_ci_parity():
     itself on a fixture whose drift-guard step is disabled with `if: false`; a battery.py that
     cannot load or run is reported as a problem, not a crash. The step that runs
     tools/commit_claims.py runs several lines, so it is not a gate; _commit_claims_step_problems
-    holds it to the gate standard in the forms it lists, after proving itself on fixtures."""
+    holds it to blocking and its run block to _COMMIT_HYGIENE_RUN, after proving itself on
+    fixtures."""
     import types
     path = ROOT / "tools" / "battery.py"
     try:
@@ -7234,40 +7421,43 @@ def check_ci_parity():
         if not any("the drift guard gate" in p for p in _ci_parity_problems(probe, battery)):
             problem("ci-parity: self-proof failed: a drift-guard step disabled with `if: false` was counted")
             return
-        head = "on: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n"
-        body = ('          RANGE=a..b\n          python3 tools/secret_scan.py --commit-messages "$RANGE"\n'
-                '          python3 tools/commit_claims.py --range "$RANGE"\n')
-        if (_commit_claims_step_problems(battery._ci_steps(head + body))
+        if not all(any("the drift guard gate" in p for p in _ci_parity_problems(t, battery)) for t in (
+                probe.replace("      - if: false\n", "      - env:\n          HOME: .ci-home\n"),
+                probe.replace("    steps:\n", "    env:\n      HOME: .ci-home\n    steps:\n"),
+                probe.replace("jobs:\n", "env:\n  XDG_CONFIG_HOME: x\njobs:\n"))):
+            problem("ci-parity: self-proof failed: a drift-guard step under a step, job or workflow "
+                    "`env:` that sets HOME or XDG_CONFIG_HOME was counted")
+            return
+        good = _COMMIT_HYGIENE_RUN
+        echo = 'echo "commit hygiene: scanning $RANGE"\n'
+        if (_commit_claims_step_problems(_commit_hygiene_fixture(good), battery)
+                or not all(_commit_claims_step_problems(_commit_hygiene_fixture(run), battery)
+                           for run in (good.replace(echo, echo + "set -n\n"),
+                                       good.replace(echo, echo[:-1] + " ||\n"),
+                                       good.replace(echo, echo + "shopt -u -o errexit\n"),
+                                       good.replace(echo, echo + "printf -v PATH %s .ci-bin\n"),
+                                       good.replace(echo, echo + "export -n CI\n"),
+                                       good.replace("# origin/main", "#  origin/main"),
+                                       good + "true\n"))
                 or not _commit_claims_step_problems(
-                    battery._ci_steps(head + body.replace('"\n', '" || true\n')))
+                    _commit_hygiene_fixture(good, "        continue-on-error: true\n"), battery)
                 or not _commit_claims_step_problems(
-                    battery._ci_steps(head + body.replace("RANGE=a..b", "trap 'exit 0' EXIT")))
-                or not _commit_claims_step_problems(
-                    battery._ci_steps(head + body.replace("RANGE=a..b", "hash -p /bin/true python3")))
-                or not _commit_claims_step_problems(
-                    battery._ci_steps(head + body.replace("RANGE=a..b\n", "RANGE=a..b\n          : \\\n")))
-                or not _commit_claims_step_problems(
-                    battery._ci_steps(head + body.replace("RANGE=a..b", "export PYTHONPATH=stub")),
-                    battery._RUNTIME_ENV)
-                or not _commit_claims_step_problems(
-                    battery._ci_steps(head + body.replace("RANGE=a..b", "set +e")))
-                or not _commit_claims_step_problems(battery._ci_steps(
-                    head + body.replace('messages "$RANGE"', 'messages "$RANGE" || true')))):
-            problem("ci-parity: self-proof failed: a commit-subject step that ends in `|| true`, "
-                    "sets a trap, runs hash, joins a line onto a scanner, sets PYTHONPATH, runs "
-                    "`set +e` or soft-fails its commit-message scan was counted as blocking, or a "
-                    "blocking one was refused")
+                    _commit_hygiene_fixture(good) + _commit_hygiene_fixture(good).split(
+                        "    steps:\n", 1)[1], battery)):
+            problem("ci-parity: self-proof failed: a commit hygiene step whose run block differs "
+                    "from _COMMIT_HYGIENE_RUN (set -n, a trailing ||, shopt, printf -v PATH, "
+                    "export -n CI, an edited comment, an added line), that does not block, or that "
+                    "is run twice was counted, or the committed block was refused")
             return
         wf = ROOT / ".github" / "workflows" / "ci.yml"
         text = wf.read_text(encoding="utf-8")
         for line in _ci_parity_problems(text, battery):
             problem(line)
         try:
-            steps = battery._ci_steps(text)
+            hygiene = _commit_claims_step_problems(text, battery)
         except battery.WorkflowSyntaxError:
-            steps = None  # the parity report above already names the line it cannot read
-        for line in (_commit_claims_step_problems(steps, battery._RUNTIME_ENV)
-                     if steps is not None else []):
+            hygiene = []  # the parity report above already names the line it cannot read
+        for line in hygiene:
             problem(line)
     except Exception as exc:  # noqa: BLE001
         problem(f"ci-parity: the parity report could not run: {type(exc).__name__}: {exc}")

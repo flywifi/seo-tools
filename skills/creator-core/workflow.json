@@ -86,7 +86,14 @@
         "deal-pipeline",
         "deal-resourcing",
         "partnership-mediakit",
-        "quality-review"
+        "quality-review",
+        "construction-desk",
+        "jurisdiction-desk",
+        "content-distributor",
+        "content-library",
+        "contract-desk",
+        "finance-desk",
+        "task-desk"
       ],
       "input_from": ["routing_object.recommended_spoke"],
       "output_to": "dispatch_result"
