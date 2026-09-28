@@ -174,6 +174,40 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- The commit-message backstop's policy boundary (`tools/secret-scan-allowlist.json`) is the full
+  SHA of the P78-2 commit, the newest commit whose message the message rules refused when it was
+  set, so the fallback range the CI step takes when origin/main..HEAD is empty starts after it.
+  Its `_comment` and the `secret_scan` docstrings say that the boundary commit and its ancestors
+  are not re-checked. `_git` reads a git binary it cannot start as git unavailable (None when
+  checked, empty output when not), so the CI scan fails closed; a selftest case pins that. A
+  selftest case runs the scan over a scripted history framed as git log frames it. Its git stub
+  answers the exact arguments the scan passes, answers any other call as `_git` does when git
+  exits non-zero (None when checked, git's empty output when not), and raises TypeError where
+  `_git` does (arguments that are not a list, or a list item that is not a string, bytes or a
+  path); a second case confirms both refuse those arguments. The history lists 120 clean commits
+  first, then a finding id in a GitHub merge subject's branch name, in a subject followed by a
+  clean body, past 140000 characters of a body, in a Revert, a fixup! and a squash! subject, in a
+  # line, repeated in one body, and in a merge subject git writes; a commit whose body holds one
+  sample of each PATTERNS id (a fixture check confirms the scan reports each); a personal email
+  and a session link in a trailer paragraph after three others; a clean commit by an allowed
+  author; a personal author, a lookalike of the noreply form, an author at anthropic.com other
+  than the noreply address, and an empty message by a personal author; a second commit by the
+  exempted author; the boundary and an ancestor; and a side-branch commit listed after the
+  boundary. The case compares each commit's findings by pattern: the boundary commit and its
+  ancestors are skipped, the commits after it are scanned, a pinned allowlist entry exempts only
+  its own commit and address, a boundary git cannot resolve skips no commit, a range git cannot
+  list returns None with or without a boundary, and an empty range returns no findings.
+  Forty-seven committed mutations of the scan each fail that case, among them a skip that stops
+  at the boundary, a widened or capped `rev-list`, a `rev-list` run without a boundary, a
+  first-parent `log`, records read without trimming git's newline, an empty range read as
+  unlistable, GitHub merge records skipped or read from their second paragraph, Revert, fixup!
+  and squash! commits skipped, merge subjects git writes or empty messages skipped, a body cut to
+  its first 64, 4096, 65536, 80000 or 131072 characters, its last 64, its last paragraph, or its
+  first two or three paragraphs, Co-Authored-By, Claude-Session or # lines dropped, findings
+  de-duplicated within a commit, only the first 64 commits read, content reported for finding
+  ids or review-record patterns alone, the allowlist not applied, an author check keyed on the
+  word noreply, on one mail provider or on any anthropic.com address, an author exemption that
+  ignores its pin or its commit, and every commit flagged. A second case checks that the boundary is written as 40 lowercase hex characters.
 - P95 (correction to the P95 record, 2026-09-24): the subject `P95-2: a claim-proof pin counts only when it can fail.` is false as a
   universal and is immutable in pushed history; the P95 entries here and in ADR 0066 are
   narrowed to what was tested. Also corrected: the "80 pins" attribution, "exercises every

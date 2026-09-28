@@ -13,9 +13,21 @@ Modes:
   python3 tools/secret_scan.py --selftest
 
 Exit 1 on any finding. False positives are exempted in tools/secret-scan-allowlist.json
-(path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop only checks
-commits after the policy boundary SHA recorded in the allowlist file (history predating the
-hygiene policy carries session trailers by design and is not rewritten).
+(path + pattern_id + reason; --tracked fails on an entry that no longer exempts anything). The commit-message backstop checks
+the commits after the policy boundary SHA recorded in the allowlist file: the boundary commit and
+its ancestors are not re-checked, because history is not rewritten (some predate the message
+rules, and some carry text a later rule refuses). The selftest runs the scan over a scripted
+history framed as git log frames it. Its git stub answers the exact arguments the scan passes,
+answers any other call as _git does when git exits non-zero (None when checked, git's empty output
+when not), and raises TypeError where _git does (arguments that are not a list, or a list item
+that is not a string, bytes or a path). The check covers that limit; each commit's content
+findings for every PATTERNS id at the positions the fixtures place one (the subject, merge,
+Revert, fixup! and squash! subjects included; the body; a # line; a trailer paragraph after
+three others; a finding repeated in one body; and a body past 140000 characters) and its author
+email, empty messages included, over a range of more than 120 commits; a pinned allowlist entry,
+which exempts only its own commit and address; a boundary git cannot resolve (no commit skipped);
+a range git cannot list (None) and an empty range (no findings). Forty-seven committed mutations
+of the scan each fail that check.
 
 Fails closed under CI when git is unavailable. Fixture strings in the selftest are concatenated
 so this file never trips itself or an external scanner.
@@ -576,7 +588,15 @@ def _scan_view(text, path, allowlist):
 
 
 def _git(args, check=True):
-    out = subprocess.run(["git"] + args, cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    """git's stdout. When git exits non-zero, None when `check` is set and git's output when not;
+    when git cannot be started (no git binary, no working directory), None when checked and ""
+    when not, so a caller reads it as git unavailable. Arguments that are not a list of strings,
+    bytes or paths raise TypeError."""
+    try:
+        out = subprocess.run(["git"] + args, cwd=str(ROOT), capture_output=True, text=True,
+                             timeout=60)
+    except OSError:
+        return None if check else ""
     if check and out.returncode != 0:
         return None
     return out.stdout
@@ -643,8 +663,10 @@ def scan_staged(allowlist):
 
 def scan_commit_messages(rng, allowlist):
     """Scan commit messages and author emails in a range (the CI backstop). Bounded by the
-    policy SHA in the allowlist file: commits at or before the boundary predate the hygiene
-    policy and are skipped."""
+    policy SHA in the allowlist file: the boundary commit and its ancestors (`git rev-list
+    <boundary>`) are skipped, because history is not rewritten; some predate the message rules
+    and some carry text a later rule refuses. A boundary git cannot resolve skips nothing, so
+    every commit in the range is scanned."""
     boundary = allowlist.get("commit_policy_boundary")
     log = _git(["log", rng, "--format=%H%x00%ae%x00%B%x01"], check=True)
     if log is None:
@@ -1258,6 +1280,277 @@ def selftest():
            [x["match"] for x in scan_text("fee $" + "5k", "pipeline/x.json")] == ["$" + "5k"]
            and not any(x["pattern_id"] == "pipeline_amount" for s in ("five thousand dollars", "SEK " + "5000")
                        for x in scan_text("fee " + s, "pipeline/deals/x.json")), f, ran)
+    # The commit-message backstop skips the boundary commit and its ancestors (the stated limit)
+    # and scans every commit git log lists in the range after it. The scripted history is framed
+    # as git log frames it: each record ends with a newline after the %x01 separator, a git-written
+    # body ends with a newline, and a GitHub merge body does not. Its commits carry a finding id in
+    # a merge subject's branch name, in a subject followed by a clean body, past 70000 characters
+    # of a body, and in a Revert, a fixup! and a squash! subject; a body holding one sample of each
+    # PATTERNS id; a clean commit by an allowed author; a personal author and a lookalike of the
+    # noreply form; the boundary and an ancestor; and a side-branch commit listed after the
+    # boundary. Ahead of them sit 120 clean commits, so each commit with a finding is listed past
+    # the 120th record. Further commits carry a finding in a paragraph after three others (a
+    # Co-Authored-By and a Claude-Session trailer), in a # line, twice in one body, and in a merge
+    # subject git writes; an empty message by a personal author; an author at anthropic.com other
+    # than the noreply address; and a second commit by the exempted author. The stub answers the
+    # exact git arguments the scan passes, answers any other call as _git does when git exits
+    # non-zero (None when checked, git's empty output when not), and raises TypeError where _git
+    # does: for arguments that are not a list, or a list item that is not a string, bytes or a path.
+    _allowed_author, _noreply = "noreply" + "@anthropic.com", "12345+dev@users.noreply.github.com"
+    _outlook, _lookalike = "jane" + "@outlook.com", "jane.noreply" + "@gmail.com"
+    _personal = "someone" + "@gmail.com"
+    _fid = "see F" + "5: detail"
+    _samples = dict(_kf, github_token=gh, generic_sk_key=sk_proj, private_key_block=pem,
+                    bearer_header=bearer, authorization_header="Authorization: " + "Basic " + _b64,
+                    credential_value=cred, session_link=sess, email_address=email,
+                    phone_number=phones[0], committed_report="recorded as a committed" + " report",
+                    severity_tally="3 critical" + ", 2 major", finding_id="see F" + "8: detail")
+    _cov_body = "P1: tidy the loader\n\n" + "\n".join(_samples[k] for k in sorted(_samples)) + "\n"
+    _merge_c, _subj_c, _deep_c, _rev_c = "f" * 40, "c" * 40, "2" * 40, "4" * 40
+    _fix_c, _squ_c, _cov_c, _clean_c = "5" * 40, "6" * 40, "8" * 40, "1" * 40
+    _mail_c, _look_c, _bnd_c, _side_c, _old_c = "3" * 40, "7" * 40, "b" * 40, "d" * 40, "a" * 40
+    _trl_c, _hash_c, _dup_c, _gmerge_c = "9" * 40, "c9" * 20, "0" * 40, "9e" * 20
+    _empty_c, _anth_c, _mail2_c = "e9" * 20, "90" * 20, "09" * 20
+    _trailer = ("Co-Authored-By: Jane <jane" + "@gmail.com>\nClaude-Session: " + sess + "\n")
+    _fillers = tuple((f"{i:040x}"[::-1], _noreply, "P1: tidy the loader\n") for i in range(1, 121))
+    _history = _fillers + (  # (sha, author email, message), newest first as git log lists them
+        (_merge_c, _noreply, "Merge pull request #7 from example/P57" + "-F3-fix\n\nP1: tidy the loader"),
+        (_subj_c, _noreply, "P1: " + _fid + "\n\n" + "The body is clean and says nothing more. " * 3 + "\n"),
+        (_deep_c, _noreply, "P1: tidy\n\n" + "tidy the loader and its cache; " * 4600 + _fid + "\n"),
+        (_trl_c, _noreply, "P1: tidy the loader\n\nThe cache is rebuilt on start.\n\n"
+                           "The index keeps its order.\n\n" + _trailer),
+        (_hash_c, _noreply, "P1: tidy the loader\n\n# " + _fid + "\n"),
+        (_dup_c, _noreply, "P1: tidy the loader\n\n" + _fid + "\n" + _fid + "\n"),
+        (_gmerge_c, _noreply, "Merge branch 'P57" + "-F3-fix' into main\n"),
+        (_empty_c, _personal, ""),
+        (_anth_c, "jane" + "@anthropic.com", "P1: tidy the loader\n"),
+        (_mail2_c, _outlook, "P1: tidy the loader\n"),
+        (_rev_c, _noreply, 'Revert "P1: ' + _fid + '"\n\nThis reverts an earlier commit.\n'),
+        (_fix_c, _noreply, "fixup! P1: " + _fid + "\n"),
+        (_squ_c, _noreply, "squash! P1: " + _fid + "\n"),
+        (_cov_c, _noreply, _cov_body),
+        (_clean_c, _allowed_author, "P1: tidy the loader\n"),
+        (_mail_c, _outlook, "P1: tidy the loader\n"),
+        (_look_c, _lookalike, "P1: tidy the loader\n"),
+        (_bnd_c, _personal, "P1: " + _fid + "\n"),
+        (_side_c, _noreply, "P1: " + _fid + "\n"),
+        (_old_c, _personal, "P1: " + _fid + "\n"),
+    )
+    _cov_pairs = [("commit:" + _cov_c[:12], x["pattern_id"])
+                  for x in scan_text(_cov_body.rstrip(), "commit:" + _cov_c[:12], {"entries": []})]
+    _check("commit-message backstop fixture: its coverage commit holds one sample of each PATTERNS "
+           "id, and the scan of that body reports each of them",
+           set(_samples) == {pid for pid, _ in PATTERNS}
+           and {p for _, p in _cov_pairs} == {pid for pid, _ in PATTERNS}, f, ran)
+    _after = sorted([("commit:" + s[:12], "finding_id")
+                     for s in (_merge_c, _subj_c, _deep_c, _rev_c, _fix_c, _squ_c, _side_c, _hash_c,
+                               _dup_c, _dup_c, _gmerge_c)]
+                    + [("commit:" + _trl_c[:12], "email_address"), ("commit:" + _trl_c[:12], "session_link")]
+                    + _cov_pairs + [("commit:" + s[:12], "author_email")
+                                    for s in (_mail_c, _look_c, _empty_c, _anth_c, _mail2_c)])
+    _every = sorted(_after + [("commit:" + s[:12], p) for s in (_bnd_c, _old_c)
+                              for p in ("finding_id", "author_email")])
+    _side_pin = next(x["sha256"] for x in scan_text("P1: " + _fid, "commit:x", {"entries": []})
+                     if x["pattern_id"] == "finding_id")
+    _exempt = {"entries": [
+        {"path": "commit:" + _mail_c[:12], "pattern_id": "author_email",
+         "match_sha256": _match_sha256(_outlook), "reason": "fixture: a verified author address"},
+        {"path": "commit:" + _look_c[:12], "pattern_id": "author_email",
+         "match_sha256": _match_sha256(_outlook), "reason": "fixture: a pin for another address"},
+        {"path": "commit:" + _side_c[:12], "pattern_id": "finding_id",
+         "match_sha256": _side_pin, "reason": "fixture: a verified false positive in a message"}],
+        "commit_policy_boundary": _bnd_c}
+    _exempted = list(_after)
+    _exempted.remove(("commit:" + _mail_c[:12], "author_email"))
+    _exempted.remove(("commit:" + _side_c[:12], "finding_id"))
+    _fmt = "--format=%H%x00%ae%x00%B%x01"
+
+    def _log_git(args, check=True):
+        if not isinstance(args, list):
+            raise TypeError(f"can only concatenate list (not {type(args).__name__!r}) to list")
+        if not all(isinstance(a, (str, bytes, os.PathLike)) for a in args):
+            raise TypeError(f"expected str, bytes or os.PathLike object in {args!r}")
+        if list(args) == ["log", "x..y", _fmt]:
+            return "".join(f"{s}\x00{e}\x00{m}\x01\n" for s, e, m in _history)
+        if list(args) == ["log", "x..e", _fmt]:
+            return ""
+        if list(args) == ["rev-list", _bnd_c]:
+            return f"{_bnd_c}\n{_old_c}\n"
+        return None if check else ""
+
+    def _backstop_holds(scan):
+        def pairs(found):
+            return None if found is None else sorted((x["path"], x["pattern_id"]) for x in found)
+        try:
+            return (pairs(scan("x..y", {"entries": [], "commit_policy_boundary": _bnd_c})) == _after
+                    and pairs(scan("x..y", {"entries": []})) == _every
+                    and pairs(scan("x..y", {"entries": [], "commit_policy_boundary": "e" * 40})) == _every
+                    and pairs(scan("x..y", _exempt)) == _exempted
+                    and scan("x..z", {"entries": [], "commit_policy_boundary": _bnd_c}) is None
+                    and scan("x..z", {"entries": []}) is None
+                    and scan("x..e", {"entries": [], "commit_policy_boundary": _bnd_c}) == [])
+        except Exception:  # noqa: BLE001 - a scan that raises does not hold
+            return False
+    _saved_git = globals()["_git"]
+    globals()["_git"] = _log_git
+    try:
+        _backstop_ok = _backstop_holds(scan_commit_messages)
+    finally:
+        globals()["_git"] = _saved_git
+    _check("commit-message backstop: the boundary commit and its ancestors are not re-checked (the "
+           "stated limit); the commits after it, a side-branch commit, a GitHub merge, a Revert, a "
+           "fixup! and a squash! commit included, are scanned for every pattern at each position "
+           "the fixtures place one and for author email; a pinned allowlist entry exempts its one "
+           "finding at its own commit; a "
+           "boundary git cannot resolve skips no commit; a range git cannot list returns None and "
+           "an empty range returns no findings", _backstop_ok, f, ran)
+    # Falsifying mutations of scan_commit_messages, each run against the same scripted history;
+    # the check above must fail for every one. An anchor that no longer occurs exactly once in the
+    # source fails this check, so an edit to the scan updates these cases with it.
+    import inspect as _inspect
+    _scan_src = _inspect.getsource(scan_commit_messages)
+    _append = "            findings.append(f)\n"
+    _partition = '        email, _, body = rest.partition("\\x00")\n'
+    _mutants = (
+        ("no skip", "        if sha in boundary_and_before:\n            continue\n", ""),
+        ("skip every commit once a boundary resolves", "if sha in boundary_and_before:",
+         "if boundary_and_before:"),
+        ("skip stops at the boundary", "if sha in boundary_and_before:\n            continue",
+         "if sha == boundary:\n            break"),
+        ("only the boundary itself skipped",
+         "{line.strip() for line in prior.splitlines() if line.strip()}", "{boundary}"),
+        ("rev-list over every ref", '["rev-list", boundary]', '["rev-list", boundary, "--all"]'),
+        ("rev-list capped at one commit", '["rev-list", boundary]',
+         '["rev-list", boundary, "--max-count=1"]'),
+        ("log walks first parents only", '["log", rng,', '["log", "--first-parent", rng,'),
+        ("records read without trimming git's newline", "        record = record.strip()\n", ""),
+        ("an unresolvable boundary skips every commit", "        if prior:\n",
+         "        if not prior:\n            return []\n        if prior:\n"),
+        ("a range git cannot list reads as clean", "    if log is None:\n        return None\n",
+         "    if log is None:\n        return []\n"),
+        ("a range git cannot list reads as clean without a boundary", "        return None\n",
+         "        return None if boundary else []\n"),
+        ("an empty range reads as unlistable", "    if log is None:\n", "    if not log:\n"),
+        ("the range listed with the exit code ignored", '%B%x01"], check=True)',
+         '%B%x01"], check=False)'),
+        ("an empty rev-list skips every commit", "        if prior:\n",
+         '        if prior == "":\n            return []\n        if prior:\n'),
+        ("rev-list run without a boundary", "    if boundary:\n", "    if True:\n"),
+        ("the boundary and its ancestors keep the author-email check",
+         "        if sha in boundary_and_before:\n            continue\n",
+         '        if sha in boundary_and_before:\n            body = ""\n'),
+        ("GitHub merge records skipped", _partition,
+         _partition + '        if body.startswith("Merge pull request #"):\n            continue\n'),
+        ("a GitHub merge read from its second paragraph", _partition,
+         _partition + '        if body.startswith("Merge pull request #"):\n'
+         '            body = body.partition("\\n\\n")[2]\n'),
+        ("Revert, fixup! and squash! commits skipped", _partition,
+         _partition + '        if body.startswith(("Revert ", "fixup! ", "squash! ")):\n'
+         '            continue\n'),
+        ("only the last paragraph scanned", "scan_text(body, where, allowlist)",
+         'scan_text(body.strip().split("\\n\\n")[-1], where, allowlist)'),
+        ("only the first 64 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[:64], where, allowlist)"),
+        ("only the last 64 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[-64:], where, allowlist)"),
+        ("only the first 4096 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[:4096], where, allowlist)"),
+        ("only the first 65536 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[:65536], where, allowlist)"),
+        ("the allowlist not applied to content", "scan_text(body, where, allowlist)",
+         "scan_text(body, where, None)"),
+        ("only finding ids reported", _append,
+         '            if f["pattern_id"] == "finding_id":\n' + "    " + _append),
+        ("only review-record patterns reported", _append,
+         '            if f["pattern_id"] in ("finding_id", "committed_report", "severity_tally"):\n'
+         + "    " + _append),
+        ("author email not checked", "        if email and not EMAIL_ALLOW_RE",
+         "        if False and email and not EMAIL_ALLOW_RE"),
+        ("an author email allowed when it holds noreply", "not EMAIL_ALLOW_RE.search(email)",
+         '"noreply" not in email'),
+        ("only a gmail author flagged", "not EMAIL_ALLOW_RE.search(email)",
+         'email.endswith("@gmail.com")'),
+        ("author-email exemption read under another pattern id",
+         '_allowed(allowlist, where, "author_email", email)',
+         '_allowed(allowlist, where, "email_address", email)'),
+        ("Co-Authored-By lines dropped", "scan_text(body, where, allowlist)",
+         'scan_text("\\n".join(x for x in body.splitlines() if not x.startswith("Co-Authored-By:")), '
+         'where, allowlist)'),
+        ("Claude-Session lines dropped", "scan_text(body, where, allowlist)",
+         'scan_text("\\n".join(x for x in body.splitlines() if not x.startswith("Claude-Session:")), '
+         'where, allowlist)'),
+        ("# lines dropped", "scan_text(body, where, allowlist)",
+         'scan_text("\\n".join(x for x in body.splitlines() if not x.startswith("#")), where, allowlist)'),
+        ("the last paragraph dropped", "scan_text(body, where, allowlist)",
+         'scan_text(body.strip().rsplit("\\n\\n", 1)[0], where, allowlist)'),
+        ("only the first two paragraphs scanned", "scan_text(body, where, allowlist)",
+         'scan_text("\\n\\n".join(body.split("\\n\\n")[:2]), where, allowlist)'),
+        ("only the first three paragraphs scanned", "scan_text(body, where, allowlist)",
+         'scan_text("\\n\\n".join(body.split("\\n\\n")[:3]), where, allowlist)'),
+        ("only the first 80000 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[:80000], where, allowlist)"),
+        ("only the first 131072 characters scanned", "scan_text(body, where, allowlist)",
+         "scan_text(body[:131072], where, allowlist)"),
+        ("only the first 64 commits read", 'for record in log.split("\\x01"):',
+         'for record in log.split("\\x01")[:64]:'),
+        ("findings de-duplicated in a commit", _append,
+         "            if f not in findings:\n" + "    " + _append),
+        ("merge subjects git writes skipped", _partition,
+         _partition + '        if body.startswith("Merge branch "):\n            continue\n'),
+        ("empty messages skipped", _partition,
+         _partition + "        if not body.strip():\n            continue\n"),
+        ("any anthropic.com author allowed", "not EMAIL_ALLOW_RE.search(email)",
+         'not (EMAIL_ALLOW_RE.search(email) or email.endswith("@anthropic.com"))'),
+        ("author-email exemption ignores its pin", '_allowed(allowlist, where, "author_email", email)',
+         '_allowed(allowlist, where, "author_email")'),
+        ("author-email exemption ignores its commit",
+         '_allowed(allowlist, where, "author_email", email)',
+         '_allowed(dict(allowlist, entries=[dict(e, path=where) for e in allowlist.get("entries", [])]), '
+         'where, "author_email", email)'),
+        ("every commit flagged", '        where = f"commit:{sha[:12]}"\n',
+         '        where = f"commit:{sha[:12]}"\n'
+         '        findings.append({"path": where, "pattern_id": "finding_id", "match": ""})\n'),
+    )
+    _survivors = []
+    for _label, _old, _new in _mutants:
+        if _scan_src.count(_old) != 1:
+            _survivors.append(f"{_label} (anchor not found exactly once)")
+            continue
+        _ns = dict(globals(), _git=_log_git)
+        exec(compile(_scan_src.replace(_old, _new), "<scan_commit_messages mutant>", "exec"), _ns)
+        if _backstop_holds(_ns["scan_commit_messages"]):
+            _survivors.append(_label)
+    if _survivors:
+        print(f"  [note] mutations the backstop check did not catch: {_survivors}")
+    _check(f"commit-message backstop: each of {len(_mutants)} committed mutations of the scan fails "
+           f"the boundary check", not _survivors, f, ran)
+    class _NoGit:
+        @staticmethod
+        def run(*a, **k):
+            raise FileNotFoundError(2, "No such file or directory", "git")
+    _saved_sp = globals()["subprocess"]
+    globals()["subprocess"] = _NoGit
+    try:
+        _nogit = (_git(["log"]), _git(["log"], check=False))
+    except OSError:
+        _nogit = "raised"
+    finally:
+        globals()["subprocess"] = _saved_sp
+    _check("_git reads a git binary that cannot be started as git unavailable (None when checked, "
+           "empty output when not)", _nogit == (None, ""), f, ran)
+
+    def _refuses(fn, args):
+        try:
+            fn(args)
+        except TypeError:
+            return True
+        return False
+    _check("the backstop stub and _git both refuse arguments that are not a list, and a list item "
+           "that is not a string, bytes or a path",
+           all(_refuses(fn, a) for fn in (_log_git, _git) for a in (("log",), ["log", 5])), f, ran)
+    _check("the committed commit-message boundary is written as 40 lowercase hex characters",
+           re.fullmatch(r"[0-9a-f]{40}", str(_load_allowlist().get("commit_policy_boundary") or ""))
+           is not None, f, ran)
     n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
