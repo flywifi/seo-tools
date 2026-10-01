@@ -32,8 +32,9 @@ its `drive_write` mode in the contract (create; create and update; create, move 
 on), taken from the vendor help pages listed at the end. The app's row in
 `shared/cross-modality/transitions.json` bounds it: the runner refuses a contract that gives a
 write mode to an app whose row reaches no store, and refuses a write into a hub area or a local
-folder the row cannot reach, judged by where the file actually is rather than where the step says
-it is. For example, Gemini on the web can only create a new file, so a Gemini step that tries to
+folder the row cannot reach, judged by where the file actually is (or, for a new file, would land)
+rather than where the step says it is; a file name holding a path is refused (selftest checks
+`write-outside-target-refused` and `write-create-path-name-refused`). For example, Gemini on the web can only create a new file, so a Gemini step that tries to
 edit or delete one is refused, and a step whose refusal the contract did not expect fails the
 workflow. Every step on the computer runs
 the **real** repo code: the profile mirror (`tools/profile_mirror.py`), the job runner
@@ -43,17 +44,24 @@ reconciler (`tools/coverage_verify.py`), the connector resolver, and the publish
 
 Each workflow runs in its own throwaway folder: a hub with the Drive hub layout, a context folder,
 a log folder and a Drive API stand-in. The runner points the code at that folder (module paths,
-`HOME`, and the default ledger argument of the inbox functions), refuses to run a computer step
-while any of those still points elsewhere, and deletes the folder afterwards.
+`HOME`, and the default ledger argument of the inbox functions), checks before each computer step
+that those still point inside it and refuses the step if one does not (checks
+`run-preflight-before-each-real-step`, `preflight-refuses-HOME`, `preflight-refuses-CONTEXT_DIR`
+and `preflight-refuses-ledger-default`), and deletes the folder afterwards.
 
-The whole run sits inside a **write guard**, a Python audit hook that judges the writes this
-process makes through `open` for writing and through the `os` and `shutil` calls that remove,
+The workflows and probes run inside a **write guard**, a Python audit hook that judges the writes
+this process makes through `open` for writing and through the `os` and `shutil` calls that remove,
 rename, move, copy or create a file or folder. It refuses and records such a write when it lands
-outside the system temporary folder (selftest checks `guard-refuses-open-write` and
-`guard-refuses-rename-out`), and the run fails if it refused one or if it judged none (a guard
-that saw nothing proved nothing; checks `suite-fails-on-blocked-write` and
-`suite-fails-when-guard-judged-nothing`). Two kinds of write are outside its view: one made
-relative to an open folder handle, and one made by another process.
+outside the system temporary folder (selftest checks `guard-refuses-open-write`,
+`guard-refuses-rename-out`, `guard-refuses-mkdir-outside`, `guard-refuses-rmtree-outside` and
+`suite-reports-blocked-write`), except the interpreter's own bytecode cache (a `__pycache__`
+folder, and inside one a `.pyc` file named with this interpreter's cache tag; check
+`guard-exempts-only-bytecode-cache`). The run fails if the guard refused a write or judged none (a
+guard that saw nothing proved nothing; checks `suite-fails-on-blocked-write` and
+`suite-fails-when-guard-judged-nothing`). Outside its view: a write by another process; a write
+through a file handle opened earlier; `os.mkfifo` and `os.mknod`, which raise no audit event; and
+a file opened relative to an open folder handle, which the guard judges as if it were relative to
+the current folder.
 
 At the end the runner also compares the files on this computer it could have reached (the repo's
 `.local` files, the Creator OS log folder, and the configured hub mirror) with a snapshot taken
@@ -123,12 +131,12 @@ updated together, so closing a gap is always a deliberate change.
 
 | ID | Open gap |
 |---|---|
-| SW-G1 | No validated field records which vendor's app made a hub file or job. The probe holds while the queue accepts exactly the generic origins (web, desktop, cowork, mac, other) and its known ticket keys, refuses every vendor and surface name tried as an origin, refuses a `surface` key, and the remote MCP connector records `other`; files from ChatGPT and Gemini carry `other` (the free-text `requested_by` field can carry a name, unvalidated) |
+| SW-G1 | No validated field records which vendor's app made a hub file or job. The probe holds while the queue accepts a well-formed ticket with a generic origin, its origins are exactly the generic ones (web, desktop, cowork, mac, other) and its ticket keys exactly the known ones, it refuses each vendor and surface name the probe tries as an origin (every surface id and vendor in the matrix, checked by `origin-candidates-cover-matrix`) and a `surface` key, and the remote MCP connector records `other`; files from ChatGPT and Gemini carry `other` (the free-text `requested_by` field can carry a name, unvalidated) |
 | SW-G2 | Job results do not carry the ticket's origin |
 | SW-G3 | The job runner and watcher write no log file and no last-run stamp; a run log exists only if the scheduler line captures their output |
 | SW-G4 | Minority reports are checked but never saved: job results have no field for one and the validator has no record option |
 | SW-G5 | The `google_workspace` setting turns on only Gmail in the connector plan; Calendar, Drive and Docs stay off |
-| SW-G6 | Eight capability flags are named by no runtime Python, so they act only through instructions the model reads. The probe's rule: a flag counts as named when any tracked `tools/` or `shared/` Python file (in a copy without git, any such file outside `__pycache__`) other than the setup writer and the drift guard quotes it; the expected list is in the contract |
+| SW-G6 | Eight capability flags are named by no runtime Python, so they act only through instructions the model reads. The probe's rule: a flag counts as named when any tracked `tools/` or `shared/` Python file (in a copy without git, any such file outside `__pycache__`; check `python-sources-fallback-runs`) quotes it, leaving out the files that only declare or cross-check flags (the setup writer, the drift guard, the count checker and this suite's runner); the expected list is in the contract |
 | SW-G7 | Profile import reads ChatGPT exports only; there is no Gemini or claude.ai export prompt |
 | SW-G8 | Dated exports of the voice profile, channel context, setup context and content calendar have no merge or proposal path. The probe reads skill descriptions, so a fix worded differently may not trip it |
 | SW-G10 | Some Drive connectors can now move and trash files; a queued ticket trashed before the computer runs leaves no result and no record that it existed |
@@ -150,10 +158,14 @@ The runner's selftest carries a table of mutation cases: each is a one-line chan
 (a check switched off, a count replaced by a constant, an argument dropped) and the group of
 checks that must fail when it is applied. The tasks selftest carries the same kind of table for
 the event merge. The cases were chosen by a reviewer who did not write the code. A case whose
-change no longer applies, or that its checks no longer catch, fails the selftest. The runner
-applies the cases only after the write guard has passed its own checks, because some cases try a
-write outside the sandbox that only the guard refuses, and it restores the shared module state
-after each one.
+change no longer applies, or that its checks no longer catch, fails the selftest (checks
+`mutant-runner-reports-survivor` and `mutant-runner-reports-missing-anchor`). Before the cases, an
+unmutated copy must pass every group they name, so a crash the copy itself causes cannot pass for
+a caught case. The runner applies the cases only after the write guard has passed its own checks,
+because some cases try a write outside the sandbox that only the guard refuses (check
+`selftest-skips-mutants-when-guard-fails`). After each case it restores the module settings the
+sandbox repoints, the loader stand-ins, network spies and job-runner function a step or check
+replaces for a while, and the copy's write guard (check `mutant-runner-isolates-guard-stack`).
 
 ## Where the facts come from
 

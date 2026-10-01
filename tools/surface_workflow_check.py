@@ -7,7 +7,8 @@ writes only what that surface is declared able to write (its drive_write mode in
 with the vendor help page it rests on), and only into a place the surface's row in
 shared/cross-modality/transitions.json can reach (a hub area needs a Drive store on the row, the
 local folder needs a local store or a connected folder; the place is judged where the file
-actually is, including a move's destination). A refused surface step fails its workflow unless the
+actually is or, for a create, would land, and for a move where it goes; a step 'name' holding a
+path is refused). A refused surface step fails its workflow unless the
 step asserts the refusal. Every step on the computer runs the real repo function (profile mirror,
 job runner, inbox scan, register merge, validators, connector resolver, publishing gate) inside a
 throwaway sandbox. The contract also lists, per workflow, the live steps only the owner's own
@@ -20,20 +21,25 @@ updating the contract and docs/SURFACE-WORKFLOWS.md together).
 SANDBOX. Each workflow gets its own temporary folder: a hub with the docs/DRIVE-HUB.md layout, a
 context folder, a log folder, a state file, an inbox ledger, and a Drive API stand-in. The module
 globals, the inbox functions' default ledger arguments and the arguments the real functions read
-are pointed there and restored afterwards, and a preflight refuses to run a computer step while any
-of them points outside the sandbox. While the suite runs, a write guard (an audit hook) judges the
-writes this process makes through open() for writing and the os and shutil calls that remove,
-rename, move, copy or create a file or folder, and refuses and records those that land outside the
-system temporary folder; one refusal, or a run in which it judged no write, fails the suite. A
-write relative to an open folder handle, or made by another process, is outside its view.
+are pointed there and restored afterwards, and a preflight before each computer step refuses it
+while one of them points outside the sandbox. While the workflows and probes run, a write guard (an
+audit hook) judges the writes this process makes through open() for writing and the os and shutil
+calls in _PATH_EVENTS, and refuses and records those that land outside the system temporary folder,
+the interpreter's bytecode cache excepted (_is_bytecode_cache); one refusal, or a run in which it
+judged no write, fails the suite. Outside its view: writes by another process, writes through a
+file handle opened earlier, os.mkfifo and os.mknod (no audit event), and a file opened relative to
+an open folder handle (its audit event carries no folder, so it is judged against the current
+folder).
 Separately, and as advice that does not decide the result, the files on this machine the suite
 could reach are compared with a snapshot taken before the run (other programs may change them
 meanwhile); a hub that is not configured or cannot be read is noted as SKIP.
 
 MUTATION CASES. _MUTANTS lists one-line changes to the code above the selftest marker, each with
 the pin group that must fail when it is applied; selftest() applies each to a fresh copy of this
-module, restores the shared module state afterwards, and fails on a survivor or a stale anchor. It
-applies them only once the write guard has passed its own pins.
+module and fails on a survivor or a stale anchor. Before the cases it requires an unmutated copy to
+pass every group they name. After each case it restores what _save_shared and _save_patchable
+capture and empties the copy's guard stack. It applies the cases only once the write guard has
+passed its own pins.
 
 Contract: skills/creator-core/evals/surface-workflows.json   Guide: docs/SURFACE-WORKFLOWS.md
 
@@ -173,6 +179,17 @@ def _guard_paths(event, args):
     return out
 
 
+_PYC_NAME = re.compile(r"[^/\\]+\." + (re.escape(sys.implementation.cache_tag) if sys.implementation.cache_tag
+                                         else r"(?!)") + r"(\.opt-[12])?\.pyc(\.\d+)?")
+
+
+def _is_bytecode_cache(path) -> bool:
+    """The interpreter's own cache: a folder named __pycache__, or inside one a file named
+    <module>.<this interpreter's cache tag>[.opt-N].pyc or its temporary <...>.pyc.<digits> twin."""
+    parent, name = os.path.split(path)
+    return name == "__pycache__" or (os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name)))
+
+
 def _guard_hook(event, args):
     if not _GUARD["stack"]:
         return
@@ -185,7 +202,7 @@ def _guard_hook(event, args):
             continue
         for rec in _GUARD["stack"]:
             rec["seen"].append(path)
-        if "/__pycache__/" in path or path.endswith(".pyc"):
+        if _is_bytecode_cache(path):
             continue  # the interpreter's own bytecode cache, never Creator OS state
         top = _GUARD["stack"][-1]
         if not any(path == a or path.startswith(a.rstrip(os.sep) + os.sep) for a in top["allowed"]):
@@ -196,10 +213,12 @@ def _guard_hook(event, args):
 
 @contextlib.contextmanager
 def write_guard(*roots):
-    """While active, refuse and record any file write, rename, removal or directory change outside
-    `roots` (sys.addaudithook; the hook stays installed and is inert outside this block). Yields a
-    record {"allowed", "blocked", "seen"}; an inner guard narrows the allowed roots for its block and
-    reports what it sees to the outer records too."""
+    """While active, refuse and record the writes _guard_paths judges (open for writing, and the os
+    and shutil calls in _PATH_EVENTS) that land outside `roots`, except the interpreter's bytecode
+    cache (sys.addaudithook; the hook stays installed and is inert outside this block). Yields a
+    record {"allowed", "blocked", "seen"}: seen holds every judged path, blocked the refused ones. An
+    inner guard narrows the allowed roots for its block and reports what it sees to the outer
+    records too."""
     if not _GUARD["installed"]:
         sys.addaudithook(_guard_hook)
         _GUARD["installed"] = True
@@ -290,6 +309,22 @@ def _save_shared() -> dict:
             "home": os.environ.get("HOME"), "transport": pm.da._default_transport,
             "token": pm.pd._api_token, "ledger": ib.LEDGER_PATH,
             "defaults": {f: getattr(ib, f).__defaults__ for f in _INBOX_DEFAULTED}}
+
+
+def _save_patchable() -> dict:
+    """Functions a step or pin replaces for a while (loader stubs, network spies, the runner pass);
+    the mutation runner restores them after each mutant so one that skips a restore cannot leak."""
+    ms = sys.modules.get("mcp_server")
+    return {"creds": pc.load_credentials, "config": (ms, ms._load_config) if ms is not None else None,
+            "net": (urllib.request.urlopen, socket.create_connection), "run_pass": rn.run_pass}
+
+
+def _restore_patchable(s):
+    pc.load_credentials = s["creds"]
+    if s["config"] is not None:
+        s["config"][0]._load_config = s["config"][1]
+    urllib.request.urlopen, socket.create_connection = s["net"]
+    rn.run_pass = s["run_pass"]
 
 
 def _restore_shared(s):
@@ -383,8 +418,8 @@ def _render(w):
 
 def op_surface_write(box, step, ctx):
     """Simulate exactly what the surface can do: a mode its drive_write does not allow, or a place
-    its matrix row cannot reach (judged where the file is, and for a move where it goes too), is
-    refused rather than performed."""
+    its matrix row cannot reach (judged where the file is, for a create where it would land, and for
+    a move where it goes too), is refused rather than performed."""
     sid, w = step["surface"], step["with"]
     mode, area = w["mode"], w["area"]
     if mode not in WRITE_MODES[ctx["contract"]["surfaces"][sid]["drive_write"]]:
@@ -427,6 +462,8 @@ def op_surface_write(box, step, ctx):
         return {"name": target.name, "origin": origin, "job_id": ticket.get("job_id")}
     name = w.get("name") or f"{w['kind']}.{stamp}.{origin}.{w.get('ext', 'json')}"
     target = folder / name
+    if box.area_of(target) != area:
+        return {"refused": f"{sid} cannot create {name!r} outside {area}"}
     data = _render(w)
     if isinstance(data, bytes):
         target.write_bytes(data)
@@ -751,6 +788,19 @@ REAL_OPS = {"mirror.refuse": op_mirror_refuse, "mirror.sync": op_mirror_sync, "r
             "publishing.dispatch": op_publishing_dispatch, "mcp.schedule_post": op_mcp_schedule_post,
             "matrix.row": op_matrix_row, "repo.text": op_repo_text}
 MCP_OPS = {"mcp.schedule_post"}
+# The 'with' keys each op reads (fail closed: validate_contract refuses any other key). A selftest
+# pin checks that every op has an entry and that each key is read by its op's source.
+WITH_KEYS = {
+    "surface.write": {"mode", "area", "name", "kind", "ext", "raw", "ticket", "target", "to", "json", "text",
+                      "fixture"},
+    "surface.conflict_copy": {"of", "json"},
+    "mirror.refuse": {"from"}, "mirror.sync": {"api", "contact"}, "runner.pass": {"allow", "stdout"},
+    "inbox.scan": set(), "inbox.sweep": {"scan"}, "inbox.approve": {"scan", "verdicts"},
+    "tasks.merge": {"copies", "passes"}, "agent.validate": {"from", "schema"},
+    "coverage.check": {"field", "points", "sources"}, "connectors.resolve": {"flags", "ids"},
+    "publishing.dispatch": {"flag", "platform"}, "mcp.schedule_post": {"caption", "content_type", "platform"},
+    "matrix.row": {"surface"}, "repo.text": {"needles", "path"},
+}
 
 
 # --------------------------------------------------------------------------- gap probes
@@ -758,14 +808,15 @@ MCP_OPS = {"mcp.schedule_post"}
 # real inputs. A probe returns True while its gap is still observable.
 
 def detect_vendor_origin(validate, allowed_origins, ticket_keys, candidates, mcp_source) -> bool:
-    """SW-G1 holds while the queue accepts only the generic origins and the known ticket keys, refuses
-    every vendor or surface name tried as an origin, refuses a 'surface' key, and the remote MCP
-    connector records 'other'."""
+    """SW-G1 holds while the queue accepts a well-formed ticket with a generic origin, its origins are
+    exactly the generic ones and its keys exactly the known ones, it refuses every vendor or surface
+    name tried as an origin and a 'surface' key, and the remote MCP connector records 'other'."""
     t = {"job_id": str(uuid.UUID(int=1)), "created_at": "2026-10-01T12:00:00Z", "origin": "web",
          "job_type": "inbox_scan", "params": {}, "schema_version": q.SCHEMA_VERSION}
+    base_accepted = not validate(t)  # the control: without it a validator refusing everything looks the same
     vendor_refused = all(bool(validate(dict(t, origin=c))) for c in candidates)
     surface_key_refused = bool(validate(dict(t, surface="chatgpt_web_plain")))
-    return (set(allowed_origins) == GENERIC_ORIGINS and set(ticket_keys) == KNOWN_TICKET_KEYS
+    return (base_accepted and set(allowed_origins) == GENERIC_ORIGINS and set(ticket_keys) == KNOWN_TICKET_KEYS
             and vendor_refused and surface_key_refused and 'origin="other"' in mcp_source)
 
 
@@ -994,13 +1045,18 @@ def _write_step_problems(where, st, contract, matrix, earlier) -> list:
         p.append(f"{where}: {mode} needs 'name' or a 'target' naming an earlier step")
     if mode == "move" and w.get("to") not in HUB_AREAS:
         p.append(f"{where}: a move needs 'to' naming a hub area")
+    name = w.get("name")
+    if name is not None and (not isinstance(name, str) or not name or os.path.isabs(name)
+                             or any(c in name for c in ("/", "\\")) or name in (".", "..")):
+        p.append(f"{where}: 'name' must be a plain file name, not a path")
     return p
 
 
 def validate_contract(contract, matrix) -> list:
-    """Every problem in the contract; empty means it may run. Unknown keys, ops, surfaces, modes,
-    areas, gaps and probes are refused, as are steps whose surface is not on the workflow's path and
-    path surfaces no step uses."""
+    """Every problem in the contract; empty means it may run. Unknown keys (top level, surface, gap,
+    workflow, step, and a step's 'with' keys for its op), ops, surfaces, modes, areas, gaps and
+    probes are refused, as are steps whose surface is not on the workflow's path and path surfaces
+    no step uses."""
     p = []
     surfaces = matrix.get("surfaces", {})
     p += [f"unknown top-level key {k!r}" for k in set(contract) - TOP_KEYS]
@@ -1040,6 +1096,9 @@ def validate_contract(contract, matrix) -> list:
             if sid in sids:
                 p.append(f"{wid}: duplicate step id {sid!r}")
             p += [f"{where}: unknown key {k!r}" for k in set(st) - STEP_KEYS]
+            if st.get("op") in WITH_KEYS:
+                p += [f"{where}: unknown 'with' key {k!r} for {st['op']}"
+                      for k in sorted(set(st.get("with", {})) - WITH_KEYS[st["op"]])]
             op, kind, surf = st.get("op"), st.get("kind"), st.get("surface")
             if kind == "sim" and op not in SIM_OPS or kind == "real" and op not in REAL_OPS \
                     or kind not in ("sim", "real"):
@@ -1185,7 +1244,7 @@ def run_suite(contract=None, matrix=None) -> dict:
                     observed, err = False, f"{type(exc).__name__}: {exc}"
                 report["gaps"].append({"id": g["id"], "observed": observed, "error": err})
         report["write_guard"]["blocked"] = list(rec["blocked"])
-        report["write_guard"]["judged"] = len(rec["seen"]) + len(rec["blocked"])
+        report["write_guard"]["judged"] = len(rec["seen"])  # seen already holds the refused writes
     finally:
         if "tmp" in _MS:
             shutil.rmtree(_MS["tmp"], ignore_errors=True)
@@ -1441,13 +1500,18 @@ def _pins_isolation(m):
 
 def _pins_guard(m):
     """The write guard refuses a write outside its roots and records it, lets one inside through,
-    and is inert once the block ends."""
+    and is inert once the block ends. The 'outside' targets sit in a throwaway folder beside the
+    allowed root, never in the repository, so a broken guard writes only into that folder."""
     out = []
     tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-guard-"))
-    target = ROOT / "pipeline" / "surface-guard-selftest.local.json"
+    allowed, outside = tmp / "allowed", tmp / "outside"
+    allowed.mkdir()
+    outside.mkdir()
+    target = outside / "surface-guard-selftest.local.json"
+    moved = outside / "surface-guard-selftest.txt"
     try:
-        with m.write_guard(tmp) as rec:
-            (tmp / "inside.txt").write_text("ok", encoding="utf-8")
+        with m.write_guard(allowed) as rec:
+            (allowed / "inside.txt").write_text("ok", encoding="utf-8")
             try:
                 with open(target, "w", encoding="utf-8") as fh:
                     fh.write("leak")
@@ -1455,15 +1519,15 @@ def _pins_guard(m):
             except PermissionError:
                 refused = True
             try:
-                os.replace(tmp / "inside.txt", ROOT / "surface-guard-selftest.txt")
+                os.replace(allowed / "inside.txt", moved)
                 refused_rename = False
             except PermissionError:
                 refused_rename = True
         out.append(("guard-refuses-open-write", refused and not target.exists()))
-        out.append(("guard-refuses-rename-out", refused_rename and not (ROOT / "surface-guard-selftest.txt").exists()))
+        out.append(("guard-refuses-rename-out", refused_rename and not moved.exists()))
         out.append(("guard-records", any(str(target) in b for b in rec["blocked"])
                     and any("inside.txt" in s for s in rec["seen"])))
-        out.append(("guard-allows-inside", (tmp / "inside.txt").is_file()))
+        out.append(("guard-allows-inside", (allowed / "inside.txt").is_file()))
         out.append(("guard-reads-pass", m._guard_paths("open", (str(target), "r", 0)) == []))
         out.append(("guard-dir-fd-relative-skipped", m._guard_paths("os.remove", ("x", 5)) == []
                     and m._guard_paths("os.remove", ("x", None)) == ["x"]
@@ -1471,10 +1535,8 @@ def _pins_guard(m):
                     and m._guard_paths("os.rename", ("a", "b", -1, -1)) == ["a", "b"]))
         out.append(("guard-inert-after", not m._GUARD["stack"]))
     finally:
+        m._GUARD["stack"].clear()  # a guard that failed to close its block would refuse this cleanup
         shutil.rmtree(tmp, ignore_errors=True)
-        for leftover in (target, ROOT / "surface-guard-selftest.txt"):
-            if leftover.exists():
-                leftover.unlink()
     return out
 
 
@@ -1575,6 +1637,413 @@ def _pins_workflows(m):
     return out
 
 
+def _guard_event_checks(m):
+    """Each judged event names the path it writes, and the hook's root test is by whole folder,
+    realpathed, decided by the innermost guard and reported to every open record. The mkdir and
+    rmtree checks go through real calls."""
+    day = "2026-10-01"
+    gp = m._guard_paths
+    out = [("guard-judges-mkdir", gp("os.mkdir", ("d", 511, -1)) == ["d"]),
+           ("guard-judges-rmdir", gp("os.rmdir", ("d", -1)) == ["d"]),
+           ("guard-judges-rmtree", gp("shutil.rmtree", ("d", None)) == ["d"]),
+           ("guard-judges-symlink-path", gp("os.symlink", ("target", "link", -1)) == ["link"]),
+           ("guard-judges-link-path", gp("os.link", ("src", "dst", -1, -1)) == ["dst"]),
+           ("guard-judges-truncate", gp("os.truncate", ("f", 0)) == ["f"]),
+           ("guard-judges-chmod", gp("os.chmod", ("f", 384, -1)) == ["f"]),
+           ("guard-judges-os-open-flags", gp("open", ("f", None, os.O_WRONLY)) == ["f"]
+            and gp("open", ("f", None, os.O_RDWR)) == ["f"] and gp("open", ("f", None, os.O_RDONLY)) == [])]
+
+    def refused(path):
+        try:
+            m._guard_hook("open", (str(path), "w", 577))
+            return False
+        except PermissionError:
+            return True
+
+    box = m.Box("pin-guard", day)
+    r = box.root
+    before = set(Path(tempfile.gettempdir()).glob("creator-os-surface-pin-guard-mk-*"))
+    try:
+        with m.write_guard(r / "a"):
+            sib = refused(str(r) + "/ab/x.json")
+        with m.write_guard(str(r) + "/a/../a"):
+            dotdot = not refused(r / "a" / "f.json")
+        with m.write_guard(r) as outer:
+            with m.write_guard(r / "inner") as inner:
+                nested = refused(r / "other.json")
+        made = None
+        with m.write_guard(r / "inner"):
+            try:
+                made = m.Box("pin-guard-mk", day)
+                mk = False
+            except PermissionError:
+                mk = True
+        if made is not None:
+            made.close()
+        victim = m.Box("pin-guard-victim", day)
+        with m.write_guard(r):
+            try:
+                victim.close()
+                rt = False
+            except PermissionError:
+                rt = True
+        rt = rt and (victim.hub / "Inbox").is_dir()
+        victim.close()
+    finally:
+        m._GUARD["stack"].clear()  # a guard that failed to close its block would refuse this cleanup
+        box.close()
+        for left in set(Path(tempfile.gettempdir()).glob("creator-os-surface-pin-guard-mk-*")) - before:
+            shutil.rmtree(left, ignore_errors=True)
+    return out + [("guard-refuses-sibling-prefix", sib), ("guard-roots-realpathed", dotdot),
+                  ("guard-inner-narrows", nested),
+                  ("guard-block-reaches-outer", any("other.json" in b for b in outer["blocked"])
+                   and any("other.json" in b for b in inner["blocked"])),
+                  ("guard-refuses-mkdir-outside", mk), ("guard-refuses-rmtree-outside", rt)]
+
+
+def _guard_bytecode_checks(m):
+    """The bytecode exemption covers this interpreter's cache file inside a __pycache__ folder and
+    nothing else: another name there, or a .pyc elsewhere, is refused."""
+    tag = sys.implementation.cache_tag
+    box = m.Box("pin-pyc", "2026-10-01")
+    r = box.root
+
+    def refused(path):
+        try:
+            m._guard_hook("open", (str(path), "w", 577))
+            return False
+        except PermissionError:
+            return True
+
+    try:
+        with m.write_guard(r / "in"):
+            cache = r / "pkg" / "__pycache__"
+            ok = (not refused(cache / f"mod.{tag}.pyc") and not refused(cache / f"mod.{tag}.pyc.1234567")
+                  and refused(r / "notes.json") and refused(cache / "notes.json") and refused(r / "evil.pyc")
+                  and refused(cache / "mod.other-99.pyc"))
+            try:  # a fresh checkout has no cache folders yet: the import makes them inside the guard
+                m._guard_hook("os.mkdir", (str(cache), 511, -1))
+                folder_ok = True
+            except PermissionError:
+                folder_ok = False
+            folder_ok = folder_ok and refused_mkdir(m, r / "pkg" / "not-a-cache")
+    finally:
+        m._GUARD["stack"].clear()
+        box.close()
+    return [("guard-exempts-only-bytecode-cache", ok), ("guard-exempts-cache-folder-creation", folder_ok)]
+
+
+def refused_mkdir(m, path):
+    try:
+        m._guard_hook("os.mkdir", (str(path), 511, -1))
+        return False
+    except PermissionError:
+        return True
+
+
+def _pins_suite(m):
+    """run_suite's guard covers the probes, its root is the system temporary folder, a refused write
+    reaches the report, and judged counts what the guard saw (zero when nothing was written)."""
+    day = "2026-10-01"
+    box = m.Box("pin-root", day)
+    root_ok = os.path.realpath(m._sandbox_root()) == os.path.dirname(os.path.realpath(str(box.root)))
+    box.close()
+    matrix = m.load_json(m.MATRIX)
+    c = {"suite": "pin", "pinned_today": day, "surfaces": {}, "workflows": [],
+         "gap_ledger": [{"id": "SW-PIN", "probe": "pin_leak"}]}
+
+    def leak(ctx):
+        try:  # the parent folder does not exist, so even a broken guard writes nothing
+            m.atomic_io.atomic_write_text("/nonexistent-creator-os-pin/leak.json", "x")
+        except PermissionError:
+            pass
+        return True
+
+    m.PROBES["pin_leak"] = leak
+    try:
+        rep = m.run_suite(c, matrix)
+    finally:
+        m.PROBES.pop("pin_leak", None)
+    rep2 = m.run_suite(dict(c, gap_ledger=[{"id": "SW-PIN", "probe": "workspace_flag_map"}]), matrix)
+    return [("sandbox-root-is-temp", root_ok),
+            ("suite-reports-blocked-write", any("/nonexistent-creator-os-pin/" in b
+                                                for b in rep["write_guard"]["blocked"])),
+            ("suite-judged-counts-writes", rep2["write_guard"]["judged"] == 0 and rep["write_guard"]["judged"] == 1)]
+
+
+def _isolation_restore_checks(m):
+    """Isolation restores the Drive transport and token stand-ins and an unset HOME, swaps only the
+    ledger default, and _INBOX_DEFAULTED holds every inbox function whose default is the real ledger."""
+    box = m.Box("pin-iso", "2026-10-01")
+    real_t, real_tok, real_ledger = m.pm.da._default_transport, m.pm.pd._api_token, m.ib.LEDGER_PATH
+    real_def = {f: getattr(m.ib, f).__defaults__ for f in m._INBOX_DEFAULTED}
+    derived = sorted(n for n, f in vars(m.ib).items() if isinstance(f, types.FunctionType)
+                     and any(isinstance(d, (str, Path)) and d == real_ledger for d in (f.__defaults__ or ())))
+    try:
+        with m.Isolation(box):
+            only = all(getattr(m.ib, f).__defaults__ == tuple(box.ledger if d == real_ledger else d
+                                                               for d in (real_def[f] or ()))
+                       for f in m._INBOX_DEFAULTED)
+        restored = m.pm.da._default_transport is real_t and m.pm.pd._api_token is real_tok
+        saved_home = os.environ.pop("HOME", None)
+        try:
+            with m.Isolation(box):
+                pass
+            unset_ok = "HOME" not in os.environ
+        finally:
+            if saved_home is not None:
+                os.environ["HOME"] = saved_home
+    finally:
+        box.close()
+    return [("isolation-restores-transport-and-token", restored),
+            ("isolation-defaulted-set-derived", bool(derived) and set(derived) <= set(m._INBOX_DEFAULTED)),
+            ("isolation-swaps-only-ledger-default", only), ("isolation-restores-unset-home", unset_ok)]
+
+
+def _preflight_entry_checks(m):
+    box = m.Box("pin-pf", "2026-10-01")
+    real_ctx, real_home = m.pm.CONTEXT_DIR, os.environ.get("HOME")
+    try:
+        with m.Isolation(box) as iso:
+            saved = m.pm.CONTEXT_DIR
+            m.pm.CONTEXT_DIR = real_ctx
+            ctx_ok = any("CONTEXT_DIR" in b for b in iso.preflight())
+            m.pm.CONTEXT_DIR = saved
+            saved_home = os.environ["HOME"]
+            os.environ["HOME"] = real_home or "/"
+            home_ok = any(b.startswith("HOME ->") for b in iso.preflight())
+            os.environ["HOME"] = saved_home
+    finally:
+        box.close()
+    return [("preflight-refuses-CONTEXT_DIR", ctx_ok), ("preflight-refuses-HOME", home_ok)]
+
+
+def _write_move_checks(m):
+    """A target outside every area is refused, a move lands in its destination, a move into a place
+    the surface cannot reach is refused, and a create named with a path is refused where it would land."""
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+    box = m.Box("pin-write", contract["pinned_today"])
+    ctx = {"contract": contract, "matrix": matrix, "wf": "pin"}
+
+    def w(i, sid, c=ctx, **kw):
+        try:
+            return m.op_surface_write(box, {"id": i, "surface": sid, "with": kw}, c)
+        except Exception as exc:  # noqa: BLE001 - a write that raises was not refused
+            return {"raised": type(exc).__name__}
+
+    try:
+        box.files["outside"] = {"path": box.root / "elsewhere.json", "bytes": b"{}"}
+        r1 = w("o1", "chatgpt_web_plain", mode="update", area="Inbox", target="outside", json={"x": 1})
+        outside_ok = "refused" in r1 and not (box.root / "elsewhere.json").exists()
+        made = w("c1", "chatgpt_web_plain", mode="create", area="Inbox", kind="note", json={"a": 1})
+        r2 = w("mv", "chatgpt_web_plain", mode="move", area="Inbox", target="c1", to="Store")
+        moved_ok = (r2.get("moved") == made.get("name") and (box.hub / "Store" / made["name"]).is_file()
+                    and not (box.hub / "Inbox" / made["name"]).exists())
+        ctx2 = dict(ctx, contract=dict(contract, surfaces=dict(contract["surfaces"],
+                                                                human_at_home={"drive_write": "create_move_trash"})))
+        w("l1", "human_at_home", c=ctx2, mode="create", area="local", name="mine.local.json", json={})
+        r3 = w("l2", "human_at_home", c=ctx2, mode="move", area="local", target="l1", to="Inbox")
+        local_ok = "refused" in r3 and (box.context / "mine.local.json").is_file()
+        r4 = w("t1", "claude_web", mode="create", area="Inbox", name="../../../context/evil.json", json={})
+        r5 = w("t2", "claude_web", mode="create", area="Inbox", name=str(box.context / "abs.json"), json={})
+        traversal_ok = ("refused" in r4 and "refused" in r5 and not (box.context / "evil.json").exists()
+                        and not (box.context / "abs.json").exists())
+    finally:
+        box.close()
+    return [("write-outside-target-refused", outside_ok), ("write-move-lands-in-destination", moved_ok),
+            ("write-move-destination-reach-gated", local_ok), ("write-create-path-name-refused", traversal_ok)]
+
+
+def _pins_run(m):
+    """run_workflow fails an unexpected refusal (another assertion does not excuse it), passes an
+    asserted one, fails a step that raised, and runs the preflight before each computer step."""
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+    ctx = {"contract": contract, "matrix": matrix}
+    mk = {"id": "s1", "kind": "sim", "op": "surface.write", "surface": "gemini_web",
+          "with": {"mode": "create", "area": "Inbox", "kind": "note", "json": {}}}
+    tr = {"id": "s2", "kind": "sim", "op": "surface.write", "surface": "gemini_web",
+          "with": {"mode": "trash", "area": "Inbox", "target": "s1"}}
+
+    def wf(*steps):
+        return {"id": "WPIN-x", "path": ["gemini_web"], "steps": list(steps)}
+
+    r_none = m.run_workflow(wf(mk, tr), ctx)
+    r_other = m.run_workflow(wf(mk, dict(tr, **{"assert": [{"path": "origin", "check": "eq", "value": "other"}]})), ctx)
+    r_exp = m.run_workflow(wf(mk, dict(tr, **{"assert": [{"path": "refused", "check": "matches", "value": "cannot"}]})),
+                           ctx)
+    r_raise = m.run_workflow(wf({"id": "r1", "kind": "real", "op": "mirror.refuse", "surface": "gemini_web",
+                                 "with": {"from": "missing"}}), ctx)
+    saved, real_state = m.REAL_OPS["matrix.row"], m.pm.STATE_PATH
+
+    def corrupt(box, st, c):
+        m.pm.STATE_PATH = real_state
+        return {}
+
+    m.REAL_OPS["matrix.row"] = corrupt
+    try:
+        row = {"kind": "real", "op": "matrix.row", "surface": "gemini_web", "with": {"surface": "gemini_web"}}
+        r_pf = m.run_workflow(wf(dict(row, id="p1"), dict(row, id="p2")), ctx)
+    finally:
+        m.REAL_OPS["matrix.row"] = saved
+    return [("run-unexpected-refusal-fails", any("surface step refused" in f for f in r_none["failures"])),
+            ("run-other-assert-does-not-excuse-refusal", any("surface step refused" in f for f in r_other["failures"])),
+            ("run-asserted-refusal-passes", r_exp["failures"] == []),
+            ("run-raised-step-fails", any("KeyError" in f for f in r_raise["failures"])),
+            ("run-preflight-before-each-real-step", any(f.startswith("p2: preflight refused") for f in r_pf["failures"]))]
+
+
+def _contract_with_checks(m):
+    import copy
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+
+    def bad(edit, mat=matrix):
+        c = copy.deepcopy(contract)
+        edit(c)
+        return m.validate_contract(c, mat)
+
+    def step(c, pre, sid):
+        wf = next(x for x in c["workflows"] if x["id"].startswith(pre))
+        return next(st for st in wf["steps"] if st["id"] == sid)
+
+    def has(probs, text):
+        return any(text in p for p in probs)
+
+    def first_create(c):
+        return next(st for wf in c["workflows"] for st in wf["steps"]
+                    if st.get("op") == "surface.write" and st["with"].get("mode") == "create"
+                    and st["with"].get("kind") and not st["with"].get("name") and st["with"].get("area") != "Jobs/queue")
+
+    def later_of(c):
+        wf = next(x for x in c["workflows"] if x["id"].startswith("W2"))
+        ids = [st["id"] for st in wf["steps"]]
+        step(c, "W2", "conflict-copy")["with"]["of"] = ids[ids.index("conflict-copy") + 1]
+
+    mat2 = copy.deepcopy(matrix)
+    mat2["surfaces"]["pin_local_app"] = {"store_options": ["local_fs"], "carries": [], "origins": [], "class_support": {}}
+    text = getattr(m, "_SOURCE", None) or Path(m.__file__).read_text(encoding="utf-8")
+
+    def fn_source(fn):  # by slicing the module text: an exec'd mutant has no file inspect can read
+        i = text.index(f"\ndef {fn.__name__}(")
+        j = text.find("\ndef ", i + 1)
+        return text[i:j if j > 0 else None]
+
+    keys_read = all(all(re.search(r"[\"']" + re.escape(k) + r"[\"']",
+                                  fn_source(fn) + (fn_source(m._render) if op == "surface.write" else ""))
+                        for k in m.WITH_KEYS[op])
+                    for table in (m.SIM_OPS, m.REAL_OPS) for op, fn in table.items())
+    return [
+        ("contract-create-needs-kind-or-name", has(bad(lambda c: first_create(c)["with"].pop("kind")),
+                                                   "needs 'kind' or 'name'")),
+        ("contract-move-needs-to", has(bad(lambda c: step(c, "W1", "web-edit-refused")["with"].__setitem__("mode", "move")),
+                                       "a move needs 'to'")),
+        ("contract-target-must-name-a-step", has(bad(lambda c: step(c, "W1", "web-edit-refused")["with"].__setitem__(
+            "target", "no-such-step")), "needs 'name' or a 'target'")),
+        ("contract-conflict-copy-of-later-step", has(bad(later_of), "earlier step")),
+        ("contract-local-only-surface-reaches-store", not has(bad(lambda c: c["surfaces"].__setitem__(
+            "pin_local_app", {"drive_write": "local_folder_edit"}), mat2), "pin_local_app")),
+        ("contract-name-is-not-a-path", has(bad(lambda c: step(c, "W6", "package")["with"].__setitem__(
+            "name", "../../../context/x.json")), "plain file name")),
+        ("contract-unknown-with-key", has(bad(lambda c: step(c, "W1", "web-edit-refused")["with"].__setitem__("jsn", {})),
+                                          "unknown 'with' key 'jsn'")),
+        ("contract-with-keys-cover-ops", set(m.SIM_OPS) | set(m.REAL_OPS) == set(m.WITH_KEYS)),
+        ("contract-with-keys-read-by-op", keys_read),
+    ]
+
+
+def _pins_mcp(m):
+    """op_mcp_schedule_post counts each loader call without reaching the real loader and puts the
+    loaders back afterwards (the tool body is replaced by one that calls both loaders)."""
+    ms = m._mcp_server()
+    saved = (ms._load_config, m.pc.load_credentials, ms._schedule_post_impl)
+
+    def boom(*a, **k):
+        raise AssertionError("real loader reached")
+
+    def impl(platform, caption, content_type, config=None, creds=None):
+        ms._load_config()
+        m.pc.load_credentials()
+        return {"human_review_required": True, "status": "manual_required"}
+
+    ms._load_config, m.pc.load_credentials, ms._schedule_post_impl = boom, boom, impl
+    try:
+        out = m.op_mcp_schedule_post(None, {"with": {"platform": "youtube", "caption": "x"}}, {})
+        restored = ms._load_config is boom and m.pc.load_credentials is boom
+    except Exception as exc:  # noqa: BLE001 - a stub that forwarded reached a sentinel
+        out, restored = {"raised": type(exc).__name__}, False
+    finally:
+        ms._load_config, m.pc.load_credentials, ms._schedule_post_impl = saved
+    return [("mcp-stubs-count-reads", out.get("config_reads") == 2 and out.get("creds_reads") == 2),
+            ("mcp-stubs-restored", restored)]
+
+
+def _detect_more_checks(m):
+    gen, keys = sorted(m.GENERIC_ORIGINS), sorted(m.KNOWN_TICKET_KEYS)
+    src = 'origin="other"'
+
+    def partial(t):
+        return ["refused"] if "surface" in t or t.get("origin") == "chatgpt" else []
+
+    def origin_only(t):
+        return [] if t.get("origin") in m.GENERIC_ORIGINS else ["origin"]
+
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+    need = set(matrix["surfaces"]) | {s.get("vendor") for s in matrix["surfaces"].values() if s.get("vendor")}
+    tracked = set(m._python_sources())
+    saved_sp = m.subprocess
+
+    def no_vcs(*a, **k):
+        raise OSError("version control unavailable")
+
+    m.subprocess = types.SimpleNamespace(run=no_vcs)
+    try:
+        fb = set(m._python_sources())
+    finally:
+        m.subprocess = saved_sp
+    tops = {p.relative_to(m.ROOT).parts[0] for p in fb}
+    ctx = {"contract": contract, "matrix": matrix}
+    real_pass = m.rn.run_pass
+
+    def logging_pass(hub, **k):
+        m.atomic_io.atomic_write_text(os.path.join(os.path.dirname(os.environ["HOME"]), "runner.log"), "x")
+        return real_pass(hub, **k)
+
+    m.rn.run_pass = logging_pass
+    try:
+        logged = m.probe_handoff_runlog(ctx)
+    finally:
+        m.rn.run_pass = real_pass
+    return [
+        ("detect-vendor-origin-dropped-origin", not m.detect_vendor_origin(m.q.validate_ticket, gen[1:], keys, ["gemini"], src)),
+        ("detect-vendor-origin-dropped-key", not m.detect_vendor_origin(m.q.validate_ticket, gen, keys[1:], ["gemini"], src)),
+        ("detect-vendor-origin-one-candidate-accepted", not m.detect_vendor_origin(partial, gen, keys, ["chatgpt", "gemini"], src)),
+        ("detect-vendor-origin-surface-key-accepted", not m.detect_vendor_origin(origin_only, gen, keys, ["chatgpt"], src)),
+        ("detect-vendor-origin-needs-base-accepted", not m.detect_vendor_origin(lambda t: ["no"], gen, keys, ["chatgpt"], src)),
+        ("origin-candidates-cover-matrix", need <= set(m._origin_candidates(matrix))),
+        ("python-sources-fallback-runs", bool(fb) and tracked <= fb and {"tools", "shared"} <= tops
+         and all(p.suffix == ".py" and "__pycache__" not in p.parts for p in fb)),
+        ("probe-runlog-sees-writes-outside-hub", logged is False and m.probe_handoff_runlog(ctx) is True),
+    ]
+
+
+def _gate_check(m):
+    """selftest() skips the mutation cases, and says so, when a guard pin failed (the gate sits below
+    the marker, so no committed case can mutate it; this runs the real source with stub groups)."""
+    mod = types.ModuleType("swc_gate_probe")
+    mod.__file__ = m.__file__
+    sys.modules["swc_gate_probe"] = mod  # selftest() finds itself through sys.modules
+    try:
+        exec(compile(Path(m.__file__).read_text(encoding="utf-8"), "<swc_gate_probe>", "exec"), mod.__dict__)
+        calls = []
+        mod._PIN_GROUPS = {"guard": lambda _m: [("stub-guard-broken", False)], "other": lambda _m: [("stub-ok", True)]}
+        mod._run_mutants = lambda table=None: calls.append(1) or []
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = mod.selftest()
+    finally:
+        sys.modules.pop("swc_gate_probe", None)
+    return [("selftest-skips-mutants-when-guard-fails", rc == 1 and not calls and "mutants not run" in buf.getvalue())]
+
+
 def _pins_mutant_runner(m):
     """The mutation runner reports a change its checks do not catch and an anchor it cannot find, and
     does not report one they do catch. No committed case names this group."""
@@ -1583,14 +2052,28 @@ def _pins_mutant_runner(m):
                                        "def suite_ok(report) -> bool:"),
                                       ("missing", "verdict", "no such anchor in this file", "x"),
                                       ("caught", "verdict", blocked, "")))
+    # a mutant that leaves its guard stack open must not make the next one crash (and so look caught)
+    stuck = '        _GUARD["stack"].remove(rec)'
+    box_line = '        self.root = Path(tempfile.mkdtemp(prefix=f"creator-os-surface-{tag}-"))'
+    after_stuck = m._run_mutants(table=(("stuck", "guard", stuck, "        pass"),
+                                        ("noop-after-stuck", "write", box_line, box_line)))
     return [("mutant-runner-reports-survivor", "noop" in survivors),
             ("mutant-runner-reports-missing-anchor", "missing (anchor not found exactly once)" in survivors),
-            ("mutant-runner-passes-caught", "caught" not in survivors and len(survivors) == 2)]
+            ("mutant-runner-passes-caught", "caught" not in survivors and len(survivors) == 2),
+            ("mutant-runner-isolates-guard-stack", after_stuck == ["noop-after-stuck"])]
 
 
-_PIN_GROUPS = {"contract": _pins_contract, "write": _pins_write, "isolation": _pins_isolation,
-               "guard": _pins_guard, "detect": _pins_detect, "verdict": _pins_verdict,
-               "workflows": _pins_workflows, "mutant-runner": _pins_mutant_runner}
+def _group(*fns):
+    return lambda m: [check for fn in fns for check in fn(m)]
+
+
+_PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks),
+               "write": _group(_pins_write, _write_move_checks),
+               "isolation": _group(_pins_isolation, _isolation_restore_checks, _preflight_entry_checks),
+               "guard": _group(_pins_guard, _guard_event_checks, _guard_bytecode_checks),
+               "detect": _group(_pins_detect, _detect_more_checks), "verdict": _pins_verdict,
+               "suite": _pins_suite, "run": _pins_run, "mcp": _pins_mcp, "workflows": _pins_workflows,
+               "mutant-runner": _group(_pins_mutant_runner, _gate_check)}
 
 # (label, pin group, anchor, replacement). The anchor must occur exactly once above the selftest
 # marker; the mutated module is exec'd and its pin group must fail. Chosen by a reviewer who did not
@@ -1842,6 +2325,234 @@ _MUTANTS = (
     ('M7q2 coverage-report-len-const', 'workflows',
      '"minority_report_len": len(out["minority_report"])',
      '"minority_report_len": 1'),
+    ('A1-1 mkdir-not-judged', 'guard',
+     '"os.mkdir": ((0, 2),), ',
+     ''),
+    ('A1-2 rmdir-not-judged', 'guard',
+     '"os.rmdir": ((0, 1),),',
+     ''),
+    ('A1-3 rmtree-not-judged', 'guard',
+     '"shutil.rmtree": ((0, 1),), ',
+     ''),
+    ('A1-4 symlink-judges-target', 'guard',
+     '"os.symlink": ((1, 2),)',
+     '"os.symlink": ((0, 2),)'),
+    ('A1-5 link-judges-source', 'guard',
+     '"os.link": ((1, 3),)',
+     '"os.link": ((0, 2),)'),
+    ('A1-6 truncate-not-judged', 'guard',
+     '"os.truncate": ((0, None),), ',
+     ''),
+    ('A1-7 chmod-not-judged', 'guard',
+     '"os.chmod": ((0, 2),), ',
+     ''),
+    ('A1-8 rename-dst-not-judged', 'guard',
+     '"os.rename": ((0, 2), (1, 3)),',
+     '"os.rename": ((0, 2),),'),
+    ('A1-9 rdwr-not-a-write-flag', 'guard',
+     '_WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT',
+     '_WRITE_FLAGS = os.O_WRONLY | os.O_CREAT'),
+    ('A1-10 open-flags-ignored', 'guard',
+     '(isinstance(flags, int) and bool(flags & _WRITE_FLAGS))',
+     'False'),
+    ('A1-11 sibling-prefix-allowed', 'guard',
+     'path.startswith(a.rstrip(os.sep) + os.sep)',
+     'path.startswith(a.rstrip(os.sep))'),
+    ('A1-12 outer-roots-decide', 'guard',
+     'top = _GUARD["stack"][-1]',
+     'top = _GUARD["stack"][0]'),
+    ('A1-13 block-recorded-innermost-only', 'guard',
+     'for rec in _GUARD["stack"]:\n                rec["blocked"]',
+     'for rec in _GUARD["stack"][-1:]:\n                rec["blocked"]'),
+    ('A1-14 sandbox-root-slash', 'suite',
+     'def _sandbox_root():\n    return ',
+     'def _sandbox_root():\n    return "/"  # '),
+    ('A1-15 roots-not-realpathed', 'guard',
+     '"allowed": [os.path.realpath(str(r)) for r in roots]',
+     '"allowed": [str(r) for r in roots]'),
+    ('A1-16 bytecode-exemption-dropped', 'guard',
+     '        if _is_bytecode_cache(path):\n            continue',
+     '        if False:\n            continue'),
+    ('A1-17 dirfd-minus-one-skipped', 'guard',
+     '(fd is None or (isinstance(fd, int) and fd < 0))',
+     '(fd is None)'),
+    ('A1-18 stack-not-popped', 'guard',
+     '        _GUARD["stack"].remove(rec)',
+     '        pass'),
+    ('A1-19 hook-never-installed', 'guard',
+     '        sys.addaudithook(_guard_hook)',
+     '        pass'),
+    ('A1-20 hook-records-not-refuses', 'guard',
+     '            raise PermissionError(f"surface workflow suite: write outside the sandbox refused: {path}")',
+     '            pass'),
+    ('A1-21 seen-not-recorded', 'guard',
+     '            rec["seen"].append(path)',
+     '            pass'),
+    ('A2-1 judged-constant', 'suite',
+     'report["write_guard"]["judged"] = len(rec["seen"])',
+     'report["write_guard"]["judged"] = 1'),
+    ('A2-2 blocked-not-reported', 'suite',
+     'report["write_guard"]["blocked"] = list(rec["blocked"])',
+     'report["write_guard"]["blocked"] = []'),
+    ('A2-3 probes-outside-guard', 'suite',
+     '            for g in contract["gap_ledger"]:',
+     '        for g in contract["gap_ledger"]:'),
+    ('A2-4 judged-counts-blocked-only', 'workflows',
+     'report["write_guard"]["judged"] = len(rec["seen"])',
+     'report["write_guard"]["judged"] = len(rec["blocked"])'),
+    ('A2-5 judged-gte-zero', 'verdict',
+     'report["write_guard"].get("judged", 0) > 0)',
+     'report["write_guard"].get("judged", 0) >= 0)'),
+    ('A2-6 suite-guard-root-slash', 'suite',
+     '    try:\n        with write_guard(_sandbox_root()) as rec:\n            for wf in contract["workflows"]:',
+     '    try:\n        with write_guard(os.sep) as rec:\n            for wf in contract["workflows"]:'),
+    ('A3-1 token-not-restored', 'isolation',
+     '    pm.da._default_transport, pm.pd._api_token = s["transport"], s["token"]',
+     '    pm.da._default_transport = s["transport"]'),
+    ('A3-2 transport-not-restored', 'isolation',
+     '    pm.da._default_transport, pm.pd._api_token = s["transport"], s["token"]',
+     '    pm.pd._api_token = s["token"]'),
+    ('A3-3 defaults-not-restored', 'isolation',
+     '        getattr(ib, f).__defaults__ = d',
+     '        pass'),
+    ('A3-4 home-saved-as-none', 'isolation',
+     '"home": os.environ.get("HOME")',
+     '"home": None'),
+    ('A3-5 unset-home-left-set', 'isolation',
+     '        os.environ.pop("HOME", None)',
+     '        pass'),
+    ('A3-6 defaults-not-saved', 'isolation',
+     '"defaults": {f: getattr(ib, f).__defaults__ for f in _INBOX_DEFAULTED}',
+     '"defaults": {}'),
+    ('A4-1 approve-default-not-swapped', 'isolation',
+     '_INBOX_DEFAULTED = ("load_ledger", "sweep_quarantine", "approve")',
+     '_INBOX_DEFAULTED = ("load_ledger", "sweep_quarantine")'),
+    ('A4-2 no-default-swap', 'isolation',
+     '            fn.__defaults__ = tuple(b.ledger if d == real_ledger else d for d in (fn.__defaults__ or ()))',
+     '            pass'),
+    ('A4-3 preflight-skips-path-defaults', 'isolation',
+     'if isinstance(d, (str, Path))]',
+     'if isinstance(d, str)]'),
+    ('A4-4 real-ledger-read-late', 'isolation',
+     '        real_ledger = ib.LEDGER_PATH\n        ib.LEDGER_PATH = b.ledger',
+     '        ib.LEDGER_PATH = b.ledger\n        real_ledger = ib.LEDGER_PATH'),
+    ('A4-5 swap-clobbers-every-default', 'isolation',
+     'tuple(b.ledger if d == real_ledger else d for d',
+     'tuple(b.ledger for d'),
+    ('A4-6 preflight-checks-no-defaults', 'isolation',
+     '        for f in _INBOX_DEFAULTED:\n            named +=',
+     '        for f in ():\n            named +='),
+    ('A4-7 preflight-drops-HOME', 'isolation',
+     '("HOME", os.environ.get("HOME", "")),',
+     ''),
+    ('A4-8 preflight-drops-CONTEXT_DIR', 'isolation',
+     '("profile_mirror.CONTEXT_DIR", pm.CONTEXT_DIR),',
+     ''),
+    ('A5-1 outside-target-allowed', 'write',
+     '        if actual is None or not surface_can_reach(ctx["matrix"], sid, actual):',
+     '        if not surface_can_reach(ctx["matrix"], sid, actual):'),
+    ('A5-2 declared-area-trusted', 'write',
+     '        actual = box.area_of(target)',
+     '        actual = area'),
+    ('A5-3 move-dest-reach-unchecked', 'write',
+     '(w.get("to") not in HUB_AREAS or not surface_can_reach(ctx["matrix"], sid, w["to"]))',
+     '(w.get("to") not in HUB_AREAS)'),
+    ('A5-4 move-lands-in-source-area', 'write',
+     'dest_dir = box.trash if mode == "trash" else box.hub / w["to"]',
+     'dest_dir = box.trash if mode == "trash" else folder'),
+    ('A5-5 area-of-context-is-root', 'run',
+     '            p.relative_to(self.context.resolve())\n            return "local"',
+     '            p.relative_to(self.root.resolve())\n            return "local"'),
+    ('A5-6 move-dest-check-on-trash', 'write',
+     '        if mode == "move" and (w.get("to")',
+     '        if mode == "trash" and (w.get("to")'),
+    ('A6-1 refusal-never-fails', 'run',
+     'if "refused" in result and st["kind"] == "sim" and "refused" not in asserted:',
+     'if False:'),
+    ('A6-2 any-assert-excuses-refusal', 'run',
+     'and "refused" not in asserted:',
+     'and not asserted:'),
+    ('A6-3 refusal-rule-on-real-steps', 'run',
+     'if "refused" in result and st["kind"] == "sim"',
+     'if "refused" in result and st["kind"] == "real"'),
+    ('A6-4 raised-never-fails', 'run',
+     '                if "raised" in result and "raised" not in asserted:',
+     '                if False:'),
+    ('A6-5 no-per-step-preflight', 'run',
+     '                if st["kind"] == "real":\n                    bad = iso.preflight()',
+     '                if False:\n                    bad = iso.preflight()'),
+    ('A7-1 create-needs-nothing', 'contract',
+     '    if mode == "create" and not (w.get("kind") or w.get("name") or area == "Jobs/queue"):',
+     '    if False:'),
+    ('A7-2 move-needs-no-to', 'contract',
+     '    if mode == "move" and w.get("to") not in HUB_AREAS:',
+     '    if False:'),
+    ('A7-3 target-any-name', 'contract',
+     '(w.get("target") in earlier or w.get("name"))',
+     '(w.get("target") or w.get("name"))'),
+    ('A7-4 earlier-includes-later', 'contract',
+     'p += _write_step_problems(where, st, contract, matrix, set(sids))',
+     'p += _write_step_problems(where, st, contract, matrix, {s.get("id") for s in wf.get("steps", [])})'),
+    ('A7-5 merge-passes-one', 'contract',
+     'int(st.get("with", {}).get("passes", 0)) < 2',
+     'int(st.get("with", {}).get("passes", 0)) < 1'),
+    ('A7-6 reach-ignores-local', 'contract',
+     '                surface_can_reach(matrix, sid, "local") or any(',
+     '                False or any('),
+    ('A7-7 off-path-exempts-declared', 'contract',
+     'if surf not in path and surf not in HUMAN_SURFACES:',
+     'if surf not in path and surf not in declared:'),
+    ('A7-8 used-counts-sim-only', 'contract',
+     '                used.add(surf)',
+     '                used.add(surf) if kind == "sim" else None'),
+    ('A7-9 area-local-unknown', 'contract',
+     '    if area != "local" and area not in HUB_AREAS:',
+     '    if area not in HUB_AREAS:'),
+    ('A8-1 stubs-not-installed', 'mcp',
+     '    ms._load_config, pc.load_credentials = _count("config"), _count("creds")',
+     '    pass'),
+    ('A8-2 reads-not-counted', 'mcp',
+     '            reads[kind] += 1',
+     '            pass'),
+    ('A8-3 stubs-not-restored', 'mcp',
+     '        ms._load_config, pc.load_credentials = saved',
+     '        pass'),
+    ('A8-4 stubs-forward', 'mcp',
+     '            return {}  # counted, never forwarded, so a regression here cannot open the real files',
+     '            return saved[0 if kind == "config" else 1](*a, **k)'),
+    ('A8-5 dispatch-flag-inverted', 'workflows',
+     '"live_publishing_enabled": bool(w["flag"])}})',
+     '"live_publishing_enabled": not w["flag"]}})'),
+    ('A8-6 dispatch-flag-off', 'workflows',
+     '"live_publishing_enabled": bool(w["flag"])}})',
+     '"live_publishing_enabled": False}})'),
+    ('A9-1 origins-subset-ok', 'detect',
+     'set(allowed_origins) == GENERIC_ORIGINS',
+     'set(allowed_origins) <= GENERIC_ORIGINS'),
+    ('A9-2 keys-subset-ok', 'detect',
+     'set(ticket_keys) == KNOWN_TICKET_KEYS',
+     'set(ticket_keys) <= KNOWN_TICKET_KEYS'),
+    ('A9-3 any-vendor-refused', 'detect',
+     'vendor_refused = all(bool(validate(dict(t, origin=c))) for c in candidates)',
+     'vendor_refused = any(bool(validate(dict(t, origin=c))) for c in candidates)'),
+    ('A9-4 base-origin-invalid', 'detect',
+     '"created_at": "2026-10-01T12:00:00Z", "origin": "web",',
+     '"created_at": "2026-10-01T12:00:00Z", "origin": "nowhere",'),
+    ('A9-5 mcp-any-origin', 'detect',
+     '\'origin="other"\' in mcp_source',
+     '"origin=" in mcp_source'),
+    ('A9-6 outside-writes-dropped', 'detect',
+     'outside = sorted({p for p in rec["seen"] if not p.startswith(hub + os.sep)})',
+     'outside = []'),
+    ('A9-7 fallback-empty', 'detect',
+     '    return sorted(p for base in ("tools", "shared") for p in (ROOT / base).rglob("*.py")',
+     '    return sorted(p for base in () for p in (ROOT / base).rglob("*.py")'),
+    ('A9-8 fallback-drops-shared', 'detect',
+     'for base in ("tools", "shared")',
+     'for base in ("tools",)'),
+    ('A9-9 candidates-fixed-three', 'detect',
+     '    return sorted(set(matrix["surfaces"]) | {v for v in vendors if v} | {"claude", "chatgpt", "gemini"})',
+     '    return sorted({"claude", "chatgpt", "gemini"})'),
 )
 
 
@@ -1850,6 +2561,7 @@ def _mutant_module(source: str):
     mod.__file__ = __file__
     exec(compile(source, "<surface_workflow_check mutant>", "exec"), mod.__dict__)
     mod._IN_MUTANT = True
+    mod._SOURCE = source
     return mod
 
 
@@ -1861,14 +2573,18 @@ def _run_mutants(table=None) -> list:
         if head.count(old) != 1:
             survivors.append(f"{label} (anchor not found exactly once)")
             continue
-        saved = _save_shared()  # a mutant that skips a restore must not leak into the next one
+        saved, patched, mod = _save_shared(), _save_patchable(), None  # nothing a mutant skips may leak
         try:
+            mod = _mutant_module(head.replace(old, new) + mark + tail)
             with contextlib.redirect_stdout(io.StringIO()):
-                results = _PIN_GROUPS[group](_mutant_module(head.replace(old, new) + mark + tail))
+                results = _PIN_GROUPS[group](mod)
         except Exception:  # noqa: BLE001 - a mutant that crashes its pins is caught
             results = [("crashed", False)]
         finally:
+            if mod is not None:
+                mod._GUARD["stack"].clear()  # its audit hook stays installed; an empty stack makes it inert
             _restore_shared(saved)
+            _restore_patchable(patched)
         if all(ok for _, ok in results):
             survivors.append(label)
     return survivors
@@ -1892,12 +2608,21 @@ def selftest() -> int:
             failures.append("mutants not run: the write guard failed its own pins, and some mutants "
                             "try a write outside the sandbox that only the guard refuses")
         elif not _IN_MUTANT and _MUTANTS:
-            shared = _save_shared()
+            shared, patched = _save_shared(), _save_patchable()
+            # control: an unmutated copy must pass every group a case names, or a crash the copy
+            # itself causes would count every case in that group as caught
+            groups = sorted({g for _, g, _, _ in _MUTANTS})
+            same = "def suite_ok(report) -> bool:"
+            control = _run_mutants(table=[(f"control-{g}", g, same, same) for g in groups])
+            ran += 1
+            if control != [f"control-{g}" for g in groups]:
+                failures.append("mutant harness control: an unmutated copy failed group(s) "
+                                + ", ".join(sorted(set(f"control-{g}" for g in groups) - set(control))))
             survivors = _run_mutants()
             ran += 2
             if survivors:
                 failures.append("mutants survived: " + "; ".join(survivors))
-            if _save_shared() != shared:
+            if _save_shared() != shared or _save_patchable() != patched:
                 failures.append("mutants left shared module state changed")
     finally:
         if "tmp" in _MS:

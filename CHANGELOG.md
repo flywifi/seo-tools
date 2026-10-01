@@ -19,13 +19,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   write only what the surface's declared Drive mode allows, into places the surface's matrix row
   reaches; computer steps run the profile mirror, job runner, inbox scan, register merge,
   validators, connector resolver and publishing gate in a per-workflow sandbox. A write guard (an
-  audit hook) refuses and records the writes it judges outside the system temporary folder and
-  fails the run on one, or on a run in which it judged none; a before-and-after snapshot of the
-  reachable files on the machine is printed as advice. It pins eleven open gaps with probes and
-  prints each workflow's live steps with `--runbook`. Its selftest and the tasks selftest carry
-  mutation cases chosen by a reviewer who did not write the code. It is a battery gate and a
-  blocking CI step. `gemini_web` and `gemini_desktop` join the transitions
-  matrix; the ChatGPT and Claude Drive facts are refreshed. Guide: `docs/SURFACE-WORKFLOWS.md`.
+  audit hook) refuses and records the writes it judges outside the system temporary folder (the
+  interpreter's bytecode cache excepted) and fails the run on one, or on a run in which it judged
+  none; a before-and-after snapshot of the reachable files on the machine is printed as advice.
+  The contract validator also refuses an unknown key in a step's `with` block and a step file
+  name that holds a path. It pins eleven open gaps with probes and prints each workflow's live
+  steps with `--runbook`. Its selftest and the tasks selftest carry mutation cases chosen by a
+  reviewer who did not write the code. It is a battery gate and a blocking CI step. `gemini_web`
+  and `gemini_desktop` join the transitions matrix; the ChatGPT and Claude Drive facts are
+  refreshed. Guide: `docs/SURFACE-WORKFLOWS.md`.
 - P99: profile mirror (ADR 0070). `tools/profile_mirror.py` copies the allowlisted context files
   from `pipeline/user-context/` into the Drive hub's `Profile/` folder one way, refuses the three
   credential files by name and any file a secret pattern flags by content, logs every run to
