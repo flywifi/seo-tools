@@ -22,6 +22,8 @@ have accepted the write.
 | `~/Library/...` | app config (`Application Support/Claude/`), caches (pip, Playwright's browser) | written by the apps/tools themselves, always per-user |
 | `~/.creator-os/` | downloaded whisper models | `tools/transcribe.py::model_dir` default |
 | the repo folder | wizard state, staged bundles, `dist/` builds -- all gitignored | `.gitignore` |
+| `~/Library/LaunchAgents` | the optional profile-mirror agent (`com.creatoros.profile-mirror.plist`) | `tools/profile_mirror.py::build_plist`; loaded into your own `gui/<uid>` domain |
+| `~/Library/Logs/CreatorOS` | the profile mirror's run log | `tools/profile_mirror.py::LOG_DIR` |
 
 ## User-scoped defaults (what to install when something is missing)
 

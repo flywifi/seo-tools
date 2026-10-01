@@ -154,6 +154,34 @@ def which(name, path=None):
     return shutil.which(name, path=p) or shutil.which(name)
 
 
+# Folders a desktop sync client keeps in step with the cloud: Google Drive, OneDrive and Dropbox
+# for desktop on macOS 12.1+ (File Provider, under ~/Library/CloudStorage), iCloud Drive (under
+# ~/Library/Mobile Documents) and a classic ~/Dropbox folder.
+CLOUD_SYNCED_DIRS = (("Library", "CloudStorage"), ("Library", "Mobile Documents"), ("Dropbox",))
+
+
+def cloud_synced_root(path, home=None):
+    """The cloud-synced folder `path` sits under (one of CLOUD_SYNCED_DIRS joined to `home`), or
+    None. The repo keeps its credential files in pipeline/user-context/, so a repo under one of
+    these folders would sync them; setup and the wizard warn and point to tools/profile_mirror.py,
+    which copies only the context files into the Drive hub. Paths are compared after resolving
+    symlinks."""
+    home = Path(home) if home is not None else Path.home()
+    try:
+        target = Path(path).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return None
+    for parts in CLOUD_SYNCED_DIRS:
+        base = home.joinpath(*parts)
+        try:
+            base = base.resolve()
+        except (OSError, RuntimeError):
+            pass
+        if target == base or base in target.parents:
+            return str(base)
+    return None
+
+
 def _selftest() -> int:
     import tempfile
     import stat
@@ -235,6 +263,16 @@ def _selftest() -> int:
         tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
         ok(which("faketool", path=str(fakebin)) == str(tool), "which() resolves via injected path")
         ok(which("definitely_not_a_real_tool_xyz") is None, "which() None for a missing tool")
+
+    # cloud_synced_root: each synced family is named, a plain home path is not, and a folder that
+    # only starts with the same letters (~/Dropbox-notes) is not inside ~/Dropbox.
+    fake_home = Path("/nonexistent-home-for-selftest")
+    ok(all(cloud_synced_root(fake_home.joinpath(*p, "x", "repo"), home=fake_home)
+           == str(fake_home.joinpath(*p)) for p in CLOUD_SYNCED_DIRS),
+       "cloud_synced_root names Google Drive/OneDrive (CloudStorage), iCloud Drive and Dropbox")
+    ok(cloud_synced_root(fake_home / "CreatorOS", home=fake_home) is None
+       and cloud_synced_root(fake_home / "Dropbox-notes" / "repo", home=fake_home) is None,
+       "cloud_synced_root is None for a home-folder path and for a look-alike folder name")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:

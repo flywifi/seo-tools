@@ -78,3 +78,4 @@ added beyond what those records state. New decisions get the next number via
 | [0067](0067-p96-guards-prove-their-own-coverage.md) | Review output stays outside the repository, and guards prove their own coverage | 2026-09-26 | Accepted |
 | [0068](0068-p97-pins-bind-at-entries-guards-parse.md) | Pins bind at the entry a person runs, and guards parse before they match | 2026-09-27 | Accepted |
 | [0069](0069-p98-fold-input-derive-sets.md) | Guards read normalised input, and pinned sets derive from the code that serves them | 2026-09-27 | Accepted |
+| [0070](0070-p99-profile-mirror.md) | The repo stays out of cloud-synced folders; context reaches Drive through a one-way mirror | 2026-09-30 | Accepted |

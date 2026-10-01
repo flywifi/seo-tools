@@ -2,9 +2,14 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P98 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
+P6 through P99 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
 Branch: `claude/repo-access-confirm-wxe50a`.
 
+- P99: profile mirror (2026-09-30, ADR 0070). `tools/profile_mirror.py` copies the allowlisted
+  context files one way into the Drive hub's `Profile/` folder (credentials refused by name and
+  content), logs each run, keeps run history, can write one Google Doc, and installs a
+  user-scoped launchd agent; `tools/profile-mirror.sh` is the rsync form. Setup and the wizard
+  warn when the repo sits in a cloud-synced folder. Guide: `docs/PROFILE-MIRROR.md`.
 - P98: remediation pass (2026-09-27, ADR 0069). Guards fold input before matching (NFKC,
   format characters, dash and digit look-alikes, percent decoding) across secret_scan,
   commit_claims, the invariant 60 corpus and proof readers and the hub reader; pinned sets

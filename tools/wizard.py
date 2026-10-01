@@ -2627,6 +2627,13 @@ def _screen_drive_hub(saved: str = "", error: str = "") -> str:
                        f'<input type="hidden" name="folder" value="{cesc}">'
                        f'<button class="btn btn-outline" type="submit" style="width:auto;padding:8px 14px;'
                        f'font-size:.85rem">Use detected folder: {cesc}</button></form>')
+    synced = env_paths.cloud_synced_root(ROOT)
+    if synced:
+        saved_block += (f'<div class="error-box">This Creator OS folder is inside a cloud-synced '
+                        f'folder (<code>{html.escape(synced)}</code>), so its credential files '
+                        f'sync too. Move it to your home folder (for example ~/CreatorOS) and '
+                        f'copy your context into the hub with <code>python3 '
+                        f'tools/profile_mirror.py sync</code> (docs/PROFILE-MIRROR.md).</div>')
     return _page("Google Drive hub", f"""
 <h1>Your Google Drive hub</h1>
 {saved_block}

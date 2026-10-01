@@ -1052,12 +1052,40 @@ def _selftest() -> int:
     ok(_syn_named == _syn_want | {("syn.py", "prefix"), ("syn.py", "<module>")},
        "pip census names a helper or a module constant that holds the pip program")
 
+    import contextlib as _cl_loc
+    import io as _io_loc
+    _loc_home = Path("/nonexistent-home-for-selftest")
+    _loc_out = _io_loc.StringIO()
+    with _cl_loc.redirect_stdout(_loc_out):
+        _loc_synced = check_repo_location(_loc_home / "Library" / "CloudStorage" / "G" / "repo",
+                                          home=_loc_home)
+        _loc_plain = check_repo_location(_loc_home / "CreatorOS", home=_loc_home)
+    ok(_loc_synced and _loc_plain is None and "profile_mirror.py" in _loc_out.getvalue()
+       and _loc_out.getvalue().count("[warn]") == 1,
+       "setup warns once for a repo in a cloud-synced folder, names profile_mirror, and stays "
+       "silent for a home-folder repo")
+
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:
             print(f"  [FAIL] {m}")
     print(f"setup selftest: {passed}/{len(checks)} checks passed")
     return 0 if passed == len(checks) else 1
+
+
+def check_repo_location(root=ROOT, home=None) -> str | None:
+    """Warn when the repo sits in a cloud-synced folder. The credential files live inside the repo
+    (pipeline/user-context/*-credentials.local.json), so a synced repo syncs them. Setup continues:
+    the remedy is to move the repo into the home folder (for example ~/CreatorOS) and let
+    tools/profile_mirror.py copy the context files into the Drive hub. Returns the synced folder,
+    or None."""
+    synced = env_paths.cloud_synced_root(root, home=home)
+    if synced:
+        _say(f"  [warn] This repo is inside a cloud-synced folder ({synced}).")
+        _say("         Its credential files sync with it. Move the repo to your home folder")
+        _say("         (for example ~/CreatorOS), then copy your context into Google Drive with")
+        _say("         python3 tools/profile_mirror.py sync   (docs/PROFILE-MIRROR.md).")
+    return synced
 
 
 def main() -> None:
@@ -1073,6 +1101,7 @@ def main() -> None:
 
     check_python()
     check_platform()
+    check_repo_location()
 
     _say("\nCreating local data files...")
     create_config_local()

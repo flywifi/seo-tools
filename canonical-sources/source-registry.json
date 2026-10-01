@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-20",
+  "last_registry_update": "2026-09-30",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -6775,7 +6775,75 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "apple-launchd-plist-man",
+      "name": "launchd.plist(5) manual page (Xcode man pages mirror)",
+      "url": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Program and ProgramArguments paths must be absolute; RunAtLoad defaults to false; StartCalendarInterval events missed during sleep are coalesced into one event on wake.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-launchctl-man",
+      "name": "launchctl(1) manual page (Xcode man pages mirror)",
+      "url": "https://keith.github.io/xcode-man-pages/launchctl.1.html",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "bootstrap and bootout take a domain target; the per-user GUI domain is gui/<uid>.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "apple-openrsync-man",
+      "name": "openrsync(1) manual page (Xcode man pages mirror)",
+      "url": "https://keith.github.io/xcode-man-pages/openrsync.1.html",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "The rsync shipped with recent macOS is openrsync; the include/exclude filter options and -a/-t behaviour the recipe uses.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-api-manage-uploads",
+      "name": "Google Drive API - Upload file data",
+      "url": "https://developers.google.com/workspace/drive/api/guides/manage-uploads",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Multipart upload; setting mimeType application/vnd.google-apps.document on the metadata converts an uploaded file to a Google Doc.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "715763df0d6029e3bb897cc48e40b5495f081c6e88fff9edf2e54e2a904a986e"
+  "_content_digest": "20d55671c13bf46280046d5d1e7df97a8da85d67abfd10b73784dc913a21eae3"
 }

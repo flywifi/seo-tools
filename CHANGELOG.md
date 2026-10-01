@@ -13,6 +13,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P99: profile mirror (ADR 0070). `tools/profile_mirror.py` copies the allowlisted context files
+  from `pipeline/user-context/` into the Drive hub's `Profile/` folder one way, refuses the three
+  credential files by name and any file a secret pattern flags by content, logs every run to
+  `~/Library/Logs/CreatorOS/`, keeps the last 20 runs in a gitignored state file, can write one
+  Google Doc through the Drive API, and installs or removes a user-scoped launchd agent.
+  `tools/profile-mirror.sh` is the rsync form of the same allowlist. `setup.py` and the wizard's
+  Drive hub screen warn when the repo sits in a cloud-synced folder (`env_paths.cloud_synced_root`).
+  Guide: `docs/PROFILE-MIRROR.md`.
 - P98: guards read normalised input and pinned sets derive from the serving code (ADR 0069).
   secret_scan matches a folded copy of the text (NFKC, format characters, dash look-alikes,
   decimal digits, percent decoding), reads Authorization schemes beyond Bearer, PGP armor,
