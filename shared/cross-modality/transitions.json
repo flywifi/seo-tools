@@ -187,7 +187,8 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": [
-        "export_and_you_save"
+        "export_and_you_save",
+        "google_drive_conditional"
       ],
       "origins": [],
       "setup_steps": [
@@ -196,9 +197,12 @@
         "Paste the two boxes from implementation/gpt/web/custom-instructions.md (the file tells you which text goes in which box).",
         "This is knowledge-only mode: no live data, no local tools, no capability flags. Numbers you did not supply in the chat are never real Creator OS data.",
         "At the start of a session, upload your latest dated export file if you keep one (see the read-back steps in docs/TRANSITIONS.md).",
-        "To get live tools without leaving ChatGPT, there are two upgrade routes: deploy the MCP connector and add it in ChatGPT developer mode (works on ChatGPT web and desktop; see implementation/gpt/mcp-connector/README.md), or install the local setup and use Claude Desktop. Knowledge-only is what PLAIN chat gives you, not the ceiling of ChatGPT."
+        "To get live tools without leaving ChatGPT, there are two upgrade routes: deploy the MCP connector and add it in ChatGPT developer mode (documented for Business, Enterprise and Edu workspaces on ChatGPT web, help.openai.com/en/articles/12584461; see implementation/gpt/mcp-connector/README.md), or install the local setup and use Claude Desktop. Knowledge-only is what PLAIN chat gives you, not the ceiling of ChatGPT.",
+        "With the Google Drive app connected, ChatGPT can create and update files in your Drive when your plan, workspace and the Google permissions allow it, and may ask you to confirm first (help.openai.com/en/articles/10929079). Creator OS treats that as create-only: save each change as a NEW dated file in the hub (docs/DRIVE-HUB.md) and never edit or move a file the computer manages."
       ],
-      "needs_verification": []
+      "needs_verification": [
+        "Google Drive app write actions depend on plan, workspace and Google permissions (help.openai.com/en/articles/10929079)"
+      ]
     },
     "chatgpt_custom_gpt": {
       "label": "Custom GPT (built in the ChatGPT GPT builder)",
@@ -279,16 +283,15 @@
       ],
       "origins": [],
       "setup_steps": [
-        "Install the ChatGPT desktop app and sign in.",
-        "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version.",
-        "For live Creator OS tools: open Settings, then Security and login, and turn on Developer mode; add the server at chatgpt.com/plugins. Available on Pro, Plus, Business, Enterprise, and Education accounts (developers.openai.com developer-mode guide, fetched 2026-09-19).",
-        "Add your deployed Creator OS remote MCP endpoint as a connector (implementation/gpt/mcp-connector/README.md). Without a deployed endpoint there are no live tools here.",
-        "Capability flags are not enforced on this surface; the connector endpoint enforces its own gates on the machine where it runs.",
-        "Know the desktop app's limits: ON MACOS, 'Work with Apps' reads only a fixed list of compatible apps (Apple Notes, Notion, TextEdit, VS Code family, JetBrains and similar) -- it has NO general access to your files or folders. That feature is macOS-only, so on Windows there is no such list at all. Either way your Creator OS knowledge still comes from pasted instructions, a Project, or a connector."
+        "Install the ChatGPT desktop app and sign in. Since July 2026 the app holds Chat, Work and Codex; the previous app stays available as ChatGPT Classic (help.openai.com/en/articles/20001276).",
+        "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version. Cloud Work chats you start on the web continue here.",
+        "Codex works with local files, repositories and terminals: opened on your Creator OS folder it can run the repo's own tools (python3 tools/...), which read your capability flags, so the flags hold inside Codex. Chat and Work do not run your local tools.",
+        "For live Creator OS tools in Chat or Work: a developer-mode MCP connector to your deployed endpoint (implementation/gpt/mcp-connector/README.md). [NEEDS VERIFICATION: developer mode with write actions is documented for Business, Enterprise and Edu workspaces on ChatGPT web (help.openai.com/en/articles/12584461); the desktop app is not named there.]",
+        "Capability flags are not enforced in Chat or Work; a connector endpoint enforces its own gates on the machine where it runs."
       ],
       "needs_verification": [
-        "developer-mode MCP connector availability and plan gating",
-        "connector file-access scope"
+        "developer-mode MCP connector on the desktop app (help.openai.com/en/articles/12584461 names ChatGPT web)",
+        "whether Codex in the desktop app can write to a Drive-for-desktop folder outside the opened project"
       ]
     },
     "gemini_api": {
@@ -341,6 +344,68 @@
         "Gems cannot call custom tools; this is knowledge-only. For live data, move to the Gemini API or a Claude surface."
       ],
       "needs_verification": []
+    },
+    "gemini_web": {
+      "label": "Gemini web app (gemini.google.com)",
+      "vendor": "google",
+      "class_support": {
+        "A": "paste",
+        "B": "remote_mcp",
+        "C": "remote_mcp"
+      },
+      "carries": [
+        "pasted_instructions",
+        "uploaded_files",
+        "connectors",
+        "remote_mcp_connectors"
+      ],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": [
+        "export_and_you_save",
+        "google_drive"
+      ],
+      "origins": [],
+      "setup_steps": [
+        "Make a Gem from the export-gem output (its first line carries the Packaging version), or paste implementation/gemini/system-instruction.md.",
+        "Add the hub's \"About me and my voice\" Doc as Gem knowledge; a Gem uses the latest version of a Drive file (support.google.com/gemini/answer/15146780).",
+        "Export to Docs saves a NEW Google Doc in your Drive (support.google.com/gemini/answer/14184041); move it into the hub's Inbox folder so the computer picks it up.",
+        "Optional, for live tools: connect the deployed Creator OS MCP endpoint as a custom app in Settings, then Connected Apps (support.google.com/gemini/answer/17209137). Capability flags are not enforced here; the endpoint enforces its own gates."
+      ],
+      "needs_verification": [
+        "custom MCP apps require the US, 18 or over, a personal Google Account, English and Keep Activity on (support.google.com/gemini/answer/17209137)",
+        "Export to Docs lands in My Drive; choosing the hub folder is not documented (support.google.com/gemini/answer/14184041)"
+      ]
+    },
+    "gemini_desktop": {
+      "label": "Gemini desktop app (Mac and Windows)",
+      "vendor": "google",
+      "class_support": {
+        "A": "paste",
+        "B": "none",
+        "C": "none"
+      },
+      "carries": [
+        "pasted_instructions",
+        "uploaded_files",
+        "connected_files"
+      ],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": [
+        "export_and_you_save",
+        "google_drive_conditional"
+      ],
+      "origins": [],
+      "setup_steps": [
+        "Mac: macOS 15 or later on Apple Silicon (support.google.com/gemini/answer/17011627). Windows: Windows 10 or later; more native features are rolling out over time (blog.google, 2026-09-10).",
+        "Gemini Spark on the Mac can analyze, edit, rename and reorganize folders you connect, makes changes by default and can permanently delete files (support.google.com/gemini/answer/17208717). Connect only the hub's Inbox folder, never your Creator OS folder.",
+        "Creator OS tools do not run here and capability flags are not enforced. Hand work to the computer by saving a NEW dated file into the hub's Inbox."
+      ],
+      "needs_verification": [
+        "Drive writes from the desktop app are documented only through Spark-connected Mac folders; Export to Docs is documented for web and mobile (support.google.com/gemini/answer/14184041)",
+        "custom MCP apps are documented for the web and mobile apps, not the desktop app (support.google.com/gemini/answer/17209137)"
+      ]
     }
   },
   "pair_overrides": {

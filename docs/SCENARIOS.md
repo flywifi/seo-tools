@@ -71,6 +71,12 @@ New gaps are added here when a future scenario surfaces one.
 | G9 | No transcript-to-chapters/cuts capability: nothing proposed chapters or cut points from transcript timecodes; no pause/WPM/filler analysis anywhere | P28: `shared/docintel/transcripts.py` gained `gap_metrics()` (inter-segment silences) and `suggest_chapters()` (silence plus words_per_minute boundary proposal); the runner's S5 leg now asserts the product function, not runner-owned evidence |
 | G10 | No dedicated routing for raw-footage breakdown | P28: `footage_breakdown` classification routes to `video-development`; the `footage-analysis` atom is the realizer |
 
+## Cross-surface workflows
+
+Requests that move between apps (a web chat into a desktop app, across Claude, ChatGPT and Gemini)
+are covered by a separate suite, `tools/surface_workflow_check.py`, with its own gap ledger in
+`docs/SURFACE-WORKFLOWS.md` (its gap ids carry an SW- prefix).
+
 ## What the suite deliberately does not do
 
 It does not simulate the LLM judgment legs (writing the critique, choosing the chapters, answering

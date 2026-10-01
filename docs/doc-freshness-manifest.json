@@ -8,17 +8,23 @@
         "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
       }
     },
+    "docs/SURFACE-WORKFLOWS.md": {
+      "sources": {
+        "tools/surface_workflow_check.py": "dec1f62bd1f5015a41ac8a0a557fbaf0b99d6f1684badfddab336953905745b3",
+        "skills/creator-core/evals/surface-workflows.json": "96228dc01048a4239392c70a0cc5eb0b77fcec39634a4b2e6aba178850ee7d74"
+      }
+    },
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
-        "tools/handoff/queue.py": "d6f3a20ff8d4c596cca7087225b9709a89332bc0c6b5a30eefad8d54291d0df1",
-        "shared/cross-modality/transitions.json": "68546a38f0f6d814b0ac301e485bf2c927e15bb200db495fde405d74eaedf024"
+        "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
+        "shared/cross-modality/transitions.json": "7ab9b2c89e08d0a9d4c6c179a59aad2aba07787b3be6c4b673919b887914b401"
       }
     },
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "6bbd0e2f49bcd15beca90e5db9fdd2832c98e47231ad0691d8d22645c9254097",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "0e53e64935eb8cb09ff30c92e6253ee10cbfb4a3716e7784ee6af3c5bb08d355"
+        "tools/sync_check.py": "c205c0eba0e11ea1bee6c79d0d2b54ce1065c4ef2cc0e693d7776cba1fbb21aa"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -44,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "2b125c4ac0c52f99bb12f141dee9d80b5e46ce46107463fa6df168c9be5bd980",
+        "tools/wizard.py": "9d8b49209dd34b95ea670324c1af1e257f43e65d734a1dc4fc774365afe319e3",
         "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
       }
     },
@@ -64,7 +70,7 @@
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "68546a38f0f6d814b0ac301e485bf2c927e15bb200db495fde405d74eaedf024"
+        "shared/cross-modality/transitions.json": "7ab9b2c89e08d0a9d4c6c179a59aad2aba07787b3be6c4b673919b887914b401"
       }
     },
     "implementation/claude/desktop/README.md": {
@@ -126,7 +132,7 @@
     "docs/DRIVE-HUB.md": {
       "sources": {
         "shared/schemas/compute-job.json": "af0e13185a4bd7fe972f4abd25e79c57808b0ac206188c0411e802939349d459",
-        "tools/handoff/queue.py": "d6f3a20ff8d4c596cca7087225b9709a89332bc0c6b5a30eefad8d54291d0df1",
+        "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
         "tools/handoff/runner.py": "0da2bc1908587b14efaf42ebdf1e825f3cfb3c5863141a29f4f100c8143ff4ea",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
@@ -137,7 +143,7 @@
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
-        "tools/handoff/queue.py": "d6f3a20ff8d4c596cca7087225b9709a89332bc0c6b5a30eefad8d54291d0df1",
+        "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
         "tools/handoff/runner.py": "0da2bc1908587b14efaf42ebdf1e825f3cfb3c5863141a29f4f100c8143ff4ea",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",

@@ -1911,7 +1911,7 @@ def _local_precondition_note() -> str:
             'nothing installs into your browser AI.</div>')
 
 
-# Per-surface wiring metadata. Labels and setup steps for the nine canonical surfaces come from
+# Per-surface wiring metadata. Labels and setup steps for the canonical surfaces come from
 # shared/cross-modality/transitions.json (single source of truth); this dict adds the wizard-only
 # (kind, availability) presentation strings, plus the human_curl extra that is not an AI surface.
 _SURFACES = {
@@ -1933,7 +1933,8 @@ _SURFACES = {
     "chatgpt_web_plain": ("ChatGPT web chat (plain chat at chatgpt.com)", None,
         "none", "Class A only, via pasted custom instructions. No live tools, no flags. That is "
                 "a limit of PLAIN chat, not of ChatGPT: a deployed MCP connector added in "
-                "developer mode gives B and C on web or desktop (a separate setup)."),
+                "developer mode gives B and C (a separate setup, documented for Business, "
+                "Enterprise and Edu workspaces on ChatGPT web)."),
     "chatgpt_custom_gpt": ("Custom GPT (built in the ChatGPT GPT builder)", None,
         "action", "Class A via the knowledge pack; B via the public jurisdiction Action; C only "
                   "via a deployed endpoint."),
@@ -1941,12 +1942,18 @@ _SURFACES = {
         "none", "Class A only, via Project instructions and files. No Actions, no tools."),
     "chatgpt_desktop": ("ChatGPT desktop app", None,
         "seam", "Class A via paste; B and C via a developer-mode MCP connector to a deployed "
-                "endpoint (the same connector works on ChatGPT web; plan availability needs "
-                "verification)."),
+                "endpoint (documented for ChatGPT web; the desktop app needs verification). The "
+                "Codex view runs the repo tools on this computer, so flags hold there."),
     "gemini_api": ("Gemini API (developer integration)", None,
         "action", "Class A knowledge-only; B and C via your backend executing the call."),
     "gemini_gems": ("Gemini Gems (consumer)", None,
         "none", "Class A only. B and C are unavailable here."),
+    "gemini_web": ("Gemini web app (gemini.google.com)", None,
+        "seam", "Class A via a Gem or pasted instructions; B and C via a deployed MCP endpoint "
+                "connected as a custom app (US personal accounts only). No flags."),
+    "gemini_desktop": ("Gemini desktop app (Mac and Windows)", None,
+        "none", "Class A only. No Creator OS tools and no flags; hand work to the computer as a "
+                "new dated file in the hub Inbox."),
     "human_curl": ("Human (curl / browser, no AI)",
         ["python3 tools/geo_source_fetch.py resolve \"<address>\", or curl the public /query endpoints."],
         "curl", "Class B via curl; Class C by running the tool locally."),

@@ -80,3 +80,4 @@ added beyond what those records state. New decisions get the next number via
 | [0069](0069-p98-fold-input-derive-sets.md) | Guards read normalised input, and pinned sets derive from the code that serves them | 2026-09-27 | Accepted |
 | [0070](0070-p99-profile-mirror.md) | The repo stays out of cloud-synced folders; context reaches Drive through a one-way mirror | 2026-09-30 | Accepted |
 | [0071](0071-p99-2-doc-reachability.md) | The profile Doc is found by id or name and placed in My Drive when the hub is out of the app's reach; both mirror engines check content and stamp every run | 2026-10-01 | Accepted |
+| [0072](0072-p100-surface-workflow-suite.md) | Cross-surface workflows run as a sandboxed suite; Gemini's web and desktop apps join the matrix | 2026-10-01 | Accepted |

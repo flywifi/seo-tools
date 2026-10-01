@@ -39,9 +39,11 @@ non-Claude surfaces.
 | Custom GPT (OpenAI) | no | yes (Actions) | yes (Actions) | GPT Action -> public/hosted REST | only via a hosted endpoint |
 | Gemini API (developer) | your backend | your backend | yes (function calling) | function call -> your backend executes | your backend runs the tool |
 | Gemini "Gems" (consumer) | no | no | no | NO | NO |
+| Gemini web app | no | no | yes (a custom MCP app; US personal accounts) | via remote MCP | via remote MCP |
+| Gemini desktop app | no (Spark edits connected Mac folders; it runs no Creator OS tool) | no | no | NO | NO |
 | Human (curl/browser) | if they have it | yes | n/a | curl the endpoint | run the tool locally |
 
-The **one hard dead end** is the consumer Gemini Gems UI (Class A only). Everything else reaches Class
+The **hard dead ends** are the consumer Gemini Gems UI and the Gemini desktop app (Class A only). Everything else reaches Class
 B, and Class C where a runtime or a hosted seam exists.
 
 ## 3. The packaging map (how a capability is exposed per surface)
@@ -49,7 +51,7 @@ B, and Class C where a runtime or a hosted seam exists.
   Class C.
 - **claude.ai web/mobile + cross-AI:** the **remote MCP** transport (`tools/mcp_server.py
   --serve-remote`). One deployed endpoint CAN serve Claude web/desktop/mobile, ChatGPT (developer
-  mode, web and desktop app), and Gemini, IF you or your developer host it behind HTTPS with
+  mode, documented for ChatGPT web), and the Gemini web app (a custom MCP app), IF you or your developer host it behind HTTPS with
   authentication; the repo ships the server code and the runbook
   (`implementation/gpt/mcp-connector/README.md`), not a hosted service, and implements no
   authentication itself. ChatGPT-side registration steps carry needs-verification tags (plan

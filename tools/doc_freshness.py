@@ -26,6 +26,9 @@ MANIFEST_PATH = ROOT / "docs" / "doc-freshness-manifest.json"
 # should plausibly require re-reading the doc); coarse bindings cause churn. Advisory only.
 DOC_SOURCES = {
     "docs/PROFILE-MIRROR.md": ["tools/profile_mirror.py", "tools/profile-mirror.sh"],
+    # P100: the guide states what each workflow proves and which gaps are open.
+    "docs/SURFACE-WORKFLOWS.md": ["tools/surface_workflow_check.py",
+                                  "skills/creator-core/evals/surface-workflows.json"],
     "docs/AUDIT-PROTOCOL.md": [
         "tools/handoff/queue.py",
         "shared/cross-modality/transitions.json",

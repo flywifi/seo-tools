@@ -39,7 +39,7 @@ connector.
   connector -- support articles 11176164 and 11175166, fetched 2026-09-20). Since 2026-09-16
   claude.ai chat and Cowork are one Claude (support article 16761823), so a connector added there
   serves both plain conversations and agentic sessions. One deployed endpoint CAN
-  also serve ChatGPT (developer mode, web and desktop app) and Gemini, IF hosted behind HTTPS with
+  also serve ChatGPT (developer mode, documented for ChatGPT web) and the Gemini web app, IF hosted behind HTTPS with
   authentication; the repo ships the server code and the runbook
   (`implementation/gpt/mcp-connector/README.md`), not a hosted service. The proxy is the auth
   boundary, but the server backstops it (P67-B, generalized P68-B): any network bind

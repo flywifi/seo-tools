@@ -9,7 +9,7 @@ than one"). Since P90 the wizard also carries guided DOING lanes for the two big
 and paste-back verification -- the surface rows below note them as the fastest path. Anything tagged `[NEEDS VERIFICATION: ...]` depends on your ChatGPT or Gemini plan
 and must be checked against your own account; the repo does not assert it.
 
-## The eleven surfaces
+## The thirteen surfaces
 
 | Surface | What runs there | Flags enforced? |
 |---|---|---|
@@ -18,15 +18,17 @@ and must be checked against your own account; the repo does not assert it.
 | claude.ai in a browser (web and mobile) | knowledge natively (Project uploads, or the GitHub connector into project knowledge with manual Sync now, support/10167454); plugin skills on paid plans (Customize > Plugins, GitHub-URL marketplaces, support/13837440) and self-contained skill ZIPs on any plan (support/12512180); live tools via a deployed remote MCP connector (Free holds one custom connector, support/11176164) | no (the endpoint's machine enforces) |
 | Claude Cowork (local session on this computer) | everything, inside a hypervisor-isolated VM with your Creator OS folder connected (transcription native only if the VM has an STT backend); the existing-desktop path -- since 2026-09-16 chat and Cowork are one Claude (support/16761823), and the Desktop app must be open for local access | yes |
 | Claude Cowork (remote ephemeral sandbox) | plugin skills natively; live tools via remote MCP connectors; local files only through folders you explicitly connect; since 2026-09-16 these agentic cloud sessions start from any conversation in the merged Claude, staged rollout from Pro and Max (support/16761823); pre-merge accounts still see the separate beta surface (support/14479288) | no (a fresh sandbox has no local config) |
-| ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files); live tools need a developer-mode MCP connector, which is a separate setup and not "plain" chat | no |
+| ChatGPT web chat (plain chat at chatgpt.com) | knowledge-only (pasted custom instructions + uploaded files); the Google Drive app can create and update Drive files where the plan, workspace and Google permissions allow it (help.openai.com/en/articles/10929079); live tools need a developer-mode MCP connector, which is a separate setup and not "plain" chat | no |
 | Custom GPT (built in the ChatGPT GPT builder) | knowledge pack + the public jurisdiction Action | no |
 | ChatGPT Projects (a Project with files at chatgpt.com) | knowledge pack as Project instructions + files | no |
-| ChatGPT desktop app | knowledge paste; live tools via a developer-mode MCP connector to a deployed endpoint | no (the endpoint's machine enforces) |
+| ChatGPT desktop app | Chat, Work and Codex in one app since July 2026 (help.openai.com/en/articles/20001276); knowledge paste in Chat and Work; Codex runs the repo tools on this computer; live tools in Chat or Work via a developer-mode MCP connector to a deployed endpoint [NEEDS VERIFICATION: developer mode is documented for ChatGPT web] | only inside Codex (the endpoint's machine enforces for a connector) |
 | Gemini API (developer integration) | function calling through your own backend | only if your backend runs the tools |
 | Gemini Gems (consumer) | pure reasoning only | no |
+| Gemini web app (gemini.google.com) | a Gem or pasted instructions; a hub Doc as Gem knowledge (latest version); Export to Docs saves a new Doc in Drive; live tools via a deployed MCP endpoint connected as a custom app (US personal accounts, support.google.com/gemini/answer/17209137) | no (the endpoint's machine enforces) |
+| Gemini desktop app (Mac and Windows) | pasted instructions and uploads; on the Mac, Gemini Spark edits, renames, reorganizes and can permanently delete files in folders you connect (support.google.com/gemini/answer/17208717); no Creator OS tools | no |
 
 Two facts hold on every non-local surface, and nothing there changes them:
-1. **Capability flags are enforced only where Python runs.** On ChatGPT and Gems the flags in
+1. **Capability flags are enforced only where Python runs.** On ChatGPT and Gemini the flags in
    your local config are, at best, text the model has read.
 2. **Your local data does not follow you automatically.** Rate card, deals, contracts, templates,
    and profile live in gitignored local files; read `docs/PASTE-SAFETY.md` before pasting any of
@@ -83,9 +85,16 @@ it from the two surface records.
 - **Claude Desktop to the ChatGPT desktop app:** the strongest ChatGPT surface. Knowledge paste
   works like the web; live tools become possible by deploying the remote MCP endpoint
   (`implementation/gpt/mcp-connector/README.md`) and adding it as a developer-mode connector
-  [NEEDS VERIFICATION: plan gating]. The desktop app merged Chat, Work, and Codex into one app in
-  July 2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ
-  between the two [NEEDS VERIFICATION: merge details from secondary reporting].
+  [NEEDS VERIFICATION: developer mode is documented for Business, Enterprise and Edu workspaces
+  on ChatGPT web, help.openai.com/en/articles/12584461]. The desktop app holds Chat, Work, and
+  Codex in one app since July 2026, and the previous app remains available as "ChatGPT Classic"
+  (help.openai.com/en/articles/20001276). Cloud Work chats continue across web and desktop, and
+  Codex works with local files, so opened on your Creator OS folder it runs the repo tools and
+  the flags hold there.
+- **Gemini web to the Gemini desktop app:** the same Google account; a Gem keeps reading the
+  hub's "About me and my voice" Doc. The desktop app runs no Creator OS tools. If you use Gemini
+  Spark on the Mac, connect only the hub's Inbox folder: Spark changes files by default and can
+  permanently delete them. Work comes back to the computer as new dated files in the Inbox.
 - **ChatGPT (any) back to Claude Desktop:** run the profile-import prompt
   (`implementation/gpt/profile-import/PROMPT.md`) once per ChatGPT context, paste the JSON back
   home, and the profile-import atom proposes `creator-profile.local.json` with per-field
@@ -110,11 +119,13 @@ automatically. Procedure:
 4. When you are back on your computer, nothing to do: the tools fold the files in on read.
 
 One refinement for claude.ai web and mobile: with the Google Drive connector connected and file
-creation enabled, Claude can CREATE the dated export directly in your Drive folder (it still
-cannot edit or move files there), so step 2 happens in the chat instead of by hand. That is the
-same append-new-dated-file model the union-merge already expects; see `docs/DRIVE-HUB.md` for the
-shared hub folder built on it. (Source: the Claude Help Center article "Use Google Workspace
-connectors", checked 2026-07-16.)
+creation enabled, Claude can CREATE the dated export directly in your Drive folder, so step 2
+happens in the chat instead of by hand. The connector can now also share, move and trash files,
+with your approval by default, and edit Google Docs live (beta); Creator OS still asks every
+surface other than your computer to create new dated files only and never move, edit or trash a
+file the computer manages. That is the same append-new-dated-file model the union-merge already
+expects; see `docs/DRIVE-HUB.md` for the shared hub folder built on it. (Source: the Claude Help
+Center article "Use Google Workspace connectors", checked 2026-10-01.)
 
 ## Keeping pasted packs fresh (the re-sync procedure)
 
@@ -223,6 +234,36 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "openai-chatgpt-developer-mode-help", "name": "Developer mode and MCP apps in ChatGPT (help center)",
    "url": "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-chatgpt-desktop-move", "name": "Moving to the new ChatGPT desktop app (help center)",
+   "url": "https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-google-drive-app", "name": "Google Drive app and setup in ChatGPT (help center)",
+   "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-google-workspace-connectors", "name": "Use Google Workspace connectors (Claude help center)",
+   "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-gems-use", "name": "Gemini Apps Help - Use Gems in Gemini Apps",
+   "url": "https://support.google.com/gemini/answer/15146780",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-mac-app", "name": "Use the Gemini app on Mac (Gemini Apps Help)",
+   "url": "https://support.google.com/gemini/answer/17011627",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-windows-app-launch", "name": "The Gemini app is now available for Windows (Google blog)",
+   "url": "https://blog.google/innovation-and-ai/products/gemini-app/gemini-app-now-on-windows/",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-spark-mac", "name": "Use Gemini Spark with the Gemini app on Mac (Gemini Apps Help)",
+   "url": "https://support.google.com/gemini/answer/17208717",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-custom-mcp-apps", "name": "Connect custom apps to Gemini Apps (Gemini Apps Help)",
+   "url": "https://support.google.com/gemini/answer/17209137",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-export-responses", "name": "Export responses from Gemini Apps (Gemini Apps Help)",
+   "url": "https://support.google.com/gemini/answer/14184041",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-connected-apps", "name": "Use & manage Connected Apps in Gemini (Gemini Apps Help)",
+   "url": "https://support.google.com/gemini/answer/13695044",
    "category": "ai-surface-spec", "tier": "T1"}
 ]
 ```

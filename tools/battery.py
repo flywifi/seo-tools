@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 GATES = [
     ("drift guard", ["tools/sync_check.py"]),
     ("scenarios", ["tools/scenario_check.py"]),
+    ("surface workflows", ["tools/surface_workflow_check.py"]),
     ("selftest sweep", ["tools/selftest_sweep.py"]),
     ("doc freshness", ["tools/doc_freshness.py", "--check"]),
     ("projections", ["tools/projection_manifest.py", "--check"]),

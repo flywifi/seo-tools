@@ -65,6 +65,12 @@ def counts(root=ROOT):
                           .read_text(encoding="utf-8")).get("scenarios", [])
     except (OSError, ValueError):
         scen = []
+    # P100: the cross-surface workflows in the surface-workflow contract (tools/surface_workflow_check.py).
+    try:
+        surface_wf = json.loads((root / "skills" / "creator-core" / "evals" / "surface-workflows.json")
+                                .read_text(encoding="utf-8")).get("workflows", [])
+    except (OSError, ValueError):
+        surface_wf = []
     # MCP tool definitions the server exposes, counted the same way tools/mcp_server.py counts them
     # for its own selftest. Docs quote this number in smoke-test instructions, so it needs a source
     # of truth; without one it drifts silently the way the macOS file count did.
@@ -85,7 +91,7 @@ def counts(root=ROOT):
         mac_recorded = mac_excluded = 0
     return {"spokes": len(spokes), "atoms": len(atoms), "skills": len(all_skills),
             "protocols": len(protocols), "engines": len(engines), "agent_roles": len(roles),
-            "invariants": invariants, "scenarios": len(scen),
+            "invariants": invariants, "scenarios": len(scen), "surface_workflows": len(surface_wf),
             "mac_surface_files": mac_recorded, "mac_surface_excluded": mac_excluded,
             "mcp_tools": mcp_tools}
 

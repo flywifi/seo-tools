@@ -388,19 +388,33 @@ def _status_counts(tasks) -> dict:
     return counts
 
 
+def _event_key(e) -> str:
+    """An event's identity across copies: every field except seq. Each copy numbers its own log and the
+    merge renumbers the union, so a key that held seq let an already-merged copy, read again, add its
+    events a second time."""
+    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)
+
+
 def merge_tasks(task_a, task_b) -> dict:
-    """Union two divergent copies of the same task by event (seq, at, event, actor) and re-fold. This is
-    why concurrent surfaces editing the shared store never clobber: history is append-only, so the merge is
-    the union of events followed by a deterministic re-projection."""
+    """Union two divergent copies of the same task by event and re-fold. An event is matched across the
+    copies by every field except seq (_event_key), as a multiset: each event is kept as many times as the
+    copy holding it more often holds it, so repeated identical events inside one log survive and an event
+    present in both copies is kept once. The inputs are not changed (events are copied before seq is
+    renumbered). History is append-only, so the merge is the union of events followed by a deterministic
+    re-projection, and merging the result with either input again changes nothing."""
     base = dict(task_a)
-    seen = set()
+    held: dict = {}
     merged_events = []
-    for e in list(task_a.get("history", [])) + list(task_b.get("history", [])):
-        key = (e.get("seq"), e.get("at"), e.get("event"), e.get("actor"))
-        if key in seen:
-            continue
-        seen.add(key)
-        merged_events.append(e)
+    for e in task_a.get("history", []):
+        k = _event_key(e)
+        held[k] = held.get(k, 0) + 1
+        merged_events.append(dict(e))
+    seen_b: dict = {}
+    for e in task_b.get("history", []):
+        k = _event_key(e)
+        seen_b[k] = seen_b.get(k, 0) + 1
+        if seen_b[k] > held.get(k, 0):
+            merged_events.append(dict(e))
     merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))
     # renumber seq densely to keep the log monotonic after a union of two independently-numbered logs
     for i, e in enumerate(merged_events, start=1):
@@ -936,6 +950,28 @@ def selftest() -> int:
     merged = merge_tasks(a, b)
     check("merge-idempotent", merge_tasks(merged, merged)["history"] == merged["history"])
     check("merge-folds", merged["status"] == "in_progress")
+
+    # the same task edited on BOTH sides, then the unchanged web copy read again from the store on every
+    # pass (the Drive hub read path): the event count stays put, both sides' events survive, and the
+    # inputs are not renumbered in place
+    desk_t = copy.deepcopy(t2); web_t = copy.deepcopy(t2)
+    desk_t["history"].append(make_event(desk_t["history"], "note", "user:desktop", "2026-07-12", note="desk"))
+    web_t["history"].append(make_event(web_t["history"], "note", "user:web", "2026-07-12", note="web"))
+    web_text = json.dumps(web_t)
+    desk_before = json.dumps(desk_t, sort_keys=True)
+    m1 = merge_tasks(desk_t, json.loads(web_text))
+    m2 = merge_tasks(m1, json.loads(web_text))
+    m3 = merge_tasks(m2, json.loads(web_text))
+    n0 = len(t2["history"])
+    check("merge-both-sides-union", len(m1["history"]) == n0 + 2
+          and {e.get("note") for e in m1["history"]} >= {"desk", "web"})
+    check("merge-reread-stable", len(m2["history"]) == len(m1["history"]) == len(m3["history"])
+          and m3["history"] == m1["history"])
+    check("merge-inputs-unchanged", json.dumps(desk_t, sort_keys=True) == desk_before)
+    rep = copy.deepcopy(t2)
+    rep["history"].append(make_event(rep["history"], "note", "user:creator", "2026-07-13", note="same"))
+    rep["history"].append(make_event(rep["history"], "note", "user:creator", "2026-07-13", note="same"))
+    check("merge-keeps-repeats", len(merge_tasks(rep, copy.deepcopy(rep))["history"]) == len(rep["history"]))
 
     # reconcile two registers
     ra = {"tasks": [copy.deepcopy(t)]}; rb = {"tasks": [copy.deepcopy(t2)]}

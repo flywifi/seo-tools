@@ -92,10 +92,11 @@ gates are enforced HERE, on this machine, for every surface that connects.
   (Sources: help.openai.com article 12584461, read in full 2026-09-19;
   developers.openai.com/api/docs/guides/secure-mcp-tunnels, fetched 2026-09-19.)
 - **ChatGPT desktop app (developer mode):** same as web (Settings, then Security and login;
-  servers managed at chatgpt.com/plugins). The desktop app merged Chat, Work, and Codex into one app in July
-  2026 (the previous app remains available as "ChatGPT Classic"); menu paths may differ between
-  the two. [NEEDS VERIFICATION: plan gating, connector scope, and the merge details, which come
-  from secondary reporting.]
+  servers managed at chatgpt.com/plugins). The desktop app holds Chat, Work, and Codex in one app
+  since July 2026, and the previous app remains available as "ChatGPT Classic" (help.openai.com
+  article 20001276, checked 2026-10-01); menu paths may differ between the two. [NEEDS
+  VERIFICATION: help.openai.com article 12584461 documents developer mode for ChatGPT web; the
+  desktop app and the connector scope are not named there.]
 - **Gemini (CLI / Agent Platform):** register the endpoint per Google's MCP client
   configuration. [NEEDS VERIFICATION: which Gemini surfaces accept remote MCP on your plan.]
 

@@ -1991,7 +1991,7 @@ def check_doc_template_starters():
 TRANSITION_SURFACE_KEYS = {
     "claude_desktop", "claude_code", "claude_web", "cowork_local", "cowork_remote",
     "chatgpt_web_plain", "chatgpt_custom_gpt",
-    "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_gems",
+    "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_gems", "gemini_web", "gemini_desktop",
 }
 TRANSITION_SURFACE_REQUIRED = ("label", "vendor", "class_support", "carries", "flags_enforced",
                                "local_machine_required", "store_options", "origins", "setup_steps")
@@ -2944,6 +2944,7 @@ def check_doc_count_truth():
         ("README.md", "spokes", "spokes"),
         ("docs/SETUP_MAC.md", "mcp_tools", "tool definitions"),
         ("docs/DEPLOYMENT.md", "mcp_tools", "tool definitions"),
+        ("docs/SURFACE-WORKFLOWS.md", "surface_workflows", "workflows"),
     ]
     for rel, key, kw in checks:
         p = ROOT / rel
@@ -2961,7 +2962,7 @@ def check_doc_count_truth():
     # count claim and require that the file be enrolled above.
     enrolled = {rel for rel, _, _ in checks}
     keywords = {"spokes": "spokes", "invariants": "invariants", "tool definitions": "mcp_tools",
-                "atoms": "atoms", "scenarios": "scenarios"}
+                "atoms": "atoms", "scenarios": "scenarios", "workflows": "surface_workflows"}
     # Historical records legitimately quote the counts that were true when they were written.
     # This mirrors the scoping the curated list already assumes (see this check's docstring).
     # Each entry must still skip a hit (_prefix_work_problems); one that skips nothing is dropped

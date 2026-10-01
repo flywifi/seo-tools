@@ -246,7 +246,8 @@ def write_result(hub_root, key, status, *, started_at=None, outputs=None, error=
 
 
 def archive_ticket(hub_root, ticket_path) -> None:
-    """Move a handled ticket to Jobs/archive/ (local machine only; cloud surfaces cannot move)."""
+    """Move a handled ticket to Jobs/archive/. Only the local machine moves hub files: cloud surfaces
+    create new files only by Creator OS policy (some Drive connectors can move and trash files)."""
     adir = hub_paths(hub_root)["archive"]
     adir.mkdir(parents=True, exist_ok=True)
     target = adir / Path(ticket_path).name

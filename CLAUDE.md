@@ -34,7 +34,8 @@ Every change must leave the battery green before commit. The one runner (P81) is
 python3 tools/battery.py             # every gate, raw exit codes; refuses on unstaged tracked edits
 python3 tools/battery.py --py /usr/bin/python3.12   # rerun under a second interpreter when a floor moved
 ```
-It runs, in order: the drift guard (`sync_check.py`), scenarios, the selftest sweep,
+It runs, in order: the drift guard (`sync_check.py`), scenarios, the surface workflows
+(`surface_workflow_check.py`), the selftest sweep,
 `doc_freshness.py --check`, projections, `count_truth.py` (canonical counts; never restate counts by
 hand), `hash_audit.py`, `source_sync.py check`, `package_skill.py --check-manifest`, `eval_lint.py`,
 `preflight_push.py`, the staged secret scan, the launcher syntax check, and `version.py --check`.

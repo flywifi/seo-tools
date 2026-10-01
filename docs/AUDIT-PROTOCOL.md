@@ -10,8 +10,8 @@ document governs everything else.
 
 An audit's surface list and origin list are DERIVED, never recalled:
 
-- **The surface set IS the ids in `shared/cross-modality/transitions.json`** (eleven surfaces as
-  of P64, including `cowork_local` and `cowork_remote`). Drift invariant 32 keeps the json, its
+- **The surface set IS the ids in `shared/cross-modality/transitions.json`** (thirteen surfaces as
+  of P100, including `cowork_local`, `cowork_remote`, `gemini_web` and `gemini_desktop`). Drift invariant 32 keeps the json, its
   constant, `docs/TRANSITIONS.md`, and the wizard consistent.
 - **The origin set IS `ALLOWED_ORIGINS` in `tools/handoff/queue.py`**
   <!-- verify: tools/handoff/queue.py::ALLOWED_ORIGINS -->, which drift invariant 55

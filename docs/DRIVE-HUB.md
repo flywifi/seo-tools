@@ -19,17 +19,23 @@ went stale between re-uploads, and heavy compute happened only when someone was 
 Desktop session. The hub gives every surface one shared place that each can genuinely reach:
 
 - The **claude.ai Google Drive connector** can search and read Docs, Sheets, Slides, PDFs, images,
-  and MS Office files, and can **create** files in Drive (with code execution and file creation
-  enabled). It cannot edit files in place or move them. Google Docs added to a **private** Project
-  sync live from Drive, so a Project referencing hub Docs is always current. Text content only;
-  embedded images are not processed. (Source: the Claude Help Center article "Use Google Workspace
-  connectors", checked 2026-07-16.)
+  and MS Office files, can **create** files in Drive (with code execution and file creation
+  enabled), and can share, move, and trash files, asking for approval before each by default.
+  Google Docs, Sheets, and Slides can also be edited live (beta). Google Docs added to a
+  **private** Project sync live from Drive, so a Project referencing hub Docs is always current.
+  Text content only; embedded images are not processed. (Source: the Claude Help Center article
+  "Use Google Workspace connectors", checked 2026-10-01.) The ChatGPT Google Drive app can also
+  create, update, move, share, and delete files where the plan, workspace, and Google permissions
+  allow it (help.openai.com/en/articles/10929079), and Gemini's Export to Docs saves a new Doc in
+  Drive.
 - **Google Drive for desktop** on macOS syncs the hub to a real local folder (mirror mode keeps
   full local copies; stream mode uses Apple's File Provider). On conflicting concurrent edits it
   keeps both copies rather than merging or destroying. (Source: Google Drive Help, "Stream and
   mirror files with Drive for desktop" and "Use Drive for desktop on macOS", checked 2026-07-16.)
 
-Those two facts drive the design rule that makes everything below safe:
+Those facts drive the design rule that makes everything below safe. Since some connectors can now
+move, edit, and trash files, the rule is Creator OS policy rather than a platform limit, and
+`docs/SURFACE-WORKFLOWS.md` pins what happens when a surface breaks it:
 
 > **Append-only, create-only.** Every machine-written artifact in the hub is a NEW dated file.
 > Nothing edits a shared file in place; nothing but the local machine moves or archives files.
@@ -218,6 +224,8 @@ declared below and registered in the source registry, so the currency system re-
 [
   {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"},
   {"id": "google-drive-desktop-sync-modes", "name": "Google Drive Help - Stream and mirror files with Drive for desktop", "url": "https://support.google.com/drive/answer/13401938", "category": "os-platform", "tier": "T1", "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies."},
-  {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."}
+  {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."},
+  {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
+  {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"}
 ]
 ```

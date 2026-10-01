@@ -2,9 +2,15 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P99 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
+P6 through P100 are complete. Drift guard exits 0 (60 invariants enforced); the battery runs 15 gates.
 Branch: `claude/blissful-cannon-ggivl7`.
 
+- P100: cross-surface workflow suite (2026-10-01, ADR 0072). `tools/surface_workflow_check.py`
+  runs 10 workflows from each vendor's web chat into each vendor's desktop app, plus a round
+  trip, with simulated surface steps and the real computer code in a sandbox; it pins eleven
+  open gaps and is a battery gate and a CI step. `gemini_web` and `gemini_desktop` join the
+  transitions matrix. `tasks.merge_tasks` no longer duplicates events when a register edited on
+  both sides is merged again. Guide: `docs/SURFACE-WORKFLOWS.md`.
 - P99: profile mirror (2026-09-30, ADR 0070). `tools/profile_mirror.py` copies the allowlisted
   context files one way into the Drive hub's `Profile/` folder (credentials refused by name and
   content), logs each run, keeps run history, can write one Google Doc, and installs a

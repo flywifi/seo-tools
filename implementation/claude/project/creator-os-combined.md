@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-10-01 (Creator OS baseline c850a741). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-10-01 (Creator OS baseline 1d2f2db2). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS - combined knowledge (single-file upload)
 
@@ -3608,6 +3608,17 @@ claude.ai has a built-in Google Workspace connector: open Customize, then Connec
 Google Workspace, click Add, sign in, and click Allow. Creator OS can then read Gmail (brand
 pitches), Google Calendar (content schedule), and Google Drive files when you ask. Microsoft
 365 is not available on claude.ai; it needs the Claude Desktop path.
+
+## Switching between Claude, ChatGPT, and Gemini
+
+The computer with Creator OS installed does the real work; every other app hands work to it
+through the shared "Creator OS" folder in Google Drive. From claude.ai, ChatGPT, or Gemini,
+save each change as a NEW dated file in that folder (the Inbox folder takes anything), and do
+not edit, move, or delete a file Creator OS manages there, even when the app could. Settings
+such as publishing are switched on or off on that computer; in a web chat they are only text
+the AI has read. If you use Gemini Spark in the Gemini app on a Mac, connect only the Inbox
+folder: Spark changes files by default and can permanently delete them (Google's Gemini help,
+checked 2026-10-01).
 
 ## The Claude Desktop upgrade (what it adds, who does it)
 
