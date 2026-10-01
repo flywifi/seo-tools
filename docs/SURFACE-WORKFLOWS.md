@@ -54,14 +54,21 @@ this process makes through `open` for writing and through the `os` and `shutil` 
 rename, move, copy or create a file or folder. It refuses and records such a write when it lands
 outside the system temporary folder (selftest checks `guard-refuses-open-write`,
 `guard-refuses-rename-out`, `guard-refuses-mkdir-outside`, `guard-refuses-rmtree-outside` and
-`suite-reports-blocked-write`), except the interpreter's own bytecode cache (a `__pycache__`
-folder, and inside one a `.pyc` file named with this interpreter's cache tag; check
-`guard-exempts-only-bytecode-cache`). The run fails if the guard refused a write or judged none (a
-guard that saw nothing proved nothing; checks `suite-fails-on-blocked-write` and
-`suite-fails-when-guard-judged-nothing`). Outside its view: a write by another process; a write
-through a file handle opened earlier; `os.mkfifo` and `os.mknod`, which raise no audit event; and
-a file opened relative to an open folder handle, which the guard judges as if it were relative to
-the current folder.
+`suite-reports-blocked-write`). It lets through the interpreter's own bytecode cache and nothing
+else of that kind: creating a folder named `__pycache__`, and inside one writing a `.pyc` file
+named with this interpreter's cache tag or its temporary twin; with a bytecode prefix set
+(`PYTHONPYCACHEPREFIX`), creating a folder or writing such a file under that prefix (checks
+`guard-exempts-only-bytecode-cache`, `guard-exempts-cache-folder-creation`,
+`guard-allows-real-bytecode-write`, `guard-exempts-bytecode-prefix` and the `guard-refuses-*`
+checks beside them). The run fails if the guard refused a write or judged none (a guard that saw
+nothing proved nothing; checks `suite-fails-on-blocked-write` and
+`suite-fails-when-guard-judged-nothing`); the judged count counts write events, so one file
+written twice counts two (`suite-judged-counts-each-event`). Outside its view: a write by another
+process; a write made inside a C library (SQLite creating its database file, for example); a
+write through a file handle opened earlier; `os.mkfifo` and `os.mknod`, which raise no audit
+event; an `os` call given a folder handle (`dir_fd`), which the guard skips because its path is
+relative to a folder it cannot see; and a file opened relative to a folder handle, which the
+guard judges as if it were relative to the current folder.
 
 At the end the runner also compares the files on this computer it could have reached (the repo's
 `.local` files, the Creator OS log folder, and the configured hub mirror) with a snapshot taken
@@ -161,11 +168,17 @@ the event merge. The cases were chosen by a reviewer who did not write the code.
 change no longer applies, or that its checks no longer catch, fails the selftest (checks
 `mutant-runner-reports-survivor` and `mutant-runner-reports-missing-anchor`). Before the cases, an
 unmutated copy must pass every group they name, so a crash the copy itself causes cannot pass for
-a caught case. The runner applies the cases only after the write guard has passed its own checks,
-because some cases try a write outside the sandbox that only the guard refuses (check
-`selftest-skips-mutants-when-guard-fails`). After each case it restores the module settings the
-sandbox repoints, the loader stand-ins, network spies and job-runner function a step or check
-replaces for a while, and the copy's write guard (check `mutant-runner-isolates-guard-stack`).
+a caught case (check `selftest-fails-when-control-copy-fails`); a case that leaves the copy unable
+to load counts as caught (`mutant-runner-unloadable-copy-is-caught`). The runner applies the cases
+only after the write guard has passed its own checks, because some cases try a write outside the
+sandbox that only the guard refuses (check `selftest-skips-mutants-when-guard-fails`). After each
+case it restores the module settings the sandbox repoints, the loader stand-ins, network spies
+and job-runner function a step or check replaces for a while (`mutant-runner-restores-patchables`),
+and the import path, and it empties the copy's write-guard stack
+(`mutant-runner-clears-every-copy-stack`); the selftest fails if any of those is left changed at
+the end (`selftest-reports-leaked-state`). Each copy's audit hook stays installed, inert with an
+empty stack, until the process exits. Each case's checks read the copy's own source text
+(`mutant-runner-judges-mutated-source`).
 
 ## Where the facts come from
 

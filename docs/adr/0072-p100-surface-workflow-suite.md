@@ -35,11 +35,13 @@ a literal `allow` so the real config is not read.
 The gate against touching the owner's files is a write guard: an audit hook that, while the
 workflows and probes run, refuses and records the writes it judges (opening a file for writing,
 and the `os` and `shutil` calls that remove, rename, move, copy or create a file or folder) when
-they land outside the system temporary folder, the interpreter's own bytecode cache excepted. A
-refusal fails the suite, and so does a run in which the guard judged no write. Outside its view are
-writes by another process, writes through a file handle opened earlier, `os.mkfifo` and
-`os.mknod` (no audit event), and a file opened relative to an open folder handle (judged as if
-relative to the current folder). A before-and-after snapshot of the reachable files on the machine is kept as advice only,
+they land outside the system temporary folder. The interpreter's own bytecode cache is let
+through: creating a `__pycache__` folder and writing this interpreter's cache file inside one, or
+the same under a configured bytecode prefix. A refusal fails the suite, and so does a run in which
+the guard judged no write. Outside its view are writes by another process, writes made inside a C
+library, writes through a file handle opened earlier, `os.mkfifo` and `os.mknod` (no audit event),
+`os` calls given a folder handle (skipped), and a file opened relative to a folder handle (judged
+as if relative to the current folder). A before-and-after snapshot of the reachable files on the machine is kept as advice only,
 because the real mirror agent or a sync client can change those files during a run; an
 unconfigured or unreadable hub is reported as SKIP.
 
@@ -79,7 +81,9 @@ computer manages. The new facts are registered sources, checked 2026-10-01.
   on two devices is kept once.
 - The runner's selftest and the tasks selftest carry mutation cases chosen by a reviewer who did
   not write the code; a case its checks stop catching, or whose anchor no longer applies, fails
-  the selftest. The runner first checks that an unmutated copy passes every group the cases name,
-  and resets the state a case could leave behind before the next one runs.
+  the selftest. The runner first checks that an unmutated copy passes every group the cases name.
+  After each case it restores the module settings, replaced functions and import path a case could
+  change and empties the copy's write-guard stack; the copies' audit hooks stay installed, inert,
+  until the process exits.
 - Facts that depend on a plan, region or rollout (Gemini custom MCP apps, ChatGPT developer mode on
   desktop, Codex writing outside the folder it opened) stay marked for verification.

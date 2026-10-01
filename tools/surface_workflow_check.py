@@ -26,10 +26,11 @@ while one of them points outside the sandbox. While the workflows and probes run
 audit hook) judges the writes this process makes through open() for writing and the os and shutil
 calls in _PATH_EVENTS, and refuses and records those that land outside the system temporary folder,
 the interpreter's bytecode cache excepted (_is_bytecode_cache); one refusal, or a run in which it
-judged no write, fails the suite. Outside its view: writes by another process, writes through a
-file handle opened earlier, os.mkfifo and os.mknod (no audit event), and a file opened relative to
-an open folder handle (its audit event carries no folder, so it is judged against the current
-folder).
+judged no write, fails the suite. Outside its view: writes by another process, writes made inside a
+C library, writes through a file handle opened earlier, os.mkfifo and os.mknod (no audit event), os
+calls given a dir_fd (skipped: the path is relative to a folder the guard cannot see), and a file
+opened relative to a folder handle (its audit event carries no folder, so it is judged against the
+current folder).
 Separately, and as advice that does not decide the result, the files on this machine the suite
 could reach are compared with a snapshot taken before the run (other programs may change them
 meanwhile); a hub that is not configured or cannot be read is noted as SKIP.
@@ -38,8 +39,8 @@ MUTATION CASES. _MUTANTS lists one-line changes to the code above the selftest m
 the pin group that must fail when it is applied; selftest() applies each to a fresh copy of this
 module and fails on a survivor or a stale anchor. Before the cases it requires an unmutated copy to
 pass every group they name. After each case it restores what _save_shared and _save_patchable
-capture and empties the copy's guard stack. It applies the cases only once the write guard has
-passed its own pins.
+capture and sys.path, and empties the copy's guard stack (its audit hook stays installed, inert).
+It applies the cases only once the write guard has passed its own pins.
 
 Contract: skills/creator-core/evals/surface-workflows.json   Guide: docs/SURFACE-WORKFLOWS.md
 
@@ -183,11 +184,17 @@ _PYC_NAME = re.compile(r"[^/\\]+\." + (re.escape(sys.implementation.cache_tag) i
                                          else r"(?!)") + r"(\.opt-[12])?\.pyc(\.\d+)?")
 
 
-def _is_bytecode_cache(path) -> bool:
-    """The interpreter's own cache: a folder named __pycache__, or inside one a file named
-    <module>.<this interpreter's cache tag>[.opt-N].pyc or its temporary <...>.pyc.<digits> twin."""
+def _is_bytecode_cache(event, path) -> bool:
+    """The interpreter's own cache: creating a folder named __pycache__, or inside one a file named
+    <module>.<this interpreter's cache tag>[.opt-N].pyc or its temporary <...>.pyc.<digits> twin.
+    With a bytecode prefix set (sys.pycache_prefix), creating a folder under it, or such a file there."""
     parent, name = os.path.split(path)
-    return name == "__pycache__" or (os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name)))
+    if event == "os.mkdir" and name == "__pycache__":
+        return True
+    prefix = os.path.realpath(sys.pycache_prefix) if sys.pycache_prefix else None
+    if prefix and path.startswith(prefix.rstrip(os.sep) + os.sep):
+        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))
+    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))
 
 
 def _guard_hook(event, args):
@@ -202,7 +209,7 @@ def _guard_hook(event, args):
             continue
         for rec in _GUARD["stack"]:
             rec["seen"].append(path)
-        if _is_bytecode_cache(path):
+        if _is_bytecode_cache(event, path):
             continue  # the interpreter's own bytecode cache, never Creator OS state
         top = _GUARD["stack"][-1]
         if not any(path == a or path.startswith(a.rstrip(os.sep) + os.sep) for a in top["allowed"]):
@@ -1920,17 +1927,21 @@ def _contract_with_checks(m):
 
     mat2 = copy.deepcopy(matrix)
     mat2["surfaces"]["pin_local_app"] = {"store_options": ["local_fs"], "carries": [], "origins": [], "class_support": {}}
+    import ast
     text = getattr(m, "_SOURCE", None) or Path(m.__file__).read_text(encoding="utf-8")
+    # each op's own function body, by syntax tree (an exec'd mutant has no file inspect can read)
+    lines = text.splitlines(keepends=True)
+    fns = {n.name: "".join(lines[n.lineno - 1:n.end_lineno]) for n in ast.parse(text).body
+           if isinstance(n, ast.FunctionDef)}
 
-    def fn_source(fn):  # by slicing the module text: an exec'd mutant has no file inspect can read
-        i = text.index(f"\ndef {fn.__name__}(")
-        j = text.find("\ndef ", i + 1)
-        return text[i:j if j > 0 else None]
+    def reads(src, k):  # w["k"], w.get("k"), step["with"]["k"], or "k" in w
+        q = re.escape(k)
+        return re.search(r"(?:\bw|step\[\"with\"\])\s*(?:\[\s*|\.get\(\s*)[\"']" + q + r"[\"']|[\"']" + q
+                         + r"[\"']\s+in\s+w\b", src)
 
-    keys_read = all(all(re.search(r"[\"']" + re.escape(k) + r"[\"']",
-                                  fn_source(fn) + (fn_source(m._render) if op == "surface.write" else ""))
-                        for k in m.WITH_KEYS[op])
-                    for table in (m.SIM_OPS, m.REAL_OPS) for op, fn in table.items())
+    keys_read = all(reads(fns[fn.__name__] + (fns["_render"] if op == "surface.write" else ""), k)
+                    for table in (m.SIM_OPS, m.REAL_OPS) for op, fn in table.items()
+                    for k in m.WITH_KEYS.get(op, ()))
     return [
         ("contract-create-needs-kind-or-name", has(bad(lambda c: first_create(c)["with"].pop("kind")),
                                                    "needs 'kind' or 'name'")),
@@ -2044,6 +2055,232 @@ def _gate_check(m):
     return [("selftest-skips-mutants-when-guard-fails", rc == 1 and not calls and "mutants not run" in buf.getvalue())]
 
 
+def _guard_bytecode_scope_checks(m):
+    """The exemption is exactly the cache: a cache-tagged .pyc outside a __pycache__ folder, a name
+    that only starts like one, a folder whose name ends in __pycache__, a __pycache__ path that is
+    not a folder creation, and a __pycache__ symlinked elsewhere are all refused; with a bytecode
+    prefix set, a folder or cache file under it is let through and another file there is not."""
+    tag = sys.implementation.cache_tag
+    box = m.Box("pin-pyc-scope", "2026-10-01")
+    r = box.root
+
+    def refused(path, ev="open"):
+        args = {"open": (str(path), "w", 577), "os.mkdir": (str(path), 511, -1),
+                "shutil.rmtree": (str(path), None)}[ev]
+        try:
+            m._guard_hook(ev, args)
+            return False
+        except PermissionError:
+            return True
+
+    (r / "elsewhere").mkdir()
+    (r / "pkg2").mkdir()
+    os.symlink(r / "elsewhere", r / "pkg2" / "__pycache__")
+    saved_prefix = sys.pycache_prefix
+    try:
+        with m.write_guard(r / "in"):
+            cache = r / "pkg" / "__pycache__"
+            out = [("guard-refuses-tagged-pyc-outside-cache", refused(r / f"mod.{tag}.pyc")),
+                   ("guard-refuses-pyc-name-with-suffix", refused(cache / f"mod.{tag}.pyc.json")),
+                   ("guard-refuses-folder-name-suffix", refused(r / "pkg" / "x__pycache__", "os.mkdir")),
+                   ("guard-refuses-symlinked-cache-folder", refused(r / "pkg2" / "__pycache__" / f"mod.{tag}.pyc")),
+                   ("guard-refuses-cache-name-written-as-file", refused(r / "pkg" / "__pycache__")),
+                   ("guard-refuses-cache-tree-removal", refused(cache, "shutil.rmtree"))]
+            sys.pycache_prefix = str(r / "pfx")
+            out.append(("guard-exempts-bytecode-prefix", not refused(r / "pfx" / "tools", "os.mkdir")
+                        and not refused(r / "pfx" / "tools" / f"mod.{tag}.pyc")
+                        and refused(r / "pfx" / "notes.json")))
+    finally:
+        sys.pycache_prefix = saved_prefix
+        m._GUARD["stack"].clear()
+        box.close()
+    return out
+
+
+def _guard_real_import_check(m):
+    """A real first import inside the guard writes its cache folder and file without a refusal (the
+    events and names the interpreter actually uses, which a fresh checkout meets)."""
+    import importlib.util
+    tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-import-"))
+    src = tmp / "src"
+    src.mkdir()
+    (tmp / "allowed").mkdir()
+    name = "swc_pin_" + uuid.uuid4().hex[:8]
+    (src / (name + ".py")).write_text("X = 1\n", encoding="utf-8")
+    cached = Path(importlib.util.cache_from_source(str(src / (name + ".py"))))
+    sys.path.insert(0, str(src))
+    old = sys.dont_write_bytecode
+    sys.dont_write_bytecode = False
+    try:
+        with m.write_guard(tmp / "allowed") as rec:
+            importlib.import_module(name)
+        ok = not rec["blocked"] and cached.is_file()
+    finally:
+        sys.dont_write_bytecode = old
+        sys.path.remove(str(src))
+        sys.modules.pop(name, None)
+        m._GUARD["stack"].clear()
+        if cached.is_file() and tmp not in cached.parents:
+            cached.unlink()  # written under a bytecode prefix outside the throwaway folder
+        shutil.rmtree(tmp, ignore_errors=True)
+    return [("guard-allows-real-bytecode-write", ok)]
+
+
+def _suite_judged_events_check(m):
+    """judged counts judged write events: one file written twice counts two."""
+    d = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-judged-"))
+
+    def two(ctx):
+        for _ in range(2):
+            with open(d / "same.json", "w", encoding="utf-8") as fh:
+                fh.write("x")
+        return True
+
+    c = {"suite": "pin", "pinned_today": "2026-10-01", "surfaces": {}, "workflows": [],
+         "gap_ledger": [{"id": "SW-PIN", "probe": "pin_two"}]}
+    m.PROBES["pin_two"] = two
+    try:
+        rep = m.run_suite(c, m.load_json(m.MATRIX))
+    finally:
+        m.PROBES.pop("pin_two", None)
+        shutil.rmtree(d, ignore_errors=True)
+    return [("suite-judged-counts-each-event", rep["write_guard"]["judged"] == 2 and not rep["write_guard"]["blocked"])]
+
+
+def _write_create_dotdot_check(m):
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+    box = m.Box("pin-dotdot", contract["pinned_today"])
+    ctx = {"contract": contract, "matrix": matrix, "wf": "pin"}
+    try:
+        try:
+            r = m.op_surface_write(box, {"id": "d1", "surface": "claude_web",
+                                         "with": {"mode": "create", "area": "Inbox", "name": "..", "json": {}}}, ctx)
+        except Exception as exc:  # noqa: BLE001 - a create that raises was not refused
+            r = {"raised": type(exc).__name__}
+    finally:
+        box.close()
+    return [("write-create-dotdot-refused", "refused" in r)]
+
+
+def _contract_name_and_with_checks(m):
+    import copy
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+
+    def bad(edit):
+        c = copy.deepcopy(contract)
+        edit(c)
+        try:
+            return m.validate_contract(c, matrix)
+        except Exception as exc:  # noqa: BLE001 - a validator that crashes refused nothing
+            return [f"raised {type(exc).__name__}"]
+
+    def step(c, pre, sid):
+        wf = next(x for x in c["workflows"] if x["id"].startswith(pre))
+        return next(st for st in wf["steps"] if st["id"] == sid)
+
+    def has(probs, text):
+        return any(text in p for p in probs)
+
+    return [
+        ("contract-name-plain-only", all(has(bad(lambda c, nm=nm: step(c, "W6", "package")["with"].__setitem__("name", nm)),
+                                             "plain file name") for nm in ("..", ".", "a\\b", "", 5))),
+        ("contract-unknown-with-key-real-step", has(bad(lambda c: step(c, "W1", "check-export")["with"].__setitem__(
+            "allow", True)), "unknown 'with' key 'allow' for mirror.refuse")),
+    ]
+
+
+def _mutant_runner_patchable_check(m):
+    """After each case the runner puts back the functions a case replaced, even at import time."""
+    ms = m._mcp_server()
+
+    def snap():
+        return (m.pc.load_credentials, ms._load_config, urllib.request.urlopen, socket.create_connection,
+                m.rn.run_pass)
+
+    before = snap()
+    anchor = '_INBOX_DEFAULTED = ("load_ledger", "sweep_quarantine", "approve")'
+    leak = (anchor + '\npc.load_credentials = lambda *a, **k: dict()'
+            '\nsys.modules["mcp_server"]._load_config = lambda *a, **k: dict()'
+            '\nrn.run_pass = lambda *a, **k: []\nurllib.request.urlopen = lambda *a, **k: None'
+            '\nsocket.create_connection = lambda *a, **k: None')
+    m._run_mutants(table=(("leak-at-import", "verdict", anchor, leak),))
+    return [("mutant-runner-restores-patchables", all(a is b for a, b in zip(before, snap())))]
+
+
+def _mutant_runner_state_checks(m):
+    """After each case the runner empties every copy's guard stack and judges the copy's own source."""
+    import gc
+    stuck = '        _GUARD["stack"].remove(rec)'
+    m._run_mutants(table=(("stuck-suite", "suite", stuck, "        pass"),))
+    live = [f for f in gc.get_objects() if isinstance(f, types.FunctionType) and f.__name__ == "_guard_hook"
+            and f.__globals__.get("_GUARD", {}).get("stack")]
+    for f in live:
+        f.__globals__["_GUARD"]["stack"].clear()
+    case = ("matrix-row-ignores-with", "contract", '    row = ctx["matrix"]["surfaces"][step["with"]["surface"]]',
+            '    row = ctx["matrix"]["surfaces"]["gemini_web"]')
+    judged_copy = "matrix-row-ignores-with" not in m._run_mutants(table=(case,))
+    return [("mutant-runner-clears-every-copy-stack", not live),
+            ("mutant-runner-judges-mutated-source", judged_copy)]
+
+
+def _probe_selftest(m, label, setup):
+    """Run selftest() of a fresh copy of the real file with doctored groups and cases; returns
+    (exit code, printed text). The checks below this marker cannot be mutated by a committed case."""
+    mod = types.ModuleType(label)
+    mod.__file__ = m.__file__
+    sys.modules[label] = mod  # selftest() finds itself through sys.modules
+    saved_creds = m.pc.load_credentials
+    try:
+        exec(compile(Path(m.__file__).read_text(encoding="utf-8"), f"<{label}>", "exec"), mod.__dict__)
+        setup(mod)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = mod.selftest()
+    finally:
+        sys.modules.pop(label, None)
+        m.pc.load_credentials = saved_creds
+    return rc, buf.getvalue()
+
+
+def _selftest_control_checks(m):
+    same = "def suite_ok(report) -> bool:"
+
+    def failing_copy(mod):
+        mod._PIN_GROUPS = {"g": lambda _m: [("copy-passes", not _m._IN_MUTANT)]}
+        mod._MUTANTS = (("c", "g", same, same),)
+
+    rc1, out1 = _probe_selftest(m, "swc_control_probe", failing_copy)
+    sentinel = object()
+
+    def leaking(mod):
+        def leak(_m):
+            if _m._IN_MUTANT:
+                _m.pc.load_credentials = sentinel
+            return [("x", True)]
+        mod._PIN_GROUPS = {"g": leak}
+        mod._MUTANTS = (("c", "g", same, same),)
+        mod._restore_patchable = lambda s: None
+
+    rc2, out2 = _probe_selftest(m, "swc_leak_probe", leaking)
+    return [("selftest-fails-when-control-copy-fails", rc1 == 1 and "mutant harness control" in out1),
+            ("selftest-reports-leaked-state", rc2 == 1 and "left shared module state changed" in out2)]
+
+
+def _runner_crash_and_group_checks(m):
+    """A case that leaves the copy unable to load counts as caught, and a pin group runs every one of
+    its check functions, reporting a crash in one by name without dropping the others."""
+    same = "def suite_ok(report) -> bool:"
+    broken = m._run_mutants(table=(("syntax", "verdict", same, same + "\n    ("),))
+
+    def boom(_m):
+        raise RuntimeError("stub")
+
+    got = m._group(lambda _m: [("a", True)], boom, lambda _m: [("c", True)])(None)
+    return [("mutant-runner-unloadable-copy-is-caught", broken == []),
+            ("group-runs-every-function", [n for n, _ in got][0] == "a" and [n for n, _ in got][-1] == "c"
+             and len(got) == 3 and "boom crashed: RuntimeError" in got[1][0] and got[1][1] is False)]
+
+
 def _pins_mutant_runner(m):
     """The mutation runner reports a change its checks do not catch and an anchor it cannot find, and
     does not report one they do catch. No committed case names this group."""
@@ -2064,16 +2301,30 @@ def _pins_mutant_runner(m):
 
 
 def _group(*fns):
-    return lambda m: [check for fn in fns for check in fn(m)]
+    """One pin group from several check functions; a crash in one is reported as that function's
+    failure and does not discard the other functions' results."""
+    def run(m):
+        out = []
+        for fn in fns:
+            try:
+                out += fn(m)
+            except Exception as exc:  # noqa: BLE001 - reported, not raised
+                out.append((f"{fn.__name__} crashed: {type(exc).__name__}: {exc}", False))
+        return out
+    return run
 
 
-_PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks),
-               "write": _group(_pins_write, _write_move_checks),
+_PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks, _contract_name_and_with_checks),
+               "write": _group(_pins_write, _write_move_checks, _write_create_dotdot_check),
                "isolation": _group(_pins_isolation, _isolation_restore_checks, _preflight_entry_checks),
-               "guard": _group(_pins_guard, _guard_event_checks, _guard_bytecode_checks),
+               "guard": _group(_pins_guard, _guard_event_checks, _guard_bytecode_checks,
+                               _guard_bytecode_scope_checks, _guard_real_import_check),
                "detect": _group(_pins_detect, _detect_more_checks), "verdict": _pins_verdict,
-               "suite": _pins_suite, "run": _pins_run, "mcp": _pins_mcp, "workflows": _pins_workflows,
-               "mutant-runner": _group(_pins_mutant_runner, _gate_check)}
+               "suite": _group(_pins_suite, _suite_judged_events_check), "run": _pins_run, "mcp": _pins_mcp,
+               "workflows": _pins_workflows,
+               "patchables": _mutant_runner_patchable_check,
+               "mutant-runner": _group(_pins_mutant_runner, _mutant_runner_state_checks, _gate_check,
+                                       _selftest_control_checks, _runner_crash_and_group_checks)}
 
 # (label, pin group, anchor, replacement). The anchor must occur exactly once above the selftest
 # marker; the mutated module is exec'd and its pin group must fail. Chosen by a reviewer who did not
@@ -2371,7 +2622,7 @@ _MUTANTS = (
      '"allowed": [os.path.realpath(str(r)) for r in roots]',
      '"allowed": [str(r) for r in roots]'),
     ('A1-16 bytecode-exemption-dropped', 'guard',
-     '        if _is_bytecode_cache(path):\n            continue',
+     '        if _is_bytecode_cache(event, path):\n            continue',
      '        if False:\n            continue'),
     ('A1-17 dirfd-minus-one-skipped', 'guard',
      '(fd is None or (isinstance(fd, int) and fd < 0))',
@@ -2553,6 +2804,129 @@ _MUTANTS = (
     ('A9-9 candidates-fixed-three', 'detect',
      '    return sorted(set(matrix["surfaces"]) | {v for v in vendors if v} | {"claude", "chatgpt", "gemini"})',
      '    return sorted({"claude", "chatgpt", "gemini"})'),
+    ('I1a pycache-any-file', 'guard',
+     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
+     '    return os.path.basename(parent) == "__pycache__"'),
+    ('I1b tagged-pyc-anywhere', 'guard',
+     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
+     '    return bool(_PYC_NAME.fullmatch(name))'),
+    ('I1c pyc-prefix-match', 'guard',
+     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
+     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.match(name))'),
+    ('I1d folder-suffix', 'guard',
+     '    if event == "os.mkdir" and name == "__pycache__":',
+     '    if event == "os.mkdir" and name.endswith("__pycache__"):'),
+    ('I1e folder-not-exempt', 'guard',
+     '    if event == "os.mkdir" and name == "__pycache__":',
+     '    if False:'),
+    ('I1f twin-any-suffix', 'guard',
+     'r"(\\.opt-[12])?\\.pyc(\\.\\d+)?")',
+     'r"(\\.opt-[12])?\\.pyc(\\..+)?")'),
+    ('I1g any-cache-tag', 'guard',
+     '(re.escape(sys.implementation.cache_tag) if sys.implementation.cache_tag',
+     '(r"[\\w.-]+" if sys.implementation.cache_tag'),
+    ('I1h judged-before-realpath', 'guard',
+     '        if _is_bytecode_cache(event, path):\n            continue',
+     '        if _is_bytecode_cache(event, os.fsdecode(raw)):\n            continue'),
+    ('I1i old-broad-pyc', 'guard',
+     '        if _is_bytecode_cache(event, path):\n            continue',
+     '        if _is_bytecode_cache(event, path) or path.endswith(".pyc"):\n            continue'),
+    ('J1 judged-dedup', 'suite',
+     'report["write_guard"]["judged"] = len(rec["seen"])',
+     'report["write_guard"]["judged"] = len(set(rec["seen"]))'),
+    ('J2 judged-capped-1', 'suite',
+     'report["write_guard"]["judged"] = len(rec["seen"])',
+     'report["write_guard"]["judged"] = min(len(rec["seen"]), 1)'),
+    ('J3 judged-double-counts-blocked', 'suite',
+     'report["write_guard"]["judged"] = len(rec["seen"])',
+     'report["write_guard"]["judged"] = len(rec["seen"]) + len(rec["blocked"])'),
+    ('J4 judged-allowed-only', 'suite',
+     'report["write_guard"]["judged"] = len(rec["seen"])',
+     'report["write_guard"]["judged"] = len(rec["seen"]) - len(rec["blocked"])'),
+    ('C1 create-area-check-off', 'write',
+     '    if box.area_of(target) != area:\n        return {"refused": f"{sid} cannot create',
+     '    if False:\n        return {"refused": f"{sid} cannot create'),
+    ('C2 create-refuses-only-outside-areas', 'write',
+     '    if box.area_of(target) != area:',
+     '    if box.area_of(target) is None:'),
+    ('C3 create-refuses-slash-only', 'write',
+     '    if box.area_of(target) != area:',
+     '    if "/" in name:'),
+    ('C4 create-refuses-outside-box-only', 'write',
+     '    if box.area_of(target) != area:',
+     '    if not box.inside(target):'),
+    ('C5 name-check-slash-only', 'contract',
+     'or any(c in name for c in ("/", "\\\\")) or name in (".", "..")):',
+     'or any(c in name for c in ("/",))):'),
+    ('C6 name-check-drops-dot-names', 'contract',
+     'or any(c in name for c in ("/", "\\\\")) or name in (".", "..")):',
+     'or any(c in name for c in ("/", "\\\\"))):'),
+    ('C7 name-check-drops-type-and-empty', 'contract',
+     'if name is not None and (not isinstance(name, str) or not name or os.path.isabs(name)',
+     'if name is not None and (os.path.isabs(name)'),
+    ('C8 name-check-drops-slash', 'contract',
+     'for c in ("/", "\\\\"))',
+     'for c in ("\\\\",))'),
+    ('C9 name-check-not-reported', 'contract',
+     '        p.append(f"{where}: \'name\' must be a plain file name, not a path")',
+     '        pass'),
+    ('K1 with-keys-sim-only', 'contract',
+     '            if st.get("op") in WITH_KEYS:',
+     '            if st.get("kind") == "sim" and st.get("op") in WITH_KEYS:'),
+    ('K2 with-keys-unread-id', 'contract',
+     '"inbox.scan": set(),',
+     '"inbox.scan": {"id"},'),
+    ('K3 with-keys-bogus', 'contract',
+     '"matrix.row": {"surface"},',
+     '"matrix.row": {"surface", "bogus"},'),
+    ('K4 with-keys-drop-op', 'contract',
+     '    "matrix.row": {"surface"}, "repo.text": {"needles", "path"},\n}',
+     '    "matrix.row": {"surface"},\n}'),
+    ('K5 with-keys-any-op', 'contract',
+     'for k in sorted(set(st.get("with", {})) - WITH_KEYS[st["op"]])]',
+     'for k in sorted(set(st.get("with", {})) - set().union(*WITH_KEYS.values()))]'),
+    ('K6 op-stops-reading-key', 'contract',
+     'for n in w.get("needles", [])}}',
+     'for n in w.get("needle", [])}}'),
+    ('K7 with-keys-result-name', 'contract',
+     '"runner.pass": {"allow", "stdout"},',
+     '"runner.pass": {"allow", "stdout", "results"},'),
+    ('K8 repo-text-bogus-key', 'contract',
+     '"repo.text": {"needles", "path"},',
+     '"repo.text": {"needles", "path", "bogus"},'),
+    ('D1 base-always-accepted', 'detect',
+     'base_accepted = not validate(t)',
+     'base_accepted = True'),
+    ('D2 base-dropped-from-verdict', 'detect',
+     'return (base_accepted and set(allowed_origins)',
+     'return (set(allowed_origins)'),
+    ('D3 base-tolerates-one-problem', 'detect',
+     'base_accepted = not validate(t)',
+     'base_accepted = len(validate(t)) <= 1'),
+    ('D4 base-ticket-has-surface', 'detect',
+     '"job_type": "inbox_scan", "params": {}, "schema_version": q.SCHEMA_VERSION}',
+     '"job_type": "inbox_scan", "params": {}, "schema_version": q.SCHEMA_VERSION, "surface": "x"}'),
+    ('P1 run-pass-not-restored', 'patchables',
+     '    rn.run_pass = s["run_pass"]',
+     '    pass'),
+    ('P2 net-not-restored', 'patchables',
+     '    urllib.request.urlopen, socket.create_connection = s["net"]',
+     '    pass'),
+    ('P3 creds-not-restored', 'patchables',
+     '    pc.load_credentials = s["creds"]',
+     '    pass'),
+    ('P4 config-not-saved', 'patchables',
+     '"config": (ms, ms._load_config) if ms is not None else None',
+     '"config": None'),
+    ('I1j folder-exempt-any-event', 'guard',
+     '    if event == "os.mkdir" and name == "__pycache__":',
+     '    if name == "__pycache__":'),
+    ('I1k prefix-ignored', 'guard',
+     '    if prefix and path.startswith(prefix.rstrip(os.sep) + os.sep):',
+     '    if False:'),
+    ('I1l prefix-any-file', 'guard',
+     '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
+     '        return True'),
 )
 
 
@@ -2574,6 +2948,7 @@ def _run_mutants(table=None) -> list:
             survivors.append(f"{label} (anchor not found exactly once)")
             continue
         saved, patched, mod = _save_shared(), _save_patchable(), None  # nothing a mutant skips may leak
+        saved_path = list(sys.path)  # each copy's import block prepends the tools folder again
         try:
             mod = _mutant_module(head.replace(old, new) + mark + tail)
             with contextlib.redirect_stdout(io.StringIO()):
@@ -2585,6 +2960,7 @@ def _run_mutants(table=None) -> list:
                 mod._GUARD["stack"].clear()  # its audit hook stays installed; an empty stack makes it inert
             _restore_shared(saved)
             _restore_patchable(patched)
+            sys.path[:] = saved_path
         if all(ok for _, ok in results):
             survivors.append(label)
     return survivors

@@ -949,6 +949,24 @@ _MERGE_MUTANTS = (
     ('K9 key-ignores-note',
      'if k != "seq"}, sort_keys=True',
      'if k not in ("seq", "note")}, sort_keys=True'),
+    ('TA tiebreak-by-actor',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("actor") or "")))'),
+    ('TB tiebreak-by-note',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("note") or "")))'),
+    ('TC key-actor-prefix-only',
+     '    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)',
+     '    return json.dumps({k: (v.split(":")[0] if k == "actor" else v) for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)'),
+    ('TD key-at-month-only',
+     '    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)',
+     '    return json.dumps({k: (v[:7] if k == "at" else v) for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)'),
+    ('TE status-from-first-input',
+     '    base["history"] = merged_events\n    return fold_task(base)',
+     '    base["history"] = merged_events\n    return dict(fold_task(base), status=task_a.get("status"))'),
+    ('TF started-from-first-input',
+     '    base["history"] = merged_events\n    return fold_task(base)',
+     '    base["history"] = merged_events\n    return dict(fold_task(base), started_at=task_a.get("started_at"))'),
 )
 
 
@@ -1100,6 +1118,11 @@ def selftest() -> int:
     eb["history"].append(make_event(eb["history"], "note", "user:web", "2026-07-13", note="early"))
     check("merge-equal-seq-orders-by-time",
           [e.get("note") for e in merge_tasks(ea, eb)["history"] if e.get("note")] == ["early", "late"])
+    ea2 = copy.deepcopy(t2); eb2 = copy.deepcopy(t2)  # notes whose text sorts against their times
+    ea2["history"].append(make_event(ea2["history"], "note", "user:desktop", "2026-07-14", note="a-late"))
+    eb2["history"].append(make_event(eb2["history"], "note", "user:web", "2026-07-13", note="b-early"))
+    check("merge-equal-seq-orders-by-time-not-text",
+          [e.get("note") for e in merge_tasks(ea2, eb2)["history"] if e.get("note")] == ["b-early", "a-late"])
     ka = copy.deepcopy(t2); kb = copy.deepcopy(t2)
     ka["history"].append(make_event(ka["history"], "note", "user:desktop", "2026-07-12", note="same"))
     kb["history"].append(make_event(kb["history"], "note", "user:web", "2026-07-12", note="same"))
@@ -1226,6 +1249,9 @@ def selftest() -> int:
         keep = "        held[k] = held.get(k, 0) + 1"
         probe = _run_merge_mutants(table=(("noop", keep, keep), ("missing", "no such anchor in this file", "x")))
         check("merge-mutant-runner-reports", probe == ["noop", "missing (anchor not found exactly once)"])
+        probe2 = _run_merge_mutants(table=(("dup", "    return ", "    return "),
+                                           ("crash", "def make_event(", "def make_event_renamed(")))
+        check("merge-mutant-runner-dup-and-crash", probe2 == ["dup (anchor not found exactly once)"])
 
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
