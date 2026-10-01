@@ -3,13 +3,21 @@ Live build status for Creator OS. Update at phase boundaries and after a skill s
 
 ## Current phase
 P6 through P99 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
-Branch: `claude/repo-access-confirm-wxe50a`.
+Branch: `claude/blissful-cannon-ggivl7`.
 
 - P99: profile mirror (2026-09-30, ADR 0070). `tools/profile_mirror.py` copies the allowlisted
   context files one way into the Drive hub's `Profile/` folder (credentials refused by name and
   content), logs each run, keeps run history, can write one Google Doc, and installs a
   user-scoped launchd agent; `tools/profile-mirror.sh` is the rsync form. Setup and the wizard
   warn when the repo sits in a cloud-synced folder. Guide: `docs/PROFILE-MIRROR.md`.
+- P99-2: profile mirror fix round (2026-10-01, ADR 0071). The Doc is found by its remembered id,
+  then by name, and created in `Creator OS/Profile` or else My Drive, because the `drive.file`
+  credential cannot see folders the app did not make; it is rendered from what `Profile/` holds.
+  The content check decodes the JSON and reads credential-named keys, more vendor formats and
+  credentials written in prose; the rsync form runs it through `check-file`. Every run, including
+  one that fails partway, writes a summary line and a last-run stamp that `install-agent` reads.
+  The agent keeps the venv interpreter path and carries `--api` and `--include-contact-profile`.
+  The read-only guard refuses the mirror's write verbs.
 - P98: remediation pass (2026-09-27, ADR 0069). Guards fold input before matching (NFKC,
   format characters, dash and digit look-alikes, percent decoding) across secret_scan,
   commit_claims, the invariant 60 corpus and proof readers and the hub reader; pinned sets

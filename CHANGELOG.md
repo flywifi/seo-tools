@@ -144,6 +144,20 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P99-2: profile mirror (ADR 0071). The Google Doc is found by its remembered id, then by name
+  among the Docs the app made, and created in `Creator OS/Profile` or else in My Drive; it is
+  checked every run (a trashed Doc is replaced, an edited one rewritten, a moved one updated in
+  place) and rendered from what `Profile/` holds. The content check decodes the JSON and reads
+  credential-named keys, more vendor formats and credentials written in prose; the rsync form runs
+  it through the new `check-file` verb. Every run of either engine writes a summary line and a
+  last-run stamp, including a run that fails partway, and `install-agent` judges the first run by
+  that stamp. The agent keeps the venv interpreter path, sets `HOME`, and carries `--api` and
+  `--include-contact-profile`; `status` shows the agent, the stamp and the Doc. The state keeps
+  the last 20 runs that copied, refused or failed something or acted on the Doc.
+  `drive_api._default_transport` returns instead of raising on a timeout, a reset, a malformed
+  response or a URL urllib cannot open, and folder queries escape quotes. The read-only guard
+  refuses the mirror's `sync`, `install-agent`, `uninstall-agent` and `--selftest`, and an
+  abbreviated `--selftest` that argparse expands. The selftests carry 128 falsifying mutations.
 - P95: docs/AUDIT-PROTOCOL.md section 7.2 says when a verification pass is finished. A claim
   waits for the pass's verification stage to return, not its first findings (the REPORTED to
   VERIFIED or KILLED ladder of section 8); a pass whose agents could not run is reported as DID

@@ -62,7 +62,7 @@ Who does what, where, when, and why:
 | `Jobs/results/` | The local runner | Any surface | On completion | Results visible everywhere, including status for pending jobs |
 | `Jobs/archive/` | The local machine only | Audit | After completion | Keeps the queue directory small without deleting history |
 | `Knowledge/` | The local projection tool | claude.ai Projects (live-sync) | On re-projection | A Project referencing these files stays current automatically |
-| `Profile/` | `tools/profile_mirror.py` (one-way copy of your context files, `docs/PROFILE-MIRROR.md`); any surface (dated exports) | Every AI engine that reads the hub; the profile-import flow | Every 15 minutes with the mirror agent; on transfer | The computer's copy wins; credential files are refused by name and content |
+| `Profile/` | `tools/profile_mirror.py` (one-way copy of your context files, `docs/PROFILE-MIRROR.md`); any surface (dated exports) | Every AI engine that reads the hub; the profile-import flow | Every 15 minutes with the mirror agent; on transfer | The computer's copy wins; credential files are refused by name, and a file in which the content check finds a credential is refused by content, in both ways of running it (the forms are listed in `docs/PROFILE-MIRROR.md`) |
 | `Outbox/` | The runner (report-type done jobs, P61) | The human, any surface | On delivery | Finished artifacts, one place to look |
 
 The Outbox is really written (P61): when a report-style job finishes `done` (library_analyze,

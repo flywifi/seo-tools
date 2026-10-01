@@ -23,7 +23,7 @@ have accepted the write.
 | `~/.creator-os/` | downloaded whisper models | `tools/transcribe.py::model_dir` default |
 | the repo folder | wizard state, staged bundles, `dist/` builds -- all gitignored | `.gitignore` |
 | `~/Library/LaunchAgents` | the optional profile-mirror agent (`com.creatoros.profile-mirror.plist`) | `tools/profile_mirror.py::build_plist`; loaded into your own `gui/<uid>` domain |
-| `~/Library/Logs/CreatorOS` | the profile mirror's run log | `tools/profile_mirror.py::LOG_DIR` |
+| `~/Library/Logs/CreatorOS` | the profile mirror's run log and its last-run stamp (`profile-mirror.last-run`) | `tools/profile_mirror.py::LOG_DIR` |
 
 ## User-scoped defaults (what to install when something is missing)
 

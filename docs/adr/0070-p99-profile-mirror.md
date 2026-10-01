@@ -32,11 +32,14 @@ optional `--api` run writes one Google Doc through the Drive API with the existi
 user's own `gui/<uid>` domain, at minutes 7, 22, 37 and 52, without RunAtLoad. Each run logs to
 `~/Library/Logs/CreatorOS/` (rotating) and records the last 20 runs, with file hashes, in a
 gitignored state file. Drive's own version history is the recovery path for an overwritten file.
+(ADR 0071 changes the history to the last 20 runs that changed something, adds a last-run stamp
+written by both engines, and extends the content check to the rsync form.)
 
 ## Consequences
 
 - The agent stores absolute paths; moving the repo or changing Python means re-running
   `install-agent`.
 - The Google Doc needs the hub to be visible to the `drive.file` credential; a hub made by hand
-  in Drive gets the files but not the Doc.
+  in Drive gets the files but not the Doc. (Superseded by ADR 0071: the Doc no longer needs the
+  hub folders to be visible.)
 - Only the allowlisted files leave the computer; a new context file needs an allowlist entry.

@@ -14,6 +14,7 @@ Usage:
 """
 from __future__ import annotations
 
+import http.client
 import json
 import sys
 import urllib.error
@@ -33,15 +34,30 @@ FOLDER_MIME = "application/vnd.google-apps.folder"
 
 def _default_transport(method, url, headers=None, data=None, timeout=30):
     """(status, body_bytes). Stdlib, env-proxy aware; errors return their status, never raise
-    through to the caller unhandled."""
-    req = urllib.request.Request(url, method=method, data=data, headers=headers or {})
+    through to the caller unhandled: an HTTP error returns its code, and a failure with no HTTP
+    status (no network, a timeout or reset while reading, a malformed response) returns 0 and the
+    reason, as does a URL urllib cannot open (ValueError)."""
     try:
+        req = urllib.request.Request(url, method=method, data=data, headers=headers or {})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read()
     except urllib.error.HTTPError as exc:
-        return exc.code, exc.read()
+        try:
+            return exc.code, exc.read()
+        except (OSError, http.client.HTTPException):
+            return exc.code, b""
     except urllib.error.URLError as exc:
         return 0, str(exc.reason).encode()
+    except ValueError as exc:
+        return 0, str(exc).encode()
+    except (OSError, http.client.HTTPException) as exc:
+        return 0, str(exc).encode()
+
+
+def query_literal(value: str) -> str:
+    """A Drive query string literal body: backslash and single quote escaped, so a name such as
+    "Jo's hub" cannot end the literal early (Drive API "Search for files and folders")."""
+    return str(value).replace("\\", "\\\\").replace("'", "\\'")
 
 
 def _get_json(token, url, transport):
@@ -56,7 +72,7 @@ def _get_json(token, url, transport):
 
 def find_folder(token, name, transport, parent_id=None):
     """Resolve a folder id by exact name (optionally under a parent). Returns (id|None, err|None)."""
-    query = f"name = '{name}' and mimeType = '{FOLDER_MIME}' and trashed = false"
+    query = f"name = '{query_literal(name)}' and mimeType = '{FOLDER_MIME}' and trashed = false"
     if parent_id:
         query += f" and '{parent_id}' in parents"
     url = f"{API}/files?q={urllib.parse.quote(query)}&fields=files(id,name)&pageSize=10"
@@ -183,6 +199,98 @@ def poll_once(staging_hub, token, folder_name, transport=_default_transport, run
             "outbox_uploaded": outbox_uploaded}
 
 
+# --- pins and selftest: the committed mutations apply above this line ---
+
+
+def _pins_query_and_transport(m) -> list:
+    """Pins for query_literal and _default_transport, run against module `m` (this module, or a
+    mutant of it in the mutation cases)."""
+    import io
+    out = [("query_literal escapes a single quote and a backslash",
+            m.query_literal("Jo's \\ hub") == "Jo\\'s \\\\ hub")]
+    seen = []
+
+    def canned(method, url, headers=None, data=None, timeout=30):
+        seen.append(urllib.parse.unquote(url))
+        return 200, json.dumps({"files": [{"id": "f1"}]}).encode()
+    fid, err = m.find_folder("TOK", "Jo's hub", canned)
+    out.append(("find_folder sends an escaped name, so a quote cannot end the query literal",
+                fid == "f1" and "name = 'Jo\\'s hub'" in seen[-1]))
+    real = urllib.request.urlopen
+
+    class _BadBody(urllib.error.HTTPError):
+        def read(self, *a):
+            raise ConnectionResetError(54, "reset")
+    cases = [("a timeout while reading", TimeoutError("timed out"), 0),
+             ("a dropped connection", http.client.RemoteDisconnected("closed"), 0),
+             ("a reset connection", ConnectionResetError(54, "reset"), 0),
+             ("no route (URLError)", urllib.error.URLError("no route"), 0),
+             ("an HTTP 403", urllib.error.HTTPError("u", 403, "Forbidden", {}, io.BytesIO(b"no")), 403),
+             ("an HTTP error whose body cannot be read", _BadBody("u", 500, "x", {}, None), 500),
+             ("a short body (IncompleteRead)", http.client.IncompleteRead(b"x", 10), 0),
+             ("a malformed status line", http.client.BadStatusLine("HTTP/9"), 0)]
+    for label, exc, want in cases:
+        def boom(*a, _e=exc, **k):
+            raise _e
+        urllib.request.urlopen = boom
+        try:
+            got = m._default_transport("GET", f"{API}/files")
+            held = isinstance(got, tuple) and got[0] == want
+        except Exception:  # noqa: BLE001 - the pin is that nothing escapes
+            held = False
+        finally:
+            urllib.request.urlopen = real
+        out.append((f"_default_transport returns, never raises, on {label}", held))
+    try:
+        got = m._default_transport("GET", "files/no-scheme")
+        held = isinstance(got, tuple) and got[0] == 0
+    except Exception:  # noqa: BLE001 - the pin is that nothing escapes
+        held = False
+    out.append(("_default_transport returns, never raises, on a URL urllib cannot open", held))
+    return out
+
+
+# Falsifying mutations of query_literal, find_folder and _default_transport, chosen by a reviewer
+# who did not write the pins (docs/AUDIT-PROTOCOL.md): (label, anchor, replacement). Each anchor must
+# occur exactly once above the pins; the mutant module must fail _pins_query_and_transport.
+_MUTANTS = (
+    ('drive_api: query_literal does not escape a backslash', '    return str(value).replace("\\\\", "\\\\\\\\").replace("\'", "\\\\\'")', '    return str(value).replace("\'", "\\\\\'")'),
+    ('drive_api: query_literal escapes the quote first, then doubles that backslash', '    return str(value).replace("\\\\", "\\\\\\\\").replace("\'", "\\\\\'")', '    return str(value).replace("\'", "\\\\\'").replace("\\\\", "\\\\\\\\")'),
+    ('drive_api: find_folder URL-encodes the name instead of escaping it', '    query = f"name = \'{query_literal(name)}\' and mimeType', '    query = f"name = \'{urllib.parse.quote(name)}\' and mimeType'),
+    ('drive_api: quotes doubled SQL-style', '.replace("\'", "\\\\\'")', '.replace("\'", "\'\'")'),
+    ('drive_api: the outer handler catches HTTPException only', '    except (OSError, http.client.HTTPException) as exc:', '    except http.client.HTTPException as exc:'),
+    ('drive_api: an unreadable HTTP error body escapes', '        except (OSError, http.client.HTTPException):', '        except http.client.HTTPException:'),
+    ('drive_api: an unreadable HTTP error body loses its status', '            return exc.code, b""', '            return 0, b""'),
+    ('drive_api: Request() is built before the try again', '    try:\n        req = urllib.request.Request(url, method=method, data=data, headers=headers or {})', '    req = urllib.request.Request(url, method=method, data=data, headers=headers or {})\n    try:'),
+    ('drive_api: the ValueError handler is removed', '    except ValueError as exc:\n        return 0, str(exc).encode()\n', ''),
+    ('drive_api: a ValueError returns status 400', '    except ValueError as exc:\n        return 0, str(exc).encode()', '    except ValueError as exc:\n        return 400, str(exc).encode()'),
+    ('drive_api: the handler is narrowed to http.client.InvalidURL', '    except ValueError as exc:\n        return 0,', '    except http.client.InvalidURL as exc:\n        return 0,'),
+    ('drive_api: a ValueError is re-raised', '    except ValueError as exc:\n        return 0, str(exc).encode()', '    except ValueError as exc:\n        raise'),
+)
+
+
+def _mutant_survivors():
+    import types
+    src = Path(__file__).read_text(encoding="utf-8")
+    head, mark, tail = src.partition('# --- pins and selftest: the committed mutations apply above this line ---')
+    survivors = []
+    for label, old, new in _MUTANTS:
+        if head.count(old) != 1:
+            survivors.append(f"{label} (anchor not found exactly once)")
+            continue
+        mod = types.ModuleType("drive_api_mutant")
+        mod.__file__ = __file__
+        try:
+            exec(compile(head.replace(old, new) + mark + tail, "<drive_api mutant>", "exec"),
+                 mod.__dict__)
+            held = all(c for _, c in _pins_query_and_transport(mod))
+        except Exception:  # noqa: BLE001 - a mutant that crashes its pins is caught
+            held = False
+        if held:
+            survivors.append(label)
+    return survivors
+
+
 def selftest() -> int:
     import tempfile
     checks = []
@@ -251,6 +359,14 @@ def selftest() -> int:
     out = poll_once(tempfile.mkdtemp(), "TOK", "Creator OS", transport=not_found)
     ok("missing hub folder is a plain error, not a crash",
        out["ok"] is False and "not found" in out["error"])
+
+    for n, c in _pins_query_and_transport(sys.modules[__name__]):
+        ok(n, c)
+    survivors = _mutant_survivors()
+    if survivors:
+        print(f"  [note] mutations the pins did not catch: {survivors}")
+    ok(f"each of {len(_MUTANTS)} committed mutations fails the query and transport pins",
+       _MUTANTS and not survivors)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-09-30",
+  "last_registry_update": "2026-10-01",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -6843,7 +6843,92 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "google-drive-api-scopes",
+      "name": "Google Drive API - Choose Google Drive API scopes",
+      "url": "https://developers.google.com/workspace/drive/api/guides/api-specific-auth",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "drive.file: create new Drive files, or modify existing files, that you open with an app or that the user shares with an app while using the Google Picker API or the app's file picker.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-api-search-files",
+      "name": "Google Drive API - Search for files and folders",
+      "url": "https://developers.google.com/workspace/drive/api/guides/search-files",
+      "category": "api-changelog",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Query string literals escape a single quote and a backslash with a backslash.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-file-versions",
+      "name": "Google Drive Help - Check activity and file versions",
+      "url": "https://support.google.com/drive/answer/2409045",
+      "category": "platform-spec",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "A version might be permanently deleted after 30 days or if there are 100 newer versions, unless Keep forever; Google Docs version history is separate.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "gemini-gems-use",
+      "name": "Gemini Apps Help - Use Gems in Gemini Apps",
+      "url": "https://support.google.com/gemini/answer/15146780",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "A Drive file added to a Gem: Gemini uses the most recent version of the file, and changes are reflected in the Gem.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "gemini-notebook-sources",
+      "name": "Gemini Notebook Help - Add or discover new sources for your notebook",
+      "url": "https://support.google.com/gemininotebook/answer/16215270",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Sources imported from Google Drive are auto-updated and sync every few minutes; manual Click to sync with Google Drive; NotebookLM's help now publishes as Gemini Notebook.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "20d55671c13bf46280046d5d1e7df97a8da85d67abfd10b73784dc913a21eae3"
+  "_content_digest": "0c196bdc01672d1685cd43c894df69ca3d454e05a173e02a5a0e00caf2a78da0"
 }

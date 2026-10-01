@@ -53,7 +53,9 @@ and refuses (exit 2, reason on stderr) when it finds:
     here-string and echo or printf text piped in are checked as Python code, and code from a file
     or from other command output is refused, the guard cannot read it;
   - a repo script invoked with a known write verb (reconcile, --apply, --write ...), or a script
-    whose run creates files (setup, wizard, battery, the temp-directory selftests).
+    whose run creates files (setup, wizard, battery, the temp-directory selftests), or a write verb
+    of a script whose other verbs only read (the profile mirror's sync, install-agent and
+    uninstall-agent).
 
 Braces outside quotes are expanded before these checks as Bash expands them ({a,b} and
 {1..3}), so {-delete,-print} is read as -delete -print.
@@ -166,7 +168,11 @@ REPO_WRITING_SCRIPTS = frozenset({"setup.py", "wizard.py", "install_hooks.py", "
                                   "new_skill.py", "migrate_local.py", "update.py", "sync_cache.py",
                                   "package_skill.py", "battery.py", "selftest_sweep.py"})
 REPO_TEMPDIR_SELFTESTS = frozenset({"mac_surface_manifest.py", "doc_freshness.py",
-                                    "projection_manifest.py"})
+                                    "projection_manifest.py", "profile_mirror.py"})
+# Scripts whose verbs mostly read, with the verbs that write: profile_mirror.py check, check-file
+# and status read; sync copies into the Drive hub and install-agent writes a launchd plist.
+REPO_SCRIPT_WRITE_VERBS = {"profile_mirror.py": frozenset({"sync", "install-agent",
+                                                           "uninstall-agent"})}
 # Path.copy, copy_into, move and move_into (Python 3.14) are writes. A .copy( call with an
 # argument is refused whatever its object, so dict.copy() passes and x.copy(deep=True) does not.
 PY_WRITE_RE = re.compile(
@@ -955,11 +961,21 @@ def _check_python_code(code):
     return f"Python code calls a file-write API ({what})" if what else None
 
 
+def _selftest_flag(arg):
+    """--selftest, or an abbreviation of it (--self, --s): argparse expands one for the profile
+    mirror; the other REPO_TEMPDIR_SELFTESTS scripts test for --selftest exactly, so refusing an
+    abbreviation there is a conservative refusal of a command that would not run the selftest."""
+    return len(arg) >= 3 and "--selftest".startswith(arg.split("=", 1)[0])
+
+
 def _check_script(name, rest):
     if name in REPO_WRITING_SCRIPTS:
         return f"{name} creates or changes files when it runs"
-    if name in REPO_TEMPDIR_SELFTESTS and "--selftest" in rest:
+    if name in REPO_TEMPDIR_SELFTESTS and any(_selftest_flag(a) for a in rest):
         return f"{name} --selftest creates temporary directories"
+    verb = next((a for a in rest if a in REPO_SCRIPT_WRITE_VERBS.get(name, ())), None)
+    if verb:
+        return f"{name} {verb} writes files"
     return _check_repo_args(rest)
 
 
@@ -1234,8 +1250,15 @@ def decide(payload):
                f"This agent is read-only; use a read-only form of the command.")
 
 
+# --- cases and selftest: the committed mutations apply above this line ---
+
 ALLOW_CASES = [
     "git log --oneline -5",
+    "python3 tools/profile_mirror.py",
+    "python3 tools/profile_mirror.py status",
+    "python3 tools/profile_mirror.py status --json",
+    "python3 tools/profile_mirror.py check --hub /x",
+    "python3 tools/profile_mirror.py check-file pipeline/user-context/voice-profile.json",
     "git -C /repo show HEAD:CLAUDE.md | head -40",
     "git diff HEAD~1 -- tools/sync_check.py 2>/dev/null",
     "git status --porcelain",
@@ -1433,6 +1456,17 @@ REFUSE_CASES = [
     "python3 tools/build_freshness_bundle.py --apply",
     "python3 tools/setup.py --selftest",
     "python3 tools/battery.py",
+    "python3 tools/profile_mirror.py sync",
+    "python3 tools/profile_mirror.py --quiet sync --hub /x",
+    "python3 tools/profile_mirror.py install-agent --api",
+    "python3 tools/profile_mirror.py uninstall-agent",
+    "python3 tools/profile_mirror.py --selftest",
+    "python3 -m tools.profile_mirror sync",
+    "python3 -m tools.profile_mirror install-agent",
+    "python3 tools/profile_mirror.py --selftes",
+    "python3 tools/profile_mirror.py --s",
+    "python3 tools/profile_mirror.py --self",
+    "python3 tools/profile_mirror.py status --sel",
     "echo 'import shutil; shutil.rmtree(\"build\")' | python3 -",
     "echo 'import shutil; shutil.rmtree(\"build\")' | python3",
     "python3 <<< 'import shutil; shutil.rmtree(\"build\")'",
@@ -1553,6 +1587,44 @@ KNOWN_MISSES = [
 ]
 
 
+# Falsifying mutations of the profile_mirror write-verb branch, chosen by a reviewer who did not
+# write it (docs/AUDIT-PROTOCOL.md): (label, anchor, replacement). Each anchor must occur exactly
+# once above the case tables; the mutant module must flip at least one profile_mirror case.
+_PROFILE_MIRROR_MUTANTS = (
+    ('guard: sync dropped from the profile_mirror write verbs', 'frozenset({"sync", "install-agent",', 'frozenset({"install-agent",'),
+    ('guard: only the first argument is read as the verb', '    verb = next((a for a in rest if a in REPO_SCRIPT_WRITE_VERBS.get(name, ())), None)', '    verb = next((a for a in rest[:1] if a in REPO_SCRIPT_WRITE_VERBS.get(name, ())), None)'),
+    ('guard: the verb map is keyed without .py', 'REPO_SCRIPT_WRITE_VERBS = {"profile_mirror.py":', 'REPO_SCRIPT_WRITE_VERBS = {"profile_mirror":'),
+    ('guard: profile_mirror.py dropped from REPO_TEMPDIR_SELFTESTS', '"projection_manifest.py", "profile_mirror.py"})', '"projection_manifest.py"})'),
+    ('guard: uninstall-agent dropped from the write verbs', '"uninstall-agent"})}', '})}'),
+    ('guard: a matched verb returns None instead of a refusal', '        return f"{name} {verb} writes files"', '        return None'),
+    ('guard: only the exact --selftest is read as the selftest flag', '    return len(arg) >= 3 and "--selftest".startswith(arg.split("=", 1)[0])', '    return arg == "--selftest"'),
+    ('guard: the abbreviation floor rises from 3 to 4 characters', 'len(arg) >= 3', 'len(arg) >= 4'),
+    ('guard: _check_script tests membership of --selftest again', 'any(_selftest_flag(a) for a in rest)', '"--selftest" in rest'),
+    ('guard: the prefix test is reversed', '"--selftest".startswith(arg.split("=", 1)[0])', 'arg.split("=", 1)[0].startswith("--selftest")'),
+    ('guard: only the first argument is read as the selftest flag', 'any(_selftest_flag(a) for a in rest)', 'any(_selftest_flag(a) for a in rest[:1])'),
+)
+
+
+def _profile_mirror_mutant_survivors():
+    import types
+    with open(__file__, encoding="utf-8") as fh:
+        src = fh.read()
+    head, mark, tail = src.partition('# --- cases and selftest: the committed mutations apply above this line ---')
+    rows = [(c, True) for c in ALLOW_CASES if "profile_mirror" in c]
+    rows += [(c, False) for c in REFUSE_CASES if "profile_mirror" in c]
+    survivors = []
+    for label, old, new in _PROFILE_MIRROR_MUTANTS:
+        if head.count(old) != 1:
+            survivors.append(f"{label} (anchor not found exactly once)")
+            continue
+        mod = types.ModuleType("readonly_bash_guard_mutant")
+        mod.__file__ = __file__
+        exec(compile(head.replace(old, new) + mark + tail, "<guard mutant>", "exec"), mod.__dict__)
+        if all(mod.guard(c)[0] == want for c, want in rows):
+            survivors.append(label)
+    return survivors
+
+
 def selftest():
     fails = []
     for c in ALLOW_CASES + KNOWN_MISSES:
@@ -1575,7 +1647,10 @@ def selftest():
         got = decide(payload)[0]
         if got != want:
             fails.append(f"decide({payload}) exit {got}, want {want}")
-    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook)
+    survivors = _profile_mirror_mutant_survivors()
+    if survivors or not _PROFILE_MIRROR_MUTANTS:
+        fails.append(f"profile_mirror write-verb mutations not caught: {survivors}")
+    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 1
     for f in fails:
         print(f"FAIL {f}")
     print(f"readonly_bash_guard selftest: {n - len(fails)}/{n} passed "
