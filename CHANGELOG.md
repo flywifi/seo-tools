@@ -16,11 +16,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - P100: cross-surface workflow suite (ADR 0072). `tools/surface_workflow_check.py` runs the 10
   workflows in `skills/creator-core/evals/surface-workflows.json`: each vendor's web chat
   (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus a round trip. Surface steps
-  write only what the surface's declared Drive mode allows; computer steps run the profile mirror,
-  job runner, inbox scan, register merge, validators, connector resolver and publishing gate in a
-  per-workflow sandbox, and the reachable files on the machine are compared before and after. It
-  pins eleven open gaps with probes and prints each workflow's live steps with `--runbook`. It is
-  a battery gate and a blocking CI step. `gemini_web` and `gemini_desktop` join the transitions
+  write only what the surface's declared Drive mode allows, into places the surface's matrix row
+  reaches; computer steps run the profile mirror, job runner, inbox scan, register merge,
+  validators, connector resolver and publishing gate in a per-workflow sandbox. A write guard (an
+  audit hook) refuses and records the writes it judges outside the system temporary folder and
+  fails the run on one, or on a run in which it judged none; a before-and-after snapshot of the
+  reachable files on the machine is printed as advice. It pins eleven open gaps with probes and
+  prints each workflow's live steps with `--runbook`. Its selftest and the tasks selftest carry
+  mutation cases chosen by a reviewer who did not write the code. It is a battery gate and a
+  blocking CI step. `gemini_web` and `gemini_desktop` join the transitions
   matrix; the ChatGPT and Claude Drive facts are refreshed. Guide: `docs/SURFACE-WORKFLOWS.md`.
 - P99: profile mirror (ADR 0070). `tools/profile_mirror.py` copies the allowlisted context files
   from `pipeline/user-context/` into the Drive hub's `Profile/` folder one way, refuses the three
@@ -208,7 +212,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - P100: `tools/tasks.py` `merge_tasks` matches events across register copies by every field except
   `seq`, as a multiset, and copies events before renumbering. A register edited on both sides no
   longer gains a duplicate event each time an unchanged copy is merged in again; registers that
-  already hold duplicates keep them.
+  already hold duplicates keep them. The same event recorded with identical fields on two devices
+  is kept once.
 - The commit-message backstop's policy boundary (`tools/secret-scan-allowlist.json`) is the full
   SHA of the P78-2 commit, the newest commit whose message the message rules refused when it was
   set, so the fallback range the CI step takes when origin/main..HEAD is empty starts after it.

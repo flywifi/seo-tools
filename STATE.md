@@ -7,8 +7,9 @@ Branch: `claude/blissful-cannon-ggivl7`.
 
 - P100: cross-surface workflow suite (2026-10-01, ADR 0072). `tools/surface_workflow_check.py`
   runs 10 workflows from each vendor's web chat into each vendor's desktop app, plus a round
-  trip, with simulated surface steps and the real computer code in a sandbox; it pins eleven
-  open gaps and is a battery gate and a CI step. `gemini_web` and `gemini_desktop` join the
+  trip, with simulated surface steps and the real computer code in a sandbox, inside a write
+  guard that fails the run on a write outside the system temporary folder; it pins eleven open
+  gaps, carries reviewer-chosen mutation cases, and is a battery gate and a CI step. `gemini_web` and `gemini_desktop` join the
   transitions matrix. `tasks.merge_tasks` no longer duplicates events when a register edited on
   both sides is merged again. Guide: `docs/SURFACE-WORKFLOWS.md`.
 - P99: profile mirror (2026-09-30, ADR 0070). `tools/profile_mirror.py` copies the allowlisted

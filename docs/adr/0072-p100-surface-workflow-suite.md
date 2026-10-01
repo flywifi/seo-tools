@@ -24,15 +24,29 @@ hub design had treated as impossible for those surfaces.
 `tools/surface_workflow_check.py` runs the 10 workflows in
 `skills/creator-core/evals/surface-workflows.json`: each vendor's web chat into each vendor's
 desktop app, plus a round trip. A surface step writes only what its declared `drive_write` mode
-allows, and the mode must agree with the surface's row in the matrix. Every computer step calls the
-repo function itself in a per-workflow sandbox: module globals and arguments point at the sandbox,
-a preflight refuses to run while any points elsewhere, and the job runner gets a literal `allow`
-so the real config is never read. After the run, the reachable files on the machine are compared
-with a snapshot; an unconfigured or unreadable hub is reported as SKIP.
+allows (the mode comes from the vendor help page the contract cites), and only into a place the
+surface's row in the matrix can reach, judged by where the file actually is. Every computer step
+calls the repo function itself in a per-workflow sandbox: module globals, `HOME`, the inbox
+functions' default ledger arguments and the call arguments point at the sandbox, a preflight
+refuses to run while any points elsewhere, and the job runner gets a literal `allow` so the real
+config is not read.
 
-Rejected: driving the vendor apps (no supported automation path, and it would put real accounts in
-a test); and folding these into `tools/scenario_check.py`, whose scenarios are single requests,
-not a sequence of surfaces.
+The gate against touching the owner's files is a write guard: an audit hook that, for the whole
+run, refuses and records the writes it judges (opening a file for writing, and the `os` and
+`shutil` calls that remove, rename, move, copy or create a file or folder) when they land outside
+the system temporary folder. A refusal fails the suite, and so does a run in which the guard judged
+no write. Writes relative to an open folder handle and writes by another process are outside its
+view. A before-and-after snapshot of the reachable files on the machine is kept as advice only,
+because the real mirror agent or a sync client can change those files during a run; an
+unconfigured or unreadable hub is reported as SKIP.
+
+Rejected: a snapshot comparison as the gate. It cannot tell the suite's writes from another
+program's, so it either fails on unrelated changes or has to excuse the very files the suite could
+reach.
+
+Also rejected: driving the vendor apps (no supported automation path, and it would put real
+accounts in a test); and folding these into `tools/scenario_check.py`, whose scenarios are single
+requests, not a sequence of surfaces.
 
 ## Decision 2: gaps are pinned, not fixed, with one exception
 
@@ -57,6 +71,11 @@ computer manages. The new facts are registered sources, checked 2026-10-01.
 - The battery runs one more gate, and CI runs it as a blocking step.
 - The live steps for each workflow (what only the owner's devices can show) live in the guide and
   print with `--runbook`.
-- Registers that already hold duplicated events keep them; new merges add none.
+- Registers that already hold duplicated events keep them; new merges add none. Because an event's
+  identity is every field except its sequence number, the same event recorded with identical fields
+  on two devices is kept once.
+- The runner's selftest and the tasks selftest carry mutation cases chosen by a reviewer who did
+  not write the code; a case its checks stop catching, or whose anchor no longer applies, fails
+  the selftest.
 - Facts that depend on a plan, region or rollout (Gemini custom MCP apps, ChatGPT developer mode on
   desktop, Codex writing outside the folder it opened) stay marked for verification.

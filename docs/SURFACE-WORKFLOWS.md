@@ -16,31 +16,51 @@ python3 tools/surface_workflow_check.py              # run them all (exit 0 = th
 python3 tools/surface_workflow_check.py --list       # the workflows and the open gaps
 python3 tools/surface_workflow_check.py --runbook W2 # the steps to try on your own devices
 python3 tools/surface_workflow_check.py --json       # a machine-readable report
-python3 tools/surface_workflow_check.py --selftest   # the runner's own checks
+python3 tools/surface_workflow_check.py --selftest   # the runner's own checks and mutation cases
 ```
 
 The contract is `skills/creator-core/evals/surface-workflows.json`; the runner is
 `tools/surface_workflow_check.py`. The battery runs it on every change and CI runs it as a
-blocking step.
+blocking step. The contract sits in the creator-core skill's `evals/` folder, so it ships inside
+that skill's package; its data is fictional.
 
 ## How it works (and what it cannot do)
 
 The web chats and desktop apps cannot be driven from here, so each step an app takes is
-**simulated**: the step writes only what that app is declared able to write (its `drive_write`
-mode in the contract, which must agree with the app's row in
-`shared/cross-modality/transitions.json`). For example, Gemini on the web can only create a new
-file, so a Gemini step that tries to edit or delete one is refused. Every step on the computer runs
+**simulated**: the step writes only what that app is declared able to write. The declaration is
+its `drive_write` mode in the contract (create; create and update; create, move and trash; and so
+on), taken from the vendor help pages listed at the end. The app's row in
+`shared/cross-modality/transitions.json` bounds it: the runner refuses a contract that gives a
+write mode to an app whose row reaches no store, and refuses a write into a hub area or a local
+folder the row cannot reach, judged by where the file actually is rather than where the step says
+it is. For example, Gemini on the web can only create a new file, so a Gemini step that tries to
+edit or delete one is refused, and a step whose refusal the contract did not expect fails the
+workflow. Every step on the computer runs
 the **real** repo code: the profile mirror (`tools/profile_mirror.py`), the job runner
 (`tools/handoff/runner.py`), the inbox scan (`tools/handoff/inbox.py`), the task register merge
 (`tools/tasks.py`), the agent-output validator (`tools/validate_agent_output.py`), the coverage
 reconciler (`tools/coverage_verify.py`), the connector resolver, and the publishing gate.
 
 Each workflow runs in its own throwaway folder: a hub with the Drive hub layout, a context folder,
-a log folder and a Drive API stand-in. The runner points the code at that folder, refuses to run a
-computer step while anything still points elsewhere, and deletes the folder afterwards. At the end
-it compares the files on this computer it could have reached (the repo's `.local` files, the
-Creator OS log folder, and the configured hub mirror) with a snapshot taken before the run. A hub
-that is not configured or cannot be read is reported as SKIP, not as a pass.
+a log folder and a Drive API stand-in. The runner points the code at that folder (module paths,
+`HOME`, and the default ledger argument of the inbox functions), refuses to run a computer step
+while any of those still points elsewhere, and deletes the folder afterwards.
+
+The whole run sits inside a **write guard**, a Python audit hook that judges the writes this
+process makes through `open` for writing and through the `os` and `shutil` calls that remove,
+rename, move, copy or create a file or folder. It refuses and records such a write when it lands
+outside the system temporary folder (selftest checks `guard-refuses-open-write` and
+`guard-refuses-rename-out`), and the run fails if it refused one or if it judged none (a guard
+that saw nothing proved nothing; checks `suite-fails-on-blocked-write` and
+`suite-fails-when-guard-judged-nothing`). Two kinds of write are outside its view: one made
+relative to an open folder handle, and one made by another process.
+
+At the end the runner also compares the files on this computer it could have reached (the repo's
+`.local` files, the Creator OS log folder, and the configured hub mirror) with a snapshot taken
+before the run. That comparison is advice: it is printed but does not decide the result (check
+`suite-ok-ignores-snapshot-advice`), because the real profile mirror agent or a sync client may
+change those files during the run. A hub that is not configured or cannot be read is reported as
+SKIP.
 
 What it does not do: it does not run the AI models, sign in to any app, or call any vendor. The
 model's own judgment (writing the script, choosing which conflict wins) is checked by people and
@@ -53,12 +73,12 @@ confirm.
 |---|---|---|
 | W1 | claude.ai, then Claude Desktop | A voice change saved on the web as a new dated file is content-checked (a copy holding a credential is refused); claude.ai cannot edit the file in place; once saved at home the mirror copies it, rewrites the "About me and my voice" Doc, logs one summary line and stamps the run `ok`; a second run reports the Doc unchanged |
 | W2 | claude.ai, then the ChatGPT desktop app (Codex view) | A job ticket from the web waits while `compute_handoff_enabled` is off, runs once it is on (a result with `human_review_required` and an Outbox report), a Drive conflict copy is skipped, a ticket for a job type that is not allowed is refused, and a ticket trashed from the web before the run leaves nothing behind (gap SW-G10) |
-| W3 | claude.ai, then the Gemini desktop app | A low-confidence research result with no minority report fails the validator; a second opinion written through Gemini Spark into the hub Inbox disagrees, and the reconciler keeps the disagreement as a minority report instead of picking a winner |
+| W3 | claude.ai, then the Gemini desktop app | A low-confidence research result with no minority report fails the validator; a second opinion written through Gemini Spark into the hub Inbox disagrees, and the reconciler keeps the disagreement as a minority report instead of picking a winner; a second opinion that agrees yields no conflict and no review flag |
 | W4 | ChatGPT on the web, then the ChatGPT desktop app | A profile export saved through ChatGPT's Google Drive app passes the content check; the contact profile reaches Drive only with the opt-in |
-| W5 | ChatGPT on the web, then Claude Desktop | The same task edited on the web and at home, plus a Drive conflict copy, merges with each change once, and merging again adds nothing |
-| W6 | ChatGPT on the web, then the Gemini desktop app | "Post it now" goes nowhere: the Gemini desktop app has no Creator OS tools; on the computer the publishing gate refuses with live publishing off and makes no network call; the schedule tool returns a plan for human review with the flag off or on |
+| W5 | ChatGPT on the web, then Claude Desktop | The same task edited on the web and at home, plus a Drive conflict copy that adds one more event, merges with each change once, and each of three re-reads holds the same events in the same order |
+| W6 | ChatGPT on the web, then the Gemini desktop app | "Post it now" goes nowhere: the Gemini desktop app has no Creator OS tools; on the computer the publishing gate refuses with live publishing off and makes no network call, while with it on the network spy records the attempt (so the spy is shown to see one); the schedule tool returns a plan for human review with the flag off or on, and calls neither the config loader nor the credentials loader |
 | W7 | Gemini on the web, then the Gemini desktop app | Gemini Spark editing the content calendar in a connected folder: a valid edit is mirrored and the Doc updated; a broken edit is refused, stamped `error`, and the Drive copy and Doc keep the last good version; a deleted file keeps its Drive copy |
-| W8 | Gemini on the web, then Claude Desktop | Notes in the Inbox: a text note with injected instructions is sealed in Quarantine and recorded; a Word export waits for a Claude session (gap SW-G11); a transcript is proposed, and an in-session escalation to REVIEW is recorded when it is approved |
+| W8 | Gemini on the web, then Claude Desktop | Notes in the Inbox: a text note with injected instructions is sealed in Quarantine and recorded; a Word export waits for a Claude session (gap SW-G11); a transcript is proposed, and an in-session escalation to REVIEW is recorded when it is approved; the same transcript saved again is recognized as already handled |
 | W9 | Gemini on the web, then the ChatGPT desktop app | "Is my Drive hub on?" is answered by the computer's connector plan, not by pasted text; the export templates carry the Packaging version stamp that tells you how old a pasted pack is |
 | W10 | All three web chats and desktop apps, one day | Everything above at once: one engine pass folds it in, and a second pass changes nothing (no new copies, no re-run job, no new ledger rows, no new task events) |
 
@@ -103,12 +123,12 @@ updated together, so closing a gap is always a deliberate change.
 
 | ID | Open gap |
 |---|---|
-| SW-G1 | No validated field records which vendor's app made a hub file or job; files from ChatGPT and Gemini carry the origin `other`, and the remote MCP connector records `other` too (the free-text `requested_by` field can carry a name, unvalidated) |
+| SW-G1 | No validated field records which vendor's app made a hub file or job. The probe holds while the queue accepts exactly the generic origins (web, desktop, cowork, mac, other) and its known ticket keys, refuses every vendor and surface name tried as an origin, refuses a `surface` key, and the remote MCP connector records `other`; files from ChatGPT and Gemini carry `other` (the free-text `requested_by` field can carry a name, unvalidated) |
 | SW-G2 | Job results do not carry the ticket's origin |
 | SW-G3 | The job runner and watcher write no log file and no last-run stamp; a run log exists only if the scheduler line captures their output |
 | SW-G4 | Minority reports are checked but never saved: job results have no field for one and the validator has no record option |
 | SW-G5 | The `google_workspace` setting turns on only Gmail in the connector plan; Calendar, Drive and Docs stay off |
-| SW-G6 | Eight capability flags are named by no runtime Python, so they act only through instructions the model reads. The probe's rule: a flag counts as named when any tracked `tools/` or `shared/` Python file other than the setup writer and the drift guard quotes it; the expected list is in the contract |
+| SW-G6 | Eight capability flags are named by no runtime Python, so they act only through instructions the model reads. The probe's rule: a flag counts as named when any tracked `tools/` or `shared/` Python file (in a copy without git, any such file outside `__pycache__`) other than the setup writer and the drift guard quotes it; the expected list is in the contract |
 | SW-G7 | Profile import reads ChatGPT exports only; there is no Gemini or claude.ai export prompt |
 | SW-G8 | Dated exports of the voice profile, channel context, setup context and content calendar have no merge or proposal path. The probe reads skill descriptions, so a fix worded differently may not trip it |
 | SW-G10 | Some Drive connectors can now move and trash files; a queued ticket trashed before the computer runs leaves no result and no record that it existed |
@@ -119,9 +139,21 @@ Closed in this change: **SW-G9**, the task register merge. When the same task ha
 both sides, every later read of the unchanged web copy added another copy of the same event,
 because events were matched by a sequence number the merge itself renumbers. `merge_tasks` in
 `tools/tasks.py` now matches events across copies by every field except that number, as a
-multiset (an event repeated inside one log is kept), and leaves its inputs unchanged; the tasks
+multiset (an event repeated inside one log is kept), and leaves its inputs unchanged. One
+consequence: the same event recorded with identical fields on two devices is kept once. The tasks
 selftest and workflows W5 and W10 pin it. Registers that already hold duplicated events keep them;
 new merges no longer add any.
+
+## Mutation cases
+
+The runner's selftest carries a table of mutation cases: each is a one-line change to the runner
+(a check switched off, a count replaced by a constant, an argument dropped) and the group of
+checks that must fail when it is applied. The tasks selftest carries the same kind of table for
+the event merge. The cases were chosen by a reviewer who did not write the code. A case whose
+change no longer applies, or that its checks no longer catch, fails the selftest. The runner
+applies the cases only after the write guard has passed its own checks, because some cases try a
+write outside the sandbox that only the guard refuses, and it restores the shared module state
+after each one.
 
 ## Where the facts come from
 

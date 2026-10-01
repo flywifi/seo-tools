@@ -274,6 +274,7 @@
           "with": {
             "api": true
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "status",
@@ -336,6 +337,7 @@
           "with": {
             "api": true
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "copied",
@@ -420,6 +422,7 @@
           "with": {
             "allow": false
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "results[0].status",
@@ -435,6 +438,11 @@
               "path": "spawned",
               "check": "eq",
               "value": 0
+            },
+            {
+              "path": "outbox_count",
+              "check": "eq",
+              "value": 0
             }
           ]
         },
@@ -448,6 +456,7 @@
               "fictional_report": true
             }
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "results[0].status",
@@ -623,7 +632,8 @@
       "id": "W3-claude-web-to-gemini-desktop",
       "path": [
         "claude_web",
-        "gemini_desktop"
+        "gemini_desktop",
+        "claude_desktop"
       ],
       "story": "Research on the web, a second opinion from the Gemini desktop app, reconciled at home with the disagreement kept.",
       "steps": [
@@ -662,6 +672,7 @@
             "from": "web-research",
             "schema": "seo-research"
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "status",
@@ -729,6 +740,7 @@
               "holiday decor searches rise"
             ]
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "conflicts",
@@ -746,9 +758,75 @@
               "value": 1
             },
             {
-              "path": "human_review_required",
+              "path": "reconcile_review",
               "check": "eq",
               "value": true
+            }
+          ]
+        },
+        {
+          "id": "spark-agree",
+          "kind": "sim",
+          "op": "surface.write",
+          "with": {
+            "area": "Inbox",
+            "mode": "create",
+            "kind": "research",
+            "json": {
+              "query": "fictional seasonal interest check",
+              "summary": "holiday decor searches rise from late september",
+              "findings": [
+                {
+                  "claim": "holiday decor searches rise from late september",
+                  "source_ids": []
+                }
+              ],
+              "confidence_evidence": {
+                "overall": "medium",
+                "basis": "one secondary source"
+              },
+              "minority_report": {
+                "conflicts": [],
+                "residual_uncertainty": [],
+                "negative_findings_checked": [
+                  "no T1 source"
+                ]
+              },
+              "source_citations": []
+            }
+          },
+          "surface": "gemini_desktop"
+        },
+        {
+          "id": "reconcile-agree",
+          "kind": "real",
+          "op": "coverage.check",
+          "with": {
+            "sources": [
+              "web-research",
+              "spark-agree"
+            ],
+            "field": "summary",
+            "points": [
+              "holiday decor searches rise"
+            ]
+          },
+          "surface": "claude_desktop",
+          "assert": [
+            {
+              "path": "conflicts",
+              "check": "eq",
+              "value": 0
+            },
+            {
+              "path": "minority_report_len",
+              "check": "eq",
+              "value": 0
+            },
+            {
+              "path": "reconcile_review",
+              "check": "eq",
+              "value": false
             }
           ]
         },
@@ -835,6 +913,7 @@
           "with": {
             "from": "gpt-export"
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "why",
@@ -864,6 +943,7 @@
           "with": {
             "api": false
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "copied",
@@ -879,6 +959,11 @@
               "path": "stamp.status",
               "check": "eq",
               "value": "ok"
+            },
+            {
+              "path": "doc_count",
+              "check": "eq",
+              "value": 0
             }
           ]
         },
@@ -890,6 +975,7 @@
             "api": false,
             "contact": true
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "copied",
@@ -907,6 +993,11 @@
               "path": "stamp.status",
               "check": "eq",
               "value": "ok"
+            },
+            {
+              "path": "doc_count",
+              "check": "eq",
+              "value": 0
             }
           ]
         }
@@ -1021,7 +1112,36 @@
           "kind": "sim",
           "op": "surface.conflict_copy",
           "with": {
-            "of": "web-register"
+            "of": "web-register",
+            "json": {
+              "tasks": [
+                {
+                  "id": "t-1",
+                  "title": "Fictional brief",
+                  "history": [
+                    {
+                      "seq": 1,
+                      "at": "2026-09-30",
+                      "event": "created",
+                      "actor": "user:creator"
+                    },
+                    {
+                      "seq": 2,
+                      "at": "2026-10-01",
+                      "event": "note",
+                      "actor": "user:web",
+                      "note": "web edit"
+                    },
+                    {
+                      "seq": 3,
+                      "at": "2026-10-01",
+                      "event": "submitted",
+                      "actor": "user:web"
+                    }
+                  ]
+                }
+              ]
+            }
           }
         },
         {
@@ -1036,16 +1156,27 @@
             ],
             "passes": 3
           },
+          "surface": "claude_desktop",
           "assert": [
             {
-              "path": "stable",
-              "check": "eq",
-              "value": true
+              "path": "passes",
+              "check": "len_eq",
+              "value": 3
             },
             {
-              "path": "events_final.t-1",
+              "path": "passes[0].events.t-1",
               "check": "eq",
-              "value": 3
+              "value": 4
+            },
+            {
+              "path": "passes[1].events.t-1",
+              "check": "eq",
+              "value": 4
+            },
+            {
+              "path": "passes[2].events.t-1",
+              "check": "eq",
+              "value": 4
             },
             {
               "path": "events_final.t-2",
@@ -1056,6 +1187,16 @@
               "path": "passes[0].task_count",
               "check": "eq",
               "value": 2
+            },
+            {
+              "path": "event_names_final.t-1",
+              "check": "eq",
+              "value": [
+                "created",
+                "note",
+                "note",
+                "submitted"
+              ]
             }
           ]
         }
@@ -1074,7 +1215,8 @@
       "id": "W6-chatgpt-web-to-gemini-desktop",
       "path": [
         "chatgpt_web_plain",
-        "gemini_desktop"
+        "gemini_desktop",
+        "claude_desktop"
       ],
       "story": "A posting package from ChatGPT on the web, then 'post it now' in the Gemini desktop app: nothing posts without the confirmation on the computer.",
       "steps": [
@@ -1098,6 +1240,7 @@
           "with": {
             "surface": "gemini_desktop"
           },
+          "surface": "gemini_desktop",
           "assert": [
             {
               "path": "class_support.B",
@@ -1121,8 +1264,10 @@
           "kind": "real",
           "op": "publishing.dispatch",
           "with": {
-            "platform": "instagram"
+            "platform": "instagram",
+            "flag": false
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "status",
@@ -1138,6 +1283,38 @@
               "path": "net_calls",
               "check": "eq",
               "value": 0
+            }
+          ]
+        },
+        {
+          "id": "dispatch-on-spied",
+          "kind": "real",
+          "op": "publishing.dispatch",
+          "with": {
+            "platform": "instagram",
+            "flag": true
+          },
+          "surface": "claude_desktop",
+          "assert": [
+            {
+              "path": "status",
+              "check": "ne",
+              "value": "gated"
+            },
+            {
+              "path": "status",
+              "check": "ne",
+              "value": "unconfirmed"
+            },
+            {
+              "path": "ok",
+              "check": "eq",
+              "value": false
+            },
+            {
+              "path": "net_calls",
+              "check": "gte",
+              "value": 1
             }
           ]
         },
@@ -1173,6 +1350,24 @@
                 "manual_required",
                 "awaiting_human_confirmation"
               ]
+            },
+            {
+              "path": "on.status",
+              "check": "in",
+              "value": [
+                "manual_required",
+                "awaiting_human_confirmation"
+              ]
+            },
+            {
+              "path": "config_reads",
+              "check": "eq",
+              "value": 0
+            },
+            {
+              "path": "creds_reads",
+              "check": "eq",
+              "value": 0
             }
           ]
         }
@@ -1221,6 +1416,7 @@
           "with": {
             "api": true
           },
+          "surface": "gemini_web",
           "assert": [
             {
               "path": "copied",
@@ -1238,6 +1434,11 @@
               "path": "stamp.status",
               "check": "eq",
               "value": "ok"
+            },
+            {
+              "path": "runs_count",
+              "check": "eq",
+              "value": 1
             }
           ]
         },
@@ -1285,6 +1486,11 @@
               "path": "doc_action",
               "check": "eq",
               "value": "unchanged"
+            },
+            {
+              "path": "runs_count",
+              "check": "eq",
+              "value": 2
             }
           ]
         },
@@ -1339,6 +1545,11 @@
               "path": "doc_action",
               "check": "eq",
               "value": "updated"
+            },
+            {
+              "path": "runs_count",
+              "check": "eq",
+              "value": 3
             }
           ]
         },
@@ -1380,6 +1591,11 @@
               "path": "stamp.status",
               "check": "eq",
               "value": "ok"
+            },
+            {
+              "path": "runs_count",
+              "check": "eq",
+              "value": 3
             }
           ]
         }
@@ -1467,6 +1683,7 @@
           "kind": "real",
           "op": "inbox.scan",
           "with": {},
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "quarantined",
@@ -1499,6 +1716,11 @@
               "path": "human_review_required",
               "check": "eq",
               "value": true
+            },
+            {
+              "path": "already_handled",
+              "check": "eq",
+              "value": 0
             }
           ]
         },
@@ -1509,6 +1731,7 @@
           "with": {
             "scan": "scan"
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "sealed",
@@ -1537,6 +1760,7 @@
               "clip.srt": "REVIEW"
             }
           },
+          "surface": "claude_desktop",
           "assert": [
             {
               "path": "moved",
@@ -1559,6 +1783,37 @@
               "path": "last_reconciliation.pass_coverage",
               "check": "eq",
               "value": "both"
+            }
+          ]
+        },
+        {
+          "id": "clip-again",
+          "kind": "sim",
+          "op": "surface.write",
+          "with": {
+            "area": "Inbox",
+            "mode": "create",
+            "name": "clip-again.srt",
+            "text": "1\n00:00:01,000 --> 00:00:02,000\nfictional line\n"
+          },
+          "surface": "gemini_web"
+        },
+        {
+          "id": "scan-again",
+          "kind": "real",
+          "op": "inbox.scan",
+          "with": {},
+          "surface": "claude_desktop",
+          "assert": [
+            {
+              "path": "already_handled",
+              "check": "eq",
+              "value": 1
+            },
+            {
+              "path": "proposals",
+              "check": "len_eq",
+              "value": 0
             }
           ]
         }
@@ -1596,6 +1851,7 @@
               "google_drive_hub"
             ]
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "states.google_drive_hub",
@@ -1664,6 +1920,7 @@
               "Packaging version:"
             ]
           },
+          "surface": "gemini_web",
           "assert": [
             {
               "path": "contains.Packaging version:",
@@ -1847,8 +2104,50 @@
           "kind": "sim",
           "op": "surface.conflict_copy",
           "with": {
-            "of": "o-register"
+            "of": "o-register",
+            "json": {
+              "tasks": [
+                {
+                  "id": "t-1",
+                  "title": "Fictional brief",
+                  "history": [
+                    {
+                      "seq": 1,
+                      "at": "2026-09-30",
+                      "event": "created",
+                      "actor": "user:creator"
+                    },
+                    {
+                      "seq": 2,
+                      "at": "2026-10-01",
+                      "event": "note",
+                      "actor": "user:web",
+                      "note": "web edit"
+                    },
+                    {
+                      "seq": 3,
+                      "at": "2026-10-01",
+                      "event": "submitted",
+                      "actor": "user:web"
+                    }
+                  ]
+                }
+              ]
+            }
           }
+        },
+        {
+          "id": "spark-inbox",
+          "kind": "sim",
+          "op": "surface.write",
+          "with": {
+            "area": "Inbox",
+            "mode": "create",
+            "kind": "spark-note",
+            "ext": "txt",
+            "text": "Fictional idea list for October.\n"
+          },
+          "surface": "gemini_desktop"
         },
         {
           "id": "home-voice",
@@ -1878,6 +2177,11 @@
               "path": "quarantined",
               "check": "len_eq",
               "value": 1
+            },
+            {
+              "path": "needs_review",
+              "check": "len_eq",
+              "value": 1
             }
           ]
         },
@@ -1903,6 +2207,7 @@
           "with": {
             "allow": true
           },
+          "surface": "chatgpt_desktop",
           "assert": [
             {
               "path": "results",
@@ -1945,14 +2250,14 @@
           },
           "assert": [
             {
-              "path": "stable",
+              "path": "passes[0].events.t-1",
               "check": "eq",
-              "value": true
+              "value": 4
             },
             {
-              "path": "events_final.t-1",
+              "path": "passes[2].events.t-1",
               "check": "eq",
-              "value": 3
+              "value": 4
             }
           ]
         },
@@ -1998,6 +2303,11 @@
               "path": "proposals",
               "check": "len_eq",
               "value": 0
+            },
+            {
+              "path": "needs_review",
+              "check": "len_eq",
+              "value": 1
             }
           ]
         },
