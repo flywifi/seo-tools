@@ -187,12 +187,15 @@ _PYC_NAME = re.compile(r"[^/\\]+\." + (re.escape(sys.implementation.cache_tag) i
 def _is_bytecode_cache(event, path) -> bool:
     """The interpreter's own cache: creating a folder named __pycache__, or inside one a file named
     <module>.<this interpreter's cache tag>[.opt-N].pyc or its temporary <...>.pyc.<digits> twin.
-    With a bytecode prefix set (sys.pycache_prefix), creating a folder under it, or such a file there."""
+    With a bytecode prefix set (sys.pycache_prefix): creating the prefix folder, a missing parent of
+    it, or a folder under it, and writing such a file under it."""
     parent, name = os.path.split(path)
     if event == "os.mkdir" and name == "__pycache__":
         return True
-    prefix = os.path.realpath(sys.pycache_prefix) if sys.pycache_prefix else None
-    if prefix and path.startswith(prefix.rstrip(os.sep) + os.sep):
+    prefix = os.path.realpath(sys.pycache_prefix).rstrip(os.sep) if sys.pycache_prefix else None
+    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):
+        return True  # the interpreter creating a missing prefix folder, and its missing parents, itself
+    if prefix and path.startswith(prefix + os.sep):
         return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))
     return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))
 
@@ -1929,19 +1932,52 @@ def _contract_with_checks(m):
     mat2["surfaces"]["pin_local_app"] = {"store_options": ["local_fs"], "carries": [], "origins": [], "class_support": {}}
     import ast
     text = getattr(m, "_SOURCE", None) or Path(m.__file__).read_text(encoding="utf-8")
-    # each op's own function body, by syntax tree (an exec'd mutant has no file inspect can read)
-    lines = text.splitlines(keepends=True)
-    fns = {n.name: "".join(lines[n.lineno - 1:n.end_lineno]) for n in ast.parse(text).body
-           if isinstance(n, ast.FunctionDef)}
+    # each op's function by syntax tree (an exec'd copy has no file inspect can read); a key counts as
+    # read only as w["k"], w.get("k"), "k" in w, or the same on step["with"], where w is a name bound
+    # to step["with"] (or _render's parameter), never as text in a comment or a string
+    fns = {n.name: n for n in ast.parse(text).body if isinstance(n, ast.FunctionDef)}
 
-    def reads(src, k):  # w["k"], w.get("k"), step["with"]["k"], or "k" in w
-        q = re.escape(k)
-        return re.search(r"(?:\bw|step\[\"with\"\])\s*(?:\[\s*|\.get\(\s*)[\"']" + q + r"[\"']|[\"']" + q
-                         + r"[\"']\s+in\s+w\b", src)
+    def const(n):
+        return n.value if isinstance(n, ast.Constant) and isinstance(n.value, str) else None
 
-    keys_read = all(reads(fns[fn.__name__] + (fns["_render"] if op == "surface.write" else ""), k)
-                    for table in (m.SIM_OPS, m.REAL_OPS) for op, fn in table.items()
-                    for k in m.WITH_KEYS.get(op, ()))
+    def is_with(n):
+        if isinstance(n, ast.Subscript):
+            return isinstance(n.value, ast.Name) and n.value.id == "step" and const(n.slice) == "with"
+        return (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "get"
+                and isinstance(n.func.value, ast.Name) and n.func.value.id == "step" and bool(n.args)
+                and const(n.args[0]) == "with")
+
+    def with_names(fn):
+        names = {a.arg for a in fn.args.args} if fn.name == "_render" else set()
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    pairs = (list(zip(t.elts, n.value.elts)) if isinstance(t, ast.Tuple) and isinstance(n.value, ast.Tuple)
+                             else [(t, n.value)])
+                    names |= {tt.id for tt, vv in pairs if isinstance(tt, ast.Name) and is_with(vv)}
+        return names
+
+    def reads(fn):
+        names, got = with_names(fn), set()
+
+        def is_w(n):
+            return (isinstance(n, ast.Name) and n.id in names) or is_with(n)
+
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Subscript) and is_w(n.value) and const(n.slice):
+                got.add(const(n.slice))
+            elif (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "get"
+                  and is_w(n.func.value) and n.args and const(n.args[0])):
+                got.add(const(n.args[0]))
+            elif (isinstance(n, ast.Compare) and len(n.ops) == 1 and isinstance(n.ops[0], ast.In)
+                  and const(n.left) and is_w(n.comparators[0])):
+                got.add(const(n.left))
+        return got
+
+    missing = [f"{op}:{k}" for table in (m.SIM_OPS, m.REAL_OPS) for op, fn in table.items()
+               for k in sorted(m.WITH_KEYS.get(op, ()))
+               if k not in reads(fns[fn.__name__]) | (reads(fns["_render"]) if op == "surface.write" else set())]
+    keys_read = not missing
     return [
         ("contract-create-needs-kind-or-name", has(bad(lambda c: first_create(c)["with"].pop("kind")),
                                                    "needs 'kind' or 'name'")),
@@ -2042,8 +2078,10 @@ def _gate_check(m):
     mod = types.ModuleType("swc_gate_probe")
     mod.__file__ = m.__file__
     sys.modules["swc_gate_probe"] = mod  # selftest() finds itself through sys.modules
+    saved_path = list(sys.path)
     try:
-        exec(compile(Path(m.__file__).read_text(encoding="utf-8"), "<swc_gate_probe>", "exec"), mod.__dict__)
+        source = getattr(m, "_SOURCE", None) or Path(m.__file__).read_text(encoding="utf-8")
+        exec(compile(source, "<swc_gate_probe>", "exec"), mod.__dict__)
         calls = []
         mod._PIN_GROUPS = {"guard": lambda _m: [("stub-guard-broken", False)], "other": lambda _m: [("stub-ok", True)]}
         mod._run_mutants = lambda table=None: calls.append(1) or []
@@ -2052,6 +2090,7 @@ def _gate_check(m):
             rc = mod.selftest()
     finally:
         sys.modules.pop("swc_gate_probe", None)
+        sys.path[:] = saved_path
     return [("selftest-skips-mutants-when-guard-fails", rc == 1 and not calls and "mutants not run" in buf.getvalue())]
 
 
@@ -2107,21 +2146,20 @@ def _guard_real_import_check(m):
     (tmp / "allowed").mkdir()
     name = "swc_pin_" + uuid.uuid4().hex[:8]
     (src / (name + ".py")).write_text("X = 1\n", encoding="utf-8")
+    old, old_prefix = sys.dont_write_bytecode, sys.pycache_prefix
+    sys.dont_write_bytecode, sys.pycache_prefix = False, None  # never write under the user's own prefix
     cached = Path(importlib.util.cache_from_source(str(src / (name + ".py"))))
     sys.path.insert(0, str(src))
-    old = sys.dont_write_bytecode
-    sys.dont_write_bytecode = False
     try:
         with m.write_guard(tmp / "allowed") as rec:
             importlib.import_module(name)
-        ok = not rec["blocked"] and cached.is_file()
+        ok = not rec["blocked"] and cached.is_file() and tmp in cached.parents
     finally:
-        sys.dont_write_bytecode = old
+        sys.dont_write_bytecode, sys.pycache_prefix = old, old_prefix
         sys.path.remove(str(src))
+        sys.path_importer_cache.pop(str(src), None)
         sys.modules.pop(name, None)
         m._GUARD["stack"].clear()
-        if cached.is_file() and tmp not in cached.parents:
-            cached.unlink()  # written under a bytecode prefix outside the throwaway folder
         shutil.rmtree(tmp, ignore_errors=True)
     return [("guard-allows-real-bytecode-write", ok)]
 
@@ -2231,9 +2269,10 @@ def _probe_selftest(m, label, setup):
     mod = types.ModuleType(label)
     mod.__file__ = m.__file__
     sys.modules[label] = mod  # selftest() finds itself through sys.modules
-    saved_creds = m.pc.load_credentials
+    saved_creds, saved_path = m.pc.load_credentials, list(sys.path)
     try:
-        exec(compile(Path(m.__file__).read_text(encoding="utf-8"), f"<{label}>", "exec"), mod.__dict__)
+        source = getattr(m, "_SOURCE", None) or Path(m.__file__).read_text(encoding="utf-8")
+        exec(compile(source, f"<{label}>", "exec"), mod.__dict__)
         setup(mod)
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -2241,6 +2280,7 @@ def _probe_selftest(m, label, setup):
     finally:
         sys.modules.pop(label, None)
         m.pc.load_credentials = saved_creds
+        sys.path[:] = saved_path
     return rc, buf.getvalue()
 
 
@@ -2274,13 +2314,83 @@ def _runner_crash_and_group_checks(m):
     same = "def suite_ok(report) -> bool:"
     broken = m._run_mutants(table=(("syntax", "verdict", same, same + "\n    ("),))
 
-    def boom(_m):
-        raise RuntimeError("stub")
+    def kerr(_m):
+        raise KeyError("k")
 
-    got = m._group(lambda _m: [("a", True)], boom, lambda _m: [("c", True)])(None)
+    def aerr(_m):
+        raise AssertionError("a")
+
+    fs = [(lambda _m, i=i: [(f"f{i}", True)]) for i in range(6)]
+    got = m._group(fs[0], kerr, fs[1], aerr, fs[2], fs[3], fs[4], fs[5])(None)
+    names = [n for n, _ in got]
     return [("mutant-runner-unloadable-copy-is-caught", broken == []),
-            ("group-runs-every-function", [n for n, _ in got][0] == "a" and [n for n, _ in got][-1] == "c"
-             and len(got) == 3 and "boom crashed: RuntimeError" in got[1][0] and got[1][1] is False)]
+            ("group-runs-every-function", len(got) == 8 and names[0] == "f0" and names[2] == "f1"
+             and names[4:] == ["f2", "f3", "f4", "f5"] and "kerr crashed: KeyError" in names[1]
+             and "aerr crashed: AssertionError" in names[3] and got[1][1] is False and got[3][1] is False
+             and all(ok for _, ok in got[:1] + got[2:3] + got[4:]))]
+
+
+def _guard_bytecode_edge_checks(m):
+    """Edges of the exemption: removing or symlinking a cache-named folder, a name that only begins
+    like one, a cache file under a folder whose name merely contains __pycache__, and, with a prefix
+    set, a sibling of the prefix, a removal or a foreign .pyc under it are refused; the prefix folder
+    and its missing parents may be created; the prefix is compared as a real path."""
+    tag = sys.implementation.cache_tag
+    box = m.Box("pin-pyc-edges", "2026-10-01")
+    r = box.root
+    args = {"open": lambda p: (str(p), "w", 577), "os.mkdir": lambda p: (str(p), 511, -1),
+            "os.rmdir": lambda p: (str(p), -1), "os.symlink": lambda p: ("elsewhere", str(p), -1),
+            "shutil.rmtree": lambda p: (str(p), None)}
+
+    def refused(path, ev="open"):
+        try:
+            m._guard_hook(ev, args[ev](path))
+            return False
+        except PermissionError:
+            return True
+
+    (r / "real-pfx").mkdir()
+    os.symlink(r / "real-pfx", r / "link-pfx")
+    saved = sys.pycache_prefix
+    out = []
+    try:
+        with m.write_guard(r / "in"):
+            cache = r / "pkg" / "__pycache__"
+            pyc = f"mod.{tag}.pyc"
+            out += [("guard-refuses-cache-folder-rmdir", refused(cache, "os.rmdir")),
+                    ("guard-refuses-cache-name-symlink", refused(cache, "os.symlink")),
+                    ("guard-refuses-folder-name-prefix", refused(r / "pkg" / "__pycache__x", "os.mkdir")),
+                    ("guard-refuses-pyc-under-cache-like-folder", refused(r / "pkg" / "x__pycache__" / pyc))]
+            sys.pycache_prefix = str(r / "pfx")
+            out += [("guard-prefix-refuses-sibling", refused(r / "pfx-sib", "os.mkdir") and refused(r / "pfx-sib" / pyc)),
+                    ("guard-prefix-refuses-removal", refused(r / "pfx" / "tools", "shutil.rmtree")
+                     and refused(r / "pfx" / "tools", "os.rmdir")),
+                    ("guard-prefix-refuses-foreign-pyc", refused(r / "pfx" / "tools" / "evil.pyc")
+                     and refused(r / "pfx" / "tools" / "mod.other-99.pyc")),
+                    ("guard-prefix-folder-and-parents-created", not refused(r / "pfx", "os.mkdir")
+                     and not refused(r, "os.mkdir") and refused(r / "pfx", "open")
+                     and refused(r / "elsewhere", "os.mkdir"))]
+            sys.pycache_prefix = str(r / "link-pfx")  # a symlinked prefix: the judged path is real
+            out.append(("guard-prefix-compared-as-real-path", not refused(r / "real-pfx" / "tools", "os.mkdir")
+                        and not refused(r / "real-pfx" / "tools" / pyc)))
+    finally:
+        sys.pycache_prefix = saved
+        m._GUARD["stack"].clear()
+        box.close()
+    return out
+
+
+def _runner_import_path_every_case_check(m):
+    """The import path is restored after every case, including one that cannot load and one that
+    changes sys.path at import."""
+    anchor = '_INBOX_DEFAULTED = ("load_ledger", "sweep_quarantine", "approve")'
+    before = list(sys.path)
+    m._run_mutants(table=(("raise-at-import", "verdict", anchor, anchor + '\nraise RuntimeError("stop")'),
+                          ("syntax", "verdict", anchor, anchor + "\n("),
+                          ("path-at-import", "verdict", anchor, anchor + '\nsys.path.append("/nonexistent-swc-pin")')))
+    after = list(sys.path)
+    sys.path[:] = before
+    return [("mutant-runner-restores-import-path-every-case", after == before)]
 
 
 def _pins_mutant_runner(m):
@@ -2320,11 +2430,11 @@ _PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks, _contra
                "write": _group(_pins_write, _write_move_checks, _write_create_dotdot_check),
                "isolation": _group(_pins_isolation, _isolation_restore_checks, _preflight_entry_checks),
                "guard": _group(_pins_guard, _guard_event_checks, _guard_bytecode_checks,
-                               _guard_bytecode_scope_checks, _guard_real_import_check),
+                               _guard_bytecode_scope_checks, _guard_bytecode_edge_checks, _guard_real_import_check),
                "detect": _group(_pins_detect, _detect_more_checks), "verdict": _pins_verdict,
                "suite": _group(_pins_suite, _suite_judged_events_check), "run": _pins_run, "mcp": _pins_mcp,
                "workflows": _pins_workflows,
-               "patchables": _mutant_runner_patchable_check,
+               "patchables": _group(_mutant_runner_patchable_check, _runner_import_path_every_case_check),
                "mutant-runner": _group(_pins_mutant_runner, _mutant_runner_state_checks, _gate_check,
                                        _selftest_control_checks, _runner_crash_and_group_checks)}
 
@@ -2924,11 +3034,59 @@ _MUTANTS = (
      '    if event == "os.mkdir" and name == "__pycache__":',
      '    if name == "__pycache__":'),
     ('I1k prefix-ignored', 'guard',
-     '    if prefix and path.startswith(prefix.rstrip(os.sep) + os.sep):',
+     '    if prefix and path.startswith(prefix + os.sep):',
      '    if False:'),
     ('I1l prefix-any-file', 'guard',
      '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
      '        return True'),
+    ('X1 cache-folder-rmdir-exempt', 'guard',
+     '    if event == "os.mkdir" and name == "__pycache__":',
+     '    if event in ("os.mkdir", "os.rmdir") and name == "__pycache__":'),
+    ('X2 cache-folder-name-prefix', 'guard',
+     '    if event == "os.mkdir" and name == "__pycache__":',
+     '    if event == "os.mkdir" and name.startswith("__pycache__"):'),
+    ('X3 cache-folder-symlink-exempt', 'guard',
+     '    if event == "os.mkdir" and name == "__pycache__":',
+     '    if event in ("os.mkdir", "os.symlink") and name == "__pycache__":'),
+    ('X4 prefix-not-realpathed', 'guard',
+     '    prefix = os.path.realpath(sys.pycache_prefix).rstrip(os.sep) if sys.pycache_prefix else None',
+     '    prefix = sys.pycache_prefix.rstrip(os.sep) if sys.pycache_prefix else None'),
+    ('X5 prefix-abspath', 'guard',
+     '    prefix = os.path.realpath(sys.pycache_prefix).rstrip(os.sep) if sys.pycache_prefix else None',
+     '    prefix = os.path.abspath(sys.pycache_prefix).rstrip(os.sep) if sys.pycache_prefix else None'),
+    ('X6 prefix-sibling-match', 'guard',
+     '    if prefix and path.startswith(prefix + os.sep):',
+     '    if prefix and path.startswith(prefix):'),
+    ('X7 prefix-any-non-open-event', 'guard',
+     '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
+     '        return event != "open" or bool(_PYC_NAME.fullmatch(name))'),
+    ('X8 prefix-any-pyc-name', 'guard',
+     '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
+     '        return event == "os.mkdir" or name.endswith(".pyc")'),
+    ('X9 cache-parent-substring', 'guard',
+     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
+     '    return "__pycache__" in parent and bool(_PYC_NAME.fullmatch(name))'),
+    ('X10 prefix-folder-not-exempt', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if False:'),
+    ('X11 prefix-ancestor-any-event', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if prefix and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):'),
+    ('KA needles-read-only-in-comment', 'contract',
+     'for n in w.get("needles", [])}}',
+     'for n in []}}  # w.get("needles", [])'),
+    ('KB surface-read-only-in-comment', 'contract',
+     '    row = ctx["matrix"]["surfaces"][step["with"]["surface"]]',
+     '    row = ctx["matrix"]["surfaces"]["gemini_web"]  # step["with"]["surface"]'),
+    ('KC with-bound-to-empty', 'contract',
+     '    w = step.get("with", {})',
+     '    w = {}'),
+    ('KD field-read-only-in-string', 'contract',
+     '        sources.append({"id": sid, "text": doc[w.get("field", "summary")]})',
+     '        sources.append({"id": sid, "text": doc["summary"], "note": \'w.get("field")\'})'),
+    ('PS creds-not-captured', 'patchables',
+     '    return {"creds": pc.load_credentials, "config": ',
+     '    return {"creds": None, "config": '),
 )
 
 

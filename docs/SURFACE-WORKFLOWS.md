@@ -57,10 +57,11 @@ outside the system temporary folder (selftest checks `guard-refuses-open-write`,
 `suite-reports-blocked-write`). It lets through the interpreter's own bytecode cache and nothing
 else of that kind: creating a folder named `__pycache__`, and inside one writing a `.pyc` file
 named with this interpreter's cache tag or its temporary twin; with a bytecode prefix set
-(`PYTHONPYCACHEPREFIX`), creating a folder or writing such a file under that prefix (checks
-`guard-exempts-only-bytecode-cache`, `guard-exempts-cache-folder-creation`,
-`guard-allows-real-bytecode-write`, `guard-exempts-bytecode-prefix` and the `guard-refuses-*`
-checks beside them). The run fails if the guard refused a write or judged none (a guard that saw
+(`PYTHONPYCACHEPREFIX`), creating the prefix folder or a missing parent of it, creating a folder
+under it, and writing such a file there (checks `guard-exempts-only-bytecode-cache`,
+`guard-exempts-cache-folder-creation`, `guard-allows-real-bytecode-write`,
+`guard-exempts-bytecode-prefix`, `guard-prefix-folder-and-parents-created`, and the
+`guard-refuses-*` and `guard-prefix-refuses-*` checks beside them). The run fails if the guard refused a write or judged none (a guard that saw
 nothing proved nothing; checks `suite-fails-on-blocked-write` and
 `suite-fails-when-guard-judged-nothing`); the judged count counts write events, so one file
 written twice counts two (`suite-judged-counts-each-event`). Outside its view: a write by another
@@ -174,11 +175,13 @@ only after the write guard has passed its own checks, because some cases try a w
 sandbox that only the guard refuses (check `selftest-skips-mutants-when-guard-fails`). After each
 case it restores the module settings the sandbox repoints, the loader stand-ins, network spies
 and job-runner function a step or check replaces for a while (`mutant-runner-restores-patchables`),
-and the import path, and it empties the copy's write-guard stack
-(`mutant-runner-clears-every-copy-stack`); the selftest fails if any of those is left changed at
-the end (`selftest-reports-leaked-state`). Each copy's audit hook stays installed, inert with an
-empty stack, until the process exits. Each case's checks read the copy's own source text
-(`mutant-runner-judges-mutated-source`).
+and the import path (`mutant-runner-restores-import-path-every-case`), and it empties the copy's
+write-guard stack (`mutant-runner-clears-every-copy-stack`). The selftest fails if the module
+settings or those replaced functions are left changed at the end (`selftest-reports-leaked-state`);
+the import path is not part of that end comparison, because importing the computer-side modules
+adds to it. Each copy's audit hook stays installed, inert with an empty stack, until the process
+exits. The checks that read source text, or run the selftest of a second copy, read the copy's own
+text (`mutant-runner-judges-mutated-source`).
 
 ## Where the facts come from
 

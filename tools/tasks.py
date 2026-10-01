@@ -967,6 +967,15 @@ _MERGE_MUTANTS = (
     ('TF started-from-first-input',
      '    base["history"] = merged_events\n    return fold_task(base)',
      '    base["history"] = merged_events\n    return dict(fold_task(base), started_at=task_a.get("started_at"))'),
+    ('TT1 sort-by-event-json',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), json.dumps(e, sort_keys=True, default=str)))'),
+    ('TT2 time-descending',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), "".join(chr(1114111 - ord(c)) for c in str(e.get("at") or ""))))'),
+    ('TT3 date-only-tiebreak',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")[:10]))'),
 )
 
 
@@ -983,6 +992,7 @@ def _run_merge_mutants(table=None) -> list:
             continue
         mod = types.ModuleType("tasks_mutant")
         mod.__file__ = __file__
+        saved_path = list(sys.path)  # the copy's import line prepends the tools folder again
         try:
             exec(compile(head.replace(old, new) + mark + tail, "<tasks mutant>", "exec"), mod.__dict__)
             mod._IN_MUTANT = True
@@ -990,6 +1000,8 @@ def _run_merge_mutants(table=None) -> list:
                 caught = mod.selftest() != 0
         except Exception:  # noqa: BLE001 - a mutant that crashes the selftest is caught
             caught = True
+        finally:
+            sys.path[:] = saved_path
         if not caught:
             survivors.append(label)
     return survivors
@@ -1123,6 +1135,11 @@ def selftest() -> int:
     eb2["history"].append(make_event(eb2["history"], "note", "user:web", "2026-07-13", note="b-early"))
     check("merge-equal-seq-orders-by-time-not-text",
           [e.get("note") for e in merge_tasks(ea2, eb2)["history"] if e.get("note")] == ["b-early", "a-late"])
+    ea3 = copy.deepcopy(t2); eb3 = copy.deepcopy(t2)  # same day, different time of day
+    ea3["history"].append(make_event(ea3["history"], "note", "user:desktop", "2026-07-14T18:00:00Z", note="a-evening"))
+    eb3["history"].append(make_event(eb3["history"], "note", "user:web", "2026-07-14T09:00:00Z", note="b-morning"))
+    check("merge-equal-seq-orders-by-time-of-day",
+          [e.get("note") for e in merge_tasks(ea3, eb3)["history"] if e.get("note")] == ["b-morning", "a-evening"])
     ka = copy.deepcopy(t2); kb = copy.deepcopy(t2)
     ka["history"].append(make_event(ka["history"], "note", "user:desktop", "2026-07-12", note="same"))
     kb["history"].append(make_event(kb["history"], "note", "user:web", "2026-07-12", note="same"))
@@ -1247,11 +1264,19 @@ def selftest() -> int:
         survivors = _run_merge_mutants()
         check("merge-mutants-caught" + (": " + "; ".join(survivors) if survivors else ""), not survivors)
         keep = "        held[k] = held.get(k, 0) + 1"
+        path_before = list(sys.path)
         probe = _run_merge_mutants(table=(("noop", keep, keep), ("missing", "no such anchor in this file", "x")))
+        check("merge-mutant-runner-restores-import-path", sys.path == path_before)
         check("merge-mutant-runner-reports", probe == ["noop", "missing (anchor not found exactly once)"])
         probe2 = _run_merge_mutants(table=(("dup", "    return ", "    return "),
                                            ("crash", "def make_event(", "def make_event_renamed(")))
         check("merge-mutant-runner-dup-and-crash", probe2 == ["dup (anchor not found exactly once)"])
+        try:  # a crash of another exception type is caught too
+            probe3 = _run_merge_mutants(table=(("crash2", "def _next_seq(history) -> int:",
+                                                "def _next_seq(history, extra) -> int:"),))
+        except Exception:  # noqa: BLE001 - the runner let the crash escape
+            probe3 = None
+        check("merge-mutant-runner-any-crash-caught", probe3 == [])
 
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
