@@ -2203,8 +2203,10 @@ def _mutant_runner_patchable_check(m):
             '\nsys.modules["mcp_server"]._load_config = lambda *a, **k: dict()'
             '\nrn.run_pass = lambda *a, **k: []\nurllib.request.urlopen = lambda *a, **k: None'
             '\nsocket.create_connection = lambda *a, **k: None')
+    path_before = list(sys.path)
     m._run_mutants(table=(("leak-at-import", "verdict", anchor, leak),))
-    return [("mutant-runner-restores-patchables", all(a is b for a, b in zip(before, snap())))]
+    return [("mutant-runner-restores-patchables", all(a is b for a, b in zip(before, snap()))),
+            ("mutant-runner-restores-import-path", sys.path == path_before)]
 
 
 def _mutant_runner_state_checks(m):
