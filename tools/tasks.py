@@ -885,6 +885,40 @@ def make_task(id, title, source, project_id=None, contract_id=None, task_kind="n
 
 
 # ── selftest ──────────────────────────────────────────────────────────────────
+# --- selftest: everything below is test code; the committed mutations apply above this line ---
+_SELFTEST_MARK = "# --- selftest: everything below is test code; the committed mutations apply above this line ---\n"
+_IN_MUTANT = False
+# (label, anchor, replacement) for the event merge (merge_tasks, _event_key). Each anchor occurs once
+# above the selftest marker; the mutated module's selftest() must fail. Chosen by a reviewer who did
+# not write the code (docs/AUDIT-PROTOCOL.md section 7.2).
+_MERGE_MUTANTS = ()
+
+
+def _run_merge_mutants() -> list:
+    """The labels of merge mutants this selftest did not catch (or whose anchor is not unique)."""
+    import contextlib
+    import io
+    import types
+    head, mark, tail = Path(__file__).read_text(encoding="utf-8").partition(_SELFTEST_MARK)
+    survivors = []
+    for label, old, new in _MERGE_MUTANTS:
+        if head.count(old) != 1:
+            survivors.append(f"{label} (anchor not found exactly once)")
+            continue
+        mod = types.ModuleType("tasks_mutant")
+        mod.__file__ = __file__
+        try:
+            exec(compile(head.replace(old, new) + mark + tail, "<tasks mutant>", "exec"), mod.__dict__)
+            mod._IN_MUTANT = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                caught = mod.selftest() != 0
+        except Exception:  # noqa: BLE001 - a mutant that crashes the selftest is caught
+            caught = True
+        if not caught:
+            survivors.append(label)
+    return survivors
+
+
 def selftest() -> int:
     failures = []
     ran = [0]  # derived check count: the printed summary can never drift from reality
@@ -1079,6 +1113,10 @@ def selftest() -> int:
         check("oversize-register-path-ValueError", True)
     except OSError:
         check("oversize-register-path-ValueError", False)
+
+    if not _IN_MUTANT and _MERGE_MUTANTS:
+        survivors = _run_merge_mutants()
+        check("merge-mutants-caught" + (": " + "; ".join(survivors) if survivors else ""), not survivors)
 
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")

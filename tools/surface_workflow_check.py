@@ -1023,119 +1023,233 @@ def main(argv=None) -> int:
 
 # --- selftest: everything below is test code; the committed mutations apply above this line ---
 
-def _selftest_checks(check):
-    contract, matrix = load_json(CONTRACT), load_json(MATRIX)
-    check("contract-valid", validate_contract(contract, matrix) == [])
+_SELFTEST_MARK = "# --- selftest: everything below is test code; the committed mutations apply above this line ---\n"
+_IN_MUTANT = False
+
+
+def _pins_contract(m):
     import copy
-    bad = copy.deepcopy(contract)
-    bad["surprise"] = 1
-    check("contract-unknown-top-key", any("surprise" in p for p in validate_contract(bad, matrix)))
-    bad = copy.deepcopy(contract)
-    bad["workflows"][0]["steps"][0]["op"] = "surface.teleport"
-    check("contract-unknown-op", any("does not match kind" in p for p in validate_contract(bad, matrix)))
-    bad = copy.deepcopy(contract)
-    bad["workflows"][0]["path"].append("fax_machine")
-    check("contract-unknown-surface", any("fax_machine" in p for p in validate_contract(bad, matrix)))
-    bad = copy.deepcopy(contract)
-    bad["gap_ledger"][0]["probe"] = "nope"
-    check("contract-unknown-probe", any("unknown probe" in p for p in validate_contract(bad, matrix)))
-    bad = copy.deepcopy(contract)
-    mcp = next(st for wf in bad["workflows"] for st in wf["steps"] if st["op"] in MCP_OPS)
-    mcp["surface"] = "gemini_desktop"
-    check("contract-mcp-needs-tools", any("MCP step" in p for p in validate_contract(bad, matrix)))
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
 
-    check("origin-claimed", surface_origin(matrix, "claude_web") == "web")
-    check("origin-fallback-other", surface_origin(matrix, "gemini_web") == "other")
-    check("reach-hub-needs-drive", surface_can_reach(matrix, "claude_web", "Inbox")
-          and not surface_can_reach(matrix, "chatgpt_projects", "Inbox"))
-    check("reach-local-needs-local", surface_can_reach(matrix, "claude_desktop", "local")
-          and surface_can_reach(matrix, "gemini_desktop", "local")
-          and not surface_can_reach(matrix, "chatgpt_web_plain", "local"))
+    def bad(edit):
+        c = copy.deepcopy(contract)
+        edit(c)
+        return m.validate_contract(c, matrix)
 
-    box = Box("selftest", contract["pinned_today"])
+    def first_mcp(c):
+        return next(st for wf in c["workflows"] for st in wf["steps"] if st["op"] in m.MCP_OPS)
+
+    return [
+        ("contract-valid", m.validate_contract(contract, matrix) == []),
+        ("contract-unknown-top-key", any("surprise" in p for p in bad(lambda c: c.__setitem__("surprise", 1)))),
+        ("contract-unknown-step-key", any("unknown key" in p for p in bad(
+            lambda c: c["workflows"][0]["steps"][0].__setitem__("magic", 1)))),
+        ("contract-unknown-op", any("does not match kind" in p for p in bad(
+            lambda c: c["workflows"][0]["steps"][0].__setitem__("op", "surface.teleport")))),
+        ("contract-kind-mismatch", any("does not match kind" in p for p in bad(
+            lambda c: c["workflows"][0]["steps"][1].__setitem__("kind", "sim")))),
+        ("contract-unknown-surface", any("fax_machine" in p for p in bad(
+            lambda c: c["workflows"][0]["path"].append("fax_machine")))),
+        ("contract-undeclared-step-surface", any("not declared" in p for p in bad(
+            lambda c: c["workflows"][0]["steps"][0].__setitem__("surface", "gemini_gems")))),
+        ("contract-unknown-mode", any("unknown drive_write" in p for p in bad(
+            lambda c: c["surfaces"]["claude_web"].__setitem__("drive_write", "anything")))),
+        ("contract-unknown-probe", any("unknown probe" in p for p in bad(
+            lambda c: c["gap_ledger"][0].__setitem__("probe", "nope")))),
+        ("contract-unknown-gap", any("unknown gap" in p for p in bad(
+            lambda c: c["workflows"][0]["gaps"].append("SW-G99")))),
+        ("contract-duplicate-workflow", any("duplicate workflow" in p for p in bad(
+            lambda c: c["workflows"].append(copy.deepcopy(c["workflows"][0]))))),
+        ("contract-mcp-needs-tools", any("MCP step" in p for p in bad(
+            lambda c: first_mcp(c).__setitem__("surface", "gemini_desktop")))),
+    ]
+
+
+def _pins_write(m):
+    contract, matrix = m.load_json(m.CONTRACT), m.load_json(m.MATRIX)
+    out = [("origin-claimed", m.surface_origin(matrix, "claude_web") == "web"),
+           ("origin-fallback-other", m.surface_origin(matrix, "gemini_web") == "other"),
+           ("reach-hub-needs-drive", m.surface_can_reach(matrix, "claude_web", "Inbox")
+            and not m.surface_can_reach(matrix, "chatgpt_projects", "Inbox")),
+           ("reach-local-needs-local", m.surface_can_reach(matrix, "claude_desktop", "local")
+            and m.surface_can_reach(matrix, "gemini_desktop", "local")
+            and not m.surface_can_reach(matrix, "chatgpt_web_plain", "local")),
+           ("human-local-only", m.surface_can_reach(matrix, "human_at_home", "local")
+            and not m.surface_can_reach(matrix, "human_at_home", "Inbox"))]
+    box = m.Box("selftest", contract["pinned_today"])
     try:
         ctx = {"contract": contract, "matrix": matrix, "wf": "selftest"}
-        st = {"id": "s1", "surface": "claude_web", "with": {"mode": "update", "area": "Inbox", "name": "x",
-                                                             "json": {}}}
-        check("mode-refused", "refused" in op_surface_write(box, st, ctx))
-        st = {"id": "s1b", "surface": "gemini_web", "with": {"mode": "trash", "area": "Inbox", "name": "x"}}
-        check("mode-refused-trash", "refused" in op_surface_write(box, st, ctx))
-        st = {"id": "s2", "surface": "chatgpt_projects", "with": {"mode": "create", "area": "Inbox", "kind": "k",
-                                                                   "json": {}}}
+        w = lambda i, sid, **kw: m.op_surface_write(box, {"id": i, "surface": sid, "with": kw}, ctx)  # noqa: E731
+        out.append(("mode-refused-update", "refused" in w("s1", "claude_web", mode="update", area="Inbox",
+                                                           name="x", json={})))
+        out.append(("mode-refused-trash", "refused" in w("s2", "gemini_web", mode="trash", area="Inbox", name="x")))
         ctx2 = dict(ctx, contract=dict(contract, surfaces=dict(contract["surfaces"],
                                                                 chatgpt_projects={"drive_write": "create"})))
-        check("area-refused", "refused" in op_surface_write(box, st, ctx2))
-        st = {"id": "s3", "surface": "claude_web", "with": {"mode": "create", "area": "Inbox", "kind": "note",
-                                                             "json": {"a": 1}}}
-        out = op_surface_write(box, st, ctx)
-        check("write-name-origin", out.get("origin") == "web" and out["name"].endswith(".web.json"))
-        with Isolation(box) as iso:
-            check("preflight-clean", iso.preflight() == [])
-            pm.STATE_PATH = ROOT / "pipeline" / "user-context" / "profile-mirror-state.local.json"
-            check("preflight-refuses-real-path", any("STATE_PATH" in b for b in iso.preflight()))
-        check("isolation-restores", pm.STATE_PATH != box.state and os.environ.get("HOME") != str(box.home))
+        out.append(("area-refused", "refused" in m.op_surface_write(
+            box, {"id": "s3", "surface": "chatgpt_projects",
+                  "with": {"mode": "create", "area": "Inbox", "kind": "k", "json": {}}}, ctx2)))
+        made = w("s4", "claude_web", mode="create", area="Inbox", kind="note", json={"a": 1})
+        out.append(("write-name-origin", made.get("origin") == "web" and made.get("name", "").endswith(".web.json")
+                    and (box.hub / "Inbox" / made["name"]).is_file()))
+        out.append(("write-local-lands-in-context", "name" in w("s5", "human_at_home", mode="create", area="local",
+                                                                  name="x.local.json", json={})
+                    and (box.context / "x.local.json").is_file()))
     finally:
         box.close()
+    return out
 
+
+def _pins_isolation(m):
+    contract = m.load_json(m.CONTRACT)
+    box = m.Box("selftest-iso", contract["pinned_today"])
+    out = []
+    try:
+        real = {k: getattr(m.pm, k) for k in ("STATE_PATH", "CONTEXT_DIR", "LOG_DIR")}
+        real_ledger, real_home = m.ib.LEDGER_PATH, os.environ.get("HOME")
+        with m.Isolation(box) as iso:
+            out.append(("preflight-clean", iso.preflight() == []))
+            out.append(("isolation-points-inside", box.inside(m.pm.STATE_PATH) and box.inside(m.pm.LOG_DIR)
+                        and box.inside(m.ib.LEDGER_PATH) and box.inside(os.environ["HOME"])
+                        and m.pm.da._default_transport is box.drive))
+            for name, value in (("STATE_PATH", real["STATE_PATH"]), ("LOG_DIR", real["LOG_DIR"])):
+                saved = getattr(m.pm, name)
+                setattr(m.pm, name, value)
+                out.append((f"preflight-refuses-{name}", any(name in b for b in iso.preflight())))
+                setattr(m.pm, name, saved)
+            m.ib.LEDGER_PATH = real_ledger
+            out.append(("preflight-refuses-ledger", any("LEDGER_PATH" in b for b in iso.preflight())))
+            m.ib.LEDGER_PATH = box.ledger
+            saved_t = m.pm.da._default_transport
+            m.pm.da._default_transport = lambda *a, **k: (0, b"")
+            out.append(("preflight-refuses-transport", any("transport" in b for b in iso.preflight())))
+            m.pm.da._default_transport = saved_t
+        out.append(("isolation-restores", all(getattr(m.pm, k) == v for k, v in real.items())
+                    and m.ib.LEDGER_PATH == real_ledger and os.environ.get("HOME") == real_home))
+    finally:
+        box.close()
+    out.append(("box-removed", not box.root.exists()))
+    return out
+
+
+def _pins_detect(m):
     v_ok = lambda t: []  # noqa: E731 - a doctored validator that accepts everything
-    check("detect-vendor-origin", detect_vendor_origin(q.validate_ticket, 'origin="other"')
-          and not detect_vendor_origin(v_ok, 'origin="other"')
-          and not detect_vendor_origin(q.validate_ticket, 'origin=surface'))
-    check("detect-result-lacks", detect_result_lacks({"status": 1}, "origin")
-          and not detect_result_lacks({"origin": "web"}, "origin"))
-    check("detect-runlog", detect_no_runlog(["import json"], [])
-          and not detect_no_runlog(["RotatingFileHandler(path)"], [])
-          and not detect_no_runlog(["x"], ["handoff.log"]))
-    check("detect-record-option", detect_no_record_option("ap.add_argument('--input')")
-          and not detect_no_record_option("ap.add_argument(\"--record\", metavar='HUB')"))
-    check("detect-workspace", detect_workspace_map({"gmail": "available", "google_drive": "not_installed"})
-          and not detect_workspace_map({"gmail": "available", "google_drive": "available"}))
-    check("declared-only", declared_only_flags(["a_flag", "b_flag"], ['x = caps.get("a_flag")'])
-          == ["b_flag"])
-    check("detect-profile-import", detect_profile_import_chatgpt_only("merges ChatGPT exports", False)
-          and not detect_profile_import_chatgpt_only("ChatGPT and Gemini exports", False)
-          and not detect_profile_import_chatgpt_only("ChatGPT exports", True))
-    check("detect-preference-merge", detect_no_preference_merge(["writes rate cards"])
-          and not detect_no_preference_merge(["proposes a merged voice-profile from dated exports"]))
+    return [
+        ("detect-vendor-origin", m.detect_vendor_origin(m.q.validate_ticket, 'origin="other"')
+         and not m.detect_vendor_origin(v_ok, 'origin="other"')
+         and not m.detect_vendor_origin(m.q.validate_ticket, 'origin=surface')),
+        ("detect-result-lacks", m.detect_result_lacks({"status": 1}, "origin")
+         and not m.detect_result_lacks({"origin": "web"}, "origin")),
+        ("detect-runlog", m.detect_no_runlog(["import json"], [])
+         and not m.detect_no_runlog(["RotatingFileHandler(path)"], [])
+         and not m.detect_no_runlog(["stamp = 'handoff.last-run'"], [])
+         and not m.detect_no_runlog(["x"], ["handoff.log"])),
+        ("detect-record-option", m.detect_no_record_option("ap.add_argument('--input')")
+         and not m.detect_no_record_option("ap.add_argument(\"--record\", metavar='HUB')")),
+        ("detect-workspace", m.detect_workspace_map({"gmail": "available", "google_drive": "not_installed"})
+         and not m.detect_workspace_map({"gmail": "available", "google_drive": "available"})
+         and not m.detect_workspace_map({"gmail": "not_installed"})),
+        ("declared-only", m.declared_only_flags(["a_flag", "b_flag"], ['x = caps.get("a_flag")']) == ["b_flag"]
+         and m.declared_only_flags(["a_flag"], ["'a_flag'"]) == []),
+        ("detect-profile-import", m.detect_profile_import_chatgpt_only("merges ChatGPT exports", False)
+         and not m.detect_profile_import_chatgpt_only("ChatGPT and Gemini exports", False)
+         and not m.detect_profile_import_chatgpt_only("ChatGPT exports", True)),
+        ("detect-preference-merge", m.detect_no_preference_merge(["writes rate cards"])
+         and not m.detect_no_preference_merge(["proposes a merged voice-profile from dated exports"])),
+    ]
 
-    ok_report = {"contract_problems": [], "workflows": [{"failures": []}], "gaps": [{"observed": True, "error": None}],
-                 "real_machine": {"status": "skip"}}
-    check("suite-ok", suite_ok(ok_report))
-    check("suite-fails-on-closed-gap", not suite_ok(dict(ok_report, gaps=[{"observed": False, "error": None}])))
-    check("suite-fails-on-probe-error", not suite_ok(dict(ok_report, gaps=[{"observed": True, "error": "x"}])))
-    check("suite-fails-on-step", not suite_ok(dict(ok_report, workflows=[{"failures": ["s: x"]}])))
-    check("suite-fails-on-real-machine", not suite_ok(dict(ok_report, real_machine={"status": "fail"})))
-    check("suite-fails-on-contract", not suite_ok(dict(ok_report, contract_problems=["x"])))
-    check("snapshot-compare-pass", compare_snapshots({"files": {"a": (1, 2)}, "notes": [], "stamp": None},
-                                                     {"files": {"a": (1, 2)}, "notes": [], "stamp": None})["status"] == "pass")
-    check("snapshot-compare-fail", compare_snapshots({"files": {"a": (1, 2)}, "notes": [], "stamp": None},
-                                                     {"files": {"a": (1, 3)}, "notes": [], "stamp": None})["status"] == "fail")
-    check("snapshot-compare-skip", compare_snapshots({"files": {}, "notes": [], "stamp": None},
-                                                     {"files": {}, "notes": ["SKIP real hub: none"], "stamp": None})["status"] == "skip")
-    check("snapshot-agent-excluded", compare_snapshots(
-        {"files": {"/x/profile-mirror.log": (1, 2)}, "notes": [], "stamp": (1, 1)},
-        {"files": {"/x/profile-mirror.log": (2, 3)}, "notes": [], "stamp": (2, 2)})["status"] == "pass")
+
+def _pins_verdict(m):
+    ok_report = {"contract_problems": [], "workflows": [{"failures": []}],
+                 "gaps": [{"observed": True, "error": None}], "real_machine": {"status": "skip"}}
+    snap = lambda files, notes=(), stamp=None: {"files": files, "notes": list(notes), "stamp": stamp}  # noqa: E731
+    return [
+        ("suite-ok", bool(m.suite_ok(ok_report))),
+        ("suite-fails-on-closed-gap", not m.suite_ok(dict(ok_report, gaps=[{"observed": False, "error": None}]))),
+        ("suite-fails-on-probe-error", not m.suite_ok(dict(ok_report, gaps=[{"observed": True, "error": "x"}]))),
+        ("suite-fails-on-step", not m.suite_ok(dict(ok_report, workflows=[{"failures": ["s: x"]}]))),
+        ("suite-fails-on-no-workflows", not m.suite_ok(dict(ok_report, workflows=[]))),
+        ("suite-fails-on-real-machine", not m.suite_ok(dict(ok_report, real_machine={"status": "fail"}))),
+        ("suite-fails-on-contract", not m.suite_ok(dict(ok_report, contract_problems=["x"]))),
+        ("snapshot-compare-pass", m.compare_snapshots(snap({"a": (1, 2)}), snap({"a": (1, 2)}))["status"] == "pass"),
+        ("snapshot-compare-fail", m.compare_snapshots(snap({"a": (1, 2)}), snap({"a": (1, 3)}))["status"] == "fail"),
+        ("snapshot-compare-new-file", m.compare_snapshots(snap({}), snap({"b": (1, 1)}))["status"] == "fail"),
+        ("snapshot-compare-skip", m.compare_snapshots(snap({}), snap({}, ["SKIP real hub: none"]))["status"] == "skip"),
+        ("snapshot-agent-excluded", m.compare_snapshots(snap({"/x/profile-mirror.log": (1, 2)}, stamp=(1, 1)),
+                                                        snap({"/x/profile-mirror.log": (2, 3)}, stamp=(2, 2)))["status"]
+         == "pass"),
+        ("snapshot-agent-not-excused", m.compare_snapshots(snap({"/x/profile-mirror.log": (1, 2)}, stamp=(1, 1)),
+                                                           snap({"/x/profile-mirror.log": (2, 3)}, stamp=(1, 1)))["status"]
+         == "fail"),
+    ]
+
+
+def _pins_workflows(m):
+    """The whole contract against this module: every workflow passes and every gap is observed."""
+    report = m.run_suite()
+    out = [("suite-ok", bool(m.suite_ok(report)))]
+    out += [(f"workflow-{w['id'].split('-')[0]}", not w["failures"]) for w in report["workflows"]]
+    out += [(f"gap-{g['id']}", g["observed"] and not g["error"]) for g in report["gaps"]]
+    return out
+
+
+_PIN_GROUPS = {"contract": _pins_contract, "write": _pins_write, "isolation": _pins_isolation,
+               "detect": _pins_detect, "verdict": _pins_verdict, "workflows": _pins_workflows}
+
+# (label, pin group, anchor, replacement). The anchor must occur exactly once above the selftest
+# marker; the mutated module is exec'd and its pin group must fail. Chosen by a reviewer who did not
+# write the code (docs/AUDIT-PROTOCOL.md section 7.2).
+_MUTANTS = ()
+
+
+def _mutant_module(source: str):
+    mod = types.ModuleType("surface_workflow_check_mutant")
+    mod.__file__ = __file__
+    exec(compile(source, "<surface_workflow_check mutant>", "exec"), mod.__dict__)
+    mod._IN_MUTANT = True
+    return mod
+
+
+def _run_mutants() -> list:
+    """The labels of mutants their pin group did not catch (or whose anchor is not unique)."""
+    head, mark, tail = Path(__file__).read_text(encoding="utf-8").partition(_SELFTEST_MARK)
+    survivors = []
+    for label, group, old, new in _MUTANTS:
+        if head.count(old) != 1:
+            survivors.append(f"{label} (anchor not found exactly once)")
+            continue
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                results = _PIN_GROUPS[group](_mutant_module(head.replace(old, new) + mark + tail))
+        except Exception:  # noqa: BLE001 - a mutant that crashes its pins is caught
+            results = [("crashed", False)]
+        if all(ok for _, ok in results):
+            survivors.append(label)
+    return survivors
 
 
 def selftest() -> int:
-    failures, ran = [], [0]
-
-    def check(name, cond):
-        ran[0] += 1
-        if not cond:
-            failures.append(name)
-
+    me = sys.modules[__name__]
+    failures, ran = [], 0
     try:
-        _selftest_checks(check)
+        for group, fn in _PIN_GROUPS.items():
+            for name, ok in fn(me):
+                ran += 1
+                if not ok:
+                    failures.append(f"{group}:{name}")
+        if not _IN_MUTANT and _MUTANTS:
+            survivors = _run_mutants()
+            ran += 1
+            if survivors:
+                failures.append("mutants survived: " + "; ".join(survivors))
     except Exception as exc:  # noqa: BLE001 - a crash is a failure, reported by name
         failures.append(f"crashed: {type(exc).__name__}: {exc}")
     finally:
         if "tmp" in _MS:
             shutil.rmtree(_MS["tmp"], ignore_errors=True)
     if failures:
-        print(f"selftest: FAIL ({len(failures)} of {ran[0]} checks): " + ", ".join(failures))
+        print(f"selftest: FAIL ({len(failures)} of {ran} checks): " + ", ".join(failures))
         return 1
-    print(f"selftest: PASS ({ran[0]} of {ran[0]} checks)")
+    print(f"selftest: PASS ({ran} of {ran} checks; {len(_MUTANTS)} committed mutants caught)")
     return 0
 
 
