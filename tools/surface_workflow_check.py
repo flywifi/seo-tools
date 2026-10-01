@@ -184,11 +184,22 @@ _PYC_NAME = re.compile(r"[^/\\]+\." + (re.escape(sys.implementation.cache_tag) i
                                          else r"(?!)") + r"(\.opt-[12])?\.pyc(\.\d+)?")
 
 
+def _cache_file_step(event, name) -> bool:
+    """One of the steps importlib takes to write a cache file (_write_atomic): opening the file or its
+    temporary <...>.pyc.<digits> twin, renaming the twin into place, and removing the twin after a
+    failed write. Any other event on a cache-named file (removing the file itself, chmod, a symlink,
+    rmtree) is not one of them."""
+    found = _PYC_NAME.fullmatch(name)
+    if not found:
+        return False
+    return event in ("open", "os.rename") or (event == "os.remove" and found.group(2) is not None)
+
+
 def _is_bytecode_cache(event, path) -> bool:
-    """The interpreter's own cache: creating a folder named __pycache__, or inside one a file named
-    <module>.<this interpreter's cache tag>[.opt-N].pyc or its temporary <...>.pyc.<digits> twin.
-    With a bytecode prefix set (sys.pycache_prefix): creating the prefix folder, a missing parent of
-    it, or a folder under it, and writing such a file under it."""
+    """The interpreter's own cache: creating a folder named __pycache__, and inside one the steps that
+    write a file named <module>.<this interpreter's cache tag>[.opt-N].pyc (_cache_file_step). With a
+    bytecode prefix set (sys.pycache_prefix): creating the prefix folder, a missing parent of it, or a
+    folder under it, and the same cache-file steps under it."""
     parent, name = os.path.split(path)
     if event == "os.mkdir" and name == "__pycache__":
         return True
@@ -196,8 +207,8 @@ def _is_bytecode_cache(event, path) -> bool:
     if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):
         return True  # the interpreter creating a missing prefix folder, and its missing parents, itself
     if prefix and path.startswith(prefix + os.sep):
-        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))
-    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))
+        return event == "os.mkdir" or _cache_file_step(event, name)
+    return os.path.basename(parent) == "__pycache__" and _cache_file_step(event, name)
 
 
 def _guard_hook(event, args):
@@ -2074,24 +2085,15 @@ def _detect_more_checks(m):
 
 def _gate_check(m):
     """selftest() skips the mutation cases, and says so, when a guard pin failed (the gate sits below
-    the marker, so no committed case can mutate it; this runs the real source with stub groups)."""
-    mod = types.ModuleType("swc_gate_probe")
-    mod.__file__ = m.__file__
-    sys.modules["swc_gate_probe"] = mod  # selftest() finds itself through sys.modules
-    saved_path = list(sys.path)
-    try:
-        source = getattr(m, "_SOURCE", None) or Path(m.__file__).read_text(encoding="utf-8")
-        exec(compile(source, "<swc_gate_probe>", "exec"), mod.__dict__)
-        calls = []
+    the marker, so no committed case can mutate it; this runs the copy's source with stub groups)."""
+    calls = []
+
+    def setup(mod):
         mod._PIN_GROUPS = {"guard": lambda _m: [("stub-guard-broken", False)], "other": lambda _m: [("stub-ok", True)]}
         mod._run_mutants = lambda table=None: calls.append(1) or []
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            rc = mod.selftest()
-    finally:
-        sys.modules.pop("swc_gate_probe", None)
-        sys.path[:] = saved_path
-    return [("selftest-skips-mutants-when-guard-fails", rc == 1 and not calls and "mutants not run" in buf.getvalue())]
+
+    rc, out = _probe_selftest(m, "swc_gate_probe", setup)
+    return [("selftest-skips-mutants-when-guard-fails", rc == 1 and not calls and "mutants not run" in out)]
 
 
 def _guard_bytecode_scope_checks(m):
@@ -2333,8 +2335,8 @@ def _runner_crash_and_group_checks(m):
 def _guard_bytecode_edge_checks(m):
     """Edges of the exemption: removing or symlinking a cache-named folder, a name that only begins
     like one, a cache file under a folder whose name merely contains __pycache__, and, with a prefix
-    set, a sibling of the prefix, a removal or a foreign .pyc under it are refused; the prefix folder
-    and its missing parents may be created; the prefix is compared as a real path."""
+    set, a sibling of the prefix, removing a folder under it, or a foreign .pyc under it are refused;
+    the prefix folder and its missing parents may be created; the prefix is compared as a real path."""
     tag = sys.implementation.cache_tag
     box = m.Box("pin-pyc-edges", "2026-10-01")
     r = box.root
@@ -2393,6 +2395,151 @@ def _runner_import_path_every_case_check(m):
     return [("mutant-runner-restores-import-path-every-case", after == before)]
 
 
+def _guard_cache_file_step_checks(m):
+    """Inside a __pycache__ folder and under a bytecode prefix, the guard lets through the steps that
+    write a cache file (open, renaming the twin into place, removing the twin) and refuses removing,
+    removing as a tree, chmod-ing or symlinking the cache file itself."""
+    tag = sys.implementation.cache_tag
+    box = m.Box("pin-pyc-steps", "2026-10-01")
+    r = box.root
+    args = {"open": lambda p: (str(p), None, os.O_WRONLY | os.O_CREAT | os.O_EXCL),
+            "os.rename": lambda p: (str(p), str(p), -1, -1), "os.remove": lambda p: (str(p), -1),
+            "shutil.rmtree": lambda p: (str(p), None), "os.chmod": lambda p: (str(p), 384, -1),
+            "os.symlink": lambda p: ("elsewhere", str(p), -1)}
+
+    def refused(path, ev):
+        try:
+            m._guard_hook(ev, args[ev](path))
+            return False
+        except PermissionError:
+            return True
+
+    saved = sys.pycache_prefix
+    out = []
+    try:
+        with m.write_guard(r / "in"):
+            names = {"cache": ("guard-cache-allows-write-steps", "guard-cache-refuses-other-steps"),
+                     "prefix": ("guard-prefix-allows-write-steps", "guard-prefix-refuses-other-steps")}
+            for where, folder in (("cache", r / "pkg" / "__pycache__"), ("prefix", r / "pfx" / "pkg")):
+                sys.pycache_prefix = str(r / "pfx") if where == "prefix" else saved
+                final, twin = folder / f"mod.{tag}.pyc", folder / f"mod.{tag}.pyc.140305632786992"
+                out += [(names[where][0], not refused(twin, "open") and not refused(twin, "os.rename")
+                         and not refused(final, "os.rename") and not refused(twin, "os.remove")),
+                        (names[where][1], refused(final, "os.remove") and refused(final, "shutil.rmtree")
+                         and refused(final, "os.chmod") and refused(final, "os.symlink"))]
+    finally:
+        sys.pycache_prefix = saved
+        m._GUARD["stack"].clear()
+        box.close()
+    return out
+
+
+def _guard_prefix_parent_edge_checks(m):
+    """The prefix folder's parents may be created at any depth, only by os.mkdir, only when they are
+    real parents (not a name that merely begins like one), compared as real paths."""
+    box = m.Box("pin-pfx-parents", "2026-10-01")
+    r = box.root
+
+    def refused(path, ev="open"):
+        args = {"open": (str(path), "w", 577), "os.mkdir": (str(path), 511, -1), "os.rmdir": (str(path), -1),
+                "shutil.rmtree": (str(path), None)}[ev]
+        try:
+            m._guard_hook(ev, args)
+            return False
+        except PermissionError:
+            return True
+
+    (r / "real").mkdir()
+    os.symlink(r / "real", r / "lnk")
+    saved, out = sys.pycache_prefix, []
+    try:
+        with m.write_guard(r / "in"):
+            sys.pycache_prefix = str(r / "a" / "b" / "pfx")
+            out += [("guard-prefix-deep-parents-created", not refused(r / "a", "os.mkdir")
+                     and not refused(r / "a" / "b", "os.mkdir") and not refused(r / "a" / "b" / "pfx", "os.mkdir")),
+                    ("guard-prefix-name-prefix-not-a-parent", refused(r / "a" / "b" / "pf", "os.mkdir")
+                     and refused(r / "a" / "b" / "p", "os.mkdir")),
+                    ("guard-prefix-parent-only-created", refused(r / "a", "shutil.rmtree") and refused(r / "a", "os.rmdir")
+                     and refused(r / "a", "open"))]
+            sys.pycache_prefix = str(r / "lnk" / "c" / "pfx")
+            out.append(("guard-prefix-parent-compared-as-real-path", not refused(r / "real" / "c", "os.mkdir")))
+    finally:
+        sys.pycache_prefix = saved
+        m._GUARD["stack"].clear()
+        box.close()
+    return out
+
+
+def _guard_real_import_under_prefix_check(m):
+    """A real first import with a missing three-level bytecode prefix creates the prefix and its
+    parents and writes the cache file there, all inside the guard without a refusal."""
+    import importlib.util
+    tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-pfximport-"))
+    src = tmp / "src"
+    src.mkdir()
+    (tmp / "allowed").mkdir()
+    name = "swc_pin_" + uuid.uuid4().hex[:8]
+    (src / (name + ".py")).write_text("X = 1\n", encoding="utf-8")
+    old, old_prefix = sys.dont_write_bytecode, sys.pycache_prefix
+    sys.dont_write_bytecode, sys.pycache_prefix = False, str(tmp / "p1" / "p2" / "pfx")
+    cached = Path(importlib.util.cache_from_source(str(src / (name + ".py"))))
+    sys.path.insert(0, str(src))
+    try:
+        with m.write_guard(tmp / "allowed") as rec:
+            importlib.import_module(name)
+        ok = not rec["blocked"] and cached.is_file() and (tmp / "p1" / "p2" / "pfx") in cached.parents
+    finally:
+        sys.dont_write_bytecode, sys.pycache_prefix = old, old_prefix
+        sys.path.remove(str(src))
+        sys.path_importer_cache.pop(str(src), None)
+        sys.modules.pop(name, None)
+        m._GUARD["stack"].clear()
+        shutil.rmtree(tmp, ignore_errors=True)
+    return [("guard-allows-real-import-under-missing-prefix", ok)]
+
+
+def _guard_real_import_hygiene_check(m):
+    """Run with the owner's own bytecode prefix set, the real-import check passes, writes nothing
+    there, and puts back the prefix, the bytecode switch and the importer cache."""
+    pfx = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-userpfx-"))
+    saved_prefix, saved_dwb = sys.pycache_prefix, sys.dont_write_bytecode
+    before = set(sys.path_importer_cache)
+    sys.pycache_prefix, sys.dont_write_bytecode = str(pfx), True  # known values the check must put back
+    try:
+        res = dict(m._guard_real_import_check(m))
+        after_prefix, after_dwb = sys.pycache_prefix, sys.dont_write_bytecode
+        leaked = list(pfx.rglob("*"))
+        stale = [k for k in set(sys.path_importer_cache) - before if "creator-os-surface-pin-import-" in str(k)]
+    finally:
+        sys.pycache_prefix, sys.dont_write_bytecode = saved_prefix, saved_dwb
+        shutil.rmtree(pfx, ignore_errors=True)
+    return [("real-import-check-passes-under-user-prefix", res.get("guard-allows-real-bytecode-write") is True),
+            ("real-import-check-writes-nothing-under-user-prefix", not leaked),
+            ("real-import-check-restores-prefix", after_prefix == str(pfx)),
+            ("real-import-check-restores-dont-write", after_dwb is True),
+            ("real-import-check-drops-importer-cache", not stale)]
+
+
+def _probe_reads_copy_text_check(m):
+    """_probe_selftest (which _gate_check and the control checks use) runs the copy's own text."""
+    head, mark, tail = Path(m.__file__).read_text(encoding="utf-8").partition(m._SELFTEST_MARK)
+    cm = m._mutant_module(head + "\nAUDIT_COPY_TAG = 1\n" + mark + tail)
+    seen = []
+
+    def setup(mod):
+        seen.append(hasattr(mod, "AUDIT_COPY_TAG"))
+        mod._PIN_GROUPS = {"g": lambda _m: [("x", True)]}
+        mod._MUTANTS = ()
+
+    saved = list(sys.path)
+    try:
+        rc, _ = m._probe_selftest(cm, "swc_probe_copy", setup)
+    finally:
+        cm._GUARD["stack"].clear()
+        sys.path[:] = saved
+    return [("probe-selftest-reads-copy-text", seen == [True] and rc == 0)]
+
+
 def _pins_mutant_runner(m):
     """The mutation runner reports a change its checks do not catch and an anchor it cannot find, and
     does not report one they do catch. No committed case names this group."""
@@ -2430,13 +2577,16 @@ _PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks, _contra
                "write": _group(_pins_write, _write_move_checks, _write_create_dotdot_check),
                "isolation": _group(_pins_isolation, _isolation_restore_checks, _preflight_entry_checks),
                "guard": _group(_pins_guard, _guard_event_checks, _guard_bytecode_checks,
-                               _guard_bytecode_scope_checks, _guard_bytecode_edge_checks, _guard_real_import_check),
+                               _guard_bytecode_scope_checks, _guard_bytecode_edge_checks, _guard_cache_file_step_checks,
+                               _guard_prefix_parent_edge_checks, _guard_real_import_check,
+                               _guard_real_import_under_prefix_check, _guard_real_import_hygiene_check),
                "detect": _group(_pins_detect, _detect_more_checks), "verdict": _pins_verdict,
                "suite": _group(_pins_suite, _suite_judged_events_check), "run": _pins_run, "mcp": _pins_mcp,
                "workflows": _pins_workflows,
                "patchables": _group(_mutant_runner_patchable_check, _runner_import_path_every_case_check),
                "mutant-runner": _group(_pins_mutant_runner, _mutant_runner_state_checks, _gate_check,
-                                       _selftest_control_checks, _runner_crash_and_group_checks)}
+                                       _selftest_control_checks, _runner_crash_and_group_checks,
+                                       _probe_reads_copy_text_check)}
 
 # (label, pin group, anchor, replacement). The anchor must occur exactly once above the selftest
 # marker; the mutated module is exec'd and its pin group must fail. Chosen by a reviewer who did not
@@ -2917,14 +3067,14 @@ _MUTANTS = (
      '    return sorted(set(matrix["surfaces"]) | {v for v in vendors if v} | {"claude", "chatgpt", "gemini"})',
      '    return sorted({"claude", "chatgpt", "gemini"})'),
     ('I1a pycache-any-file', 'guard',
-     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
+     '    return os.path.basename(parent) == "__pycache__" and _cache_file_step(event, name)',
      '    return os.path.basename(parent) == "__pycache__"'),
     ('I1b tagged-pyc-anywhere', 'guard',
-     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
-     '    return bool(_PYC_NAME.fullmatch(name))'),
+     '    return os.path.basename(parent) == "__pycache__" and _cache_file_step(event, name)',
+     '    return _cache_file_step(event, name)'),
     ('I1c pyc-prefix-match', 'guard',
-     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
-     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.match(name))'),
+     '    found = _PYC_NAME.fullmatch(name)',
+     '    found = _PYC_NAME.match(name)'),
     ('I1d folder-suffix', 'guard',
      '    if event == "os.mkdir" and name == "__pycache__":',
      '    if event == "os.mkdir" and name.endswith("__pycache__"):'),
@@ -3037,7 +3187,7 @@ _MUTANTS = (
      '    if prefix and path.startswith(prefix + os.sep):',
      '    if False:'),
     ('I1l prefix-any-file', 'guard',
-     '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
+     '        return event == "os.mkdir" or _cache_file_step(event, name)',
      '        return True'),
     ('X1 cache-folder-rmdir-exempt', 'guard',
      '    if event == "os.mkdir" and name == "__pycache__":',
@@ -3058,14 +3208,14 @@ _MUTANTS = (
      '    if prefix and path.startswith(prefix + os.sep):',
      '    if prefix and path.startswith(prefix):'),
     ('X7 prefix-any-non-open-event', 'guard',
-     '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
-     '        return event != "open" or bool(_PYC_NAME.fullmatch(name))'),
+     '        return event == "os.mkdir" or _cache_file_step(event, name)',
+     '        return event != "open" or _cache_file_step(event, name)'),
     ('X8 prefix-any-pyc-name', 'guard',
-     '        return event == "os.mkdir" or bool(_PYC_NAME.fullmatch(name))',
+     '        return event == "os.mkdir" or _cache_file_step(event, name)',
      '        return event == "os.mkdir" or name.endswith(".pyc")'),
     ('X9 cache-parent-substring', 'guard',
-     '    return os.path.basename(parent) == "__pycache__" and bool(_PYC_NAME.fullmatch(name))',
-     '    return "__pycache__" in parent and bool(_PYC_NAME.fullmatch(name))'),
+     '    return os.path.basename(parent) == "__pycache__" and _cache_file_step(event, name)',
+     '    return "__pycache__" in parent and _cache_file_step(event, name)'),
     ('X10 prefix-folder-not-exempt', 'guard',
      '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
      '    if False:'),
@@ -3087,6 +3237,30 @@ _MUTANTS = (
     ('PS creds-not-captured', 'patchables',
      '    return {"creds": pc.load_credentials, "config": ',
      '    return {"creds": None, "config": '),
+    ('A1 ancestor-any-event', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if prefix and ((event == "os.mkdir" and path == prefix) or prefix.startswith(path.rstrip(os.sep) + os.sep)):'),
+    ('A2 ancestor-no-separator', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep))):'),
+    ('A3 immediate-parent-only', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if prefix and event == "os.mkdir" and (path == prefix or path == os.path.dirname(prefix)):'),
+    ('A7 ancestor-unresolved-prefix', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if prefix and event == "os.mkdir" and (path == prefix or sys.pycache_prefix.startswith(path.rstrip(os.sep) + os.sep)):'),
+    ('A8 prefix-itself-not-exempt', 'guard',
+     '    if prefix and event == "os.mkdir" and (path == prefix or prefix.startswith(path.rstrip(os.sep) + os.sep)):',
+     '    if prefix and event == "os.mkdir" and (prefix.startswith(path.rstrip(os.sep) + os.sep)):'),
+    ('E1 cache-file-any-event', 'guard',
+     '    return event in ("open", "os.rename") or (event == "os.remove" and found.group(2) is not None)',
+     '    return True'),
+    ('E2 any-cache-file-removable', 'guard',
+     '    return event in ("open", "os.rename") or (event == "os.remove" and found.group(2) is not None)',
+     '    return event in ("open", "os.rename", "os.remove")'),
+    ('E3 rename-not-a-step', 'guard',
+     '    return event in ("open", "os.rename") or (event == "os.remove" and found.group(2) is not None)',
+     '    return event == "open" or (event == "os.remove" and found.group(2) is not None)'),
 )
 
 

@@ -36,9 +36,10 @@ The gate against touching the owner's files is a write guard: an audit hook that
 workflows and probes run, refuses and records the writes it judges (opening a file for writing,
 and the `os` and `shutil` calls that remove, rename, move, copy or create a file or folder) when
 they land outside the system temporary folder. The interpreter's own bytecode cache is let
-through: creating a `__pycache__` folder and writing this interpreter's cache file inside one,
-and, with a configured bytecode prefix, creating the prefix folder, its missing parents and folders
-under it and writing such a file there. A refusal fails the suite, and so does a run in which
+through: creating a `__pycache__` folder and, inside one, the steps that write this interpreter's
+cache file (open, rename the temporary twin into place, remove the twin after a failed write), and,
+with a configured bytecode prefix, creating the prefix folder, its missing parents and folders under
+it and the same cache-file steps there. Removing or re-permissioning a cache file is refused. A refusal fails the suite, and so does a run in which
 the guard judged no write. Outside its view are writes by another process, writes made inside a C
 library, writes through a file handle opened earlier, `os.mkfifo` and `os.mknod` (no audit event),
 `os` calls given a folder handle (skipped), and a file opened relative to a folder handle (judged

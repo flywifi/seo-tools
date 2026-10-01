@@ -54,14 +54,19 @@ this process makes through `open` for writing and through the `os` and `shutil` 
 rename, move, copy or create a file or folder. It refuses and records such a write when it lands
 outside the system temporary folder (selftest checks `guard-refuses-open-write`,
 `guard-refuses-rename-out`, `guard-refuses-mkdir-outside`, `guard-refuses-rmtree-outside` and
-`suite-reports-blocked-write`). It lets through the interpreter's own bytecode cache and nothing
-else of that kind: creating a folder named `__pycache__`, and inside one writing a `.pyc` file
-named with this interpreter's cache tag or its temporary twin; with a bytecode prefix set
-(`PYTHONPYCACHEPREFIX`), creating the prefix folder or a missing parent of it, creating a folder
-under it, and writing such a file there (checks `guard-exempts-only-bytecode-cache`,
-`guard-exempts-cache-folder-creation`, `guard-allows-real-bytecode-write`,
-`guard-exempts-bytecode-prefix`, `guard-prefix-folder-and-parents-created`, and the
-`guard-refuses-*` and `guard-prefix-refuses-*` checks beside them). The run fails if the guard refused a write or judged none (a guard that saw
+`suite-reports-blocked-write`). It lets through the writes of the interpreter's own bytecode
+cache: creating a folder named `__pycache__`, and inside one the steps that write a `.pyc` file
+named with this interpreter's cache tag (opening the file or its temporary twin, renaming the twin
+into place, and removing the twin after a failed write); removing, re-permissioning or symlinking
+the cache file itself is refused. With a bytecode prefix set (`PYTHONPYCACHEPREFIX`), it also lets
+through creating the prefix folder and its missing parents at any depth (by folder creation only),
+creating folders under it, and the same cache-file steps there (checks
+`guard-exempts-only-bytecode-cache`, `guard-exempts-cache-folder-creation`,
+`guard-cache-allows-write-steps`, `guard-cache-refuses-other-steps`,
+`guard-prefix-allows-write-steps`, `guard-prefix-refuses-other-steps`,
+`guard-prefix-deep-parents-created`, `guard-allows-real-bytecode-write`,
+`guard-allows-real-import-under-missing-prefix`, and the `guard-refuses-*` and
+`guard-prefix-refuses-*` checks beside them). The run fails if the guard refused a write or judged none (a guard that saw
 nothing proved nothing; checks `suite-fails-on-blocked-write` and
 `suite-fails-when-guard-judged-nothing`); the judged count counts write events, so one file
 written twice counts two (`suite-judged-counts-each-event`). Outside its view: a write by another
@@ -180,8 +185,9 @@ write-guard stack (`mutant-runner-clears-every-copy-stack`). The selftest fails 
 settings or those replaced functions are left changed at the end (`selftest-reports-leaked-state`);
 the import path is not part of that end comparison, because importing the computer-side modules
 adds to it. Each copy's audit hook stays installed, inert with an empty stack, until the process
-exits. The checks that read source text, or run the selftest of a second copy, read the copy's own
-text (`mutant-runner-judges-mutated-source`).
+exits. The source-reading check `contract-with-keys-read-by-op` and the second-copy probe used by
+the gate and control checks read the copy's own text (`mutant-runner-judges-mutated-source`,
+`probe-selftest-reads-copy-text`).
 
 ## Where the facts come from
 

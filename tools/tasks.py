@@ -1267,6 +1267,9 @@ def selftest() -> int:
         path_before = list(sys.path)
         probe = _run_merge_mutants(table=(("noop", keep, keep), ("missing", "no such anchor in this file", "x")))
         check("merge-mutant-runner-restores-import-path", sys.path == path_before)
+        path_before2 = list(sys.path)  # a case that cannot load prepends nothing, so the restore must not trim
+        probe4 = _run_merge_mutants(table=(("syntax", keep, keep + "\n("),))
+        check("merge-mutant-runner-restores-import-path-unloadable", probe4 == [] and sys.path == path_before2)
         check("merge-mutant-runner-reports", probe == ["noop", "missing (anchor not found exactly once)"])
         probe2 = _run_merge_mutants(table=(("dup", "    return ", "    return "),
                                            ("crash", "def make_event(", "def make_event_renamed(")))
