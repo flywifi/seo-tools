@@ -99,7 +99,14 @@ def plan(local_path, root=None):
     expected = template.get("schema_version")
     status = local_audit.compare(installed, expected)
     manifest = local_audit.load_manifest(root)
-    rel_tmpl = str(tmpl_path.relative_to(root)) if str(tmpl_path).startswith(str(root)) else str(tmpl_path)
+    # P101: the manifest keys are repo-relative POSIX paths, so the lookup key is too: both sides are
+    # resolved (a path given relative to the current folder still finds its note) and the key is
+    # built with as_posix() (Windows yields backslashes). A template outside the repo is named by
+    # its own path in POSIX form.
+    try:
+        rel_tmpl = tmpl_path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        rel_tmpl = tmpl_path.as_posix()
     m = manifest.get((rel_tmpl, str(expected))) or {}
     return {
         "file": str(local_path),
@@ -258,6 +265,42 @@ def selftest():
         ok("plan lists fields it would add", set(pl["would_add_fields"]) == {"tiers", "rate_history"})
         ok("plan carries manifest why (no fabrication)", pl["why_it_matters"] == "adds tiers")
         ok("plan writes nothing", json.loads(lp.read_text())["schema_version"] == "1.0")
+        try:
+            import file_hash
+        except ImportError:  # loaded by file path with tools/ not on sys.path
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import file_hash
+        with file_hash.windows_paths():
+            win_sim = "\\" in str(lp.relative_to(tmp))
+            plw = plan(lp, root=tmp)
+        ok("Windows-form paths: plan still finds the POSIX-keyed migration note (P101)",
+           win_sim and plw["why_it_matters"] == "adds tiers"
+           and plw["template"] == "pipeline/finance/rate-card.template.json")
+        # A path given relative to the current folder (the documented CLI form), from the repo root
+        # and from a subfolder, finds the same note.
+        import os
+        here = os.getcwd()
+        try:
+            os.chdir(tmp)
+            pl_rel = plan(Path("pipeline") / "finance" / "rate-card.local.json", root=tmp)
+            os.chdir(d)
+            pl_sub = plan("rate-card.local.json", root=tmp)
+        finally:
+            os.chdir(here)
+        ok("a relative CLI path finds the migration note, from the root and from a subfolder",
+           pl_rel.get("why_it_matters") == "adds tiers" and pl_sub.get("why_it_matters") == "adds tiers"
+           and pl_rel.get("template") == pl_sub.get("template") == "pipeline/finance/rate-card.template.json")
+        # A template outside the repo is reported by its own path in POSIX form, not raised on.
+        outside = Path(tempfile.mkdtemp(prefix="migrate_outside_"))
+        try:
+            (outside / "x.template.json").write_text(json.dumps({"schema_version": "2.0"}))
+            (outside / "x.local.json").write_text(json.dumps({"schema_version": "1.0"}))
+            pl_out = plan(outside / "x.local.json", root=tmp)
+        finally:
+            shutil.rmtree(outside, ignore_errors=True)
+        ok("a template outside the repo is named by its POSIX path, with no note",
+           pl_out.get("template") == (outside / "x.template.json").as_posix()
+           and pl_out.get("why_it_matters") is None)
 
         # apply without consent -> refuses, writes nothing
         r0 = apply_migration(lp, root=tmp, consent=False)

@@ -102,7 +102,7 @@ def audit(root=None):
     if pipeline.exists():
         for local in sorted(pipeline.rglob("*.local.json")):
             doc = _load_json(local)
-            rel = str(local.relative_to(root))
+            rel = local.relative_to(root).as_posix()
             if not isinstance(doc, dict) or "schema_version" not in doc:
                 findings.append({"file": rel, "status": "unversioned",
                                  "note": "no schema_version; not schema-tracked, nothing to compare"})
@@ -116,7 +116,7 @@ def audit(root=None):
             installed = doc.get("schema_version")
             expected = tdoc.get("schema_version")
             status = compare(installed, expected)
-            rel_tmpl = str(tmpl.relative_to(root))
+            rel_tmpl = tmpl.relative_to(root).as_posix()  # P101: the manifest keys are POSIX paths
             entry = {"file": rel, "template": rel_tmpl, "installed": installed,
                      "expected": expected, "status": status}
             if status == "behind":
@@ -212,6 +212,29 @@ def selftest():
         # nothing was written by the audit
         rate_local = json.loads((tmp / "pipeline" / "finance" / "rate-card.local.json").read_text())
         ok("audit wrote nothing (file unchanged)", rate_local["schema_version"] == "1.0" and rate_local["rows"][0]["rate"] == 500)
+
+        # P101: on Windows relative_to yields backslash paths; the lookup still finds the
+        # POSIX-keyed migration note, and the report names files in POSIX form.
+        try:
+            import file_hash
+        except ImportError:  # loaded by file path with tools/ not on sys.path
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import file_hash
+        orphan = tmp / "pipeline" / "user-context" / "orphan.local.json"   # no template: no_template
+        orphan.write_text(json.dumps({"schema_version": "1.0"}))
+        with file_hash.windows_paths():
+            win_sim = "\\" in str((tmp / "pipeline" / "x").relative_to(tmp))
+            repw = audit(tmp)
+        orphan.unlink()
+        ok("Windows-form paths: every finding names its file and template in POSIX form",
+           {f["status"] for f in repw["findings"]} >= {"behind", "current", "unversioned", "no_template"}
+           and all("\\" not in f["file"] and "\\" not in f.get("template", "") for f in repw["findings"]))
+        bw = [f for f in repw["findings"] if f["status"] == "behind"]
+        ok("Windows-form paths: the migration note is still found",
+           win_sim and len(bw) == 1 and bw[0]["why_it_matters"] == "new tier rows")
+        ok("Windows-form paths: the report names files in POSIX form",
+           bw and bw[0]["file"] == "pipeline/finance/rate-card.local.json"
+           and bw[0]["template"] == "pipeline/finance/rate-card.template.json")
 
         # all-current tree -> no quiet line (never a nag)
         (tmp / "pipeline" / "finance" / "rate-card.local.json").write_text(

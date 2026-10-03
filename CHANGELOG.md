@@ -211,6 +211,38 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P101: the stored hashes of tracked files verify on a checkout whose text files git converted
+  to CRLF (`core.autocrlf=true`, the Git for Windows default). `tools/file_hash.py` hashes a text
+  file over its bytes with CRLF and lone CR folded to LF, and a binary file raw; a file is binary
+  when a NUL sits in its first 8000 bytes, the test git's diff uses. Git's line-ending conversion
+  also leaves alone some files that test calls text (a NUL later in the file, a lone CR, mostly
+  control bytes); git keeps those bytes as they are on every checkout, so their hashes do not
+  depend on it. The doc-freshness, knowledge-projection, Mac-surface and skill-package manifests
+  (writer and checker), `hash_audit`'s checks of those stores and of the GIS boundary manifest,
+  and the GIS stamp and re-stamp use it. The construction library and the keyword-cache baseline
+  stay on raw hashes, because their writer and verifier read the same bytes. An LF file hashes to
+  the sha256 of its raw bytes (pinned in the `file_hash` selftest), so hashes recorded on the LF
+  tree verify unchanged. `package_skill.tree_sha` hashes POSIX-form paths sorted by their
+  components; its selftest checks that a simulated Windows listing (backslash paths in
+  case-insensitive order) hashes like the POSIX one, and that an LF tree hashes as the earlier
+  recipe did. Lookups against stores keyed with `/` now key a path by `as_posix()`: the drift
+  guard's migration-manifest check (with a self-proof under simulated Windows paths), the
+  freshness bundle's writer and checker, the selftest sweep's enrolment set, and the
+  migration-note lookups in `local_audit` and `migrate_local`. `migrate_local plan` resolves the
+  template and the repo root before keying, so a file path given relative to the current folder
+  finds its migration note, and a template outside the repo is named by its own path instead of
+  raising. `.gitattributes` adds
+  `* text=auto eol=lf` and `*.bat text eol=crlf`. A clone made before this rule keeps its CRLF
+  files until they are checked out again; its hash gates pass, but the launcher syntax gate fails
+  on the CRLF `.command` file. With a clean working tree,
+  `git rm -r --cached -q . && git reset -q --hard` checks the files out again; a fresh clone also
+  works. `tools/file_hash.py` carries committed mutation cases, and its selftest fails when a
+  module in `tools/` that hashes through it or calls its `windows_paths()` helper has fewer than
+  three. Its runner reports a row as invalid rather than caught when the row does not compile, does
+  not load, targets a module with nothing to run, or edits the function that scores it, and it
+  restores path classes, the working folder and the environment after each row. The changed
+  selftests write their line-ending fixtures as bytes; on Linux they pass with text-mode writes
+  forced to CRLF, as Windows text mode writes them.
 - P100: `tools/tasks.py` `merge_tasks` matches events across register copies by every field except
   `seq`, as a multiset, and copies events before renumbering. A register edited on both sides no
   longer gains a duplicate event each time an unchanged copy is merged in again; registers that

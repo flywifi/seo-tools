@@ -1,5 +1,5 @@
 {
-  "_comment": "P79 packaging integrity: sha256 per skill SOURCE TREE (sorted relative paths + bytes, NUL-delimited; mtime-free). Verify with `python3 tools/package_skill.py --check-manifest`, re-bless with `--reconcile-manifest`. dist/ zips embed mtimes and are not reproducible, so the tree hash is the integrity anchor.",
+  "_comment": "P79 packaging integrity: sha256 per skill SOURCE TREE (relative paths in POSIX form sorted by component, each followed by the file's bytes with text line endings folded to LF (P101), NUL-delimited; mtime-free). Verify with `python3 tools/package_skill.py --check-manifest`, re-bless with `--reconcile-manifest`. dist/ zips embed mtimes and are not reproducible, so the tree hash is the integrity anchor.",
   "generated_by": "tools/package_skill.py",
   "skills": {
     "ab-test": "8bd816ed24ddeb92966336ceb41288baea5f66c96c8ec7adab52c2f946fc2d38",

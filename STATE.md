@@ -5,6 +5,14 @@ Live build status for Creator OS. Update at phase boundaries and after a skill s
 P6 through P100 are complete. Drift guard exits 0 (60 invariants enforced); the battery runs 15 gates.
 Branch: `claude/blissful-cannon-ggivl7`.
 
+- P101 (started 2026-10-02, in progress): Windows support, from the first live run of the suite on
+  a Windows PC. Landed: `tools/file_hash.py` hashes a tracked text file over LF-normalised bytes
+  and the doc-freshness, knowledge-projection, Mac-surface, skill-package and GIS stores use it;
+  `package_skill.tree_sha` keys POSIX-form paths, as do the drift guard's migration-manifest
+  lookup, the freshness bundle, the selftest sweep's enrolment set and the local-data migration
+  notes; `.gitattributes` checks text files out LF (batch files CRLF). Next: the wizard's
+  reserved-port handling, Windows file locking, the surface selftest's temp-folder retry, an inbox
+  `sweep` verb, the Outbox platform tag, fixture shapes, and the scoop cache's path keys.
 - P100: cross-surface workflow suite (2026-10-01, ADR 0072). `tools/surface_workflow_check.py`
   runs 10 workflows from each vendor's web chat into each vendor's desktop app, plus a round
   trip, with simulated surface steps and the real computer code in a sandbox, inside a write

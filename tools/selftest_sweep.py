@@ -133,14 +133,16 @@ def enrolment_problems():
         exempt = json.loads(EXEMPTION_PATH.read_text(encoding="utf-8")).get("exempt", {})
     except (OSError, ValueError) as exc:
         return [f"selftest-enrolment: {EXEMPTION_PATH.name} unreadable ({exc}); refusing to pass"]
-    discovered = {str(p.relative_to(ROOT)) for p, _ in discover()}
+    # P101: git lists tracked files and the exemption file names them with POSIX separators, so the
+    # discovered set is keyed the same way on a Windows checkout.
+    discovered = {p.relative_to(ROOT).as_posix() for p, _ in discover()}
     return _enrolment_problems_for(tracked, discovered, exempt,
-                                   str(Path(__file__).resolve().relative_to(ROOT)))
+                                   Path(__file__).resolve().relative_to(ROOT).as_posix())
 
 
 def run_sweep():
     import os
-    targets = [(str(p.relative_to(ROOT)), [str(p)] + args) for p, args in discover()]
+    targets = [(p.relative_to(ROOT).as_posix(), [str(p)] + args) for p, args in discover()]
     targets.extend(PACKAGE_ENTRIES)
     failed = []
     for rel, argv in targets:
@@ -183,7 +185,7 @@ def selftest():
         if not cond:
             failures.append(label)
 
-    targets = dict((str(p.relative_to(ROOT)), args) for p, args in discover())
+    targets = dict((p.relative_to(ROOT).as_posix(), args) for p, args in discover())
     check("discovery finds a known --selftest tool (secret_scan)",
           targets.get("tools/secret_scan.py") == ["--selftest"])
     check("discovery finds a known selftest-subcommand tool (source_currency)",
@@ -218,6 +220,18 @@ def selftest():
     live = enrolment_problems()
     check("enrolment: the live tree is clean (or honestly DID-NOT-RUN outside git)",
           live == [] or (len(live) == 1 and "DID NOT RUN" in live[0]))
+    # P101: on Windows relative_to yields backslash paths, while git and the exemption file use
+    # POSIX ones; the live gate keys the discovered set the same way, so it stays clean.
+    try:
+        import file_hash
+    except ImportError:  # loaded by file path with tools/ not on sys.path
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import file_hash
+    with file_hash.windows_paths():
+        win_sim = "\\" in str((ROOT / "tools" / "x.py").relative_to(ROOT))
+        live_w = enrolment_problems()
+    check("enrolment: Windows-form paths give the same result as POSIX paths (P101)",
+          win_sim and live_w == live)
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1

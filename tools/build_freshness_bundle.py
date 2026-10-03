@@ -142,7 +142,7 @@ def apply(root=ROOT, as_of=None):
         new = stamp_text(txt, line)
         if new != txt:
             f.write_text(new, encoding="utf-8")
-        stamped.append({"file": str(f.relative_to(root)),
+        stamped.append({"file": f.relative_to(root).as_posix(),  # P101: POSIX keys on every platform
                         "sha256": hashlib.sha256(new.encode("utf-8")).hexdigest()})
     manifest = {"_boundary": "Owner dev-time projection. Local working tree only; never auto-published, never GitHub.",
                 "as_of": as_of, "canonical_digest": digest, "managed_files": stamped,
@@ -170,7 +170,7 @@ def check(root=ROOT):
     recorded = {m["file"]: m for m in manifest.get("managed_files", [])}
     listed = set(recorded)
     for f in files:
-        rel = str(f.relative_to(root))
+        rel = f.relative_to(root).as_posix()  # P101: the manifest keys are POSIX paths on every platform
         txt = f.read_text(encoding="utf-8")
         if not MARKER_RE.search(txt):
             problems.append(f"{rel}: missing freshness marker (run --apply)")
@@ -264,6 +264,29 @@ def selftest():
        ok_ is False and any("stored sha256 no longer matches" in p for p in probs))
     apply(d, as_of="2026-07-06")
     ok("re-apply re-stamps the per-file sha and clears it", check(d)[0] is True)
+
+    # P101: on Windows, relative_to yields backslash paths. apply records POSIX keys and check
+    # looks them up the same way, so a Windows apply then a Windows check is clean, and the
+    # manifest it writes is the one a Linux check reads.
+    try:
+        import file_hash
+    except ImportError:  # loaded by file path with tools/ not on sys.path
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import file_hash
+    with file_hash.windows_paths():
+        ok("the Windows-form simulation yields backslash paths", "\\" in str(kf.relative_to(d)))
+        mw = apply(d, as_of="2026-07-06")
+        win_ok = check(d)[0]
+        si.write_text(si.read_text(encoding="utf-8") + "\nquiet edit under Windows paths\n", encoding="utf-8")
+        win_quiet = check(d)
+        apply(d, as_of="2026-07-06")
+        win_reapplied = check(d)[0]
+    ok("a Windows-form check still refuses a quiet edit by the stored per-file sha",
+       win_quiet[0] is False and any("stored sha256 no longer matches" in x for x in win_quiet[1])
+       and win_reapplied is True)
+    ok("a Windows-form apply records POSIX keys", all("\\" not in r["file"] for r in mw["managed_files"]))
+    ok("a Windows-form apply then check is clean", win_ok is True)
+    ok("a Linux check reads the manifest a Windows apply wrote", check(d)[0] is True)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

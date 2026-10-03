@@ -3,7 +3,7 @@
   "generated_by": "tools/mac_surface_manifest.py",
   "deriver": {
     "path": "tools/mac_surface_manifest.py",
-    "module_sha256": "a8710140ee6d8d7d87a8fa57f82d884e84879ab728c35016198389c0f7dd3ce5",
+    "module_sha256": "80ac8c5a903c5eaed3e07e49a211d9aa728de905d5d237167200268f3cd46402",
     "signals_sha256": "d61d15952b0b892538837f4d703cc958f25a9385f96b507ee6e7bbf914139cab",
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
@@ -25,7 +25,7 @@
     "docs/CURRENCY.md": "eae4bc6ba5d9568a3c9954e3235352d1312a6b4e034f43bd72be0709e16d888d",
     "docs/DEPENDENCIES.md": "b5859b2963906ae1844e7c32a1f0d5c82f842634f9ce67ae5b2b16c025959a8d",
     "docs/DEPLOYMENT.md": "1bb549a343aac76af7a91c3599dbc59f2001b279b4b3f239e66e503a27198762",
-    "docs/DOC-MAINTENANCE.md": "1daa228256bd362e14ef83d4cbd60f57f039cf34aeaca4204d76217069090618",
+    "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
     "docs/DRIVE-HUB.md": "0fb6cdda39e8d5a6694e047c5e813d63bf457c7462e345012fd5cfd459f7b9f5",
     "docs/FRESHNESS.md": "e93fc803ac6652658f18c000d4674fd0cb7dae982d36e040fca98b3d0fc935cd",
     "docs/INSTALL-SCOPE.md": "722b645d0b6075b87138811e5b203991a511b4c0d3de02c8c55bcbf85df3eb49",

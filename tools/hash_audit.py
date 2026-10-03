@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""hash_audit.py -- recompute every stored hash in the repo and compare it to the bytes on disk (P79).
+"""hash_audit.py -- recompute every stored hash in the repo and compare it to the file on disk (P79).
 
 Why this exists: hashes stored by one code path and verified by none rot
 silently -- fourteen GIS boundary hashes had never matched a committed byte, and a packaged-knowledge
 hash sat stale for weeks. A stored hash is only evidence if something recomputes it. This is that
 something, in one verb, for every store the repo carries.
+
+Each store is recomputed the way its writer hashed it. Stores of TRACKED files (the Mac-surface,
+projection, doc-freshness and GIS boundary manifests) go through tools/file_hash.py (P101): a text
+file's line endings are folded to LF first, so a checkout that converted them (core.autocrlf=true)
+still verifies. The construction library's writer hashed the bytes it fetched, so that store stays
+on the raw hasher. The keyword-cache baseline is a gitignored store that shared/cache/cache.py builds
+from the raw bytes of tracked files on the same checkout, so it is verified raw too: its writer and
+this verifier read the same bytes.
 
 Rules (each is a constraint the stores themselves impose, not a preference):
   * disk-only: never fetches; the fetch-defaulting modules (construction_fetch, geo_source_fetch,
@@ -32,11 +40,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
+import file_hash  # noqa: E402 - needs the tools folder on sys.path first
+
 OK, MISMATCH, NA, REPORT = "ok", "MISMATCH", "not_applicable", "report_only"
 
 
 def _sha(p: Path) -> str:
+    """Raw bytes: for stores whose writer hashed fetched or built bytes."""
     return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def _sha_tracked(p: Path) -> str:
+    """A tracked file, line endings folded (tools/file_hash.py): for stores of repo files."""
+    return file_hash.sha256_file(p)
 
 
 def _sha_text(p: Path) -> str:
@@ -50,7 +66,7 @@ def audit_mac_surface(root):
     if not p.exists():
         return NA, "manifest absent"
     files = json.loads(p.read_text(encoding="utf-8")).get("files", {})
-    bad = [f for f, h in files.items() if not (root / f).exists() or _sha(root / f) != h]
+    bad = [f for f, h in files.items() if not (root / f).exists() or _sha_tracked(root / f) != h]
     return (OK if not bad else MISMATCH), f"{len(files)} files" + (f"; bad={bad}" if bad else "")
 
 
@@ -72,10 +88,10 @@ def audit_projection_manifest(root):
     for proj, rec in json.loads(p.read_text(encoding="utf-8")).get("projections", {}).items():
         for s, h in (rec.get("sources") or {}).items():
             n += 1
-            bad += (not (root / s).exists()) or _sha(root / s) != h
+            bad += (not (root / s).exists()) or _sha_tracked(root / s) != h
         if rec.get("projection"):
             n += 1
-            bad += (not (root / proj).exists()) or _sha(root / proj) != rec["projection"]
+            bad += (not (root / proj).exists()) or _sha_tracked(root / proj) != rec["projection"]
     return (OK if not bad else MISMATCH), f"{n} hashes" + (f"; {bad} bad" if bad else "")
 
 
@@ -87,7 +103,7 @@ def audit_doc_freshness(root):
     for doc, rec in json.loads(p.read_text(encoding="utf-8")).get("docs", {}).items():
         for s, h in (rec.get("sources") or {}).items():
             n += 1
-            bad += (not (root / s).exists()) or _sha(root / s) != h
+            bad += (not (root / s).exists()) or _sha_tracked(root / s) != h
     return (OK if not bad else MISMATCH), f"{n} hashes" + (f"; {bad} bad" if bad else "")
 
 
@@ -108,12 +124,12 @@ def audit_gis_boundaries(root):
         return NA, "boundary cache absent"
     recs = json.loads(man.read_text(encoding="utf-8")).get("files", [])
     mb = sum(1 for r in recs if not (base / (r["name"] + ".geojson")).exists()
-             or _sha(base / (r["name"] + ".geojson")) != r.get("sha256"))
+             or _sha_tracked(base / (r["name"] + ".geojson")) != r.get("sha256"))
     pb = 0
     for pv in sorted(base.glob("*.provenance.json")):
         d = json.loads(pv.read_text(encoding="utf-8"))
         tgt = base / d.get("file", "")
-        pb += (not tgt.exists()) or _sha(tgt) != d.get("sha256")
+        pb += (not tgt.exists()) or _sha_tracked(tgt) != d.get("sha256")
     return (OK if not (mb or pb) else MISMATCH), f"manifest {mb}/{len(recs)} bad, provenance {pb} bad"
 
 
@@ -258,6 +274,57 @@ def run(root=ROOT):
     return rows
 
 
+def _p101_store_fixtures(ok):
+    """P101: each tracked-store auditor folds line endings on its own call site, and each raw store
+    stays raw. One file at a time is rewritten as CRLF, so a raw revert of any single call site
+    reads MISMATCH."""
+    import tempfile
+    lf = b"alpha\nbeta\n"
+    crlf = lf.replace(b"\n", b"\r\n")
+    lf_sha, crlf_sha = hashlib.sha256(lf).hexdigest(), hashlib.sha256(crlf).hexdigest()
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+
+        def put(rel, data=lf):
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(data)
+            return p
+
+        gis = "canonical-sources/jurisdiction/orlando-boundaries"
+        cases = {"projection source": (put("shared/s.md"), audit_projection_manifest),
+                 "projection file": (put("implementation/k/01.md"), audit_projection_manifest),
+                 "doc-freshness source": (put("tools/t.py"), audit_doc_freshness),
+                 "GIS manifest file": (put(f"{gis}/zone.geojson"), audit_gis_boundaries),
+                 "GIS provenance file": (put(f"{gis}/ward.geojson"), audit_gis_boundaries)}
+        put("implementation/knowledge-projection-manifest.json", json.dumps({"projections": {
+            "implementation/k/01.md": {"sources": {"shared/s.md": lf_sha}, "projection": lf_sha}}}).encode())
+        put("docs/doc-freshness-manifest.json", json.dumps(
+            {"docs": {"docs/D.md": {"sources": {"tools/t.py": lf_sha}}}}).encode())
+        put(f"{gis}/MANIFEST.json", json.dumps({"files": [{"name": "zone", "sha256": lf_sha}]}).encode())
+        put(f"{gis}/ward.provenance.json", json.dumps({"file": "ward.geojson", "sha256": lf_sha}).encode())
+        ok("P101 fixtures: every tracked auditor verifies the LF files",
+           all(fn(root)[0] == OK for _, fn in cases.values()))
+        for name, (f, fn) in cases.items():
+            f.write_bytes(crlf)
+            ok(f"P101 fixture really is CRLF ({name})", b"\r\n" in f.read_bytes() and _sha(f) != lf_sha)
+            ok(f"a CRLF copy of a {name} verifies", fn(root)[0] == OK)
+            f.write_bytes(lf + b"edited\n")
+            ok(f"an edited {name} is a MISMATCH", fn(root)[0] == MISMATCH)
+            f.write_bytes(lf)
+        # Raw stores: a CRLF file recorded with its raw hash verifies; a folding verifier would
+        # compute the LF hash and report MISMATCH.
+        lib = put("pipeline/construction-library/plan.txt", crlf)
+        put("pipeline/construction-library/manifest.json",
+            json.dumps({"files": [{"filename": "plan.txt", "sha256": crlf_sha}]}).encode())
+        put("canonical-sources/k.json", crlf)
+        put("shared/cache/cache-baseline.local.json",
+            json.dumps({"canonical-sources/k.json": {"sha256": crlf_sha}}).encode())
+        ok("raw store fixtures really are CRLF", b"\r\n" in lib.read_bytes() and _sha_tracked(lib) != crlf_sha)
+        ok("the construction library verifies raw bytes", audit_construction_library(root)[0] == REPORT)
+        ok("the keyword-cache baseline verifies raw bytes", audit_cache_baseline(root)[0] == REPORT)
+
+
 def selftest():
     import tempfile
     checks = []
@@ -274,7 +341,16 @@ def selftest():
         f.write_text("alpha-edited")
         st, d = audit_mac_surface(root)
         ok("tracked store MISMATCH after a byte edit, file named", st == MISMATCH and "a.txt" in d)
+        # P101: a checkout that converted a tracked file's line endings still verifies, while the
+        # raw hasher kept for fetched stores still sees different bytes.
+        f.write_text("alpha\nbeta\n", encoding="utf-8")
+        (root / "canonical-sources" / "mac-surface-manifest.json").write_text(json.dumps(
+            {"files": {"canonical-sources/a.txt": _sha_tracked(f)}}))
+        f.write_bytes(b"alpha\r\nbeta\r\n")
+        ok("tracked store recomputes clean on a CRLF copy of the file (P101)", audit_mac_surface(root)[0] == OK)
+        ok("the raw hasher for fetched stores reads the CRLF copy as different bytes", _sha(f) != _sha_tracked(f))
         ok("absent tracked store is not_applicable, not ok", audit_gis_boundaries(root)[0] == NA)
+        _p101_store_fixtures(ok)
         ok("absent local store is not_applicable", audit_video_library(root)[0] == NA)
         ok("absent bucket manifest is not_applicable", _bucket(root, "tasks", "tasks-bucket.manifest.json", "t")[0] == NA)
         # never creates: the absent paths must still be absent after the run

@@ -27,6 +27,8 @@ a written reason). Drift invariant 58 then enforces:
 
 Fail-closed in every direction, so "no macOS file changed unnoticed" is a build property
 rather than a claim. Human review remains a human act; this only makes skipping it visible.
+The recorded sha256 is the one tools/file_hash.py computes (P101): a text file's line endings are
+folded to LF first, so a checkout that converted them (core.autocrlf=true) is not an edit.
 
 CLI:
   python3 tools/mac_surface_manifest.py               # --check (report; exit 1 on drift)
@@ -40,6 +42,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    import file_hash
+except ImportError:  # loaded by file path with tools/ not on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import file_hash
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "canonical-sources" / "mac-surface-manifest.json"
@@ -135,7 +143,7 @@ class PendingReview(Exception):
 
 
 def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return file_hash.sha256_file(path)
 
 
 def signals_sha() -> str:
@@ -399,6 +407,60 @@ def selftest() -> int:
         ok("integrity: edited Mac file flagged changed", "tools/macish.py" in _chk()["changed"])
         _rec()
         ok("integrity: clean after re-bless", not _chk()["changed"])
+        # P101: a checkout that converted the file's line endings (core.autocrlf=true) is not an edit.
+        mac.write_bytes(file_hash.normalise(mac.read_bytes()).replace(b"\n", b"\r\n"))
+        ok("integrity: a CRLF copy of an audited file is not flagged",
+           b"\r\n" in mac.read_bytes() and b"\r\r" not in mac.read_bytes()
+           and "tools/macish.py" not in _chk()["changed"])
+
+        # P101, the real reconcile() and check() that invariant 58 runs, not the replicas above:
+        # both sides fold line endings, for an audited file and for the deriver pin. tracked_files
+        # and __file__ are patched in THIS module's globals and restored.
+        g = globals()
+        saved_tf, saved_file = g["tracked_files"], g["__file__"]
+        real_m = root / "real.json"
+        lf_mac = file_hash.normalise(mac.read_bytes())
+        crlf_mac = lf_mac.replace(b"\n", b"\r\n")
+        lf_sha = hashlib.sha256(lf_mac).hexdigest()
+        mod_src = file_hash.normalise(Path(saved_file).resolve().read_bytes())
+        lf_mod, crlf_mod = root / "deriver_lf.py", root / "deriver_crlf.py"
+        lf_mod.write_bytes(mod_src)
+        crlf_mod.write_bytes(mod_src.replace(b"\n", b"\r\n"))
+        ok("the deriver copies differ only in line endings (CRLF copy really is CRLF)",
+           b"\r\n" in crlf_mod.read_bytes() and b"\r" not in lf_mod.read_bytes()
+           and hashlib.sha256(crlf_mod.read_bytes()).hexdigest() != hashlib.sha256(mod_src).hexdigest())
+        try:
+            g["tracked_files"] = lambda _root=None: list(paths)
+            g["__file__"] = str(lf_mod)
+            mac.write_bytes(crlf_mac)
+            ok("fixture really is CRLF (its raw hash differs from the LF hash)",
+               b"\r\n" in mac.read_bytes() and hashlib.sha256(mac.read_bytes()).hexdigest() != lf_sha)
+            reconcile(root, real_m, accept_new=True, paths=paths)
+            ok("real reconcile on a CRLF checkout records the LF hash",
+               json.loads(real_m.read_text(encoding="utf-8"))["files"].get("tools/macish.py") == lf_sha)
+            mac.write_bytes(lf_mac)
+            ok("real check(): an LF checkout verifies a manifest blessed on CRLF",
+               "tools/macish.py" not in check(root, real_m)["changed"])
+            reconcile(root, real_m, accept_new=True, paths=paths)
+            mac.write_bytes(crlf_mac)
+            ok("real check(): a CRLF copy of an audited file is not flagged",
+               "tools/macish.py" not in check(root, real_m)["changed"])
+            mac.write_bytes(lf_mac + b"edited = True\n")
+            ok("real check(): an edited audited file is flagged",
+               "tools/macish.py" in check(root, real_m)["changed"])
+            mac.write_bytes(lf_mac)
+            reconcile(root, real_m, accept_new=True, paths=paths)
+            g["__file__"] = str(crlf_mod)
+            ok("a CRLF checkout of the deriver is not deriver drift",
+               not check(root, real_m)["deriver_drift"])
+            reconcile(root, real_m, accept_new=True, paths=paths)
+            g["__file__"] = str(lf_mod)
+            ok("a deriver pin taken on a CRLF checkout matches the LF deriver",
+               not check(root, real_m)["deriver_drift"])
+            lf_mod.write_bytes(mod_src + b"# edited\n")
+            ok("an edited deriver is deriver drift", bool(check(root, real_m)["deriver_drift"]))
+        finally:
+            g["tracked_files"], g["__file__"] = saved_tf, saved_file
 
         # DIRECTION 3 (denominator): an audited file that stops deriving must be caught. Without
         # it, deleting a signal token silently shrinks coverage.

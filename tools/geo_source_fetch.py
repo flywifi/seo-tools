@@ -23,7 +23,6 @@ Usage:
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import ssl
@@ -31,6 +30,12 @@ import sys
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+
+try:
+    import file_hash
+except ImportError:  # loaded by file path with tools/ not on sys.path
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import file_hash
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CA_BUNDLE = os.environ.get("REQUESTS_CA_BUNDLE") or "/root/.ccr/ca-bundle.crt"
@@ -121,9 +126,11 @@ def _write_geojson(name, feature_collection, source_url, license_str, extra=None
     # P79: serialize ONCE, hash the written bytes, write the hashed bytes. The previous form
     # hashed a sort_keys-compact dump but wrote an indent=2 dump, so no stored sha ever matched
     # a file on disk (14 of 14). indent=2 without sort_keys reproduces the existing
-    # cache byte-for-byte, so this is byte-compatible with every committed boundary file.
+    # cache byte-for-byte, so this is byte-compatible with every committed boundary file. P101: the
+    # hash is tools/file_hash.py's (line endings folded to LF), so the file verifies on a checkout
+    # that converted them and on a platform whose text mode wrote CRLF.
     body = json.dumps(feature_collection, indent=2)
-    sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    sha = file_hash.sha256_bytes(body.encode("utf-8"))
     with open(os.path.join(CACHE_DIR, name + ".geojson"), "w", encoding="utf-8") as f:
         f.write(body)
     prov = {"file": name + ".geojson", "source_url": source_url, "license": license_str,
@@ -210,7 +217,7 @@ def rehash_from_disk(cache_dir=None):
         gj = os.path.join(cache_dir, rec["name"] + ".geojson")
         with open(gj, "rb") as f:
             raw = f.read()
-        rec["sha256"] = hashlib.sha256(raw).hexdigest()
+        rec["sha256"] = file_hash.sha256_bytes(raw)
         rec["vertices"] = _vertex_count(json.loads(raw.decode("utf-8")))
         prov_path = os.path.join(cache_dir, rec["name"] + ".provenance.json")
         if os.path.exists(prov_path):
@@ -252,8 +259,8 @@ def selftest():
                                extra={"vertices": _vertex_count(fc)})
             with open(os.path.join(td, "fixture.geojson"), "rb") as f:
                 disk = f.read()
-            ok("stored sha == sha256 of the written file bytes",
-               m["sha256"] == hashlib.sha256(disk).hexdigest())
+            ok("stored sha == the file_hash of the written file bytes",
+               m["sha256"] == file_hash.sha256_bytes(disk))
             with open(os.path.join(td, "fixture.provenance.json"), encoding="utf-8") as f:
                 prov = json.load(f)
             ok("provenance sidecar carries the same sha", prov["sha256"] == m["sha256"])
@@ -269,9 +276,28 @@ def selftest():
             with open(os.path.join(td, "fixture.provenance.json"), encoding="utf-8") as f:
                 prov2 = json.load(f)
             ok("rehash_from_disk re-stamps the manifest sha from disk bytes",
-               n == 1 and man["files"][0]["sha256"] == hashlib.sha256(disk).hexdigest())
+               n == 1 and man["files"][0]["sha256"] == file_hash.sha256_bytes(disk))
             ok("rehash_from_disk re-stamps the sidecar sha", prov2["sha256"] == man["files"][0]["sha256"])
             ok("rehash_from_disk re-counts vertices with every ring", man["files"][0]["vertices"] == 9)
+            # P101: a boundary file whose line endings a checkout converted (core.autocrlf=true)
+            # re-stamps the hash of its LF bytes, the hash CI verifies.
+            import hashlib
+            lf = file_hash.normalise(disk)
+            ok("an LF boundary file's stamp is the raw sha256 of its bytes",
+               man["files"][0]["sha256"] == hashlib.sha256(lf).hexdigest())
+            with open(os.path.join(td, "fixture.geojson"), "wb") as f:
+                f.write(lf.replace(b"\n", b"\r\n"))
+            with open(os.path.join(td, "fixture.geojson"), "rb") as f:
+                crlf = f.read()
+            ok("the CRLF fixture really is CRLF", b"\r\n" in crlf and hashlib.sha256(crlf).hexdigest()
+               != hashlib.sha256(lf).hexdigest())
+            rehash_from_disk(td)
+            with open(os.path.join(td, "MANIFEST.json"), encoding="utf-8") as f:
+                man3 = json.load(f)
+            with open(os.path.join(td, "fixture.provenance.json"), encoding="utf-8") as f:
+                prov3 = json.load(f)
+            ok("rehash_from_disk on a CRLF file stamps the LF hash (manifest and sidecar)",
+               man3["files"][0]["sha256"] == prov3["sha256"] == hashlib.sha256(lf).hexdigest())
             ok("selftest wrote nothing outside the tempdir",
                not os.path.exists(os.path.join(saved, "fixture.geojson")))
         finally:

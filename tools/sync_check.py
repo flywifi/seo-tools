@@ -2313,6 +2313,34 @@ def check_migration_manifest():
     pdir = ROOT / "pipeline"
     if not pdir.exists():
         return
+    gaps = _migration_gaps(pdir, by_key)
+    for rel, sv in gaps:
+        problem(f"migration-manifest: {rel} is at schema_version {sv} but CHANGELOG.migrations.json "
+                f"has no entry with template={rel} and to={sv}; add one (with why_it_matters + "
+                "concrete_impact) so the schema bump is explained to users")
+    # P101 self-proof: on Windows relative_to yields backslash paths. The same scan with
+    # Windows-form paths must find the same gaps, or the lookup keys are not POSIX on every platform.
+    try:
+        import file_hash
+    except ImportError:  # imported as a module with tools/ not on sys.path
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import file_hash
+    with file_hash.windows_paths():
+        win_sim = "\\" in str((pdir / "x" / "y.json").relative_to(ROOT))
+        win_gaps = _migration_gaps(pdir, by_key)
+    if not win_sim:
+        problem("migration-manifest: the Windows-form self-proof did not simulate backslash paths, so "
+                "it proves nothing (P101)")
+    if win_gaps != gaps:
+        problem(f"migration-manifest: with Windows-form paths the template lookup finds "
+                f"{len(win_gaps)} gap(s) where POSIX paths find {len(gaps)}; key each template by "
+                f"relative_to(ROOT).as_posix() (P101)")
+
+
+def _migration_gaps(pdir, by_key, root=None):
+    """(template, schema_version) pairs for versioned templates with no migration entry."""
+    root = ROOT if root is None else root
+    out = []
     for f in sorted(pdir.rglob("*.template.json")):
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
@@ -2320,12 +2348,36 @@ def check_migration_manifest():
             continue
         if not isinstance(data, dict) or "schema_version" not in data:
             continue
-        rel = str(f.relative_to(ROOT))
+        rel = f.relative_to(root).as_posix()  # P101: the manifest keys are POSIX paths on every platform
         sv = str(data["schema_version"])
         if (rel, sv) not in by_key:
-            problem(f"migration-manifest: {rel} is at schema_version {sv} but CHANGELOG.migrations.json "
-                    f"has no entry with template={rel} and to={sv}; add one (with why_it_matters + "
-                    "concrete_impact) so the schema bump is explained to users")
+            out.append((rel, sv))
+    return out
+
+
+def _migration_selfproof():
+    """0 when invariant 33's checks report nothing on the live tree; the entry the committed
+    mutation cases in tools/file_hash.py run for this module, which has no selftest()."""
+    before = len(PROBLEMS)
+    check_migration_manifest()
+    found = PROBLEMS[before:]
+    del PROBLEMS[before:]
+    # The live tree has no gap, so a gap's name is checked on a temp tree with one versioned
+    # template and no entry: under Windows-form paths it must be named by its POSIX path.
+    import tempfile
+    try:
+        import file_hash
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import file_hash
+    with tempfile.TemporaryDirectory() as td:
+        t = Path(td)
+        (t / "pipeline" / "x").mkdir(parents=True)
+        (t / "pipeline" / "x" / "a.template.json").write_text('{"schema_version": "1.0"}', encoding="utf-8")
+        with file_hash.windows_paths():
+            win_gap = _migration_gaps(t / "pipeline", {}, root=t)
+    named = win_gap == [("pipeline/x/a.template.json", "1.0")]
+    return 0 if not found and named else 1
 
 
 def check_legal_source_category():

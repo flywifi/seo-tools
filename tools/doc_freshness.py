@@ -10,14 +10,22 @@ stale doc (P79), so the CI step is a real gate.
 This is a STALENESS SIGNAL, not a prose diff: a moved source means the doc *might* now lag, so a human
 should re-read it and re-bless it with `reconcile`. Emerging practice (content-hash binding), adopted
 here as sound engineering and modeled on the repo's own invariant-47 precedent -- not an external
-standard. Stdlib only; never raises on check (it exit-codes instead).
+standard. Stdlib plus the repo's own tools/file_hash.py; a stale or missing source is reported by
+check() and exit-coded, not raised. The sha256 is the one tools/file_hash.py computes (P101): a
+text source is hashed with its line endings folded to LF, so a checkout that converted them
+(core.autocrlf=true) does not read as a moved source.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from pathlib import Path
+
+try:
+    import file_hash
+except ImportError:  # loaded by file path with tools/ not on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import file_hash
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = ROOT / "docs" / "doc-freshness-manifest.json"
@@ -117,7 +125,7 @@ DOC_SOURCES = {
 }
 
 def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return file_hash.sha256_file(path)
 
 
 def reconcile(root: Path = ROOT, sources: dict | None = None, manifest_path: Path | None = None) -> dict:
@@ -202,6 +210,32 @@ def selftest(root: Path = ROOT) -> int:
     # Re-reconcile clears it.
     reconcile(root=d, sources=srcs, manifest_path=mp)
     ok("clean-after-rebless", check(root=d, sources=srcs, manifest_path=mp) == [])
+
+    # P101: a checkout that converted the source's line endings (core.autocrlf=true) is not a change.
+    import hashlib
+    src = d / "tools" / "a.py"
+    lf_bytes = file_hash.normalise(src.read_bytes())   # text mode writes CRLF on Windows
+    src.write_bytes(lf_bytes)
+    reconcile(root=d, sources=srcs, manifest_path=mp)
+    recorded = json.loads(mp.read_text(encoding="utf-8"))["docs"]["docs/A.md"]["sources"]["tools/a.py"]
+    ok("lf-hash-is-raw-sha256", recorded == hashlib.sha256(lf_bytes).hexdigest())
+    src.write_bytes(lf_bytes.replace(b"\n", b"\r\n"))
+    crlf = src.read_bytes()
+    ok("crlf-fixture-really-crlf", b"\r\n" in crlf and hashlib.sha256(crlf).hexdigest() != recorded)
+    ok("crlf-source-stays-clean", check(root=d, sources=srcs, manifest_path=mp) == [])
+    # The writer folds too: a reconcile run on the CRLF checkout records the LF hash.
+    reconcile(root=d, sources=srcs, manifest_path=mp)
+    src.write_bytes(lf_bytes)
+    ok("reconcile-on-crlf-records-the-lf-hash", check(root=d, sources=srcs, manifest_path=mp) == [])
+    # A lone CR (old Mac line ending) folds like CRLF; a binary file (NUL in the first 8000 bytes)
+    # keeps its raw hash.
+    lone = d / "tools" / "cr.txt"
+    lone.write_bytes(b"one\rtwo\r")
+    ok("lone-cr-fixture-has-a-bare-cr", b"\r" in lone.read_bytes() and b"\r\n" not in lone.read_bytes())
+    ok("lone-cr-folds", _sha(lone) == hashlib.sha256(b"one\ntwo\n").hexdigest())
+    blob = d / "tools" / "b.bin"
+    blob.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\r\n")
+    ok("binary-stays-raw", _sha(blob) == hashlib.sha256(blob.read_bytes()).hexdigest())
 
     # Missing manifest -> a note, not a crash.
     mp.unlink()
