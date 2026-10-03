@@ -182,6 +182,10 @@ def cloud_synced_root(path, home=None):
     return None
 
 
+# Set by the child process of the symlink control below, which must not run that control again.
+_SYMLINK_CHILD = False
+
+
 def _selftest() -> int:
     import tempfile
     import stat
@@ -205,11 +209,32 @@ def _selftest() -> int:
         vpy.chmod(vpy.stat().st_mode | stat.S_IEXEC)
         ok(venv_python(root) is None, "a broken venv interpreter is rejected (P81 B-5)")
         vpy.unlink()
-        vpy.symlink_to(sys.executable)             # a real interpreter
-        if sys.version_info[:2] >= PYTHON_FLOOR:
+
+        def link_interpreter():
+            try:
+                vpy.symlink_to(sys.executable)     # a real interpreter
+                return True
+            except OSError:   # P101: Windows without Developer Mode or admin rights refuses a symlink
+                return False
+
+        real_link = Path.symlink_to
+
+        def _refuse(self, *a, **k):
+            raise OSError(1314, "A required privilege is not held by the client")
+        Path.symlink_to = _refuse
+        try:
+            refused = link_interpreter()
+        finally:
+            Path.symlink_to = real_link
+        ok(refused is False and not vpy.exists(), "a refused symlink to the interpreter is reported as not made")
+        linked = link_interpreter()
+        if not linked:
+            print("  [skip] venv selection: this system cannot create a symlink to the interpreter")
+        ok(linked or os.name == "nt", "the symlink to the interpreter is made (skipped on Windows only)")
+        if linked and sys.version_info[:2] >= PYTHON_FLOOR:
             ok(venv_python(root) == vpy, "venv_python finds a floor-meeting .venv interpreter")
             ok(app_python(root) == str(vpy), "app_python returns .venv interpreter when present")
-        else:
+        elif linked:
             ok(venv_python(root) is None, "a below-floor venv interpreter is rejected (P81 B-5)")
             ok(app_python(root) == sys.executable, "app_python falls back below the floor")
         launcher = ROOT / "Start Creator OS Setup.command"
@@ -277,6 +302,23 @@ def _selftest() -> int:
     ok(cloud_synced_root(fake_home / "CreatorOS", home=fake_home) is None
        and cloud_synced_root(fake_home / "Dropbox-notes" / "repo", home=fake_home) is None,
        "cloud_synced_root is None for a home-folder path and for a look-alike folder name")
+
+    # control: run in a child process with symlinks refused, this selftest fails its symlink gate
+    # under a POSIX os and skips venv selection under Windows. The child skips this control.
+    if not _SYMLINK_CHILD:
+        child = ("import pathlib, sys\n"
+                 f"sys.path.insert(0, {str(Path(__file__).resolve().parent)!r})\n"
+                 "import env_paths\n"
+                 "env_paths._SYMLINK_CHILD = True\n"
+                 "def refuse(self, *a, **k):\n"
+                 "    raise OSError(1314, 'A required privilege is not held by the client')\n"
+                 "pathlib.Path.symlink_to = refuse\n"
+                 "sys.exit(env_paths._selftest())\n")
+        r = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=120)
+        gate_failed = "[FAIL] the symlink to the interpreter is made" in r.stdout
+        ok(gate_failed == (os.name != "nt") and "[skip] venv selection" in r.stdout,
+           "with symlinks refused, the symlink gate fails off Windows and skips on Windows")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:

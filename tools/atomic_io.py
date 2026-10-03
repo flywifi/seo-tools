@@ -95,6 +95,11 @@ def locked(path):
             _release(fh)
 
 
+# The errno msvcrt.locking sets when another handle holds the region with LK_NBLCK (EACCES).
+# EDEADLOCK is set by LK_LOCK and LK_RLCK alone, which _acquire does not use.
+_LOCK_HELD = (errno.EACCES,)
+
+
 def _acquire(fh) -> None:
     if fcntl is not None:
         fcntl.flock(fh, fcntl.LOCK_EX)
@@ -106,7 +111,9 @@ def _acquire(fh) -> None:
             try:
                 msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
                 return
-            except OSError:
+            except OSError as exc:
+                if exc.errno not in _LOCK_HELD:
+                    raise   # a bad handle or argument is an error, not a lock to wait for
                 time.sleep(0.01)
 
 
@@ -168,21 +175,39 @@ def selftest() -> int:
         ok("two processes under locked(): no lost update", rcs == [0, 0] and data == {"a": 50, "b": 50})
         ok("lock sidecar is beside the file", (Path(td) / "counter.json.lock").exists())
         # P101: the Windows branch of locked() (msvcrt), in this process so the code under test is
-        # this module's. On POSIX a stand-in msvcrt is backed by a non-blocking flock (separate
-        # open() calls conflict even within one process) and fcntl is hidden, so the polling loop in
-        # _acquire is what serialises two threads; on Windows the real msvcrt ran the test above.
-        if os.name != "nt" and fcntl is not None:
-            import threading, types, time as _t
+        # this module's (child processes import the file on disk). On Windows it is the real
+        # msvcrt; elsewhere a stand-in backed by a non-blocking flock (separate open() calls
+        # conflict even within one process), with fcntl hidden, so the polling loop in _acquire is
+        # what serialises two threads.
+        import threading, types, time as _t
+        base = None
+        if os.name == "nt" and msvcrt is not None:
+            base, consts = msvcrt.locking, msvcrt   # the real lock: two handles conflict in-process
+        elif fcntl is not None:
             real_f = fcntl
 
-            def _locking(fd, mode, n):
-                if mode == 2:
-                    real_f.flock(fd, real_f.LOCK_EX | real_f.LOCK_NB)
-                else:
-                    real_f.flock(fd, real_f.LOCK_UN)
+            def base(fd, mode, n):   # msvcrt's contract over flock: a held lock raises EACCES
+                try:
+                    if mode in (1, 2):   # LK_LOCK waits, LK_NBLCK does not
+                        real_f.flock(fd, real_f.LOCK_EX | (real_f.LOCK_NB if mode == 2 else 0))
+                    else:
+                        real_f.flock(fd, real_f.LOCK_UN)
+                except BlockingIOError:
+                    raise OSError(errno.EACCES, "locked by another handle") from None
+            consts = types.SimpleNamespace(LK_UNLCK=0, LK_LOCK=1, LK_NBLCK=2)
+        lock_impl = None
+        if base is not None:
+            calls = []
+
+            def _recording(fd, mode, n):   # every call: (mode, file offset, byte count)
+                calls.append((mode, os.lseek(fd, 0, os.SEEK_CUR), n))
+                return base(fd, mode, n)
+            lock_impl = types.SimpleNamespace(LK_UNLCK=consts.LK_UNLCK, LK_LOCK=consts.LK_LOCK,
+                                              LK_NBLCK=consts.LK_NBLCK, locking=_recording)
+        if lock_impl is not None:
             g = globals()
             saved = (g["fcntl"], g["msvcrt"])
-            g["fcntl"], g["msvcrt"] = None, types.SimpleNamespace(LK_NBLCK=2, LK_UNLCK=0, locking=_locking)
+            g["fcntl"], g["msvcrt"] = None, lock_impl
             c2 = Path(td) / "counter2.json"
             c2.write_text("{}", encoding="utf-8")
             errors = []
@@ -207,23 +232,54 @@ def selftest() -> int:
                 g["fcntl"], g["msvcrt"] = saved
             ok("the msvcrt branch serialises two writers: no lost update",
                not errors and json.loads(c2.read_text(encoding="utf-8")) == {"a": 50, "b": 50})
+            takes = [c for c in calls if c[0] != lock_impl.LK_UNLCK]
+            gives = [c for c in calls if c[0] == lock_impl.LK_UNLCK]
+            ok("the msvcrt branch polls LK_NBLCK and unlocks the same region: one byte at offset 0",
+               takes and gives and set(takes) == {(lock_impl.LK_NBLCK, 0, 1)}
+               and set(gives) == {(lock_impl.LK_UNLCK, 0, 1)})
             # Release frees the lock while the handle is still open: a second handle can then
             # take it at once (closing the handle, which also frees it, comes later).
-            g["fcntl"], g["msvcrt"] = None, types.SimpleNamespace(LK_NBLCK=2, LK_UNLCK=0, locking=_locking)
+            g["fcntl"], g["msvcrt"] = None, lock_impl
             sidecar = Path(td) / "rel.lock"
             try:
                 with open(sidecar, "a+") as fa, open(sidecar, "a+") as fb:
                     _acquire(fa)
                     _release(fa)
                     try:
-                        _locking(fb.fileno(), 2, 1)
+                        fb.seek(0)
+                        lock_impl.locking(fb.fileno(), lock_impl.LK_NBLCK, 1)
                         free = True
-                        _locking(fb.fileno(), 0, 1)
+                        fb.seek(0)
+                        lock_impl.locking(fb.fileno(), lock_impl.LK_UNLCK, 1)
                     except OSError:
                         free = False
             finally:
                 g["fcntl"], g["msvcrt"] = saved
             ok("the msvcrt branch releases the lock while the handle is still open", free)
+        # An error other than a held lock (a bad handle or argument) is raised, not retried
+        # forever. The stand-in raises EINVAL once; a second call means it was retried.
+        tries = {"n": 0}
+
+        def _bad(fd, mode, n):
+            tries["n"] += 1
+            if tries["n"] > 1:
+                raise RuntimeError("retried")
+            raise OSError(errno.EINVAL, "bad argument")
+        g = globals()
+        saved = (g["fcntl"], g["msvcrt"])
+        g["fcntl"], g["msvcrt"] = None, types.SimpleNamespace(LK_UNLCK=0, LK_LOCK=1, LK_NBLCK=2, locking=_bad)
+        try:
+            with open(Path(td) / "bad.lock", "a+") as fh:
+                _acquire(fh)
+            outcome = "returned"
+        except RuntimeError:
+            outcome = "retried"
+        except OSError as exc:
+            outcome = "raised" if exc.errno == errno.EINVAL else "other"
+        finally:
+            g["fcntl"], g["msvcrt"] = saved
+        ok("the msvcrt branch raises an error other than a held lock instead of retrying it",
+           outcome == "raised")
         # A directory at the destination is refused before writing, so Windows (where os.replace
         # raises PermissionError onto a directory) gives the same IsADirectoryError.
         g = globals()

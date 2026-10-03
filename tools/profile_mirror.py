@@ -1537,6 +1537,20 @@ def _pins_cli(m, tmp) -> list:
 # /bin/bash. Windows has no such agent (the mirror runs by hand there) and no /bin/bash, so the
 # group and its mutation cases do not run on Windows; the selftest says so instead of passing them.
 SCRIPT_PINS_RUN = os.name != "nt"
+# The agent group links a fake .venv interpreter to this one (a symlink), the case its pin is about
+# (the plist keeps the venv path, not the resolved binary). Windows without Developer Mode or admin
+# rights refuses the symlink; the selftest then reports the group and its cases as not run.
+AGENT_PINS_RUN = True
+
+
+def _symlinks_work(tmp: Path) -> bool:
+    probe = tmp / "symlink-probe"
+    try:
+        probe.symlink_to(sys.executable)
+    except OSError:
+        return False
+    probe.unlink()
+    return True
 
 
 def _pins_script(m, tmp, script=None) -> list:
@@ -1746,6 +1760,8 @@ def _run_mutants(tmp: Path) -> list:
     for i, (label, group, old, new) in enumerate(_MUTANTS):
         sub = tmp / f"mutant-{i}"
         sub.mkdir(parents=True)
+        if group == "agent" and not AGENT_PINS_RUN:
+            continue
         if group == "script":
             if not SCRIPT_PINS_RUN:
                 continue
@@ -1787,6 +1803,10 @@ def _no_network(method, url, headers=None, data=None, timeout=30):
     return 0, b"selftest: no network"
 
 
+# Set by the child process of the symlink control in selftest(), which must not run it again.
+_SYMLINK_CHILD = False
+
+
 def selftest() -> int:
     import shutil
     import tempfile
@@ -1800,7 +1820,7 @@ def selftest() -> int:
     watched = [real_home / "Library" / "LaunchAgents", real_home / "Library" / "Logs" / "CreatorOS"]
     before = _snapshot(watched)
     g = globals()
-    saved = {k: g[k] for k in ("STATE_PATH", "CONTEXT_DIR", "LOG_DIR")}
+    saved = {k: g[k] for k in ("STATE_PATH", "CONTEXT_DIR", "LOG_DIR", "AGENT_PINS_RUN")}
     saved_home = os.environ.get("HOME")
     saved_transport, saved_token = da._default_transport, pd._api_token
     tmp = Path(tempfile.mkdtemp(prefix="profile-mirror-selftest-"))
@@ -1811,9 +1831,26 @@ def selftest() -> int:
                  LOG_DIR=tmp / "default-logs")
         da._default_transport = _no_network
         pd._api_token = lambda transport=None, **k: (None, "selftest: no credential")
+        real_link = Path.symlink_to
+
+        def _refuse(self, *a, **k):   # as Windows without Developer Mode or admin rights
+            raise OSError(1314, "A required privilege is not held by the client")
+        Path.symlink_to = _refuse
+        try:
+            refused = _symlinks_work(tmp)
+        finally:
+            Path.symlink_to = real_link
+        ok("the symlink probe reports a refused symlink as not working",
+           refused is False and not (tmp / "symlink-probe").exists())
+        g["AGENT_PINS_RUN"] = _symlinks_work(tmp)
+        ok("the agent group runs here (it is skipped on Windows only, where a symlink can need "
+           "Developer Mode)", AGENT_PINS_RUN or os.name == "nt")
         for group, pins in _PIN_GROUPS.items():
             if group == "script" and not SCRIPT_PINS_RUN:
                 print("  [skip] script: the macOS launchd helper script does not run on Windows")
+                continue
+            if group == "agent" and not AGENT_PINS_RUN:
+                print("  [skip] agent: this system cannot create a symlink (on Windows, Developer Mode)")
                 continue
             sub = tmp / group
             sub.mkdir()
@@ -1822,10 +1859,11 @@ def selftest() -> int:
         survivors = _run_mutants(tmp / "mutants")
         if survivors:
             print(f"  [note] mutations the pins did not catch: {survivors}")
-        ran = [r for r in _MUTANTS if r[1] != "script" or SCRIPT_PINS_RUN]
+        ran = [r for r in _MUTANTS if (r[1] != "script" or SCRIPT_PINS_RUN)
+               and (r[1] != "agent" or AGENT_PINS_RUN)]
         ok(f"each of {len(ran)} committed mutations fails its pin group"
            + ("" if len(ran) == len(_MUTANTS) else
-              f" ({len(_MUTANTS) - len(ran)} script cases not run on Windows)"),
+              f" ({len(_MUTANTS) - len(ran)} script or agent cases not run here)"),
            ran and not survivors)
     finally:
         g.update(saved)
@@ -1837,6 +1875,23 @@ def selftest() -> int:
         shutil.rmtree(tmp, ignore_errors=True)
     ok("the real ~/Library/LaunchAgents and ~/Library/Logs/CreatorOS are as they were",
        _snapshot(watched) == before)
+    # control: run in a child process with symlinks refused (its pin groups and mutation cases
+    # emptied, so it stops after the gate), this selftest fails its agent gate under a POSIX os and
+    # passes it under Windows. The child skips this control.
+    if not _SYMLINK_CHILD:
+        child = ("import pathlib, sys\n"
+                 f"sys.path.insert(0, {str(Path(__file__).resolve().parent)!r})\n"
+                 "import profile_mirror as pm\n"
+                 "pm._PIN_GROUPS, pm._MUTANTS, pm._SYMLINK_CHILD = {}, (), True\n"
+                 "def refuse(self, *a, **k):\n"
+                 "    raise OSError(1314, 'A required privilege is not held by the client')\n"
+                 "pathlib.Path.symlink_to = refuse\n"
+                 "sys.exit(pm.selftest())\n")
+        r = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=300)
+        gate_failed = "[FAIL] the agent group runs here" in r.stdout
+        ok("with symlinks refused, the agent gate fails off Windows and passes on Windows",
+           gate_failed == (os.name != "nt") and "[ok] the symlink probe reports" in r.stdout)
     passed = sum(1 for _, c in checks if c)
     print(f"profile_mirror selftest: {passed}/{len(checks)} passed")
     return 0 if passed == len(checks) else 1

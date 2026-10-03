@@ -211,6 +211,27 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P101 (surface selftest on Windows): `surface_workflow_check.py` makes each sandbox and pin
+  folder with one `os.mkdir` (mode `0o700`) under the system temporary folder (`_temp_folder`),
+  not `tempfile.mkdtemp`. On Windows, `mkdtemp` reads a `PermissionError` as a name collision and
+  retries up to `TMP_MAX` times, so a folder the suite's write guard refused kept the selftest
+  from finishing on Windows; with one attempt a refusal raises at once. The pin runs
+  `Box` under a guard that refuses it with `tempfile` behaving as on Windows (simulated: `os.name`
+  reported as `nt`, the retry count cut to five) and requires one refused `mkdir` and a
+  `PermissionError`; it resolves `tempfile`'s folder first, so it does not depend on an earlier
+  check. A second check, run off Windows with the umask cleared, requires the folder to be
+  owner-only; its mutation case is skipped on Windows, which keeps no POSIX mode bits, through the
+  runner's POSIX-only list, and a control checks that skip. The guard's realpath pins link folders
+  with a symlink, or on Windows without the privilege to make one, a directory junction. The
+  blocked-write pin matches its fixture path with either separator. `atomic_io._acquire` waits on
+  a held lock (`EACCES`, the errno `LK_NBLCK` sets) and raises other errors instead of retrying
+  them. Its in-process lock test runs with the real `msvcrt` on Windows and a stand-in elsewhere,
+  records every lock call, and requires `LK_NBLCK` on one byte at offset 0 and an unlock of the
+  same byte. `env_paths` and `profile_mirror` report their symlink checks as not run on Windows
+  when a symlink is refused, and fail elsewhere; each selftest also runs its symlink step once
+  with the symlink refused, and runs itself in a child process with symlinks refused to check
+  that verdict. `file_hash`'s runner skips on Windows the rows it lists as POSIX-only
+  (a mutant that behaves as the original there) and says how many.
 - P101 (Windows selftests and handles): `atomic_io.locked()` takes an exclusive lock on Windows,
   `msvcrt.locking` on the sidecar's first byte polled in its non-blocking form, where it was a
   no-op; its selftest runs that branch in-process with a stand-in `msvcrt`. `atomic_write_text`

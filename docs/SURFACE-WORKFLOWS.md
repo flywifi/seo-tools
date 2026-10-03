@@ -47,7 +47,11 @@ a log folder and a Drive API stand-in. The runner points the code at that folder
 `HOME`, and the default ledger argument of the inbox functions), checks before each computer step
 that those still point inside it and refuses the step if one does not (checks
 `run-preflight-before-each-real-step`, `preflight-refuses-HOME`, `preflight-refuses-CONTEXT_DIR`
-and `preflight-refuses-ledger-default`), and deletes the folder afterwards.
+and `preflight-refuses-ledger-default`), and deletes the folder afterwards. Each such folder is
+made with one `mkdir` (mode `0o700`) under the system temporary folder (checks
+`temp-folder-refusal-raises-at-once`, run with Windows `tempfile` behaviour simulated, and
+`temp-folder-is-private`, run off Windows), so a folder the guard refuses raises at once instead
+of being retried the way `tempfile.mkdtemp` retries it on Windows.
 
 The workflows and probes run inside a **write guard**, a Python audit hook that judges the writes
 this process makes through `open` for writing and through the `os` and `shutil` calls that remove,

@@ -251,6 +251,16 @@ def write_guard(*roots):
         _GUARD["stack"].remove(rec)
 
 
+def _temp_folder(prefix):
+    """A new private folder under the system temporary folder, made with ONE mkdir (P101).
+    tempfile.mkdtemp on Windows reads a PermissionError as a name collision and retries up to
+    TMP_MAX (about two billion) times, so a folder the write guard refused hung the suite there for
+    hours; one attempt raises at once on every platform."""
+    path = Path(tempfile.gettempdir()) / f"{prefix}{uuid.uuid4().hex}"
+    os.mkdir(path, 0o700)
+    return path
+
+
 def _sandbox_root():
     return tempfile.gettempdir()
 
@@ -261,7 +271,7 @@ class Box:
     """One workflow's throwaway world. Everything a computer step writes lands under root."""
 
     def __init__(self, tag, pinned_today):
-        self.root = Path(tempfile.mkdtemp(prefix=f"creator-os-surface-{tag}-"))
+        self.root = _temp_folder(f"creator-os-surface-{tag}-")
         self.day = pinned_today
         self.hub = self.root / "hub" / "Creator OS"
         for area in HUB_AREAS:
@@ -705,7 +715,7 @@ def _mcp_server():
     sys.argv cleared so its --selftest sniff does not fire. Restores sys.modules and the env."""
     if "ms" in _MS:
         return _MS["ms"]
-    tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-mcp-"))
+    tmp = _temp_folder("creator-os-surface-mcp-")
     _MS["tmp"] = tmp
     atexit.register(shutil.rmtree, tmp, True)  # also when a caller never reaches run_suite's cleanup
     (tmp / "pipeline" / "user-context").mkdir(parents=True)
@@ -1524,7 +1534,7 @@ def _pins_guard(m):
     and is inert once the block ends. The 'outside' targets sit in a throwaway folder beside the
     allowed root, never in the repository, so a broken guard writes only into that folder."""
     out = []
-    tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-guard-"))
+    tmp = _temp_folder("creator-os-surface-guard-")
     allowed, outside = tmp / "allowed", tmp / "outside"
     allowed.mkdir()
     outside.mkdir()
@@ -1787,7 +1797,7 @@ def _pins_suite(m):
         m.PROBES.pop("pin_leak", None)
     rep2 = m.run_suite(dict(c, gap_ledger=[{"id": "SW-PIN", "probe": "workspace_flag_map"}]), matrix)
     return [("sandbox-root-is-temp", root_ok),
-            ("suite-reports-blocked-write", any("/nonexistent-creator-os-pin/" in b
+            ("suite-reports-blocked-write", any("nonexistent-creator-os-pin" in b   # either separator
                                                 for b in rep["write_guard"]["blocked"])),
             ("suite-judged-counts-writes", rep2["write_guard"]["judged"] == 0 and rep["write_guard"]["judged"] == 1)]
 
@@ -2096,6 +2106,19 @@ def _gate_check(m):
     return [("selftest-skips-mutants-when-guard-fails", rc == 1 and not calls and "mutants not run" in out)]
 
 
+def _dir_link(target, link):
+    """A symbolic link to a folder; on Windows without the privilege to make one (no Developer Mode
+    or admin rights: WinError 1314), a directory junction, which os.path.realpath resolves the same
+    way and which needs no privilege. Used by the guard's realpath pins."""
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError:
+        if os.name != "nt":
+            raise
+        import _winapi
+        _winapi.CreateJunction(str(target), str(link))
+
+
 def _guard_bytecode_scope_checks(m):
     """The exemption is exactly the cache: a cache-tagged .pyc outside a __pycache__ folder, a name
     that only starts like one, a folder whose name ends in __pycache__, a __pycache__ path that is
@@ -2116,7 +2139,7 @@ def _guard_bytecode_scope_checks(m):
 
     (r / "elsewhere").mkdir()
     (r / "pkg2").mkdir()
-    os.symlink(r / "elsewhere", r / "pkg2" / "__pycache__")
+    _dir_link(r / "elsewhere", r / "pkg2" / "__pycache__")
     saved_prefix = sys.pycache_prefix
     try:
         with m.write_guard(r / "in"):
@@ -2142,7 +2165,7 @@ def _guard_real_import_check(m):
     """A real first import inside the guard writes its cache folder and file without a refusal (the
     events and names the interpreter actually uses, which a fresh checkout meets)."""
     import importlib.util
-    tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-import-"))
+    tmp = _temp_folder("creator-os-surface-pin-import-")
     src = tmp / "src"
     src.mkdir()
     (tmp / "allowed").mkdir()
@@ -2168,7 +2191,7 @@ def _guard_real_import_check(m):
 
 def _suite_judged_events_check(m):
     """judged counts judged write events: one file written twice counts two."""
-    d = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-judged-"))
+    d = _temp_folder("creator-os-surface-pin-judged-")
 
     def two(ctx):
         for _ in range(2):
@@ -2352,7 +2375,7 @@ def _guard_bytecode_edge_checks(m):
             return True
 
     (r / "real-pfx").mkdir()
-    os.symlink(r / "real-pfx", r / "link-pfx")
+    _dir_link(r / "real-pfx", r / "link-pfx")
     saved = sys.pycache_prefix
     out = []
     try:
@@ -2450,7 +2473,7 @@ def _guard_prefix_parent_edge_checks(m):
             return True
 
     (r / "real").mkdir()
-    os.symlink(r / "real", r / "lnk")
+    _dir_link(r / "real", r / "lnk")
     saved, out = sys.pycache_prefix, []
     try:
         with m.write_guard(r / "in"):
@@ -2474,7 +2497,7 @@ def _guard_real_import_under_prefix_check(m):
     """A real first import with a missing three-level bytecode prefix creates the prefix and its
     parents and writes the cache file there, all inside the guard without a refusal."""
     import importlib.util
-    tmp = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-pfximport-"))
+    tmp = _temp_folder("creator-os-surface-pin-pfximport-")
     src = tmp / "src"
     src.mkdir()
     (tmp / "allowed").mkdir()
@@ -2501,7 +2524,7 @@ def _guard_real_import_under_prefix_check(m):
 def _guard_real_import_hygiene_check(m):
     """Run with the owner's own bytecode prefix set, the real-import check passes, writes nothing
     there, and puts back the prefix, the bytecode switch and the importer cache."""
-    pfx = Path(tempfile.mkdtemp(prefix="creator-os-surface-pin-userpfx-"))
+    pfx = _temp_folder("creator-os-surface-pin-userpfx-")
     saved_prefix, saved_dwb = sys.pycache_prefix, sys.dont_write_bytecode
     before = set(sys.path_importer_cache)
     sys.pycache_prefix, sys.dont_write_bytecode = str(pfx), True  # known values the check must put back
@@ -2550,7 +2573,7 @@ def _pins_mutant_runner(m):
                                       ("caught", "verdict", blocked, "")))
     # a mutant that leaves its guard stack open must not make the next one crash (and so look caught)
     stuck = '        _GUARD["stack"].remove(rec)'
-    box_line = '        self.root = Path(tempfile.mkdtemp(prefix=f"creator-os-surface-{tag}-"))'
+    box_line = '        self.root = _temp_folder(f"creator-os-surface-{tag}-")'
     after_stuck = m._run_mutants(table=(("stuck", "guard", stuck, "        pass"),
                                         ("noop-after-stuck", "write", box_line, box_line)))
     return [("mutant-runner-reports-survivor", "noop" in survivors),
@@ -2558,6 +2581,63 @@ def _pins_mutant_runner(m):
             ("mutant-runner-passes-caught", "caught" not in survivors and len(survivors) == 2),
             ("mutant-runner-isolates-guard-stack", after_stuck == ["noop-after-stuck"])]
 
+
+
+def _temp_folder_checks(m):
+    """A sandbox folder the write guard refuses raises PermissionError after one attempt. Run with
+    tempfile behaving as on Windows (os.name 'nt', TMP_MAX cut to 5): tempfile.mkdtemp there
+    retries a PermissionError as a name collision, which hung the suite on Windows."""
+    class _NtOs:
+        name = "nt"
+
+        def __getattr__(self, attr):
+            return getattr(os, attr)
+    # tempfile caches its folder on first use; resolve it now, before tempfile is told it runs on
+    # Windows and while no guard refuses the probe file it writes, so the pin does not depend on
+    # an earlier check having resolved it.
+    m.tempfile.gettempdir()
+    saved = (m.tempfile._os, m.tempfile.TMP_MAX)
+    m.tempfile._os, m.tempfile.TMP_MAX = _NtOs(), 5
+    outcome = "none"
+    try:
+        with m.write_guard(os.path.join(os.path.sep, "nonexistent-creator-os-root")) as rec:
+            try:
+                m.Box("pin-refused", "2026-10-01")
+            except PermissionError:
+                outcome = "permission"
+            except FileExistsError:
+                outcome = "retried-out"
+    finally:
+        m.tempfile._os, m.tempfile.TMP_MAX = saved
+    mkdirs = [b for b in rec["blocked"] if b.startswith("os.mkdir ")]
+    out = [("temp-folder-refusal-raises-at-once", outcome == "permission" and len(mkdirs) == 1)]
+    # The folder is private: mode 0o700, owner only. Windows keeps no POSIX mode bits, so this is
+    # checked elsewhere only (row T4 is POSIX-only). The umask is cleared while the box is made, so
+    # the mkdir mode alone decides; a host umask of 077 would make any folder look private.
+    if os.name != "nt":
+        old_mask = os.umask(0)
+        try:
+            box = m.Box("pin-private", "2026-10-01")
+        finally:
+            os.umask(old_mask)
+        try:
+            out.append(("temp-folder-is-private", os.stat(box.root).st_mode & 0o077 == 0))
+        finally:
+            box.close()
+    return out
+
+
+# Row T3 nests each box one folder below the temp folder. The suite group removes that folder,
+# when it is empty, after its pins, so a selftest run leaves nothing behind in the temp folder.
+_MUTANT_NEST = "creator-os-mutant-nest"
+
+
+def _suite_cleanup(m):
+    try:
+        os.rmdir(os.path.join(m.tempfile.gettempdir(), _MUTANT_NEST))
+    except OSError:
+        pass
+    return []
 
 def _group(*fns):
     """One pin group from several check functions; a crash in one is reported as that function's
@@ -2581,7 +2661,9 @@ _PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks, _contra
                                _guard_prefix_parent_edge_checks, _guard_real_import_check,
                                _guard_real_import_under_prefix_check, _guard_real_import_hygiene_check),
                "detect": _group(_pins_detect, _detect_more_checks), "verdict": _pins_verdict,
-               "suite": _group(_pins_suite, _suite_judged_events_check), "run": _pins_run, "mcp": _pins_mcp,
+               "suite": _group(_pins_suite, _suite_judged_events_check, _temp_folder_checks,
+                               _suite_cleanup),
+               "run": _pins_run, "mcp": _pins_mcp,
                "workflows": _pins_workflows,
                "patchables": _group(_mutant_runner_patchable_check, _runner_import_path_every_case_check),
                "mutant-runner": _group(_pins_mutant_runner, _mutant_runner_state_checks, _gate_check,
@@ -3261,7 +3343,27 @@ _MUTANTS = (
     ('E3 rename-not-a-step', 'guard',
      '    return event in ("open", "os.rename") or (event == "os.remove" and found.group(2) is not None)',
      '    return event == "open" or (event == "os.remove" and found.group(2) is not None)'),
+    ('T1 box-folder-via-mkdtemp', 'suite',
+     '        self.root = _temp_folder(f"creator-os-surface-{tag}-")',
+     '        self.root = Path(tempfile.mkdtemp(prefix=f"creator-os-surface-{tag}-"))'),
+    ('T2 temp-folder-retries-refusals', 'suite',
+     '    os.mkdir(path, 0o700)\n    return path',
+     '    for _ in range(3):\n        try:\n            os.mkdir(path, 0o700)\n            break\n        except PermissionError:\n            path = path.with_name(f"{prefix}{uuid.uuid4().hex}")\n    else:\n        raise PermissionError(str(path))\n    return path'),
+    ('T3 temp-folder-nested-below-temp', 'suite',
+     '    path = Path(tempfile.gettempdir()) / f"{prefix}{uuid.uuid4().hex}"\n    os.mkdir(path, 0o700)',
+     '    path = Path(tempfile.gettempdir()) / "' + _MUTANT_NEST + '" / f"{prefix}{uuid.uuid4().hex}"\n'
+     '    os.makedirs(path, 0o700)'),
+    ('T4 temp-folder-not-private', 'suite',
+     '    os.mkdir(path, 0o700)\n    return path',
+     '    os.mkdir(path)\n    return path'),
+    ('T5 temp-folder-refusal-as-collision', 'suite',
+     '    os.mkdir(path, 0o700)\n    return path',
+     '    try:\n        os.mkdir(path, 0o700)\n    except PermissionError as exc:\n        raise FileExistsError(str(path)) from exc\n    return path'),
 )
+
+# Rows whose pin does not run on Windows, so only a POSIX run can catch them: T4's privacy check
+# reads POSIX mode bits, which Windows does not keep. The runner skips these rows on Windows.
+_POSIX_ONLY = {"T4 temp-folder-not-private"}
 
 
 def _mutant_module(source: str):
@@ -3273,11 +3375,14 @@ def _mutant_module(source: str):
     return mod
 
 
-def _run_mutants(table=None) -> list:
-    """The labels of mutants their pin group did not catch (or whose anchor is not unique)."""
+def _run_mutants(table=None, posix_only=None) -> list:
+    """The labels of mutants their pin group did not catch (or whose anchor is not unique). On
+    Windows the rows listed in posix_only (by default _POSIX_ONLY) are skipped."""
     head, mark, tail = Path(__file__).read_text(encoding="utf-8").partition(_SELFTEST_MARK)
     survivors = []
     for label, group, old, new in (_MUTANTS if table is None else table):
+        if os.name == "nt" and label in (_POSIX_ONLY if posix_only is None else posix_only):
+            continue
         if head.count(old) != 1:
             survivors.append(f"{label} (anchor not found exactly once)")
             continue
@@ -3328,6 +3433,27 @@ def selftest() -> int:
             if control != [f"control-{g}" for g in groups]:
                 failures.append("mutant harness control: an unmutated copy failed group(s) "
                                 + ", ".join(sorted(set(f"control-{g}" for g in groups) - set(control))))
+            # control: a row listed as POSIX-only reaches the anchor check under a POSIX os and is
+            # skipped under Windows; the runner's os is swapped for each run, and the row's anchor
+            # is absent, so no pins run
+            class _AsOs:
+                def __init__(self, name):
+                    self.name = name
+
+                def __getattr__(self, attr):
+                    return getattr(real_os, attr)
+            g, real_os, skip_runs = globals(), os, {}
+            for name in ("posix", "nt"):
+                g["os"] = _AsOs(name)
+                try:
+                    skip_runs[name] = _run_mutants(table=[("posix-row", "suite", "\x00absent\x00", "")],
+                                                   posix_only={"posix-row"})
+                finally:
+                    g["os"] = real_os
+            ran += 1
+            if skip_runs != {"posix": ["posix-row (anchor not found exactly once)"], "nt": []}:
+                failures.append("mutant harness control: a POSIX-only row was not run under a POSIX "
+                                f"os and skipped under Windows: {skip_runs}")
             survivors = _run_mutants()
             ran += 2
             if survivors:
@@ -3340,7 +3466,9 @@ def selftest() -> int:
     if failures:
         print(f"selftest: FAIL ({len(failures)} of {ran} checks): " + ", ".join(failures))
         return 1
-    print(f"selftest: PASS ({ran} of {ran} checks; {len(_MUTANTS)} committed mutants caught)")
+    skipped = len(_POSIX_ONLY & {row[0] for row in _MUTANTS}) if os.name == "nt" else 0
+    print(f"selftest: PASS ({ran} of {ran} checks; {len(_MUTANTS) - skipped} committed mutants caught"
+          + (f"; {skipped} POSIX-only not run on Windows" if skipped else "") + ")")
     return 0
 
 

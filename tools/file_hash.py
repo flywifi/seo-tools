@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import os
 import pathlib
 import sys
 from pathlib import Path
@@ -381,8 +382,8 @@ _MUTANTS = (
      '                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)\n                return',
      '                return'),
     ('aio-msvcrt-giveup', 'atomic_io.py',
-     '            except OSError:\n                time.sleep(0.01)',
-     '            except OSError:\n                return'),
+     '                    raise   # a bad handle or argument is an error, not a lock to wait for\n                time.sleep(0.01)',
+     '                    raise   # a bad handle or argument is an error, not a lock to wait for\n                return'),
     ('aio-msvcrt-norelease', 'atomic_io.py',
      '        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)',
      '        pass'),
@@ -443,7 +444,37 @@ _MUTANTS = (
     ('pd-local-missing-name', 'project_docs.py',
      '            out["missing"].append(src.relative_to(ROOT).as_posix())',
      '            out["missing"].append(src.name)'),
+    ('aio-msvcrt-lk-lock', 'atomic_io.py',
+     '                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)\n                return',
+     '                msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)\n                return'),
+    ('aio-msvcrt-unlock-zero-bytes', 'atomic_io.py',
+     '        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)',
+     '        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 0)'),
+    ('aio-msvcrt-retries-any-error', 'atomic_io.py',
+     '            except OSError as exc:\n                if exc.errno not in _LOCK_HELD:\n'
+     '                    raise   # a bad handle or argument is an error, not a lock to wait for\n'
+     '                time.sleep(0.01)',
+     '            except OSError as exc:\n                time.sleep(0.01)'),
+    ('aio-msvcrt-held-lock-raised', 'atomic_io.py',
+     '_LOCK_HELD = (errno.EACCES,)',
+     '_LOCK_HELD = ()'),
+    ('aio-msvcrt-filter-inverted', 'atomic_io.py',
+     '                if exc.errno not in _LOCK_HELD:',
+     '                if exc.errno in _LOCK_HELD:'),
+    ('aio-msvcrt-lock-two-bytes', 'atomic_io.py',
+     '                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)\n                return',
+     '                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 2)\n                return'),
+    ('aio-msvcrt-lock-offset-1', 'atomic_io.py',
+     '        fh.seek(0)\n        while True:',
+     '        fh.seek(1)\n        while True:'),
+    ('aio-msvcrt-unlock-offset-1', 'atomic_io.py',
+     '        fh.seek(0)\n        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)',
+     '        fh.seek(1)\n        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)'),
 )
+
+# Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
+# them; on Windows the runner skips them and the selftest says how many it skipped.
+_POSIX_ONLY = {"aio-dir-precheck-nt-only"}
 
 # The function the runner scores for a module with no selftest(): it returns 0 when clean.
 # sync_check.py is exempt from the selftest sweep (running it is its test).
@@ -533,7 +564,7 @@ def _restore_global_state(saved) -> None:
 _MISSING = object()
 
 
-def _run_mutants(table=None, base=None, entries=None) -> list:
+def _run_mutants(table=None, base=None, entries=None, posix_only=None) -> list:
     """The labels of rows no selftest caught, each with the reason when the row is invalid: an anchor
     not found exactly once, an anchor inside the entry function itself (the test that scores the
     row; other test helpers are not detected), a mutant that does not compile or load, a module with
@@ -545,6 +576,8 @@ def _run_mutants(table=None, base=None, entries=None) -> list:
     entries = _ENTRIES if entries is None else entries
     survivors, baseline = [], {}
     for label, module, old, new in (_MUTANTS if table is None else table):
+        if os.name == "nt" and label in (_POSIX_ONLY if posix_only is None else posix_only):
+            continue
         path = here / module
         entry = entries.get(module, "selftest")
         src = path.read_text(encoding="utf-8")
@@ -648,6 +681,28 @@ def _runner_controls() -> list:
                 "guard-b" in leaked and "guard-a" in leaked and restored))
     out.append(("a row whose anchor is inside the selftest that scores it is invalid, not caught",
                 len(in_test) == 1 and "invalid: anchor in selftest()" in in_test[0]))
+    # A row listed as POSIX-only is run (here an equivalent row, so it survives) under a POSIX os
+    # and skipped under Windows; the runner's os is swapped for each run.
+    class _AsOs:
+        def __init__(self, name):
+            self.name = name
+
+        def __getattr__(self, attr):
+            return getattr(real_os, attr)
+    g, real_os = globals(), globals()["os"]
+    runs = {}
+    with tempfile.TemporaryDirectory() as td2:
+        d2 = Path(td2)
+        (d2 / "good.py").write_text("x = 1\ndef selftest():\n    return 0 if x == 1 else 1\n", encoding="utf-8")
+        row = [("posix-row", "good.py", "x = 1\n", "x = 1  # same\n")]
+        for name in ("posix", "nt"):
+            g["os"] = _AsOs(name)
+            try:
+                runs[name] = _run_mutants(row, base=d2, posix_only={"posix-row"})
+            finally:
+                g["os"] = real_os
+    out.append(("a POSIX-only row runs under a POSIX os and is skipped under Windows",
+                runs == {"posix": ["posix-row"], "nt": []}))
     return out
 
 
@@ -732,7 +787,9 @@ def selftest() -> int:
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)
         survivors = _run_mutants()
-        ok(f"each of {len(_MUTANTS)} committed mutations is caught by the selftest it targets"
+        skipped = len(_POSIX_ONLY & {r[0] for r in _MUTANTS}) if os.name == "nt" else 0
+        ok(f"each of {len(_MUTANTS) - skipped} committed mutations is caught by the selftest it targets"
+           + (f" ({skipped} POSIX-only not run on Windows)" if skipped else "")
            + (f" (survivors: {survivors})" if survivors else ""), not survivors)
         gaps = _coverage_gaps()
         ok("every module that hashes through file_hash or simulates Windows paths carries at least "

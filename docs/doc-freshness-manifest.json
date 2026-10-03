@@ -4,13 +4,13 @@
   "docs": {
     "docs/PROFILE-MIRROR.md": {
       "sources": {
-        "tools/profile_mirror.py": "6fdcba0f8a273211e7012df1b3376ff55d1f73b05dcb5746c2b496b38ac40429",
+        "tools/profile_mirror.py": "8f2714badc45d2b1094ab4689bc85a7c754ea397304fd16912e61e8a3e8fde9f",
         "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
       }
     },
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
-        "tools/surface_workflow_check.py": "94bdb6d393794c6dbb62d123edea8b1bec968ab086f4e497c40b8608fa0dea26",
+        "tools/surface_workflow_check.py": "d4cec409fc2a860103db8b78c8f05af0359af0546196b2829dad80edce5e9c6d",
         "skills/creator-core/evals/surface-workflows.json": "42e2c52c1357828e53e9808c675e062fa850bbd319eb5aa4e004e1c47772e00f"
       }
     },
