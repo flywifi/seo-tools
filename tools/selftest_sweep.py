@@ -218,8 +218,9 @@ def selftest():
     check("enrolment: exempt but no longer tracked fails",
           len(r) == 1 and "no longer tracked" in r[0])
     live = enrolment_problems()
+    in_git = _tracked_python() is not None
     check("enrolment: the live tree is clean (or honestly DID-NOT-RUN outside git)",
-          live == [] or (len(live) == 1 and "DID NOT RUN" in live[0]))
+          live == [] if in_git else (len(live) == 1 and "DID NOT RUN" in live[0]))
     # P101: on Windows relative_to yields backslash paths, while git and the exemption file use
     # POSIX ones; the live gate keys the discovered set the same way, so it stays clean.
     try:
