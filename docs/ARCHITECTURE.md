@@ -540,7 +540,8 @@ tools/dashboard/
 ```
 
 **Server** (`server.py`): pure Python stdlib (`http.server`, `json`, `threading`, `pathlib`).
-Port 8766 (the setup wizard uses 8765). Exposes a JSON API:
+Port 8766, or 8776, then 8786, when the computer reserves it (`tools/loopback_server.py`; the setup
+wizard's block is 8765, 8775, 8785). Exposes a JSON API:
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -607,7 +608,8 @@ advance the next time it starts). When `live_publishing_enabled` is turned on, t
 - *Output:* confirming a post runs compliance and schedules it (see above). Actual posting is manual
   (`ready_to_post`) until live publishing is enabled.
 - *Credentials:* the Credentials view links to `tools/wizard.py` at
-  `http://localhost:8765/publishing-setup/<platform>` for credential setup flows.
+  `/publishing-setup/<platform>` on the port the wizard recorded when it bound (`GET /api/wizard-url`;
+  8765 when none is recorded) for credential setup flows.
 
 Launch: `python3 tools/dashboard/server.py`
 

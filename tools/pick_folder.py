@@ -133,14 +133,38 @@ def _selftest() -> int:
     rc = _run([sys.executable, "-c", "print('/some/dir')"])
     check(rc == "/some/dir", "_run should return trimmed stdout on success")
 
+    # pick_folder: tkinter's answer wins ('' is a cancel and is kept); None falls through to the
+    # OS-native picker. The two dialog layers are stood in for (P101): on a computer with a display
+    # (macOS, Windows, Linux with X11 or Wayland) the real call opens a dialog and waits for a person.
+    g = globals()
+    real_layers = (g["_tk_pick"], g["_os_pick"], g["_os"])
+    try:
+        for tk_answer, os_answer, want in (("/tk", "/os", "/tk"), ("", "/os", ""),
+                                           (None, "/os", "/os"), (None, "", "")):
+            asked = []
+            g["_tk_pick"] = lambda a=tk_answer: asked.append("tk") or a
+            g["_os_pick"] = lambda a=os_answer: asked.append("os") or a
+            got = pick_folder()
+            check(got == want and asked == (["tk"] if tk_answer is not None else ["tk", "os"]),
+                  f"pick_folder with tkinter {tk_answer!r} and the OS picker {os_answer!r} should "
+                  f"return {want!r}, asking the OS picker only after tkinter gave nothing: {asked}")
+        # macOS and Windows always have a display for a user session.
+        for osn in ("mac", "windows"):
+            g["_os"] = lambda o=osn: o
+            check(_has_display() is True, f"{osn} should count as having a display")
+    finally:
+        g["_tk_pick"], g["_os_pick"], g["_os"] = real_layers
+
     # Headless graceful degrade: no DISPLAY -> tkinter returns None, linux os-pick returns ''.
     saved = {k: os.environ.pop(k, None) for k in ("DISPLAY", "WAYLAND_DISPLAY")}
     try:
         if _os() == "linux":
+            check(_has_display() is False, "Linux with DISPLAY and WAYLAND_DISPLAY unset has no display")
             check(_tk_pick() is None, "headless tkinter should return None")
             check(_os_pick() == "", "headless linux os-pick should return ''")
-        # pick_folder must always return a str and never raise.
-        check(isinstance(pick_folder(), str), "pick_folder must return a str")
+            # Headless, the real call returns a str without opening a dialog; on macOS and Windows
+            # it would open one, so the stand-ins above cover it there.
+            check(isinstance(pick_folder(), str), "pick_folder must return a str")
     finally:
         for k, v in saved.items():
             if v is not None:

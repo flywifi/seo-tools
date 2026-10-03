@@ -747,10 +747,34 @@ const App = (function () {
   // ── Setup info ─────────────────────────────────────────────────
 
   function openSetupInfo(platform) {
-    window.open(
-      "http://localhost:8765/publishing-setup/" + platform,
-      "_blank"
-    );
+    // The setup wizard binds the first port of its block (8765, 8775, 8785) that the computer does
+    // not reserve; the dashboard reports the one it recorded. The tab opens before the request so
+    // a popup blocker allows it.
+    var page = "publishing-setup/" + encodeURIComponent(platform);
+    var tab = window.open("", "_blank");
+    if (tab) {
+      tab.opener = null;   // the wizard page cannot reach back into this tab
+    }
+    function go(base) {
+      var url = base + page;
+      if (tab) {
+        tab.location = url;
+      } else {
+        window.alert("Open the setup wizard at " + url);   // the browser blocked the new tab
+      }
+    }
+    fetch("/api/wizard-url")
+      .then(function (r) {
+        if (!r.ok) { throw new Error("wizard-url " + r.status); }
+        return r.json();
+      })
+      .then(function (d) { go(d.url); })
+      .catch(function () {
+        // The dashboard could not say where the wizard is: name every port of its block.
+        if (tab) { tab.close(); }
+        window.alert("Open the setup wizard at http://localhost:8765/" + page +
+                     " (or port 8775 or 8785, if the wizard said it moved there).");
+      });
   }
 
   // ── Utility ────────────────────────────────────────────────────

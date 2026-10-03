@@ -36,31 +36,21 @@ if str(_HERE) not in sys.path:
 import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loopback helper)
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 import atomic_io  # noqa: E402  (sibling module in tools/; the one atomic writer, P81)
+import loopback_server  # noqa: E402  (sibling module in tools/; port block and exclusive bind, P101)
 
-# P73: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
-# derived from this port and docs/PUBLISHING.md tells you to register
-# http://127.0.0.1:8765/oauth/<platform>/callback with Google, Meta, TikTok and Pinterest as an
-# EXACT match. Changing the port therefore breaks every already-registered redirect URI until you
-# re-register it with each provider -- so this is an escape hatch for a port collision, not a
-# setting to tune. An unparseable or out-of-range value falls back to the default rather than
-# crashing the one tool a non-technical user runs.
-def _wizard_port(default: int = 8765) -> int:
-    raw = os.environ.get("CREATOR_OS_WIZARD_PORT")
-    if not raw:
-        return default
-    try:
-        val = int(raw)
-    except ValueError:
-        print(f"[wizard] CREATOR_OS_WIZARD_PORT={raw!r} is not a number; using {default}.")
-        return default
-    if not (1024 <= val <= 65535):
-        print(f"[wizard] CREATOR_OS_WIZARD_PORT={val} is out of range (1024-65535); "
-              f"using {default}.")
-        return default
-    return val
-
-
-PORT = _wizard_port()
+# P73/P101: the publishing OAuth redirect URIs embed the wizard's port
+# (oauth_flow.redirect_uri: http://127.0.0.1:<port>/oauth/<platform>/callback). Pinterest matches a
+# registered URI exactly, TikTok matches one too (its Desktop apps also accept a wildcard port), and
+# the Instagram screen asks for the URI it shows to be registered with Meta; a Google desktop client
+# needs none (docs/PUBLISHING.md).
+# So the wizard binds a FIXED block, never "the next free port": 8765 first, then 8775 and 8785,
+# moving on only when the OS reserves a port (Windows can reserve 8765 for Hyper-V or WinNAT). Each
+# address in the block is registered once. CREATOR_OS_WIZARD_PORT names one port instead (an
+# escape hatch; its redirect URIs must be registered too); an unparseable or out-of-range value
+# falls back to the block with a printed note rather than crashing the one tool a non-technical
+# user runs. main() rebinds PORT to the port it bound.
+_PORTS = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK)
+PORT = _PORTS[0]
 _MAX_BODY = 5 * 1024 * 1024   # A4a: cap on any request body read into memory (forms are tiny)
 # Known STT model tiers the fetch-model button may request (A4c: reject anything else before shelling).
 _KNOWN_MODEL_TIERS = frozenset({
@@ -3149,7 +3139,7 @@ def _valid_git_ref(ref):
     return re.fullmatch(r"[A-Za-z0-9._/-]+", ref) is not None
 
 
-def _origin_allowed(origin, referer, port=PORT):
+def _origin_allowed(origin, referer, port=None):
     """P57: decide whether a mutating POST is same-origin (CSRF defense).
 
     A browser attaches an `Origin` header to a cross-site form POST; when it is absent it attaches
@@ -3157,7 +3147,9 @@ def _origin_allowed(origin, referer, port=PORT):
     and is rejected; the wizard's own pages carry the loopback origin and pass. A non-browser local
     caller (curl, a local script) sends neither and is allowed -- CSRF is a browser-driven cross-site
     class, and a local process already has full filesystem access, so this adds no exposure. Pure and
-    unit-testable (the wizard selftest exercises it directly)."""
+    unit-testable (the wizard selftest exercises it directly). The port defaults to the one the
+    wizard bound (PORT, read at call time, since main() may bind a later port of the block)."""
+    port = PORT if port is None else port
     allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
     if origin is not None and origin != "":
         return origin in allowed
@@ -4518,8 +4510,223 @@ def _write_freshness_config(store_backend: str, cadence_days: int, modality: str
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
-class _Server(socketserver.TCPServer):
-    allow_reuse_address = True
+class _Server(loopback_server.RefuseSharedPort, socketserver.TCPServer):
+    allow_reuse_address = True   # POSIX restart through TIME_WAIT; RefuseSharedPort clears it on Windows
+
+    def handle_error(self, request, client_address):
+        # A client that hung up before its reply was written (a start-up probe that gave up, a
+        # closed tab) is not an error to print into the Terminal a non-technical user watches.
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
+
+
+def _bind():
+    """The wizard's server on the first usable port of _PORTS (P101). Rebinds PORT to that port,
+    records it in loopback_server.WIZARD_PORT_FILE for the dashboard and launch_setup, and prints a
+    note when refused ports were skipped. Raises loopback_server.BindRefused when none binds, and
+    as recorded when the port last recorded answers as the wizard, or accepts the connection without
+    answering in time (a wizard busy with another request), since that copy may have moved along the
+    block where the bind alone would not see it."""
+    global PORT
+    running, _ = loopback_server.read_port()
+    if running is not None and loopback_server.probe(running) in ("wizard", "silent"):
+        raise loopback_server.BindRefused("recorded", running, [])
+    server, PORT, reserved = loopback_server.bind_first(
+        _PORTS, lambda port: _Server(("127.0.0.1", port), _Handler))
+    if reserved:
+        print(loopback_server.reserved_note(reserved, PORT, "Creator OS Setup"))
+        print("For publishing, register these redirect URIs too (docs/PUBLISHING.md): "
+              f"{oauth_flow.redirect_uri('tiktok', PORT)}, "
+              f"{oauth_flow.redirect_uri('pinterest', PORT)} and, for Instagram, "
+              f"{oauth_flow.redirect_uri('instagram', PORT)}.")
+    try:
+        atomic_io.atomic_write_text(
+            loopback_server.WIZARD_PORT_FILE,
+            loopback_server.port_record(PORT, os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID")))
+    except OSError as exc:
+        print(f"[wizard] could not record port {PORT} for the dashboard: {exc}")
+    return server
+
+
+def _wait_and_close(server):
+    """Serve until the wizard is asked to quit (or Ctrl+C), then stop the server and remove this
+    wizard's port record."""
+    try:
+        _shutdown.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
+        _forget_port()
+        print("\nWizard closed.")
+
+
+def _forget_port():
+    """Remove the port record on a clean shutdown when it still names this wizard (its port and
+    launch id), so a later start does not take a closed wizard for a running one (P101)."""
+    port, launch_id = loopback_server.read_port()
+    if port == PORT and launch_id == os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"):
+        try:
+            loopback_server.WIZARD_PORT_FILE.unlink()
+        except OSError:
+            pass
+
+
+def _selftest_ports() -> int:
+    """P101 port block checks; _selftest runs them, and the committed mutation cases for _bind,
+    _forget_port and _origin_allowed run this alone."""
+    failures = []
+
+    def check(cond, msg):
+        if not cond:
+            failures.append(msg)
+
+    # 5b) P101 port block: _bind() walks past a port the OS reserves (EACCES) to the next port of
+    #     the block, rebinds PORT, records it for the dashboard and launch_setup, and names the
+    #     redirect URIs to register; the same-origin check follows the bound port; a port in use
+    #     stops the walk. _Server is stood in for, so nothing binds.
+    import contextlib as _cl_bind
+    import errno as _errno_bind
+    import io as _io_bind
+    _g = globals()
+    _saved_bind = {k: _g[k] for k in ("PORT", "_Server", "_PORTS")}
+    _saved_file, _saved_probe = loopback_server.WIZARD_PORT_FILE, loopback_server.probe
+    _saved_launch = os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID")
+    _made, _refuse, _states = [], {}, {}
+    check(_Server.server_bind is loopback_server.RefuseSharedPort.server_bind,
+          "the wizard's server does not bind through RefuseSharedPort")
+    check(loopback_server.WIZARD_TITLE_MARK in _screen_welcome().encode("utf-8"),
+          "the wizard's home page does not carry the title mark the start-up probe looks for")
+
+    class _FakeServer:
+        def __init__(self, address, handler):
+            _made.append(address)
+            if address[1] in _refuse:
+                raise OSError(_refuse[address[1]], "refused")
+
+    with tempfile.TemporaryDirectory() as _td_bind:
+        try:
+            _g.update(_Server=_FakeServer, _PORTS=loopback_server.WIZARD_BLOCK)
+            loopback_server.WIZARD_PORT_FILE = pathlib.Path(_td_bind) / "port.local.json"
+            loopback_server.probe = lambda port, *a, **k: _states.get(port, "closed")
+            os.environ["CREATOR_OS_WIZARD_LAUNCH_ID"] = "launch-selftest"
+            _refuse.update({8765: _errno_bind.EACCES})
+            _buf = _io_bind.StringIO()
+            with _cl_bind.redirect_stdout(_buf):
+                _srv = _bind()
+            _out = _buf.getvalue()
+            check(isinstance(_srv, _FakeServer) and PORT == 8775
+                  and _made == [("127.0.0.1", 8765), ("127.0.0.1", 8775)],
+                  "_bind did not walk past a reserved port to the next loopback port of the block")
+            check(loopback_server.read_port(loopback_server.WIZARD_PORT_FILE) == (8775, "launch-selftest"),
+                  "_bind did not record the port it bound with its launch id")
+            check("8765" in _out and oauth_flow.redirect_uri("tiktok", 8775) in _out
+                  and oauth_flow.redirect_uri("pinterest", 8775) in _out
+                  and oauth_flow.redirect_uri("instagram", 8775) in _out
+                  and "already running" not in _out,
+                  "_bind did not name the refused port and the redirect URIs to register")
+            check(_origin_allowed("http://127.0.0.1:8775", None) is True
+                  and _origin_allowed("http://127.0.0.1:8765", None) is False,
+                  "the same-origin check does not follow the port the wizard bound")
+            _made.clear()
+            _refuse.clear()
+            _refuse.update({8765: _errno_bind.EADDRINUSE})
+            try:
+                with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                    _bind()
+                _kind = None
+            except loopback_server.BindRefused as _exc:
+                _kind = (_exc.kind, _exc.port)
+            check(_kind == ("in_use", 8765) and _made == [("127.0.0.1", 8765)],
+                  "a port in use did not stop the wizard's walk")
+            # The port last recorded, before any bind: a wizard answering there, or accepting
+            # without answering in time (busy), is reported as running there; another program
+            # answering there, or nothing listening, does not stop the start.
+            for _state, _stops in (("wizard", True), ("silent", True), ("other", False), ("closed", False)):
+                loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8785, "other"),
+                                                            encoding="utf-8")
+                _made.clear()
+                _refuse.clear()
+                _states.clear()
+                _states[8785] = _state
+                try:
+                    with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                        _bind()
+                    _kind = None
+                except loopback_server.BindRefused as _exc:
+                    _kind = (_exc.kind, _exc.port)
+                if _stops:
+                    check(_kind == ("recorded", 8785) and _made == [],
+                          f"a recorded port that is {_state} was not reported as a running wizard")
+                else:
+                    check(_kind is None and _made == [("127.0.0.1", 8765)] and PORT == 8765,
+                          f"a recorded port that is {_state} kept the wizard from binding")
+            # A clean shutdown removes this wizard's record (its port and launch id), and leaves a
+            # record that differs in either alone.
+            _forget_port()
+            check(not loopback_server.WIZARD_PORT_FILE.exists(),
+                  "_forget_port did not remove the wizard's own port record")
+            for _keep in ((8765, "other"), (8785, "launch-selftest")):
+                loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(*_keep),
+                                                            encoding="utf-8")
+                _forget_port()
+                check(loopback_server.read_port(loopback_server.WIZARD_PORT_FILE) == _keep,
+                      f"_forget_port removed a record that names another wizard: {_keep}")
+            # Serving ends when the wizard is asked to quit: the server stops and the record goes.
+            loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(PORT, "launch-selftest"),
+                                                        encoding="utf-8")
+            _stopped = []
+
+            class _Serving:
+                def shutdown(self):
+                    _stopped.append(True)
+
+            import threading as _th_bind
+            _closer = _th_bind.Thread(target=lambda: _wait_and_close(_Serving()), daemon=True)
+            try:
+                with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                    _closer.start()
+                    _closer.join(0.2)
+                    _waited = _closer.is_alive() and _stopped == []
+                    _shutdown.set()
+                    _closer.join(5.0)
+            finally:
+                _shutdown.clear()
+            check(_waited and not _closer.is_alive() and _stopped == [True]
+                  and not loopback_server.WIZARD_PORT_FILE.exists(),
+                  "the wizard did not serve until asked to quit, then stop its server and remove its record")
+            check("_wait_and_close" in main.__code__.co_names,
+                  "main() does not close the wizard through _wait_and_close")
+        finally:
+            _g.update(_saved_bind)
+            loopback_server.WIZARD_PORT_FILE, loopback_server.probe = _saved_file, _saved_probe
+            if _saved_launch is None:
+                os.environ.pop("CREATOR_OS_WIZARD_LAUNCH_ID", None)
+            else:
+                os.environ["CREATOR_OS_WIZARD_LAUNCH_ID"] = _saved_launch
+    # A client that hung up before its reply is not printed as an error; another error still is.
+    _err = _io_bind.StringIO()
+    with _cl_bind.redirect_stderr(_err):
+        for _exc_type in (BrokenPipeError, ConnectionResetError):
+            try:
+                raise _exc_type()
+            except _exc_type:
+                _Server.handle_error(_Server.__new__(_Server), None, ("127.0.0.1", 0))
+    _quiet = _err.getvalue() == ""
+    with _cl_bind.redirect_stderr(_err):
+        for _exc in (ValueError("selftest"), PermissionError("selftest")):
+            try:
+                raise _exc
+            except Exception:   # noqa: BLE001 - handle_error reads the exception being handled
+                _Server.handle_error(_Server.__new__(_Server), None, ("127.0.0.1", 0))
+    check(_quiet and "ValueError" in _err.getvalue() and "PermissionError" in _err.getvalue(),
+          "the wizard prints a client that hung up as an error, or hides a real one")
+    if failures:
+        print("wizard port block checks FAILED:")
+        for msg in failures:
+            print(f"  - {msg}")
+    return 1 if failures else 0
 
 
 def _selftest() -> int:
@@ -4635,7 +4842,7 @@ def _selftest() -> int:
         check("Apple Silicon" in blk and "whisper-cpp" in blk, "mac STT block did not render Apple Silicon copy")
         _ARCH_OVERRIDE = "x86_64"
         check("Intel Mac" in _stt_install_block(), "mac STT block did not render Intel copy")
-        cfg = str(_claude_config_path())
+        cfg = pathlib.PurePath(_claude_config_path()).as_posix()   # P101: separator-neutral on Windows
         check("Library/Application Support/Claude" in cfg, "mac Claude config path wrong under _os override")
     finally:
         _OS_OVERRIDE, _ARCH_OVERRIDE = None, None
@@ -4657,9 +4864,12 @@ def _selftest() -> int:
     except Exception as exc:  # noqa: BLE001
         check(False, f"port-collision check errored: {exc}")
 
+    # 5b) P101 port block: the checks in _selftest_ports().
+    check(_selftest_ports() == 0, "port block checks failed (listed above)")
+
     # 6) Loopback-only guard (G1): main() must bind 127.0.0.1, never 0.0.0.0.
     src = pathlib.Path(__file__).read_text(encoding="utf-8")
-    check('_Server(("127.0.0.1", PORT)' in src, "main() no longer binds 127.0.0.1:PORT")
+    check('_Server(("127.0.0.1", port)' in src, "_bind() no longer binds 127.0.0.1:port")
     _any_ip = ".".join(["0"] * 4)  # built dynamically so this guard line doesn't match itself
     check(f'(("{_any_ip}"' not in src and f"(('{_any_ip}'" not in src,
           "wizard binds the all-interfaces address (loopback exemption lost)")
@@ -5177,13 +5387,14 @@ def main() -> None:
     # that definition, not an Apple statement about loopback, and unconfirmed on real hardware.
     # Never 0.0.0.0.
     try:
-        server = _Server(("127.0.0.1", PORT), _Handler)
-    except OSError:
-        # Port 8765 is busy (a second launch, a lingering wizard, or another app). Keep the port
-        # fixed (OAuth redirect URIs are registered against it) and exit cleanly with a plain message
+        server = _bind()
+    except loopback_server.BindRefused as exc:
+        # A port in use (a second launch, a lingering wizard, or another app), a block the OS
+        # reserves, or another bind error: exit cleanly with a plain message naming the real cause
         # instead of dumping a traceback into the Terminal window a non-technical user is watching.
-        print(f"\nCreator OS Setup is already running, or port {PORT} is in use.")
-        print(f"Open http://localhost:{PORT}/ in your browser, or close the other window and try again.")
+        print()
+        for line in loopback_server.refusal_lines(exc, "Creator OS Setup", "CREATOR_OS_WIZARD_PORT"):
+            print(line)
         raise SystemExit(1)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -5196,13 +5407,7 @@ def main() -> None:
     time.sleep(0.3)
     _open_url(url)
 
-    try:
-        _shutdown.wait()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.shutdown()
-        print("\nWizard closed.")
+    _wait_and_close(server)
 
 
 if __name__ == "__main__":

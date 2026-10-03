@@ -470,6 +470,315 @@ _MUTANTS = (
     ('aio-msvcrt-unlock-offset-1', 'atomic_io.py',
      '        fh.seek(0)\n        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)',
      '        fh.seek(1)\n        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)'),
+    # P101 ports: the port block, bind policy, port records, start-up probe and MCP address helpers
+    # (loopback_server), the wizard's _bind, shutdown and same-origin port, the dashboard's walk,
+    # origins, links and record, and pick_folder's fallback order.
+    ('L01 EACCES no longer walks', 'loopback_server.py',
+     '            if exc.errno == errno.EACCES:\n',
+     '            if exc.errno == errno.EPERM:\n'),
+    ('L02 EACCES skipped unrecorded', 'loopback_server.py',
+     '                reserved.append(port)\n                continue\n',
+     '                continue\n'),
+    ('L03 EACCES ends walk', 'loopback_server.py',
+     '                reserved.append(port)\n                continue\n',
+     '                reserved.append(port)\n                break\n'),
+    ('L04 EADDRINUSE walks on', 'loopback_server.py',
+     '            if exc.errno == errno.EADDRINUSE:\n                raise BindRefused("in_use", port, reserved, exc) from exc\n',
+     '            if exc.errno == errno.EADDRINUSE:\n                reserved.append(port)\n                continue\n'),
+    ('L05 in_use reported as error', 'loopback_server.py',
+     'raise BindRefused("in_use", port, reserved, exc) from exc',
+     'raise BindRefused("error", port, reserved, exc) from exc'),
+    ('L06 EADDRNOTAVAIL read as in_use', 'loopback_server.py',
+     '            if exc.errno == errno.EADDRINUSE:\n',
+     '            if exc.errno in (errno.EADDRINUSE, errno.EADDRNOTAVAIL):\n'),
+    ('L07 all reserved reported in_use', 'loopback_server.py',
+     '    raise BindRefused("reserved", reserved[-1] if reserved else None, reserved)\n',
+     '    raise BindRefused("in_use", reserved[-1] if reserved else None, reserved)\n'),
+    ('L08 all reserved returns nothing', 'loopback_server.py',
+     '    raise BindRefused("reserved", reserved[-1] if reserved else None, reserved)\n',
+     '    return None, None, reserved\n'),
+    ('L09 all reserved tried truncated', 'loopback_server.py',
+     '    raise BindRefused("reserved", reserved[-1] if reserved else None, reserved)\n',
+     '    raise BindRefused("reserved", reserved[-1] if reserved else None, reserved[-1:])\n'),
+    ('L10 other error walks on', 'loopback_server.py',
+     '            raise BindRefused("error", port, reserved, exc) from exc\n',
+     '            reserved.append(port)\n            continue\n'),
+    ('L11 other error drops OSError', 'loopback_server.py',
+     '            raise BindRefused("error", port, reserved, exc) from exc\n',
+     '            raise BindRefused("error", port, reserved) from exc\n'),
+    ('L12 other error reported in_use', 'loopback_server.py',
+     '            raise BindRefused("error", port, reserved, exc) from exc\n',
+     '            raise BindRefused("in_use", port, reserved, exc) from exc\n'),
+    ('L13 nt branch never taken', 'loopback_server.py',
+     '        if os.name == "nt":\n',
+     '        if os.name == "windows":\n'),
+    ('L14 nt keeps SO_REUSEADDR', 'loopback_server.py',
+     '            self.allow_reuse_address = False\n',
+     '            pass\n'),
+    ('L17 override ignored', 'loopback_server.py',
+     '    if not raw:\n        return tuple(block)\n',
+     '    if True:\n        return tuple(block)\n'),
+    ('L18 lower bound 1', 'loopback_server.py',
+     '    if not 1024 <= val <= 65535:\n',
+     '    if not 1 <= val <= 65535:\n'),
+    ('L19 upper bound dropped', 'loopback_server.py',
+     '    if not 1024 <= val <= 65535:\n',
+     '    if not 1024 <= val:\n'),
+    ('L20 1024 excluded', 'loopback_server.py',
+     '    if not 1024 <= val <= 65535:\n',
+     '    if not 1024 < val <= 65535:\n'),
+    ('L21 override plus block', 'loopback_server.py',
+     '    return (val,)\n',
+     '    return (val,) + tuple(block)\n'),
+    ('L22 read_port accepts bool', 'loopback_server.py',
+     'isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535',
+     'isinstance(port, int) and 1 <= port <= 65535'),
+    ('L23 read_port accepts 0', 'loopback_server.py',
+     'isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535',
+     'isinstance(port, int) and not isinstance(port, bool) and 0 <= port <= 65535'),
+    ('L24 read_port no upper bound', 'loopback_server.py',
+     'isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535',
+     'isinstance(port, int) and not isinstance(port, bool) and 1 <= port'),
+    ('L25 read_port raises on list', 'loopback_server.py',
+     '    except (OSError, ValueError, AttributeError):\n',
+     '    except (OSError, ValueError):\n'),
+    ('L26 read_port drops launch id', 'loopback_server.py',
+     'return port, doc.get("launch_id")',
+     'return port, None'),
+    ('W01 _bind without global PORT', 'wizard.py',
+     '    global PORT\n    running, _ = loopback_server.read_port()\n',
+     '    running, _ = loopback_server.read_port()\n'),
+    ('W02 records first block port', 'wizard.py',
+     'loopback_server.port_record(PORT, os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"))',
+     'loopback_server.port_record(_PORTS[0], os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"))'),
+    ('W03 launch id not recorded', 'wizard.py',
+     'loopback_server.port_record(PORT, os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID")))',
+     'loopback_server.port_record(PORT, None))'),
+    ('W04 reserved note suppressed', 'wizard.py',
+     '    if reserved:\n        print(loopback_server.reserved_note(reserved, PORT, "Creator OS Setup"))\n',
+     '    if False:\n        print(loopback_server.reserved_note(reserved, PORT, "Creator OS Setup"))\n'),
+    ('W05 walk binds default port each time', 'wizard.py',
+     'lambda port: _Server(("127.0.0.1", port), _Handler))',
+     'lambda port: _Server(("127.0.0.1", PORT), _Handler))'),
+    ('W06 all-interfaces bind', 'wizard.py',
+     'lambda port: _Server(("127.0.0.1", port), _Handler))',
+     'lambda port: _Server(("0.0.0.0", port), _Handler))'),
+    ('W07 origin default is first block port', 'wizard.py',
+     '    port = PORT if port is None else port\n',
+     '    port = _PORTS[0] if port is None else port\n'),
+    ('W08 origin default captured at import', 'wizard.py',
+     'def _origin_allowed(origin, referer, port=None):',
+     'def _origin_allowed(origin, referer, port=PORT):'),
+    ('W09 origin set also admits 8765', 'wizard.py',
+     '    allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}\n',
+     '    allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}", "http://127.0.0.1:8765"}\n'),
+    ('W10 note names 8765 TikTok URI', 'wizard.py',
+     'f"{oauth_flow.redirect_uri(\'tiktok\', PORT)}, "',
+     'f"{oauth_flow.redirect_uri(\'tiktok\', 8765)}, "'),
+    ('W11 wizard RefuseSharedPort after TCPServer in MRO', 'wizard.py',
+     'class _Server(loopback_server.RefuseSharedPort, socketserver.TCPServer):',
+     'class _Server(socketserver.TCPServer, loopback_server.RefuseSharedPort):'),
+    ('D01 main without global PORT', 'dashboard/server.py',
+     '    global PORT\n    handler = partial(DashboardHandler)\n',
+     '    handler = partial(DashboardHandler)\n'),
+    ('D02 main tries first port only', 'dashboard/server.py',
+     '            _PORTS, lambda port: HTTPServer(("127.0.0.1", port), handler))\n',
+     '            _PORTS[:1], lambda port: HTTPServer(("127.0.0.1", port), handler))\n'),
+    ('D03 main all-interfaces bind', 'dashboard/server.py',
+     'lambda port: HTTPServer(("127.0.0.1", port), handler))',
+     'lambda port: HTTPServer(("0.0.0.0", port), handler))'),
+    ('D04 main reserved note suppressed', 'dashboard/server.py',
+     '    if reserved:\n        print("  " + loopback_server.reserved_note(reserved, PORT, "the dashboard"))\n',
+     '    if False:\n        print("  " + loopback_server.reserved_note(reserved, PORT, "the dashboard"))\n'),
+    ('D05 main refusal exits 0', 'dashboard/server.py',
+     '"CREATOR_OS_DASHBOARD_PORT"):\n            print(line)\n        raise SystemExit(1)\n',
+     '"CREATOR_OS_DASHBOARD_PORT"):\n            print(line)\n        raise SystemExit(0)\n'),
+    ('D06 origins use first block port', 'dashboard/server.py',
+     '    return {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}\n',
+     '    return {f"http://localhost:{_PORTS[0]}", f"http://127.0.0.1:{_PORTS[0]}"}\n'),
+    ('D07 origins drop localhost', 'dashboard/server.py',
+     '    return {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}\n',
+     '    return {f"http://127.0.0.1:{PORT}"}\n'),
+    ('D08 origins also admit 8766', 'dashboard/server.py',
+     '    return {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}\n',
+     '    return {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}", "http://127.0.0.1:8766"}\n'),
+    ('D09 wizard_url ignores record', 'dashboard/server.py',
+     '    port, _ = loopback_server.read_port()\n    if port is None:\n',
+     '    port, _ = None, None\n    if port is None:\n'),
+    ('D10 wizard_url fallback hard-coded 8765', 'dashboard/server.py',
+     '        port = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,\n',
+     '        port = 8765 or loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,\n'),
+    ('D11 wizard_url drops trailing slash', 'dashboard/server.py',
+     '    return f"http://localhost:{port}/"\n',
+     '    return f"http://localhost:{port}"\n'),
+    ('D12 wizard_url reads a fixed path', 'dashboard/server.py',
+     '    port, _ = loopback_server.read_port()\n',
+     '    port, _ = loopback_server.read_port(ROOT / "creator-os-wizard-port.local.json")\n'),
+    ('D13 dashboard RefuseSharedPort after stock server in MRO', 'dashboard/server.py',
+     'class HTTPServer(loopback_server.RefuseSharedPort, _StockHTTPServer):',
+     'class HTTPServer(_StockHTTPServer, loopback_server.RefuseSharedPort):'),
+    ('M01 launch id ignored', 'loopback_server.py',
+     '        if port is not None and recorded_id == launch_id:\n',
+     '        if port is not None:\n'),
+    ('M02 fallback reported confirmed', 'loopback_server.py',
+     '    return f"http://localhost:{port}/", False\n',
+     '    return f"http://localhost:{port}/", True\n'),
+    ('M03 exit not detected', 'loopback_server.py',
+     '        if proc.poll() is not None:\n            break\n',
+     '        if proc.poll() is not None:\n            pass\n'),
+    ('M04 fallback ignores last record', 'loopback_server.py',
+     '    port, _ = read()\n    if port is None:\n',
+     '    port = None\n    if port is None:\n'),
+    ('M05 wait bound x10', 'loopback_server.py',
+     '    for _ in range(max(1, int(wait / 0.2))):\n',
+     '    for _ in range(max(1, int(wait / 0.02))):\n'),
+    ('M06 fallback hard-coded 8765', 'loopback_server.py',
+     '        port = ports("CREATOR_OS_WIZARD_PORT", WIZARD_BLOCK, note=lambda _msg: None)[0]\n    return f"http://localhost:{port}/", False\n',
+     '        port = 8765 or ports("CREATOR_OS_WIZARD_PORT", WIZARD_BLOCK, note=lambda _msg: None)[0]\n    return f"http://localhost:{port}/", False\n'),
+    ('M07 no sleep between reads', 'loopback_server.py',
+     '        sleep(0.2)\n',
+     '        pass\n'),
+    ('P01 tkinter cancel falls through', 'pick_folder.py',
+     '    if result is not None:\n        return result   # tkinter worked',
+     '    if result:\n        return result   # tkinter worked'),
+    ('P02 OS picker asked first', 'pick_folder.py',
+     '    result = _tk_pick()\n',
+     '    result = _os_pick()\n'),
+    ('P03 no OS fallback', 'pick_folder.py',
+     '    return _os_pick()\n',
+     '    return ""\n'),
+    ('P04 both dialogs opened', 'pick_folder.py',
+     "    result = _tk_pick()\n    if result is not None:\n        return result   # tkinter worked ('' means the user cancelled)\n    return _os_pick()\n",
+     "    result = _tk_pick()\n    fallback = _os_pick()\n    if result is not None:\n        return result   # tkinter worked ('' means the user cancelled)\n    return fallback\n"),
+    ('P05 OS cancel returns None', 'pick_folder.py',
+     '    return _os_pick()\n',
+     '    return _os_pick() or None\n'),
+    ('P06 _has_display always true', 'pick_folder.py',
+     '    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))\n',
+     '    return True\n'),
+    ('PR1 probe ignores the mark', 'loopback_server.py',
+     '            if mark in got:\n                return "wizard"\n',
+     '            return "wizard"\n'),
+    ('PR2 probe raises on a refused connection', 'loopback_server.py',
+     '    except OSError:\n        return "closed"\n',
+     '    except TimeoutError:\n        return "closed"\n'),
+    ('PR3 probe without a total deadline', 'loopback_server.py',
+     '            if left <= 0:\n                return "silent"\n            sock.settimeout(left)\n',
+     '            sock.settimeout(timeout)\n'),
+    ('PR4 probe matches any title', 'loopback_server.py',
+     'def probe(port, mark=WIZARD_TITLE_MARK, timeout=1.0) -> str:',
+     'def probe(port, mark=b"</title>", timeout=1.0) -> str:'),
+    ('PR5 silent reported as other', 'loopback_server.py',
+     '            except socket.timeout:\n                return "silent"\n',
+     '            except socket.timeout:\n                return "other"\n'),
+    ('PR6 a closed reply reported as silent', 'loopback_server.py',
+     '            if not chunk:\n                return "other"\n',
+     '            if not chunk:\n                return "silent"\n'),
+    ('WL1 start-up check never fires', 'wizard.py',
+     '    if running is not None and loopback_server.probe(running) in ("wizard", "silent"):\n',
+     '    if False:\n'),
+    ('WL2 any record blocks start', 'wizard.py',
+     '    if running is not None and loopback_server.probe(running) in ("wizard", "silent"):\n',
+     '    if running is not None:\n'),
+    ('WL3 start-up check reports first port', 'wizard.py',
+     '        raise loopback_server.BindRefused("recorded", running, [])\n',
+     '        raise loopback_server.BindRefused("recorded", _PORTS[0], [])\n'),
+    ('WL4 start-up check reads dashboard record', 'wizard.py',
+     '    running, _ = loopback_server.read_port()\n',
+     '    running, _ = loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE)\n'),
+    ('WL5 a busy wizard does not stop start', 'wizard.py',
+     'loopback_server.probe(running) in ("wizard", "silent"):',
+     'loopback_server.probe(running) in ("wizard",):'),
+    ('WF1 forget ignores launch id', 'wizard.py',
+     '    if port == PORT and launch_id == os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"):\n',
+     '    if port == PORT:\n'),
+    ('WF2 forget ignores port', 'wizard.py',
+     '    if port == PORT and launch_id == os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"):\n',
+     '    if launch_id == os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"):\n'),
+    ('WF3 forget keeps the record', 'wizard.py',
+     '            loopback_server.WIZARD_PORT_FILE.unlink()\n',
+     '            pass\n'),
+    ('WF4 close never forgets', 'wizard.py',
+     '        server.shutdown()\n        _forget_port()\n',
+     '        server.shutdown()\n'),
+    ('WT1 page title drops the probe mark', 'wizard.py',
+     '<title>{title} - Creator OS Setup</title>',
+     '<title>{title} | Creator OS Setup</title>'),
+    ('WE1 a hang-up is printed as an error', 'wizard.py',
+     '        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):\n            return\n',
+     ''),
+    ('WE2 a reset is printed as an error', 'wizard.py',
+     '(BrokenPipeError, ConnectionResetError)):\n            return\n',
+     '(BrokenPipeError,)):\n            return\n'),
+    ('WE3 a real error is hidden', 'wizard.py',
+     '            return\n        super().handle_error(request, client_address)\n',
+     '            return\n'),
+    ('DR1 dashboard records first block port', 'dashboard/server.py',
+     'atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE, loopback_server.port_record(PORT))',
+     'atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE, loopback_server.port_record(_PORTS[0]))'),
+    ('DR2 dashboard record lands elsewhere', 'dashboard/server.py',
+     'atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE, loopback_server.port_record(PORT))',
+     'atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE.with_name("elsewhere.local.json"), loopback_server.port_record(PORT))'),
+    ('DR3 dashboard writes no record', 'dashboard/server.py',
+     'atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE, loopback_server.port_record(PORT))',
+     'pass'),
+    ('DR4 dashboard never forgets', 'dashboard/server.py',
+     '        server.shutdown()\n        _forget_port()\n',
+     '        server.shutdown()\n'),
+    ("DR5 dashboard forgets another port's record", 'dashboard/server.py',
+     '    if loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE)[0] == PORT:\n',
+     '    if True:\n'),
+    ('DR6 dashboard forget keeps the record', 'dashboard/server.py',
+     '            loopback_server.DASHBOARD_PORT_FILE.unlink()\n',
+     '            pass\n'),
+    ('MN1 note lists the shown port', 'loopback_server.py',
+     '              if f"localhost:{p}/" not in url]',
+     '              if True]'),
+    ('MN2 note confirmed inverted', 'loopback_server.py',
+     '    if confirmed:\n        return "The setup wizard is opening in your web browser.',
+     '    if not confirmed:\n        return "The setup wizard is opening in your web browser.'),
+    ('MN3 note ignores the override', 'loopback_server.py',
+     '    others = [str(p) for p in ports("CREATOR_OS_WIZARD_PORT", WIZARD_BLOCK,',
+     '    others = [str(p) for p in ports("CREATOR_OS_WIZARD_PORT_UNSET", WIZARD_BLOCK,'),
+    ('MD1 dashboard url reads the wizard record', 'loopback_server.py',
+     '    port, _ = read() if read is not None else read_port(DASHBOARD_PORT_FILE)\n',
+     '    port, _ = read() if read is not None else read_port()\n'),
+    ('MD2 dashboard url ignores the override', 'loopback_server.py',
+     '        port = ports("CREATOR_OS_DASHBOARD_PORT", DASHBOARD_BLOCK, note=lambda _msg: None)[0]\n',
+     '        port = ports("CREATOR_OS_DASHBOARD_PORT_UNSET", DASHBOARD_BLOCK, note=lambda _msg: None)[0]\n'),
+    ('MD3 dashboard url ignores the record', 'loopback_server.py',
+     '    port, _ = read() if read is not None else read_port(DASHBOARD_PORT_FILE)\n',
+     '    port, _ = (None, None)\n'),
+    ('PB1 connect timeout read as silent', 'loopback_server.py',
+     '    except OSError:\n        return "closed"\n',
+     '    except ConnectionRefusedError:\n        return "closed"\n    except OSError:\n        return "silent"\n'),
+    ('PB2 incomplete request', 'loopback_server.py',
+     '        sock.sendall(b"GET / HTTP/1.0\\r\\nHost: 127.0.0.1\\r\\n\\r\\n")\n',
+     '        sock.sendall(b"GET / HTTP/1.0\\r\\n")\n'),
+    ('PB3 reads 16 bytes', 'loopback_server.py',
+     '        while len(got) < 262144:\n',
+     '        while len(got) < 16:\n'),
+    ('PB5 reset read as silent', 'loopback_server.py',
+     '    except OSError:\n        return "other"\n',
+     '    except OSError:\n        return "silent"\n'),
+    ('WC2 close leaves server running', 'wizard.py',
+     '        server.shutdown()\n        _forget_port()\n        print(',
+     '        _forget_port()\n        print('),
+    ('WC3 wizard does not wait', 'wizard.py',
+     '    try:\n        _shutdown.wait()\n    except KeyboardInterrupt:\n',
+     '    try:\n        _shutdown.wait(0)\n    except KeyboardInterrupt:\n'),
+    ('WC5 main skips wait_and_close', 'wizard.py',
+     '    _wait_and_close(server)\n',
+     '    server.shutdown()\n'),
+    ('HE1 every OSError silenced', 'wizard.py',
+     '        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):\n',
+     '        if isinstance(sys.exc_info()[1], OSError):\n'),
+    ('HE2 real error loses traceback', 'wizard.py',
+     '        super().handle_error(request, client_address)\n',
+     '        print("error", file=sys.stderr)\n'),
+    ('RC1 recorded refusal hides the record file', 'loopback_server.py',
+     '                f"{WIZARD_PORT_FILE.name} and start it again."]',
+     '                "the record and start it again."]'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -478,7 +787,8 @@ _POSIX_ONLY = {"aio-dir-precheck-nt-only"}
 
 # The function the runner scores for a module with no selftest(): it returns 0 when clean.
 # sync_check.py is exempt from the selftest sweep (running it is its test).
-_ENTRIES = {"sync_check.py": "_migration_selfproof"}
+_ENTRIES = {"sync_check.py": "_migration_selfproof", "wizard.py": "_selftest_ports",
+            "dashboard/server.py": "_selftest", "pick_folder.py": "_selftest"}
 
 
 def _selftest_verdict(source: str, path: Path, entry: str = "selftest") -> str:
@@ -514,9 +824,24 @@ def _selftest_verdict(source: str, path: Path, entry: str = "selftest") -> str:
                 raise
             except BaseException:  # noqa: BLE001 - a selftest the mutation crashes has caught it
                 return "fail"
+            if isinstance(rc, tuple) and rc:   # an entry that returns (rc, ...) is scored on rc
+                rc = rc[0]
             return "pass" if rc == 0 else "fail"
     finally:
         sys.path[:], sys.argv[:] = saved_path, saved_argv
+
+
+def _test_scopes(src: str, entry: str) -> list:
+    """The functions a row's anchor must stay out of: the entry that scores the row, then every
+    other top-level function named selftest* or _selftest* (a helper the entry delegates to)."""
+    import ast
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return [entry]
+    helpers = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and n.name.lstrip("_").startswith("selftest") and n.name != entry}
+    return [entry] + sorted(helpers)
 
 
 def _in_function(src: str, start: int, length: int, name: str) -> bool:
@@ -593,8 +918,13 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None) -> list:
         if scope.count(old) != 1:
             survivors.append(f"{label} (anchor not found exactly once)")
             continue
-        if _in_function(src, scope.index(old), len(old), entry):
+        hit = next((n for n in _test_scopes(src, entry)
+                    if _in_function(src, scope.index(old), len(old), n)), None)
+        if hit == entry:
             survivors.append(f"{label} (invalid: anchor in {entry}(), the test that scores it)")
+            continue
+        if hit:
+            survivors.append(f"{label} (invalid: anchor in {hit}(), test code)")
             continue
         saved = _global_state()
         try:
@@ -634,6 +964,8 @@ def _runner_controls() -> list:
         (d / "noself.py").write_text("x = 1\n", encoding="utf-8")
         (d / "red.py").write_text("def selftest():\n    return 1\n", encoding="utf-8")
         (d / "alt.py").write_text("x = 1\ndef check():\n    return 0 if x == 1 else 1\n", encoding="utf-8")
+        (d / "tup.py").write_text("x = 1\ndef tcheck():\n    return (0 if x == 1 else 1), 5\n",
+                                  encoding="utf-8")
         (d / "leak.py").write_text("x = 1\ndef selftest():\n    return 0\n", encoding="utf-8")
         (d / "guard.py").write_text("import pathlib\ny = 1\ndef selftest():\n"
                                     "    return 1 if hasattr(pathlib.PosixPath, 'zz_leak') else 0\n",
@@ -649,8 +981,10 @@ def _runner_controls() -> list:
             ("exit1", "good.py", "    return x\n", "    raise SystemExit(1)\n"),
             ("entry", "alt.py", "x = 1\n", "x = 2\n"),
             ("entry-equivalent", "alt.py", "x = 1\n", "x = 1  # same\n"),
+            ("tuple", "tup.py", "x = 1\n", "x = 2\n"),
+            ("tuple-equivalent", "tup.py", "x = 1\n", "x = 1  # same\n"),
         ]
-        got = _run_mutants(rows, base=d, entries={"alt.py": "check"})
+        got = _run_mutants(rows, base=d, entries={"alt.py": "check", "tup.py": "tcheck"})
         missing_entry = _run_mutants([("noentry", "alt.py", "x = 1\n", "x = 2\n")], base=d,
                                      entries={})
         leak_rows = [("guard-a", "guard.py", "y = 1\n", "y = 1  # same\n"),
@@ -660,6 +994,12 @@ def _runner_controls() -> list:
         restored = not hasattr(pathlib.PosixPath, "zz_leak")
         in_test = _run_mutants([("testcode", "good.py", "    return 0 if f() == 1 else 1",
                                  "    return 1")], base=d)
+        (d / "deleg.py").write_text("x = 1\ndef selftest():\n    return _selftest_checks()\n"
+                                    "def _selftest_checks():\n    return 0 if x == 1 else 1\n",
+                                    encoding="utf-8")
+        delegated = _run_mutants([("deleg-testcode", "deleg.py", "    return 0 if x == 1 else 1",
+                                   "    return 1"),
+                                  ("deleg-caught", "deleg.py", "x = 1\n", "x = 2\n")], base=d)
     labels = [g.split(" (")[0] for g in got]
     out.append(("an equivalent row is reported as a survivor", "equivalent" in labels))
     out.append(("a row that does not compile is reported invalid, not caught",
@@ -675,12 +1015,17 @@ def _runner_controls() -> list:
                 "caught" not in labels and "exit1" not in labels))
     out.append(("a named entry function is scored: a real mutation caught, an equivalent one not",
                 "entry" not in labels and "entry-equivalent" in labels))
+    out.append(("an entry that returns (rc, ...) is scored on rc: a real mutation caught, an "
+                "equivalent one not", "tuple" not in labels and "tuple-equivalent" in labels))
     out.append(("without its entry a module with no selftest() is invalid, not caught",
                 len(missing_entry) == 1 and "invalid: no selftest()" in missing_entry[0]))
     out.append(("a row that leaks state is undone: the equivalent row after it is still a survivor",
                 "guard-b" in leaked and "guard-a" in leaked and restored))
     out.append(("a row whose anchor is inside the selftest that scores it is invalid, not caught",
                 len(in_test) == 1 and "invalid: anchor in selftest()" in in_test[0]))
+    out.append(("a row whose anchor is inside a _selftest* helper the entry delegates to is invalid, "
+                "not caught; a real row in the same module is caught",
+                len(delegated) == 1 and "invalid: anchor in _selftest_checks(), test code" in delegated[0]))
     # A row listed as POSIX-only is run (here an equivalent row, so it survives) under a POSIX os
     # and skipped under Windows; the runner's os is swapped for each run.
     class _AsOs:

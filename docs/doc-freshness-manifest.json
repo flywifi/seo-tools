@@ -50,8 +50,8 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "9d8b49209dd34b95ea670324c1af1e257f43e65d734a1dc4fc774365afe319e3",
-        "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
+        "tools/wizard.py": "4cf0e7086156db5b5fb486fca93c1b86ad783ad81cc47928e99f1b78f383930c",
+        "tools/pick_folder.py": "fcf63d559cf2bf475ce686cfe138cbf1ef4bba410af4224a6fc915fd84e9ba75"
       }
     },
     "implementation/gpt/api/README.md": {
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "a9f76da35353d2cc8ce625d4a87173d4220950e99fc10d211014000ca7477ced"
+        "tools/mcp_server.py": "1db739da21111dd5b952d6609328b20250cbdaaa4bcc8c7aea59bfb608bc6d68"
       }
     },
     "docs/TRANSITIONS.md": {

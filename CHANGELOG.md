@@ -211,6 +211,36 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P101 (wizard and dashboard ports): the setup wizard and the Scheduling Dashboard bind the first
+  port of a fixed block (8765, 8775, 8785; 8766, 8776, 8786) through `tools/loopback_server.py`,
+  moving to the next port when the bind fails with `EACCES` (on Windows, a port the system reserves
+  for Hyper-V or WinNAT, or one a program holds on all addresses under another account or
+  exclusively). `EADDRINUSE` stops the walk with the "already running, or port N is in use"
+  message, and another bind error is printed as itself, where every `OSError` read as "already
+  running". Both servers bind without `SO_REUSEADDR` on Windows, as CPython's
+  `socket.create_server` does, so a second copy fails with `EADDRINUSE` (executed on Linux; Windows
+  per Microsoft's bind table) instead of sharing the port; `SO_EXCLUSIVEADDRUSE` is not used, since
+  it would block a restart while the closed server's connections end. `CREATOR_OS_DASHBOARD_PORT`
+  joins `CREATOR_OS_WIZARD_PORT` as a one-port override. Each server records the port it bound in
+  an ignored `creator-os-*-port.local.json` and removes the record on a clean shutdown when it still
+  names that server: the dashboard's setup link reads the wizard's through `GET /api/wizard-url`,
+  the `launch_setup` MCP tool reports the address its wizard recorded (and names the block's other
+  ports when it cannot confirm one), and the publishing plan's `dashboard_url` reads the
+  dashboard's (`loopback_server.launched_wizard_url`, `launch_note`, `dashboard_url`). At start the
+  wizard probes the port last recorded and stops as already running when a wizard answers there or
+  the connection is accepted without an answer within about a second (a busy single-threaded
+  wizard), naming the record file to delete when no wizard is open; a client that hangs up before
+  its reply is no longer printed as a traceback. The
+  wizard's and the dashboard's same-origin checks read the bound port at call time. The wizard
+  names the TikTok, Pinterest and Instagram redirect URIs for the port it moved to;
+  `docs/PUBLISHING.md` lists them, with TikTok's wildcard port. The wizard selftest compares the
+  macOS Claude config path in POSIX form. `tools/file_hash.py` scores an entry that returns
+  `(rc, ...)` on `rc`, refuses a row anchored in any `_selftest*` helper as test code, and carries
+  committed mutation cases for these modules; ADR 0073.
+- P101 (pick_folder selftest): the selftest checks `pick_folder()`'s fallback order with the
+  tkinter and OS-native dialog layers stood in for, asking the OS picker only after tkinter gave
+  nothing, and calls the real function on headless Linux alone; on macOS or Windows it opened a
+  real folder dialog and waited.
 - P101 (surface selftest on Windows): `surface_workflow_check.py` makes each sandbox and pin
   folder with one `os.mkdir` (mode `0o700`) under the system temporary folder (`_temp_folder`),
   not `tempfile.mkdtemp`. On Windows, `mkdtemp` reads a `PermissionError` as a name collision and

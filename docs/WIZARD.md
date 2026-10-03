@@ -148,7 +148,8 @@ travel (multi-skill orchestration needs the plugin door).
 
 From `/publishing-setup`, the wizard connects each platform with a **Connect** button that runs an
 in-browser sign-in (a loopback OAuth flow: the platform redirects back to
-`http://127.0.0.1:8765/oauth/<platform>/callback`, the wizard verifies a one-time `state` and stores
+`http://127.0.0.1:8765/oauth/<platform>/callback`, or port 8775 or 8785 when the computer reserves
+8765; the wizard verifies a one-time `state` and stores
 the token locally). Each screen states the platform's real limits up front -- YouTube's ~7-day
 Testing-mode re-auth, TikTok's private-until-audit, Pinterest's sandbox-only Trial Pins, and
 Instagram's public-URL + professional-account requirements. Tokens are saved to
@@ -198,16 +199,26 @@ The wizard is a small Python script (`tools/wizard.py`) that runs a local web se
 leaves your computer except the OAuth flows to the providers' own servers (Google, Microsoft, and --
 during publishing setup -- YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
 
-If port 8765 is already taken, set `CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable
-or out of range falls back to 8765 with a printed note):
+The server binds the first port of a fixed block, `8765`, `8775`, `8785`, moving on when the
+computer refuses a port (Windows can reserve ports for Hyper-V and WinNAT, and a program can hold
+one on all addresses under another account or exclusively); it prints the port it uses and records
+it in the ignored `creator-os-wizard-port.local.json`, which the Scheduling Dashboard's setup link
+and the `launch_setup` MCP tool read. A port another program holds (often a second copy) stops it
+with "already running, or port N is in use" instead, and so does the port last recorded when a
+wizard answers there, or the connection is accepted without an answer within about a second (that
+message names `creator-os-wizard-port.local.json`, to delete when no wizard is open). On
+Windows it binds without `SO_REUSEADDR`, so a second copy fails rather than sharing the port (per
+Microsoft's bind table, not yet run on Windows; ADR 0073). To use one port of your own, set
+`CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable or out of range falls back to the block
+with a printed note):
 
 ```bash
 CREATOR_OS_WIZARD_PORT=8790 python3 tools/wizard.py
 ```
 
-Only do this deliberately. The OAuth redirect URIs you register with each provider embed the
-port and are matched exactly, so changing it breaks every already-connected platform until you
-update the registered URI in that provider's console. Details in `docs/PUBLISHING.md`.
+Only do this deliberately. The OAuth redirect URIs you register with TikTok and Pinterest embed the
+port and are matched exactly, so a port you have not registered breaks those connections until you
+add its URI in that provider's console. Details in `docs/PUBLISHING.md`.
 
 **Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
 is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you

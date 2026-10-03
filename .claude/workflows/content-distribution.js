@@ -263,7 +263,8 @@ Steps:
 4. Build the confirmation summary fields below.
 5. Set status to 'manual_required' if tier is manual, otherwise 'awaiting_human_confirmation'.
    Nothing is queued or posted by this workflow — the creator confirms and schedules each
-   post in the Scheduling Dashboard (http://localhost:8766). The dashboard click IS the
+   post in the Scheduling Dashboard (http://localhost:8766, or the 8776 or 8786 address it prints
+   when the computer reserves 8766). The dashboard click IS the
    human confirmation step.
 6. Never fabricate post_id or permalink — both are null until the creator schedules the post.
 
@@ -377,8 +378,8 @@ if (awaitingConfirmation > 0) {
   nextSteps.push(`${awaitingConfirmation} post(s) prepared and awaiting human confirmation. Nothing is queued yet — open the Scheduling Dashboard to review, schedule, and confirm each one.`)
 }
 nextSteps.push('Run govern-artifact with gates: integrity, safety, brand_alignment before confirming any post.')
-nextSteps.push('Open the Scheduling Dashboard to review and schedule posts: http://localhost:8766')
-nextSteps.push('To load these posts into the dashboard automatically, POST this report to http://localhost:8766/api/import-report')
+nextSteps.push('Open the Scheduling Dashboard to review and schedule posts: http://localhost:8766 (or the 8776 or 8786 address the dashboard printed at start, when the computer reserves 8766)')
+nextSteps.push('To load these posts into the dashboard automatically, POST this report to http://localhost:8766/api/import-report (on the port the dashboard printed at start)')
 
 return {
   distribution_summary: distributionSummary,

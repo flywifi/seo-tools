@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS Scheduling Dashboard — browser-based GUI for managing social media posts.
 
-Serves static HTML/CSS/JS on port 8766 and exposes a JSON API for managing the
+Serves static HTML/CSS/JS on port 8766 (or 8776, then 8786, when the OS reserves it; P101) and exposes a JSON API for managing the
 scheduling queue. The dashboard is a human-in-the-loop scheduler: the "Confirm and
 Schedule" click IS the human confirmation step, and it runs the shared FTC/AIGC/tier
 compliance checks (tools/publishing_compliance.py) before any status change.
@@ -26,7 +26,7 @@ import uuid
 import webbrowser
 from datetime import datetime, timezone
 from functools import partial
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer as _StockHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -37,17 +37,50 @@ import publishing  # noqa: E402
 import atomic_io  # noqa: E402  (the one atomic writer, P81)
 import finance  # noqa: E402  (P31: read-only AR view)
 import tasks as _tasks  # noqa: E402  (P35: read-only task view)
+import loopback_server  # noqa: E402  (P101: port block and exclusive bind)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 QUEUE_PATH = ROOT / "pipeline" / "user-context" / "scheduling-queue.local.json"
 CREDS_PATH = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
 
-PORT = 8766
+# P101: the dashboard binds the first port of its block that the OS does not reserve (8766, then
+# 8776 and 8786); CREATOR_OS_DASHBOARD_PORT names one port instead. main() rebinds PORT.
+_PORTS = loopback_server.ports("CREATOR_OS_DASHBOARD_PORT", loopback_server.DASHBOARD_BLOCK)
+PORT = _PORTS[0]
 PLATFORMS = ["instagram", "tiktok", "pinterest", "youtube"]
 
-# Only same-origin browser requests are allowed to mutate state (localhost CSRF defense).
-ALLOWED_ORIGINS = {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}
+
+class HTTPServer(loopback_server.RefuseSharedPort, _StockHTTPServer):
+    """The stock server, without SO_REUSEADDR on Windows, so a second copy cannot share its port
+    (P101). main() builds its server through this name, which the selftest replaces so that
+    nothing binds."""
+
+
+def _allowed_origins():
+    """Only same-origin browser requests may mutate state (localhost CSRF defense). Read at call
+    time, for the port main() bound."""
+    return {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}
+
+
+def _forget_port():
+    """Remove the dashboard's port record on a clean shutdown when it still names this dashboard's
+    port, so the MCP tools do not link to a closed dashboard (P101)."""
+    if loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE)[0] == PORT:
+        try:
+            loopback_server.DASHBOARD_PORT_FILE.unlink()
+        except OSError:
+            pass
+
+
+def _wizard_url():
+    """The setup wizard's address: the port it recorded when it bound (loopback_server), else the
+    first port it tries."""
+    port, _ = loopback_server.read_port()
+    if port is None:
+        port = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,
+                                     note=lambda _msg: None)[0]
+    return f"http://localhost:{port}/"
 MAX_BODY_BYTES = 2 * 1024 * 1024  # 2 MiB cap on request bodies
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -162,7 +195,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin is None:
             return True
-        return origin in ALLOWED_ORIGINS
+        return origin in _allowed_origins()
 
     def _read_body(self):
         # Enforce JSON content type: blocks the CORS "simple request" bypass, since
@@ -248,6 +281,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/credentials-status":
             return self._json_response(_get_credentials_status())
+
+        if path == "/api/wizard-url":
+            # P101: the setup link opens the wizard on the port of its block it bound.
+            return self._json_response({"url": _wizard_url()})
 
         if path.startswith("/api/status/"):
             item_id = path.split("/api/status/", 1)[1]
@@ -861,6 +898,19 @@ def _loop_passes_config_through():
 
 
 def _selftest() -> int:
+    """Runs _selftest_checks with the dashboard's port record in a temporary folder, since main()
+    writes it (P101)."""
+    import tempfile
+    saved = loopback_server.DASHBOARD_PORT_FILE
+    with tempfile.TemporaryDirectory() as td:
+        loopback_server.DASHBOARD_PORT_FILE = Path(td) / "dashboard-port.local.json"
+        try:
+            return _selftest_checks()
+        finally:
+            loopback_server.DASHBOARD_PORT_FILE = saved
+
+
+def _selftest_checks() -> int:
     """Offline: _apply_dispatch_result records every dispatch outcome honestly."""
     checks = []
 
@@ -1103,6 +1153,8 @@ def _selftest() -> int:
             "        return self._json_response(_get_publishing_plan(_load_config()))\n"
             "    if path == '/api/credentials-status':\n"
             "        return self._json_response(_get_credentials_status())\n"
+            "    if path == '/api/wizard-url':\n"
+            "        return self._json_response({'url': _wizard_url()})\n"
             "    if path.startswith('/api/status/'):\n"
             "        item_id = path.split('/api/status/', 1)[1]\n"
             "        with _queue_lock:\n"
@@ -1123,6 +1175,10 @@ def _selftest() -> int:
                if isinstance(n, _ast_get.Call) and _ast_get.unparse(n.func) == "path.startswith"}
             | {"/selftest-unknown"})
         get_handed, get_changed, get_crashed = [], [], []
+        saved_wizard_file = loopback_server.WIZARD_PORT_FILE
+        loopback_server.WIZARD_PORT_FILE = loopback_server.DASHBOARD_PORT_FILE.parent / "wizard-port.local.json"
+        loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8775, "get-pin"),
+                                                    encoding="utf-8")
         g["_load_config"] = lambda: every_flag_on
         compliance.load_credentials = lambda: creds
         publishing.dispatch = lambda platform, *a, **k: get_handed.append(platform) or {}
@@ -1148,10 +1204,11 @@ def _selftest() -> int:
             publishing.dispatch = real_dispatch
             compliance.load_credentials = lambda: {}
             g.update(_load_queue=lambda: store, _load_config=lambda: {})
+            loopback_server.WIZARD_PORT_FILE = saved_wizard_file
         ok("every GET route, driven through do_GET with every flag on, never calls dispatch(), "
            "reaches the network or changes a queued post",
            get_handed == [] and get_net.calls == [] and get_changed == [] and get_crashed == []
-           and len(get_paths) == 10
+           and len(get_paths) == 11
            and _ast_get.dump(do_get) == _ast_get.dump(_ast_get.parse(get_shape).body[0]))
     finally:
         g.update(saved)
@@ -1316,6 +1373,102 @@ def _selftest() -> int:
     ok("scheduler flag on: the network recorder sees the upload attempt (the probe sees calls)",
        len(net.calls) >= 1)
 
+    # P101 port block: main() walks past a port the OS reserves to the next port of its block and
+    # prints that address; the same-origin check follows it; a port in use stops main() with the
+    # already-running message. The server and the scheduler thread are stood in for and the
+    # browser is not opened, so nothing binds. The wizard link reads the port the wizard recorded.
+    import contextlib as _cl_port
+    import errno as _errno_port
+    import io as _io_port
+    import tempfile as _tf_port
+    bound, refuse, serving = [], {}, []
+
+    class _RefusingServer:
+        def __init__(self, address, handler):
+            bound.append(address)
+            if address[1] in refuse:
+                raise OSError(refuse[address[1]], "refused")
+
+        def serve_forever(self):   # the record as it stands while the dashboard serves
+            serving.append(loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE))
+            raise KeyboardInterrupt
+
+        def shutdown(self):
+            pass
+
+    saved_port = {k: g[k] for k in ("HTTPServer", "PORT", "_PORTS")}
+    saved_run = (threading.Thread, webbrowser.open, sys.argv, compliance.CONFIG_LOCAL_PATH)
+    ok("the dashboard's server binds through RefuseSharedPort",
+       saved_port["HTTPServer"].server_bind is loopback_server.RefuseSharedPort.server_bind)
+    try:
+        g.update(HTTPServer=_RefusingServer, _PORTS=loopback_server.DASHBOARD_BLOCK)
+        threading.Thread, webbrowser.open, sys.argv = _NoThread, (lambda *a, **k: True), [__file__]
+        compliance.CONFIG_LOCAL_PATH = ROOT / ".creator-os-config.selftest-absent.local.json"
+        refuse[8766] = _errno_port.EACCES
+        out = _io_port.StringIO()
+        with _cl_port.redirect_stdout(out):
+            main()
+        ok("main() walks past a refused port to the next loopback port of its block and prints it "
+           "with the refused port",
+           bound == [("127.0.0.1", 8766), ("127.0.0.1", 8776)] and PORT == 8776
+           and "http://localhost:8776" in out.getvalue() and "already running" not in out.getvalue()
+           and "Port 8766 was refused" in out.getvalue())
+        ok("main() records the port it bound while it serves, and removes the record on a clean shutdown",
+           serving == [(8776, None)] and not loopback_server.DASHBOARD_PORT_FILE.exists())
+        loopback_server.DASHBOARD_PORT_FILE.write_text(loopback_server.port_record(8786), encoding="utf-8")
+        _forget_port()
+        ok("a dashboard record that names another port is kept at shutdown",
+           loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE) == (8786, None))
+        loopback_server.DASHBOARD_PORT_FILE.unlink()
+        origin = DashboardHandler.__new__(DashboardHandler)
+        answers = []
+        for sent in ("http://127.0.0.1:8776", "http://localhost:8776",
+                     "http://127.0.0.1:8766", "http://localhost:8766"):
+            origin.headers = {"Origin": sent}
+            answers.append(origin._origin_ok())
+        ok("the same-origin check follows the port main() bound, for 127.0.0.1 and localhost",
+           answers == [True, True, False, False])
+        bound.clear()
+        refuse.clear()
+        refuse[8766] = _errno_port.EADDRINUSE
+        out = _io_port.StringIO()
+        try:
+            with _cl_port.redirect_stdout(out):
+                main()
+            code = None
+        except SystemExit as exc:
+            code = exc.code
+        ok("a port in use stops main() with the already-running message",
+           code == 1 and bound == [("127.0.0.1", 8766)] and "already running" in out.getvalue())
+    finally:
+        g.update(saved_port)
+        threading.Thread, webbrowser.open, sys.argv, compliance.CONFIG_LOCAL_PATH = saved_run
+    saved_file = loopback_server.WIZARD_PORT_FILE
+    with _tf_port.TemporaryDirectory() as td:
+        try:
+            loopback_server.WIZARD_PORT_FILE = Path(td) / "port.local.json"
+            first = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,
+                                          note=lambda _msg: None)[0]
+            ok("with no port recorded, the wizard link points at the first port the wizard tries",
+               _wizard_url() == f"http://localhost:{first}/")
+            loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8775),
+                                                        encoding="utf-8")
+            ok("the wizard link points at the port the wizard recorded",
+               _wizard_url() == "http://localhost:8775/")
+            loopback_server.WIZARD_PORT_FILE.unlink()
+            saved_override = os.environ.get("CREATOR_OS_WIZARD_PORT")
+            os.environ["CREATOR_OS_WIZARD_PORT"] = "9123"
+            try:
+                ok("with no port recorded and an override set, the wizard link points at the override",
+                   _wizard_url() == "http://localhost:9123/")
+            finally:
+                if saved_override is None:
+                    os.environ.pop("CREATOR_OS_WIZARD_PORT", None)
+                else:
+                    os.environ["CREATOR_OS_WIZARD_PORT"] = saved_override
+        finally:
+            loopback_server.WIZARD_PORT_FILE = saved_file
+
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)
@@ -1326,15 +1479,28 @@ def _selftest() -> int:
 def main():
     if "--selftest" in sys.argv[1:]:
         raise SystemExit(_selftest())
+    global PORT
+    handler = partial(DashboardHandler)
+    try:
+        server, PORT, reserved = loopback_server.bind_first(
+            _PORTS, lambda port: HTTPServer(("127.0.0.1", port), handler))
+    except loopback_server.BindRefused as exc:
+        for line in loopback_server.refusal_lines(exc, "Creator OS Scheduling Dashboard",
+                                                  "CREATOR_OS_DASHBOARD_PORT"):
+            print(line)
+        raise SystemExit(1)
+    try:   # for the MCP tools that link to the dashboard (P101)
+        atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE, loopback_server.port_record(PORT))
+    except OSError as exc:
+        print(f"[dashboard] could not record port {PORT}: {exc}")
     print("Creator OS Scheduling Dashboard")
+    if reserved:
+        print("  " + loopback_server.reserved_note(reserved, PORT, "the dashboard"))
     print(f"  URL: http://localhost:{PORT}")
     print(f"  Queue: {QUEUE_PATH}")
     live = compliance.live_publishing_enabled()
     print(f"  Live publishing: {'ON' if live else 'OFF (manual posting; no platform calls)'}")
     print("  Press Ctrl+C to stop.\n")
-
-    handler = partial(DashboardHandler)
-    server = HTTPServer(("127.0.0.1", PORT), handler)
 
     scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
     scheduler_thread.start()
@@ -1350,6 +1516,7 @@ def main():
         print("\nShutting down...")
         _shutdown.set()
         server.shutdown()
+        _forget_port()
 
 
 if __name__ == "__main__":

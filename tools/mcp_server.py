@@ -57,6 +57,7 @@ ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
 
 sys.path.insert(0, str(HERE))
 import publishing_compliance as compliance  # noqa: E402
+import loopback_server  # noqa: E402  (P101: the wizard's and the dashboard's port records)
 from atomic_io import atomic_write_text as _atomic_write_text, locked as _locked  # noqa: E402
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
@@ -1061,6 +1062,19 @@ def _selftest_static() -> tuple:
             if v is not None:
                 sys.modules[k] = v
 
+    # P101: the address helpers live in loopback_server (tested there, and loadable without the mcp
+    # package); this pins that the tools call them. Its mutation cases are not in file_hash's
+    # committed table, for two reasons: that runner execs this module, which exits at import where
+    # the mcp package is missing (as in CI); and this pin reads the file from disk, which a mutant
+    # held in memory does not change. They are run with the mutant written as the file's text.
+    # The searched text is assembled so that this check's own line does not match it.
+    _lb = "loopback_server."
+    ok("launch_setup and the publishing plan report the addresses the wizard and dashboard recorded",
+       src.count(_lb + "launched_wizard_url(proc, launch_id)") == 1
+       and src.count(_lb + "launch_note(url, confirmed)") == 1
+       and src.count('"dashboard_url": ' + _lb + "dashboard_url(),") == 1
+       and ('"dashboard_url": ' + '"http://localhost:') not in src)
+
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
 
@@ -1979,7 +1993,7 @@ def get_publishing_plan() -> str:
             "tiktok_publishing": _flag_enabled("tiktok_publishing"),
             "pinterest_publishing": _flag_enabled("pinterest_publishing"),
         },
-        "dashboard_url": "http://localhost:8766",
+        "dashboard_url": loopback_server.dashboard_url(),
         "note": (
             "All platforms in manual mode. No per-platform publishing connector is active. "
             "Enable per-platform flags in creator-os-config.local.json or use the scheduling dashboard."
@@ -2593,26 +2607,31 @@ def launch_setup() -> str:
     """Open the Creator OS setup wizard in the user's web browser (no terminal needed).
 
     Spawns tools/wizard.py as a local background process; it serves a guided setup at
-    http://localhost:8765/ and opens the browser automatically. This works ONLY where Creator OS runs
+    http://localhost:8765/ (or 8775, then 8785, when the computer reserves 8765) and opens the
+    browser automatically, and this reports the address it bound. This works ONLY where Creator OS runs
     as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code) — a hosted/remote
     connector runs in the vendor's cloud and cannot open a browser or reach the user's computer.
     Nothing is installed or changed by this call itself; the wizard asks for consent at each step."""
     wizard = HERE / "wizard.py"
     if not wizard.exists():
         return json.dumps({"error": "wizard not found", "path": str(wizard)})
+    launch_id = os.urandom(8).hex()   # P101: the wizard records it with the port it bound
     try:
-        kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
+                        "env": dict(os.environ, CREATOR_OS_WIZARD_LAUNCH_ID=launch_id)}
         if os.name == "posix":
             kwargs["start_new_session"] = True
-        subprocess.Popen([sys.executable, str(wizard)], **kwargs)
+        proc = subprocess.Popen([sys.executable, str(wizard)], **kwargs)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": f"could not start the wizard: {exc}",
                            "manual": "Run: python3 tools/wizard.py"})
+    url, confirmed = loopback_server.launched_wizard_url(proc, launch_id)
     return json.dumps({
         "result": "launching",
-        "url": "http://localhost:8765/",
-        "note": "The setup wizard is opening in your web browser. If it does not open, visit the URL "
-                "above. This works only when Creator OS runs locally (Claude Desktop or Claude Code), "
+        "url": url,
+        "address_confirmed": confirmed,
+        "note": loopback_server.launch_note(url, confirmed)
+                + " This works only when Creator OS runs locally (Claude Desktop or Claude Code), "
                 "not from a browser-only or hosted connector.",
     }, indent=2)
 

@@ -25,7 +25,8 @@ that compose single-operation atoms. Read `docs/ARCHITECTURE.md` for the design.
   `package_skill.py`, `sync_cache.py` (scoop L3), `skill-template/`, `sync_manifest.json`.
   `tools/dashboard/` is the Scheduling Dashboard (`python3 tools/dashboard/server.py`, port 8766).
   `tools/wizard.py` is the setup wizard (port 8765), including `/publishing-setup` for platform
-  API credential configuration.
+  API credential configuration. When the OS reserves that port, each moves to the next port of a
+  fixed block (8776, then 8786; 8775, then 8785) (`tools/loopback_server.py`).
 - `implementation/` platform packaging (claude, gpt, gemini). `docs/`, `ledger/`, `examples/`.
 
 ## Build, verify, and the battery
