@@ -631,8 +631,11 @@ def selftest() -> int:
         nested = root / "pipeline" / "x" / "a.template.json"
         native = nested.relative_to(root)
         state = ("relative_to" in vars(pathlib.PosixPath), vars(pathlib.PosixPath).get("relative_to"))
+        # The patched method is called on a pure POSIX path, so the check runs the patch itself on
+        # every platform (PosixPath cannot be instantiated on Windows).
+        probe = pathlib.PurePosixPath("/r/pipeline/x/a.template.json")
         with windows_paths():
-            winrel = nested.relative_to(root)
+            winrel = pathlib.PosixPath.relative_to(probe, "/r")
         ok("windows_paths() makes relative_to give backslash str() and slash as_posix()",
            str(winrel) == "pipeline\\x\\a.template.json" and winrel.as_posix() == "pipeline/x/a.template.json")
         # Compared by class state and by the native result, so the check holds on Windows too, where

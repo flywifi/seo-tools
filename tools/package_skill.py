@@ -318,8 +318,10 @@ def selftest():
         with zipfile.ZipFile(out, "w") as zf:
             for r in _source_files(root / "skills" / "alpha"):
                 zf.write(root / "skills" / "alpha" / r, str(Path("alpha") / r))
+        with zipfile.ZipFile(out) as zf:   # closed before the temp folder goes (Windows locks open files)
+            archived = sorted(zf.namelist())
         ok("the archive contains exactly the hashed set (P81)",
-           sorted(zipfile.ZipFile(out).namelist()) == ["alpha/SKILL.md", "alpha/notes.md"])
+           archived == ["alpha/SKILL.md", "alpha/notes.md"])
         # P101: the paths a Windows checkout yields (backslash separators, and Path ordering that
         # ignores case, which puts notes.md before SKILL.md and Zeta.md) hash like POSIX ones. The
         # nested names sort differently by component than as strings ('a/z.md' before 'a-b/y.md',
@@ -397,20 +399,21 @@ def selftest():
         with zipfile.ZipFile(plain, "w") as zf:
             for r in _source_files(beta):
                 zf.write(beta / r, str(Path("beta") / r))
-        _pz = zipfile.ZipFile(plain)
+        with zipfile.ZipFile(plain) as _pz:   # closed before the temp folder goes (Windows locks open files)
+            _plain_body, _plain_names = _pz.read("beta/SKILL.md").decode("utf-8"), _pz.namelist()
         ok("PLAIN zip dangles: the reference is inside, the engine is not (the P90 defect)",
-           "shared/fixture-engine.md" in _pz.read("beta/SKILL.md").decode("utf-8")
-           and not any("fixture-engine" in n for n in _pz.namelist()))
+           "shared/fixture-engine.md" in _plain_body
+           and not any("fixture-engine" in n for n in _plain_names))
         outp, refs = package_standalone(beta, dist_root=root / "dist", repo_root=root)
-        _sz = zipfile.ZipFile(outp)
-        _body = _sz.read("beta/SKILL.md").decode("utf-8")
+        with zipfile.ZipFile(outp) as _sz:
+            _body, _names = _sz.read("beta/SKILL.md").decode("utf-8"), _sz.namelist()
         ok("standalone zip bundles the engine under references/upstream/",
-           "beta/references/upstream/shared/fixture-engine.md" in _sz.namelist())
+           "beta/references/upstream/shared/fixture-engine.md" in _names)
         ok("standalone SKILL.md points at the bundled copy, no repo-root token left",
            "references/upstream/shared/fixture-engine.md" in _body
            and not re.search(r"(?<!references/upstream/)\bshared/fixture-engine\.md", _body))
         ok("standalone zip carries the honesty note",
-           "beta/STANDALONE-NOTE.txt" in _sz.namelist())
+           "beta/STANDALONE-NOTE.txt" in _names)
         (beta / "SKILL.md").write_text(fm.format(n="beta")
                                        + "\nLoad shared/missing-engine.md first.\n",
                                        encoding="utf-8")

@@ -242,7 +242,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   not load, targets a module with nothing to run, or edits the function that scores it, and it
   restores path classes, the working folder and the environment after each row. The changed
   selftests write their line-ending fixtures as bytes; on Linux they pass with text-mode writes
-  forced to CRLF, as Windows text mode writes them.
+  forced to CRLF, as Windows text mode writes them. The `package_skill` selftest closes the zip
+  archives it reads before its temp folder is removed, which Windows refuses while a file is
+  open, and the `windows_paths()` check calls the patched method on a pure POSIX path, so it runs
+  the patch on Windows too.
 - P100: `tools/tasks.py` `merge_tasks` matches events across register copies by every field except
   `seq`, as a multiset, and copies events before renumbering. A register edited on both sides no
   longer gains a duplicate event each time an unchanged copy is merged in again; registers that
