@@ -23,7 +23,8 @@ the files on the allowlist are copied.
 
 The allowlist has two copies, `tools/profile_mirror.py::PROFILE_ALLOWLIST`
 <!-- verify: tools/profile_mirror.py::PROFILE_ALLOWLIST --> and the `ALLOWLIST` in
-`tools/profile-mirror.sh`; the selftest compares them.
+`tools/profile-mirror.sh`; the selftest compares them. The script is the macOS agent's job, so
+on Windows the selftest's script checks do not run and it says so.
 
 The content check is `tools/profile_mirror.py::refuse`
 <!-- verify: tools/profile_mirror.py::refuse -->. Both ways of running the mirror use it (the rsync

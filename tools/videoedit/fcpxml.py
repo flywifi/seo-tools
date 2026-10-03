@@ -24,14 +24,25 @@ import json
 import shutil
 import subprocess
 import sys
+import os
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+
+def _closed_tmp(suffix: str) -> Path:
+    """A new temp file's path with its descriptor closed (P101): Windows cannot rewrite or remove a
+    file another handle holds open, and tempfile.mkstemp returns one."""
+    fd, name = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    return Path(name)
+
 
 DEFAULT_VERSION = "1.10"
 
 
 # ── time helpers ───────────────────────────────────────────────────────────
+
 
 def _timescale(fps: float) -> int:
     # Stable rational timescale: 1 second = (fps*100)/(fps*100) s; 1 frame = 100/(fps*100) s.
@@ -297,7 +308,7 @@ def validate(src: str, dtd_path: str | None = None) -> dict:
     """Validate an FCPXML string or path. DTD-valid if a DTD is available, else well-formed."""
     tmp = None
     if "<fcpxml" in src and "\n" in src:
-        tmp = Path(tempfile.mkstemp(suffix=".fcpxml")[1])
+        tmp = _closed_tmp(".fcpxml")
         tmp.write_text(src, encoding="utf-8")
         path = str(tmp)
     else:
@@ -401,6 +412,10 @@ def selftest() -> int:
     ok("build() returns an XML document", isinstance(x, str) and x.startswith("<?xml"))
     ok("build() output is well-formed", _ET.fromstring(x) is not None)
     v = validate(x)
+    if os.path.isdir('/proc/self/fd'):   # P101: a leaked handle blocks removal on Windows
+        _n = len(os.listdir('/proc/self/fd'))
+        validate(x)
+        ok('validate() leaves no file descriptor open', len(os.listdir('/proc/self/fd')) == _n)
     ok("validate() accepts what build() produced", isinstance(v, dict) and v.get("ok") is True)
     # P80: the achievable level depends on the machine. With xmllint the level is well_formed (or
     # dtd_valid when a DTD is found); without it the pure-Python fallback reports well_formed_py.

@@ -44,7 +44,7 @@ GATES = [
     ("eval lint", ["tools/eval_lint.py"]),
     ("preflight push", ["tools/preflight_push.py"]),
     ("staged secret scan", ["tools/secret_scan.py", "--staged"]),
-    ("launcher syntax", ["-c", "import subprocess,sys; sys.exit(subprocess.run(['bash','-n','Start Creator OS Setup.command']).returncode)"]),
+    ("launcher syntax", ["tools/battery.py", "--launcher-syntax"]),
     ("version consistency", ["tools/version.py", "--check"]),
 ]
 
@@ -92,6 +92,49 @@ def _selftest_roster(ok):
        ("version consistency", ["tools/version.py", "--check"]) in GATES)
 
 
+LAUNCHER = "Start Creator OS Setup.command"
+
+
+def bash_for_syntax(which=None, run=None, os_name=None):
+    """The bash for `bash -n` on the launcher, or None. PATH order (shutil.which) everywhere; on
+    Windows (P101) not the WSL launcher in System32, which runs the file inside a Linux
+    distribution where the Windows path does not exist, but Git for Windows' bash, found from
+    `git --exec-path` (<git>/mingw64/libexec/git-core), which also works through Scoop's shims."""
+    import os
+    import shutil
+    which = which or shutil.which
+    run = run or subprocess.run
+    os_name = os_name or os.name
+    found = which("bash")
+    if os_name != "nt":
+        return found
+    norm = (found or "").lower().replace("/", "\\")
+    # WSL's launcher: System32\bash.exe, or the Store app's alias under WindowsApps.
+    if found and "\\windows\\system32\\" not in norm and "\\microsoft\\windowsapps\\" not in norm:
+        return found
+    try:
+        out = run(["git", "--exec-path"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0 or not out.stdout.strip():
+        return None
+    root = Path(out.stdout.strip()).parent.parent.parent
+    for cand in (root / "usr" / "bin" / "bash.exe", root / "bin" / "bash.exe"):
+        if cand.exists():
+            return str(cand)
+    return None
+
+
+def launcher_syntax(find=None, run=None) -> int:
+    """`bash -n` on the launcher; 2 with a DID NOT RUN line when no usable bash exists."""
+    bash = (find or bash_for_syntax)()
+    if bash is None:
+        print("launcher syntax: no usable bash found (on Windows, install Git for Windows); "
+              "the check DID NOT RUN")
+        return 2
+    return (run or subprocess.run)([bash, "-n", str(ROOT / LAUNCHER)]).returncode
+
+
 def selftest() -> int:
     import tempfile
     failures = []
@@ -100,6 +143,50 @@ def selftest() -> int:
         print(f"  [{'ok' if cond else 'FAIL'}] {name}")
         if not cond:
             failures.append(name)
+
+    # P101: the bash the launcher gate uses. Injected lookups, so every branch runs on any platform.
+    class _R:
+        def __init__(self, rc, out):
+            self.returncode, self.stdout = rc, out
+    with tempfile.TemporaryDirectory() as gt:
+        gitroot = Path(gt) / "Git"
+        (gitroot / "usr" / "bin").mkdir(parents=True)
+        (gitroot / "usr" / "bin" / "bash.exe").write_bytes(b"")
+        execp = str(gitroot / "mingw64" / "libexec" / "git-core")
+        wsl = "C:\\WINDOWS\\System32\\bash.exe"
+        git_ok = lambda *a, **k: _R(0, execp + "\n")  # noqa: E731
+        ok("launcher bash: off Windows, the bash on PATH",
+           bash_for_syntax(which=lambda n: "/usr/bin/bash", run=git_ok, os_name="posix") == "/usr/bin/bash")
+        ok("launcher bash: on Windows, a Git bash first on PATH is used as is",
+           bash_for_syntax(which=lambda n: "C:\\Git\\usr\\bin\\bash.exe", run=git_ok,
+                           os_name="nt") == "C:\\Git\\usr\\bin\\bash.exe")
+        ok("launcher bash: on Windows, the WSL launcher in System32 is passed over for Git's bash",
+           bash_for_syntax(which=lambda n: wsl, run=git_ok, os_name="nt")
+           == str(gitroot / "usr" / "bin" / "bash.exe"))
+        ok("launcher bash: on Windows with no bash on PATH, Git's bash is found from git --exec-path",
+           bash_for_syntax(which=lambda n: None, run=git_ok, os_name="nt")
+           == str(gitroot / "usr" / "bin" / "bash.exe"))
+        ok("launcher bash: on Windows with only WSL and no git, none (the gate says DID NOT RUN)",
+           bash_for_syntax(which=lambda n: wsl, run=lambda *a, **k: _R(1, ""), os_name="nt") is None)
+        ok("launcher bash: a System32 path written with forward slashes is still WSL's",
+           bash_for_syntax(which=lambda n: "C:/Windows/System32/bash.exe", run=git_ok, os_name="nt")
+           == str(gitroot / "usr" / "bin" / "bash.exe"))
+        ok("launcher bash: the Store WSL alias under WindowsApps is passed over too",
+           bash_for_syntax(which=lambda n: "C:\\Users\\u\\AppData\\Local\\Microsoft\\WindowsApps\\bash.exe",
+                           run=git_ok, os_name="nt") == str(gitroot / "usr" / "bin" / "bash.exe"))
+        ok("launcher bash: a failing git --exec-path is not trusted, even with output",
+           bash_for_syntax(which=lambda n: wsl, run=lambda *a, **k: _R(1, execp + "\n"), os_name="nt") is None)
+        import contextlib as _cl
+        import io as _io
+        _buf = _io.StringIO()
+        with _cl.redirect_stdout(_buf):
+            rc_none = launcher_syntax(find=lambda: None)
+        seen = []
+        rc_run = launcher_syntax(find=lambda: "/x/bash", run=lambda argv: (seen.append(argv), _R(0, ""))[1])
+        ok("launcher gate: no bash is exit 2 with a DID NOT RUN line",
+           rc_none == 2 and "DID NOT RUN" in _buf.getvalue())
+        ok("launcher gate: it runs bash -n on the launcher and returns bash's exit code",
+           rc_run == 0 and seen == [["/x/bash", "-n", str(ROOT / LAUNCHER)]])
 
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
@@ -1252,6 +1339,8 @@ def main(argv) -> int:
         return selftest()
     if "--check-parity" in argv:
         return ci_parity()
+    if "--launcher-syntax" in argv:
+        return launcher_syntax()
     if "--list" in argv:
         for name, gate_argv in GATES:
             print(f"{name}: python3 {' '.join(gate_argv)}")

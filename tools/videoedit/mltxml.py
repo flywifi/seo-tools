@@ -22,9 +22,19 @@ import json
 import shutil
 import subprocess
 import sys
+import os
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+
+def _closed_tmp(suffix: str) -> Path:
+    """A new temp file's path with its descriptor closed (P101): Windows cannot rewrite or remove a
+    file another handle holds open, and tempfile.mkstemp returns one."""
+    fd, name = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    return Path(name)
+
 from xml.sax.saxutils import escape
 
 HERE = Path(__file__).resolve().parent
@@ -35,6 +45,7 @@ from fcpxml import _infer_duration  # noqa: E402
 
 DEFAULT_VERSION = "7.0.0"
 SUBPROCESS_TIMEOUT = 1800
+
 
 
 def sec_to_clock(sec):
@@ -199,7 +210,7 @@ def validate(src):
     """Well-formedness check, fcpxml.validate shape. MLT has no DTD, so no dtd_valid level."""
     tmp = None
     if "<mlt" in str(src) and "\n" in str(src):
-        tmp = Path(tempfile.mkstemp(suffix=".mlt")[1])
+        tmp = _closed_tmp(".mlt")
         tmp.write_text(src, encoding="utf-8")
         path = str(tmp)
     else:
@@ -230,7 +241,7 @@ def _ffmpeg_cutlist_render(pkg, out_path):
         raise LookupError("ffmpeg cut-list encode handles exactly one source asset "
                           f"(package has {len(refs)})")
     ref = refs.pop()
-    listfile = Path(tempfile.mkstemp(suffix=".txt")[1])
+    listfile = _closed_tmp(".txt")
     lines = []
     for c in sorted(clips, key=lambda c: float(c.get("start_seconds", 0) or 0)):
         src_in = float(c.get("source_in_seconds", c.get("start_seconds", 0)) or 0)
@@ -267,16 +278,21 @@ def render(src, out_path, config=None, backend="auto"):
             if b == "melt":
                 if not shutil.which("melt"):
                     raise LookupError("melt not on PATH")
+                tmp = None
                 if is_pkg:
-                    tmp = Path(tempfile.mkstemp(suffix=".mlt")[1])
+                    tmp = _closed_tmp(".mlt")
                     tmp.write_text(build(src), encoding="utf-8")
                     mlt_path = str(tmp)
                 else:
                     mlt_path = str(src)
                 cmd = [shutil.which("melt"), mlt_path, "-consumer",
                        f"avformat:{out_path}", "vcodec=libx264", "acodec=aac"]
-                run = subprocess.run(cmd, capture_output=True, text=True,
-                                     timeout=SUBPROCESS_TIMEOUT)
+                try:
+                    run = subprocess.run(cmd, capture_output=True, text=True,
+                                         timeout=SUBPROCESS_TIMEOUT)
+                finally:
+                    if tmp is not None:   # P101: the package's temp .mlt is not left behind
+                        tmp.unlink()
                 if run.returncode != 0:
                     raise RuntimeError(f"melt exited {run.returncode}: "
                                        f"{run.stderr.strip()[-300:]}")
@@ -332,6 +348,10 @@ def selftest():
     _check("build inserts a blank for the timeline gap", '<blank length="00:00:05.000"/>' in xml,
            failures)
     v = validate(xml)
+    if os.path.isdir('/proc/self/fd'):   # P101: a leaked handle blocks removal on Windows
+        _n = len(os.listdir('/proc/self/fd'))
+        validate(xml)
+        _check('validate() leaves no file descriptor open', len(os.listdir('/proc/self/fd')) == _n, failures)
     _check("validate reports ok (well-formed)", v["ok"] and v["level"].startswith("well_formed"),
            failures)
     _check("validate rejects garbage", validate("<mlt>\n<broken")["ok"] is False, failures)
@@ -367,6 +387,35 @@ def selftest():
     _check("gates open: chain runs and reports the missing backend honestly",
            not r["rendered"] and r["backend_chain"][0]["backend"] == "melt"
            and r["backend_chain"][0]["ok"] is False, failures)
+
+    # P101: the two render paths that write a temp file, run against stand-ins for melt and
+    # ffmpeg: each removes its temp file (Windows refuses that while a handle is open) and, where
+    # /proc shows them, leaves no descriptor open.
+    import types
+    gates = {"capabilities": {"media_render": {"enabled": True}, "video_editing_enabled": {"enabled": True}}}
+    g = globals()
+    saved = (g["shutil"], g["subprocess"])
+    seen = []
+
+    def _fake_run(cmd, **kwargs):
+        seen.append(list(cmd))
+        return types.SimpleNamespace(returncode=0, stderr="")
+    g["shutil"] = types.SimpleNamespace(which=lambda name: "/stub/" + name)
+    g["subprocess"] = types.SimpleNamespace(run=_fake_run)
+    has_fd = os.path.isdir("/proc/self/fd")
+    try:
+        n0 = len(os.listdir("/proc/self/fd")) if has_fd else 0
+        r_melt = render(pkg, "out.mp4", backend="melt", config=gates)
+        r_ff = render(pkg, "out.mp4", backend="ffmpeg", config=gates)
+        n1 = len(os.listdir("/proc/self/fd")) if has_fd else 0
+    finally:
+        g["shutil"], g["subprocess"] = saved
+    temps = [seen[0][1], seen[1][seen[1].index("-i") + 1]] if len(seen) == 2 else []
+    _check("the melt package render and the ffmpeg cut-list render remove their temp files",
+           r_melt["rendered"] and r_ff["rendered"] and len(temps) == 2
+           and not any(os.path.exists(t) for t in temps), failures)
+    if has_fd:
+        _check("those renders leave no file descriptor open", n1 == n0, failures)
 
     import contextlib
     import io

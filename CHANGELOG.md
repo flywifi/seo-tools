@@ -211,6 +211,22 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P101 (Windows selftests and handles): `atomic_io.locked()` takes an exclusive lock on Windows,
+  `msvcrt.locking` on the sidecar's first byte polled in its non-blocking form, where it was a
+  no-op; its selftest runs that branch in-process with a stand-in `msvcrt`. `atomic_write_text`
+  refuses a directory destination with `IsADirectoryError` before writing (Windows' replace said
+  `PermissionError`) and retries a Windows replace briefly while another process holds the file.
+  `videoedit/fcpxml.py`, `videoedit/mltxml.py` and the `import_parse` selftest close the
+  descriptor `tempfile.mkstemp` returns before removing the file, which Windows refuses while it
+  is open, and `mltxml`'s melt render of a package now removes its temporary `.mlt`. `project_docs` keys its state by POSIX paths, so a state file written
+  on Windows before this change reads as never projected once and is projected again. The
+  battery's launcher-syntax gate runs `battery.py --launcher-syntax`, which on Windows passes over
+  WSL's `bash.exe` (in System32, or the Store alias under WindowsApps) for Git for Windows' bash
+  (found from `git --exec-path`) and says DID NOT RUN when there is none. Selftests no longer assume POSIX on Windows: mode-bit checks in
+  `atomic_io`, `mcp_server` and `profile_mirror` apply off Windows only, `profile_mirror`'s macOS
+  launchd-script group is reported as not run there, and `env_paths` and the handoff runner compare
+  paths by their parts, find test programs by a `.exe` suffix on Windows, and resolve the fake
+  home before comparing.
 - P101: the stored hashes of tracked files verify on a checkout whose text files git converted
   to CRLF (`core.autocrlf=true`, the Git for Windows default). `tools/file_hash.py` hashes a text
   file over its bytes with CRLF and lone CR folded to LF, and a binary file raw; a file is binary

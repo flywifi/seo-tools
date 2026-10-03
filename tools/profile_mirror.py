@@ -1384,8 +1384,10 @@ def _pins_agent(m, tmp) -> list:
 
     r, cmds = install(("ok", at), api=True)
     target = m.plist_path(home)
+    # P101: NTFS keeps no POSIX mode bits, so the 0644 half applies off Windows only.
     out.append(("install-agent writes the plist mode 0644, bootstraps, then kickstarts",
-                r["ok"] and target.exists() and (target.stat().st_mode & 0o777) == 0o644
+                r["ok"] and target.exists()
+                and (os.name == "nt" or (target.stat().st_mode & 0o777) == 0o644)
                 and [c[1] for c in cmds] == ["bootout", "bootstrap", "kickstart"]
                 and cmds[1] == ["launchctl", "bootstrap", "gui/501", str(target)]))
     out.append(("the old stamp is removed before kickstart, so only the new run counts",
@@ -1529,6 +1531,12 @@ def _pins_cli(m, tmp) -> list:
                 lg.removeHandler(h)
                 h.close()
     return out
+
+
+# P101: the script group runs tools/profile-mirror.sh, the macOS launchd agent's job, under
+# /bin/bash. Windows has no such agent (the mirror runs by hand there) and no /bin/bash, so the
+# group and its mutation cases do not run on Windows; the selftest says so instead of passing them.
+SCRIPT_PINS_RUN = os.name != "nt"
 
 
 def _pins_script(m, tmp, script=None) -> list:
@@ -1739,6 +1747,8 @@ def _run_mutants(tmp: Path) -> list:
         sub = tmp / f"mutant-{i}"
         sub.mkdir(parents=True)
         if group == "script":
+            if not SCRIPT_PINS_RUN:
+                continue
             if script.count(old) != 1:
                 survivors.append(f"{label} (anchor not found exactly once)")
                 continue
@@ -1802,6 +1812,9 @@ def selftest() -> int:
         da._default_transport = _no_network
         pd._api_token = lambda transport=None, **k: (None, "selftest: no credential")
         for group, pins in _PIN_GROUPS.items():
+            if group == "script" and not SCRIPT_PINS_RUN:
+                print("  [skip] script: the macOS launchd helper script does not run on Windows")
+                continue
             sub = tmp / group
             sub.mkdir()
             for name, cond in pins(me, sub):
@@ -1809,8 +1822,11 @@ def selftest() -> int:
         survivors = _run_mutants(tmp / "mutants")
         if survivors:
             print(f"  [note] mutations the pins did not catch: {survivors}")
-        ok(f"each of {len(_MUTANTS)} committed mutations fails its pin group",
-           _MUTANTS and not survivors)
+        ran = [r for r in _MUTANTS if r[1] != "script" or SCRIPT_PINS_RUN]
+        ok(f"each of {len(ran)} committed mutations fails its pin group"
+           + ("" if len(ran) == len(_MUTANTS) else
+              f" ({len(_MUTANTS) - len(ran)} script cases not run on Windows)"),
+           ran and not survivors)
     finally:
         g.update(saved)
         if saved_home is None:

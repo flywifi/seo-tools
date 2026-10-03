@@ -10,9 +10,11 @@ Branch: `claude/blissful-cannon-ggivl7`.
   and the doc-freshness, knowledge-projection, Mac-surface, skill-package and GIS stores use it;
   `package_skill.tree_sha` keys POSIX-form paths, as do the drift guard's migration-manifest
   lookup, the freshness bundle, the selftest sweep's enrolment set and the local-data migration
-  notes; `.gitattributes` checks text files out LF (batch files CRLF). Next: the wizard's
-  reserved-port handling, Windows file locking, the surface selftest's temp-folder retry, an inbox
-  `sweep` verb, the Outbox platform tag, fixture shapes, and the scoop cache's path keys.
+  notes; `.gitattributes` checks text files out LF (batch files CRLF). Then Windows file locking
+  in `atomic_io`, the `mkstemp` handle leaks, `project_docs` keys, the launcher gate's bash, and
+  selftests that assumed POSIX. Next: the surface selftest's temp-folder retry, the wizard's
+  reserved-port handling, the cloud-folder warning on Windows, an inbox `sweep` verb, the Outbox
+  platform tag, fixture shapes, and the scoop cache's path keys.
 - P100: cross-surface workflow suite (2026-10-01, ADR 0072). `tools/surface_workflow_check.py`
   runs 10 workflows from each vendor's web chat into each vendor's desktop app, plus a round
   trip, with simulated surface steps and the real computer code in a sandbox, inside a write

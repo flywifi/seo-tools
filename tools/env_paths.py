@@ -235,7 +235,7 @@ def _selftest() -> int:
             (uhome / ".nvm" / NVM_NODE_SUBDIR / v / "bin").mkdir(parents=True)
         ups = user_prefixes(home=uhome, env={})
         ok(ups and ups[0] == str(uhome / USER_BIN), "user_prefixes leads with ~/.local/bin")
-        ok(ups[1].endswith("v20.11.1/bin"), "user_prefixes orders nvm nodes newest first")
+        ok(Path(ups[1]).parts[-2:] == ("v20.11.1", "bin"), "user_prefixes orders nvm nodes newest first")
         ok(len(ups) == 4, "user_prefixes lists ~/.local/bin + every nvm node bin")
         uap = augmented_path("/usr/bin:/bin", home=uhome, env={})
         ok(uap.startswith(str(uhome / USER_BIN)), "augmented_path puts user-scoped dirs FIRST")
@@ -245,28 +245,32 @@ def _selftest() -> int:
         alt = root / "altnvm"
         (alt / NVM_NODE_SUBDIR / "v22.1.0" / "bin").mkdir(parents=True)
         alt_ups = user_prefixes(home=uhome, env={"NVM_DIR": str(alt)})
-        ok(any(p.endswith("v22.1.0/bin") for p in alt_ups), "user_prefixes honors $NVM_DIR")
+        ok(any(Path(p).parts[-2:] == ("v22.1.0", "bin") for p in alt_ups), "user_prefixes honors $NVM_DIR")
         ok(not any(".nvm" in p for p in alt_ups), "$NVM_DIR replaces the ~/.nvm default")
         # The functional pin: a node installed the user-only way is findable under a bare PATH.
-        fake_node = uhome / ".nvm" / NVM_NODE_SUBDIR / "v20.11.1" / "bin" / "node"
+        # P101: Windows finds a program by a PATHEXT suffix (.exe), not by a shebang and exec bit.
+        exe = ".exe" if os.name == "nt" else ""
+        same = lambda a, b: a is not None and os.path.normcase(a) == os.path.normcase(str(b))  # noqa: E731
+        fake_node = uhome / ".nvm" / NVM_NODE_SUBDIR / "v20.11.1" / "bin" / ("node" + exe)
         fake_node.write_text("#!/bin/sh\n")
         fake_node.chmod(fake_node.stat().st_mode | stat.S_IEXEC)
-        ok(which("node", path=augmented_path("", home=uhome, env={})) == str(fake_node),
+        ok(same(which("node", path=augmented_path("", home=uhome, env={})), fake_node),
            "which() finds an nvm-installed node (the route the wizard recommends)")
 
         # which() finds a tool via an injected path, and via augmented_path when the tool sits in a
         # prefix-like dir we inject as base.
         fakebin = root / "fakebin"
         fakebin.mkdir()
-        tool = fakebin / "faketool"
+        tool = fakebin / ("faketool" + exe)
         tool.write_text("#!/bin/sh\n")
         tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
-        ok(which("faketool", path=str(fakebin)) == str(tool), "which() resolves via injected path")
+        ok(same(which("faketool", path=str(fakebin)), tool), "which() resolves via injected path")
         ok(which("definitely_not_a_real_tool_xyz") is None, "which() None for a missing tool")
 
     # cloud_synced_root: each synced family is named, a plain home path is not, and a folder that
     # only starts with the same letters (~/Dropbox-notes) is not inside ~/Dropbox.
-    fake_home = Path("/nonexistent-home-for-selftest")
+    # An absolute, resolved base (on Windows a bare "/x" resolves onto the current drive).
+    fake_home = Path(tempfile.gettempdir()).resolve() / "nonexistent-home-for-selftest"
     ok(all(cloud_synced_root(fake_home.joinpath(*p, "x", "repo"), home=fake_home)
            == str(fake_home.joinpath(*p)) for p in CLOUD_SYNCED_DIRS),
        "cloud_synced_root names Google Drive/OneDrive (CloudStorage), iCloud Drive and Dropbox")

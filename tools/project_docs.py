@@ -93,9 +93,9 @@ def project_local(hub_root, pack=None, state_path=STATE_PATH) -> dict:
     state = load_state(state_path)
     for src in pack:
         if not src.exists():
-            out["missing"].append(str(src.relative_to(ROOT)))
+            out["missing"].append(src.relative_to(ROOT).as_posix())
             continue
-        rel = str(src.relative_to(ROOT))
+        rel = src.relative_to(ROOT).as_posix()
         digest = _sha(src)
         dest = knowledge / src.name
         rec = state["files"].get(rel, {})
@@ -118,7 +118,7 @@ def check(pack=None, state_path=STATE_PATH) -> dict:
     state = load_state(state_path)
     rows, stale = [], 0
     for src in pack:
-        rel = str(src.relative_to(ROOT))
+        rel = src.relative_to(ROOT).as_posix()
         if not src.exists():
             rows.append({"file": rel, "state": "pack_file_missing"})
             stale += 1
@@ -187,7 +187,7 @@ def project_api(token, folder_name="Creator OS", transport=None, pack=None,
         if not src.exists():
             out["errors"].append(f"pack file missing: {src.name}")
             continue
-        rel = str(src.relative_to(ROOT))
+        rel = src.relative_to(ROOT).as_posix()
         content = src.read_bytes()
         digest = hashlib.sha256(content).hexdigest()
         rec = state["files"].get(rel, {})
@@ -295,8 +295,28 @@ def selftest() -> int:
         r3 = project_local(hub, pack=[a, b], state_path=state_path)
         ok("re-projection clears the stale flag",
            r3["written"] == ["01-alpha.md"] and check(pack=[a, b], state_path=state_path)["ok"])
+        # P101: the state keys are POSIX paths, so a Windows checkout (backslash relative paths)
+        # reads the same state as current and reports files by the same names.
+        try:
+            import file_hash
+        except ImportError:  # loaded by file path with tools/ not on sys.path
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import file_hash
+        with file_hash.windows_paths():
+            win_sim = "\\" in str(a.relative_to(ROOT))
+            cw = check(pack=[a, b], state_path=state_path)
+        ok("Windows-form paths read the same state as current, with POSIX file names",
+           win_sim and cw["ok"] and [r["file"] for r in cw["files"]] == ["pack/01-alpha.md", "pack/02-beta.md"])
         ok("a missing pack file is reported, not raised",
            project_local(hub, pack=[pack_dir / "zz.md"], state_path=state_path)["missing"])
+        # The local lane under Windows-form paths writes POSIX keys and names a missing file by its
+        # POSIX path, on a fresh state file.
+        win_state = tmp / "win-state.local.json"
+        with file_hash.windows_paths():
+            rw = project_local(hub, pack=[a, b, pack_dir / "zz.md"], state_path=win_state)
+        ok("Windows-form paths: the local lane records POSIX keys and missing names",
+           sorted(load_state(win_state)["files"]) == ["pack/01-alpha.md", "pack/02-beta.md"]
+           and rw["missing"] == ["pack/zz.md"])
 
         # API lane against a canned transport: create-then-update reuses the stored doc id,
         # only googleapis hosts are called, and the bearer never rides in a URL.
@@ -321,6 +341,14 @@ def selftest() -> int:
         ok("re-projection UPDATES the same Doc id", r5["updated"] == ["01-alpha"] and not r5["created"])
         r6 = project_api("tok-secret", transport=fake_transport, pack=[a], state_path=api_state)
         ok("unchanged content is not re-uploaded", r6["unchanged"] == ["01-alpha"])
+        # Under Windows-form paths the API lane finds the Doc it recorded from a POSIX run, so an
+        # edit UPDATES that Doc rather than creating a second one, and the key stays POSIX.
+        a.write_text(a.read_text(encoding="utf-8") + "\nrev3\n", encoding="utf-8")
+        with file_hash.windows_paths():
+            rw2 = project_api("tok-secret", transport=fake_transport, pack=[a], state_path=api_state)
+        ok("Windows-form paths: the API lane updates the recorded Doc under its POSIX key",
+           rw2["updated"] == ["01-alpha"] and not rw2["created"]
+           and sorted(load_state(api_state)["files"]) == ["pack/01-alpha.md"])
         update_calls = [c for c in calls if "uploadType=media" in c["url"]]
         ok("the update is a media PATCH to the stored id",
            update_calls and update_calls[0]["method"] == "PATCH" and "/files/doc-alpha" in update_calls[0]["url"])

@@ -4,7 +4,7 @@
   "docs": {
     "docs/PROFILE-MIRROR.md": {
       "sources": {
-        "tools/profile_mirror.py": "828917669edd7b758c0c1853151115dbba5fc95dff270922800a96be99cab107",
+        "tools/profile_mirror.py": "6fdcba0f8a273211e7012df1b3376ff55d1f73b05dcb5746c2b496b38ac40429",
         "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
       }
     },
@@ -22,7 +22,7 @@
     },
     "docs/CURRENCY.md": {
       "sources": {
-        "tools/dependency_currency.py": "6bbd0e2f49bcd15beca90e5db9fdd2832c98e47231ad0691d8d22645c9254097",
+        "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
         "tools/sync_check.py": "ad89679569a524657c114e8c4780f904bea872d19fc8e70efff648f9f3fa31d7"
       }
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "cc2bc2328ca6a70741e4de9d8c896cf07540389e30e305d34d1e1eba0b9c07a3"
+        "tools/mcp_server.py": "a9f76da35353d2cc8ce625d4a87173d4220950e99fc10d211014000ca7477ced"
       }
     },
     "docs/TRANSITIONS.md": {
@@ -133,18 +133,18 @@
       "sources": {
         "shared/schemas/compute-job.json": "af0e13185a4bd7fe972f4abd25e79c57808b0ac206188c0411e802939349d459",
         "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
-        "tools/handoff/runner.py": "0da2bc1908587b14efaf42ebdf1e825f3cfb3c5863141a29f4f100c8143ff4ea",
+        "tools/handoff/runner.py": "d82d9dab33eb60cf7a7ea259bcdd68acbfe154f5761015167c79bedb132b3546",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "0fd249ac573189ca5c39708757c0b0b045bd15920b82f7f57a641cbe4f10a6cb",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "789c7a7dbbcb06bba982d88b38629554b55239037bd86e280009657ec9304f8b"
+        "tools/project_docs.py": "15835534381e7ec3abaa57a03aebacb658a05887e75237e6f971f34184763069"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
-        "tools/handoff/runner.py": "0da2bc1908587b14efaf42ebdf1e825f3cfb3c5863141a29f4f100c8143ff4ea",
+        "tools/handoff/runner.py": "d82d9dab33eb60cf7a7ea259bcdd68acbfe154f5761015167c79bedb132b3546",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "0fd249ac573189ca5c39708757c0b0b045bd15920b82f7f57a641cbe4f10a6cb",

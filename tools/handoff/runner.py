@@ -422,7 +422,8 @@ def selftest() -> int:
     # P61: the transcribe builder points the SRT at the hub results, not next to the input.
     argv_t, _ = _build_transcribe({}, ["Inbox/Processed/2026-07-17/clip.mp4"], hub)
     ok("transcribe writes under Jobs/results",
-       "--out-dir" in argv_t and argv_t[argv_t.index("--out-dir") + 1].endswith("Jobs/results"))
+       "--out-dir" in argv_t
+       and Path(argv_t[argv_t.index("--out-dir") + 1]).parts[-2:] == ("Jobs", "results"))
 
     # P61 + P63: transcript_normalize builds the transcripts.py --normalize argv,
     # and the argv is RUN against a committed fixture with the output shape asserted (the shipped

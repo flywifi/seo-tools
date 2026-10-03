@@ -520,8 +520,11 @@ def selftest():
 class _TmpFile:
     """A throwaway file for the selftest (glob-based parsers expect a path)."""
     def __init__(self, text, suffix):
+        import os
         import tempfile
-        self._p = Path(tempfile.mkstemp(suffix=suffix)[1])
+        fd, name = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)   # P101: Windows cannot rewrite or remove a file a handle holds open
+        self._p = Path(name)
         self._p.write_text(text, encoding="utf-8")
 
     def __fspath__(self):

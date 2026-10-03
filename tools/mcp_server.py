@@ -981,9 +981,12 @@ def _selftest_static() -> tuple:
         _p2.write_text("{}", encoding="utf-8")
         os.chmod(_p2, 0o600)
         _atomic_write_text(_p2, "{\"a\": 1}\n")
-        ok("atomic write lands the bytes, leaves no temp file, and keeps the file's 0600 mode",
-           _p2.read_text() == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2]
-           and (os.stat(_p2).st_mode & 0o777) == 0o600)
+        # P101: NTFS keeps no POSIX mode bits (chmod sets only the read-only flag), so the 0600
+        # half applies off Windows only.
+        ok("atomic write lands the bytes, leaves no temp file, and keeps the file's 0600 mode"
+           + (" (mode not checked on Windows)" if os.name == "nt" else ""),
+           _p2.read_text(encoding="utf-8") == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2]
+           and (os.name == "nt" or (os.stat(_p2).st_mode & 0o777) == 0o600))
 
     # P81 C-3/C-5/C-6: operator-input validation (18 cases)
     def _rejects(fn, val, token):
