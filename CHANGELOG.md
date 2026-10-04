@@ -218,8 +218,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   exclusively). `EADDRINUSE` stops the walk with the "already running, or port N is in use"
   message, and another bind error is printed as itself, where every `OSError` read as "already
   running". Both servers bind without `SO_REUSEADDR` on Windows, as CPython's
-  `socket.create_server` does, so a second copy fails with `EADDRINUSE` (executed on Linux; Windows
-  per Microsoft's bind table) instead of sharing the port; `SO_EXCLUSIVEADDRUSE` is not used, since
+  `socket.create_server` does, so a second copy fails with `EADDRINUSE` (executed on Linux and in a
+  manual run on Windows) instead of sharing the port; `SO_EXCLUSIVEADDRUSE` is not used, since
   it would block a restart while the closed server's connections end. `CREATOR_OS_DASHBOARD_PORT`
   joins `CREATOR_OS_WIZARD_PORT` as a one-port override. Each server records the port it bound in
   an ignored `creator-os-*-port.local.json` and removes the record on a clean shutdown when it still
@@ -237,6 +237,28 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   macOS Claude config path in POSIX form. `tools/file_hash.py` scores an entry that returns
   `(rc, ...)` on `rc`, refuses a row anchored in any `_selftest*` helper as test code, and carries
   committed mutation cases for these modules; ADR 0073.
+- P101 (idle connections): the setup wizard and the Scheduling Dashboard close a connection that
+  sends nothing for 3 seconds (`loopback_server.REQUEST_TIMEOUT`, the request handlers' `timeout`).
+  Both answer one request at a time, and a browser's idle spare connection held either server, so
+  pages and the wizard's Quit waited until the browser closed it; each selftest checks that
+  the handler's timeout is `REQUEST_TIMEOUT` and serves the handler (its timeout shortened) with an
+  idle connection open, requiring the next request to be answered once the wait ends. The wizard's form reader re-raises the read timeout, so a body that stops
+  arriving closes the connection instead of reading as an empty form.
+  `Start Creator OS Setup.bat` pauses when the wizard exits with an error, so its message stays on
+  screen. The `pick_folder` selftest checks the Linux display rule with the OS stood in for, and
+  the `loopback_server` selftest checks a refused connect with the connect stood in for (Windows
+  retries a refused loopback connect past a 1-second timeout), so both checks run on Windows too.
+- P101 (cloud-synced repo warning on Windows): `env_paths.cloud_synced_root` also names the folder
+  in the `OneDrive`, `OneDriveConsumer` or `OneDriveCommercial` environment variable,
+  `~/iCloud Drive` and `~/iCloudDrive` (iCloud for Windows), and the root of the volume a path is
+  on when it holds a `.shortcut-targets-by-id` or `.file-revisions-by-id` folder (seen at the root
+  of Google Drive for desktop's drive), so `setup.py` and the wizard's Drive hub screen warn about a
+  repo in those places; Drive's registry preferences are not read (ADR 0074). The warning shows the
+  person's home folder as the example and `env_paths.python_command()` as the command (`py -3` on
+  Windows with the py launcher, else `python`; `python3` elsewhere). The setup and wizard selftests
+  check the warning with and without a synced folder, with the machine's own OneDrive variables and
+  drives kept out of it, and `tools/file_hash.py` carries committed mutation cases for these
+  changes.
 - P101 (pick_folder selftest): the selftest checks `pick_folder()`'s fallback order with the
   tkinter and OS-native dialog layers stood in for, asking the OS picker only after tkinter gave
   nothing, and calls the real function on headless Linux alone; on macOS or Windows it opened a

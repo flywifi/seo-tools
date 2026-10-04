@@ -152,8 +152,36 @@ def _selftest() -> int:
         for osn in ("mac", "windows"):
             g["_os"] = lambda o=osn: o
             check(_has_display() is True, f"{osn} should count as having a display")
+        # Linux has one only with X11 or Wayland, whichever system runs this selftest.
+        g["_os"] = lambda: "linux"
+        saved_env = {k: os.environ.pop(k, None) for k in ("DISPLAY", "WAYLAND_DISPLAY")}
+        try:
+            seen = [_has_display()]
+            for k in ("DISPLAY", "WAYLAND_DISPLAY"):
+                os.environ[k] = ":0" if k == "DISPLAY" else "wayland-0"
+                seen.append(_has_display())
+                os.environ[k] = ""
+                seen.append(_has_display())
+                os.environ.pop(k)
+        finally:
+            for k, v in saved_env.items():
+                if v is not None:
+                    os.environ[k] = v
+        check(seen == [False, True, False, True, False],
+              f"Linux should have a display with DISPLAY or WAYLAND_DISPLAY set and none without, "
+              f"or with either set empty: {seen}")
     finally:
         g["_tk_pick"], g["_os_pick"], g["_os"] = real_layers
+    # _os() maps platform.system() to the three names the layers use.
+    real_system = platform.system
+    try:
+        mapped = []
+        for system in ("Darwin", "Windows", "Linux"):
+            platform.system = lambda s=system: s
+            mapped.append(_os())
+    finally:
+        platform.system = real_system
+    check(mapped == ["mac", "windows", "linux"], f"_os() should map Darwin, Windows, Linux: {mapped}")
 
     # Headless graceful degrade: no DISPLAY -> tkinter returns None, linux os-pick returns ''.
     saved = {k: os.environ.pop(k, None) for k in ("DISPLAY", "WAYLAND_DISPLAY")}

@@ -207,8 +207,14 @@ and the `launch_setup` MCP tool read. A port another program holds (often a seco
 with "already running, or port N is in use" instead, and so does the port last recorded when a
 wizard answers there, or the connection is accepted without an answer within about a second (that
 message names `creator-os-wizard-port.local.json`, to delete when no wizard is open). On
-Windows it binds without `SO_REUSEADDR`, so a second copy fails rather than sharing the port (per
-Microsoft's bind table, not yet run on Windows; ADR 0073). To use one port of your own, set
+Windows it binds without `SO_REUSEADDR`, so a second copy fails with "already running" rather than
+sharing the port (Microsoft's bind table; ADR 0073). The server answers one request at a time, so it
+closes a connection that sends nothing for 3 seconds (`loopback_server.REQUEST_TIMEOUT`
+<!-- verify: tools/loopback_server.py::REQUEST_TIMEOUT -->): a browser opens spare connections
+ahead of use, and one left idle would otherwise hold pages, and Quit, until the browser
+closed it. The Scheduling Dashboard does the same. On Windows, `Start Creator OS Setup.bat` keeps
+its window open when the wizard stops with an error, so the message can be read. To use one port
+of your own, set
 `CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable or out of range falls back to the block
 with a printed note):
 

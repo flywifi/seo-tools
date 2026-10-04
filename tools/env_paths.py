@@ -156,30 +156,75 @@ def which(name, path=None):
 
 # Folders a desktop sync client keeps in step with the cloud: Google Drive, OneDrive and Dropbox
 # for desktop on macOS 12.1+ (File Provider, under ~/Library/CloudStorage), iCloud Drive (under
-# ~/Library/Mobile Documents) and a classic ~/Dropbox folder.
-CLOUD_SYNCED_DIRS = (("Library", "CloudStorage"), ("Library", "Mobile Documents"), ("Dropbox",))
+# ~/Library/Mobile Documents on macOS; P101: ~/iCloud Drive, the iCloud for Windows default, or
+# ~/iCloudDrive, the name earlier versions used) and a classic ~/Dropbox folder.
+CLOUD_SYNCED_DIRS = (("Library", "CloudStorage"), ("Library", "Mobile Documents"), ("Dropbox",),
+                     ("iCloud Drive",), ("iCloudDrive",))
+# P101: OneDrive on Windows names the folder it syncs in the OneDrive environment variable; the
+# variables for a personal and for a work or school account are read as well.
+ONEDRIVE_ENV_VARS = ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
+# P101: Google Drive for desktop on Windows serves its files on a virtual drive (G: unless another
+# letter or a folder was chosen); these hidden folders sit at that drive's root.
+DRIVEFS_MARKERS = (".shortcut-targets-by-id", ".file-revisions-by-id")
 
 
-def cloud_synced_root(path, home=None):
-    """The cloud-synced folder `path` sits under (one of CLOUD_SYNCED_DIRS joined to `home`), or
-    None. The repo keeps its credential files in pipeline/user-context/, so a repo under one of
-    these folders would sync them; setup and the wizard warn and point to tools/profile_mirror.py,
-    which copies only the context files into the Drive hub. Paths are compared after resolving
-    symlinks."""
+def _volume_root(target, ismount):
+    """The mount point `target` is on: the nearest of target and its parents that ismount accepts,
+    or None."""
+    for candidate in (target, *target.parents):
+        try:
+            if ismount(candidate):
+                return candidate
+        except (OSError, ValueError):
+            return None
+    return None
+
+
+def cloud_synced_root(path, home=None, env=None, ismount=None):
+    """The cloud-synced folder `path` sits under, or None: one of CLOUD_SYNCED_DIRS joined to
+    `home`, an absolute folder named by one of ONEDRIVE_ENV_VARS in `env` (default os.environ), or
+    the root of the volume `path` is on when that root holds one of DRIVEFS_MARKERS (`ismount`,
+    default os.path.ismount, finds it). The repo keeps its credential files in pipeline/user-context/, so a
+    repo under one of these folders would sync them; setup and the wizard warn and point to
+    tools/profile_mirror.py, which copies only the context files into the Drive hub. Paths are
+    compared after resolving symlinks."""
     home = Path(home) if home is not None else Path.home()
+    env = os.environ if env is None else env
+    ismount = os.path.ismount if ismount is None else ismount
     try:
         target = Path(path).expanduser().resolve()
     except (OSError, RuntimeError):
         return None
-    for parts in CLOUD_SYNCED_DIRS:
-        base = home.joinpath(*parts)
+    bases = [home.joinpath(*parts) for parts in CLOUD_SYNCED_DIRS]
+    bases += [Path(env[name]) for name in ONEDRIVE_ENV_VARS
+              if env.get(name) and Path(env[name]).is_absolute()]
+    for base in bases:
         try:
             base = base.resolve()
         except (OSError, RuntimeError):
             pass
         if target == base or base in target.parents:
             return str(base)
+    volume = _volume_root(target, ismount)
+    if volume is not None and any(os.path.isdir(volume / name) for name in DRIVEFS_MARKERS):
+        return str(volume)
     return None
+
+
+def _os_name() -> str:
+    """os.name, read through one function so the selftest can stand in another system."""
+    return os.name
+
+
+def python_command(osname=None, which=None) -> str:
+    """The command a person types to run this repo's scripts: on Windows `py -3` when the py
+    launcher is installed (Start Creator OS Setup.bat tries it first, since `python` can be missing
+    or the Microsoft Store alias), else `python`; `python3` elsewhere."""
+    osname = _os_name() if osname is None else osname
+    if osname != "nt":
+        return "python3"
+    which = shutil.which if which is None else which
+    return "py -3" if which("py") else "python"
 
 
 # Set by the child process of the symlink control below, which must not run that control again.
@@ -296,12 +341,107 @@ def _selftest() -> int:
     # only starts with the same letters (~/Dropbox-notes) is not inside ~/Dropbox.
     # An absolute, resolved base (on Windows a bare "/x" resolves onto the current drive).
     fake_home = Path(tempfile.gettempdir()).resolve() / "nonexistent-home-for-selftest"
-    ok(all(cloud_synced_root(fake_home.joinpath(*p, "x", "repo"), home=fake_home)
+    ok(all(cloud_synced_root(fake_home.joinpath(*p, "x", "repo"), home=fake_home, env={})
            == str(fake_home.joinpath(*p)) for p in CLOUD_SYNCED_DIRS),
        "cloud_synced_root names Google Drive/OneDrive (CloudStorage), iCloud Drive and Dropbox")
-    ok(cloud_synced_root(fake_home / "CreatorOS", home=fake_home) is None
-       and cloud_synced_root(fake_home / "Dropbox-notes" / "repo", home=fake_home) is None,
+    ok(all(cloud_synced_root(fake_home / name / "repo", home=fake_home, env={}) == str(fake_home / name)
+           for name in ("iCloud Drive", "iCloudDrive")),
+       "cloud_synced_root names the iCloud for Windows folder, under its current and earlier name")
+    ok(cloud_synced_root(fake_home / "CreatorOS", home=fake_home, env={}) is None
+       and cloud_synced_root(fake_home / "Dropbox-notes" / "repo", home=fake_home, env={}) is None,
        "cloud_synced_root is None for a home-folder path and for a look-alike folder name")
+    # P101, Windows: the folder each OneDrive variable names (the variables are read on any OS,
+    # so this runs here too); a variable that is unset, empty or not an absolute path names none.
+    od = fake_home / "OneDrive - Fictional School"
+    ok(all(cloud_synced_root(od / "repo", home=fake_home, env={name: str(od)}) == str(od)
+           for name in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")),
+       "cloud_synced_root names the folder in OneDrive, OneDriveConsumer and OneDriveCommercial")
+    ok(cloud_synced_root(od / "repo", home=fake_home, env={}) is None
+       and cloud_synced_root(Path.cwd() / "repo", home=fake_home, env={"OneDrive": ""},
+                             ismount=lambda p: False) is None
+       and cloud_synced_root(Path.cwd() / "repo", home=fake_home, env={"OneDrive": "."},
+                             ismount=lambda p: False) is None
+       and cloud_synced_root(fake_home / "CreatorOS", home=fake_home, env={"OneDrive": str(od)}) is None,
+       "cloud_synced_root names no OneDrive folder for an unset, empty or relative variable, or "
+       "for a path outside the folder")
+    saved_od = os.environ.get("OneDrive")
+    os.environ["OneDrive"] = str(od)
+    try:
+        from_environ = cloud_synced_root(od / "repo", home=fake_home)
+    finally:
+        if saved_od is None:
+            os.environ.pop("OneDrive", None)
+        else:
+            os.environ["OneDrive"] = saved_od
+    ok(from_environ == str(od), "cloud_synced_root reads the OneDrive variables from os.environ by default")
+    # P101, Windows: the root of the volume a path is on, when it holds one of Google Drive for
+    # desktop's hidden folders. The mount points are stood in for; the folders are real.
+    ok(DRIVEFS_MARKERS == (".shortcut-targets-by-id", ".file-revisions-by-id"),
+       "DRIVEFS_MARKERS names Drive for desktop's two hidden root folders")
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td).resolve()
+        vol = base / "G"
+        (vol / "My Drive" / "Creator OS").mkdir(parents=True)
+        (vol / ".shortcut-targets-by-id").mkdir()
+        vol2 = base / "V2"
+        (vol2 / "Work").mkdir(parents=True)
+        (vol2 / ".file-revisions-by-id").mkdir()
+        plain = base / "D"
+        (plain / "Work").mkdir(parents=True)
+        for name in (".shortcut-targets-by-id", ".file-revisions-by-id"):
+            (plain / name).write_text("a file, not the folder")
+        mounts = {vol, vol2, plain}
+        at = lambda p: p in mounts  # noqa: E731
+        repo_on_g = vol / "My Drive" / "Creator OS" / "seo-tools"
+        ok(cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=at) == str(vol)
+           and cloud_synced_root(vol2 / "Work" / "seo-tools", home=fake_home, env={}, ismount=at) == str(vol2),
+           "cloud_synced_root names the root of a volume that holds either Drive marker folder")
+        ok(cloud_synced_root(plain / "Work" / "seo-tools", home=fake_home, env={}, ismount=at) is None
+           and cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=lambda p: False) is None,
+           "cloud_synced_root names no volume whose root lacks the marker folders, or when no mount "
+           "point is found")
+        mounts.add(vol / "My Drive")
+        ok(cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=at) is None,
+           "cloud_synced_root reads the markers at the nearest mount point only")
+        mounts.discard(vol / "My Drive")
+        raised = []
+        for exc in (OSError("volume path"), ValueError("embedded null")):
+            def failing(p, exc=exc):
+                if p == repo_on_g:
+                    raise exc
+                return p in mounts
+            try:
+                raised.append(cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=failing))
+            except (OSError, ValueError) as err:
+                raised.append(repr(err))
+        ok(raised == [None, None],
+           f"a mount check that raises OSError or ValueError names no folder and does not raise: {raised}")
+        real_ismount = os.path.ismount
+        os.path.ismount = at
+        try:
+            from_default = cloud_synced_root(repo_on_g, home=fake_home, env={})
+        finally:
+            os.path.ismount = real_ismount
+        ok(from_default == str(vol), "cloud_synced_root finds mount points with os.path.ismount by default")
+    # The command a person types to run the scripts: py -3 or python on Windows, python3 elsewhere.
+    ok(python_command("posix", which=lambda n: "/x/py") == "python3"
+       and python_command("nt", which=lambda n: "C:\\py.exe" if n == "py" else None) == "py -3"
+       and python_command("nt", which=lambda n: None) == "python",
+       "python_command is py -3 with the py launcher on Windows, else python; python3 elsewhere")
+    real_which, real_os_name = shutil.which, globals()["_os_name"]
+    shutil.which = lambda name, *a, **k: "C:\\py.exe" if name == "py" else None
+    try:
+        default_which = python_command("nt")
+        globals()["_os_name"] = lambda: "nt"
+        default_nt = python_command()
+        globals()["_os_name"] = lambda: "posix"
+        default_posix = python_command()
+    finally:
+        shutil.which, globals()["_os_name"] = real_which, real_os_name
+    ok(default_which == "py -3" and default_nt == "py -3" and default_posix == "python3"
+       and _os_name() == os.name
+       and python_command() == ("python3" if os.name != "nt" else ("py -3" if shutil.which("py") else "python")),
+       "python_command reads os.name (through _os_name) and shutil.which by default")
 
     # control: run in a child process with symlinks refused, this selftest fails its symlink gate
     # under a POSIX os and skips venv selection under Windows. The child skips this control.

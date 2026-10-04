@@ -50,8 +50,8 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "4cf0e7086156db5b5fb486fca93c1b86ad783ad81cc47928e99f1b78f383930c",
-        "tools/pick_folder.py": "fcf63d559cf2bf475ce686cfe138cbf1ef4bba410af4224a6fc915fd84e9ba75"
+        "tools/wizard.py": "de01b1fd919f266c94ed41ac7ea620a5df5bec621360719a037b118487c3bd32",
+        "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
     "implementation/gpt/api/README.md": {

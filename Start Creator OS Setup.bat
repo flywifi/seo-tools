@@ -2,6 +2,7 @@
 REM Double-click this file to open the Creator OS setup wizard in your web browser.
 REM No terminal knowledge needed. If Windows SmartScreen warns, click "More info"
 REM then "Run anyway" (this is a plain text script from the Creator OS repository).
+REM If the wizard stops with an error, the window stays open until a key is pressed.
 
 cd /d "%~dp0"
 echo Starting Creator OS setup...
@@ -11,6 +12,7 @@ if %errorlevel%==0 (
   py -3 -c "import sys; sys.exit(0 if sys.version_info[:2] >= (3, 12) else 1)" >nul 2>nul
   if not errorlevel 1 (
     py -3 tools\wizard.py
+    if errorlevel 1 pause
     goto :eof
   )
 )
@@ -20,6 +22,7 @@ if %errorlevel%==0 (
   python -c "import sys; sys.exit(0 if sys.version_info[:2] >= (3, 12) else 1)" >nul 2>nul
   if not errorlevel 1 (
     python tools\wizard.py
+    if errorlevel 1 pause
     goto :eof
   )
 )

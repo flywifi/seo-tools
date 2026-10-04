@@ -22,6 +22,10 @@ DASHBOARD_PORT_FILE (both ignored by git); the dashboard's setup link and the MC
 with read_port() (launched_wizard_url, launch_note, dashboard_url), so neither probes the network
 to find the other. probe() asks one port what answers there, for the wizard's own start-up check.
 
+Both servers handle one request at a time, so their handlers set REQUEST_TIMEOUT: a browser opens
+spare connections ahead of use and may leave one idle, and without a read timeout the server would
+wait on that connection, unable to answer anything else, until the browser closed it.
+
     python3 tools/loopback_server.py --selftest
 """
 from __future__ import annotations
@@ -41,6 +45,9 @@ DASHBOARD_PORT_FILE = ROOT / "creator-os-dashboard-port.local.json"
 # The <title> of a page the wizard renders through wizard._page (its home page among them) ends
 # with this, so probe() can tell the wizard apart from another program on the same port.
 WIZARD_TITLE_MARK = b" - Creator OS Setup</title>"
+# Seconds either server's request handler waits on a read or a write (socketserver applies it to
+# the connection; http.server closes a connection whose read or write times out).
+REQUEST_TIMEOUT = 3
 
 
 class RefuseSharedPort:
@@ -225,6 +232,52 @@ def dashboard_url(read=None) -> str:
 
 
 # --- selftest: everything below is test code ---
+
+def _selftest_idle_reply(make_server, path, wait=3.0) -> tuple:
+    """For the two servers' selftests: serve make_server(("127.0.0.1", 0)) on a thread, hold one
+    connection open that sends nothing (a browser's spare connection), then ask for path. Returns
+    the reply's first bytes and the seconds it took, or (b"", seconds) when nothing arrived within
+    `wait` seconds."""
+    import threading
+    import time
+    srv = make_server(("127.0.0.1", 0))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+    idle = socket.create_connection(("127.0.0.1", port))
+    asked = socket.create_connection(("127.0.0.1", port), timeout=wait)
+    began = time.monotonic()
+    try:
+        asked.sendall(f"GET {path} HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n".encode("ascii"))
+        try:
+            got = asked.recv(64)
+        except socket.timeout:
+            got = b""
+        return got, time.monotonic() - began
+    finally:
+        asked.close()
+        idle.close()   # first, so a server still waiting on it can stop
+        stopper = threading.Thread(target=srv.shutdown, daemon=True)
+        stopper.start()
+        stopper.join(5.0)
+        srv.server_close()
+
+
+def _selftest_applied_timeout(handler_class):
+    """For the two servers' selftests: the timeout handler_class's own setup() applies to a
+    connection (one end of a socket pair), without serving a request."""
+    near, far = socket.socketpair()
+    handler = handler_class.__new__(handler_class)
+    handler.request = near
+    try:
+        handler_class.setup(handler)
+        return near.gettimeout()
+    finally:
+        for stream in ("rfile", "wfile"):
+            if hasattr(handler, stream):
+                getattr(handler, stream).close()
+        near.close()
+        far.close()
+
 
 def selftest() -> int:
     import socketserver
@@ -480,6 +533,19 @@ def selftest() -> int:
         finally:
             socket.create_connection = real_connect
         ok("a connect that times out is closed, not a busy wizard", timed_out == "closed")
+
+        def _refused(*args, **kwargs):
+            raise ConnectionRefusedError("connection refused")
+        socket.create_connection = _refused
+        try:
+            refused = probe(8765, timeout=0.2)
+        except OSError as exc:
+            refused = repr(exc)
+        finally:
+            socket.create_connection = real_connect
+        # Stood in for: on Windows a refused loopback connect is retried and outlasts a 1 s timeout.
+        ok("a refused connect is closed", refused == "closed")
+        ok("REQUEST_TIMEOUT is the 3 seconds the docs state", REQUEST_TIMEOUT == 3)
     finally:
         for srv in (wizard_like, other):
             srv.shutdown()

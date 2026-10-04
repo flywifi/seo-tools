@@ -170,7 +170,15 @@ Drive for desktop syncs everything under its folder, and it has no ignore list. 
 would sync `api-credentials.local.json` and the other credential files to the cloud. `setup.py`
 and the wizard's Drive hub screen warn when the repo sits under `~/Library/CloudStorage/`, iCloud
 Drive or Dropbox (`tools/env_paths.py::cloud_synced_root`
-<!-- verify: tools/env_paths.py::cloud_synced_root -->), and point here.
+<!-- verify: tools/env_paths.py::cloud_synced_root -->), and point here. On Windows they also warn
+for the folder OneDrive names in the `OneDrive`, `OneDriveConsumer` or `OneDriveCommercial`
+environment variable, for iCloud for Windows' `iCloud Drive` folder in your user folder (its
+default, per Apple) or the older `iCloudDrive`, and for Google Drive for desktop's drive (`G:`
+unless you chose another letter): a path whose volume root holds one of the hidden folders
+`.shortcut-targets-by-id` or `.file-revisions-by-id` seen there (ADR 0074). Not detected: a My
+Drive folder in mirror mode (it sits where you put it, with no marker), a Drive drive whose root
+holds neither folder, an iCloud folder you moved, and OneDrive folders no variable names (a further
+work account, SharePoint libraries); keep the repo out of them too.
 
 ## What only your Mac can confirm
 
@@ -186,6 +194,7 @@ These depend on macOS and on your Google account, so the selftest cannot show th
 ```sources
 [
   {"id": "google-drive-desktop-macos", "url": "https://support.google.com/drive/answer/12178485"},
+  {"id": "apple-icloud-windows-drive", "name": "Apple Support - Set up iCloud Drive on your Windows computer", "url": "https://support.apple.com/guide/icloud-windows/set-up-icloud-drive-icw0144825a5/icloud", "category": "os-platform", "tier": "T1", "extraction_hint": "Your files and folders are stored in C:\\Users\\[user name]\\iCloud Drive by default; iCloud for Windows 14 or later can choose a different location."},
   {"id": "apple-launchd-plist-man", "name": "launchd.plist(5) manual page (Xcode man pages mirror)", "url": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html", "category": "os-platform", "tier": "T1", "extraction_hint": "Program and ProgramArguments paths must be absolute; RunAtLoad defaults to false; StartCalendarInterval events missed during sleep are coalesced into one event on wake."},
   {"id": "apple-launchctl-man", "name": "launchctl(1) manual page (Xcode man pages mirror)", "url": "https://keith.github.io/xcode-man-pages/launchctl.1.html", "category": "os-platform", "tier": "T1", "extraction_hint": "bootstrap and bootout take a domain target; the per-user GUI domain is gui/<uid>."},
   {"id": "apple-openrsync-man", "name": "openrsync(1) manual page (Xcode man pages mirror)", "url": "https://keith.github.io/xcode-man-pages/openrsync.1.html", "category": "os-platform", "tier": "T1", "extraction_hint": "The rsync shipped with recent macOS is openrsync; the include/exclude filter options and -a/-t behaviour the recipe uses."},

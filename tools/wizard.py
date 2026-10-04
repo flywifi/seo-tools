@@ -2626,10 +2626,12 @@ def _screen_drive_hub(saved: str = "", error: str = "") -> str:
                        f'font-size:.85rem">Use detected folder: {cesc}</button></form>')
     synced = env_paths.cloud_synced_root(ROOT)
     if synced:
+        example = html.escape(str(pathlib.Path.home() / "CreatorOS"))
+        python = html.escape(env_paths.python_command())
         saved_block += (f'<div class="error-box">This Creator OS folder is inside a cloud-synced '
                         f'folder (<code>{html.escape(synced)}</code>), so its credential files '
-                        f'sync too. Move it to your home folder (for example ~/CreatorOS) and '
-                        f'copy your context into the hub with <code>python3 '
+                        f'sync too. Move it to your home folder (for example <code>{example}</code>) '
+                        f'and copy your context into the hub with <code>{python} '
                         f'tools/profile_mirror.py sync</code> (docs/PROFILE-MIRROR.md).</div>')
     return _page("Google Drive hub", f"""
 <h1>Your Google Drive hub</h1>
@@ -3366,6 +3368,9 @@ def _screen_doctor(saved: str = "") -> str:
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
+    # P101: the server answers one request at a time; a connection that sends nothing (a browser's
+    # spare connection) is closed after this many seconds instead of holding it.
+    timeout = loopback_server.REQUEST_TIMEOUT
 
     def log_message(self, fmt, *args):
         pass  # suppress default request log noise
@@ -3397,6 +3402,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return ""
         try:
             return self.rfile.read(min(length, _MAX_BODY)).decode("utf-8", "replace")
+        except TimeoutError:
+            # P101: a body that stops arriving (loopback_server.REQUEST_TIMEOUT) closes the
+            # connection in http.server instead of reading as an empty form.
+            raise
         except Exception:  # noqa: BLE001
             return ""
 
@@ -4573,9 +4582,9 @@ def _forget_port():
             pass
 
 
-def _selftest_ports() -> int:
-    """P101 port block checks; _selftest runs them, and the committed mutation cases for _bind,
-    _forget_port and _origin_allowed run this alone."""
+def _selftest_p101() -> int:
+    """P101 checks (the port block, an idle connection, the cloud-synced warning); _selftest runs
+    them, and the committed mutation cases for wizard.py run this alone."""
     failures = []
 
     def check(cond, msg):
@@ -4722,8 +4731,54 @@ def _selftest_ports() -> int:
                 _Server.handle_error(_Server.__new__(_Server), None, ("127.0.0.1", 0))
     check(_quiet and "ValueError" in _err.getvalue() and "PermissionError" in _err.getvalue(),
           "the wizard prints a client that hung up as an error, or hides a real one")
+    # The Drive hub screen warns when env_paths names a cloud-synced folder holding this repo,
+    # with the folder, the example home-folder path and the Python command for this system.
+    _real_synced, _real_cmd = env_paths.cloud_synced_root, env_paths.python_command
+    _cmd_args = []
+    try:
+        env_paths.python_command = lambda *a, **k: _cmd_args.append((a, k)) or "PYCMD<&>"
+        env_paths.cloud_synced_root = lambda path, **kw: "G:\\<&>" if path is ROOT else None
+        _warned = _screen_drive_hub()
+        env_paths.cloud_synced_root = lambda path, **kw: None
+        _plain = _screen_drive_hub()
+    finally:
+        env_paths.cloud_synced_root, env_paths.python_command = _real_synced, _real_cmd
+    check("cloud-synced folder (<code>G:\\&lt;&amp;&gt;</code>)" in _warned
+          and html.escape(str(pathlib.Path.home() / "CreatorOS")) in _warned
+          and "<code>PYCMD&lt;&amp;&gt; tools/profile_mirror.py sync</code>" in _warned
+          and "cloud-synced" not in _plain and _cmd_args == [((), {})],
+          "the Drive hub screen does not warn about a cloud-synced repo folder (escaped, with the "
+          "home-folder example and env_paths.python_command() asked with no arguments), or warns "
+          f"without one: {_cmd_args}")
+    # A request body that stops arriving raises the read timeout, so http.server closes the
+    # connection; another read error still reads as an empty body.
+    class _BodyStub:
+        def __init__(self, exc):
+            self.headers = {"Content-Length": "10"}
+            self.rfile = type("R", (), {"read": lambda _s, n, e=exc: (_ for _ in ()).throw(e)})()
+    _body = []
+    for _exc in (TimeoutError("timed out"), ConnectionResetError("reset")):
+        try:
+            _body.append(_Handler._read_body(_BodyStub(_exc)))
+        except TimeoutError:
+            _body.append("raised TimeoutError")
+    check(_body == ["raised TimeoutError", ""],
+          f"_read_body does not re-raise a read timeout, or raises another read error: {_body}")
+
+    # A connection that sends nothing (a browser's spare connection) does not hold the server:
+    # _Handler waits loopback_server.REQUEST_TIMEOUT for a request, and the real _Server with
+    # _Handler (its timeout shortened to 0.3 s, to keep the committed mutation runs short) answers
+    # the next request once that wait ends.
+    _quick = type("_QuickHandler", (_Handler,), {"timeout": 0.3})
+    _reply, _took = loopback_server._selftest_idle_reply(lambda a: _Server(a, _quick), "/no-such-page")
+    _applied = loopback_server._selftest_applied_timeout(_Handler)
+    check(_Handler.timeout == loopback_server.REQUEST_TIMEOUT == _applied
+          and _reply.startswith(b"HTTP/1.0 404") and 0.2 <= _took < 1.5,
+          f"the wizard's handler does not wait REQUEST_TIMEOUT for a request (timeout "
+          f"{_Handler.timeout!r}, applied to the connection {_applied!r}), or with an idle connection "
+          f"open it did not answer the next request once the wait ended ({_reply!r}, {_took:.1f} s)")
     if failures:
-        print("wizard port block checks FAILED:")
+        print("wizard P101 checks FAILED:")
         for msg in failures:
             print(f"  - {msg}")
     return 1 if failures else 0
@@ -4864,8 +4919,8 @@ def _selftest() -> int:
     except Exception as exc:  # noqa: BLE001
         check(False, f"port-collision check errored: {exc}")
 
-    # 5b) P101 port block: the checks in _selftest_ports().
-    check(_selftest_ports() == 0, "port block checks failed (listed above)")
+    # 5b) P101: the port block, idle connection and cloud-synced warning checks in _selftest_p101().
+    check(_selftest_p101() == 0, "P101 checks failed (listed above)")
 
     # 6) Loopback-only guard (G1): main() must bind 127.0.0.1, never 0.0.0.0.
     src = pathlib.Path(__file__).read_text(encoding="utf-8")

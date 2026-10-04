@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-10-03",
+  "last_registry_update": "2026-10-04",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -7132,7 +7132,58 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "apple-icloud-windows-drive",
+      "name": "Apple Support - Set up iCloud Drive on your Windows computer",
+      "url": "https://support.apple.com/guide/icloud-windows/set-up-icloud-drive-icw0144825a5/icloud",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-04",
+      "last_changed_detected": null,
+      "extraction_hint": "Your files and folders are stored in C:\\Users\\[user name]\\iCloud Drive by default; iCloud for Windows 14 or later can choose a different location.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-desktop-advanced-config",
+      "name": "Google Workspace Admin Help - Advanced Drive for desktop configuration",
+      "url": "https://knowledge.workspace.google.com/admin/drive/advanced-drive-for-desktop-configuration",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-04",
+      "last_changed_detected": null,
+      "extraction_hint": "Windows settings locations HKLM\\Software\\Google\\DriveFS (host-wide), HKCU\\Software\\Google\\DriveFS (user), HKLM\\Software\\Policies\\Google\\DriveFS (override); in-app user preferences take precedence over host-wide settings and overrides over in-app preferences; DefaultMountPoint is a drive letter or a path on an existing drive.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "google-drive-desktop-settings",
+      "name": "Google Drive Help - Customize Drive for desktop settings",
+      "url": "https://support.google.com/drive/answer/13470231",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-04",
+      "last_changed_detected": null,
+      "extraction_hint": "On Windows the Google Drive streaming location is a drive letter or a folder; up to 4 accounts at one time; when switching to mirroring, My Drive files download to the folder you select.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "febc7806fd107d716c752b4fbec124d0f19737b5d3f2f50c360288dee567f3d3"
+  "_content_digest": "f38f0ec13ff1d7031392a407d8627b2437a891f65bf805ae8bb2f346bf38d7e7"
 }

@@ -50,8 +50,10 @@ without options bound to the same specific address give `WSAEADDRINUSE`, so a se
 server is refused with `EADDRINUSE` instead of sharing the port; on Windows a socket without
 `SO_REUSEADDR` can still bind a port whose closed connections are in `TIME_WAIT`, which is why
 CPython's own `socket.create_server` leaves the option off there. The refusal was executed on Linux
-(the `loopback_server` selftest binds a second server on a listening port); on Windows it rests on
-those two sources until a Windows run confirms it.
+(the `loopback_server` selftest binds a second server on a listening port) and in a manual run on
+Windows, where
+a second wizard and a second dashboard each exited with the already-running message while the
+first kept its port and a closed wizard's port was bound again at once.
 
 `SO_EXCLUSIVEADDRUSE` was considered and not used. For a socket bound to one specific address, its
 row in Microsoft's tables matches the row for no options, in the same-account and the
@@ -79,6 +81,20 @@ time, so a busy copy looks like this), as already running; the bind alone would 
 that moved along the block. Another program answering there, or nothing listening, does not stop
 it. A clean shutdown removes the record when it still names that wizard (its port and launch id),
 and the dashboard removes its own record when it still names its port.
+
+## Decision 4: a read timeout on each request
+
+Both servers handle one request at a time (`socketserver.TCPServer`), and browsers open spare
+connections ahead of use. One that stays idle held the server: pages, and the wizard's Quit,
+waited until the browser closed it. Each request handler sets `timeout` to
+`loopback_server.REQUEST_TIMEOUT` (3 seconds); socketserver applies it to the connection and
+`http.server` closes a connection whose read or write times out, so the next request is answered.
+Each idle connection ahead of a request still delays it by up to that long (two spare
+connections, about 6 seconds). The wizard's form reader re-raises the read timeout, so a body that
+stops arriving closes the connection rather than reading as an empty form. A threading server was
+not used: the wizard's start-up `probe` reads a copy that accepts a
+connection without answering as busy, and threads would run the handlers, which share module
+state, at the same time.
 
 ## Consequences
 

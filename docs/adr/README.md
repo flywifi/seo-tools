@@ -82,3 +82,4 @@ added beyond what those records state. New decisions get the next number via
 | [0071](0071-p99-2-doc-reachability.md) | The profile Doc is found by id or name and placed in My Drive when the hub is out of the app's reach; both mirror engines check content and stamp every run | 2026-10-01 | Accepted |
 | [0072](0072-p100-surface-workflow-suite.md) | Cross-surface workflows run as a sandboxed suite; Gemini's web and desktop apps join the matrix | 2026-10-01 | Accepted |
 | [0073](0073-p101-loopback-port-blocks.md) | The setup wizard and the Scheduling Dashboard bind a fixed port block, without SO_REUSEADDR on Windows | 2026-10-03 | Accepted |
+| [0074](0074-p101-windows-cloud-synced-folders.md) | On Windows, the cloud-synced repo warning reads OneDrive's variables and Google Drive's drive markers | 2026-10-04 | Accepted |

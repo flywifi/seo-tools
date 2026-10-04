@@ -1054,16 +1054,55 @@ def _selftest() -> int:
 
     import contextlib as _cl_loc
     import io as _io_loc
-    _loc_home = Path("/nonexistent-home-for-selftest")
-    _loc_out = _io_loc.StringIO()
-    with _cl_loc.redirect_stdout(_loc_out):
-        _loc_synced = check_repo_location(_loc_home / "Library" / "CloudStorage" / "G" / "repo",
-                                          home=_loc_home)
-        _loc_plain = check_repo_location(_loc_home / "CreatorOS", home=_loc_home)
-    ok(_loc_synced and _loc_plain is None and "profile_mirror.py" in _loc_out.getvalue()
-       and _loc_out.getvalue().count("[warn]") == 1,
-       "setup warns once for a repo in a cloud-synced folder, names profile_mirror, and stays "
-       "silent for a home-folder repo")
+    import tempfile as _tf_loc
+    # An absolute home under the temp folder, no OneDrive variables and no mount points, so the
+    # machine running this (a clone on a synced drive, a set OneDrive variable) does not decide it.
+    _loc_home = Path(_tf_loc.gettempdir()).resolve() / "nonexistent-home-for-selftest"
+    _loc_seen, _loc_cmd_args = {}, []
+    import os as _os_loc
+    _real_cmd, _real_od = env_paths.python_command, _os_loc.environ.get("OneDrive")
+    env_paths.python_command = lambda *a, **k: _loc_cmd_args.append((a, k)) or "PYCMD-STANDIN"
+    # An OneDrive variable naming the temp home: a call that read os.environ instead of the empty
+    # env it was given would warn for the home-folder repo.
+    _os_loc.environ["OneDrive"] = str(_loc_home)
+    try:
+        for _loc_name, _loc_root in (("synced", _loc_home / "Library" / "CloudStorage" / "G" / "repo"),
+                                     ("plain", _loc_home / "CreatorOS")):
+            _loc_out = _io_loc.StringIO()
+            with _cl_loc.redirect_stdout(_loc_out):
+                _loc_got = check_repo_location(_loc_root, home=_loc_home, env={},
+                                               ismount=lambda p: False)
+            _loc_seen[_loc_name] = (_loc_got, _loc_out.getvalue())
+        # env and ismount reach cloud_synced_root: an OneDrive folder named only in env, and a
+        # volume known only to the ismount stand-in.
+        with _tf_loc.TemporaryDirectory() as _loc_td, _cl_loc.redirect_stdout(_io_loc.StringIO()):
+            _loc_od = Path(_loc_td).resolve() / "od"
+            _loc_vol = Path(_loc_td).resolve() / "vol"
+            (_loc_vol / ".shortcut-targets-by-id").mkdir(parents=True)
+            _loc_seen["env"] = check_repo_location(_loc_od / "repo", home=_loc_home,
+                                                   env={"OneDrive": str(_loc_od)}, ismount=lambda p: False)
+            _loc_seen["ismount"] = check_repo_location(_loc_vol / "repo", home=_loc_home, env={},
+                                                       ismount=lambda p: p == _loc_vol)
+            _loc_want = (str(_loc_od), str(_loc_vol))
+    finally:
+        env_paths.python_command = _real_cmd
+        if _real_od is None:
+            _os_loc.environ.pop("OneDrive", None)
+        else:
+            _os_loc.environ["OneDrive"] = _real_od
+    ok((_loc_seen["env"], _loc_seen["ismount"]) == _loc_want,
+       f"check_repo_location passes env and ismount to cloud_synced_root: "
+       f"{(_loc_seen['env'], _loc_seen['ismount'])}")
+    ok(_loc_cmd_args and all(c == ((), {}) for c in _loc_cmd_args),
+       f"setup asks env_paths.python_command() for this system, with no arguments: {_loc_cmd_args}")
+    _loc_text = _loc_seen["synced"][1]
+    ok(_loc_seen["synced"][0] == str(_loc_home / "Library" / "CloudStorage")
+       and _loc_text.count("[warn]") == 1 and str(_loc_home / "Library" / "CloudStorage") in _loc_text
+       and str(_loc_home / "CreatorOS") in _loc_text
+       and "PYCMD-STANDIN tools/profile_mirror.py sync" in _loc_text
+       and _loc_seen["plain"] == (None, ""),
+       "setup warns once for a repo in a cloud-synced folder, naming it, the home-folder example and "
+       "env_paths.python_command(), and prints nothing for a home-folder repo")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
@@ -1073,18 +1112,20 @@ def _selftest() -> int:
     return 0 if passed == len(checks) else 1
 
 
-def check_repo_location(root=ROOT, home=None) -> str | None:
+def check_repo_location(root=ROOT, home=None, env=None, ismount=None) -> str | None:
     """Warn when the repo sits in a cloud-synced folder. The credential files live inside the repo
     (pipeline/user-context/*-credentials.local.json), so a synced repo syncs them. Setup continues:
     the remedy is to move the repo into the home folder (for example ~/CreatorOS) and let
     tools/profile_mirror.py copy the context files into the Drive hub. Returns the synced folder,
-    or None."""
-    synced = env_paths.cloud_synced_root(root, home=home)
+    or None. env and ismount pass through to env_paths.cloud_synced_root."""
+    synced = env_paths.cloud_synced_root(root, home=home, env=env, ismount=ismount)
     if synced:
+        example = (Path(home) if home is not None else Path.home()) / "CreatorOS"
+        python = env_paths.python_command()
         _say(f"  [warn] This repo is inside a cloud-synced folder ({synced}).")
         _say("         Its credential files sync with it. Move the repo to your home folder")
-        _say("         (for example ~/CreatorOS), then copy your context into Google Drive with")
-        _say("         python3 tools/profile_mirror.py sync   (docs/PROFILE-MIRROR.md).")
+        _say(f"         (for example {example}), then copy your context into Google Drive with")
+        _say(f"         {python} tools/profile_mirror.py sync   (docs/PROFILE-MIRROR.md).")
     return synced
 
 

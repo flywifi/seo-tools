@@ -180,6 +180,10 @@ def _new_platform_entry():
 
 
 class DashboardHandler(SimpleHTTPRequestHandler):
+    # P101: the server answers one request at a time; a connection that sends nothing (a browser's
+    # spare connection) is closed after this many seconds instead of holding it.
+    timeout = loopback_server.REQUEST_TIMEOUT
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
@@ -1468,6 +1472,18 @@ def _selftest_checks() -> int:
                     os.environ["CREATOR_OS_WIZARD_PORT"] = saved_override
         finally:
             loopback_server.WIZARD_PORT_FILE = saved_file
+    # A connection that sends nothing (a browser's spare connection) does not hold the server:
+    # DashboardHandler waits loopback_server.REQUEST_TIMEOUT for a request, and the real HTTPServer
+    # with DashboardHandler (its timeout shortened to 0.3 s, to keep the committed mutation runs
+    # short) answers the next request once that wait ends.
+    quick = type("_QuickHandler", (DashboardHandler,), {"timeout": 0.3})
+    reply, took = loopback_server._selftest_idle_reply(lambda a: HTTPServer(a, quick), "/api/wizard-url")
+    applied = loopback_server._selftest_applied_timeout(DashboardHandler)
+    ok(f"the dashboard's handler waits REQUEST_TIMEOUT for a request (timeout "
+       f"{DashboardHandler.timeout!r}, applied to the connection {applied!r}), and with an idle "
+       f"connection open it answers the next request once the wait ends ({took:.1f} s)",
+       DashboardHandler.timeout == loopback_server.REQUEST_TIMEOUT == applied
+       and reply.startswith(b"HTTP/1.0 200") and 0.2 <= took < 1.5)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:
