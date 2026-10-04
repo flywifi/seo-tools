@@ -133,7 +133,7 @@
       "sources": {
         "shared/schemas/compute-job.json": "af0e13185a4bd7fe972f4abd25e79c57808b0ac206188c0411e802939349d459",
         "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
-        "tools/handoff/runner.py": "d82d9dab33eb60cf7a7ea259bcdd68acbfe154f5761015167c79bedb132b3546",
+        "tools/handoff/runner.py": "b173b7dadb3e724d650883a18366a505d8b1cabd70bedb67f424f5f4914c5636",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "3da230ea4f19d267a6d5335e30b630378d25bef68b5bf6327f5a565a928e0a4c",
@@ -144,7 +144,7 @@
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "d74b74518f4d02670560f895a7d4f105023671608a8540efe203079834695cfd",
-        "tools/handoff/runner.py": "d82d9dab33eb60cf7a7ea259bcdd68acbfe154f5761015167c79bedb132b3546",
+        "tools/handoff/runner.py": "b173b7dadb3e724d650883a18366a505d8b1cabd70bedb67f424f5f4914c5636",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "3da230ea4f19d267a6d5335e30b630378d25bef68b5bf6327f5a565a928e0a4c",

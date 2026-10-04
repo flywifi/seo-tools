@@ -221,6 +221,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the ledger defaults at a decoy and checks that the real ledger is left as it was. The scan usage
   line drops `--json`, which `main()` never read, and the `sweep_quarantine` docstring says a
   ledger it cannot write raises `OSError`.
+- P101 (Outbox machine tag): the runner names an Outbox delivery `<job_type>.<stamp>Z.<tag>.json`
+  with `<tag>` `mac`, `windows` or `linux` from `platform.system()` (`runner._platform_tag`; a
+  Cygwin, MSYS2 or MINGW Python on Windows tags `windows`); a delivery made on Windows was tagged
+  `mac`. Files already in an Outbox keep their names. A job ticket's `origin` is unchanged: `mac`
+  is its value for this computer on any system, and `docs/DRIVE-HUB.md` now separates the two.
 - P101 (wizard and dashboard ports): the setup wizard and the Scheduling Dashboard bind the first
   port of a fixed block (8765, 8775, 8785; 8766, 8776, 8786) through `tools/loopback_server.py`,
   moving to the next port when the bind fails with `EACCES` (on Windows, a port the system reserves

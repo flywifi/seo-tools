@@ -73,7 +73,9 @@ Who does what, where, when, and why:
 
 The Outbox is really written (P61): when a report-style job finishes `done` (library_analyze,
 finance_report, inbox_scan, import_parse_preview, keyword_offline, transcript_normalize), the
-runner also delivers its JSON output to `Outbox/<job_type>.<stamp>Z.mac.json`, and the job
+runner also delivers its JSON output to `Outbox/<job_type>.<stamp>Z.<tag>.json`, where `<tag>` is
+`mac`, `windows` or `linux` for the system of the computer that ran the job
+(<!-- verify: tools/handoff/runner.py::_platform_tag -->), and the job
 result's `outputs` lists both the raw capture under `Jobs/results/` and the Outbox copy. Failed
 jobs never deliver; `transcribe_media` delivers its SRT under `Jobs/results/` instead. On the
 Drive API transport, `poll_once` uploads Outbox artifacts created during the pass (create-only),
@@ -82,6 +84,11 @@ so nothing is stranded in the local staging hub.
 **Naming rule** for every machine-written file:
 `<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `cowork`, or
 `mac`. Names sort chronologically, never collide without coordination, and carry their provenance.
+Two things fill that last part, with different meanings. A job ticket's `origin` field (schema
+`shared/schemas/compute-job.json`) records which surface queued the job, and `mac` there is the
+value for this computer whatever its system, so a ticket queued from the wizard on Windows is
+named `job.<stamp>.mac.<id>.json`. An Outbox file's tag records the system of the computer that
+ran the job: `mac`, `windows` or `linux`.
 
 ## The async job contract
 

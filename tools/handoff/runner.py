@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -155,10 +156,24 @@ OUTBOX_TYPES = {"library_analyze", "finance_report", "inbox_scan", "import_parse
                 "keyword_offline", "transcript_normalize"}
 
 
+def _platform_tag(system=None) -> str:
+    """The machine tag in an Outbox file name: mac, windows or linux, from platform.system() (or
+    the name given). Cygwin, MSYS2 and MINGW Pythons on Windows report a name holding '_NT'
+    (CYGWIN_NT-10.0-..., MSYS_NT-10.0-...) and tag windows: the tag names the computer that ran
+    the job. wizard._os() maps those names to linux because it picks shell commands."""
+    s = platform.system() if system is None else system
+    if s == "Darwin":
+        return "mac"
+    if s == "Windows" or "_NT" in s:
+        return "windows"
+    return "linux"
+
+
 def _deliver_outbox(hub_root, job_type, stdout):
-    """Atomically write a done job's stdout JSON to <hub>/Outbox/<job_type>.<UTC>Z.mac.json (the
-    P60 dated naming rule). Returns the created name, or None when stdout is not valid JSON (the
-    Jobs/results .out.txt capture still holds it either way)."""
+    """Atomically write a done job's stdout JSON to <hub>/Outbox/<job_type>.<UTC>Z.<tag>.json, where
+    <tag> is _platform_tag() for the computer that ran the job (the P60 dated naming rule). Returns
+    the created name, or None when stdout is not valid JSON (the Jobs/results .out.txt capture
+    still holds it either way)."""
     try:
         json.loads(stdout)
     except (ValueError, TypeError):
@@ -166,11 +181,12 @@ def _deliver_outbox(hub_root, job_type, stdout):
     stamp = q._utcnow().replace(":", "")
     outbox = Path(hub_root) / "Outbox"
     outbox.mkdir(parents=True, exist_ok=True)
-    name = f"{job_type}.{stamp}.mac.json"
+    tag = _platform_tag()
+    name = f"{job_type}.{stamp}.{tag}.json"
     n = 1
     while (outbox / name).exists():
         n += 1
-        name = f"{job_type}.{stamp}.{n}.mac.json"
+        name = f"{job_type}.{stamp}.{n}.{tag}.json"
     tmp = outbox / (name + ".tmp")
     tmp.write_text(stdout, encoding="utf-8")
     os.replace(tmp, outbox / name)
@@ -339,7 +355,7 @@ def selftest() -> int:
     ok("argv is the real tool, not a shell", calls[0][1].endswith("video_library.py"))
 
     # P61: a done report-type job ALSO delivers its stdout JSON to <hub>/Outbox/.
-    ob_files = sorted((hub / "Outbox").glob("library_analyze.*.mac.json"))
+    ob_files = sorted((hub / "Outbox").glob(f"library_analyze.*.{_platform_tag()}.json"))
     result_doc = json.loads(q.result_path(hub, t["job_id"]).read_text())
     ok("done outbox-type job delivers to Outbox",
        len(ob_files) == 1 and json.loads(ob_files[0].read_text()) == {"ok": True})
@@ -481,6 +497,35 @@ def selftest() -> int:
     ok("keyword_offline argv runs clean with the honesty envelope",
        proc_k.returncode == 0 and rep_k.get("search_volumes") is None and
        rep_k.get("data_basis", "").startswith("local keyword library"))
+
+    # P101: an Outbox name carries the system of the computer that ran the job.
+    ok("platform tag maps system names to mac, windows and linux",
+       [_platform_tag(s) for s in ("Darwin", "Windows", "CYGWIN_NT-10.0-26100", "MSYS_NT-10.0-26100",
+                                   "MINGW64_NT-10.0-26100", "Linux", "FreeBSD", "")]
+       == ["mac", "windows", "windows", "windows", "windows", "linux", "linux", "linux"])
+    real_system, seen_tags = platform.system, []
+    try:
+        for sysname in ("Darwin", "Windows", "Linux"):
+            platform.system = lambda sysname=sysname: sysname
+            seen_tags.append(_platform_tag())
+    finally:
+        platform.system = real_system
+    ok("platform tag reads platform.system() when no name is given",
+       seen_tags == ["mac", "windows", "linux"])
+    real_tag, real_now, names = globals()["_platform_tag"], q._utcnow, []
+    oh = Path(tempfile.mkdtemp())
+    try:
+        q._utcnow = lambda: "2026-10-04T12:00:00Z"
+        for tag in ("mac", "windows", "linux", "windows"):
+            globals()["_platform_tag"] = lambda system=None, tag=tag: tag
+            names.append(_deliver_outbox(oh, "library_analyze", '{"ok": true}'))
+    finally:
+        globals()["_platform_tag"], q._utcnow = real_tag, real_now
+    ok("an Outbox name ends in the tag and is numbered on a same-second collision",
+       names == ["library_analyze.2026-10-04T120000Z.mac.json",
+                 "library_analyze.2026-10-04T120000Z.windows.json",
+                 "library_analyze.2026-10-04T120000Z.linux.json",
+                 "library_analyze.2026-10-04T120000Z.2.windows.json"])
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

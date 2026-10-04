@@ -126,7 +126,9 @@ free text is refused, never silently passed.
 - `transcribe_media`: the builder passes `--out-dir <hub>/Jobs/results` so the SRT lands beside the
   result, not inside `Inbox/Processed/`.
 - **Outbox delivery (P61)**: a report-style job that finishes `done` (the `OUTBOX_TYPES` set)
-  also gets its stdout JSON delivered atomically to `<hub>/Outbox/<job_type>.<stamp>Z.mac.json`,
+  also gets its stdout JSON delivered atomically to `<hub>/Outbox/<job_type>.<stamp>Z.<tag>.json`
+  (`<tag>` is `mac`, `windows` or `linux`, the system of the computer that ran the job;
+  `<!-- verify: tools/handoff/runner.py::_platform_tag -->`),
   with `outputs[]` listing both files. Failed jobs and non-JSON stdout never deliver;
   `transcribe_media` stays out (its artifact is the SRT). Transport B's `poll_once` uploads
   staged Outbox artifacts too (create-only; a hub without an Outbox folder degrades to
