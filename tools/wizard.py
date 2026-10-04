@@ -4734,17 +4734,26 @@ def _selftest_p101() -> int:
     # The Drive hub screen warns when env_paths names a cloud-synced folder holding this repo,
     # with the folder, the example home-folder path and the Python command for this system.
     _real_synced, _real_cmd = env_paths.cloud_synced_root, env_paths.python_command
+    _real_home = pathlib.Path.__dict__.get("home")   # the classmethod itself, or None if inherited
     _cmd_args = []
+    # A stand-in home folder unrelated to where this checkout sits, so the example path is told
+    # apart from a path beside the repo whatever the layout.
+    _home = pathlib.Path(tempfile.gettempdir()).resolve() / "selftest-home"
     try:
         env_paths.python_command = lambda *a, **k: _cmd_args.append((a, k)) or "PYCMD<&>"
         env_paths.cloud_synced_root = lambda path, **kw: "G:\\<&>" if path is ROOT else None
+        pathlib.Path.home = classmethod(lambda cls: _home)
         _warned = _screen_drive_hub()
         env_paths.cloud_synced_root = lambda path, **kw: None
         _plain = _screen_drive_hub()
     finally:
         env_paths.cloud_synced_root, env_paths.python_command = _real_synced, _real_cmd
+        if _real_home is None:
+            del pathlib.Path.home
+        else:
+            pathlib.Path.home = _real_home
     check("cloud-synced folder (<code>G:\\&lt;&amp;&gt;</code>)" in _warned
-          and html.escape(str(pathlib.Path.home() / "CreatorOS")) in _warned
+          and f"<code>{html.escape(str(_home / 'CreatorOS'))}</code>" in _warned
           and "<code>PYCMD&lt;&amp;&gt; tools/profile_mirror.py sync</code>" in _warned
           and "cloud-synced" not in _plain and _cmd_args == [((), {})],
           "the Drive hub screen does not warn about a cloud-synced repo folder (escaped, with the "

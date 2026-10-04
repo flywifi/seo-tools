@@ -241,7 +241,7 @@ def _selftest_idle_reply(make_server, path, wait=3.0) -> tuple:
     import threading
     import time
     srv = make_server(("127.0.0.1", 0))
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
     port = srv.server_address[1]
     idle = socket.create_connection(("127.0.0.1", port))
     asked = socket.create_connection(("127.0.0.1", port), timeout=wait)
@@ -460,7 +460,7 @@ def selftest() -> int:
             def log_message(self, *args):
                 pass
         srv = http.server.HTTPServer(("127.0.0.1", 0), _H)
-        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
         return srv
 
     def raw(reply_after_request):

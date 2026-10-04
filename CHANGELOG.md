@@ -248,6 +248,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   screen. The `pick_folder` selftest checks the Linux display rule with the OS stood in for, and
   the `loopback_server` selftest checks a refused connect with the connect stood in for (Windows
   retries a refused loopback connect past a 1-second timeout), so both checks run on Windows too.
+- P101 (mutation run time): `tools/file_hash.py --selftest` runs the committed mutation rows in
+  child processes (`--run-rows`): at most 12 rows of one module per child, up to 8 children at a
+  time, each child limited to 240 seconds, to keep the run under the selftest sweep's 300-second
+  per-tool limit. A child's result counts only when it exits 0 and ends with a line carrying the
+  run's nonce and the number of rows it was sent; otherwise its rows are reported as survivors.
+  Runner controls check that the parallel run gives the serial survivors in table order, keeps
+  one module's leftover state from another's rows, reads a child that writes non-UTF-8 output,
+  reports a child that cannot start, stops early, forges a result or exits non-zero after it, and
+  runs two modules at the same time. The rows for `setup.py` run its location checks alone
+  (`setup._selftest_location`), and the test servers stop polling within 0.05 s. The wizard's
+  Drive hub check stands in the home folder (so a checkout inside `<home>/CreatorOS` no longer
+  hides the example-path row), and the empty-OneDrive row accepts the empty value under Windows
+  path rules too.
 - P101 (cloud-synced repo warning on Windows): `env_paths.cloud_synced_root` also names the folder
   in the `OneDrive`, `OneDriveConsumer` or `OneDriveCommercial` environment variable,
   `~/iCloud Drive` and `~/iCloudDrive` (iCloud for Windows), and the root of the volume a path is

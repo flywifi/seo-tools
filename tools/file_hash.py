@@ -34,6 +34,10 @@ already yields backslashes, so the same selftests run there unchanged.
 
   python3 tools/file_hash.py <path>...     # print the hash of each path
   python3 tools/file_hash.py --selftest    # the properties above, plus the committed mutations
+
+The selftest runs the committed mutation rows in child processes (`--run-rows`, rows as JSON on
+stdin), at most 12 rows of one module per child and up to 8 children at a time, to keep the run
+under the selftest sweep's per-tool limit.
 """
 from __future__ import annotations
 
@@ -919,7 +923,7 @@ _MUTANTS = (
      '        return str(target)'),
     ('EP18 empty OneDrive value accepted', 'env_paths.py',
      'if env.get(name) and Path(env[name]).is_absolute()]',
-     'if name in env and Path(env[name] or "/").is_absolute()]'),
+     'if name in env and (not env[name] or Path(env[name]).is_absolute())]'),
     ('EP19 second Drive marker dropped', 'env_paths.py',
      'DRIVEFS_MARKERS = (".shortcut-targets-by-id", ".file-revisions-by-id")',
      'DRIVEFS_MARKERS = (".shortcut-targets-by-id",)'),
@@ -1014,7 +1018,7 @@ _POSIX_ONLY = {"aio-dir-precheck-nt-only"}
 # sync_check.py is exempt from the selftest sweep (running it is its test).
 _ENTRIES = {"sync_check.py": "_migration_selfproof", "wizard.py": "_selftest_p101",
             "dashboard/server.py": "_selftest", "pick_folder.py": "_selftest",
-            "env_paths.py": "_selftest", "setup.py": "_selftest"}
+            "env_paths.py": "_selftest", "setup.py": "_selftest_location"}
 
 
 def _selftest_verdict(source: str, path: Path, entry: str = "selftest") -> str:
@@ -1115,13 +1119,17 @@ def _restore_global_state(saved) -> None:
 _MISSING = object()
 
 
-def _run_mutants(table=None, base=None, entries=None, posix_only=None) -> list:
+def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1) -> list:
     """The labels of rows no selftest caught, each with the reason when the row is invalid: an anchor
     not found exactly once, an anchor inside the entry function itself (the test that scores the
     row; other test helpers are not detected), a mutant that does not compile or load, a module with
     no entry function, or a module whose unmutated entry does not pass (then no row against it can
     be scored). Path class attributes, the working folder and the environment are restored after
-    each row, so a row that leaks state cannot decide the rows after it."""
+    each row, so a row that leaks state cannot decide the rows after it. With jobs above 1 the rows
+    of each module run in a process of their own, up to jobs at a time (_run_mutants_parallel)."""
+    if jobs > 1:
+        return _run_mutants_parallel(list(_MUTANTS if table is None else table), base, entries,
+                                     posix_only, jobs)
     here = Path(base) if base is not None else Path(__file__).resolve().parent
     me = Path(__file__).resolve()
     entries = _ENTRIES if entries is None else entries
@@ -1162,6 +1170,62 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None) -> list:
         elif verdict != "fail":
             survivors.append(f"{label} ({verdict})")
     return survivors
+
+
+# The parallel run: at most this many rows per child (a module with more is split, each part
+# scoring its own baseline), and the seconds a child may take, under the selftest sweep's
+# 300-second per-tool limit.
+_CHUNK_ROWS = 12
+_CHILD_TIMEOUT = 240
+
+
+def _parallel_spec(base, entries, posix_only) -> dict:
+    """The settings a --run-rows child gets with its rows."""
+    return {"base": str(Path(base)) if base is not None else None,
+            "entries": dict(_ENTRIES if entries is None else entries),
+            "posix_only": sorted(_POSIX_ONLY if posix_only is None else posix_only)}
+
+
+def _run_mutants_parallel(rows, base, entries, posix_only, jobs) -> list:
+    """_run_mutants for rows in child processes (`file_hash.py --run-rows`: rows and settings as JSON
+    on stdin), at most jobs at a time. A child gets rows of one module only, at most _CHUNK_ROWS of
+    them, in table order, so a module's baseline and the state restored between its rows behave as
+    in a serial run; survivors come back in table order. A child's result counts only when it
+    exits 0 and its last stdout line is the JSON object carrying this run's nonce and the number of
+    rows it was sent; otherwise each of its rows is reported as a survivor with the reason."""
+    import concurrent.futures
+    import json
+    import secrets
+    import subprocess
+    chunks, by_module = [], {}
+    for row in rows:
+        by_module.setdefault(row[1], []).append(list(row))
+    for module_rows in by_module.values():
+        chunks += [module_rows[i:i + _CHUNK_ROWS] for i in range(0, len(module_rows), _CHUNK_ROWS)]
+    spec = dict(_parallel_spec(base, entries, posix_only), nonce=secrets.token_hex(8))
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+
+    def run(chunk):
+        try:
+            done = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--run-rows"],
+                                  input=json.dumps(dict(spec, rows=chunk)), text=True,
+                                  encoding="utf-8", errors="replace", capture_output=True,
+                                  timeout=_CHILD_TIMEOUT, env=env)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return [f"{r[0]} (worker failed: {type(exc).__name__})" for r in chunk]
+        try:
+            result = json.loads(done.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            result = None
+        if (done.returncode != 0 or not isinstance(result, dict) or result.get("nonce") != spec["nonce"]
+                or result.get("rows") != len(chunk) or not isinstance(result.get("survivors"), list)):
+            return [f"{r[0]} (worker failed: exit {done.returncode}, no result)" for r in chunk]
+        return result["survivors"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        found = [s for got in pool.map(run, chunks) for s in got]
+    order = {row[0]: i for i, row in enumerate(rows)}
+    return sorted(found, key=lambda s: order.get(s.split(" (", 1)[0], len(order)))
 
 
 def _coverage_gaps(table=None, base=None) -> list:
@@ -1274,6 +1338,93 @@ def _runner_controls() -> list:
                 g["os"] = real_os
     out.append(("a POSIX-only row runs under a POSIX os and is skipped under Windows",
                 runs == {"posix": ["posix-row"], "nt": []}))
+    # jobs above 1: each module's rows run in a child process of their own. Interleaved modules give
+    # the serial survivors in table order, named entries included; process state one module leaves
+    # (a sys attribute, which the serial run does not restore) does not reach another module's
+    # rows; a child that cannot start reports its rows as survivors.
+    with tempfile.TemporaryDirectory() as td3:
+        d3 = Path(td3)
+        (d3 / "good.py").write_text("x = 1\ndef selftest():\n    return 0 if x == 1 else 1\n", encoding="utf-8")
+        (d3 / "red.py").write_text("def selftest():\n    return 1\n", encoding="utf-8")
+        (d3 / "alt.py").write_text("x = 1\ndef check():\n    return 0 if x == 1 else 1\n", encoding="utf-8")
+        (d3 / "leaker.py").write_text("import sys\nx = 1\ndef selftest():\n    sys.zz_file_hash_leak = 1\n"
+                                      "    return 0\n", encoding="utf-8")
+        (d3 / "victim.py").write_text("import sys\nx = 1\ndef selftest():\n"
+                                      "    return 1 if hasattr(sys, 'zz_file_hash_leak') or x != 1 else 0\n",
+                                      encoding="utf-8")
+        mixed = [("p-equivalent", "good.py", "x = 1\n", "x = 1  # same\n"),
+                 ("p-redbase", "red.py", "return 1", "return 2"),
+                 ("p-entry", "alt.py", "x = 1\n", "x = 2\n"),
+                 ("p-caught", "good.py", "x = 1\n", "x = 2\n"),
+                 ("p-equivalent-2", "good.py", "x = 1\n", "x = 1  # again\n")]
+        serial_mixed = _run_mutants(mixed, base=d3, entries={"alt.py": "check"})
+        parallel_mixed = _run_mutants(mixed, base=d3, entries={"alt.py": "check"}, jobs=2)
+        iso = [("leak-first", "leaker.py", "x = 1\n", "x = 1  # same\n"),
+               ("victim-caught", "victim.py", "x = 1\n", "x = 2\n")]
+        try:
+            serial_iso = _run_mutants(iso, base=d3)
+        finally:
+            sys.__dict__.pop("zz_file_hash_leak", None)
+        parallel_iso = _run_mutants(iso, base=d3, jobs=2)
+        leaked_here = hasattr(sys, "zz_file_hash_leak")
+        real_exe = sys.executable
+        sys.executable = str(d3 / "no-such-python")
+        try:
+            no_worker = _run_mutants(mixed[:1], base=d3, jobs=2)
+        finally:
+            sys.executable = real_exe
+        # A child whose selftest writes to the process's own stdout and stderr (non-UTF-8 bytes
+        # included) is still read; one that stops before its result is reported, not taken as clean.
+        (d3 / "noisy.py").write_text("import os\nx = 1\ndef selftest():\n"
+                                     "    os.write(1, b'[] noise \\xe9 before the result\\n')\n"
+                                     "    os.write(2, b'\\xe9 warning\\n')\n    return 0 if x == 1 else 1\n",
+                                     encoding="utf-8")
+        # These exit only inside a --run-rows child, never the process running this selftest.
+        child = "    if sys.argv[1:] != ['--run-rows']:\n        return 0\n"
+        (d3 / "dies.py").write_text("import os, sys\nx = 1\ndef selftest():\n" + child +
+                                    "    os.write(1, b'[]\\n')\n    os._exit(0)\n", encoding="utf-8")
+        (d3 / "forges.py").write_text("import os, sys\nx = 1\ndef selftest():\n" + child +
+                                      "    os.write(1, b'{\"nonce\": \"guess\", \"rows\": 1, \"survivors\": []}\\n')\n"
+                                      "    os._exit(0)\n", encoding="utf-8")
+        (d3 / "exits_late.py").write_text("import atexit, os, sys\nx = 1\ndef selftest():\n" + child +
+                                          "    atexit.register(lambda: os._exit(3))\n"
+                                          "    return 0 if x == 1 else 1\n", encoding="utf-8")
+        noisy = _run_mutants([("noisy-equivalent", "noisy.py", "x = 1\n", "x = 1  # same\n")],
+                             base=d3, jobs=2)
+        died = _run_mutants([("dies-row", "dies.py", "x = 1\n", "x = 2\n"),
+                             ("forges-row", "forges.py", "x = 1\n", "x = 2\n"),
+                             ("exits-late-row", "exits_late.py", "x = 1\n", "x = 2\n")],
+                            base=d3, jobs=2)
+        # Two modules whose selftests each take 1 s, two rows apiece with their baselines: with two
+        # workers the run takes about 2 s, with one about 4 s.
+        for name in ("slow_a.py", "slow_b.py"):
+            (d3 / name).write_text("import time\nx = 1\ndef selftest():\n    time.sleep(1.0)\n"
+                                   "    return 0 if x == 1 else 1\n", encoding="utf-8")
+        import time as _time
+        began = _time.monotonic()
+        slow = _run_mutants([("slow-a", "slow_a.py", "x = 1\n", "x = 2\n"),
+                             ("slow-b", "slow_b.py", "x = 1\n", "x = 2\n")], base=d3, jobs=2)
+        slow_took = _time.monotonic() - began
+    out.append(("with jobs above 1 the survivors match a serial run, in table order",
+                parallel_mixed == serial_mixed
+                == ["p-equivalent", "p-redbase (unmutated selftest: fail)", "p-equivalent-2"]))
+    out.append(("with jobs above 1 a child runs rows of one module only: state one module "
+                "leaves does not reach another module's rows",
+                serial_iso == ["leak-first", "victim-caught (unmutated selftest: fail)"]
+                and parallel_iso == ["leak-first"] and not leaked_here))
+    out.append(("with jobs above 1 a worker that cannot start reports its rows as survivors",
+                len(no_worker) == 1 and no_worker[0].startswith("p-equivalent (worker failed")))
+    out.append(("with jobs above 1 a child that writes to its own stdout and stderr, non-UTF-8 "
+                "bytes included, is read as in a serial run", noisy == ["noisy-equivalent"]))
+    out.append(("with jobs above 1 a child that stops before its result, prints a result without "
+                "this run's nonce, or exits non-zero after it reports its rows as survivors",
+                [d.split(" (worker failed")[0] for d in died] == ["dies-row", "forges-row", "exits-late-row"]
+                and all("(worker failed" in d for d in died)))
+    out.append((f"with jobs above 1 two modules run at the same time ({slow_took:.1f} s for two 2 s "
+                "modules)", slow == [] and slow_took < 3.6))
+    out.append(("a child is sent the POSIX-only rows it must skip on Windows",
+                _parallel_spec(None, None, {"x-row"})["posix_only"] == ["x-row"]
+                and _parallel_spec(None, None, None)["posix_only"] == sorted(_POSIX_ONLY)))
     return out
 
 
@@ -1357,7 +1508,7 @@ def selftest() -> int:
     if not _IN_MUTANT:
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)
-        survivors = _run_mutants()
+        survivors = _run_mutants(jobs=min(8, os.cpu_count() or 1))
         skipped = len(_POSIX_ONLY & {r[0] for r in _MUTANTS}) if os.name == "nt" else 0
         ok(f"each of {len(_MUTANTS) - skipped} committed mutations is caught by the selftest it targets"
            + (f" ({skipped} POSIX-only not run on Windows)" if skipped else "")
@@ -1375,6 +1526,14 @@ def selftest() -> int:
 def main(argv) -> int:
     if "--selftest" in argv:
         return selftest()
+    if argv == ["--run-rows"]:   # a child of _run_mutants_parallel
+        import json
+        spec = json.loads(sys.stdin.read())
+        rows = [tuple(r) for r in spec["rows"]]
+        survivors = _run_mutants(rows, base=spec["base"], entries=spec["entries"],
+                                 posix_only=set(spec["posix_only"]))
+        print(json.dumps({"nonce": spec["nonce"], "rows": len(rows), "survivors": survivors}))
+        return 0
     if not argv:
         print(__doc__)
         return 2

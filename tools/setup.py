@@ -1052,6 +1052,26 @@ def _selftest() -> int:
     ok(_syn_named == _syn_want | {("syn.py", "prefix"), ("syn.py", "<module>")},
        "pip census names a helper or a module constant that holds the pip program")
 
+    # P101: the repo-location warning (_selftest_location, which the committed mutation cases for
+    # setup.py run alone).
+    ok(_selftest_location() == 0, "repo-location checks failed (listed above)")
+
+    passed = sum(1 for c, _ in checks if c)
+    for c, m in checks:
+        if not c:
+            print(f"  [FAIL] {m}")
+    print(f"setup selftest: {passed}/{len(checks)} checks passed")
+    return 0 if passed == len(checks) else 1
+
+
+def _selftest_location() -> int:
+    """P101 checks of check_repo_location; _selftest runs them, and the committed mutation cases for
+    setup.py run this alone."""
+    checks = []
+
+    def ok(cond, msg):
+        checks.append((bool(cond), msg))
+
     import contextlib as _cl_loc
     import io as _io_loc
     import tempfile as _tf_loc
@@ -1098,18 +1118,15 @@ def _selftest() -> int:
     _loc_text = _loc_seen["synced"][1]
     ok(_loc_seen["synced"][0] == str(_loc_home / "Library" / "CloudStorage")
        and _loc_text.count("[warn]") == 1 and str(_loc_home / "Library" / "CloudStorage") in _loc_text
-       and str(_loc_home / "CreatorOS") in _loc_text
+       and f"(for example {_loc_home / 'CreatorOS'})," in _loc_text
        and "PYCMD-STANDIN tools/profile_mirror.py sync" in _loc_text
        and _loc_seen["plain"] == (None, ""),
        "setup warns once for a repo in a cloud-synced folder, naming it, the home-folder example and "
        "env_paths.python_command(), and prints nothing for a home-folder repo")
-
-    passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:
             print(f"  [FAIL] {m}")
-    print(f"setup selftest: {passed}/{len(checks)} checks passed")
-    return 0 if passed == len(checks) else 1
+    return 0 if all(c for c, _ in checks) else 1
 
 
 def check_repo_location(root=ROOT, home=None, env=None, ismount=None) -> str | None:

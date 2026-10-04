@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "de01b1fd919f266c94ed41ac7ea620a5df5bec621360719a037b118487c3bd32",
+        "tools/wizard.py": "20977dfd67d3aca89f1b59383a7d02945ba996122eaff2189a289b835bca8671",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
