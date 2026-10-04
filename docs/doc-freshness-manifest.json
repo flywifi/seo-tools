@@ -136,7 +136,7 @@
         "tools/handoff/runner.py": "d82d9dab33eb60cf7a7ea259bcdd68acbfe154f5761015167c79bedb132b3546",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "0fd249ac573189ca5c39708757c0b0b045bd15920b82f7f57a641cbe4f10a6cb",
+        "tools/handoff/inbox.py": "3da230ea4f19d267a6d5335e30b630378d25bef68b5bf6327f5a565a928e0a4c",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
         "tools/project_docs.py": "15835534381e7ec3abaa57a03aebacb658a05887e75237e6f971f34184763069"
       }
@@ -147,7 +147,7 @@
         "tools/handoff/runner.py": "d82d9dab33eb60cf7a7ea259bcdd68acbfe154f5761015167c79bedb132b3546",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "0fd249ac573189ca5c39708757c0b0b045bd15920b82f7f57a641cbe4f10a6cb",
+        "tools/handoff/inbox.py": "3da230ea4f19d267a6d5335e30b630378d25bef68b5bf6327f5a565a928e0a4c",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }

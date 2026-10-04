@@ -77,7 +77,12 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   changed since its scan is refused) and refusing any path that resolves into `Inbox/Quarantine/`
   or outside `Inbox/`; it appends to the gitignored ledger atomically.
 - `sweep_quarantine` seals QUARANTINE/BLOCK files into `Inbox/Quarantine/<date>/` with their
-  findings (the second writer; details under "The sealed Quarantine area" below).
+  findings (the second writer; details under "The sealed Quarantine area" below). The wizard's
+  `/inbox` screen calls it after a scan that flags a file, and so does the `sweep` verb
+  (`python3 tools/handoff/inbox.py sweep --hub PATH`), which reads and writes the ledger
+  `LEDGER_PATH` names when it runs and exits 0 (sealed, or nothing flagged), 1 (no `Inbox`, a
+  failed move, or an unwritable ledger) or 2 (usage).
+  `<!-- verify: tools/handoff/inbox.py::_sweep_cli -->`
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
 Two-pass handoff (P62): the offline verdict is pass 1. Every routed / needs-review record carries

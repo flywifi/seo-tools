@@ -211,6 +211,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
+  and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
+  calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It
+  uses the ledger `LEDGER_PATH` names when the command runs, calls the sweep after a scan that
+  flagged a file (the sweep rewrites the ledger even when it seals nothing), and exits 0, 1 (no
+  `Inbox` folder, a failed move, or a ledger it could not write) or 2 (usage). `sweep` is read from
+  the first word, so a scan whose arguments contain the word stays read-only. The selftest points
+  the ledger defaults at a decoy and checks that the real ledger is left as it was. The scan usage
+  line drops `--json`, which `main()` never read, and the `sweep_quarantine` docstring says a
+  ledger it cannot write raises `OSError`.
 - P101 (wizard and dashboard ports): the setup wizard and the Scheduling Dashboard bind the first
   port of a fixed block (8765, 8775, 8785; 8766, 8776, 8786) through `tools/loopback_server.py`,
   moving to the next port when the bind fails with `EACCES` (on Windows, a port the system reserves

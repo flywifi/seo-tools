@@ -12,12 +12,13 @@ P61 (SEC-ALL / Q-SEAL): every text-decodable file is run through the offline inj
 tier (tools/injection_scan.py) during scan. A QUARANTINE/BLOCK verdict lands the file in
 `quarantined[]` with its matched phrases, never routed. scan stays READ-ONLY; the caller runs
 sweep_quarantine to MOVE sealed files into Inbox/Quarantine/<date>/ (an area scan never re-reads
-and no route can reach) and record them. There are TWO sanctioned writers: approve (handled files
--> Inbox/Processed/) and sweep_quarantine (sealed files -> Inbox/Quarantine/). Nothing is written
-or moved by scan.
+and no route can reach) and record them; the wizard's /inbox screen and the sweep verb below both
+do. There are TWO sanctioned writers: approve (handled files -> Inbox/Processed/) and
+sweep_quarantine (sealed files -> Inbox/Quarantine/). Nothing is written or moved by scan.
 
 Usage:
-  python3 tools/handoff/inbox.py scan --hub PATH [--json]
+  python3 tools/handoff/inbox.py scan --hub PATH
+  python3 tools/handoff/inbox.py sweep --hub PATH
   python3 tools/handoff/inbox.py approve --hub PATH --proposal FILE.json
   python3 tools/handoff/inbox.py --selftest
 """
@@ -231,7 +232,8 @@ def sweep_quarantine(hub_root, scan_result, ledger_path=LEDGER_PATH, now=None) -
     move each quarantined file to Inbox/Quarantine/<date>/ (a sealed area scan never re-reads and
     no route can reach) and record it in the ledger with the full pattern findings. Nothing is
     deleted; a false positive sits intact in Quarantine for the human to review or move back.
-    Idempotent: a file already swept (source gone) is reported, not re-moved. Never raises."""
+    Idempotent: a file already swept (source gone) is reported, not re-moved. A failed move is
+    reported under skipped; a ledger that cannot be written raises OSError after the moves."""
     hub = Path(hub_root)
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     sealed = hub / "Inbox" / "Quarantine" / stamp
@@ -618,6 +620,105 @@ def selftest() -> int:
        and rev["reconciliation"]["session_action"] == "confirmed"
        and rev["reconciliation"]["pass_coverage"] == "both")
 
+    # P101: the sweep verb seals what a scan flags into the ledger LEDGER_PATH names when it runs.
+    # The defaults of load_ledger, sweep_quarantine and approve point at a decoy meanwhile, so a
+    # verb that fell back to a default writes the decoy (checked) and never the real ledger.
+    import contextlib
+    import io
+
+    def run_cli(args):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = main(args)
+        try:
+            return rc, json.loads(buf.getvalue())
+        except ValueError:
+            return rc, None
+
+    def file_state(p):
+        try:
+            st = Path(p).stat()
+            return (st.st_size, st.st_mtime_ns)
+        except OSError:
+            return None
+
+    srt = "1\n00:00:00,000 --> 00:00:01,000\nhi\n"
+    decoy = Path(tempfile.mkdtemp()) / "decoy-ledger.json"
+    cli_ledger = Path(tempfile.mkdtemp()) / "cli-ledger.json"
+    saved = (LEDGER_PATH, load_ledger.__defaults__, sweep_quarantine.__defaults__,
+             approve.__defaults__, os.replace)
+    real_before = file_state(saved[0])
+    load_ledger.__defaults__ = (decoy,)
+    sweep_quarantine.__defaults__ = (decoy, None)
+    approve.__defaults__ = (decoy, None)
+    try:
+        globals()["LEDGER_PATH"] = cli_ledger
+        sw = Path(tempfile.mkdtemp()); (sw / "Inbox").mkdir()
+        (sw / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+        (sw / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+        rc_a, out_a = run_cli(["scan", "--hub", str(sw), "sweep"])
+        ok("sweep as a later word leaves the read-only scan in charge",
+           rc_a == 0 and out_a is not None and "swept" not in out_a
+           and (sw / "Inbox" / "poison.txt").is_file() and not cli_ledger.exists())
+        rc1, out1 = run_cli(["sweep", "--hub", str(sw)])
+        ok("sweep seals the flagged file and exits 0",
+           rc1 == 0 and out1["swept"]["sealed"] == ["Inbox/poison.txt"]
+           and not (sw / "Inbox" / "poison.txt").exists()
+           and any((sw / "Inbox" / "Quarantine").rglob("poison.txt")))
+        ok("sweep leaves an unflagged file in the Inbox", (sw / "Inbox" / "talk.srt").is_file())
+        led = json.loads(cli_ledger.read_text(encoding="utf-8")) if cli_ledger.exists() else {}
+        ok("sweep records in the ledger LEDGER_PATH names, not a default",
+           [e.get("status") for e in led.get("entries", [])] == ["quarantined"]
+           and not decoy.exists())
+        rc2, out2 = run_cli(["sweep", "--hub", str(sw)])
+        ok("a second sweep finds nothing to seal and exits 0",
+           rc2 == 0 and out2["quarantined"] == [] and out2["swept"] == {"sealed": [], "skipped": []})
+        clean = Path(tempfile.mkdtemp()); (clean / "Inbox").mkdir()
+        (clean / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+        globals()["LEDGER_PATH"] = Path(tempfile.mkdtemp()) / "clean-ledger.json"
+        rc3, _ = run_cli(["sweep", "--hub", str(clean)])
+        ok("sweep on a hub with no flagged file writes no ledger",
+           rc3 == 0 and not LEDGER_PATH.exists() and not decoy.exists())
+        rc4, _ = run_cli(["sweep"])
+        rc5, _ = run_cli(["sweep", "--hub"])
+        ok("sweep without a hub path is a usage error (2)", rc4 == 2 and rc5 == 2)
+        rc6, out6 = run_cli(["sweep", "--hub", str(Path(tempfile.mkdtemp()))])
+        ok("sweep on a hub with no Inbox folder exits 1", rc6 == 1 and "error" in (out6 or {}))
+        mv = Path(tempfile.mkdtemp()); (mv / "Inbox").mkdir()
+        (mv / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+
+        def refuse_move(src, dst):
+            if "Quarantine" in str(dst):
+                raise PermissionError(13, "in use by another process")
+            return saved[4](src, dst)
+        os.replace = refuse_move
+        try:
+            rc7, out7 = run_cli(["sweep", "--hub", str(mv)])
+        finally:
+            os.replace = saved[4]
+        ok("a failed move exits 1, says why, and keeps the file",
+           rc7 == 1 and out7["swept"]["skipped"][0]["why"].startswith("move failed")
+           and (mv / "Inbox" / "poison.txt").is_file())
+        lw = Path(tempfile.mkdtemp()); (lw / "Inbox").mkdir()
+        (lw / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+        blocker = Path(tempfile.mkdtemp()) / "not-a-folder"
+        blocker.write_text("x", encoding="utf-8")
+        globals()["LEDGER_PATH"] = blocker / "ledger.json"
+        rc8, out8 = run_cli(["sweep", "--hub", str(lw)])
+        ok("a ledger that cannot be written exits 1 and says so",
+           rc8 == 1 and "ledger not written" in out8["swept"].get("error", ""))
+        ap = Path(tempfile.mkdtemp()); (ap / "Inbox").mkdir()
+        (ap / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+        prop = Path(tempfile.mkdtemp()) / "proposal.json"
+        prop.write_text(json.dumps(scan(ap, ledger={})), encoding="utf-8")
+        rc9, out9 = run_cli(["approve", "--hub", str(ap), "--proposal", str(prop)])
+        ok("scan and approve still dispatch beside sweep",
+           rc_a == 0 and rc9 == 0 and out9["moved"] == ["Inbox/talk.srt"])
+    finally:
+        (globals()["LEDGER_PATH"], load_ledger.__defaults__, sweep_quarantine.__defaults__,
+         approve.__defaults__, os.replace) = saved
+    ok("the sweep checks left the real ledger as it was", file_state(LEDGER_PATH) == real_before)
+
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)
@@ -625,9 +726,39 @@ def selftest() -> int:
     return 1 if failed else 0
 
 
+def _sweep_cli(argv) -> int:
+    """`sweep --hub PATH`: scan the hub's Inbox and seal what the offline pattern tier flags, the
+    two calls the wizard's /inbox screen makes, with the ledger LEDGER_PATH names when the command
+    runs. sweep_quarantine is called when the scan flagged a file and not otherwise, since it
+    rewrites the ledger even when it seals nothing. Prints the scan result with a "swept" key.
+    Exit 0 when the scan flagged no file or the flagged files were sealed; 1 when the hub has no
+    Inbox folder, a move failed, or the ledger could not be written; 2 on a usage error."""
+    i = argv.index("--hub") if "--hub" in argv else -1
+    hub = argv[i + 1] if 0 <= i < len(argv) - 1 else ""
+    if not hub:
+        print(__doc__)
+        return 2
+    res = scan(hub, ledger=load_ledger(LEDGER_PATH))
+    res["swept"] = {"sealed": [], "skipped": []}
+    rc = 1 if "error" in res else 0
+    if res["quarantined"]:
+        try:
+            res["swept"] = sweep_quarantine(hub, res, ledger_path=LEDGER_PATH)
+        except OSError as exc:
+            res["swept"]["error"] = (f"ledger not written ({exc}); a flagged file may already be in "
+                                     "Inbox/Quarantine, so scan again before acting on it")
+            rc = 1
+        if any(s.get("why", "").startswith("move failed") for s in res["swept"]["skipped"]):
+            rc = 1
+    print(json.dumps(res, indent=2))
+    return rc
+
+
 def main(argv) -> int:
     if "--selftest" in argv:
         return selftest()
+    if argv[:1] == ["sweep"]:  # the first word: "scan --hub X sweep" stays the read-only scan
+        return _sweep_cli(argv)
     if "scan" in argv and "--hub" in argv:
         hub = argv[argv.index("--hub") + 1]
         print(json.dumps(scan(hub), indent=2))

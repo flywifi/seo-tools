@@ -165,7 +165,13 @@ an oversize file, or the tool being unavailable) is held for a session rather th
 unscreened. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
 and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
 never overwrite a same-name file, and refuse any path that resolves into the sealed area or outside
-the Inbox.
+the Inbox. The sweep runs when the wizard's `/inbox` screen scans, and from the command line as
+`python3 tools/handoff/inbox.py sweep --hub PATH` (on Windows, `py -3` in place of `python3`),
+which scans, seals what the scan flags and prints the result. It exits 0 when the scan flagged no
+file or the flagged files were sealed, 1 when the hub has no `Inbox` folder, a move failed or the
+ledger could not be written, and 2 when `--hub PATH` is missing; run it while the wizard is not
+scanning the same hub, since the two update one ledger
+<!-- verify: tools/handoff/inbox.py::_sweep_cli -->.
 
 ## The Knowledge folder and claude.ai Projects (dual projection)
 
