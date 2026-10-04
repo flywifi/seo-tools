@@ -158,9 +158,10 @@ OUTBOX_TYPES = {"library_analyze", "finance_report", "inbox_scan", "import_parse
 
 def _platform_tag(system=None) -> str:
     """The machine tag in an Outbox file name: mac, windows or linux, from platform.system() (or
-    the name given). Cygwin, MSYS2 and MINGW Pythons on Windows report a name holding '_NT'
-    (CYGWIN_NT-10.0-..., MSYS_NT-10.0-...) and tag windows: the tag names the computer that ran
-    the job. wizard._os() maps those names to linux because it picks shell commands."""
+    the name given). A native or mingw-w64 Python on Windows reports Windows; a Python built on the
+    Cygwin or MSYS2 runtime reports a CYGWIN_NT-, MSYS_NT- or MINGW64_NT- name and tags windows too,
+    because the tag names the computer that ran the job. A Python under WSL reports Linux and tags
+    linux. wizard._os() maps the _NT names to linux because it picks shell commands."""
     s = platform.system() if system is None else system
     if s == "Darwin":
         return "mac"

@@ -70,8 +70,11 @@ export archives). Content-gated categories (contracts, pitches, invoices) are li
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
 (`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned
-writers, and both move by REALPATH containment (never a raw `hub / rel`, so `..`, symlinks, and a
-case-insensitive filesystem cannot escape or dodge the sealed area) and never overwrite a same-name
+writers, and both move by REALPATH containment (never a raw `hub / rel`: `approve` resolves the
+file a proposal names, so a symlink is judged by its target, and the sweep resolves the folder of
+the entry it moves and moves the entry, so a flagged symlink is sealed as a link; `..` and
+symlinks cannot escape either way, and the sealed-area test compares case-folded paths because
+realpath keeps the case it is given on Google Drive for desktop's drive) and never overwrite a same-name
 file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
 - `approve` moves handled files to `Inbox/Processed/<date>/`, re-verifying each sha256 (a file
   changed since its scan is refused) and refusing any path that resolves into `Inbox/Quarantine/`
@@ -80,8 +83,8 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   findings (the second writer; details under "The sealed Quarantine area" below). The wizard's
   `/inbox` screen calls it after a scan that flags a file, and so does the `sweep` verb
   (`python3 tools/handoff/inbox.py sweep --hub PATH`), which reads and writes the ledger
-  `LEDGER_PATH` names when it runs and exits 0 (sealed, or nothing flagged), 1 (no `Inbox`, a
-  failed move, or an unwritable ledger) or 2 (usage).
+  `LEDGER_PATH` names when it runs and exits 0 (sealed, already gone, or nothing flagged), 1 (no
+  `Inbox`, an unreadable file, a flagged file not moved, or an unwritable ledger) or 2 (usage).
   `<!-- verify: tools/handoff/inbox.py::_sweep_cli -->`
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.

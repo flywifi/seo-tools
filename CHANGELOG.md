@@ -215,21 +215,36 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
   calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It
   uses the ledger `LEDGER_PATH` names when the command runs, calls the sweep after a scan that
-  flagged a file (the sweep rewrites the ledger even when it seals nothing), and exits 0, 1 (no
-  `Inbox` folder, a failed move, or a ledger it could not write) or 2 (usage). `sweep` is read from
-  the first word, so a scan whose arguments contain the word stays read-only. The selftest points
-  the ledger defaults at a decoy and checks that the real ledger is left as it was. The scan usage
+  flagged a file (the sweep rewrites the ledger even when it seals nothing), prints ASCII JSON, and
+  exits 0, 1 (no `Inbox` folder, a file the scan could not read, a flagged file not moved, or a
+  ledger it could not write) or 2 (usage). `sweep` is read from the first word, so a scan whose
+  arguments contain the word stays read-only. The selftest points the ledger defaults at a decoy
+  and checks that the real ledger is left as it was. `sweep_quarantine` checks a flagged entry
+  with `_confined_inbox_entry`: the entry's folder, resolved with realpath, must be inside the
+  Inbox and outside the sealed area, else the entry is skipped instead of moved; the entry itself
+  is moved, so a flagged symlink is sealed as a link with its target left in place. The scan usage
   line drops `--json`, which `main()` never read, and the `sweep_quarantine` docstring says a
   ledger it cannot write raises `OSError`.
+- P101 (sealed-area check ignores case): the containment test `approve` and the quarantine sweep
+  use (`inbox._under`) compares case-folded paths for the sealed `Inbox/Quarantine/` area.
+  On Google Drive for desktop's drive on Windows a path keeps the case it is given while lookups
+  ignore case, so a proposal naming `Inbox/quarantine/...` resolved inside the Inbox and outside the
+  sealed area, and `approve` could move a sealed file into `Processed` when this computer's ledger
+  did not hold its sha. Such a path is now refused as sealed; on a case-sensitive disk a separate
+  lowercase folder of that name is refused too. The Inbox test stays exact. `posixpath.realpath`
+  folds no case either, so a case-insensitive macOS volume falls under the same comparison (not
+  tested on a Mac).
 - P101 (Outbox machine tag): the runner names an Outbox delivery `<job_type>.<stamp>Z.<tag>.json`
   with `<tag>` `mac`, `windows` or `linux` from `platform.system()` (`runner._platform_tag`; a
-  Cygwin, MSYS2 or MINGW Python on Windows tags `windows`); a delivery made on Windows was tagged
+  Cygwin or MSYS2 runtime Python on Windows, which reports a `CYGWIN_NT`, `MSYS_NT` or `MINGW64_NT`
+  name, tags `windows`, and a Python under WSL tags `linux`); a delivery made on Windows was tagged
   `mac`. Files already in an Outbox keep their names. A job ticket's `origin` is unchanged: `mac`
   is its value for this computer on any system, and `docs/DRIVE-HUB.md` now separates the two.
 - P101 (surface workflow payloads): the W1, W4, W5, W7 and W10 payloads in
   `skills/creator-core/evals/surface-workflows.json` take the shapes of the files they stand for:
   the voice profile, creator profile and content calendar files in `pipeline/user-context/`, the
-  task register template's top-level fields, and the ChatGPT export format in
+  task register template's `schema_version`, `computed_as_of` and `human_review_required`, and the
+  ChatGPT export format in
   `implementation/gpt/profile-import/PROMPT.md`. Steps and assertions are unchanged.
 - P101 (wizard and dashboard ports): the setup wizard and the Scheduling Dashboard bind the first
   port of a fixed block (8765, 8775, 8785; 8766, 8776, 8786) through `tools/loopback_server.py`,

@@ -113,30 +113,62 @@ def _unique_dest(dirpath, name: str) -> Path:
     return Path(dirpath) / f"{base} ({n}){ext}"
 
 
+def _under(child, parent, fold=False) -> bool:
+    """True when the resolved path `child` is `parent` or inside it. With fold, both are compared
+    case-folded (normcase, then casefold): the sealed-area test, since on a case-insensitive disk
+    realpath can keep the case it was given (measured on Google Drive for desktop's drive on
+    Windows; posixpath.realpath folds no case on a macOS volume either)."""
+    if fold:
+        child, parent = os.path.normcase(child).casefold(), os.path.normcase(parent).casefold()
+    try:
+        return os.path.commonpath([child, parent]) == parent
+    except ValueError:  # different drives / not comparable
+        return False
+
+
 def _confined_inbox_file(hub_root, rel: str):
     """Resolve a hub-relative proposal path with REALPATH and enforce the two containment rules a
-    sanctioned writer must never violate. Realpath (not string matching) is robust to '..',
-    symlinks, and case-insensitive filesystems (macOS), where a lowercase 'quarantine/' would dodge
-    a literal 'Quarantine/' check. Returns (resolved_Path, None) when rel is a real file inside
-    Inbox/ and OUTSIDE the sealed Quarantine/ area; otherwise (None, refusal_reason)."""
+    sanctioned writer must never violate. Realpath (not string matching) is robust to '..' and
+    symlinks: a link is judged by the file it points to. The sealed-area test is case-folded
+    (_under), so where realpath keeps the given case 'Inbox/quarantine/...' names the sealed
+    folder; on a case-sensitive disk a separate lowercase folder of that name is refused too, which
+    refuses rather than routes. The Inbox test stays exact, so where realpath keeps the given case
+    a case-variant 'inbox/...' is refused as outside the Inbox. Returns (resolved_Path, None) when
+    rel is a real file inside Inbox/ and OUTSIDE the sealed Quarantine/ area; otherwise
+    (None, refusal_reason)."""
     hub = Path(hub_root)
     inbox_real = os.path.realpath(hub / "Inbox")
     quar_real = os.path.realpath(hub / "Inbox" / "Quarantine")
     cand = os.path.realpath(hub / rel)
 
-    def _under(child, parent):
-        try:
-            return os.path.commonpath([child, parent]) == parent
-        except ValueError:  # different drives / not comparable
-            return False
-
-    if _under(cand, quar_real):
+    if _under(cand, quar_real, fold=True):
         return None, "sealed in Quarantine; never routed"
     if not _under(cand, inbox_real):
         return None, "path escapes the Inbox; refused"
     if not Path(cand).is_file():
         return None, "file no longer present"
     return Path(cand), None
+
+
+def _confined_inbox_entry(hub_root, rel: str):
+    """The quarantine sweep's containment: the rules of _confined_inbox_file applied to the folder
+    of the directory entry rel names, not to what the entry points to, so the sweep moves the entry
+    itself and a flagged symlink is sealed as a link with its target left in place. The folder,
+    resolved with realpath, must be inside Inbox/ (exact) and outside the sealed area (case-folded).
+    Returns (entry_Path, None), or (None, refusal_reason); a missing entry reads 'file no longer
+    present'."""
+    hub = Path(hub_root)
+    entry = hub / rel
+    if entry.name in ("", ".", ".."):
+        return None, "path escapes the Inbox; refused"
+    folder = os.path.realpath(entry.parent)
+    if _under(folder, os.path.realpath(hub / "Inbox" / "Quarantine"), fold=True):
+        return None, "sealed in Quarantine; never routed"
+    if not _under(folder, os.path.realpath(hub / "Inbox")):
+        return None, "path escapes the Inbox; refused"
+    if not (os.path.isfile(entry) or os.path.islink(entry)):
+        return None, "file no longer present"
+    return entry, None
 
 
 # Inbox subtrees that scan never descends into: handled files (Processed) and sealed suspect files
@@ -232,6 +264,9 @@ def sweep_quarantine(hub_root, scan_result, ledger_path=LEDGER_PATH, now=None) -
     move each quarantined file to Inbox/Quarantine/<date>/ (a sealed area scan never re-reads and
     no route can reach) and record it in the ledger with the full pattern findings. Nothing is
     deleted; a false positive sits intact in Quarantine for the human to review or move back.
+    An entry is checked with _confined_inbox_entry first: its folder must resolve inside the Inbox
+    and outside the sealed area, else it is skipped with the refusal and not moved; the entry itself
+    is moved, so a flagged symlink is sealed as a link and its target is left in place.
     Idempotent: a file already swept (source gone) is reported, not re-moved. A failed move is
     reported under skipped; a ledger that cannot be written raises OSError after the moves."""
     hub = Path(hub_root)
@@ -245,9 +280,10 @@ def sweep_quarantine(hub_root, scan_result, ledger_path=LEDGER_PATH, now=None) -
         data = {"schema_version": "0.1.0", "entries": []}
     entries = data.get("entries", [])
     for item in scan_result.get("quarantined", []):
-        src = hub / item.get("file", "")
-        if not src.is_file():
-            results["skipped"].append({"file": item.get("file"), "why": "already swept or missing"})
+        src, refusal = _confined_inbox_entry(hub, item.get("file", ""))
+        if refusal:
+            why = "already swept or missing" if refusal == "file no longer present" else refusal
+            results["skipped"].append({"file": item.get("file"), "why": why})
             continue
         try:
             sealed.mkdir(parents=True, exist_ok=True)
@@ -670,9 +706,14 @@ def selftest() -> int:
         ok("sweep records in the ledger LEDGER_PATH names, not a default",
            [e.get("status") for e in led.get("entries", [])] == ["quarantined"]
            and not decoy.exists())
+        # talk.srt marked handled in that ledger: a sweep that read another ledger sees it as new.
+        led["entries"] = led.get("entries", []) + [
+            {"sha256": _sha256(sw / "Inbox" / "talk.srt"), "status": "approved"}]
+        cli_ledger.write_text(json.dumps(led), encoding="utf-8")
         rc2, out2 = run_cli(["sweep", "--hub", str(sw)])
-        ok("a second sweep finds nothing to seal and exits 0",
-           rc2 == 0 and out2["quarantined"] == [] and out2["swept"] == {"sealed": [], "skipped": []})
+        ok("a second sweep reads the ledger LEDGER_PATH names and finds nothing to seal",
+           rc2 == 0 and out2["already_handled"] == 1 and out2["quarantined"] == []
+           and out2["swept"] == {"sealed": [], "skipped": []})
         clean = Path(tempfile.mkdtemp()); (clean / "Inbox").mkdir()
         (clean / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
         globals()["LEDGER_PATH"] = Path(tempfile.mkdtemp()) / "clean-ledger.json"
@@ -699,6 +740,28 @@ def selftest() -> int:
         ok("a failed move exits 1, says why, and keeps the file",
            rc7 == 1 and out7["swept"]["skipped"][0]["why"].startswith("move failed")
            and (mv / "Inbox" / "poison.txt").is_file())
+
+        def refuse_read(path):
+            raise PermissionError(13, "in use by another process")
+        real_sha = globals()["_sha256"]
+        globals()["_sha256"] = refuse_read
+        try:
+            rc_r, out_r = run_cli(["sweep", "--hub", str(mv)])
+        finally:
+            globals()["_sha256"] = real_sha
+        ok("a scan that cannot read a file exits 1 with a JSON error",
+           rc_r == 1 and "scan failed" in (out_r or {}).get("error", ""))
+        globals()["LEDGER_PATH"] = Path(tempfile.mkdtemp()) / "gone-ledger.json"
+        real_scan = globals()["scan"]
+        globals()["scan"] = lambda hub_root, rules=None, ledger=None: {
+            "quarantined": [{"file": "Inbox/gone.txt", "sha256": "z"}], "proposals": []}
+        try:
+            rc_g, out_g = run_cli(["sweep", "--hub", str(mv)])
+        finally:
+            globals()["scan"] = real_scan
+        ok("a flagged file already gone from the Inbox is reported and exits 0",
+           rc_g == 0 and (out_g or {}).get("swept", {}).get("skipped")
+           == [{"file": "Inbox/gone.txt", "why": "already swept or missing"}])
         lw = Path(tempfile.mkdtemp()); (lw / "Inbox").mkdir()
         (lw / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
         blocker = Path(tempfile.mkdtemp()) / "not-a-folder"
@@ -707,6 +770,139 @@ def selftest() -> int:
         rc8, out8 = run_cli(["sweep", "--hub", str(lw)])
         ok("a ledger that cannot be written exits 1 and says so",
            rc8 == 1 and "ledger not written" in out8["swept"].get("error", ""))
+        uh = Path(tempfile.mkdtemp()); (uh / "Inbox").mkdir()
+        uname = "poison-日本.txt"
+        (uh / "Inbox" / uname).write_text(poison, encoding="utf-8")
+        globals()["LEDGER_PATH"] = Path(tempfile.mkdtemp()) / "u-ledger.json"
+        raw = io.BytesIO()
+        cp1252 = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+        try:
+            with contextlib.redirect_stdout(cp1252):
+                rc_u = main(["sweep", "--hub", str(uh)])
+            cp1252.flush()
+            text_u = raw.getvalue().decode("cp1252")
+        except UnicodeEncodeError:
+            rc_u, text_u = None, ""
+        ok("sweep prints ASCII JSON, so a cp1252 console can print a non-ASCII file name",
+           rc_u == 0 and text_u.isascii()
+           and json.loads(text_u)["swept"]["sealed"] == ["Inbox/" + uname])
+        ch2 = Path(tempfile.mkdtemp()) / "hub"; (ch2 / "Inbox").mkdir(parents=True)
+        outside = ch2.parent / "outside.txt"
+        outside.write_text(poison, encoding="utf-8")
+        old_seal = ch2 / "Inbox" / "Quarantine" / "2026-10-01" / "old.txt"
+        old_seal.parent.mkdir(parents=True)
+        old_seal.write_text(poison, encoding="utf-8")
+        cs = sweep_quarantine(ch2, {"quarantined": [
+            {"file": "Inbox/../../outside.txt", "sha256": "x"},
+            {"file": "Inbox/Quarantine/2026-10-01/old.txt", "sha256": "y"},
+            {"file": "Inbox/gone.txt", "sha256": "z"}]},
+            ledger_path=Path(tempfile.mkdtemp()) / "c-ledger.json")
+        ok("sweep_quarantine refuses a path outside the Inbox or in the sealed area, moving neither",
+           cs["sealed"] == [] and outside.is_file() and old_seal.is_file()
+           and [s["why"] for s in cs["skipped"]] == [
+               "path escapes the Inbox; refused", "sealed in Quarantine; never routed",
+               "already swept or missing"])
+        # realpath stood in by abspath: the case-keeping behaviour measured on Drive for desktop.
+        cf = Path(tempfile.mkdtemp())
+        seal_dir = cf / "Inbox" / "Quarantine" / "2026-10-01"
+        seal_dir.mkdir(parents=True)
+        (seal_dir / "sealed.txt").write_text(poison, encoding="utf-8")
+        real_rp = os.path.realpath
+        os.path.realpath = os.path.abspath
+        try:
+            cf_low = _confined_inbox_file(cf, "Inbox/quarantine/2026-10-01/sealed.txt")
+            cf_up = _confined_inbox_file(cf, "Inbox/QUARANTINE/2026-10-01/sealed.txt")
+            cf_ap = approve(cf, {"proposals": [{"file": "Inbox/quarantine/2026-10-01/sealed.txt",
+                                                "sha256": _sha256(seal_dir / "sealed.txt")}]},
+                            ledger_path=Path(tempfile.mkdtemp()) / "cf-ledger.json")
+        finally:
+            os.path.realpath = real_rp
+        ok("a case-variant path into Quarantine is refused as sealed when realpath keeps case",
+           cf_low[1] == "sealed in Quarantine; never routed" and cf_up[1] == cf_low[1]
+           and not cf_ap["moved"] and cf_ap["refused"][0]["why"].startswith("sealed")
+           and (seal_dir / "sealed.txt").is_file())
+        (cf / "Inbox" / "x.srt").write_text(srt, encoding="utf-8")
+        os.path.realpath = os.path.abspath
+        try:
+            cx_file = _confined_inbox_file(cf, "inbox/x.srt")
+            cx_entry = _confined_inbox_entry(cf, "inbox/x.srt")
+        finally:
+            os.path.realpath = real_rp
+        ok("a case-variant inbox/ path is refused as outside the Inbox when realpath keeps case",
+           cx_file == (None, "path escapes the Inbox; refused") and cx_entry == cx_file)
+        os.path.realpath = os.path.abspath
+        try:
+            ce_low = _confined_inbox_entry(cf, "Inbox/quarantine/2026-10-01/sealed.txt")
+        finally:
+            os.path.realpath = real_rp
+        ok("the sweep's entry check refuses a case-variant path into Quarantine as sealed",
+           ce_low == (None, "sealed in Quarantine; never routed"))
+        ok("the sweep's entry check refuses a '..' entry as escaping",
+           _confined_inbox_entry(cf, "Inbox/..") == (None, "path escapes the Inbox; refused"))
+        (cf / "Inbox" / "Processed" / "2026-10-01").mkdir(parents=True)
+        pf = sweep_quarantine(cf, {"quarantined": [{"file": "Inbox/Processed", "sha256": "p"}]},
+                              ledger_path=Path(tempfile.mkdtemp()) / "pf-ledger.json")
+        ok("the sweep moves a file or a link, never a folder",
+           pf == {"sealed": [], "skipped": [{"file": "Inbox/Processed",
+                                             "why": "already swept or missing"}]}
+           and (cf / "Inbox" / "Processed" / "2026-10-01").is_dir())
+        globals()["LEDGER_PATH"] = Path(tempfile.mkdtemp()) / "x-ledger.json"
+        real_scan2 = globals()["scan"]
+        globals()["scan"] = lambda hub_root, rules=None, ledger=None: {
+            "quarantined": [{"file": "Inbox/../../outside.txt", "sha256": "x"}], "proposals": []}
+        try:
+            rc_x, out_x = run_cli(["sweep", "--hub", str(ch2)])
+        finally:
+            globals()["scan"] = real_scan2
+        ok("a flagged path the containment refuses exits 1 and is left in place",
+           rc_x == 1 and (out_x or {}).get("swept", {}).get("skipped")
+           == [{"file": "Inbox/../../outside.txt", "why": "path escapes the Inbox; refused"}]
+           and outside.is_file())
+        # Symlinks (skipped where os.symlink is refused, e.g. Windows without the right to make one).
+        lk = Path(tempfile.mkdtemp()) / "hub"; (lk / "Inbox").mkdir(parents=True)
+        lk_out = lk.parent / "outside.txt"
+        lk_out.write_text(poison, encoding="utf-8")
+        lk_seal = lk / "Inbox" / "Quarantine" / "2026-10-01" / "kept.txt"
+        lk_seal.parent.mkdir(parents=True)
+        lk_seal.write_text(poison, encoding="utf-8")
+        try:
+            os.symlink(lk_out, lk / "Inbox" / "out-link.txt")
+            os.symlink(lk_seal, lk / "Inbox" / "peek.txt")
+            have_links = True
+        except (OSError, NotImplementedError, AttributeError):
+            have_links = False
+        if have_links:
+            pb = approve(lk, {"proposals": [{"file": "Inbox/peek.txt", "sha256": _sha256(lk_seal)}]},
+                         ledger_path=Path(tempfile.mkdtemp()) / "pb-ledger.json")
+            ok("approve judges a symlink by its target and refuses one into Quarantine as sealed",
+               not pb["moved"] and pb["refused"][0]["why"].startswith("sealed")
+               and (lk / "Inbox" / "peek.txt").is_symlink())
+            ls = sweep_quarantine(lk, scan(lk, ledger={}),
+                                  ledger_path=Path(tempfile.mkdtemp()) / "lk-ledger.json")
+            moved_links = sorted(p.name for p in (lk / "Inbox" / "Quarantine").rglob("*")
+                                 if p.is_symlink())
+            ok("a flagged symlink is sealed as a link and its target is left in place",
+               sorted(ls["sealed"]) == ["Inbox/out-link.txt", "Inbox/peek.txt"]
+               and moved_links == ["out-link.txt", "peek.txt"]
+               and lk_out.is_file() and lk_seal.is_file()
+               and not os.path.lexists(lk / "Inbox" / "out-link.txt"))
+            os.symlink(lk.parent / "never-there.txt", lk / "Inbox" / "dangling.txt")
+            ld = sweep_quarantine(lk, {"quarantined": [{"file": "Inbox/dangling.txt", "sha256": "d"}]},
+                                  ledger_path=Path(tempfile.mkdtemp()) / "ld-ledger.json")
+            outdir = lk.parent / "outdir"
+            outdir.mkdir()
+            (outdir / "x.txt").write_text(poison, encoding="utf-8")
+            os.symlink(outdir, lk / "Inbox" / "door", target_is_directory=True)
+            dd = sweep_quarantine(lk, {"quarantined": [{"file": "Inbox/door/x.txt", "sha256": "x"}]},
+                                  ledger_path=Path(tempfile.mkdtemp()) / "dd-ledger.json")
+            ok("a linked folder cannot carry the sweep out of the Inbox",
+               dd["skipped"] == [{"file": "Inbox/door/x.txt", "why": "path escapes the Inbox; refused"}]
+               and (outdir / "x.txt").is_file())
+            ok("a flagged link whose target is gone is still moved into the sealed area as a link",
+               ld["sealed"] == ["Inbox/dangling.txt"]
+               and not os.path.lexists(lk / "Inbox" / "dangling.txt")
+               and any(q.name == "dangling.txt" and q.is_symlink()
+                       for q in (lk / "Inbox" / "Quarantine").rglob("*")))
         ap = Path(tempfile.mkdtemp()); (ap / "Inbox").mkdir()
         (ap / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
         prop = Path(tempfile.mkdtemp()) / "proposal.json"
@@ -729,16 +925,21 @@ def selftest() -> int:
 def _sweep_cli(argv) -> int:
     """`sweep --hub PATH`: scan the hub's Inbox and seal what the offline pattern tier flags, the
     two calls the wizard's /inbox screen makes, with the ledger LEDGER_PATH names when the command
-    runs. sweep_quarantine is called when the scan flagged a file and not otherwise, since it
-    rewrites the ledger even when it seals nothing. Prints the scan result with a "swept" key.
-    Exit 0 when the scan flagged no file or the flagged files were sealed; 1 when the hub has no
-    Inbox folder, a move failed, or the ledger could not be written; 2 on a usage error."""
+    runs (the scan reads it, the sweep writes it). sweep_quarantine is called when the scan flagged
+    a file and not otherwise, since it rewrites the ledger even when it seals nothing. Prints the
+    scan result with a "swept" key as ASCII JSON, so a cp1252 console can print any file name.
+    Exit 0 when the scan flagged no file, or the flagged files were sealed or were already gone
+    from the Inbox; 1 when the hub has no Inbox folder, the scan could not read a file, a flagged
+    file was not moved, or the ledger could not be written; 2 on a usage error."""
     i = argv.index("--hub") if "--hub" in argv else -1
     hub = argv[i + 1] if 0 <= i < len(argv) - 1 else ""
     if not hub:
         print(__doc__)
         return 2
-    res = scan(hub, ledger=load_ledger(LEDGER_PATH))
+    try:
+        res = scan(hub, ledger=load_ledger(LEDGER_PATH))
+    except OSError as exc:  # for example a file a sync client holds open on Windows
+        res = {"error": f"scan failed: {exc}", "quarantined": []}
     res["swept"] = {"sealed": [], "skipped": []}
     rc = 1 if "error" in res else 0
     if res["quarantined"]:
@@ -748,7 +949,7 @@ def _sweep_cli(argv) -> int:
             res["swept"]["error"] = (f"ledger not written ({exc}); a flagged file may already be in "
                                      "Inbox/Quarantine, so scan again before acting on it")
             rc = 1
-        if any(s.get("why", "").startswith("move failed") for s in res["swept"]["skipped"]):
+        if any(s.get("why") != "already swept or missing" for s in res["swept"]["skipped"]):
             rc = 1
     print(json.dumps(res, indent=2))
     return rc

@@ -74,7 +74,8 @@ Who does what, where, when, and why:
 The Outbox is really written (P61): when a report-style job finishes `done` (library_analyze,
 finance_report, inbox_scan, import_parse_preview, keyword_offline, transcript_normalize), the
 runner also delivers its JSON output to `Outbox/<job_type>.<stamp>Z.<tag>.json`, where `<tag>` is
-`mac`, `windows` or `linux` for the system of the computer that ran the job
+`mac`, `windows` or `linux` for the system of the computer that ran the job (a job run under WSL
+reports Linux and is tagged `linux`)
 (<!-- verify: tools/handoff/runner.py::_platform_tag -->), and the job
 result's `outputs` lists both the raw capture under `Jobs/results/` and the Outbox copy. Failed
 jobs never deliver; `transcribe_media` delivers its SRT under `Jobs/results/` instead. On the
@@ -82,13 +83,15 @@ Drive API transport, `poll_once` uploads Outbox artifacts created during the pas
 so nothing is stranded in the local staging hub.
 
 **Naming rule** for every machine-written file:
-`<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `cowork`, or
-`mac`. Names sort chronologically, never collide without coordination, and carry their provenance.
-Two things fill that last part, with different meanings. A job ticket's `origin` field (schema
-`shared/schemas/compute-job.json`) records which surface queued the job, and `mac` there is the
-value for this computer whatever its system, so a ticket queued from the wizard on Windows is
-named `job.<stamp>.mac.<id>.json`. An Outbox file's tag records the system of the computer that
-ran the job: `mac`, `windows` or `linux`.
+`<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `cowork`, `mac`
+or `other`. Names sort chronologically, never collide without coordination, and carry their
+provenance. Two kinds of file depart from that pattern. A job ticket is named
+`job.<stamp>.<origin>.<id8>.json`, where `<origin>` is the ticket's `origin` field (schema
+`shared/schemas/compute-job.json`): the surface that queued the job, with `mac` the value for this
+computer whatever its system, so a ticket queued from the wizard on Windows is named
+`job.<stamp>.mac.<id8>.json`. An Outbox file is named `<job_type>.<stamp>Z[.<n>].<tag>.json`,
+where `<tag>` is the system of the computer that ran the job (`mac`, `windows` or `linux`) and
+`<n>` numbers a second file written in the same second.
 
 ## The async job contract
 
@@ -170,14 +173,22 @@ injection guard still runs in a Claude session and remains authoritative. Becaus
 text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
 an oversize file, or the tool being unavailable) is held for a session rather than routed
 unscreened. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
-and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
-never overwrite a same-name file, and refuse any path that resolves into the sealed area or outside
-the Inbox. The sweep runs when the wizard's `/inbox` screen scans, and from the command line as
-`python3 tools/handoff/inbox.py sweep --hub PATH` (on Windows, `py -3` in place of `python3`),
-which scans, seals what the scan flags and prints the result. It exits 0 when the scan flagged no
-file or the flagged files were sealed, 1 when the hub has no `Inbox` folder, a move failed or the
-ledger could not be written, and 2 when `--hub PATH` is missing; run it while the wizard is not
-scanning the same hub, since the two update one ledger
+and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment
+and never overwrite a same-name file. Approve refuses any path that resolves into the sealed area or
+outside the Inbox, and the sweep any entry whose folder does. The sealed-area test ignores letter case, because on Google Drive for desktop's drive a
+path keeps the case it was given while lookups ignore it
+<!-- verify: tools/handoff/inbox.py::_under -->. Approve judges a symlink by the file it points to;
+the sweep checks the folder of the entry it moves and moves the entry itself, so a flagged symlink
+is sealed as a link with its target left in place
+<!-- verify: tools/handoff/inbox.py::_confined_inbox_entry -->. The sweep runs when the wizard's
+`/inbox` screen scans, and from the command line as
+`python3 tools/handoff/inbox.py sweep --hub PATH` (on Windows, `py -3` in place of `python3`, with
+no trailing backslash inside the quotes around the path), which scans, seals what the scan flags
+and prints the result. It exits 0 when the scan flagged no file, or the flagged files were sealed
+or were already gone from the Inbox; 1 when the hub has no `Inbox` folder, the scan could not read
+a file, a flagged file was not moved, or the ledger could not be written; and 2 when `--hub PATH`
+is missing. Run it while the wizard's `/inbox` screen is not scanning or approving on the same
+hub, since the three update one ledger without a lock
 <!-- verify: tools/handoff/inbox.py::_sweep_cli -->.
 
 ## The Knowledge folder and claude.ai Projects (dual projection)
