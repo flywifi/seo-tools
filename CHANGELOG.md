@@ -226,6 +226,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Cygwin, MSYS2 or MINGW Python on Windows tags `windows`); a delivery made on Windows was tagged
   `mac`. Files already in an Outbox keep their names. A job ticket's `origin` is unchanged: `mac`
   is its value for this computer on any system, and `docs/DRIVE-HUB.md` now separates the two.
+- P101 (surface workflow payloads): the W1, W4, W5, W7 and W10 payloads in
+  `skills/creator-core/evals/surface-workflows.json` take the shapes of the files they stand for:
+  the voice profile, creator profile and content calendar files in `pipeline/user-context/`, the
+  task register template's top-level fields, and the ChatGPT export format in
+  `implementation/gpt/profile-import/PROMPT.md`. Steps and assertions are unchanged.
 - P101 (wizard and dashboard ports): the setup wizard and the Scheduling Dashboard bind the first
   port of a fixed block (8765, 8775, 8785; 8766, 8776, 8786) through `tools/loopback_server.py`,
   moving to the next port when the bind fails with `EACCES` (on Windows, a port the system reserves

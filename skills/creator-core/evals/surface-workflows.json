@@ -155,11 +155,21 @@
             "mode": "create",
             "kind": "voice-profile",
             "json": {
-              "voice": {
-                "tone": "warm",
-                "exclamation_marks": "rare",
-                "signature_phrase": "Fictional sign-off"
-              }
+              "actual_phrases": [
+                "Fictional warm hello from the workbench"
+              ],
+              "opening_hooks": [
+                "Fictional hook: one small swap, a whole new corner"
+              ],
+              "cta_patterns": [
+                "Fictional prompt: tell me your favorite corner"
+              ],
+              "signing_off_phrases": [
+                "Fictional sign-off"
+              ],
+              "phrases_to_avoid": [],
+              "last_updated": "2026-10-01",
+              "notes": "warm tone, rare exclamation marks"
             }
           },
           "surface": "claude_web",
@@ -226,11 +236,21 @@
             "mode": "update",
             "target": "web-export",
             "json": {
-              "voice": {
-                "tone": "warm",
-                "exclamation_marks": "rare",
-                "signature_phrase": "Fictional sign-off"
-              }
+              "actual_phrases": [
+                "Fictional warm hello from the workbench"
+              ],
+              "opening_hooks": [
+                "Fictional hook: one small swap, a whole new corner"
+              ],
+              "cta_patterns": [
+                "Fictional prompt: tell me your favorite corner"
+              ],
+              "signing_off_phrases": [
+                "Fictional sign-off"
+              ],
+              "phrases_to_avoid": [],
+              "last_updated": "2026-10-01",
+              "notes": "warm tone, rare exclamation marks"
             }
           },
           "surface": "claude_web",
@@ -251,11 +271,21 @@
             "mode": "create",
             "name": "voice-profile.local.json",
             "json": {
-              "voice": {
-                "tone": "warm",
-                "exclamation_marks": "rare",
-                "signature_phrase": "Fictional sign-off"
-              }
+              "actual_phrases": [
+                "Fictional warm hello from the workbench"
+              ],
+              "opening_hooks": [
+                "Fictional hook: one small swap, a whole new corner"
+              ],
+              "cta_patterns": [
+                "Fictional prompt: tell me your favorite corner"
+              ],
+              "signing_off_phrases": [
+                "Fictional sign-off"
+              ],
+              "phrases_to_avoid": [],
+              "last_updated": "2026-10-01",
+              "notes": "warm tone, rare exclamation marks"
             }
           },
           "surface": "human_at_home",
@@ -883,16 +913,20 @@
             "mode": "create",
             "kind": "profile-export",
             "json": {
-              "creator_profile": {
-                "display_name": "Fictional Creator",
-                "niche": "home decor"
-              },
-              "provenance": {
-                "display_name": {
-                  "source_context": "default_chat",
+              "context": "default_chat",
+              "exported_on": "2026-10-01",
+              "fields": {
+                "creator_display_name": {
+                  "value": "Fictional Creator",
                   "source": "memory",
                   "confidence": "explicit",
-                  "imported_at": "2026-10-01"
+                  "verbatim_quote": "Call me Fictional Creator."
+                },
+                "content_niche": {
+                  "value": "home decor",
+                  "source": "memory",
+                  "confidence": "high",
+                  "verbatim_quote": "My channel is about home decor."
                 }
               }
             }
@@ -930,8 +964,18 @@
             "mode": "create",
             "name": "creator-profile.local.json",
             "json": {
-              "display_name": "Fictional Creator",
-              "niche": "home decor"
+              "creator_display_name": "Fictional Creator",
+              "channel_name": "Fictional Home Decor",
+              "provenance": {
+                "creator_display_name": {
+                  "source_context": "default_chat",
+                  "source": "memory",
+                  "confidence": "explicit",
+                  "verbatim_quote": "Call me Fictional Creator.",
+                  "imported_at": "2026-10-01"
+                }
+              },
+              "notes": "Fictional profile for the surface workflow suite."
             }
           },
           "surface": "human_at_home"
@@ -1029,6 +1073,8 @@
             "mode": "create",
             "name": "task-register.local.json",
             "json": {
+              "schema_version": "0.1.0",
+              "computed_as_of": null,
               "tasks": [
                 {
                   "id": "t-1",
@@ -1049,7 +1095,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "human_review_required": true
             }
           },
           "surface": "claude_desktop"
@@ -1063,6 +1110,8 @@
             "mode": "create",
             "kind": "task-register",
             "json": {
+              "schema_version": "0.1.0",
+              "computed_as_of": null,
               "tasks": [
                 {
                   "id": "t-1",
@@ -1095,7 +1144,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "human_review_required": true
             }
           },
           "surface": "chatgpt_web_plain",
@@ -1114,6 +1164,8 @@
           "with": {
             "of": "web-register",
             "json": {
+              "schema_version": "0.1.0",
+              "computed_as_of": null,
               "tasks": [
                 {
                   "id": "t-1",
@@ -1140,7 +1192,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "human_review_required": true
             }
           }
         },
@@ -1397,14 +1450,20 @@
             "mode": "create",
             "name": "content-calendar.local.json",
             "json": {
-              "weeks": [
+              "entries": [
                 {
-                  "week_of": "2026-10-05",
-                  "ideas": [
-                    "Fictional fall entryway refresh"
-                  ]
+                  "title": "Fictional fall entryway refresh",
+                  "pillar": "Fictional seasonal decor",
+                  "publish_target_date": "2026-10-05",
+                  "stage": "idea",
+                  "platform_targets": [
+                    "youtube-long"
+                  ],
+                  "linked_deal_id": null,
+                  "posts": []
                 }
-              ]
+              ],
+              "last_updated": "2026-10-01"
             }
           },
           "surface": "human_at_home"
@@ -1450,7 +1509,7 @@
             "area": "local",
             "mode": "update",
             "name": "content-calendar.local.json",
-            "text": "{\"weeks\": [ broken"
+            "text": "{\"entries\": [ broken"
           },
           "surface": "gemini_desktop"
         },
@@ -1503,15 +1562,31 @@
             "mode": "update",
             "name": "content-calendar.local.json",
             "json": {
-              "weeks": [
+              "entries": [
                 {
-                  "week_of": "2026-10-05",
-                  "ideas": [
-                    "Fictional fall entryway refresh",
-                    "Fictional porch planter swap"
-                  ]
+                  "title": "Fictional fall entryway refresh",
+                  "pillar": "Fictional seasonal decor",
+                  "publish_target_date": "2026-10-05",
+                  "stage": "idea",
+                  "platform_targets": [
+                    "youtube-long"
+                  ],
+                  "linked_deal_id": null,
+                  "posts": []
+                },
+                {
+                  "title": "Fictional porch planter swap",
+                  "pillar": "Fictional seasonal decor",
+                  "publish_target_date": "2026-10-12",
+                  "stage": "idea",
+                  "platform_targets": [
+                    "youtube-shorts"
+                  ],
+                  "linked_deal_id": null,
+                  "posts": []
                 }
-              ]
+              ],
+              "last_updated": "2026-10-02"
             }
           },
           "surface": "gemini_desktop"
@@ -2028,6 +2103,8 @@
             "mode": "create",
             "name": "task-register.local.json",
             "json": {
+              "schema_version": "0.1.0",
+              "computed_as_of": null,
               "tasks": [
                 {
                   "id": "t-1",
@@ -2048,7 +2125,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "human_review_required": true
             }
           },
           "surface": "claude_desktop"
@@ -2062,6 +2140,8 @@
             "mode": "create",
             "kind": "task-register",
             "json": {
+              "schema_version": "0.1.0",
+              "computed_as_of": null,
               "tasks": [
                 {
                   "id": "t-1",
@@ -2094,7 +2174,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "human_review_required": true
             }
           },
           "surface": "chatgpt_web_plain"
@@ -2106,6 +2187,8 @@
           "with": {
             "of": "o-register",
             "json": {
+              "schema_version": "0.1.0",
+              "computed_as_of": null,
               "tasks": [
                 {
                   "id": "t-1",
@@ -2132,7 +2215,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "human_review_required": true
             }
           }
         },
@@ -2158,11 +2242,21 @@
             "mode": "create",
             "name": "voice-profile.local.json",
             "json": {
-              "voice": {
-                "tone": "warm",
-                "exclamation_marks": "rare",
-                "signature_phrase": "Fictional sign-off"
-              }
+              "actual_phrases": [
+                "Fictional warm hello from the workbench"
+              ],
+              "opening_hooks": [
+                "Fictional hook: one small swap, a whole new corner"
+              ],
+              "cta_patterns": [
+                "Fictional prompt: tell me your favorite corner"
+              ],
+              "signing_off_phrases": [
+                "Fictional sign-off"
+              ],
+              "phrases_to_avoid": [],
+              "last_updated": "2026-10-01",
+              "notes": "warm tone, rare exclamation marks"
             }
           },
           "surface": "human_at_home"
