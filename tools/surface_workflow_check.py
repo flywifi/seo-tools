@@ -3605,6 +3605,25 @@ _MUTANTS = (
     ('P8 template suffix form ignored', 'contract',
      '(folder / f"{base}.json", folder / f"{base}.template.json")',
      '(folder / f"{base}.json",)'),
+    # P102: the checkout rule of the write guard and the payload template check (second set).
+    ('E-G1 root test admits a sibling prefix', 'guard',
+     'return path == a or path.startswith(a.rstrip(os.sep) + os.sep)',
+     'return path == a or path.startswith(a.rstrip(os.sep))'),
+    ('E-G2 every root must allow the path', 'guard',
+     'return any(_under_root(path, a) and (not _under_root(path, rec["repo"]) or _under_root(a, rec["repo"]))',
+     'return all(_under_root(path, a) and (not _under_root(path, rec["repo"]) or _under_root(a, rec["repo"]))'),
+    ('E-P1 .local.json not stripped from a name', 'contract',
+     'return args["name"].replace(".local.json", "").replace(".json", "")',
+     'return args["name"].replace(".json", "")'),
+    ('E-P2 only the first list item compared', 'contract',
+     '                    for i, item in enumerate(v):\n                        extra = sorted(set(item) - keys[k])',
+     '                    for i, item in enumerate(v[:1]):\n                        extra = sorted(set(item) - keys[k])'),
+    ('E-P3 kind not used as the base', 'contract',
+     '    if args.get("kind"):\n        return args["kind"]\n',
+     '    if False:\n        return args["kind"]\n'),
+    ('E-P4 non-object list item passes', 'contract',
+     'extra = sorted(set(item) - keys[k]) if isinstance(item, dict) else ["(not an object)"]',
+     'extra = sorted(set(item) - keys[k]) if isinstance(item, dict) else []'),
 )
 
 # Rows whose pin does not run on Windows, so only a POSIX run can catch them: T4's privacy check
