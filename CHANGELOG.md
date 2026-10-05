@@ -13,6 +13,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (suite payload check): the cross-surface suite refuses a contract whose JSON payload carries
+  a key the template of the file it stands for lacks (`pipeline/user-context/<base>.json` or
+  `<base>.template.json`), at the top level and in the items of a list whose template shows its
+  items; a payload with no template needs a written reason in `PAYLOAD_NO_TEMPLATE`
+  (`surface_workflow_check.payload_template_problems`, checks `payload-keys-within-templates` and
+  `payload-drift-fails-the-suite`). It flags extra keys, not missing ones.
 - P102 (cache selftests): `shared/cache/cache.py --selftest` and `tools/sync_cache.py --selftest`
   build, query and verify a temp tree with Windows relative paths stood in, and check the real
   index and baseline are left as they were; both leave `tools/selftest-exemption.json`. The
@@ -236,6 +242,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the sweep seals it too instead of counting it as handled and leaving it in the drop folder.
 - P102 (inbox selftest skip line): when `os.symlink` is refused, the inbox selftest prints a
   `[skip]` line for its symlink checks and counts the skipped group in its summary.
+- P102 (suite write guard): a write inside the checkout is refused when the root that allows it
+  holds the checkout, such as a clone in the temporary folder; the check
+  `guard-refuses-checkout-under-root` writes into such a checkout's `pipeline/` folder and expects
+  the refusal (`surface_workflow_check._guard_allows`).
 - P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
   calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It

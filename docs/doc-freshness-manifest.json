@@ -10,7 +10,7 @@
     },
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
-        "tools/surface_workflow_check.py": "d4cec409fc2a860103db8b78c8f05af0359af0546196b2829dad80edce5e9c6d",
+        "tools/surface_workflow_check.py": "d5e28a89111f004d87947a828720a73fd09b24d49f79d8c69e9e2e9d48814a74",
         "skills/creator-core/evals/surface-workflows.json": "6e930ae9a96aea56b6211023ebf0df662e3005c5aa0f2f38c45da526134c3af9"
       }
     },

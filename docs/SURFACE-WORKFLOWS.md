@@ -36,7 +36,11 @@ folder the row cannot reach, judged by where the file actually is (or, for a new
 rather than where the step says it is; a file name holding a path is refused (selftest checks
 `write-outside-target-refused` and `write-create-path-name-refused`). For example, Gemini on the web can only create a new file, so a Gemini step that tries to
 edit or delete one is refused, and a step whose refusal the contract did not expect fails the
-workflow. Every step on the computer runs
+workflow. A step's JSON payload stands for a Creator OS file, so the runner refuses a contract
+whose payload carries a key that file's template in `pipeline/user-context/` lacks, at the top
+level and in the items of a list whose template shows its items; a payload with no template needs a
+written reason in `PAYLOAD_NO_TEMPLATE` (checks `payload-keys-within-templates`,
+`payload-item-key-named` and `payload-drift-fails-the-suite`). Every step on the computer runs
 the **real** repo code: the profile mirror (`tools/profile_mirror.py`), the job runner
 (`tools/handoff/runner.py`), the inbox scan (`tools/handoff/inbox.py`), the task register merge
 (`tools/tasks.py`), the agent-output validator (`tools/validate_agent_output.py`), the coverage
@@ -70,7 +74,10 @@ creating folders under it, and the same cache-file steps there (checks
 `guard-prefix-allows-write-steps`, `guard-prefix-refuses-other-steps`,
 `guard-prefix-deep-parents-created`, `guard-allows-real-bytecode-write`,
 `guard-allows-real-import-under-missing-prefix`, and the `guard-refuses-*` and
-`guard-prefix-refuses-*` checks beside them). The run fails if the guard refused a write or judged none (a guard that saw
+`guard-prefix-refuses-*` checks beside them). A write inside the checkout is refused as well when
+the root that allows it holds the checkout, such as a clone that sits in the temporary folder; a
+root inside the checkout still allows writes under it (checks `guard-refuses-checkout-under-root`,
+`guard-allows-root-inside-checkout` and `guard-checkout-defaults-to-repo`). The run fails if the guard refused a write or judged none (a guard that saw
 nothing proved nothing; checks `suite-fails-on-blocked-write` and
 `suite-fails-when-guard-judged-nothing`); the judged count counts write events, so one file
 written twice counts two (`suite-judged-counts-each-event`). Outside its view: a write by another

@@ -104,7 +104,7 @@
     "tools/readonly_bash_guard.py": "e48f929af154d014df1fceea0f42354a4fb40b08b5f95fc9372ea256f4f1de86",
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "40586056de9f47a46d3b560e9bd73f10cecaf57bc7be3bb1205b3ae101d37db7",
-    "tools/surface_workflow_check.py": "d4cec409fc2a860103db8b78c8f05af0359af0546196b2829dad80edce5e9c6d",
+    "tools/surface_workflow_check.py": "d5e28a89111f004d87947a828720a73fd09b24d49f79d8c69e9e2e9d48814a74",
     "tools/transcribe.py": "fd035c3023b9a851cc55bd0acb9a6993e4c405fcc910a52c2006524cf4047753",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",

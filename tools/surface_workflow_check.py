@@ -211,6 +211,20 @@ def _is_bytecode_cache(event, path) -> bool:
     return os.path.basename(parent) == "__pycache__" and _cache_file_step(event, name)
 
 
+def _under_root(path, a) -> bool:
+    """True when the realpathed `path` is the root `a` or inside it (a sibling with the same prefix
+    is not)."""
+    return path == a or path.startswith(a.rstrip(os.sep) + os.sep)
+
+
+def _guard_allows(path, rec) -> bool:
+    """A judged path is allowed when it lies under one of rec's allowed roots, and a path inside the
+    checkout (rec["repo"]) only under an allowed root that is inside the checkout too: a temporary
+    folder that holds the checkout (a clone under %TEMP% or /tmp) does not open it to writes."""
+    return any(_under_root(path, a) and (not _under_root(path, rec["repo"]) or _under_root(a, rec["repo"]))
+               for a in rec["allowed"])
+
+
 def _guard_hook(event, args):
     if not _GUARD["stack"]:
         return
@@ -226,24 +240,26 @@ def _guard_hook(event, args):
         if _is_bytecode_cache(event, path):
             continue  # the interpreter's own bytecode cache, never Creator OS state
         top = _GUARD["stack"][-1]
-        if not any(path == a or path.startswith(a.rstrip(os.sep) + os.sep) for a in top["allowed"]):
+        if not _guard_allows(path, top):
             for rec in _GUARD["stack"]:
                 rec["blocked"].append(f"{event} {path}")
             raise PermissionError(f"surface workflow suite: write outside the sandbox refused: {path}")
 
 
 @contextlib.contextmanager
-def write_guard(*roots):
+def write_guard(*roots, repo=None):
     """While active, refuse and record the writes _guard_paths judges (open for writing, and the os
-    and shutil calls in _PATH_EVENTS) that land outside `roots`, except the interpreter's bytecode
-    cache (sys.addaudithook; the hook stays installed and is inert outside this block). Yields a
-    record {"allowed", "blocked", "seen"}: seen holds every judged path, blocked the refused ones. An
-    inner guard narrows the allowed roots for its block and reports what it sees to the outer
-    records too."""
+    and shutil calls in _PATH_EVENTS) that land outside `roots`, or inside the checkout `repo`
+    (default ROOT) under a root that holds the checkout (_guard_allows), except the interpreter's
+    bytecode cache (sys.addaudithook; the hook stays installed and is inert outside this block).
+    Yields a record {"allowed", "repo", "blocked", "seen"}: seen holds every judged path, blocked
+    the refused ones. An inner guard narrows the allowed roots for its block and reports what it
+    sees to the outer records too."""
     if not _GUARD["installed"]:
         sys.addaudithook(_guard_hook)
         _GUARD["installed"] = True
-    rec = {"allowed": [os.path.realpath(str(r)) for r in roots], "blocked": [], "seen": []}
+    rec = {"allowed": [os.path.realpath(str(r)) for r in roots],
+           "repo": os.path.realpath(str(ROOT if repo is None else repo)), "blocked": [], "seen": []}
     _GUARD["stack"].append(rec)
     try:
         yield rec
@@ -1083,6 +1099,95 @@ def _write_step_problems(where, st, contract, matrix, earlier) -> list:
     return p
 
 
+# A JSON payload stands for a Creator OS file, so its keys stay within that file's template (P102).
+# A step's payload base is its `name` without .local.json, its `kind`, or the base of the step its
+# `target` or `of` names; the template is <base>.json or <base>.template.json in this folder. No
+# schema in shared/schemas/ covers these files, so the template is where the keys come from.
+PAYLOAD_TEMPLATE_DIR = ROOT / "pipeline" / "user-context"
+PAYLOAD_NO_TEMPLATE = {
+    "profile-export": "the ChatGPT export format, specified in prose in "
+                      "implementation/gpt/profile-import/PROMPT.md; the repo holds no JSON template",
+    "research": "a research note in the shape an agent returns (summary, findings, citations), which "
+                "a session reads; no Creator OS file stores it",
+    "gemini-notes": "a Google Docs placeholder (doc_id, resource_key) written by Drive for desktop, "
+                    "not a Creator OS file",
+}
+
+
+def _payload_base(step, by_id, seen=()):
+    args = step.get("with", {})
+    if args.get("name"):
+        return args["name"].replace(".local.json", "").replace(".json", "")
+    if args.get("kind"):
+        return args["kind"]
+    ref = args.get("target") or args.get("of")
+    if ref in by_id and ref not in seen:
+        return _payload_base(by_id[ref], by_id, seen + (ref,))
+    return None
+
+
+def _template_keys(template) -> dict:
+    """{key: the keys an item of that list may carry, or None}: the template's own keys (those not
+    starting with '_', which are notes), with item keys where the template shows them (entry_schema
+    for entries, else the list's first object)."""
+    out = {}
+    for k, v in template.items():
+        if k.startswith("_"):
+            continue
+        items = None
+        if isinstance(v, list):
+            if k == "entries" and isinstance(template.get("entry_schema"), dict):
+                items = set(template["entry_schema"])
+            elif v and isinstance(v[0], dict):
+                items = set(v[0])
+        out[k] = items
+    return out
+
+
+def payload_template_problems(contract, folder=None, no_template=None, stale=False) -> list:
+    """Every key a JSON payload in the contract carries that the template of its file does not: the
+    payload's own keys, and the keys of each item of a list whose template shows its items' keys
+    (deeper levels are not compared). A payload whose base has no template must be in no_template
+    (default PAYLOAD_NO_TEMPLATE) with a reason. With stale (the committed contract's check), an
+    entry there that has a template, or that no step uses, is a problem too."""
+    folder = Path(PAYLOAD_TEMPLATE_DIR if folder is None else folder)
+    no_template = PAYLOAD_NO_TEMPLATE if no_template is None else no_template
+    p, used = [], set()
+
+    def template_of(base):
+        return next((f for f in (folder / f"{base}.json", folder / f"{base}.template.json")
+                     if base and f.is_file()), None)
+
+    for wf in contract.get("workflows", []):
+        by_id = {s.get("id"): s for s in wf.get("steps", [])}
+        for st in wf.get("steps", []):
+            payload = st.get("with", {}).get("json")
+            if not isinstance(payload, dict):
+                continue
+            where = f"{wf.get('id')}/{st.get('id')}"
+            base = _payload_base(st, by_id)
+            tmpl = template_of(base)
+            if tmpl is None:
+                if base in no_template:
+                    used.add(base)
+                else:
+                    p.append(f"{where}: payload {base!r} has no template in {folder.name}/ and no "
+                             "reason in PAYLOAD_NO_TEMPLATE")
+                continue
+            keys = _template_keys(json.loads(tmpl.read_text(encoding="utf-8")))
+            for k, v in payload.items():
+                if k not in keys:
+                    p.append(f"{where}: key {k!r} is not in {tmpl.name}")
+                elif keys[k] is not None and isinstance(v, list):
+                    for i, item in enumerate(v):
+                        extra = sorted(set(item) - keys[k]) if isinstance(item, dict) else ["(not an object)"]
+                        p += [f"{where}: {k}[{i}] key {e!r} is not in {tmpl.name}" for e in extra]
+    for base in sorted(set(no_template) - used) if stale else ():
+        p.append(f"PAYLOAD_NO_TEMPLATE {base!r} "
+                 + ("has a template" if template_of(base) else "is used by no step"))
+    return p
+
+
 def validate_contract(contract, matrix) -> list:
     """Every problem in the contract; empty means it may run. Unknown keys (top level, surface, gap,
     workflow, step, and a step's 'with' keys for its op), ops, surfaces, modes, areas, gaps and
@@ -1257,7 +1362,8 @@ def compare_snapshots(before, after) -> dict:
 def run_suite(contract=None, matrix=None) -> dict:
     contract = contract or load_json(CONTRACT)
     matrix = matrix or load_json(MATRIX)
-    report = {"suite": contract.get("suite"), "contract_problems": validate_contract(contract, matrix),
+    report = {"suite": contract.get("suite"),
+              "contract_problems": validate_contract(contract, matrix) + payload_template_problems(contract),
               "workflows": [], "gaps": [], "write_guard": {"blocked": [], "judged": 0}, "real_machine": None}
     if report["contract_problems"]:
         return report
@@ -1565,6 +1671,32 @@ def _pins_guard(m):
                     and m._guard_paths("os.remove", ("x", -1)) == ["x"]
                     and m._guard_paths("os.rename", ("a", "b", -1, -1)) == ["a", "b"]))
         out.append(("guard-inert-after", not m._GUARD["stack"]))
+        # A checkout under an allowed root (a clone in the temp folder) stays closed to writes,
+        # unless the allowed root is itself inside the checkout.
+        checkout = tmp / "checkout"
+        (checkout / "pipeline").mkdir(parents=True)
+        leak = checkout / "pipeline" / "surface-guard-selftest.local.json"
+        with m.write_guard(tmp, repo=checkout) as rec_repo:
+            try:
+                leak.write_text("leak", encoding="utf-8")
+                repo_refused = False
+            except PermissionError:
+                repo_refused = True
+            (tmp / "beside.txt").write_text("ok", encoding="utf-8")
+        out.append(("guard-refuses-checkout-under-root", repo_refused and not leak.exists()
+                    and (tmp / "beside.txt").is_file()
+                    and any(str(leak) in b for b in rec_repo["blocked"])))
+        try:
+            with m.write_guard(checkout / "pipeline", repo=checkout):
+                (checkout / "pipeline" / "own-tmp.txt").write_text("ok", encoding="utf-8")
+            inside_ok = True
+        except PermissionError:
+            inside_ok = False
+        out.append(("guard-allows-root-inside-checkout", inside_ok))
+        with m.write_guard(allowed) as rec_default:
+            pass
+        out.append(("guard-checkout-defaults-to-repo",
+                    rec_default["repo"] == os.path.realpath(str(m.ROOT))))
     finally:
         m._GUARD["stack"].clear()  # a guard that failed to close its block would refuse this cleanup
         shutil.rmtree(tmp, ignore_errors=True)
@@ -1921,6 +2053,61 @@ def _pins_run(m):
             ("run-asserted-refusal-passes", r_exp["failures"] == []),
             ("run-raised-step-fails", any("KeyError" in f for f in r_raise["failures"])),
             ("run-preflight-before-each-real-step", any(f.startswith("p2: preflight refused") for f in r_pf["failures"]))]
+
+
+def _contract_payload_checks(m):
+    """payload_template_problems finds no drift in the committed contract and names each doctored
+    one: a payload key, a list item's key, a key reached through target and of, a payload with no
+    template and no reason, and a stale or unused reason."""
+    import copy
+    contract = m.load_json(m.CONTRACT)
+
+    def step(c, wf_prefix, sid):
+        wf = next(w for w in c["workflows"] if w["id"].startswith(wf_prefix))
+        return next(s for s in wf["steps"] if s["id"] == sid)
+
+    def drift(wf_prefix, sid, edit):
+        c = copy.deepcopy(contract)
+        edit(step(c, wf_prefix, sid)["with"]["json"])
+        return m.payload_template_problems(c)
+
+    top = drift("W1-", "home-save", lambda j: j.update(voice="warm"))
+    note = drift("W1-", "home-save", lambda j: j.update(_comment="a note"))
+    item = drift("W7-", "home-calendar", lambda j: j["entries"][0].update(weeks=2))
+    task = drift("W5-", "desk-register", lambda j: j["tasks"][0].update(owner="x"))
+    target = drift("W1-", "web-edit-refused", lambda j: j.update(voice="warm"))
+    of = drift("W5-", "web-conflict", lambda j: j.update(weeks=1))
+    scalar = drift("W5-", "desk-register", lambda j: j["tasks"].append("a string"))
+    no_reason = m.payload_template_problems(contract, no_template={
+        k: v for k, v in m.PAYLOAD_NO_TEMPLATE.items() if k != "research"})
+    reasons = dict(m.PAYLOAD_NO_TEMPLATE, **{"voice-profile": "x", "unused-kind": "y"})
+    stale = m.payload_template_problems(contract, no_template=reasons, stale=True)
+    run_level = m.payload_template_problems(contract, no_template=reasons)
+    doctored = copy.deepcopy(contract)
+    step(doctored, "W1-", "home-save")["with"]["json"]["voice"] = "warm"
+    suite_run = m.run_suite(contract=doctored)  # returns at the contract check, before any sandbox
+    return [
+        ("payload-keys-within-templates", m.payload_template_problems(contract, stale=True) == []),
+        ("payload-extra-key-named",
+         top == ["W1-claude-web-to-claude-desktop/home-save: key 'voice' is not in voice-profile.json"]),
+        ("payload-note-key-is-not-a-payload-key",
+         note == ["W1-claude-web-to-claude-desktop/home-save: key '_comment' is not in voice-profile.json"]),
+        ("payload-item-key-named", item == [
+            "W7-gemini-web-to-gemini-desktop/home-calendar: entries[0] key 'weeks' is not in content-calendar.json"]),
+        ("payload-task-item-key-named", any("desk-register: tasks[0] key 'owner' is not in "
+                                            "task-register.template.json" in x for x in task)),
+        ("payload-target-resolves", any("web-edit-refused: key 'voice' is not in voice-profile.json" in x
+                                        for x in target)),
+        ("payload-of-resolves", any("web-conflict: key 'weeks' is not in task-register.template.json" in x
+                                    for x in of)),
+        ("payload-item-not-an-object", any("key '(not an object)'" in x for x in scalar)),
+        ("payload-without-template-needs-reason", any("payload 'research' has no template" in x
+                                                      for x in no_reason)),
+        ("payload-reason-stale", "PAYLOAD_NO_TEMPLATE 'voice-profile' has a template" in stale
+         and "PAYLOAD_NO_TEMPLATE 'unused-kind' is used by no step" in stale and run_level == []),
+        ("payload-drift-fails-the-suite", suite_run["contract_problems"] == top
+         and not m.suite_ok(suite_run)),
+    ]
 
 
 def _contract_with_checks(m):
@@ -2653,7 +2840,8 @@ def _group(*fns):
     return run
 
 
-_PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks, _contract_name_and_with_checks),
+_PIN_GROUPS = {"contract": _group(_pins_contract, _contract_with_checks, _contract_name_and_with_checks,
+                                  _contract_payload_checks),
                "write": _group(_pins_write, _write_move_checks, _write_create_dotdot_check),
                "isolation": _group(_pins_isolation, _isolation_restore_checks, _preflight_entry_checks),
                "guard": _group(_pins_guard, _guard_event_checks, _guard_bytecode_checks,
@@ -3359,6 +3547,49 @@ _MUTANTS = (
     ('T5 temp-folder-refusal-as-collision', 'suite',
      '    os.mkdir(path, 0o700)\n    return path',
      '    try:\n        os.mkdir(path, 0o700)\n    except PermissionError as exc:\n        raise FileExistsError(str(path)) from exc\n    return path'),
+    # P102 candidates (pre-test only; the reviewer picks the committed rows).
+    ('G1 checkout clause dropped', 'guard',
+     'return any(_under_root(path, a) and (not _under_root(path, rec["repo"]) or _under_root(a, rec["repo"]))',
+     'return any(_under_root(path, a) and (True or _under_root(a, rec["repo"]))'),
+    ('G2 a root inside the checkout refused', 'guard',
+     'or _under_root(a, rec["repo"]))',
+     'or False)'),
+    ('G3 checkout default is not the repo', 'guard',
+     '"repo": os.path.realpath(str(ROOT if repo is None else repo))',
+     '"repo": os.path.realpath(str(repo or os.sep + "nonexistent"))'),
+    ('G4 hook bypasses the checkout rule', 'guard',
+     'if not _guard_allows(path, top):',
+     'if not any(_under_root(path, a) for a in top["allowed"]):'),
+    ('G5 checkout test compares the wrong side', 'guard',
+     '(not _under_root(path, rec["repo"])',
+     '(not _under_root(rec["repo"], path)'),
+    ('P1 suite ignores payload drift', 'contract',
+     '"contract_problems": validate_contract(contract, matrix) + payload_template_problems(contract),',
+     '"contract_problems": validate_contract(contract, matrix),'),
+    ('P2 item keys not compared', 'contract',
+     '                elif keys[k] is not None and isinstance(v, list):',
+     '                elif False:'),
+    ('P3 note keys count as payload keys', 'contract',
+     '        if k.startswith("_"):\n            continue\n        items = None',
+     '        items = None'),
+    ('P4 no reason needed', 'contract',
+     '                if base in no_template:\n                    used.add(base)',
+     '                if True:\n                    used.add(base)'),
+    ('P5 stale reasons ignored', 'contract',
+     '    for base in sorted(set(no_template) - used) if stale else ():',
+     '    for base in ():'),
+    ('P9 stale reasons checked in every run', 'contract',
+     '    for base in sorted(set(no_template) - used) if stale else ():',
+     '    for base in sorted(set(no_template) - used):'),
+    ('P6 target not followed', 'contract',
+     '    ref = args.get("target") or args.get("of")',
+     '    ref = args.get("of")'),
+    ('P7 entry_schema ignored', 'contract',
+     '            if k == "entries" and isinstance(template.get("entry_schema"), dict):',
+     '            if False:'),
+    ('P8 template suffix form ignored', 'contract',
+     '(folder / f"{base}.json", folder / f"{base}.template.json")',
+     '(folder / f"{base}.json",)'),
 )
 
 # Rows whose pin does not run on Windows, so only a POSIX run can catch them: T4's privacy check
