@@ -292,7 +292,7 @@ def selftest() -> int:
     ok("malformed job_id refused", any("UUID" in e for e in validate_ticket(bad)))
 
     resolved, errs = resolve_input_refs(hub, ["Inbox/a.mp4"])
-    ok("hub-relative input resolves", not errs and resolved and resolved[0].startswith(str(hub)))
+    ok("hub-relative input resolves", not errs and resolved and resolved[0].startswith(os.path.realpath(str(hub))))
     _, errs = resolve_input_refs(hub, ["../../etc/passwd"])
     ok("escaping input_ref refused", errs and "escapes" in errs[0])
 

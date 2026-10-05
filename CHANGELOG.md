@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (Windows CI job): `.github/workflows/ci.yml` gains a `windows` job that runs
+  `tools/battery.py` on GitHub's `windows-latest` image under Git for Windows' bash, on Python
+  3.12 and 3.14, with full history (ADR 0076). The selftest sweep gives
+  `tools/surface_workflow_check.py` a 900 s cap (`selftest_sweep.TOOL_TIMEOUTS`), since its
+  mutant pass took 246 to 287 s on a Windows computer against the 300 s default.
 - P102 (suite payload check): the cross-surface suite refuses a contract whose JSON payload carries
   a key the template of the file it stands for lacks (`pipeline/user-context/<base>.json` or
   `<base>.template.json`), at the top level and in the items of a list whose template shows its
@@ -254,6 +259,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (short temp paths): three selftest checks compare a realpath'd value with
+  `os.path.realpath` of the temp path (`handoff/queue.py` input refs, the suite's `guard-records`
+  and `guard-refuses-checkout-under-root`), so they pass when the temp folder is an 8.3 short
+  path, as on GitHub's Windows image, or a symlink.
 - P102 (scoop-cache path keys): the cache stores a record's source, and the build baseline its keys,
   with forward slashes, including on Windows (`cache.py`, `sync_cache.py`; `cache.py --selftest`
   builds a temp index with Windows paths stood in); an index or baseline an older Windows build wrote

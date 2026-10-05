@@ -84,3 +84,4 @@ added beyond what those records state. New decisions get the next number via
 | [0073](0073-p101-loopback-port-blocks.md) | The setup wizard and the Scheduling Dashboard bind a fixed port block, without SO_REUSEADDR on Windows | 2026-10-03 | Accepted |
 | [0074](0074-p101-windows-cloud-synced-folders.md) | On Windows, the cloud-synced repo warning reads OneDrive's variables and Google Drive's drive markers | 2026-10-04 | Accepted |
 | [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) | Job origins name the computer's system; the Cowork surfaces and origin are retired | 2026-10-05 | Accepted |
+| [0076](0076-p102-windows-ci-and-interpreter-fallback.md) | Windows runs the battery in CI; the hooks find a working Python, and the auditor's guard covers PowerShell | 2026-10-05 | Accepted |

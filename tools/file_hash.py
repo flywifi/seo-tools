@@ -1504,6 +1504,19 @@ _MUTANTS = (
     ('IH5 no working Python lets the commit through', 'install_hooks.py',
      'Run tools/install_hooks.py again with a working Python." >&2\n    exit 1\n',
      'Run tools/install_hooks.py again with a working Python." >&2\n    exit 0\n'),
+    # P102: the sweep's per-tool time cap (selftest_sweep.TOOL_TIMEOUTS).
+    ('SW1 the sweep keeps the default cap', 'selftest_sweep.py',
+     '                                 capture_output=True, text=True, timeout=limit)\n',
+     '                                 capture_output=True, text=True, timeout=PER_TOOL_TIMEOUT)\n'),
+    ('SW2 the suite cap equals the default', 'selftest_sweep.py',
+     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900}\n',
+     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 300}\n'),
+    ('SW3 the per-tool lookup returns the default', 'selftest_sweep.py',
+     '    return TOOL_TIMEOUTS.get(rel, PER_TOOL_TIMEOUT)\n',
+     '    return PER_TOOL_TIMEOUT\n'),
+    ('SW4 the cap names a renamed tool', 'selftest_sweep.py',
+     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900}\n',
+     'TOOL_TIMEOUTS = {"tools/surface_workflow.py": 900}\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

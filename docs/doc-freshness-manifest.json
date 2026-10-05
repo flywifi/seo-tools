@@ -10,13 +10,13 @@
     },
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
-        "tools/surface_workflow_check.py": "698a697010f1fc19debdb1ac40c43e5019da7fa5270c0b7f6e81405011e951dd",
+        "tools/surface_workflow_check.py": "1b159c29208f44327d155c0d6d7852d56dda29fcb35c1c57c79f6237848bdd94",
         "skills/creator-core/evals/surface-workflows.json": "6e930ae9a96aea56b6211023ebf0df662e3005c5aa0f2f38c45da526134c3af9"
       }
     },
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
-        "tools/handoff/queue.py": "10096557f56770ae2f69d5da963a0604709b9b25e972f2c0e84c1c3bbac48027",
+        "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "shared/cross-modality/transitions.json": "2ffb766c620d9d2a96f07f3b6577715521e6910c75bf4447830264ab351725cf"
       }
     },
@@ -132,7 +132,7 @@
     "docs/DRIVE-HUB.md": {
       "sources": {
         "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
-        "tools/handoff/queue.py": "10096557f56770ae2f69d5da963a0604709b9b25e972f2c0e84c1c3bbac48027",
+        "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
@@ -143,7 +143,7 @@
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
-        "tools/handoff/queue.py": "10096557f56770ae2f69d5da963a0604709b9b25e972f2c0e84c1c3bbac48027",
+        "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",

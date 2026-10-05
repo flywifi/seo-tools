@@ -81,6 +81,29 @@ jobs:
       - name: Packaging
         run: python3 tools/package_skill.py --all
 
+  windows:
+    # P102: the whole battery on GitHub's Windows image, whose TEMP is an 8.3 short path
+    # (RUNNER~1). The guard job above runs each gate as its own step on Linux; this job runs
+    # tools/battery.py once, under Git for Windows' bash, so the battery reports every gate.
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the git-dated checks compare commit history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Battery on Windows (every gate, raw exit codes)
+        run: python tools/battery.py
+
   competitor-intel:
     runs-on: ubuntu-latest
     # Only run on schedule trigger or explicit workflow_dispatch; skip on PR/push

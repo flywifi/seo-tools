@@ -35,6 +35,15 @@ FLAG_RE = re.compile(r"add_argument\(\s*['\"]--selftest['\"]"
                      r"|['\"]--selftest['\"]\s+in\s+(?:argv|sys\.argv)")
 SUB_RE = re.compile(r"add_parser\(\s*['\"]selftest['\"]")
 PER_TOOL_TIMEOUT = 300
+# Longer caps, each with its reason; a key names a discovered target. The surface workflow suite's
+# --selftest runs its committed mutants one after another and took 246 to 287 s on a Windows
+# computer (P102), close to the default cap, and a hosted Windows runner can be slower.
+TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900}
+
+
+def _tool_timeout(rel) -> int:
+    """The seconds the sweep gives one target: its TOOL_TIMEOUTS entry, else PER_TOOL_TIMEOUT."""
+    return TOOL_TIMEOUTS.get(rel, PER_TOOL_TIMEOUT)
 
 
 def discover():
@@ -149,11 +158,12 @@ def run_sweep():
         env = dict(os.environ)
         if argv and argv[0] == "-m":
             env["PYTHONPATH"] = str(ROOT / "tools")
+        limit = _tool_timeout(rel)
         try:
             out = subprocess.run([sys.executable] + argv, cwd=str(ROOT), env=env,
-                                 capture_output=True, text=True, timeout=PER_TOOL_TIMEOUT)
+                                 capture_output=True, text=True, timeout=limit)
         except subprocess.TimeoutExpired:
-            print(f"  [FAIL] {rel} (timeout after {PER_TOOL_TIMEOUT}s)")
+            print(f"  [FAIL] {rel} (timeout after {limit}s)")
             failed.append(str(rel))
             continue
         ok = out.returncode == 0
@@ -233,6 +243,34 @@ def selftest():
         live_w = enrolment_problems()
     check("enrolment: Windows-form paths give the same result as POSIX paths (P101)",
           win_sim and live_w == live)
+    # P102: a per-tool cap names a discovered target, exceeds the default, and reaches the run.
+    names = set(targets) | {rel for rel, _ in PACKAGE_ENTRIES}
+    check("each TOOL_TIMEOUTS key names a discovered target and exceeds the default cap",
+          bool(TOOL_TIMEOUTS) and all(k in names and v > PER_TOOL_TIMEOUT for k, v in TOOL_TIMEOUTS.items()))
+    import contextlib
+    import io
+    seen = []
+    real_run, real_discover, real_pkgs = subprocess.run, globals()["discover"], list(PACKAGE_ENTRIES)
+    probe = {"tools/surface_workflow_check.py": ["--selftest"], "tools/secret_scan.py": ["--selftest"]}
+
+    def fake_run(argv, **kw):
+        rel = next((r for r in probe if len(argv) > 1 and str(argv[1]).endswith(Path(r).name)), None)
+        if rel is None:
+            return real_run(argv, **kw)
+        seen.append((rel, kw.get("timeout")))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+    try:
+        subprocess.run = fake_run
+        globals()["discover"] = lambda: [(ROOT / r, a) for r, a in probe.items()]
+        PACKAGE_ENTRIES[:] = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            run_sweep()
+    finally:
+        subprocess.run, globals()["discover"] = real_run, real_discover
+        PACKAGE_ENTRIES[:] = real_pkgs
+    check("the sweep runs each target with its own cap (the suite 900 s, another tool the default)",
+          sorted(seen) == [("tools/secret_scan.py", PER_TOOL_TIMEOUT),
+                           ("tools/surface_workflow_check.py", 900)])
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1

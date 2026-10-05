@@ -1664,7 +1664,7 @@ def _pins_guard(m):
                 refused_rename = True
         out.append(("guard-refuses-open-write", refused and not target.exists()))
         out.append(("guard-refuses-rename-out", refused_rename and not moved.exists()))
-        out.append(("guard-records", any(str(target) in b for b in rec["blocked"])
+        out.append(("guard-records", any(os.path.realpath(str(target)) in b for b in rec["blocked"])
                     and any("inside.txt" in s for s in rec["seen"])))
         out.append(("guard-allows-inside", (allowed / "inside.txt").is_file()))
         out.append(("guard-reads-pass", m._guard_paths("open", (str(target), "r", 0)) == []))
@@ -1687,7 +1687,7 @@ def _pins_guard(m):
             (tmp / "beside.txt").write_text("ok", encoding="utf-8")
         out.append(("guard-refuses-checkout-under-root", repo_refused and not leak.exists()
                     and (tmp / "beside.txt").is_file()
-                    and any(str(leak) in b for b in rec_repo["blocked"])))
+                    and any(os.path.realpath(str(leak)) in b for b in rec_repo["blocked"])))
         try:
             with m.write_guard(checkout / "pipeline", repo=checkout):
                 (checkout / "pipeline" / "own-tmp.txt").write_text("ok", encoding="utf-8")

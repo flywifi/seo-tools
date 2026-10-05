@@ -7183,7 +7183,41 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "claude-code-hooks-docs",
+      "name": "Claude Code hooks reference",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-05",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-code-tools-reference",
+      "name": "Claude Code tools reference",
+      "url": "https://code.claude.com/docs/en/tools-reference",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-05",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "0b5fbd6377ce8706bac2c9c5fa6d392a73c0e900eb03b4238201da49c998d6cb"
+  "_content_digest": "45b2d8dfefe4d2f89ce50c2d21cebd96a7264e69e52825d287a77eb752682e5b"
 }
