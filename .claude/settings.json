@@ -5,11 +5,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "test ! -f \"${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py\" || python3 \"${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py\""
+            "command": "G=\"${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py\"; test -f \"$G\" || exit 0; for p in python3 python \"py -3\"; do $p -c \"import sys\" >/dev/null 2>&1 && exec $p \"$G\"; done; if grep -q '\"agent_type\" *: *\"auditor\"'; then echo \"readonly_bash_guard: no working Python to check this command; refused for the auditor agent\" >&2; exit 2; fi; exit 0"
           }
         ]
       }

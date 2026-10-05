@@ -8,8 +8,8 @@
     "_why": "The denominator is part of the guarantee. If either hash moves, the recorded set was computed by a different rule than the one that blessed this manifest."
   },
   "files": {
-    "AGENTS.md": "842b347bca17b0beca6fb8f101c56d1dfde11481a48525cc76e27540d3d184b8",
-    "CLAUDE.md": "f7e36ea22b85f399d02bfb1943219c9456259d024e874946bb4ad6cbb7ed7d38",
+    "AGENTS.md": "cf122a881b6223ba719d0fd5a9781308b316b871ec5b7ffc0673828e40549cfd",
+    "CLAUDE.md": "bb9c5997af27b7af9f89c82a63341802593f297c7dd36cea2c5ca9c610e862b3",
     "Start Creator OS Setup.bat": "4d0a8992cdce2cb17c30cf3549aed76ad9fd969c66a260fc378f46c6a66a2175",
     "Start Creator OS Setup.command": "d88d201412c4b7cb7cdd1e0aa01a377cbda5b5b698ac92ef34110daf8bf1296a",
     "canonical-sources/data-currency-map.json": "432a89fc60ea9cf0980871a26e8a419211c02678ceae1c2e7984d86dc8609c23",
@@ -19,7 +19,7 @@
     "canonical-sources/volatile-corrections.2026-07-14.json": "94c3216314225ce2ece91a6f901072b5a25bbca926844134d6286656da64cb82",
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
     "creator-os-config.json": "d3e33b4c7d19705a438e2dd528423e469ef6cbf6a51a68f3c9ce12718380acd2",
-    "docs/ARCHITECTURE.md": "1beac6351ebd1ea68b924b36b2dd7fa52517d2e5afd19ed93eb52346602a507f",
+    "docs/ARCHITECTURE.md": "a96beb8f418785bc7a7ca91a9d1594a16e36101320613cbdf59fe4e612541f00",
     "docs/AUDIT-PROTOCOL.md": "a6c67387277c60d3799b50bd7b5a11ebec7f6a4de9b46923d31647254784e7d3",
     "docs/CONTENT-IMPORT.md": "a7e617f7c69dfd95912d3993fabfe47b8c08bc3adfaacd015db954d8d4c38db9",
     "docs/CURRENCY.md": "eae4bc6ba5d9568a3c9954e3235352d1312a6b4e034f43bd72be0709e16d888d",
@@ -101,7 +101,7 @@
     "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a",
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",
     "tools/profile_mirror.py": "8f2714badc45d2b1094ab4689bc85a7c754ea397304fd16912e61e8a3e8fde9f",
-    "tools/readonly_bash_guard.py": "e48f929af154d014df1fceea0f42354a4fb40b08b5f95fc9372ea256f4f1de86",
+    "tools/readonly_bash_guard.py": "5e66aa0147f1ffa0f62d60b77c13b2f6fd5e676a2a2fbc5e55f9634edb533690",
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "40586056de9f47a46d3b560e9bd73f10cecaf57bc7be3bb1205b3ae101d37db7",
     "tools/surface_workflow_check.py": "698a697010f1fc19debdb1ac40c43e5019da7fa5270c0b7f6e81405011e951dd",

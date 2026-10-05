@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Refuse write-capable shell commands from the read-only auditor agent (PreToolUse hook).
 
-Wired in `.claude/settings.json` as a PreToolUse hook on the Bash tool. Claude Code sends the hook
-a JSON object on stdin; inside a subagent that object carries `agent_type` (the agent's frontmatter
-`name`). The guard acts only when `agent_type` is in GUARDED_AGENT_TYPES and otherwise exits 0 at
-once, so the main loop and the product agents are unaffected.
+Wired in `.claude/settings.json` as a PreToolUse hook on the Bash and PowerShell tools. Claude Code
+sends the hook a JSON object on stdin; inside a subagent that object carries `agent_type` (the
+agent's frontmatter `name`). The guard acts only when `agent_type` is in GUARDED_AGENT_TYPES and
+otherwise exits 0 at once, so the main loop and the product agents are unaffected. For a guarded
+agent it refuses a PowerShell call (the checks below read Bash syntax) and checks each Bash
+command. The hook command tries python3, python and py -3; with none working it refuses a guarded
+agent's call itself and lets the others through.
 
 For a guarded agent it parses the command, reading a $'..' or $".." string as Bash decodes it,
 and refuses (exit 2, reason on stderr) when it finds:
@@ -1235,10 +1238,14 @@ def guard(cmd):
 
 def decide(payload):
     """(exit_code, message) for one hook payload. Exit 2 blocks the tool call."""
-    if not isinstance(payload, dict) or payload.get("tool_name") != "Bash":
+    if not isinstance(payload, dict) or payload.get("tool_name") not in ("Bash", "PowerShell"):
         return 0, ""
     if payload.get("agent_type") not in GUARDED_AGENT_TYPES:
         return 0, ""
+    if payload.get("tool_name") == "PowerShell":
+        return 2, (f"readonly_bash_guard: refused for the {payload.get('agent_type')} agent: the guard "
+                   f"reads Bash syntax only, so a PowerShell call is refused. Use the Bash tool "
+                   f"with a read-only command.")
     cmd = (payload.get("tool_input") or {}).get("command")
     try:
         ok, why = guard(cmd)
@@ -1642,6 +1649,10 @@ def selftest():
         ({"tool_name": "Bash", "agent_type": "seo-researcher", "tool_input": {"command": "rm x"}}, 0),
         ({"tool_name": "Read", "agent_type": "auditor", "tool_input": {"file_path": "x"}}, 0),
         ({"tool_name": "Bash", "agent_type": "auditor", "tool_input": {}}, 2),
+        ({"tool_name": "PowerShell", "agent_type": "auditor", "tool_input": {"command": "Get-ChildItem"}}, 2),
+        ({"tool_name": "PowerShell", "agent_type": "auditor", "tool_input": {"command": "git log"}}, 2),
+        ({"tool_name": "PowerShell", "tool_input": {"command": "Remove-Item x"}}, 0),
+        ({"tool_name": "PowerShell", "agent_type": "seo-researcher", "tool_input": {"command": "Remove-Item x"}}, 0),
     ]
     for payload, want in hook:
         got = decide(payload)[0]

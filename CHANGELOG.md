@@ -171,6 +171,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (auditor hook on Bash and PowerShell): `.claude/settings.json` runs the read-only guard on
+  the Bash and PowerShell tools with a command that tries `python3`, `python` and `py -3` in turn
+  and, with none working, refuses the auditor's call (exit 2) and lets other calls through; it
+  formerly ran `python3` alone, whose failure on Windows (the Microsoft Store alias) Claude Code
+  treats as non-blocking. `readonly_bash_guard.decide` refuses a PowerShell call from a guarded
+  agent, and the auditor's frontmatter removes the PowerShell tool. Drift invariant 14 requires
+  both matcher names, the auditor's PowerShell removal and each guarded agent named in the
+  command's fallback, and `sync_check._selfproof` runs the wired command under a POSIX shell with
+  failing interpreters first on PATH (ADR 0076).
+- P102 (git hooks interpreter): `tools/install_hooks.py` writes hooks that run the Python that
+  installed them, then try `python3`, `python` and `py -3`, and refuse the commit with a message
+  naming `install_hooks.py` when none works; hooks are written with LF line endings.
 - P102 (job origins by system): a job ticket's `origin` accepts `windows` and `linux` beside `mac`,
   each naming the computer that queued the job by its system (queue, schema, drift invariant 55 and
   the two local Claude app surfaces), and the wizard queues follow-up jobs with

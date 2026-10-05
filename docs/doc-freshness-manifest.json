@@ -24,7 +24,7 @@
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "d1129badd8b408897872d7936d3bc9e97a426f5ddb8221a23744e801d2adc93b"
+        "tools/sync_check.py": "09036924aeeb0c75b8ffd58f681e7ff91558e79d57a235cb7fba789d9405c219"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {

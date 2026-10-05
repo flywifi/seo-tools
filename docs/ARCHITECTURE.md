@@ -396,8 +396,9 @@ removes Write, Edit, NotebookEdit, Agent and the GitHub and Google Drive MCP too
 auditor also loses every other MCP tool and runs in its own git worktree; the product agents run
 in the main checkout, where the ignored local data they read lives. Bash stays write-capable; the
 auditor's Bash calls pass through `tools/readonly_bash_guard.py`, which refuses only the write
-forms it recognizes. The main loop (or the user) is the only actor meant to modify the
-repository.
+forms it recognizes; the auditor's frontmatter also removes the PowerShell tool, and the same hook
+refuses a PowerShell call from it. The main loop (or the user) is the only actor meant to modify
+the repository.
 
 **Six agent roles:**
 

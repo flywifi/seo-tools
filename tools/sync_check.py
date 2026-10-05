@@ -29,8 +29,9 @@ Invariants enforced:
       Each starts with YAML frontmatter whose name equals the file name and whose disallowedTools
       removes Write, Edit, NotebookEdit, Agent and the GitHub/Google Drive MCP write tools; the
       auditor definition exists, removes every MCP tool and sets isolation: worktree, and the
-      product agents set no isolation; .claude/settings.json runs tools/readonly_bash_guard.py on
-      Bash (skipped when the file is absent) and sets worktree.baseRef "head".
+      product agents set no isolation; the auditor also removes PowerShell; .claude/settings.json
+      runs tools/readonly_bash_guard.py on Bash and PowerShell (skipped when the file is absent;
+      with no working Python a guarded agent's call is refused) and sets worktree.baseRef "head".
   15. Schema verification fields: every shared/schemas/*.json (except envelope and decision schemas)
       has minority_report, confidence_evidence, source_citations in its properties; the verdict
       enum of the envelope, the decision record and each workflow VERIFICATION_SCHEMA agree and
@@ -909,9 +910,18 @@ AGENT_MCP_WRITE_TOOLS = (
 )
 AUDITOR_AGENT = "auditor"
 # The hook exits 0 when the guard file is absent; a bare `python3 <missing file>` exits 2, which
-# Claude Code treats as a block on every Bash call in the project.
-GUARD_HOOK_COMMAND = ('test ! -f "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py" || '
-                      'python3 "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"')
+# Claude Code treats as a block on every Bash call in the project. It tries python3, python and
+# py -3 in turn (on Windows python3 can be the Microsoft Store stub, which exits non-zero), and
+# with no working Python it refuses (exit 2) a call whose hook input names a GUARDED_AGENT_TYPES
+# agent and lets the other calls through, as before. Each guarded agent is named in that grep.
+GUARD_HOOK_COMMAND = (
+    'G="${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"; test -f "$G" || exit 0; '
+    'for p in python3 python "py -3"; do $p -c "import sys" >/dev/null 2>&1 && exec $p "$G"; done; '
+    'if grep -q \'"agent_type" *: *"auditor"\'; then echo "readonly_bash_guard: no working Python '
+    'to check this command; refused for the auditor agent" >&2; exit 2; fi; exit 0')
+# The tools the hook must match: the guard reads Bash syntax and refuses a PowerShell call
+# from a guarded agent (Claude Code's PowerShell tool, on by default on Windows).
+GUARD_HOOK_TOOLS = ("Bash", "PowerShell")
 _UNSAFE_PERMISSION_MODES = {"acceptEdits", "bypassPermissions", "dontAsk", "auto"}
 
 
@@ -991,20 +1001,25 @@ def _agent_frontmatter_problems(rel, stem, text):
             out.append(f"{rel}: the auditor must set `isolation: worktree`")
         if "mcp__*" not in deny:
             out.append(f"{rel}: the auditor's disallowedTools must include `mcp__*` (it uses no MCP tool)")
+        if "PowerShell" not in deny:
+            out.append(f"{rel}: the auditor's disallowedTools must include `PowerShell` (its Bash guard "
+                       f"reads Bash syntax only)")
     elif fm.get("isolation"):
         out.append(f"{rel}: a product agent must not set `isolation`; a worktree of HEAD lacks the "
                    f"ignored and uncommitted local data it reads (*.local.json, *.local.db)")
     return out
 
 
-def _auditor_wiring_problems(names):
-    """The auditor definition exists, and .claude/settings.json runs the Bash guard for it."""
+def _auditor_wiring_problems(names, root=None):
+    """The auditor definition exists, and .claude/settings.json runs the guard for it on each tool
+    in GUARD_HOOK_TOOLS (root: the repository to read, ROOT unless given)."""
+    root = ROOT if root is None else Path(root)
     out = []
     if AUDITOR_AGENT not in names:
         out.append(f".claude/agents: no definition named '{AUDITOR_AGENT}' (the read-only reviewer the "
                    f"Bash guard is scoped to)")
     try:
-        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        settings = json.loads((root / ".claude" / "settings.json").read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         return out + [f".claude/settings.json: unreadable ({exc}); it wires the auditor's Bash guard"]
     if not isinstance(settings, dict):
@@ -1012,23 +1027,29 @@ def _auditor_wiring_problems(names):
     if (settings.get("worktree") or {}).get("baseRef") != "head":
         out.append('.claude/settings.json: worktree.baseRef must be "head" so an isolated agent reads '
                    'the local HEAD, not the remote default branch')
-    wired = False
+    wired = set()
     for entry in (settings.get("hooks") or {}).get("PreToolUse") or []:
-        if isinstance(entry, dict) and "Bash" in str(entry.get("matcher", "")).split("|"):
-            wired = wired or any(isinstance(h, dict) and h.get("command") == GUARD_HOOK_COMMAND
-                                 for h in entry.get("hooks") or [])
-    if not wired:
-        out.append(f".claude/settings.json: no PreToolUse hook on Bash runs `{GUARD_HOOK_COMMAND}` "
-                   f"(it skips the guard when the file is absent, so a missing file cannot block "
-                   f"every Bash call)")
+        if isinstance(entry, dict) and any(isinstance(h, dict) and h.get("command") == GUARD_HOOK_COMMAND
+                                           for h in entry.get("hooks") or []):
+            wired |= set(str(entry.get("matcher", "")).split("|"))
+    for tool in GUARD_HOOK_TOOLS:
+        if tool not in wired:
+            out.append(f".claude/settings.json: no PreToolUse hook on {tool} runs `{GUARD_HOOK_COMMAND}` "
+                       f"(it skips the guard when the file is absent, so a missing file cannot block "
+                       f"each call)")
     try:
-        tree = ast.parse((ROOT / "tools" / "readonly_bash_guard.py").read_text(encoding="utf-8"))
+        tree = ast.parse((root / "tools" / "readonly_bash_guard.py").read_text(encoding="utf-8"))
         guarded = next((ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
                         and any(getattr(t, "id", None) == "GUARDED_AGENT_TYPES" for t in n.targets)), ())
     except (OSError, SyntaxError, ValueError) as exc:
         return out + [f"tools/readonly_bash_guard.py: unreadable ({exc})"]
     if AUDITOR_AGENT not in guarded:
         out.append(f"tools/readonly_bash_guard.py: GUARDED_AGENT_TYPES does not include '{AUDITOR_AGENT}'")
+    for agent in guarded:
+        if f'"{agent}"' not in GUARD_HOOK_COMMAND:
+            out.append(f"tools/sync_check.py: GUARD_HOOK_COMMAND's no-Python fallback does not refuse "
+                       f"the '{agent}' agent (GUARDED_AGENT_TYPES); name it in the grep, here and in "
+                       f".claude/settings.json")
     return out
 
 
@@ -2355,9 +2376,10 @@ def _migration_gaps(pdir, by_key, root=None):
     return out
 
 
-def _migration_selfproof():
-    """0 when invariant 33's checks report nothing on the live tree; the entry the committed
-    mutation cases in tools/file_hash.py run for this module, which has no selftest()."""
+def _selfproof():
+    """0 when invariant 33's checks report nothing on the live tree and invariant 14's guard wiring
+    checks pass their cases; the entry the committed mutation cases in tools/file_hash.py run for
+    this module, which has no selftest()."""
     before = len(PROBLEMS)
     check_migration_manifest()
     found = PROBLEMS[before:]
@@ -2377,7 +2399,120 @@ def _migration_selfproof():
         with file_hash.windows_paths():
             win_gap = _migration_gaps(t / "pipeline", {}, root=t)
     named = win_gap == [("pipeline/x/a.template.json", "1.0")]
-    return 0 if not found and named else 1
+    return 0 if not found and named and not _selftest_guard_wiring() else 1
+
+
+def _selftest_guard_wiring():
+    """Names of the invariant 14 guard wiring cases that fail: the live tree is clean, and each
+    broken temp tree (a hook missing a tool, an old command, an unnamed guarded agent, an auditor
+    that keeps PowerShell) is reported."""
+    import tempfile
+    fails = []
+    live = _agent_frontmatter_problems(".claude/agents/auditor.md", AUDITOR_AGENT,
+                                       (ROOT / ".claude" / "agents" / "auditor.md").read_text(encoding="utf-8"))
+    if _auditor_wiring_problems({AUDITOR_AGENT}) or live:
+        fails.append("live tree")
+    good = {"worktree": {"baseRef": "head"}, "hooks": {"PreToolUse": [
+        {"matcher": "|".join(GUARD_HOOK_TOOLS), "hooks": [{"type": "command", "command": GUARD_HOOK_COMMAND}]}]}}
+    cases = [("good tree", good, (AUDITOR_AGENT,), None)]
+    for tool, other in (("Bash", "PowerShell"), ("PowerShell", "Bash")):  # literal: not the constant
+        bad = json.loads(json.dumps(good))
+        bad["hooks"]["PreToolUse"][0]["matcher"] = other
+        cases.append((f"hook without {tool}", bad, (AUDITOR_AGENT,), f"no PreToolUse hook on {tool} "))
+    old = json.loads(json.dumps(good))
+    old["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
+        'test ! -f "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py" || '
+        'python3 "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"')
+    cases.append(("old command", old, (AUDITOR_AGENT,), "no PreToolUse hook on Bash "))
+    cases.append(("unnamed guarded agent", good, (AUDITOR_AGENT, "x-agent"), "does not refuse the 'x-agent'"))
+    for label, settings, guarded, want in cases:
+        with tempfile.TemporaryDirectory() as td:
+            t = Path(td)
+            (t / ".claude").mkdir()
+            (t / "tools").mkdir()
+            (t / ".claude" / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+            (t / "tools" / "readonly_bash_guard.py").write_text(f"GUARDED_AGENT_TYPES = {guarded!r}\n",
+                                                                encoding="utf-8")
+            got = _auditor_wiring_problems({AUDITOR_AGENT}, root=t)
+        if (want is None and got) or (want is not None and not any(want in g for g in got)):
+            fails.append(label)
+    fm = ("---\nname: auditor\ndescription: d\ndisallowedTools: Write, Edit, NotebookEdit, Agent, mcp__*\n"
+          "isolation: worktree\n---\n")
+    if not any("`PowerShell`" in m for m in _agent_frontmatter_problems("a.md", AUDITOR_AGENT, fm)):
+        fails.append("auditor keeps PowerShell")
+    return fails + _selftest_guard_hook_run()
+
+
+def _selftest_guard_hook_run():
+    """Names of the failing cases when the guard command wired in .claude/settings.json runs under
+    a POSIX shell: it skips a missing guard file, runs the guard with a working Python, and with
+    only failing python3, python and py on PATH refuses a guarded agent's call and passes others.
+    Printed as skipped, and counted as passing, when no shell is found."""
+    import shutil
+    import subprocess
+    import tempfile
+    try:
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        cmd = next(h["command"] for e in settings["hooks"]["PreToolUse"] for h in e["hooks"]
+                   if "readonly_bash_guard.py" in h.get("command", ""))
+    except (OSError, ValueError, KeyError, TypeError, StopIteration):
+        return ["hook command not found in .claude/settings.json"]
+    sh = shutil.which("sh") if os.name != "nt" else None
+    if sh is None:
+        try:
+            import battery
+            sh = battery.bash_for_syntax()
+        except Exception:  # noqa: BLE001
+            sh = None
+    if not sh:
+        print("  [skip] guard hook run: no POSIX shell found")
+        return []
+
+    def run(payload, project, path, compact=False):
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project), PATH=path)
+        text = json.dumps(payload, separators=(",", ":") if compact else None)
+        r = subprocess.run([sh, "-c", cmd], input=text, capture_output=True, text=True, env=env,
+                           timeout=60)
+        return r.returncode, r.stderr
+
+    def call(tool, agent, command):
+        p = {"tool_name": tool, "tool_input": {"command": command}}
+        if agent:
+            p["agent_type"] = agent
+        return p
+
+    fails = []
+    real = os.environ.get("PATH", "")
+    with tempfile.TemporaryDirectory() as td:
+        stubs = Path(td) / "stubs"
+        stubs.mkdir()
+        for name in ("python3", "python", "py"):
+            (stubs / name).write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            (stubs / name).chmod(0o755)
+        empty = Path(td) / "empty"
+        empty.mkdir()
+        stubbed = str(stubs) + os.pathsep + real
+        cases = [
+            ("guard file absent", call("Bash", AUDITOR_AGENT, "rm x"), empty, real, False, 0, ""),
+            ("auditor write refused by the guard", call("Bash", AUDITOR_AGENT, "rm x"), ROOT, real, False,
+             2, "readonly_bash_guard: refused"),
+            ("auditor read passes", call("Bash", AUDITOR_AGENT, "git log -1"), ROOT, real, False, 0, ""),
+            ("auditor PowerShell refused", call("PowerShell", AUDITOR_AGENT, "Get-ChildItem"), ROOT, real,
+             True, 2, "PowerShell"),
+            ("main loop write passes", call("Bash", None, "rm x"), ROOT, real, False, 0, ""),
+            ("no Python: auditor refused", call("Bash", AUDITOR_AGENT, "git status"), ROOT, stubbed, False,
+             2, "no working Python"),
+            ("no Python: compact input refused", call("Bash", AUDITOR_AGENT, "git status"), ROOT, stubbed,
+             True, 2, "no working Python"),
+            ("no Python: main loop passes", call("Bash", None, "rm x"), ROOT, stubbed, False, 0, ""),
+            ("no Python: product agent passes", call("Bash", "seo-researcher", "rm x"), ROOT, stubbed,
+             False, 0, ""),
+        ]
+        for label, payload, project, path, compact, want_rc, want_err in cases:
+            rc, err = run(payload, project, path, compact)
+            if rc != want_rc or want_err not in err:
+                fails.append(f"hook run: {label} (exit {rc})")
+    return fails
 
 
 def check_legal_source_category():

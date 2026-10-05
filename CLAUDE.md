@@ -71,12 +71,13 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   and return structured findings, and their operating rules forbid creating, editing, or deleting
   files and committing or pushing. Claude Code enforces each definition's YAML frontmatter:
   `disallowedTools` removes Write, Edit, NotebookEdit and Agent from every agent, the GitHub and
-  Google Drive MCP servers' tools from the five product agents, and every MCP tool from the
-  `auditor`, which also runs in its own git worktree. Other MCP servers stay inherited by the
-  product agents. Bash stays write-capable for every agent: for the `auditor`, a PreToolUse hook
-  (`tools/readonly_bash_guard.py`) refuses the write forms it recognizes, and a script that writes
-  as a side effect still passes it. The main loop aggregates findings and proposes changes to the
-  user.
+  Google Drive MCP servers' tools from the five product agents, and every MCP tool and the
+  PowerShell tool from the `auditor`, which also runs in its own git worktree. Other MCP servers
+  stay inherited by the product agents. Bash (and PowerShell on Windows, for the product agents)
+  stays write-capable: for the `auditor`, a PreToolUse hook on Bash and PowerShell
+  (`tools/readonly_bash_guard.py`) refuses the Bash write forms it recognizes and the auditor's
+  PowerShell calls, and a script that writes as a side effect still passes it. The main loop
+  aggregates findings and proposes changes to the user.
 - Every agent prompt must include the read-only operating rules block from
   `shared/research-orchestration-engine.md`.
 - Agent output must use a JSON Schema (passed via the `schema` option on `agent()` in workflows,

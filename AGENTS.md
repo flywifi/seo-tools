@@ -115,7 +115,8 @@ running it: doing so is what catches the bug that reading would have missed.
   Code enforces each definition's frontmatter `disallowedTools` (Write, Edit, NotebookEdit, Agent,
   and the GitHub and Google Drive MCP tools; every MCP tool for the `auditor`). Bash stays
   write-capable: the `auditor`'s Bash guard (`tools/readonly_bash_guard.py`) refuses only the
-  write forms it recognizes. The main loop makes changes.
+  write forms it recognizes, and refuses the `auditor`'s PowerShell calls (the auditor also
+  removes the PowerShell tool). The main loop makes changes.
 - Agent output must use a JSON Schema; prose-only returns are not acceptable in a multi-agent
   pipeline. Every output carries the verification envelope (`minority_report`,
   `confidence_evidence`, `source_citations`), and every workflow includes an adversarial
