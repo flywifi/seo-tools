@@ -1166,6 +1166,22 @@ def selftest() -> int:
        load_ledger(shape) == {} and load_ledger(l8) == {} and d7["entries"] == [] == d8["entries"]
        and bool(n7) and bool(n8) and len(list(f5.glob("deep-ledger.json.corrupt.*"))) == 1
        and len(list(f5.glob("latin-ledger.json.corrupt.*"))) == 1)
+    # Python 3.14 sets the parser's depth limit from the real stack, so whether the 100000-deep file
+    # raises depends on the build; a parser that raises RecursionError makes the branch run on every one.
+    l10 = f5 / "stub-ledger.json"
+    l10.write_text('{"schema_version": "0.1.0", "entries": []}', encoding="utf-8")
+
+    def _deep_loads(*args, **kwargs):
+        raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+    real_loads, json.loads = json.loads, _deep_loads
+    try:
+        r_load, r_write = load_ledger(l10), _ledger_for_write(l10)
+    finally:
+        json.loads = real_loads
+    ok("a RecursionError from the JSON parser reads as empty in load_ledger and as a corrupt ledger "
+       "in _ledger_for_write",
+       r_load == {} and r_write[0]["entries"] == [] and bool(r_write[1])
+       and len(list(f5.glob("stub-ledger.json.corrupt.*"))) == 1)
     h9 = Path(tempfile.mkdtemp()); (h9 / "Inbox").mkdir()
     (h9 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
     l9 = f5 / "old-ledger.json"
