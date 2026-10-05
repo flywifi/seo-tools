@@ -254,11 +254,13 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
         screen_ran = False
         if scr is not None:
             rec = scr.scan_file(str(p))
-            if "risk_level" in rec:  # a real scan (not a binary/oversize/unreadable skip)
-                screen_ran = True
+            if "risk_level" in rec:  # a real scan (not a binary/unreadable skip), maybe of a part
+                screen_ran = _fully_screened(rec)  # an oversize file was read only up to max_bytes
                 entry["offline_pattern_scan"] = {
                     "risk_level": rec["risk_level"], "total_score": rec["total_score"],
                     "patterns_detected": rec["patterns_detected"]}
+                if rec.get("truncated"):
+                    entry["offline_pattern_scan"]["truncated"] = True
                 if rec["risk_level"] in ("QUARANTINE", "BLOCK"):
                     entry["note"] = ("offline injection pattern tier flagged this file "
                                      f"({rec['risk_level']}); sealed, never routed")
@@ -411,16 +413,23 @@ _RISK_RANK = {"CLEAN": 0, "REVIEW": 1, "QUARANTINE": 2, "BLOCK": 3}
 _SCREEN_REQUIRED_EXTS = frozenset(_classify.OFFLINE_PARSEABLE) - {"docx", "xlsx", "pptx", "pdf"}
 
 
+def _fully_screened(rec) -> bool:
+    """True when the offline tier read the whole file: a record with a risk level that
+    injection_scan.scan_file did not cut at its max_bytes (it marks that record truncated)."""
+    return "risk_level" in rec and not rec.get("truncated")
+
+
 def _approve_screen(path, given):
     """(offline_pattern_scan record, refusal) for a file approve is about to move: the offline tier
     re-run on the file itself, so a proposal that leaves out or understates its record cannot route
     a file the tier flags. The more cautious of that verdict and the proposal's is kept. A file the
-    tier could not read (the screener unavailable, or the file binary, oversize or unreadable) keeps
-    the proposal's record, unless its extension is a plain-text format, which is refused."""
+    tier could not read (the screener unavailable, or the file binary or unreadable), or read only the
+    first part of without a flag (an oversize file), keeps the proposal's record, unless its
+    extension is a plain-text format, which is refused."""
     scr = _screener()
     rec = scr.scan_file(str(path)) if scr is not None else {}
     given = given if isinstance(given, dict) else None
-    if "risk_level" not in rec:
+    if not _fully_screened(rec) and rec.get("risk_level") not in ("QUARANTINE", "BLOCK"):
         if Path(path).suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS:
             return None, ("a text file the offline screener could not read (it looks binary or "
                           "oversize, or the screener is unavailable); not routed")
@@ -1045,6 +1054,38 @@ def selftest() -> int:
         clean_rec, risk_level="BLOCK"))]}, ledger_path=b1_led)
     ok("a binary file the tier cannot read keeps the proposal's verdict, so a sealed record refuses",
        not ma["moved"] and "SEAL-TERMINAL" in ma["refused"][0]["why"])
+
+    # P102: an oversize text file is read only up to injection_scan's max_bytes, so a clean verdict
+    # for that part neither routes it from scan nor lets approve move it; a flag in that part seals.
+    b2 = Path(tempfile.mkdtemp()); (b2 / "Inbox").mkdir()
+    filler = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
+                     for i in range(1, 60000))
+    while len(filler.encode("utf-8")) <= 2_000_000:
+        filler += filler
+    (b2 / "Inbox" / "late.srt").write_text(filler + "\n" + poison + "\n", encoding="utf-8")
+    (b2 / "Inbox" / "long.srt").write_text(filler, encoding="utf-8")
+    (b2 / "Inbox" / "early.srt").write_text(poison + "\n" + filler, encoding="utf-8")
+    (b2 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    s2 = scan(b2, ledger={})
+    held = {e["file"] for e in s2["needs_review"]}
+    ok("scan holds an oversize transcript for a session, flagged past the cut or clean",
+       {"Inbox/late.srt", "Inbox/long.srt"} <= held
+       and not {e["file"] for e in s2["proposals"]} & {"Inbox/late.srt", "Inbox/long.srt"}
+       and all(e.get("offline_pattern_scan", {}).get("truncated") for e in s2["needs_review"]
+               if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
+    ok("scan seals an oversize transcript flagged in the part it read, and proposes a small one",
+       [e["file"] for e in s2["quarantined"]] == ["Inbox/early.srt"]
+       and [e["file"] for e in s2["proposals"]] == ["Inbox/talk.srt"])
+    b2_led = Path(tempfile.mkdtemp()) / "b2-ledger.json"
+    fa2 = approve(b2, {"proposals": [prop_for(b2, "late.srt", offline_pattern_scan=clean_rec),
+                                     prop_for(b2, "talk.srt")]}, ledger_path=b2_led)
+    ok("approve refuses an oversize text file a forged clean proposal names, and moves the rest",
+       fa2["moved"] == ["Inbox/talk.srt"] and [r["file"] for r in fa2["refused"]] == ["Inbox/late.srt"]
+       and "could not read" in fa2["refused"][0]["why"] and (b2 / "Inbox" / "late.srt").is_file())
+    ea2 = approve(b2, {"proposals": [prop_for(b2, "early.srt", offline_pattern_scan=clean_rec)]},
+                  ledger_path=b2_led)
+    ok("approve refuses an oversize file flagged in the part it read as sealed",
+       not ea2["moved"] and "SEAL-TERMINAL" in ea2["refused"][0]["why"])
 
     # P102: the writers hold the ledger lock while they move files.
     def lock_free(ledger):

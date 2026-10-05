@@ -86,7 +86,7 @@
     },
     "shared/injection-guard-engine.md": {
       "sources": {
-        "tools/injection_scan.py": "71e485cabe449c616589cff3ff425a8d50aa9e6c951e52f3a8dcdc0fe77d0868"
+        "tools/injection_scan.py": "afce5984b80cac679b4a137b8e5d839c7598bf52050cd9ea2608af0145ab921a"
       }
     },
     "skills/finance-desk/MAINTAINER_README.md": {
@@ -136,7 +136,7 @@
         "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "a3cd3444fd2f8d36bed2a9c5d8520136246e4b8020829f232c59b12528469c76",
+        "tools/handoff/inbox.py": "79a82c2612ea63f227c65ec0394f6f8705451e60b6a9153d967b330176a7b58c",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
         "tools/project_docs.py": "15835534381e7ec3abaa57a03aebacb658a05887e75237e6f971f34184763069"
       }
@@ -147,7 +147,7 @@
         "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
         "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "a3cd3444fd2f8d36bed2a9c5d8520136246e4b8020829f232c59b12528469c76",
+        "tools/handoff/inbox.py": "79a82c2612ea63f227c65ec0394f6f8705451e60b6a9153d967b330176a7b58c",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }

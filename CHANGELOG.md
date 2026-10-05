@@ -259,6 +259,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (oversize text in the inbox screen): `injection_scan.scan_file` marks a record it cut at
+  `max_bytes` (2 MB) with `"truncated": true`, and the inbox reads such a record as a partial
+  screen (`inbox._fully_screened`): a flag in the part read still seals the file, while a clean
+  part no longer lets `scan` propose a transcript or `approve` move a text file; the scan holds
+  the file for a session and approve refuses it. Before, injection text past the first 2 MB went
+  unscreened and the file could be routed.
 - P102 (short temp paths): three selftest checks compare a realpath'd value with
   `os.path.realpath` of the temp path (`handoff/queue.py` input refs, the suite's `guard-records`
   and `guard-refuses-checkout-under-root`), so they pass when the temp folder is an 8.3 short

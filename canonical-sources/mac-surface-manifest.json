@@ -94,7 +94,7 @@
     "tools/env_paths.py": "86b897f8cb487f4f5271db34784d6f97db690c74417d06fde53ff3a09b48bee7",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "05ecb77fec59ceddd5879a15cbe86b30b590a94efc063e00176ce368780178c5",
-    "tools/handoff/inbox.py": "a3cd3444fd2f8d36bed2a9c5d8520136246e4b8020829f232c59b12528469c76",
+    "tools/handoff/inbox.py": "79a82c2612ea63f227c65ec0394f6f8705451e60b6a9153d967b330176a7b58c",
     "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
     "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
     "tools/library_complete.py": "9c434cd16fcfa79577c5a0675342b5bf3863320cd5d7e060535637d9292eb8a3",

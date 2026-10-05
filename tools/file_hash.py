@@ -1517,6 +1517,22 @@ _MUTANTS = (
     ('SW4 the cap names a renamed tool', 'selftest_sweep.py',
      'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900}\n',
      'TOOL_TIMEOUTS = {"tools/surface_workflow.py": 900}\n'),
+    # P102: a scan cut at max_bytes reads as a partial screen (injection_scan, inbox._fully_screened).
+    ('TR1 a cut record counts as a whole-file scan', 'handoff/inbox.py',
+     '    return "risk_level" in rec and not rec.get("truncated")\n',
+     '    return "risk_level" in rec\n'),
+    ('TR2 scan routes a file it read only in part', 'handoff/inbox.py',
+     '                screen_ran = _fully_screened(rec)  # an oversize file was read only up to max_bytes\n',
+     '                screen_ran = True\n'),
+    ('TR3 approve moves a file it read only in part', 'handoff/inbox.py',
+     '    if not _fully_screened(rec) and rec.get("risk_level") not in ("QUARANTINE", "BLOCK"):\n',
+     '    if "risk_level" not in rec:\n'),
+    ('TR4 approve drops a flag found in the part it read', 'handoff/inbox.py',
+     '    if not _fully_screened(rec) and rec.get("risk_level") not in ("QUARANTINE", "BLOCK"):\n',
+     '    if not _fully_screened(rec):\n'),
+    ('TR5 scan_file does not mark a cut record', 'injection_scan.py',
+     '        rec["truncated"] = True\n',
+     '        pass\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
