@@ -80,7 +80,7 @@ def _wizard_url():
     if port is None:
         port = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,
                                      note=lambda _msg: None)[0]
-    return f"http://localhost:{port}/"
+    return f"http://127.0.0.1:{port}/"
 MAX_BODY_BYTES = 2 * 1024 * 1024  # 2 MiB cap on request bodies
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -1415,7 +1415,7 @@ def _selftest_checks() -> int:
         ok("main() walks past a refused port to the next loopback port of its block and prints it "
            "with the refused port",
            bound == [("127.0.0.1", 8766), ("127.0.0.1", 8776)] and PORT == 8776
-           and "http://localhost:8776" in out.getvalue() and "already running" not in out.getvalue()
+           and "http://127.0.0.1:8776" in out.getvalue() and "already running" not in out.getvalue()
            and "Port 8766 was refused" in out.getvalue())
         ok("main() records the port it bound while it serves, and removes the record on a clean shutdown",
            serving == [(8776, None)] and not loopback_server.DASHBOARD_PORT_FILE.exists())
@@ -1454,17 +1454,17 @@ def _selftest_checks() -> int:
             first = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,
                                           note=lambda _msg: None)[0]
             ok("with no port recorded, the wizard link points at the first port the wizard tries",
-               _wizard_url() == f"http://localhost:{first}/")
+               _wizard_url() == f"http://127.0.0.1:{first}/")
             loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8775),
                                                         encoding="utf-8")
             ok("the wizard link points at the port the wizard recorded",
-               _wizard_url() == "http://localhost:8775/")
+               _wizard_url() == "http://127.0.0.1:8775/")
             loopback_server.WIZARD_PORT_FILE.unlink()
             saved_override = os.environ.get("CREATOR_OS_WIZARD_PORT")
             os.environ["CREATOR_OS_WIZARD_PORT"] = "9123"
             try:
                 ok("with no port recorded and an override set, the wizard link points at the override",
-                   _wizard_url() == "http://localhost:9123/")
+                   _wizard_url() == "http://127.0.0.1:9123/")
             finally:
                 if saved_override is None:
                     os.environ.pop("CREATOR_OS_WIZARD_PORT", None)
@@ -1512,7 +1512,7 @@ def main():
     print("Creator OS Scheduling Dashboard")
     if reserved:
         print("  " + loopback_server.reserved_note(reserved, PORT, "the dashboard"))
-    print(f"  URL: http://localhost:{PORT}")
+    print(f"  URL: http://127.0.0.1:{PORT}")
     print(f"  Queue: {QUEUE_PATH}")
     live = compliance.live_publishing_enabled()
     print(f"  Live publishing: {'ON' if live else 'OFF (manual posting; no platform calls)'}")
@@ -1522,7 +1522,7 @@ def main():
     scheduler_thread.start()
 
     try:
-        webbrowser.open(f"http://localhost:{PORT}")
+        webbrowser.open(f"http://127.0.0.1:{PORT}")
     except Exception:
         pass
 

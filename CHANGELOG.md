@@ -184,6 +184,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Desktop and claude.ai agentic tasks (ADR 0075, superseding ADR 0047's surface decision). Two
   registry sources are renamed to their current titles: `claude-cowork-plugins-org` ("Manage plugins
   for your organization", new address) and `claude-cowork-changelog` ("Claude Desktop changelog").
+- P102 (127.0.0.1 links): the wizard, the Scheduling Dashboard and their port messages print and
+  open `http://127.0.0.1:<port>/` instead of `localhost`, which on Windows tries IPv6 first while the
+  servers listen on IPv4 only; the same-origin checks still accept `localhost`.
 - P99-2: profile mirror (ADR 0071). The Google Doc is found by its remembered id, then by name
   among the Docs the app made, and created in `Creator OS/Profile` or else in My Drive; it is
   checked every run (a trashed Doc is replaced, an edited one rewritten, a moved one updated in
@@ -260,6 +263,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   holds the checkout, such as a clone in the temporary folder; the check
   `guard-refuses-checkout-under-root` writes into such a checkout's `pipeline/` folder and expects
   the refusal (`surface_workflow_check._guard_allows`).
+- P102 (wizard Ctrl+C on Windows): the wizard waits in half-second steps, so Ctrl+C stops it on
+  Windows before Python 3.14, where an untimed wait is not interrupted; its selftest sends a Ctrl+C
+  to the main thread and checks the wizard closes and removes its port record within 2 s.
 - P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
   calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It

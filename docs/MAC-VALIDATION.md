@@ -47,7 +47,7 @@ python3 tools/setup.py --install-deps   # private .venv toolbox (a few minutes f
 ```
 
 Then either double-click `Start Creator OS Setup.command` or run `python3 tools/wizard.py`; the
-wizard opens at `http://localhost:8765`. Pick your AI -> Claude Desktop -> sign in with **your** (the
+wizard opens at `http://127.0.0.1:8765`. Pick your AI -> Claude Desktop -> sign in with **your** (the
 operator's) Claude account -> finish at `/done` -> **Cmd-Q and reopen Claude Desktop** so it re-reads
 the MCP config.
 

@@ -35,7 +35,7 @@
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
         "tools/publishing/_http.py": "e4e0e3612c2d68956850f8de5d22f00760b9633b227edb4e3839f72f784e86d0",
-        "tools/oauth_flow.py": "91d1a3d4433ce41d4ba2bdc661084857ac6e48aecbbcb84200ba34c5896b62cb",
+        "tools/oauth_flow.py": "f6c45e729ba26958340e72c4f477fc8114f91022c4d5d6b3d0c2beaed22393d9",
         "tools/publishing_compliance.py": "e920e3a023a50b091483d5a987e6a8e5b14cfb73914b50000d3ad5c91d1d57c0"
       }
     },
@@ -45,12 +45,12 @@
         "tools/publishing/instagram.py": "dcf27cd8030ad18df8e3068040afd7e98f12416d0b9295f954ea734b5d8f7ca4",
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
-        "tools/oauth_flow.py": "91d1a3d4433ce41d4ba2bdc661084857ac6e48aecbbcb84200ba34c5896b62cb"
+        "tools/oauth_flow.py": "f6c45e729ba26958340e72c4f477fc8114f91022c4d5d6b3d0c2beaed22393d9"
       }
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "763577ecb45c9c7e05956a724c74a3cdf6173a5dc7dedf6e045c670ba6e54047",
+        "tools/wizard.py": "bcc15294a62232cf4bd44f86e47a9dc0b371f0e2c5ac61f036b09e4f9ff3ac0c",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },

@@ -109,10 +109,10 @@ def refusal_lines(exc, name, env_var):
     """What to print when bind_first() raised exc for the service called name."""
     if exc.kind == "in_use":
         return [f"{name} is already running, or port {exc.port} is in use.",
-                f"Open http://localhost:{exc.port}/ in your browser, or close the other window "
+                f"Open http://127.0.0.1:{exc.port}/ in your browser, or close the other window "
                 "and try again."]
     if exc.kind == "recorded":
-        return [f"{name} is already running at http://localhost:{exc.port}/ (the port it last "
+        return [f"{name} is already running at http://127.0.0.1:{exc.port}/ (the port it last "
                 "recorded), or another program there accepted the connection and did not answer.",
                 f"Open that address, or close the other window; if no copy of {name} is open, delete "
                 f"{WIZARD_PORT_FILE.name} and start it again."]
@@ -200,14 +200,14 @@ def launched_wizard_url(proc, launch_id, wait=6.0, sleep=None, read=None) -> tup
     for _ in range(max(1, int(wait / 0.2))):
         port, recorded_id = read()
         if port is not None and recorded_id == launch_id:
-            return f"http://localhost:{port}/", True
+            return f"http://127.0.0.1:{port}/", True
         if proc.poll() is not None:
             break
         sleep(0.2)
     port, _ = read()
     if port is None:
         port = ports("CREATOR_OS_WIZARD_PORT", WIZARD_BLOCK, note=lambda _msg: None)[0]
-    return f"http://localhost:{port}/", False
+    return f"http://127.0.0.1:{port}/", False
 
 
 def launch_note(url, confirmed) -> str:
@@ -216,7 +216,7 @@ def launch_note(url, confirmed) -> str:
     if confirmed:
         return "The setup wizard is opening in your web browser. If it does not open, visit the URL above."
     others = [str(p) for p in ports("CREATOR_OS_WIZARD_PORT", WIZARD_BLOCK, note=lambda _msg: None)
-              if f"localhost:{p}/" not in url]
+              if f"127.0.0.1:{p}/" not in url]
     return ("The wizard has not reported its address (one may already be running, or it is still "
             "starting); try the URL above" + (f", then port {', '.join(others)} on the same computer"
                                               if others else "") + ".")
@@ -228,7 +228,7 @@ def dashboard_url(read=None) -> str:
     port, _ = read() if read is not None else read_port(DASHBOARD_PORT_FILE)
     if port is None:
         port = ports("CREATOR_OS_DASHBOARD_PORT", DASHBOARD_BLOCK, note=lambda _msg: None)[0]
-    return f"http://localhost:{port}"
+    return f"http://127.0.0.1:{port}"
 
 
 # --- selftest: everything below is test code ---
@@ -336,14 +336,14 @@ def selftest() -> int:
     in_use = refusal_lines(BindRefused("in_use", 8765, []), "Creator OS Setup", "X_PORT")
     ok("a port in use is reported as another copy running, with its address",
        in_use == ["Creator OS Setup is already running, or port 8765 is in use.",
-                  "Open http://localhost:8765/ in your browser, or close the other window and "
+                  "Open http://127.0.0.1:8765/ in your browser, or close the other window and "
                   "try again."])
     res = " ".join(refusal_lines(BindRefused("reserved", 8785, [8765, 8775, 8785]), "S", "X_PORT"))
     ok("a fully reserved block is reported as reserved, never as already running, with the override",
        "8765, 8775, 8785" in res and "already running" not in res and "X_PORT" in res)
     rec = " ".join(refusal_lines(BindRefused("recorded", 8785, []), "S", "X_PORT"))
     ok("a refusal from the recorded port names its address and the record file to delete",
-       "http://localhost:8785/" in rec and WIZARD_PORT_FILE.name in rec)
+       "http://127.0.0.1:8785/" in rec and WIZARD_PORT_FILE.name in rec)
     err = refusal_lines(BindRefused("error", 8765, [], OSError(errno.EADDRNOTAVAIL, "nope")), "S", "X")
     ok("another bind error is reported with its own text", len(err) == 1 and "nope" in err[0])
     note = reserved_note([8765], 8775, "Creator OS Setup")
@@ -575,32 +575,32 @@ def selftest() -> int:
         got = launched_wizard_url(_Proc(99), "L1", sleep=naps.append,
                                   read=_reads((8765, "old"), (8765, "old"), (8775, "L1")))
         ok("launch_setup's address is the port the started wizard recorded with its launch id",
-           got == ("http://localhost:8775/", True) and naps == [0.2, 0.2])
+           got == ("http://127.0.0.1:8775/", True) and naps == [0.2, 0.2])
         del naps[:]
         ok("a wizard that exits at once (one already running) is reported unconfirmed at the port "
            "last recorded, without waiting",
            launched_wizard_url(_Proc(0), "L2", sleep=naps.append, read=_reads((8775, "old")))
-           == ("http://localhost:8775/", False) and naps == [])
+           == ("http://127.0.0.1:8775/", False) and naps == [])
         got = launched_wizard_url(_Proc(99), "L3", wait=1.0, sleep=naps.append, read=_reads((None, None)))
         ok("with nothing recorded the address is port 8765, unconfirmed, after a bounded wait",
-           got == ("http://localhost:8765/", False) and naps == [0.2] * 5)
-        note = launch_note("http://localhost:8775/", False)
+           got == ("http://127.0.0.1:8765/", False) and naps == [0.2] * 5)
+        note = launch_note("http://127.0.0.1:8775/", False)
         ok("an unconfirmed launch note names the other ports of the block, not the one shown",
            "8765" in note and "8785" in note and "8775" not in note
-           and "8775" not in launch_note("http://localhost:8775/", True)
-           and "visit the URL above" in launch_note("http://localhost:8775/", True))
+           and "8775" not in launch_note("http://127.0.0.1:8775/", True)
+           and "visit the URL above" in launch_note("http://127.0.0.1:8775/", True))
         with tempfile.TemporaryDirectory() as td:
             g["DASHBOARD_PORT_FILE"] = Path(td) / "dashboard-port.local.json"
-            ok("with no dashboard record the dashboard address is port 8766", dashboard_url() == "http://localhost:8766")
+            ok("with no dashboard record the dashboard address is port 8766", dashboard_url() == "http://127.0.0.1:8766")
             g["DASHBOARD_PORT_FILE"].write_text(port_record(8776), encoding="utf-8")
-            ok("the dashboard address is the port the dashboard recorded", dashboard_url() == "http://localhost:8776")
+            ok("the dashboard address is the port the dashboard recorded", dashboard_url() == "http://127.0.0.1:8776")
             g["DASHBOARD_PORT_FILE"].unlink()
             os.environ.update(CREATOR_OS_WIZARD_PORT="9123", CREATOR_OS_DASHBOARD_PORT="9124")
             ok("with nothing recorded, the wizard and dashboard addresses use their overrides",
                launched_wizard_url(_Proc(0), "L5", sleep=naps.append, read=_reads((None, None)))
-               == ("http://localhost:9123/", False)
-               and dashboard_url() == "http://localhost:9124"
-               and "8765" not in launch_note("http://localhost:9123/", False))
+               == ("http://127.0.0.1:9123/", False)
+               and dashboard_url() == "http://127.0.0.1:9124"
+               and "8765" not in launch_note("http://127.0.0.1:9123/", False))
     finally:
         g["DASHBOARD_PORT_FILE"] = saved_dash
         for key, value in saved_env.items():

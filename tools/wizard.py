@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS Setup Wizard
 
-Opens a browser at http://localhost:8765 and guides through:
+Opens a browser at http://127.0.0.1:8765 and guides through:
   - Connecting Google Workspace (Gmail, Calendar, Drive, Docs, Sheets)
   - Connecting Microsoft 365 (Outlook, Calendar, Excel, OneDrive)
   - Updating Claude Desktop configuration automatically
@@ -4549,9 +4549,12 @@ def _bind():
 
 def _wait_and_close(server):
     """Serve until the wizard is asked to quit (or Ctrl+C), then stop the server and remove this
-    wizard's port record."""
+    wizard's port record. The wait is timed so the main thread returns to the interpreter twice a
+    second, where a pending Ctrl+C is raised: an untimed wait is not interrupted by Ctrl+C on
+    Windows before Python 3.14."""
     try:
-        _shutdown.wait()
+        while not _shutdown.wait(0.5):
+            pass
     except KeyboardInterrupt:
         pass
     finally:
@@ -4696,7 +4699,7 @@ def _selftest_p101() -> int:
             try:
                 with _cl_bind.redirect_stdout(_io_bind.StringIO()):
                     _closer.start()
-                    _closer.join(0.2)
+                    _closer.join(1.2)  # longer than one timed wait, so a single wait would be over
                     _waited = _closer.is_alive() and _stopped == []
                     _shutdown.set()
                     _closer.join(5.0)
@@ -4707,6 +4710,40 @@ def _selftest_p101() -> int:
                   "the wizard did not serve until asked to quit, then stop its server and remove its record")
             check("_wait_and_close" in main.__code__.co_names,
                   "main() does not close the wizard through _wait_and_close")
+            # Ctrl+C ends the wait: _thread.interrupt_main() marks a Ctrl+C for the main thread the
+            # way the console does, and only a wait that returns to the interpreter raises it (an
+            # untimed one returns only when the 5 s fallback sets _shutdown). The marker is not set
+            # once the wait has returned, and one that raced the return is raised inside this try.
+            import _thread as _thread_bind
+            import time as _time_bind
+            check(_th_bind.current_thread() is _th_bind.main_thread(),
+                  "the Ctrl+C check must run in the main thread")
+            loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(PORT, "launch-selftest"),
+                                                        encoding="utf-8")
+            _stopped.clear()
+            _returned = _th_bind.Event()
+            _ctrl_c = _th_bind.Timer(0.3, lambda: None if _returned.is_set() else _thread_bind.interrupt_main())
+            _fallback = _th_bind.Timer(5.0, _shutdown.set)
+            _t0, _took = _time_bind.monotonic(), None
+            try:
+                with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                    _ctrl_c.start()
+                    _fallback.start()
+                    try:
+                        _wait_and_close(_Serving())
+                    finally:
+                        _returned.set()
+                        _ctrl_c.cancel()
+                        _fallback.cancel()
+                    _took = _time_bind.monotonic() - _t0
+                    _time_bind.sleep(0.05)
+            except KeyboardInterrupt:
+                _took = None
+            finally:
+                _shutdown.clear()
+            check(_took is not None and 0.25 <= _took < 2.0 and _stopped == [True]
+                  and not loopback_server.WIZARD_PORT_FILE.exists(),
+                  f"a Ctrl+C did not end the wizard's wait within 2 s and close it ({_took!r} s)")
         finally:
             _g.update(_saved_bind)
             loopback_server.WIZARD_PORT_FILE, loopback_server.probe = _saved_file, _saved_probe
@@ -5478,7 +5515,7 @@ def main() -> None:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    url = f"http://localhost:{PORT}/"
+    url = f"http://127.0.0.1:{PORT}/"
     print(f"Creator OS Setup Wizard running at {url}")
     print("Opening browser... (press Ctrl+C to quit)")
 

@@ -170,8 +170,8 @@ def redirect_path(platform: str) -> str:
 
 def redirect_uri(platform: str, port: int) -> str:
     """The exact loopback redirect URI to register in the platform console and send in the flow.
-    Uses each platform's documented loopback host (127.0.0.1 for Google/TikTok, localhost for
-    Pinterest/Instagram); both resolve to the wizard's 127.0.0.1 listener."""
+    Every platform here uses the 127.0.0.1 loopback host, the address the wizard listens on;
+    `localhost` can resolve to IPv6 ::1 and miss the callback (RFC 8252 section 8.3)."""
     cfg = CONFIG[platform]
     host = cfg.get("redirect_host", "127.0.0.1")
     path = cfg["redirect_path"]

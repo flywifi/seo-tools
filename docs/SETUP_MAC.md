@@ -175,7 +175,7 @@ Calendar, Excel, OneDrive):
 python3 tools/wizard.py
 ```
 
-A browser window opens automatically at `http://localhost:8765`. Follow the on-screen steps.
+A browser window opens automatically at `http://127.0.0.1:8765`. Follow the on-screen steps.
 The wizard:
 - Installs the Creator OS MCP server into Claude Desktop's config file AND verifies it with a
   real handshake check before saying done (the "Install the Creator OS tools" step)
@@ -241,7 +241,7 @@ python3 shared/cache/cache.py --build   # only if canonical-sources/ changed
 
 ## The Google Drive hub + overnight compute (optional, P60)
 
-To let this Mac pick up jobs queued from any Claude surface (web, phone, Cowork) and run them
+To let this Mac pick up jobs queued from any Claude surface (claude.ai on the web or your phone) and run them
 locally (transcription, library analysis, import previews, finance reports):
 
 1. Install **Google Drive for desktop** (google.com/drive/download) and sign in.
@@ -314,7 +314,7 @@ export WHISPER_CPP_MODEL=/path/to/ggml-small.bin
   ffmpeg past Gatekeeper.
 - **Local setup runs on this computer only.** The wizard, the folder import, transcription, and the
   publishing OAuth loopback need Claude **Desktop** or **Claude Code** on this Mac. Claude in a browser
-  (claude.ai) and a remote Cowork session cannot reach your local files or `localhost` services.
+  (claude.ai), including its agentic cloud tasks, cannot reach your local files or `localhost` services.
 - **Dated context (as of 2026-08):** Homebrew's 5.0.0 announcement says casks that fail Gatekeeper
   are disabled from **September 2026** (the post states the month, not a specific day, and hedges
   the related changes as "September or later"). The same announcement moves **Intel to Tier 3 from

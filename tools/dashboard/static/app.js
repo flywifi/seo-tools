@@ -772,7 +772,7 @@ const App = (function () {
       .catch(function () {
         // The dashboard could not say where the wizard is: name every port of its block.
         if (tab) { tab.close(); }
-        window.alert("Open the setup wizard at http://localhost:8765/" + page +
+        window.alert("Open the setup wizard at http://127.0.0.1:8765/" + page +
                      " (or port 8775 or 8785, if the wizard said it moved there).");
       });
   }
