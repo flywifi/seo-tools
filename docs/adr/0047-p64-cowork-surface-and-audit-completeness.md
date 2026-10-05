@@ -1,7 +1,7 @@
 # 47. P64 Cowork as a first-class surface, whole-path input hardening, and audit-completeness machinery
 
 - Date: 2026-07-19
-- Status: Accepted
+- Status: Superseded by [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) (the surface decision)
 
 ## Context
 

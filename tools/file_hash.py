@@ -1249,6 +1249,19 @@ _MUTANTS = (
     ('X16 load_ledger non-object top level', 'handoff/inbox.py',
      'entries = data.get("entries") if isinstance(data, dict) else None',
      'entries = data.get("entries")'),
+    # P102: job origins by system (handoff/queue.py, wizard._queue_followup).
+    ('Q1 the windows origin dropped', 'handoff/queue.py',
+     'ALLOWED_ORIGINS = ("web", "desktop", "mac", "windows", "linux", "other")',
+     'ALLOWED_ORIGINS = ("web", "desktop", "mac", "linux", "other")'),
+    ('Q2 the linux origin dropped', 'handoff/queue.py',
+     'ALLOWED_ORIGINS = ("web", "desktop", "mac", "windows", "linux", "other")',
+     'ALLOWED_ORIGINS = ("web", "desktop", "mac", "windows", "other")'),
+    ('Q3 the ticket name fixes the origin', 'handoff/queue.py',
+     'name = f"job.{stamp}.{origin}.{ticket[\'job_id\'][:8]}.json"',
+     'name = f"job.{stamp}.mac.{ticket[\'job_id\'][:8]}.json"'),
+    ('WZ1 follow-ups queued as mac', 'wizard.py',
+     'origin=_runner._platform_tag(), consent_note=note)',
+     'origin="mac", consent_note=note)'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

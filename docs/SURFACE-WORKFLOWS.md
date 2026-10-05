@@ -155,7 +155,7 @@ updated together, so closing a gap is always a deliberate change.
 
 | ID | Open gap |
 |---|---|
-| SW-G1 | No validated field records which vendor's app made a hub file or job. The probe holds while the queue accepts a well-formed ticket with a generic origin, its origins are exactly the generic ones (web, desktop, cowork, mac, other) and its ticket keys exactly the known ones, it refuses each vendor and surface name the probe tries as an origin (every surface id and vendor in the matrix, checked by `origin-candidates-cover-matrix`) and a `surface` key, and the remote MCP connector records `other`; files from ChatGPT and Gemini carry `other` (the free-text `requested_by` field can carry a name, unvalidated) |
+| SW-G1 | No validated field records which vendor's app made a hub file or job. The probe holds while the queue accepts a well-formed ticket with a generic origin, its origins are exactly the generic ones (web, desktop, mac, windows, linux, other) and its ticket keys exactly the known ones, it refuses each vendor and surface name the probe tries as an origin (every surface id and vendor in the matrix, checked by `origin-candidates-cover-matrix`) and a `surface` key, and the remote MCP connector records `other`; files from ChatGPT and Gemini carry `other` (the free-text `requested_by` field can carry a name, unvalidated) |
 | SW-G2 | Job results do not carry the ticket's origin |
 | SW-G3 | The job runner and watcher write no log file and no last-run stamp; a run log exists only if the scheduler line captures their output |
 | SW-G4 | Minority reports are checked but never saved: job results have no field for one and the validator has no record option |

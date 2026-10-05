@@ -55,7 +55,7 @@ added beyond what those records state. New decisions get the next number via
 | [0044](0044-p61-work-orders-and-ingest-screening.md) | P61 Work Orders and Ingest Screening | 2026-07-17 | Accepted |
 | [0045](0045-p62-two-pass-injection-screening.md) | P62 Two-pass Injection Screening | 2026-07-18 | Accepted |
 | [0046](0046-p63-sweep-remediation.md) | P63 Sweep Remediation | 2026-07-18 | Accepted |
-| [0047](0047-p64-cowork-surface-and-audit-completeness.md) | P64 Cowork Surface and Audit Completeness | 2026-07-19 | Accepted |
+| [0047](0047-p64-cowork-surface-and-audit-completeness.md) | P64 Cowork Surface and Audit Completeness | 2026-07-19 | Superseded by [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) (surface decision) |
 | [0048](0048-p66-audit-remediation.md) | P66 Remediation of the P65 Full-System Audit Findings | 2026-07-19 | Accepted |
 | [0049](0049-p67-production-hardening.md) | P67 Production-readiness hardening (in-repo slices) | 2026-07-19 | Accepted |
 | [0050](0050-p68-verification-hardening.md) | P68 Verification hardening (why nine defects survived) | 2026-07-20 | Accepted |
@@ -83,3 +83,4 @@ added beyond what those records state. New decisions get the next number via
 | [0072](0072-p100-surface-workflow-suite.md) | Cross-surface workflows run as a sandboxed suite; Gemini's web and desktop apps join the matrix | 2026-10-01 | Accepted |
 | [0073](0073-p101-loopback-port-blocks.md) | The setup wizard and the Scheduling Dashboard bind a fixed port block, without SO_REUSEADDR on Windows | 2026-10-03 | Accepted |
 | [0074](0074-p101-windows-cloud-synced-folders.md) | On Windows, the cloud-synced repo warning reads OneDrive's variables and Google Drive's drive markers | 2026-10-04 | Accepted |
+| [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) | Job origins name the computer's system; the Cowork surfaces and origin are retired | 2026-10-05 | Accepted |

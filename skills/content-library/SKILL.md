@@ -73,8 +73,7 @@ not expose or that needs a local STT backend, even with no other spoke available
 
 ## Cross-modality
 Class: C.
-Runs on: Claude Desktop/Code (native, MCP + the tool modules over the allowed folder); Cowork local
-session (native if the VM has an STT backend); claude.ai via a hosted remote-MCP connector for the store
+Runs on: Claude Desktop/Code (native, MCP + the tool modules over the allowed folder); claude.ai via a hosted remote-MCP connector for the store
 queries only; Custom GPT / Gemini only when a tool is hosted behind a remote MCP or an Action; Gems: no.
 Mechanism: Class C: it needs a local runtime AND the creator's files. The importers/parsers run local
 compute over the export folder; `tools/transcribe.py` runs on-device STT (whisper.cpp on Apple Silicon,

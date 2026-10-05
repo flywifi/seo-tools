@@ -97,25 +97,26 @@ Two ways, both effectively hands-off once set up:
   plans with Claude Desktop" (claude.com/docs/connectors/custom/desktop-extensions, fetched
   2026-09-19), so `.mcpb` packaging is an org path, not a consumer one.
 
-### Claude Cowork
+### claude.ai agentic tasks (Claude Cowork before 2026-09-16)
 - **Since 2026-09-16, Claude chat and Cowork are one Claude** (support article 16761823, fetched
-  2026-09-20): agentic sessions start from any conversation, existing plugins, skills, and
-  connectors carry over, and the rollout is staged from Pro and Max. The update story below is
-  unchanged by the merge -- delivery is still through plugins.
-- Cowork runs each session in a **fresh, temporary sandbox** (created at session start, destroyed at
-  the end), so a session picks up your current installed plugins automatically. Updating is delivered
+  2026-09-20): agentic tasks start from any conversation, existing plugins, skills, and
+  connectors carry over, and the rollout is staged from Pro and Max. Creator OS no longer lists
+  Cowork as a surface (ADR 0075); the update story below is unchanged by the merge -- delivery is
+  still through plugins.
+- An agentic task runs in a **fresh, temporary cloud sandbox** (created when the task starts,
+  cleared when it ends), so a task picks up your current installed plugins automatically. Updating is delivered
   through the plugin/marketplace, not a manual pull.
 - For an organization, an owner turns on **"Sync automatically"** (Organization settings > Plugins);
   then "changes take effect on each member's next session or plugin refresh."
-- **Important release rule:** Cowork org auto-sync fires **only when a pull request that bumps the
-  plugin version is merged to the default branch**. A direct push to the default branch does NOT
-  trigger a sync. So a Creator OS release meant for Cowork users must bump `version` (in
+- **Important release rule:** organization plugin auto-sync fires **only when a pull request that
+  bumps the plugin version is merged to the default branch**. A direct push to the default branch
+  does NOT trigger a sync. So a Creator OS release meant for organization members must bump `version` (in
   `.claude-plugin/plugin.json` / `versions.json`) in the merged PR. (Source:
   support.claude.com/.../13837433.)
-- **Data caveat (this is the trade-off):** the Cowork sandbox is ephemeral. Your `.local` data does
-  not persist there, and local (stdio) MCP servers do not run in Cowork at all. Keep stateful data on
-  a persistent surface (Claude Desktop / Claude Code) or reach it through a hosted connector; do not
-  treat Cowork as your data's home. (Source: support.claude.com/.../14479288.)
+- **Data caveat (this is the trade-off):** the cloud sandbox is ephemeral. Your `.local` data does
+  not persist there, and local (stdio) MCP servers do not run in it. Keep stateful data on a
+  persistent surface (Claude Desktop / Claude Code) or reach it through a hosted connector; do not
+  treat the sandbox as your data's home. (Source: support.claude.com/.../14479288.)
 
 ### claude.ai in a browser (web and mobile)
 - If you use it through a **custom remote MCP connector** you (or your developer) host, updating is the

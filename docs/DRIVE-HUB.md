@@ -2,7 +2,7 @@
 
 The Drive hub is a single Google Drive folder ("Creator OS" by default, configurable via the
 `drive_hub` section of `creator-os-config.json`) that makes Creator OS work the same across Claude
-Desktop, Cowork, and web/mobile chat. Each surface reads and writes the hub through its own honest
+Desktop, Claude Code, and claude.ai on the web and phone. Each surface reads and writes the hub through its own honest
 mechanism, and the local machine acts as the compute engine. This document is the authoritative
 convention: the layout, the naming rule, who writes what and when, and the async job contract.
 
@@ -13,8 +13,8 @@ exactly as before this feature existed.
 ## Why a Drive hub (the problem it solves)
 
 The three modalities have unequal powers. A Desktop session with local MCP sees the real files and
-can run every tool. Web and mobile chat cannot touch the local disk at all; a Cowork remote session
-runs in a sandbox. Before the hub, working state lived on one machine, the Project knowledge pack
+can run every tool. Web and mobile chat cannot touch the local disk at all; an agentic task started
+from claude.ai runs in a cloud sandbox. Before the hub, working state lived on one machine, the Project knowledge pack
 went stale between re-uploads, and heavy compute happened only when someone was physically in a
 Desktop session. The hub gives every surface one shared place that each can genuinely reach:
 
@@ -83,13 +83,15 @@ Drive API transport, `poll_once` uploads Outbox artifacts created during the pas
 so nothing is stranded in the local staging hub.
 
 **Naming rule** for every machine-written file:
-`<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `cowork`, `mac`
-or `other`. Names sort chronologically, never collide without coordination, and carry their
+`<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `mac`,
+`windows`, `linux` or `other`. Names sort chronologically, never collide without coordination, and carry their
 provenance. Two kinds of file depart from that pattern. A job ticket is named
 `job.<stamp>.<origin>.<id8>.json`, where `<origin>` is the ticket's `origin` field (schema
-`shared/schemas/compute-job.json`): the surface that queued the job, with `mac` the value for this
-computer whatever its system, so a ticket queued from the wizard on Windows is named
-`job.<stamp>.mac.<id8>.json`. An Outbox file is named `<job_type>.<stamp>Z[.<n>].<tag>.json`,
+`shared/schemas/compute-job.json`): the surface that queued the job, and for a job queued on this
+computer its system, so a ticket queued from the wizard on Windows is named
+`job.<stamp>.windows.<id8>.json` (before P102 the wizard wrote `mac` on any system;
+<!-- verify: tools/wizard.py::_queue_followup -->). A ticket whose origin is `cowork` is refused
+with the reason, since Cowork merged into Claude chat on 2026-09-16. An Outbox file is named `<job_type>.<stamp>Z[.<n>].<tag>.json`,
 where `<tag>` is the system of the computer that ran the job (`mac`, `windows` or `linux`) and
 `<n>` numbers a second file written in the same second.
 
@@ -173,8 +175,17 @@ injection guard still runs in a Claude session and remains authoritative. Becaus
 text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
 an oversize file, or the tool being unavailable) is held for a session rather than routed
 unscreened. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
-and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment
-and never overwrite a same-name file. Approve refuses any path that resolves into the sealed area or
+and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
+never overwrite a same-name file, and read, update and write the ledger under its lock
+(`<ledger>.lock`), so the wizard and the sweep verb no longer lose each other's entries. A ledger
+that does not parse, or is not an object holding a list of entries, is copied to
+`<name>.corrupt.<UTC stamp>.bak` beside it before a writer starts a new one
+<!-- verify: tools/handoff/inbox.py::_ledger_for_write -->. Approve re-runs the offline pattern
+tier on each file it is about to move and keeps the more cautious of that verdict and the
+proposal's, so a proposal that leaves the verdict out cannot route a flagged file; a plain-text
+file the tier cannot read is refused <!-- verify: tools/handoff/inbox.py::_approve_screen -->. A
+new copy of content already sealed in `Inbox/Quarantine/` is flagged again by the scan, so the
+sweep seals it too. Approve refuses any path that resolves into the sealed area or
 outside the Inbox, and the sweep any entry whose folder does. The sealed-area test ignores letter case, because on Google Drive for desktop's drive a
 path keeps the case it was given while lookups ignore it
 <!-- verify: tools/handoff/inbox.py::_under -->. Approve judges a symlink by the file it points to;
@@ -187,9 +198,7 @@ no trailing backslash inside the quotes around the path), which scans, seals wha
 and prints the result. It exits 0 when the scan flagged no file, or the flagged files were sealed
 or were already gone from the Inbox; 1 when the hub has no `Inbox` folder, the scan could not read
 a file, a flagged file was not moved, or the ledger could not be written; and 2 when `--hub PATH`
-is missing. Run it while the wizard's `/inbox` screen is not scanning or approving on the same
-hub, since the three update one ledger without a lock
-<!-- verify: tools/handoff/inbox.py::_sweep_cli -->.
+is missing <!-- verify: tools/handoff/inbox.py::_sweep_cli -->.
 
 ## The Knowledge folder and claude.ai Projects (dual projection)
 

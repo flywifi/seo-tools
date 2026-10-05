@@ -118,8 +118,8 @@ Gatekeeper.
 Importing and transcribing a creator's own files needs a runtime that can reach those files. There are
 exactly two ways to get that, and every surface's guidance says which applies:
 
-1. the tools run on the creator's own computer (Claude Desktop with a local MCP server, Claude Code,
-   or a local Cowork session), or
+1. the tools run on the creator's own computer (Claude Desktop with a local MCP server, or Claude Code),
+   or
 2. the creator uploads the files to a sandbox that runs the tools on the copy.
 
 A hosted connector runs in the vendor's cloud and **cannot see files on the creator's laptop, even the

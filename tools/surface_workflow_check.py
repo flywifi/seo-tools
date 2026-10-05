@@ -121,7 +121,7 @@ HUB_AREAS = ("Inbox", "Store", "Jobs/queue", "Jobs/results", "Jobs/archive", "Pr
 HUMAN_SURFACES = {"human_at_home"}
 # The ticket shape the hub's job queue accepts today, and the origins it accepts. A change to either
 # is how the vendor-provenance gap (SW-G1) would be closed, so the probe reads them.
-GENERIC_ORIGINS = {"web", "desktop", "cowork", "mac", "other"}
+GENERIC_ORIGINS = {"web", "desktop", "mac", "windows", "linux", "other"}
 KNOWN_TICKET_KEYS = {"job_id", "created_at", "origin", "requested_by", "job_type", "params", "input_refs",
                      "priority", "consent_note", "schema_version"}
 
@@ -131,7 +131,9 @@ def load_json(path):
 
 
 def surface_origin(matrix, sid) -> str:
-    """The origin a surface's hub files carry: its first claimed origin, else 'other' (SW-G1)."""
+    """The origin a surface's hub files carry: its first claimed origin, else 'other' (SW-G1). The
+    person at home is simulated as mac on every system, so the suite's file names do not depend on
+    the computer it runs on."""
     if sid in HUMAN_SURFACES:
         return "mac"
     claimed = matrix["surfaces"][sid].get("origins") or []

@@ -170,6 +170,20 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (job origins by system): a job ticket's `origin` accepts `windows` and `linux` beside `mac`,
+  each naming the computer that queued the job by its system (queue, schema, drift invariant 55 and
+  the two local Claude app surfaces), and the wizard queues follow-up jobs with
+  `runner._platform_tag()`, so a ticket queued on Windows is named `job.<stamp>.windows.<id8>.json`
+  (`wizard._queue_followup`; ADR 0075). A computer on older code that runs jobs from the same hub
+  refuses those tickets and archives them. `queue.submit` keeps `mac` as its default.
+- P102 (Cowork retired): Claude Cowork merged into Claude chat on 2026-09-16, so the `cowork_local`
+  and `cowork_remote` surfaces leave `shared/cross-modality/transitions.json`, the wizard's surface
+  options and drift invariant 32's key list, and the `cowork` origin leaves the queue and schema; a
+  ticket that still carries it is refused with the reason (`queue.RETIRED_ORIGINS`). The S10
+  scenario leg checks the rows stay absent, and the docs that described them now describe Claude
+  Desktop and claude.ai agentic tasks (ADR 0075, superseding ADR 0047's surface decision). Two
+  registry sources are renamed to their current titles: `claude-cowork-plugins-org` ("Manage plugins
+  for your organization", new address) and `claude-cowork-changelog` ("Claude Desktop changelog").
 - P99-2: profile mirror (ADR 0071). The Google Doc is found by its remembered id, then by name
   among the Docs the app made, and created in `Creator OS/Profile` or else in My Drive; it is
   checked every run (a trashed Doc is replaced, an edited one rewritten, a moved one updated in

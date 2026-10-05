@@ -29,7 +29,9 @@
       ],
       "origins": [
         "desktop",
-        "mac"
+        "mac",
+        "windows",
+        "linux"
       ],
       "setup_steps": [
         "Install Claude Desktop into ~/Applications (per-user) and keep your Creator OS folder on this computer; everything Creator OS installs stays inside your user account (docs/INSTALL-SCOPE.md).",
@@ -61,7 +63,9 @@
       ],
       "origins": [
         "desktop",
-        "mac"
+        "mac",
+        "windows",
+        "linux"
       ],
       "setup_steps": [
         "Open a terminal in your Creator OS folder.",
@@ -98,78 +102,11 @@
         "Best door on a paid plan: install the Creator OS plugin (Customize, then Plugins; a GitHub-repo marketplace can be added by URL per support article 13837440). Skills and connectors then work in any conversation; deeper automation runs in agentic sessions.",
         "Knowledge door, any plan: add the Creator OS knowledge files to a claude.ai Project, either by uploading them or by connecting the GitHub repository to the Project's knowledge and selecting implementation/claude/project/ (sync is manual via Sync now; support article 10167454). Free plans are capped at five projects (support article 9517075).",
         "Individual skills, any plan: enable code execution (Settings, then Capabilities), then upload a self-contained skill ZIP under Customize, then Skills (support article 12512180). Skills that reference repo-root shared/ paths need the plugin door instead.",
-        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it under Customize, then Connectors (Free plans can hold one custom connector; support article 11176164)."
+        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it under Customize, then Connectors (Free plans can hold one custom connector; support article 11176164).",
+        "Agentic tasks started from a conversation run in a cloud sandbox that is cleared when the task ends: keep stateful data in Google Drive or a hosted connector, and reach files on this computer only through Claude Desktop with its trusted folders (support article 16761823)."
       ],
       "needs_verification": [
         "plan gating of the GitHub-to-project-knowledge connector (support article 10167454 does not state plans)"
-      ]
-    },
-    "cowork_local": {
-      "label": "Claude Cowork (local session on this computer)",
-      "vendor": "anthropic",
-      "class_support": {
-        "A": "native",
-        "B": "native",
-        "C": "native"
-      },
-      "carries": [
-        "connected_files",
-        "python_runtime",
-        "remote_mcp_connectors",
-        "plugin_skills",
-        "flag_enforcement"
-      ],
-      "flags_enforced": true,
-      "local_machine_required": true,
-      "store_options": [
-        "local_fs",
-        "google_drive"
-      ],
-      "origins": [
-        "cowork"
-      ],
-      "setup_steps": [
-        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20); this row describes the local-execution path, which remains for existing desktop deployments while the staged rollout (Pro and Max first) proceeds. The Desktop app must be open for local folders, the built-in browser, computer use, and local MCP.",
-        "Install Creator OS through the plugin marketplace.",
-        "Open the Desktop app's Cowork tab and choose a local session (a hypervisor-isolated VM on this computer).",
-        "Connect the Creator OS folder so the session can reach your files."
-      ],
-      "needs_verification": [
-        "STT backend presence inside the local VM (transcription is native only if a backend is installed)",
-        "connected-folder reliability for large media files"
-      ]
-    },
-    "cowork_remote": {
-      "label": "Claude Cowork (remote ephemeral sandbox)",
-      "vendor": "anthropic",
-      "class_support": {
-        "A": "native",
-        "B": "remote_mcp",
-        "C": "remote_mcp"
-      },
-      "carries": [
-        "plugin_skills",
-        "remote_mcp_connectors",
-        "connected_files"
-      ],
-      "flags_enforced": false,
-      "local_machine_required": false,
-      "store_options": [
-        "google_drive",
-        "export_and_you_save"
-      ],
-      "origins": [
-        "cowork"
-      ],
-      "setup_steps": [
-        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20): agentic cloud sessions now start from any conversation, no separate Cowork mode. This row describes those cloud sessions; rollout is staged from Pro and Max, so a pre-merge account still sees the separate Cowork surface this row originally described (support article 14479288).",
-        "Install Creator OS through the plugin marketplace; an organization's plugin auto-sync fires only when a version-bump PR merges.",
-        "Reach stateful data through Google Drive or a hosted connector; the sandbox is destroyed at session end, so nothing written to its local disk (including .local store files) persists.",
-        "Local stdio MCP servers do not run here; connect capabilities as remote MCP connectors, and reach local files only through folders explicitly connected in the Desktop app."
-      ],
-      "needs_verification": [
-        "the exact remote-MCP attach transport",
-        "whether a repo clone behaves identically to Claude Code on the web"
       ]
     },
     "chatgpt_web_plain": {

@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-10-04",
+  "last_registry_update": "2026-10-05",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4747,13 +4747,13 @@
     },
     {
       "id": "claude-cowork-plugins-org",
-      "name": "Manage Claude Cowork plugins for your organization",
-      "url": "https://support.claude.com/en/articles/13837433-manage-claude-cowork-plugins-for-your-organization",
+      "name": "Manage plugins for your organization (help center)",
+      "url": "https://support.claude.com/en/articles/13837433-manage-plugins-for-your-organization",
       "category": "ai-surface-spec",
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-09-19",
+      "last_checked": "2026-10-05",
       "last_changed_detected": null,
       "extraction_hint": "Changes take effect on next session or plugin refresh; Sync automatically toggle; auto-sync fires only on a version-bump PR merge, not a direct push",
       "used_by": [
@@ -4767,12 +4767,12 @@
       "last_block_detected": null,
       "block_kind": null,
       "block_vendor": null,
-      "content_sha256": "e2482edd189393e36c4b30e8054a09638edfa78f55788310444d9a4e385fca23",
+      "content_sha256": null,
       "first_block_detected": null
     },
     {
       "id": "claude-cowork-changelog",
-      "name": "Claude Desktop / Cowork changelog",
+      "name": "Claude Desktop changelog",
       "url": "https://claude.com/docs/cowork/changelog",
       "category": "ai-surface-spec",
       "tier": "T2",
@@ -7185,5 +7185,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "f38f0ec13ff1d7031392a407d8627b2437a891f65bf805ae8bb2f346bf38d7e7"
+  "_content_digest": "0b5fbd6377ce8706bac2c9c5fa6d392a73c0e900eb03b4238201da49c998d6cb"
 }

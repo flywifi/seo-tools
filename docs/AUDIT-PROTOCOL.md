@@ -10,8 +10,8 @@ document governs everything else.
 
 An audit's surface list and origin list are DERIVED, never recalled:
 
-- **The surface set IS the ids in `shared/cross-modality/transitions.json`** (thirteen surfaces as
-  of P100, including `cowork_local`, `cowork_remote`, `gemini_web` and `gemini_desktop`). Drift invariant 32 keeps the json, its
+- **The surface set IS the ids in `shared/cross-modality/transitions.json`** (eleven surfaces as
+  of P102, which retired `cowork_local` and `cowork_remote`; ADR 0075). Drift invariant 32 keeps the json, its
   constant, `docs/TRANSITIONS.md`, and the wizard consistent.
 - **The origin set IS `ALLOWED_ORIGINS` in `tools/handoff/queue.py`**
   <!-- verify: tools/handoff/queue.py::ALLOWED_ORIGINS -->, which drift invariant 55
@@ -47,13 +47,12 @@ classes ran per tool.
 ## 3. Per-surface empathy legs (the auditor's own runtime is not a footnote)
 
 Walk the user journey per surface, from setup to deliverable, with the surface set from §1 as the
-row list — including both Cowork rows. The pinned scenario suite executes the load-bearing Cowork
-model facts on every run (the S10 `cowork-surface-model` leg), so the model cannot silently drift
-from what this walkthrough assumes. Honesty rule: legs that this sandbox can only simulate (real
-Gatekeeper dialogs, a live Cowork session, real OAuth consent screens) are labeled
+row list. The pinned scenario suite checks on every run that the retired Cowork rows stay out of
+the model (the S10 `cowork-surfaces-retired` leg), so the row list cannot silently grow them back. Honesty rule: legs that this sandbox can only simulate (real
+Gatekeeper dialogs, a live claude.ai agentic task, real OAuth consent screens) are labeled
 `[not exercised on the real surface]` in the notes and land on the hands-on checklist — they are
-never reported as exercised. An auditor running in a Cowork-class remote sandbox is itself on one
-of the rows; treating one's own runtime as an edge case inverts the real usage distribution.
+never reported as exercised. An auditor running in a remote cloud sandbox is itself on one of the
+rows; treating one's own runtime as an edge case inverts the real usage distribution.
 
 ## 4. Harness honesty (a defect is not a defect until re-verified)
 
@@ -70,7 +69,7 @@ An audit deliverable ENDS with a section named "Not exercised", listing every §
 §1 origin, and every §2 input class the audit did not exercise, each with a reason. An audit
 without this section is incomplete by definition — no matter how many checks passed. This is the
 step that converts a PASS count from a numerator into a coverage statement: an origin nobody
-exercised appears on the list by name ("origin `cowork`: not exercised").
+exercised appears on the list by name ("origin `windows`: not exercised").
 
 The committed home for the Mac hands-on unexercised list is `docs/MAC-VALIDATION.md` — a local-only,
 two-phase runbook with a results-log template in this same shape. Its closing "Not exercised" line

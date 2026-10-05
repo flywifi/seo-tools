@@ -1913,13 +1913,6 @@ _SURFACES = {
         "seam", "Class A native; B and C via a remote MCP connector that you or your developer "
                 "deploy behind HTTPS with authentication (the repo ships the server code and "
                 "runbook, not a hosted service)."),
-    "cowork_local": ("Claude Cowork (local session on this computer)", None,
-        "native", "Every class (A, B, C) runs natively inside a local VM with your Creator OS "
-                  "folder connected; transcription needs an STT backend inside the VM."),
-    "cowork_remote": ("Claude Cowork (remote ephemeral sandbox)", None,
-        "seam", "Class A native via plugin skills; B and C via remote MCP connectors. The "
-                "sandbox is destroyed at session end, so keep durable data in Drive; local "
-                "stdio MCP servers do not run here."),
     "chatgpt_web_plain": ("ChatGPT web chat (plain chat at chatgpt.com)", None,
         "none", "Class A only, via pasted custom instructions. No live tools, no flags. That is "
                 "a limit of PLAIN chat, not of ChatGPT: a deployed MCP connector added in "
@@ -3987,15 +3980,11 @@ anything, and closing this window does not stop the work.</p>
             note = (data.get("amendment") or "").strip() or None
             queued, skipped = [], []
             try:
-                from handoff import queue as _q
                 for i, f in enumerate(work["followups"]):
                     if data.get(f"job_{i}") != "on":
                         skipped.append(f)
                         continue
-                    res = _q.submit(work["hub"], f["job_type"], params=f.get("params"),
-                                    input_refs=[f["input_ref"]] if f.get("input_ref") else None,
-                                    origin="mac", consent_note=note)
-                    queued.append((f, res))
+                    queued.append((f, _queue_followup(work["hub"], f, note)))
             except Exception as exc:  # noqa: BLE001
                 self._send(_screen_inbox(error=f"Could not queue the work: {html.escape(str(exc))}"),
                            status=500)
@@ -4582,6 +4571,17 @@ def _forget_port():
             pass
 
 
+def _queue_followup(hub, followup, note):
+    """Queue one follow-up job the person checked on the work-order screen. The ticket's origin
+    names this computer by its system (mac, windows or linux), the mapping runner._platform_tag
+    gives the Outbox tag; the note travels as consent_note, data that validation screens."""
+    from handoff import queue as _q
+    from handoff import runner as _runner
+    return _q.submit(hub, followup["job_type"], params=followup.get("params"),
+                     input_refs=[followup["input_ref"]] if followup.get("input_ref") else None,
+                     origin=_runner._platform_tag(), consent_note=note)
+
+
 def _selftest_p101() -> int:
     """P101 checks (the port block, an idle connection, the cloud-synced warning); _selftest runs
     them, and the committed mutation cases for wizard.py run this alone."""
@@ -4786,6 +4786,21 @@ def _selftest_p101() -> int:
           f"the wizard's handler does not wait REQUEST_TIMEOUT for a request (timeout "
           f"{_Handler.timeout!r}, applied to the connection {_applied!r}), or with an idle connection "
           f"open it did not answer the next request once the wait ended ({_reply!r}, {_took:.1f} s)")
+    # P102: a follow-up job is queued with this computer's origin, read from platform.system().
+    import pathlib as _pathlib_q
+    import platform as _platform_q
+    import tempfile as _tf_q
+    _hub_q = _pathlib_q.Path(_tf_q.mkdtemp(prefix="wizard-origin-"))
+    _real_system, _origins = _platform_q.system, []
+    try:
+        for _sysname in ("Windows", "Darwin", "Linux"):
+            _platform_q.system = lambda _s=_sysname: _s
+            _origins.append(_queue_followup(_hub_q, {"job_type": "library_analyze"}, None)["origin"])
+    finally:
+        _platform_q.system = _real_system
+    _queued = sorted(p.name.split(".")[2] for p in (_hub_q / "Jobs" / "queue").glob("job.*.json"))
+    check(_origins == ["windows", "mac", "linux"] and _queued == ["linux", "mac", "windows"],
+          f"a follow-up job is not queued with this computer's origin ({_origins}, files {_queued})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:

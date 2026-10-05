@@ -291,7 +291,7 @@ python3 tools/competitor_snapshot.py --export-summary
 
 ## Capability matrix
 
-| Capability | Claude Desktop | Claude Projects | Cowork (remote) | GPT API | ChatGPT Web | Gemini |
+| Capability | Claude Desktop | Claude Projects | claude.ai agentic task | GPT API | ChatGPT Web | Gemini |
 |---|---|---|---|---|---|---|
 | Full hub routing and all spokes | Yes | Yes | Yes (plugin skills) | Partial | Partial | Partial |
 | SEO keyword strategy (knowledge-based) | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -330,13 +330,13 @@ python3 tools/competitor_snapshot.py --export-summary
 | Retention x transcript join (most-watched parts with words) | Yes (local, YouTube only) | Partial (model reasons over pasted data) | Partial (connected files) | Partial | No | No |
 | Back-catalog analysis (top tags, retention cliffs, themes) | Yes (local) | Partial (paste library) | Partial (connected files) | Partial | No | No |
 
-Cowork (remote) column notes: a Cowork **local** session behaves like the Claude Desktop column
-(a hypervisor-isolated VM on your machine with your Creator OS folder connected). The remote
-column reflects the ephemeral Anthropic-hosted sandbox: plugin skills carry the knowledge tier
+claude.ai agentic task column notes (this column described Claude Cowork's remote sandbox before
+Cowork merged into Claude chat on 2026-09-16; work on this computer follows the Claude Desktop
+column). The column reflects the ephemeral Anthropic-hosted sandbox: plugin skills carry the knowledge tier
 natively; anything requiring local tools reaches the session only through a deployed remote MCP
 connector; the sandbox's disk is destroyed at session end, so nothing local persists; "Not
 verified" marks capabilities the vendor docs do not settle (see `docs/UPDATING.md` for the cited
-Cowork behavior).
+sandbox behavior).
 
 ---
 

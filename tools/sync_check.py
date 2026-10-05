@@ -1989,7 +1989,7 @@ def check_doc_template_starters():
 
 
 TRANSITION_SURFACE_KEYS = {
-    "claude_desktop", "claude_code", "claude_web", "cowork_local", "cowork_remote",
+    "claude_desktop", "claude_code", "claude_web",
     "chatgpt_web_plain", "chatgpt_custom_gpt",
     "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_gems", "gemini_web", "gemini_desktop",
 }
@@ -3697,13 +3697,14 @@ def check_surface_origin_completeness():
     # origin), and the affinity table pins WHICH surfaces may claim which origin — adding a new
     # origin to the queue enum forces a deliberate entry here, so a phantom origin claimed on an
     # unrelated surface (the P65 'slack' repro) fails instead of passing. Origin<->surface is
-    # many-to-one BY DESIGN in both directions (desktop and mac both run on the two local Claude
-    # apps; the cowork origin serves both Cowork modes); see shared/cross-modality/TRANSITIONS.md.
+    # many-to-one BY DESIGN (desktop, mac, windows and linux all run on the two local Claude apps,
+    # the last three naming the computer by its system); see shared/cross-modality/TRANSITIONS.md.
     origin_surface_affinity = {
         "web": {"claude_web"},
         "desktop": {"claude_desktop", "claude_code"},
         "mac": {"claude_desktop", "claude_code"},
-        "cowork": {"cowork_local", "cowork_remote"},
+        "windows": {"claude_desktop", "claude_code"},
+        "linux": {"claude_desktop", "claude_code"},
         # 'other' is the forward-compatibility residual: no surface may claim it.
         "other": set(),
     }
