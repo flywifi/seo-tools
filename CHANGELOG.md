@@ -221,6 +221,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   builds a temp index with Windows paths stood in); an index or baseline an older Windows build wrote
   with backslashes is read with forward slashes, so construction and code lookups, connector ids and
   citation links work on Windows without a rebuild.
+- P102 (inbox approve re-scan): `inbox.approve` re-runs the offline pattern tier on each file it is
+  about to move and keeps the more cautious of that verdict and the proposal's, so a proposal that
+  leaves the verdict out or understates it no longer routes a file the tier flags (inbox selftest
+  checks "approve refuses a flagged file whose proposal carries no offline verdict" and "a proposal
+  that understates the verdict cannot route a flagged file"); a plain-text file the tier cannot read
+  is refused (`inbox._approve_screen`).
+- P102 (inbox ledger): `approve` and `sweep_quarantine` read, update and write the ledger under
+  `atomic_io.locked` on `<ledger>.lock`; a ledger that does not parse, or is not an object holding a
+  list of entry objects, is copied to `<name>.corrupt.<UTC stamp>.bak` before a new one is started,
+  and one that cannot be read raises before any file moves (`inbox._ledger_for_write`).
+  `load_ledger` reads a ledger of the wrong shape as empty instead of raising.
+- P102 (sealed copies): the inbox scan flags a new copy of content the ledger records as sealed, so
+  the sweep seals it too instead of counting it as handled and leaving it in the drop folder.
+- P102 (inbox selftest skip line): when `os.symlink` is refused, the inbox selftest prints a
+  `[skip]` line for its symlink checks and counts the skipped group in its summary.
 - P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
   calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It

@@ -36,6 +36,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT))
 
 from shared.docintel import classify as _classify  # noqa: E402
+from atomic_io import locked as _locked  # noqa: E402
 
 RULES_PATH = ROOT / "shared" / "docintel" / "inbox_rules.json"
 LEDGER_PATH = ROOT / "pipeline" / "inbox" / "inbox-ledger.local.json"
@@ -57,13 +58,42 @@ def load_rules(path=RULES_PATH) -> dict:
 
 
 def load_ledger(path=LEDGER_PATH) -> dict:
-    """{sha256: entry}. Missing/unreadable -> empty (the scan says so; approve still refuses to
-    double-write a file already in Processed)."""
+    """{sha256: entry}. Missing, unreadable, or not the ledger shape (an object whose "entries" is a
+    list) -> empty (the scan says so; approve still refuses to double-write a file already in
+    Processed). An entry that is not an object, or has no sha256, is left out."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
-        return {e["sha256"]: e for e in data.get("entries", []) if e.get("sha256")}
     except (OSError, ValueError):
         return {}
+    entries = data.get("entries") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return {}
+    return {e["sha256"]: e for e in entries if isinstance(e, dict) and e.get("sha256")}
+
+
+def _ledger_for_write(ledger_path, now=None):
+    """The ledger a writer updates, read before it moves a file: (data, note). A missing ledger
+    starts empty. A ledger that does not parse, or is not an object whose "entries" is a list of
+    objects, is copied to <name>.corrupt.<UTC stamp>.bak beside it and an empty one is started, so
+    no record is overwritten in place; note says where the copy went. A ledger that cannot be read,
+    or a copy that cannot be written, raises OSError, so the caller moves nothing."""
+    path = Path(ledger_path)
+    if not path.exists():
+        return {"schema_version": "0.1.0", "entries": []}, None
+    raw = path.read_bytes()
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except ValueError:
+        data = None
+    entries = data.get("entries", []) if isinstance(data, dict) else None
+    if isinstance(entries, list) and all(isinstance(e, dict) for e in entries):
+        data["entries"] = entries
+        return data, None
+    stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
+    kept = _unique_dest(path.parent, f"{path.name}.corrupt.{stamp}.bak")
+    kept.write_bytes(raw)
+    return ({"schema_version": "0.1.0", "entries": []},
+            f"the ledger could not be read as a ledger; it was kept as {kept.name} and a new one started")
 
 
 def _sha256(path: Path) -> str:
@@ -200,10 +230,19 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
         if p.name in _SEALED_SUBDIRS:  # defensive; directories are already skipped above
             continue
         digest = _sha256(p)
+        info = _classify.classify(str(p))
+        if digest in ledger and ledger[digest].get("status") == "quarantined":
+            # a copy of content already sealed: flagged again so the sweep seals it too, rather
+            # than counted as handled and left in the drop folder
+            out["quarantined"].append({
+                "file": f"Inbox/{p.name}", "sha256": digest, "format_family": info.get("family"),
+                "ext": info.get("ext"), "pass2_pending": False,
+                "offline_pattern_scan": ledger[digest].get("offline_pattern_scan"),
+                "note": "a copy of content already sealed in Inbox/Quarantine; sealed, never routed"})
+            continue
         if digest in ledger:
             out["already_handled"] += 1
             continue
-        info = _classify.classify(str(p))
         # pass2_pending (P62): this offline scan is pass 1 only; the authoritative in-session
         # semantic guard (pass 2) has NOT run on this content yet. A session that later reads the
         # record runs pass 2 and clears this. A sealed (quarantined) file is terminal -> not pending.
@@ -259,6 +298,14 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
     return out
 
 
+def _write_ledger(ledger_path, data) -> None:
+    """Write the ledger atomically (a temp file beside it, then os.replace)."""
+    Path(ledger_path).parent.mkdir(parents=True, exist_ok=True)
+    tmp = Path(str(ledger_path) + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, ledger_path)
+
+
 def sweep_quarantine(hub_root, scan_result, ledger_path=LEDGER_PATH, now=None) -> dict:
     """Seal the files a scan flagged (P61 Q-SEAL). The SECOND sanctioned writer beside approve:
     move each quarantined file to Inbox/Quarantine/<date>/ (a sealed area scan never re-reads and
@@ -267,44 +314,43 @@ def sweep_quarantine(hub_root, scan_result, ledger_path=LEDGER_PATH, now=None) -
     An entry is checked with _confined_inbox_entry first: its folder must resolve inside the Inbox
     and outside the sealed area, else it is skipped with the refusal and not moved; the entry itself
     is moved, so a flagged symlink is sealed as a link and its target is left in place.
+    The ledger is read, updated and written under its lock (atomic_io.locked on <ledger>.lock), so
+    the wizard, the sweep verb and approve do not lose each other's entries; a ledger that is not
+    the ledger shape is kept aside first (_ledger_for_write, reported under ledger_note).
     Idempotent: a file already swept (source gone) is reported, not re-moved. A failed move is
-    reported under skipped; a ledger that cannot be written raises OSError after the moves."""
+    reported under skipped; a ledger that cannot be read raises OSError before any move, and one
+    that cannot be written raises OSError after the moves."""
     hub = Path(hub_root)
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     sealed = hub / "Inbox" / "Quarantine" / stamp
     results = {"sealed": [], "skipped": []}
-    try:
-        data = json.loads(Path(ledger_path).read_text(encoding="utf-8")) if Path(ledger_path).exists() \
-            else {"schema_version": "0.1.0", "entries": []}
-    except (OSError, ValueError):
-        data = {"schema_version": "0.1.0", "entries": []}
-    entries = data.get("entries", [])
-    for item in scan_result.get("quarantined", []):
-        src, refusal = _confined_inbox_entry(hub, item.get("file", ""))
-        if refusal:
-            why = "already swept or missing" if refusal == "file no longer present" else refusal
-            results["skipped"].append({"file": item.get("file"), "why": why})
-            continue
-        try:
-            sealed.mkdir(parents=True, exist_ok=True)
-            dest = _unique_dest(sealed, src.name)  # never overwrite an already-sealed file
-            os.replace(src, dest)
-        except OSError as exc:
-            results["skipped"].append({"file": item.get("file"), "why": f"move failed: {exc}"})
-            continue
-        entries.append({
-            "sha256": item.get("sha256"), "file_name": dest.name,
-            "classified_as": "quarantined", "status": "quarantined",
-            "offline_pattern_scan": item.get("offline_pattern_scan"),
-            "sealed_to": f"Inbox/Quarantine/{stamp}/{dest.name}",
-            "quarantined_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        })
-        results["sealed"].append(item.get("file"))
-    data["entries"] = entries
-    Path(ledger_path).parent.mkdir(parents=True, exist_ok=True)
-    tmp = Path(str(ledger_path) + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, ledger_path)
+    with _locked(ledger_path):  # one writer at a time: the wizard, the sweep verb and approve
+        data, note = _ledger_for_write(ledger_path, now)
+        if note:
+            results["ledger_note"] = note
+        entries = data["entries"]
+        for item in scan_result.get("quarantined", []):
+            src, refusal = _confined_inbox_entry(hub, item.get("file", ""))
+            if refusal:
+                why = "already swept or missing" if refusal == "file no longer present" else refusal
+                results["skipped"].append({"file": item.get("file"), "why": why})
+                continue
+            try:
+                sealed.mkdir(parents=True, exist_ok=True)
+                dest = _unique_dest(sealed, src.name)  # never overwrite an already-sealed file
+                os.replace(src, dest)
+            except OSError as exc:
+                results["skipped"].append({"file": item.get("file"), "why": f"move failed: {exc}"})
+                continue
+            entries.append({
+                "sha256": item.get("sha256"), "file_name": dest.name,
+                "classified_as": "quarantined", "status": "quarantined",
+                "offline_pattern_scan": item.get("offline_pattern_scan"),
+                "sealed_to": f"Inbox/Quarantine/{stamp}/{dest.name}",
+                "quarantined_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            })
+            results["sealed"].append(item.get("file"))
+        _write_ledger(ledger_path, data)
     return results
 
 
@@ -359,6 +405,31 @@ def plan_followups(moved_entries) -> list:
 
 _RISK_RANK = {"CLEAN": 0, "REVIEW": 1, "QUARANTINE": 2, "BLOCK": 3}
 
+# The formats the classifier parses as plain text: approve moves none of them unless the offline tier
+# read it (the scan's fail-closed rule for transcripts). Word, Excel, PowerPoint and PDF files are
+# binary containers the tier cannot read, so they keep the proposal's record.
+_SCREEN_REQUIRED_EXTS = frozenset(_classify.OFFLINE_PARSEABLE) - {"docx", "xlsx", "pptx", "pdf"}
+
+
+def _approve_screen(path, given):
+    """(offline_pattern_scan record, refusal) for a file approve is about to move: the offline tier
+    re-run on the file itself, so a proposal that leaves out or understates its record cannot route
+    a file the tier flags. The more cautious of that verdict and the proposal's is kept. A file the
+    tier could not read (the screener unavailable, or the file binary, oversize or unreadable) keeps
+    the proposal's record, unless its extension is a plain-text format, which is refused."""
+    scr = _screener()
+    rec = scr.scan_file(str(path)) if scr is not None else {}
+    given = given if isinstance(given, dict) else None
+    if "risk_level" not in rec:
+        if Path(path).suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS:
+            return None, ("a text file the offline screener could not read (it looks binary or "
+                          "oversize, or the screener is unavailable); not routed")
+        return given, None
+    fresh = {"risk_level": rec["risk_level"], "total_score": rec["total_score"],
+             "patterns_detected": rec["patterns_detected"]}
+    level = str((given or {}).get("risk_level") or "CLEAN").upper()
+    return (given if _RISK_RANK.get(level, 0) > _RISK_RANK.get(fresh["risk_level"], 0) else fresh), None
+
 
 def reconcile(offline_prior, session_verdict) -> dict:
     """P62 two-pass reconciliation (pure). Combine the offline advisory prior with the
@@ -386,82 +457,84 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
     file vanished or whose sha no longer matches (the file changed since the scan). P62: refuses
     any entry the OFFLINE prior sealed (SEAL-TERMINAL fail-safe -- the session can never un-seal it)
     or the SESSION verdict escalated to QUARANTINE/BLOCK, and records the reconciled two-pass
-    triple `injection_review` in the ledger."""
+    triple `injection_review` in the ledger. The offline prior is the tier re-run on the file
+    (_approve_screen), not only the proposal's record. The ledger is read, updated and written under
+    its lock, as in sweep_quarantine."""
     hub = Path(hub_root)
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     processed = hub / "Inbox" / "Processed" / stamp
     # moved: the file paths (back-compat); moved_details: what plan_followups needs to build the
     # work-order screen (the classified category + the new Processed path).
     results = {"moved": [], "moved_details": [], "refused": []}
-    try:
-        data = json.loads(Path(ledger_path).read_text(encoding="utf-8")) if Path(ledger_path).exists() \
-            else {"schema_version": "0.1.0", "entries": []}
-    except (OSError, ValueError):
-        data = {"schema_version": "0.1.0", "entries": []}
-    entries = [e for e in data.get("entries", []) if e.get("sha256")]
-    known = {e["sha256"] for e in entries}
-    for item in proposal.get("proposals", []):
-        rel = item.get("file", "")
-        # Q-SEAL lock + Inbox confinement, realpath-based (robust to '..', symlinks, and
-        # case-insensitive filesystems): approve never touches a file inside the sealed Quarantine
-        # area and never a file that resolves outside the Inbox.
-        src, refusal = _confined_inbox_file(hub, rel)
-        if refusal:
-            results["refused"].append({"file": rel, "why": refusal})
-            continue
-        if _sha256(src) != item.get("sha256"):
-            results["refused"].append({"file": item.get("file"),
-                                       "why": "file changed since the scan; re-scan first"})
-            continue
-        if item["sha256"] in known:
-            results["refused"].append({"file": item.get("file"), "why": "already in the ledger"})
-            continue
-        # P62 two-pass fail-safes. offline_prior is the pass-1 advisory; injection_scan_result is
-        # the authoritative pass-2 verdict a session set (None if pass 2 has not run).
-        offline_prior = item.get("offline_pattern_scan")
-        off_level = (offline_prior or {}).get("risk_level") if isinstance(offline_prior, dict) else None
-        if off_level in ("QUARANTINE", "BLOCK"):
-            results["refused"].append({"file": item.get("file"),
-                                       "why": "offline tier sealed this; the session cannot un-seal it (SEAL-TERMINAL)"})
-            continue
-        review = reconcile(offline_prior, item.get("injection_scan_result"))
-        if review["effective"] in ("QUARANTINE", "BLOCK"):
-            results["refused"].append({"file": item.get("file"),
-                                       "why": f"in-session guard verdict {review['effective']} "
-                                              f"({review['session_action']}); not routed"})
-            continue
-        processed.mkdir(parents=True, exist_ok=True)
-        target = _unique_dest(processed, src.name)  # never overwrite an already-approved file
-        os.replace(src, target)
-        entries.append({
-            "sha256": item["sha256"], "file_name": target.name,
-            "first_seen": item.get("first_seen") or stamp,
-            "classified_as": item.get("classified_as"),
-            "injection_scan_result": item.get("injection_scan_result"),
-            "injection_review": {"offline_pattern_scan": offline_prior,
-                                 "injection_scan_result": item.get("injection_scan_result"),
-                                 "reconciliation": review},
-            "routed_to": item.get("route_to"),
-            "status": "approved",
-            "approved_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "notes": item.get("note"),
-        })
-        known.add(item["sha256"])
-        results["moved"].append(item["file"])
-        results["moved_details"].append({
-            "file": item["file"], "classified_as": item.get("classified_as"),
-            "processed_ref": f"Inbox/Processed/{stamp}/{target.name}"})
-    data["entries"] = entries
-    Path(ledger_path).parent.mkdir(parents=True, exist_ok=True)
-    tmp = Path(str(ledger_path) + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, ledger_path)
+    with _locked(ledger_path):  # one writer at a time: the wizard, the sweep verb and approve
+        data, note = _ledger_for_write(ledger_path, now)
+        if note:
+            results["ledger_note"] = note
+        entries = [e for e in data["entries"] if e.get("sha256")]
+        known = {e["sha256"] for e in entries}
+        for item in proposal.get("proposals", []):
+            rel = item.get("file", "")
+            # Q-SEAL lock + Inbox confinement, realpath-based (robust to '..', symlinks, and
+            # case-insensitive filesystems): approve never touches a file inside the sealed Quarantine
+            # area and never a file that resolves outside the Inbox.
+            src, refusal = _confined_inbox_file(hub, rel)
+            if refusal:
+                results["refused"].append({"file": rel, "why": refusal})
+                continue
+            if _sha256(src) != item.get("sha256"):
+                results["refused"].append({"file": item.get("file"),
+                                           "why": "file changed since the scan; re-scan first"})
+                continue
+            if item["sha256"] in known:
+                results["refused"].append({"file": item.get("file"), "why": "already in the ledger"})
+                continue
+            # P62 two-pass fail-safes. offline_prior is the pass-1 advisory, re-run here on the file
+            # (_approve_screen); injection_scan_result is the authoritative pass-2 verdict a session set
+            # (None if pass 2 has not run).
+            offline_prior, unscreened = _approve_screen(src, item.get("offline_pattern_scan"))
+            if unscreened:
+                results["refused"].append({"file": item.get("file"), "why": unscreened})
+                continue
+            off_level = (offline_prior or {}).get("risk_level") if isinstance(offline_prior, dict) else None
+            if off_level in ("QUARANTINE", "BLOCK"):
+                results["refused"].append({"file": item.get("file"),
+                                           "why": "offline tier sealed this; the session cannot un-seal it (SEAL-TERMINAL)"})
+                continue
+            review = reconcile(offline_prior, item.get("injection_scan_result"))
+            if review["effective"] in ("QUARANTINE", "BLOCK"):
+                results["refused"].append({"file": item.get("file"),
+                                           "why": f"in-session guard verdict {review['effective']} "
+                                                  f"({review['session_action']}); not routed"})
+                continue
+            processed.mkdir(parents=True, exist_ok=True)
+            target = _unique_dest(processed, src.name)  # never overwrite an already-approved file
+            os.replace(src, target)
+            entries.append({
+                "sha256": item["sha256"], "file_name": target.name,
+                "first_seen": item.get("first_seen") or stamp,
+                "classified_as": item.get("classified_as"),
+                "injection_scan_result": item.get("injection_scan_result"),
+                "injection_review": {"offline_pattern_scan": offline_prior,
+                                     "injection_scan_result": item.get("injection_scan_result"),
+                                     "reconciliation": review},
+                "routed_to": item.get("route_to"),
+                "status": "approved",
+                "approved_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "notes": item.get("note"),
+            })
+            known.add(item["sha256"])
+            results["moved"].append(item["file"])
+            results["moved_details"].append({
+                "file": item["file"], "classified_as": item.get("classified_as"),
+                "processed_ref": f"Inbox/Processed/{stamp}/{target.name}"})
+        data["entries"] = entries
+        _write_ledger(ledger_path, data)
     return results
 
 
 def selftest() -> int:
     import tempfile
-    checks = []
+    checks, skips = [], []
 
     def ok(name, cond):
         checks.append((name, bool(cond)))
@@ -869,8 +942,10 @@ def selftest() -> int:
             os.symlink(lk_out, lk / "Inbox" / "out-link.txt")
             os.symlink(lk_seal, lk / "Inbox" / "peek.txt")
             have_links = True
-        except (OSError, NotImplementedError, AttributeError):
+        except (OSError, NotImplementedError, AttributeError) as exc:
             have_links = False
+            skips.append(f"the symlink containment checks: os.symlink is refused here "
+                         f"({type(exc).__name__}: {exc})")
         if have_links:
             pb = approve(lk, {"proposals": [{"file": "Inbox/peek.txt", "sha256": _sha256(lk_seal)}]},
                          ledger_path=Path(tempfile.mkdtemp()) / "pb-ledger.json")
@@ -915,10 +990,161 @@ def selftest() -> int:
          approve.__defaults__, os.replace) = saved
     ok("the sweep checks left the real ledger as it was", file_state(LEDGER_PATH) == real_before)
 
+    # P102: approve re-runs the offline tier on the file it moves; the proposal's record can only
+    # make it more cautious.
+    b1 = Path(tempfile.mkdtemp()); (b1 / "Inbox").mkdir()
+    (b1 / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+    (b1 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+
+    def prop_for(hub_dir, name, **extra):
+        return dict({"file": f"Inbox/{name}", "sha256": _sha256(hub_dir / "Inbox" / name)}, **extra)
+
+    b1_led = Path(tempfile.mkdtemp()) / "b1-ledger.json"
+    fa = approve(b1, {"proposals": [prop_for(b1, "poison.txt", classified_as="transcript"),
+                                    prop_for(b1, "talk.srt", classified_as="transcript")]},
+                 ledger_path=b1_led)
+    ok("approve refuses a flagged file whose proposal carries no offline verdict, and moves the rest",
+       fa["moved"] == ["Inbox/talk.srt"] and [r["file"] for r in fa["refused"]] == ["Inbox/poison.txt"]
+       and "SEAL-TERMINAL" in fa["refused"][0]["why"] and (b1 / "Inbox" / "poison.txt").is_file())
+    rec_b1 = {e["file_name"]: e for e in json.loads(b1_led.read_text(encoding="utf-8"))["entries"]}
+    ok("the ledger records the verdict approve measured, where the proposal gave none",
+       rec_b1["talk.srt"]["injection_review"]["offline_pattern_scan"]["risk_level"] == "CLEAN")
+    clean_rec = {"risk_level": "CLEAN", "total_score": 0, "patterns_detected": []}
+    ua = approve(b1, {"proposals": [prop_for(b1, "poison.txt", offline_pattern_scan=clean_rec)]},
+                 ledger_path=b1_led)
+    ok("a proposal that understates the verdict cannot route a flagged file",
+       not ua["moved"] and "SEAL-TERMINAL" in ua["refused"][0]["why"])
+    (b1 / "Inbox" / "talk2.srt").write_text(srt.replace("hi", "hello"), encoding="utf-8")
+    ca = approve(b1, {"proposals": [prop_for(b1, "talk2.srt", offline_pattern_scan=dict(
+        clean_rec, risk_level="QUARANTINE"))]}, ledger_path=b1_led)
+    ok("a proposal more cautious than the re-run keeps its verdict",
+       not ca["moved"] and "SEAL-TERMINAL" in ca["refused"][0]["why"])
+    (b1 / "Inbox" / "talk3.srt").write_text(srt.replace("hi", "bye"), encoding="utf-8")
+    (b1 / "Inbox" / "clip.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42fakevideo")
+    real_screener = globals()["_screener"]
+    globals()["_screener"] = lambda: None
+    try:
+        na = approve(b1, {"proposals": [prop_for(b1, "talk3.srt"), prop_for(b1, "clip.mp4")]},
+                     ledger_path=b1_led)
+    finally:
+        globals()["_screener"] = real_screener
+    ok("without the screener a text file is refused and a media file still moves",
+       na["moved"] == ["Inbox/clip.mp4"] and [r["file"] for r in na["refused"]] == ["Inbox/talk3.srt"]
+       and "could not read" in na["refused"][0]["why"])
+    (b1 / "Inbox" / "odd.srt").write_bytes(b"1\n\x00\x00\x00binary")
+    oa = approve(b1, {"proposals": [prop_for(b1, "odd.srt")]}, ledger_path=b1_led)
+    ok("a text-format file the screener skips as binary is refused",
+       not oa["moved"] and "could not read" in oa["refused"][0]["why"])
+    (b1 / "Inbox" / "clip2.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42othervideo")
+    ma = approve(b1, {"proposals": [prop_for(b1, "clip2.mp4", offline_pattern_scan=dict(
+        clean_rec, risk_level="BLOCK"))]}, ledger_path=b1_led)
+    ok("a binary file the tier cannot read keeps the proposal's verdict, so a sealed record refuses",
+       not ma["moved"] and "SEAL-TERMINAL" in ma["refused"][0]["why"])
+
+    # P102: the writers hold the ledger lock while they move files.
+    def lock_free(ledger):
+        with open(str(ledger) + ".lock", "a+") as fh:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(fh, fcntl.LOCK_UN)
+                return True
+            except OSError:
+                return False
+
+    f3 = Path(tempfile.mkdtemp()); (f3 / "Inbox").mkdir()
+    (f3 / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+    (f3 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    f3_led = Path(tempfile.mkdtemp()) / "f3-ledger.json"
+    held, real_replace = [], os.replace
+
+    def watch_replace(src, dst):
+        if "Inbox" in str(dst):  # a file move, not the ledger's own temp-file replace
+            held.append(not lock_free(f3_led))
+        return real_replace(src, dst)
+    res_f3 = scan(f3, ledger={})
+    os.replace = watch_replace
+    try:
+        sweep_quarantine(f3, res_f3, ledger_path=f3_led)
+        approve(f3, res_f3, ledger_path=f3_led)
+    finally:
+        os.replace = real_replace
+    ok("the sweep and approve hold the ledger lock while they move files, and release it",
+       held == [True, True] and lock_free(f3_led))
+
+    # P102: a copy of sealed content is flagged again; a copy of approved content stays handled.
+    f4 = Path(tempfile.mkdtemp()); (f4 / "Inbox").mkdir()
+    (f4 / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+    (f4 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    f4_led = Path(tempfile.mkdtemp()) / "f4-ledger.json"
+    r4a = scan(f4, ledger={})
+    sweep_quarantine(f4, r4a, ledger_path=f4_led)
+    approve(f4, r4a, ledger_path=f4_led)
+    (f4 / "Inbox" / "again.txt").write_text(poison, encoding="utf-8")
+    (f4 / "Inbox" / "again.srt").write_text(srt, encoding="utf-8")
+    r4 = scan(f4, ledger=load_ledger(f4_led))
+    ok("a copy of sealed content is flagged again with the sealed record; a copy of approved "
+       "content stays handled",
+       [e["file"] for e in r4["quarantined"]] == ["Inbox/again.txt"] and r4["already_handled"] == 1
+       and r4["quarantined"][0]["offline_pattern_scan"]["risk_level"] in ("QUARANTINE", "BLOCK")
+       and r4["quarantined"][0]["pass2_pending"] is False)
+    s4 = sweep_quarantine(f4, r4, ledger_path=f4_led)
+    ok("the sweep seals the copy of sealed content",
+       s4["sealed"] == ["Inbox/again.txt"] and not (f4 / "Inbox" / "again.txt").exists())
+
+    # P102: a ledger of the wrong shape is read as empty and kept aside before a writer replaces it.
+    f5 = Path(tempfile.mkdtemp())
+    shape = f5 / "shape.json"
+    loaded = []
+    for text in ("[1, 2]", '{"entries": "x"}', '{"entries": [1, {"sha256": "a"}]}', "{oops"):
+        shape.write_text(text, encoding="utf-8")
+        loaded.append(load_ledger(shape))
+    ok("load_ledger reads a ledger of the wrong shape as empty, skipping entries that are not objects",
+       loaded == [{}, {}, {"a": {"sha256": "a"}}, {}])
+    h5 = Path(tempfile.mkdtemp()); (h5 / "Inbox").mkdir()
+    (h5 / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
+    (h5 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    l5 = f5 / "ledger.json"
+    l5.write_text("{oops", encoding="utf-8")
+    r5 = scan(h5, ledger={})
+    s5 = sweep_quarantine(h5, r5, ledger_path=l5)
+    kept5 = sorted(f5.glob("ledger.json.corrupt.*.bak"))
+    ok("the sweep keeps a ledger it cannot parse as a .corrupt copy and starts a new one",
+       s5["sealed"] == ["Inbox/poison.txt"] and len(kept5) == 1
+       and kept5[0].read_text(encoding="utf-8") == "{oops" and kept5[0].name in s5.get("ledger_note", "")
+       and [e["status"] for e in json.loads(l5.read_text(encoding="utf-8"))["entries"]] == ["quarantined"])
+    l5.write_text('{"entries": [1]}', encoding="utf-8")
+    a5 = approve(h5, r5, ledger_path=l5)
+    ok("approve keeps a ledger with an entry that is not an object aside the same way",
+       a5["moved"] == ["Inbox/talk.srt"] and "ledger_note" in a5
+       and len(list(f5.glob("ledger.json.corrupt.*"))) == 2
+       and [e["status"] for e in json.loads(l5.read_text(encoding="utf-8"))["entries"]] == ["approved"])
+    h6 = Path(tempfile.mkdtemp()); (h6 / "Inbox").mkdir()
+    (h6 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    l6 = f5 / "folder-ledger"
+    l6.mkdir()
+    try:
+        approve(h6, scan(h6, ledger={}), ledger_path=l6)
+        unread = False
+    except OSError:
+        unread = True
+    ok("a ledger that cannot be read raises before any file moves",
+       unread and (h6 / "Inbox" / "talk.srt").is_file() and l6.is_dir())
+
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)
-    print(f"handoff.inbox selftest: {len(checks) - len(failed)}/{len(checks)} passed")
+    for s in skips:
+        print(f"  [skip] {s}")
+    print(f"handoff.inbox selftest: {len(checks) - len(failed)}/{len(checks)} passed"
+          + (f", {len(skips)} group(s) skipped" if skips else ""))
     return 1 if failed else 0
 
 

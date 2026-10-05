@@ -78,7 +78,9 @@ realpath keeps the case it is given on Google Drive for desktop's drive) and nev
 file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
 - `approve` moves handled files to `Inbox/Processed/<date>/`, re-verifying each sha256 (a file
   changed since its scan is refused) and refusing any path that resolves into `Inbox/Quarantine/`
-  or outside `Inbox/`; it appends to the gitignored ledger atomically.
+  or outside `Inbox/`; it re-runs the offline pattern tier on each file and keeps the more cautious
+  of that verdict and the proposal's, refusing a plain-text file the tier cannot read
+  (`_approve_screen`); it appends to the gitignored ledger atomically.
 - `sweep_quarantine` seals QUARANTINE/BLOCK files into `Inbox/Quarantine/<date>/` with their
   findings (the second writer; details under "The sealed Quarantine area" below). The wizard's
   `/inbox` screen calls it after a scan that flags a file, and so does the `sweep` verb
@@ -86,6 +88,13 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   `LEDGER_PATH` names when it runs and exits 0 (sealed, already gone, or nothing flagged), 1 (no
   `Inbox`, an unreadable file, a flagged file not moved, or an unwritable ledger) or 2 (usage).
   `<!-- verify: tools/handoff/inbox.py::_sweep_cli -->`
+- Both writers read, update and write the ledger under `atomic_io.locked` on `<ledger>.lock`, so a
+  sweep and an approval running at once keep both entries. A ledger that does not parse, or is not
+  an object holding a list of entry objects, is copied to `<name>.corrupt.<UTC stamp>.bak` and a new
+  one is started (reported as `ledger_note`); one that cannot be read raises before any file moves.
+  `<!-- verify: tools/handoff/inbox.py::_ledger_for_write -->`
+- `scan` flags a new copy of content the ledger records as sealed, so the sweep seals it too rather
+  than leaving it in the drop folder counted as handled.
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
 Two-pass handoff (P62): the offline verdict is pass 1. Every routed / needs-review record carries
