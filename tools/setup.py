@@ -1123,6 +1123,25 @@ def _selftest_location() -> int:
        and _loc_seen["plain"] == (None, ""),
        "setup warns once for a repo in a cloud-synced folder, naming it, the home-folder example and "
        "env_paths.python_command(), and prints nothing for a home-folder repo")
+    # P102: on Windows a repo outside the user folder gets a note; under it, none.
+    _real_os = env_paths._os_name
+    env_paths._os_name = lambda: "nt"
+    try:
+        _loc_notes = {}
+        for _loc_name, _loc_root in (("outside", _loc_home.parent / "repos" / "CreatorOS"),
+                                     ("inside", _loc_home / "CreatorOS")):
+            _loc_out = _io_loc.StringIO()
+            with _cl_loc.redirect_stdout(_loc_out):
+                _loc_r = check_repo_location(_loc_root, home=_loc_home, env={}, ismount=lambda p: False)
+            _loc_notes[_loc_name] = (_loc_r, _loc_out.getvalue())
+    finally:
+        env_paths._os_name = _real_os
+    ok(_loc_notes["outside"][0] is None and _loc_notes["outside"][1].count("[note]") == 1
+       and "credential files" in _loc_notes["outside"][1]
+       and f"(for example {_loc_home / 'CreatorOS'})." in _loc_notes["outside"][1]
+       and _loc_notes["inside"] == (None, ""),
+       "on Windows setup notes once a repo outside the user folder, naming the credential files and "
+       "the home-folder example, and prints nothing for a repo under it")
     for c, m in checks:
         if not c:
             print(f"  [FAIL] {m}")
@@ -1133,8 +1152,10 @@ def check_repo_location(root=ROOT, home=None, env=None, ismount=None) -> str | N
     """Warn when the repo sits in a cloud-synced folder. The credential files live inside the repo
     (pipeline/user-context/*-credentials.local.json), so a synced repo syncs them. Setup continues:
     the remedy is to move the repo into the home folder (for example ~/CreatorOS) and let
-    tools/profile_mirror.py copy the context files into the Drive hub. Returns the synced folder,
-    or None. env and ismount pass through to env_paths.cloud_synced_root."""
+    tools/profile_mirror.py copy the context files into the Drive hub. On Windows it also notes a
+    repo outside the user folder (env_paths.windows_outside_home), whose files take the drive's
+    permissions. Returns the synced folder, or None. env and ismount pass through to
+    env_paths.cloud_synced_root."""
     synced = env_paths.cloud_synced_root(root, home=home, env=env, ismount=ismount)
     if synced:
         example = (Path(home) if home is not None else Path.home()) / "CreatorOS"
@@ -1143,6 +1164,12 @@ def check_repo_location(root=ROOT, home=None, env=None, ismount=None) -> str | N
         _say("         Its credential files sync with it. Move the repo to your home folder")
         _say(f"         (for example {example}), then copy your context into Google Drive with")
         _say(f"         {python} tools/profile_mirror.py sync   (docs/PROFILE-MIRROR.md).")
+    if env_paths.windows_outside_home(root, home=home):
+        home_dir = Path(home) if home is not None else Path.home()
+        _say("  [note] This repo is outside your user folder. On Windows a folder there takes the")
+        _say("         drive's permissions, which by default let other accounts on this computer")
+        _say("         read its files, the credential files in pipeline/user-context/ included.")
+        _say(f"         Keep the repo under your user folder (for example {home_dir / 'CreatorOS'}).")
     return synced
 
 

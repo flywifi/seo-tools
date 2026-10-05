@@ -216,6 +216,26 @@ def _os_name() -> str:
     return os.name
 
 
+def windows_outside_home(path, home=None, osname=None) -> bool:
+    """True on Windows when `path` is outside the home folder (%USERPROFILE%). A folder under the
+    profile takes the profile's permissions (the user, SYSTEM and Administrators); one created
+    elsewhere, such as C:\\repos, takes the drive's, which by default let the computer's other
+    accounts read its files, the credential files in pipeline/user-context/ among them (os.chmod
+    there sets only the read-only flag). False on other systems, and when a path cannot be
+    resolved. Paths are compared after resolving symlinks, with os.path.normcase."""
+    if osname is None:
+        osname = _os_name()
+    if osname != "nt":
+        return False
+    home = Path(home) if home is not None else Path.home()
+    try:
+        target = os.path.normcase(str(Path(path).expanduser().resolve()))
+        base = os.path.normcase(str(home.resolve())).rstrip("\\/")
+    except (OSError, RuntimeError):
+        return False
+    return not (target == base or target.startswith(base + os.sep))
+
+
 def python_command(osname=None, which=None) -> str:
     """The command a person types to run this repo's scripts: on Windows `py -3` when the py
     launcher is installed (Start Creator OS Setup.bat tries it first, since `python` can be missing
@@ -460,6 +480,28 @@ def _selftest() -> int:
         ok(gate_failed == (os.name != "nt") and "[skip] venv selection" in r.stdout,
            "with symlinks refused, the symlink gate fails off Windows and skips on Windows")
 
+
+    # P102: a repo outside the home folder on Windows takes the drive's permissions.
+    with tempfile.TemporaryDirectory() as td:
+        h = Path(td).resolve() / "home"
+        (h / "CreatorOS").mkdir(parents=True)
+        (Path(td) / "repos" / "CreatorOS").mkdir(parents=True)
+        (Path(td) / "home-other").mkdir()
+        ok(windows_outside_home(Path(td) / "repos" / "CreatorOS", home=h, osname="nt") is True
+           and windows_outside_home(Path(td) / "home-other", home=h, osname="nt") is True,
+           "on Windows a repo outside the home folder is reported, also beside it with a shared prefix")
+        ok(windows_outside_home(h / "CreatorOS", home=h, osname="nt") is False
+           and windows_outside_home(h, home=h, osname="nt") is False,
+           "on Windows the home folder and a repo under it are not reported")
+        ok(windows_outside_home(Path(td) / "repos" / "CreatorOS", home=h, osname="posix") is False,
+           "on another system a repo outside the home folder is not reported")
+        real_os = globals()["_os_name"]
+        globals()["_os_name"] = lambda: "nt"
+        try:
+            read_os = windows_outside_home(Path(td) / "repos", home=h)
+        finally:
+            globals()["_os_name"] = real_os
+        ok(read_os is True, "windows_outside_home reads _os_name() when no system is given")
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:

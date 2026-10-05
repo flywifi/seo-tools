@@ -62,10 +62,11 @@ Two ways, both effectively hands-off once set up:
   of every skill loads at startup), namespaces plugin skills as `creator-os:<skill>`, and
   prefers the marketplace entry's description over plugin.json's -- the two are kept identical
   here for that reason. (Source: code.claude.com/docs/en/discover-plugins, fetched 2026-09-19.)
-  Org distribution is first-party documented (support.claude.com article 13837433, fetched
-  2026-09-19): Team/Enterprise owners distribute plugins via marketplaces -- manual ZIP upload
-  (max 50 MB each, up to 100 plugins) or GitHub-synced private repos (up to 500 plugins,
-  `marketplace.json` with relative plugin paths supported), with per-plugin install states
+  Org distribution is first-party documented (support.claude.com article 13837433, limits
+  re-read 2026-10-05): Team/Enterprise owners distribute plugins via marketplaces -- manual ZIP
+  upload (max 200 MB each, up to 1000 plugins per marketplace) or GitHub- or GitLab-synced private
+  repos (up to 1000 plugins per marketplace, `marketplace.json` with relative plugin paths
+  supported), with per-plugin install states
   (Installed by default / Available / Not available / Required), and "Cowork and Skills must both
   be enabled for your organization before you can use plugin marketplaces."
   Org-wide provisioning of bare Skills (outside plugins) is also first-party documented now

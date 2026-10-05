@@ -1007,6 +1007,13 @@ with your Microsoft account. Follow the prompts to allow access.</p>
 def _screen_publishing_setup(error: str = "") -> str:
     creds = _load_api_credentials()
     err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if env_paths.windows_outside_home(ROOT):  # P102: the drive's permissions reach the saved tokens
+        home_example = html.escape(str(pathlib.Path.home().joinpath("CreatorOS")))
+        err_html += (f'<div class="note">This Creator OS folder is outside your user folder. On Windows '
+                     f'a folder there takes the drive\'s permissions, which by default let other accounts '
+                     f'on this computer read its files, the credentials these screens save in '
+                     f'<code>pipeline/user-context/api-credentials.local.json</code> included. Keep the '
+                     f'folder under your user folder, for example <code>{home_example}</code>.</div>')
 
     def _status(plat: str) -> str:
         if creds.get(plat):
@@ -2894,9 +2901,16 @@ def _screen_work_order(filed: str = "", followups=None, token: str = "") -> str:
         jt = html.escape(f.get("job_type", ""))
         rows += (f'<tr><td><input type="checkbox" name="job_{i}" checked></td>'
                  f'<td><code>{name}</code></td><td>{jt}</td><td>{note}</td></tr>')
+    from handoff import runner as _runner_wo
+    tag = _runner_wo._platform_tag()
+    mixed = ("" if tag == "mac" else
+             f'<div class="note">This computer queues work as <code>{tag}</code>. A computer that '
+             f'shares this hub and runs a Creator OS older than P102 refuses that work and archives '
+             f'it, so update every computer that runs jobs from this hub first.</div>')
     return _page("Confirm the work", f"""
 <h1>Confirm the follow-up work</h1>
 <div class="note" style="background:#eef7ee">{filed}</div>
+{mixed}
 {_compute_switch_banner()}
 <p>Here is the work this computer would do next for the files you just approved. Uncheck anything
 you do not want, add a note if you want to change or correct something, then queue it. Nothing runs
@@ -4811,6 +4825,39 @@ def _selftest_p101() -> int:
             del pathlib.Path.home
         else:
             pathlib.Path.home = _real_home
+    # P102: the work-order screen warns that an older computer refuses windows and linux work.
+    from handoff import runner as _runner_pin
+    _real_tag, _wo = _runner_pin._platform_tag, {}
+    try:
+        for _t in ("windows", "linux", "mac"):
+            _runner_pin._platform_tag = lambda system=None, _t=_t: _t
+            _wo[_t] = _screen_work_order("filed", [], "tok")
+    finally:
+        _runner_pin._platform_tag = _real_tag
+    check("older than P102" in _wo["windows"] and "<code>windows</code>" in _wo["windows"]
+          and "<code>linux</code>" in _wo["linux"] and "older than P102" not in _wo["mac"],
+          "the work-order screen does not warn on Windows and Linux that an older computer sharing "
+          "the hub refuses that work, or warns on a Mac")
+    # P102: on Windows the publishing screen notes a repo outside the user folder (escaped example).
+    _real_outside = env_paths.windows_outside_home
+    _outside_seen = []
+    try:
+        pathlib.Path.home = classmethod(lambda cls: _home / "<&>")
+        env_paths.windows_outside_home = lambda path, **kw: _outside_seen.append(path) or True
+        _pub_note = _screen_publishing_setup()
+        env_paths.windows_outside_home = lambda path, **kw: False
+        _pub_plain = _screen_publishing_setup()
+    finally:
+        env_paths.windows_outside_home = _real_outside
+        if _real_home is None:
+            del pathlib.Path.home
+        else:
+            pathlib.Path.home = _real_home
+    check("outside your user folder" in _pub_note and "api-credentials.local.json" in _pub_note
+          and f"<code>{html.escape(str(_home / '<&>' / 'CreatorOS'))}</code>" in _pub_note
+          and "outside your user folder" not in _pub_plain and _outside_seen == [ROOT],
+          f"the publishing screen does not note a repo outside the user folder on Windows (escaped, "
+          f"asked about ROOT), or notes one under it: {_outside_seen}")
     check("cloud-synced folder (<code>G:\\&lt;&amp;&gt;</code>)" in _warned
           and f"<code>{html.escape(str(_home / 'CreatorOS'))}</code>" in _warned
           and "<code>PYCMD&lt;&amp;&gt; tools/profile_mirror.py sync</code>" in _warned

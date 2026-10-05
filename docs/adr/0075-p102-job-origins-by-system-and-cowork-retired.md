@@ -47,7 +47,9 @@ so `docs/UPDATING.md` keeps that quote; it describes an admin control, not a Cre
 
 - A computer on code older than P102 that runs jobs from the same hub refuses a `windows` or
   `linux` ticket ("not in ALLOWED_ORIGINS"), writes a refused result and moves the ticket to
-  `Jobs/archive/`, so that job must be queued again once the computer updates.
+  `Jobs/archive/`, so that job must be queued again once the computer updates. The wizard's
+  work-order screen says so on a computer that queues such tickets, and the setup guides say to
+  update every computer that shares the hub first.
 - A `cowork` ticket queued before P102 is refused after it.
 - Tickets already in a hub keep their names; nothing renames them.
 - Docs that described the Cowork rows now describe Claude Desktop and claude.ai agentic tasks;

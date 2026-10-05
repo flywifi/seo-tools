@@ -18,6 +18,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   3.12 and 3.14, with full history (ADR 0076). The selftest sweep gives
   `tools/surface_workflow_check.py` a 900 s cap (`selftest_sweep.TOOL_TIMEOUTS`), since its
   mutant pass took 246 to 287 s on a Windows computer against the 300 s default.
+- P102 (Windows setup guide): `docs/SETUP_WINDOWS.md` covers the Windows steps, each marked as
+  tested on Windows or not yet tested, the machine-wide labels for the py launcher's all-users
+  option and Claude Desktop's full install, and the Claude Desktop config locations.
 - P102 (suite payload check): the cross-surface suite refuses a contract whose JSON payload carries
   a key the template of the file it stands for lacks (`pipeline/user-context/<base>.json` or
   `<base>.template.json`), at the top level and in the items of a list whose template shows its
@@ -188,12 +191,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - P102 (git hooks interpreter): `tools/install_hooks.py` writes hooks that run the Python that
   installed them, then try `python3`, `python` and `py -3`, and refuse the commit with a message
   naming `install_hooks.py` when none works; hooks are written with LF line endings.
+- P102 (repo outside the user folder on Windows): `setup.py` and the wizard's publishing screen
+  note a repo outside the user folder on Windows (`env_paths.windows_outside_home`), whose files
+  take the drive's permissions, which by default let the computer's other accounts read them,
+  the credential files included.
 - P102 (job origins by system): a job ticket's `origin` accepts `windows` and `linux` beside `mac`,
   each naming the computer that queued the job by its system (queue, schema, drift invariant 55 and
   the two local Claude app surfaces), and the wizard queues follow-up jobs with
   `runner._platform_tag()`, so a ticket queued on Windows is named `job.<stamp>.windows.<id8>.json`
   (`wizard._queue_followup`; ADR 0075). A computer on older code that runs jobs from the same hub
-  refuses those tickets and archives them. `queue.submit` keeps `mac` as its default.
+  refuses those tickets and archives them, so the wizard's work-order screen on Windows and Linux
+  says to update every computer that shares the hub first. `queue.submit` keeps `mac` as its
+  default.
   `validate_ticket` refuses an origin that is not a string with a reason instead of raising.
 - P102 (Cowork retired): Claude Cowork and chat became one Claude in a staged rollout from
   2026-09-16 (support article 16761823), so the `cowork_local` and `cowork_remote` surfaces leave
@@ -269,6 +278,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `os.path.realpath` of the temp path (`handoff/queue.py` input refs, the suite's `guard-records`
   and `guard-refuses-checkout-under-root`), so they pass when the temp folder is an 8.3 short
   path, as on GitHub's Windows image, or a symlink.
+- P102 (plugin limits): `docs/UPDATING.md` and the `package_skill.py` docstring state the current
+  organization plugin limits: 200 MB per ZIP and 1000 plugins per marketplace, for manual upload
+  and for GitHub or GitLab sync.
 - P102 (scoop-cache path keys): the cache stores a record's source, and the build baseline its keys,
   with forward slashes, including on Windows (`cache.py`, `sync_cache.py`; `cache.py --selftest`
   builds a temp index with Windows paths stood in); an index or baseline an older Windows build wrote

@@ -33,6 +33,7 @@ See `CLAUDE.md` for working conventions and `docs/ARCHITECTURE.md` for the desig
 is in `STATE.md`.
 
 ## Setting it up
+- On Windows, start with `docs/SETUP_WINDOWS.md`.
 - On a Mac, start with `docs/SETUP_MAC.md`; the guided setup wizard is documented in
   `docs/WIZARD.md`. Run `python3 tools/setup.py --install-deps` first: it builds the private
   `.venv` the wizard expects.

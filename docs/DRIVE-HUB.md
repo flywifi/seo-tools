@@ -90,7 +90,10 @@ provenance. Two kinds of file depart from that pattern. A job ticket is named
 `shared/schemas/compute-job.json`): the surface that queued the job, and for a job queued on this
 computer its system, so a ticket queued from the wizard on Windows is named
 `job.<stamp>.windows.<id8>.json` (before P102 the wizard wrote `mac` on any system;
-<!-- verify: tools/wizard.py::_queue_followup -->). A ticket whose origin is `cowork` is refused
+<!-- verify: tools/wizard.py::_queue_followup -->). A computer on a Creator OS older than P102
+that runs jobs from the same hub refuses a `windows` or `linux` ticket and moves it to
+`Jobs/archive/`, so update every computer that shares the hub first; the wizard's work-order
+screen says so on Windows and Linux. A ticket whose origin is `cowork` is refused
 with the reason, since Cowork and chat became one Claude (a staged rollout from 2026-09-16). An Outbox file is named `<job_type>.<stamp>Z[.<n>].<tag>.json`,
 where `<tag>` is the system of the computer that ran the job (`mac`, `windows` or `linux`) and
 `<n>` numbers a second file written in the same second.

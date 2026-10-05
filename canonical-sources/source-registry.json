@@ -7217,7 +7217,41 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "claude-desktop-windows-deploy",
+      "name": "Deploy Claude Desktop for Windows (help center)",
+      "url": "https://support.claude.com/en/articles/12622703-deploy-claude-desktop-for-windows",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-05",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-desktop-msix-config-path",
+      "name": "Claude Desktop MSIX build reads a different claude_desktop_config.json (claude-code issue 26073)",
+      "url": "https://github.com/anthropics/claude-code/issues/26073",
+      "category": "ai-surface-spec",
+      "tier": "T2",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-05",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "45b2d8dfefe4d2f89ce50c2d21cebd96a7264e69e52825d287a77eb752682e5b"
+  "_content_digest": "9eb773915cde4efcfc08779b00ad09da82d4cc812b7c490f1e822c5048e25ef6"
 }
