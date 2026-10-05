@@ -74,6 +74,7 @@ def selftest():
     it, never the real baseline, with Windows relative paths stood in by file_hash.windows_paths()."""
     import contextlib
     import io
+    import shutil
     import tempfile
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import file_hash
@@ -99,6 +100,7 @@ def selftest():
     saved = {k: g[k] for k in ("ROOT", "SOURCES", "CACHE", "BASELINE")}
     real_before = state(saved["BASELINE"])
     want = ["canonical-sources/construction/stairs.json", "canonical-sources/keywords.json"]
+    td = None
     try:
         td = Path(tempfile.mkdtemp(prefix="sync-cache-selftest-"))
         g.update(ROOT=td, SOURCES=td / "canonical-sources", CACHE=td / "shared" / "cache",
@@ -124,6 +126,15 @@ def selftest():
         ok("status names a changed source once, with forward slashes",
            "stale" in text2 and text2.count("canonical-sources/keywords.json") == 1
            and "\\" not in text2 and "stairs.json" not in text2)
+        BASELINE.write_text(json.dumps({r["path"]: {"sha256": r["sha256"], "bytes": r["bytes"]}
+                                        for r in manifest()["resources"]}), encoding="utf-8")
+        (SOURCES / "keywords.json").write_text('[{"id": "kw1", "text": "chanGed"}]', encoding="utf-8")
+        (SOURCES / "added.json").write_text('[{"id": "a1", "text": "new"}]', encoding="utf-8")
+        rc4, text4 = run_status()
+        ok("status names an edit that keeps the size, and a source the baseline lacks",
+           "stale" in text4 and "canonical-sources/keywords.json" in text4
+           and "canonical-sources/added.json" in text4 and "stairs.json" not in text4)
+        (SOURCES / "added.json").unlink()
         (SOURCES / "construction" / "stairs.json").unlink()
         new = {r["path"]: {"sha256": r["sha256"], "bytes": r["bytes"]} for r in m["resources"]}
         BASELINE.write_text(json.dumps(new), encoding="utf-8")
@@ -132,6 +143,8 @@ def selftest():
            "stale" in text3 and "canonical-sources/construction/stairs.json" in text3)
     finally:
         g.update(saved)
+        if td is not None:
+            shutil.rmtree(td, ignore_errors=True)
     ok("the selftest left the real baseline as it was", state(BASELINE) == real_before)
     failed = [n for n, c in checks if not c]
     for n, c in checks:

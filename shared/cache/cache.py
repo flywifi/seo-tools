@@ -195,6 +195,7 @@ def selftest():
     reads against an index and baseline holding backslash keys, as an older Windows build wrote."""
     import contextlib
     import io
+    import shutil
     import tempfile
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
     import file_hash
@@ -214,10 +215,12 @@ def selftest():
     saved = {k: g[k] for k in ("ROOT", "SOURCES", "DB", "BASELINE", "has_fts5")}
     real_before = (state(saved["DB"]), state(saved["BASELINE"]))
     want = ["canonical-sources/construction/stairs.json", "canonical-sources/keywords.json"]
+    made = []
     try:
         for fts in (True, False):
             mode = "fts5" if fts else "LIKE"
             td = Path(tempfile.mkdtemp(prefix="cache-selftest-"))
+            made.append(td)
             g.update(ROOT=td, SOURCES=td / "canonical-sources", DB=td / "idx.db",
                      BASELINE=td / "baseline.json")
             if not fts:
@@ -263,9 +266,17 @@ def selftest():
                 drifted = verify()
             ok(f"{mode}: verify still reports a changed source under its forward-slash key",
                drifted == 1 and "changed canonical-sources/keywords.json" in out.getvalue())
+            (SOURCES / "construction" / "stairs.json").unlink()
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                gone = verify()
+            ok(f"{mode}: verify reports a removed source under its forward-slash key",
+               gone == 1 and "removed canonical-sources/construction/stairs.json" in out.getvalue())
             g["has_fts5"] = saved["has_fts5"]
     finally:
         g.update(saved)
+        for d in made:
+            shutil.rmtree(d, ignore_errors=True)
     ok("the selftest left the real index and baseline as they were",
        (state(DB), state(BASELINE)) == real_before)
     failed = [n for n, c in checks if not c]

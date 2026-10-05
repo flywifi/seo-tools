@@ -4574,6 +4574,22 @@ def _forget_port():
             pass
 
 
+def _wizard_url(port) -> str:
+    """The address the wizard prints and opens: the IPv4 loopback host, since on Windows `localhost`
+    tries IPv6 first while the server listens on IPv4."""
+    return f"http://127.0.0.1:{port}/"
+
+
+def _announce(port) -> str:
+    """Print the address the wizard serves on and open it in the browser; returns the address."""
+    url = _wizard_url(port)
+    print(f"Creator OS Setup Wizard running at {url}")
+    print("Opening browser... (press Ctrl+C to quit)")
+    time.sleep(0.3)  # so the server is ready before the browser asks
+    _open_url(url)
+    return url
+
+
 def _queue_followup(hub, followup, note):
     """Queue one follow-up job the person checked on the work-order screen. The ticket's origin
     names this computer by its system (mac, windows or linux), the mapping runner._platform_tag
@@ -4715,9 +4731,13 @@ def _selftest_p101() -> int:
             # untimed one returns only when the 5 s fallback sets _shutdown). The marker is not set
             # once the wait has returned, and one that raced the return is raised inside this try.
             import _thread as _thread_bind
+            import signal as _sig_bind
             import time as _time_bind
             check(_th_bind.current_thread() is _th_bind.main_thread(),
                   "the Ctrl+C check must run in the main thread")
+            # interrupt_main() does nothing while SIGINT is ignored or set to the default action (a
+            # background job, nohup), so the check installs Python's Ctrl+C handler for its run.
+            _prev_int = _sig_bind.getsignal(_sig_bind.SIGINT)
             loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(PORT, "launch-selftest"),
                                                         encoding="utf-8")
             _stopped.clear()
@@ -4726,6 +4746,7 @@ def _selftest_p101() -> int:
             _fallback = _th_bind.Timer(5.0, _shutdown.set)
             _t0, _took = _time_bind.monotonic(), None
             try:
+                _sig_bind.signal(_sig_bind.SIGINT, _sig_bind.default_int_handler)
                 with _cl_bind.redirect_stdout(_io_bind.StringIO()):
                     _ctrl_c.start()
                     _fallback.start()
@@ -4741,6 +4762,7 @@ def _selftest_p101() -> int:
                 _took = None
             finally:
                 _shutdown.clear()
+                _sig_bind.signal(_sig_bind.SIGINT, _sig_bind.SIG_DFL if _prev_int is None else _prev_int)
             check(_took is not None and 0.25 <= _took < 2.0 and _stopped == [True]
                   and not loopback_server.WIZARD_PORT_FILE.exists(),
                   f"a Ctrl+C did not end the wizard's wait within 2 s and close it ({_took!r} s)")
@@ -4838,6 +4860,27 @@ def _selftest_p101() -> int:
     _queued = sorted(p.name.split(".")[2] for p in (_hub_q / "Jobs" / "queue").glob("job.*.json"))
     check(_origins == ["windows", "mac", "linux"] and _queued == ["linux", "mac", "windows"],
           f"a follow-up job is not queued with this computer's origin ({_origins}, files {_queued})")
+    _with_ref = _queue_followup(_hub_q, {"job_type": "library_analyze",
+                                         "input_ref": "Inbox/Processed/2026-10-05/talk.srt"},
+                                "use the long cut")
+    check(_with_ref["input_refs"] == ["Inbox/Processed/2026-10-05/talk.srt"]
+          and _with_ref["consent_note"] == "use the long cut",
+          f"a follow-up job lost its input file or the person's note ({_with_ref!r})")
+    # P102: the address main() prints and opens is the IPv4 loopback one.
+    import contextlib as _cl_url
+    import io as _io_url
+    _opened_url, _real_open = [], _g["_open_url"]
+    _printed = _io_url.StringIO()
+    _g["_open_url"] = _opened_url.append
+    try:
+        with _cl_url.redirect_stdout(_printed):
+            _announced = _announce(8775)
+    finally:
+        _g["_open_url"] = _real_open
+    check(_announced == "http://127.0.0.1:8775/" and _opened_url == ["http://127.0.0.1:8775/"]
+          and "running at http://127.0.0.1:8775/" in _printed.getvalue()
+          and "_announce" in main.__code__.co_names,
+          f"main() does not print and open the 127.0.0.1 address ({_opened_url!r}, {_printed.getvalue()!r})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:
@@ -5515,14 +5558,7 @@ def main() -> None:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    url = f"http://127.0.0.1:{PORT}/"
-    print(f"Creator OS Setup Wizard running at {url}")
-    print("Opening browser... (press Ctrl+C to quit)")
-
-    # Small delay so the server is ready before the browser hits it
-    time.sleep(0.3)
-    _open_url(url)
-
+    _announce(PORT)
     _wait_and_close(server)
 
 

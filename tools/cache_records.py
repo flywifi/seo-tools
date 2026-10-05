@@ -58,7 +58,7 @@ def search(query: str, db) -> dict:
     finally:
         conn.close()
     return {"results": [{"id": f"{posix_source(s)}::{i}", "title": ti or i, "url": record_url(s)}
-                        for s, i, ti in rows if ".local." not in s]}
+                        for s, i, ti in rows if ".local." not in s.lower()]}
 
 
 def fetch(record_id: str, db) -> dict:
@@ -68,7 +68,7 @@ def fetch(record_id: str, db) -> dict:
     source, _, rec = record_id.partition("::")
     source = posix_source(source)
     db = Path(db)
-    if ".local." in source or not db.exists():
+    if ".local." in source.lower() or not db.exists():  # case folded, as SQL LIKE folds it in search
         return {"error": "unknown id"}
     conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
@@ -107,7 +107,8 @@ def selftest() -> int:
                  "stair riser height limit"),
                 ("canonical-sources/keyword-library.json", "kw1", "", "fall decor keyword list"),
                 ("canonical-sources\\seed.local.json", "sec", "Never served", "stair secret"),
-            ])
+                ("canonical-sources/seed.LOCAL.json", "sec2", "Never served either", "stair upper secret"),
+            ] + [("canonical-sources/gutters.json", f"g{n}", f"Gutter {n}", "gutter slope") for n in range(9)])
             conn.commit()
             conn.close()
             mode = "fts5" if fts else "LIKE"
@@ -130,6 +131,12 @@ def selftest() -> int:
             ok(f"{mode}: fetch refuses a .local. source in either separator form",
                fetch("canonical-sources/seed.local.json::sec", db) == {"error": "unknown id"}
                and fetch("canonical-sources\\seed.local.json::sec", db) == {"error": "unknown id"})
+            ok(f"{mode}: fetch refuses a .LOCAL. source, the case search's LIKE filter folds",
+               fetch("canonical-sources/seed.LOCAL.json::sec2", db) == {"error": "unknown id"}
+               and all("LOCAL" not in r["id"] for r in st))
+            ok(f"{mode}: fetch titles a record without a title by its id",
+               fetch("canonical-sources/keyword-library.json::kw1", db).get("title") == "kw1")
+            ok(f"{mode}: search returns at most 8 results", len(search("gutter", db)["results"]) == 8)
             ok(f"{mode}: fetch of an unknown record is an error",
                fetch("canonical-sources/construction/stairs.json::nope", db) == {"error": "unknown id"})
         ok("hostile FTS input falls back to LIKE without raising",

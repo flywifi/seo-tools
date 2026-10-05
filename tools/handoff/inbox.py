@@ -63,7 +63,7 @@ def load_ledger(path=LEDGER_PATH) -> dict:
     Processed). An entry that is not an object, or has no sha256, is left out."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # RecursionError: JSON nested past the parser's depth
         return {}
     entries = data.get("entries") if isinstance(data, dict) else None
     if not isinstance(entries, list):
@@ -83,7 +83,7 @@ def _ledger_for_write(ledger_path, now=None):
     raw = path.read_bytes()
     try:
         data = json.loads(raw.decode("utf-8"))
-    except ValueError:
+    except (ValueError, RecursionError):  # not UTF-8, not JSON, or nested past the parser's depth
         data = None
     entries = data.get("entries", []) if isinstance(data, dict) else None
     if isinstance(entries, list) and all(isinstance(e, dict) for e in entries):
@@ -470,8 +470,8 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
         data, note = _ledger_for_write(ledger_path, now)
         if note:
             results["ledger_note"] = note
-        entries = [e for e in data["entries"] if e.get("sha256")]
-        known = {e["sha256"] for e in entries}
+        entries = list(data["entries"])  # an entry without a sha256 is kept, as sweep_quarantine keeps it
+        known = {e["sha256"] for e in entries if e.get("sha256")}
         for item in proposal.get("proposals", []):
             rel = item.get("file", "")
             # Q-SEAL lock + Inbox confinement, realpath-based (robust to '..', symlinks, and
@@ -1032,9 +1032,14 @@ def selftest() -> int:
        na["moved"] == ["Inbox/clip.mp4"] and [r["file"] for r in na["refused"]] == ["Inbox/talk3.srt"]
        and "could not read" in na["refused"][0]["why"])
     (b1 / "Inbox" / "odd.srt").write_bytes(b"1\n\x00\x00\x00binary")
-    oa = approve(b1, {"proposals": [prop_for(b1, "odd.srt")]}, ledger_path=b1_led)
-    ok("a text-format file the screener skips as binary is refused",
-       not oa["moved"] and "could not read" in oa["refused"][0]["why"])
+    (b1 / "Inbox" / "odd.txt").write_bytes(b"\x00" + poison.encode("utf-8"))
+    (b1 / "Inbox" / "ODD3.SRT").write_bytes(b"\x00\x00upper " + poison.encode("utf-8"))
+    oa = approve(b1, {"proposals": [prop_for(b1, "odd.srt"), prop_for(b1, "odd.txt"),
+                                    prop_for(b1, "ODD3.SRT")]}, ledger_path=b1_led)
+    ok("a text-format file the screener skips as binary is refused (.srt, .txt, and an upper-case "
+       "extension)",
+       not oa["moved"] and len(oa["refused"]) == 3
+       and all("could not read" in r["why"] for r in oa["refused"]))
     (b1 / "Inbox" / "clip2.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42othervideo")
     ma = approve(b1, {"proposals": [prop_for(b1, "clip2.mp4", offline_pattern_scan=dict(
         clean_rec, risk_level="BLOCK"))]}, ledger_path=b1_led)
@@ -1063,21 +1068,32 @@ def selftest() -> int:
     (f3 / "Inbox" / "poison.txt").write_text(poison, encoding="utf-8")
     (f3 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
     f3_led = Path(tempfile.mkdtemp()) / "f3-ledger.json"
-    held, real_replace = [], os.replace
+    held, held_read, held_write, real_replace = [], [], [], os.replace
+    real_for_write = globals()["_ledger_for_write"]
 
     def watch_replace(src, dst):
-        if "Inbox" in str(dst):  # a file move, not the ledger's own temp-file replace
+        if Path(dst) == f3_led:  # the ledger's own atomic write
+            held_write.append(not lock_free(f3_led))
+        elif "Inbox" in str(dst):  # a file move
             held.append(not lock_free(f3_led))
         return real_replace(src, dst)
+
+    def watch_read(path, now=None):
+        held_read.append(not lock_free(f3_led))
+        return real_for_write(path, now)
     res_f3 = scan(f3, ledger={})
     os.replace = watch_replace
+    globals()["_ledger_for_write"] = watch_read
     try:
         sweep_quarantine(f3, res_f3, ledger_path=f3_led)
         approve(f3, res_f3, ledger_path=f3_led)
     finally:
         os.replace = real_replace
-    ok("the sweep and approve hold the ledger lock while they move files, and release it",
-       held == [True, True] and lock_free(f3_led))
+        globals()["_ledger_for_write"] = real_for_write
+    ok("the sweep and approve hold the ledger lock while they read the ledger, move files and write "
+       "the ledger, and release it",
+       held == [True, True] and held_read == [True, True] and held_write == [True, True]
+       and lock_free(f3_led))
 
     # P102: a copy of sealed content is flagged again; a copy of approved content stays handled.
     f4 = Path(tempfile.mkdtemp()); (f4 / "Inbox").mkdir()
@@ -1137,6 +1153,29 @@ def selftest() -> int:
         unread = True
     ok("a ledger that cannot be read raises before any file moves",
        unread and (h6 / "Inbox" / "talk.srt").is_file() and l6.is_dir())
+    deep = "[" * 100000 + "]" * 100000
+    shape.write_text(deep, encoding="utf-8")
+    l7 = f5 / "deep-ledger.json"
+    l7.write_text(deep, encoding="utf-8")
+    d7, n7 = _ledger_for_write(l7)
+    l8 = f5 / "latin-ledger.json"
+    l8.write_bytes(b'{"schema_version": "0.1.0", "entries": [], "note": "caf\xe9"}')
+    d8, n8 = _ledger_for_write(l8)
+    ok("a ledger nested past the parser's depth, or not UTF-8, reads as empty and is kept as a "
+       ".corrupt copy",
+       load_ledger(shape) == {} and load_ledger(l8) == {} and d7["entries"] == [] == d8["entries"]
+       and bool(n7) and bool(n8) and len(list(f5.glob("deep-ledger.json.corrupt.*"))) == 1
+       and len(list(f5.glob("latin-ledger.json.corrupt.*"))) == 1)
+    h9 = Path(tempfile.mkdtemp()); (h9 / "Inbox").mkdir()
+    (h9 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    l9 = f5 / "old-ledger.json"
+    l9.write_text(json.dumps({"schema_version": "0.1.0",
+                              "entries": [{"file_name": "old.txt", "status": "approved"}]}), encoding="utf-8")
+    a9 = approve(h9, scan(h9, ledger={}), ledger_path=l9)
+    ok("approve keeps a ledger entry that has no sha256",
+       a9["moved"] == ["Inbox/talk.srt"] and "ledger_note" not in a9
+       and [e.get("file_name") for e in json.loads(l9.read_text(encoding="utf-8"))["entries"]]
+       == ["old.txt", "talk.srt"])
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

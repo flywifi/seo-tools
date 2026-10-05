@@ -1699,6 +1699,19 @@ def _pins_guard(m):
             pass
         out.append(("guard-checkout-defaults-to-repo",
                     rec_default["repo"] == os.path.realpath(str(m.ROOT))))
+        (tmp / "first").mkdir()
+        (tmp / "second").mkdir()
+        (tmp / "third").mkdir()
+        with m.write_guard(tmp / "first", tmp / "second", repo=checkout):
+            (tmp / "second" / "ok.txt").write_text("ok", encoding="utf-8")
+            try:
+                (tmp / "third" / "no.txt").write_text("no", encoding="utf-8")
+                third_refused = False
+            except PermissionError:
+                third_refused = True
+        out.append(("guard-allows-any-of-several-roots",
+                    (tmp / "second" / "ok.txt").is_file() and third_refused
+                    and not (tmp / "third" / "no.txt").exists()))
     finally:
         m._GUARD["stack"].clear()  # a guard that failed to close its block would refuse this cleanup
         shutil.rmtree(tmp, ignore_errors=True)
@@ -3549,7 +3562,7 @@ _MUTANTS = (
     ('T5 temp-folder-refusal-as-collision', 'suite',
      '    os.mkdir(path, 0o700)\n    return path',
      '    try:\n        os.mkdir(path, 0o700)\n    except PermissionError as exc:\n        raise FileExistsError(str(path)) from exc\n    return path'),
-    # P102 candidates (pre-test only; the reviewer picks the committed rows).
+    # P102: the checkout rule of the write guard and the payload template check.
     ('G1 checkout clause dropped', 'guard',
      'return any(_under_root(path, a) and (not _under_root(path, rec["repo"]) or _under_root(a, rec["repo"]))',
      'return any(_under_root(path, a) and (True or _under_root(a, rec["repo"]))'),

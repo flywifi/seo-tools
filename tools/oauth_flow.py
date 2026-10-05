@@ -423,7 +423,7 @@ def _selftest() -> int:
 
     # 1b) Every platform's redirect_uri is on the 127.0.0.1 loopback the wizard binds --
     # `localhost` can resolve to IPv6 ::1 and lose the callback (Pinterest/Instagram regressed here).
-    for _p in ("youtube", "tiktok", "pinterest", "instagram"):
+    for _p in sorted(CONFIG):
         check(redirect_uri(_p, 8765).startswith("http://127.0.0.1:8765/"),
               f"{_p} redirect_uri must use 127.0.0.1, not localhost")
 

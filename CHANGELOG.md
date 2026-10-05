@@ -20,10 +20,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (`surface_workflow_check.payload_template_problems`, checks `payload-keys-within-templates` and
   `payload-drift-fails-the-suite`). It flags extra keys, not missing ones.
 - P102 (cache selftests): `shared/cache/cache.py --selftest` and `tools/sync_cache.py --selftest`
-  build, query and verify a temp tree with Windows relative paths stood in, and check the real
-  index and baseline are left as they were; both leave `tools/selftest-exemption.json`. The
-  connector search and fetch over the index move to `tools/cache_records.py` (stdlib, with its own
-  selftest); `mcp_server._search_impl` and `_fetch_impl` call it.
+  build, query and verify a temp tree with Windows relative paths stood in, and check the real index
+  and baseline are left as they were; both leave `tools/selftest-exemption.json`. The connector
+  search and fetch over the index move to `tools/cache_records.py` (stdlib, with its own selftest);
+  `mcp_server._search_impl` and `_fetch_impl` call it. `cache_records.fetch` refuses a `.local.`
+  source in any letter case, as the search's SQL filter does.
 - P100: cross-surface workflow suite (ADR 0072). `tools/surface_workflow_check.py` runs the 10
   workflows in `skills/creator-core/evals/surface-workflows.json`: each vendor's web chat
   (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus a round trip. Surface steps
@@ -176,14 +177,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `runner._platform_tag()`, so a ticket queued on Windows is named `job.<stamp>.windows.<id8>.json`
   (`wizard._queue_followup`; ADR 0075). A computer on older code that runs jobs from the same hub
   refuses those tickets and archives them. `queue.submit` keeps `mac` as its default.
-- P102 (Cowork retired): Claude Cowork merged into Claude chat on 2026-09-16, so the `cowork_local`
-  and `cowork_remote` surfaces leave `shared/cross-modality/transitions.json`, the wizard's surface
-  options and drift invariant 32's key list, and the `cowork` origin leaves the queue and schema; a
-  ticket that still carries it is refused with the reason (`queue.RETIRED_ORIGINS`). The S10
-  scenario leg checks the rows stay absent, and the docs that described them now describe Claude
-  Desktop and claude.ai agentic tasks (ADR 0075, superseding ADR 0047's surface decision). Two
-  registry sources are renamed to their current titles: `claude-cowork-plugins-org` ("Manage plugins
-  for your organization", new address) and `claude-cowork-changelog` ("Claude Desktop changelog").
+  `validate_ticket` refuses an origin that is not a string with a reason instead of raising.
+- P102 (Cowork retired): Claude Cowork and chat became one Claude in a staged rollout from
+  2026-09-16 (support article 16761823), so the `cowork_local` and `cowork_remote` surfaces leave
+  `shared/cross-modality/transitions.json`, the wizard's surface options and drift invariant 32's
+  key list, and the `cowork` origin leaves the queue and schema; a ticket that still carries it is
+  refused with the reason (`queue.RETIRED_ORIGINS`). The S10 scenario leg checks the rows stay
+  absent, and the docs that described them now describe Claude Desktop and claude.ai agentic tasks
+  (ADR 0075, superseding ADR 0047's surface decision). Two registry sources are renamed to their
+  current titles: `claude-cowork-plugins-org` ("Manage plugins for your organization", new address)
+  and `claude-cowork-changelog` ("Claude Desktop changelog").
 - P102 (127.0.0.1 links): the wizard, the Scheduling Dashboard and their port messages print and
   open `http://127.0.0.1:<port>/` instead of `localhost`, which on Windows tries IPv6 first while the
   servers listen on IPv4 only; the same-origin checks still accept `localhost`.
@@ -248,13 +251,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   about to move and keeps the more cautious of that verdict and the proposal's, so a proposal that
   leaves the verdict out or understates it no longer routes a file the tier flags (inbox selftest
   checks "approve refuses a flagged file whose proposal carries no offline verdict" and "a proposal
-  that understates the verdict cannot route a flagged file"); a plain-text file the tier cannot read
-  is refused (`inbox._approve_screen`).
+  that understates the verdict cannot route a flagged file"); a file with a plain-text extension that
+  the tier cannot read is refused (`inbox._approve_screen`).
 - P102 (inbox ledger): `approve` and `sweep_quarantine` read, update and write the ledger under
   `atomic_io.locked` on `<ledger>.lock`; a ledger that does not parse, or is not an object holding a
   list of entry objects, is copied to `<name>.corrupt.<UTC stamp>.bak` before a new one is started,
   and one that cannot be read raises before any file moves (`inbox._ledger_for_write`).
-  `load_ledger` reads a ledger of the wrong shape as empty instead of raising.
+  `load_ledger` reads a ledger of the wrong shape as empty instead of raising. A ledger nested past
+  the JSON parser's depth is handled like one that does not parse, and approve keeps a ledger entry
+  that has no sha256.
 - P102 (sealed copies): the inbox scan flags a new copy of content the ledger records as sealed, so
   the sweep seals it too instead of counting it as handled and leaving it in the drop folder.
 - P102 (inbox selftest skip line): when `os.symlink` is refused, the inbox selftest prints a
@@ -265,7 +270,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the refusal (`surface_workflow_check._guard_allows`).
 - P102 (wizard Ctrl+C on Windows): the wizard waits in half-second steps, so Ctrl+C stops it on
   Windows before Python 3.14, where an untimed wait is not interrupted; its selftest sends a Ctrl+C
-  to the main thread and checks the wizard closes and removes its port record within 2 s.
+  to the main thread and checks the wizard closes and removes its port record within 2 s. The check
+  installs Python's Ctrl+C handler for its run, so it also runs where the process ignores SIGINT.
 - P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
   calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It

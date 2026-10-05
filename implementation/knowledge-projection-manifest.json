@@ -83,7 +83,7 @@
     },
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "b1a299090be6dcacd79f0144400328ca86099608cb3def7a6f778b9f3609cc47",
+        "docs/DEPLOYMENT.md": "d0b684857d229caeac82b65be87be8a8ac94bf83b29c11f635cf0177f0ee5fc9",
         "docs/WIZARD.md": "d9de40112818f621906980c839ed27a43ab376330d206d9c255880d64352e417",
         "docs/SETUP_MAC.md": "3f3fe3ef077dcd5e74b47dff800bbedd68e85a641a2edc68d0cebc10bad7f34f",
         "docs/TRANSITIONS.md": "f86364e623ad3d2d0af8b9021a5337a8c1fde63a970f2785633a5e901a8f2bcc",
@@ -146,7 +146,7 @@
     },
     "implementation/claude/project/creator-os-combined.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "b1a299090be6dcacd79f0144400328ca86099608cb3def7a6f778b9f3609cc47",
+        "docs/DEPLOYMENT.md": "d0b684857d229caeac82b65be87be8a8ac94bf83b29c11f635cf0177f0ee5fc9",
         "docs/SETUP_MAC.md": "3f3fe3ef077dcd5e74b47dff800bbedd68e85a641a2edc68d0cebc10bad7f34f",
         "docs/TRANSITIONS.md": "f86364e623ad3d2d0af8b9021a5337a8c1fde63a970f2785633a5e901a8f2bcc",
         "docs/WIZARD.md": "d9de40112818f621906980c839ed27a43ab376330d206d9c255880d64352e417",

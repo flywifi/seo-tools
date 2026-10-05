@@ -11,11 +11,11 @@ the value for this computer was `mac` on every system, and `docs/DRIVE-HUB.md` e
 meant "this computer", while the Outbox tag (`runner._platform_tag`) named the system that ran the
 job. A ticket queued from the wizard on Windows was therefore named `job.<stamp>.mac.<id8>.json`.
 
-Claude Cowork merged into Claude chat on 2026-09-16: "What you could previously only do in Claude
-Cowork is available from any conversation" (support article 16761823). Work on this computer runs
-in Claude Desktop with its trusted folders, and longer tasks run in the cloud from a claude.ai
-conversation. The surface model still carried two Cowork rows (`cowork_local`, `cowork_remote`,
-ADR 0047) and the queue still accepted the `cowork` origin.
+Claude Cowork and chat became one Claude in a staged rollout from 2026-09-16: "What you could
+previously only do in Claude Cowork is available from any conversation" (support article 16761823).
+Work on this computer runs in Claude Desktop with its trusted folders, and longer tasks run in the
+cloud from a claude.ai conversation. The surface model still carried two Cowork rows
+(`cowork_local`, `cowork_remote`, ADR 0047) and the queue still accepted the `cowork` origin.
 
 ## Decision 1: mac, windows and linux each name the computer by its system
 

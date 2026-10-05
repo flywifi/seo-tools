@@ -331,7 +331,7 @@ python3 tools/competitor_snapshot.py --export-summary
 | Back-catalog analysis (top tags, retention cliffs, themes) | Yes (local) | Partial (paste library) | Partial (connected files) | Partial | No | No |
 
 claude.ai agentic task column notes (this column described Claude Cowork's remote sandbox before
-Cowork merged into Claude chat on 2026-09-16; work on this computer follows the Claude Desktop
+Cowork and chat became one Claude (a staged rollout from 2026-09-16); work on this computer follows the Claude Desktop
 column). The column reflects the ephemeral Anthropic-hosted sandbox: plugin skills carry the knowledge tier
 natively; anything requiring local tools reaches the session only through a deployed remote MCP
 connector; the sandbox's disk is destroyed at session end, so nothing local persists; "Not

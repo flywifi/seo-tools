@@ -79,7 +79,7 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
 - `approve` moves handled files to `Inbox/Processed/<date>/`, re-verifying each sha256 (a file
   changed since its scan is refused) and refusing any path that resolves into `Inbox/Quarantine/`
   or outside `Inbox/`; it re-runs the offline pattern tier on each file and keeps the more cautious
-  of that verdict and the proposal's, refusing a plain-text file the tier cannot read
+  of that verdict and the proposal's, refusing a file with a plain-text extension that the tier cannot read
   (`_approve_screen`); it appends to the gitignored ledger atomically.
 - `sweep_quarantine` seals QUARANTINE/BLOCK files into `Inbox/Quarantine/<date>/` with their
   findings (the second writer; details under "The sealed Quarantine area" below). The wizard's

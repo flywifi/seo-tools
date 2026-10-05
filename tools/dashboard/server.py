@@ -1404,9 +1404,11 @@ def _selftest_checks() -> int:
     saved_run = (threading.Thread, webbrowser.open, sys.argv, compliance.CONFIG_LOCAL_PATH)
     ok("the dashboard's server binds through RefuseSharedPort",
        saved_port["HTTPServer"].server_bind is loopback_server.RefuseSharedPort.server_bind)
+    opened = []
     try:
         g.update(HTTPServer=_RefusingServer, _PORTS=loopback_server.DASHBOARD_BLOCK)
-        threading.Thread, webbrowser.open, sys.argv = _NoThread, (lambda *a, **k: True), [__file__]
+        threading.Thread, webbrowser.open, sys.argv = (_NoThread, (lambda url, *a, **k: opened.append(url) or True),
+                                                       [__file__])
         compliance.CONFIG_LOCAL_PATH = ROOT / ".creator-os-config.selftest-absent.local.json"
         refuse[8766] = _errno_port.EACCES
         out = _io_port.StringIO()
@@ -1417,6 +1419,7 @@ def _selftest_checks() -> int:
            bound == [("127.0.0.1", 8766), ("127.0.0.1", 8776)] and PORT == 8776
            and "http://127.0.0.1:8776" in out.getvalue() and "already running" not in out.getvalue()
            and "Port 8766 was refused" in out.getvalue())
+        ok("main() opens the 127.0.0.1 address of the port it bound", opened == ["http://127.0.0.1:8776"])
         ok("main() records the port it bound while it serves, and removes the record on a clean shutdown",
            serving == [(8776, None)] and not loopback_server.DASHBOARD_PORT_FILE.exists())
         loopback_server.DASHBOARD_PORT_FILE.write_text(loopback_server.port_record(8786), encoding="utf-8")

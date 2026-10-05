@@ -24,9 +24,9 @@
     "docs/CONTENT-IMPORT.md": "a7e617f7c69dfd95912d3993fabfe47b8c08bc3adfaacd015db954d8d4c38db9",
     "docs/CURRENCY.md": "eae4bc6ba5d9568a3c9954e3235352d1312a6b4e034f43bd72be0709e16d888d",
     "docs/DEPENDENCIES.md": "b5859b2963906ae1844e7c32a1f0d5c82f842634f9ce67ae5b2b16c025959a8d",
-    "docs/DEPLOYMENT.md": "b1a299090be6dcacd79f0144400328ca86099608cb3def7a6f778b9f3609cc47",
+    "docs/DEPLOYMENT.md": "d0b684857d229caeac82b65be87be8a8ac94bf83b29c11f635cf0177f0ee5fc9",
     "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
-    "docs/DRIVE-HUB.md": "0a38d69e990af81c480b8f883f2b40960cd944aabd871211ec47b69fbed0e6c4",
+    "docs/DRIVE-HUB.md": "feabb23059b6a445f6b80c2f8c6607a003ce6c0fdc966c94f81f24dcef1fbdb6",
     "docs/FRESHNESS.md": "e93fc803ac6652658f18c000d4674fd0cb7dae982d36e040fca98b3d0fc935cd",
     "docs/INSTALL-SCOPE.md": "722b645d0b6075b87138811e5b203991a511b4c0d3de02c8c55bcbf85df3eb49",
     "docs/MAC-VALIDATION.md": "e7620356cd0fb6c9d8c3b97fe97d27438cbb3b2bd3b56a746c869aec837f1e38",
@@ -93,8 +93,8 @@
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "86b897f8cb487f4f5271db34784d6f97db690c74417d06fde53ff3a09b48bee7",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
-    "tools/handoff/MAINTAINER_README.md": "cb436e6d731143a69a87872ccb88e48395f26245ce69e1821a9e9e03ab9f2462",
-    "tools/handoff/inbox.py": "fa7b0b53fd3d40f8254c4141b5ac8c74549b538fd36a5a18da516cf4640e550b",
+    "tools/handoff/MAINTAINER_README.md": "05ecb77fec59ceddd5879a15cbe86b30b590a94efc063e00176ce368780178c5",
+    "tools/handoff/inbox.py": "93ce58a5ac1594384a5f181b1c3762ddb3bd799161eac2f8da47edacb923af68",
     "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
     "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
     "tools/library_complete.py": "9c434cd16fcfa79577c5a0675342b5bf3863320cd5d7e060535637d9292eb8a3",
@@ -104,7 +104,7 @@
     "tools/readonly_bash_guard.py": "e48f929af154d014df1fceea0f42354a4fb40b08b5f95fc9372ea256f4f1de86",
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "40586056de9f47a46d3b560e9bd73f10cecaf57bc7be3bb1205b3ae101d37db7",
-    "tools/surface_workflow_check.py": "513489f5651bfb09f8390c1e27e35231c4b402fa3a249133487094115c32d834",
+    "tools/surface_workflow_check.py": "8632305fdf54b48afd823330e0b35da4cabb5a28e8e835d94f4efa209a8c5e99",
     "tools/transcribe.py": "fd035c3023b9a851cc55bd0acb9a6993e4c405fcc910a52c2006524cf4047753",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
@@ -112,7 +112,7 @@
     "tools/videoedit/fcpxml.py": "4e4940dd8f9d50436a7d6057d6422128fa9ef6d039b656c5173967547a5b1de1",
     "tools/videoedit/preflight.py": "e2fc9fe54b3794959aa3a619f5f4188233123ca77b9e5cf05e384f21cad38e4e",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "bcc15294a62232cf4bd44f86e47a9dc0b371f0e2c5ac61f036b09e4f9ff3ac0c"
+    "tools/wizard.py": "448aae80056a963622752c7cd01032a9727f931f3f1deff175b8293e035e44ec"
   },
   "excluded": {}
 }

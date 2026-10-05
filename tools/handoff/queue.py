@@ -43,8 +43,9 @@ ALLOWED_JOB_TYPES = (
 # queued on Windows before P102 says mac.
 ALLOWED_ORIGINS = ("web", "desktop", "mac", "windows", "linux", "other")
 # Origins Creator OS no longer accepts, each with the reason a refused ticket reports (P102).
-RETIRED_ORIGINS = {"cowork": "Claude Cowork merged into Claude chat on 2026-09-16 and is no longer a "
-                             "Creator OS surface; queue the job again from Claude Desktop or claude.ai"}
+RETIRED_ORIGINS = {"cowork": "Claude Cowork and chat became one Claude (a staged rollout from 2026-09-16) "
+                             "and Cowork is no longer a Creator OS surface; queue the job again from "
+                             "Claude Desktop or claude.ai"}
 _JOB_ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _TICKET_KEYS = {"job_id", "created_at", "origin", "requested_by", "job_type", "params",
                 "input_refs", "priority", "consent_note", "schema_version"}
@@ -94,7 +95,9 @@ def validate_ticket(data) -> list:
         return errors
     if not isinstance(data["job_id"], str) or not _JOB_ID_RE.fullmatch(data["job_id"]):
         errors.append("job_id is not a lowercase UUID")
-    if data["origin"] in RETIRED_ORIGINS:
+    if not isinstance(data["origin"], str):
+        errors.append("origin is not a string")
+    elif data["origin"] in RETIRED_ORIGINS:
         errors.append(f"origin '{data['origin']}' is retired: {RETIRED_ORIGINS[data['origin']]}")
     elif data["origin"] not in ALLOWED_ORIGINS:
         errors.append(f"origin '{data['origin']}' not in {ALLOWED_ORIGINS}")
@@ -342,6 +345,14 @@ def selftest() -> int:
        [e for e in validate_ticket(retired) if e.startswith("origin")]
        == [f"origin 'cowork' is retired: {RETIRED_ORIGINS['cowork']}"]
        and "cowork" not in ALLOWED_ORIGINS)
+    odd_origins = []
+    for bad_origin in (["web"], {"a": 1}, 7):
+        try:
+            odd_origins.append([e for e in validate_ticket(dict(base, origin=bad_origin)) if e.startswith("origin")])
+        except TypeError:
+            odd_origins.append("raised")
+    ok("an origin that is not a string is refused with a reason, not raised",
+       odd_origins == [["origin is not a string"]] * 3)
     schema_origins = tuple(schema["$defs"]["job"]["properties"]["origin"]["enum"])
     ok("ALLOWED_ORIGINS matches shared/schemas/compute-job.json", schema_origins == ALLOWED_ORIGINS)
 
