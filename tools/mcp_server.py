@@ -59,6 +59,7 @@ sys.path.insert(0, str(HERE))
 import publishing_compliance as compliance  # noqa: E402
 import loopback_server  # noqa: E402  (P101: the wizard's and the dashboard's port records)
 from atomic_io import atomic_write_text as _atomic_write_text, locked as _locked  # noqa: E402
+import cache_records as _cache_records  # noqa: E402  (search and fetch over the cache index)
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
@@ -73,64 +74,21 @@ def _cache_conn():
 
 
 def _record_url(source: str) -> str:
-    """Provenance URL for a knowledge record (connector citations require a non-empty url;
-    developers.openai.com/api/docs/mcp). The cache stores `source` REPO-RELATIVE (it already
-    starts with canonical-sources/; shared/cache/cache.py::str(jf.relative_to(ROOT))), so no
-    prefix is added here -- a doubled segment returned 404, which this
-    comment now guards against."""
-    return f"https://github.com/flywifi/seo-tools/blob/main/{source}"
+    """Provenance URL for a knowledge record (cache_records.record_url)."""
+    return _cache_records.record_url(source)
 
 
 def _search_impl(query: str, db_path=None) -> dict:
-    """Pure connector-contract search over the cache index (stdlib only, testable without the
-    mcp package -- the P61 package-independent pattern). Returns {"results": [{"id","title","url"}]}."""
-    import sqlite3
-    db = pathlib_Path(db_path) if db_path else _CACHE_DB
-    if not db.exists():
-        return {"results": [], "note": "cache not built; run: python3 shared/cache/cache.py --build"}
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-    try:
-        fts = conn.execute("SELECT v FROM meta WHERE k='fts5'").fetchone()[0] == "1"
-        rows = []
-        if fts:
-            try:
-                rows = conn.execute(
-                    "SELECT source, id, title FROM records WHERE records MATCH ? "
-                    "AND source NOT LIKE '%.local.%' ORDER BY bm25(records) LIMIT 8",
-                    (query,)).fetchall()
-            except Exception:  # noqa: BLE001 -- FTS5 syntax errors on hostile input -> LIKE
-                rows = []
-        if not rows:
-            like = f"%{query}%"
-            rows = conn.execute(
-                "SELECT source, id, title FROM records WHERE (text LIKE ? OR title LIKE ?) "
-                "AND source NOT LIKE '%.local.%' LIMIT 8", (like, like)).fetchall()
-    finally:
-        conn.close()
-    return {"results": [{"id": f"{s}::{i}", "title": ti or i, "url": _record_url(s)}
-                        for s, i, ti in rows if ".local." not in s]}
+    """Connector-contract search over the cache index (cache_records.search, stdlib only, so it runs
+    without the mcp package -- the P61 package-independent pattern). Returns
+    {"results": [{"id","title","url"}]}."""
+    return _cache_records.search(query, pathlib_Path(db_path) if db_path else _CACHE_DB)
 
 
 def _fetch_impl(record_id: str, db_path=None) -> dict:
-    """Pure connector-contract fetch by "source::record" id. Refuses .local. sources so a hosted
-    endpoint can never serve records that are not committed content."""
-    import sqlite3
-    source, _, rec = record_id.partition("::")
-    db = pathlib_Path(db_path) if db_path else _CACHE_DB
-    if ".local." in source or not db.exists():
-        return {"error": "unknown id"}
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-    try:
-        row = conn.execute(
-            "SELECT source, id, title, text FROM records WHERE source=? AND id=?",
-            (source, rec)).fetchone()
-    finally:
-        conn.close()
-    if not row:
-        return {"error": "unknown id"}
-    s, i, ttl, text = row
-    return {"id": f"{s}::{i}", "title": ttl or i, "text": text,
-            "url": _record_url(s), "metadata": {"source_file": s}}
+    """Connector-contract fetch by "source::record" id (cache_records.fetch). Refuses .local.
+    sources so a hosted endpoint can never serve records that are not committed content."""
+    return _cache_records.fetch(record_id, pathlib_Path(db_path) if db_path else _CACHE_DB)
 
 
 # Tool safety classification (P72). Pure data above the import guard so the completeness gate
@@ -2607,7 +2565,7 @@ def launch_setup() -> str:
     """Open the Creator OS setup wizard in the user's web browser (no terminal needed).
 
     Spawns tools/wizard.py as a local background process; it serves a guided setup at
-    http://localhost:8765/ (or 8775, then 8785, when the computer reserves 8765) and opens the
+    http://127.0.0.1:8765/ (or 8775, then 8785, when the computer reserves 8765) and opens the
     browser automatically, and this reports the address it bound. This works ONLY where Creator OS runs
     as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code) — a hosted/remote
     connector runs in the vendor's cloud and cannot open a browser or reach the user's computer.

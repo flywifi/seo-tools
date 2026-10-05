@@ -13,6 +13,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (cache selftests): `shared/cache/cache.py --selftest` and `tools/sync_cache.py --selftest`
+  build, query and verify a temp tree with Windows relative paths stood in, and check the real
+  index and baseline are left as they were; both leave `tools/selftest-exemption.json`. The
+  connector search and fetch over the index move to `tools/cache_records.py` (stdlib, with its own
+  selftest); `mcp_server._search_impl` and `_fetch_impl` call it.
 - P100: cross-surface workflow suite (ADR 0072). `tools/surface_workflow_check.py` runs the 10
   workflows in `skills/creator-core/evals/surface-workflows.json`: each vendor's web chat
   (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus a round trip. Surface steps
@@ -211,6 +216,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (scoop-cache path keys): the cache stores a record's source, and the build baseline its keys,
+  with forward slashes, including on Windows (`cache.py`, `sync_cache.py`; `cache.py --selftest`
+  builds a temp index with Windows paths stood in); an index or baseline an older Windows build wrote
+  with backslashes is read with forward slashes, so construction and code lookups, connector ids and
+  citation links work on Windows without a rebuild.
 - P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
   calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It

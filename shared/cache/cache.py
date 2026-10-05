@@ -12,6 +12,12 @@ Usage:
   python3 shared/cache/cache.py --query "moody fall" --limit 5
   python3 shared/cache/cache.py --query "renter" --json
   python3 shared/cache/cache.py --verify
+  python3 shared/cache/cache.py --selftest
+
+A record's source, and a baseline key, is the file's path relative to the repository root with
+forward slashes on every system. An index or baseline built on Windows before keys were written
+with as_posix() holds backslashes; query() and verify() read those as forward slashes, so neither
+needs a rebuild.
 """
 import argparse
 import hashlib
@@ -28,6 +34,11 @@ DB = HERE / "index.local.db"
 BASELINE = HERE / "cache-baseline.local.json"
 
 
+def _posix_key(key):
+    """A source path or baseline key with forward slashes (an older Windows build wrote backslashes)."""
+    return str(key).replace("\\", "/")
+
+
 def iter_records():
     for jf in sorted(SOURCES.rglob("*.json")):
         try:
@@ -38,7 +49,7 @@ def iter_records():
             for rec in data:
                 if isinstance(rec, dict) and rec.get("text"):
                     yield (
-                        str(jf.relative_to(ROOT)),
+                        jf.relative_to(ROOT).as_posix(),
                         str(rec.get("id", "")),
                         str(rec.get("title", "")),
                         str(rec["text"]),
@@ -101,7 +112,7 @@ def query(q, limit, as_json):
                 (match, limit),
             ).fetchall()
             results = [
-                {"source": s, "id": i, "title": t, "snippet": sn, "rank": round(r, 3)}
+                {"source": _posix_key(s), "id": i, "title": t, "snippet": sn, "rank": round(r, 3)}
                 for s, i, t, sn, r in rows
             ]
     else:
@@ -112,7 +123,7 @@ def query(q, limit, as_json):
             (like, like, limit),
         ).fetchall()
         results = [
-            {"source": s, "id": i, "title": t, "snippet": sn, "rank": None}
+            {"source": _posix_key(s), "id": i, "title": t, "snippet": sn, "rank": None}
             for s, i, t, sn in rows
         ]
     conn.close()
@@ -133,7 +144,7 @@ def sha256_of(path):
 
 def current_state():
     return {
-        str(p.relative_to(ROOT)): {"sha256": sha256_of(p), "bytes": p.stat().st_size}
+        p.relative_to(ROOT).as_posix(): {"sha256": sha256_of(p), "bytes": p.stat().st_size}
         for p in sorted(SOURCES.rglob("*.json"))
     }
 
@@ -146,7 +157,7 @@ def verify():
     if not BASELINE.exists():
         print("no baseline; run --build first")
         return 1
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
+    base = {_posix_key(k): v for k, v in json.loads(BASELINE.read_text(encoding="utf-8")).items()}
     cur = current_state()
     drift = []
     for key, val in cur.items():
@@ -178,6 +189,92 @@ def stats():
     return 0
 
 
+def selftest():
+    """Build, query and verify a temp tree with ROOT, SOURCES, DB and BASELINE pointed at it, never
+    the real index, with Windows relative paths stood in by file_hash.windows_paths(); then the same
+    reads against an index and baseline holding backslash keys, as an older Windows build wrote."""
+    import contextlib
+    import io
+    import tempfile
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
+    import file_hash
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+
+    def state(p):
+        try:
+            st = Path(p).stat()
+            return (st.st_size, st.st_mtime_ns)
+        except OSError:
+            return None
+
+    g = globals()
+    saved = {k: g[k] for k in ("ROOT", "SOURCES", "DB", "BASELINE", "has_fts5")}
+    real_before = (state(saved["DB"]), state(saved["BASELINE"]))
+    want = ["canonical-sources/construction/stairs.json", "canonical-sources/keywords.json"]
+    try:
+        for fts in (True, False):
+            mode = "fts5" if fts else "LIKE"
+            td = Path(tempfile.mkdtemp(prefix="cache-selftest-"))
+            g.update(ROOT=td, SOURCES=td / "canonical-sources", DB=td / "idx.db",
+                     BASELINE=td / "baseline.json")
+            if not fts:
+                g["has_fts5"] = lambda conn: False
+            (SOURCES / "construction").mkdir(parents=True)
+            (SOURCES / "construction" / "stairs.json").write_text(json.dumps(
+                [{"id": "st1", "title": "Stair rise", "text": "stair riser height limit"}]),
+                encoding="utf-8")
+            (SOURCES / "keywords.json").write_text(json.dumps(
+                [{"id": "kw1", "title": "Fall decor", "text": "fall entryway decor"}]), encoding="utf-8")
+            out = io.StringIO()
+            with file_hash.windows_paths(), contextlib.redirect_stdout(out):
+                build()
+                conn = sqlite3.connect(DB)
+                stored = sorted(r[0] for r in conn.execute("SELECT source FROM records"))
+                conn.close()
+                keys = sorted(current_state())
+                fresh = verify()
+            ok(f"{mode}: a build with Windows paths stores sources with forward slashes", stored == want)
+            ok(f"{mode}: the baseline it writes has forward-slash keys",
+               keys == want and sorted(json.loads(BASELINE.read_text(encoding="utf-8"))) == want)
+            ok(f"{mode}: verify passes on the baseline the build wrote", fresh == 0)
+            conn = sqlite3.connect(DB)
+            conn.execute("UPDATE records SET source = replace(source, '/', char(92))")
+            conn.commit()
+            conn.close()
+            base = json.loads(BASELINE.read_text(encoding="utf-8"))
+            BASELINE.write_text(json.dumps({k.replace("/", "\\"): v for k, v in base.items()}),
+                                encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                got = query("stair", 5, True)
+                old_fresh = verify()
+            printed = json.loads(out.getvalue()[:out.getvalue().rindex("}") + 1])
+            ok(f"{mode}: query answers an index built with backslash sources with forward slashes",
+               [r["source"] for r in got] == [want[0]]
+               and [r["source"] for r in printed["results"]] == [want[0]])
+            ok(f"{mode}: verify reads a baseline with backslash keys as fresh", old_fresh == 0)
+            (SOURCES / "keywords.json").write_text(json.dumps(
+                [{"id": "kw1", "title": "Fall decor", "text": "changed"}]), encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                drifted = verify()
+            ok(f"{mode}: verify still reports a changed source under its forward-slash key",
+               drifted == 1 and "changed canonical-sources/keywords.json" in out.getvalue())
+            g["has_fts5"] = saved["has_fts5"]
+    finally:
+        g.update(saved)
+    ok("the selftest left the real index and baseline as they were",
+       (state(DB), state(BASELINE)) == real_before)
+    failed = [n for n, c in checks if not c]
+    for n, c in checks:
+        print(("ok   " if c else "FAIL ") + n)
+    print(f"cache selftest: {len(checks) - len(failed)}/{len(checks)} passed")
+    return 1 if failed else 0
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="Creator OS scoop cache L1")
     ap.add_argument("--build", action="store_true")
@@ -186,7 +283,10 @@ def main(argv):
     ap.add_argument("--query")
     ap.add_argument("--limit", type=int, default=5)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args(argv)
+    if args.selftest:
+        return selftest()
     if args.build:
         return build()
     if args.stats:

@@ -23,7 +23,14 @@ python3 shared/cache/cache.py --query "moody fall" --limit 5
 python3 shared/cache/cache.py --query "renter" --json
 python3 shared/cache/cache.py --stats
 python3 shared/cache/cache.py --verify
+python3 shared/cache/cache.py --selftest
 ```
+
+A record's source, and each key of the build baseline, is the file's path relative to the
+repository root with forward slashes on every system. An index or baseline an older Windows build
+wrote with backslashes is read with forward slashes (`cache.py --query` and `--verify`), so it needs
+no rebuild. The connector search and fetch over the index (`tools/cache_records.py`, used by the MCP
+server) answer the same ids and links for either form.
 
 ## L2 (semantic.py): optional offline semantic recall
 Off by default. Activates only when a local vector backend is installed and the user has granted
