@@ -23,7 +23,7 @@ PYTHON = sys.executable
 
 
 def _say(msg: str) -> None:
-    print(msg, flush=True)
+    print(env_paths.local_commands(msg), flush=True)  # py -3 or python on Windows
 
 
 def _ok(label: str) -> None:
@@ -1142,6 +1142,18 @@ def _selftest_location() -> int:
        and _loc_notes["inside"] == (None, ""),
        "on Windows setup notes once a repo outside the user folder, naming the credential files and "
        "the home-folder example, and prints nothing for a repo under it")
+    # P102: the next steps name the command this computer runs the scripts with (py -3 on Windows).
+    _real_cmd2 = env_paths.python_command
+    env_paths.python_command = lambda *a, **k: "py -3"
+    _ns_out = _io_loc.StringIO()
+    try:
+        with _cl_loc.redirect_stdout(_ns_out):
+            print_next_steps()
+    finally:
+        env_paths.python_command = _real_cmd2
+    ok("py -3 tools/setup.py --install-deps" in _ns_out.getvalue() and "py -3 tools/update.py" in _ns_out.getvalue()
+       and "python3 tools/" not in _ns_out.getvalue(),
+       "setup's next steps name this computer's command for the repo's scripts")
     for c, m in checks:
         if not c:
             print(f"  [FAIL] {m}")
@@ -1159,11 +1171,11 @@ def check_repo_location(root=ROOT, home=None, env=None, ismount=None) -> str | N
     synced = env_paths.cloud_synced_root(root, home=home, env=env, ismount=ismount)
     if synced:
         example = (Path(home) if home is not None else Path.home()) / "CreatorOS"
-        python = env_paths.python_command()
         _say(f"  [warn] This repo is inside a cloud-synced folder ({synced}).")
         _say("         Its credential files sync with it. Move the repo to your home folder")
         _say(f"         (for example {example}), then copy your context into Google Drive with")
-        _say(f"         {python} tools/profile_mirror.py sync   (docs/PROFILE-MIRROR.md).")
+        # _say writes python3 as this computer's command (env_paths.local_commands).
+        _say("         python3 tools/profile_mirror.py sync   (docs/PROFILE-MIRROR.md).")
     if env_paths.windows_outside_home(root, home=home):
         home_dir = Path(home) if home is not None else Path.home()
         _say("  [note] This repo is outside your user folder. On Windows a folder there takes the")

@@ -268,6 +268,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (printed commands on Windows): the wizard's pages, `setup.py`'s messages and the
+  `profile_mirror` status line write `python3 tools/...` and `python3 shared/...` commands as
+  `py -3` (or `python` without the py launcher) on Windows, where `python3` can be the Microsoft
+  Store stand-in (`env_paths.local_commands`); a `python3` inside a longer name or path is left
+  as written, and other systems are unchanged. Off macOS the `profile_mirror` status says the
+  scheduled sync is macOS only and names the manual sync command instead of `install-agent`.
+  `docs/SETUP_WINDOWS.md` now leads with the Python install manager and keeps the traditional
+  installer as the alternative the Python documentation marks deprecated since 3.14.
 - P102 (oversize text in the inbox screen): `injection_scan.scan_file` marks a record it cut at
   `max_bytes` (2 MB) with `"truncated": true`, and the inbox reads such a record as a partial
   screen (`inbox._fully_screened`): a flag in the part read still seals the file, while a clean

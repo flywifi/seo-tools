@@ -4,7 +4,7 @@
   "docs": {
     "docs/PROFILE-MIRROR.md": {
       "sources": {
-        "tools/profile_mirror.py": "8f2714badc45d2b1094ab4689bc85a7c754ea397304fd16912e61e8a3e8fde9f",
+        "tools/profile_mirror.py": "a4432fa617e6a1fcc42ae47dfe6d2380c39a24ce0070536ccc572284b3323c64",
         "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
       }
     },
@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "51e54a4ddb91aacc839013b75677a533d7d30051a65bd54f46f1bae1ffc3de46",
+        "tools/wizard.py": "f080a3dd505a16f65730c636e7982cd3755eb10ff21ca864cc9e2be2607a15fb",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },

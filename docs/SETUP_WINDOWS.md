@@ -12,14 +12,19 @@ documentation.
 
 ## Quick start (no terminal)
 
-1. **Install Python 3.12 or newer for your account** with the python.org installer. On its first
-   screen, tick **Add python.exe to PATH**. Machine-wide note (affects the whole computer): the
-   same screen ticks the py launcher's all-users option by default, which needs administrator
-   rights; untick it to install Python for your account alone. If SmartScreen says "Windows
-   protected your PC", choose **More info**, then **Run anyway**. *(tested on Windows: an install
-   for one account gives working `py -3` and `python` commands)* The Python documentation now
-   recommends the Python Install Manager as its main download; this guide has not been tested
-   with it.
+1. **Install Python for your account.** The Python documentation recommends the **Python install
+   manager**, from the Microsoft Store or as the identical download from python.org. It adds the
+   `python`, `py` and `python3` commands and updates itself. Then, in a terminal, run
+   `py install 3.14` *(not yet tested on Windows)*. With the install manager, `python3` is a real
+   command, not the Microsoft Store stand-in *(tested on Windows: `py -3` and `python3` run the
+   installed Python)*. Creator OS needs Python 3.12 or newer and is tested on 3.12 to 3.14.
+   - Alternative: the traditional python.org installer, for Python 3.12 or newer; the Python
+     documentation marks it deprecated since 3.14 and says it is not produced for 3.16 or later (the 3.12 floor is unchanged).
+     On its first screen, tick **Add python.exe to PATH**. Machine-wide note (affects the whole
+     computer): the same screen ticks the py launcher's all-users option by default, which needs
+     administrator rights; untick it to install Python for your account alone. If SmartScreen says
+     "Windows protected your PC", choose **More info**, then **Run anyway**. *(tested on Windows:
+     an install for one account gives working `py -3` and `python` commands)*
 2. **Put the repository under your user folder**, for example `%USERPROFILE%\CreatorOS\seo-tools`,
    and not inside OneDrive or the Google Drive folder. Setup warns about both other places: a
    synced folder syncs the credential files in `pipeline/user-context/`, and on Windows a folder
@@ -145,6 +150,7 @@ Every id below must exist in `canonical-sources/source-registry.json` with the s
 ```sources
 [
   {"id": "claude-desktop-windows-deploy", "name": "Deploy Claude Desktop for Windows (help center)", "url": "https://support.claude.com/en/articles/12622703-deploy-claude-desktop-for-windows", "category": "ai-surface-spec", "tier": "T1"},
-  {"id": "claude-desktop-msix-config-path", "name": "Claude Desktop MSIX build reads a different claude_desktop_config.json (claude-code issue 26073)", "url": "https://github.com/anthropics/claude-code/issues/26073", "category": "ai-surface-spec", "tier": "T2"}
+  {"id": "claude-desktop-msix-config-path", "name": "Claude Desktop MSIX build reads a different claude_desktop_config.json (claude-code issue 26073)", "url": "https://github.com/anthropics/claude-code/issues/26073", "category": "ai-surface-spec", "tier": "T2"},
+  {"id": "python-using-on-windows", "name": "Python docs - Using Python on Windows", "url": "https://docs.python.org/3/using/windows.html", "category": "os-platform", "tier": "T1"}
 ]
 ```

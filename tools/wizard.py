@@ -3384,6 +3384,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def _send(self, body: str, status: int = 200,
               content_type: str = "text/html") -> None:
+        if content_type == "text/html":  # commands as this computer types them (py -3 on Windows)
+            body = env_paths.local_commands(body)
         enc = body.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
@@ -4928,6 +4930,23 @@ def _selftest_p101() -> int:
           and "running at http://127.0.0.1:8775/" in _printed.getvalue()
           and "_announce" in main.__code__.co_names,
           f"main() does not print and open the 127.0.0.1 address ({_opened_url!r}, {_printed.getvalue()!r})")
+    # P102: a page the wizard sends shows commands as this computer runs them (py -3 on Windows).
+    _h = _Handler.__new__(_Handler)
+    _h.send_response = _h.send_header = lambda *a, **k: None
+    _h.end_headers = lambda: None
+    _h.wfile = _io_url.BytesIO()
+    _real_pycmd = env_paths.python_command
+    env_paths.python_command = lambda *a, **k: "py -3"
+    try:
+        _h._send("<code>python3 tools/update.py</code>")
+        _page_sent = _h.wfile.getvalue().decode("utf-8")
+        _h.wfile = _io_url.BytesIO()
+        _h._send('{"cmd": "python3 tools/update.py"}', content_type="application/json")
+        _json_sent = _h.wfile.getvalue().decode("utf-8")
+    finally:
+        env_paths.python_command = _real_pycmd
+    check(_page_sent == "<code>py -3 tools/update.py</code>" and "python3 tools/update.py" in _json_sent,
+          f"a page the wizard sends does not show this computer's command ({_page_sent!r}, {_json_sent!r})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:

@@ -247,6 +247,18 @@ def python_command(osname=None, which=None) -> str:
     return "py -3" if which("py") else "python"
 
 
+def local_commands(text: str, osname=None, which=None) -> str:
+    """`text` with each `python3 tools/...` and `python3 shared/...` command written with the
+    command this computer runs the repo's scripts with (python_command): `py -3` or `python` on
+    Windows, where `python3` can be the Microsoft Store alias; unchanged elsewhere. A `python3`
+    that is part of a longer name or path (python3.12, venv/bin/python3) is left as written."""
+    command = python_command() if osname is None and which is None else python_command(osname, which)
+    if command == "python3":
+        return text
+    import re
+    return re.sub(r"(?<![\w./\\-])python3 (?=(?:tools|shared)/)", command + " ", text)
+
+
 # Set by the child process of the symlink control below, which must not run that control again.
 _SYMLINK_CHILD = False
 
@@ -448,6 +460,24 @@ def _selftest() -> int:
        and python_command("nt", which=lambda n: "C:\\py.exe" if n == "py" else None) == "py -3"
        and python_command("nt", which=lambda n: None) == "python",
        "python_command is py -3 with the py launcher on Windows, else python; python3 elsewhere")
+    sample = ("run python3 tools/setup.py, then python3 shared/cache/cache.py --build; python3.12 tools/x.py, "
+              "venv/bin/python3 tools/x.py, C:\\Py\\python3 tools/x.py, my-python3 tools/x.py and python3 -m pip stay")
+    with_py = lambda n: "C:\\py.exe" if n == "py" else None  # noqa: E731
+    ok(local_commands(sample, "nt", with_py)
+       == ("run py -3 tools/setup.py, then py -3 shared/cache/cache.py --build; python3.12 tools/x.py, "
+           "venv/bin/python3 tools/x.py, C:\\Py\\python3 tools/x.py, my-python3 tools/x.py and python3 -m pip stay")
+       and local_commands(sample, "nt", lambda n: None).count("python tools/") == 1
+       and local_commands(sample, "posix", with_py) == sample,
+       "local_commands writes python3 tools/ and shared/ commands as py -3 or python on Windows only")
+    real_os_lc, real_which_lc = globals()["_os_name"], shutil.which
+    globals()["_os_name"] = lambda: "nt"
+    shutil.which = lambda name, *a, **k: "C:\\py.exe" if name == "py" else None
+    try:
+        lc_default = local_commands("run python3 tools/setup.py")
+    finally:
+        globals()["_os_name"], shutil.which = real_os_lc, real_which_lc
+    ok(lc_default == "run py -3 tools/setup.py",
+       "with no system given, local_commands reads this computer's system and its py launcher")
     real_which, real_os_name = shutil.which, globals()["_os_name"]
     shutil.which = lambda name, *a, **k: "C:\\py.exe" if name == "py" else None
     try:

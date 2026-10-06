@@ -65,6 +65,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 import atomic_io  # noqa: E402
+import env_paths  # noqa: E402
 import project_docs as pd  # noqa: E402
 import secret_scan  # noqa: E402
 from handoff import drive_api as da  # noqa: E402
@@ -726,14 +727,20 @@ def status(state_path=None, home=None, log_dir=None) -> dict:
             "stamp": read_stamp(log_dir), "agent": agent, "doc": st["doc"]}
 
 
-def _status_text(st: dict) -> str:
+def _status_text(st: dict, platform=None) -> str:
     lines = [f"last run: {st['last_run'] or 'none yet'}"]
     s = st["stamp"]
     lines.append(f"last stamp: {s['at']} {s['status']} ({s['engine']} engine)" if s
                  else "last stamp: none")
     a = st["agent"]
     if not a:
-        lines.append("agent: not installed (python3 tools/profile_mirror.py install-agent)")
+        if (platform or sys.platform) == "darwin":
+            lines.append(env_paths.local_commands(
+                "agent: not installed (python3 tools/profile_mirror.py install-agent)"))
+        else:
+            lines.append(env_paths.local_commands(
+                "agent: the scheduled sync is macOS only; run python3 tools/profile_mirror.py sync "
+                "by hand or from your own scheduler"))
     elif a.get("error"):
         lines.append(f"agent: {a['plist']}: {a['error']}")
     else:
@@ -1530,6 +1537,18 @@ def _pins_cli(m, tmp) -> list:
             if str(getattr(h, "baseFilename", "")).startswith(str(tmp)):
                 lg.removeHandler(h)
                 h.close()
+    # P102: off macOS the status names the manual sync, since the scheduled agent is launchd only.
+    st_none = {"last_run": None, "stamp": None, "agent": None, "doc": None, "recent_changes": []}
+    real_cmd = m.env_paths.python_command
+    m.env_paths.python_command = lambda *a, **k: "py -3"  # as on Windows with the py launcher
+    try:
+        off_mac, on_mac = m._status_text(st_none, platform="win32"), m._status_text(st_none, platform="darwin")
+    finally:
+        m.env_paths.python_command = real_cmd
+    out.append(("CLI: off macOS the status names the manual sync with this computer's command, not "
+                "install-agent; on macOS it names install-agent",
+                "macOS only" in off_mac and "py -3 tools/profile_mirror.py sync" in off_mac
+                and "install-agent" not in off_mac and "install-agent" in on_mac))
     return out
 
 
@@ -1740,6 +1759,9 @@ _MUTANTS = (
     ('cli: the no-hub stamp always says error', 'cli', '                write_stamp(hub_state, "python")', '                write_stamp("error", "python")'),
     ('cli: --hub is ignored when classifying a missing hub', 'cli', 'hub_status(a.hub or _hub_config_mirror())', 'hub_status(_hub_config_mirror())'),
     ('doc: Profile is looked up anywhere, not under the hub', 'doc', 'da.find_folder(token, HUB_SUBDIR, transport, parent_id=root_id)', 'da.find_folder(token, HUB_SUBDIR, transport)'),
+    ('cli: the status ignores the platform it is given', 'cli', '        if (platform or sys.platform) == "darwin":\n', '        if sys.platform == "darwin":\n'),
+    ('cli: the status names install-agent off macOS', 'cli', '        if (platform or sys.platform) == "darwin":\n', '        if (platform or sys.platform) != "darwin":\n'),
+    ('cli: the off-macOS status keeps python3', 'cli', '            lines.append(env_paths.local_commands(\n                "agent: the scheduled sync is macOS only;', '            lines.append((\n                "agent: the scheduled sync is macOS only;'),
 )
 
 
