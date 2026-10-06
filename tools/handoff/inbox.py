@@ -279,6 +279,12 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
 
         cat = _format_category(info, p.name)
         rule = rules.get(cat) if cat else None
+        if ((entry.get("offline_pattern_scan") or {}).get("truncated")
+                and p.suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS):
+            # a text format read only up to max_bytes: approve refuses it, so it is not proposed
+            entry.update({"classified_as": None, "category_source": "oversize", "note": _OVERSIZE_NOTE})
+            out["needs_review"].append(entry)
+            continue
         # Fail-closed for TEXT formats: a transcript is text and MUST be screened before it
         # is routed. If the offline screener could not read it (a NUL/high-byte payload that trips
         # the binary sniff, an oversize file, or the screener being unavailable), do NOT route it
@@ -289,10 +295,6 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                           "note": "a transcript that the offline screener could not read as text "
                                   "(looks binary or oversize, or the screener is unavailable); a "
                                   "Claude session must screen it before any route is proposed"})
-            if (entry.get("offline_pattern_scan") or {}).get("truncated"):
-                entry["note"] = ("a transcript longer than the offline screener reads (2 MB), so only "
-                                 "its first part was screened and approve does not move it; split it "
-                                 "into files under 2 MB and drop those in the Inbox")
             out["needs_review"].append(entry)
             continue
         if cat and rule and rule.get("category_source") == "format":
@@ -425,6 +427,12 @@ _RISK_RANK = {"CLEAN": 0, "REVIEW": 1, "QUARANTINE": 2, "BLOCK": 3}
 # binary containers the tier cannot read, so they keep the proposal's record.
 _SCREEN_REQUIRED_EXTS = frozenset(_classify.OFFLINE_PARSEABLE) - {"docx", "xlsx", "pptx", "pdf"}
 
+# What scan and approve say about a text-format file longer than the offline tier reads.
+_OVERSIZE_NOTE = ("a text file longer than the offline screener reads (2 MB), so only its first part "
+                  "was screened and approve does not move it; split it into files under 2 MB and drop "
+                  "those in the Inbox (an export that cannot be split stays where it is, and a Claude "
+                  "session can read it there)")
+
 
 def _fully_screened(rec) -> bool:
     """True when the offline tier read the whole file: a record with a risk level that
@@ -445,8 +453,10 @@ def _approve_screen(path, given):
     given = given if isinstance(given, dict) else None
     if not _fully_screened(rec) and rec.get("risk_level") not in ("QUARANTINE", "BLOCK"):
         if Path(path).suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS:
+            if rec.get("truncated"):
+                return None, f"not routed: {_OVERSIZE_NOTE}"
             return None, ("a text file the offline screener could not read (it looks binary or "
-                          "oversize, or the screener is unavailable); not routed")
+                          "unreadable, or the screener is unavailable); not routed")
         if "risk_level" not in rec:
             return given, None
     fresh = {"risk_level": rec["risk_level"], "total_score": rec["total_score"],
@@ -701,6 +711,9 @@ def _selftest_checks() -> int:
     ok("unscreenable (binary-sniffed) transcript is held, not routed",
        not any(p["file"].endswith("evil.srt") for p in ar["proposals"]) and
        any(e["file"].endswith("evil.srt") and e["classified_as"] is None for e in ar["needs_review"]))
+    ok("a binary-sniffed transcript keeps the could-not-read note, not the size note",
+       any(e["file"].endswith("evil.srt") and "could not read as text" in e["note"] and "2 MB" not in e["note"]
+           for e in ar["needs_review"]))
     _so = _screener
     globals()["_screener"] = lambda: None
     try:
@@ -1141,7 +1154,7 @@ def _selftest_checks() -> int:
                                      prop_for(b2, "talk.srt")]}, ledger_path=b2_led)
     ok("approve refuses an oversize text file a forged clean proposal names, and moves the rest",
        fa2["moved"] == ["Inbox/talk.srt"] and [r["file"] for r in fa2["refused"]] == ["Inbox/late.srt"]
-       and "could not read" in fa2["refused"][0]["why"] and (b2 / "Inbox" / "late.srt").is_file())
+       and "2 MB" in fa2["refused"][0]["why"] and (b2 / "Inbox" / "late.srt").is_file())
     ea2 = approve(b2, {"proposals": [prop_for(b2, "early.srt", offline_pattern_scan=clean_rec)]},
                   ledger_path=b2_led)
     ok("approve refuses an oversize file flagged in the part it read as sealed",
@@ -1149,6 +1162,32 @@ def _selftest_checks() -> int:
     ok("scan says an oversize transcript must be split, since approve does not move it",
        all("split it into files under 2 MB" in e["note"] for e in s2["needs_review"]
            if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
+    # P102: the same holds for every text format approve requires a whole read for (an analytics
+    # export in JSON or CSV), and a format it does not (a video) is routed as before.
+    b3 = Path(tempfile.mkdtemp()); (b3 / "Inbox").mkdir()
+    for n3 in ("user_data.json", "Table data.csv", "notes.md"):
+        (b3 / "Inbox" / n3).write_text('{"x": 1}\n', encoding="utf-8")
+    (b3 / "Inbox" / "clip.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42cutvideo")
+
+    class _CutAll:
+        def scan_file(self, path):
+            return {"risk_level": "CLEAN", "total_score": 0, "patterns_detected": [], "truncated": True}
+    real_screener3 = globals()["_screener"]
+    globals()["_screener"] = lambda: _CutAll()
+    try:
+        s3 = scan(b3, ledger={})
+        a3 = approve(b3, {"proposals": [prop_for(b3, "user_data.json", offline_pattern_scan=clean_rec)]},
+                     ledger_path=Path(tempfile.mkdtemp()) / "b3-ledger.json")
+    finally:
+        globals()["_screener"] = real_screener3
+    held3 = {e["file"]: e for e in s3["needs_review"]}
+    ok("scan holds a cut JSON, CSV or Markdown file with the size note, and approve refuses one naming "
+       "the 2 MB limit; a cut video is still proposed",
+       {"Inbox/user_data.json", "Inbox/Table data.csv", "Inbox/notes.md"} <= set(held3)
+       and all(held3[f]["category_source"] == "oversize" and "2 MB" in held3[f]["note"]
+               for f in ("Inbox/user_data.json", "Inbox/Table data.csv", "Inbox/notes.md"))
+       and [e["file"] for e in s3["proposals"]] == ["Inbox/clip.mp4"]
+       and not a3["moved"] and "2 MB" in a3["refused"][0]["why"])
     # P102: a record cut at max_bytes keeps the more cautious of that part's verdict (marked
     # truncated) and the proposal's on a format approve does not require a whole-file read for; on a
     # text format a flag in that part seals the file, and a clean part is refused.
@@ -1175,7 +1214,7 @@ def _selftest_checks() -> int:
        cut_review == [(cut_want, None)] * 3 and cut_kept == (dict(clean_rec, risk_level="BLOCK"), None))
     ok("a cut QUARANTINE on a transcript is a sealed record, and a cut REVIEW on one is refused",
        cut_sealed[1] is None and (cut_sealed[0] or {}).get("risk_level") == "QUARANTINE"
-       and cut_review_srt[0] is None and "could not read" in (cut_review_srt[1] or ""))
+       and cut_review_srt[0] is None and "2 MB" in (cut_review_srt[1] or ""))
 
     # P102: a file approve cannot move (on Windows, WinError 32: it is open in another program) is
     # refused; the rest of the batch moves, and the ledger records the moved files only.

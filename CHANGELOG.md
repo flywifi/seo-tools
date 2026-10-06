@@ -189,7 +189,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   command's fallback, and `sync_check._selfproof` runs the wired command under a POSIX shell with
   failing interpreters first on PATH (ADR 0076). The command reads the hook input once and runs
   each Python check with its stdin closed, so a stand-in that reads stdin no longer empties the
-  input the no-Python fallback reads (a selftest case puts such a stand-in first on PATH).
+  input the no-Python fallback reads (a selftest case puts such a stand-in first on PATH). A
+  Python that starts but fails to run the guard (an exit other than 0 or 2) refuses the auditor's
+  call too.
 - P102 (git hooks interpreter): `tools/install_hooks.py` writes hooks that run the Python that
   installed them, then try `python3`, `python` and `py -3`, and refuse the commit with a message
   naming `install_hooks.py` when none works; hooks are written with LF line endings. A hook runs
@@ -291,8 +293,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `wizard.py --selftest` keeps the wizard's state in a temporary file; it rewrote
   `creator-os-wizard-state.local.json` before.
 - P102 (inbox approve past a locked file; bounded scan read): `inbox.approve` refuses a file it
-  cannot read or move ("move failed (close the file if it is open in another program, then approve
-  again)") and goes on with the batch, so the ledger records the files it moved. `inbox.scan` lists
+  cannot read ("could not be read (close the file if it is open in another program, then approve
+  again)") or move ("move failed (close the file ...)") and goes on with the batch, so the ledger records the files it moved. `inbox.scan` lists
   a file it cannot read under `needs_review` with the error and goes on, and the `sweep` command
   exits 1 for it. On Windows a file
   open in another program (WinError 32) made approve stop mid-batch with an earlier file already in
@@ -329,15 +331,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   screen (`inbox._fully_screened`): a flag in the part read still seals the file, while a clean
   part no longer lets `scan` propose a transcript or `approve` move a text file; the scan holds
   the file for a session and approve refuses it. Before, injection text past the first 2 MB went
-  unscreened and the file could be routed. Such a transcript stays in the Inbox: the scan's note
-  says to split it into files under 2 MB. On a format approve does not require a whole-file read
+  unscreened and the file could be routed. A text-format file over 2 MB (a transcript, or a JSON or
+  CSV export) stays in the Inbox: scan holds it with a note to split it into files under 2 MB, and
+  approve's refusal names the limit. On a format approve does not require a whole-file read
   for (PDF, YAML and others), a cut record's verdict is kept, marked truncated, when it is more
   cautious than the proposal's.
 - P102 (short temp paths): three selftest checks compare a realpath'd value with
   `os.path.realpath` of the temp path (`handoff/queue.py` input refs, the suite's `guard-records`
   and `guard-refuses-checkout-under-root`), so both sides use the same form of the path when the
   temp folder is a symlink (run on Linux) or an 8.3 short path (run on a Windows computer with a
-  short TEMP); the `windows` CI job runs them on GitHub's image.
+  short TEMP); the `windows` CI job is set to run them on GitHub's image.
 - P102 (plugin limits): `docs/UPDATING.md` and the `package_skill.py` docstring state the current
   organization plugin limits: 200 MB per ZIP and 1000 plugins per marketplace, for manual upload
   and for GitHub or GitLab sync.

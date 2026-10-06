@@ -194,11 +194,13 @@ def selftest() -> int:
         passes_k.append(hub_root)
         if len(passes_k) == 1:
             raise ValueError("an unexpected ticket shape")
+        if len(passes_k) == 2:
+            raise TypeError("a ticket field of the wrong type")
         raise KeyboardInterrupt
 
     def bounded_nap(seconds):
         naps_k.append(seconds)
-        if len(naps_k) >= 3:  # a watcher that swallowed the Ctrl+C is stopped here, after extra passes
+        if len(naps_k) >= 4:  # a watcher that swallowed the Ctrl+C is stopped here, after extra passes
             raise KeyboardInterrupt
     globals()["once"], time.sleep = interrupted_once, bounded_nap
     out_k = io.StringIO()
@@ -210,8 +212,10 @@ def selftest() -> int:
         stopped_k = False
     finally:
         globals()["once"], time.sleep = real_once, real_sleep
-    ok("a pass that raises ValueError is reported, and Ctrl+C during the next pass stops the watcher",
-       stopped_k and len(passes_k) == 2 and "pass failed, retrying next interval: ValueError" in out_k.getvalue()
+    ok("passes that raise ValueError and TypeError are reported, and Ctrl+C during the next pass stops "
+       "the watcher",
+       stopped_k and len(passes_k) == 3 and "pass failed, retrying next interval: ValueError" in out_k.getvalue()
+       and "pass failed, retrying next interval: TypeError" in out_k.getvalue()
        and "handoff watcher: stopped" in out_k.getvalue())
 
     # P102: with stdout redirected to a cp1252 file (a Windows log), main writes a failed pass that

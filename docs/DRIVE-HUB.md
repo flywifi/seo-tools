@@ -177,8 +177,9 @@ tier only, the same offline check that screens job-ticket free text and import p
 injection guard still runs in a Claude session and remains authoritative. Because a transcript is a
 text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
 an oversize file, or the tool being unavailable) is held for a session rather than routed
-unscreened. A transcript over the tier's 2 MB limit stays in the Inbox, since approve does not move
-a text file read only in part: split it into files under 2 MB and drop those in. A file that cannot
+unscreened. A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
+stays in the Inbox, since approve does not move a text file read only in part: split it into files
+under 2 MB and drop those in; one that cannot be split stays where it is for a Claude session to read. A file that cannot
 be read (on Windows, one another program holds open) is listed for review with the error, and the
 scan and approve go on with the rest. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
 and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,

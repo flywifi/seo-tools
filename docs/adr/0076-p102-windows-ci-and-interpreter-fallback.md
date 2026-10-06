@@ -25,7 +25,8 @@ auditor's hook command (`sync_check.GUARD_HOOK_COMMAND`, matched on `Bash|PowerS
 same three names; with none working it refuses a call whose hook input names a guarded agent and
 lets the main loop and the product agents through, as before. The command reads the hook input
 once into a variable and runs each probe with its stdin closed, so a stand-in that reads stdin
-cannot take the input the guard and the fallback read. The git hooks run their pinned Python only
+cannot take the input the guard and the fallback read, and a Python that starts but fails to run
+the guard refuses a guarded agent's call. The git hooks run their pinned Python only
 when it starts, and pin the interpreter path as given.
 
 ## Decision 2: the auditor does not use PowerShell

@@ -5124,6 +5124,15 @@ def _selftest_p101() -> int:
                 _bad_refused_c = True
             _bad_kept_c = any(_c.read_bytes() == b'{"youtube": "\xff\xfe"}'
                               for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            # a second unreadable version of the same length is kept as its own copy
+            _cp.write_bytes(b'{"youtube": "\xfe\xff"}')
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-y"}})
+            except ValueError:
+                pass
+            _bad_kept_c = _bad_kept_c and any(
+                _c.read_bytes() == b'{"youtube": "\xfe\xff"}'
+                for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
         finally:
             _g_c["ROOT"], atomic_io.locked = _saved_root_c, _real_locked_c
         check(_again_c and _copies_again_c == _copies_c
@@ -5164,7 +5173,7 @@ def _selftest_p101() -> int:
     # P102: the full selftest runs with the wizard state in a temporary file, puts the path and the
     # in-memory state back, and fails when the real file changed; _selftest hands itself to it.
     _g_s = globals()
-    _real_body_s, _real_iso_s, _saved_path_s = _g_s["_selftest"], _g_s["_selftest_isolated"], _g_s["_STATE_PATH"]
+    _real_body_s, _real_iso_s, _saved_path_s = _g_s["_selftest"], _g_s["_run_selftest_isolated"], _g_s["_STATE_PATH"]
     _seen_s = []
 
     def _probe_body_s():
@@ -5182,18 +5191,18 @@ def _selftest_p101() -> int:
         try:
             _g_s["_STATE_PATH"] = _fake_s
             _g_s["_selftest"] = _probe_body_s
-            _rc_probe_s = _selftest_isolated()
+            _rc_probe_s = _run_selftest_isolated()
             _path_after_s = _g_s["_STATE_PATH"]
             _fake_after_s = (_fake_s.read_bytes(), _fake_s.stat().st_mtime_ns)
             with _lock:  # the module's state: this function has a local named _state
                 _probe_left_s = "selftest_isolation_probe" in _g_s["_state"]
             _g_s["_selftest"] = _writer_body_s
             with _cl_bind.redirect_stdout(_io_bind.StringIO()):
-                _rc_writer_s = _selftest_isolated()
-            _g_s["_selftest"], _g_s["_selftest_isolated"] = _real_body_s, lambda: "handed over"
+                _rc_writer_s = _run_selftest_isolated()
+            _g_s["_selftest"], _g_s["_run_selftest_isolated"] = _real_body_s, lambda: "handed over"
             _handed_s = _real_body_s()
         finally:
-            _g_s["_selftest"], _g_s["_selftest_isolated"] = _real_body_s, _real_iso_s
+            _g_s["_selftest"], _g_s["_run_selftest_isolated"] = _real_body_s, _real_iso_s
             _g_s["_STATE_PATH"] = _saved_path_s
     check(_rc_probe_s == 0 and len(_seen_s) == 1 and _seen_s[0][0] != _fake_s and _seen_s[0][1] is True
           and _fake_after_s == _fake_before_s and _path_after_s == _fake_s and not _probe_left_s
@@ -5210,7 +5219,7 @@ def _selftest_p101() -> int:
 _SELFTEST_STATE_ISOLATED = False
 
 
-def _selftest_isolated() -> int:
+def _run_selftest_isolated() -> int:
     """Runs _selftest with _STATE_PATH pointed at a temporary file, so the persisted-state checks
     and the routes they drive leave this computer's creator-os-wizard-state.local.json as it was
     (P102); the in-memory state is put back afterwards, and a change to the real file fails."""
@@ -5244,10 +5253,10 @@ def _selftest_isolated() -> int:
 def _selftest() -> int:
     """No-network test of the publishing OAuth callback: state CSRF, token exchange, credential
     merge (no clobber), and the {plat}_publishing flag flip. Uses an injected transport. It runs
-    inside _selftest_isolated, which keeps the real wizard state file out of reach."""
+    inside _run_selftest_isolated, which keeps the real wizard state file out of reach."""
     global _OAUTH_TRANSPORT
     if not _SELFTEST_STATE_ISOLATED:
-        return _selftest_isolated()
+        return _run_selftest_isolated()
     failures: list[str] = []
 
     def check(cond, msg):

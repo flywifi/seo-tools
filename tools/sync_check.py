@@ -915,11 +915,14 @@ AUDITOR_AGENT = "auditor"
 # with no working Python it refuses (exit 2) a call whose hook input names a GUARDED_AGENT_TYPES
 # agent and lets the other calls through, as before. Each guarded agent is named in that grep. The
 # hook input is read once into IN and each probe's stdin is /dev/null, so a stand-in that reads
-# stdin cannot take the input the guard and the grep read (P102).
+# stdin cannot take the input the guard and the grep read (P102). A Python that starts but fails to
+# run the guard (an exit other than 0 or 2) refuses a guarded agent's call too.
 GUARD_HOOK_COMMAND = (
     'G="${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"; test -f "$G" || exit 0; IN=$(cat); '
     'for p in python3 python "py -3"; do if $p -c "import sys" </dev/null >/dev/null 2>&1; then '
-    'printf \'%s\' "$IN" | $p "$G"; exit $?; fi; done; '
+    'printf \'%s\' "$IN" | $p "$G"; rc=$?; if [ $rc -ne 0 ] && [ $rc -ne 2 ] && printf \'%s\' "$IN" | '
+    'grep -q \'"agent_type" *: *"auditor"\'; then echo "readonly_bash_guard: the guard did not run (exit '
+    '$rc); refused for the auditor agent" >&2; exit 2; fi; exit $rc; fi; done; '
     'if printf \'%s\' "$IN" | grep -q \'"agent_type" *: *"auditor"\'; then echo "readonly_bash_guard: no working Python '
     'to check this command; refused for the auditor agent" >&2; exit 2; fi; exit 0')
 # The tools the hook must match: the guard reads Bash syntax and refuses a PowerShell call
@@ -2494,6 +2497,12 @@ def _selftest_guard_hook_run():
         for name in ("python3", "python", "py"):
             (stubs / name).write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
             (stubs / name).chmod(0o755)
+        # A python3 that starts (the probe passes) but fails any script, as an old Python would.
+        broken = Path(td) / "broken"
+        broken.mkdir()
+        (broken / "python3").write_text('#!/bin/sh\n[ "$1" = "-c" ] && exit 0\nexit 1\n', encoding="utf-8")
+        (broken / "python3").chmod(0o755)
+        broken_path = str(broken) + os.pathsep + real
         # A stand-in python3 that reads stdin before it fails, as a launcher that prompts might.
         draining = Path(td) / "draining"
         draining.mkdir()
@@ -2524,6 +2533,10 @@ def _selftest_guard_hook_run():
              ROOT, drained, False, 2, "no working Python"),
             ("no Python, a stand-in reads stdin: main loop passes", call("Bash", None, "rm x"), ROOT, drained,
              False, 0, ""),
+            ("a Python that fails the guard: auditor refused", call("Bash", AUDITOR_AGENT, "git status"), ROOT,
+             broken_path, False, 2, "the guard did not run"),
+            ("a Python that fails the guard: main loop not blocked", call("Bash", None, "rm x"), ROOT,
+             broken_path, False, 1, ""),
         ]
         for label, payload, project, path, compact, want_rc, want_err in cases:
             rc, err = run(payload, project, path, compact)
