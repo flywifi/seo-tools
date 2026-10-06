@@ -211,8 +211,9 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
     """Read-only: the proposal skeleton for everything new in Inbox/ (excluding Processed/ and the
     sealed Quarantine/ area). Text files are run through the offline injection pattern tier; a
     QUARANTINE/BLOCK verdict lands the file in `quarantined[]` (never routed, never proposed), and
-    the exact matched phrases travel with it for human review. scan writes NOTHING; the caller runs
-    sweep_quarantine to move sealed files (P61 SEC-ALL/Q-SEAL)."""
+    the exact matched phrases travel with it for human review. A file that cannot be read is listed
+    in `needs_review` with the error, and the scan goes on (P102). scan writes NOTHING; the caller
+    runs sweep_quarantine to move sealed files (P61 SEC-ALL/Q-SEAL)."""
     rules = rules if rules is not None else load_rules()
     ledger = ledger if ledger is not None else load_ledger()
     inbox = Path(hub_root) / "Inbox"
@@ -229,8 +230,16 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
             continue
         if p.name in _SEALED_SUBDIRS:  # defensive; directories are already skipped above
             continue
-        digest = _sha256(p)
-        info = _classify.classify(str(p))
+        try:
+            digest = _sha256(p)
+            info = _classify.classify(str(p))
+        except OSError as exc:  # on Windows, a file another program holds open without read sharing
+            out["needs_review"].append({
+                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,
+                "category_source": "unreadable", "pass2_pending": True,
+                "note": "could not be read (close the file if it is open in another program, then "
+                        f"scan again): {exc}; left in place"})
+            continue
         if digest in ledger and ledger[digest].get("status") == "quarantined":
             # a copy of content already sealed: flagged again so the sweep seals it too, rather
             # than counted as handled and left in the drop folder
@@ -280,6 +289,10 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                           "note": "a transcript that the offline screener could not read as text "
                                   "(looks binary or oversize, or the screener is unavailable); a "
                                   "Claude session must screen it before any route is proposed"})
+            if (entry.get("offline_pattern_scan") or {}).get("truncated"):
+                entry["note"] = ("a transcript longer than the offline screener reads (2 MB), so only "
+                                 "its first part was screened and approve does not move it; split it "
+                                 "into files under 2 MB and drop those in the Inbox")
             out["needs_review"].append(entry)
             continue
         if cat and rule and rule.get("category_source") == "format":
@@ -423,9 +436,10 @@ def _approve_screen(path, given):
     """(offline_pattern_scan record, refusal) for a file approve is about to move: the offline tier
     re-run on the file itself, so a proposal that leaves out or understates its record cannot route
     a file the tier flags. The more cautious of that verdict and the proposal's is kept. A file the
-    tier could not read (the screener unavailable, or the file binary or unreadable), or read only the
-    first part of without a flag (an oversize file), keeps the proposal's record, unless its
-    extension is a plain-text format, which is refused."""
+    tier could not read (the screener unavailable, or the file binary or unreadable) keeps the
+    proposal's record, and a file it read only the first part of (an oversize file) gets that part's
+    record, marked truncated, when it is the more cautious; either is refused instead when its
+    extension is a plain-text format and the part read carries no flag."""
     scr = _screener()
     rec = scr.scan_file(str(path)) if scr is not None else {}
     given = given if isinstance(given, dict) else None
@@ -433,9 +447,12 @@ def _approve_screen(path, given):
         if Path(path).suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS:
             return None, ("a text file the offline screener could not read (it looks binary or "
                           "oversize, or the screener is unavailable); not routed")
-        return given, None
+        if "risk_level" not in rec:
+            return given, None
     fresh = {"risk_level": rec["risk_level"], "total_score": rec["total_score"],
              "patterns_detected": rec["patterns_detected"]}
+    if rec.get("truncated"):
+        fresh["truncated"] = True  # the tier read only the first max_bytes
     level = str((given or {}).get("risk_level") or "CLEAN").upper()
     return (given if _RISK_RANK.get(level, 0) > _RISK_RANK.get(fresh["risk_level"], 0) else fresh), None
 
@@ -463,7 +480,8 @@ def reconcile(offline_prior, session_verdict) -> dict:
 def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
     """The ONLY writer: move each approved entry to Inbox/Processed/<date>/ and record it in the
     ledger. Approves exactly what it is given (the human already reviewed); refuses entries whose
-    file vanished or whose sha no longer matches (the file changed since the scan). P62: refuses
+    file vanished or whose sha no longer matches (the file changed since the scan), and an entry
+    whose file cannot be read or moved, then goes on with the rest (P102). P62: refuses
     any entry the OFFLINE prior sealed (SEAL-TERMINAL fail-safe -- the session can never un-seal it)
     or the SESSION verdict escalated to QUARANTINE/BLOCK, and records the reconciled two-pass
     triple `injection_review` in the ledger. The offline prior is the tier re-run on the file
@@ -490,7 +508,14 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
             if refusal:
                 results["refused"].append({"file": rel, "why": refusal})
                 continue
-            if _sha256(src) != item.get("sha256"):
+            try:
+                digest = _sha256(src)
+            except OSError as exc:  # on Windows, a file another program holds open without read sharing
+                results["refused"].append({"file": item.get("file"),
+                                           "why": "could not be read (close the file if it is open in "
+                                                  f"another program, then approve again): {exc}"})
+                continue
+            if digest != item.get("sha256"):
                 results["refused"].append({"file": item.get("file"),
                                            "why": "file changed since the scan; re-scan first"})
                 continue
@@ -548,6 +573,22 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
 
 
 def selftest() -> int:
+    """Runs _selftest_checks with every temporary folder it makes inside one folder that is removed
+    afterwards: the oversize-transcript cases alone write about 7.5 MB, and tools/file_hash.py runs
+    this selftest once per committed inbox row (P102)."""
+    import shutil
+    import tempfile
+    root = tempfile.mkdtemp(prefix="inbox-selftest-")
+    saved_tempdir = tempfile.tempdir
+    tempfile.tempdir = root  # tempfile.mkdtemp() and TemporaryDirectory() below land under root
+    try:
+        return _selftest_checks()
+    finally:
+        tempfile.tempdir = saved_tempdir
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _selftest_checks() -> int:
     import tempfile
     checks, skips = [], []
 
@@ -837,8 +878,21 @@ def selftest() -> int:
             rc_r, out_r = run_cli(["sweep", "--hub", str(mv)])
         finally:
             globals()["_sha256"] = real_sha
-        ok("a scan that cannot read a file exits 1 with a JSON error",
-           rc_r == 1 and "scan failed" in (out_r or {}).get("error", ""))
+        ok("a scan that cannot read a file exits 1 and lists the file with the error",
+           rc_r == 1 and any(e["file"] == "Inbox/poison.txt" and "could not be read" in e["note"]
+                             for e in (out_r or {}).get("needs_review", [])))
+        real_scan_r = globals()["scan"]
+
+        def raising_scan(hub_root, rules=None, ledger=None):
+            raise PermissionError(13, "the Inbox folder could not be listed")
+        globals()["scan"] = raising_scan
+        try:
+            rc_s, out_s = run_cli(["sweep", "--hub", str(mv)])
+        finally:
+            globals()["scan"] = real_scan_r
+        ok("a scan that raises exits 1 with a JSON error",
+           rc_s == 1 and (out_s or {}).get("error", "").startswith("scan failed: ")
+           and "could not be listed" in out_s["error"])
         globals()["LEDGER_PATH"] = Path(tempfile.mkdtemp()) / "gone-ledger.json"
         real_scan = globals()["scan"]
         globals()["scan"] = lambda hub_root, rules=None, ledger=None: {
@@ -1092,6 +1146,36 @@ def selftest() -> int:
                   ledger_path=b2_led)
     ok("approve refuses an oversize file flagged in the part it read as sealed",
        not ea2["moved"] and "SEAL-TERMINAL" in ea2["refused"][0]["why"])
+    ok("scan says an oversize transcript must be split, since approve does not move it",
+       all("split it into files under 2 MB" in e["note"] for e in s2["needs_review"]
+           if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
+    # P102: a record cut at max_bytes keeps the more cautious of that part's verdict (marked
+    # truncated) and the proposal's on a format approve does not require a whole-file read for; on a
+    # text format a flag in that part seals the file, and a clean part is refused.
+
+    class _CutScreen:
+        def __init__(self, level):
+            self.level = level
+
+        def scan_file(self, path):
+            return {"risk_level": self.level, "total_score": 7, "patterns_detected": [], "truncated": True}
+    real_screener2 = globals()["_screener"]
+    try:
+        globals()["_screener"] = lambda: _CutScreen("REVIEW")
+        cut_review = [_approve_screen(b2 / "Inbox" / f"notes.{ext}", clean_rec) for ext in ("yaml", "pdf", "sbv")]
+        cut_review_srt = _approve_screen(b2 / "Inbox" / "talk.srt", clean_rec)
+        cut_kept = _approve_screen(b2 / "Inbox" / "notes.yaml", dict(clean_rec, risk_level="BLOCK"))
+        globals()["_screener"] = lambda: _CutScreen("QUARANTINE")
+        cut_sealed = _approve_screen(b2 / "Inbox" / "talk.srt", clean_rec)
+    finally:
+        globals()["_screener"] = real_screener2
+    cut_want = {"risk_level": "REVIEW", "total_score": 7, "patterns_detected": [], "truncated": True}
+    ok("a cut REVIEW on a yaml, pdf or sbv file outranks a clean proposal and stays marked truncated, "
+       "and a more cautious proposal is kept",
+       cut_review == [(cut_want, None)] * 3 and cut_kept == (dict(clean_rec, risk_level="BLOCK"), None))
+    ok("a cut QUARANTINE on a transcript is a sealed record, and a cut REVIEW on one is refused",
+       cut_sealed[1] is None and (cut_sealed[0] or {}).get("risk_level") == "QUARANTINE"
+       and cut_review_srt[0] is None and "could not read" in (cut_review_srt[1] or ""))
 
     # P102: a file approve cannot move (on Windows, WinError 32: it is open in another program) is
     # refused; the rest of the batch moves, and the ledger records the moved files only.
@@ -1120,6 +1204,56 @@ def selftest() -> int:
        and (h7 / "Inbox" / "b-locked.srt").is_file())
     a7b = approve(h7, scan(h7, ledger=load_ledger(l7)), ledger_path=l7)
     ok("once the file can be moved, the next approve moves it", a7b["moved"] == ["Inbox/b-locked.srt"])
+    # P102: a Processed folder that cannot be made (here a file of that name) refuses each file with
+    # the error, and approve still writes the ledger.
+    h8 = Path(tempfile.mkdtemp()); (h8 / "Inbox").mkdir()
+    (h8 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    s8 = scan(h8, ledger={})
+    (h8 / "Inbox" / "Processed").write_text("not a folder", encoding="utf-8")
+    l8 = Path(tempfile.mkdtemp()) / "l8-ledger.json"
+    try:
+        a8 = approve(h8, s8, ledger_path=l8)
+    except OSError as exc8:
+        a8 = {"raised": repr(exc8)}
+    ok("a Processed folder that cannot be made refuses the file with the error, and the ledger is written",
+       a8.get("moved") == [] and [r["file"] for r in a8.get("refused", [])] == ["Inbox/talk.srt"]
+       and "move failed" in a8["refused"][0]["why"] and l8.is_file()
+       and (h8 / "Inbox" / "talk.srt").is_file())
+
+    # P102: a file that cannot be read (on Windows, one another program holds open without read
+    # sharing) is held by scan with the error and refused by approve; both go on with the rest.
+    h9 = Path(tempfile.mkdtemp()); (h9 / "Inbox").mkdir()
+    for n9 in ("a-first.srt", "b-unreadable.srt", "c-third.srt"):
+        (h9 / "Inbox" / n9).write_text(srt.replace("hi", n9), encoding="utf-8")
+    l9 = Path(tempfile.mkdtemp()) / "l9-ledger.json"
+    s9_all = scan(h9, ledger={})
+    real_sha9, sha9_error = globals()["_sha256"], []
+
+    def unreadable_sha(path):
+        if Path(path).name == "b-unreadable.srt":
+            raise sha9_error[0]
+        return real_sha9(path)
+    globals()["_sha256"] = unreadable_sha
+    try:
+        sha9_error.append(PermissionError(13, "Permission denied"))
+        s9 = scan(h9, ledger={})
+        sha9_error[0] = OSError(5, "Input/output error")
+        a9 = approve(h9, s9_all, ledger_path=l9)
+    except OSError as exc9:
+        s9 = s9 if "s9" in dir() else {}
+        a9 = {"raised": repr(exc9)}
+    finally:
+        globals()["_sha256"] = real_sha9
+    held9 = [e for e in s9.get("needs_review", []) if e["file"] == "Inbox/b-unreadable.srt"]
+    led9 = (sorted(e["file_name"] for e in json.loads(l9.read_text(encoding="utf-8"))["entries"])
+            if l9.is_file() else None)
+    ok("scan holds a file it cannot read with the error and goes on with the rest",
+       len(held9) == 1 and "could not be read" in held9[0]["note"] and "Permission denied" in held9[0]["note"]
+       and sorted(e["file"] for e in s9.get("proposals", [])) == ["Inbox/a-first.srt", "Inbox/c-third.srt"])
+    ok("approve refuses a file it cannot read, moves the rest, and records the moved files only",
+       sorted(a9.get("moved", [])) == ["Inbox/a-first.srt", "Inbox/c-third.srt"]
+       and [r["file"] for r in a9.get("refused", [])] == ["Inbox/b-unreadable.srt"]
+       and "could not be read" in a9["refused"][0]["why"] and led9 == ["a-first.srt", "c-third.srt"])
 
     # P102: the writers hold the ledger lock while they move files.
     def lock_free(ledger):
@@ -1298,6 +1432,8 @@ def _sweep_cli(argv) -> int:
         res = {"error": f"scan failed: {exc}", "quarantined": []}
     res["swept"] = {"sealed": [], "skipped": []}
     rc = 1 if "error" in res else 0
+    if any(e.get("category_source") == "unreadable" for e in res.get("needs_review", [])):
+        rc = 1  # the scan held a file it could not read, so that file was not screened
     if res["quarantined"]:
         try:
             res["swept"] = sweep_quarantine(hub, res, ledger_path=LEDGER_PATH)

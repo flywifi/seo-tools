@@ -13,9 +13,9 @@ a hook exit other than 2 as a non-blocking error, so the auditor's write would g
 hook also matched the Bash tool only, while Claude Code's PowerShell tool, on by default on
 Windows, takes shell commands there.
 
-No CI job ran on Windows. On GitHub's `windows-latest` image the temp folder is an 8.3 short path,
-which three selftest checks compared with realpath'd values and failed on, and one selftest's
-mutant pass ran close to the selftest sweep's 300 s cap on a Windows computer.
+No CI job ran on Windows. GitHub's `windows-latest` image gives an 8.3 short temp path; with a
+short TEMP on a Windows computer, three selftest checks that compared realpath'd values with the
+plain temp path failed, and one selftest's mutant pass ran close to the selftest sweep's 300 s cap.
 
 ## Decision 1: the hooks try python3, python and py -3, and fail closed where it matters
 
@@ -23,7 +23,10 @@ mutant pass ran close to the selftest sweep's 300 s cap on a Windows computer.
 `python3`, `python` and `py -3`, and refuse the commit when none works, naming the remedy. The
 auditor's hook command (`sync_check.GUARD_HOOK_COMMAND`, matched on `Bash|PowerShell`) tries the
 same three names; with none working it refuses a call whose hook input names a guarded agent and
-lets the main loop and the product agents through, as before.
+lets the main loop and the product agents through, as before. The command reads the hook input
+once into a variable and runs each probe with its stdin closed, so a stand-in that reads stdin
+cannot take the input the guard and the fallback read. The git hooks run their pinned Python only
+when it starts, and pin the interpreter path as given.
 
 ## Decision 2: the auditor does not use PowerShell
 
@@ -42,6 +45,11 @@ selftest sweep reads per-tool caps from `selftest_sweep.TOOL_TIMEOUTS`, each wit
 - A clone keeps its old hooks until `tools/install_hooks.py` runs again.
 - The no-Python fallback reads the hook input with `grep`, which Git for Windows ships; a shell
   without `grep` lets the call through.
+- A probe that does not return lets the call through: a PreToolUse command hook that reaches its
+  timeout (600 s by default) does not block the tool call (hooks reference).
+- The command is POSIX sh. On Windows without Git Bash, Claude Code runs hooks under PowerShell
+  (hooks reference), which does not read sh, so the guard does not run there (not tested on
+  Windows); Git for Windows is part of `docs/SETUP_WINDOWS.md`.
 - The Windows job adds a CI leg per interpreter; its first run on a push is the check for runner
   differences the Windows test computer did not cover (the workspace on another drive than the
   temp folder, the runner's speed, Python 3.12 and 3.14 on Windows).

@@ -913,11 +913,14 @@ AUDITOR_AGENT = "auditor"
 # Claude Code treats as a block on every Bash call in the project. It tries python3, python and
 # py -3 in turn (on Windows python3 can be the Microsoft Store stub, which exits non-zero), and
 # with no working Python it refuses (exit 2) a call whose hook input names a GUARDED_AGENT_TYPES
-# agent and lets the other calls through, as before. Each guarded agent is named in that grep.
+# agent and lets the other calls through, as before. Each guarded agent is named in that grep. The
+# hook input is read once into IN and each probe's stdin is /dev/null, so a stand-in that reads
+# stdin cannot take the input the guard and the grep read (P102).
 GUARD_HOOK_COMMAND = (
-    'G="${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"; test -f "$G" || exit 0; '
-    'for p in python3 python "py -3"; do $p -c "import sys" >/dev/null 2>&1 && exec $p "$G"; done; '
-    'if grep -q \'"agent_type" *: *"auditor"\'; then echo "readonly_bash_guard: no working Python '
+    'G="${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"; test -f "$G" || exit 0; IN=$(cat); '
+    'for p in python3 python "py -3"; do if $p -c "import sys" </dev/null >/dev/null 2>&1; then '
+    'printf \'%s\' "$IN" | $p "$G"; exit $?; fi; done; '
+    'if printf \'%s\' "$IN" | grep -q \'"agent_type" *: *"auditor"\'; then echo "readonly_bash_guard: no working Python '
     'to check this command; refused for the auditor agent" >&2; exit 2; fi; exit 0')
 # The tools the hook must match: the guard reads Bash syntax and refuses a PowerShell call
 # from a guarded agent (Claude Code's PowerShell tool, on by default on Windows).
@@ -2425,6 +2428,8 @@ def _selftest_guard_wiring():
         'python3 "${CLAUDE_PROJECT_DIR}/tools/readonly_bash_guard.py"')
     cases.append(("old command", old, (AUDITOR_AGENT,), "no PreToolUse hook on Bash "))
     cases.append(("unnamed guarded agent", good, (AUDITOR_AGENT, "x-agent"), "does not refuse the 'x-agent'"))
+    cases.append(("guarded agent named only inside another name", good, (AUDITOR_AGENT, "audit"),
+                  "does not refuse the 'audit'"))
     for label, settings, guarded, want in cases:
         with tempfile.TemporaryDirectory() as td:
             t = Path(td)
@@ -2489,9 +2494,17 @@ def _selftest_guard_hook_run():
         for name in ("python3", "python", "py"):
             (stubs / name).write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
             (stubs / name).chmod(0o755)
+        # A stand-in python3 that reads stdin before it fails, as a launcher that prompts might.
+        draining = Path(td) / "draining"
+        draining.mkdir()
+        for name, body in (("python3", "#!/bin/sh\ncat >/dev/null\nexit 1\n"), ("python", "#!/bin/sh\nexit 1\n"),
+                           ("py", "#!/bin/sh\nexit 1\n")):
+            (draining / name).write_text(body, encoding="utf-8")
+            (draining / name).chmod(0o755)
         empty = Path(td) / "empty"
         empty.mkdir()
         stubbed = str(stubs) + os.pathsep + real
+        drained = str(draining) + os.pathsep + real
         cases = [
             ("guard file absent", call("Bash", AUDITOR_AGENT, "rm x"), empty, real, False, 0, ""),
             ("auditor write refused by the guard", call("Bash", AUDITOR_AGENT, "rm x"), ROOT, real, False,
@@ -2506,6 +2519,10 @@ def _selftest_guard_hook_run():
              True, 2, "no working Python"),
             ("no Python: main loop passes", call("Bash", None, "rm x"), ROOT, stubbed, False, 0, ""),
             ("no Python: product agent passes", call("Bash", "seo-researcher", "rm x"), ROOT, stubbed,
+             False, 0, ""),
+            ("no Python, a stand-in reads stdin: auditor refused", call("Bash", AUDITOR_AGENT, "git status"),
+             ROOT, drained, False, 2, "no working Python"),
+            ("no Python, a stand-in reads stdin: main loop passes", call("Bash", None, "rm x"), ROOT, drained,
              False, 0, ""),
         ]
         for label, payload, project, path, compact, want_rc, want_err in cases:

@@ -97,6 +97,10 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   than leaving it in the drop folder counted as handled.
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
+`approve` refuses a text file the tier read only in part (`inbox._fully_screened`), so a transcript
+over 2 MB stays in the Inbox until it is split; on other formats a cut record's verdict is kept,
+marked truncated, when it is the more cautious. A file `scan` cannot read goes to `needs_review`
+with the error, and `approve` refuses one it cannot read or move; both go on with the batch.
 Two-pass handoff (P62): the offline verdict is pass 1. Every routed / needs-review record carries
 its `offline_pattern_scan` prior AND `pass2_pending: true`, so a Claude session that later reads the
 record runs the authoritative semantic guard (pass 2) with the prior as advisory input and writes a

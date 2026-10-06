@@ -106,13 +106,14 @@ def _load_queue():
     """The schedule. A missing file is an empty schedule. A file that does not parse, or is not
     {"queue": [...]}, is copied to <name>.corrupt.<UTC stamp>.bak (once per distinct content) and
     read as empty with a load_note naming the copy, so the next save cannot overwrite the only
-    record of the old schedule (P102). An OSError on read propagates, so nothing is saved on a
+    record of the old schedule (P102). A UTF-8 byte-order mark (Windows PowerShell 5.1 and older
+    Notepad write one) is read past. An OSError on read propagates, so nothing is saved on a
     guess."""
     if not QUEUE_PATH.exists():
         return {"queue": []}
     raw = QUEUE_PATH.read_bytes()
     try:
-        data = json.loads(raw.decode("utf-8"))
+        data = json.loads(raw.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         data = None
     if isinstance(data, dict) and isinstance(data.get("queue"), list):
@@ -1544,6 +1545,25 @@ def _selftest_checks() -> int:
             after_q = json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
             QUEUE_PATH.write_text('{"queue": "not a list"}', encoding="utf-8")
             shape_q = _load_queue()
+            QUEUE_PATH.write_bytes(b"\xef\xbb\xbf" + json.dumps({"queue": [{"id": "bom-post"}]}).encode("utf-8"))
+            bom_q = _load_queue()
+            for old_copy in Path(tdq).glob("*.corrupt.*.bak"):
+                old_copy.unlink()
+            real_dt = g_q["datetime"]
+
+            class _SameSecond(real_dt):
+                @classmethod
+                def now(cls, tz=None):
+                    return real_dt(2026, 10, 6, 12, 0, 0, tzinfo=tz)
+            g_q["datetime"] = _SameSecond
+            try:
+                QUEUE_PATH.write_bytes(b'{"queue": [\xff\xfe]}')  # not UTF-8
+                bad_utf8_q = _load_queue()
+                QUEUE_PATH.write_text("{oops", encoding="utf-8")
+                _load_queue()
+            finally:
+                g_q["datetime"] = real_dt
+            same_second = sorted(p.read_bytes() for p in Path(tdq).glob("*.corrupt.*.bak"))
             g_q["QUEUE_PATH"] = Path(tdq) / "a-folder"
             QUEUE_PATH.mkdir()
             try:
@@ -1560,6 +1580,10 @@ def _selftest_checks() -> int:
        and len(copies_q) == 1 and copy_bytes == broken_q and copies_q[0].name in bad_1["load_note"]
        and after_q == {"queue": [{"id": "new-post"}]} and read_raised
        and shape_q["queue"] == [] and "load_note" in shape_q)
+    ok("a schedule with a UTF-8 byte-order mark reads as written; one that is not UTF-8 is copied and "
+       "read as empty; two copies made in the same second are both kept",
+       bom_q == {"queue": [{"id": "bom-post"}]} and bad_utf8_q["queue"] == [] and "load_note" in bad_utf8_q
+       and same_second == [b'{"queue": [\xff\xfe]}', b"{oops"])
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

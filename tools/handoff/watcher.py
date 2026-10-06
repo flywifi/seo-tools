@@ -31,6 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import atomic_io  # noqa: E402  (the one atomic writer, P81)
+import env_paths  # noqa: E402  (utf8_stdio: a redirected log on Windows, P102)
 
 from handoff import queue as q  # noqa: E402
 from handoff import runner  # noqa: E402
@@ -177,13 +178,73 @@ def selftest() -> int:
         with contextlib.redirect_stdout(out):
             watch(hub, interval=30)
         stopped = True
-    except Exception:  # noqa: BLE001
+    except BaseException:  # noqa: BLE001 - a Ctrl+C that escapes watch is a failed check here
         stopped = False
     finally:
         globals()["once"], time.sleep = real_once, real_sleep
     ok("a failed pass is reported and the watcher runs the next one; Ctrl+C still stops it",
        stopped and len(passes) == 2 and "pass failed, retrying next interval: PermissionError" in out.getvalue()
        and '"status": "done"' in out.getvalue() and "handoff watcher: stopped" in out.getvalue())
+
+    # P102: Ctrl+C during a pass stops the watcher too, and a pass that raises something other than
+    # OSError (a ticket that trips a bug) is reported like a locked one.
+    passes_k, naps_k = [], []
+
+    def interrupted_once(hub_root):
+        passes_k.append(hub_root)
+        if len(passes_k) == 1:
+            raise ValueError("an unexpected ticket shape")
+        raise KeyboardInterrupt
+
+    def bounded_nap(seconds):
+        naps_k.append(seconds)
+        if len(naps_k) >= 3:  # a watcher that swallowed the Ctrl+C is stopped here, after extra passes
+            raise KeyboardInterrupt
+    globals()["once"], time.sleep = interrupted_once, bounded_nap
+    out_k = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out_k):
+            watch(hub, interval=30)
+        stopped_k = True
+    except BaseException:  # noqa: BLE001
+        stopped_k = False
+    finally:
+        globals()["once"], time.sleep = real_once, real_sleep
+    ok("a pass that raises ValueError is reported, and Ctrl+C during the next pass stops the watcher",
+       stopped_k and len(passes_k) == 2 and "pass failed, retrying next interval: ValueError" in out_k.getvalue()
+       and "handoff watcher: stopped" in out_k.getvalue())
+
+    # P102: with stdout redirected to a cp1252 file (a Windows log), main writes a failed pass that
+    # names a file with an emoji as UTF-8 instead of ending on UnicodeEncodeError.
+    import tempfile as _tf_w
+    locked_name = "G:/My Drive/Creator OS/Inbox/Vlog \U0001f3ac.mp4"
+
+    def emoji_once(hub_root):
+        raise PermissionError(32, "The process cannot access the file", locked_name)
+
+    def stop_nap(seconds):
+        raise KeyboardInterrupt
+    real_streams = sys.stdout, sys.stderr
+    raw_out, raw_err = io.BytesIO(), io.BytesIO()
+    with _tf_w.TemporaryDirectory() as hub_w:
+        globals()["once"], time.sleep = emoji_once, stop_nap
+        wrapped = (io.TextIOWrapper(raw_out, encoding="cp1252", write_through=True),
+                   io.TextIOWrapper(raw_err, encoding="cp1252", write_through=True))
+        sys.stdout, sys.stderr = wrapped
+        try:
+            rc_w = main(["--watch", "--hub", hub_w])
+        except BaseException as exc:  # noqa: BLE001
+            rc_w = repr(exc)
+        finally:
+            sys.stdout, sys.stderr = real_streams
+            globals()["once"], time.sleep = real_once, real_sleep
+            for stream in wrapped:
+                stream.flush()
+            log_w = raw_out.getvalue().decode("utf-8", errors="replace")
+            for stream in wrapped:
+                stream.detach()  # leave the buffers open; the wrapper is done
+    ok("main logs a failed pass naming an emoji file as UTF-8 when stdout is a cp1252 file",
+       rc_w == 0 and locked_name in log_w and "handoff watcher: stopped" in log_w)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:
@@ -248,8 +309,11 @@ def api_once() -> dict:
 
 
 def main(argv) -> int:
+    """The CLI. stdout and stderr write UTF-8 when redirected (env_paths.utf8_stdio, P102), so a
+    failed pass that names a file with an emoji is logged instead of ending the watcher."""
     if "--selftest" in argv:
         return selftest()
+    env_paths.utf8_stdio()
     if "--transport" in argv and argv[argv.index("--transport") + 1] == "api":
         print(json.dumps(api_once(), indent=2, default=str))
         return 0

@@ -1397,32 +1397,51 @@ def _load_api_credentials(strict: bool = False) -> dict:
     """Read api-credentials.local.json and return a dict keyed by platform. A missing file reads as
     {}. By default a file that cannot be read or parsed also reads as {}, so a screen shows nothing
     connected. With strict (a writer, P102) an OSError propagates, and a file that does not parse
-    as an object is copied to <name>.corrupt.<stamp>.bak and raises ValueError, so the writer saves
-    nothing over it."""
+    as an object is copied to <name>.corrupt.<stamp>.bak (_keep_credentials_copy) and raises
+    ValueError, so the writer saves nothing over it. Both read past a UTF-8 byte-order mark."""
     creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
     if creds_path.exists() and strict:
         raw = creds_path.read_bytes()
         try:
-            creds = json.loads(raw.decode("utf-8"))
+            creds = json.loads(raw.decode("utf-8-sig"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             creds = None
         if not isinstance(creds, dict):
-            bak = creds_path.with_name(f"{creds_path.name}.corrupt.{time.strftime('%Y%m%d%H%M%S')}.bak")
-            bak.write_bytes(raw)
-            try:
-                os.chmod(bak, 0o600)  # it holds tokens too
-            except OSError:
-                pass
+            bak = _keep_credentials_copy(creds_path, raw)
             raise ValueError(f"{creds_path.name} could not be read, so nothing was saved; it was kept "
                              f"as {bak.name}. Fix the file, or move it aside and connect the "
                              f"platforms again.")
         return creds
     if creds_path.exists():
         try:
-            return json.loads(creds_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            return json.loads(creds_path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):  # ValueError: not UTF-8, or not JSON
             pass
     return {}
+
+
+def _keep_credentials_copy(creds_path, raw):
+    """A copy of `raw` beside the credentials file as <name>.corrupt.<stamp>.bak, created with owner
+    read and write only (0600 on POSIX; it holds tokens), or the existing copy that already holds
+    those bytes, so a refused save repeated makes one copy."""
+    for old in sorted(creds_path.parent.glob(f"{creds_path.name}.corrupt.*.bak")):
+        try:
+            if old.read_bytes() == raw:
+                return old
+        except OSError:
+            continue
+    stamp, n = time.strftime("%Y%m%d%H%M%S"), 1
+    bak = creds_path.with_name(f"{creds_path.name}.corrupt.{stamp}.bak")
+    while True:
+        try:
+            fd = os.open(bak, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0), 0o600)
+            break
+        except FileExistsError:
+            n += 1
+            bak = creds_path.with_name(f"{creds_path.name}.corrupt.{stamp}.{n}.bak")
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(raw)
+    return bak
 
 
 def _save_api_credentials(creds: dict) -> None:
@@ -5083,13 +5102,104 @@ def _selftest_p101() -> int:
             except ValueError as _exc_c:
                 _refused_c = "could not be read" in str(_exc_c)
             _copies_c = sorted(_cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            _after_c, _locks_c = _cp.read_bytes(), list(_held_c)
+            _again_c = False
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-again"}})
+            except ValueError:
+                _again_c = True
+            _copies_again_c = sorted(_cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            _mode_c = (_copies_c[0].stat().st_mode & 0o777) if _copies_c else None
+            # A byte-order mark is read past by both readers; a file that is not UTF-8 is refused.
+            _cp.write_bytes(b"\xef\xbb\xbf" + json.dumps({"youtube": {"publish": {"label": "fixture-bom"}}}).encode("utf-8"))
+            _bom_lenient_c = _load_api_credentials()
+            _merge_api_credentials("pinterest", {"publish": {"label": "fixture-pin"}})
+            _bom_merged_c = json.loads(_cp.read_text(encoding="utf-8"))
+            _cp.write_bytes(b'{"youtube": "\xff\xfe"}')
+            _bad_lenient_c = _load_api_credentials()
+            _bad_refused_c = False
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-x"}})
+            except ValueError:
+                _bad_refused_c = True
+            _bad_kept_c = any(_c.read_bytes() == b'{"youtube": "\xff\xfe"}'
+                              for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
         finally:
             _g_c["ROOT"], atomic_io.locked = _saved_root_c, _real_locked_c
+        check(_again_c and _copies_again_c == _copies_c
+              and (os.name == "nt" or _mode_c == 0o600),
+              f"a repeated refused credential save does not reuse its copy, or the copy is not owner-only "
+              f"({len(_copies_again_c)} copies, mode {_mode_c!r})")
+        check(set(_bom_lenient_c) == {"youtube"} and set(_bom_merged_c) == {"youtube", "pinterest"}
+              and _bad_lenient_c == {} and _bad_refused_c and _bad_kept_c,
+              f"the credential readers do not read past a byte-order mark, or a file that is not UTF-8 "
+              f"is not refused ({_bom_lenient_c}, {sorted(_bom_merged_c)}, {_bad_lenient_c}, "
+              f"{_bad_refused_c}, {_bad_kept_c})")
         check(set(_good_c) == {"youtube", "pinterest", "instagram", "tiktok"} and _refused_c
-              and _cp.read_bytes() == _broken_c and len(_copies_c) == 1 and _copies_c[0].read_bytes() == _broken_c
-              and _held_c == [_cp, _cp],
+              and _after_c == _broken_c and len(_copies_c) == 1 and _copies_c[0].read_bytes() == _broken_c
+              and _locks_c == [_cp, _cp],
               f"the credential merge does not hold its lock, or saves over a file it could not read "
-              f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_held_c})")
+              f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_locks_c})")
+    # P102: a credential save refused after a Connect flow is reported, and the flag is not flipped.
+    _g_o = globals()
+    _saved_o = {k: _g_o[k] for k in ("_oauth_publish_creds", "_merge_api_credentials", "_update_capability_flag")}
+    _real_exchange_o, _flags_o = oauth_flow.exchange_code, []
+
+    def _refuse_merge_o(plat, patch):
+        raise ValueError("api-credentials.local.json could not be read, so nothing was saved; it was "
+                         "kept as fixture.bak.")
+    try:
+        _g_o.update(_oauth_publish_creds=lambda plat: ("fixture-id", "fixture-secret", {}),
+                    _merge_api_credentials=_refuse_merge_o,
+                    _update_capability_flag=lambda key, value: _flags_o.append(key))
+        oauth_flow.exchange_code = lambda *a, **kw: {"expires_in": 3600}
+        _done_o = _complete_oauth("tiktok", "fixture-code", None, "http://127.0.0.1:8765/oauth/tiktok/callback")
+    except ValueError as _exc_o:
+        _done_o = ("raised", str(_exc_o))
+    finally:
+        _g_o.update(_saved_o)
+        oauth_flow.exchange_code = _real_exchange_o
+    check(_done_o[0] is False and "kept as fixture.bak" in _done_o[1] and _flags_o == [],
+          f"a refused credential save after Connect is not reported, or the flag flipped ({_done_o}, {_flags_o})")
+    # P102: the full selftest runs with the wizard state in a temporary file, puts the path and the
+    # in-memory state back, and fails when the real file changed; _selftest hands itself to it.
+    _g_s = globals()
+    _real_body_s, _real_iso_s, _saved_path_s = _g_s["_selftest"], _g_s["_selftest_isolated"], _g_s["_STATE_PATH"]
+    _seen_s = []
+
+    def _probe_body_s():
+        _seen_s.append((_g_s["_STATE_PATH"], _g_s["_SELFTEST_STATE_ISOLATED"]))
+        _set(selftest_isolation_probe="probe")
+        return 0
+    with _tf_u.TemporaryDirectory() as _td_s:
+        _fake_s = pathlib.Path(_td_s) / "creator-os-wizard-state.local.json"
+        _fake_s.write_text("{}", encoding="utf-8")
+        _fake_before_s = (_fake_s.read_bytes(), _fake_s.stat().st_mtime_ns)
+
+        def _writer_body_s():
+            _fake_s.write_text('{"written": true}', encoding="utf-8")
+            return 0
+        try:
+            _g_s["_STATE_PATH"] = _fake_s
+            _g_s["_selftest"] = _probe_body_s
+            _rc_probe_s = _selftest_isolated()
+            _path_after_s = _g_s["_STATE_PATH"]
+            _fake_after_s = (_fake_s.read_bytes(), _fake_s.stat().st_mtime_ns)
+            with _lock:  # the module's state: this function has a local named _state
+                _probe_left_s = "selftest_isolation_probe" in _g_s["_state"]
+            _g_s["_selftest"] = _writer_body_s
+            with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                _rc_writer_s = _selftest_isolated()
+            _g_s["_selftest"], _g_s["_selftest_isolated"] = _real_body_s, lambda: "handed over"
+            _handed_s = _real_body_s()
+        finally:
+            _g_s["_selftest"], _g_s["_selftest_isolated"] = _real_body_s, _real_iso_s
+            _g_s["_STATE_PATH"] = _saved_path_s
+    check(_rc_probe_s == 0 and len(_seen_s) == 1 and _seen_s[0][0] != _fake_s and _seen_s[0][1] is True
+          and _fake_after_s == _fake_before_s and _path_after_s == _fake_s and not _probe_left_s
+          and _rc_writer_s == 1 and _handed_s == "handed over",
+          f"the wizard selftest does not keep its state in a temporary file and put it back, or does not "
+          f"fail when the real file changed ({_rc_probe_s}, {_seen_s}, {_rc_writer_s}, {_handed_s!r})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:
@@ -5097,10 +5207,47 @@ def _selftest_p101() -> int:
     return 1 if failures else 0
 
 
+_SELFTEST_STATE_ISOLATED = False
+
+
+def _selftest_isolated() -> int:
+    """Runs _selftest with _STATE_PATH pointed at a temporary file, so the persisted-state checks
+    and the routes they drive leave this computer's creator-os-wizard-state.local.json as it was
+    (P102); the in-memory state is put back afterwards, and a change to the real file fails."""
+    global _STATE_PATH, _SELFTEST_STATE_ISOLATED
+    import tempfile
+
+    def _file_state(p):
+        try:
+            st = p.stat()
+            return (st.st_size, st.st_mtime_ns)
+        except OSError:
+            return None
+    real_path, before = _STATE_PATH, _file_state(_STATE_PATH)
+    with _lock:
+        saved_state = dict(_state)
+    with tempfile.TemporaryDirectory(prefix="wizard-state-") as td:
+        _STATE_PATH, _SELFTEST_STATE_ISOLATED = pathlib.Path(td) / real_path.name, True
+        try:
+            rc = _selftest()
+        finally:
+            _STATE_PATH, _SELFTEST_STATE_ISOLATED = real_path, False
+            with _lock:
+                _state.clear()
+                _state.update(saved_state)
+    if _file_state(real_path) != before:
+        print(f"wizard selftest FAILED: it changed {real_path.name}")
+        return 1
+    return rc
+
+
 def _selftest() -> int:
     """No-network test of the publishing OAuth callback: state CSRF, token exchange, credential
-    merge (no clobber), and the {plat}_publishing flag flip. Uses an injected transport."""
+    merge (no clobber), and the {plat}_publishing flag flip. Uses an injected transport. It runs
+    inside _selftest_isolated, which keeps the real wizard state file out of reach."""
     global _OAUTH_TRANSPORT
+    if not _SELFTEST_STATE_ISOLATED:
+        return _selftest_isolated()
     failures: list[str] = []
 
     def check(cond, msg):

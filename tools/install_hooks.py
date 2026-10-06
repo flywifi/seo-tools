@@ -19,10 +19,12 @@ The CI guard job is the backstop for clones that skipped this (tracked-content s
 commit-message scan bounded by the policy SHA in tools/secret-scan-allowlist.json).
 
 Each hook runs the Python that installed it, by its absolute path (P102): a bare `python3` can be
-the Microsoft Store's stand-in on Windows, which exits 9009 without running anything. When that
-Python is gone (a rebuilt .venv, an upgraded Python), the hook uses the first of python3, python and
-`py -3` that runs, and with none it refuses the commit and says to run this tool again. The hooks
-are written with LF line endings on every system.
+the Microsoft Store's stand-in on Windows, which exits 9009 without running anything. The path is
+kept as given (a venv's interpreter stays the venv's, not the Python a link points to). When that
+Python is gone or does not run (a rebuilt .venv, an upgraded Python), the hook uses the first of
+python3, python and `py -3` that runs, and with none it refuses the commit and says to run this tool
+again. Each of those checks runs with its stdin closed, so a stand-in that waits for input does not
+hold the commit. The hooks are written with LF line endings on every system.
 
 CLI:
   python3 tools/install_hooks.py             # install/refresh both hooks
@@ -39,14 +41,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # The interpreter lines both hooks start with; install() puts the quoted interpreter path in place of
-# the placeholder. The hook runs that Python when it exists; otherwise the first of python3, python
+# the placeholder. The hook runs that Python when it runs; otherwise the first of python3, python
 # and `py -3` that runs at all (the Microsoft Store's stand-in for python3 exits 9009 and is skipped);
-# with none, it refuses the commit.
+# with none, it refuses the commit. Each probe reads /dev/null, not the hook's stdin.
 _PYTHON_LINES = """CREATOR_OS_PY=@PYTHON@
-if [ -e "$CREATOR_OS_PY" ]; then
+if "$CREATOR_OS_PY" -c "import sys" </dev/null >/dev/null 2>&1; then
   creator_os_py() { "$CREATOR_OS_PY" "$@"; }
 else
-  for p in python3 python "py -3"; do $p -c "import sys" >/dev/null 2>&1 && break; p=; done
+  for p in python3 python "py -3"; do $p -c "import sys" </dev/null >/dev/null 2>&1 && break; p=; done
   if [ -z "$p" ]; then
     echo "Creator OS hook: no working Python (tried $CREATOR_OS_PY, python3, python, py -3); commit refused. Run tools/install_hooks.py again with a working Python." >&2
     exit 1
@@ -123,8 +125,9 @@ def _sh_quote(text) -> str:
 
 def render(body, python=None) -> str:
     """A hook's text with the interpreter it runs: python (default sys.executable) as an absolute
-    path with forward slashes, which Git for Windows' sh reads, quoted for spaces and quotes."""
-    return body.replace("@PYTHON@", _sh_quote(Path(python or sys.executable).resolve().as_posix()))
+    path with forward slashes, which Git for Windows' sh reads, quoted for spaces and quotes. The
+    path is not resolved, so a venv's interpreter (a link to its base Python) stays the venv's."""
+    return body.replace("@PYTHON@", _sh_quote(Path(python or sys.executable).absolute().as_posix()))
 
 
 def install(dry_run=False, hooks_dir=None, python=None):
@@ -191,7 +194,16 @@ def selftest() -> int:
         ok("install writes both hooks with LF line endings only",
            rc == 0 and all(b"\r\n" not in r and r.startswith(b"#!/bin/sh\n") for r in raw))
         ok("the installed hooks name this interpreter",
-           all(Path(sys.executable).resolve().as_posix().encode() in r for r in raw))
+           all(Path(sys.executable).absolute().as_posix().encode() in r for r in raw))
+        link_py = Path(td) / "link-python"
+        try:
+            os.symlink(sys.executable, link_py)
+        except (OSError, NotImplementedError, AttributeError) as exc:
+            link_py = None
+            skips.append(f"the linked-interpreter check: os.symlink is refused here ({type(exc).__name__})")
+        if link_py is not None:
+            ok("a hook names a linked interpreter by the link, not by the file it points to",
+               "CREATOR_OS_PY=" + _sh_quote(link_py.absolute().as_posix()) + "\n" in render(COMMIT_MSG, link_py))
         sh = _shell()
         git_ok = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=str(ROOT),
                                 capture_output=True, text=True).returncode == 0
@@ -233,7 +245,7 @@ def selftest() -> int:
             # PATH: a wrapper that marks stderr, then runs this Python.
             pinned = Path(td) / "pinned-python"
             pinned.write_text("#!/bin/sh\necho PINNED-INTERPRETER >&2\nexec "
-                              + _sh_quote(Path(sys.executable).resolve().as_posix()) + ' "$@"\n',
+                              + _sh_quote(Path(sys.executable).absolute().as_posix()) + ' "$@"\n',
                               encoding="utf-8", newline="\n")
             pinned.chmod(0o755)
             pinned_hook = Path(td) / "pinned-hook"
@@ -242,8 +254,43 @@ def selftest() -> int:
             used = subprocess.run([sh, str(pinned_hook), str(msg)], cwd=str(ROOT), env=env_stub,
                                   capture_output=True, text=True, encoding="utf-8",
                                   errors="replace", timeout=120)
+            # A pinned interpreter that exists but does not run (a venv whose base Python was removed)
+            # is skipped like a missing one.
+            broken = Path(td) / "broken-python"
+            broken.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8", newline="\n")
+            broken.chmod(0o755)
+            broken_hook = Path(td) / "broken-hook"
+            broken_hook.write_text(render(COMMIT_MSG, broken), encoding="utf-8", newline="\n")
+            broken_run = run_hook(broken_hook, "Add a line\n\nhttps://claude.ai/" + "code/session_" + "01ABC\n")
+            # A stand-in python3 that reads stdin (a launcher that waits for an answer) does not hold
+            # the hook: each probe reads /dev/null. The hook's own stdin is a pipe left open here.
+            drain = Path(td) / "drain"
+            drain.mkdir()
+            (drain / "python3").write_text("#!/bin/sh\ncat >/dev/null\nexit 1\n", encoding="utf-8", newline="\n")
+            (drain / "python").write_text("#!/bin/sh\nexec " + _sh_quote(Path(sys.executable).absolute().as_posix())
+                                          + ' "$@"\n', encoding="utf-8", newline="\n")
+            for drain_file in drain.iterdir():
+                drain_file.chmod(0o755)
+            msg.write_text("Add a line\n\nhttps://claude.ai/" + "code/session_" + "01ABC\n", encoding="utf-8")
+            proc = subprocess.Popen([sh, str(gone), str(msg)], cwd=str(ROOT),
+                                    env=dict(env, PATH=os.pathsep.join([str(drain)] + keep[1:])),
+                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            try:
+                drained_rc = proc.wait(timeout=20)
+                drained_out = proc.stdout.read().decode("utf-8", errors="replace")
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                drained_rc, drained_out = None, ""
+            finally:
+                for stream in (proc.stdin, proc.stdout, proc.stderr):
+                    stream.close()
             ok("the installed commit-msg hook passes a clean message", clean.returncode == 0)
-            ok("a hook runs its pinned interpreter when it exists, before any name on PATH",
+            ok("a hook whose pinned interpreter exists but does not run falls back to a Python on PATH",
+               broken_run.returncode == 1 and "session_link" in broken_run.stdout)
+            ok("a stand-in python3 that reads stdin does not hold the hook, which goes on to python",
+               drained_rc == 1 and "session_link" in drained_out)
+            ok("a hook runs its pinned interpreter when it runs, before any name on PATH",
                used.returncode == 0 and "PINNED-INTERPRETER" in used.stderr)
             ok("the installed commit-msg hook rejects a session link",
                link.returncode == 1 and "session_link" in link.stdout)

@@ -330,12 +330,12 @@ def run_pass(hub_root, *, spawn=subprocess.run, allow=None) -> list:
             key = e["path"].stem
             if not q.has_result(hub_root, key):
                 q.write_result(hub_root, key, "refused", error=e["error"], tool_version=_version())
-            q.archive_ticket(hub_root, e["path"])
+            _archive(hub_root, e["path"])
             results.append({"job_id": key, "status": "refused"})
             continue
         jid = e["data"].get("job_id")
         if jid in seen_ids:
-            q.archive_ticket(hub_root, e["path"])
+            _archive(hub_root, e["path"])
             results.append({"job_id": jid, "status": "duplicate_skipped"})
             continue
         seen_ids.add(jid)
@@ -569,6 +569,52 @@ def selftest() -> int:
        and [r["status"] for r in next_pass] == ["duplicate_skipped"]
        and not list(q.hub_paths(ah)["queue"].glob("job.*.json"))
        and len(list(q.hub_paths(ah)["archive"].glob("job.*.json"))) == 2)
+
+    # P102: the other archive paths leave a locked ticket too: a ticket that does not parse, a second
+    # ticket with a job_id already seen this pass (a Drive conflict copy), a ticket validation
+    # refuses, and one whose result exists. The ticket after each still runs.
+    def locked_names(*names):
+        def archive(hub_root, ticket_path):
+            if Path(ticket_path).name in names:
+                raise OSError(5, "Input/output error")
+            return real_archive(hub_root, ticket_path)
+        return archive
+    import uuid
+    lh = Path(tempfile.mkdtemp(prefix="runner-lock-paths-"))
+    q.ensure_hub_dirs(lh)
+    lq = q.hub_paths(lh)["queue"]
+    first = q.submit(lh, "library_analyze")
+    first_file = next(lq.glob("job.*.json"))
+    (lq / f"{first_file.stem} (1).json").write_text(first_file.read_text(encoding="utf-8"), encoding="utf-8")
+    (lq / "job.0-broken.json").write_text("{not json", encoding="utf-8")
+    (lq / "job.1-refused.json").write_text(json.dumps(dict(first, job_id=str(uuid.uuid4()),
+                                                           job_type="not_a_job")), encoding="utf-8")
+    q.submit(lh, "library_analyze")
+    locked_all = ("job.0-broken.json", "job.1-refused.json", first_file.name, f"{first_file.stem} (1).json")
+    q.archive_ticket = locked_names(*locked_all)
+    try:
+        paths_pass = run_pass(lh, spawn=fake_spawn, allow=True)
+        paths_raised = None
+    except OSError as exc:
+        paths_pass, paths_raised = [], repr(exc)
+    finally:
+        q.archive_ticket = real_archive
+    left_paths = sorted(p.name for p in lq.glob("job.*.json"))
+    ok("a locked ticket that does not parse, repeats a job_id or is refused stays queued, and the "
+       "tickets after it still run",
+       paths_raised is None and sorted(r["status"] for r in paths_pass)
+       == ["done", "done", "duplicate_skipped", "refused", "refused"] and left_paths == sorted(locked_all))
+    q.archive_ticket = locked_names(f"{first_file.stem} (1).json")
+    try:
+        dup_job = run_job(lh, lq / f"{first_file.stem} (1).json", first)
+        dup_raised = None
+    except OSError as exc:
+        dup_job, dup_raised = {}, repr(exc)
+    finally:
+        q.archive_ticket = real_archive
+    ok("run_job leaves a locked ticket whose result exists and reports it as a duplicate",
+       dup_raised is None and dup_job.get("status") == "duplicate_skipped"
+       and (lq / f"{first_file.stem} (1).json").is_file())
 
     # P102: a job whose tool prints an emoji, with this process's codec forced to cp1252 (what a
     # Windows pipe uses), is done with the text intact; the spawn reads and writes UTF-8.

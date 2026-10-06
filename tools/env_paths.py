@@ -22,6 +22,7 @@ Two macOS realities drive this module (see docs/SETUP_MAC.md and docs/MACOS-MAIN
 
 Stdlib only. Pure and injectable so the selftest can simulate a macOS PATH with no real hardware.
 """
+import ntpath
 import os
 import shutil
 import subprocess
@@ -222,18 +223,19 @@ def windows_outside_home(path, home=None, osname=None) -> bool:
     elsewhere, such as C:\\repos, takes the drive's, which by default let the computer's other
     accounts read its files, the credential files in pipeline/user-context/ among them (os.chmod
     there sets only the read-only flag). False on other systems, and when a path cannot be
-    resolved. Paths are compared after resolving symlinks, with os.path.normcase."""
+    resolved. Paths are compared after resolving symlinks, by Windows rules (ntpath.normcase folds
+    case and separators, so the comparison is the same when osname is given on another system)."""
     if osname is None:
         osname = _os_name()
     if osname != "nt":
         return False
     home = Path(home) if home is not None else Path.home()
     try:
-        target = os.path.normcase(str(Path(path).expanduser().resolve()))
-        base = os.path.normcase(str(home.resolve())).rstrip("\\/")
+        target = ntpath.normcase(str(Path(path).expanduser().resolve()))
+        base = ntpath.normcase(str(home.resolve())).rstrip("\\")
     except (OSError, RuntimeError):
         return False
-    return not (target == base or target.startswith(base + os.sep))
+    return not (target == base or target.startswith(base + "\\"))
 
 
 def python_command(osname=None, which=None) -> str:
@@ -564,6 +566,15 @@ def _selftest() -> int:
         finally:
             globals()["_os_name"] = real_os
         ok(read_os is True, "windows_outside_home reads _os_name() when no system is given")
+        ok(windows_outside_home(Path(td).resolve() / "HOME" / "CreatorOS", home=h, osname="nt") is False
+           and windows_outside_home(Path(td).resolve() / "HOME-other", home=h, osname="nt") is True,
+           "on Windows a repo under the home folder written in another letter case is not reported")
+
+        class _Unresolvable:
+            def __fspath__(self):
+                raise OSError(5, "the path could not be read")
+        ok(windows_outside_home(_Unresolvable(), home=h, osname="nt") is False,
+           "on Windows a path that cannot be resolved is not reported")
     # P102: a child that prints an emoji to a pipe, with the parent's codec forced to cp1252 (what a
     # Windows pipe uses): tool_io and utf8_stdio each keep it running; without them it stops.
     text = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
@@ -584,12 +595,13 @@ def _selftest() -> int:
        f"({with_io.returncode}, {without.returncode})")
     here = str(Path(__file__).resolve().parent)
     stdio = [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[2]); import env_paths; "
-             "env_paths.utf8_stdio(); print(sys.argv[1])", text, here]
+             "env_paths.utf8_stdio(); print(sys.argv[1]); print(sys.argv[1], file=sys.stderr)", text, here]
     plain = [sys.executable, "-c", "import sys; print(sys.argv[1])", text]
     r_on = subprocess.run(stdio, capture_output=True, timeout=60, env=cp1252)
     r_off = subprocess.run(plain, capture_output=True, timeout=60, env=cp1252)
-    ok(r_on.returncode == 0 and r_on.stdout.decode("utf-8").strip() == text and r_off.returncode != 0,
-       "utf8_stdio makes a redirected stdout UTF-8, so a cp1252 pipe gets the emoji intact")
+    ok(r_on.returncode == 0 and r_on.stdout.decode("utf-8").strip() == text and r_off.returncode != 0
+       and r_on.stderr.decode("utf-8", errors="replace").strip() == text,
+       "utf8_stdio makes a redirected stdout and stderr UTF-8, so a cp1252 pipe gets the emoji intact")
 
     class _Stream:
         def __init__(self, tty):
@@ -604,6 +616,15 @@ def _selftest() -> int:
     utf8_stdio([term, piped, None, object()])
     ok(term.calls == [] and piped.calls == [{"encoding": "utf-8", "errors": "replace"}],
        "utf8_stdio leaves a terminal and a stream without reconfigure alone")
+    real_out, real_err = sys.stdout, sys.stderr
+    std_out, std_err = _Stream(False), _Stream(False)
+    sys.stdout, sys.stderr = std_out, std_err
+    try:
+        utf8_stdio()
+    finally:
+        sys.stdout, sys.stderr = real_out, real_err
+    ok(std_out.calls == [{"encoding": "utf-8", "errors": "replace"}] and std_err.calls == std_out.calls,
+       "utf8_stdio with no streams given switches both sys.stdout and sys.stderr")
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:

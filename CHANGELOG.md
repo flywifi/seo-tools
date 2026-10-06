@@ -187,14 +187,20 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   agent, and the auditor's frontmatter removes the PowerShell tool. Drift invariant 14 requires
   both matcher names, the auditor's PowerShell removal and each guarded agent named in the
   command's fallback, and `sync_check._selfproof` runs the wired command under a POSIX shell with
-  failing interpreters first on PATH (ADR 0076).
+  failing interpreters first on PATH (ADR 0076). The command reads the hook input once and runs
+  each Python check with its stdin closed, so a stand-in that reads stdin no longer empties the
+  input the no-Python fallback reads (a selftest case puts such a stand-in first on PATH).
 - P102 (git hooks interpreter): `tools/install_hooks.py` writes hooks that run the Python that
   installed them, then try `python3`, `python` and `py -3`, and refuse the commit with a message
-  naming `install_hooks.py` when none works; hooks are written with LF line endings.
+  naming `install_hooks.py` when none works; hooks are written with LF line endings. A hook runs
+  the pinned Python only when it starts (a pin that exists but fails falls back like a missing
+  one), the pin keeps the path as given rather than the file a link points to, and each check runs
+  with its stdin closed.
 - P102 (repo outside the user folder on Windows): `setup.py` and the wizard's publishing screen
   note a repo outside the user folder on Windows (`env_paths.windows_outside_home`), whose files
   take the drive's permissions, which by default let the computer's other accounts read them,
-  the credential files included.
+  the credential files included. The comparison follows Windows path rules (`ntpath.normcase`), so
+  a folder named in another letter case counts as the same folder.
 - P102 (job origins by system): a job ticket's `origin` accepts `windows` and `linux` beside `mac`,
   each naming the computer that queued the job by its system (queue, schema, drift invariant 55 and
   the two local Claude app surfaces), and the wizard queues follow-up jobs with
@@ -269,18 +275,26 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ### Fixed
 - P102 (a locked ticket; unreadable files kept): the hand-off watcher reports a pass that raises
-  ("pass failed, retrying next interval") and runs the next one, and `runner.run_job` leaves a
-  ticket it cannot archive for the next pass, which reads it as a duplicate and archives it. On a
-  Drive hub on Windows, one ticket held open stopped the pass and ended the watcher. The Scheduling
+  ("pass failed, retrying next interval") and runs the next one, and `runner.run_job` and
+  `runner.run_pass` leave a ticket they cannot archive (one that ran, was refused, did not parse,
+  or repeats a job_id) for the next pass, which archives it then. On a Drive hub on Windows, one
+  ticket held open stopped the pass and ended the watcher. The watcher's command writes UTF-8 when
+  its output is redirected, so an error naming a file with an emoji is logged. The Scheduling
   Dashboard reads a schedule file that does not parse, or is not `{"queue": [...]}`, as empty with a
   note, after copying it once to `<name>.corrupt.<UTC stamp>.bak`, and an error reading it fails the
   request instead of being read as an empty schedule; before, the next save replaced the whole
   schedule. The wizard's credential merge takes the file's lock, like the dashboard and the watcher,
   and refuses to save over a credentials file that does not parse (it keeps a `.corrupt` copy),
-  where before one stray comma and one new platform left only that platform's tokens.
+  where before one stray comma and one new platform left only that platform's tokens. Its copy is
+  created owner-only (0600 on POSIX) and reused when a refused save repeats. The wizard's two
+  credential readers and the dashboard's schedule reader read past a UTF-8 byte-order mark.
+  `wizard.py --selftest` keeps the wizard's state in a temporary file; it rewrote
+  `creator-os-wizard-state.local.json` before.
 - P102 (inbox approve past a locked file; bounded scan read): `inbox.approve` refuses a file it
-  cannot move ("move failed (close the file if it is open in another program, then approve
-  again)") and goes on with the batch, so the ledger records the files it moved. On Windows a file
+  cannot read or move ("move failed (close the file if it is open in another program, then approve
+  again)") and goes on with the batch, so the ledger records the files it moved. `inbox.scan` lists
+  a file it cannot read under `needs_review` with the error and goes on, and the `sweep` command
+  exits 1 for it. On Windows a file
   open in another program (WinError 32) made approve stop mid-batch with an earlier file already in
   Processed and no ledger entry. `injection_scan.scan_file` reads at most `max_bytes + 1` bytes,
   so an Inbox scan no longer loads a whole video into memory; its verdicts are unchanged.
@@ -290,8 +304,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   and read its output as UTF-8 (`env_paths.tool_env`, `env_paths.tool_io`). On Windows a child's
   pipe used the ANSI code page, so one video title with an emoji stopped `import_parse` and the
   runner's job. `import_parse`, `library_complete`, `videoedit/chapters`, `videoedit/mltxml` and
-  `videoedit/fcpxml` write UTF-8 when their stdout is redirected or piped (`env_paths.utf8_stdio`),
-  so `mltxml.py build pkg > timeline.mlt` keeps an emoji. The import screen now says
+  `videoedit/fcpxml` write UTF-8 when their stdout or stderr is redirected or piped
+  (`env_paths.utf8_stdio`), so `mltxml.py build pkg > timeline.mlt` run from Command Prompt or Git
+  Bash keeps an emoji; redirection in Windows PowerShell is not covered by this change. The import screen now says
   "import_parse stopped with an error" with the error's last line when the tool crashes, instead
   of "no readable export found in this folder".
 - P102 (selftest margins on a loaded computer): the selftest sweep gives `tools/file_hash.py` a
@@ -314,11 +329,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   screen (`inbox._fully_screened`): a flag in the part read still seals the file, while a clean
   part no longer lets `scan` propose a transcript or `approve` move a text file; the scan holds
   the file for a session and approve refuses it. Before, injection text past the first 2 MB went
-  unscreened and the file could be routed.
+  unscreened and the file could be routed. Such a transcript stays in the Inbox: the scan's note
+  says to split it into files under 2 MB. On a format approve does not require a whole-file read
+  for (PDF, YAML and others), a cut record's verdict is kept, marked truncated, when it is more
+  cautious than the proposal's.
 - P102 (short temp paths): three selftest checks compare a realpath'd value with
   `os.path.realpath` of the temp path (`handoff/queue.py` input refs, the suite's `guard-records`
-  and `guard-refuses-checkout-under-root`), so they pass when the temp folder is an 8.3 short
-  path, as on GitHub's Windows image, or a symlink.
+  and `guard-refuses-checkout-under-root`), so both sides use the same form of the path when the
+  temp folder is a symlink (run on Linux) or an 8.3 short path (run on a Windows computer with a
+  short TEMP); the `windows` CI job runs them on GitHub's image.
 - P102 (plugin limits): `docs/UPDATING.md` and the `package_skill.py` docstring state the current
   organization plugin limits: 200 MB per ZIP and 1000 plugins per marketplace, for manual upload
   and for GitHub or GitLab sync.
