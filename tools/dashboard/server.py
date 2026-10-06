@@ -1480,13 +1480,16 @@ def _selftest_checks() -> int:
     # with DashboardHandler (its timeout shortened to 0.3 s, to keep the committed mutation runs
     # short) answers the next request once that wait ends.
     quick = type("_QuickHandler", (DashboardHandler,), {"timeout": 0.3})
-    reply, took = loopback_server._selftest_idle_reply(lambda a: HTTPServer(a, quick), "/api/wizard-url")
+    # The 8 s wait and the 6 s bound leave room for a loaded computer; a server that never answers
+    # still fails at the wait.
+    reply, took = loopback_server._selftest_idle_reply(lambda a: HTTPServer(a, quick), "/api/wizard-url",
+                                                       wait=8.0)
     applied = loopback_server._selftest_applied_timeout(DashboardHandler)
     ok(f"the dashboard's handler waits REQUEST_TIMEOUT for a request (timeout "
        f"{DashboardHandler.timeout!r}, applied to the connection {applied!r}), and with an idle "
        f"connection open it answers the next request once the wait ends ({took:.1f} s)",
        DashboardHandler.timeout == loopback_server.REQUEST_TIMEOUT == applied
-       and reply.startswith(b"HTTP/1.0 200") and 0.2 <= took < 1.5)
+       and reply.startswith(b"HTTP/1.0 200") and 0.2 <= took < 6.0)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

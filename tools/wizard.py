@@ -4779,9 +4779,10 @@ def _selftest_p101() -> int:
             finally:
                 _shutdown.clear()
                 _sig_bind.signal(_sig_bind.SIGINT, _sig_bind.SIG_DFL if _prev_int is None else _prev_int)
-            check(_took is not None and 0.25 <= _took < 2.0 and _stopped == [True]
+            # 2.5 s leaves room for a loaded computer and stays below the 3 s a coarser wait step takes.
+            check(_took is not None and 0.25 <= _took < 2.5 and _stopped == [True]
                   and not loopback_server.WIZARD_PORT_FILE.exists(),
-                  f"a Ctrl+C did not end the wizard's wait within 2 s and close it ({_took!r} s)")
+                  f"a Ctrl+C did not end the wizard's wait within 2.5 s and close it ({_took!r} s)")
         finally:
             _g.update(_saved_bind)
             loopback_server.WIZARD_PORT_FILE, loopback_server.probe = _saved_file, _saved_probe
@@ -4887,10 +4888,13 @@ def _selftest_p101() -> int:
     # _Handler (its timeout shortened to 0.3 s, to keep the committed mutation runs short) answers
     # the next request once that wait ends.
     _quick = type("_QuickHandler", (_Handler,), {"timeout": 0.3})
-    _reply, _took = loopback_server._selftest_idle_reply(lambda a: _Server(a, _quick), "/no-such-page")
+    # The 8 s wait and the 6 s bound leave room for a loaded computer (a 4-CPU runner beside
+    # file_hash's workers answered in 2.8 s); a server that never answers still fails at the wait.
+    _reply, _took = loopback_server._selftest_idle_reply(lambda a: _Server(a, _quick), "/no-such-page",
+                                                         wait=8.0)
     _applied = loopback_server._selftest_applied_timeout(_Handler)
     check(_Handler.timeout == loopback_server.REQUEST_TIMEOUT == _applied
-          and _reply.startswith(b"HTTP/1.0 404") and 0.2 <= _took < 1.5,
+          and _reply.startswith(b"HTTP/1.0 404") and 0.2 <= _took < 6.0,
           f"the wizard's handler does not wait REQUEST_TIMEOUT for a request (timeout "
           f"{_Handler.timeout!r}, applied to the connection {_applied!r}), or with an idle connection "
           f"open it did not answer the next request once the wait ended ({_reply!r}, {_took:.1f} s)")

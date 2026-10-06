@@ -1503,14 +1503,14 @@ _MUTANTS = (
      '                                 capture_output=True, text=True, timeout=limit)\n',
      '                                 capture_output=True, text=True, timeout=PER_TOOL_TIMEOUT)\n'),
     ('SW2 the suite cap equals the default', 'selftest_sweep.py',
-     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900}\n',
-     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 300}\n'),
+     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900,\n',
+     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 300,\n'),
     ('SW3 the per-tool lookup returns the default', 'selftest_sweep.py',
      '    return TOOL_TIMEOUTS.get(rel, PER_TOOL_TIMEOUT)\n',
      '    return PER_TOOL_TIMEOUT\n'),
     ('SW4 the cap names a renamed tool', 'selftest_sweep.py',
-     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900}\n',
-     'TOOL_TIMEOUTS = {"tools/surface_workflow.py": 900}\n'),
+     'TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900,\n',
+     'TOOL_TIMEOUTS = {"tools/surface_workflow.py": 900,\n'),
     # P102: a scan cut at max_bytes reads as a partial screen (injection_scan, inbox._fully_screened).
     ('TR1 a cut record counts as a whole-file scan', 'handoff/inbox.py',
      '    return "risk_level" in rec and not rec.get("truncated")\n',
@@ -1586,6 +1586,13 @@ _MUTANTS = (
     ('LC7 the rewrite pins the command to POSIX', 'env_paths.py',
      'command = python_command() if osname is None and which is None else python_command(osname, which)',
      'command = python_command("posix") if osname is None and which is None else python_command(osname, which)'),
+    # P102 push 2: the sweep cap for file_hash.
+    ('SW5 file_hash keeps the default cap', 'selftest_sweep.py',
+     '                 "tools/file_hash.py": 900}\n',
+     '                 "tools/file_hash.py": 300}\n'),
+    ('SW6 the file_hash cap names another tool', 'selftest_sweep.py',
+     '                 "tools/file_hash.py": 900}\n',
+     '                 "tools/file_hashes.py": 900}\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

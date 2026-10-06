@@ -268,6 +268,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (selftest margins on a loaded computer): the selftest sweep gives `tools/file_hash.py` a
+  900 s cap (`selftest_sweep.TOOL_TIMEOUTS`); its selftest runs every committed mutation row and
+  took 165 s alone on a 4-CPU computer. The wizard's and the dashboard's idle-connection checks
+  wait 8 s and accept a reply within 6 s, so a server that never answers still fails at the wait;
+  on a 4-CPU computer running `file_hash`'s workers, the wizard answered in 2.8 s, over the former
+  1.5 s bound. The wizard's Ctrl+C check accepts 2.5 s, up from 2 s, below the 3 s a coarser
+  wait step takes.
 - P102 (printed commands on Windows): the wizard's pages, `setup.py`'s messages and the
   `profile_mirror` status line write `python3 tools/...` and `python3 shared/...` commands as
   `py -3` (or `python` without the py launcher) on Windows, where `python3` can be the Microsoft
@@ -317,7 +324,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the refusal (`surface_workflow_check._guard_allows`).
 - P102 (wizard Ctrl+C on Windows): the wizard waits in half-second steps, so Ctrl+C stops it on
   Windows before Python 3.14, where an untimed wait is not interrupted; its selftest sends a Ctrl+C
-  to the main thread and checks the wizard closes and removes its port record within 2 s. The check
+  to the main thread and checks the wizard closes and removes its port record within 2.5 s. The check
   installs Python's Ctrl+C handler for its run, so it also runs where the process ignores SIGINT.
 - P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
   and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
