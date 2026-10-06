@@ -60,6 +60,7 @@ import publishing_compliance as compliance  # noqa: E402
 import loopback_server  # noqa: E402  (P101: the wizard's and the dashboard's port records)
 from atomic_io import atomic_write_text as _atomic_write_text, locked as _locked  # noqa: E402
 import cache_records as _cache_records  # noqa: E402  (search and fetch over the cache index)
+import env_paths  # noqa: E402  (P102: UTF-8 for the repo tools this server runs)
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
@@ -1069,13 +1070,16 @@ mcp = _ServerClass("creator-os")   # the first positional is `name` in both majo
 
 
 def _run(cmd: list, input_text: str | None = None) -> tuple:
-    """Run a subprocess, return (exit_code, stdout, stderr)."""
+    """Run a subprocess, return (exit_code, stdout, stderr). The child's I/O and the reading here
+    are UTF-8 (env_paths.tool_io, P102): Claude Desktop starts this server without a UTF-8 setting,
+    and on Windows a child's pipe otherwise uses the ANSI code page, which stops a tool printing a
+    title with an emoji."""
     result = subprocess.run(
         cmd,
         cwd=str(ROOT),
         capture_output=True,
-        text=True,
         input=input_text,
+        **env_paths.tool_io(),
     )
     return result.returncode, result.stdout, result.stderr
 
@@ -2576,7 +2580,7 @@ def launch_setup() -> str:
     launch_id = os.urandom(8).hex()   # P101: the wizard records it with the port it bound
     try:
         kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
-                        "env": dict(os.environ, CREATOR_OS_WIZARD_LAUNCH_ID=launch_id)}
+                        "env": dict(env_paths.tool_env(), CREATOR_OS_WIZARD_LAUNCH_ID=launch_id)}
         if os.name == "posix":
             kwargs["start_new_session"] = True
         proc = subprocess.Popen([sys.executable, str(wizard)], **kwargs)
@@ -2847,6 +2851,23 @@ if __name__ == "__main__":
             finally:
                 globals()["CONFIG_LOCAL_PATH"] = _orig_cfg
         print(("ok   " if _conc_ok else "FAIL ") + "concurrent configure_tool writes serialise and stay parseable (P80)")
+        # P102: a repo tool run through _run prints an emoji title intact under a cp1252 parent codec
+        # (what a Windows pipe uses when Claude Desktop starts this server).
+        _title_u = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
+        _env_u = {k: os.environ.get(k) for k in ("PYTHONIOENCODING", "PYTHONUTF8")}
+        try:
+            os.environ["PYTHONIOENCODING"] = "cp1252"
+            os.environ.pop("PYTHONUTF8", None)
+            _ran_u = _run([sys.executable, "-c", "import sys; print(sys.argv[1])", _title_u])
+        finally:
+            for _k, _v in _env_u.items():
+                if _v is None:
+                    os.environ.pop(_k, None)
+                else:
+                    os.environ[_k] = _v
+        _utf8_ok = _ran_u[0] == 0 and _ran_u[1].strip() == _title_u
+        print(("ok   " if _utf8_ok else "FAIL ")
+              + f"a repo tool run through _run prints an emoji title intact under a cp1252 parent codec (rc {_ran_u[0]})")
 
         def _selftest_transport_policy(ok_fn, is_v2, server_cls, loopback_hosts, allowed_hosts_settings):
             """P81: the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
@@ -2900,7 +2921,8 @@ if __name__ == "__main__":
                                                     _allowed_hosts_settings)
         except Exception as _exc:  # noqa: BLE001
             print(f"FAIL transport-policy selftest raised: {_exc}")
-        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _policy_ok and _RC_STATIC == 0) else 1
+        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _utf8_ok and _policy_ok
+                    and _RC_STATIC == 0) else 1
         print(f"mcp_server selftest: full tier {'PASS' if _rc == 0 else 'FAIL'} "
               f"(package-independent tier {'PASS' if _RC_STATIC == 0 else 'FAIL'}, "
               f"{_live} tools live)")

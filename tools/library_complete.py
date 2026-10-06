@@ -375,6 +375,8 @@ def selftest():
         rc = main(["match", "--export-dir", "x" * 300])
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
+    ok("main switches a redirected stdout to UTF-8 (P102: titles with an emoji on Windows)",
+       "utf8_stdio" in main.__code__.co_names)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
@@ -441,7 +443,12 @@ def _main(argv):
 def main(argv):
     """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
     example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
-    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback. Its output is UTF-8
+    when stdout is redirected or piped (env_paths.utf8_stdio, P102), so a title with an emoji
+    reaches the file instead of stopping the tool on Windows."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools/, for env_paths
+    import env_paths
+    env_paths.utf8_stdio()
     try:
         return _main(argv)
     except OSError as exc:

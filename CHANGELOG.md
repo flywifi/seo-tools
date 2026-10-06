@@ -268,6 +268,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (UTF-8 output on Windows): the runner's job spawn, the wizard's runs of its tools
+  (`import_parse`, `transcribe`, `setup`, `pick_folder`, `count_truth`, `video_library`, and the MCP
+  handshake probe) and `mcp_server._run` give the child `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`
+  and read its output as UTF-8 (`env_paths.tool_env`, `env_paths.tool_io`). On Windows a child's
+  pipe used the ANSI code page, so one video title with an emoji stopped `import_parse` and the
+  runner's job. `import_parse`, `library_complete`, `videoedit/chapters`, `videoedit/mltxml` and
+  `videoedit/fcpxml` write UTF-8 when their stdout is redirected or piped (`env_paths.utf8_stdio`),
+  so `mltxml.py build pkg > timeline.mlt` keeps an emoji. The import screen now says
+  "import_parse stopped with an error" with the error's last line when the tool crashes, instead
+  of "no readable export found in this folder".
 - P102 (selftest margins on a loaded computer): the selftest sweep gives `tools/file_hash.py` a
   900 s cap (`selftest_sweep.TOOL_TIMEOUTS`); its selftest runs every committed mutation row and
   took 165 s alone on a 4-CPU computer. The wizard's and the dashboard's idle-connection checks

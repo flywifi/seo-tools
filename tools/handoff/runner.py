@@ -272,8 +272,10 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
     started = q._utcnow()
     out_file = q.hub_paths(hub_root)["results"] / f"{key}.out.txt"
     try:
+        # UTF-8 both ways (P102): on Windows a child's pipe otherwise uses the ANSI code page, and a
+        # title with an emoji stops the tool with UnicodeEncodeError.
         proc = spawn([env_paths.app_python(str(ROOT))] + argv, capture_output=True,
-                     text=True, timeout=timeout, cwd=str(ROOT))
+                     timeout=timeout, cwd=str(ROOT), **env_paths.tool_io())
         stdout = proc.stdout or ""
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(stdout, encoding="utf-8")
@@ -451,7 +453,7 @@ def selftest() -> int:
     fixture_srt = ROOT / "skills" / "creator-core" / "evals" / "fixtures" / "workshop-footage.srt"
     argv_nf, _ = _build_transcript_normalize({}, [str(fixture_srt)], hub)
     proc_n = subprocess.run([env_paths.app_python(str(ROOT))] + argv_nf,
-                            capture_output=True, text=True, timeout=60, cwd=str(ROOT))
+                            capture_output=True, timeout=60, cwd=str(ROOT), **env_paths.tool_io())
     try:
         norm_out = json.loads(proc_n.stdout)
     except (json.JSONDecodeError, ValueError):
@@ -466,7 +468,7 @@ def selftest() -> int:
     argv_lc, err_lc = _build_library_complete({"command": "match"}, [export_dir], hub)
     ok("library_complete builds --export-dir argv", err_lc is None and "--export-dir" in argv_lc)
     proc_lc = subprocess.run([env_paths.app_python(str(ROOT))] + argv_lc,
-                             capture_output=True, text=True, timeout=60, cwd=str(ROOT))
+                             capture_output=True, timeout=60, cwd=str(ROOT), **env_paths.tool_io())
     ok("library_complete argv is argparse-accepted", proc_lc.returncode == 0)
 
     # P61 (decision WRITE-OPTIN): --write appears only when the ticket asks AND the local capability is on.
@@ -493,7 +495,7 @@ def selftest() -> int:
        _build_keyword_offline({"query": "x" * 501}, [], hub)[1] is not None)
     # and the built argv actually runs clean against the committed library (zero network).
     proc_k = subprocess.run([env_paths.app_python(str(ROOT))] + argv_k,
-                            capture_output=True, text=True, timeout=120, cwd=str(ROOT))
+                            capture_output=True, timeout=120, cwd=str(ROOT), **env_paths.tool_io())
     rep_k = json.loads(proc_k.stdout) if proc_k.returncode == 0 else {}
     ok("keyword_offline argv runs clean with the honesty envelope",
        proc_k.returncode == 0 and rep_k.get("search_volumes") is None and
@@ -527,6 +529,39 @@ def selftest() -> int:
                  "library_analyze.2026-10-04T120000Z.windows.json",
                  "library_analyze.2026-10-04T120000Z.linux.json",
                  "library_analyze.2026-10-04T120000Z.2.windows.json"])
+
+    # P102: a job whose tool prints an emoji, with this process's codec forced to cp1252 (what a
+    # Windows pipe uses), is done with the text intact; the spawn reads and writes UTF-8.
+    eh = Path(tempfile.mkdtemp(prefix="runner-utf8-"))
+    q.ensure_hub_dirs(eh)
+    title = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
+    real_builder = JOB_BUILDERS["library_analyze"]
+    saved_env = {k: os.environ.get(k) for k in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    seen_kw = []
+
+    def recording_spawn(argv, **kw):
+        seen_kw.append(kw)
+        return subprocess.run(argv, **kw)
+    JOB_BUILDERS["library_analyze"] = (
+        lambda params, inputs, hub_root: (["-c", "import sys; print(sys.argv[1])", title], None), 60)
+    try:
+        os.environ["PYTHONIOENCODING"] = "cp1252"
+        os.environ.pop("PYTHONUTF8", None)
+        q.submit(eh, "library_analyze")
+        r_utf8 = run_pass(eh, spawn=recording_spawn, allow=True)
+    finally:
+        JOB_BUILDERS["library_analyze"] = real_builder
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    out_utf8 = [f.read_text(encoding="utf-8") for f in q.hub_paths(eh)["results"].glob("*.out.txt")]
+    ok("a job whose tool prints an emoji under a cp1252 parent codec is done with the text intact",
+       [r["status"] for r in r_utf8] == ["done"] and out_utf8 == [title + "\n"])
+    ok("the job spawn reads UTF-8 and gives the child a UTF-8 environment, not text=True",
+       len(seen_kw) == 1 and seen_kw[0].get("encoding") == "utf-8" and "text" not in seen_kw[0]
+       and seen_kw[0]["env"].get("PYTHONIOENCODING") == "utf-8" and seen_kw[0]["env"].get("PYTHONUTF8") == "1")
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

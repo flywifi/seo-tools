@@ -380,13 +380,37 @@ def _main(argv) -> int:
 def main(argv) -> int:
     """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
     example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
-    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback. Its output is UTF-8
+    when stdout is redirected or piped (env_paths.utf8_stdio, P102), so a title with an emoji
+    reaches the file instead of stopping the tool on Windows."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # tools/, for env_paths
+    import env_paths
+    env_paths.utf8_stdio()
     try:
         return _main(argv)
     except OSError as exc:
         print(json.dumps({"error": str(exc),
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
+
+
+def _piped_cp1252(argv, pkg_obj=None):
+    """Selftest helper (P102): run this tool's CLI as a child with its output piped under a cp1252
+    codec, what a Windows pipe or `> file` uses. Returns (returncode, stdout decoded as UTF-8)."""
+    import os
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        args = list(argv)
+        if pkg_obj is not None:
+            pkg_path = Path(td) / "pkg.json"
+            pkg_path.write_text(json.dumps(pkg_obj, ensure_ascii=False), encoding="utf-8")
+            args = [str(pkg_path) if a == "{pkg}" else a for a in args]
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        env.pop("PYTHONUTF8", None)
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve())] + args, capture_output=True,
+                           env=env, timeout=120)
+    return r.returncode, r.stdout.decode("utf-8", errors="replace")
 
 
 def selftest() -> int:
@@ -431,6 +455,12 @@ def selftest() -> int:
     bad = validate("<fcpxml><unclosed></fcpxml>")
     ok("malformed FCPXML is refused rather than accepted",
        isinstance(bad, dict) and bad.get("ok") is False)
+
+    # P102: `fcpxml.py build pkg` to a pipe keeps an emoji clip name under a cp1252 codec.
+    rc_u, out_u = _piped_cp1252(["build", "{pkg}"], {"title": "Sanding \u2728 prep", "timeline": {"clips": [
+        {"name": "a", "start_seconds": 0, "duration_seconds": 5}]}})
+    ok("build piped under a cp1252 codec keeps an emoji project title", rc_u == 0 and "Sanding \u2728 prep" in out_u)
+    ok("main switches a redirected stdout to UTF-8", "utf8_stdio" in main.__code__.co_names)
 
     print(f"fcpxml selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

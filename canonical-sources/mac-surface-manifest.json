@@ -92,13 +92,13 @@
     "tools/battery.py": "e809a3750cecd8ebd64d0e30b0591951066415b286a1e3d638180dab923b9363",
     "tools/claim-proof-manifest.json": "b43dae7b52a84aff66170e90285d44864cc8b66d1688b50ae22c994ced556446",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
-    "tools/env_paths.py": "21c76d5981b012e0643017e92ed492d47d3d09b3b2e4b03250728c0c9ac4efd1",
+    "tools/env_paths.py": "b6aede36cb064fdaac8b269b8240e045521431b47d35639a200886058704a7a0",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "05ecb77fec59ceddd5879a15cbe86b30b590a94efc063e00176ce368780178c5",
     "tools/handoff/inbox.py": "79a82c2612ea63f227c65ec0394f6f8705451e60b6a9153d967b330176a7b58c",
-    "tools/handoff/runner.py": "2df5dbb66c114c671b8c746cd55c886819b5b809aa8bc465d9207a13bc0399d5",
+    "tools/handoff/runner.py": "e2f2679391936a53aaef41aaf7fbfcf3578ad77bb0ec7f00f23eb9edef4d35af",
     "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
-    "tools/library_complete.py": "9c434cd16fcfa79577c5a0675342b5bf3863320cd5d7e060535637d9292eb8a3",
+    "tools/library_complete.py": "a3b52fd07db897a2be2d03dcc6ca96bd13ce40ccd784472e9133339b6cf48b7f",
     "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a",
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",
     "tools/profile_mirror.py": "a4432fa617e6a1fcc42ae47dfe6d2380c39a24ce0070536ccc572284b3323c64",
@@ -110,10 +110,10 @@
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
     "tools/videoedit/compressor.py": "5aee181e13c1870836d3f17546c06efb23b299eb1162ce49f12eefbdf51f012f",
-    "tools/videoedit/fcpxml.py": "4e4940dd8f9d50436a7d6057d6422128fa9ef6d039b656c5173967547a5b1de1",
+    "tools/videoedit/fcpxml.py": "23f07f0b245eb6695471102fa44871a910a42ee149c7413e30611fcb543d3ee3",
     "tools/videoedit/preflight.py": "e2fc9fe54b3794959aa3a619f5f4188233123ca77b9e5cf05e384f21cad38e4e",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "88534c765f9b3eff0049f002377dbf35a7b04e51d28b7a925b7fe3b268798251"
+    "tools/wizard.py": "3c7049eaa1434808fb32ea217a7ef32b32a8a5c2ce5aa72c84c39884953fdfb7"
   },
   "excluded": {}
 }

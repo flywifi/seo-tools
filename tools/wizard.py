@@ -148,7 +148,7 @@ def _expected_tool_count() -> int | None:
     try:
         out = subprocess.run(
             [env_paths.app_python(), str(ROOT / "tools" / "count_truth.py")],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, timeout=60, **env_paths.tool_io(),
         ).stdout
         return int(json.loads(out)["mcp_tools"])
     except Exception:  # noqa: BLE001
@@ -166,7 +166,7 @@ def _probe_mcp_server_once(py: str, server: str, timeout: int = 90) -> tuple[boo
     Never raises."""
     try:
         p = subprocess.Popen([py, server], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, text=True, bufsize=1)
+                             stderr=subprocess.PIPE, bufsize=1, **env_paths.tool_io())
     except OSError as exc:
         return False, f"could not start the server: {exc}", 0
     lines: list = []
@@ -3220,13 +3220,19 @@ def _import_targets(folder, kind):
     return out[:200]
 
 
-def _run_import_parse(fmt, path):
+def _run_import_parse(fmt, path, crashes=None):
     """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
-    attempt did not parse (wrong format for this folder, unreadable file). Never raises."""
+    attempt did not parse (wrong format for this folder, unreadable file). A run that stopped with
+    a Python error (a Traceback on stderr) also returns None, and its last stderr line is appended
+    to `crashes` when given, so the screen can say the tool failed rather than that the folder
+    holds no export. Never raises."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "import_parse.py"), fmt, path],
-                           capture_output=True, text=True, timeout=900)
+                           capture_output=True, timeout=900, **env_paths.tool_io())
         if r.returncode != 0:
+            err = (r.stderr or "").strip()
+            if crashes is not None and "Traceback (most recent call last)" in err:
+                crashes.append(err.splitlines()[-1][:300])
             return None
         recs = json.loads(r.stdout or "[]")
         return recs if isinstance(recs, list) else None
@@ -3261,11 +3267,11 @@ def _scan_import_folder(folder, platforms):
     by video_key so a folder matched by two formats does not double-count. Nothing is saved here."""
     records, seen, notes = [], set(), []
     for plat in platforms:
-        got = 0
+        got, crashes = 0, []
         for fmt, kind in _IMPORT_ATTEMPTS.get(plat, []):
             targets = _import_targets(folder, kind)
             for tgt in targets:
-                recs = _run_import_parse(fmt, tgt)
+                recs = _run_import_parse(fmt, tgt, crashes)
                 if not recs:
                     continue
                 for rec in recs:
@@ -3276,7 +3282,12 @@ def _scan_import_folder(folder, platforms):
                     seen.add(key)
                     records.append(rec)
                     got += 1
-        notes.append(f"{plat}: {got} record(s)" if got else f"{plat}: no readable export found in this folder")
+        if got:
+            notes.append(f"{plat}: {got} record(s)")
+        elif crashes:
+            notes.append(f"{plat}: import_parse stopped with an error: {crashes[0]}")
+        else:
+            notes.append(f"{plat}: no readable export found in this folder")
     return records, notes
 
 
@@ -3285,7 +3296,7 @@ def _run_transcribe(args):
     the STT module's imports. Returns a dict (with an 'error' key on failure)."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "transcribe.py")] + list(args),
-                           capture_output=True, text=True, timeout=3600)
+                           capture_output=True, timeout=3600, **env_paths.tool_io())
     except Exception as exc:  # noqa: BLE001
         return {"error": f"could not run the setup check: {exc}"}
     try:
@@ -3299,7 +3310,7 @@ def _run_setup(args):
     screen to install the free dependency sets. Returns a dict (with an 'error' key on failure)."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "setup.py")] + list(args),
-                           capture_output=True, text=True, timeout=3600)
+                           capture_output=True, timeout=3600, **env_paths.tool_io())
     except Exception as exc:  # noqa: BLE001
         return {"error": f"could not run the installer: {exc}"}
     try:
@@ -3756,7 +3767,7 @@ anything, and closing this window does not stop the work.</p>
                 try:
                     r = subprocess.run(
                         [env_paths.app_python(), str(ROOT / "tools" / "video_library.py"), "upsert-batch", batch],
-                        capture_output=True, text=True, timeout=1800)
+                        capture_output=True, timeout=1800, **env_paths.tool_io())
                     out = json.loads(r.stdout or "{}")
                     n = out.get("upserted", 0)
                 except Exception as exc:  # noqa: BLE001
@@ -4390,7 +4401,7 @@ def _pick_folder() -> str:
     chosen path, or '' if cancelled / no picker backend is available."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "pick_folder.py")],
-                           capture_output=True, text=True, timeout=360)
+                           capture_output=True, timeout=360, **env_paths.tool_io())
         return (r.stdout or "").strip()
     except Exception:  # noqa: BLE001
         return ""
@@ -4951,6 +4962,60 @@ def _selftest_p101() -> int:
         env_paths.python_command = _real_pycmd
     check(_page_sent == "<code>py -3 tools/update.py</code>" and "python3 tools/update.py" in _json_sent,
           f"a page the wizard sends does not show this computer's command ({_page_sent!r}, {_json_sent!r})")
+    # P102: the wizard reads its tools' output as UTF-8, so an emoji title survives a cp1252 parent
+    # codec (what a Windows pipe uses), and a tool that stops with a Python error is named on the
+    # import screen instead of being reported as a folder with no export.
+    import subprocess as _sp_u
+    import tempfile as _tf_u
+    _fx_u = json.loads((ROOT / "skills" / "creator-core" / "evals" / "fixtures" /
+                        "video-library-youtube-studio.json").read_text(encoding="utf-8"))["csv_text"]
+    _title_u = "Restoring a farmhouse armoire \U0001f3a5 (before \u2192 after; caf\u00e9)"  # no comma: a CSV cell
+    _csv_u = pathlib.Path(_tf_u.mkdtemp(prefix="wizard-utf8-")) / "Table data.csv"
+    _csv_u.write_text(_fx_u.replace("Restoring a farmhouse armoire", _title_u, 1), encoding="utf-8")
+    _env_u = {k: os.environ.get(k) for k in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    try:
+        os.environ["PYTHONIOENCODING"] = "cp1252"
+        os.environ.pop("PYTHONUTF8", None)
+        _recs_u = _run_import_parse("youtube-studio-csv", str(_csv_u))
+    finally:
+        for _k, _v in _env_u.items():
+            if _v is None:
+                os.environ.pop(_k, None)
+            else:
+                os.environ[_k] = _v
+    check(isinstance(_recs_u, list) and any(r.get("title") == _title_u for r in _recs_u),
+          f"the import screen did not read an emoji title under a cp1252 parent codec ({_recs_u!r})")
+    _seen_u, _stderr_u = [], {}
+
+    def _fake_run_u(argv, **kw):
+        name = pathlib.Path(str(argv[1])).name if len(argv) > 1 else ""
+        _seen_u.append((name, kw))
+        return _sp_u.CompletedProcess(argv, 1, "", _stderr_u.get(name, ""))
+    _real_run_u, _real_targets_u = _sp_u.run, globals()["_import_targets"]
+    _sp_u.run = _fake_run_u
+    globals()["_import_targets"] = lambda folder, kind: ["Table data.csv"] if kind == "csv" else []
+    try:
+        _stderr_u["import_parse.py"] = ("Traceback (most recent call last):\n  File \"x\", line 1\n"
+                                        "UnicodeEncodeError: 'charmap' codec can't encode character")
+        _notes_crash = _scan_import_folder("folder", ["youtube"])[1]
+        _stderr_u["import_parse.py"] = "not a YouTube Studio export"
+        _notes_plain = _scan_import_folder("folder", ["youtube"])[1]
+        _run_transcribe(["doctor"])
+        _run_setup(["--check"])
+        _pick_folder()
+        _expected_tool_count()
+    finally:
+        _sp_u.run, globals()["_import_targets"] = _real_run_u, _real_targets_u
+    check(_notes_crash == ["youtube: import_parse stopped with an error: UnicodeEncodeError: 'charmap' codec "
+                           "can't encode character"]
+          and _notes_plain == ["youtube: no readable export found in this folder"],
+          f"the import screen does not tell a tool error from a folder with no export "
+          f"({_notes_crash}, {_notes_plain})")
+    _names_u = sorted({n for n, _kw in _seen_u})
+    check(_names_u == ["count_truth.py", "import_parse.py", "pick_folder.py", "setup.py", "transcribe.py"]
+          and all(kw.get("encoding") == "utf-8" and "text" not in kw
+                  and kw.get("env", {}).get("PYTHONIOENCODING") == "utf-8" for _n, kw in _seen_u),
+          f"a wizard tool run does not read UTF-8 with a UTF-8 child environment ({_names_u})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:

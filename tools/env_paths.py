@@ -259,6 +259,38 @@ def local_commands(text: str, osname=None, which=None) -> str:
     return re.sub(r"(?<![\w./\\-])python3 (?=(?:tools|shared)/)", command + " ", text)
 
 
+
+def tool_env(base=None) -> dict:
+    """The environment for a Python tool of this repo whose output a caller reads: `base` (default
+    os.environ) with PYTHONUTF8=1 and PYTHONIOENCODING=utf-8. On Windows a child's piped stdout
+    otherwise uses the ANSI code page (often cp1252), so a title with an emoji stops the tool with
+    UnicodeEncodeError; UTF-8 mode also makes that child's own pipes and default file encoding
+    UTF-8. `base` is not changed."""
+    env = dict(os.environ if base is None else base)
+    env.update(PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    return env
+
+
+def tool_io(base=None) -> dict:
+    """subprocess keyword arguments for running a Python tool of this repo and reading its output
+    as text: env=tool_env(base), encoding="utf-8", errors="replace". Pass them instead of
+    text=True, which decodes with the locale's code page."""
+    return {"env": tool_env(base), "encoding": "utf-8", "errors": "replace"}
+
+
+def utf8_stdio(streams=None) -> None:
+    """Write this process's stdout and stderr as UTF-8 when they are not a terminal, so a redirect
+    (`> file`) or a pipe receives text with an emoji instead of a UnicodeEncodeError (on Windows
+    they otherwise use the ANSI code page). A terminal is left as it is (Python writes the Windows
+    console as UTF-16), and so is a stream without reconfigure (one a caller replaced).
+    `streams` (default sys.stdout and sys.stderr) is for the selftest."""
+    for stream in (sys.stdout, sys.stderr) if streams is None else streams:
+        try:
+            if stream is not None and hasattr(stream, "reconfigure") and not stream.isatty():
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError, AttributeError):
+            pass
+
 # Set by the child process of the symlink control below, which must not run that control again.
 _SYMLINK_CHILD = False
 
@@ -532,6 +564,46 @@ def _selftest() -> int:
         finally:
             globals()["_os_name"] = real_os
         ok(read_os is True, "windows_outside_home reads _os_name() when no system is given")
+    # P102: a child that prints an emoji to a pipe, with the parent's codec forced to cp1252 (what a
+    # Windows pipe uses): tool_io and utf8_stdio each keep it running; without them it stops.
+    text = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
+    cp1252 = dict(os.environ, PYTHONIOENCODING="cp1252")
+    cp1252.pop("PYTHONUTF8", None)
+    show = [sys.executable, "-c", "import sys; print(sys.argv[1])", text]
+    env_kept = tool_env(cp1252)
+    ok(env_kept["PYTHONUTF8"] == "1" and env_kept["PYTHONIOENCODING"] == "utf-8"
+       and cp1252["PYTHONIOENCODING"] == "cp1252" and env_kept.get("PATH") == cp1252.get("PATH")
+       and tool_io(cp1252) == {"env": env_kept, "encoding": "utf-8", "errors": "replace"},
+       "tool_env sets UTF-8 over the base environment without changing it; tool_io adds the decoding")
+    with_io = subprocess.run(show, capture_output=True, timeout=60, **tool_io(cp1252))
+    without = subprocess.run(show, capture_output=True, timeout=60, env=cp1252, encoding="utf-8",
+                             errors="replace")
+    ok(with_io.returncode == 0 and with_io.stdout.strip() == text
+       and without.returncode != 0 and "UnicodeEncodeError" in without.stderr,
+       "with tool_io a child prints an emoji to a cp1252 pipe intact; without it the child stops "
+       f"({with_io.returncode}, {without.returncode})")
+    here = str(Path(__file__).resolve().parent)
+    stdio = [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[2]); import env_paths; "
+             "env_paths.utf8_stdio(); print(sys.argv[1])", text, here]
+    plain = [sys.executable, "-c", "import sys; print(sys.argv[1])", text]
+    r_on = subprocess.run(stdio, capture_output=True, timeout=60, env=cp1252)
+    r_off = subprocess.run(plain, capture_output=True, timeout=60, env=cp1252)
+    ok(r_on.returncode == 0 and r_on.stdout.decode("utf-8").strip() == text and r_off.returncode != 0,
+       "utf8_stdio makes a redirected stdout UTF-8, so a cp1252 pipe gets the emoji intact")
+
+    class _Stream:
+        def __init__(self, tty):
+            self.tty, self.calls = tty, []
+
+        def isatty(self):
+            return self.tty
+
+        def reconfigure(self, **kw):
+            self.calls.append(kw)
+    term, piped = _Stream(True), _Stream(False)
+    utf8_stdio([term, piped, None, object()])
+    ok(term.calls == [] and piped.calls == [{"encoding": "utf-8", "errors": "replace"}],
+       "utf8_stdio leaves a terminal and a stream without reconfigure alone")
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:
