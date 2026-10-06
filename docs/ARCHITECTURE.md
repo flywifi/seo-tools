@@ -567,7 +567,9 @@ the DOM. Queue reads and writes are serialized by a lock and written atomically 
 **Data store:** `pipeline/user-context/scheduling-queue.local.json` (gitignored via the existing
 `*.local.json` pattern). Each queue item tracks per-platform state: enabled toggle, scheduled
 datetime, caption, hashtags, content type, media URL, FTC disclosure, AIGC flag, status, post ID,
-permalink, and error.
+permalink, and error. A file that does not parse, or is not `{"queue": [...]}`, is copied once to
+`<name>.corrupt.<UTC stamp>.bak` and read as an empty schedule with a note the dashboard shows, so
+the next save leaves that copy in place <!-- verify: tools/dashboard/server.py::_load_queue -->.
 
 **Five views:**
 1. **Queue** (default) — cards per content item with platform toggle switches, status dots, and

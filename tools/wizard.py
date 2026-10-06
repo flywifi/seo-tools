@@ -1393,9 +1393,30 @@ def _pinterest_form() -> str:
 24-hour token for a quick one-off. You do not need both.</p>"""
 
 
-def _load_api_credentials() -> dict:
-    """Read api-credentials.local.json and return a dict keyed by platform."""
+def _load_api_credentials(strict: bool = False) -> dict:
+    """Read api-credentials.local.json and return a dict keyed by platform. A missing file reads as
+    {}. By default a file that cannot be read or parsed also reads as {}, so a screen shows nothing
+    connected. With strict (a writer, P102) an OSError propagates, and a file that does not parse
+    as an object is copied to <name>.corrupt.<stamp>.bak and raises ValueError, so the writer saves
+    nothing over it."""
     creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    if creds_path.exists() and strict:
+        raw = creds_path.read_bytes()
+        try:
+            creds = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            creds = None
+        if not isinstance(creds, dict):
+            bak = creds_path.with_name(f"{creds_path.name}.corrupt.{time.strftime('%Y%m%d%H%M%S')}.bak")
+            bak.write_bytes(raw)
+            try:
+                os.chmod(bak, 0o600)  # it holds tokens too
+            except OSError:
+                pass
+            raise ValueError(f"{creds_path.name} could not be read, so nothing was saved; it was kept "
+                             f"as {bak.name}. Fix the file, or move it aside and connect the "
+                             f"platforms again.")
+        return creds
     if creds_path.exists():
         try:
             return json.loads(creds_path.read_text(encoding="utf-8"))
@@ -1419,8 +1440,18 @@ def _merge_api_credentials(plat: str, patch: dict) -> dict:
     """Deep-merge `patch` into creds[plat] and persist (read-modify-write). Fixes the whole-object
     clobber: publishing tokens live under creds[plat]["publish"] and never overwrite the importer's
     root-level read token (and vice-versa). Keys other than "publish" merge at the platform root
-    (e.g. the shared "ig_user_id" identity). Returns the full creds dict."""
-    creds = _load_api_credentials()
+    (e.g. the shared "ig_user_id" identity). Returns the full creds dict.
+    It reads and writes under atomic_io.locked on the file, the lock the dashboard and the watcher
+    take when they refresh a token (P102), and reads with _load_api_credentials(strict=True): a file
+    that does not parse as an object is kept as a .corrupt copy and the save is refused with
+    ValueError, so one stray comma cannot wipe the other platforms' tokens."""
+    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    with atomic_io.locked(creds_path):
+        return _merged_api_credentials(_load_api_credentials(strict=True), plat, patch)
+
+
+def _merged_api_credentials(creds: dict, plat: str, patch: dict) -> dict:
+    """The merge step of _merge_api_credentials, run under its lock: apply patch, save, return."""
     cur = creds.get(plat)
     if not isinstance(cur, dict):
         cur = {}
@@ -1476,7 +1507,10 @@ def _complete_oauth(plat: str, code: str, verifier, redirect_uri: str):
     patch = {"publish": {k: v for k, v in tok.items() if v is not None}}
     if plat == "instagram" and tok.get("ig_user_id"):
         patch["ig_user_id"] = tok["ig_user_id"]   # shared identity lives at the platform root
-    _merge_api_credentials(plat, patch)
+    try:
+        _merge_api_credentials(plat, patch)
+    except ValueError as exc:  # the credentials file did not parse; nothing was saved
+        return False, str(exc)
     if plat == "google_drive":
         # P60 Transport B: this credential enables the watcher's Drive API polling, not publishing.
         _update_capability_flag("drive_api_polling", True)
@@ -4293,7 +4327,11 @@ anything, and closing this window does not stop the work.</p>
                 if not cid or not csec:
                     self._send(_screen_drive_hub(error="Both Client ID and Client Secret are required."))
                     return
-                _merge_api_credentials("google_drive", {"publish": {"client_id": cid, "client_secret": csec}})
+                try:
+                    _merge_api_credentials("google_drive", {"publish": {"client_id": cid, "client_secret": csec}})
+                except ValueError as exc:  # the credentials file did not parse; nothing was saved
+                    self._send(_screen_drive_hub(error=html.escape(str(exc))))
+                    return
                 self._send(_screen_drive_hub(saved=(
                     "Google Drive credentials saved locally. Now click Connect to authorize.")))
                 return
@@ -5016,6 +5054,42 @@ def _selftest_p101() -> int:
           and all(kw.get("encoding") == "utf-8" and "text" not in kw
                   and kw.get("env", {}).get("PYTHONIOENCODING") == "utf-8" for _n, kw in _seen_u),
           f"a wizard tool run does not read UTF-8 with a UTF-8 child environment ({_names_u})")
+    # P102: the credential merge holds the file's lock, and a file that does not parse is kept as a
+    # .corrupt copy with the save refused, so one stray comma cannot wipe the other platforms' tokens.
+    import contextlib as _cl_c
+    _g_c, _real_locked_c, _held_c = globals(), atomic_io.locked, []
+
+    @_cl_c.contextmanager
+    def _watch_lock_c(path):
+        _held_c.append(pathlib.Path(path))
+        with _real_locked_c(path):
+            yield
+    _saved_root_c = _g_c["ROOT"]
+    with _tf_u.TemporaryDirectory() as _td_c:
+        _cp = pathlib.Path(_td_c) / "pipeline" / "user-context" / "api-credentials.local.json"
+        _cp.parent.mkdir(parents=True)
+        _cp.write_text(json.dumps({p: {"publish": {"label": f"fixture-{p}"}}
+                                   for p in ("youtube", "pinterest", "instagram")}), encoding="utf-8")
+        _refused_c, _good_c, _broken_c, _copies_c = False, {}, b"", []
+        try:
+            _g_c["ROOT"], atomic_io.locked = pathlib.Path(_td_c), _watch_lock_c
+            _merge_api_credentials("tiktok", {"publish": {"label": "fixture-tiktok"}})
+            _good_c = json.loads(_cp.read_text(encoding="utf-8"))
+            _cp.write_text(_cp.read_text(encoding="utf-8").replace('"fixture-youtube"', '"fixture-youtube",', 1),
+                           encoding="utf-8")
+            _broken_c = _cp.read_bytes()
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-new"}})
+            except ValueError as _exc_c:
+                _refused_c = "could not be read" in str(_exc_c)
+            _copies_c = sorted(_cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+        finally:
+            _g_c["ROOT"], atomic_io.locked = _saved_root_c, _real_locked_c
+        check(set(_good_c) == {"youtube", "pinterest", "instagram", "tiktok"} and _refused_c
+              and _cp.read_bytes() == _broken_c and len(_copies_c) == 1 and _copies_c[0].read_bytes() == _broken_c
+              and _held_c == [_cp, _cp],
+              f"the credential merge does not hold its lock, or saves over a file it could not read "
+              f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_held_c})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:
@@ -5037,7 +5111,8 @@ def _selftest() -> int:
     store = {"youtube": {_AT: "IMPORT_READ_TOKEN"}}   # a pre-existing importer read token
     store["youtube"]["publish"] = {"client_id": "CID", "client_secret": "SEC"}
     flags: dict = {}
-    globals()["_load_api_credentials"] = lambda: __import__("copy").deepcopy(store)
+    _real_cred_io = (_load_api_credentials, _save_api_credentials, _update_capability_flag)
+    globals()["_load_api_credentials"] = lambda strict=False: __import__("copy").deepcopy(store)
 
     def _save(c):
         store.clear()
@@ -5158,7 +5233,10 @@ def _selftest() -> int:
     except Exception as exc:  # noqa: BLE001
         check(False, f"port-collision check errored: {exc}")
 
-    # 5b) P101: the port block, idle connection and cloud-synced warning checks in _selftest_p101().
+    # 5b) P101: the port block, idle connection and cloud-synced warning checks in _selftest_p101(),
+    # with the credential functions the OAuth checks above stood in for put back first.
+    globals().update(_load_api_credentials=_real_cred_io[0], _save_api_credentials=_real_cred_io[1],
+                     _update_capability_flag=_real_cred_io[2])
     check(_selftest_p101() == 0, "P101 checks failed (listed above)")
 
     # 6) Loopback-only guard (G1): main() must bind 127.0.0.1, never 0.0.0.0.

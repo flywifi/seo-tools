@@ -232,6 +232,18 @@ def handoff_enabled(config=None) -> bool:
     return capability_enabled("compute_handoff_enabled", config)
 
 
+def _archive(hub_root, ticket_path) -> bool:
+    """Move a handled ticket to Jobs/archive. A ticket that cannot be moved (on Windows, a file
+    another program holds open, as Drive for desktop does mid-sync) is left where it is, so the
+    rest of the pass goes on; its result is already written, so the next pass reads it as
+    duplicate_skipped and archives it then (P102)."""
+    try:
+        q.archive_ticket(hub_root, ticket_path)
+        return True
+    except OSError:
+        return False
+
+
 def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
     """Execute one parsed ticket. Returns the result dict written to Jobs/results/. Never raises
     on a bad ticket or failed tool; every path lands as an honest result file + archived ticket."""
@@ -241,32 +253,32 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
     if errs:
         key = key or Path(ticket_path).stem
         q.write_result(hub_root, key, "refused", error="; ".join(errs), tool_version=_version())
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     if q.has_result(hub_root, key):
         # Idempotency: duplicate delivery / conflict copy. Archive the extra ticket, run nothing.
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "duplicate_skipped"}
 
     inputs, ref_errs = q.resolve_input_refs(hub_root, data.get("input_refs"))
     if ref_errs:
         q.write_result(hub_root, key, "refused", error="; ".join(ref_errs), tool_version=_version())
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     builder = JOB_BUILDERS.get(data["job_type"])
     if builder is None:
         q.write_result(hub_root, key, "refused", tool_version=_version(),
                        error=f"job type '{data['job_type']}' is not wired in this version")
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     build, timeout = builder
     argv, build_err = build(data.get("params", {}), inputs, hub_root)
     if build_err:
         q.write_result(hub_root, key, "refused", error=build_err, tool_version=_version())
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     started = q._utcnow()
@@ -297,7 +309,7 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
         q.write_result(hub_root, key, "failed", started_at=started, tool_version=_version(),
                        error=str(exc))
         status = "failed"
-    q.archive_ticket(hub_root, ticket_path)
+    _archive(hub_root, ticket_path)
     return {"job_id": key, "status": status}
 
 
@@ -529,6 +541,34 @@ def selftest() -> int:
                  "library_analyze.2026-10-04T120000Z.windows.json",
                  "library_analyze.2026-10-04T120000Z.linux.json",
                  "library_analyze.2026-10-04T120000Z.2.windows.json"])
+
+    # P102: a ticket that cannot be archived (held open on a Drive hub) is left for the next pass,
+    # which reads its result as duplicate_skipped and archives it; the rest of the pass goes on.
+    ah = Path(tempfile.mkdtemp(prefix="runner-lock-"))
+    q.ensure_hub_dirs(ah)
+    q.submit(ah, "library_analyze")
+    q.submit(ah, "library_analyze")
+    real_archive, held = q.archive_ticket, []
+
+    def locked_archive(hub_root, ticket_path):
+        if not held:
+            held.append(Path(ticket_path).name)
+            raise PermissionError(32, "The process cannot access the file because it is being used by "
+                                      "another process")
+        return real_archive(hub_root, ticket_path)
+    q.archive_ticket = locked_archive
+    try:
+        lock_pass = run_pass(ah, spawn=fake_spawn, allow=True)
+    finally:
+        q.archive_ticket = real_archive
+    left = sorted(p.name for p in q.hub_paths(ah)["queue"].glob("job.*.json"))
+    next_pass = run_pass(ah, spawn=fake_spawn, allow=True)
+    ok("a ticket that cannot be archived stays queued while the pass goes on, and the next pass "
+       "skips it as a duplicate and archives it",
+       [r["status"] for r in lock_pass] == ["done", "done"] and left == held
+       and [r["status"] for r in next_pass] == ["duplicate_skipped"]
+       and not list(q.hub_paths(ah)["queue"].glob("job.*.json"))
+       and len(list(q.hub_paths(ah)["archive"].glob("job.*.json"))) == 2)
 
     # P102: a job whose tool prints an emoji, with this process's codec forced to cp1252 (what a
     # Windows pipe uses), is done with the text intact; the spawn reads and writes UTF-8.

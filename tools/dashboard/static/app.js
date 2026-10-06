@@ -47,6 +47,9 @@ const App = (function () {
   async function loadQueue() {
     const data = await api("GET", "/api/queue");
     state.queue = data.queue || [];
+    if (data.load_note) {
+      toast(data.load_note, "error");  // the schedule file could not be read; a copy was kept
+    }
   }
 
   async function loadPublishingPlan() {

@@ -103,16 +103,48 @@ def _load_config():
 
 
 def _load_queue():
-    if QUEUE_PATH.exists():
+    """The schedule. A missing file is an empty schedule. A file that does not parse, or is not
+    {"queue": [...]}, is copied to <name>.corrupt.<UTC stamp>.bak (once per distinct content) and
+    read as empty with a load_note naming the copy, so the next save cannot overwrite the only
+    record of the old schedule (P102). An OSError on read propagates, so nothing is saved on a
+    guess."""
+    if not QUEUE_PATH.exists():
+        return {"queue": []}
+    raw = QUEUE_PATH.read_bytes()
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        data = None
+    if isinstance(data, dict) and isinstance(data.get("queue"), list):
+        return data
+    kept = _keep_corrupt_copy(QUEUE_PATH, raw)
+    return {"queue": [], "load_note": f"The schedule file could not be read, so this shows an empty "
+                                      f"schedule; the file was kept as {kept.name}."}
+
+
+def _keep_corrupt_copy(path, raw):
+    """A copy of `raw` beside `path` as <name>.corrupt.<UTC stamp>.bak, or the existing copy that
+    already holds those bytes."""
+    for old in sorted(path.parent.glob(f"{path.name}.corrupt.*.bak")):
         try:
-            return json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            pass
-    return {"queue": []}
+            if old.read_bytes() == raw:
+                return old
+        except OSError:
+            continue
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    kept = path.with_name(f"{path.name}.corrupt.{stamp}.bak")
+    n = 1
+    while kept.exists():
+        n += 1
+        kept = path.with_name(f"{path.name}.corrupt.{stamp}.{n}.bak")
+    kept.write_bytes(raw)
+    return kept
 
 
 def _save_queue(data):
-    """Atomic write: temp file + os.replace so readers never see a truncated file."""
+    """Atomic write: temp file + os.replace so readers never see a truncated file. A load_note is
+    shown to the person, never saved."""
+    data = {k: v for k, v in data.items() if k != "load_note"}
     QUEUE_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = QUEUE_PATH.with_name(QUEUE_PATH.name + ".tmp")
     tmp.write_text(
@@ -1490,6 +1522,44 @@ def _selftest_checks() -> int:
        f"connection open it answers the next request once the wait ends ({took:.1f} s)",
        DashboardHandler.timeout == loopback_server.REQUEST_TIMEOUT == applied
        and reply.startswith(b"HTTP/1.0 200") and 0.2 <= took < 6.0)
+
+    # P102: a schedule file that does not parse is copied once and read as empty with a note, so the
+    # next save cannot wipe the only record of the old schedule; a read that raises saves nothing.
+    import tempfile as _tf_q
+    g_q = globals()
+    saved_queue_path = g_q["QUEUE_PATH"]
+    with _tf_q.TemporaryDirectory() as tdq:
+        g_q["QUEUE_PATH"] = Path(tdq) / "scheduling-queue.local.json"
+        try:
+            _save_queue({"queue": [{"id": f"planned-post-{i}"} for i in (1, 2, 3)]})
+            good_q = _load_queue()
+            QUEUE_PATH.write_text(QUEUE_PATH.read_text(encoding="utf-8").replace(
+                '"planned-post-1"', '"planned-post-1",', 1), encoding="utf-8")  # a stray comma
+            broken_q = QUEUE_PATH.read_bytes()
+            bad_1, bad_2 = _load_queue(), _load_queue()
+            copies_q = sorted(Path(tdq).glob("scheduling-queue.local.json.corrupt.*.bak"))
+            copy_bytes = copies_q[0].read_bytes() if copies_q else None
+            bad_1["queue"].append({"id": "new-post"})
+            _save_queue(bad_1)
+            after_q = json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
+            QUEUE_PATH.write_text('{"queue": "not a list"}', encoding="utf-8")
+            shape_q = _load_queue()
+            g_q["QUEUE_PATH"] = Path(tdq) / "a-folder"
+            QUEUE_PATH.mkdir()
+            try:
+                _load_queue()
+                read_raised = False
+            except OSError:
+                read_raised = True
+        finally:
+            g_q["QUEUE_PATH"] = saved_queue_path
+    ok("a schedule that does not parse is copied once and read as empty with a note naming the copy; "
+       "the next save keeps the copy and stores no note; a read that raises propagates",
+       [p["id"] for p in good_q["queue"]] == ["planned-post-1", "planned-post-2", "planned-post-3"]
+       and bad_1.get("load_note") and bad_2.get("load_note") == bad_1["load_note"]
+       and len(copies_q) == 1 and copy_bytes == broken_q and copies_q[0].name in bad_1["load_note"]
+       and after_q == {"queue": [{"id": "new-post"}]} and read_raised
+       and shape_q["queue"] == [] and "load_note" in shape_q)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

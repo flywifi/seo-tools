@@ -153,7 +153,10 @@ in-browser sign-in (a loopback OAuth flow: the platform redirects back to
 the token locally). Each screen states the platform's real limits up front -- YouTube's ~7-day
 Testing-mode re-auth, TikTok's private-until-audit, Pinterest's sandbox-only Trial Pins, and
 Instagram's public-URL + professional-account requirements. Tokens are saved to
-`pipeline/user-context/api-credentials.local.json` (owner-only, gitignored). **Live posting stays off
+`pipeline/user-context/api-credentials.local.json` (owner-only, gitignored), under the same file
+lock the dashboard and the watcher take; when that file does not parse, the wizard keeps a
+`.corrupt.<stamp>.bak` copy and refuses the save, so the other platforms' tokens are not
+overwritten <!-- verify: tools/wizard.py::_merge_api_credentials -->. **Live posting stays off
 by default** (`live_publishing_enabled`), and every post needs your explicit confirmation. Full
 per-platform playbook: `docs/PUBLISHING.md`.
 

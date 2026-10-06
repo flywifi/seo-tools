@@ -96,7 +96,11 @@ def watch(hub_root, interval=DEFAULT_INTERVAL) -> None:
     print(f"handoff watcher: hub={hub_root} interval={interval}s (Ctrl+C to stop)")
     try:
         while True:
-            results = once(hub_root)
+            try:
+                results = once(hub_root)
+            except Exception as exc:  # noqa: BLE001 - one failed pass must not end the watcher (P102)
+                print(f"handoff watcher: pass failed, retrying next interval: {type(exc).__name__}: {exc}")
+                results = []
             acted = [r for r in results if r.get("status") not in ("gated",)]
             if acted:
                 print(json.dumps(acted, default=str))
@@ -148,6 +152,38 @@ def selftest() -> int:
         return types.SimpleNamespace(returncode=0, stdout="{}", stderr="")
     res = runner.run_pass(hub, spawn=fake_spawn, allow=True)
     ok("wired pass drains the queue", res[0]["status"] == "done" and status(hub)["pending"] == 0)
+
+    # P102: a pass that raises (a ticket locked on a Drive hub) is reported and the loop goes on;
+    # Ctrl+C still stops it.
+    import contextlib
+    import io
+    passes, naps = [], []
+
+    def flaky_once(hub_root):
+        passes.append(hub_root)
+        if len(passes) == 1:
+            raise PermissionError(32, "The process cannot access the file because it is being used by "
+                                      "another process")
+        return [{"status": "done"}]
+
+    def two_naps(seconds):
+        naps.append(seconds)
+        if len(naps) == 2:
+            raise KeyboardInterrupt
+    real_once, real_sleep = globals()["once"], time.sleep
+    globals()["once"], time.sleep = flaky_once, two_naps
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            watch(hub, interval=30)
+        stopped = True
+    except Exception:  # noqa: BLE001
+        stopped = False
+    finally:
+        globals()["once"], time.sleep = real_once, real_sleep
+    ok("a failed pass is reported and the watcher runs the next one; Ctrl+C still stops it",
+       stopped and len(passes) == 2 and "pass failed, retrying next interval: PermissionError" in out.getvalue()
+       and '"status": "done"' in out.getvalue() and "handoff watcher: stopped" in out.getvalue())
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

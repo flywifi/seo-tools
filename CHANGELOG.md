@@ -268,6 +268,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (a locked ticket; unreadable files kept): the hand-off watcher reports a pass that raises
+  ("pass failed, retrying next interval") and runs the next one, and `runner.run_job` leaves a
+  ticket it cannot archive for the next pass, which reads it as a duplicate and archives it. On a
+  Drive hub on Windows, one ticket held open stopped the pass and ended the watcher. The Scheduling
+  Dashboard reads a schedule file that does not parse, or is not `{"queue": [...]}`, as empty with a
+  note, after copying it once to `<name>.corrupt.<UTC stamp>.bak`, and an error reading it fails the
+  request instead of being read as an empty schedule; before, the next save replaced the whole
+  schedule. The wizard's credential merge takes the file's lock, like the dashboard and the watcher,
+  and refuses to save over a credentials file that does not parse (it keeps a `.corrupt` copy),
+  where before one stray comma and one new platform left only that platform's tokens.
 - P102 (inbox approve past a locked file; bounded scan read): `inbox.approve` refuses a file it
   cannot move ("move failed (close the file if it is open in another program, then approve
   again)") and goes on with the batch, so the ledger records the files it moved. On Windows a file

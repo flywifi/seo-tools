@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "3c7049eaa1434808fb32ea217a7ef32b32a8a5c2ce5aa72c84c39884953fdfb7",
+        "tools/wizard.py": "32d518099a8d47ac3615e8641a86e6b839f89dc50307d48f7cb9397c54f09425",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -133,8 +133,8 @@
       "sources": {
         "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "tools/handoff/runner.py": "e2f2679391936a53aaef41aaf7fbfcf3578ad77bb0ec7f00f23eb9edef4d35af",
-        "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
+        "tools/handoff/runner.py": "c4a751653eaacc675b75323e3fd50b9e4bcb2912aed3044e95092b3b1ea238dc",
+        "tools/handoff/watcher.py": "000887bb264edacf5f926ce9b99a98531ee79f60891d835df4c72ff7f5a525a3",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "57c3ff67dc8f24a587d9d83c268777215ff61b38e70c2ffcfc8aecfbe4f4dd56",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
@@ -144,8 +144,8 @@
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "tools/handoff/runner.py": "e2f2679391936a53aaef41aaf7fbfcf3578ad77bb0ec7f00f23eb9edef4d35af",
-        "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
+        "tools/handoff/runner.py": "c4a751653eaacc675b75323e3fd50b9e4bcb2912aed3044e95092b3b1ea238dc",
+        "tools/handoff/watcher.py": "000887bb264edacf5f926ce9b99a98531ee79f60891d835df4c72ff7f5a525a3",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "57c3ff67dc8f24a587d9d83c268777215ff61b38e70c2ffcfc8aecfbe4f4dd56",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
