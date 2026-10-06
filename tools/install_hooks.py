@@ -178,10 +178,13 @@ def selftest() -> int:
     def ok(name, cond):
         checks.append((name, bool(cond)))
 
+    # Path.absolute() gives a rooted path without a drive the current directory's drive on Windows,
+    # so the expected text carries that drive there (empty on POSIX).
+    drive = Path.cwd().drive
     odd = "/opt/My Py/it's/python3"
     text = render(COMMIT_MSG, odd)
     ok("the hook names its interpreter as one quoted word, spaces and quotes kept",
-       "CREATOR_OS_PY='/opt/My Py/it'\"'\"'s/python3'\n" in text and "@PYTHON@" not in text)
+       "CREATOR_OS_PY='" + drive + "/opt/My Py/it'\"'\"'s/python3'\n" in text and "@PYTHON@" not in text)
     ok("neither hook calls a bare python3",
        not any(line.lstrip().startswith("python3") for body in (PRE_COMMIT, COMMIT_MSG)
                for line in body.splitlines()))

@@ -1974,7 +1974,11 @@ _POSIX_ONLY = {"aio-dir-precheck-nt-only",
                "IB37 the entry check drops links",
                "IB39 the entry check returns the link target",
                "IB40 the entry folder resolves no symlink",
-               "RF27 the pin resolves links"}
+               "RF27 the pin resolves links",
+               # os.path is ntpath on Windows, so this swap changes nothing there
+               "B-EP2 the target is folded by the host rules",
+               # the copy's mode check is skipped on Windows, where chmod sets only the read-only flag
+               "A-WK2 the corrupt credentials copy is world-readable"}
 
 # The function the runner scores for a module with no selftest(): it returns 0 when clean.
 # sync_check.py is exempt from the selftest sweep (running it is its test).
