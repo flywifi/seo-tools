@@ -268,6 +268,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (inbox approve past a locked file; bounded scan read): `inbox.approve` refuses a file it
+  cannot move ("move failed (close the file if it is open in another program, then approve
+  again)") and goes on with the batch, so the ledger records the files it moved. On Windows a file
+  open in another program (WinError 32) made approve stop mid-batch with an earlier file already in
+  Processed and no ledger entry. `injection_scan.scan_file` reads at most `max_bytes + 1` bytes,
+  so an Inbox scan no longer loads a whole video into memory; its verdicts are unchanged.
 - P102 (UTF-8 output on Windows): the runner's job spawn, the wizard's runs of its tools
   (`import_parse`, `transcribe`, `setup`, `pick_folder`, `count_truth`, `video_library`, and the MCP
   handshake probe) and `mcp_server._run` give the child `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`

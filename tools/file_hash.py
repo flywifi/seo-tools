@@ -1633,6 +1633,19 @@ _MUTANTS = (
     ('U13 library_complete keeps the code-page stdout', 'library_complete.py',
      '    env_paths.utf8_stdio()\n    try:\n        return _main(argv)',
      '    try:\n        return _main(argv)'),
+    # P102 push 2: approve past a locked file; the bounded scan read.
+    ('IA1 a failed approve move raises again', 'handoff/inbox.py',
+     '            except OSError as exc:  # e.g. WinError 32 on Windows: the file is open in another program\n',
+     '            except RuntimeError as exc:  # e.g. WinError 32 on Windows: the file is open in another program\n'),
+    ('IA2 a refused move is still recorded', 'handoff/inbox.py',
+     'then approve again): {exc}"})\n                continue\n            entries.append({',
+     'then approve again): {exc}"})\n            entries.append({'),
+    ('BR1 scan_file reads the whole file', 'injection_scan.py',
+     '            raw = fh.read(max_bytes + 1)\n',
+     '            raw = fh.read()\n'),
+    ('BR2 scan_file reads exactly max_bytes', 'injection_scan.py',
+     '            raw = fh.read(max_bytes + 1)\n',
+     '            raw = fh.read(max_bytes)\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

@@ -515,9 +515,15 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
                                            "why": f"in-session guard verdict {review['effective']} "
                                                   f"({review['session_action']}); not routed"})
                 continue
-            processed.mkdir(parents=True, exist_ok=True)
-            target = _unique_dest(processed, src.name)  # never overwrite an already-approved file
-            os.replace(src, target)
+            try:
+                processed.mkdir(parents=True, exist_ok=True)
+                target = _unique_dest(processed, src.name)  # never overwrite an already-approved file
+                os.replace(src, target)
+            except OSError as exc:  # e.g. WinError 32 on Windows: the file is open in another program
+                results["refused"].append({"file": item.get("file"),
+                                           "why": "move failed (close the file if it is open in another "
+                                                  f"program, then approve again): {exc}"})
+                continue
             entries.append({
                 "sha256": item["sha256"], "file_name": target.name,
                 "first_seen": item.get("first_seen") or stamp,
@@ -1086,6 +1092,34 @@ def selftest() -> int:
                   ledger_path=b2_led)
     ok("approve refuses an oversize file flagged in the part it read as sealed",
        not ea2["moved"] and "SEAL-TERMINAL" in ea2["refused"][0]["why"])
+
+    # P102: a file approve cannot move (on Windows, WinError 32: it is open in another program) is
+    # refused; the rest of the batch moves, and the ledger records the moved files only.
+    h7 = Path(tempfile.mkdtemp()); (h7 / "Inbox").mkdir()
+    for n7 in ("a-first.srt", "b-locked.srt", "c-third.srt"):
+        (h7 / "Inbox" / n7).write_text(srt.replace("hi", n7), encoding="utf-8")
+    l7 = Path(tempfile.mkdtemp()) / "l7-ledger.json"
+    s7 = scan(h7, ledger={})
+    real_replace7 = os.replace
+
+    def locked_replace(src, dst):
+        if Path(src).name == "b-locked.srt" and "Processed" in str(dst):
+            raise PermissionError(32, "The process cannot access the file because it is being used by "
+                                      "another process")
+        return real_replace7(src, dst)
+    os.replace = locked_replace
+    try:
+        a7 = approve(h7, s7, ledger_path=l7)
+    finally:
+        os.replace = real_replace7
+    led7 = sorted(e["file_name"] for e in json.loads(l7.read_text(encoding="utf-8"))["entries"])
+    ok("approve refuses a file it cannot move, moves the rest, and records the moved files only",
+       sorted(a7["moved"]) == ["Inbox/a-first.srt", "Inbox/c-third.srt"]
+       and [r["file"] for r in a7["refused"]] == ["Inbox/b-locked.srt"]
+       and "close the file" in a7["refused"][0]["why"] and led7 == ["a-first.srt", "c-third.srt"]
+       and (h7 / "Inbox" / "b-locked.srt").is_file())
+    a7b = approve(h7, scan(h7, ledger=load_ledger(l7)), ledger_path=l7)
+    ok("once the file can be moved, the next approve moves it", a7b["moved"] == ["Inbox/b-locked.srt"])
 
     # P102: the writers hold the ledger lock while they move files.
     def lock_free(ledger):
