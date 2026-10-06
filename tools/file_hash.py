@@ -1950,6 +1950,19 @@ _MUTANTS = (
     ('RF32 the selftest state path is not put back', 'wizard.py',
      '            _STATE_PATH, _SELFTEST_STATE_ISOLATED = real_path, False\n',
      '            _SELFTEST_STATE_ISOLATED = False\n'),
+    # P102 push 2: a failing gate's report names its [FAIL] lines (battery.failure_lines).
+    ('BT1 the report keeps only the last 8 lines', 'battery.py',
+     '    shown = flagged[:most]\n',
+     '    shown = []\n'),
+    ('BT2 the flagged lines are not capped', 'battery.py',
+     '    shown = flagged[:most]\n',
+     '    shown = flagged[:]\n'),
+    ('BT3 the long lines are not cut', 'battery.py',
+     '    return [lines[i][:400] for i in sorted(set(shown))]\n',
+     '    return [lines[i] for i in sorted(set(shown))]\n'),
+    ('BT4 the run prints the old tail', 'battery.py',
+     '            for line in failure_lines(r.stdout + r.stderr):\n',
+     '            for line in (r.stdout + r.stderr).strip().splitlines()[-8:]:\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

@@ -61,6 +61,17 @@ def unstaged_tracked(root: Path = ROOT):
     return [x for x in r.stdout.splitlines() if x.strip()]
 
 
+def failure_lines(text: str, tail: int = 8, most: int = 40) -> list:
+    """The lines a failing gate's report shows: every line that carries "[FAIL]" or "FAIL " (the
+    sweep names each failing selftest that way, P102), at most `most` of them and each cut at 400
+    characters, then the last `tail` lines that are not already shown."""
+    lines = text.strip().splitlines()
+    flagged = [i for i, line in enumerate(lines) if "[FAIL]" in line or line.lstrip().startswith("FAIL ")]
+    shown = flagged[:most]
+    shown += [i for i in range(max(0, len(lines) - tail), len(lines)) if i not in shown]
+    return [lines[i][:400] for i in sorted(set(shown))]
+
+
 def run(py: str = sys.executable, root: Path = ROOT) -> int:
     dirty = unstaged_tracked(root)
     if dirty is None:
@@ -78,8 +89,7 @@ def run(py: str = sys.executable, root: Path = ROOT) -> int:
         print(f"  [{'ok' if r.returncode == 0 else 'FAIL'}] {name}: {verdict}")
         if r.returncode != 0:
             failed.append(name)
-            tail = (r.stdout + r.stderr).strip().splitlines()[-8:]
-            for line in tail:
+            for line in failure_lines(r.stdout + r.stderr):
                 print(f"       {line}")
     print(f"battery: {'PASS' if not failed else 'FAIL'} ({len(GATES) - len(failed)} of {len(GATES)} gates)"
           + (f"; failed: {', '.join(failed)}" if failed else "") + f" [interpreter {py}]")
@@ -143,6 +153,19 @@ def selftest() -> int:
         print(f"  [{'ok' if cond else 'FAIL'}] {name}")
         if not cond:
             failures.append(name)
+
+    # P102: a failing gate's report names each failing selftest, not only its last 8 lines.
+    sweep_out = "\n".join(["  [ok] tools/a.py (exit 0)", "  [FAIL] tools/b.py (exit 1)"]
+                          + [f"  [ok] tools/c{i}.py (exit 0)" for i in range(20)]
+                          + ["FAIL bad thing", "selftest-sweep: FAIL (21 of 22 selftests)"])
+    shown = failure_lines(sweep_out)
+    ok("a failing gate's report keeps a [FAIL] line from far above its last 8 lines, then the tail",
+       shown[0] == "  [FAIL] tools/b.py (exit 1)" and "FAIL bad thing" in shown
+       and shown[-1] == "selftest-sweep: FAIL (21 of 22 selftests)" and len(shown) == 9)
+    many = failure_lines("\n".join(f"[FAIL] x{i}" for i in range(100)))
+    ok("a failing gate's report shows at most 40 flagged lines, then its last 8",
+       len(many) == 48 and many[39] == "[FAIL] x39" and many[40] == "[FAIL] x92"
+       and failure_lines("[FAIL] " + "y" * 900) == ["[FAIL] " + "y" * 393])
 
     # P101: the bash the launcher gate uses. Injected lookups, so every branch runs on any platform.
     class _R:
@@ -208,6 +231,16 @@ def selftest() -> int:
             ok("raw exit codes decide: one failing gate fails the battery", rc == 1)
             GATES[:] = [("true gate", ["-c", "import sys; sys.exit(0)"])]
             ok("all-green battery exits 0", run(root=d) == 0)
+            # P102: the report of a failing gate names a [FAIL] line printed far above its last 8 lines.
+            GATES[:] = [("sweep gate", ["-c", "print('  [FAIL] tools/far.py (exit 1)'); "
+                                              "[print(f'  [ok] t{i}') for i in range(30)]; raise SystemExit(1)"])]
+            import contextlib as _cl_bt
+            import io as _io_bt
+            report = _io_bt.StringIO()
+            with _cl_bt.redirect_stdout(report):
+                run(root=d)
+            ok("a failing gate's report names a [FAIL] line from above its last 8 lines",
+               "[FAIL] tools/far.py (exit 1)" in report.getvalue())
         finally:
             GATES[:] = saved
     with tempfile.TemporaryDirectory() as td2:

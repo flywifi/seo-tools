@@ -311,6 +311,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Bash keeps an emoji; redirection in Windows PowerShell is not covered by this change. The import screen now says
   "import_parse stopped with an error" with the error's last line when the tool crashes, instead
   of "no readable export found in this folder".
+- P102 (battery report): a failing gate's report shows each line that carries `[FAIL]` (up to
+  40, each cut at 400 characters) before its last 8 lines, so a failing selftest sweep names the
+  selftests that failed (`battery.failure_lines`); before, only the last 8 lines were shown.
 - P102 (selftest margins on a loaded computer): the selftest sweep gives `tools/file_hash.py` a
   900 s cap (`selftest_sweep.TOOL_TIMEOUTS`); its selftest runs every committed mutation row and
   took 165 s alone on a 4-CPU computer. The wizard's and the dashboard's idle-connection checks
