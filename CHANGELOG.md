@@ -291,7 +291,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   created owner-only (0600 on POSIX) and reused when a refused save repeats. The wizard's two
   credential readers and the dashboard's schedule reader read past a UTF-8 byte-order mark.
   `wizard.py --selftest` keeps the wizard's state in a temporary file; it rewrote
-  `creator-os-wizard-state.local.json` before.
+  `creator-os-wizard-state.local.json` before. Its OAuth checks stand in for the lock on the real
+  credentials file as well as for its load and save; they took that lock before, and left an empty
+  `api-credentials.local.json.lock` beside the file. While the selftest runs, a lock on a file in
+  the checkout is refused without opening its `.lock` and fails the run, and so does a change to
+  the credentials `.lock` (`wizard._run_selftest_isolated`, checked in `_selftest_p101`).
 - P102 (inbox approve past a locked file; bounded scan read): `inbox.approve` refuses a file it
   cannot read ("could not be read (close the file if it is open in another program, then approve
   again)") or move ("move failed (close the file ...)") and goes on with the batch, so the ledger records the files it moved. `inbox.scan` lists

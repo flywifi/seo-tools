@@ -1963,6 +1963,25 @@ _MUTANTS = (
     ('BT4 the run prints the old tail', 'battery.py',
      '            for line in failure_lines(r.stdout + r.stderr):\n',
      '            for line in (r.stdout + r.stderr).strip().splitlines()[-8:]:\n'),
+    # P102: the wizard selftest refuses a lock on a file in the checkout.
+    ('CL1 a lock in the checkout does not fail the run', 'wizard.py',
+     '    if refused:\n        print(f"wizard selftest FAILED: it took a lock',
+     '    if False:\n        print(f"wizard selftest FAILED: it took a lock'),
+    ('CL2 a refused lock is taken anyway', 'wizard.py',
+     '            return contextlib.nullcontext()\n        return real_locked(path)\n',
+     '            return real_locked(path)\n        return real_locked(path)\n'),
+    ('CL3 the credentials lock is not compared', 'wizard.py',
+     '    if _file_state(creds_lock) != lock_before:\n',
+     '    if False:\n'),
+    ('CL4 the lock guard is not installed', 'wizard.py',
+     '        atomic_io.locked = _checkout_lock_refused\n',
+     '        pass\n'),
+    ('CL5 the real lock is not put back', 'wizard.py',
+     '            atomic_io.locked = real_locked\n',
+     '            pass\n'),
+    ('CL6 a folder beside the checkout counts as inside', 'wizard.py',
+     'where.startswith(checkout.rstrip(os.sep) + os.sep)',
+     'where.startswith(checkout)'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

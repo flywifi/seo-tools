@@ -5209,6 +5209,51 @@ def _selftest_p101() -> int:
           and _rc_writer_s == 1 and _handed_s == "handed over",
           f"the wizard selftest does not keep its state in a temporary file and put it back, or does not "
           f"fail when the real file changed ({_rc_probe_s}, {_seen_s}, {_rc_writer_s}, {_handed_s!r})")
+    # P102: while the wrapper runs, a lock on a file in the checkout is refused without opening its
+    # .lock and fails the run, a lock elsewhere is taken, and a change to the credentials .lock
+    # fails the run. ROOT stands for the checkout here, in a temporary folder.
+    _saved_root_k, _locked_before_k, _cases_k = _g_s["ROOT"], atomic_io.locked, {}
+    with _tf_u.TemporaryDirectory() as _td_k:
+        _repo_k = pathlib.Path(_td_k) / "repo"
+        _creds_k = _repo_k / "pipeline" / "user-context" / "api-credentials.local.json"
+        _creds_k.parent.mkdir(parents=True)
+        _beside_k = pathlib.Path(_td_k) / "repo-beside" / "x.json"  # shares the checkout's prefix
+
+        def _lock_body_k():
+            with atomic_io.locked(_creds_k):
+                pass
+            return 0
+
+        def _touch_body_k():
+            _creds_k.with_name(_creds_k.name + ".lock").write_text("", encoding="utf-8")
+            return 0
+
+        def _beside_body_k():
+            with atomic_io.locked(_beside_k):
+                pass
+            return 0
+        try:
+            _g_s["ROOT"] = _repo_k
+            for _name_k, _body_k in (("lock", _lock_body_k), ("touch", _touch_body_k),
+                                     ("beside", _beside_body_k)):
+                _g_s["_selftest"] = _body_k
+                _out_k = _io_bind.StringIO()
+                with _cl_bind.redirect_stdout(_out_k):
+                    _rc_k = _run_selftest_isolated()
+                _cases_k[_name_k] = (_rc_k, _out_k.getvalue(), atomic_io.locked is _locked_before_k,
+                                     _creds_k.with_name(_creds_k.name + ".lock").exists(),
+                                     _beside_k.with_name("x.json.lock").exists())
+                _creds_k.with_name(_creds_k.name + ".lock").unlink(missing_ok=True)
+        finally:
+            _g_s["_selftest"], _g_s["ROOT"] = _real_body_s, _saved_root_k
+            atomic_io.locked = _locked_before_k
+    _lk, _tk, _bk = _cases_k.get("lock"), _cases_k.get("touch"), _cases_k.get("beside")
+    check(_lk is not None and _lk[0] == 1 and "took a lock on a file in this checkout" in _lk[1]
+          and _lk[2] and not _lk[3]
+          and _tk is not None and _tk[0] == 1 and "touched api-credentials.local.json.lock" in _tk[1] and _tk[2]
+          and _bk is not None and _bk[0] == 0 and _bk[1] == "" and _bk[2] and _bk[4],
+          f"the wizard selftest wrapper does not refuse a lock in the checkout without opening it, "
+          f"take a lock beside it, or fail on a touched credentials lock ({_cases_k})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:
@@ -5222,8 +5267,13 @@ _SELFTEST_STATE_ISOLATED = False
 def _run_selftest_isolated() -> int:
     """Runs _selftest with _STATE_PATH pointed at a temporary file, so the persisted-state checks
     and the routes they drive leave this computer's creator-os-wizard-state.local.json as it was
-    (P102); the in-memory state is put back afterwards, and a change to the real file fails."""
+    (P102); the in-memory state is put back afterwards, and a change to the real file fails.
+    While it runs, atomic_io.locked on a path inside this checkout is refused without touching the
+    file (no <name>.lock is opened) and reported, and the run fails; a lock elsewhere, such as in a
+    temporary folder, is taken as usual. A change to the real credentials file's .lock (it appears,
+    or its size or time changes) fails too."""
     global _STATE_PATH, _SELFTEST_STATE_ISOLATED
+    import contextlib
     import tempfile
 
     def _file_state(p):
@@ -5233,19 +5283,37 @@ def _run_selftest_isolated() -> int:
         except OSError:
             return None
     real_path, before = _STATE_PATH, _file_state(_STATE_PATH)
+    checkout, real_locked, refused = os.path.realpath(str(ROOT)), atomic_io.locked, []
+    creds_lock = ROOT / "pipeline" / "user-context" / "api-credentials.local.json.lock"
+    lock_before = _file_state(creds_lock)
+
+    def _checkout_lock_refused(path):
+        where = os.path.realpath(str(path))
+        if where == checkout or where.startswith(checkout.rstrip(os.sep) + os.sep):
+            refused.append(where)
+            return contextlib.nullcontext()
+        return real_locked(path)
     with _lock:
         saved_state = dict(_state)
     with tempfile.TemporaryDirectory(prefix="wizard-state-") as td:
         _STATE_PATH, _SELFTEST_STATE_ISOLATED = pathlib.Path(td) / real_path.name, True
+        atomic_io.locked = _checkout_lock_refused
         try:
             rc = _selftest()
         finally:
+            atomic_io.locked = real_locked
             _STATE_PATH, _SELFTEST_STATE_ISOLATED = real_path, False
             with _lock:
                 _state.clear()
                 _state.update(saved_state)
     if _file_state(real_path) != before:
         print(f"wizard selftest FAILED: it changed {real_path.name}")
+        return 1
+    if refused:
+        print(f"wizard selftest FAILED: it took a lock on a file in this checkout: {sorted(set(refused))}")
+        return 1
+    if _file_state(creds_lock) != lock_before:
+        print(f"wizard selftest FAILED: it touched {creds_lock.name} beside the real credentials")
         return 1
     return rc
 
@@ -5268,6 +5336,10 @@ def _selftest() -> int:
     store["youtube"]["publish"] = {"client_id": "CID", "client_secret": "SEC"}
     flags: dict = {}
     _real_cred_io = (_load_api_credentials, _save_api_credentials, _update_capability_flag)
+    # The credential load and save are stood in for in memory, so the merge's lock on the real
+    # credentials file is stood in for too (put back with them below).
+    _real_locked = atomic_io.locked
+    atomic_io.locked = lambda path: __import__("contextlib").nullcontext()
     globals()["_load_api_credentials"] = lambda strict=False: __import__("copy").deepcopy(store)
 
     def _save(c):
@@ -5390,9 +5462,10 @@ def _selftest() -> int:
         check(False, f"port-collision check errored: {exc}")
 
     # 5b) P101: the port block, idle connection and cloud-synced warning checks in _selftest_p101(),
-    # with the credential functions the OAuth checks above stood in for put back first.
+    # with the credential functions and the lock the OAuth checks above stood in for put back first.
     globals().update(_load_api_credentials=_real_cred_io[0], _save_api_credentials=_real_cred_io[1],
                      _update_capability_flag=_real_cred_io[2])
+    atomic_io.locked = _real_locked
     check(_selftest_p101() == 0, "P101 checks failed (listed above)")
 
     # 6) Loopback-only guard (G1): main() must bind 127.0.0.1, never 0.0.0.0.
