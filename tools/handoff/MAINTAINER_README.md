@@ -44,8 +44,11 @@ The watcher only decides WHERE the queue is and WHEN to look; every execution pr
 in `run_pass`. Hub resolution: `--hub` argument, else `drive_hub.local_mirror` (local config over
 committed), else an honest "not configured" note pointing at the wizard `/drive-hub` screen.
 `detect_mirror_candidates` probes the macOS File Provider mount
-(`~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>`) as a wizard convenience only; the user
-confirms the path, and the wizard confines it to the home tree before saving.
+(`~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>`) and, on Windows, `<letter>:\My Drive\<folder>`
+on each drive other than the system drive, as a wizard convenience only; the user confirms the
+path. The wizard confines it to the home tree before saving, except that on Windows the hub route
+also accepts a folder inside a Drive for desktop drive's `My Drive` or `Shared drives` folder
+(`wizard._drive_hub_folder`, ADR 0078).
 `<!-- verify: tools/handoff/watcher.py::resolve_hub -->`
 The schedule follows `tools/freshness-scheduler.example` (cron/launchd calling `--once`);
 `--watch` is a foreground convenience with a 30-second floor on the interval.

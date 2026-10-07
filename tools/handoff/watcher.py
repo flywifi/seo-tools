@@ -66,11 +66,12 @@ def _windows_drives() -> list:
 
 
 def detect_mirror_candidates(home=None, folder_name="Creator OS", osname=None, drives=None,
-                             isdir=None) -> list:
+                             isdir=None, system_drive=None) -> list:
     """Where Google Drive for desktop usually puts the hub: on macOS the File Provider mount under
     ~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>; on Windows <letter>:\\My Drive\\<folder>
     on the drive letter Drive for desktop mounts (P102; each drive in `drives`, default
-    _windows_drives()). Returns existing candidates only; detection is a convenience for the wizard,
+    _windows_drives(), except the system drive, %SystemDrive% by default, which Drive for desktop
+    does not use and where any local account can make a My Drive folder). Returns existing candidates only; detection is a convenience for the wizard,
     never an authority (the user confirms the path)."""
     import ntpath
     isdir = os.path.isdir if isdir is None else isdir
@@ -78,7 +79,10 @@ def detect_mirror_candidates(home=None, folder_name="Creator OS", osname=None, d
     pattern = str(home / "Library" / "CloudStorage" / "GoogleDrive-*" / "My Drive" / folder_name)
     found = [p for p in glob.glob(pattern) if isdir(p)]
     if (os.name if osname is None else osname) == "nt":
+        sysdrive = (os.environ.get("SystemDrive") or "C:") if system_drive is None else system_drive
         for drive in (_windows_drives() if drives is None else drives):
+            if ntpath.splitdrive(drive)[0].upper() == str(sysdrive)[:2].upper():
+                continue
             cand = ntpath.join(drive, "My Drive", folder_name)
             if isdir(cand):
                 found.append(cand)
@@ -159,11 +163,21 @@ def selftest() -> int:
     ok("detects the CloudStorage mirror path", found == [str(target)])
     ok("no candidates on an empty home", detect_mirror_candidates(home=tempfile.mkdtemp()) == [])
     # P102: on Windows each drive's My Drive\Creator OS is offered when it exists.
-    _dirs = {"G:\\My Drive\\Creator OS", "H:\\My Drive"}
-    _win = detect_mirror_candidates(home=tempfile.mkdtemp(), osname="nt", drives=["C:\\", "G:\\", "H:\\"],
-                                    isdir=lambda p: p in _dirs)
-    ok("on Windows the drive whose My Drive holds the hub folder is offered, and no other",
-       _win == ["G:\\My Drive\\Creator OS"])
+    _dirs = {"G:\\My Drive\\Creator OS", "H:\\My Drive", "C:\\My Drive\\Creator OS", "K:\\My Drive\\Creator OS"}
+    _win = detect_mirror_candidates(home=tempfile.mkdtemp(), osname="nt",
+                                    drives=["K:\\", "C:\\", "G:\\", "H:\\"], isdir=lambda p: p in _dirs)
+    ok("on Windows each drive whose My Drive holds the hub folder is offered in order, not the system drive",
+       _win == ["G:\\My Drive\\Creator OS", "K:\\My Drive\\Creator OS"])
+    _real_lister = getattr(os, "listdrives", None)
+    os.listdrives = lambda: ["Q:\\"]
+    try:
+        _listed = _windows_drives()
+    finally:
+        if _real_lister is None:
+            del os.listdrives
+        else:
+            os.listdrives = _real_lister
+    ok("the drive list comes from os.listdrives when Python has it", _listed == ["Q:\\"])
     ok("off Windows the drive letters are not looked at",
        detect_mirror_candidates(home=tempfile.mkdtemp(), osname="posix", drives=["G:\\"],
                                 isdir=lambda p: p in _dirs) == [])

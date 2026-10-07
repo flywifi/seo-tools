@@ -106,11 +106,17 @@ def _windows_dirs():
 def _claude_config_from_logs():
     """The settings file Claude Desktop's own log says it read last, or None: the newest
     'Reading claude_desktop_config.json from <path>' line in the last 2 MB of each main*.log under
-    %LOCALAPPDATA%\\Claude\\logs (where the packaged app logs) and %APPDATA%\\Claude\\logs. Lines carry
-    a local 'YYYY-MM-DD HH:MM:SS' stamp, so the greatest stamp is the newest across rotated logs."""
+    %LOCALAPPDATA%\\Claude\\logs, %APPDATA%\\Claude\\logs and each packaged (MSIX) app's
+    %LOCALAPPDATA%\\Packages\\Claude_*\\LocalCache\\Roaming\\Claude\\logs. Lines carry a local
+    'YYYY-MM-DD HH:MM:SS' stamp, so the greatest stamp is the newest across rotated logs."""
     local, roaming = _windows_dirs()
     best = None
-    for logs in (local / "Claude" / "logs", roaming / "Claude" / "logs"):
+    try:
+        packaged_logs = [d / "LocalCache" / "Roaming" / "Claude" / "logs"
+                         for d in sorted(local.glob("Packages/Claude_*"))]
+    except OSError:
+        packaged_logs = []
+    for logs in [local / "Claude" / "logs", roaming / "Claude" / "logs"] + packaged_logs:
         try:
             files = sorted(logs.glob("main*.log"))
         except OSError:
@@ -132,10 +138,11 @@ def _claude_config_from_logs():
 def _claude_config_targets():
     """[(path, why), ...]: the settings file(s) the Creator OS entries go into, the first being the
     one the wizard reads back. macOS and Linux: one fixed path. Windows (P102): the file Claude
-    Desktop's log names, when its folder exists; else the packaged (MSIX) app's
-    %LOCALAPPDATA%\\Packages\\Claude_*\\LocalCache\\Roaming\\Claude folder, plus %APPDATA%\\Claude when its
-    file already exists (an install that had the older app can keep reading it); else
-    %APPDATA%\\Claude. Never raises."""
+    Desktop's log names, when its folder exists; then, whether or not a log names one, each packaged
+    (MSIX) app's %LOCALAPPDATA%\\Packages\\Claude_*\\LocalCache\\Roaming\\Claude folder, plus
+    %APPDATA%\\Claude when its file already exists (an install that had the older app can keep
+    reading it; a packaged app may also log its virtualised %APPDATA% view of its own file); with
+    neither, %APPDATA%\\Claude. Each file appears once. Never raises."""
     os_name = _os()
     if os_name == "mac":
         return [(pathlib.Path.home() / "Library" / "Application Support" / "Claude" / _CONFIG_NAME,
@@ -144,20 +151,28 @@ def _claude_config_targets():
         return [(pathlib.Path.home() / ".config" / "Claude" / _CONFIG_NAME, "the Linux settings file")]
     local, roaming = _windows_dirs()
     real = roaming / "Claude" / _CONFIG_NAME
+    out, seen = [], set()
+
+    def _add(p, why):
+        key = os.path.normcase(str(p)).lower()
+        if key not in seen:
+            seen.add(key)
+            out.append((p, why))
     try:
         logged = _claude_config_from_logs()
         if logged is not None and logged.parent.is_dir():
-            return [(logged, "named in Claude Desktop's log")]
+            _add(logged, "named in Claude Desktop's log")
         packaged = [d / "LocalCache" / "Roaming" / "Claude" for d in sorted(local.glob("Packages/Claude_*"))]
         packaged = [d / _CONFIG_NAME for d in packaged if d.is_dir()]
     except OSError:
         packaged = []
-    if packaged:
-        out = [(p, "the packaged app's folder") for p in packaged]
-        if real.exists():
-            out.append((real, "the usual folder, which an older install reads"))
-        return out
-    return [(real, "the usual folder")]
+    for p in packaged:
+        _add(p, "the packaged app's folder")
+    if packaged and real.exists():
+        _add(real, "the usual folder, which an older install reads")
+    if not out:
+        _add(real, "the usual folder")
+    return out
 
 
 def _claude_config_path() -> pathlib.Path:
@@ -171,7 +186,7 @@ def _read_claude_config_at(p) -> dict:
     p = pathlib.Path(p)
     if p.exists():
         try:
-            return json.loads(p.read_text(encoding="utf-8"))
+            return json.loads(p.read_text(encoding="utf-8-sig"))  # Notepad and PowerShell 5.1 add a BOM
         except (OSError, json.JSONDecodeError):
             pass
     return {}
@@ -203,7 +218,7 @@ def _write_claude_config(config: dict, path=None) -> pathlib.Path:
     # key -- losing the user's other MCP servers. Back it up first so it is recoverable.
     if p.exists():
         try:
-            json.loads(p.read_text(encoding="utf-8"))
+            json.loads(p.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError):
             try:
                 bak = p.with_name(p.name + ".corrupt.bak")
@@ -3333,15 +3348,21 @@ def _origin_allowed(origin, referer, port=None):
 _DRIVE_FOLDER_RE = re.compile(r"^([A-Za-z]):\\(My Drive|Shared drives)(?:\\([^\\]*))?", re.IGNORECASE)
 
 
-def on_google_drive(path, isdir=os.path.isdir):
+def on_google_drive(path, isdir=os.path.isdir, system_drive=None):
     """'' when `path` (a Windows path) is a folder inside <letter>:\\My Drive or <letter>:\\Shared
-    drives and that root folder exists; 'drive_root' when it is that root folder itself; None
+    drives and that root folder exists; 'drive_root' when it is that root folder itself;
+    'system_drive' when the letter is the system drive (%SystemDrive%, default C:), where any
+    local account can make a folder named My Drive and Drive for desktop does not mount; None
     otherwise. The paths are read with Windows rules (ntpath), so this answers the same on any
     system."""
     import ntpath
     m = _DRIVE_FOLDER_RE.match(ntpath.normpath(str(path)))
     if not m or not isdir(f"{m.group(1)}:\\{m.group(2)}"):
         return None
+    if system_drive is None:
+        system_drive = os.environ.get("SystemDrive") or "C:"
+    if f"{m.group(1)}:".upper() == str(system_drive)[:2].upper():
+        return "system_drive"
     return "" if m.group(3) else "drive_root"
 
 
@@ -3393,6 +3414,8 @@ def _drive_hub_folder(folder):
 _DRIVE_HUB_WHY = {
     "drive_root": " (that is the whole Drive; make a folder inside it, such as My Drive\\Creator OS, "
                   "and use that)",
+    "system_drive": " (that is a folder named My Drive on this computer's system drive, not Google "
+                    "Drive; use the drive letter Google Drive for desktop shows, often G:)",
     "outside_home": " (use a folder in your user folder, or on Windows a folder inside the My Drive "
                     "folder of the drive letter Google Drive for desktop shows)",
 }
@@ -5103,14 +5126,37 @@ def _selftest_p101() -> int:
                 f"2026-10-03 09:00:00 [info] Reading claude_desktop_config.json from {_other / 'claude_desktop_config.json'}\n"
                 f"2026-10-04 09:00:00 [info] Loading config from {_cd / 'Reworded' / 'x.json'}\n", encoding="utf-8")
             _t = _claude_config_targets()
-            if [p for p, _w in _t] != [_other / "claude_desktop_config.json"] or "log" not in _t[0][1]:
-                _cd_fail.append(f"the newest log line does not decide, or a reworded line counts: {_t}")
+            if ([p for p, _w in _t] != [_other / "claude_desktop_config.json", _pkg / "claude_desktop_config.json",
+                                        _real] or "log" not in _t[0][1]):
+                _cd_fail.append(f"the newest log line is not read first, a reworded line counts, or the "
+                                f"packaged file is dropped beside a logged one: {_t}")
             (_logs / "main2.log").write_text(
                 f"2026-10-05 09:00:00 [info] Reading claude_desktop_config.json from {_cd / 'Gone' / 'claude_desktop_config.json'}\n",
                 encoding="utf-8")
             _t = _claude_config_targets()
             if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json", _real]:
                 _cd_fail.append(f"a log path whose folder is missing is used: {_t}")
+            # The packaged app logs in its own LocalCache folder, and may log its virtualised view of
+            # its file as the %APPDATA% path: that file and the packaged one are both written.
+            _pkg_logs = _pkg / "logs"
+            _pkg_logs.mkdir()
+            (_pkg_logs / "main.log").write_text(
+                f"2026-10-06 09:00:00 [info] Reading claude_desktop_config.json from {_real}\n", encoding="utf-8")
+            _t = _claude_config_targets()
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "v"}))
+            _pv = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            if ([p for p, _w in _t] != [_real, _pkg / "claude_desktop_config.json"] or "log" not in _t[0][1]
+                    or _pv["mcpServers"].get("creator-os") != {"command": "v"}):
+                _cd_fail.append(f"a log in the packaged folder naming %APPDATA% does not keep the packaged "
+                                f"file written: {_t} {_pv}")
+            # A settings file saved with a byte-order mark (Notepad, PowerShell 5.1) is read, not replaced.
+            (_pkg / "claude_desktop_config.json").write_bytes(
+                b"\xef\xbb\xbf" + json.dumps({"mcpServers": {"bom-own": {"command": "b"}}}).encode("utf-8"))
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "w"}))
+            _pb = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8-sig"))
+            if (set(_pb["mcpServers"]) != {"bom-own", "creator-os"}
+                    or (_pkg / "claude_desktop_config.json.corrupt.bak").exists()):
+                _cd_fail.append(f"a settings file with a byte-order mark lost its servers: {_pb}")
             _OS_OVERRIDE = "mac"
             _mac = _claude_config_targets()
             if len(_mac) != 1 or "Library/Application Support/Claude" not in pathlib.PurePath(_mac[0][0]).as_posix():
@@ -5152,11 +5198,66 @@ def _selftest_p101() -> int:
           and "Cmd-Q" not in _restart_si["linux"][0]
           and all(r in html_ for r, html_ in _restart_si.values()),
           f"the restart step is not the one for each system: {_restart_si}")
+    # P102: the routes that write Claude Desktop's settings keep the servers already there; the hub
+    # route uses the Drive folder rule and explains a refusal; /done gives this system's restart step.
+    import io as _io_rt
+    import contextlib as _cl_rt
+    _g_rt, _sent_rt, _hub_seen_rt = globals(), [], []
+    _keys_rt = ("_claude_config_targets", "_has_uv", "_node_ok", "_update_capability_flag", "_set",
+                "_update_local_config", "_drive_hub_folder", "_get")
+    _saved_rt = {k: _g_rt[k] for k in _keys_rt}
+    _saved_os_rt = _OS_OVERRIDE
+    with tempfile.TemporaryDirectory() as _rt_td:
+        _cfg_rt = pathlib.Path(_rt_td) / "claude_desktop_config.json"
+        _store_rt = tempfile.mkdtemp(dir=os.path.expanduser("~"))
+
+        def _post_rt(route, form):
+            _h = _Handler.__new__(_Handler)
+            _h.path, _h.headers = route, {}
+            _h._read_form = lambda: dict(form)
+            _h._read_body = lambda: ""
+            _h._send = lambda body, status=200, content_type="text/html": _sent_rt.append((route, status, body))
+            _h._redirect = lambda location: _sent_rt.append((route, 302, location))
+            with _cl_rt.redirect_stdout(_io_rt.StringIO()):
+                _h.do_POST()
+        _kept_rt = {}
+        try:
+            _g_rt.update(_claude_config_targets=lambda: [(_cfg_rt, "the test file")],
+                         _has_uv=lambda: True, _node_ok=lambda: True,
+                         _update_capability_flag=lambda key, value: None, _set=lambda **kw: None,
+                         _update_local_config=lambda fn: True,
+                         _drive_hub_folder=lambda folder: _hub_seen_rt.append(folder) or (False, folder, "drive_root"))
+            for _route_rt, _form_rt, _name_rt in (
+                    ("/api/write-google", {"client_id": "cid", "client_secret": "sec"}, "google-workspace"),
+                    ("/api/write-microsoft", {}, "microsoft-365"),
+                    ("/api/write-storage-folder", {"folder": _store_rt}, "filesystem")):
+                _cfg_rt.write_text(json.dumps({"mcpServers": {"own-a": {"command": "a"}, "own-b": {"command": "b"}},
+                                               "preferences": {"x": 1}}), encoding="utf-8")
+                _post_rt(_route_rt, _form_rt)
+                _after_rt = json.loads(_cfg_rt.read_text(encoding="utf-8"))
+                _kept_rt[_route_rt] = (set(_after_rt.get("mcpServers", {})) == {"own-a", "own-b", _name_rt}
+                                       and _after_rt.get("preferences") == {"x": 1})
+            _post_rt("/api/set-drive-hub", {"folder": "G:\\My Drive"})
+            _OS_OVERRIDE = "windows"
+            _g_rt["_get"] = lambda key, default=None: key.startswith("claude_accept_")
+            _done_rt = _screen_done()
+        finally:
+            _OS_OVERRIDE = _saved_os_rt
+            _g_rt.update(_saved_rt)
+            shutil.rmtree(_store_rt, ignore_errors=True)
+    _hub_body_rt = next((b for r, st, b in _sent_rt if r == "/api/set-drive-hub"), "")
+    check(all(_kept_rt.get(r) for r in ("/api/write-google", "/api/write-microsoft", "/api/write-storage-folder"))
+          and _hub_seen_rt == ["G:\\My Drive"] and "that is the whole Drive" in _hub_body_rt
+          and "notification area" in _done_rt and "Cmd-Q" not in _done_rt,
+          f"a settings route drops the servers already there, the hub route skips the Drive folder rule "
+          f"or its explanation, or /done shows another system's restart step ({_kept_rt}, {_hub_seen_rt}, "
+          f"{'that is the whole Drive' in _hub_body_rt}, {'notification area' in _done_rt})")
     # P102: the Drive hub folder rule on Windows, with the system stood in for: quotes are removed, a
     # folder inside a Drive for desktop drive's My Drive or Shared drives is accepted only where that
     # folder exists, the root folder itself is refused, and other routes keep the home-only rule.
     import ntpath as _nt_d
-    _dirs_d = {"G:\\My Drive", "G:\\My Drive\\Creator OS", "G:\\Shared drives",
+    _dirs_d = {"G:\\My Drive", "G:\\My Drive\\Creator OS", "G:\\Shared drives", "C:\\My Drive",
+               "G:\\x\\My Drive", "G:\\x\\My Drive\\y", "H:\\My Drive\\x",
                "G:\\Shared drives\\Team", "C:\\My Drive\\x", "C:\\Windows",
                "C:\\Users\\me"}
     _dirs_d = {d.lower() for d in _dirs_d}  # Windows compares folder names without letter case
@@ -5168,11 +5269,12 @@ def _selftest_p101() -> int:
     _got_d = {f: _hub_d(f, allow_drive=True) for f in (
         "G:\\My Drive\\Creator OS", '"G:\\My Drive\\Creator OS"', " g:\\my drive\\Creator OS\\ ",
         "G:/My Drive/Creator OS", "G:\\Shared drives\\Team", "G:\\My Drive", "G:\\Shared drives",
-        "C:\\My Drive\\x", "C:\\Windows")}
+        "C:\\My Drive\\x", "C:\\Windows", "G:\\x\\My Drive\\y", "H:\\My Drive\\x")}
     _want_d = {"G:\\My Drive\\Creator OS": (True, ""), '"G:\\My Drive\\Creator OS"': (True, ""),
                "G:/My Drive/Creator OS": (True, ""), "G:\\Shared drives\\Team": (True, ""),
                "G:\\My Drive": (False, "drive_root"), "G:\\Shared drives": (False, "drive_root"),
-               "C:\\My Drive\\x": (False, "outside_home"), "C:\\Windows": (False, "outside_home")}
+               "C:\\My Drive\\x": (False, "system_drive"), "C:\\Windows": (False, "outside_home"),
+               "G:\\x\\My Drive\\y": (False, "outside_home"), "H:\\My Drive\\x": (False, "outside_home")}
     _bad_d = {f: g for f, g in _got_d.items() if f in _want_d and (g[0], g[2]) != _want_d[f]}
     _case_d = _got_d[" g:\\my drive\\Creator OS\\ "]
     _plain_d = _hub_d("G:\\My Drive\\Creator OS")

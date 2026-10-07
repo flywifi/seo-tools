@@ -2,8 +2,8 @@ _Data freshness: as of 2026-10-07 (Creator OS baseline 438dcf34). Live updates c
 
 # Creator OS — Gemini System Instruction
 
-Paste this into Gemini Advanced → Gems → New Gem → "Instructions" field,
-or pass as `system_instruction` in the Gemini API.
+Paste this at the start of a Gemini chat, save it as a skill (Settings, then Skills, then Create
+manually, on a personal Google Account), or pass it as `system_instruction` in the Gemini API.
 
 ---
 

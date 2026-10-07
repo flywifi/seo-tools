@@ -109,10 +109,12 @@ the first `py -3 tools/transcribe.py run` downloads the speech model into the Hu
 - The packaged (MSIX) build keeps its settings under
   `%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\`, not in
   `%APPDATA%\Claude\`, and an install that had the older app can keep reading
-  `%APPDATA%\Claude\`. Claude Desktop's log (`%LOCALAPPDATA%\Claude\logs\main.log`) names the
-  file it reads. The wizard's Claude Desktop step writes the file that log names; with no log line
-  it writes the packaged app's file, and also `%APPDATA%\Claude\claude_desktop_config.json` when that
-  file exists, and the screen names each file it wrote
+  `%APPDATA%\Claude\`. Claude Desktop's log (`%LOCALAPPDATA%\Claude\logs\main.log`, or the
+  packaged app's own `logs` folder) names the file it reads. The wizard's Claude Desktop step
+  writes the file that log names and the packaged app's file, and also
+  `%APPDATA%\Claude\claude_desktop_config.json` when that file exists beside a packaged app; a file
+  saved with a byte-order mark (Notepad, PowerShell 5.1) is read as it is. The screen names each
+  file it wrote
   <!-- verify: tools/wizard.py::_claude_config_targets -->. *(the log line seen on Windows; the
   guided first run tested on Windows with stand-in settings folders in both layouts)*
 - After the wizard writes the settings, quit Claude Desktop from its icon in the notification

@@ -35,9 +35,12 @@ person can bring it home first. This supersedes ADR 0060.
 ## Decision 2: the wizard writes the settings file Claude Desktop reads
 
 On Windows the wizard writes to the file named on Claude Desktop's newest "Reading
-claude_desktop_config.json from" log line, when that file's folder exists; else to the packaged
-app's folder, plus `%APPDATA%\Claude` when that file already exists; else to `%APPDATA%\Claude`
-(`wizard._claude_config_targets`). Each file is merged from its own content, and a new file
+claude_desktop_config.json from" log line (in `%LOCALAPPDATA%\Claude\logs`, `%APPDATA%\Claude\logs`
+or the packaged app's own `logs` folder), when that file's folder exists; and to each packaged
+app's folder, plus `%APPDATA%\Claude` when that file already exists beside one, since a packaged
+app may log its virtualised view of its file as the `%APPDATA%` path; with neither, to
+`%APPDATA%\Claude` (`wizard._claude_config_targets`). A file saved with a UTF-8 byte-order mark is
+read as it is. Each file is merged from its own content, and a new file
 starts from a copy of an existing one. The log line is app wording, not a documented interface,
 so a missing or reworded line falls back to the folder rules.
 

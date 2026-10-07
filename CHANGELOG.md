@@ -357,16 +357,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   quotes and spaces, so a path from Explorer's "Copy as path" works. On Windows the hub screen
   offers `<letter>:\My Drive\Creator OS` when a drive holds it
   (`watcher.detect_mirror_candidates`). Before, the rule refused every Drive folder on Windows, so
-  the hub could not be connected there. The wizard's restart step names each system's way to quit
+  the hub could not be connected there. A `My Drive` folder on the system drive is refused, since
+  Drive for desktop does not mount there and any local account can make one. The wizard's restart step names each system's way to quit
   Claude Desktop (`wizard._restart_step`): on Windows, from its icon in the notification area,
   since closing the window leaves it running. A Store build that has not written a log yet counts
   as installed (checked in `_selftest_p101`). `docs/SETUP_WINDOWS.md` marks the optional
   dependency install, local transcription and `py install 3.14` as tested on Windows and adds the
   hub's connect step.
 - P102 (Claude Desktop settings file on Windows): the wizard writes its MCP entries to the file
-  Claude Desktop's `main.log` says it read, else to the packaged (MSIX) app's
-  `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude` folder plus `%APPDATA%\Claude`
-  when that file exists, else to `%APPDATA%\Claude` (`wizard._claude_config_targets`); each file is
+  Claude Desktop's `main.log` says it read (the packaged app's own `logs` folder included) and to
+  the packaged (MSIX) app's `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude` folder,
+  plus `%APPDATA%\Claude` when that file exists beside a packaged app, else to `%APPDATA%\Claude`
+  (`wizard._claude_config_targets`); a settings file with a UTF-8 byte-order mark is read rather
+  than replaced (it was kept as a `.corrupt.bak` and the user's servers dropped); each file is
   merged from its own content and a new file starts from a copy of an existing one (both pinned in
   `wizard._selftest_p101`), and the screen names the files it wrote. Before, it wrote only
   `%APPDATA%\Claude`, which the packaged app does not read, so the Creator OS tools did not appear. Windows log paths replace the macOS-only hint.
