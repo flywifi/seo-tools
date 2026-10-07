@@ -10,21 +10,21 @@
     },
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
-        "tools/surface_workflow_check.py": "1b159c29208f44327d155c0d6d7852d56dda29fcb35c1c57c79f6237848bdd94",
-        "skills/creator-core/evals/surface-workflows.json": "6e930ae9a96aea56b6211023ebf0df662e3005c5aa0f2f38c45da526134c3af9"
+        "tools/surface_workflow_check.py": "dffdf28644b2903d73d113bda8b7314520ec07a1b89c2862e3d6bab62b9c6828",
+        "skills/creator-core/evals/surface-workflows.json": "4a3bf8c497a5654b2d18cde8a84d00e07b1b5b2bf3e9bddd4984931425923372"
       }
     },
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "shared/cross-modality/transitions.json": "2ffb766c620d9d2a96f07f3b6577715521e6910c75bf4447830264ab351725cf"
+        "shared/cross-modality/transitions.json": "4a188ede942a9bbcdef4cc166533acbc3ead09e956c729367d8f665c3de954d3"
       }
     },
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "a966889e5347f7aa6f4c601d680dfec1fc1497a060bdecb9600aeab35115ea64"
+        "tools/sync_check.py": "69abe70ebc59498184191af17f53176403f2703235b6c042417f26c57b145dad"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "4c46bf8538bbba6a543e7cb6924641937c5625375e2172baba676c25403cd2df",
+        "tools/wizard.py": "d5ec2e1620e2929e6dcf6309dc2651e066a8838a3c5b4a7611ac0f171601f616",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -65,12 +65,12 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "edda6cfd215014872116b8e06b309c243c4070ac8702ed7395382fa26cdb8c15"
+        "tools/mcp_server.py": "3f57c06210007ae8d0f77cff7c36a317fdbf37256d647f6b01113f43ecabf71e"
       }
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "2ffb766c620d9d2a96f07f3b6577715521e6910c75bf4447830264ab351725cf"
+        "shared/cross-modality/transitions.json": "4a188ede942a9bbcdef4cc166533acbc3ead09e956c729367d8f665c3de954d3"
       }
     },
     "implementation/claude/desktop/README.md": {

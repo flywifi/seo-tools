@@ -14,6 +14,6 @@
     {"step": "6d", "atom": "profile-import", "input_from": "pasted or uploaded ChatGPT profile exports (implementation/gpt/profile-import/PROMPT.md replies)", "output_to": "step7", "condition": "artifact_type is profile_proposal; proposal-only merge with per-field provenance and named conflicts; the human saves creator-profile.local.json by hand"},
     {"step": 7, "atom": "govern-artifact", "input_from": "assembled_artifact", "output_to": "final", "gates": ["integrity", "safety", "accuracy"]}
   ],
-  "shortcut_atoms": ["ingest-route", "project-snapshot", "materials-list", "step-sequence", "script-section", "caption-write", "template-ingest", "template-assemble", "profile-import", "export-gem", "export-gpt"],
+  "shortcut_atoms": ["ingest-route", "project-snapshot", "materials-list", "step-sequence", "script-section", "caption-write", "template-ingest", "template-assemble", "profile-import"],
   "note": "File type must be confirmed before producing a downloadable (protocols/formatting-metadata.md). All external files pass through injection-guard-engine inside ingest-route. Template lane (P42): template_proposal proposes a block-structured doc-template from an example (shared/doc-template-engine.md); from_template assembles a saved template with whole-block swaps and bracket fills only; the system never authors block body text."
 }

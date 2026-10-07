@@ -68,7 +68,7 @@ added beyond what those records state. New decisions get the next number via
 | [0057](0057-p82-chatgpt-audit-remediation.md) | Pointing the machinery outward: closing the ChatGPT/OpenAI audit | 2026-09-12 | Accepted |
 | [0058](0058-p82-9-block-classification-and-episodes.md) | A widget is not a wall: block classification and block episodes | 2026-09-12 | Accepted |
 | [0059](0059-p83-september-vendor-currency.md) | September currency: Plugins by their new name, and evidence before conformance | 2026-09-19 | Accepted |
-| [0060](0060-p84-custom-gpt-retirement-stance.md) | Custom GPT retirement: keep export-gpt, steer new setups elsewhere | 2026-09-19 | Accepted |
+| [0060](0060-p84-custom-gpt-retirement-stance.md) | Custom GPT retirement: keep export-gpt, steer new setups elsewhere | 2026-09-19 | Superseded by [0077](0077-p102-custom-gpt-and-gems-retired.md) |
 | [0061](0061-p85-wizard-first-run-readiness.md) | Wizard first-run readiness: verified completion, resume, and the server it forgot | 2026-09-19 | Accepted |
 | [0062](0062-p89-web-onboarding-in-the-pack.md) | Web onboarding ships inside the knowledge pack, on the merged-Claude surface model | 2026-09-20 | Accepted |
 | [0063](0063-p90-wizard-doing-lanes.md) | The wizard DOES the web setup: guided lanes that copy, stage, and verify | 2026-09-20 | Accepted |
@@ -85,3 +85,4 @@ added beyond what those records state. New decisions get the next number via
 | [0074](0074-p101-windows-cloud-synced-folders.md) | On Windows, the cloud-synced repo warning reads OneDrive's variables and Google Drive's drive markers | 2026-10-04 | Accepted |
 | [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) | Job origins name the computer's system; the Cowork surfaces and origin are retired | 2026-10-05 | Accepted |
 | [0076](0076-p102-windows-ci-and-interpreter-fallback.md) | Windows runs the battery in CI; the hooks find a working Python, and the auditor's guard covers PowerShell | 2026-10-05 | Accepted |
+| [0077](0077-p102-custom-gpt-and-gems-retired.md) | The custom GPT and Gemini Gems surfaces and their export atoms are retired; the wizard writes the Claude Desktop settings file the app reads | 2026-10-05 | Accepted |

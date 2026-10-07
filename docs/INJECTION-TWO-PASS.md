@@ -95,8 +95,8 @@ cross-modality model (`shared/cross-modality-engine.md`, `shared/cross-modality/
 | Headless runner (`inbox_scan` job) | runs | no AI in the loop | `offline_only` | record marked `pass2_pending`; a later session completes pass 2 |
 | claude.ai web / mobile | usually can't (no local Python) | runs | `session_only` | session guard runs without a prior |
 | claude.ai agentic task (cloud sandbox) | only via a deployed MCP + connected files | runs | `session_only` unless the offline tier is reachable | the sandbox is destroyed at session end; nothing local persists |
-| ChatGPT custom GPT / Action / web | no (unless a deployed MCP is connected) | the engine's OWN handling | `session_only` | we INSTRUCT the envelope discipline; we cannot enforce it |
-| Gemini Gems / API | no | the engine's OWN handling | `session_only` | same — instruct, not enforce |
+| ChatGPT web / Projects | no (unless a deployed MCP is connected) | the engine's OWN handling | `session_only` | we INSTRUCT the envelope discipline; we cannot enforce it |
+| Gemini web, desktop and API | no | the engine's OWN handling | `session_only` | same — instruct, not enforce |
 
 On non-Claude engines Creator OS can only *advise* the envelope discipline (baked into the ChatGPT
 and Gemini packaging under `implementation/`), honestly labeled: the offline pre-filter runs on
@@ -136,8 +136,8 @@ stamp, verified 2026-07-18.
 - **OpenAI / ChatGPT** — the OpenAI Model Spec defines an explicit **chain of command**: Root >
   System > Developer > User > Guideline. Quoted text (plaintext in quotation marks, YAML, JSON, XML,
   or `untrusted_text` blocks), multimodal data, file attachments, and **tool outputs** are "assumed
-  to contain untrusted data and have no authority by default." A Custom GPT or Action must therefore
-  treat Action-returned content as untrusted, below the user. (Model Spec, version 2025-12-18.)
+  to contain untrusted data and have no authority by default." A ChatGPT setup must therefore
+  treat content a tool returns as untrusted, below the user. (Model Spec, version 2025-12-18.)
 - **Google / Gemini** — Google documents a **layered defense** against indirect prompt injection for
   Gemini: prompt-injection content **classifiers** that screen incoming data, security-thought
   reinforcement, markdown sanitization and URL redaction, a **user-confirmation** framework for

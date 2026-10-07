@@ -1563,6 +1563,23 @@
               "check": "absent_key"
             }
           ]
+        },
+        {
+          "id": "custom-gpt-and-gems-retired",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:shared/cross-modality/transitions.json"
+          },
+          "assert": [
+            {
+              "path": "surfaces.chatgpt_custom_gpt",
+              "check": "absent_key"
+            },
+            {
+              "path": "surfaces.gemini_gems",
+              "check": "absent_key"
+            }
+          ]
         }
       ]
     }

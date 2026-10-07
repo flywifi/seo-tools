@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """projection_manifest.py -- staleness signal for the hand-authored knowledge packs (P49 WS7).
 
-The Claude Projects / Custom GPT / Gemini knowledge files are PROSE PROJECTIONS of the canonical
+The Claude Projects / ChatGPT Projects / Gemini knowledge files are PROSE PROJECTIONS of the canonical
 shared/*.md engines and protocols/*.md. They are hand-authored, so there is no generator to diff them
 against -- but we CAN record the sha256 of each SOURCE engine at the moment a projection was last
 reconciled, and flag when a source has changed since. That is a staleness SIGNAL (the projection may now

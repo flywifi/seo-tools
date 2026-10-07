@@ -1062,7 +1062,7 @@
       ]
     },
     "option_e_gemini": {
-      "label": "Gemini (Gems or API)",
+      "label": "Gemini (chat or API)",
       "connectors_available_by_default": [
         "manual_paste",
         "uploaded_file"

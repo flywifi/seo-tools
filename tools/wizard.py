@@ -2075,9 +2075,6 @@ _SURFACES = {
                 "a limit of PLAIN chat, not of ChatGPT: a deployed MCP connector added in "
                 "developer mode gives B and C (a separate setup, documented for Business, "
                 "Enterprise and Edu workspaces on ChatGPT web)."),
-    "chatgpt_custom_gpt": ("Custom GPT (built in the ChatGPT GPT builder)", None,
-        "action", "Class A via the knowledge pack; B via the public jurisdiction Action; C only "
-                  "via a deployed endpoint."),
     "chatgpt_projects": ("ChatGPT Projects (a Project with files at chatgpt.com)", None,
         "none", "Class A only, via Project instructions and files. No Actions, no tools."),
     "chatgpt_desktop": ("ChatGPT desktop app", None,
@@ -2086,10 +2083,9 @@ _SURFACES = {
                 "Codex view runs the repo tools on this computer, so flags hold there."),
     "gemini_api": ("Gemini API (developer integration)", None,
         "action", "Class A knowledge-only; B and C via your backend executing the call."),
-    "gemini_gems": ("Gemini Gems (consumer)", None,
-        "none", "Class A only. B and C are unavailable here."),
     "gemini_web": ("Gemini web app (gemini.google.com)", None,
-        "seam", "Class A via a Gem or pasted instructions; B and C via a deployed MCP endpoint "
+        "seam", "Class A via pasted instructions (or a Gemini skill on a personal account); B and "
+                "C via a deployed MCP endpoint "
                 "connected as a custom app (US personal accounts only). No flags."),
     "gemini_desktop": ("Gemini desktop app (Mac and Windows)", None,
         "none", "Class A only. No Creator OS tools and no flags; hand work to the computer as a "
@@ -2099,8 +2095,10 @@ _SURFACES = {
         "curl", "Class B via curl; Class C by running the tool locally."),
 }
 
-_SURFACE_ALIASES = {"custom_gpt": "chatgpt_custom_gpt"}
-_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_custom_gpt", "chatgpt_projects", "chatgpt_desktop")
+# P102: links to the retired custom GPT and Gems surfaces land on the door that replaced them.
+_SURFACE_ALIASES = {"custom_gpt": "chatgpt_projects", "chatgpt_custom_gpt": "chatgpt_projects",
+                    "gemini_gems": "gemini_web"}
+_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_projects", "chatgpt_desktop")
 
 
 def _surface_label(sid: str) -> str:
@@ -2434,7 +2432,7 @@ here is how many Project files fit: 5 on Free, plenty on everything else.</div>
         rec = "a Creator OS <strong>Project</strong> with all nine knowledge files"
     return _page("ChatGPT Setup", f"""
 <h1>Plan: {html.escape(label)}</h1>
-<p>Best setup for this plan: {rec}. Do NOT build a Custom GPT -- OpenAI is retiring them.</p>
+<p>Best setup for this plan: {rec}. Custom GPTs retire on 2026-12-11, so Creator OS uses a Project.</p>
 <a class="btn btn-primary" href="/chatgpt-setup/instructions">Start: create the Project</a>
 <a class="btn btn-outline" href="/chatgpt-setup/reset">Different plan / start over</a>
 <a class="btn btn-outline" href="/">Back to start</a>
@@ -3106,7 +3104,7 @@ Your skills today: <strong>{len(summ['A'])}</strong> Class A, <strong>{len(summ[
             reach = "All classes reachable." if kind in ("native", "seam") else \
                     ("Class A + B reachable; Class C needs a hosted tool." if kind == "action" else
                      "Class B + C reachable; Class A is reasoning-only.")
-        else:  # none = gems
+        else:  # none: knowledge-only surfaces
             reach = (f"Only Class A ({len(summ['A'])} skills) works. Class B + C "
                      f"({len(summ['B']) + len(summ['C'])} skills) need the API or a coordinate you paste.")
         body = f"""
@@ -5070,6 +5068,15 @@ def _selftest_p101() -> int:
                     os.environ[_k] = _v
     check(not _cd_fail, f"the Claude Desktop settings targets are wrong: {_cd_fail}")
 
+    # P102: the retired custom GPT and Gems surfaces are gone from the options, and old links to
+    # them render the door that replaced them.
+    _gone = [k for k in ("chatgpt_custom_gpt", "gemini_gems") if k in _SURFACES or k in _CHATGPT_SURFACES]
+    _via = {k: _screen_cross_modality(k) for k in ("custom_gpt", "chatgpt_custom_gpt", "gemini_gems")}
+    _h1 = {k: f"<h1>{_surface_label(k)}</h1>" for k in ("chatgpt_projects", "gemini_web")}
+    check(not _gone and _h1["chatgpt_projects"] in _via["custom_gpt"]
+          and _h1["chatgpt_projects"] in _via["chatgpt_custom_gpt"]
+          and _h1["gemini_web"] in _via["gemini_gems"],
+          f"a retired surface is still offered ({_gone}), or an old link does not land on its replacement")
     # P102: the work-order screen warns that an older computer refuses windows and linux work.
     from handoff import runner as _runner_pin
     _real_tag, _wo = _runner_pin._platform_tag, {}

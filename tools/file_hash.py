@@ -2010,6 +2010,16 @@ _MUTANTS = (
     ('CD9 a package folder without Roaming\\\\Claude counts', 'wizard.py',
      '        packaged = [d / _CONFIG_NAME for d in packaged if d.is_dir()]\n',
      '        packaged = [d / _CONFIG_NAME for d in packaged]\n'),
+    # P102: the retired custom GPT and Gems surfaces (wizard aliases and the ChatGPT picker).
+    ('RT1 an old custom GPT link finds no page', 'wizard.py',
+     '_SURFACE_ALIASES = {"custom_gpt": "chatgpt_projects", "chatgpt_custom_gpt": "chatgpt_projects",\n',
+     '_SURFACE_ALIASES = {"custom_gpt": "chatgpt_custom_gpt", "chatgpt_custom_gpt": "chatgpt_custom_gpt",\n'),
+    ('RT2 an old Gems link finds no page', 'wizard.py',
+     '                    "gemini_gems": "gemini_web"}\n',
+     '                    "gemini_gems": "gemini_gems"}\n'),
+    ('RT3 the ChatGPT picker offers the custom GPT again', 'wizard.py',
+     '_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_projects", "chatgpt_desktop")\n',
+     '_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_custom_gpt", "chatgpt_projects", "chatgpt_desktop")\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

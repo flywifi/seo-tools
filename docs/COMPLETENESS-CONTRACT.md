@@ -52,6 +52,6 @@ User-facing capability descriptions must not promise completeness the tool does 
 honest framing the packs already use elsewhere (for example `implementation/gpt/web/custom-instructions.md`
 "running in knowledge-only mode ... no platform API data"). Do not write "complete", "full", or
 "comprehensive" for an output whose own schema exposes `retrieval_gaps`, `fabrication_flags`, or
-`[estimated]` values. GPT Action descriptions were softened accordingly (`seo_keywords.yaml`,
+`[estimated]` values. The OpenAI function descriptions in `implementation/gpt/api/` were softened accordingly (`seo_keywords.yaml`,
 `video_development.yaml`): they now describe what runs and point at the gap/estimate fields instead of
 claiming a "complete" or "full" deliverable.

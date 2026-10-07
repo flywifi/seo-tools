@@ -1743,8 +1743,7 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
     Args:
         capability: The capability flag name (e.g. "wolfram_alpha", "e2b_sandbox",
                     "duckdb_analytics", "stats_compass", "jupyter_notebook",
-                    "r_statistics", "monte_carlo", "scikit_learn",
-                    "gemini_gem_export", "custom_gpt_export").
+                    "r_statistics", "monte_carlo", "scikit_learn").
         enabled: True to enable the capability, False to disable it.
     """
     with _WRITE_LOCK, _locked(CONFIG_LOCAL_PATH):   # P80 in-process, P81 cross-process (the wizard writes this file too)

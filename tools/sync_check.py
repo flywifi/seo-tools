@@ -1687,7 +1687,7 @@ def check_construction():
 def check_freshness_bundle():
     """Invariant 26: knowledge-only-surface freshness projection (P36).
 
-    The implementation/** knowledge digests that feed Claude Projects, Custom GPT, and Gemini must
+    The implementation/** knowledge digests that feed Claude Projects, ChatGPT Projects, and Gemini must
     each carry a visible freshness (as_of) stamp and be recorded in the projection manifest
     (implementation/freshness-bundle.json), and the manifest's canonical_digest must still match the
     current canonical data. This means a published baseline can never silently lag canonical: editing
@@ -1811,8 +1811,8 @@ def check_cross_modality():
 def check_implementation_schemas():
     """Invariant 29: every packaged schema under implementation/ parses (P38).
 
-    Every .json / .yaml / .yml under implementation/ must parse cleanly, so a malformed GPT Action
-    OpenAPI schema or Gemini function declaration can never ship (caught the P38-6 YAML typo class)."""
+    Every .json / .yaml / .yml under implementation/ must parse cleanly, so a malformed OpenAI
+    function spec or Gemini function declaration can never ship (caught the P38-6 YAML typo class)."""
     impl = ROOT / "implementation"
     if not impl.exists():
         return
@@ -2017,8 +2017,8 @@ def check_doc_template_starters():
 
 TRANSITION_SURFACE_KEYS = {
     "claude_desktop", "claude_code", "claude_web",
-    "chatgpt_web_plain", "chatgpt_custom_gpt",
-    "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_gems", "gemini_web", "gemini_desktop",
+    "chatgpt_web_plain",
+    "chatgpt_projects", "chatgpt_desktop", "gemini_api", "gemini_web", "gemini_desktop",
 }
 TRANSITION_SURFACE_REQUIRED = ("label", "vendor", "class_support", "carries", "flags_enforced",
                                "local_machine_required", "store_options", "origins", "setup_steps")
@@ -2107,11 +2107,6 @@ def check_transitions():
                 problem(f"transitions: implementation/gpt/web/custom-instructions.md is stamped "
                         f"{m_ci.group(1)} but versions.json ecosystem is {eco}. Re-export the pack "
                         f"and update the stamp, or the wizard's re-paste advice never terminates.")
-    for exp in ("export-gpt", "export-gem"):
-        p_exp = ROOT / "skills" / "atoms" / exp / "SKILL.md"
-        if p_exp.exists() and "Packaging version:" not in p_exp.read_text(encoding="utf-8"):
-            problem(f"transitions: skills/atoms/{exp}/SKILL.md must require the "
-                    "'Packaging version:' stamp in its instruction template")
     # (g) every spoke's Cross-modality Fallback line names ChatGPT, so a reader on that surface
     # can see their own degradation path (the P43-7 sweep cannot silently regress).
     for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
@@ -2855,8 +2850,7 @@ def check_moving_dates():
 # platform read APIs; publishing_disabled covers the per-platform publishing flags).
 SHARED_DEGRADED_KEYS = {
     "api_disabled", "publishing_disabled", "per_platform_publishing_disabled",
-    "live_publishing_disabled", "duckdb_disabled", "e2b_disabled", "gem_export_disabled",
-    "gpt_export_disabled", "jupyter_disabled", "wolfram_disabled", "stats_general_disabled",
+    "live_publishing_disabled", "duckdb_disabled", "e2b_disabled", "jupyter_disabled", "wolfram_disabled", "stats_general_disabled",
     "video_editing_disabled", "playbook_bootstrap_disabled",
     # P60: covers the compute_handoff_enabled capability (named like live_publishing_enabled).
     "compute_handoff_disabled",
@@ -2905,7 +2899,6 @@ def check_degraded_orphans():
         **{k: "stats_general_disabled" for k in ("r_statistics", "monte_carlo", "scikit_learn")},
         "wolfram_alpha": "wolfram_disabled", "e2b_sandbox": "e2b_disabled",
         "duckdb_analytics": "duckdb_disabled", "jupyter_notebook": "jupyter_disabled",
-        "gemini_gem_export": "gem_export_disabled", "custom_gpt_export": "gpt_export_disabled",
     }
 
     def _has_degraded(name):

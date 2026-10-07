@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-10-06",
+  "last_registry_update": "2026-10-07",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -3707,8 +3707,7 @@
       "last_changed_detected": "2026-09-19",
       "extraction_hint": "hard caps that silently truncate/reject exports: endpoint/param descriptions 300/700 chars, payloads <100k chars, 45s timeout, no custom headers",
       "used_by": [
-        "implementation/gpt/api",
-        "skills/atoms/export-gpt"
+        "implementation/gpt/api"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -3731,8 +3730,7 @@
       "last_changed_detected": "2026-09-19",
       "extraction_hint": "plain-text mirror; cheapest reliable sha256 diff of any surface; tool/agent packaging changes",
       "used_by": [
-        "implementation/gemini",
-        "skills/atoms/export-gem"
+        "implementation/gemini"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -6014,8 +6012,7 @@
       "last_changed_detected": "2026-09-19",
       "extraction_hint": "EXCERPT-CONFIDENCE (help.openai.com 403s direct fetch, re-confirmed 2026-08-16). Extracted facts: creating and publishing NEW Custom GPTs requires a Business, Enterprise or Edu workspace; personal plans (Free/Go/Plus/Pro) can use and edit existing GPTs but cannot create new ones. Re-verify by browser when possible.",
       "used_by": [
-        "shared/cross-modality/transitions.json",
-        "skills/atoms/export-gpt"
+        "shared/cross-modality/transitions.json"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -6896,23 +6893,6 @@
       "child_source_ids": []
     },
     {
-      "id": "gemini-gems-use",
-      "name": "Gemini Apps Help - Use Gems in Gemini Apps",
-      "url": "https://support.google.com/gemini/answer/15146780",
-      "category": "ai-surface-spec",
-      "tier": "T1",
-      "check_interval_days": 30,
-      "staleness_threshold_days": 30,
-      "last_checked": null,
-      "last_changed_detected": null,
-      "extraction_hint": "A Drive file added to a Gem: Gemini uses the most recent version of the file, and changes are reflected in the Gem.",
-      "used_by": [],
-      "depth": 0,
-      "parent_source_id": null,
-      "traversal_status": "pending",
-      "child_source_ids": []
-    },
-    {
       "id": "gemini-notebook-sources",
       "name": "Gemini Notebook Help - Add or discover new sources for your notebook",
       "url": "https://support.google.com/gemininotebook/answer/16215270",
@@ -7270,7 +7250,58 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "gemini-gems-to-skills",
+      "name": "About the transition from Gems to skills (Gemini Apps Help)",
+      "url": "https://support.google.com/gemini/answer/18560919",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-07",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "gemini-skills-manage",
+      "name": "Create and manage skills (Gemini Apps Help)",
+      "url": "https://support.google.com/gemini/answer/17094296",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-07",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-custom-gpt-retirement",
+      "name": "Custom GPT retirement and migration FAQ (help center)",
+      "url": "https://help.openai.com/en/articles/20001519-custom-gpt-retirement-and-migration-faq",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-10-07",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "922341ee3431195852555c98423cd5afe12f73061fd16aa75ef23bb7b60c0632"
+  "_content_digest": "0dec0176d50f4a0b80a8a4f1b8fe09ce864288450a4ac4a95c5ac899d541bc93"
 }

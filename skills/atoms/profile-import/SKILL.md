@@ -20,7 +20,8 @@ saves the file; the atom never does.
 ## When to use this skill
 - "import my ChatGPT profile", "merge these profile exports", "here are the JSON replies from
   the profile prompt". Exports come from `implementation/gpt/profile-import/PROMPT.md`, run once
-  per ChatGPT context (default chat, each Project, each custom GPT).
+  per ChatGPT context (default chat, each Project, and each custom GPT you still have before custom GPTs
+  retire on 2026-12-11).
 
 Do NOT use for:
 - Writing, saving, or modifying any file. Proposal-only: the human reviews and saves

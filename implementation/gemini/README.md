@@ -1,11 +1,12 @@
 # Creator OS — Gemini Setup
 
-## Gemini Advanced (Gems)
+## Gemini chat (web, mobile or desktop app)
 
-1. Open Gemini Advanced → Gems → New Gem.
-2. Name it "Creator OS".
-3. Paste the full contents of `system-instruction.md` into the Instructions field.
-4. Save. Use the Gem for all creator requests.
+1. Paste the full contents of `system-instruction.md` at the start of a chat.
+2. On a personal Google Account you can save it as a skill instead: Settings, then Skills, then
+   Create manually (or upload it as a SKILL.md on the web app or the Mac app).
+3. Gemini Gems are retired: Google turns them into skills from November 2026 for personal
+   accounts and in 2027 for work and school accounts.
 
 ## Gemini API
 

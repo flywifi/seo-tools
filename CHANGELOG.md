@@ -179,6 +179,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (custom GPT and Gems retired): custom GPTs retire on 2026-12-11 (help article 20001519)
+  and Gemini Gems become skills from November 2026 (support.google.com/gemini/answer/18560919), so
+  the `chatgpt_custom_gpt` and `gemini_gems` surfaces and their five pair overrides leave
+  `shared/cross-modality/transitions.json`, drift invariant 32's key list and the wizard's options
+  (old links land on `chatgpt_projects` and `gemini_web`), and the S10 scenario checks they stay
+  absent. The `export-gpt` and `export-gem` atoms (atoms 106 to 104), their capability flags and
+  messages, and `implementation/gpt/actions/` are removed. ChatGPT setups use a Project (the single
+  combined knowledge file on Free); Gemini setups paste the system instruction into a chat or save
+  it as a skill. Spoke "Runs on" lines, the cross-modality engine and the surface docs follow; the
+  profile-import prompt still reads a custom GPT until the retirement date (ADR 0077, superseding
+  ADR 0060). `moving-dates.json` carries the FAQ's dates, and three vendor pages are registered.
 - P102 (auditor hook on Bash and PowerShell): `.claude/settings.json` runs the read-only guard on
   the Bash and PowerShell tools with a command that tries `python3`, `python` and `py -3` in turn
   and, with none working, refuses the auditor's call (exit 2) and lets other calls through; it

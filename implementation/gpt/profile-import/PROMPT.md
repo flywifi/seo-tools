@@ -3,7 +3,8 @@
 Paste the prompt below into ChatGPT to export what it knows about you in a form Creator OS can
 ingest. Run it ONCE PER CONTEXT, because ChatGPT's knowledge is scattered: once in a default
 chat (it sees your memory and custom instructions), once inside EACH Project you use for creator
-work (it sees that Project's files and chats), and once inside each custom GPT you built. Save
+work (it sees that Project's files and chats), and once inside each custom GPT you built (until
+custom GPTs retire on 2026-12-11). Save
 each JSON reply to a file named after the context (for example `profile-export-default-chat.json`)
 and bring them home; the profile-import atom merges them into ONE proposed profile with per-field
 provenance, and you save the final file yourself.

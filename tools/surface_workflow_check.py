@@ -1510,10 +1510,10 @@ def _pins_contract(m):
                                                                                             {"drive_write": "none"})),
                                                   "'fax_machine' is not in transitions.json")),
         ("contract-undeclared-step-surface", has(bad(lambda c: c["workflows"][0]["steps"][0].__setitem__(
-            "surface", "gemini_gems")), "not declared")),
+            "surface", "chatgpt_projects")), "not declared")),
         ("contract-step-off-path", has(bad(lambda c: step(c, "W1", "check-export").__setitem__("surface", "gemini_web")),
                                        "not on the workflow's path")),
-        ("contract-path-surface-unused", has(bad(lambda c: c["workflows"][0]["path"].append("gemini_gems")),
+        ("contract-path-surface-unused", has(bad(lambda c: c["workflows"][0]["path"].append("chatgpt_projects")),
                                              "used by no step")),
         ("contract-unknown-mode", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__("drive_write", "anything")),
                                       "unknown drive_write")),

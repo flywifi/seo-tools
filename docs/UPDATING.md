@@ -137,17 +137,18 @@ developer host it behind HTTPS with authentication; the repo ships the server co
 a hosted service.
 
 ### ChatGPT
-ChatGPT has no way to auto-edit a custom GPT's Knowledge or a Project's files (there is no management
-API for them; they are web-UI only), so a **pasted/uploaded** copy is frozen and updates only when you
+ChatGPT has no way to auto-edit a Project's files (there is no management API for them; they are
+web-UI only), so a **pasted/uploaded** copy is frozen and updates only when you
 re-paste / re-upload. The frictionless version of that loop: compare the `Packaging version:` line to
 your wizard's version, then use the export prompt to regenerate the pack. The **background** version of
-ChatGPT is to point a stable **custom GPT Action** or a **developer-mode MCP connector** at your hosted
-endpoint, so the data it serves updates server-side with no rebuild. Full per-flavor detail (plain
-chat, custom GPT, Projects, desktop app, agent mode) is in docs/TRANSITIONS.md and docs/CROSS-MODALITY.md.
+ChatGPT is to point a **developer-mode MCP connector** at your hosted endpoint, so the data it serves
+updates server-side with no rebuild. Full per-flavor detail (plain chat, Projects, desktop app,
+agent mode) is in docs/TRANSITIONS.md and docs/CROSS-MODALITY.md.
 
 ### Gemini
-Gems are a frozen paste (re-paste on a version change); a Gemini API backend you control updates when
-you update that backend. See docs/CROSS-MODALITY.md.
+A pasted system instruction, or a skill made from it, is a frozen copy (re-paste or re-upload when its
+`Data freshness:` line falls behind); a Gemini API backend you control updates when you update that
+backend. See docs/CROSS-MODALITY.md.
 
 ---
 
@@ -166,8 +167,9 @@ new version:
    alters an existing value. Backups and the rollback log are gitignored local files.
 
 ## Honest ceilings (what "background" cannot do)
-- Pasted/uploaded knowledge on ChatGPT, claude.ai Projects, and Gemini Gems can never auto-update: it
-  is a snapshot, and the only signal is the `Packaging version:` line you compare yourself.
+- Pasted/uploaded knowledge on ChatGPT, claude.ai Projects, and Gemini chats can never auto-update: it
+  is a snapshot, and the only signal is the `Packaging version:` or `Data freshness:` line you compare
+  yourself.
 - Even a hosted connector propagates a changed **tool contract** unreliably mid-session (claude.ai has
   shown a stale cached tool list; ChatGPT needs a manual "Refresh"), which is why Creator OS pushes
   evolving content through a small **stable** tool set. `serverInfo.version` is a poll signal, not a

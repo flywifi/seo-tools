@@ -123,8 +123,8 @@ exactly two ways to get that, and every surface's guidance says which applies:
 2. the creator uploads the files to a sandbox that runs the tools on the copy.
 
 A hosted connector runs in the vendor's cloud and **cannot see files on the creator's laptop, even the
-same laptop**. So browser-only surfaces (claude.ai web and mobile, ChatGPT web / custom GPT / Project /
-agent, Gemini and Gems) re-route to either "do this step on your computer" or "upload the files to a
+same laptop**. So browser-only surfaces (claude.ai web and mobile, ChatGPT web / Project /
+agent, Gemini) re-route to either "do this step on your computer" or "upload the files to a
 machine that runs the tools." This lane is Class C; the spoke states which fallback rung it used and
 never presents reasoning as a verified local result. Full per-surface and per-OS matrices live in
 `docs/CONTENT-IMPORT.md`.

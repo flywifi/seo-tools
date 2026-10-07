@@ -157,8 +157,6 @@ Doc; an update replaces its whole content.
 
 What the AI engines do with it, as their own help pages say:
 
-- **Gemini Gems:** "If you add a file from your Drive, Gemini will use the most recent version of
-  the file."
 - **Gemini Notebook** (formerly NotebookLM): Drive sources "are auto-updated and will sync every
   few minutes"; a source can also be refreshed with "Click to sync with Google Drive".
 - **Claude Projects:** "Google Docs added to chats and projects sync directly from Google Drive";
@@ -202,7 +200,6 @@ These depend on macOS and on your Google account, so the selftest cannot show th
   {"id": "google-drive-api-scopes", "name": "Google Drive API - Choose Google Drive API scopes", "url": "https://developers.google.com/workspace/drive/api/guides/api-specific-auth", "category": "api-changelog", "tier": "T1", "extraction_hint": "drive.file: create new Drive files, or modify existing files, that you open with an app or that the user shares with an app while using the Google Picker API or the app's file picker."},
   {"id": "google-drive-api-search-files", "name": "Google Drive API - Search for files and folders", "url": "https://developers.google.com/workspace/drive/api/guides/search-files", "category": "api-changelog", "tier": "T1", "extraction_hint": "Query string literals escape a single quote and a backslash with a backslash."},
   {"id": "google-drive-file-versions", "name": "Google Drive Help - Check activity and file versions", "url": "https://support.google.com/drive/answer/2409045", "category": "platform-spec", "tier": "T1", "extraction_hint": "A version might be permanently deleted after 30 days or if there are 100 newer versions, unless Keep forever; Google Docs version history is separate."},
-  {"id": "gemini-gems-use", "name": "Gemini Apps Help - Use Gems in Gemini Apps", "url": "https://support.google.com/gemini/answer/15146780", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "A Drive file added to a Gem: Gemini uses the most recent version of the file, and changes are reflected in the Gem."},
   {"id": "gemini-notebook-sources", "name": "Gemini Notebook Help - Add or discover new sources for your notebook", "url": "https://support.google.com/gemininotebook/answer/16215270", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "Sources imported from Google Drive are auto-updated and sync every few minutes; manual Click to sync with Google Drive; NotebookLM's help now publishes as Gemini Notebook."},
   {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"}
 ]

@@ -172,15 +172,15 @@ See `implementation/gpt/web/README.md` for limitations and the capability compar
 Creator OS file uploads, pinned instructions, and project-only memory on every ChatGPT tier.
 Full walkthrough and acceptance prompts: `implementation/gpt/project/README.md`. File caps
 (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu,
-Pro, Business, and Enterprise, at most 10 files per upload. Do NOT build a new Custom GPT:
-OpenAI retires Custom GPTs in favor of Plugins -- Enterprise on 2026-12-11 with other plans
-expected to follow (ADR 0060) `[NEEDS VERIFICATION: secondary reporting adds an Enterprise
-new-GPT creation stop of 2026-09-25 and in-product migration tooling from ~2026-09-17, from
-the walled retirement FAQ (help article 20001519), unread first-party]`.
+Pro, Business, and Enterprise, at most 10 files per upload; on Free, upload the single combined
+file `implementation/claude/project/creator-os-combined.md`. Custom GPTs retire on 2026-12-11
+(2027-02-11 for Enterprise workspaces with an approved deferral; help article 20001519, read
+2026-10-05), and custom actions do not carry over. OpenAI names plugins as the migration target;
+Creator OS uses a Project because a Project holds the instructions and knowledge files Creator OS
+needs (ADR 0077).
 
-More ChatGPT paths (P43): the setup wizard's `/chatgpt` screen walks plain web chat, a custom
-GPT (retiring surface -- see above), a ChatGPT Project, and the ChatGPT desktop app step by
-step, and `/transitions` walks any
+More ChatGPT paths (P43): the setup wizard's `/chatgpt` screen walks plain web chat, a ChatGPT
+Project, and the ChatGPT desktop app step by step, and `/transitions` walks any
 move between AIs (`docs/TRANSITIONS.md`). Bringing ChatGPT's knowledge of you home:
 `implementation/gpt/profile-import/README.md`. Live tools on ChatGPT require a deployed
 developer-mode MCP connector (`implementation/gpt/mcp-connector/README.md`; conditional
@@ -190,14 +190,17 @@ any third-party chat, read `docs/PASTE-SAFETY.md`. The custom-instructions file 
 
 ---
 
-## Option E -- Gemini (Gems or API)
+## Option E -- Gemini (chat or API)
 
-**Gemini Advanced (Gems):**
+**Gemini chat (web, mobile or desktop app):**
 
-1. Open Gemini Advanced > Gems > New Gem.
-2. Name it "Creator OS."
-3. Open `implementation/gemini/system-instruction.md`, copy the full text, paste into the
-   Instructions field, and save.
+1. Open `implementation/gemini/system-instruction.md` and paste its full text at the start of a
+   chat.
+2. On a personal Google Account you can save it as a skill instead: Settings, then Skills, then
+   Create manually (or upload it as a SKILL.md on the web app or the Mac app; help article
+   support.google.com/gemini/answer/17094296).
+3. Gemini Gems are retired: Google turns them into skills from November 2026 for personal
+   accounts and in 2027 for work and school accounts (support.google.com/gemini/answer/18560919).
 
 **Gemini API:**
 
@@ -306,8 +309,6 @@ python3 tools/competitor_snapshot.py --export-summary
 | SQL analytics (DuckDB over CSV/Parquet/JSON) | Yes (MCP) | No | Via remote MCP | No | No | No |
 | Jupyter notebook sessions | Yes (MCP) | No | Via remote MCP | No | No | No |
 | ML predictions (scikit-learn) | Yes (MCP) | No | Via remote MCP | No | No | No |
-| Gemini Gem export packaging | Yes | Yes | Yes (export and save it) | No | No | N/A |
-| Custom GPT export packaging (retiring surface, ADR 0060) | Yes | Yes | Yes (export and save it) | N/A | N/A | No |
 | Subagent workflows (content-pipeline, etc.) | Yes | No | Not verified | No | No | No |
 | Agent orchestration (read-only research agents) | Yes | No | Not verified | No | No | No |
 | Edit spec generation (markers, chapters, captions, presets) | Yes | Yes | Yes | Yes | Yes | Yes |

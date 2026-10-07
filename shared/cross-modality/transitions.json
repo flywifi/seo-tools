@@ -141,37 +141,6 @@
         "Google Drive app write actions depend on plan, workspace and Google permissions (help.openai.com/en/articles/10929079)"
       ]
     },
-    "chatgpt_custom_gpt": {
-      "label": "Custom GPT (built in the ChatGPT GPT builder)",
-      "vendor": "openai",
-      "class_support": {
-        "A": "paste",
-        "B": "action",
-        "C": "none"
-      },
-      "carries": [
-        "pasted_instructions",
-        "knowledge_files",
-        "actions"
-      ],
-      "flags_enforced": false,
-      "local_machine_required": false,
-      "store_options": [
-        "export_and_you_save"
-      ],
-      "origins": [],
-      "setup_steps": [
-        "IMPORTANT (confirmed 2026-09-19, help article 8554397 read in full): creating or publishing a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal plan, use ChatGPT Projects instead (the recommended door).",
-        "RETIREMENT NOTICE: OpenAI plans to retire Custom GPTs in favor of Plugins. Enterprise workspaces lose them on 2026-12-11; other plans are expected to follow; a migration flow is targeted for 2026-09-17. Prefer the Project or connector door for new setups; existing GPTs keep working until retirement.",
-        "If you have a workspace: ask Creator OS (on your computer) for a Custom GPT export; the export-gpt package gives you the instruction file and knowledge files.",
-        "In the GPT builder, paste the instruction file and upload the knowledge files (20-file cap per GPT).",
-        "Optionally add the jurisdiction Action: paste implementation/gpt/actions/jurisdiction_overlay_action.yaml and set the deployed endpoint URL.",
-        "Note: ChatGPT memory does not function inside Custom GPTs."
-      ],
-      "needs_verification": [
-        "that your workspace still offers the GPT builder (Custom GPTs are being retired in favor of Plugins; Enterprise: 2026-12-11, other plans expected to follow; help.openai.com article 8554397, read 2026-09-19)"
-      ]
-    },
     "chatgpt_projects": {
       "label": "ChatGPT Projects (a Project with files at chatgpt.com)",
       "vendor": "openai",
@@ -192,10 +161,11 @@
       "origins": [],
       "setup_steps": [
         "Fastest path: the setup wizard on the maintainer's computer (python3 tools/wizard.py, the ChatGPT button) copies each paste, stages the exact upload folder for the plan, and verifies the setup from pasted answers (P90).",
-        "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats (best set at creation; an existing unshared project can be switched later [NEEDS VERIFICATION: switching reported 2026-08-14; help center not machine-fetchable]).",
+        "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats; the memory setting can be changed later in the project's settings, and project-only memory turns off ChatGPT Work in that project (help article 10169521).",
         "Set the Project instructions to implementation/gpt/project/project-instructions.md (paste the whole file).",
-        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per simultaneous upload. On Free the full bundle does not fit; upload the first 5 (01 through 05) instead.",
-        "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when your files are stale."
+        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per simultaneous upload. On Free the separate files do not fit; upload the single combined file implementation/claude/project/creator-os-combined.md instead.",
+        "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when your files are stale.",
+        "Custom GPTs retire on 2026-12-11 (help article 20001519, which also names plugins as OpenAI's migration target); Creator OS uses a Project instead, because a Project holds the instructions and knowledge files Creator OS needs."
       ],
       "needs_verification": []
     },
@@ -258,30 +228,6 @@
       ],
       "needs_verification": []
     },
-    "gemini_gems": {
-      "label": "Gemini Gems (consumer)",
-      "vendor": "google",
-      "class_support": {
-        "A": "paste",
-        "B": "none",
-        "C": "none"
-      },
-      "carries": [
-        "pasted_instructions"
-      ],
-      "flags_enforced": false,
-      "local_machine_required": false,
-      "store_options": [
-        "export_and_you_save",
-        "google_drive"
-      ],
-      "origins": [],
-      "setup_steps": [
-        "Paste implementation/gemini/system-instruction.md into a Gem.",
-        "Gems cannot call custom tools; this is knowledge-only. For live data, move to the Gemini API or a Claude surface."
-      ],
-      "needs_verification": []
-    },
     "gemini_web": {
       "label": "Gemini web app (gemini.google.com)",
       "vendor": "google",
@@ -304,8 +250,8 @@
       ],
       "origins": [],
       "setup_steps": [
-        "Make a Gem from the export-gem output (its first line carries the Packaging version), or paste implementation/gemini/system-instruction.md.",
-        "Add the hub's \"About me and my voice\" Doc as Gem knowledge; a Gem uses the latest version of a Drive file (support.google.com/gemini/answer/15146780).",
+        "Paste implementation/gemini/system-instruction.md at the start of a chat. On a personal Google Account you can instead save it as a skill: Settings, then Skills, then Create manually, or upload it as a SKILL.md on the web app or the Mac app (support.google.com/gemini/answer/17094296). Gems are retired: Google turns them into skills from November 2026 for personal accounts and in 2027 for work and school accounts (support.google.com/gemini/answer/18560919).",
+        "Attach the hub's \"About me and my voice\" Doc to the chat from Google Drive when a reply should use your voice; the chat reads the Doc as it is when you attach it.",
         "Export to Docs saves a NEW Google Doc in your Drive (support.google.com/gemini/answer/14184041); move it into the hub's Inbox folder so the computer picks it up.",
         "Optional, for live tools: connect the deployed Creator OS MCP endpoint as a custom app in Settings, then Connected Apps (support.google.com/gemini/answer/17209137). Capability flags are not enforced here; the endpoint enforces its own gates."
       ],
@@ -370,35 +316,10 @@
         "Read docs/PASTE-SAFETY.md before pasting anything: rate card numbers, contract text, and personal identity details do not belong in a third-party chat without a deliberate decision."
       ]
     },
-    "claude_desktop->chatgpt_custom_gpt": {
-      "travels_automatically": [],
-      "needs_export": [
-        "a Custom GPT package from export-gpt (instruction file + up to 20 knowledge files)",
-        "optionally the jurisdiction Action YAML"
-      ],
-      "stops_working": [
-        "all Class C tools",
-        "capability flag enforcement",
-        "local stores",
-        "the local ask-first consent step for live lookups (the Action calls public endpoints from OpenAI's side)"
-      ],
-      "reimport_steps": [
-        "If your plan can build GPTs (Business/Enterprise/Edu workspaces only as of 2026-08; personal plans cannot create new GPTs -- use a ChatGPT Project instead): paste the instruction file in the GPT builder",
-        "upload the knowledge files",
-        "re-export and re-upload when the packaging version changes"
-      ],
-      "stays_authoritative": "local_fs",
-      "flags_unenforced": [
-        "ALL capability flags"
-      ],
-      "notes": [
-        "The Action privacy note applies: what you type into the GPT goes to OpenAI and to the public endpoint."
-      ]
-    },
     "claude_desktop->chatgpt_projects": {
       "travels_automatically": [],
       "needs_export": [
-        "the same Custom GPT package (instruction + knowledge files) reused as Project instructions + Project files"
+        "the Project instructions (implementation/gpt/project/project-instructions.md) and the knowledge files (implementation/claude/project/knowledge/, or the single combined file on Free)"
       ],
       "stops_working": [
         "all Class C tools",
@@ -486,7 +407,7 @@
       ],
       "stops_working": [],
       "reimport_steps": [
-        "run the profile-import prompt once per ChatGPT context (default chat, each Project, each custom GPT) and paste the JSON back home",
+        "run the profile-import prompt once per ChatGPT context (default chat, each Project, and each custom GPT you still have before custom GPTs retire on 2026-12-11) and paste the JSON back home",
         "the profile-import atom proposes creator-profile.local.json with per-field provenance; you review and save it by hand",
         "drop dated export files into your store folder; the local tools union-merge them automatically"
       ],
@@ -495,42 +416,6 @@
       "notes": [
         "Everything gains enforcement again on this transition: flags, consent gates, deterministic tools."
       ]
-    },
-    "chatgpt_web_plain->chatgpt_custom_gpt": {
-      "travels_automatically": [
-        "your ChatGPT account context (memory) may carry over [NEEDS VERIFICATION: memory behavior inside GPTs varies]"
-      ],
-      "needs_export": [
-        "the Custom GPT package (instruction + knowledge files); custom instructions do not apply inside a GPT"
-      ],
-      "stops_working": [],
-      "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
-        "build the GPT from the export-gpt package",
-        "re-run the profile-import prompt inside the GPT context if you rely on profile answers there"
-      ],
-      "stays_authoritative": "export_and_you_save",
-      "flags_unenforced": [
-        "ALL capability flags on both surfaces"
-      ],
-      "notes": []
-    },
-    "chatgpt_custom_gpt->chatgpt_projects": {
-      "travels_automatically": [],
-      "needs_export": [
-        "reuse the same instruction + knowledge files as Project instructions + files"
-      ],
-      "stops_working": [
-        "Actions (Projects have no Actions; the jurisdiction lookup stops working)"
-      ],
-      "reimport_steps": [
-        "create the Project, paste instructions, upload files"
-      ],
-      "stays_authoritative": "export_and_you_save",
-      "flags_unenforced": [
-        "ALL capability flags on both surfaces"
-      ],
-      "notes": []
     },
     "chatgpt_web_plain->chatgpt_desktop": {
       "travels_automatically": [
@@ -562,44 +447,6 @@
       ],
       "stays_authoritative": "local_fs",
       "flags_unenforced": [],
-      "notes": []
-    },
-    "claude_desktop->gemini_gems": {
-      "travels_automatically": [],
-      "needs_export": [
-        "the Gem instruction pack (export-gem; 10-file knowledge limit)"
-      ],
-      "stops_working": [
-        "all Class B and C capabilities (Gems cannot call custom tools)",
-        "flags",
-        "local stores"
-      ],
-      "reimport_steps": [
-        "paste the Gem instruction",
-        "re-paste when the packaging version changes"
-      ],
-      "stays_authoritative": "local_fs",
-      "flags_unenforced": [
-        "ALL capability flags"
-      ],
-      "notes": [
-        "Gems are the most limited surface; only pure-reasoning skills work."
-      ]
-    },
-    "gemini_gems->chatgpt_custom_gpt": {
-      "travels_automatically": [],
-      "needs_export": [
-        "the Custom GPT package (the Gem pack is Gemini-shaped; export fresh for the GPT builder)"
-      ],
-      "stops_working": [],
-      "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
-        "build the GPT from the export-gpt package; the jurisdiction Action becomes available again"
-      ],
-      "stays_authoritative": "export_and_you_save",
-      "flags_unenforced": [
-        "ALL capability flags on both surfaces"
-      ],
       "notes": []
     },
     "claude_code->claude_desktop": {

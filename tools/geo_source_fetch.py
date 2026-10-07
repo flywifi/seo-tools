@@ -3,7 +3,7 @@
 
 Two jobs:
   1. THE UNIVERSAL PATH (example): every public endpoint below does point-in-polygon SERVER-SIDE, so
-     any caller that can make an HTTPS request -- an MCP tool, a Custom GPT Action, a Gemini function,
+     any caller that can make an HTTPS request -- an MCP tool, a remote connector, a Gemini function,
      this script, or a human with curl -- gets the same overlay answer for an address. The offline
      engine (tools/geo_overlay.py) is the privacy path when a local Python runtime exists; this is the
      fetch path that also works to cache real boundaries for that engine.

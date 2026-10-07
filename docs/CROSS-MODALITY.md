@@ -19,14 +19,15 @@ so the model never needs a local GIS engine. The offline `tools/geo_overlay.py` 
 | **Claude Desktop (local MCP)** | Yes | Yes | `tools/mcp_server.py` -> `jurisdiction_resolve` (offline) + consent-gated live | `implementation/claude/desktop/` | <!-- verify: tools/mcp_server.py::jurisdiction_resolve -->
 | **Claude Code / CLI** | Yes | Yes | Runs the tools directly, or `geo_source_fetch.py resolve` | native |
 | **claude.ai web + mobile** | Sandbox-only | Yes | A hosted **remote-MCP** connector (`tools/mcp_server.py --serve-remote`) fronting the same tools | transport defined; you host it |
-| **Custom GPT (OpenAI)** | No | Yes | A **GPT Action** whose OpenAPI schema targets the public endpoints | `implementation/gpt/actions/jurisdiction_overlay_action.yaml` |
+| **ChatGPT (developer-mode connector)** | No | Yes | The deployed remote-MCP endpoint added as a developer-mode connector (documented for Business, Enterprise and Edu workspaces on ChatGPT web) | `implementation/gpt/mcp-connector/README.md` |
 | **Gemini API (developer)** | No (your backend does) | Yes | **Function calling**: Gemini emits the call, your app executes the HTTPS request | `implementation/gemini/jurisdiction-function-declarations.json` |
-| **Gemini "Gems" (consumer UI)** | No | **No** | No custom-tool / outbound-call surface at all | dead end |
+| **Gemini web app** | No | Yes, with a deployed endpoint | The same remote-MCP endpoint connected as a custom app (US personal accounts, support.google.com/gemini/answer/17209137) | `implementation/gpt/mcp-connector/README.md` |
+| **Gemini desktop app** | No | **No** | No custom-tool / outbound-call surface | dead end |
 | **Human + curl / browser** | If they have Python | Yes | Curl the `/query` endpoint (browser may hit CORS; curl doesn't) | `tools/geo_source_fetch.py` |
 
-**One honest dead end:** the consumer Gemini "Gems" UI has no custom-tool surface, so it cannot resolve
-overlays from live data. A Gem user must paste a lon/lat, use the Gemini API, or use a hosted remote-MCP
-connector.
+**One honest dead end:** the Gemini desktop app has no custom-tool surface, so it cannot resolve
+overlays from live data. Its user pastes a lon/lat, or moves to the Gemini web app with a hosted
+remote-MCP connector, or to the Gemini API. (Gemini Gems, which had the same limit, are retired.)
 
 ## How each surface wires it
 
@@ -46,14 +47,12 @@ connector.
   (`--serve-remote` or a bare `--transport streamable-http`/`sse`) refuses a non-loopback bind with
   no `CREATOR_OS_MCP_TOKEN` and no `--insecure`, and enforces an in-process bearer gate when a
   token is set. ChatGPT registration steps carry needs-verification tags (plan gating).
-- **Custom GPT** (building requires a Business/Enterprise/Edu workspace as of 2026-08, and the
-  surface is retiring: Enterprise loses Custom GPTs 2026-12-11 with other plans expected to
-  follow -- ADR 0060; steer new setups to a ChatGPT Project or the connector door): in the GPT builder, add an **Action** and paste
-  `implementation/gpt/actions/jurisdiction_overlay_action.yaml`. Auth = none (all endpoints are keyless).
-  The GPT calls the public ArcGIS/FEMA/Census endpoints itself.
+- **ChatGPT:** custom GPTs, and with them GPT Actions, retire on 2026-12-11 (help article 20001519;
+  ADR 0077). The live route is the developer-mode connector to the deployed endpoint above; a
+  Project or plain chat runs the overlay as reasoning over a coordinate you paste.
 - **Gemini API:** load `implementation/gemini/jurisdiction-function-declarations.json` as
   `functionDeclarations`; when the model returns a call, your app makes the HTTPS request and returns the
-  result. (A consumer Gem cannot do this.)
+  result. (The Gemini desktop app cannot do this.)
 - **A human:** `python3 tools/geo_source_fetch.py resolve "809 E Amelia St, Orlando FL 32803"`, or curl
   the endpoints directly.
 
@@ -61,8 +60,8 @@ connector.
 
 Capability flags (`creator-os-config` capabilities) are evaluated only where the Creator OS
 Python tools run: Claude Desktop/Code on your computer, your own Gemini API backend, or a
-deployed remote MCP endpoint (which enforces them on ITS machine). On ChatGPT (web, custom
-GPT, Projects, desktop without a connector) and Gemini Gems, nothing evaluates the flags:
+deployed remote MCP endpoint (which enforces them on ITS machine). On ChatGPT (web,
+Projects, desktop without a connector) and Gemini chats, nothing evaluates the flags:
 they are at best text the model has read. Treat every gate as advisory on those surfaces,
 and see docs/PASTE-SAFETY.md before moving private data there.
 
@@ -80,22 +79,20 @@ behavior on its next connect. Two rules make this hold, and one is a hard limit:
   spec 2026-07-28) is a poll signal read on a new session, never pushed into a live one. The
   `get_server_info` tool surfaces it. <!-- verify: tools/mcp_server.py::get_server_info -->
 
-Knowledge-only surfaces (pasted packs, uploaded Project/GPT knowledge, Gems) never auto-update: the
-`Packaging version:` line is the only staleness signal, compared by hand. Full runbook: docs/UPDATING.md.
+Knowledge-only surfaces (pasted packs, uploaded Project knowledge, Gemini chats) never auto-update: the
+`Packaging version:` or `Data freshness:` line is the only staleness signal, compared by hand. Full runbook: docs/UPDATING.md.
 
 ## Boundaries that hold on every surface
 - Every output carries the **advisory-not-legal-determination** boundary; genuine legal conflicts return
   `human_review_required` (a safety floor is never silently discarded).
 - Live network is **ask-first** where the surface supports consent (Claude MCP); where it does not
-  (a GPT Action, a Gemini backend), the *builder* is choosing to enable the call, and the schema
+  (a Gemini backend), the *builder* is choosing to enable the call, and the schema
   descriptions carry the advisory + "planning only" language.
 - No fabrication: values behind ToS-limited portals (Municode setback tables, ICC/FBC text) are
   null-flagged, not scraped, on every surface.
 
 ## Caveats
 - **Browser CORS:** ArcGIS FeatureServers are usually CORS-enabled; FEMA/Census vary. Server-to-server
-  callers (GPT Actions, a Gemini backend, an MCP host, curl) are unaffected.
+  callers (a Gemini backend, an MCP host, curl) are unaffected.
 - **claude.ai sandbox egress** to arbitrary hosts may be restricted; the remote-MCP connector is the
   reliable web/mobile route.
-- **GPT Action multi-host:** the Action schema uses per-operation server overrides for the three hosts.
-  If a GPT importer rejects that, split it into one Action per host (Census, Orlando ArcGIS, FEMA).

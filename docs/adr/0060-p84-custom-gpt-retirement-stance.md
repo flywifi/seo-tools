@@ -1,6 +1,6 @@
 # ADR 0060 — Custom GPT retirement: keep export-gpt, steer new setups elsewhere
 
-- Status: accepted
+- Status: Superseded by [0077](0077-p102-custom-gpt-and-gems-retired.md)
 - Date: 2026-09-19
 - Phase: P84 (walled-page banking pass)
 

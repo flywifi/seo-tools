@@ -111,7 +111,7 @@ confirm.
 | W6 | ChatGPT on the web, then the Gemini desktop app | "Post it now" goes nowhere: the Gemini desktop app has no Creator OS tools; on the computer the publishing gate refuses with live publishing off and makes no network call, while with it on the network spy records the attempt (so the spy is shown to see one); the schedule tool returns a plan for human review with the flag off or on, and calls neither the config loader nor the credentials loader |
 | W7 | Gemini on the web, then the Gemini desktop app | Gemini Spark editing the content calendar in a connected folder: a valid edit is mirrored and the Doc updated; a broken edit is refused, stamped `error`, and the Drive copy and Doc keep the last good version; a deleted file keeps its Drive copy |
 | W8 | Gemini on the web, then Claude Desktop | Notes in the Inbox: a text note with injected instructions is sealed in Quarantine and recorded; a Word export waits for a Claude session (gap SW-G11); a transcript is proposed, and an in-session escalation to REVIEW is recorded when it is approved; the same transcript saved again is recognized as already handled |
-| W9 | Gemini on the web, then the ChatGPT desktop app | "Is my Drive hub on?" is answered by the computer's connector plan, not by pasted text; the export templates carry the Packaging version stamp that tells you how old a pasted pack is |
+| W9 | Gemini on the web, then the ChatGPT desktop app | "Is my Drive hub on?" is answered by the computer's connector plan, not by pasted text; the pasted packs carry a stamp (the Packaging version line on the ChatGPT custom instructions, the Data freshness line on the Gemini system instruction) that tells you how old a pasted pack is |
 | W10 | All three web chats and desktop apps, one day | Everything above at once: one engine pass folds it in, and a second pass changes nothing (no new copies, no re-run job, no new ledger rows, no new task events) |
 
 ## Live steps (only your devices can do these)
@@ -138,11 +138,11 @@ confirm.
   in Claude Desktop the same day, then ask Creator OS for the list: each change appears once.
 - **W6:** Ask ChatGPT on the web for a posting package, then tell the Gemini desktop app to post
   it: nothing is posted. Posting happens only from the Scheduling Dashboard after you confirm.
-- **W7:** Add the "About me and my voice" Doc to a Gem. If you use Gemini Spark, connect only the
+- **W7:** Attach the "About me and my voice" Doc to a Gemini chat from Drive. If you use Gemini Spark, connect only the
   hub's Inbox folder; check `python3 tools/profile_mirror.py status` after any edit.
 - **W8:** Use Export to Docs in Gemini on the web, move the Doc into Creator OS/Inbox, and ask
   Claude Desktop to sort the Inbox.
-- **W9:** Ask your Gem whether the hub is on (it can only repeat its pasted text), then in Codex
+- **W9:** Ask Gemini whether the hub is on (it can only repeat its pasted text), then in Codex
   run `python3 shared/connectors/connectors.py --plan` for the computer's answer.
 - **W10:** Do W1, W2, W5 and W8 on one day, let the computer run twice, and check the mirror
   status, Jobs/results, Inbox/Quarantine and the task list.
@@ -214,7 +214,6 @@ on 2026-10-01 and are registered in the source registry, so the currency checks 
   {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
   {"id": "gemini-spark-mac", "url": "https://support.google.com/gemini/answer/17208717"},
   {"id": "gemini-custom-mcp-apps", "url": "https://support.google.com/gemini/answer/17209137"},
-  {"id": "gemini-mac-app", "url": "https://support.google.com/gemini/answer/17011627"},
-  {"id": "gemini-gems-use", "url": "https://support.google.com/gemini/answer/15146780"}
+  {"id": "gemini-mac-app", "url": "https://support.google.com/gemini/answer/17011627"}
 ]
 ```

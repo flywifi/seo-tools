@@ -1439,7 +1439,7 @@
         "gemini_web",
         "gemini_desktop"
       ],
-      "story": "A Gem drafts in my voice from the Doc; Gemini Spark edits, breaks, fixes and deletes the content calendar in a connected folder.",
+      "story": "A Gemini chat drafts in my voice from the Doc attached from Drive; Gemini Spark edits, breaks, fixes and deletes the content calendar in a connected folder.",
       "steps": [
         {
           "id": "home-calendar",
@@ -1679,7 +1679,7 @@
         "SW-G1"
       ],
       "live_steps": [
-        "In the Gemini web app, add the hub's \"About me and my voice\" Doc to a Gem and ask for a script in your voice; it uses the latest version of the Doc.",
+        "In the Gemini web app, attach the hub's \"About me and my voice\" Doc to a chat from Google Drive and ask for a script in your voice.",
         "If you use Gemini Spark in the Gemini app on the Mac, connect ONLY the hub's Inbox folder. If Spark ever edits your Creator OS folder, the next mirror run copies a valid edit, refuses a broken one (the Drive copy and the Doc stay as they were), and keeps the Drive copy of a deleted file.",
         "Check with: python3 tools/profile_mirror.py status"
       ]
@@ -1910,7 +1910,7 @@
         "gemini_web",
         "chatgpt_desktop"
       ],
-      "story": "Is my Drive hub on? A Gem can only answer from its pasted text; the computer's connector plan is the authority.",
+      "story": "Is my Drive hub on? A Gemini chat can only answer from its pasted text; the computer's connector plan is the authority.",
       "steps": [
         {
           "id": "hub-on",
@@ -1986,19 +1986,19 @@
           ]
         },
         {
-          "id": "gem-stamp",
+          "id": "gemini-stamp",
           "kind": "real",
           "op": "repo.text",
           "with": {
-            "path": "skills/atoms/export-gem/SKILL.md",
+            "path": "implementation/gemini/system-instruction.md",
             "needles": [
-              "Packaging version:"
+              "Data freshness: as of"
             ]
           },
           "surface": "gemini_web",
           "assert": [
             {
-              "path": "contains.Packaging version:",
+              "path": "contains.Data freshness: as of",
               "check": "eq",
               "value": true
             }
@@ -2044,7 +2044,7 @@
         "SW-G5"
       ],
       "live_steps": [
-        "Ask your Gem whether the Drive hub is on: it can only repeat what its pasted instructions say, and the export-gem output's first line shows which version that text is.",
+        "Ask Gemini whether the Drive hub is on: it can only repeat what its pasted instructions say, and the pasted Gemini pack's first line shows how old that text is.",
         "In the ChatGPT desktop app, open Codex on your Creator OS folder and run: python3 shared/connectors/connectors.py --plan (this is the computer's actual answer)."
       ]
     },

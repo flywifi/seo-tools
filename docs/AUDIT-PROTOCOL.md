@@ -10,8 +10,9 @@ document governs everything else.
 
 An audit's surface list and origin list are DERIVED, never recalled:
 
-- **The surface set IS the ids in `shared/cross-modality/transitions.json`** (eleven surfaces as
-  of P102, which retired `cowork_local` and `cowork_remote`; ADR 0075). Drift invariant 32 keeps the json, its
+- **The surface set IS the ids in `shared/cross-modality/transitions.json`** (nine surfaces as
+  of P102, which retired `cowork_local` and `cowork_remote` (ADR 0075) and `chatgpt_custom_gpt` and
+  `gemini_gems` (ADR 0077)). Drift invariant 32 keeps the json, its
   constant, `docs/TRANSITIONS.md`, and the wizard consistent.
 - **The origin set IS `ALLOWED_ORIGINS` in `tools/handoff/queue.py`**
   <!-- verify: tools/handoff/queue.py::ALLOWED_ORIGINS -->, which drift invariant 55
@@ -48,7 +49,7 @@ classes ran per tool.
 
 Walk the user journey per surface, from setup to deliverable, with the surface set from §1 as the
 row list. The pinned scenario suite checks on every run that the retired Cowork rows stay out of
-the model (the S10 `cowork-surfaces-retired` leg), so the row list cannot silently grow them back. Honesty rule: legs that this sandbox can only simulate (real
+the model (the S10 `cowork-surfaces-retired` and `custom-gpt-and-gems-retired` legs), so the row list cannot silently grow them back. Honesty rule: legs that this sandbox can only simulate (real
 Gatekeeper dialogs, a live claude.ai agentic task, real OAuth consent screens) are labeled
 `[not exercised on the real surface]` in the notes and land on the hands-on checklist — they are
 never reported as exercised. An auditor running in a remote cloud sandbox is itself on one of the
