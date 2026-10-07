@@ -847,6 +847,18 @@ wizard handles them. A checkmark means you are ready.</p>
 {_first_run_nav("/desktop")}
 """, dots=["done", "done", "active", "dot"])
 
+def _restart_step() -> str:
+    """How to fully quit and reopen Claude Desktop on this system (HTML): closing the window leaves
+    it running, on a Mac in the Dock and on Windows in the notification area."""
+    os_name = _os()
+    if os_name == "windows":
+        return ("quit Claude Desktop from its icon in the notification area by the clock "
+                "(right-click it, then Quit; closing the window leaves it running) and reopen it")
+    if os_name == "mac":
+        return "completely quit Claude Desktop with Cmd-Q (closing the window is not enough) and reopen it"
+    return "completely quit Claude Desktop and reopen it"
+
+
 def _claude_log_hint(name: str) -> str:
     """Where Claude Desktop logs an MCP server's start-up errors on this system."""
     os_name = _os()
@@ -878,8 +890,8 @@ def _screen_creator_os_server(result: dict | None = None) -> str:
                 count_line = (f"{n} tools answered (expected {exp} &mdash; if you just updated, "
                               "rerun the check after a fresh install of the free tools).")
             status_html = f"""<div class="success-box"><strong>Installed and verified.</strong>
-{count_line} Now <strong>completely quit Claude Desktop (Cmd-Q on a Mac) and reopen it</strong>
-&mdash; the config is only read when the app starts. Then continue below.</div>
+{count_line} Now <strong>{_restart_step()}</strong>.
+The config is only read when the app starts. Then continue below.</div>
 <a class="btn btn-primary" href="/desktop">Continue: connect Google or Microsoft (optional)</a>
 <a class="btn btn-outline" href="/done">Finish</a>"""
         elif result.get("no_sdk"):
@@ -1748,9 +1760,9 @@ def _screen_done() -> str:
     if connected:
         connected_html = "<ul style='margin:0 0 16px 20px;line-height:1.8;color:#1a3d1a'>" + \
                          "".join(f"<li>{c}</li>" for c in connected) + "</ul>"
-        restart = """<div class="note"><strong>Completely quit Claude Desktop and reopen it now.</strong>
-On a Mac use <strong>Cmd-Q</strong> (closing the window is not enough) &mdash; the config is only read
-when the app starts. It will ask you to sign in to your connected accounts the first time you use them.
+        restart = """<div class="note"><strong>""" + _restart_step().capitalize() + """ now.</strong>
+The config is only read when the app starts. It will ask you to sign in to your connected accounts
+the first time you use them.
 If a tool does not appear afterward, check <code>""" + html.escape(_claude_log_hint("<name>")) + """</code>.</div>"""
     else:
         connected_html = "<p>No services were connected in this session.</p>"
@@ -3316,20 +3328,46 @@ def _origin_allowed(origin, referer, port=None):
     return True  # no Origin and no Referer -> not a browser cross-site POST
 
 
-def _confined_folder(folder, *, allow_home=False):
+# A folder inside the My Drive or Shared drives folder at the root of a Windows drive letter, the
+# layout Google Drive for desktop mounts (P102). The root folder itself does not match.
+_DRIVE_FOLDER_RE = re.compile(r"^([A-Za-z]):\\(My Drive|Shared drives)(?:\\([^\\]*))?", re.IGNORECASE)
+
+
+def on_google_drive(path, isdir=os.path.isdir):
+    """'' when `path` (a Windows path) is a folder inside <letter>:\\My Drive or <letter>:\\Shared
+    drives and that root folder exists; 'drive_root' when it is that root folder itself; None
+    otherwise. The paths are read with Windows rules (ntpath), so this answers the same on any
+    system."""
+    import ntpath
+    m = _DRIVE_FOLDER_RE.match(ntpath.normpath(str(path)))
+    if not m or not isdir(f"{m.group(1)}:\\{m.group(2)}"):
+        return None
+    return "" if m.group(3) else "drive_root"
+
+
+def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None, realpath=None,
+                     isdir=None, home=None):
     """P57: resolve a user-typed folder and confine it to the user's home tree.
 
     Returns (ok, realpath, reason). A browser text field (or a CSRF POST) must not be
     able to point the recursive import glob or the filesystem-MCP root at arbitrary
     paths like '/', '/etc', or '~/.ssh'. We resolve symlinks (realpath) BEFORE the
     containment test so '~/x/../../etc' cannot escape. reason is '' on success, else one
-    of: 'empty', 'not_dir', 'outside_home', 'home_root'.
+    of: 'empty', 'not_dir', 'outside_home', 'home_root', 'drive_root'.
+    Surrounding spaces and double quotes are removed first (Explorer's "Copy as path" adds the
+    quotes). With allow_drive (the Drive hub route only, P102), on Windows a folder inside a
+    Google Drive for desktop drive's My Drive or Shared drives folder is accepted too
+    (on_google_drive); that root folder itself is refused as 'drive_root', the way the home
+    folder is. osname, realpath, isdir and home stand in for the system's in the selftest.
     """
+    folder = folder.strip().strip('"').strip() if isinstance(folder, str) else folder
     if not folder:
         return False, "", "empty"
-    real = os.path.realpath(os.path.expanduser(folder))
-    home = os.path.realpath(os.path.expanduser("~"))
-    if not os.path.isdir(real):
+    realpath = os.path.realpath if realpath is None else realpath
+    isdir = os.path.isdir if isdir is None else isdir
+    real = realpath(os.path.expanduser(folder))
+    home = realpath(os.path.expanduser("~")) if home is None else home
+    if not isdir(real):
         return False, real, "not_dir"
     if real == home and not allow_home:
         return False, real, "home_root"
@@ -3338,8 +3376,26 @@ def _confined_folder(folder, *, allow_home=False):
     except ValueError:  # different drive / root on Windows
         contained = False
     if not contained:
+        if allow_drive and (os.name if osname is None else osname) == "nt":
+            drive = on_google_drive(real, isdir=isdir)
+            if drive is not None:
+                return (not drive), real, drive
         return False, real, "outside_home"
     return True, real, ""
+
+
+def _drive_hub_folder(folder):
+    """The /api/set-drive-hub folder rule: _confined_folder with the Drive for desktop folders
+    allowed on Windows (P102)."""
+    return _confined_folder(folder, allow_home=False, allow_drive=True)
+
+
+_DRIVE_HUB_WHY = {
+    "drive_root": " (that is the whole Drive; make a folder inside it, such as My Drive\\Creator OS, "
+                  "and use that)",
+    "outside_home": " (use a folder in your user folder, or on Windows a folder inside the My Drive "
+                    "folder of the drive letter Google Drive for desktop shows)",
+}
 
 
 def _import_targets(folder, kind):
@@ -4037,10 +4093,10 @@ anything, and closing this window does not stop the work.</p>
             # skeleton subfolders so the queue/results layout exists from minute one.
             data = self._read_form()
             folder = data.get("folder", "").strip()
-            ok_folder, realpath, why = _confined_folder(folder, allow_home=False)
+            ok_folder, realpath, why = _drive_hub_folder(folder)
             if not ok_folder:
-                self._send(_screen_drive_hub(error=f"That folder cannot be used: {html.escape(why)}"),
-                           status=400)
+                self._send(_screen_drive_hub(error=f"That folder cannot be used: {html.escape(why)}"
+                                             + _DRIVE_HUB_WHY.get(why, "")), status=400)
                 return
             try:
                 from handoff import queue as _hq
@@ -5067,6 +5123,70 @@ def _selftest_p101() -> int:
                 else:
                     os.environ[_k] = _v
     check(not _cd_fail, f"the Claude Desktop settings targets are wrong: {_cd_fail}")
+    # P102: a Store build that has written no log yet still counts as installed (its package
+    # folder exists), and the restart step names each system's way to quit the app.
+    with tempfile.TemporaryDirectory() as _si_td:
+        _si = pathlib.Path(_si_td)
+        _saved_env_si = {k: os.environ.get(k) for k in ("APPDATA", "LOCALAPPDATA")}
+        _saved_os_si, _restart_si = _OS_OVERRIDE, {}
+        try:
+            os.environ["LOCALAPPDATA"], os.environ["APPDATA"] = str(_si / "Local"), str(_si / "Roaming")
+            _OS_OVERRIDE = "windows"
+            _none_si = _claude_installed()
+            (_si / "Local" / "Packages" / "Claude_pubid" / "LocalCache" / "Roaming" / "Claude").mkdir(parents=True)
+            _pkg_si = _claude_installed()
+            for _o in ("windows", "mac", "linux"):
+                _OS_OVERRIDE = _o
+                _restart_si[_o] = (_restart_step(), _screen_creator_os_server({"ok": True, "count": 1}))
+        finally:
+            _OS_OVERRIDE = _saved_os_si
+            for _k, _v in _saved_env_si.items():
+                if _v is None:
+                    os.environ.pop(_k, None)
+                else:
+                    os.environ[_k] = _v
+    check(_none_si is False and _pkg_si is True,
+          f"a Store build with no log is not seen as installed, or nothing is ({_none_si}, {_pkg_si})")
+    check("notification area" in _restart_si["windows"][0] and "Cmd-Q" not in _restart_si["windows"][0]
+          and "Cmd-Q" in _restart_si["mac"][0] and "notification area" not in _restart_si["mac"][0]
+          and "Cmd-Q" not in _restart_si["linux"][0]
+          and all(r in html_ for r, html_ in _restart_si.values()),
+          f"the restart step is not the one for each system: {_restart_si}")
+    # P102: the Drive hub folder rule on Windows, with the system stood in for: quotes are removed, a
+    # folder inside a Drive for desktop drive's My Drive or Shared drives is accepted only where that
+    # folder exists, the root folder itself is refused, and other routes keep the home-only rule.
+    import ntpath as _nt_d
+    _dirs_d = {"G:\\My Drive", "G:\\My Drive\\Creator OS", "G:\\Shared drives",
+               "G:\\Shared drives\\Team", "C:\\My Drive\\x", "C:\\Windows",
+               "C:\\Users\\me"}
+    _dirs_d = {d.lower() for d in _dirs_d}  # Windows compares folder names without letter case
+    _sys_d = dict(osname="nt", realpath=_nt_d.normpath, isdir=lambda p: p.lower() in _dirs_d,
+                  home="C:\\Users\\me")
+
+    def _hub_d(folder, **kw):
+        return _confined_folder(folder, allow_home=False, **dict(_sys_d, **kw))
+    _got_d = {f: _hub_d(f, allow_drive=True) for f in (
+        "G:\\My Drive\\Creator OS", '"G:\\My Drive\\Creator OS"', " g:\\my drive\\Creator OS\\ ",
+        "G:/My Drive/Creator OS", "G:\\Shared drives\\Team", "G:\\My Drive", "G:\\Shared drives",
+        "C:\\My Drive\\x", "C:\\Windows")}
+    _want_d = {"G:\\My Drive\\Creator OS": (True, ""), '"G:\\My Drive\\Creator OS"': (True, ""),
+               "G:/My Drive/Creator OS": (True, ""), "G:\\Shared drives\\Team": (True, ""),
+               "G:\\My Drive": (False, "drive_root"), "G:\\Shared drives": (False, "drive_root"),
+               "C:\\My Drive\\x": (False, "outside_home"), "C:\\Windows": (False, "outside_home")}
+    _bad_d = {f: g for f, g in _got_d.items() if f in _want_d and (g[0], g[2]) != _want_d[f]}
+    _case_d = _got_d[" g:\\my drive\\Creator OS\\ "]
+    _plain_d = _hub_d("G:\\My Drive\\Creator OS")
+    _posix_d = _hub_d("G:\\My Drive\\Creator OS", allow_drive=True, osname="posix")
+    _real_cf_d, _kw_d = _confined_folder, []
+    globals()["_confined_folder"] = lambda folder, **kw: _kw_d.append(kw) or (False, folder, "x")
+    try:
+        _drive_hub_folder("G:\\My Drive\\Creator OS")
+    finally:
+        globals()["_confined_folder"] = _real_cf_d
+    check(not _bad_d and _case_d[:2] == (True, "g:\\my drive\\Creator OS") and _plain_d[2] == "outside_home"
+          and _posix_d[2] == "outside_home"
+          and _kw_d == [{"allow_home": False, "allow_drive": True}],
+          f"the Drive hub folder rule is wrong on Windows ({_bad_d}, {_case_d}, {_plain_d}, {_posix_d})")
 
     # P102: the retired custom GPT and Gems surfaces are gone from the options, and old links to
     # them render the door that replaced them.

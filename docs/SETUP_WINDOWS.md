@@ -15,7 +15,9 @@ documentation.
 1. **Install Python for your account.** The Python documentation recommends the **Python install
    manager**, from the Microsoft Store or as the identical download from python.org. It adds the
    `python`, `py` and `python3` commands and updates itself. Then, in a terminal, run
-   `py install 3.14` *(not yet tested on Windows)*. With the install manager, `python3` is a real
+   `py install 3.14` *(tested on Windows, on a clean install)*. It may say its global shortcuts
+   directory (`%LOCALAPPDATA%\Python\bin`) is not on PATH; Creator OS does not need it, since
+   `py`, `python` and `python3` work without it. With the install manager, `python3` is a real
    command, not the Microsoft Store stand-in *(tested on Windows: `py -3` and `python3` run the
    installed Python)*. Creator OS needs Python 3.12 or newer and is tested on 3.12 to 3.14.
    - Alternative: the traditional python.org installer, for Python 3.12 or newer; the Python
@@ -72,8 +74,12 @@ changed)*
 
     py -3 tools/setup.py --install-deps
 
-It creates the repository's `.venv` and runs pip and Playwright inside it.
-*(not yet tested on Windows)*
+It creates the repository's `.venv` and runs pip and Playwright inside it. The first run needs
+about 1.4 GB of disk for the `.venv` and Playwright's browsers. *(tested on Windows)*
+
+Local transcription runs on the computer's CPU: `py -3 tools/transcribe.py doctor` checks it, and
+the first `py -3 tools/transcribe.py run` downloads the speech model into the Hugging Face cache
+(or `HF_HOME` when set). *(tested on Windows)*
 
 ### Step 5: The setup wizard
 
@@ -106,7 +112,11 @@ It creates the repository's `.venv` and runs pip and Playwright inside it.
   it writes the packaged app's file, and also `%APPDATA%\Claude\claude_desktop_config.json` when that
   file exists, and the screen names each file it wrote
   <!-- verify: tools/wizard.py::_claude_config_targets -->. *(the log line seen on Windows; the
-  wizard's write not yet tested on Windows)*
+  guided first run tested on Windows with stand-in settings folders in both layouts)*
+- After the wizard writes the settings, quit Claude Desktop from its icon in the notification
+  area by the clock (right-click it, then Quit) and reopen it: closing the window leaves it
+  running, and it reads its settings only when it starts
+  <!-- verify: tools/wizard.py::_restart_step -->.
 
 ### Scheduling Dashboard
 
@@ -118,6 +128,11 @@ It binds `8766`, then `8776`, then `8786`. *(tested on Windows)*
 
 - Install Google Drive for desktop and sign in. The hub is `<letter>:\My Drive\Creator OS`, where
   the letter is the one Drive for desktop shows in its Preferences (often `G:`).
+- Make the `Creator OS` folder inside `My Drive`, then open the wizard's **Drive hub** screen
+  (`/drive-hub`). It offers that folder when it finds one on a drive; otherwise paste its path
+  (Explorer's "Copy as path" works, quotes included). The wizard accepts a folder inside a Drive
+  `My Drive` or `Shared drives` folder, and refuses `My Drive` itself
+  <!-- verify: tools/wizard.py::on_google_drive -->.
 - Stream files mode *(tested on Windows)*. Mirror files mode *(not yet tested on Windows)*.
 - Keep the repository itself out of the Drive folder (Quick start step 2).
 - Update Creator OS on every computer that shares the hub before queuing work from Windows: a

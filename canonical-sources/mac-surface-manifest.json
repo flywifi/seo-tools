@@ -26,7 +26,7 @@
     "docs/DEPENDENCIES.md": "b5859b2963906ae1844e7c32a1f0d5c82f842634f9ce67ae5b2b16c025959a8d",
     "docs/DEPLOYMENT.md": "1b578bf8e80f396102ef5852c2c5c067be19ba94d06dd3b17971bf073622277c",
     "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
-    "docs/DRIVE-HUB.md": "7460574dde54b4474437939ca4f2c0af52db78fd5a6f2d76b589949943ee0fe2",
+    "docs/DRIVE-HUB.md": "8bf7f18f9d6cb969b226e11024837d14c7b932191665063dbc14f59441e74773",
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
     "docs/INSTALL-SCOPE.md": "722b645d0b6075b87138811e5b203991a511b4c0d3de02c8c55bcbf85df3eb49",
     "docs/MAC-VALIDATION.md": "e7620356cd0fb6c9d8c3b97fe97d27438cbb3b2bd3b56a746c869aec837f1e38",
@@ -35,7 +35,7 @@
     "docs/PUBLISHING.md": "715a732d76426c392c0bcb8adaa675a81d64471df00e3592d07c20c955064f05",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
     "docs/SETUP_MAC.md": "3f3fe3ef077dcd5e74b47dff800bbedd68e85a641a2edc68d0cebc10bad7f34f",
-    "docs/SETUP_WINDOWS.md": "e5349cc54a26a4ee579ca311117af55971baf330d0699d8b66168033085d46b7",
+    "docs/SETUP_WINDOWS.md": "7e71fc30b6dde0ff39b80f0ea00ada6246b9d00d9620bd1278d939df79187a83",
     "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
     "docs/VIDEO_EDITING.md": "fc6dcd66a90be29de277aa9a7e21c348a494b1382e5639d857b0619abc701d91",
     "docs/VIDEO_TOOLING_EVAL.md": "845e02231809d709208e7d1f60c36b2774c5bebd154b5ced95fc8bc365b290eb",
@@ -63,7 +63,8 @@
     "docs/adr/0071-p99-2-doc-reachability.md": "10c592e09854c176ab700894e386825fce08c968d771924028723f59f188e6c5",
     "docs/adr/0072-p100-surface-workflow-suite.md": "6bb6e5a6707e98aa6269d1b35169707b1d1a3c05634fdfe267ca389e6bec3ca4",
     "docs/adr/0074-p101-windows-cloud-synced-folders.md": "856638bd69e10a72075ed0cbfb29084b8d1cf6a8dfccb311c28728a2a24cc87f",
-    "docs/adr/README.md": "81d7683902af42cd836839fe74f95026d0173d6ae1922302b71ed69a1c12a10b",
+    "docs/adr/0078-p102-drive-hub-folder-on-windows.md": "13acb35a427342be88c20f961e62b59f436dbbdd42fa1ee4e754dc92f6b09982",
+    "docs/adr/README.md": "dbf7bf9042784d391cedbc1e65a1058975ede84a2a683a95ccad75893635fbc0",
     "docs/video-tooling-integration-evidence.json": "92d6998a3a0a96ab12f53dde20e7558d1b858211fd93227fc44303f6d0d1015b",
     "docs/video-tooling-scores.json": "1df7a52e2df6f8ba5826f6aa8ef6b02a167d57ed02b8c446e24711f43b39b629",
     "docs/video-tooling-spike-evidence.json": "02cddc0e091ca6799a72c45bfa5de65133be4c1ec019cdaa2b2ba365eadfca2a",
@@ -97,7 +98,7 @@
     "tools/handoff/MAINTAINER_README.md": "a9d2e42fc0d0b7b36801956587fd086f9247667c6c66ab0a583f5e4d802fd8cc",
     "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
     "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
-    "tools/handoff/watcher.py": "950d147f37debc99d1695bfcc57fbc8787e37c9bb1f1c56593ef332dc3be3fe9",
+    "tools/handoff/watcher.py": "c5833b9175906381fb2c771d2d716cdb8a95280e34f0bc85ecc13a808b270d2c",
     "tools/library_complete.py": "a3b52fd07db897a2be2d03dcc6ca96bd13ce40ccd784472e9133339b6cf48b7f",
     "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a",
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",
@@ -113,7 +114,7 @@
     "tools/videoedit/fcpxml.py": "23f07f0b245eb6695471102fa44871a910a42ee149c7413e30611fcb543d3ee3",
     "tools/videoedit/preflight.py": "e2fc9fe54b3794959aa3a619f5f4188233123ca77b9e5cf05e384f21cad38e4e",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "d5ec2e1620e2929e6dcf6309dc2651e066a8838a3c5b4a7611ac0f171601f616"
+    "tools/wizard.py": "62f3f2123fcb31a649a85d3bce9a0189f9bdf2edfb6f0777c9b5a2c2c7910736"
   },
   "excluded": {}
 }

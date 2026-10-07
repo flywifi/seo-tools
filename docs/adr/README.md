@@ -86,3 +86,4 @@ added beyond what those records state. New decisions get the next number via
 | [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) | Job origins name the computer's system; the Cowork surfaces and origin are retired | 2026-10-05 | Accepted |
 | [0076](0076-p102-windows-ci-and-interpreter-fallback.md) | Windows runs the battery in CI; the hooks find a working Python, and the auditor's guard covers PowerShell | 2026-10-05 | Accepted |
 | [0077](0077-p102-custom-gpt-and-gems-retired.md) | The custom GPT and Gemini Gems surfaces and their export atoms are retired; the wizard writes the Claude Desktop settings file the app reads | 2026-10-05 | Accepted |
+| [0078](0078-p102-drive-hub-folder-on-windows.md) | On Windows the Drive hub may be a folder inside a Google Drive for desktop drive | 2026-10-07 | Accepted |

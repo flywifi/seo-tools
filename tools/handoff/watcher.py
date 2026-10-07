@@ -52,13 +52,37 @@ def load_hub_config() -> dict:
     return merged
 
 
-def detect_mirror_candidates(home=None, folder_name="Creator OS") -> list:
-    """Where Google Drive for desktop usually puts the hub on macOS: the File Provider mount under
-    ~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>. Returns existing candidates only;
-    detection is a convenience for the wizard, never an authority (the user confirms the path)."""
+def _windows_drives() -> list:
+    """The drive roots on this Windows computer: os.listdrives() (Python 3.12 and later), else each
+    letter whose root exists."""
+    lister = getattr(os, "listdrives", None)
+    try:
+        if lister is not None:
+            return list(lister())
+    except OSError:
+        return []
+    import string
+    return [f"{c}:\\" for c in string.ascii_uppercase if os.path.exists(f"{c}:\\")]
+
+
+def detect_mirror_candidates(home=None, folder_name="Creator OS", osname=None, drives=None,
+                             isdir=None) -> list:
+    """Where Google Drive for desktop usually puts the hub: on macOS the File Provider mount under
+    ~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>; on Windows <letter>:\\My Drive\\<folder>
+    on the drive letter Drive for desktop mounts (P102; each drive in `drives`, default
+    _windows_drives()). Returns existing candidates only; detection is a convenience for the wizard,
+    never an authority (the user confirms the path)."""
+    import ntpath
+    isdir = os.path.isdir if isdir is None else isdir
     home = Path(home or os.path.expanduser("~"))
     pattern = str(home / "Library" / "CloudStorage" / "GoogleDrive-*" / "My Drive" / folder_name)
-    return sorted(p for p in glob.glob(pattern) if os.path.isdir(p))
+    found = [p for p in glob.glob(pattern) if isdir(p)]
+    if (os.name if osname is None else osname) == "nt":
+        for drive in (_windows_drives() if drives is None else drives):
+            cand = ntpath.join(drive, "My Drive", folder_name)
+            if isdir(cand):
+                found.append(cand)
+    return sorted(found)
 
 
 def resolve_hub(arg_hub=None) -> tuple:
@@ -134,6 +158,15 @@ def selftest() -> int:
     found = detect_mirror_candidates(home=fakehome)
     ok("detects the CloudStorage mirror path", found == [str(target)])
     ok("no candidates on an empty home", detect_mirror_candidates(home=tempfile.mkdtemp()) == [])
+    # P102: on Windows each drive's My Drive\Creator OS is offered when it exists.
+    _dirs = {"G:\\My Drive\\Creator OS", "H:\\My Drive"}
+    _win = detect_mirror_candidates(home=tempfile.mkdtemp(), osname="nt", drives=["C:\\", "G:\\", "H:\\"],
+                                    isdir=lambda p: p in _dirs)
+    ok("on Windows the drive whose My Drive holds the hub folder is offered, and no other",
+       _win == ["G:\\My Drive\\Creator OS"])
+    ok("off Windows the drive letters are not looked at",
+       detect_mirror_candidates(home=tempfile.mkdtemp(), osname="posix", drives=["G:\\"],
+                                isdir=lambda p: p in _dirs) == [])
 
     # Status snapshot over a temp hub.
     q.ensure_hub_dirs(hub)

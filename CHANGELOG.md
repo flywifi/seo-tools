@@ -344,6 +344,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   scheduled sync is macOS only and names the manual sync command instead of `install-agent`.
   `docs/SETUP_WINDOWS.md` now leads with the Python install manager and keeps the traditional
   installer as the alternative the Python documentation marks deprecated since 3.14.
+- P102 (Drive hub on Windows; restart step): the wizard's Drive hub screen accepts a folder inside a
+  Google Drive for desktop drive's `My Drive` or `Shared drives` folder on Windows, and refuses
+  that root folder itself; the import and storage folders keep the home-folder rule
+  (`wizard.on_google_drive`, `_drive_hub_folder`; ADR 0078). Every folder input drops surrounding
+  quotes and spaces, so a path from Explorer's "Copy as path" works. On Windows the hub screen
+  offers `<letter>:\My Drive\Creator OS` when a drive holds it
+  (`watcher.detect_mirror_candidates`). Before, the rule refused every Drive folder on Windows, so
+  the hub could not be connected there. The wizard's restart step names each system's way to quit
+  Claude Desktop (`wizard._restart_step`): on Windows, from its icon in the notification area,
+  since closing the window leaves it running. A Store build that has not written a log yet counts
+  as installed (checked in `_selftest_p101`). `docs/SETUP_WINDOWS.md` marks the optional
+  dependency install, local transcription and `py install 3.14` as tested on Windows and adds the
+  hub's connect step.
 - P102 (Claude Desktop settings file on Windows): the wizard writes its MCP entries to the file
   Claude Desktop's `main.log` says it read, else to the packaged (MSIX) app's
   `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude` folder plus `%APPDATA%\Claude`

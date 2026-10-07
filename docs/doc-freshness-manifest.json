@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "d5ec2e1620e2929e6dcf6309dc2651e066a8838a3c5b4a7611ac0f171601f616",
+        "tools/wizard.py": "62f3f2123fcb31a649a85d3bce9a0189f9bdf2edfb6f0777c9b5a2c2c7910736",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -134,7 +134,7 @@
         "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
-        "tools/handoff/watcher.py": "950d147f37debc99d1695bfcc57fbc8787e37c9bb1f1c56593ef332dc3be3fe9",
+        "tools/handoff/watcher.py": "c5833b9175906381fb2c771d2d716cdb8a95280e34f0bc85ecc13a808b270d2c",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
@@ -145,7 +145,7 @@
       "sources": {
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
-        "tools/handoff/watcher.py": "950d147f37debc99d1695bfcc57fbc8787e37c9bb1f1c56593ef332dc3be3fe9",
+        "tools/handoff/watcher.py": "c5833b9175906381fb2c771d2d716cdb8a95280e34f0bc85ecc13a808b270d2c",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
