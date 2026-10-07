@@ -88,20 +88,87 @@ def _mcp_command(name: str) -> str:
 def _os_label() -> str:
     return {"mac": "macOS", "windows": "Windows", "linux": "Linux"}[_os()]
 
-def _claude_config_path() -> pathlib.Path:
+_CONFIG_NAME = "claude_desktop_config.json"
+# The line Claude Desktop's main log writes when it loads its settings file (an app internal, not a
+# documented interface: a missing or reworded line reads as unknown, never as an error).
+_CONFIG_READ_LINE = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)\S* .*Reading claude_desktop_config\.json from (.+?)\s*$")
+_LOG_TAIL_BYTES = 2_000_000
+
+
+def _windows_dirs():
+    """(LOCALAPPDATA, APPDATA) as Paths, from the environment, else under the home folder."""
+    home = pathlib.Path.home()
+    local = pathlib.Path(os.environ.get("LOCALAPPDATA") or home / "AppData" / "Local")
+    roaming = pathlib.Path(os.environ.get("APPDATA") or home / "AppData" / "Roaming")
+    return local, roaming
+
+
+def _claude_config_from_logs():
+    """The settings file Claude Desktop's own log says it read last, or None: the newest
+    'Reading claude_desktop_config.json from <path>' line in the last 2 MB of each main*.log under
+    %LOCALAPPDATA%\\Claude\\logs (where the packaged app logs) and %APPDATA%\\Claude\\logs. Lines carry
+    a local 'YYYY-MM-DD HH:MM:SS' stamp, so the greatest stamp is the newest across rotated logs."""
+    local, roaming = _windows_dirs()
+    best = None
+    for logs in (local / "Claude" / "logs", roaming / "Claude" / "logs"):
+        try:
+            files = sorted(logs.glob("main*.log"))
+        except OSError:
+            continue
+        for f in files:
+            try:
+                with open(f, "rb") as fh:
+                    fh.seek(max(0, f.stat().st_size - _LOG_TAIL_BYTES))
+                    text = fh.read().decode("utf-8", errors="replace")
+            except OSError:
+                continue
+            for line in text.splitlines():
+                m = _CONFIG_READ_LINE.match(line)
+                if m and (best is None or m.group(1) > best[0]):
+                    best = (m.group(1), m.group(2))
+    return pathlib.Path(best[1]) if best else None
+
+
+def _claude_config_targets():
+    """[(path, why), ...]: the settings file(s) the Creator OS entries go into, the first being the
+    one the wizard reads back. macOS and Linux: one fixed path. Windows (P102): the file Claude
+    Desktop's log names, when its folder exists; else the packaged (MSIX) app's
+    %LOCALAPPDATA%\\Packages\\Claude_*\\LocalCache\\Roaming\\Claude folder, plus %APPDATA%\\Claude when its
+    file already exists (an install that had the older app can keep reading it); else
+    %APPDATA%\\Claude. Never raises."""
     os_name = _os()
     if os_name == "mac":
-        return pathlib.Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-    if os_name == "windows":
-        appdata = os.environ.get("APPDATA", str(pathlib.Path.home() / "AppData" / "Roaming"))
-        return pathlib.Path(appdata) / "Claude" / "claude_desktop_config.json"
-    return pathlib.Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+        return [(pathlib.Path.home() / "Library" / "Application Support" / "Claude" / _CONFIG_NAME,
+                 "the Mac settings file")]
+    if os_name != "windows":
+        return [(pathlib.Path.home() / ".config" / "Claude" / _CONFIG_NAME, "the Linux settings file")]
+    local, roaming = _windows_dirs()
+    real = roaming / "Claude" / _CONFIG_NAME
+    try:
+        logged = _claude_config_from_logs()
+        if logged is not None and logged.parent.is_dir():
+            return [(logged, "named in Claude Desktop's log")]
+        packaged = [d / "LocalCache" / "Roaming" / "Claude" for d in sorted(local.glob("Packages/Claude_*"))]
+        packaged = [d / _CONFIG_NAME for d in packaged if d.is_dir()]
+    except OSError:
+        packaged = []
+    if packaged:
+        out = [(p, "the packaged app's folder") for p in packaged]
+        if real.exists():
+            out.append((real, "the usual folder, which an older install reads"))
+        return out
+    return [(real, "the usual folder")]
+
+
+def _claude_config_path() -> pathlib.Path:
+    """The settings file the wizard reads back: the first of _claude_config_targets()."""
+    return _claude_config_targets()[0][0]
 
 def _claude_installed() -> bool:
-    return _claude_config_path().parent.exists()
+    return any(p.parent.exists() for p, _why in _claude_config_targets())
 
-def _read_claude_config() -> dict:
-    p = _claude_config_path()
+def _read_claude_config_at(p) -> dict:
+    p = pathlib.Path(p)
     if p.exists():
         try:
             return json.loads(p.read_text(encoding="utf-8"))
@@ -109,8 +176,27 @@ def _read_claude_config() -> dict:
             pass
     return {}
 
-def _write_claude_config(config: dict) -> pathlib.Path:
-    p = _claude_config_path()
+def _read_claude_config() -> dict:
+    return _read_claude_config_at(_claude_config_path())
+
+def _update_claude_config(update) -> list:
+    """Apply update(config) to each file in _claude_config_targets(), each merged from its own
+    content, so one file's servers and preferences never overwrite another's. A target that does
+    not exist yet starts from a copy of the first target that parses to something, so a new
+    packaged-app file does not hide the servers the usual file holds. Returns ['<path> (<why>)']."""
+    targets = _claude_config_targets()
+    loaded = [(p, why, _read_claude_config_at(p) if p.exists() else None) for p, why in targets]
+    seed = next((c for _p, _w, c in loaded if c), {})
+    written = []
+    for p, why, cfg in loaded:
+        cfg = cfg if cfg is not None else json.loads(json.dumps(seed))
+        update(cfg)
+        _write_claude_config(cfg, p)
+        written.append(f"{p} ({why})")
+    return written
+
+def _write_claude_config(config: dict, path=None) -> pathlib.Path:
+    p = _claude_config_path() if path is None else pathlib.Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     # A4b: never silently destroy an existing config we could not parse. _read_claude_config returns
     # {} on a JSON error, so without this a corrupt file would be overwritten with only the new server
@@ -761,10 +847,22 @@ wizard handles them. A checkmark means you are ready.</p>
 {_first_run_nav("/desktop")}
 """, dots=["done", "done", "active", "dot"])
 
+def _claude_log_hint(name: str) -> str:
+    """Where Claude Desktop logs an MCP server's start-up errors on this system."""
+    os_name = _os()
+    if os_name == "windows":
+        return (f"%LOCALAPPDATA%\\Claude\\logs\\mcp-server-{name}.log (the packaged app) or "
+                f"%APPDATA%\\Claude\\logs\\mcp-server-{name}.log")
+    if os_name == "mac":
+        return f"~/Library/Logs/Claude/mcp-server-{name}.log"
+    return f"~/.config/Claude/logs/mcp-server-{name}.log"
+
+
 def _screen_creator_os_server(result: dict | None = None) -> str:
     """P85-1: install the creator-os MCP server into Claude Desktop and VERIFY it with a real
     handshake probe before claiming success. Three explicit outcomes, no silent fallback."""
-    cfg = _claude_config_path()
+    targets = _claude_config_targets()
+    cfg = " and ".join(f"{p} ({why})" for p, why in targets)
     entry = _creator_os_entry()
     already = "creator-os" in (_read_claude_config().get("mcpServers") or {})
     status_html = ""
@@ -799,7 +897,7 @@ check did not pass: {html.escape(result.get("detail", ""))}</div>
 <p class="hint">Merge the <code>creator-os</code> block from
 <code>implementation/claude/desktop/claude_desktop_config_snippet.json</code> into
 <code>{html.escape(str(cfg))}</code>, replacing the placeholder path with this folder&#8217;s
-absolute path. Errors appear in <code>~/Library/Logs/Claude/mcp-server-creator-os.log</code>.</p>
+absolute path. Errors appear in <code>{html.escape(_claude_log_hint("creator-os"))}</code>.</p>
 </details>"""
     already_html = ('<div class="note">A creator-os entry already exists in your config; the '
                     'button below rewrites it for THIS folder and re-verifies it.</div>'
@@ -811,7 +909,7 @@ absolute path. Errors appear in <code>~/Library/Logs/Claude/mcp-server-creator-o
 <p>This writes one entry into Claude Desktop&#8217;s settings file so the app can run the
 Creator OS tools on this computer, then <strong>checks it actually works</strong> before saying
 done. Nothing else in your settings is touched.</p>
-<p class="hint">Settings file: <code>{html.escape(str(cfg))}</code><br>
+<p class="hint">Settings file{"s" if len(targets) > 1 else ""}: <code>{html.escape(cfg)}</code><br>
 It will run: <code>{html.escape(entry["command"])}</code></p>
 {status_html if status_html else '''<form method="POST" action="/api/install-creator-os">
   <button class="btn btn-primary" type="submit">Install and verify now</button>
@@ -1653,7 +1751,7 @@ def _screen_done() -> str:
         restart = """<div class="note"><strong>Completely quit Claude Desktop and reopen it now.</strong>
 On a Mac use <strong>Cmd-Q</strong> (closing the window is not enough) &mdash; the config is only read
 when the app starts. It will ask you to sign in to your connected accounts the first time you use them.
-If a tool does not appear afterward, check <code>~/Library/Logs/Claude/mcp-server-&lt;name&gt;.log</code>.</div>"""
+If a tool does not appear afterward, check <code>""" + html.escape(_claude_log_hint("<name>")) + """</code>.</div>"""
     else:
         connected_html = "<p>No services were connected in this session.</p>"
         restart = ""
@@ -1731,17 +1829,16 @@ def _write_storage_folder(folder: str):
     Returns (written_path, prior_folder) where prior_folder is the previous filesystem-MCP root if a
     DIFFERENT one existed (so the caller can surface the replacement instead of silently clobbering it;
     P57). Callers must confine `folder` first with _confined_folder()."""
-    config = _read_claude_config()
-    config.setdefault("mcpServers", {})
-    prior_args = (config["mcpServers"].get("filesystem") or {}).get("args") or []
+    prior_args = ((_read_claude_config().get("mcpServers") or {}).get("filesystem") or {}).get("args") or []
     prior_folder = prior_args[-1] if prior_args else None
     if prior_folder == folder:
         prior_folder = None
-    config["mcpServers"]["filesystem"] = {
+    fs_entry = {
         "command": _mcp_command("npx"),
         "args": ["-y", "@modelcontextprotocol/server-filesystem", folder],
     }
-    written = _write_claude_config(config)
+    written = "; ".join(_update_claude_config(
+        lambda c: c.setdefault("mcpServers", {}).__setitem__("filesystem", fs_entry)))
     # Record the folder locally so the freshness/store runtime knows where to write.
     def _m(cfg):
         cfg["storage"] = {"local_folder": folder,
@@ -3668,10 +3765,8 @@ anything, and closing this window does not stop the work.</p>
             # writer (corrupt-backup + atomic + no-clobber), then VERIFY with the handshake probe
             # against the exact interpreter the config now names. Three explicit outcomes.
             entry = _creator_os_entry()
-            config = _read_claude_config()
-            config.setdefault("mcpServers", {})["creator-os"] = entry
             try:
-                _write_claude_config(config)
+                _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", entry))
             except OSError as exc:
                 self._send(_screen_creator_os_server(
                     {"ok": False, "detail": f"could not write the settings file: {exc}"}))
@@ -4213,9 +4308,7 @@ anything, and closing this window does not stop the work.</p>
 
             # Write google-workspace MCP entry
             try:
-                config = _read_claude_config()
-                config.setdefault("mcpServers", {})
-                config["mcpServers"]["google-workspace"] = {
+                google_entry = {
                     "command": _mcp_command("uvx"),
                     "args": ["workspace-mcp"],
                     "env": {
@@ -4223,7 +4316,8 @@ anything, and closing this window does not stop the work.</p>
                         "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
                     },
                 }
-                written = _write_claude_config(config)
+                written = "; ".join(_update_claude_config(
+                    lambda c: c.setdefault("mcpServers", {}).__setitem__("google-workspace", google_entry)))
 
                 # Update local capability flag
                 _update_capability_flag("google_workspace", True)
@@ -4239,13 +4333,12 @@ anything, and closing this window does not stop the work.</p>
                 self._redirect("/microsoft")
                 return
             try:
-                config = _read_claude_config()
-                config.setdefault("mcpServers", {})
-                config["mcpServers"]["microsoft-365"] = {
+                ms_entry = {
                     "command": _mcp_command("npx"),
                     "args": ["-y", "@softeria/ms-365-mcp-server"],
                 }
-                written = _write_claude_config(config)
+                written = "; ".join(_update_claude_config(
+                    lambda c: c.setdefault("mcpServers", {}).__setitem__("microsoft-365", ms_entry)))
 
                 # Update local capability flag
                 _update_capability_flag("microsoft_365", True)
@@ -4896,6 +4989,87 @@ def _selftest_p101() -> int:
             del pathlib.Path.home
         else:
             pathlib.Path.home = _real_home
+    # P102: on Windows the Creator OS entry goes into the settings file Claude Desktop reads: the one
+    # its log names, else the packaged app's folder (plus %APPDATA% when that file exists), else
+    # %APPDATA%; each file is merged from its own content. A temp tree stands in for both folders.
+    global _OS_OVERRIDE
+    _saved_env = {k: os.environ.get(k) for k in ("APPDATA", "LOCALAPPDATA")}
+    _saved_os = _OS_OVERRIDE
+    _cd_fail = []
+    with tempfile.TemporaryDirectory() as _cd_td:
+        _cd = pathlib.Path(_cd_td)
+        _loc, _roam = _cd / "Local", _cd / "Roaming"
+        _pkg = _loc / "Packages" / "Claude_pubid" / "LocalCache" / "Roaming" / "Claude"
+        _real = _roam / "Claude" / "claude_desktop_config.json"
+        _logs = _loc / "Claude" / "logs"
+        try:
+            os.environ["LOCALAPPDATA"], os.environ["APPDATA"] = str(_loc), str(_roam)
+            _OS_OVERRIDE = "windows"
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_real] or _claude_config_path() != _real:
+                _cd_fail.append(f"no package, no log: {_t}")
+            _pkg.mkdir(parents=True)
+            (_loc / "Packages" / "Claude_nofolder").mkdir()
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json"]:
+                _cd_fail.append(f"package without the usual file: {_t}")
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "a"}))
+            if (_roam / "Claude").exists():
+                _cd_fail.append("the usual folder was created while a packaged app exists")
+            (_pkg / "claude_desktop_config.json").unlink()
+            _real.parent.mkdir(parents=True)
+            _real.write_text(json.dumps({"mcpServers": {"user-own": {"command": "u"}}, "theme": "dark"}),
+                             encoding="utf-8")
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json", _real]:
+                _cd_fail.append(f"package plus the usual file: {_t}")
+            _w2 = _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "a"}))
+            _pc = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            _rc = json.loads(_real.read_text(encoding="utf-8"))
+            if not (set(_pc["mcpServers"]) == {"user-own", "creator-os"} and _pc.get("theme") == "dark"
+                    and set(_rc["mcpServers"]) == {"user-own", "creator-os"} and len(_w2) == 2
+                    and "packaged app" in _w2[0] and "older install" in _w2[1]):
+                _cd_fail.append(f"a new package file not seeded from the usual one, or a file missed: {_pc} {_rc} {_w2}")
+            _pc["mcpServers"] = {"pkg-only": {"command": "p"}}
+            (_pkg / "claude_desktop_config.json").write_text(json.dumps(_pc), encoding="utf-8")
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("google-workspace", {"command": "g"}))
+            _pc = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            _rc = json.loads(_real.read_text(encoding="utf-8"))
+            if not ("pkg-only" in _pc["mcpServers"] and "pkg-only" not in _rc["mcpServers"]
+                    and "user-own" in _rc["mcpServers"] and "google-workspace" in _pc["mcpServers"]
+                    and "google-workspace" in _rc["mcpServers"]):
+                _cd_fail.append(f"files not merged one by one: {_pc} {_rc}")
+            _other = _cd / "Elsewhere" / "Claude"
+            _other.mkdir(parents=True)
+            _logs.mkdir(parents=True)
+            (_logs / "main.log").write_text(
+                f"2026-10-01 09:00:00 [info] Reading claude_desktop_config.json from {_pkg / 'claude_desktop_config.json'}\n",
+                encoding="utf-8")
+            (_logs / "main1.log").write_text(
+                f"2026-10-03 09:00:00 [info] Reading claude_desktop_config.json from {_other / 'claude_desktop_config.json'}\n"
+                f"2026-10-04 09:00:00 [info] Loading config from {_cd / 'Reworded' / 'x.json'}\n", encoding="utf-8")
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_other / "claude_desktop_config.json"] or "log" not in _t[0][1]:
+                _cd_fail.append(f"the newest log line does not decide, or a reworded line counts: {_t}")
+            (_logs / "main2.log").write_text(
+                f"2026-10-05 09:00:00 [info] Reading claude_desktop_config.json from {_cd / 'Gone' / 'claude_desktop_config.json'}\n",
+                encoding="utf-8")
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json", _real]:
+                _cd_fail.append(f"a log path whose folder is missing is used: {_t}")
+            _OS_OVERRIDE = "mac"
+            _mac = _claude_config_targets()
+            if len(_mac) != 1 or "Library/Application Support/Claude" not in pathlib.PurePath(_mac[0][0]).as_posix():
+                _cd_fail.append(f"the Mac path changed: {_mac}")
+        finally:
+            _OS_OVERRIDE = _saved_os
+            for _k, _v in _saved_env.items():
+                if _v is None:
+                    os.environ.pop(_k, None)
+                else:
+                    os.environ[_k] = _v
+    check(not _cd_fail, f"the Claude Desktop settings targets are wrong: {_cd_fail}")
+
     # P102: the work-order screen warns that an older computer refuses windows and linux work.
     from handoff import runner as _runner_pin
     _real_tag, _wo = _runner_pin._platform_tag, {}
@@ -5578,10 +5752,12 @@ def _selftest() -> int:
     import tempfile as _tempfile
     _old_home = os.environ.get("HOME")
     _old_appdata = os.environ.get("APPDATA")
+    _old_local = os.environ.get("LOCALAPPDATA")
     try:
         _fake = _tempfile.mkdtemp(prefix="wizard-selftest-home-")
         os.environ["HOME"] = _fake
         os.environ["APPDATA"] = _fake  # Windows path branch uses APPDATA
+        os.environ["LOCALAPPDATA"] = _fake  # and LOCALAPPDATA (the packaged app's folder and logs)
         _cfgp = _claude_config_path()
         _cfgp.parent.mkdir(parents=True, exist_ok=True)
         _cfgp.write_text(json.dumps({"mcpServers": {"user-own": {"command": "/bin/x"}},
@@ -5607,6 +5783,10 @@ def _selftest() -> int:
             os.environ["APPDATA"] = _old_appdata
         elif "APPDATA" in os.environ:
             del os.environ["APPDATA"]
+        if _old_local is not None:
+            os.environ["LOCALAPPDATA"] = _old_local
+        elif "LOCALAPPDATA" in os.environ:
+            del os.environ["LOCALAPPDATA"]
 
     # P85-4c: persisted-state round-trip (subset assertion: _state carries pre-seeded defaults).
     _set(selftest_probe_flag="round-trip")
@@ -5908,7 +6088,8 @@ def _selftest() -> int:
             return _rec
 
     _route_stubs = {"subprocess": _StartRecorder(), "_read_claude_config": lambda: {},
-                    "_write_claude_config": lambda config: ROOT / ".selftest-absent.json",
+                    "_write_claude_config": lambda config, path=None: ROOT / ".selftest-absent.json",
+                    "_update_claude_config": lambda update: [str(ROOT / ".selftest-absent.json")],
                     "_update_capability_flag": lambda key, value: None,
                     "_set": lambda **kwargs: None, "_start_job": lambda name, fn: (fn(), True)[1]}
     _route_saved = ({_k: globals()[_k] for _k in _route_stubs},

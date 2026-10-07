@@ -102,9 +102,11 @@ It creates the repository's `.venv` and runs pip and Playwright inside it.
   `%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\`, not in
   `%APPDATA%\Claude\`, and an install that had the older app can keep reading
   `%APPDATA%\Claude\`. Claude Desktop's log (`%LOCALAPPDATA%\Claude\logs\main.log`) names the
-  file it reads. The wizard's Claude Desktop step writes `%APPDATA%\Claude\claude_desktop_config.json`;
-  with the packaged build, copy the `creator-os` entry into the file the log names by hand
-  (`implementation/claude/desktop/README.md`). *(the log line seen on Windows)*
+  file it reads. The wizard's Claude Desktop step writes the file that log names; with no log line
+  it writes the packaged app's file, and also `%APPDATA%\Claude\claude_desktop_config.json` when that
+  file exists, and the screen names each file it wrote
+  <!-- verify: tools/wizard.py::_claude_config_targets -->. *(the log line seen on Windows; the
+  wizard's write not yet tested on Windows)*
 
 ### Scheduling Dashboard
 

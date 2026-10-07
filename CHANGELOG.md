@@ -333,6 +333,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   scheduled sync is macOS only and names the manual sync command instead of `install-agent`.
   `docs/SETUP_WINDOWS.md` now leads with the Python install manager and keeps the traditional
   installer as the alternative the Python documentation marks deprecated since 3.14.
+- P102 (Claude Desktop settings file on Windows): the wizard writes its MCP entries to the file
+  Claude Desktop's `main.log` says it read, else to the packaged (MSIX) app's
+  `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude` folder plus `%APPDATA%\Claude`
+  when that file exists, else to `%APPDATA%\Claude` (`wizard._claude_config_targets`); each file is
+  merged from its own content and a new file starts from a copy of an existing one (both pinned in
+  `wizard._selftest_p101`), and the screen names the files it wrote. Before, it wrote only
+  `%APPDATA%\Claude`, which the packaged app does not read, so the Creator OS tools did not appear. Windows log paths replace the macOS-only hint.
 - P102 (oversize text in the inbox screen): `injection_scan.scan_file` marks a record it cut at
   `max_bytes` (2 MB) with `"truncated": true`, and the inbox reads such a record as a partial
   screen (`inbox._fully_screened`): a flag in the part read still seals the file, while a clean

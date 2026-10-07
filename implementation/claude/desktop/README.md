@@ -57,7 +57,12 @@ python3 shared/cache/cache.py --stats     # confirm index built
 
 3. Open your Claude Desktop config file:
    - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   - Windows: the file Claude Desktop's log names on its "Reading claude_desktop_config.json
+     from ..." line (`%LOCALAPPDATA%\Claude\logs\main.log`). The packaged (MSIX) app reads
+     `%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\claude_desktop_config.json`;
+     an install that had the older app can keep reading `%APPDATA%\Claude\claude_desktop_config.json`
+     (claude-code issue 26073: the app's Edit Config button can open the other file). The wizard
+     writes the file(s) it finds this way and names them.
    - Linux: `~/.config/Claude/claude_desktop_config.json`
 
    Note: Anthropic's current local-MCP help article (support article 10949351, updated
@@ -71,8 +76,9 @@ python3 shared/cache/cache.py --stats     # confirm index built
 
 5. **Completely quit Claude Desktop (Cmd-Q on macOS) and reopen it** — closing the window is not
    enough; the config is only read at launch. If the Creator OS tools do not appear, check
-   `~/Library/Logs/Claude/mcp-server-creator-os.log` for a startup error (a wrong or non-absolute
-   interpreter path is the usual cause).
+   `~/Library/Logs/Claude/mcp-server-creator-os.log` (macOS) or
+   `%LOCALAPPDATA%\Claude\logs\mcp-server-creator-os.log` (the Windows packaged app) for a startup
+   error (a wrong or non-absolute interpreter path is the usual cause).
 
 > Note: Anthropic's current getting-started guidance installs local servers as desktop
 > extensions (Settings, then Extensions; `.mcpb` bundles -- custom ones are Team/Enterprise).

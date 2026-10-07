@@ -243,7 +243,7 @@ cannot approve each other's scan.
 | File | What changes |
 |---|---|
 | `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) | Adds creator-os, google-workspace, and/or microsoft-365 MCP server entries |
-| `%APPDATA%\Claude\claude_desktop_config.json` (Windows) | Same |
+| Windows: the file Claude Desktop's `main.log` names; else the packaged app's `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json`, plus `%APPDATA%\Claude\claude_desktop_config.json` when that file exists; else `%APPDATA%\Claude\claude_desktop_config.json` <!-- verify: tools/wizard.py::_claude_config_targets --> | Same, merged into each file from its own content; the screen names each file |
 | `~/.config/Claude/claude_desktop_config.json` (Linux) | Same |
 | `creator-os-config.local.json` (repo root) | Sets `google_workspace: true` and/or `microsoft_365: true` in capabilities |
 
