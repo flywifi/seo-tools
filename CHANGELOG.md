@@ -344,6 +344,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   scheduled sync is macOS only and names the manual sync command instead of `install-agent`.
   `docs/SETUP_WINDOWS.md` now leads with the Python install manager and keeps the traditional
   installer as the alternative the Python documentation marks deprecated since 3.14.
+- P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
+  two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
+  CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,
+  and `setup.py --install-deps` failed the whole video set. A binary-only resolve on 3.14.7 now
+  gives the other packages without OpenTimelineIO, and on 3.12 still includes it. The video tools
+  already report OTIO as absent (`tools/videoedit/preflight.py`).
 - P102 (Drive hub on Windows; restart step): the wizard's Drive hub screen accepts a folder inside a
   Google Drive for desktop drive's `My Drive` or `Shared drives` folder on Windows, and refuses
   that root folder itself; the import and storage folders keep the home-folder rule

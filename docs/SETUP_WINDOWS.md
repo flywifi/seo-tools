@@ -75,7 +75,9 @@ changed)*
     py -3 tools/setup.py --install-deps
 
 It creates the repository's `.venv` and runs pip and Playwright inside it. The first run needs
-about 1.4 GB of disk for the `.venv` and Playwright's browsers. *(tested on Windows)*
+about 1.4 GB of disk for the `.venv` and Playwright's browsers. *(tested on Windows)* On Python
+3.14 the timeline interchange packages (OpenTimelineIO and its two adapters) are skipped, because
+OpenTimelineIO publishes no 3.14 wheels yet; the video tools report them as absent and keep working.
 
 Local transcription runs on the computer's CPU: `py -3 tools/transcribe.py doctor` checks it, and
 the first `py -3 tools/transcribe.py run` downloads the speech model into the Hugging Face cache
