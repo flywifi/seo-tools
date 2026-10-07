@@ -98,7 +98,7 @@
     "tools/handoff/MAINTAINER_README.md": "91cbceb43472fe37124a899cd24493b86f5ea68fb39919338d97b66030971ca6",
     "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
     "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
-    "tools/handoff/watcher.py": "68e519e283460f0325a3b891efc6b3b4f2ff1b726b6a95778b58c7b5ee7b70bb",
+    "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
     "tools/library_complete.py": "a3b52fd07db897a2be2d03dcc6ca96bd13ce40ccd784472e9133339b6cf48b7f",
     "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a",
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",

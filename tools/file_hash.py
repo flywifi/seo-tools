@@ -2176,12 +2176,22 @@ _ENTRIES = {"sync_check.py": "_selfproof", "wizard.py": "_selftest_p101",
             "env_paths.py": "_selftest", "setup.py": "_selftest_location"}
 
 
-def _selftest_verdict(source: str, path: Path, entry: str = "selftest") -> str:
+def _fail_lines(text, most=3, width=200) -> str:
+    """Up to `most` lines of a selftest's output that name a failure (a line holding 'FAIL', or a
+    '- ' item listed under one), each cut to `width` characters and joined with ' | '; '' when the
+    output names none."""
+    lines = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
+    picked = [ln for ln in lines if "FAIL" in ln or ln.startswith("- ")]
+    return " | ".join(ln[:width] for ln in picked[:most])
+
+
+def _selftest_verdict(source: str, path: Path, entry: str = "selftest", out=None) -> str:
     """'pass', 'fail' or 'invalid: <reason>' for the entry function (selftest() unless named) of a
-    module built from source."""
+    module built from source. With a list as `out`, what the entry printed is appended to it."""
     import contextlib as _cl
     import io
     import types
+    captured = io.StringIO()
     try:
         code = compile(source, f"<{path.name} mutant>", "exec")
     except SyntaxError as exc:
@@ -2190,7 +2200,7 @@ def _selftest_verdict(source: str, path: Path, entry: str = "selftest") -> str:
     mod.__file__ = str(path)
     saved_path, saved_argv = list(sys.path), list(sys.argv)
     try:
-        with _cl.redirect_stdout(io.StringIO()), _cl.redirect_stderr(io.StringIO()):
+        with _cl.redirect_stdout(captured), _cl.redirect_stderr(captured):
             try:
                 exec(code, mod.__dict__)
             except KeyboardInterrupt:
@@ -2214,6 +2224,8 @@ def _selftest_verdict(source: str, path: Path, entry: str = "selftest") -> str:
             return "pass" if rc == 0 else "fail"
     finally:
         sys.path[:], sys.argv[:] = saved_path, saved_argv
+        if out is not None:
+            out.append(captured.getvalue())
 
 
 def _test_scopes(src: str, entry: str) -> list:
@@ -2300,7 +2312,11 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1) -
         else:
             scope, mark, tail = src, "", ""
         if module not in baseline:
-            baseline[module] = _selftest_verdict(src, path, entry)
+            # A failing baseline names its failing checks, so a log shows which one failed (P102).
+            printed = []
+            verdict = _selftest_verdict(src, path, entry, out=printed)
+            named = _fail_lines("".join(printed)) if verdict == "fail" else ""
+            baseline[module] = f"{verdict}: {named}" if named else verdict
         if baseline[module] != "pass":
             survivors.append(f"{label} (unmutated selftest: {baseline[module]})")
             continue
@@ -2408,6 +2424,9 @@ def _runner_controls() -> list:
                                    "    return 0 if f() == 1 else 1\n", encoding="utf-8")
         (d / "noself.py").write_text("x = 1\n", encoding="utf-8")
         (d / "red.py").write_text("def selftest():\n    return 1\n", encoding="utf-8")
+        (d / "loud.py").write_text("x = 1\ndef selftest():\n    print('ok   the quiet check')\n"
+                                   "    print('  [FAIL] the loud check')\n    print('  - its detail')\n"
+                                   "    return 1\n", encoding="utf-8")
         (d / "alt.py").write_text("x = 1\ndef check():\n    return 0 if x == 1 else 1\n", encoding="utf-8")
         (d / "tup.py").write_text("x = 1\ndef tcheck():\n    return (0 if x == 1 else 1), 5\n",
                                   encoding="utf-8")
@@ -2430,6 +2449,8 @@ def _runner_controls() -> list:
             ("tuple-equivalent", "tup.py", "x = 1\n", "x = 1  # same\n"),
         ]
         got = _run_mutants(rows, base=d, entries={"alt.py": "check", "tup.py": "tcheck"})
+        loud = _run_mutants([("loudrow", "loud.py", "x = 1\n", "x = 2\n")], base=d)
+        loud_parallel = _run_mutants([("loudrow", "loud.py", "x = 1\n", "x = 2\n")], base=d, jobs=2)
         missing_entry = _run_mutants([("noentry", "alt.py", "x = 1\n", "x = 2\n")], base=d,
                                      entries={})
         leak_rows = [("guard-a", "guard.py", "y = 1\n", "y = 1  # same\n"),
@@ -2456,6 +2477,11 @@ def _runner_controls() -> list:
                 any(g.startswith("noself (unmutated selftest: invalid: no selftest()") for g in got)))
     out.append(("a module whose unmutated selftest fails scores no row",
                 any(g.startswith("redbase (unmutated selftest: fail") for g in got)))
+    out.append(("a failing unmutated selftest names its failing lines, in a serial and a parallel run",
+                loud == loud_parallel
+                == ["loudrow (unmutated selftest: fail: [FAIL] the loud check | - its detail)"]
+                and _fail_lines("a\n FAIL one\n- two\nFAIL three\nFAIL four\n") == "FAIL one | - two | FAIL three"
+                and _fail_lines("all fine\n") == ""))
     out.append(("a real mutation and a non-zero exit are caught",
                 "caught" not in labels and "exit1" not in labels))
     out.append(("a named entry function is scored: a real mutation caught, an equivalent one not",

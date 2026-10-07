@@ -329,6 +329,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - P102 (battery report): a failing gate's report shows each line that carries `[FAIL]` (up to
   40, each cut at 400 characters) before its last 8 lines, so a failing selftest sweep names the
   selftests that failed (`battery.failure_lines`); before, only the last 8 lines were shown.
+  The mutation runner does the same one level down: when a module's unmutated selftest fails, each
+  of its rows is reported with up to three of that selftest's failing lines
+  (`file_hash._fail_lines`), not only "fail". The hand-off watcher's selftest passes `drives=[]`
+  to its two macOS-layout checks: on a Windows computer with Google Drive for desktop the real
+  `<letter>:\My Drive\Creator OS` was found, and those checks failed.
 - P102 (selftest margins on a loaded computer): the selftest sweep gives `tools/file_hash.py` a
   900 s cap (`selftest_sweep.TOOL_TIMEOUTS`); its selftest runs every committed mutation row and
   took 165 s alone on a 4-CPU computer. The wizard's and the dashboard's idle-connection checks

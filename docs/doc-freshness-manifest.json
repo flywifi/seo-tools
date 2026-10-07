@@ -134,7 +134,7 @@
         "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
-        "tools/handoff/watcher.py": "68e519e283460f0325a3b891efc6b3b4f2ff1b726b6a95778b58c7b5ee7b70bb",
+        "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
@@ -145,7 +145,7 @@
       "sources": {
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
         "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
-        "tools/handoff/watcher.py": "68e519e283460f0325a3b891efc6b3b4f2ff1b726b6a95778b58c7b5ee7b70bb",
+        "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"

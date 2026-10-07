@@ -159,9 +159,9 @@ def selftest() -> int:
     fakehome = Path(tempfile.mkdtemp())
     target = fakehome / "Library" / "CloudStorage" / "GoogleDrive-someone@example.com" / "My Drive" / "Creator OS"
     target.mkdir(parents=True)
-    found = detect_mirror_candidates(home=fakehome)
+    found = detect_mirror_candidates(home=fakehome, drives=[])  # no real drive letters: this computer may hold a real hub
     ok("detects the CloudStorage mirror path", found == [str(target)])
-    ok("no candidates on an empty home", detect_mirror_candidates(home=tempfile.mkdtemp()) == [])
+    ok("no candidates on an empty home", detect_mirror_candidates(home=tempfile.mkdtemp(), drives=[]) == [])
     # P102: on Windows each drive's My Drive\Creator OS is offered when it exists.
     _dirs = {"G:\\My Drive\\Creator OS", "H:\\My Drive", "C:\\My Drive\\Creator OS", "K:\\My Drive\\Creator OS"}
     _win = detect_mirror_candidates(home=tempfile.mkdtemp(), osname="nt",
