@@ -3366,6 +3366,18 @@ def on_google_drive(path, isdir=os.path.isdir, system_drive=None):
     return "" if m.group(3) else "drive_root"
 
 
+def _network_path(folder) -> bool:
+    """True for a Windows network path (\\\\server\\share, //server/share, \\\\?\\UNC\\...), read from the
+    text alone: resolving one can block for a long time on a slow or offline server. A long-path
+    (\\\\?\\) or device (\\\\.\\) prefix on a drive letter is not a network path."""
+    f = str(folder).strip().strip('"').strip().replace("/", "\\")
+    if f.upper().startswith("\\\\?\\UNC\\"):
+        return True
+    if f.startswith("\\\\?\\") or f.startswith("\\\\.\\"):
+        return False
+    return f.startswith("\\\\")
+
+
 def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None, realpath=None,
                      isdir=None, home=None):
     """P57: resolve a user-typed folder and confine it to the user's home tree.
@@ -3379,11 +3391,17 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
     quotes). With allow_drive (the Drive hub route only, P102), on Windows a folder inside a
     Google Drive for desktop drive's My Drive or Shared drives folder is accepted too
     (on_google_drive); that root folder itself is refused as 'drive_root', the way the home
-    folder is. osname, realpath, isdir and home stand in for the system's in the selftest.
+    folder is. On Windows a network path is refused as 'network_path' from its text, before any
+    filesystem call, unless the home folder is itself one (_network_path): resolving a path on a
+    slow or offline server blocks, and the wizard answers one request at a time. osname, realpath,
+    isdir and home stand in for the system's in the selftest.
     """
     folder = folder.strip().strip('"').strip() if isinstance(folder, str) else folder
     if not folder:
         return False, "", "empty"
+    if ((os.name if osname is None else osname) == "nt" and _network_path(folder)
+            and not _network_path(os.path.expanduser("~") if home is None else home)):
+        return False, folder, "network_path"
     realpath = os.path.realpath if realpath is None else realpath
     isdir = os.path.isdir if isdir is None else isdir
     real = realpath(os.path.expanduser(folder))
@@ -3414,6 +3432,8 @@ def _drive_hub_folder(folder):
 _DRIVE_HUB_WHY = {
     "drive_root": " (that is the whole Drive; make a folder inside it, such as My Drive\\Creator OS, "
                   "and use that)",
+    "network_path": " (a network share cannot be the Drive hub; use the folder Google Drive for "
+                    "desktop shows, such as G:\\My Drive\\Creator OS)",
     "system_drive": " (that is a folder named My Drive on this computer's system drive, not Google "
                     "Drive; use the drive letter Google Drive for desktop shows, often G:)",
     "outside_home": " (use a folder in your user folder, or on Windows a folder inside the My Drive "
@@ -5252,6 +5272,28 @@ def _selftest_p101() -> int:
           f"a settings route drops the servers already there, the hub route skips the Drive folder rule "
           f"or its explanation, or /done shows another system's restart step ({_kept_rt}, {_hub_seen_rt}, "
           f"{'that is the whole Drive' in _hub_body_rt}, {'notification area' in _done_rt})")
+    # P102: on Windows a network path is refused from its text, before anything resolves it (a slow
+    # or offline server blocks realpath, and the wizard answers one request at a time).
+    def _no_fs_n(_p):
+        raise AssertionError("resolved a network path")
+    _net_n = ["\\\\localhost\\G$\\My Drive\\Creator OS", "//nas/creators/hub", "\\\\?\\UNC\\nas\\share\\hub",
+              '"\\\\nas\\share\\hub"', "  \\\\nas\\share  "]
+    _local_n = ["G:\\My Drive\\Creator OS", "\\\\?\\G:\\My Drive\\Creator OS", "G:/My Drive/Creator OS",
+                "\\\\.\\G:\\x", "C:\\Users\\x\\hub", "\\Users\\x\\hub"]
+    try:
+        _refused_n = [_confined_folder(f, allow_drive=True, osname="nt", realpath=_no_fs_n, isdir=_no_fs_n,
+                                       home="C:\\Users\\me")[2] for f in _net_n]
+    except AssertionError as _exc_n:
+        _refused_n = [str(_exc_n)]
+    _unc_home_n = _confined_folder("\\\\srv\\home\\me\\hub", osname="nt", realpath=lambda p: p,
+                                   isdir=lambda p: True, home="\\\\srv\\home\\me")
+    _posix_n = _confined_folder("//nas/share", osname="posix", realpath=lambda p: p, isdir=lambda p: False,
+                                home="/home/me")
+    check(_refused_n == ["network_path"] * len(_net_n) and not any(_network_path(f) for f in _local_n)
+          and _unc_home_n[2] != "network_path" and _posix_n[2] == "not_dir"
+          and "network share" in _DRIVE_HUB_WHY.get("network_path", ""),
+          f"a network path is resolved or accepted on Windows, a local path reads as one, or the rule "
+          f"applies off Windows or to a network home folder ({_refused_n}, {_unc_home_n}, {_posix_n})")
     # P102: the Drive hub folder rule on Windows, with the system stood in for: quotes are removed, a
     # folder inside a Drive for desktop drive's My Drive or Shared drives is accepted only where that
     # folder exists, the root folder itself is refused, and other routes keep the home-only rule.

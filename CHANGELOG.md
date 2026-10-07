@@ -358,7 +358,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   offers `<letter>:\My Drive\Creator OS` when a drive holds it
   (`watcher.detect_mirror_candidates`). Before, the rule refused every Drive folder on Windows, so
   the hub could not be connected there. A `My Drive` folder on the system drive is refused, since
-  Drive for desktop does not mount there and any local account can make one. The wizard's restart step names each system's way to quit
+  Drive for desktop does not mount there and any local account can make one. On Windows every
+  folder input refuses a network path from its text, before resolving it (`wizard._network_path`):
+  a UNC path typed into the hub field held the single-request wizard for longer than a minute
+  while Windows tried to reach the share. The wizard's restart step names each system's way to quit
   Claude Desktop (`wizard._restart_step`): on Windows, from its icon in the notification area,
   since closing the window leaves it running. A Store build that has not written a log yet counts
   as installed (checked in `_selftest_p101`). `docs/SETUP_WINDOWS.md` marks the optional

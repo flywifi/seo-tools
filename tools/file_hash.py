@@ -2133,6 +2133,25 @@ _MUTANTS = (
     ('SD3 detection keeps the system drive', 'handoff/watcher.py',
      '            if ntpath.splitdrive(drive)[0].upper() == str(sysdrive)[:2].upper():\n                continue\n',
      '            if False:\n                continue\n'),
+    # P102 push 3: a network path is refused before it is resolved.
+    ('NP1 network paths are resolved', 'wizard.py',
+     '        return False, folder, "network_path"\n',
+     '        pass\n'),
+    ('NP2 the network check runs off Windows too', 'wizard.py',
+     '    if ((os.name if osname is None else osname) == "nt" and _network_path(folder)\n',
+     '    if (_network_path(folder)\n'),
+    ('NP3 a network home folder is refused too', 'wizard.py',
+     '            and not _network_path(os.path.expanduser("~") if home is None else home)):\n',
+     '            and True):\n'),
+    ('NP4 forward slashes are not read as a share', 'wizard.py',
+     '    f = str(folder).strip().strip(\'"\').strip().replace("/", "\\\\")\n',
+     '    f = str(folder).strip().strip(\'"\').strip()\n'),
+    ('NP5 a long-path prefix reads as a share', 'wizard.py',
+     '    if f.startswith("\\\\\\\\?\\\\") or f.startswith("\\\\\\\\.\\\\"):\n        return False\n',
+     '    if False:\n        return False\n'),
+    ('NP6 the UNC long-path form is missed', 'wizard.py',
+     '    if f.upper().startswith("\\\\\\\\?\\\\UNC\\\\"):\n        return True\n',
+     '    if False:\n        return True\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

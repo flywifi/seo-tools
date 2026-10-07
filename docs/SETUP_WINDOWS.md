@@ -135,7 +135,8 @@ It binds `8766`, then `8776`, then `8786`. *(tested on Windows)*
 - Make the `Creator OS` folder inside `My Drive`, then open the wizard's **Drive hub** screen
   (`/drive-hub`). It offers that folder when it finds one on a drive; otherwise paste its path
   (Explorer's "Copy as path" works, quotes included). The wizard accepts a folder inside a Drive
-  `My Drive` or `Shared drives` folder, and refuses `My Drive` itself
+  `My Drive` or `Shared drives` folder, and refuses `My Drive` itself, a `My Drive` folder on the
+  system drive, and a network share (`\\server\share`), which it refuses without opening
   <!-- verify: tools/wizard.py::on_google_drive -->.
 - Stream files mode *(tested on Windows)*. Mirror files mode *(not yet tested on Windows)*.
 - Keep the repository itself out of the Drive folder (Quick start step 2).

@@ -25,6 +25,11 @@ under `~/Library/CloudStorage`, so no candidate was offered either.
   (`%SystemDrive%`, default `C:`) is refused (`system_drive`): Drive for desktop does not mount
   there, and any local account can make a `My Drive` folder at its root. The paths are read with
   Windows rules, so the selftest runs the Windows cases on any system.
+- On Windows every folder input refuses a network path (`\\server\share`, `//server/share`,
+  `\\?\UNC\...`) from its text, before any filesystem call (`wizard._network_path`), unless the
+  home folder is itself one: resolving a path on a slow or offline server blocked for longer than
+  a minute on the Windows test computer, and the wizard answers one request at a time, so every
+  screen waited. Drive for desktop presents a drive letter, never a network path.
 - The import folder and the storage folder keep the home-only rule.
 - On Windows, `detect_mirror_candidates` offers `<letter>:\My Drive\Creator OS` for each drive
   that has it, except the system drive (`os.listdrives()` on Python 3.12 and later, else each
