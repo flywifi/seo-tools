@@ -92,7 +92,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `most_watched_parts` | Content | `content-library` | which parts of the creator's OWN videos were most watched, with the transcript words spoken at each peak (YouTube retention x transcript join; null-flagged off YouTube) |
 | `document_create` | Document | `document-studio` | new document creation (media kit, brief, etc.) |
 | `document_edit` | Document | `document-studio` | editing an existing document |
-| `platform_export` | Document | `document-studio` | packaging Creator OS for Gemini Gems or Custom GPTs |
+| `platform_export` | Document | `document-studio` | packaging Creator OS for a ChatGPT Project, a Claude Project or a Gemini chat (the ready-made packs in `implementation/`) |
 | `template_manage` | Document | `document-studio` | ingest an example into a proposed doc-template, list or diff saved templates (template-ingest, tools/doctemplates.py; proposal-only, the human saves the gitignored .local.json); assembly from a saved template rides document_create (non-contract) or contract_draft (contracts, via contract-desk) |
 | `account_read` | Pipeline/CRM | `account-manager` | read-only account and contact lookup: resolve a fuzzy brand phrase to an account, then read its health, contacts, or overview (contact-lookup / account-resolve; never writes) |
 | `account_create` | Pipeline/CRM | `account-manager` | new brand account record |
@@ -232,7 +232,7 @@ quality-review
 
 ## Cross-modality
 Class: A.
-Runs on: every surface, including a consumer Gemini Gem (knowledge-only). No tool required.
+Runs on: every surface, including a Gemini chat with the pasted pack (knowledge-only). No tool required.
 Mechanism: The hub/router: classifies a request into a lane and dispatches to a spoke (pure reasoning); runs no tool of its own. The spoke it routes to carries its own class.
-Fallback: Runs on every surface; if a routed spoke is Class C and the surface has no runtime or hosted seam, it hands off with that spoke's own fallback. On ChatGPT (web, custom GPT, Projects, desktop app) this works by pasting the knowledge pack; re-paste when the packaging version changes.
+Fallback: Runs on every surface; if a routed spoke is Class C and the surface has no runtime or hosted seam, it hands off with that spoke's own fallback. On ChatGPT (web, Projects, desktop app) this works by pasting the knowledge pack; re-paste when the packaging version changes.
 See `shared/cross-modality-engine.md`.

@@ -41,7 +41,14 @@ symbol, path, or count is verifiable, so it is verified.
 5. **Content-hash staleness stamping** (`tools/doc_freshness.py`; and, for the knowledge packs,
    `tools/projection_manifest.py`). A manifest binds each high-value doc to the code files it
    describes and records their sha256 at reconcile time; `--check` flags "may be stale" when a
-   bound source moves. **Blocking since P79** (invariant 51). See the caveat below.
+   bound source moves. **Blocking since P79** (invariant 51). See the caveat below. The sha256 of
+   a tracked file is `tools/file_hash.py`'s (P101): a text file is hashed with CRLF and lone CR
+   folded to LF, and a binary file (a NUL in its first 8000 bytes, the test git's diff uses) raw,
+   so a checkout whose line endings git converted (`core.autocrlf=true`) still verifies; the
+   Mac-surface and skill-package manifests and `tools/hash_audit.py` use the same function.
+   `.gitattributes` asks git for LF checkouts of text files (`* text=auto eol=lf`; `*.bat`
+   CRLF). A clone made before that rule keeps its CRLF files until they are checked out again:
+   with a clean working tree, `git rm -r --cached -q . && git reset -q --hard`.
 6. **Tools-layer maintainer coverage.** Allowlisted `tools/` directories
    (`TOOLS_MAINTAINER_DIRS`) must each carry a `MAINTAINER_README.md`, and those files are
    reference-checked like skill maintainer docs.

@@ -44,8 +44,11 @@ The watcher only decides WHERE the queue is and WHEN to look; every execution pr
 in `run_pass`. Hub resolution: `--hub` argument, else `drive_hub.local_mirror` (local config over
 committed), else an honest "not configured" note pointing at the wizard `/drive-hub` screen.
 `detect_mirror_candidates` probes the macOS File Provider mount
-(`~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>`) as a wizard convenience only; the user
-confirms the path, and the wizard confines it to the home tree before saving.
+(`~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>`) and, on Windows, `<letter>:\My Drive\<folder>`
+on each drive other than the system drive, as a wizard convenience only; the user confirms the
+path. The wizard confines it to the home tree before saving, except that on Windows the hub route
+also accepts a folder inside a Drive for desktop drive's `My Drive` or `Shared drives` folder
+(`wizard._drive_hub_folder`, ADR 0078).
 `<!-- verify: tools/handoff/watcher.py::resolve_hub -->`
 The schedule follows `tools/freshness-scheduler.example` (cron/launchd calling `--once`);
 `--watch` is a foreground convenience with a 30-second floor on the interval.
@@ -70,16 +73,38 @@ export archives). Content-gated categories (contracts, pitches, invoices) are li
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
 (`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned
-writers, and both move by REALPATH containment (never a raw `hub / rel`, so `..`, symlinks, and a
-case-insensitive filesystem cannot escape or dodge the sealed area) and never overwrite a same-name
+writers, and both move by REALPATH containment (never a raw `hub / rel`: `approve` resolves the
+file a proposal names, so a symlink is judged by its target, and the sweep resolves the folder of
+the entry it moves and moves the entry, so a flagged symlink is sealed as a link; `..` and
+symlinks cannot escape either way, and the sealed-area test compares case-folded paths because
+realpath keeps the case it is given on Google Drive for desktop's drive) and never overwrite a same-name
 file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
 - `approve` moves handled files to `Inbox/Processed/<date>/`, re-verifying each sha256 (a file
   changed since its scan is refused) and refusing any path that resolves into `Inbox/Quarantine/`
-  or outside `Inbox/`; it appends to the gitignored ledger atomically.
+  or outside `Inbox/`; it re-runs the offline pattern tier on each file and keeps the more cautious
+  of that verdict and the proposal's, refusing a file with a plain-text extension that the tier cannot read
+  (`_approve_screen`); it appends to the gitignored ledger atomically.
 - `sweep_quarantine` seals QUARANTINE/BLOCK files into `Inbox/Quarantine/<date>/` with their
-  findings (the second writer; details under "The sealed Quarantine area" below).
+  findings (the second writer; details under "The sealed Quarantine area" below). The wizard's
+  `/inbox` screen calls it after a scan that flags a file, and so does the `sweep` verb
+  (`python3 tools/handoff/inbox.py sweep --hub PATH`), which reads and writes the ledger
+  `LEDGER_PATH` names when it runs and exits 0 (sealed, already gone, or nothing flagged), 1 (no
+  `Inbox`, an unreadable file, a flagged file not moved, or an unwritable ledger) or 2 (usage).
+  `<!-- verify: tools/handoff/inbox.py::_sweep_cli -->`
+- Both writers read, update and write the ledger under `atomic_io.locked` on `<ledger>.lock`, so a
+  sweep and an approval running at once keep both entries. A ledger that does not parse, or is not
+  an object holding a list of entry objects, is copied to `<name>.corrupt.<UTC stamp>.bak` and a new
+  one is started (reported as `ledger_note`); one that cannot be read raises before any file moves.
+  `<!-- verify: tools/handoff/inbox.py::_ledger_for_write -->`
+- `scan` flags a new copy of content the ledger records as sealed, so the sweep seals it too rather
+  than leaving it in the drop folder counted as handled.
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
+`approve` refuses a text file the tier read only in part (`inbox._fully_screened`), and `scan` holds
+one with `inbox._OVERSIZE_NOTE`, so a transcript or a JSON or CSV export over 2 MB stays in the
+Inbox until it is split; on other formats a cut record's verdict is kept,
+marked truncated, when it is the more cautious. A file `scan` cannot read goes to `needs_review`
+with the error, and `approve` refuses one it cannot read or move; both go on with the batch.
 Two-pass handoff (P62): the offline verdict is pass 1. Every routed / needs-review record carries
 its `offline_pattern_scan` prior AND `pass2_pending: true`, so a Claude session that later reads the
 record runs the authoritative semantic guard (pass 2) with the prior as advisory input and writes a
@@ -121,7 +146,9 @@ free text is refused, never silently passed.
 - `transcribe_media`: the builder passes `--out-dir <hub>/Jobs/results` so the SRT lands beside the
   result, not inside `Inbox/Processed/`.
 - **Outbox delivery (P61)**: a report-style job that finishes `done` (the `OUTBOX_TYPES` set)
-  also gets its stdout JSON delivered atomically to `<hub>/Outbox/<job_type>.<stamp>Z.mac.json`,
+  also gets its stdout JSON delivered atomically to `<hub>/Outbox/<job_type>.<stamp>Z.<tag>.json`
+  (`<tag>` is `mac`, `windows` or `linux`, the system of the computer that ran the job;
+  `<!-- verify: tools/handoff/runner.py::_platform_tag -->`),
   with `outputs[]` listing both files. Failed jobs and non-JSON stdout never deliver;
   `transcribe_media` stays out (its artifact is the SRT). Transport B's `poll_once` uploads
   staged Outbox artifacts too (create-only; a hub without an Outbox folder degrades to

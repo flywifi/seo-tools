@@ -1548,46 +1548,36 @@
           ]
         },
         {
-          "id": "cowork-surface-model",
+          "id": "cowork-surfaces-retired",
           "op": "json.load",
           "with": {
             "fixture": "repo:shared/cross-modality/transitions.json"
           },
           "assert": [
             {
-              "path": "surfaces.cowork_remote.origins",
-              "check": "contains",
-              "value": "cowork"
+              "path": "surfaces.cowork_local",
+              "check": "absent_key"
             },
             {
-              "path": "surfaces.cowork_local.origins",
-              "check": "contains",
-              "value": "cowork"
+              "path": "surfaces.cowork_remote",
+              "check": "absent_key"
+            }
+          ]
+        },
+        {
+          "id": "custom-gpt-and-gems-retired",
+          "op": "json.load",
+          "with": {
+            "fixture": "repo:shared/cross-modality/transitions.json"
+          },
+          "assert": [
+            {
+              "path": "surfaces.chatgpt_custom_gpt",
+              "check": "absent_key"
             },
             {
-              "path": "surfaces.cowork_remote.flags_enforced",
-              "check": "eq",
-              "value": false
-            },
-            {
-              "path": "surfaces.cowork_remote.local_machine_required",
-              "check": "eq",
-              "value": false
-            },
-            {
-              "path": "surfaces.cowork_remote.store_options",
-              "check": "eq",
-              "value": ["google_drive", "export_and_you_save"]
-            },
-            {
-              "path": "surfaces.cowork_local.class_support.C",
-              "check": "eq",
-              "value": "native"
-            },
-            {
-              "path": "surfaces.cowork_local.flags_enforced",
-              "check": "eq",
-              "value": true
+              "path": "surfaces.gemini_gems",
+              "check": "absent_key"
             }
           ]
         }

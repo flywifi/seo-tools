@@ -2,17 +2,29 @@
   "_comment": "P52 doc-freshness signal: sha256 of each CODE file a doc documents, at the time the doc was last reconciled. If a bound source sha moves, drift invariant 51 (blocking since P79) flags the doc as possibly stale. Re-read the doc, fix any drift, then run `python3 tools/doc_freshness.py reconcile` to re-bless it.",
   "generated_by": "tools/doc_freshness.py",
   "docs": {
+    "docs/PROFILE-MIRROR.md": {
+      "sources": {
+        "tools/profile_mirror.py": "a4432fa617e6a1fcc42ae47dfe6d2380c39a24ce0070536ccc572284b3323c64",
+        "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
+      }
+    },
+    "docs/SURFACE-WORKFLOWS.md": {
+      "sources": {
+        "tools/surface_workflow_check.py": "dffdf28644b2903d73d113bda8b7314520ec07a1b89c2862e3d6bab62b9c6828",
+        "skills/creator-core/evals/surface-workflows.json": "4a3bf8c497a5654b2d18cde8a84d00e07b1b5b2bf3e9bddd4984931425923372"
+      }
+    },
     "docs/AUDIT-PROTOCOL.md": {
       "sources": {
-        "tools/handoff/queue.py": "d6f3a20ff8d4c596cca7087225b9709a89332bc0c6b5a30eefad8d54291d0df1",
-        "shared/cross-modality/transitions.json": "68546a38f0f6d814b0ac301e485bf2c927e15bb200db495fde405d74eaedf024"
+        "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
+        "shared/cross-modality/transitions.json": "4a188ede942a9bbcdef4cc166533acbc3ead09e956c729367d8f665c3de954d3"
       }
     },
     "docs/CURRENCY.md": {
       "sources": {
-        "tools/dependency_currency.py": "6bbd0e2f49bcd15beca90e5db9fdd2832c98e47231ad0691d8d22645c9254097",
+        "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
         "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
-        "tools/sync_check.py": "0e53e64935eb8cb09ff30c92e6253ee10cbfb4a3716e7784ee6af3c5bb08d355"
+        "tools/sync_check.py": "69abe70ebc59498184191af17f53176403f2703235b6c042417f26c57b145dad"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -23,7 +35,7 @@
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
         "tools/publishing/_http.py": "e4e0e3612c2d68956850f8de5d22f00760b9633b227edb4e3839f72f784e86d0",
-        "tools/oauth_flow.py": "91d1a3d4433ce41d4ba2bdc661084857ac6e48aecbbcb84200ba34c5896b62cb",
+        "tools/oauth_flow.py": "dfee6195c4645270e99b4a6ce12f922ff3e8fb1da301f9b19ee0a2b62561584b",
         "tools/publishing_compliance.py": "e920e3a023a50b091483d5a987e6a8e5b14cfb73914b50000d3ad5c91d1d57c0"
       }
     },
@@ -33,13 +45,13 @@
         "tools/publishing/instagram.py": "dcf27cd8030ad18df8e3068040afd7e98f12416d0b9295f954ea734b5d8f7ca4",
         "tools/publishing/tiktok.py": "35249023790745bd1f20f853b69e37ab6e17b60012cfba2d1429907651a54399",
         "tools/publishing/pinterest.py": "d9e1fc67049e44cd275ea5c0275d80f6f5a3c4e813378e6c04a1cf48bde52333",
-        "tools/oauth_flow.py": "91d1a3d4433ce41d4ba2bdc661084857ac6e48aecbbcb84200ba34c5896b62cb"
+        "tools/oauth_flow.py": "dfee6195c4645270e99b4a6ce12f922ff3e8fb1da301f9b19ee0a2b62561584b"
       }
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "9610fa1fa20c96872f624d66ee294c012dcc18517eafe850f2a1dd92437e45ec",
-        "tools/pick_folder.py": "6dd8cba06d623f5657bf621bea4b165984ec4a0fd98047494a03914beb87c2d9"
+        "tools/wizard.py": "849a9ba6b8114d6222859b9a84fa5d12b70243d4021b74f6eb479921a713d426",
+        "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
     "implementation/gpt/api/README.md": {
@@ -53,17 +65,17 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "cc2bc2328ca6a70741e4de9d8c896cf07540389e30e305d34d1e1eba0b9c07a3"
+        "tools/mcp_server.py": "3f57c06210007ae8d0f77cff7c36a317fdbf37256d647f6b01113f43ecabf71e"
       }
     },
     "docs/TRANSITIONS.md": {
       "sources": {
-        "shared/cross-modality/transitions.json": "68546a38f0f6d814b0ac301e485bf2c927e15bb200db495fde405d74eaedf024"
+        "shared/cross-modality/transitions.json": "4a188ede942a9bbcdef4cc166533acbc3ead09e956c729367d8f665c3de954d3"
       }
     },
     "implementation/claude/desktop/README.md": {
       "sources": {
-        "implementation/claude/desktop/claude_desktop_config_snippet.json": "ebb79356750e21fd18ae43c24fb4ac0318a2dfa45fc00278df7f44af8e45e619"
+        "implementation/claude/desktop/claude_desktop_config_snippet.json": "fec92b647702538def1e9078f955ecad9853422b90e9678a5a4a3af2d34fee7c"
       }
     },
     "docs/UPDATING.md": {
@@ -74,7 +86,7 @@
     },
     "shared/injection-guard-engine.md": {
       "sources": {
-        "tools/injection_scan.py": "71e485cabe449c616589cff3ff425a8d50aa9e6c951e52f3a8dcdc0fe77d0868"
+        "tools/injection_scan.py": "a43752ed361a47a24a6ec704a2fb2bef927c86d084a2bf5d1d848af02956cc58"
       }
     },
     "skills/finance-desk/MAINTAINER_README.md": {
@@ -119,23 +131,23 @@
     },
     "docs/DRIVE-HUB.md": {
       "sources": {
-        "shared/schemas/compute-job.json": "af0e13185a4bd7fe972f4abd25e79c57808b0ac206188c0411e802939349d459",
-        "tools/handoff/queue.py": "d6f3a20ff8d4c596cca7087225b9709a89332bc0c6b5a30eefad8d54291d0df1",
-        "tools/handoff/runner.py": "0da2bc1908587b14efaf42ebdf1e825f3cfb3c5863141a29f4f100c8143ff4ea",
-        "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
-        "tools/handoff/drive_api.py": "3ac95aeaed5ebe2c93932432f47ead4dd2467c4f4405189f44bc5d99cbfe63a5",
-        "tools/handoff/inbox.py": "0fd249ac573189ca5c39708757c0b0b045bd15920b82f7f57a641cbe4f10a6cb",
+        "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
+        "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
+        "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
+        "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
+        "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
+        "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "789c7a7dbbcb06bba982d88b38629554b55239037bd86e280009657ec9304f8b"
+        "tools/project_docs.py": "15835534381e7ec3abaa57a03aebacb658a05887e75237e6f971f34184763069"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
-        "tools/handoff/queue.py": "d6f3a20ff8d4c596cca7087225b9709a89332bc0c6b5a30eefad8d54291d0df1",
-        "tools/handoff/runner.py": "0da2bc1908587b14efaf42ebdf1e825f3cfb3c5863141a29f4f100c8143ff4ea",
-        "tools/handoff/watcher.py": "d60ac3a2ef043f020a5fc8b04dfdb129b583c7f8fb3578bf67a03cde5338c406",
-        "tools/handoff/drive_api.py": "3ac95aeaed5ebe2c93932432f47ead4dd2467c4f4405189f44bc5d99cbfe63a5",
-        "tools/handoff/inbox.py": "0fd249ac573189ca5c39708757c0b0b045bd15920b82f7f57a641cbe4f10a6cb",
+        "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
+        "tools/handoff/runner.py": "4c22d7ea10e0bff33c91b9acfd6e7240b084ea1e74ae7693020c38ddc0de41c8",
+        "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
+        "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
+        "tools/handoff/inbox.py": "f422f7ee78adc997c74b1b02100a9542f14594cb24269f7c5648fbda47a727ca",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }

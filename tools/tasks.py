@@ -388,19 +388,33 @@ def _status_counts(tasks) -> dict:
     return counts
 
 
+def _event_key(e) -> str:
+    """An event's identity across copies: every field except seq. Each copy numbers its own log and the
+    merge renumbers the union, so a key that held seq let an already-merged copy, read again, add its
+    events a second time."""
+    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)
+
+
 def merge_tasks(task_a, task_b) -> dict:
-    """Union two divergent copies of the same task by event (seq, at, event, actor) and re-fold. This is
-    why concurrent surfaces editing the shared store never clobber: history is append-only, so the merge is
-    the union of events followed by a deterministic re-projection."""
+    """Union two divergent copies of the same task by event and re-fold. An event is matched across the
+    copies by every field except seq (_event_key), as a multiset: each event is kept as many times as the
+    copy holding it more often holds it, so repeated identical events inside one log survive and an event
+    present in both copies is kept once. The inputs are not changed (events are copied before seq is
+    renumbered). History is append-only, so the merge is the union of events followed by a deterministic
+    re-projection, and merging the result with either input again changes nothing."""
     base = dict(task_a)
-    seen = set()
+    held: dict = {}
     merged_events = []
-    for e in list(task_a.get("history", [])) + list(task_b.get("history", [])):
-        key = (e.get("seq"), e.get("at"), e.get("event"), e.get("actor"))
-        if key in seen:
-            continue
-        seen.add(key)
-        merged_events.append(e)
+    for e in task_a.get("history", []):
+        k = _event_key(e)
+        held[k] = held.get(k, 0) + 1
+        merged_events.append(dict(e))
+    seen_b: dict = {}
+    for e in task_b.get("history", []):
+        k = _event_key(e)
+        seen_b[k] = seen_b.get(k, 0) + 1
+        if seen_b[k] > held.get(k, 0):
+            merged_events.append(dict(e))
     merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))
     # renumber seq densely to keep the log monotonic after a union of two independently-numbered logs
     for i, e in enumerate(merged_events, start=1):
@@ -871,6 +885,128 @@ def make_task(id, title, source, project_id=None, contract_id=None, task_kind="n
 
 
 # ── selftest ──────────────────────────────────────────────────────────────────
+# --- selftest: everything below is test code; the committed mutations apply above this line ---
+_SELFTEST_MARK = "# --- selftest: everything below is test code; the committed mutations apply above this line ---\n"
+_IN_MUTANT = False
+# (label, anchor, replacement) for the event merge (merge_tasks, _event_key). Each anchor occurs once
+# above the selftest marker; the mutated module's selftest() must fail. Chosen by a reviewer who did
+# not write the code (docs/AUDIT-PROTOCOL.md section 7.2).
+_MERGE_MUTANTS = (
+    ('T1 key-includes-seq',
+     '    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)',
+     '    return json.dumps(dict(e), sort_keys=True, default=str)'),
+    ('T2 b-set-semantics',
+     '        if seen_b[k] > held.get(k, 0):',
+     '        if k not in held:'),
+    ('T3 a-events-not-copied',
+     '        held[k] = held.get(k, 0) + 1\n        merged_events.append(dict(e))',
+     '        held[k] = held.get(k, 0) + 1\n        merged_events.append(e)'),
+    ('T4 b-events-not-copied',
+     '            merged_events.append(dict(e))',
+     '            merged_events.append(e)'),
+    ('T5 key-unsorted',
+     'sort_keys=True, default=str)',
+     'sort_keys=False, default=str)'),
+    ('T6 held-count-flat',
+     '        held[k] = held.get(k, 0) + 1',
+     '        held[k] = 1'),
+    ('T7 b-gte',
+     '        if seen_b[k] > held.get(k, 0):',
+     '        if seen_b[k] >= held.get(k, 0):'),
+    ('T8 a-dedup-within-log',
+     '        held[k] = held.get(k, 0) + 1\n        merged_events.append(dict(e))',
+     '        if k in held:\n            continue\n        held[k] = 1\n        merged_events.append(dict(e))'),
+    ('T9 no-sort',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    pass'),
+    ('T10 key-at-event-actor-only',
+     '    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)',
+     '    return json.dumps([e.get("at"), e.get("event"), e.get("actor")], default=str)'),
+    ('K1 sort-seq-only',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: e.get("seq", 0))'),
+    ('K2 sort-time-first',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (str(e.get("at") or ""), e.get("seq", 0)))'),
+    ('K3 key-ignores-actor',
+     'if k != "seq"}, sort_keys=True',
+     'if k not in ("seq", "actor")}, sort_keys=True'),
+    ('K4 key-ignores-at',
+     'if k != "seq"}, sort_keys=True',
+     'if k not in ("seq", "at")}, sort_keys=True'),
+    ('K5 no-refold',
+     '    base["history"] = merged_events\n    return fold_task(base)',
+     '    base["history"] = merged_events\n    return base'),
+    ('K6 renumber-from-zero',
+     '    for i, e in enumerate(merged_events, start=1):',
+     '    for i, e in enumerate(merged_events, start=0):'),
+    ('K7 b-count-flat',
+     '        seen_b[k] = seen_b.get(k, 0) + 1',
+     '        seen_b[k] = 1'),
+    ('K8 base-not-copied',
+     '    base = dict(task_a)',
+     '    base = task_a'),
+    ('K9 key-ignores-note',
+     'if k != "seq"}, sort_keys=True',
+     'if k not in ("seq", "note")}, sort_keys=True'),
+    ('TA tiebreak-by-actor',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("actor") or "")))'),
+    ('TB tiebreak-by-note',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("note") or "")))'),
+    ('TC key-actor-prefix-only',
+     '    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)',
+     '    return json.dumps({k: (v.split(":")[0] if k == "actor" else v) for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)'),
+    ('TD key-at-month-only',
+     '    return json.dumps({k: v for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)',
+     '    return json.dumps({k: (v[:7] if k == "at" else v) for k, v in e.items() if k != "seq"}, sort_keys=True, default=str)'),
+    ('TE status-from-first-input',
+     '    base["history"] = merged_events\n    return fold_task(base)',
+     '    base["history"] = merged_events\n    return dict(fold_task(base), status=task_a.get("status"))'),
+    ('TF started-from-first-input',
+     '    base["history"] = merged_events\n    return fold_task(base)',
+     '    base["history"] = merged_events\n    return dict(fold_task(base), started_at=task_a.get("started_at"))'),
+    ('TT1 sort-by-event-json',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), json.dumps(e, sort_keys=True, default=str)))'),
+    ('TT2 time-descending',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), "".join(chr(1114111 - ord(c)) for c in str(e.get("at") or ""))))'),
+    ('TT3 date-only-tiebreak',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")))',
+     '    merged_events.sort(key=lambda e: (e.get("seq", 0), str(e.get("at") or "")[:10]))'),
+)
+
+
+def _run_merge_mutants(table=None) -> list:
+    """The labels of merge mutants this selftest did not catch (or whose anchor is not unique)."""
+    import contextlib
+    import io
+    import types
+    head, mark, tail = Path(__file__).read_text(encoding="utf-8").partition(_SELFTEST_MARK)
+    survivors = []
+    for label, old, new in (_MERGE_MUTANTS if table is None else table):
+        if head.count(old) != 1:
+            survivors.append(f"{label} (anchor not found exactly once)")
+            continue
+        mod = types.ModuleType("tasks_mutant")
+        mod.__file__ = __file__
+        saved_path = list(sys.path)  # the copy's import line prepends the tools folder again
+        try:
+            exec(compile(head.replace(old, new) + mark + tail, "<tasks mutant>", "exec"), mod.__dict__)
+            mod._IN_MUTANT = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                caught = mod.selftest() != 0
+        except Exception:  # noqa: BLE001 - a mutant that crashes the selftest is caught
+            caught = True
+        finally:
+            sys.path[:] = saved_path
+        if not caught:
+            survivors.append(label)
+    return survivors
+
+
 def selftest() -> int:
     failures = []
     ran = [0]  # derived check count: the printed summary can never drift from reality
@@ -936,6 +1072,86 @@ def selftest() -> int:
     merged = merge_tasks(a, b)
     check("merge-idempotent", merge_tasks(merged, merged)["history"] == merged["history"])
     check("merge-folds", merged["status"] == "in_progress")
+
+    # the same task edited on BOTH sides, then the unchanged web copy read again from the store on every
+    # pass (the Drive hub read path): the event count stays put, both sides' events survive, and the
+    # inputs are not renumbered in place
+    desk_t = copy.deepcopy(t2); web_t = copy.deepcopy(t2)
+    desk_t["history"].append(make_event(desk_t["history"], "note", "user:desktop", "2026-07-12", note="desk"))
+    web_t["history"].append(make_event(web_t["history"], "note", "user:web", "2026-07-12", note="web"))
+    web_text = json.dumps(web_t)
+    desk_before = json.dumps(desk_t, sort_keys=True)
+    m1 = merge_tasks(desk_t, json.loads(web_text))
+    m2 = merge_tasks(m1, json.loads(web_text))
+    m3 = merge_tasks(m2, json.loads(web_text))
+    n0 = len(t2["history"])
+    check("merge-both-sides-union", len(m1["history"]) == n0 + 2
+          and {e.get("note") for e in m1["history"]} >= {"desk", "web"})
+    check("merge-reread-stable", len(m2["history"]) == len(m1["history"]) == len(m3["history"])
+          and m3["history"] == m1["history"])
+    check("merge-inputs-unchanged", json.dumps(desk_t, sort_keys=True) == desk_before)
+    rep = copy.deepcopy(t2)
+    rep["history"].append(make_event(rep["history"], "note", "user:creator", "2026-07-13", note="same"))
+    rep["history"].append(make_event(rep["history"], "note", "user:creator", "2026-07-13", note="same"))
+    check("merge-keeps-repeats", len(merge_tasks(rep, copy.deepcopy(rep))["history"]) == len(rep["history"]))
+    # renumbering reaches both inputs' events: a's second note and b's note both move, and neither input
+    # is changed in place; the merged log is ordered by each copy's seq, then by time
+    ia = copy.deepcopy(t2); ib = copy.deepcopy(t2)
+    ia["history"].append(make_event(ia["history"], "note", "user:desktop", "2026-07-12", note="a1"))
+    ia["history"].append(make_event(ia["history"], "note", "user:desktop", "2026-07-14", note="a2"))
+    ib["history"].append(make_event(ib["history"], "note", "user:web", "2026-07-13", note="b1"))
+    ia_before, ib_before = json.dumps(ia, sort_keys=True), json.dumps(ib, sort_keys=True)
+    mi = merge_tasks(ia, ib)
+    check("merge-a-unchanged", json.dumps(ia, sort_keys=True) == ia_before)
+    check("merge-b-unchanged", json.dumps(ib, sort_keys=True) == ib_before)
+    check("merge-orders-by-seq-then-time", [e["note"] for e in mi["history"] if e.get("note")] == ["a1", "b1", "a2"]
+          and [e["seq"] for e in mi["history"]] == list(range(1, len(mi["history"]) + 1)))
+    # multiset counts: each event is kept as often as the copy holding it more often holds it
+    once = copy.deepcopy(t2); twice = copy.deepcopy(t2)
+    once["history"].append(make_event(once["history"], "note", "user:creator", "2026-07-13", note="same"))
+    for _ in range(2):
+        twice["history"].append(make_event(twice["history"], "note", "user:creator", "2026-07-13", note="same"))
+    same_n = lambda t: sum(1 for e in t["history"] if e.get("note") == "same")  # noqa: E731
+    check("merge-b-holds-more-repeats", same_n(merge_tasks(once, twice)) == 2)
+    check("merge-a-holds-repeats-b-none", same_n(merge_tasks(twice, copy.deepcopy(t2))) == 2)
+    # identity is every field except seq: the same actor on the same day with two different notes is two
+    # events, and the same event written with its keys in another order is one
+    sa = copy.deepcopy(t2); sb = copy.deepcopy(t2)
+    sa["history"].append(make_event(sa["history"], "note", "user:creator", "2026-07-12", note="desk"))
+    sb["history"].append(make_event(sb["history"], "note", "user:creator", "2026-07-12", note="web"))
+    check("merge-key-reads-every-field", {e.get("note") for e in merge_tasks(sa, sb)["history"]} >= {"desk", "web"})
+    ro = copy.deepcopy(sa)
+    ro["history"] = [dict(reversed(list(e.items()))) for e in ro["history"]]
+    check("merge-key-ignores-key-order", len(merge_tasks(sa, ro)["history"]) == len(sa["history"]))
+    # equal seq on both sides orders by time; actor and time are part of an event's identity; the
+    # merged task is re-folded from the union, not copied from the first input
+    ea = copy.deepcopy(t2); eb = copy.deepcopy(t2)
+    ea["history"].append(make_event(ea["history"], "note", "user:desktop", "2026-07-14", note="late"))
+    eb["history"].append(make_event(eb["history"], "note", "user:web", "2026-07-13", note="early"))
+    check("merge-equal-seq-orders-by-time",
+          [e.get("note") for e in merge_tasks(ea, eb)["history"] if e.get("note")] == ["early", "late"])
+    ea2 = copy.deepcopy(t2); eb2 = copy.deepcopy(t2)  # notes whose text sorts against their times
+    ea2["history"].append(make_event(ea2["history"], "note", "user:desktop", "2026-07-14", note="a-late"))
+    eb2["history"].append(make_event(eb2["history"], "note", "user:web", "2026-07-13", note="b-early"))
+    check("merge-equal-seq-orders-by-time-not-text",
+          [e.get("note") for e in merge_tasks(ea2, eb2)["history"] if e.get("note")] == ["b-early", "a-late"])
+    ea3 = copy.deepcopy(t2); eb3 = copy.deepcopy(t2)  # same day, different time of day
+    ea3["history"].append(make_event(ea3["history"], "note", "user:desktop", "2026-07-14T18:00:00Z", note="a-evening"))
+    eb3["history"].append(make_event(eb3["history"], "note", "user:web", "2026-07-14T09:00:00Z", note="b-morning"))
+    check("merge-equal-seq-orders-by-time-of-day",
+          [e.get("note") for e in merge_tasks(ea3, eb3)["history"] if e.get("note")] == ["b-morning", "a-evening"])
+    ka = copy.deepcopy(t2); kb = copy.deepcopy(t2)
+    ka["history"].append(make_event(ka["history"], "note", "user:desktop", "2026-07-12", note="same"))
+    kb["history"].append(make_event(kb["history"], "note", "user:web", "2026-07-12", note="same"))
+    check("merge-key-reads-actor", same_n(merge_tasks(ka, kb)) == 2)
+    ta = copy.deepcopy(t2); tb = copy.deepcopy(t2)
+    ta["history"].append(make_event(ta["history"], "note", "user:creator", "2026-07-12", note="same"))
+    tb["history"].append(make_event(tb["history"], "note", "user:creator", "2026-07-13", note="same"))
+    check("merge-key-reads-at", same_n(merge_tasks(ta, tb)) == 2)
+    fa = copy.deepcopy(t2); fb = copy.deepcopy(t2)
+    transition(fb, "in_progress", "user:web", "2026-07-11")
+    fm = merge_tasks(fa, fb)
+    check("merge-refolds-from-union", fm["status"] == "in_progress" and fm.get("started_at") == "2026-07-11")
 
     # reconcile two registers
     ra = {"tasks": [copy.deepcopy(t)]}; rb = {"tasks": [copy.deepcopy(t2)]}
@@ -1043,6 +1259,27 @@ def selftest() -> int:
         check("oversize-register-path-ValueError", True)
     except OSError:
         check("oversize-register-path-ValueError", False)
+
+    if not _IN_MUTANT and _MERGE_MUTANTS:
+        survivors = _run_merge_mutants()
+        check("merge-mutants-caught" + (": " + "; ".join(survivors) if survivors else ""), not survivors)
+        keep = "        held[k] = held.get(k, 0) + 1"
+        path_before = list(sys.path)
+        probe = _run_merge_mutants(table=(("noop", keep, keep), ("missing", "no such anchor in this file", "x")))
+        check("merge-mutant-runner-restores-import-path", sys.path == path_before)
+        path_before2 = list(sys.path)  # a case that cannot load prepends nothing, so the restore must not trim
+        probe4 = _run_merge_mutants(table=(("syntax", keep, keep + "\n("),))
+        check("merge-mutant-runner-restores-import-path-unloadable", probe4 == [] and sys.path == path_before2)
+        check("merge-mutant-runner-reports", probe == ["noop", "missing (anchor not found exactly once)"])
+        probe2 = _run_merge_mutants(table=(("dup", "    return ", "    return "),
+                                           ("crash", "def make_event(", "def make_event_renamed(")))
+        check("merge-mutant-runner-dup-and-crash", probe2 == ["dup (anchor not found exactly once)"])
+        try:  # a crash of another exception type is caught too
+            probe3 = _run_merge_mutants(table=(("crash2", "def _next_seq(history) -> int:",
+                                                "def _next_seq(history, extra) -> int:"),))
+        except Exception:  # noqa: BLE001 - the runner let the crash escape
+            probe3 = None
+        check("merge-mutant-runner-any-crash-caught", probe3 == [])
 
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")

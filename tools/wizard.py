@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS Setup Wizard
 
-Opens a browser at http://localhost:8765 and guides through:
+Opens a browser at http://127.0.0.1:8765 and guides through:
   - Connecting Google Workspace (Gmail, Calendar, Drive, Docs, Sheets)
   - Connecting Microsoft 365 (Outlook, Calendar, Excel, OneDrive)
   - Updating Claude Desktop configuration automatically
@@ -36,31 +36,21 @@ if str(_HERE) not in sys.path:
 import oauth_flow  # noqa: E402  (sibling module in tools/; publishing OAuth loopback helper)
 import env_paths  # noqa: E402  (sibling module in tools/; venv-aware interpreter + brew-PATH resolution)
 import atomic_io  # noqa: E402  (sibling module in tools/; the one atomic writer, P81)
+import loopback_server  # noqa: E402  (sibling module in tools/; port block and exclusive bind, P101)
 
-# P73: overridable, but 8765 stays the default ON PURPOSE. Nine OAuth redirect URIs are
-# derived from this port and docs/PUBLISHING.md tells you to register
-# http://127.0.0.1:8765/oauth/<platform>/callback with Google, Meta, TikTok and Pinterest as an
-# EXACT match. Changing the port therefore breaks every already-registered redirect URI until you
-# re-register it with each provider -- so this is an escape hatch for a port collision, not a
-# setting to tune. An unparseable or out-of-range value falls back to the default rather than
-# crashing the one tool a non-technical user runs.
-def _wizard_port(default: int = 8765) -> int:
-    raw = os.environ.get("CREATOR_OS_WIZARD_PORT")
-    if not raw:
-        return default
-    try:
-        val = int(raw)
-    except ValueError:
-        print(f"[wizard] CREATOR_OS_WIZARD_PORT={raw!r} is not a number; using {default}.")
-        return default
-    if not (1024 <= val <= 65535):
-        print(f"[wizard] CREATOR_OS_WIZARD_PORT={val} is out of range (1024-65535); "
-              f"using {default}.")
-        return default
-    return val
-
-
-PORT = _wizard_port()
+# P73/P101: the publishing OAuth redirect URIs embed the wizard's port
+# (oauth_flow.redirect_uri: http://127.0.0.1:<port>/oauth/<platform>/callback). Pinterest matches a
+# registered URI exactly, TikTok matches one too (its Desktop apps also accept a wildcard port), and
+# the Instagram screen asks for the URI it shows to be registered with Meta; a Google desktop client
+# needs none (docs/PUBLISHING.md).
+# So the wizard binds a FIXED block, never "the next free port": 8765 first, then 8775 and 8785,
+# moving on only when the OS reserves a port (Windows can reserve 8765 for Hyper-V or WinNAT). Each
+# address in the block is registered once. CREATOR_OS_WIZARD_PORT names one port instead (an
+# escape hatch; its redirect URIs must be registered too); an unparseable or out-of-range value
+# falls back to the block with a printed note rather than crashing the one tool a non-technical
+# user runs. main() rebinds PORT to the port it bound.
+_PORTS = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK)
+PORT = _PORTS[0]
 _MAX_BODY = 5 * 1024 * 1024   # A4a: cap on any request body read into memory (forms are tiny)
 # Known STT model tiers the fetch-model button may request (A4c: reject anything else before shelling).
 _KNOWN_MODEL_TIERS = frozenset({
@@ -98,36 +88,137 @@ def _mcp_command(name: str) -> str:
 def _os_label() -> str:
     return {"mac": "macOS", "windows": "Windows", "linux": "Linux"}[_os()]
 
-def _claude_config_path() -> pathlib.Path:
+_CONFIG_NAME = "claude_desktop_config.json"
+# The line Claude Desktop's main log writes when it loads its settings file (an app internal, not a
+# documented interface: a missing or reworded line reads as unknown, never as an error).
+_CONFIG_READ_LINE = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)\S* .*Reading claude_desktop_config\.json from (.+?)\s*$")
+_LOG_TAIL_BYTES = 2_000_000
+
+
+def _windows_dirs():
+    """(LOCALAPPDATA, APPDATA) as Paths, from the environment, else under the home folder."""
+    home = pathlib.Path.home()
+    local = pathlib.Path(os.environ.get("LOCALAPPDATA") or home / "AppData" / "Local")
+    roaming = pathlib.Path(os.environ.get("APPDATA") or home / "AppData" / "Roaming")
+    return local, roaming
+
+
+def _claude_config_from_logs():
+    """The settings file Claude Desktop's own log says it read last, or None: the newest
+    'Reading claude_desktop_config.json from <path>' line in the last 2 MB of each main*.log under
+    %LOCALAPPDATA%\\Claude\\logs, %APPDATA%\\Claude\\logs and each packaged (MSIX) app's
+    %LOCALAPPDATA%\\Packages\\Claude_*\\LocalCache\\Roaming\\Claude\\logs. Lines carry a local
+    'YYYY-MM-DD HH:MM:SS' stamp, so the greatest stamp is the newest across rotated logs."""
+    local, roaming = _windows_dirs()
+    best = None
+    try:
+        packaged_logs = [d / "LocalCache" / "Roaming" / "Claude" / "logs"
+                         for d in sorted(local.glob("Packages/Claude_*"))]
+    except OSError:
+        packaged_logs = []
+    for logs in [local / "Claude" / "logs", roaming / "Claude" / "logs"] + packaged_logs:
+        try:
+            files = sorted(logs.glob("main*.log"))
+        except OSError:
+            continue
+        for f in files:
+            try:
+                with open(f, "rb") as fh:
+                    fh.seek(max(0, f.stat().st_size - _LOG_TAIL_BYTES))
+                    text = fh.read().decode("utf-8", errors="replace")
+            except OSError:
+                continue
+            for line in text.splitlines():
+                m = _CONFIG_READ_LINE.match(line)
+                if m and (best is None or m.group(1) > best[0]):
+                    best = (m.group(1), m.group(2))
+    return pathlib.Path(best[1]) if best else None
+
+
+def _claude_config_targets():
+    """[(path, why), ...]: the settings file(s) the Creator OS entries go into, the first being the
+    one the wizard reads back. macOS and Linux: one fixed path. Windows (P102): the file Claude
+    Desktop's log names, when its folder exists; then, whether or not a log names one, each packaged
+    (MSIX) app's %LOCALAPPDATA%\\Packages\\Claude_*\\LocalCache\\Roaming\\Claude folder, plus
+    %APPDATA%\\Claude when its file already exists (an install that had the older app can keep
+    reading it; a packaged app may also log its virtualised %APPDATA% view of its own file); with
+    neither, %APPDATA%\\Claude. Each file appears once. Never raises."""
     os_name = _os()
     if os_name == "mac":
-        return pathlib.Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-    if os_name == "windows":
-        appdata = os.environ.get("APPDATA", str(pathlib.Path.home() / "AppData" / "Roaming"))
-        return pathlib.Path(appdata) / "Claude" / "claude_desktop_config.json"
-    return pathlib.Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+        return [(pathlib.Path.home() / "Library" / "Application Support" / "Claude" / _CONFIG_NAME,
+                 "the Mac settings file")]
+    if os_name != "windows":
+        return [(pathlib.Path.home() / ".config" / "Claude" / _CONFIG_NAME, "the Linux settings file")]
+    local, roaming = _windows_dirs()
+    real = roaming / "Claude" / _CONFIG_NAME
+    out, seen = [], set()
+
+    def _add(p, why):
+        key = os.path.normcase(str(p)).lower()
+        if key not in seen:
+            seen.add(key)
+            out.append((p, why))
+    try:
+        logged = _claude_config_from_logs()
+        if logged is not None and logged.parent.is_dir():
+            _add(logged, "named in Claude Desktop's log")
+        packaged = [d / "LocalCache" / "Roaming" / "Claude" for d in sorted(local.glob("Packages/Claude_*"))]
+        packaged = [d / _CONFIG_NAME for d in packaged if d.is_dir()]
+    except OSError:
+        packaged = []
+    for p in packaged:
+        _add(p, "the packaged app's folder")
+    if packaged and real.exists():
+        _add(real, "the usual folder, which an older install reads")
+    if not out:
+        _add(real, "the usual folder")
+    return out
+
+
+def _claude_config_path() -> pathlib.Path:
+    """The settings file the wizard reads back: the first of _claude_config_targets()."""
+    return _claude_config_targets()[0][0]
 
 def _claude_installed() -> bool:
-    return _claude_config_path().parent.exists()
+    return any(p.parent.exists() for p, _why in _claude_config_targets())
 
-def _read_claude_config() -> dict:
-    p = _claude_config_path()
+def _read_claude_config_at(p) -> dict:
+    p = pathlib.Path(p)
     if p.exists():
         try:
-            return json.loads(p.read_text(encoding="utf-8"))
+            return json.loads(p.read_text(encoding="utf-8-sig"))  # Notepad and PowerShell 5.1 add a BOM
         except (OSError, json.JSONDecodeError):
             pass
     return {}
 
-def _write_claude_config(config: dict) -> pathlib.Path:
-    p = _claude_config_path()
+def _read_claude_config() -> dict:
+    return _read_claude_config_at(_claude_config_path())
+
+def _update_claude_config(update) -> list:
+    """Apply update(config) to each file in _claude_config_targets(), each merged from its own
+    content, so one file's servers and preferences never overwrite another's. A target that does
+    not exist yet starts from a copy of the first target that parses to something, so a new
+    packaged-app file does not hide the servers the usual file holds. Returns ['<path> (<why>)']."""
+    targets = _claude_config_targets()
+    loaded = [(p, why, _read_claude_config_at(p) if p.exists() else None) for p, why in targets]
+    seed = next((c for _p, _w, c in loaded if c), {})
+    written = []
+    for p, why, cfg in loaded:
+        cfg = cfg if cfg is not None else json.loads(json.dumps(seed))
+        update(cfg)
+        _write_claude_config(cfg, p)
+        written.append(f"{p} ({why})")
+    return written
+
+def _write_claude_config(config: dict, path=None) -> pathlib.Path:
+    p = _claude_config_path() if path is None else pathlib.Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     # A4b: never silently destroy an existing config we could not parse. _read_claude_config returns
     # {} on a JSON error, so without this a corrupt file would be overwritten with only the new server
     # key -- losing the user's other MCP servers. Back it up first so it is recoverable.
     if p.exists():
         try:
-            json.loads(p.read_text(encoding="utf-8"))
+            json.loads(p.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError):
             try:
                 bak = p.with_name(p.name + ".corrupt.bak")
@@ -158,7 +249,7 @@ def _expected_tool_count() -> int | None:
     try:
         out = subprocess.run(
             [env_paths.app_python(), str(ROOT / "tools" / "count_truth.py")],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, timeout=60, **env_paths.tool_io(),
         ).stdout
         return int(json.loads(out)["mcp_tools"])
     except Exception:  # noqa: BLE001
@@ -176,7 +267,7 @@ def _probe_mcp_server_once(py: str, server: str, timeout: int = 90) -> tuple[boo
     Never raises."""
     try:
         p = subprocess.Popen([py, server], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, text=True, bufsize=1)
+                             stderr=subprocess.PIPE, bufsize=1, **env_paths.tool_io())
     except OSError as exc:
         return False, f"could not start the server: {exc}", 0
     lines: list = []
@@ -771,10 +862,34 @@ wizard handles them. A checkmark means you are ready.</p>
 {_first_run_nav("/desktop")}
 """, dots=["done", "done", "active", "dot"])
 
+def _restart_step() -> str:
+    """How to fully quit and reopen Claude Desktop on this system (HTML): closing the window leaves
+    it running, on a Mac in the Dock and on Windows in the notification area."""
+    os_name = _os()
+    if os_name == "windows":
+        return ("quit Claude Desktop from its icon in the notification area by the clock "
+                "(right-click it, then Quit; closing the window leaves it running) and reopen it")
+    if os_name == "mac":
+        return "completely quit Claude Desktop with Cmd-Q (closing the window is not enough) and reopen it"
+    return "completely quit Claude Desktop and reopen it"
+
+
+def _claude_log_hint(name: str) -> str:
+    """Where Claude Desktop logs an MCP server's start-up errors on this system."""
+    os_name = _os()
+    if os_name == "windows":
+        return (f"%LOCALAPPDATA%\\Claude\\logs\\mcp-server-{name}.log (the packaged app) or "
+                f"%APPDATA%\\Claude\\logs\\mcp-server-{name}.log")
+    if os_name == "mac":
+        return f"~/Library/Logs/Claude/mcp-server-{name}.log"
+    return f"~/.config/Claude/logs/mcp-server-{name}.log"
+
+
 def _screen_creator_os_server(result: dict | None = None) -> str:
     """P85-1: install the creator-os MCP server into Claude Desktop and VERIFY it with a real
     handshake probe before claiming success. Three explicit outcomes, no silent fallback."""
-    cfg = _claude_config_path()
+    targets = _claude_config_targets()
+    cfg = " and ".join(f"{p} ({why})" for p, why in targets)
     entry = _creator_os_entry()
     already = "creator-os" in (_read_claude_config().get("mcpServers") or {})
     status_html = ""
@@ -790,8 +905,8 @@ def _screen_creator_os_server(result: dict | None = None) -> str:
                 count_line = (f"{n} tools answered (expected {exp} &mdash; if you just updated, "
                               "rerun the check after a fresh install of the free tools).")
             status_html = f"""<div class="success-box"><strong>Installed and verified.</strong>
-{count_line} Now <strong>completely quit Claude Desktop (Cmd-Q on a Mac) and reopen it</strong>
-&mdash; the config is only read when the app starts. Then continue below.</div>
+{count_line} Now <strong>{_restart_step()}</strong>.
+The config is only read when the app starts. Then continue below.</div>
 <a class="btn btn-primary" href="/desktop">Continue: connect Google or Microsoft (optional)</a>
 <a class="btn btn-outline" href="/done">Finish</a>"""
         elif result.get("no_sdk"):
@@ -809,7 +924,7 @@ check did not pass: {html.escape(result.get("detail", ""))}</div>
 <p class="hint">Merge the <code>creator-os</code> block from
 <code>implementation/claude/desktop/claude_desktop_config_snippet.json</code> into
 <code>{html.escape(str(cfg))}</code>, replacing the placeholder path with this folder&#8217;s
-absolute path. Errors appear in <code>~/Library/Logs/Claude/mcp-server-creator-os.log</code>.</p>
+absolute path. Errors appear in <code>{html.escape(_claude_log_hint("creator-os"))}</code>.</p>
 </details>"""
     already_html = ('<div class="note">A creator-os entry already exists in your config; the '
                     'button below rewrites it for THIS folder and re-verifies it.</div>'
@@ -821,7 +936,7 @@ absolute path. Errors appear in <code>~/Library/Logs/Claude/mcp-server-creator-o
 <p>This writes one entry into Claude Desktop&#8217;s settings file so the app can run the
 Creator OS tools on this computer, then <strong>checks it actually works</strong> before saying
 done. Nothing else in your settings is touched.</p>
-<p class="hint">Settings file: <code>{html.escape(str(cfg))}</code><br>
+<p class="hint">Settings file{"s" if len(targets) > 1 else ""}: <code>{html.escape(cfg)}</code><br>
 It will run: <code>{html.escape(entry["command"])}</code></p>
 {status_html if status_html else '''<form method="POST" action="/api/install-creator-os">
   <button class="btn btn-primary" type="submit">Install and verify now</button>
@@ -1017,6 +1132,13 @@ with your Microsoft account. Follow the prompts to allow access.</p>
 def _screen_publishing_setup(error: str = "") -> str:
     creds = _load_api_credentials()
     err_html = f'<div class="error-box">{error}</div>' if error else ""
+    if env_paths.windows_outside_home(ROOT):  # P102: the drive's permissions reach the saved tokens
+        home_example = html.escape(str(pathlib.Path.home().joinpath("CreatorOS")))
+        err_html += (f'<div class="note">This Creator OS folder is outside your user folder. On Windows '
+                     f'a folder there takes the drive\'s permissions, which by default let other accounts '
+                     f'on this computer read its files, the credentials these screens save in '
+                     f'<code>pipeline/user-context/api-credentials.local.json</code> included. Keep the '
+                     f'folder under your user folder, for example <code>{home_example}</code>.</div>')
 
     def _status(plat: str) -> str:
         if creds.get(plat):
@@ -1396,15 +1518,55 @@ def _pinterest_form() -> str:
 24-hour token for a quick one-off. You do not need both.</p>"""
 
 
-def _load_api_credentials() -> dict:
-    """Read api-credentials.local.json and return a dict keyed by platform."""
+def _load_api_credentials(strict: bool = False) -> dict:
+    """Read api-credentials.local.json and return a dict keyed by platform. A missing file reads as
+    {}. By default a file that cannot be read or parsed also reads as {}, so a screen shows nothing
+    connected. With strict (a writer, P102) an OSError propagates, and a file that does not parse
+    as an object is copied to <name>.corrupt.<stamp>.bak (_keep_credentials_copy) and raises
+    ValueError, so the writer saves nothing over it. Both read past a UTF-8 byte-order mark."""
     creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    if creds_path.exists() and strict:
+        raw = creds_path.read_bytes()
+        try:
+            creds = json.loads(raw.decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            creds = None
+        if not isinstance(creds, dict):
+            bak = _keep_credentials_copy(creds_path, raw)
+            raise ValueError(f"{creds_path.name} could not be read, so nothing was saved; it was kept "
+                             f"as {bak.name}. Fix the file, or move it aside and connect the "
+                             f"platforms again.")
+        return creds
     if creds_path.exists():
         try:
-            return json.loads(creds_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            return json.loads(creds_path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):  # ValueError: not UTF-8, or not JSON
             pass
     return {}
+
+
+def _keep_credentials_copy(creds_path, raw):
+    """A copy of `raw` beside the credentials file as <name>.corrupt.<stamp>.bak, created with owner
+    read and write only (0600 on POSIX; it holds tokens), or the existing copy that already holds
+    those bytes, so a refused save repeated makes one copy."""
+    for old in sorted(creds_path.parent.glob(f"{creds_path.name}.corrupt.*.bak")):
+        try:
+            if old.read_bytes() == raw:
+                return old
+        except OSError:
+            continue
+    stamp, n = time.strftime("%Y%m%d%H%M%S"), 1
+    bak = creds_path.with_name(f"{creds_path.name}.corrupt.{stamp}.bak")
+    while True:
+        try:
+            fd = os.open(bak, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0), 0o600)
+            break
+        except FileExistsError:
+            n += 1
+            bak = creds_path.with_name(f"{creds_path.name}.corrupt.{stamp}.{n}.bak")
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(raw)
+    return bak
 
 
 def _save_api_credentials(creds: dict) -> None:
@@ -1422,8 +1584,18 @@ def _merge_api_credentials(plat: str, patch: dict) -> dict:
     """Deep-merge `patch` into creds[plat] and persist (read-modify-write). Fixes the whole-object
     clobber: publishing tokens live under creds[plat]["publish"] and never overwrite the importer's
     root-level read token (and vice-versa). Keys other than "publish" merge at the platform root
-    (e.g. the shared "ig_user_id" identity). Returns the full creds dict."""
-    creds = _load_api_credentials()
+    (e.g. the shared "ig_user_id" identity). Returns the full creds dict.
+    It reads and writes under atomic_io.locked on the file, the lock the dashboard and the watcher
+    take when they refresh a token (P102), and reads with _load_api_credentials(strict=True): a file
+    that does not parse as an object is kept as a .corrupt copy and the save is refused with
+    ValueError, so one stray comma cannot wipe the other platforms' tokens."""
+    creds_path = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
+    with atomic_io.locked(creds_path):
+        return _merged_api_credentials(_load_api_credentials(strict=True), plat, patch)
+
+
+def _merged_api_credentials(creds: dict, plat: str, patch: dict) -> dict:
+    """The merge step of _merge_api_credentials, run under its lock: apply patch, save, return."""
     cur = creds.get(plat)
     if not isinstance(cur, dict):
         cur = {}
@@ -1479,7 +1651,10 @@ def _complete_oauth(plat: str, code: str, verifier, redirect_uri: str):
     patch = {"publish": {k: v for k, v in tok.items() if v is not None}}
     if plat == "instagram" and tok.get("ig_user_id"):
         patch["ig_user_id"] = tok["ig_user_id"]   # shared identity lives at the platform root
-    _merge_api_credentials(plat, patch)
+    try:
+        _merge_api_credentials(plat, patch)
+    except ValueError as exc:  # the credentials file did not parse; nothing was saved
+        return False, str(exc)
     if plat == "google_drive":
         # P60 Transport B: this credential enables the watcher's Drive API polling, not publishing.
         _update_capability_flag("drive_api_polling", True)
@@ -1600,10 +1775,10 @@ def _screen_done() -> str:
     if connected:
         connected_html = "<ul style='margin:0 0 16px 20px;line-height:1.8;color:#1a3d1a'>" + \
                          "".join(f"<li>{c}</li>" for c in connected) + "</ul>"
-        restart = """<div class="note"><strong>Completely quit Claude Desktop and reopen it now.</strong>
-On a Mac use <strong>Cmd-Q</strong> (closing the window is not enough) &mdash; the config is only read
-when the app starts. It will ask you to sign in to your connected accounts the first time you use them.
-If a tool does not appear afterward, check <code>~/Library/Logs/Claude/mcp-server-&lt;name&gt;.log</code>.</div>"""
+        restart = """<div class="note"><strong>""" + _restart_step().capitalize() + """ now.</strong>
+The config is only read when the app starts. It will ask you to sign in to your connected accounts
+the first time you use them.
+If a tool does not appear afterward, check <code>""" + html.escape(_claude_log_hint("<name>")) + """</code>.</div>"""
     else:
         connected_html = "<p>No services were connected in this session.</p>"
         restart = ""
@@ -1681,17 +1856,16 @@ def _write_storage_folder(folder: str):
     Returns (written_path, prior_folder) where prior_folder is the previous filesystem-MCP root if a
     DIFFERENT one existed (so the caller can surface the replacement instead of silently clobbering it;
     P57). Callers must confine `folder` first with _confined_folder()."""
-    config = _read_claude_config()
-    config.setdefault("mcpServers", {})
-    prior_args = (config["mcpServers"].get("filesystem") or {}).get("args") or []
+    prior_args = ((_read_claude_config().get("mcpServers") or {}).get("filesystem") or {}).get("args") or []
     prior_folder = prior_args[-1] if prior_args else None
     if prior_folder == folder:
         prior_folder = None
-    config["mcpServers"]["filesystem"] = {
+    fs_entry = {
         "command": _mcp_command("npx"),
         "args": ["-y", "@modelcontextprotocol/server-filesystem", folder],
     }
-    written = _write_claude_config(config)
+    written = "; ".join(_update_claude_config(
+        lambda c: c.setdefault("mcpServers", {}).__setitem__("filesystem", fs_entry)))
     # Record the folder locally so the freshness/store runtime knows where to write.
     def _m(cfg):
         cfg["storage"] = {"local_folder": folder,
@@ -1911,7 +2085,7 @@ def _local_precondition_note() -> str:
             'nothing installs into your browser AI.</div>')
 
 
-# Per-surface wiring metadata. Labels and setup steps for the nine canonical surfaces come from
+# Per-surface wiring metadata. Labels and setup steps for the canonical surfaces come from
 # shared/cross-modality/transitions.json (single source of truth); this dict adds the wizard-only
 # (kind, availability) presentation strings, plus the human_curl extra that is not an AI surface.
 _SURFACES = {
@@ -1923,37 +2097,35 @@ _SURFACES = {
         "seam", "Class A native; B and C via a remote MCP connector that you or your developer "
                 "deploy behind HTTPS with authentication (the repo ships the server code and "
                 "runbook, not a hosted service)."),
-    "cowork_local": ("Claude Cowork (local session on this computer)", None,
-        "native", "Every class (A, B, C) runs natively inside a local VM with your Creator OS "
-                  "folder connected; transcription needs an STT backend inside the VM."),
-    "cowork_remote": ("Claude Cowork (remote ephemeral sandbox)", None,
-        "seam", "Class A native via plugin skills; B and C via remote MCP connectors. The "
-                "sandbox is destroyed at session end, so keep durable data in Drive; local "
-                "stdio MCP servers do not run here."),
     "chatgpt_web_plain": ("ChatGPT web chat (plain chat at chatgpt.com)", None,
         "none", "Class A only, via pasted custom instructions. No live tools, no flags. That is "
                 "a limit of PLAIN chat, not of ChatGPT: a deployed MCP connector added in "
-                "developer mode gives B and C on web or desktop (a separate setup)."),
-    "chatgpt_custom_gpt": ("Custom GPT (built in the ChatGPT GPT builder)", None,
-        "action", "Class A via the knowledge pack; B via the public jurisdiction Action; C only "
-                  "via a deployed endpoint."),
+                "developer mode gives B and C (a separate setup, documented for Business, "
+                "Enterprise and Edu workspaces on ChatGPT web)."),
     "chatgpt_projects": ("ChatGPT Projects (a Project with files at chatgpt.com)", None,
         "none", "Class A only, via Project instructions and files. No Actions, no tools."),
     "chatgpt_desktop": ("ChatGPT desktop app", None,
         "seam", "Class A via paste; B and C via a developer-mode MCP connector to a deployed "
-                "endpoint (the same connector works on ChatGPT web; plan availability needs "
-                "verification)."),
+                "endpoint (documented for ChatGPT web; the desktop app needs verification). The "
+                "Codex view runs the repo tools on this computer, so flags hold there."),
     "gemini_api": ("Gemini API (developer integration)", None,
         "action", "Class A knowledge-only; B and C via your backend executing the call."),
-    "gemini_gems": ("Gemini Gems (consumer)", None,
-        "none", "Class A only. B and C are unavailable here."),
+    "gemini_web": ("Gemini web app (gemini.google.com)", None,
+        "seam", "Class A via pasted instructions (or a Gemini skill on a personal account); B and "
+                "C via a deployed MCP endpoint "
+                "connected as a custom app (US personal accounts only). No flags."),
+    "gemini_desktop": ("Gemini desktop app (Mac and Windows)", None,
+        "none", "Class A only. No Creator OS tools and no flags; hand work to the computer as a "
+                "new dated file in the hub Inbox."),
     "human_curl": ("Human (curl / browser, no AI)",
         ["python3 tools/geo_source_fetch.py resolve \"<address>\", or curl the public /query endpoints."],
         "curl", "Class B via curl; Class C by running the tool locally."),
 }
 
-_SURFACE_ALIASES = {"custom_gpt": "chatgpt_custom_gpt"}
-_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_custom_gpt", "chatgpt_projects", "chatgpt_desktop")
+# P102: links to the retired custom GPT and Gems surfaces land on the door that replaced them.
+_SURFACE_ALIASES = {"custom_gpt": "chatgpt_projects", "chatgpt_custom_gpt": "chatgpt_projects",
+                    "gemini_gems": "gemini_web"}
+_CHATGPT_SURFACES = ("chatgpt_web_plain", "chatgpt_projects", "chatgpt_desktop")
 
 
 def _surface_label(sid: str) -> str:
@@ -2287,7 +2459,7 @@ here is how many Project files fit: 5 on Free, plenty on everything else.</div>
         rec = "a Creator OS <strong>Project</strong> with all nine knowledge files"
     return _page("ChatGPT Setup", f"""
 <h1>Plan: {html.escape(label)}</h1>
-<p>Best setup for this plan: {rec}. Do NOT build a Custom GPT -- OpenAI is retiring them.</p>
+<p>Best setup for this plan: {rec}. Custom GPTs retire on 2026-12-11, so Creator OS uses a Project.</p>
 <a class="btn btn-primary" href="/chatgpt-setup/instructions">Start: create the Project</a>
 <a class="btn btn-outline" href="/chatgpt-setup/reset">Different plan / start over</a>
 <a class="btn btn-outline" href="/">Back to start</a>
@@ -2627,6 +2799,15 @@ def _screen_drive_hub(saved: str = "", error: str = "") -> str:
                        f'<input type="hidden" name="folder" value="{cesc}">'
                        f'<button class="btn btn-outline" type="submit" style="width:auto;padding:8px 14px;'
                        f'font-size:.85rem">Use detected folder: {cesc}</button></form>')
+    synced = env_paths.cloud_synced_root(ROOT)
+    if synced:
+        example = html.escape(str(pathlib.Path.home() / "CreatorOS"))
+        python = html.escape(env_paths.python_command())
+        saved_block += (f'<div class="error-box">This Creator OS folder is inside a cloud-synced '
+                        f'folder (<code>{html.escape(synced)}</code>), so its credential files '
+                        f'sync too. Move it to your home folder (for example <code>{example}</code>) '
+                        f'and copy your context into the hub with <code>{python} '
+                        f'tools/profile_mirror.py sync</code> (docs/PROFILE-MIRROR.md).</div>')
     return _page("Google Drive hub", f"""
 <h1>Your Google Drive hub</h1>
 {saved_block}
@@ -2895,9 +3076,16 @@ def _screen_work_order(filed: str = "", followups=None, token: str = "") -> str:
         jt = html.escape(f.get("job_type", ""))
         rows += (f'<tr><td><input type="checkbox" name="job_{i}" checked></td>'
                  f'<td><code>{name}</code></td><td>{jt}</td><td>{note}</td></tr>')
+    from handoff import runner as _runner_wo
+    tag = _runner_wo._platform_tag()
+    mixed = ("" if tag == "mac" else
+             f'<div class="note">This computer queues work as <code>{tag}</code>. A computer that '
+             f'shares this hub and runs a Creator OS older than P102 refuses that work and archives '
+             f'it, so update every computer that runs jobs from this hub first.</div>')
     return _page("Confirm the work", f"""
 <h1>Confirm the follow-up work</h1>
 <div class="note" style="background:#eef7ee">{filed}</div>
+{mixed}
 {_compute_switch_banner()}
 <p>Here is the work this computer would do next for the files you just approved. Uncheck anything
 you do not want, add a note if you want to change or correct something, then queue it. Nothing runs
@@ -2943,7 +3131,7 @@ Your skills today: <strong>{len(summ['A'])}</strong> Class A, <strong>{len(summ[
             reach = "All classes reachable." if kind in ("native", "seam") else \
                     ("Class A + B reachable; Class C needs a hosted tool." if kind == "action" else
                      "Class B + C reachable; Class A is reasoning-only.")
-        else:  # none = gems
+        else:  # none: knowledge-only surfaces
             reach = (f"Only Class A ({len(summ['A'])} skills) works. Class B + C "
                      f"({len(summ['B']) + len(summ['C'])} skills) need the API or a coordinate you paste.")
         body = f"""
@@ -3135,7 +3323,7 @@ def _valid_git_ref(ref):
     return re.fullmatch(r"[A-Za-z0-9._/-]+", ref) is not None
 
 
-def _origin_allowed(origin, referer, port=PORT):
+def _origin_allowed(origin, referer, port=None):
     """P57: decide whether a mutating POST is same-origin (CSRF defense).
 
     A browser attaches an `Origin` header to a cross-site form POST; when it is absent it attaches
@@ -3143,7 +3331,9 @@ def _origin_allowed(origin, referer, port=PORT):
     and is rejected; the wizard's own pages carry the loopback origin and pass. A non-browser local
     caller (curl, a local script) sends neither and is allowed -- CSRF is a browser-driven cross-site
     class, and a local process already has full filesystem access, so this adds no exposure. Pure and
-    unit-testable (the wizard selftest exercises it directly)."""
+    unit-testable (the wizard selftest exercises it directly). The port defaults to the one the
+    wizard bound (PORT, read at call time, since main() may bind a later port of the block)."""
+    port = PORT if port is None else port
     allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
     if origin is not None and origin != "":
         return origin in allowed
@@ -3153,20 +3343,70 @@ def _origin_allowed(origin, referer, port=PORT):
     return True  # no Origin and no Referer -> not a browser cross-site POST
 
 
-def _confined_folder(folder, *, allow_home=False):
+# A folder inside the My Drive or Shared drives folder at the root of a Windows drive letter, the
+# layout Google Drive for desktop mounts (P102). The root folder itself does not match.
+_DRIVE_FOLDER_RE = re.compile(r"^([A-Za-z]):\\(My Drive|Shared drives)(?:\\([^\\]*))?", re.IGNORECASE)
+
+
+def on_google_drive(path, isdir=os.path.isdir, system_drive=None):
+    """'' when `path` (a Windows path) is a folder inside <letter>:\\My Drive or <letter>:\\Shared
+    drives and that root folder exists; 'drive_root' when it is that root folder itself;
+    'system_drive' when the letter is the system drive (%SystemDrive%, default C:), where any
+    local account can make a folder named My Drive and Drive for desktop does not mount; None
+    otherwise. The paths are read with Windows rules (ntpath), so this answers the same on any
+    system."""
+    import ntpath
+    m = _DRIVE_FOLDER_RE.match(ntpath.normpath(str(path)))
+    if not m or not isdir(f"{m.group(1)}:\\{m.group(2)}"):
+        return None
+    if system_drive is None:
+        system_drive = os.environ.get("SystemDrive") or "C:"
+    if f"{m.group(1)}:".upper() == str(system_drive)[:2].upper():
+        return "system_drive"
+    return "" if m.group(3) else "drive_root"
+
+
+def _network_path(folder) -> bool:
+    """True for a Windows network path (\\\\server\\share, //server/share, \\\\?\\UNC\\...), read from the
+    text alone: resolving one can block for a long time on a slow or offline server. A long-path
+    (\\\\?\\) or device (\\\\.\\) prefix on a drive letter is not a network path."""
+    f = str(folder).strip().strip('"').strip().replace("/", "\\")
+    if f.upper().startswith("\\\\?\\UNC\\"):
+        return True
+    if f.startswith("\\\\?\\") or f.startswith("\\\\.\\"):
+        return False
+    return f.startswith("\\\\")
+
+
+def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None, realpath=None,
+                     isdir=None, home=None):
     """P57: resolve a user-typed folder and confine it to the user's home tree.
 
     Returns (ok, realpath, reason). A browser text field (or a CSRF POST) must not be
     able to point the recursive import glob or the filesystem-MCP root at arbitrary
     paths like '/', '/etc', or '~/.ssh'. We resolve symlinks (realpath) BEFORE the
     containment test so '~/x/../../etc' cannot escape. reason is '' on success, else one
-    of: 'empty', 'not_dir', 'outside_home', 'home_root'.
+    of: 'empty', 'not_dir', 'outside_home', 'home_root', 'drive_root'.
+    Surrounding spaces and double quotes are removed first (Explorer's "Copy as path" adds the
+    quotes). With allow_drive (the Drive hub route only, P102), on Windows a folder inside a
+    Google Drive for desktop drive's My Drive or Shared drives folder is accepted too
+    (on_google_drive); that root folder itself is refused as 'drive_root', the way the home
+    folder is. On Windows a network path is refused as 'network_path' from its text, before any
+    filesystem call, unless the home folder is itself one (_network_path): resolving a path on a
+    slow or offline server blocks, and the wizard answers one request at a time. osname, realpath,
+    isdir and home stand in for the system's in the selftest.
     """
+    folder = folder.strip().strip('"').strip() if isinstance(folder, str) else folder
     if not folder:
         return False, "", "empty"
-    real = os.path.realpath(os.path.expanduser(folder))
-    home = os.path.realpath(os.path.expanduser("~"))
-    if not os.path.isdir(real):
+    if ((os.name if osname is None else osname) == "nt" and _network_path(folder)
+            and not _network_path(os.path.expanduser("~") if home is None else home)):
+        return False, folder, "network_path"
+    realpath = os.path.realpath if realpath is None else realpath
+    isdir = os.path.isdir if isdir is None else isdir
+    real = realpath(os.path.expanduser(folder))
+    home = realpath(os.path.expanduser("~")) if home is None else home
+    if not isdir(real):
         return False, real, "not_dir"
     if real == home and not allow_home:
         return False, real, "home_root"
@@ -3175,8 +3415,30 @@ def _confined_folder(folder, *, allow_home=False):
     except ValueError:  # different drive / root on Windows
         contained = False
     if not contained:
+        if allow_drive and (os.name if osname is None else osname) == "nt":
+            drive = on_google_drive(real, isdir=isdir)
+            if drive is not None:
+                return (not drive), real, drive
         return False, real, "outside_home"
     return True, real, ""
+
+
+def _drive_hub_folder(folder):
+    """The /api/set-drive-hub folder rule: _confined_folder with the Drive for desktop folders
+    allowed on Windows (P102)."""
+    return _confined_folder(folder, allow_home=False, allow_drive=True)
+
+
+_DRIVE_HUB_WHY = {
+    "drive_root": " (that is the whole Drive; make a folder inside it, such as My Drive\\Creator OS, "
+                  "and use that)",
+    "network_path": " (a network share cannot be the Drive hub; use the folder Google Drive for "
+                    "desktop shows, such as G:\\My Drive\\Creator OS)",
+    "system_drive": " (that is a folder named My Drive on this computer's system drive, not Google "
+                    "Drive; use the drive letter Google Drive for desktop shows, often G:)",
+    "outside_home": " (use a folder in your user folder, or on Windows a folder inside the My Drive "
+                    "folder of the drive letter Google Drive for desktop shows)",
+}
 
 
 def _import_targets(folder, kind):
@@ -3205,13 +3467,19 @@ def _import_targets(folder, kind):
     return out[:200]
 
 
-def _run_import_parse(fmt, path):
+def _run_import_parse(fmt, path, crashes=None):
     """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
-    attempt did not parse (wrong format for this folder, unreadable file). Never raises."""
+    attempt did not parse (wrong format for this folder, unreadable file). A run that stopped with
+    a Python error (a Traceback on stderr) also returns None, and its last stderr line is appended
+    to `crashes` when given, so the screen can say the tool failed rather than that the folder
+    holds no export. Never raises."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "import_parse.py"), fmt, path],
-                           capture_output=True, text=True, timeout=900)
+                           capture_output=True, timeout=900, **env_paths.tool_io())
         if r.returncode != 0:
+            err = (r.stderr or "").strip()
+            if crashes is not None and "Traceback (most recent call last)" in err:
+                crashes.append(err.splitlines()[-1][:300])
             return None
         recs = json.loads(r.stdout or "[]")
         return recs if isinstance(recs, list) else None
@@ -3246,11 +3514,11 @@ def _scan_import_folder(folder, platforms):
     by video_key so a folder matched by two formats does not double-count. Nothing is saved here."""
     records, seen, notes = [], set(), []
     for plat in platforms:
-        got = 0
+        got, crashes = 0, []
         for fmt, kind in _IMPORT_ATTEMPTS.get(plat, []):
             targets = _import_targets(folder, kind)
             for tgt in targets:
-                recs = _run_import_parse(fmt, tgt)
+                recs = _run_import_parse(fmt, tgt, crashes)
                 if not recs:
                     continue
                 for rec in recs:
@@ -3261,7 +3529,12 @@ def _scan_import_folder(folder, platforms):
                     seen.add(key)
                     records.append(rec)
                     got += 1
-        notes.append(f"{plat}: {got} record(s)" if got else f"{plat}: no readable export found in this folder")
+        if got:
+            notes.append(f"{plat}: {got} record(s)")
+        elif crashes:
+            notes.append(f"{plat}: import_parse stopped with an error: {crashes[0]}")
+        else:
+            notes.append(f"{plat}: no readable export found in this folder")
     return records, notes
 
 
@@ -3270,7 +3543,7 @@ def _run_transcribe(args):
     the STT module's imports. Returns a dict (with an 'error' key on failure)."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "transcribe.py")] + list(args),
-                           capture_output=True, text=True, timeout=3600)
+                           capture_output=True, timeout=3600, **env_paths.tool_io())
     except Exception as exc:  # noqa: BLE001
         return {"error": f"could not run the setup check: {exc}"}
     try:
@@ -3284,7 +3557,7 @@ def _run_setup(args):
     screen to install the free dependency sets. Returns a dict (with an 'error' key on failure)."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "setup.py")] + list(args),
-                           capture_output=True, text=True, timeout=3600)
+                           capture_output=True, timeout=3600, **env_paths.tool_io())
     except Exception as exc:  # noqa: BLE001
         return {"error": f"could not run the installer: {exc}"}
     try:
@@ -3360,12 +3633,17 @@ def _screen_doctor(saved: str = "") -> str:
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
+    # P101: the server answers one request at a time; a connection that sends nothing (a browser's
+    # spare connection) is closed after this many seconds instead of holding it.
+    timeout = loopback_server.REQUEST_TIMEOUT
 
     def log_message(self, fmt, *args):
         pass  # suppress default request log noise
 
     def _send(self, body: str, status: int = 200,
               content_type: str = "text/html") -> None:
+        if content_type == "text/html":  # commands as this computer types them (py -3 on Windows)
+            body = env_paths.local_commands(body)
         enc = body.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
@@ -3391,6 +3669,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return ""
         try:
             return self.rfile.read(min(length, _MAX_BODY)).decode("utf-8", "replace")
+        except TimeoutError:
+            # P101: a body that stops arriving (loopback_server.REQUEST_TIMEOUT) closes the
+            # connection in http.server instead of reading as an empty form.
+            raise
         except Exception:  # noqa: BLE001
             return ""
 
@@ -3580,10 +3862,8 @@ anything, and closing this window does not stop the work.</p>
             # writer (corrupt-backup + atomic + no-clobber), then VERIFY with the handshake probe
             # against the exact interpreter the config now names. Three explicit outcomes.
             entry = _creator_os_entry()
-            config = _read_claude_config()
-            config.setdefault("mcpServers", {})["creator-os"] = entry
             try:
-                _write_claude_config(config)
+                _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", entry))
             except OSError as exc:
                 self._send(_screen_creator_os_server(
                     {"ok": False, "detail": f"could not write the settings file: {exc}"}))
@@ -3732,7 +4012,7 @@ anything, and closing this window does not stop the work.</p>
                 try:
                     r = subprocess.run(
                         [env_paths.app_python(), str(ROOT / "tools" / "video_library.py"), "upsert-batch", batch],
-                        capture_output=True, text=True, timeout=1800)
+                        capture_output=True, timeout=1800, **env_paths.tool_io())
                     out = json.loads(r.stdout or "{}")
                     n = out.get("upserted", 0)
                 except Exception as exc:  # noqa: BLE001
@@ -3856,10 +4136,10 @@ anything, and closing this window does not stop the work.</p>
             # skeleton subfolders so the queue/results layout exists from minute one.
             data = self._read_form()
             folder = data.get("folder", "").strip()
-            ok_folder, realpath, why = _confined_folder(folder, allow_home=False)
+            ok_folder, realpath, why = _drive_hub_folder(folder)
             if not ok_folder:
-                self._send(_screen_drive_hub(error=f"That folder cannot be used: {html.escape(why)}"),
-                           status=400)
+                self._send(_screen_drive_hub(error=f"That folder cannot be used: {html.escape(why)}"
+                                             + _DRIVE_HUB_WHY.get(why, "")), status=400)
                 return
             try:
                 from handoff import queue as _hq
@@ -3972,15 +4252,11 @@ anything, and closing this window does not stop the work.</p>
             note = (data.get("amendment") or "").strip() or None
             queued, skipped = [], []
             try:
-                from handoff import queue as _q
                 for i, f in enumerate(work["followups"]):
                     if data.get(f"job_{i}") != "on":
                         skipped.append(f)
                         continue
-                    res = _q.submit(work["hub"], f["job_type"], params=f.get("params"),
-                                    input_refs=[f["input_ref"]] if f.get("input_ref") else None,
-                                    origin="mac", consent_note=note)
-                    queued.append((f, res))
+                    queued.append((f, _queue_followup(work["hub"], f, note)))
             except Exception as exc:  # noqa: BLE001
                 self._send(_screen_inbox(error=f"Could not queue the work: {html.escape(str(exc))}"),
                            status=500)
@@ -4129,9 +4405,7 @@ anything, and closing this window does not stop the work.</p>
 
             # Write google-workspace MCP entry
             try:
-                config = _read_claude_config()
-                config.setdefault("mcpServers", {})
-                config["mcpServers"]["google-workspace"] = {
+                google_entry = {
                     "command": _mcp_command("uvx"),
                     "args": ["workspace-mcp"],
                     "env": {
@@ -4139,7 +4413,8 @@ anything, and closing this window does not stop the work.</p>
                         "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
                     },
                 }
-                written = _write_claude_config(config)
+                written = "; ".join(_update_claude_config(
+                    lambda c: c.setdefault("mcpServers", {}).__setitem__("google-workspace", google_entry)))
 
                 # Update local capability flag
                 _update_capability_flag("google_workspace", True)
@@ -4155,13 +4430,12 @@ anything, and closing this window does not stop the work.</p>
                 self._redirect("/microsoft")
                 return
             try:
-                config = _read_claude_config()
-                config.setdefault("mcpServers", {})
-                config["mcpServers"]["microsoft-365"] = {
+                ms_entry = {
                     "command": _mcp_command("npx"),
                     "args": ["-y", "@softeria/ms-365-mcp-server"],
                 }
-                written = _write_claude_config(config)
+                written = "; ".join(_update_claude_config(
+                    lambda c: c.setdefault("mcpServers", {}).__setitem__("microsoft-365", ms_entry)))
 
                 # Update local capability flag
                 _update_capability_flag("microsoft_365", True)
@@ -4262,7 +4536,11 @@ anything, and closing this window does not stop the work.</p>
                 if not cid or not csec:
                     self._send(_screen_drive_hub(error="Both Client ID and Client Secret are required."))
                     return
-                _merge_api_credentials("google_drive", {"publish": {"client_id": cid, "client_secret": csec}})
+                try:
+                    _merge_api_credentials("google_drive", {"publish": {"client_id": cid, "client_secret": csec}})
+                except ValueError as exc:  # the credentials file did not parse; nothing was saved
+                    self._send(_screen_drive_hub(error=html.escape(str(exc))))
+                    return
                 self._send(_screen_drive_hub(saved=(
                     "Google Drive credentials saved locally. Now click Connect to authorize.")))
                 return
@@ -4370,7 +4648,7 @@ def _pick_folder() -> str:
     chosen path, or '' if cancelled / no picker backend is available."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "pick_folder.py")],
-                           capture_output=True, text=True, timeout=360)
+                           capture_output=True, timeout=360, **env_paths.tool_io())
         return (r.stdout or "").strip()
     except Exception:  # noqa: BLE001
         return ""
@@ -4504,14 +4782,994 @@ def _write_freshness_config(store_backend: str, cadence_days: int, modality: str
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
-class _Server(socketserver.TCPServer):
-    allow_reuse_address = True
+class _Server(loopback_server.RefuseSharedPort, socketserver.TCPServer):
+    allow_reuse_address = True   # POSIX restart through TIME_WAIT; RefuseSharedPort clears it on Windows
+
+    def handle_error(self, request, client_address):
+        # A client that hung up before its reply was written (a start-up probe that gave up, a
+        # closed tab) is not an error to print into the Terminal a non-technical user watches.
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
+
+
+def _bind():
+    """The wizard's server on the first usable port of _PORTS (P101). Rebinds PORT to that port,
+    records it in loopback_server.WIZARD_PORT_FILE for the dashboard and launch_setup, and prints a
+    note when refused ports were skipped. Raises loopback_server.BindRefused when none binds, and
+    as recorded when the port last recorded answers as the wizard, or accepts the connection without
+    answering in time (a wizard busy with another request), since that copy may have moved along the
+    block where the bind alone would not see it."""
+    global PORT
+    running, _ = loopback_server.read_port()
+    if running is not None and loopback_server.probe(running) in ("wizard", "silent"):
+        raise loopback_server.BindRefused("recorded", running, [])
+    server, PORT, reserved = loopback_server.bind_first(
+        _PORTS, lambda port: _Server(("127.0.0.1", port), _Handler))
+    if reserved:
+        print(loopback_server.reserved_note(reserved, PORT, "Creator OS Setup"))
+        print("For publishing, register these redirect URIs too (docs/PUBLISHING.md): "
+              f"{oauth_flow.redirect_uri('tiktok', PORT)}, "
+              f"{oauth_flow.redirect_uri('pinterest', PORT)} and, for Instagram, "
+              f"{oauth_flow.redirect_uri('instagram', PORT)}.")
+    try:
+        atomic_io.atomic_write_text(
+            loopback_server.WIZARD_PORT_FILE,
+            loopback_server.port_record(PORT, os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID")))
+    except OSError as exc:
+        print(f"[wizard] could not record port {PORT} for the dashboard: {exc}")
+    return server
+
+
+def _wait_and_close(server):
+    """Serve until the wizard is asked to quit (or Ctrl+C), then stop the server and remove this
+    wizard's port record. The wait is timed so the main thread returns to the interpreter twice a
+    second, where a pending Ctrl+C is raised: an untimed wait is not interrupted by Ctrl+C on
+    Windows before Python 3.14."""
+    try:
+        while not _shutdown.wait(0.5):
+            pass
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
+        _forget_port()
+        print("\nWizard closed.")
+
+
+def _forget_port():
+    """Remove the port record on a clean shutdown when it still names this wizard (its port and
+    launch id), so a later start does not take a closed wizard for a running one (P101)."""
+    port, launch_id = loopback_server.read_port()
+    if port == PORT and launch_id == os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID"):
+        try:
+            loopback_server.WIZARD_PORT_FILE.unlink()
+        except OSError:
+            pass
+
+
+def _wizard_url(port) -> str:
+    """The address the wizard prints and opens: the IPv4 loopback host, since on Windows `localhost`
+    tries IPv6 first while the server listens on IPv4."""
+    return f"http://127.0.0.1:{port}/"
+
+
+def _announce(port) -> str:
+    """Print the address the wizard serves on and open it in the browser; returns the address."""
+    url = _wizard_url(port)
+    print(f"Creator OS Setup Wizard running at {url}")
+    print("Opening browser... (press Ctrl+C to quit)")
+    time.sleep(0.3)  # so the server is ready before the browser asks
+    _open_url(url)
+    return url
+
+
+def _queue_followup(hub, followup, note):
+    """Queue one follow-up job the person checked on the work-order screen. The ticket's origin
+    names this computer by its system (mac, windows or linux), the mapping runner._platform_tag
+    gives the Outbox tag; the note travels as consent_note, data that validation screens."""
+    from handoff import queue as _q
+    from handoff import runner as _runner
+    return _q.submit(hub, followup["job_type"], params=followup.get("params"),
+                     input_refs=[followup["input_ref"]] if followup.get("input_ref") else None,
+                     origin=_runner._platform_tag(), consent_note=note)
+
+
+def _selftest_p101() -> int:
+    """P101 checks (the port block, an idle connection, the cloud-synced warning); _selftest runs
+    them, and the committed mutation cases for wizard.py run this alone."""
+    failures = []
+
+    def check(cond, msg):
+        if not cond:
+            failures.append(msg)
+
+    # 5b) P101 port block: _bind() walks past a port the OS reserves (EACCES) to the next port of
+    #     the block, rebinds PORT, records it for the dashboard and launch_setup, and names the
+    #     redirect URIs to register; the same-origin check follows the bound port; a port in use
+    #     stops the walk. _Server is stood in for, so nothing binds.
+    import contextlib as _cl_bind
+    import errno as _errno_bind
+    import io as _io_bind
+    _g = globals()
+    _saved_bind = {k: _g[k] for k in ("PORT", "_Server", "_PORTS")}
+    _saved_file, _saved_probe = loopback_server.WIZARD_PORT_FILE, loopback_server.probe
+    _saved_launch = os.environ.get("CREATOR_OS_WIZARD_LAUNCH_ID")
+    _made, _refuse, _states = [], {}, {}
+    check(_Server.server_bind is loopback_server.RefuseSharedPort.server_bind,
+          "the wizard's server does not bind through RefuseSharedPort")
+    check(loopback_server.WIZARD_TITLE_MARK in _screen_welcome().encode("utf-8"),
+          "the wizard's home page does not carry the title mark the start-up probe looks for")
+
+    class _FakeServer:
+        def __init__(self, address, handler):
+            _made.append(address)
+            if address[1] in _refuse:
+                raise OSError(_refuse[address[1]], "refused")
+
+    with tempfile.TemporaryDirectory() as _td_bind:
+        try:
+            _g.update(_Server=_FakeServer, _PORTS=loopback_server.WIZARD_BLOCK)
+            loopback_server.WIZARD_PORT_FILE = pathlib.Path(_td_bind) / "port.local.json"
+            loopback_server.probe = lambda port, *a, **k: _states.get(port, "closed")
+            os.environ["CREATOR_OS_WIZARD_LAUNCH_ID"] = "launch-selftest"
+            _refuse.update({8765: _errno_bind.EACCES})
+            _buf = _io_bind.StringIO()
+            with _cl_bind.redirect_stdout(_buf):
+                _srv = _bind()
+            _out = _buf.getvalue()
+            check(isinstance(_srv, _FakeServer) and PORT == 8775
+                  and _made == [("127.0.0.1", 8765), ("127.0.0.1", 8775)],
+                  "_bind did not walk past a reserved port to the next loopback port of the block")
+            check(loopback_server.read_port(loopback_server.WIZARD_PORT_FILE) == (8775, "launch-selftest"),
+                  "_bind did not record the port it bound with its launch id")
+            check("8765" in _out and oauth_flow.redirect_uri("tiktok", 8775) in _out
+                  and oauth_flow.redirect_uri("pinterest", 8775) in _out
+                  and oauth_flow.redirect_uri("instagram", 8775) in _out
+                  and "already running" not in _out,
+                  "_bind did not name the refused port and the redirect URIs to register")
+            check(_origin_allowed("http://127.0.0.1:8775", None) is True
+                  and _origin_allowed("http://127.0.0.1:8765", None) is False,
+                  "the same-origin check does not follow the port the wizard bound")
+            _made.clear()
+            _refuse.clear()
+            _refuse.update({8765: _errno_bind.EADDRINUSE})
+            try:
+                with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                    _bind()
+                _kind = None
+            except loopback_server.BindRefused as _exc:
+                _kind = (_exc.kind, _exc.port)
+            check(_kind == ("in_use", 8765) and _made == [("127.0.0.1", 8765)],
+                  "a port in use did not stop the wizard's walk")
+            # The port last recorded, before any bind: a wizard answering there, or accepting
+            # without answering in time (busy), is reported as running there; another program
+            # answering there, or nothing listening, does not stop the start.
+            for _state, _stops in (("wizard", True), ("silent", True), ("other", False), ("closed", False)):
+                loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8785, "other"),
+                                                            encoding="utf-8")
+                _made.clear()
+                _refuse.clear()
+                _states.clear()
+                _states[8785] = _state
+                try:
+                    with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                        _bind()
+                    _kind = None
+                except loopback_server.BindRefused as _exc:
+                    _kind = (_exc.kind, _exc.port)
+                if _stops:
+                    check(_kind == ("recorded", 8785) and _made == [],
+                          f"a recorded port that is {_state} was not reported as a running wizard")
+                else:
+                    check(_kind is None and _made == [("127.0.0.1", 8765)] and PORT == 8765,
+                          f"a recorded port that is {_state} kept the wizard from binding")
+            # A clean shutdown removes this wizard's record (its port and launch id), and leaves a
+            # record that differs in either alone.
+            _forget_port()
+            check(not loopback_server.WIZARD_PORT_FILE.exists(),
+                  "_forget_port did not remove the wizard's own port record")
+            for _keep in ((8765, "other"), (8785, "launch-selftest")):
+                loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(*_keep),
+                                                            encoding="utf-8")
+                _forget_port()
+                check(loopback_server.read_port(loopback_server.WIZARD_PORT_FILE) == _keep,
+                      f"_forget_port removed a record that names another wizard: {_keep}")
+            # Serving ends when the wizard is asked to quit: the server stops and the record goes.
+            loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(PORT, "launch-selftest"),
+                                                        encoding="utf-8")
+            _stopped = []
+
+            class _Serving:
+                def shutdown(self):
+                    _stopped.append(True)
+
+            import threading as _th_bind
+            _closer = _th_bind.Thread(target=lambda: _wait_and_close(_Serving()), daemon=True)
+            try:
+                with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                    _closer.start()
+                    _closer.join(1.2)  # longer than one timed wait, so a single wait would be over
+                    _waited = _closer.is_alive() and _stopped == []
+                    _shutdown.set()
+                    _closer.join(5.0)
+            finally:
+                _shutdown.clear()
+            check(_waited and not _closer.is_alive() and _stopped == [True]
+                  and not loopback_server.WIZARD_PORT_FILE.exists(),
+                  "the wizard did not serve until asked to quit, then stop its server and remove its record")
+            check("_wait_and_close" in main.__code__.co_names,
+                  "main() does not close the wizard through _wait_and_close")
+            # Ctrl+C ends the wait: _thread.interrupt_main() marks a Ctrl+C for the main thread the
+            # way the console does, and only a wait that returns to the interpreter raises it (an
+            # untimed one returns only when the 5 s fallback sets _shutdown). The marker is not set
+            # once the wait has returned, and one that raced the return is raised inside this try.
+            import _thread as _thread_bind
+            import signal as _sig_bind
+            import time as _time_bind
+            check(_th_bind.current_thread() is _th_bind.main_thread(),
+                  "the Ctrl+C check must run in the main thread")
+            # interrupt_main() does nothing while SIGINT is ignored or set to the default action (a
+            # background job, nohup), so the check installs Python's Ctrl+C handler for its run.
+            _prev_int = _sig_bind.getsignal(_sig_bind.SIGINT)
+            loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(PORT, "launch-selftest"),
+                                                        encoding="utf-8")
+            _stopped.clear()
+            _returned = _th_bind.Event()
+            _ctrl_c = _th_bind.Timer(0.3, lambda: None if _returned.is_set() else _thread_bind.interrupt_main())
+            _fallback = _th_bind.Timer(5.0, _shutdown.set)
+            _t0, _took = _time_bind.monotonic(), None
+            try:
+                _sig_bind.signal(_sig_bind.SIGINT, _sig_bind.default_int_handler)
+                with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                    _ctrl_c.start()
+                    _fallback.start()
+                    try:
+                        _wait_and_close(_Serving())
+                    finally:
+                        _returned.set()
+                        _ctrl_c.cancel()
+                        _fallback.cancel()
+                    _took = _time_bind.monotonic() - _t0
+                    _time_bind.sleep(0.05)
+            except KeyboardInterrupt:
+                _took = None
+            finally:
+                _shutdown.clear()
+                _sig_bind.signal(_sig_bind.SIGINT, _sig_bind.SIG_DFL if _prev_int is None else _prev_int)
+            # 2.5 s leaves room for a loaded computer and stays below the 3 s a coarser wait step takes.
+            check(_took is not None and 0.25 <= _took < 2.5 and _stopped == [True]
+                  and not loopback_server.WIZARD_PORT_FILE.exists(),
+                  f"a Ctrl+C did not end the wizard's wait within 2.5 s and close it ({_took!r} s)")
+        finally:
+            _g.update(_saved_bind)
+            loopback_server.WIZARD_PORT_FILE, loopback_server.probe = _saved_file, _saved_probe
+            if _saved_launch is None:
+                os.environ.pop("CREATOR_OS_WIZARD_LAUNCH_ID", None)
+            else:
+                os.environ["CREATOR_OS_WIZARD_LAUNCH_ID"] = _saved_launch
+    # A client that hung up before its reply is not printed as an error; another error still is.
+    _err = _io_bind.StringIO()
+    with _cl_bind.redirect_stderr(_err):
+        for _exc_type in (BrokenPipeError, ConnectionResetError):
+            try:
+                raise _exc_type()
+            except _exc_type:
+                _Server.handle_error(_Server.__new__(_Server), None, ("127.0.0.1", 0))
+    _quiet = _err.getvalue() == ""
+    with _cl_bind.redirect_stderr(_err):
+        for _exc in (ValueError("selftest"), PermissionError("selftest")):
+            try:
+                raise _exc
+            except Exception:   # noqa: BLE001 - handle_error reads the exception being handled
+                _Server.handle_error(_Server.__new__(_Server), None, ("127.0.0.1", 0))
+    check(_quiet and "ValueError" in _err.getvalue() and "PermissionError" in _err.getvalue(),
+          "the wizard prints a client that hung up as an error, or hides a real one")
+    # The Drive hub screen warns when env_paths names a cloud-synced folder holding this repo,
+    # with the folder, the example home-folder path and the Python command for this system.
+    _real_synced, _real_cmd = env_paths.cloud_synced_root, env_paths.python_command
+    _real_home = pathlib.Path.__dict__.get("home")   # the classmethod itself, or None if inherited
+    _cmd_args = []
+    # A stand-in home folder unrelated to where this checkout sits, so the example path is told
+    # apart from a path beside the repo whatever the layout.
+    _home = pathlib.Path(tempfile.gettempdir()).resolve() / "selftest-home"
+    try:
+        env_paths.python_command = lambda *a, **k: _cmd_args.append((a, k)) or "PYCMD<&>"
+        env_paths.cloud_synced_root = lambda path, **kw: "G:\\<&>" if path is ROOT else None
+        pathlib.Path.home = classmethod(lambda cls: _home)
+        _warned = _screen_drive_hub()
+        env_paths.cloud_synced_root = lambda path, **kw: None
+        _plain = _screen_drive_hub()
+    finally:
+        env_paths.cloud_synced_root, env_paths.python_command = _real_synced, _real_cmd
+        if _real_home is None:
+            del pathlib.Path.home
+        else:
+            pathlib.Path.home = _real_home
+    # P102: on Windows the Creator OS entry goes into the settings file Claude Desktop reads: the one
+    # its log names, else the packaged app's folder (plus %APPDATA% when that file exists), else
+    # %APPDATA%; each file is merged from its own content. A temp tree stands in for both folders.
+    global _OS_OVERRIDE
+    _saved_env = {k: os.environ.get(k) for k in ("APPDATA", "LOCALAPPDATA")}
+    _saved_os = _OS_OVERRIDE
+    _cd_fail = []
+    with tempfile.TemporaryDirectory() as _cd_td:
+        _cd = pathlib.Path(_cd_td)
+        _loc, _roam = _cd / "Local", _cd / "Roaming"
+        _pkg = _loc / "Packages" / "Claude_pubid" / "LocalCache" / "Roaming" / "Claude"
+        _real = _roam / "Claude" / "claude_desktop_config.json"
+        _logs = _loc / "Claude" / "logs"
+        try:
+            os.environ["LOCALAPPDATA"], os.environ["APPDATA"] = str(_loc), str(_roam)
+            _OS_OVERRIDE = "windows"
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_real] or _claude_config_path() != _real:
+                _cd_fail.append(f"no package, no log: {_t}")
+            _pkg.mkdir(parents=True)
+            (_loc / "Packages" / "Claude_nofolder").mkdir()
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json"]:
+                _cd_fail.append(f"package without the usual file: {_t}")
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "a"}))
+            if (_roam / "Claude").exists():
+                _cd_fail.append("the usual folder was created while a packaged app exists")
+            (_pkg / "claude_desktop_config.json").unlink()
+            _real.parent.mkdir(parents=True)
+            _real.write_text(json.dumps({"mcpServers": {"user-own": {"command": "u"}}, "theme": "dark"}),
+                             encoding="utf-8")
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json", _real]:
+                _cd_fail.append(f"package plus the usual file: {_t}")
+            _w2 = _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "a"}))
+            _pc = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            _rc = json.loads(_real.read_text(encoding="utf-8"))
+            if not (set(_pc["mcpServers"]) == {"user-own", "creator-os"} and _pc.get("theme") == "dark"
+                    and set(_rc["mcpServers"]) == {"user-own", "creator-os"} and len(_w2) == 2
+                    and "packaged app" in _w2[0] and "older install" in _w2[1]):
+                _cd_fail.append(f"a new package file not seeded from the usual one, or a file missed: {_pc} {_rc} {_w2}")
+            _pc["mcpServers"] = {"pkg-only": {"command": "p"}}
+            (_pkg / "claude_desktop_config.json").write_text(json.dumps(_pc), encoding="utf-8")
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("google-workspace", {"command": "g"}))
+            _pc = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            _rc = json.loads(_real.read_text(encoding="utf-8"))
+            if not ("pkg-only" in _pc["mcpServers"] and "pkg-only" not in _rc["mcpServers"]
+                    and "user-own" in _rc["mcpServers"] and "google-workspace" in _pc["mcpServers"]
+                    and "google-workspace" in _rc["mcpServers"]):
+                _cd_fail.append(f"files not merged one by one: {_pc} {_rc}")
+            _other = _cd / "Elsewhere" / "Claude"
+            _other.mkdir(parents=True)
+            _logs.mkdir(parents=True)
+            (_logs / "main.log").write_text(
+                f"2026-10-01 09:00:00 [info] Reading claude_desktop_config.json from {_pkg / 'claude_desktop_config.json'}\n",
+                encoding="utf-8")
+            (_logs / "main1.log").write_text(
+                f"2026-10-03 09:00:00 [info] Reading claude_desktop_config.json from {_other / 'claude_desktop_config.json'}\n"
+                f"2026-10-04 09:00:00 [info] Loading config from {_cd / 'Reworded' / 'x.json'}\n", encoding="utf-8")
+            _t = _claude_config_targets()
+            if ([p for p, _w in _t] != [_other / "claude_desktop_config.json", _pkg / "claude_desktop_config.json",
+                                        _real] or "log" not in _t[0][1]):
+                _cd_fail.append(f"the newest log line is not read first, a reworded line counts, or the "
+                                f"packaged file is dropped beside a logged one: {_t}")
+            (_logs / "main2.log").write_text(
+                f"2026-10-05 09:00:00 [info] Reading claude_desktop_config.json from {_cd / 'Gone' / 'claude_desktop_config.json'}\n",
+                encoding="utf-8")
+            _t = _claude_config_targets()
+            if [p for p, _w in _t] != [_pkg / "claude_desktop_config.json", _real]:
+                _cd_fail.append(f"a log path whose folder is missing is used: {_t}")
+            # The packaged app logs in its own LocalCache folder, and may log its virtualised view of
+            # its file as the %APPDATA% path: that file and the packaged one are both written.
+            _pkg_logs = _pkg / "logs"
+            _pkg_logs.mkdir()
+            (_pkg_logs / "main.log").write_text(
+                f"2026-10-06 09:00:00 [info] Reading claude_desktop_config.json from {_real}\n", encoding="utf-8")
+            _t = _claude_config_targets()
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "v"}))
+            _pv = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            if ([p for p, _w in _t] != [_real, _pkg / "claude_desktop_config.json"] or "log" not in _t[0][1]
+                    or _pv["mcpServers"].get("creator-os") != {"command": "v"}):
+                _cd_fail.append(f"a log in the packaged folder naming %APPDATA% does not keep the packaged "
+                                f"file written: {_t} {_pv}")
+            # A settings file saved with a byte-order mark (Notepad, PowerShell 5.1) is read, not replaced.
+            (_pkg / "claude_desktop_config.json").write_bytes(
+                b"\xef\xbb\xbf" + json.dumps({"mcpServers": {"bom-own": {"command": "b"}}}).encode("utf-8"))
+            _update_claude_config(lambda c: c.setdefault("mcpServers", {}).__setitem__("creator-os", {"command": "w"}))
+            _pb = json.loads((_pkg / "claude_desktop_config.json").read_text(encoding="utf-8-sig"))
+            if (set(_pb["mcpServers"]) != {"bom-own", "creator-os"}
+                    or (_pkg / "claude_desktop_config.json.corrupt.bak").exists()):
+                _cd_fail.append(f"a settings file with a byte-order mark lost its servers: {_pb}")
+            _OS_OVERRIDE = "mac"
+            _mac = _claude_config_targets()
+            if len(_mac) != 1 or "Library/Application Support/Claude" not in pathlib.PurePath(_mac[0][0]).as_posix():
+                _cd_fail.append(f"the Mac path changed: {_mac}")
+        finally:
+            _OS_OVERRIDE = _saved_os
+            for _k, _v in _saved_env.items():
+                if _v is None:
+                    os.environ.pop(_k, None)
+                else:
+                    os.environ[_k] = _v
+    check(not _cd_fail, f"the Claude Desktop settings targets are wrong: {_cd_fail}")
+    # P102: a Store build that has written no log yet still counts as installed (its package
+    # folder exists), and the restart step names each system's way to quit the app.
+    with tempfile.TemporaryDirectory() as _si_td:
+        _si = pathlib.Path(_si_td)
+        _saved_env_si = {k: os.environ.get(k) for k in ("APPDATA", "LOCALAPPDATA")}
+        _saved_os_si, _restart_si = _OS_OVERRIDE, {}
+        try:
+            os.environ["LOCALAPPDATA"], os.environ["APPDATA"] = str(_si / "Local"), str(_si / "Roaming")
+            _OS_OVERRIDE = "windows"
+            _none_si = _claude_installed()
+            (_si / "Local" / "Packages" / "Claude_pubid" / "LocalCache" / "Roaming" / "Claude").mkdir(parents=True)
+            _pkg_si = _claude_installed()
+            for _o in ("windows", "mac", "linux"):
+                _OS_OVERRIDE = _o
+                _restart_si[_o] = (_restart_step(), _screen_creator_os_server({"ok": True, "count": 1}))
+        finally:
+            _OS_OVERRIDE = _saved_os_si
+            for _k, _v in _saved_env_si.items():
+                if _v is None:
+                    os.environ.pop(_k, None)
+                else:
+                    os.environ[_k] = _v
+    check(_none_si is False and _pkg_si is True,
+          f"a Store build with no log is not seen as installed, or nothing is ({_none_si}, {_pkg_si})")
+    check("notification area" in _restart_si["windows"][0] and "Cmd-Q" not in _restart_si["windows"][0]
+          and "Cmd-Q" in _restart_si["mac"][0] and "notification area" not in _restart_si["mac"][0]
+          and "Cmd-Q" not in _restart_si["linux"][0]
+          and all(r in html_ for r, html_ in _restart_si.values()),
+          f"the restart step is not the one for each system: {_restart_si}")
+    # P102: the routes that write Claude Desktop's settings keep the servers already there; the hub
+    # route uses the Drive folder rule and explains a refusal; /done gives this system's restart step.
+    import io as _io_rt
+    import contextlib as _cl_rt
+    _g_rt, _sent_rt, _hub_seen_rt = globals(), [], []
+    _keys_rt = ("_claude_config_targets", "_has_uv", "_node_ok", "_update_capability_flag", "_set",
+                "_update_local_config", "_drive_hub_folder", "_get")
+    _saved_rt = {k: _g_rt[k] for k in _keys_rt}
+    _saved_os_rt = _OS_OVERRIDE
+    with tempfile.TemporaryDirectory() as _rt_td:
+        _cfg_rt = pathlib.Path(_rt_td) / "claude_desktop_config.json"
+        _store_rt = tempfile.mkdtemp(dir=os.path.expanduser("~"))
+
+        def _post_rt(route, form):
+            _h = _Handler.__new__(_Handler)
+            _h.path, _h.headers = route, {}
+            _h._read_form = lambda: dict(form)
+            _h._read_body = lambda: ""
+            _h._send = lambda body, status=200, content_type="text/html": _sent_rt.append((route, status, body))
+            _h._redirect = lambda location: _sent_rt.append((route, 302, location))
+            with _cl_rt.redirect_stdout(_io_rt.StringIO()):
+                _h.do_POST()
+        _kept_rt = {}
+        try:
+            _g_rt.update(_claude_config_targets=lambda: [(_cfg_rt, "the test file")],
+                         _has_uv=lambda: True, _node_ok=lambda: True,
+                         _update_capability_flag=lambda key, value: None, _set=lambda **kw: None,
+                         _update_local_config=lambda fn: True,
+                         _drive_hub_folder=lambda folder: _hub_seen_rt.append(folder) or (False, folder, "drive_root"))
+            for _route_rt, _form_rt, _name_rt in (
+                    ("/api/write-google", {"client_id": "cid", "client_secret": "sec"}, "google-workspace"),
+                    ("/api/write-microsoft", {}, "microsoft-365"),
+                    ("/api/write-storage-folder", {"folder": _store_rt}, "filesystem")):
+                _cfg_rt.write_text(json.dumps({"mcpServers": {"own-a": {"command": "a"}, "own-b": {"command": "b"}},
+                                               "preferences": {"x": 1}}), encoding="utf-8")
+                _post_rt(_route_rt, _form_rt)
+                _after_rt = json.loads(_cfg_rt.read_text(encoding="utf-8"))
+                _kept_rt[_route_rt] = (set(_after_rt.get("mcpServers", {})) == {"own-a", "own-b", _name_rt}
+                                       and _after_rt.get("preferences") == {"x": 1})
+            _post_rt("/api/set-drive-hub", {"folder": "G:\\My Drive"})
+            _OS_OVERRIDE = "windows"
+            _g_rt["_get"] = lambda key, default=None: key.startswith("claude_accept_")
+            _done_rt = _screen_done()
+        finally:
+            _OS_OVERRIDE = _saved_os_rt
+            _g_rt.update(_saved_rt)
+            shutil.rmtree(_store_rt, ignore_errors=True)
+    _hub_body_rt = next((b for r, st, b in _sent_rt if r == "/api/set-drive-hub"), "")
+    check(all(_kept_rt.get(r) for r in ("/api/write-google", "/api/write-microsoft", "/api/write-storage-folder"))
+          and _hub_seen_rt == ["G:\\My Drive"] and "that is the whole Drive" in _hub_body_rt
+          and "notification area" in _done_rt and "Cmd-Q" not in _done_rt,
+          f"a settings route drops the servers already there, the hub route skips the Drive folder rule "
+          f"or its explanation, or /done shows another system's restart step ({_kept_rt}, {_hub_seen_rt}, "
+          f"{'that is the whole Drive' in _hub_body_rt}, {'notification area' in _done_rt})")
+    # P102: on Windows a network path is refused from its text, before anything resolves it (a slow
+    # or offline server blocks realpath, and the wizard answers one request at a time).
+    def _no_fs_n(_p):
+        raise AssertionError("resolved a network path")
+    _net_n = ["\\\\localhost\\G$\\My Drive\\Creator OS", "//nas/creators/hub", "\\\\?\\UNC\\nas\\share\\hub",
+              '"\\\\nas\\share\\hub"', "  \\\\nas\\share  "]
+    _local_n = ["G:\\My Drive\\Creator OS", "\\\\?\\G:\\My Drive\\Creator OS", "G:/My Drive/Creator OS",
+                "\\\\.\\G:\\x", "C:\\Users\\x\\hub", "\\Users\\x\\hub"]
+    try:
+        _refused_n = [_confined_folder(f, allow_drive=True, osname="nt", realpath=_no_fs_n, isdir=_no_fs_n,
+                                       home="C:\\Users\\me")[2] for f in _net_n]
+    except AssertionError as _exc_n:
+        _refused_n = [str(_exc_n)]
+    _unc_home_n = _confined_folder("\\\\srv\\home\\me\\hub", osname="nt", realpath=lambda p: p,
+                                   isdir=lambda p: True, home="\\\\srv\\home\\me")
+    _posix_n = _confined_folder("//nas/share", osname="posix", realpath=lambda p: p, isdir=lambda p: False,
+                                home="/home/me")
+    check(_refused_n == ["network_path"] * len(_net_n) and not any(_network_path(f) for f in _local_n)
+          and _unc_home_n[2] != "network_path" and _posix_n[2] == "not_dir"
+          and "network share" in _DRIVE_HUB_WHY.get("network_path", ""),
+          f"a network path is resolved or accepted on Windows, a local path reads as one, or the rule "
+          f"applies off Windows or to a network home folder ({_refused_n}, {_unc_home_n}, {_posix_n})")
+    # P102: the Drive hub folder rule on Windows, with the system stood in for: quotes are removed, a
+    # folder inside a Drive for desktop drive's My Drive or Shared drives is accepted only where that
+    # folder exists, the root folder itself is refused, and other routes keep the home-only rule.
+    import ntpath as _nt_d
+    _dirs_d = {"G:\\My Drive", "G:\\My Drive\\Creator OS", "G:\\Shared drives", "C:\\My Drive",
+               "G:\\x\\My Drive", "G:\\x\\My Drive\\y", "H:\\My Drive\\x",
+               "G:\\Shared drives\\Team", "C:\\My Drive\\x", "C:\\Windows",
+               "C:\\Users\\me"}
+    _dirs_d = {d.lower() for d in _dirs_d}  # Windows compares folder names without letter case
+    _sys_d = dict(osname="nt", realpath=_nt_d.normpath, isdir=lambda p: p.lower() in _dirs_d,
+                  home="C:\\Users\\me")
+
+    def _hub_d(folder, **kw):
+        return _confined_folder(folder, allow_home=False, **dict(_sys_d, **kw))
+    _got_d = {f: _hub_d(f, allow_drive=True) for f in (
+        "G:\\My Drive\\Creator OS", '"G:\\My Drive\\Creator OS"', " g:\\my drive\\Creator OS\\ ",
+        "G:/My Drive/Creator OS", "G:\\Shared drives\\Team", "G:\\My Drive", "G:\\Shared drives",
+        "C:\\My Drive\\x", "C:\\Windows", "G:\\x\\My Drive\\y", "H:\\My Drive\\x")}
+    _want_d = {"G:\\My Drive\\Creator OS": (True, ""), '"G:\\My Drive\\Creator OS"': (True, ""),
+               "G:/My Drive/Creator OS": (True, ""), "G:\\Shared drives\\Team": (True, ""),
+               "G:\\My Drive": (False, "drive_root"), "G:\\Shared drives": (False, "drive_root"),
+               "C:\\My Drive\\x": (False, "system_drive"), "C:\\Windows": (False, "outside_home"),
+               "G:\\x\\My Drive\\y": (False, "outside_home"), "H:\\My Drive\\x": (False, "outside_home")}
+    _bad_d = {f: g for f, g in _got_d.items() if f in _want_d and (g[0], g[2]) != _want_d[f]}
+    _case_d = _got_d[" g:\\my drive\\Creator OS\\ "]
+    _plain_d = _hub_d("G:\\My Drive\\Creator OS")
+    _posix_d = _hub_d("G:\\My Drive\\Creator OS", allow_drive=True, osname="posix")
+    _real_cf_d, _kw_d = _confined_folder, []
+    globals()["_confined_folder"] = lambda folder, **kw: _kw_d.append(kw) or (False, folder, "x")
+    try:
+        _drive_hub_folder("G:\\My Drive\\Creator OS")
+    finally:
+        globals()["_confined_folder"] = _real_cf_d
+    check(not _bad_d and _case_d[:2] == (True, "g:\\my drive\\Creator OS") and _plain_d[2] == "outside_home"
+          and _posix_d[2] == "outside_home"
+          and _kw_d == [{"allow_home": False, "allow_drive": True}],
+          f"the Drive hub folder rule is wrong on Windows ({_bad_d}, {_case_d}, {_plain_d}, {_posix_d})")
+
+    # P102: the retired custom GPT and Gems surfaces are gone from the options, and old links to
+    # them render the door that replaced them.
+    _gone = [k for k in ("chatgpt_custom_gpt", "gemini_gems") if k in _SURFACES or k in _CHATGPT_SURFACES]
+    _via = {k: _screen_cross_modality(k) for k in ("custom_gpt", "chatgpt_custom_gpt", "gemini_gems")}
+    _h1 = {k: f"<h1>{_surface_label(k)}</h1>" for k in ("chatgpt_projects", "gemini_web")}
+    check(not _gone and _h1["chatgpt_projects"] in _via["custom_gpt"]
+          and _h1["chatgpt_projects"] in _via["chatgpt_custom_gpt"]
+          and _h1["gemini_web"] in _via["gemini_gems"],
+          f"a retired surface is still offered ({_gone}), or an old link does not land on its replacement")
+    # P102: the work-order screen warns that an older computer refuses windows and linux work.
+    from handoff import runner as _runner_pin
+    _real_tag, _wo = _runner_pin._platform_tag, {}
+    try:
+        for _t in ("windows", "linux", "mac"):
+            _runner_pin._platform_tag = lambda system=None, _t=_t: _t
+            _wo[_t] = _screen_work_order("filed", [], "tok")
+    finally:
+        _runner_pin._platform_tag = _real_tag
+    check("older than P102" in _wo["windows"] and "<code>windows</code>" in _wo["windows"]
+          and "<code>linux</code>" in _wo["linux"] and "older than P102" not in _wo["mac"],
+          "the work-order screen does not warn on Windows and Linux that an older computer sharing "
+          "the hub refuses that work, or warns on a Mac")
+    # P102: on Windows the publishing screen notes a repo outside the user folder (escaped example).
+    _real_outside = env_paths.windows_outside_home
+    _outside_seen = []
+    try:
+        pathlib.Path.home = classmethod(lambda cls: _home / "<&>")
+        env_paths.windows_outside_home = lambda path, **kw: _outside_seen.append(path) or True
+        _pub_note = _screen_publishing_setup()
+        env_paths.windows_outside_home = lambda path, **kw: False
+        _pub_plain = _screen_publishing_setup()
+    finally:
+        env_paths.windows_outside_home = _real_outside
+        if _real_home is None:
+            del pathlib.Path.home
+        else:
+            pathlib.Path.home = _real_home
+    check("outside your user folder" in _pub_note and "api-credentials.local.json" in _pub_note
+          and f"<code>{html.escape(str(_home / '<&>' / 'CreatorOS'))}</code>" in _pub_note
+          and "outside your user folder" not in _pub_plain and _outside_seen == [ROOT],
+          f"the publishing screen does not note a repo outside the user folder on Windows (escaped, "
+          f"asked about ROOT), or notes one under it: {_outside_seen}")
+    check("cloud-synced folder (<code>G:\\&lt;&amp;&gt;</code>)" in _warned
+          and f"<code>{html.escape(str(_home / 'CreatorOS'))}</code>" in _warned
+          and "<code>PYCMD&lt;&amp;&gt; tools/profile_mirror.py sync</code>" in _warned
+          and "cloud-synced" not in _plain and _cmd_args == [((), {})],
+          "the Drive hub screen does not warn about a cloud-synced repo folder (escaped, with the "
+          "home-folder example and env_paths.python_command() asked with no arguments), or warns "
+          f"without one: {_cmd_args}")
+    # A request body that stops arriving raises the read timeout, so http.server closes the
+    # connection; another read error still reads as an empty body.
+    class _BodyStub:
+        def __init__(self, exc):
+            self.headers = {"Content-Length": "10"}
+            self.rfile = type("R", (), {"read": lambda _s, n, e=exc: (_ for _ in ()).throw(e)})()
+    _body = []
+    for _exc in (TimeoutError("timed out"), ConnectionResetError("reset")):
+        try:
+            _body.append(_Handler._read_body(_BodyStub(_exc)))
+        except TimeoutError:
+            _body.append("raised TimeoutError")
+    check(_body == ["raised TimeoutError", ""],
+          f"_read_body does not re-raise a read timeout, or raises another read error: {_body}")
+
+    # A connection that sends nothing (a browser's spare connection) does not hold the server:
+    # _Handler waits loopback_server.REQUEST_TIMEOUT for a request, and the real _Server with
+    # _Handler (its timeout shortened to 0.3 s, to keep the committed mutation runs short) answers
+    # the next request once that wait ends.
+    _quick = type("_QuickHandler", (_Handler,), {"timeout": 0.3})
+    # The 8 s wait and the 6 s bound leave room for a loaded computer (a 4-CPU runner beside
+    # file_hash's workers answered in 2.8 s); a server that never answers still fails at the wait.
+    _reply, _took = loopback_server._selftest_idle_reply(lambda a: _Server(a, _quick), "/no-such-page",
+                                                         wait=8.0)
+    _applied = loopback_server._selftest_applied_timeout(_Handler)
+    check(_Handler.timeout == loopback_server.REQUEST_TIMEOUT == _applied
+          and _reply.startswith(b"HTTP/1.0 404") and 0.2 <= _took < 6.0,
+          f"the wizard's handler does not wait REQUEST_TIMEOUT for a request (timeout "
+          f"{_Handler.timeout!r}, applied to the connection {_applied!r}), or with an idle connection "
+          f"open it did not answer the next request once the wait ended ({_reply!r}, {_took:.1f} s)")
+    # P102: a follow-up job is queued with this computer's origin, read from platform.system().
+    import pathlib as _pathlib_q
+    import platform as _platform_q
+    import tempfile as _tf_q
+    _hub_q = _pathlib_q.Path(_tf_q.mkdtemp(prefix="wizard-origin-"))
+    _real_system, _origins = _platform_q.system, []
+    try:
+        for _sysname in ("Windows", "Darwin", "Linux"):
+            _platform_q.system = lambda _s=_sysname: _s
+            _origins.append(_queue_followup(_hub_q, {"job_type": "library_analyze"}, None)["origin"])
+    finally:
+        _platform_q.system = _real_system
+    _queued = sorted(p.name.split(".")[2] for p in (_hub_q / "Jobs" / "queue").glob("job.*.json"))
+    check(_origins == ["windows", "mac", "linux"] and _queued == ["linux", "mac", "windows"],
+          f"a follow-up job is not queued with this computer's origin ({_origins}, files {_queued})")
+    _with_ref = _queue_followup(_hub_q, {"job_type": "library_analyze",
+                                         "input_ref": "Inbox/Processed/2026-10-05/talk.srt"},
+                                "use the long cut")
+    check(_with_ref["input_refs"] == ["Inbox/Processed/2026-10-05/talk.srt"]
+          and _with_ref["consent_note"] == "use the long cut",
+          f"a follow-up job lost its input file or the person's note ({_with_ref!r})")
+    # P102: the address main() prints and opens is the IPv4 loopback one.
+    import contextlib as _cl_url
+    import io as _io_url
+    _opened_url, _real_open = [], _g["_open_url"]
+    _printed = _io_url.StringIO()
+    _g["_open_url"] = _opened_url.append
+    try:
+        with _cl_url.redirect_stdout(_printed):
+            _announced = _announce(8775)
+    finally:
+        _g["_open_url"] = _real_open
+    check(_announced == "http://127.0.0.1:8775/" and _opened_url == ["http://127.0.0.1:8775/"]
+          and "running at http://127.0.0.1:8775/" in _printed.getvalue()
+          and "_announce" in main.__code__.co_names,
+          f"main() does not print and open the 127.0.0.1 address ({_opened_url!r}, {_printed.getvalue()!r})")
+    # P102: a page the wizard sends shows commands as this computer runs them (py -3 on Windows).
+    _h = _Handler.__new__(_Handler)
+    _h.send_response = _h.send_header = lambda *a, **k: None
+    _h.end_headers = lambda: None
+    _h.wfile = _io_url.BytesIO()
+    _real_pycmd = env_paths.python_command
+    env_paths.python_command = lambda *a, **k: "py -3"
+    try:
+        _h._send("<code>python3 tools/update.py</code>")
+        _page_sent = _h.wfile.getvalue().decode("utf-8")
+        _h.wfile = _io_url.BytesIO()
+        _h._send('{"cmd": "python3 tools/update.py"}', content_type="application/json")
+        _json_sent = _h.wfile.getvalue().decode("utf-8")
+    finally:
+        env_paths.python_command = _real_pycmd
+    check(_page_sent == "<code>py -3 tools/update.py</code>" and "python3 tools/update.py" in _json_sent,
+          f"a page the wizard sends does not show this computer's command ({_page_sent!r}, {_json_sent!r})")
+    # P102: the wizard reads its tools' output as UTF-8, so an emoji title survives a cp1252 parent
+    # codec (what a Windows pipe uses), and a tool that stops with a Python error is named on the
+    # import screen instead of being reported as a folder with no export.
+    import subprocess as _sp_u
+    import tempfile as _tf_u
+    _fx_u = json.loads((ROOT / "skills" / "creator-core" / "evals" / "fixtures" /
+                        "video-library-youtube-studio.json").read_text(encoding="utf-8"))["csv_text"]
+    _title_u = "Restoring a farmhouse armoire \U0001f3a5 (before \u2192 after; caf\u00e9)"  # no comma: a CSV cell
+    _csv_u = pathlib.Path(_tf_u.mkdtemp(prefix="wizard-utf8-")) / "Table data.csv"
+    _csv_u.write_text(_fx_u.replace("Restoring a farmhouse armoire", _title_u, 1), encoding="utf-8")
+    _env_u = {k: os.environ.get(k) for k in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    try:
+        os.environ["PYTHONIOENCODING"] = "cp1252"
+        os.environ.pop("PYTHONUTF8", None)
+        _recs_u = _run_import_parse("youtube-studio-csv", str(_csv_u))
+    finally:
+        for _k, _v in _env_u.items():
+            if _v is None:
+                os.environ.pop(_k, None)
+            else:
+                os.environ[_k] = _v
+    check(isinstance(_recs_u, list) and any(r.get("title") == _title_u for r in _recs_u),
+          f"the import screen did not read an emoji title under a cp1252 parent codec ({_recs_u!r})")
+    _seen_u, _stderr_u = [], {}
+
+    def _fake_run_u(argv, **kw):
+        name = pathlib.Path(str(argv[1])).name if len(argv) > 1 else ""
+        _seen_u.append((name, kw))
+        return _sp_u.CompletedProcess(argv, 1, "", _stderr_u.get(name, ""))
+    _real_run_u, _real_targets_u = _sp_u.run, globals()["_import_targets"]
+    _sp_u.run = _fake_run_u
+    globals()["_import_targets"] = lambda folder, kind: ["Table data.csv"] if kind == "csv" else []
+    try:
+        _stderr_u["import_parse.py"] = ("Traceback (most recent call last):\n  File \"x\", line 1\n"
+                                        "UnicodeEncodeError: 'charmap' codec can't encode character")
+        _notes_crash = _scan_import_folder("folder", ["youtube"])[1]
+        _stderr_u["import_parse.py"] = "not a YouTube Studio export"
+        _notes_plain = _scan_import_folder("folder", ["youtube"])[1]
+        _run_transcribe(["doctor"])
+        _run_setup(["--check"])
+        _pick_folder()
+        _expected_tool_count()
+    finally:
+        _sp_u.run, globals()["_import_targets"] = _real_run_u, _real_targets_u
+    check(_notes_crash == ["youtube: import_parse stopped with an error: UnicodeEncodeError: 'charmap' codec "
+                           "can't encode character"]
+          and _notes_plain == ["youtube: no readable export found in this folder"],
+          f"the import screen does not tell a tool error from a folder with no export "
+          f"({_notes_crash}, {_notes_plain})")
+    _names_u = sorted({n for n, _kw in _seen_u})
+    check(_names_u == ["count_truth.py", "import_parse.py", "pick_folder.py", "setup.py", "transcribe.py"]
+          and all(kw.get("encoding") == "utf-8" and "text" not in kw
+                  and kw.get("env", {}).get("PYTHONIOENCODING") == "utf-8" for _n, kw in _seen_u),
+          f"a wizard tool run does not read UTF-8 with a UTF-8 child environment ({_names_u})")
+    # P102: the credential merge holds the file's lock, and a file that does not parse is kept as a
+    # .corrupt copy with the save refused, so one stray comma cannot wipe the other platforms' tokens.
+    import contextlib as _cl_c
+    _g_c, _real_locked_c, _held_c = globals(), atomic_io.locked, []
+
+    @_cl_c.contextmanager
+    def _watch_lock_c(path):
+        _held_c.append(pathlib.Path(path))
+        with _real_locked_c(path):
+            yield
+    _saved_root_c = _g_c["ROOT"]
+    with _tf_u.TemporaryDirectory() as _td_c:
+        _cp = pathlib.Path(_td_c) / "pipeline" / "user-context" / "api-credentials.local.json"
+        _cp.parent.mkdir(parents=True)
+        _cp.write_text(json.dumps({p: {"publish": {"label": f"fixture-{p}"}}
+                                   for p in ("youtube", "pinterest", "instagram")}), encoding="utf-8")
+        _refused_c, _good_c, _broken_c, _copies_c = False, {}, b"", []
+        try:
+            _g_c["ROOT"], atomic_io.locked = pathlib.Path(_td_c), _watch_lock_c
+            _merge_api_credentials("tiktok", {"publish": {"label": "fixture-tiktok"}})
+            _good_c = json.loads(_cp.read_text(encoding="utf-8"))
+            _cp.write_text(_cp.read_text(encoding="utf-8").replace('"fixture-youtube"', '"fixture-youtube",', 1),
+                           encoding="utf-8")
+            _broken_c = _cp.read_bytes()
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-new"}})
+            except ValueError as _exc_c:
+                _refused_c = "could not be read" in str(_exc_c)
+            _copies_c = sorted(_cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            _after_c, _locks_c = _cp.read_bytes(), list(_held_c)
+            _again_c = False
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-again"}})
+            except ValueError:
+                _again_c = True
+            _copies_again_c = sorted(_cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            _mode_c = (_copies_c[0].stat().st_mode & 0o777) if _copies_c else None
+            # A byte-order mark is read past by both readers; a file that is not UTF-8 is refused.
+            _cp.write_bytes(b"\xef\xbb\xbf" + json.dumps({"youtube": {"publish": {"label": "fixture-bom"}}}).encode("utf-8"))
+            _bom_lenient_c = _load_api_credentials()
+            _merge_api_credentials("pinterest", {"publish": {"label": "fixture-pin"}})
+            _bom_merged_c = json.loads(_cp.read_text(encoding="utf-8"))
+            _cp.write_bytes(b'{"youtube": "\xff\xfe"}')
+            _bad_lenient_c = _load_api_credentials()
+            _bad_refused_c = False
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-x"}})
+            except ValueError:
+                _bad_refused_c = True
+            _bad_kept_c = any(_c.read_bytes() == b'{"youtube": "\xff\xfe"}'
+                              for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            # a second unreadable version of the same length is kept as its own copy
+            _cp.write_bytes(b'{"youtube": "\xfe\xff"}')
+            try:
+                _merge_api_credentials("tiktok", {"publish": {"label": "fixture-y"}})
+            except ValueError:
+                pass
+            _bad_kept_c = _bad_kept_c and any(
+                _c.read_bytes() == b'{"youtube": "\xfe\xff"}'
+                for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+        finally:
+            _g_c["ROOT"], atomic_io.locked = _saved_root_c, _real_locked_c
+        check(_again_c and _copies_again_c == _copies_c
+              and (os.name == "nt" or _mode_c == 0o600),
+              f"a repeated refused credential save does not reuse its copy, or the copy is not owner-only "
+              f"({len(_copies_again_c)} copies, mode {_mode_c!r})")
+        check(set(_bom_lenient_c) == {"youtube"} and set(_bom_merged_c) == {"youtube", "pinterest"}
+              and _bad_lenient_c == {} and _bad_refused_c and _bad_kept_c,
+              f"the credential readers do not read past a byte-order mark, or a file that is not UTF-8 "
+              f"is not refused ({_bom_lenient_c}, {sorted(_bom_merged_c)}, {_bad_lenient_c}, "
+              f"{_bad_refused_c}, {_bad_kept_c})")
+        check(set(_good_c) == {"youtube", "pinterest", "instagram", "tiktok"} and _refused_c
+              and _after_c == _broken_c and len(_copies_c) == 1 and _copies_c[0].read_bytes() == _broken_c
+              and _locks_c == [_cp, _cp],
+              f"the credential merge does not hold its lock, or saves over a file it could not read "
+              f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_locks_c})")
+    # P102: a credential save refused after a Connect flow is reported, and the flag is not flipped.
+    _g_o = globals()
+    _saved_o = {k: _g_o[k] for k in ("_oauth_publish_creds", "_merge_api_credentials", "_update_capability_flag")}
+    _real_exchange_o, _flags_o = oauth_flow.exchange_code, []
+
+    def _refuse_merge_o(plat, patch):
+        raise ValueError("api-credentials.local.json could not be read, so nothing was saved; it was "
+                         "kept as fixture.bak.")
+    try:
+        _g_o.update(_oauth_publish_creds=lambda plat: ("fixture-id", "fixture-secret", {}),
+                    _merge_api_credentials=_refuse_merge_o,
+                    _update_capability_flag=lambda key, value: _flags_o.append(key))
+        oauth_flow.exchange_code = lambda *a, **kw: {"expires_in": 3600}
+        _done_o = _complete_oauth("tiktok", "fixture-code", None, "http://127.0.0.1:8765/oauth/tiktok/callback")
+    except ValueError as _exc_o:
+        _done_o = ("raised", str(_exc_o))
+    finally:
+        _g_o.update(_saved_o)
+        oauth_flow.exchange_code = _real_exchange_o
+    check(_done_o[0] is False and "kept as fixture.bak" in _done_o[1] and _flags_o == [],
+          f"a refused credential save after Connect is not reported, or the flag flipped ({_done_o}, {_flags_o})")
+    # P102: the full selftest runs with the wizard state in a temporary file, puts the path and the
+    # in-memory state back, and fails when the real file changed; _selftest hands itself to it.
+    _g_s = globals()
+    _real_body_s, _real_iso_s, _saved_path_s = _g_s["_selftest"], _g_s["_run_selftest_isolated"], _g_s["_STATE_PATH"]
+    _seen_s = []
+
+    def _probe_body_s():
+        _seen_s.append((_g_s["_STATE_PATH"], _g_s["_SELFTEST_STATE_ISOLATED"]))
+        _set(selftest_isolation_probe="probe")
+        return 0
+    with _tf_u.TemporaryDirectory() as _td_s:
+        _fake_s = pathlib.Path(_td_s) / "creator-os-wizard-state.local.json"
+        _fake_s.write_text("{}", encoding="utf-8")
+        _fake_before_s = (_fake_s.read_bytes(), _fake_s.stat().st_mtime_ns)
+
+        def _writer_body_s():
+            _fake_s.write_text('{"written": true}', encoding="utf-8")
+            return 0
+        try:
+            _g_s["_STATE_PATH"] = _fake_s
+            _g_s["_selftest"] = _probe_body_s
+            _rc_probe_s = _run_selftest_isolated()
+            _path_after_s = _g_s["_STATE_PATH"]
+            _fake_after_s = (_fake_s.read_bytes(), _fake_s.stat().st_mtime_ns)
+            with _lock:  # the module's state: this function has a local named _state
+                _probe_left_s = "selftest_isolation_probe" in _g_s["_state"]
+            _g_s["_selftest"] = _writer_body_s
+            with _cl_bind.redirect_stdout(_io_bind.StringIO()):
+                _rc_writer_s = _run_selftest_isolated()
+            _g_s["_selftest"], _g_s["_run_selftest_isolated"] = _real_body_s, lambda: "handed over"
+            _handed_s = _real_body_s()
+        finally:
+            _g_s["_selftest"], _g_s["_run_selftest_isolated"] = _real_body_s, _real_iso_s
+            _g_s["_STATE_PATH"] = _saved_path_s
+    check(_rc_probe_s == 0 and len(_seen_s) == 1 and _seen_s[0][0] != _fake_s and _seen_s[0][1] is True
+          and _fake_after_s == _fake_before_s and _path_after_s == _fake_s and not _probe_left_s
+          and _rc_writer_s == 1 and _handed_s == "handed over",
+          f"the wizard selftest does not keep its state in a temporary file and put it back, or does not "
+          f"fail when the real file changed ({_rc_probe_s}, {_seen_s}, {_rc_writer_s}, {_handed_s!r})")
+    # P102: while the wrapper runs, a lock on a file in the checkout is refused without opening its
+    # .lock and fails the run, a lock elsewhere is taken, and a change to the credentials .lock
+    # fails the run. ROOT stands for the checkout here, in a temporary folder.
+    _saved_root_k, _locked_before_k, _cases_k = _g_s["ROOT"], atomic_io.locked, {}
+    with _tf_u.TemporaryDirectory() as _td_k:
+        _repo_k = pathlib.Path(_td_k) / "repo"
+        _creds_k = _repo_k / "pipeline" / "user-context" / "api-credentials.local.json"
+        _creds_k.parent.mkdir(parents=True)
+        _beside_k = pathlib.Path(_td_k) / "repo-beside" / "x.json"  # shares the checkout's prefix
+
+        def _lock_body_k():
+            with atomic_io.locked(_creds_k):
+                pass
+            return 0
+
+        def _touch_body_k():
+            _creds_k.with_name(_creds_k.name + ".lock").write_text("", encoding="utf-8")
+            return 0
+
+        def _beside_body_k():
+            with atomic_io.locked(_beside_k):
+                pass
+            return 0
+        try:
+            _g_s["ROOT"] = _repo_k
+            for _name_k, _body_k in (("lock", _lock_body_k), ("touch", _touch_body_k),
+                                     ("beside", _beside_body_k)):
+                _g_s["_selftest"] = _body_k
+                _out_k = _io_bind.StringIO()
+                with _cl_bind.redirect_stdout(_out_k):
+                    _rc_k = _run_selftest_isolated()
+                _cases_k[_name_k] = (_rc_k, _out_k.getvalue(), atomic_io.locked is _locked_before_k,
+                                     _creds_k.with_name(_creds_k.name + ".lock").exists(),
+                                     _beside_k.with_name("x.json.lock").exists())
+                _creds_k.with_name(_creds_k.name + ".lock").unlink(missing_ok=True)
+        finally:
+            _g_s["_selftest"], _g_s["ROOT"] = _real_body_s, _saved_root_k
+            atomic_io.locked = _locked_before_k
+    _lk, _tk, _bk = _cases_k.get("lock"), _cases_k.get("touch"), _cases_k.get("beside")
+    check(_lk is not None and _lk[0] == 1 and "took a lock on a file in this checkout" in _lk[1]
+          and _lk[2] and not _lk[3]
+          and _tk is not None and _tk[0] == 1 and "touched api-credentials.local.json.lock" in _tk[1] and _tk[2]
+          and _bk is not None and _bk[0] == 0 and _bk[1] == "" and _bk[2] and _bk[4],
+          f"the wizard selftest wrapper does not refuse a lock in the checkout without opening it, "
+          f"take a lock beside it, or fail on a touched credentials lock ({_cases_k})")
+    if failures:
+        print("wizard P101 checks FAILED:")
+        for msg in failures:
+            print(f"  - {msg}")
+    return 1 if failures else 0
+
+
+_SELFTEST_STATE_ISOLATED = False
+
+
+def _run_selftest_isolated() -> int:
+    """Runs _selftest with _STATE_PATH pointed at a temporary file, so the persisted-state checks
+    and the routes they drive leave this computer's creator-os-wizard-state.local.json as it was
+    (P102); the in-memory state is put back afterwards, and a change to the real file fails.
+    While it runs, atomic_io.locked on a path inside this checkout is refused without touching the
+    file (no <name>.lock is opened) and reported, and the run fails; a lock elsewhere, such as in a
+    temporary folder, is taken as usual. A change to the real credentials file's .lock (it appears,
+    or its size or time changes) fails too."""
+    global _STATE_PATH, _SELFTEST_STATE_ISOLATED
+    import contextlib
+    import tempfile
+
+    def _file_state(p):
+        try:
+            st = p.stat()
+            return (st.st_size, st.st_mtime_ns)
+        except OSError:
+            return None
+    real_path, before = _STATE_PATH, _file_state(_STATE_PATH)
+    checkout, real_locked, refused = os.path.realpath(str(ROOT)), atomic_io.locked, []
+    creds_lock = ROOT / "pipeline" / "user-context" / "api-credentials.local.json.lock"
+    lock_before = _file_state(creds_lock)
+
+    def _checkout_lock_refused(path):
+        where = os.path.realpath(str(path))
+        if where == checkout or where.startswith(checkout.rstrip(os.sep) + os.sep):
+            refused.append(where)
+            return contextlib.nullcontext()
+        return real_locked(path)
+    with _lock:
+        saved_state = dict(_state)
+    with tempfile.TemporaryDirectory(prefix="wizard-state-") as td:
+        _STATE_PATH, _SELFTEST_STATE_ISOLATED = pathlib.Path(td) / real_path.name, True
+        atomic_io.locked = _checkout_lock_refused
+        try:
+            rc = _selftest()
+        finally:
+            atomic_io.locked = real_locked
+            _STATE_PATH, _SELFTEST_STATE_ISOLATED = real_path, False
+            with _lock:
+                _state.clear()
+                _state.update(saved_state)
+    if _file_state(real_path) != before:
+        print(f"wizard selftest FAILED: it changed {real_path.name}")
+        return 1
+    if refused:
+        print(f"wizard selftest FAILED: it took a lock on a file in this checkout: {sorted(set(refused))}")
+        return 1
+    if _file_state(creds_lock) != lock_before:
+        print(f"wizard selftest FAILED: it touched {creds_lock.name} beside the real credentials")
+        return 1
+    return rc
 
 
 def _selftest() -> int:
     """No-network test of the publishing OAuth callback: state CSRF, token exchange, credential
-    merge (no clobber), and the {plat}_publishing flag flip. Uses an injected transport."""
+    merge (no clobber), and the {plat}_publishing flag flip. Uses an injected transport. It runs
+    inside _run_selftest_isolated, which keeps the real wizard state file out of reach."""
     global _OAUTH_TRANSPORT
+    if not _SELFTEST_STATE_ISOLATED:
+        return _run_selftest_isolated()
     failures: list[str] = []
 
     def check(cond, msg):
@@ -4522,7 +5780,12 @@ def _selftest() -> int:
     store = {"youtube": {_AT: "IMPORT_READ_TOKEN"}}   # a pre-existing importer read token
     store["youtube"]["publish"] = {"client_id": "CID", "client_secret": "SEC"}
     flags: dict = {}
-    globals()["_load_api_credentials"] = lambda: __import__("copy").deepcopy(store)
+    _real_cred_io = (_load_api_credentials, _save_api_credentials, _update_capability_flag)
+    # The credential load and save are stood in for in memory, so the merge's lock on the real
+    # credentials file is stood in for too (put back with them below).
+    _real_locked = atomic_io.locked
+    atomic_io.locked = lambda path: __import__("contextlib").nullcontext()
+    globals()["_load_api_credentials"] = lambda strict=False: __import__("copy").deepcopy(store)
 
     def _save(c):
         store.clear()
@@ -4621,7 +5884,7 @@ def _selftest() -> int:
         check("Apple Silicon" in blk and "whisper-cpp" in blk, "mac STT block did not render Apple Silicon copy")
         _ARCH_OVERRIDE = "x86_64"
         check("Intel Mac" in _stt_install_block(), "mac STT block did not render Intel copy")
-        cfg = str(_claude_config_path())
+        cfg = pathlib.PurePath(_claude_config_path()).as_posix()   # P101: separator-neutral on Windows
         check("Library/Application Support/Claude" in cfg, "mac Claude config path wrong under _os override")
     finally:
         _OS_OVERRIDE, _ARCH_OVERRIDE = None, None
@@ -4643,9 +5906,16 @@ def _selftest() -> int:
     except Exception as exc:  # noqa: BLE001
         check(False, f"port-collision check errored: {exc}")
 
+    # 5b) P101: the port block, idle connection and cloud-synced warning checks in _selftest_p101(),
+    # with the credential functions and the lock the OAuth checks above stood in for put back first.
+    globals().update(_load_api_credentials=_real_cred_io[0], _save_api_credentials=_real_cred_io[1],
+                     _update_capability_flag=_real_cred_io[2])
+    atomic_io.locked = _real_locked
+    check(_selftest_p101() == 0, "P101 checks failed (listed above)")
+
     # 6) Loopback-only guard (G1): main() must bind 127.0.0.1, never 0.0.0.0.
     src = pathlib.Path(__file__).read_text(encoding="utf-8")
-    check('_Server(("127.0.0.1", PORT)' in src, "main() no longer binds 127.0.0.1:PORT")
+    check('_Server(("127.0.0.1", port)' in src, "_bind() no longer binds 127.0.0.1:port")
     _any_ip = ".".join(["0"] * 4)  # built dynamically so this guard line doesn't match itself
     check(f'(("{_any_ip}"' not in src and f"(('{_any_ip}'" not in src,
           "wizard binds the all-interfaces address (loopback exemption lost)")
@@ -4753,10 +6023,12 @@ def _selftest() -> int:
     import tempfile as _tempfile
     _old_home = os.environ.get("HOME")
     _old_appdata = os.environ.get("APPDATA")
+    _old_local = os.environ.get("LOCALAPPDATA")
     try:
         _fake = _tempfile.mkdtemp(prefix="wizard-selftest-home-")
         os.environ["HOME"] = _fake
         os.environ["APPDATA"] = _fake  # Windows path branch uses APPDATA
+        os.environ["LOCALAPPDATA"] = _fake  # and LOCALAPPDATA (the packaged app's folder and logs)
         _cfgp = _claude_config_path()
         _cfgp.parent.mkdir(parents=True, exist_ok=True)
         _cfgp.write_text(json.dumps({"mcpServers": {"user-own": {"command": "/bin/x"}},
@@ -4782,6 +6054,10 @@ def _selftest() -> int:
             os.environ["APPDATA"] = _old_appdata
         elif "APPDATA" in os.environ:
             del os.environ["APPDATA"]
+        if _old_local is not None:
+            os.environ["LOCALAPPDATA"] = _old_local
+        elif "LOCALAPPDATA" in os.environ:
+            del os.environ["LOCALAPPDATA"]
 
     # P85-4c: persisted-state round-trip (subset assertion: _state carries pre-seeded defaults).
     _set(selftest_probe_flag="round-trip")
@@ -5083,7 +6359,8 @@ def _selftest() -> int:
             return _rec
 
     _route_stubs = {"subprocess": _StartRecorder(), "_read_claude_config": lambda: {},
-                    "_write_claude_config": lambda config: ROOT / ".selftest-absent.json",
+                    "_write_claude_config": lambda config, path=None: ROOT / ".selftest-absent.json",
+                    "_update_claude_config": lambda update: [str(ROOT / ".selftest-absent.json")],
                     "_update_capability_flag": lambda key, value: None,
                     "_set": lambda **kwargs: None, "_start_job": lambda name, fn: (fn(), True)[1]}
     _route_saved = ({_k: globals()[_k] for _k in _route_stubs},
@@ -5163,32 +6440,20 @@ def main() -> None:
     # that definition, not an Apple statement about loopback, and unconfirmed on real hardware.
     # Never 0.0.0.0.
     try:
-        server = _Server(("127.0.0.1", PORT), _Handler)
-    except OSError:
-        # Port 8765 is busy (a second launch, a lingering wizard, or another app). Keep the port
-        # fixed (OAuth redirect URIs are registered against it) and exit cleanly with a plain message
+        server = _bind()
+    except loopback_server.BindRefused as exc:
+        # A port in use (a second launch, a lingering wizard, or another app), a block the OS
+        # reserves, or another bind error: exit cleanly with a plain message naming the real cause
         # instead of dumping a traceback into the Terminal window a non-technical user is watching.
-        print(f"\nCreator OS Setup is already running, or port {PORT} is in use.")
-        print(f"Open http://localhost:{PORT}/ in your browser, or close the other window and try again.")
+        print()
+        for line in loopback_server.refusal_lines(exc, "Creator OS Setup", "CREATOR_OS_WIZARD_PORT"):
+            print(line)
         raise SystemExit(1)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    url = f"http://localhost:{PORT}/"
-    print(f"Creator OS Setup Wizard running at {url}")
-    print("Opening browser... (press Ctrl+C to quit)")
-
-    # Small delay so the server is ready before the browser hits it
-    time.sleep(0.3)
-    _open_url(url)
-
-    try:
-        _shutdown.wait()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.shutdown()
-        print("\nWizard closed.")
+    _announce(PORT)
+    _wait_and_close(server)
 
 
 if __name__ == "__main__":

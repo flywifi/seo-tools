@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """projection_manifest.py -- staleness signal for the hand-authored knowledge packs (P49 WS7).
 
-The Claude Projects / Custom GPT / Gemini knowledge files are PROSE PROJECTIONS of the canonical
+The Claude Projects / ChatGPT Projects / Gemini knowledge files are PROSE PROJECTIONS of the canonical
 shared/*.md engines and protocols/*.md. They are hand-authored, so there is no generator to diff them
 against -- but we CAN record the sha256 of each SOURCE engine at the moment a projection was last
 reconciled, and flag when a source has changed since. That is a staleness SIGNAL (the projection may now
-lag its source), not a prose content-diff. Mirrors the freshness-bundle mechanism.
+lag its source), not a prose content-diff. Mirrors the freshness-bundle mechanism. The sha256 is the
+one tools/file_hash.py computes (P101): line endings folded to LF, so a checkout that converted them
+(core.autocrlf=true) is neither a moved source nor a hand-edited projection.
 
   python3 tools/projection_manifest.py reconcile   # (re)write the manifest with current source shas
   python3 tools/projection_manifest.py --check      # list projections whose sources moved since reconcile
@@ -13,10 +15,15 @@ lag its source), not a prose content-diff. Mirrors the freshness-bundle mechanis
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from pathlib import Path
+
+try:
+    import file_hash
+except ImportError:  # loaded by file path with tools/ not on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import file_hash
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = ROOT / "implementation" / "knowledge-projection-manifest.json"
@@ -83,7 +90,7 @@ def _projections(root=ROOT):
 
 
 def _sha(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return file_hash.sha256_file(path)
 
 
 def reconcile(root=ROOT):
@@ -192,6 +199,32 @@ def selftest(root=ROOT):
     ok("a projection that does not map brand-engine is NOT flagged", _K + "04-protocols.md" not in flagged)
     reconcile(d)
     ok("reconcile re-blesses and clears the signal", check(d) == [])
+
+    # P101: a checkout that converted line endings (core.autocrlf=true) is neither a moved source
+    # nor a hand-edited projection.
+    import hashlib
+    src_f, proj_f = d / "shared" / "brand-engine.md", d / (_K + "04-protocols.md")
+    lf_bytes = {p: file_hash.normalise(p.read_bytes()) for p in (src_f, proj_f)}
+    for p in lf_bytes:   # an LF tree on every platform (text mode writes CRLF on Windows)
+        p.write_bytes(lf_bytes[p])
+    reconcile(d)
+    rec = json.loads((d / "implementation" / "knowledge-projection-manifest.json")
+                     .read_text(encoding="utf-8"))["projections"]
+    pinned = {src_f: rec[_K + "02-brand-voice.md"]["sources"]["shared/brand-engine.md"],
+              proj_f: rec[_K + "04-protocols.md"]["projection"]}
+    ok("an LF file's recorded hash is the raw sha256 of its bytes",
+       all(pinned[p] == hashlib.sha256(lf_bytes[p]).hexdigest() for p in pinned))
+    for crlf in pinned:
+        crlf.write_bytes(lf_bytes[crlf].replace(b"\n", b"\r\n"))
+    ok("both fixtures really are CRLF and their raw hashes differ from the recorded ones",
+       all(b"\r\n" in p.read_bytes() and hashlib.sha256(p.read_bytes()).hexdigest() != pinned[p]
+           for p in pinned))
+    ok("CRLF copies of a source and of a projection are not flagged", check(d) == [])
+    # The writer folds too: a reconcile run on the CRLF checkout records the LF hashes.
+    reconcile(d)
+    for p in pinned:
+        p.write_bytes(lf_bytes[p])
+    ok("a reconcile run on CRLF copies records the hashes an LF checkout verifies", check(d) == [])
 
     # P73: hand-editing a projection while its sources are untouched must be caught.
     target = _K + "04-protocols.md"

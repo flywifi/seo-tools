@@ -3,13 +3,13 @@
 Creator OS protects your private data on your computer with layered guarantees: gitignored local
 files, a pre-commit secret scan, drift invariants that fail closed in CI, capability flags, and a
 local redaction layer. **None of that travels with you.** The moment you paste something into
-ChatGPT, a custom GPT, a Project, or a Gem, it lives on that provider's servers under their terms.
+ChatGPT, a Project, or a Gemini chat, it lives on that provider's servers under their terms.
 This page is the decision guide the wizard's transition screens summarize.
 
 ## Safe to paste
 
-- The committed knowledge packs and packaging files (custom instructions, exported GPT
-  instruction and knowledge files, Gem instructions). They are built from public repo content and
+- The committed knowledge packs and packaging files (custom instructions, Project instructions
+  and knowledge files, the Gemini system instruction). They are built from public repo content and
   carry no personal data by design.
 - The all-null committed templates and schemas (rate-card template, contract starters, profile
   template). Shapes, not data.
@@ -43,9 +43,9 @@ This page is the decision guide the wizard's transition screens summarize.
 1. **The redaction layer is local.** `finance-desk` redacts figures before they leave your
    machine only when the tools run; on a paste surface YOU are the redaction layer.
 2. **Consent gates are local.** Live lookups on your computer ask first (for example the
-   jurisdiction geocoder). A custom GPT Action calls the same public endpoints from OpenAI's side
-   with no ask-first step: what you type into the GPT goes to OpenAI and to the endpoint. Decide
-   what you type accordingly.
+   jurisdiction geocoder). A remote connector added to ChatGPT or Gemini calls its endpoint from
+   the vendor's side with no ask-first step: what you type goes to the vendor and to the endpoint.
+   Decide what you type accordingly.
 
 When in doubt: keep the real number or name at home, paste a placeholder, and let the local tools
 fill the real value when the work comes back to your computer.

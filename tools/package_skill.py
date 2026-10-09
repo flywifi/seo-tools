@@ -6,7 +6,8 @@ Zips a skill directory into dist/<name>.skill (a zip archive) after a minimal va
 installable.
 
 Packaging integrity (P79 WP-D): the .skill zips embed file mtimes and are not reproducible, so the
-integrity anchor is a sha256 over each skill's SOURCE TREE (sorted relative paths + bytes), recorded
+integrity anchor is a sha256 over each skill's SOURCE TREE (relative paths in POSIX form, sorted by
+their components, each with the file's LF-normalised bytes per tools/file_hash.py; P101), recorded
 in implementation/skill-package-manifest.json (tracked, beside the other generated manifests).
 `--check-manifest` recomputes and exits 1 on drift; `--reconcile-manifest` re-blesses. Two skill
 directories with the same leaf name would silently overwrite each other in dist/, so both verbs and
@@ -20,7 +21,8 @@ Usage:
   python3 tools/package_skill.py --selftest             # offline
 
 Org-distribution facts (support.claude.com article 13837433 + Desktop changelog, fetched
-2026-09-19): the manual marketplace-ZIP route caps at 50 MB per plugin and 100 plugins; a zip
+2026-09-19; limits re-read 2026-10-05): the manual marketplace-ZIP route caps at 200 MB per plugin
+and 1000 plugins per marketplace; a zip
 whose top level is a single component folder (e.g. `skills/`) installs with nothing (Desktop fix
 note 2026-08-27), so bundle from the plugin root; hosted `url` marketplaces deliver plugins as
 zips and require `manifestSha256` for auto-install; admins can disable user marketplaces and
@@ -34,6 +36,12 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+
+try:
+    import file_hash
+except ImportError:  # loaded by file path with tools/ not on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import file_hash
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -89,13 +97,17 @@ def _source_files(d):
 
 
 def tree_sha(d):
-    """sha256 over the skill's SOURCE tree: sorted relative paths + file bytes, NUL-delimited.
-    mtime-free and deterministic, unlike the zip; untracked noise (__pycache__, *.pyc) excluded."""
+    """sha256 over the skill's SOURCE tree: relative paths in POSIX form, sorted by their components,
+    each followed by the file's LF-normalised bytes (tools/file_hash.py), NUL-delimited. mtime-free
+    and deterministic, unlike the zip; untracked noise (__pycache__, *.pyc) excluded. P101: the
+    POSIX form, the component sort and the normalised bytes make a Windows checkout (backslash
+    paths, case-insensitive Path ordering, CRLF conversion) record the hash the Linux CI recorded."""
     d = Path(d)
     h = hashlib.sha256()
-    for rel in _source_files(d):
-        h.update(str(rel).encode("utf-8")); h.update(b"\0")
-        h.update((d / rel).read_bytes()); h.update(b"\0")
+    names = sorted((rel.as_posix() for rel in _source_files(d)), key=lambda n: tuple(n.split("/")))
+    for name in names:
+        h.update(name.encode("utf-8")); h.update(b"\0")
+        h.update(file_hash.normalise((d / name).read_bytes())); h.update(b"\0")
     return h.hexdigest()
 
 
@@ -114,8 +126,10 @@ def reconcile_manifest(root=None, manifest=None):
     if dupes:
         print(f"package-manifest: duplicate skill leaf names {dupes}; rename before packaging")
         return 1
-    man = {"_comment": "P79 packaging integrity: sha256 per skill SOURCE TREE (sorted relative paths + "
-                       "bytes, NUL-delimited; mtime-free). Verify with `python3 tools/package_skill.py "
+    man = {"_comment": "P79 packaging integrity: sha256 per skill SOURCE TREE (relative paths in POSIX "
+                       "form sorted by component, each followed by the file's bytes with text line "
+                       "endings folded to LF (P101), NUL-delimited; mtime-free). Verify with "
+                       "`python3 tools/package_skill.py "
                        "--check-manifest`, re-bless with `--reconcile-manifest`. dist/ zips embed mtimes "
                        "and are not reproducible, so the tree hash is the integrity anchor.",
            "generated_by": "tools/package_skill.py",
@@ -274,7 +288,8 @@ def selftest():
         fm = "---\nname: {n}\ndescription: fixture\n---\nbody\n"
         for n in ("alpha", "beta"):
             d = root / "skills" / n; d.mkdir(parents=True)
-            (d / "SKILL.md").write_text(fm.format(n=n)); (d / "notes.md").write_text(n)
+            # Bytes, so the tree is LF on every platform (text mode writes CRLF on Windows).
+            (d / "SKILL.md").write_bytes(fm.format(n=n).encode()); (d / "notes.md").write_bytes((n + "\nmore\n").encode())
         man = root / "implementation" / "skill-package-manifest.json"
         try:
             tree_sha(root / "skills" / "alpha")
@@ -293,12 +308,63 @@ def selftest():
         (root / "skills" / "alpha" / ".DS_Store").write_bytes(b"\x00")
         ok("interpreter, local, and Finder noise never move the tree hash (P80, P81)",
            tree_sha(root / "skills" / "alpha") == _before)
+        # P101: a checkout that converted a skill file's line endings (core.autocrlf=true) records
+        # the same tree hash.
+        notes = root / "skills" / "alpha" / "notes.md"
+        lf_notes = notes.read_bytes()
+        notes.write_bytes(b"alpha\r\nmore\r\n")
+        ok("a CRLF copy of a skill file does not move the tree hash (P101)",
+           lf_notes == b"alpha\nmore\n" and tree_sha(root / "skills" / "alpha") == _before)
         out = root / "alpha.skill"
         with zipfile.ZipFile(out, "w") as zf:
             for r in _source_files(root / "skills" / "alpha"):
                 zf.write(root / "skills" / "alpha" / r, str(Path("alpha") / r))
+        with zipfile.ZipFile(out) as zf:   # closed before the temp folder goes (Windows locks open files)
+            archived = sorted(zf.namelist())
         ok("the archive contains exactly the hashed set (P81)",
-           sorted(zipfile.ZipFile(out).namelist()) == ["alpha/SKILL.md", "alpha/notes.md"])
+           archived == ["alpha/SKILL.md", "alpha/notes.md"])
+        # P101: the paths a Windows checkout yields (backslash separators, and Path ordering that
+        # ignores case, which puts notes.md before SKILL.md and Zeta.md) hash like POSIX ones. The
+        # nested names sort differently by component than as strings ('a/z.md' before 'a-b/y.md',
+        # 'notes/x.md' before 'notes.md'), and the PNG carries CR bytes that must stay raw. Only
+        # these files are added, so the interpreter noise planted above stays untracked.
+        from pathlib import PurePosixPath, PureWindowsPath
+        alpha = root / "skills" / "alpha"
+        added = {"Zeta.md": b"zeta\n", "references/guide.md": b"guide\n", "a-b/y.md": b"y\n",
+                 "a/z.md": b"z\n", "notes/x.md": b"x\n",
+                 "assets/logo.png": b"\x89PNG\r\n\x1a\n\x00\x00IHDR\r\n"}
+        for rel, data in added.items():
+            (alpha / rel).parent.mkdir(parents=True, exist_ok=True)
+            (alpha / rel).write_bytes(data)
+        subprocess.run(["git", "-C", td, "add", "--"] + [f"skills/alpha/{r}" for r in added], check=True)
+        g = globals()
+        real_sources = g["_source_files"]
+        hashed = sorted(r.as_posix() for r in real_sources(alpha))
+        ok("the hashed set holds the nested files and none of the noise",
+           hashed == sorted(["SKILL.md", "notes.md"] + list(added)))
+        ok("the fixture names order differently as strings than by component",
+           sorted(hashed) != sorted(hashed, key=lambda n: tuple(n.split("/"))))
+        for rel in hashed:   # an LF tree on every platform (text mode writes CRLF on Windows)
+            (alpha / rel).write_bytes(file_hash.normalise((alpha / rel).read_bytes()))
+        posix_form = tree_sha(alpha)
+        h = hashlib.sha256()   # the pre-P101 recipe: sorted Path objects, str(rel), raw bytes
+        for rel in sorted(PurePosixPath(r) for r in hashed):
+            h.update(str(rel).encode("utf-8")); h.update(b"\0")
+            h.update((alpha / rel).read_bytes()); h.update(b"\0")
+        ok("on an LF tree the tree hash equals the pre-P101 recipe, so no recorded hash moves",
+           posix_form == h.hexdigest())
+        try:
+            g["_source_files"] = lambda sd: sorted(PureWindowsPath(r.as_posix()) for r in real_sources(sd))
+            ok("the simulated Windows listing really is in case-insensitive order",
+               [str(r) for r in g["_source_files"](alpha)][-2:] == ["SKILL.md", "Zeta.md"])
+            windows_form = tree_sha(alpha)
+        finally:
+            g["_source_files"] = real_sources
+        ok("Windows-form paths hash to the POSIX tree hash (P101)", windows_form == posix_form)
+        png = alpha / "assets" / "logo.png"
+        png.write_bytes(png.read_bytes().replace(b"\r\n", b"\n"))
+        ok("a binary file keeps its raw bytes: folding its CRs moves the tree hash", tree_sha(alpha) != posix_form)
+        png.write_bytes(added["assets/logo.png"])
         (root / "skills" / "alpha" / "notes.md").write_text("edited")
         drift, code = check_manifest(root, man)
         ok("an edited skill file drifts the check (exit 1, skill named)", code == 1 and drift == ["alpha"])
@@ -316,8 +382,8 @@ def selftest():
         copy_parent = Path(tempfile.mkdtemp())
         copy = copy_parent / "alpha"
         shutil.copytree(root / "skills" / "alpha", copy)
-        ok("a downloaded (non-git) copy filters noise instead of refusing",
-           _source_files(copy) == [Path("SKILL.md"), Path("notes.md")])
+        ok("a downloaded (non-git) copy filters noise instead of refusing",   # P101: compared as
+           sorted(p.as_posix() for p in _source_files(copy)) == sorted(["SKILL.md", "notes.md"] + list(added)))  # POSIX strings, so Path's case-insensitive order on Windows does not fail it
         shutil.rmtree(copy_parent)
         # P90: the standalone exporter. First the failing state the exporter exists to fix
         # (detector-can-fail proof): a PLAIN zip of a skill that references a shared engine
@@ -334,20 +400,21 @@ def selftest():
         with zipfile.ZipFile(plain, "w") as zf:
             for r in _source_files(beta):
                 zf.write(beta / r, str(Path("beta") / r))
-        _pz = zipfile.ZipFile(plain)
+        with zipfile.ZipFile(plain) as _pz:   # closed before the temp folder goes (Windows locks open files)
+            _plain_body, _plain_names = _pz.read("beta/SKILL.md").decode("utf-8"), _pz.namelist()
         ok("PLAIN zip dangles: the reference is inside, the engine is not (the P90 defect)",
-           "shared/fixture-engine.md" in _pz.read("beta/SKILL.md").decode("utf-8")
-           and not any("fixture-engine" in n for n in _pz.namelist()))
+           "shared/fixture-engine.md" in _plain_body
+           and not any("fixture-engine" in n for n in _plain_names))
         outp, refs = package_standalone(beta, dist_root=root / "dist", repo_root=root)
-        _sz = zipfile.ZipFile(outp)
-        _body = _sz.read("beta/SKILL.md").decode("utf-8")
+        with zipfile.ZipFile(outp) as _sz:
+            _body, _names = _sz.read("beta/SKILL.md").decode("utf-8"), _sz.namelist()
         ok("standalone zip bundles the engine under references/upstream/",
-           "beta/references/upstream/shared/fixture-engine.md" in _sz.namelist())
+           "beta/references/upstream/shared/fixture-engine.md" in _names)
         ok("standalone SKILL.md points at the bundled copy, no repo-root token left",
            "references/upstream/shared/fixture-engine.md" in _body
            and not re.search(r"(?<!references/upstream/)\bshared/fixture-engine\.md", _body))
         ok("standalone zip carries the honesty note",
-           "beta/STANDALONE-NOTE.txt" in _sz.namelist())
+           "beta/STANDALONE-NOTE.txt" in _names)
         (beta / "SKILL.md").write_text(fm.format(n="beta")
                                        + "\nLoad shared/missing-engine.md first.\n",
                                        encoding="utf-8")

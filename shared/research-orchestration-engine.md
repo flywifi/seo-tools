@@ -125,7 +125,8 @@ reproduces each finding, and reports the commit it read (`audited_commit`).
 - Tools: Read, Glob, Grep, read-only Bash, WebSearch, WebFetch; no MCP tools (`mcp__*` removed)
 - Isolation: its own git worktree of the local HEAD (`isolation: worktree`, and
   `worktree.baseRef` "head" in `.claude/settings.json`)
-- Bash guard: `tools/readonly_bash_guard.py` runs as a PreToolUse hook on its Bash calls
+- Bash guard: `tools/readonly_bash_guard.py` runs as a PreToolUse hook on its Bash and PowerShell
+  calls and refuses the PowerShell ones; the frontmatter also removes the PowerShell tool
 
 ### 2.1 Machine-readable agent contracts
 
@@ -151,8 +152,9 @@ without it as documentation and applies none of its tool rules:
   run in the main checkout.
 
 The drift guard (invariant 14) validates the four sections, the frontmatter, and the auditor's
-wiring (`.claude/settings.json` runs `tools/readonly_bash_guard.py` on Bash, skipping it when
-the file is absent, and sets `worktree.baseRef` to "head"). The forbidden tools section must
+wiring (`.claude/settings.json` runs `tools/readonly_bash_guard.py` on Bash and PowerShell,
+skipping it when the file is absent and refusing the auditor's call when no Python works, and
+sets `worktree.baseRef` to "head"). The forbidden tools section must
 list Write, Edit, and NotebookEdit. Invariant 17 validates the verbatim read-only marker is
 present. Bash stays write-capable: the Bash items in the forbidden section are instructions, and
 the guard refuses only the write forms it recognizes.

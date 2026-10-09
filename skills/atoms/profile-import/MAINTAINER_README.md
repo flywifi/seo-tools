@@ -37,7 +37,7 @@ belong to their own atoms.
 - Recommendations inside conflicts (explicit beats inferred, newer beats older) are suggestions,
   not resolutions.
 - A single-context import is fine but the output should note which contexts were NOT exported
-  yet (default chat, Projects, custom GPTs).
+  yet (default chat, Projects, and custom GPTs until they retire on 2026-12-11).
 
 ## Regression cases to preserve
 1. Full export produces a proposal with per-field provenance and the verbatim save note

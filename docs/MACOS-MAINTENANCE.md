@@ -216,6 +216,8 @@ and is non-empty, so it is not the "not found" case. The index is fully regenera
 rm shared/cache/index.local.db && python3 shared/cache/cache.py --build
 ```
 
-**The wizard will not start because port 8765 is in use.** See the port-override section in
-`docs/PUBLISHING.md` — and note that changing the port invalidates any OAuth redirect URIs you
-already registered with a platform.
+**The wizard will not start because port 8765 is in use.** It says it is already running when a
+program holds the port (often a second copy): open the address it prints, or close the other window.
+When the computer reserves the port instead, it moves on to 8775, then 8785, and says so. See the
+port section in `docs/PUBLISHING.md`; an override port works only once its OAuth redirect URIs are
+registered with the platform.

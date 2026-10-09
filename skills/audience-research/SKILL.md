@@ -180,7 +180,7 @@ Key output guarantees:
 
 ## Cross-modality
 Class: B.
-Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; Custom GPT via an Action and the Gemini API via function calling when the data endpoint is wired; Gems: knowledge-only (data may be stale unless supplied).
+Runs on: Claude Desktop/Code (native); claude.ai via a hosted remote-MCP connector; the Gemini API via function calling when the data endpoint is wired; ChatGPT Projects and Gemini chats: knowledge-only (data may be stale unless supplied).
 Mechanism: Reasoning over supplied channel data or the scoop cache personas/audience data (canonical-sources); composes ingest-route + persona-map; no compute tool beyond the shared gate.
 Fallback: Off a runtime, the persona/audience data can be pasted or provided as knowledge; degrade to reasoning over supplied inputs and flag its as_of. Never invent audience data. On ChatGPT this runs knowledge-only from the pasted pack; the desktop app can reach live data via a deployed remote MCP connector in developer mode (implementation/gpt/mcp-connector/README.md).
 See `shared/cross-modality-engine.md`.

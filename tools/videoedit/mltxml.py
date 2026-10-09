@@ -22,9 +22,19 @@ import json
 import shutil
 import subprocess
 import sys
+import os
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+
+def _closed_tmp(suffix: str) -> Path:
+    """A new temp file's path with its descriptor closed (P101): Windows cannot rewrite or remove a
+    file another handle holds open, and tempfile.mkstemp returns one."""
+    fd, name = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    return Path(name)
+
 from xml.sax.saxutils import escape
 
 HERE = Path(__file__).resolve().parent
@@ -35,6 +45,7 @@ from fcpxml import _infer_duration  # noqa: E402
 
 DEFAULT_VERSION = "7.0.0"
 SUBPROCESS_TIMEOUT = 1800
+
 
 
 def sec_to_clock(sec):
@@ -199,7 +210,7 @@ def validate(src):
     """Well-formedness check, fcpxml.validate shape. MLT has no DTD, so no dtd_valid level."""
     tmp = None
     if "<mlt" in str(src) and "\n" in str(src):
-        tmp = Path(tempfile.mkstemp(suffix=".mlt")[1])
+        tmp = _closed_tmp(".mlt")
         tmp.write_text(src, encoding="utf-8")
         path = str(tmp)
     else:
@@ -230,7 +241,7 @@ def _ffmpeg_cutlist_render(pkg, out_path):
         raise LookupError("ffmpeg cut-list encode handles exactly one source asset "
                           f"(package has {len(refs)})")
     ref = refs.pop()
-    listfile = Path(tempfile.mkstemp(suffix=".txt")[1])
+    listfile = _closed_tmp(".txt")
     lines = []
     for c in sorted(clips, key=lambda c: float(c.get("start_seconds", 0) or 0)):
         src_in = float(c.get("source_in_seconds", c.get("start_seconds", 0)) or 0)
@@ -267,16 +278,21 @@ def render(src, out_path, config=None, backend="auto"):
             if b == "melt":
                 if not shutil.which("melt"):
                     raise LookupError("melt not on PATH")
+                tmp = None
                 if is_pkg:
-                    tmp = Path(tempfile.mkstemp(suffix=".mlt")[1])
+                    tmp = _closed_tmp(".mlt")
                     tmp.write_text(build(src), encoding="utf-8")
                     mlt_path = str(tmp)
                 else:
                     mlt_path = str(src)
                 cmd = [shutil.which("melt"), mlt_path, "-consumer",
                        f"avformat:{out_path}", "vcodec=libx264", "acodec=aac"]
-                run = subprocess.run(cmd, capture_output=True, text=True,
-                                     timeout=SUBPROCESS_TIMEOUT)
+                try:
+                    run = subprocess.run(cmd, capture_output=True, text=True,
+                                         timeout=SUBPROCESS_TIMEOUT)
+                finally:
+                    if tmp is not None:   # P101: the package's temp .mlt is not left behind
+                        tmp.unlink()
                 if run.returncode != 0:
                     raise RuntimeError(f"melt exited {run.returncode}: "
                                        f"{run.stderr.strip()[-300:]}")
@@ -312,6 +328,25 @@ def _check(label, cond, failures):
 _check.ran = 0
 
 
+def _piped_cp1252(argv, pkg_obj=None):
+    """Selftest helper (P102): run this tool's CLI as a child with its output piped under a cp1252
+    codec, what a Windows pipe or `> file` uses. Returns (returncode, stdout decoded as UTF-8)."""
+    import os
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        args = list(argv)
+        if pkg_obj is not None:
+            pkg_path = Path(td) / "pkg.json"
+            pkg_path.write_text(json.dumps(pkg_obj, ensure_ascii=False), encoding="utf-8")
+            args = [str(pkg_path) if a == "{pkg}" else a for a in args]
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        env.pop("PYTHONUTF8", None)
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve())] + args, capture_output=True,
+                           env=env, timeout=120)
+    return r.returncode, r.stdout.decode("utf-8", errors="replace")
+
+
 def selftest():
     failures = []
     pkg = {
@@ -332,6 +367,10 @@ def selftest():
     _check("build inserts a blank for the timeline gap", '<blank length="00:00:05.000"/>' in xml,
            failures)
     v = validate(xml)
+    if os.path.isdir('/proc/self/fd'):   # P101: a leaked handle blocks removal on Windows
+        _n = len(os.listdir('/proc/self/fd'))
+        validate(xml)
+        _check('validate() leaves no file descriptor open', len(os.listdir('/proc/self/fd')) == _n, failures)
     _check("validate reports ok (well-formed)", v["ok"] and v["level"].startswith("well_formed"),
            failures)
     _check("validate rejects garbage", validate("<mlt>\n<broken")["ok"] is False, failures)
@@ -368,6 +407,35 @@ def selftest():
            not r["rendered"] and r["backend_chain"][0]["backend"] == "melt"
            and r["backend_chain"][0]["ok"] is False, failures)
 
+    # P101: the two render paths that write a temp file, run against stand-ins for melt and
+    # ffmpeg: each removes its temp file (Windows refuses that while a handle is open) and, where
+    # /proc shows them, leaves no descriptor open.
+    import types
+    gates = {"capabilities": {"media_render": {"enabled": True}, "video_editing_enabled": {"enabled": True}}}
+    g = globals()
+    saved = (g["shutil"], g["subprocess"])
+    seen = []
+
+    def _fake_run(cmd, **kwargs):
+        seen.append(list(cmd))
+        return types.SimpleNamespace(returncode=0, stderr="")
+    g["shutil"] = types.SimpleNamespace(which=lambda name: "/stub/" + name)
+    g["subprocess"] = types.SimpleNamespace(run=_fake_run)
+    has_fd = os.path.isdir("/proc/self/fd")
+    try:
+        n0 = len(os.listdir("/proc/self/fd")) if has_fd else 0
+        r_melt = render(pkg, "out.mp4", backend="melt", config=gates)
+        r_ff = render(pkg, "out.mp4", backend="ffmpeg", config=gates)
+        n1 = len(os.listdir("/proc/self/fd")) if has_fd else 0
+    finally:
+        g["shutil"], g["subprocess"] = saved
+    temps = [seen[0][1], seen[1][seen[1].index("-i") + 1]] if len(seen) == 2 else []
+    _check("the melt package render and the ffmpeg cut-list render remove their temp files",
+           r_melt["rendered"] and r_ff["rendered"] and len(temps) == 2
+           and not any(os.path.exists(t) for t in temps), failures)
+    if has_fd:
+        _check("those renders leave no file descriptor open", n1 == n0, failures)
+
     import contextlib
     import io
     buf = io.StringIO()
@@ -375,6 +443,14 @@ def selftest():
         rc = main(["parse", "x" * 300])
     _check(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
            rc == 1 and "next_step" in buf.getvalue(), failures)
+
+    # P102: `mltxml.py build pkg > timeline.mlt` keeps an emoji clip name under a cp1252 codec.
+    emoji_pkg = json.loads(json.dumps(pkg))
+    emoji_pkg["title"] = emoji_pkg["timeline"]["clips"][0]["name"] = "Sanding \u2728 prep"
+    rc_u, out_u = _piped_cp1252(["build", "{pkg}"], emoji_pkg)
+    _check("build piped under a cp1252 codec keeps an emoji clip name",
+           rc_u == 0 and "Sanding \u2728 prep" in out_u, failures)
+    _check("main switches a redirected stdout to UTF-8", "utf8_stdio" in main.__code__.co_names, failures)
 
     n = _check.ran
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
@@ -417,7 +493,12 @@ def _main(argv):
 def main(argv):
     """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
     example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
-    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback. Its output is UTF-8
+    when stdout is redirected or piped (env_paths.utf8_stdio, P102), so a title with an emoji
+    reaches the file instead of stopping the tool on Windows."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # tools/, for env_paths
+    import env_paths
+    env_paths.utf8_stdio()
     try:
         return _main(argv)
     except OSError as exc:

@@ -713,7 +713,8 @@ and long-form.
 ### Publishing OAuth (loopback Connect flow, P51)
 
 Tokens are obtained in the setup wizard by a loopback OAuth flow (`tools/oauth_flow.py`); the wizard
-listens at `http://127.0.0.1:8765/oauth/<platform>/callback`, verifies a single-use `state`
+listens at `http://127.0.0.1:8765/oauth/<platform>/callback` (or 8775 or 8785 when the computer
+reserves 8765), verifies a single-use `state`
 (RFC 6749 §10.12), exchanges the code, and stores the token under `creds[<platform>].publish` so it
 never clobbers the importer's read token. Live clients live in `tools/publishing/` and refresh via
 `oauth_flow.get_valid_access_token`. Per-platform reality (see `docs/PUBLISHING.md`):

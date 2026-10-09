@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Creator OS Scheduling Dashboard — browser-based GUI for managing social media posts.
 
-Serves static HTML/CSS/JS on port 8766 and exposes a JSON API for managing the
+Serves static HTML/CSS/JS on port 8766 (or 8776, then 8786, when the OS reserves it; P101) and exposes a JSON API for managing the
 scheduling queue. The dashboard is a human-in-the-loop scheduler: the "Confirm and
 Schedule" click IS the human confirmation step, and it runs the shared FTC/AIGC/tier
 compliance checks (tools/publishing_compliance.py) before any status change.
@@ -26,7 +26,7 @@ import uuid
 import webbrowser
 from datetime import datetime, timezone
 from functools import partial
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer as _StockHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -37,17 +37,50 @@ import publishing  # noqa: E402
 import atomic_io  # noqa: E402  (the one atomic writer, P81)
 import finance  # noqa: E402  (P31: read-only AR view)
 import tasks as _tasks  # noqa: E402  (P35: read-only task view)
+import loopback_server  # noqa: E402  (P101: port block and exclusive bind)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 QUEUE_PATH = ROOT / "pipeline" / "user-context" / "scheduling-queue.local.json"
 CREDS_PATH = ROOT / "pipeline" / "user-context" / "api-credentials.local.json"
 
-PORT = 8766
+# P101: the dashboard binds the first port of its block that the OS does not reserve (8766, then
+# 8776 and 8786); CREATOR_OS_DASHBOARD_PORT names one port instead. main() rebinds PORT.
+_PORTS = loopback_server.ports("CREATOR_OS_DASHBOARD_PORT", loopback_server.DASHBOARD_BLOCK)
+PORT = _PORTS[0]
 PLATFORMS = ["instagram", "tiktok", "pinterest", "youtube"]
 
-# Only same-origin browser requests are allowed to mutate state (localhost CSRF defense).
-ALLOWED_ORIGINS = {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}
+
+class HTTPServer(loopback_server.RefuseSharedPort, _StockHTTPServer):
+    """The stock server, without SO_REUSEADDR on Windows, so a second copy cannot share its port
+    (P101). main() builds its server through this name, which the selftest replaces so that
+    nothing binds."""
+
+
+def _allowed_origins():
+    """Only same-origin browser requests may mutate state (localhost CSRF defense). Read at call
+    time, for the port main() bound."""
+    return {f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}"}
+
+
+def _forget_port():
+    """Remove the dashboard's port record on a clean shutdown when it still names this dashboard's
+    port, so the MCP tools do not link to a closed dashboard (P101)."""
+    if loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE)[0] == PORT:
+        try:
+            loopback_server.DASHBOARD_PORT_FILE.unlink()
+        except OSError:
+            pass
+
+
+def _wizard_url():
+    """The setup wizard's address: the port it recorded when it bound (loopback_server), else the
+    first port it tries."""
+    port, _ = loopback_server.read_port()
+    if port is None:
+        port = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,
+                                     note=lambda _msg: None)[0]
+    return f"http://127.0.0.1:{port}/"
 MAX_BODY_BYTES = 2 * 1024 * 1024  # 2 MiB cap on request bodies
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -70,16 +103,49 @@ def _load_config():
 
 
 def _load_queue():
-    if QUEUE_PATH.exists():
+    """The schedule. A missing file is an empty schedule. A file that does not parse, or is not
+    {"queue": [...]}, is copied to <name>.corrupt.<UTC stamp>.bak (once per distinct content) and
+    read as empty with a load_note naming the copy, so the next save cannot overwrite the only
+    record of the old schedule (P102). A UTF-8 byte-order mark (Windows PowerShell 5.1 and older
+    Notepad write one) is read past. An OSError on read propagates, so nothing is saved on a
+    guess."""
+    if not QUEUE_PATH.exists():
+        return {"queue": []}
+    raw = QUEUE_PATH.read_bytes()
+    try:
+        data = json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        data = None
+    if isinstance(data, dict) and isinstance(data.get("queue"), list):
+        return data
+    kept = _keep_corrupt_copy(QUEUE_PATH, raw)
+    return {"queue": [], "load_note": f"The schedule file could not be read, so this shows an empty "
+                                      f"schedule; the file was kept as {kept.name}."}
+
+
+def _keep_corrupt_copy(path, raw):
+    """A copy of `raw` beside `path` as <name>.corrupt.<UTC stamp>.bak, or the existing copy that
+    already holds those bytes."""
+    for old in sorted(path.parent.glob(f"{path.name}.corrupt.*.bak")):
         try:
-            return json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            pass
-    return {"queue": []}
+            if old.read_bytes() == raw:
+                return old
+        except OSError:
+            continue
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    kept = path.with_name(f"{path.name}.corrupt.{stamp}.bak")
+    n = 1
+    while kept.exists():
+        n += 1
+        kept = path.with_name(f"{path.name}.corrupt.{stamp}.{n}.bak")
+    kept.write_bytes(raw)
+    return kept
 
 
 def _save_queue(data):
-    """Atomic write: temp file + os.replace so readers never see a truncated file."""
+    """Atomic write: temp file + os.replace so readers never see a truncated file. A load_note is
+    shown to the person, never saved."""
+    data = {k: v for k, v in data.items() if k != "load_note"}
     QUEUE_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = QUEUE_PATH.with_name(QUEUE_PATH.name + ".tmp")
     tmp.write_text(
@@ -147,6 +213,10 @@ def _new_platform_entry():
 
 
 class DashboardHandler(SimpleHTTPRequestHandler):
+    # P101: the server answers one request at a time; a connection that sends nothing (a browser's
+    # spare connection) is closed after this many seconds instead of holding it.
+    timeout = loopback_server.REQUEST_TIMEOUT
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
@@ -162,7 +232,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin is None:
             return True
-        return origin in ALLOWED_ORIGINS
+        return origin in _allowed_origins()
 
     def _read_body(self):
         # Enforce JSON content type: blocks the CORS "simple request" bypass, since
@@ -248,6 +318,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/credentials-status":
             return self._json_response(_get_credentials_status())
+
+        if path == "/api/wizard-url":
+            # P101: the setup link opens the wizard on the port of its block it bound.
+            return self._json_response({"url": _wizard_url()})
 
         if path.startswith("/api/status/"):
             item_id = path.split("/api/status/", 1)[1]
@@ -861,6 +935,19 @@ def _loop_passes_config_through():
 
 
 def _selftest() -> int:
+    """Runs _selftest_checks with the dashboard's port record in a temporary folder, since main()
+    writes it (P101)."""
+    import tempfile
+    saved = loopback_server.DASHBOARD_PORT_FILE
+    with tempfile.TemporaryDirectory() as td:
+        loopback_server.DASHBOARD_PORT_FILE = Path(td) / "dashboard-port.local.json"
+        try:
+            return _selftest_checks()
+        finally:
+            loopback_server.DASHBOARD_PORT_FILE = saved
+
+
+def _selftest_checks() -> int:
     """Offline: _apply_dispatch_result records every dispatch outcome honestly."""
     checks = []
 
@@ -1103,6 +1190,8 @@ def _selftest() -> int:
             "        return self._json_response(_get_publishing_plan(_load_config()))\n"
             "    if path == '/api/credentials-status':\n"
             "        return self._json_response(_get_credentials_status())\n"
+            "    if path == '/api/wizard-url':\n"
+            "        return self._json_response({'url': _wizard_url()})\n"
             "    if path.startswith('/api/status/'):\n"
             "        item_id = path.split('/api/status/', 1)[1]\n"
             "        with _queue_lock:\n"
@@ -1123,6 +1212,10 @@ def _selftest() -> int:
                if isinstance(n, _ast_get.Call) and _ast_get.unparse(n.func) == "path.startswith"}
             | {"/selftest-unknown"})
         get_handed, get_changed, get_crashed = [], [], []
+        saved_wizard_file = loopback_server.WIZARD_PORT_FILE
+        loopback_server.WIZARD_PORT_FILE = loopback_server.DASHBOARD_PORT_FILE.parent / "wizard-port.local.json"
+        loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8775, "get-pin"),
+                                                    encoding="utf-8")
         g["_load_config"] = lambda: every_flag_on
         compliance.load_credentials = lambda: creds
         publishing.dispatch = lambda platform, *a, **k: get_handed.append(platform) or {}
@@ -1148,10 +1241,11 @@ def _selftest() -> int:
             publishing.dispatch = real_dispatch
             compliance.load_credentials = lambda: {}
             g.update(_load_queue=lambda: store, _load_config=lambda: {})
+            loopback_server.WIZARD_PORT_FILE = saved_wizard_file
         ok("every GET route, driven through do_GET with every flag on, never calls dispatch(), "
            "reaches the network or changes a queued post",
            get_handed == [] and get_net.calls == [] and get_changed == [] and get_crashed == []
-           and len(get_paths) == 10
+           and len(get_paths) == 11
            and _ast_get.dump(do_get) == _ast_get.dump(_ast_get.parse(get_shape).body[0]))
     finally:
         g.update(saved)
@@ -1316,6 +1410,181 @@ def _selftest() -> int:
     ok("scheduler flag on: the network recorder sees the upload attempt (the probe sees calls)",
        len(net.calls) >= 1)
 
+    # P101 port block: main() walks past a port the OS reserves to the next port of its block and
+    # prints that address; the same-origin check follows it; a port in use stops main() with the
+    # already-running message. The server and the scheduler thread are stood in for and the
+    # browser is not opened, so nothing binds. The wizard link reads the port the wizard recorded.
+    import contextlib as _cl_port
+    import errno as _errno_port
+    import io as _io_port
+    import tempfile as _tf_port
+    bound, refuse, serving = [], {}, []
+
+    class _RefusingServer:
+        def __init__(self, address, handler):
+            bound.append(address)
+            if address[1] in refuse:
+                raise OSError(refuse[address[1]], "refused")
+
+        def serve_forever(self):   # the record as it stands while the dashboard serves
+            serving.append(loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE))
+            raise KeyboardInterrupt
+
+        def shutdown(self):
+            pass
+
+    saved_port = {k: g[k] for k in ("HTTPServer", "PORT", "_PORTS")}
+    saved_run = (threading.Thread, webbrowser.open, sys.argv, compliance.CONFIG_LOCAL_PATH)
+    ok("the dashboard's server binds through RefuseSharedPort",
+       saved_port["HTTPServer"].server_bind is loopback_server.RefuseSharedPort.server_bind)
+    opened = []
+    try:
+        g.update(HTTPServer=_RefusingServer, _PORTS=loopback_server.DASHBOARD_BLOCK)
+        threading.Thread, webbrowser.open, sys.argv = (_NoThread, (lambda url, *a, **k: opened.append(url) or True),
+                                                       [__file__])
+        compliance.CONFIG_LOCAL_PATH = ROOT / ".creator-os-config.selftest-absent.local.json"
+        refuse[8766] = _errno_port.EACCES
+        out = _io_port.StringIO()
+        with _cl_port.redirect_stdout(out):
+            main()
+        ok("main() walks past a refused port to the next loopback port of its block and prints it "
+           "with the refused port",
+           bound == [("127.0.0.1", 8766), ("127.0.0.1", 8776)] and PORT == 8776
+           and "http://127.0.0.1:8776" in out.getvalue() and "already running" not in out.getvalue()
+           and "Port 8766 was refused" in out.getvalue())
+        ok("main() opens the 127.0.0.1 address of the port it bound", opened == ["http://127.0.0.1:8776"])
+        ok("main() records the port it bound while it serves, and removes the record on a clean shutdown",
+           serving == [(8776, None)] and not loopback_server.DASHBOARD_PORT_FILE.exists())
+        loopback_server.DASHBOARD_PORT_FILE.write_text(loopback_server.port_record(8786), encoding="utf-8")
+        _forget_port()
+        ok("a dashboard record that names another port is kept at shutdown",
+           loopback_server.read_port(loopback_server.DASHBOARD_PORT_FILE) == (8786, None))
+        loopback_server.DASHBOARD_PORT_FILE.unlink()
+        origin = DashboardHandler.__new__(DashboardHandler)
+        answers = []
+        for sent in ("http://127.0.0.1:8776", "http://localhost:8776",
+                     "http://127.0.0.1:8766", "http://localhost:8766"):
+            origin.headers = {"Origin": sent}
+            answers.append(origin._origin_ok())
+        ok("the same-origin check follows the port main() bound, for 127.0.0.1 and localhost",
+           answers == [True, True, False, False])
+        bound.clear()
+        refuse.clear()
+        refuse[8766] = _errno_port.EADDRINUSE
+        out = _io_port.StringIO()
+        try:
+            with _cl_port.redirect_stdout(out):
+                main()
+            code = None
+        except SystemExit as exc:
+            code = exc.code
+        ok("a port in use stops main() with the already-running message",
+           code == 1 and bound == [("127.0.0.1", 8766)] and "already running" in out.getvalue())
+    finally:
+        g.update(saved_port)
+        threading.Thread, webbrowser.open, sys.argv, compliance.CONFIG_LOCAL_PATH = saved_run
+    saved_file = loopback_server.WIZARD_PORT_FILE
+    with _tf_port.TemporaryDirectory() as td:
+        try:
+            loopback_server.WIZARD_PORT_FILE = Path(td) / "port.local.json"
+            first = loopback_server.ports("CREATOR_OS_WIZARD_PORT", loopback_server.WIZARD_BLOCK,
+                                          note=lambda _msg: None)[0]
+            ok("with no port recorded, the wizard link points at the first port the wizard tries",
+               _wizard_url() == f"http://127.0.0.1:{first}/")
+            loopback_server.WIZARD_PORT_FILE.write_text(loopback_server.port_record(8775),
+                                                        encoding="utf-8")
+            ok("the wizard link points at the port the wizard recorded",
+               _wizard_url() == "http://127.0.0.1:8775/")
+            loopback_server.WIZARD_PORT_FILE.unlink()
+            saved_override = os.environ.get("CREATOR_OS_WIZARD_PORT")
+            os.environ["CREATOR_OS_WIZARD_PORT"] = "9123"
+            try:
+                ok("with no port recorded and an override set, the wizard link points at the override",
+                   _wizard_url() == "http://127.0.0.1:9123/")
+            finally:
+                if saved_override is None:
+                    os.environ.pop("CREATOR_OS_WIZARD_PORT", None)
+                else:
+                    os.environ["CREATOR_OS_WIZARD_PORT"] = saved_override
+        finally:
+            loopback_server.WIZARD_PORT_FILE = saved_file
+    # A connection that sends nothing (a browser's spare connection) does not hold the server:
+    # DashboardHandler waits loopback_server.REQUEST_TIMEOUT for a request, and the real HTTPServer
+    # with DashboardHandler (its timeout shortened to 0.3 s, to keep the committed mutation runs
+    # short) answers the next request once that wait ends.
+    quick = type("_QuickHandler", (DashboardHandler,), {"timeout": 0.3})
+    # The 8 s wait and the 6 s bound leave room for a loaded computer; a server that never answers
+    # still fails at the wait.
+    reply, took = loopback_server._selftest_idle_reply(lambda a: HTTPServer(a, quick), "/api/wizard-url",
+                                                       wait=8.0)
+    applied = loopback_server._selftest_applied_timeout(DashboardHandler)
+    ok(f"the dashboard's handler waits REQUEST_TIMEOUT for a request (timeout "
+       f"{DashboardHandler.timeout!r}, applied to the connection {applied!r}), and with an idle "
+       f"connection open it answers the next request once the wait ends ({took:.1f} s)",
+       DashboardHandler.timeout == loopback_server.REQUEST_TIMEOUT == applied
+       and reply.startswith(b"HTTP/1.0 200") and 0.2 <= took < 6.0)
+
+    # P102: a schedule file that does not parse is copied once and read as empty with a note, so the
+    # next save cannot wipe the only record of the old schedule; a read that raises saves nothing.
+    import tempfile as _tf_q
+    g_q = globals()
+    saved_queue_path = g_q["QUEUE_PATH"]
+    with _tf_q.TemporaryDirectory() as tdq:
+        g_q["QUEUE_PATH"] = Path(tdq) / "scheduling-queue.local.json"
+        try:
+            _save_queue({"queue": [{"id": f"planned-post-{i}"} for i in (1, 2, 3)]})
+            good_q = _load_queue()
+            QUEUE_PATH.write_text(QUEUE_PATH.read_text(encoding="utf-8").replace(
+                '"planned-post-1"', '"planned-post-1",', 1), encoding="utf-8")  # a stray comma
+            broken_q = QUEUE_PATH.read_bytes()
+            bad_1, bad_2 = _load_queue(), _load_queue()
+            copies_q = sorted(Path(tdq).glob("scheduling-queue.local.json.corrupt.*.bak"))
+            copy_bytes = copies_q[0].read_bytes() if copies_q else None
+            bad_1["queue"].append({"id": "new-post"})
+            _save_queue(bad_1)
+            after_q = json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
+            QUEUE_PATH.write_text('{"queue": "not a list"}', encoding="utf-8")
+            shape_q = _load_queue()
+            QUEUE_PATH.write_bytes(b"\xef\xbb\xbf" + json.dumps({"queue": [{"id": "bom-post"}]}).encode("utf-8"))
+            bom_q = _load_queue()
+            for old_copy in Path(tdq).glob("*.corrupt.*.bak"):
+                old_copy.unlink()
+            real_dt = g_q["datetime"]
+
+            class _SameSecond(real_dt):
+                @classmethod
+                def now(cls, tz=None):
+                    return real_dt(2026, 10, 6, 12, 0, 0, tzinfo=tz)
+            g_q["datetime"] = _SameSecond
+            try:
+                QUEUE_PATH.write_bytes(b'{"queue": [\xff\xfe]}')  # not UTF-8
+                bad_utf8_q = _load_queue()
+                QUEUE_PATH.write_text("{oops", encoding="utf-8")
+                _load_queue()
+            finally:
+                g_q["datetime"] = real_dt
+            same_second = sorted(p.read_bytes() for p in Path(tdq).glob("*.corrupt.*.bak"))
+            g_q["QUEUE_PATH"] = Path(tdq) / "a-folder"
+            QUEUE_PATH.mkdir()
+            try:
+                _load_queue()
+                read_raised = False
+            except OSError:
+                read_raised = True
+        finally:
+            g_q["QUEUE_PATH"] = saved_queue_path
+    ok("a schedule that does not parse is copied once and read as empty with a note naming the copy; "
+       "the next save keeps the copy and stores no note; a read that raises propagates",
+       [p["id"] for p in good_q["queue"]] == ["planned-post-1", "planned-post-2", "planned-post-3"]
+       and bad_1.get("load_note") and bad_2.get("load_note") == bad_1["load_note"]
+       and len(copies_q) == 1 and copy_bytes == broken_q and copies_q[0].name in bad_1["load_note"]
+       and after_q == {"queue": [{"id": "new-post"}]} and read_raised
+       and shape_q["queue"] == [] and "load_note" in shape_q)
+    ok("a schedule with a UTF-8 byte-order mark reads as written; one that is not UTF-8 is copied and "
+       "read as empty; two copies made in the same second are both kept",
+       bom_q == {"queue": [{"id": "bom-post"}]} and bad_utf8_q["queue"] == [] and "load_note" in bad_utf8_q
+       and same_second == [b'{"queue": [\xff\xfe]}', b"{oops"])
+
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)
@@ -1326,21 +1595,34 @@ def _selftest() -> int:
 def main():
     if "--selftest" in sys.argv[1:]:
         raise SystemExit(_selftest())
+    global PORT
+    handler = partial(DashboardHandler)
+    try:
+        server, PORT, reserved = loopback_server.bind_first(
+            _PORTS, lambda port: HTTPServer(("127.0.0.1", port), handler))
+    except loopback_server.BindRefused as exc:
+        for line in loopback_server.refusal_lines(exc, "Creator OS Scheduling Dashboard",
+                                                  "CREATOR_OS_DASHBOARD_PORT"):
+            print(line)
+        raise SystemExit(1)
+    try:   # for the MCP tools that link to the dashboard (P101)
+        atomic_io.atomic_write_text(loopback_server.DASHBOARD_PORT_FILE, loopback_server.port_record(PORT))
+    except OSError as exc:
+        print(f"[dashboard] could not record port {PORT}: {exc}")
     print("Creator OS Scheduling Dashboard")
-    print(f"  URL: http://localhost:{PORT}")
+    if reserved:
+        print("  " + loopback_server.reserved_note(reserved, PORT, "the dashboard"))
+    print(f"  URL: http://127.0.0.1:{PORT}")
     print(f"  Queue: {QUEUE_PATH}")
     live = compliance.live_publishing_enabled()
     print(f"  Live publishing: {'ON' if live else 'OFF (manual posting; no platform calls)'}")
     print("  Press Ctrl+C to stop.\n")
 
-    handler = partial(DashboardHandler)
-    server = HTTPServer(("127.0.0.1", PORT), handler)
-
     scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
     scheduler_thread.start()
 
     try:
-        webbrowser.open(f"http://localhost:{PORT}")
+        webbrowser.open(f"http://127.0.0.1:{PORT}")
     except Exception:
         pass
 
@@ -1350,6 +1632,7 @@ def main():
         print("\nShutting down...")
         _shutdown.set()
         server.shutdown()
+        _forget_port()
 
 
 if __name__ == "__main__":

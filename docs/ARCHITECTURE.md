@@ -169,7 +169,7 @@ thing. Spokes compose atoms in sequence via `workflow.json` rather than embeddin
 
 Atoms can be called directly for one-off tasks without going through a full spoke workflow.
 
-106 atoms are installed in total; `skills/atoms/` is the authoritative inventory (one directory per
+104 atoms are installed in total; `skills/atoms/` is the authoritative inventory (one directory per
 atom, each with its own SKILL.md), and the drift guard verifies every atom a workflow names exists.
 The founding content/pipeline set below illustrates the shape; later phases added the video/media,
 finance, contract, task, jurisdiction, construction, and content-library atom families.
@@ -396,8 +396,9 @@ removes Write, Edit, NotebookEdit, Agent and the GitHub and Google Drive MCP too
 auditor also loses every other MCP tool and runs in its own git worktree; the product agents run
 in the main checkout, where the ignored local data they read lives. Bash stays write-capable; the
 auditor's Bash calls pass through `tools/readonly_bash_guard.py`, which refuses only the write
-forms it recognizes. The main loop (or the user) is the only actor meant to modify the
-repository.
+forms it recognizes; the auditor's frontmatter also removes the PowerShell tool, and the same hook
+refuses a PowerShell call from it. The main loop (or the user) is the only actor meant to modify
+the repository.
 
 **Six agent roles:**
 
@@ -540,7 +541,8 @@ tools/dashboard/
 ```
 
 **Server** (`server.py`): pure Python stdlib (`http.server`, `json`, `threading`, `pathlib`).
-Port 8766 (the setup wizard uses 8765). Exposes a JSON API:
+Port 8766, or 8776, then 8786, when the computer reserves it (`tools/loopback_server.py`; the setup
+wizard's block is 8765, 8775, 8785). Exposes a JSON API:
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -565,7 +567,9 @@ the DOM. Queue reads and writes are serialized by a lock and written atomically 
 **Data store:** `pipeline/user-context/scheduling-queue.local.json` (gitignored via the existing
 `*.local.json` pattern). Each queue item tracks per-platform state: enabled toggle, scheduled
 datetime, caption, hashtags, content type, media URL, FTC disclosure, AIGC flag, status, post ID,
-permalink, and error.
+permalink, and error. A file that does not parse, or is not `{"queue": [...]}`, is copied once to
+`<name>.corrupt.<UTC stamp>.bak` and read as an empty schedule with a note the dashboard shows, so
+the next save leaves that copy in place <!-- verify: tools/dashboard/server.py::_load_queue -->.
 
 **Five views:**
 1. **Queue** (default) — cards per content item with platform toggle switches, status dots, and
@@ -607,7 +611,8 @@ advance the next time it starts). When `live_publishing_enabled` is turned on, t
 - *Output:* confirming a post runs compliance and schedules it (see above). Actual posting is manual
   (`ready_to_post`) until live publishing is enabled.
 - *Credentials:* the Credentials view links to `tools/wizard.py` at
-  `http://localhost:8765/publishing-setup/<platform>` for credential setup flows.
+  `/publishing-setup/<platform>` on the port the wizard recorded when it bound (`GET /api/wizard-url`;
+  8765 when none is recorded) for credential setup flows.
 
 Launch: `python3 tools/dashboard/server.py`
 

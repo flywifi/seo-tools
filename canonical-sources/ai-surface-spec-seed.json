@@ -58,7 +58,7 @@
     "tier": "T2",
     "extraction_hint": "the newer ChatGPT app packaging surface (built on MCP); _meta.ui contract, widget MIME, structuredContent",
     "_signal": "sha256",
-    "used_by": ["implementation/gpt", "skills/atoms/export-gpt"]
+    "used_by": ["implementation/gpt"]
   },
   {
     "id": "openai-gpt-actions-production",
@@ -68,7 +68,7 @@
     "tier": "T2",
     "extraction_hint": "hard caps that silently truncate/reject exports: endpoint/param descriptions 300/700 chars, payloads <100k chars, 45s timeout, no custom headers",
     "_signal": "sha256",
-    "used_by": ["implementation/gpt/api", "skills/atoms/export-gpt"]
+    "used_by": ["implementation/gpt/api"]
   },
   {
     "id": "gemini-api-changelog",
@@ -78,7 +78,7 @@
     "tier": "T1",
     "extraction_hint": "plain-text mirror; cheapest reliable sha256 diff of any surface; tool/agent packaging changes",
     "_signal": "sha256",
-    "used_by": ["implementation/gemini", "skills/atoms/export-gem"]
+    "used_by": ["implementation/gemini"]
   },
   {
     "id": "gemini-deprecations",

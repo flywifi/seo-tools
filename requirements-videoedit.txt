@@ -23,7 +23,11 @@ numpy>=2.5,<3
 # Local Shorts reframe rendering (crop geometry itself needs nothing)
 moviepy>=2,<3
 
-# Timeline interchange extras (adapters are separate plugins since OTIO 0.18)
-opentimelineio
-otio-fcpx-xml-adapter
-otio-kdenlive-adapter
+# Timeline interchange extras (adapters are separate plugins since OTIO 0.18). Skipped on Python
+# 3.14 and later: opentimelineio 0.18.1 publishes wheels for CPython 3.9 to 3.13 only, so pip would
+# build it from source, which needs CMake and a C++ compiler, and the whole set would fail. The
+# tools report OTIO as absent and keep working (tools/videoedit/preflight.py). Remove the markers
+# once a release ships 3.14 wheels.
+opentimelineio; python_version < "3.14"
+otio-fcpx-xml-adapter; python_version < "3.14"
+otio-kdenlive-adapter; python_version < "3.14"

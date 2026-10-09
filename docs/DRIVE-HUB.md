@@ -2,7 +2,7 @@
 
 The Drive hub is a single Google Drive folder ("Creator OS" by default, configurable via the
 `drive_hub` section of `creator-os-config.json`) that makes Creator OS work the same across Claude
-Desktop, Cowork, and web/mobile chat. Each surface reads and writes the hub through its own honest
+Desktop, Claude Code, and claude.ai on the web and phone. Each surface reads and writes the hub through its own honest
 mechanism, and the local machine acts as the compute engine. This document is the authoritative
 convention: the layout, the naming rule, who writes what and when, and the async job contract.
 
@@ -13,23 +13,34 @@ exactly as before this feature existed.
 ## Why a Drive hub (the problem it solves)
 
 The three modalities have unequal powers. A Desktop session with local MCP sees the real files and
-can run every tool. Web and mobile chat cannot touch the local disk at all; a Cowork remote session
-runs in a sandbox. Before the hub, working state lived on one machine, the Project knowledge pack
+can run every tool. Web and mobile chat cannot touch the local disk at all; an agentic task started
+from claude.ai runs in a cloud sandbox. Before the hub, working state lived on one machine, the Project knowledge pack
 went stale between re-uploads, and heavy compute happened only when someone was physically in a
 Desktop session. The hub gives every surface one shared place that each can genuinely reach:
 
 - The **claude.ai Google Drive connector** can search and read Docs, Sheets, Slides, PDFs, images,
-  and MS Office files, and can **create** files in Drive (with code execution and file creation
-  enabled). It cannot edit files in place or move them. Google Docs added to a **private** Project
-  sync live from Drive, so a Project referencing hub Docs is always current. Text content only;
-  embedded images are not processed. (Source: the Claude Help Center article "Use Google Workspace
-  connectors", checked 2026-07-16.)
+  and MS Office files, can **create** files in Drive (with code execution and file creation
+  enabled), and can share, move, and trash files, asking for approval before each by default.
+  Google Docs, Sheets, and Slides can also be edited live (beta). Google Docs added to a
+  **private** Project sync live from Drive, so a Project referencing hub Docs is always current.
+  Text content only; embedded images are not processed. (Source: the Claude Help Center article
+  "Use Google Workspace connectors", checked 2026-10-01.) The ChatGPT Google Drive app can also
+  create, update, move, share, and delete files where the plan, workspace, and Google permissions
+  allow it (help.openai.com/en/articles/10929079), and Gemini's Export to Docs saves a new Doc in
+  Drive.
 - **Google Drive for desktop** on macOS syncs the hub to a real local folder (mirror mode keeps
   full local copies; stream mode uses Apple's File Provider). On conflicting concurrent edits it
   keeps both copies rather than merging or destroying. (Source: Google Drive Help, "Stream and
   mirror files with Drive for desktop" and "Use Drive for desktop on macOS", checked 2026-07-16.)
+- On **Windows**, Drive for desktop mounts a drive letter (often `G:`) with `My Drive` at its root,
+  outside the user folder. The wizard's `/drive-hub` screen accepts a folder inside that
+  `My Drive` or `Shared drives` folder, offers `<letter>:\My Drive\Creator OS` when it finds one,
+  and refuses `My Drive` itself; the other folder inputs keep the home-folder rule (ADR 0078,
+  `docs/SETUP_WINDOWS.md`).
 
-Those two facts drive the design rule that makes everything below safe:
+Those facts drive the design rule that makes everything below safe. Since some connectors can now
+move, edit, and trash files, the rule is Creator OS policy rather than a platform limit, and
+`docs/SURFACE-WORKFLOWS.md` pins what happens when a surface breaks it:
 
 > **Append-only, create-only.** Every machine-written artifact in the hub is a NEW dated file.
 > Nothing edits a shared file in place; nothing but the local machine moves or archives files.
@@ -48,7 +59,7 @@ Creator OS/                     (the hub root, in My Drive)
     results/                    result JSONs and small output artifacts
     archive/                    completed tickets (moved by the local machine only)
   Knowledge/                    the Projects knowledge pack projection (Docs-compatible files)
-  Profile/                      dated profile exports/imports for the paste-back flow
+  Profile/                      your context files (one-way mirror) and dated profile exports
   Outbox/                       deliverables for the human: reports, dashboards, calendars
 ```
 
@@ -62,20 +73,35 @@ Who does what, where, when, and why:
 | `Jobs/results/` | The local runner | Any surface | On completion | Results visible everywhere, including status for pending jobs |
 | `Jobs/archive/` | The local machine only | Audit | After completion | Keeps the queue directory small without deleting history |
 | `Knowledge/` | The local projection tool | claude.ai Projects (live-sync) | On re-projection | A Project referencing these files stays current automatically |
-| `Profile/` | Any surface (dated exports) | The profile-import flow | On transfer | Cross-surface profile moves stay propose-then-confirm |
+| `Profile/` | `tools/profile_mirror.py` (one-way copy of your context files, `docs/PROFILE-MIRROR.md`); any surface (dated exports) | Every AI engine that reads the hub; the profile-import flow | Every 15 minutes with the mirror agent; on transfer | The computer's copy wins; credential files are refused by name, and a file in which the content check finds a credential is refused by content, in both ways of running it (the forms are listed in `docs/PROFILE-MIRROR.md`) |
 | `Outbox/` | The runner (report-type done jobs, P61) | The human, any surface | On delivery | Finished artifacts, one place to look |
 
 The Outbox is really written (P61): when a report-style job finishes `done` (library_analyze,
 finance_report, inbox_scan, import_parse_preview, keyword_offline, transcript_normalize), the
-runner also delivers its JSON output to `Outbox/<job_type>.<stamp>Z.mac.json`, and the job
+runner also delivers its JSON output to `Outbox/<job_type>.<stamp>Z.<tag>.json`, where `<tag>` is
+`mac`, `windows` or `linux` for the system of the computer that ran the job (a job run under WSL
+reports Linux and is tagged `linux`)
+(<!-- verify: tools/handoff/runner.py::_platform_tag -->), and the job
 result's `outputs` lists both the raw capture under `Jobs/results/` and the Outbox copy. Failed
 jobs never deliver; `transcribe_media` delivers its SRT under `Jobs/results/` instead. On the
 Drive API transport, `poll_once` uploads Outbox artifacts created during the pass (create-only),
 so nothing is stranded in the local staging hub.
 
 **Naming rule** for every machine-written file:
-`<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `cowork`, or
-`mac`. Names sort chronologically, never collide without coordination, and carry their provenance.
+`<kind>.<YYYY-MM-DD>T<HHMMSS>Z.<origin>.json` where `origin` is `web`, `desktop`, `mac`,
+`windows`, `linux` or `other`. Names sort chronologically, never collide without coordination, and carry their
+provenance. Two kinds of file depart from that pattern. A job ticket is named
+`job.<stamp>.<origin>.<id8>.json`, where `<origin>` is the ticket's `origin` field (schema
+`shared/schemas/compute-job.json`): the surface that queued the job, and for a job queued on this
+computer its system, so a ticket queued from the wizard on Windows is named
+`job.<stamp>.windows.<id8>.json` (before P102 the wizard wrote `mac` on any system;
+<!-- verify: tools/wizard.py::_queue_followup -->). A computer on a Creator OS older than P102
+that runs jobs from the same hub refuses a `windows` or `linux` ticket and moves it to
+`Jobs/archive/`, so update every computer that shares the hub first; the wizard's work-order
+screen says so on Windows and Linux. A ticket whose origin is `cowork` is refused
+with the reason, since Cowork and chat became one Claude (a staged rollout from 2026-09-16). An Outbox file is named `<job_type>.<stamp>Z[.<n>].<tag>.json`,
+where `<tag>` is the system of the computer that ran the job (`mac`, `windows` or `linux`) and
+`<n>` numbers a second file written in the same second.
 
 ## The async job contract
 
@@ -156,10 +182,35 @@ tier only, the same offline check that screens job-ticket free text and import p
 injection guard still runs in a Claude session and remains authoritative. Because a transcript is a
 text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
 an oversize file, or the tool being unavailable) is held for a session rather than routed
-unscreened. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
+unscreened. A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
+stays in the Inbox, since approve does not move a text file read only in part: split it into files
+under 2 MB and drop those in; one that cannot be split stays where it is for a Claude session to read. A file that cannot
+be read (on Windows, one another program holds open) is listed for review with the error, and the
+scan and approve go on with the rest. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
 and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
-never overwrite a same-name file, and refuse any path that resolves into the sealed area or outside
-the Inbox.
+never overwrite a same-name file, and read, update and write the ledger under its lock
+(`<ledger>.lock`), so the wizard and the sweep verb no longer lose each other's entries. A ledger
+that does not parse, or is not an object holding a list of entries, is copied to
+`<name>.corrupt.<UTC stamp>.bak` beside it before a writer starts a new one
+<!-- verify: tools/handoff/inbox.py::_ledger_for_write -->. Approve re-runs the offline pattern
+tier on each file it is about to move and keeps the more cautious of that verdict and the
+proposal's, so a proposal that leaves the verdict out cannot route a flagged file; a plain-text
+file the tier cannot read is refused <!-- verify: tools/handoff/inbox.py::_approve_screen -->. A
+new copy of content already sealed in `Inbox/Quarantine/` is flagged again by the scan, so the
+sweep seals it too. Approve refuses any path that resolves into the sealed area or
+outside the Inbox, and the sweep any entry whose folder does. The sealed-area test ignores letter case, because on Google Drive for desktop's drive a
+path keeps the case it was given while lookups ignore it
+<!-- verify: tools/handoff/inbox.py::_under -->. Approve judges a symlink by the file it points to;
+the sweep checks the folder of the entry it moves and moves the entry itself, so a flagged symlink
+is sealed as a link with its target left in place
+<!-- verify: tools/handoff/inbox.py::_confined_inbox_entry -->. The sweep runs when the wizard's
+`/inbox` screen scans, and from the command line as
+`python3 tools/handoff/inbox.py sweep --hub PATH` (on Windows, `py -3` in place of `python3`, with
+no trailing backslash inside the quotes around the path), which scans, seals what the scan flags
+and prints the result. It exits 0 when the scan flagged no file, or the flagged files were sealed
+or were already gone from the Inbox; 1 when the hub has no `Inbox` folder, the scan could not read
+a file, a flagged file was not moved, or the ledger could not be written; and 2 when `--hub PATH`
+is missing <!-- verify: tools/handoff/inbox.py::_sweep_cli -->.
 
 ## The Knowledge folder and claude.ai Projects (dual projection)
 
@@ -218,6 +269,8 @@ declared below and registered in the source registry, so the currency system re-
 [
   {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"},
   {"id": "google-drive-desktop-sync-modes", "name": "Google Drive Help - Stream and mirror files with Drive for desktop", "url": "https://support.google.com/drive/answer/13401938", "category": "os-platform", "tier": "T1", "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies."},
-  {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."}
+  {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."},
+  {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
+  {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"}
 ]
 ```

@@ -1,9 +1,9 @@
-# Creator OS — ChatGPT Project setup (recommended OpenAI door for personal plans)
+# Creator OS — ChatGPT Project setup (recommended OpenAI door)
 
 A ChatGPT **Project** gives Creator OS file uploads, pinned instructions, and its own memory on
-every ChatGPT tier, with no builder access required. Since Custom GPT creation moved to
-Business/Enterprise/Edu workspaces (2026), this is the recommended ChatGPT home for a personal
-Plus/Pro account. Knowledge-only mode: no live tools here (the upgrade paths are Claude Desktop +
+every ChatGPT tier, with no builder access required. Custom GPTs retire on 2026-12-11 (help
+article 20001519), so this is the recommended ChatGPT home on every plan; on Free, upload the
+single combined file `implementation/claude/project/creator-os-combined.md`. Knowledge-only mode: no live tools here (the upgrade paths are Claude Desktop +
 MCP, or the deployed MCP connector in ChatGPT developer mode).
 
 Fastest path: the setup wizard on the maintainer's computer (`python3 tools/wizard.py`, the

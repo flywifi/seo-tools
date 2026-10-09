@@ -13,6 +13,49 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (Windows CI job): `.github/workflows/ci.yml` gains a `windows` job that runs
+  `tools/battery.py` on GitHub's `windows-latest` image under Git for Windows' bash, on Python
+  3.12 and 3.14, with full history (ADR 0076). The selftest sweep gives
+  `tools/surface_workflow_check.py` a 900 s cap (`selftest_sweep.TOOL_TIMEOUTS`), since its
+  mutant pass took 246 to 287 s on a Windows computer against the 300 s default.
+- P102 (Windows setup guide): `docs/SETUP_WINDOWS.md` covers the Windows steps, each marked as
+  tested on Windows or not yet tested, the machine-wide labels for the py launcher's all-users
+  option and Claude Desktop's full install, and the Claude Desktop config locations.
+- P102 (suite payload check): the cross-surface suite refuses a contract whose JSON payload carries
+  a key the template of the file it stands for lacks (`pipeline/user-context/<base>.json` or
+  `<base>.template.json`), at the top level and in the items of a list whose template shows its
+  items; a payload with no template needs a written reason in `PAYLOAD_NO_TEMPLATE`
+  (`surface_workflow_check.payload_template_problems`, checks `payload-keys-within-templates` and
+  `payload-drift-fails-the-suite`). It flags extra keys, not missing ones.
+- P102 (cache selftests): `shared/cache/cache.py --selftest` and `tools/sync_cache.py --selftest`
+  build, query and verify a temp tree with Windows relative paths stood in, and check the real index
+  and baseline are left as they were; both leave `tools/selftest-exemption.json`. The connector
+  search and fetch over the index move to `tools/cache_records.py` (stdlib, with its own selftest);
+  `mcp_server._search_impl` and `_fetch_impl` call it. `cache_records.fetch` refuses a `.local.`
+  source in any letter case, as the search's SQL filter does.
+- P100: cross-surface workflow suite (ADR 0072). `tools/surface_workflow_check.py` runs the 10
+  workflows in `skills/creator-core/evals/surface-workflows.json`: each vendor's web chat
+  (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus a round trip. Surface steps
+  write only what the surface's declared Drive mode allows, into places the surface's matrix row
+  reaches; computer steps run the profile mirror, job runner, inbox scan, register merge,
+  validators, connector resolver and publishing gate in a per-workflow sandbox. A write guard (an
+  audit hook) refuses and records the writes it judges outside the system temporary folder (the
+  interpreter's bytecode cache excepted) and fails the run on one, or on a run in which it judged
+  none; a before-and-after snapshot of the reachable files on the machine is printed as advice.
+  The contract validator also refuses an unknown key in a step's `with` block and a step file
+  name that holds a path. It pins eleven open gaps with probes and prints each workflow's live
+  steps with `--runbook`. Its selftest and the tasks selftest carry mutation cases chosen by a
+  reviewer who did not write the code. It is a battery gate and a blocking CI step. `gemini_web`
+  and `gemini_desktop` join the transitions matrix; the ChatGPT and Claude Drive facts are
+  refreshed. Guide: `docs/SURFACE-WORKFLOWS.md`.
+- P99: profile mirror (ADR 0070). `tools/profile_mirror.py` copies the allowlisted context files
+  from `pipeline/user-context/` into the Drive hub's `Profile/` folder one way, refuses the three
+  credential files by name and any file a secret pattern flags by content, logs every run to
+  `~/Library/Logs/CreatorOS/`, keeps the last 20 runs in a gitignored state file, can write one
+  Google Doc through the Drive API, and installs or removes a user-scoped launchd agent.
+  `tools/profile-mirror.sh` is the rsync form of the same allowlist. `setup.py` and the wizard's
+  Drive hub screen warn when the repo sits in a cloud-synced folder (`env_paths.cloud_synced_root`).
+  Guide: `docs/PROFILE-MIRROR.md`.
 - P98: guards read normalised input and pinned sets derive from the serving code (ADR 0069).
   secret_scan matches a folded copy of the text (NFKC, format characters, dash look-alikes,
   decimal digits, percent decoding), reads Authorization schemes beyond Bearer, PGP armor,
@@ -136,6 +179,76 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (custom GPT and Gems retired): custom GPTs retire on 2026-12-11 (help article 20001519)
+  and Gemini Gems become skills from November 2026 (support.google.com/gemini/answer/18560919), so
+  the `chatgpt_custom_gpt` and `gemini_gems` surfaces and their five pair overrides leave
+  `shared/cross-modality/transitions.json`, drift invariant 32's key list and the wizard's options
+  (old links land on `chatgpt_projects` and `gemini_web`), and the S10 scenario checks they stay
+  absent. The `export-gpt` and `export-gem` atoms (atoms 106 to 104), their capability flags and
+  messages, and `implementation/gpt/actions/` are removed. ChatGPT setups use a Project (the single
+  combined knowledge file on Free); Gemini setups paste the system instruction into a chat or save
+  it as a skill. Spoke "Runs on" lines, the cross-modality engine and the surface docs follow; the
+  profile-import prompt still reads a custom GPT until the retirement date (ADR 0077, superseding
+  ADR 0060). `moving-dates.json` carries the FAQ's dates, and three vendor pages are registered.
+- P102 (auditor hook on Bash and PowerShell): `.claude/settings.json` runs the read-only guard on
+  the Bash and PowerShell tools with a command that tries `python3`, `python` and `py -3` in turn
+  and, with none working, refuses the auditor's call (exit 2) and lets other calls through; it
+  formerly ran `python3` alone, whose failure on Windows (the Microsoft Store alias) Claude Code
+  treats as non-blocking. `readonly_bash_guard.decide` refuses a PowerShell call from a guarded
+  agent, and the auditor's frontmatter removes the PowerShell tool. Drift invariant 14 requires
+  both matcher names, the auditor's PowerShell removal and each guarded agent named in the
+  command's fallback, and `sync_check._selfproof` runs the wired command under a POSIX shell with
+  failing interpreters first on PATH (ADR 0076). The command reads the hook input once and runs
+  each Python check with its stdin closed, so a stand-in that reads stdin no longer empties the
+  input the no-Python fallback reads (a selftest case puts such a stand-in first on PATH). A
+  Python that starts but fails to run the guard (an exit other than 0 or 2) refuses the auditor's
+  call too.
+- P102 (git hooks interpreter): `tools/install_hooks.py` writes hooks that run the Python that
+  installed them, then try `python3`, `python` and `py -3`, and refuse the commit with a message
+  naming `install_hooks.py` when none works; hooks are written with LF line endings. A hook runs
+  the pinned Python only when it starts (a pin that exists but fails falls back like a missing
+  one), the pin keeps the path as given rather than the file a link points to, and each check runs
+  with its stdin closed.
+- P102 (repo outside the user folder on Windows): `setup.py` and the wizard's publishing screen
+  note a repo outside the user folder on Windows (`env_paths.windows_outside_home`), whose files
+  take the drive's permissions, which by default let the computer's other accounts read them,
+  the credential files included. The comparison follows Windows path rules (`ntpath.normcase`), so
+  a folder named in another letter case counts as the same folder.
+- P102 (job origins by system): a job ticket's `origin` accepts `windows` and `linux` beside `mac`,
+  each naming the computer that queued the job by its system (queue, schema, drift invariant 55 and
+  the two local Claude app surfaces), and the wizard queues follow-up jobs with
+  `runner._platform_tag()`, so a ticket queued on Windows is named `job.<stamp>.windows.<id8>.json`
+  (`wizard._queue_followup`; ADR 0075). A computer on older code that runs jobs from the same hub
+  refuses those tickets and archives them, so the wizard's work-order screen on Windows and Linux
+  says to update every computer that shares the hub first. `queue.submit` keeps `mac` as its
+  default.
+  `validate_ticket` refuses an origin that is not a string with a reason instead of raising.
+- P102 (Cowork retired): Claude Cowork and chat became one Claude in a staged rollout from
+  2026-09-16 (support article 16761823), so the `cowork_local` and `cowork_remote` surfaces leave
+  `shared/cross-modality/transitions.json`, the wizard's surface options and drift invariant 32's
+  key list, and the `cowork` origin leaves the queue and schema; a ticket that still carries it is
+  refused with the reason (`queue.RETIRED_ORIGINS`). The S10 scenario leg checks the rows stay
+  absent, and the docs that described them now describe Claude Desktop and claude.ai agentic tasks
+  (ADR 0075, superseding ADR 0047's surface decision). Two registry sources are renamed to their
+  current titles: `claude-cowork-plugins-org` ("Manage plugins for your organization", new address)
+  and `claude-cowork-changelog` ("Claude Desktop changelog").
+- P102 (127.0.0.1 links): the wizard, the Scheduling Dashboard and their port messages print and
+  open `http://127.0.0.1:<port>/` instead of `localhost`, which on Windows tries IPv6 first while the
+  servers listen on IPv4 only; the same-origin checks still accept `localhost`.
+- P99-2: profile mirror (ADR 0071). The Google Doc is found by its remembered id, then by name
+  among the Docs the app made, and created in `Creator OS/Profile` or else in My Drive; it is
+  checked every run (a trashed Doc is replaced, an edited one rewritten, a moved one updated in
+  place) and rendered from what `Profile/` holds. The content check decodes the JSON and reads
+  credential-named keys, more vendor formats and credentials written in prose; the rsync form runs
+  it through the new `check-file` verb. Every run of either engine writes a summary line and a
+  last-run stamp, including a run that fails partway, and `install-agent` judges the first run by
+  that stamp. The agent keeps the venv interpreter path, sets `HOME`, and carries `--api` and
+  `--include-contact-profile`; `status` shows the agent, the stamp and the Doc. The state keeps
+  the last 20 runs that copied, refused or failed something or acted on the Doc.
+  `drive_api._default_transport` returns instead of raising on a timeout, a reset, a malformed
+  response or a URL urllib cannot open, and folder queries escape quotes. The read-only guard
+  refuses the mirror's `sync`, `install-agent`, `uninstall-agent` and `--selftest`, and an
+  abbreviated `--selftest` that argparse expands. The selftests carry 128 falsifying mutations.
 - P95: docs/AUDIT-PROTOCOL.md section 7.2 says when a verification pass is finished. A claim
   waits for the pass's verification stage to return, not its first findings (the REPORTED to
   VERIFIED or KILLED ladder of section 8); a pass whose agents could not run is reported as DID
@@ -174,6 +287,325 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (a locked ticket; unreadable files kept): the hand-off watcher reports a pass that raises
+  ("pass failed, retrying next interval") and runs the next one, and `runner.run_job` and
+  `runner.run_pass` leave a ticket they cannot archive (one that ran, was refused, did not parse,
+  or repeats a job_id) for the next pass, which archives it then. On a Drive hub on Windows, one
+  ticket held open stopped the pass and ended the watcher. The watcher's command writes UTF-8 when
+  its output is redirected, so an error naming a file with an emoji is logged. The Scheduling
+  Dashboard reads a schedule file that does not parse, or is not `{"queue": [...]}`, as empty with a
+  note, after copying it once to `<name>.corrupt.<UTC stamp>.bak`, and an error reading it fails the
+  request instead of being read as an empty schedule; before, the next save replaced the whole
+  schedule. The wizard's credential merge takes the file's lock, like the dashboard and the watcher,
+  and refuses to save over a credentials file that does not parse (it keeps a `.corrupt` copy),
+  where before one stray comma and one new platform left only that platform's tokens. Its copy is
+  created owner-only (0600 on POSIX) and reused when a refused save repeats. The wizard's two
+  credential readers and the dashboard's schedule reader read past a UTF-8 byte-order mark.
+  `wizard.py --selftest` keeps the wizard's state in a temporary file; it rewrote
+  `creator-os-wizard-state.local.json` before. Its OAuth checks stand in for the lock on the real
+  credentials file as well as for its load and save; they took that lock before, and left an empty
+  `api-credentials.local.json.lock` beside the file. While the selftest runs, a lock on a file in
+  the checkout is refused without opening its `.lock` and fails the run, and so does a change to
+  the credentials `.lock` (`wizard._run_selftest_isolated`, checked in `_selftest_p101`).
+- P102 (inbox approve past a locked file; bounded scan read): `inbox.approve` refuses a file it
+  cannot read ("could not be read (close the file if it is open in another program, then approve
+  again)") or move ("move failed (close the file ...)") and goes on with the batch, so the ledger records the files it moved. `inbox.scan` lists
+  a file it cannot read under `needs_review` with the error and goes on, and the `sweep` command
+  exits 1 for it. On Windows a file
+  open in another program (WinError 32) made approve stop mid-batch with an earlier file already in
+  Processed and no ledger entry. `injection_scan.scan_file` reads at most `max_bytes + 1` bytes,
+  so an Inbox scan no longer loads a whole video into memory; its verdicts are unchanged.
+- P102 (UTF-8 output on Windows): the runner's job spawn, the wizard's runs of its tools
+  (`import_parse`, `transcribe`, `setup`, `pick_folder`, `count_truth`, `video_library`, and the MCP
+  handshake probe) and `mcp_server._run` give the child `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`
+  and read its output as UTF-8 (`env_paths.tool_env`, `env_paths.tool_io`). On Windows a child's
+  pipe used the ANSI code page, so one video title with an emoji stopped `import_parse` and the
+  runner's job. `import_parse`, `library_complete`, `videoedit/chapters`, `videoedit/mltxml` and
+  `videoedit/fcpxml` write UTF-8 when their stdout or stderr is redirected or piped
+  (`env_paths.utf8_stdio`), so `mltxml.py build pkg > timeline.mlt` run from Command Prompt or Git
+  Bash keeps an emoji; redirection in Windows PowerShell is not covered by this change. The import screen now says
+  "import_parse stopped with an error" with the error's last line when the tool crashes, instead
+  of "no readable export found in this folder".
+- P102 (battery report): a failing gate's report shows each line that carries `[FAIL]` (up to
+  40, each cut at 400 characters) before its last 8 lines, so a failing selftest sweep names the
+  selftests that failed (`battery.failure_lines`); before, only the last 8 lines were shown.
+  The mutation runner does the same one level down: when a module's unmutated selftest fails, each
+  of its rows is reported with up to three of that selftest's failing lines
+  (`file_hash._fail_lines`), not only "fail". The hand-off watcher's selftest passes `drives=[]`
+  to its two macOS-layout checks: on a Windows computer with Google Drive for desktop the real
+  `<letter>:\My Drive\Creator OS` was found, and those checks failed.
+- P102 (selftest margins on a loaded computer): the selftest sweep gives `tools/file_hash.py` a
+  900 s cap (`selftest_sweep.TOOL_TIMEOUTS`); its selftest runs every committed mutation row and
+  took 165 s alone on a 4-CPU computer. The wizard's and the dashboard's idle-connection checks
+  wait 8 s and accept a reply within 6 s, so a server that never answers still fails at the wait;
+  on a 4-CPU computer running `file_hash`'s workers, the wizard answered in 2.8 s, over the former
+  1.5 s bound. The wizard's Ctrl+C check accepts 2.5 s, up from 2 s, below the 3 s a coarser
+  wait step takes.
+- P102 (printed commands on Windows): the wizard's pages, `setup.py`'s messages and the
+  `profile_mirror` status line write `python3 tools/...` and `python3 shared/...` commands as
+  `py -3` (or `python` without the py launcher) on Windows, where `python3` can be the Microsoft
+  Store stand-in (`env_paths.local_commands`); a `python3` inside a longer name or path is left
+  as written, and other systems are unchanged. Off macOS the `profile_mirror` status says the
+  scheduled sync is macOS only and names the manual sync command instead of `install-agent`.
+  `docs/SETUP_WINDOWS.md` now leads with the Python install manager and keeps the traditional
+  installer as the alternative the Python documentation marks deprecated since 3.14.
+- P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
+  two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
+  CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,
+  and `setup.py --install-deps` failed the whole video set. A binary-only resolve on 3.14.7 now
+  gives the other packages without OpenTimelineIO, and on 3.12 still includes it. The video tools
+  already report OTIO as absent (`tools/videoedit/preflight.py`).
+- P102 (Drive hub on Windows; restart step): the wizard's Drive hub screen accepts a folder inside a
+  Google Drive for desktop drive's `My Drive` or `Shared drives` folder on Windows, and refuses
+  that root folder itself; the import and storage folders keep the home-folder rule
+  (`wizard.on_google_drive`, `_drive_hub_folder`; ADR 0078). Every folder input drops surrounding
+  quotes and spaces, so a path from Explorer's "Copy as path" works. On Windows the hub screen
+  offers `<letter>:\My Drive\Creator OS` when a drive holds it
+  (`watcher.detect_mirror_candidates`). Before, the rule refused every Drive folder on Windows, so
+  the hub could not be connected there. A `My Drive` folder on the system drive is refused, since
+  Drive for desktop does not mount there and any local account can make one. On Windows every
+  folder input refuses a network path from its text, before resolving it (`wizard._network_path`):
+  a UNC path typed into the hub field held the single-request wizard for longer than a minute
+  while Windows tried to reach the share. The wizard's restart step names each system's way to quit
+  Claude Desktop (`wizard._restart_step`): on Windows, from its icon in the notification area,
+  since closing the window leaves it running. A Store build that has not written a log yet counts
+  as installed (checked in `_selftest_p101`). `docs/SETUP_WINDOWS.md` marks the optional
+  dependency install, local transcription and `py install 3.14` as tested on Windows and adds the
+  hub's connect step.
+- P102 (Claude Desktop settings file on Windows): the wizard writes its MCP entries to the file
+  Claude Desktop's `main.log` says it read (the packaged app's own `logs` folder included) and to
+  the packaged (MSIX) app's `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude` folder,
+  plus `%APPDATA%\Claude` when that file exists beside a packaged app, else to `%APPDATA%\Claude`
+  (`wizard._claude_config_targets`); a settings file with a UTF-8 byte-order mark is read rather
+  than replaced (it was kept as a `.corrupt.bak` and the user's servers dropped); each file is
+  merged from its own content and a new file starts from a copy of an existing one (both pinned in
+  `wizard._selftest_p101`), and the screen names the files it wrote. Before, it wrote only
+  `%APPDATA%\Claude`, which the packaged app does not read, so the Creator OS tools did not appear. Windows log paths replace the macOS-only hint.
+- P102 (oversize text in the inbox screen): `injection_scan.scan_file` marks a record it cut at
+  `max_bytes` (2 MB) with `"truncated": true`, and the inbox reads such a record as a partial
+  screen (`inbox._fully_screened`): a flag in the part read still seals the file, while a clean
+  part no longer lets `scan` propose a transcript or `approve` move a text file; the scan holds
+  the file for a session and approve refuses it. Before, injection text past the first 2 MB went
+  unscreened and the file could be routed. A text-format file over 2 MB (a transcript, or a JSON or
+  CSV export) stays in the Inbox: scan holds it with a note to split it into files under 2 MB, and
+  approve's refusal names the limit. On a format approve does not require a whole-file read
+  for (PDF, YAML and others), a cut record's verdict is kept, marked truncated, when it is more
+  cautious than the proposal's.
+- P102 (short temp paths): three selftest checks compare a realpath'd value with
+  `os.path.realpath` of the temp path (`handoff/queue.py` input refs, the suite's `guard-records`
+  and `guard-refuses-checkout-under-root`), so both sides use the same form of the path when the
+  temp folder is a symlink (run on Linux) or an 8.3 short path (run on a Windows computer with a
+  short TEMP); the `windows` CI job is set to run them on GitHub's image.
+- P102 (plugin limits): `docs/UPDATING.md` and the `package_skill.py` docstring state the current
+  organization plugin limits: 200 MB per ZIP and 1000 plugins per marketplace, for manual upload
+  and for GitHub or GitLab sync.
+- P102 (scoop-cache path keys): the cache stores a record's source, and the build baseline its keys,
+  with forward slashes, including on Windows (`cache.py`, `sync_cache.py`; `cache.py --selftest`
+  builds a temp index with Windows paths stood in); an index or baseline an older Windows build wrote
+  with backslashes is read with forward slashes, so construction and code lookups, connector ids and
+  citation links work on Windows without a rebuild.
+- P102 (inbox approve re-scan): `inbox.approve` re-runs the offline pattern tier on each file it is
+  about to move and keeps the more cautious of that verdict and the proposal's, so a proposal that
+  leaves the verdict out or understates it no longer routes a file the tier flags (inbox selftest
+  checks "approve refuses a flagged file whose proposal carries no offline verdict" and "a proposal
+  that understates the verdict cannot route a flagged file"); a file with a plain-text extension that
+  the tier cannot read is refused (`inbox._approve_screen`).
+- P102 (inbox ledger): `approve` and `sweep_quarantine` read, update and write the ledger under
+  `atomic_io.locked` on `<ledger>.lock`; a ledger that does not parse, or is not an object holding a
+  list of entry objects, is copied to `<name>.corrupt.<UTC stamp>.bak` before a new one is started,
+  and one that cannot be read raises before any file moves (`inbox._ledger_for_write`).
+  `load_ledger` reads a ledger of the wrong shape as empty instead of raising. A ledger nested past
+  the JSON parser's depth is handled like one that does not parse, and approve keeps a ledger entry
+  that has no sha256.
+- P102 (sealed copies): the inbox scan flags a new copy of content the ledger records as sealed, so
+  the sweep seals it too instead of counting it as handled and leaving it in the drop folder.
+- P102 (inbox selftest skip line): when `os.symlink` is refused, the inbox selftest prints a
+  `[skip]` line for its symlink checks and counts the skipped group in its summary.
+- P102 (suite write guard): a write inside the checkout is refused when the root that allows it
+  holds the checkout, such as a clone in the temporary folder; the check
+  `guard-refuses-checkout-under-root` writes into such a checkout's `pipeline/` folder and expects
+  the refusal (`surface_workflow_check._guard_allows`).
+- P102 (wizard Ctrl+C on Windows): the wizard waits in half-second steps, so Ctrl+C stops it on
+  Windows before Python 3.14, where an untimed wait is not interrupted; its selftest sends a Ctrl+C
+  to the main thread and checks the wizard closes and removes its port record within 2.5 s. The check
+  installs Python's Ctrl+C handler for its run, so it also runs where the process ignores SIGINT.
+- P101 (inbox sweep verb): `python3 tools/handoff/inbox.py sweep --hub PATH` scans the hub's Inbox
+  and seals the files the offline pattern tier flags into `Inbox/Quarantine/<date>/`, the two
+  calls the wizard's `/inbox` screen makes, so a flagged file can be sealed from a terminal. It
+  uses the ledger `LEDGER_PATH` names when the command runs, calls the sweep after a scan that
+  flagged a file (the sweep rewrites the ledger even when it seals nothing), prints ASCII JSON, and
+  exits 0, 1 (no `Inbox` folder, a file the scan could not read, a flagged file not moved, or a
+  ledger it could not write) or 2 (usage). `sweep` is read from the first word, so a scan whose
+  arguments contain the word stays read-only. The selftest points the ledger defaults at a decoy
+  and checks that the real ledger is left as it was. `sweep_quarantine` checks a flagged entry
+  with `_confined_inbox_entry`: the entry's folder, resolved with realpath, must be inside the
+  Inbox and outside the sealed area, else the entry is skipped instead of moved; the entry itself
+  is moved, so a flagged symlink is sealed as a link with its target left in place. The scan usage
+  line drops `--json`, which `main()` never read, and the `sweep_quarantine` docstring says a
+  ledger it cannot write raises `OSError`.
+- P101 (sealed-area check ignores case): the containment test `approve` and the quarantine sweep
+  use (`inbox._under`) compares case-folded paths for the sealed `Inbox/Quarantine/` area.
+  On Google Drive for desktop's drive on Windows a path keeps the case it is given while lookups
+  ignore case, so a proposal naming `Inbox/quarantine/...` resolved inside the Inbox and outside the
+  sealed area, and `approve` could move a sealed file into `Processed` when this computer's ledger
+  did not hold its sha. Such a path is now refused as sealed; on a case-sensitive disk a separate
+  lowercase folder of that name is refused too. The Inbox test stays exact. `posixpath.realpath`
+  folds no case either, so a case-insensitive macOS volume falls under the same comparison (not
+  tested on a Mac).
+- P101 (Outbox machine tag): the runner names an Outbox delivery `<job_type>.<stamp>Z.<tag>.json`
+  with `<tag>` `mac`, `windows` or `linux` from `platform.system()` (`runner._platform_tag`; a
+  Cygwin or MSYS2 runtime Python on Windows, which reports a `CYGWIN_NT`, `MSYS_NT` or `MINGW64_NT`
+  name, tags `windows`, and a Python under WSL tags `linux`); a delivery made on Windows was tagged
+  `mac`. Files already in an Outbox keep their names. A job ticket's `origin` is unchanged: `mac`
+  is its value for this computer on any system, and `docs/DRIVE-HUB.md` now separates the two.
+- P101 (surface workflow payloads): the W1, W4, W5, W7 and W10 payloads in
+  `skills/creator-core/evals/surface-workflows.json` take the shapes of the files they stand for:
+  the voice profile, creator profile and content calendar files in `pipeline/user-context/`, the
+  task register template's `schema_version`, `computed_as_of` and `human_review_required`, and the
+  ChatGPT export format in
+  `implementation/gpt/profile-import/PROMPT.md`. Steps and assertions are unchanged.
+- P101 (wizard and dashboard ports): the setup wizard and the Scheduling Dashboard bind the first
+  port of a fixed block (8765, 8775, 8785; 8766, 8776, 8786) through `tools/loopback_server.py`,
+  moving to the next port when the bind fails with `EACCES` (on Windows, a port the system reserves
+  for Hyper-V or WinNAT, or one a program holds on all addresses under another account or
+  exclusively). `EADDRINUSE` stops the walk with the "already running, or port N is in use"
+  message, and another bind error is printed as itself, where every `OSError` read as "already
+  running". Both servers bind without `SO_REUSEADDR` on Windows, as CPython's
+  `socket.create_server` does, so a second copy fails with `EADDRINUSE` (executed on Linux and in a
+  manual run on Windows) instead of sharing the port; `SO_EXCLUSIVEADDRUSE` is not used, since
+  it would block a restart while the closed server's connections end. `CREATOR_OS_DASHBOARD_PORT`
+  joins `CREATOR_OS_WIZARD_PORT` as a one-port override. Each server records the port it bound in
+  an ignored `creator-os-*-port.local.json` and removes the record on a clean shutdown when it still
+  names that server: the dashboard's setup link reads the wizard's through `GET /api/wizard-url`,
+  the `launch_setup` MCP tool reports the address its wizard recorded (and names the block's other
+  ports when it cannot confirm one), and the publishing plan's `dashboard_url` reads the
+  dashboard's (`loopback_server.launched_wizard_url`, `launch_note`, `dashboard_url`). At start the
+  wizard probes the port last recorded and stops as already running when a wizard answers there or
+  the connection is accepted without an answer within about a second (a busy single-threaded
+  wizard), naming the record file to delete when no wizard is open; a client that hangs up before
+  its reply is no longer printed as a traceback. The
+  wizard's and the dashboard's same-origin checks read the bound port at call time. The wizard
+  names the TikTok, Pinterest and Instagram redirect URIs for the port it moved to;
+  `docs/PUBLISHING.md` lists them, with TikTok's wildcard port. The wizard selftest compares the
+  macOS Claude config path in POSIX form. `tools/file_hash.py` scores an entry that returns
+  `(rc, ...)` on `rc`, refuses a row anchored in any `_selftest*` helper as test code, and carries
+  committed mutation cases for these modules; ADR 0073.
+- P101 (idle connections): the setup wizard and the Scheduling Dashboard close a connection that
+  sends nothing for 3 seconds (`loopback_server.REQUEST_TIMEOUT`, the request handlers' `timeout`).
+  Both answer one request at a time, and a browser's idle spare connection held either server, so
+  pages and the wizard's Quit waited until the browser closed it; each selftest checks that
+  the handler's timeout is `REQUEST_TIMEOUT` and serves the handler (its timeout shortened) with an
+  idle connection open, requiring the next request to be answered once the wait ends. The wizard's form reader re-raises the read timeout, so a body that stops
+  arriving closes the connection instead of reading as an empty form.
+  `Start Creator OS Setup.bat` pauses when the wizard exits with an error, so its message stays on
+  screen. The `pick_folder` selftest checks the Linux display rule with the OS stood in for, and
+  the `loopback_server` selftest checks a refused connect with the connect stood in for (Windows
+  retries a refused loopback connect past a 1-second timeout), so both checks run on Windows too.
+- P101 (mutation run time): `tools/file_hash.py --selftest` runs the committed mutation rows in
+  child processes (`--run-rows`): at most 12 rows of one module per child, up to 8 children at a
+  time, each child limited to 240 seconds, to keep the run under the selftest sweep's 300-second
+  per-tool limit. A child's result counts only when it exits 0 and ends with a line carrying the
+  run's nonce and the number of rows it was sent; otherwise its rows are reported as survivors.
+  Runner controls check that the parallel run gives the serial survivors in table order, keeps
+  one module's leftover state from another's rows, reads a child that writes non-UTF-8 output,
+  reports a child that cannot start, stops early, forges a result or exits non-zero after it, and
+  runs two modules at the same time. The rows for `setup.py` run its location checks alone
+  (`setup._selftest_location`), and the test servers stop polling within 0.05 s. The wizard's
+  Drive hub check stands in the home folder (so a checkout inside `<home>/CreatorOS` no longer
+  hides the example-path row), and the empty-OneDrive row accepts the empty value under Windows
+  path rules too.
+- P101 (cloud-synced repo warning on Windows): `env_paths.cloud_synced_root` also names the folder
+  in the `OneDrive`, `OneDriveConsumer` or `OneDriveCommercial` environment variable,
+  `~/iCloud Drive` and `~/iCloudDrive` (iCloud for Windows), and the root of the volume a path is
+  on when it holds a `.shortcut-targets-by-id` or `.file-revisions-by-id` folder (seen at the root
+  of Google Drive for desktop's drive), so `setup.py` and the wizard's Drive hub screen warn about a
+  repo in those places; Drive's registry preferences are not read (ADR 0074). The warning shows the
+  person's home folder as the example and `env_paths.python_command()` as the command (`py -3` on
+  Windows with the py launcher, else `python`; `python3` elsewhere). The setup and wizard selftests
+  check the warning with and without a synced folder, with the machine's own OneDrive variables and
+  drives kept out of it, and `tools/file_hash.py` carries committed mutation cases for these
+  changes.
+- P101 (pick_folder selftest): the selftest checks `pick_folder()`'s fallback order with the
+  tkinter and OS-native dialog layers stood in for, asking the OS picker only after tkinter gave
+  nothing, and calls the real function on headless Linux alone; on macOS or Windows it opened a
+  real folder dialog and waited.
+- P101 (surface selftest on Windows): `surface_workflow_check.py` makes each sandbox and pin
+  folder with one `os.mkdir` (mode `0o700`) under the system temporary folder (`_temp_folder`),
+  not `tempfile.mkdtemp`. On Windows, `mkdtemp` reads a `PermissionError` as a name collision and
+  retries up to `TMP_MAX` times, so a folder the suite's write guard refused kept the selftest
+  from finishing on Windows; with one attempt a refusal raises at once. The pin runs
+  `Box` under a guard that refuses it with `tempfile` behaving as on Windows (simulated: `os.name`
+  reported as `nt`, the retry count cut to five) and requires one refused `mkdir` and a
+  `PermissionError`; it resolves `tempfile`'s folder first, so it does not depend on an earlier
+  check. A second check, run off Windows with the umask cleared, requires the folder to be
+  owner-only; its mutation case is skipped on Windows, which keeps no POSIX mode bits, through the
+  runner's POSIX-only list, and a control checks that skip. The guard's realpath pins link folders
+  with a symlink, or on Windows without the privilege to make one, a directory junction. The
+  blocked-write pin matches its fixture path with either separator. `atomic_io._acquire` waits on
+  a held lock (`EACCES`, the errno `LK_NBLCK` sets) and raises other errors instead of retrying
+  them. Its in-process lock test runs with the real `msvcrt` on Windows and a stand-in elsewhere,
+  records every lock call, and requires `LK_NBLCK` on one byte at offset 0 and an unlock of the
+  same byte. `env_paths` and `profile_mirror` report their symlink checks as not run on Windows
+  when a symlink is refused, and fail elsewhere; each selftest also runs its symlink step once
+  with the symlink refused, and runs itself in a child process with symlinks refused to check
+  that verdict. `file_hash`'s runner skips on Windows the rows it lists as POSIX-only
+  (a mutant that behaves as the original there) and says how many.
+- P101 (Windows selftests and handles): `atomic_io.locked()` takes an exclusive lock on Windows,
+  `msvcrt.locking` on the sidecar's first byte polled in its non-blocking form, where it was a
+  no-op; its selftest runs that branch in-process with a stand-in `msvcrt`. `atomic_write_text`
+  refuses a directory destination with `IsADirectoryError` before writing (Windows' replace said
+  `PermissionError`) and retries a Windows replace briefly while another process holds the file.
+  `videoedit/fcpxml.py`, `videoedit/mltxml.py` and the `import_parse` selftest close the
+  descriptor `tempfile.mkstemp` returns before removing the file, which Windows refuses while it
+  is open, and `mltxml`'s melt render of a package now removes its temporary `.mlt`. `project_docs` keys its state by POSIX paths, so a state file written
+  on Windows before this change reads as never projected once and is projected again. The
+  battery's launcher-syntax gate runs `battery.py --launcher-syntax`, which on Windows passes over
+  WSL's `bash.exe` (in System32, or the Store alias under WindowsApps) for Git for Windows' bash
+  (found from `git --exec-path`) and says DID NOT RUN when there is none. Selftests no longer assume POSIX on Windows: mode-bit checks in
+  `atomic_io`, `mcp_server` and `profile_mirror` apply off Windows only, `profile_mirror`'s macOS
+  launchd-script group is reported as not run there, and `env_paths` and the handoff runner compare
+  paths by their parts, find test programs by a `.exe` suffix on Windows, and resolve the fake
+  home before comparing.
+- P101: the stored hashes of tracked files verify on a checkout whose text files git converted
+  to CRLF (`core.autocrlf=true`, the Git for Windows default). `tools/file_hash.py` hashes a text
+  file over its bytes with CRLF and lone CR folded to LF, and a binary file raw; a file is binary
+  when a NUL sits in its first 8000 bytes, the test git's diff uses. Git's line-ending conversion
+  also leaves alone some files that test calls text (a NUL later in the file, a lone CR, mostly
+  control bytes); git keeps those bytes as they are on every checkout, so their hashes do not
+  depend on it. The doc-freshness, knowledge-projection, Mac-surface and skill-package manifests
+  (writer and checker), `hash_audit`'s checks of those stores and of the GIS boundary manifest,
+  and the GIS stamp and re-stamp use it. The construction library and the keyword-cache baseline
+  stay on raw hashes, because their writer and verifier read the same bytes. An LF file hashes to
+  the sha256 of its raw bytes (pinned in the `file_hash` selftest), so hashes recorded on the LF
+  tree verify unchanged. `package_skill.tree_sha` hashes POSIX-form paths sorted by their
+  components; its selftest checks that a simulated Windows listing (backslash paths in
+  case-insensitive order) hashes like the POSIX one, and that an LF tree hashes as the earlier
+  recipe did. Lookups against stores keyed with `/` now key a path by `as_posix()`: the drift
+  guard's migration-manifest check (with a self-proof under simulated Windows paths), the
+  freshness bundle's writer and checker, the selftest sweep's enrolment set, and the
+  migration-note lookups in `local_audit` and `migrate_local`. `migrate_local plan` resolves the
+  template and the repo root before keying, so a file path given relative to the current folder
+  finds its migration note, and a template outside the repo is named by its own path instead of
+  raising. `.gitattributes` adds
+  `* text=auto eol=lf` and `*.bat text eol=crlf`. A clone made before this rule keeps its CRLF
+  files until they are checked out again; its hash gates pass, but the launcher syntax gate fails
+  on the CRLF `.command` file. With a clean working tree,
+  `git rm -r --cached -q . && git reset -q --hard` checks the files out again; a fresh clone also
+  works. `tools/file_hash.py` carries committed mutation cases, and its selftest fails when a
+  module in `tools/` that hashes through it or calls its `windows_paths()` helper has fewer than
+  three. Its runner reports a row as invalid rather than caught when the row does not compile, does
+  not load, targets a module with nothing to run, or edits the function that scores it, and it
+  restores path classes, the working folder and the environment after each row. The changed
+  selftests write their line-ending fixtures as bytes; on Linux they pass with text-mode writes
+  forced to CRLF, as Windows text mode writes them. The `package_skill` selftest closes the zip
+  archives it reads before its temp folder is removed, which Windows refuses while a file is
+  open, and the `windows_paths()` check calls the patched method on a pure POSIX path, so it runs
+  the patch on Windows too.
+- P100: `tools/tasks.py` `merge_tasks` matches events across register copies by every field except
+  `seq`, as a multiset, and copies events before renumbering. A register edited on both sides no
+  longer gains a duplicate event each time an unchanged copy is merged in again; registers that
+  already hold duplicates keep them. The same event recorded with identical fields on two devices
+  is kept once.
 - The commit-message backstop's policy boundary (`tools/secret-scan-allowlist.json`) is the full
   SHA of the P78-2 commit, the newest commit whose message the message rules refused when it was
   set, so the fallback range the CI step takes when origin/main..HEAD is empty starts after it.

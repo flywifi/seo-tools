@@ -22,6 +22,7 @@ Two macOS realities drive this module (see docs/SETUP_MAC.md and docs/MACOS-MAIN
 
 Stdlib only. Pure and injectable so the selftest can simulate a macOS PATH with no real hardware.
 """
+import ntpath
 import os
 import shutil
 import subprocess
@@ -154,6 +155,148 @@ def which(name, path=None):
     return shutil.which(name, path=p) or shutil.which(name)
 
 
+# Folders a desktop sync client keeps in step with the cloud: Google Drive, OneDrive and Dropbox
+# for desktop on macOS 12.1+ (File Provider, under ~/Library/CloudStorage), iCloud Drive (under
+# ~/Library/Mobile Documents on macOS; P101: ~/iCloud Drive, the iCloud for Windows default, or
+# ~/iCloudDrive, the name earlier versions used) and a classic ~/Dropbox folder.
+CLOUD_SYNCED_DIRS = (("Library", "CloudStorage"), ("Library", "Mobile Documents"), ("Dropbox",),
+                     ("iCloud Drive",), ("iCloudDrive",))
+# P101: OneDrive on Windows names the folder it syncs in the OneDrive environment variable; the
+# variables for a personal and for a work or school account are read as well.
+ONEDRIVE_ENV_VARS = ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
+# P101: Google Drive for desktop on Windows serves its files on a virtual drive (G: unless another
+# letter or a folder was chosen); these hidden folders sit at that drive's root.
+DRIVEFS_MARKERS = (".shortcut-targets-by-id", ".file-revisions-by-id")
+
+
+def _volume_root(target, ismount):
+    """The mount point `target` is on: the nearest of target and its parents that ismount accepts,
+    or None."""
+    for candidate in (target, *target.parents):
+        try:
+            if ismount(candidate):
+                return candidate
+        except (OSError, ValueError):
+            return None
+    return None
+
+
+def cloud_synced_root(path, home=None, env=None, ismount=None):
+    """The cloud-synced folder `path` sits under, or None: one of CLOUD_SYNCED_DIRS joined to
+    `home`, an absolute folder named by one of ONEDRIVE_ENV_VARS in `env` (default os.environ), or
+    the root of the volume `path` is on when that root holds one of DRIVEFS_MARKERS (`ismount`,
+    default os.path.ismount, finds it). The repo keeps its credential files in pipeline/user-context/, so a
+    repo under one of these folders would sync them; setup and the wizard warn and point to
+    tools/profile_mirror.py, which copies only the context files into the Drive hub. Paths are
+    compared after resolving symlinks."""
+    home = Path(home) if home is not None else Path.home()
+    env = os.environ if env is None else env
+    ismount = os.path.ismount if ismount is None else ismount
+    try:
+        target = Path(path).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return None
+    bases = [home.joinpath(*parts) for parts in CLOUD_SYNCED_DIRS]
+    bases += [Path(env[name]) for name in ONEDRIVE_ENV_VARS
+              if env.get(name) and Path(env[name]).is_absolute()]
+    for base in bases:
+        try:
+            base = base.resolve()
+        except (OSError, RuntimeError):
+            pass
+        if target == base or base in target.parents:
+            return str(base)
+    volume = _volume_root(target, ismount)
+    if volume is not None and any(os.path.isdir(volume / name) for name in DRIVEFS_MARKERS):
+        return str(volume)
+    return None
+
+
+def _os_name() -> str:
+    """os.name, read through one function so the selftest can stand in another system."""
+    return os.name
+
+
+def windows_outside_home(path, home=None, osname=None) -> bool:
+    """True on Windows when `path` is outside the home folder (%USERPROFILE%). A folder under the
+    profile takes the profile's permissions (the user, SYSTEM and Administrators); one created
+    elsewhere, such as C:\\repos, takes the drive's, which by default let the computer's other
+    accounts read its files, the credential files in pipeline/user-context/ among them (os.chmod
+    there sets only the read-only flag). False on other systems, and when a path cannot be
+    resolved. Paths are compared after resolving symlinks, by Windows rules (ntpath.normcase folds
+    case and separators, so the comparison is the same when osname is given on another system)."""
+    if osname is None:
+        osname = _os_name()
+    if osname != "nt":
+        return False
+    home = Path(home) if home is not None else Path.home()
+    try:
+        target = ntpath.normcase(str(Path(path).expanduser().resolve()))
+        base = ntpath.normcase(str(home.resolve())).rstrip("\\")
+    except (OSError, RuntimeError):
+        return False
+    return not (target == base or target.startswith(base + "\\"))
+
+
+def python_command(osname=None, which=None) -> str:
+    """The command a person types to run this repo's scripts: on Windows `py -3` when the py
+    launcher is installed (Start Creator OS Setup.bat tries it first, since `python` can be missing
+    or the Microsoft Store alias), else `python`; `python3` elsewhere."""
+    osname = _os_name() if osname is None else osname
+    if osname != "nt":
+        return "python3"
+    which = shutil.which if which is None else which
+    return "py -3" if which("py") else "python"
+
+
+def local_commands(text: str, osname=None, which=None) -> str:
+    """`text` with each `python3 tools/...` and `python3 shared/...` command written with the
+    command this computer runs the repo's scripts with (python_command): `py -3` or `python` on
+    Windows, where `python3` can be the Microsoft Store alias; unchanged elsewhere. A `python3`
+    that is part of a longer name or path (python3.12, venv/bin/python3) is left as written."""
+    command = python_command() if osname is None and which is None else python_command(osname, which)
+    if command == "python3":
+        return text
+    import re
+    return re.sub(r"(?<![\w./\\-])python3 (?=(?:tools|shared)/)", command + " ", text)
+
+
+
+def tool_env(base=None) -> dict:
+    """The environment for a Python tool of this repo whose output a caller reads: `base` (default
+    os.environ) with PYTHONUTF8=1 and PYTHONIOENCODING=utf-8. On Windows a child's piped stdout
+    otherwise uses the ANSI code page (often cp1252), so a title with an emoji stops the tool with
+    UnicodeEncodeError; UTF-8 mode also makes that child's own pipes and default file encoding
+    UTF-8. `base` is not changed."""
+    env = dict(os.environ if base is None else base)
+    env.update(PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    return env
+
+
+def tool_io(base=None) -> dict:
+    """subprocess keyword arguments for running a Python tool of this repo and reading its output
+    as text: env=tool_env(base), encoding="utf-8", errors="replace". Pass them instead of
+    text=True, which decodes with the locale's code page."""
+    return {"env": tool_env(base), "encoding": "utf-8", "errors": "replace"}
+
+
+def utf8_stdio(streams=None) -> None:
+    """Write this process's stdout and stderr as UTF-8 when they are not a terminal, so a redirect
+    (`> file`) or a pipe receives text with an emoji instead of a UnicodeEncodeError (on Windows
+    they otherwise use the ANSI code page). A terminal is left as it is (Python writes the Windows
+    console as UTF-16), and so is a stream without reconfigure (one a caller replaced).
+    `streams` (default sys.stdout and sys.stderr) is for the selftest."""
+    for stream in (sys.stdout, sys.stderr) if streams is None else streams:
+        try:
+            if stream is not None and hasattr(stream, "reconfigure") and not stream.isatty():
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError, AttributeError):
+            pass
+
+# Set by the child process of the symlink control below, which must not run that control again.
+_SYMLINK_CHILD = False
+
+
 def _selftest() -> int:
     import tempfile
     import stat
@@ -177,11 +320,32 @@ def _selftest() -> int:
         vpy.chmod(vpy.stat().st_mode | stat.S_IEXEC)
         ok(venv_python(root) is None, "a broken venv interpreter is rejected (P81 B-5)")
         vpy.unlink()
-        vpy.symlink_to(sys.executable)             # a real interpreter
-        if sys.version_info[:2] >= PYTHON_FLOOR:
+
+        def link_interpreter():
+            try:
+                vpy.symlink_to(sys.executable)     # a real interpreter
+                return True
+            except OSError:   # P101: Windows without Developer Mode or admin rights refuses a symlink
+                return False
+
+        real_link = Path.symlink_to
+
+        def _refuse(self, *a, **k):
+            raise OSError(1314, "A required privilege is not held by the client")
+        Path.symlink_to = _refuse
+        try:
+            refused = link_interpreter()
+        finally:
+            Path.symlink_to = real_link
+        ok(refused is False and not vpy.exists(), "a refused symlink to the interpreter is reported as not made")
+        linked = link_interpreter()
+        if not linked:
+            print("  [skip] venv selection: this system cannot create a symlink to the interpreter")
+        ok(linked or os.name == "nt", "the symlink to the interpreter is made (skipped on Windows only)")
+        if linked and sys.version_info[:2] >= PYTHON_FLOOR:
             ok(venv_python(root) == vpy, "venv_python finds a floor-meeting .venv interpreter")
             ok(app_python(root) == str(vpy), "app_python returns .venv interpreter when present")
-        else:
+        elif linked:
             ok(venv_python(root) is None, "a below-floor venv interpreter is rejected (P81 B-5)")
             ok(app_python(root) == sys.executable, "app_python falls back below the floor")
         launcher = ROOT / "Start Creator OS Setup.command"
@@ -207,7 +371,7 @@ def _selftest() -> int:
             (uhome / ".nvm" / NVM_NODE_SUBDIR / v / "bin").mkdir(parents=True)
         ups = user_prefixes(home=uhome, env={})
         ok(ups and ups[0] == str(uhome / USER_BIN), "user_prefixes leads with ~/.local/bin")
-        ok(ups[1].endswith("v20.11.1/bin"), "user_prefixes orders nvm nodes newest first")
+        ok(Path(ups[1]).parts[-2:] == ("v20.11.1", "bin"), "user_prefixes orders nvm nodes newest first")
         ok(len(ups) == 4, "user_prefixes lists ~/.local/bin + every nvm node bin")
         uap = augmented_path("/usr/bin:/bin", home=uhome, env={})
         ok(uap.startswith(str(uhome / USER_BIN)), "augmented_path puts user-scoped dirs FIRST")
@@ -217,25 +381,250 @@ def _selftest() -> int:
         alt = root / "altnvm"
         (alt / NVM_NODE_SUBDIR / "v22.1.0" / "bin").mkdir(parents=True)
         alt_ups = user_prefixes(home=uhome, env={"NVM_DIR": str(alt)})
-        ok(any(p.endswith("v22.1.0/bin") for p in alt_ups), "user_prefixes honors $NVM_DIR")
+        ok(any(Path(p).parts[-2:] == ("v22.1.0", "bin") for p in alt_ups), "user_prefixes honors $NVM_DIR")
         ok(not any(".nvm" in p for p in alt_ups), "$NVM_DIR replaces the ~/.nvm default")
         # The functional pin: a node installed the user-only way is findable under a bare PATH.
-        fake_node = uhome / ".nvm" / NVM_NODE_SUBDIR / "v20.11.1" / "bin" / "node"
+        # P101: Windows finds a program by a PATHEXT suffix (.exe), not by a shebang and exec bit.
+        exe = ".exe" if os.name == "nt" else ""
+        same = lambda a, b: a is not None and os.path.normcase(a) == os.path.normcase(str(b))  # noqa: E731
+        fake_node = uhome / ".nvm" / NVM_NODE_SUBDIR / "v20.11.1" / "bin" / ("node" + exe)
         fake_node.write_text("#!/bin/sh\n")
         fake_node.chmod(fake_node.stat().st_mode | stat.S_IEXEC)
-        ok(which("node", path=augmented_path("", home=uhome, env={})) == str(fake_node),
+        ok(same(which("node", path=augmented_path("", home=uhome, env={})), fake_node),
            "which() finds an nvm-installed node (the route the wizard recommends)")
 
         # which() finds a tool via an injected path, and via augmented_path when the tool sits in a
         # prefix-like dir we inject as base.
         fakebin = root / "fakebin"
         fakebin.mkdir()
-        tool = fakebin / "faketool"
+        tool = fakebin / ("faketool" + exe)
         tool.write_text("#!/bin/sh\n")
         tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
-        ok(which("faketool", path=str(fakebin)) == str(tool), "which() resolves via injected path")
+        ok(same(which("faketool", path=str(fakebin)), tool), "which() resolves via injected path")
         ok(which("definitely_not_a_real_tool_xyz") is None, "which() None for a missing tool")
 
+    # cloud_synced_root: each synced family is named, a plain home path is not, and a folder that
+    # only starts with the same letters (~/Dropbox-notes) is not inside ~/Dropbox.
+    # An absolute, resolved base (on Windows a bare "/x" resolves onto the current drive).
+    fake_home = Path(tempfile.gettempdir()).resolve() / "nonexistent-home-for-selftest"
+    ok(all(cloud_synced_root(fake_home.joinpath(*p, "x", "repo"), home=fake_home, env={})
+           == str(fake_home.joinpath(*p)) for p in CLOUD_SYNCED_DIRS),
+       "cloud_synced_root names Google Drive/OneDrive (CloudStorage), iCloud Drive and Dropbox")
+    ok(all(cloud_synced_root(fake_home / name / "repo", home=fake_home, env={}) == str(fake_home / name)
+           for name in ("iCloud Drive", "iCloudDrive")),
+       "cloud_synced_root names the iCloud for Windows folder, under its current and earlier name")
+    ok(cloud_synced_root(fake_home / "CreatorOS", home=fake_home, env={}) is None
+       and cloud_synced_root(fake_home / "Dropbox-notes" / "repo", home=fake_home, env={}) is None,
+       "cloud_synced_root is None for a home-folder path and for a look-alike folder name")
+    # P101, Windows: the folder each OneDrive variable names (the variables are read on any OS,
+    # so this runs here too); a variable that is unset, empty or not an absolute path names none.
+    od = fake_home / "OneDrive - Fictional School"
+    ok(all(cloud_synced_root(od / "repo", home=fake_home, env={name: str(od)}) == str(od)
+           for name in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")),
+       "cloud_synced_root names the folder in OneDrive, OneDriveConsumer and OneDriveCommercial")
+    ok(cloud_synced_root(od / "repo", home=fake_home, env={}) is None
+       and cloud_synced_root(Path.cwd() / "repo", home=fake_home, env={"OneDrive": ""},
+                             ismount=lambda p: False) is None
+       and cloud_synced_root(Path.cwd() / "repo", home=fake_home, env={"OneDrive": "."},
+                             ismount=lambda p: False) is None
+       and cloud_synced_root(fake_home / "CreatorOS", home=fake_home, env={"OneDrive": str(od)}) is None,
+       "cloud_synced_root names no OneDrive folder for an unset, empty or relative variable, or "
+       "for a path outside the folder")
+    saved_od = os.environ.get("OneDrive")
+    os.environ["OneDrive"] = str(od)
+    try:
+        from_environ = cloud_synced_root(od / "repo", home=fake_home)
+    finally:
+        if saved_od is None:
+            os.environ.pop("OneDrive", None)
+        else:
+            os.environ["OneDrive"] = saved_od
+    ok(from_environ == str(od), "cloud_synced_root reads the OneDrive variables from os.environ by default")
+    # P101, Windows: the root of the volume a path is on, when it holds one of Google Drive for
+    # desktop's hidden folders. The mount points are stood in for; the folders are real.
+    ok(DRIVEFS_MARKERS == (".shortcut-targets-by-id", ".file-revisions-by-id"),
+       "DRIVEFS_MARKERS names Drive for desktop's two hidden root folders")
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td).resolve()
+        vol = base / "G"
+        (vol / "My Drive" / "Creator OS").mkdir(parents=True)
+        (vol / ".shortcut-targets-by-id").mkdir()
+        vol2 = base / "V2"
+        (vol2 / "Work").mkdir(parents=True)
+        (vol2 / ".file-revisions-by-id").mkdir()
+        plain = base / "D"
+        (plain / "Work").mkdir(parents=True)
+        for name in (".shortcut-targets-by-id", ".file-revisions-by-id"):
+            (plain / name).write_text("a file, not the folder")
+        mounts = {vol, vol2, plain}
+        at = lambda p: p in mounts  # noqa: E731
+        repo_on_g = vol / "My Drive" / "Creator OS" / "seo-tools"
+        ok(cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=at) == str(vol)
+           and cloud_synced_root(vol2 / "Work" / "seo-tools", home=fake_home, env={}, ismount=at) == str(vol2),
+           "cloud_synced_root names the root of a volume that holds either Drive marker folder")
+        ok(cloud_synced_root(plain / "Work" / "seo-tools", home=fake_home, env={}, ismount=at) is None
+           and cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=lambda p: False) is None,
+           "cloud_synced_root names no volume whose root lacks the marker folders, or when no mount "
+           "point is found")
+        mounts.add(vol / "My Drive")
+        ok(cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=at) is None,
+           "cloud_synced_root reads the markers at the nearest mount point only")
+        mounts.discard(vol / "My Drive")
+        raised = []
+        for exc in (OSError("volume path"), ValueError("embedded null")):
+            def failing(p, exc=exc):
+                if p == repo_on_g:
+                    raise exc
+                return p in mounts
+            try:
+                raised.append(cloud_synced_root(repo_on_g, home=fake_home, env={}, ismount=failing))
+            except (OSError, ValueError) as err:
+                raised.append(repr(err))
+        ok(raised == [None, None],
+           f"a mount check that raises OSError or ValueError names no folder and does not raise: {raised}")
+        real_ismount = os.path.ismount
+        os.path.ismount = at
+        try:
+            from_default = cloud_synced_root(repo_on_g, home=fake_home, env={})
+        finally:
+            os.path.ismount = real_ismount
+        ok(from_default == str(vol), "cloud_synced_root finds mount points with os.path.ismount by default")
+    # The command a person types to run the scripts: py -3 or python on Windows, python3 elsewhere.
+    ok(python_command("posix", which=lambda n: "/x/py") == "python3"
+       and python_command("nt", which=lambda n: "C:\\py.exe" if n == "py" else None) == "py -3"
+       and python_command("nt", which=lambda n: None) == "python",
+       "python_command is py -3 with the py launcher on Windows, else python; python3 elsewhere")
+    sample = ("run python3 tools/setup.py, then python3 shared/cache/cache.py --build; python3.12 tools/x.py, "
+              "venv/bin/python3 tools/x.py, C:\\Py\\python3 tools/x.py, my-python3 tools/x.py and python3 -m pip stay")
+    with_py = lambda n: "C:\\py.exe" if n == "py" else None  # noqa: E731
+    ok(local_commands(sample, "nt", with_py)
+       == ("run py -3 tools/setup.py, then py -3 shared/cache/cache.py --build; python3.12 tools/x.py, "
+           "venv/bin/python3 tools/x.py, C:\\Py\\python3 tools/x.py, my-python3 tools/x.py and python3 -m pip stay")
+       and local_commands(sample, "nt", lambda n: None).count("python tools/") == 1
+       and local_commands(sample, "posix", with_py) == sample,
+       "local_commands writes python3 tools/ and shared/ commands as py -3 or python on Windows only")
+    real_os_lc, real_which_lc = globals()["_os_name"], shutil.which
+    globals()["_os_name"] = lambda: "nt"
+    shutil.which = lambda name, *a, **k: "C:\\py.exe" if name == "py" else None
+    try:
+        lc_default = local_commands("run python3 tools/setup.py")
+    finally:
+        globals()["_os_name"], shutil.which = real_os_lc, real_which_lc
+    ok(lc_default == "run py -3 tools/setup.py",
+       "with no system given, local_commands reads this computer's system and its py launcher")
+    real_which, real_os_name = shutil.which, globals()["_os_name"]
+    shutil.which = lambda name, *a, **k: "C:\\py.exe" if name == "py" else None
+    try:
+        default_which = python_command("nt")
+        globals()["_os_name"] = lambda: "nt"
+        default_nt = python_command()
+        globals()["_os_name"] = lambda: "posix"
+        default_posix = python_command()
+    finally:
+        shutil.which, globals()["_os_name"] = real_which, real_os_name
+    ok(default_which == "py -3" and default_nt == "py -3" and default_posix == "python3"
+       and _os_name() == os.name
+       and python_command() == ("python3" if os.name != "nt" else ("py -3" if shutil.which("py") else "python")),
+       "python_command reads os.name (through _os_name) and shutil.which by default")
+
+    # control: run in a child process with symlinks refused, this selftest fails its symlink gate
+    # under a POSIX os and skips venv selection under Windows. The child skips this control.
+    if not _SYMLINK_CHILD:
+        child = ("import pathlib, sys\n"
+                 f"sys.path.insert(0, {str(Path(__file__).resolve().parent)!r})\n"
+                 "import env_paths\n"
+                 "env_paths._SYMLINK_CHILD = True\n"
+                 "def refuse(self, *a, **k):\n"
+                 "    raise OSError(1314, 'A required privilege is not held by the client')\n"
+                 "pathlib.Path.symlink_to = refuse\n"
+                 "sys.exit(env_paths._selftest())\n")
+        r = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=120)
+        gate_failed = "[FAIL] the symlink to the interpreter is made" in r.stdout
+        ok(gate_failed == (os.name != "nt") and "[skip] venv selection" in r.stdout,
+           "with symlinks refused, the symlink gate fails off Windows and skips on Windows")
+
+
+    # P102: a repo outside the home folder on Windows takes the drive's permissions.
+    with tempfile.TemporaryDirectory() as td:
+        h = Path(td).resolve() / "home"
+        (h / "CreatorOS").mkdir(parents=True)
+        (Path(td) / "repos" / "CreatorOS").mkdir(parents=True)
+        (Path(td) / "home-other").mkdir()
+        ok(windows_outside_home(Path(td) / "repos" / "CreatorOS", home=h, osname="nt") is True
+           and windows_outside_home(Path(td) / "home-other", home=h, osname="nt") is True,
+           "on Windows a repo outside the home folder is reported, also beside it with a shared prefix")
+        ok(windows_outside_home(h / "CreatorOS", home=h, osname="nt") is False
+           and windows_outside_home(h, home=h, osname="nt") is False,
+           "on Windows the home folder and a repo under it are not reported")
+        ok(windows_outside_home(Path(td) / "repos" / "CreatorOS", home=h, osname="posix") is False,
+           "on another system a repo outside the home folder is not reported")
+        real_os = globals()["_os_name"]
+        globals()["_os_name"] = lambda: "nt"
+        try:
+            read_os = windows_outside_home(Path(td) / "repos", home=h)
+        finally:
+            globals()["_os_name"] = real_os
+        ok(read_os is True, "windows_outside_home reads _os_name() when no system is given")
+        ok(windows_outside_home(Path(td).resolve() / "HOME" / "CreatorOS", home=h, osname="nt") is False
+           and windows_outside_home(Path(td).resolve() / "HOME-other", home=h, osname="nt") is True,
+           "on Windows a repo under the home folder written in another letter case is not reported")
+
+        class _Unresolvable:
+            def __fspath__(self):
+                raise OSError(5, "the path could not be read")
+        ok(windows_outside_home(_Unresolvable(), home=h, osname="nt") is False,
+           "on Windows a path that cannot be resolved is not reported")
+    # P102: a child that prints an emoji to a pipe, with the parent's codec forced to cp1252 (what a
+    # Windows pipe uses): tool_io and utf8_stdio each keep it running; without them it stops.
+    text = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
+    cp1252 = dict(os.environ, PYTHONIOENCODING="cp1252")
+    cp1252.pop("PYTHONUTF8", None)
+    show = [sys.executable, "-c", "import sys; print(sys.argv[1])", text]
+    env_kept = tool_env(cp1252)
+    ok(env_kept["PYTHONUTF8"] == "1" and env_kept["PYTHONIOENCODING"] == "utf-8"
+       and cp1252["PYTHONIOENCODING"] == "cp1252" and env_kept.get("PATH") == cp1252.get("PATH")
+       and tool_io(cp1252) == {"env": env_kept, "encoding": "utf-8", "errors": "replace"},
+       "tool_env sets UTF-8 over the base environment without changing it; tool_io adds the decoding")
+    with_io = subprocess.run(show, capture_output=True, timeout=60, **tool_io(cp1252))
+    without = subprocess.run(show, capture_output=True, timeout=60, env=cp1252, encoding="utf-8",
+                             errors="replace")
+    ok(with_io.returncode == 0 and with_io.stdout.strip() == text
+       and without.returncode != 0 and "UnicodeEncodeError" in without.stderr,
+       "with tool_io a child prints an emoji to a cp1252 pipe intact; without it the child stops "
+       f"({with_io.returncode}, {without.returncode})")
+    here = str(Path(__file__).resolve().parent)
+    stdio = [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[2]); import env_paths; "
+             "env_paths.utf8_stdio(); print(sys.argv[1]); print(sys.argv[1], file=sys.stderr)", text, here]
+    plain = [sys.executable, "-c", "import sys; print(sys.argv[1])", text]
+    r_on = subprocess.run(stdio, capture_output=True, timeout=60, env=cp1252)
+    r_off = subprocess.run(plain, capture_output=True, timeout=60, env=cp1252)
+    ok(r_on.returncode == 0 and r_on.stdout.decode("utf-8").strip() == text and r_off.returncode != 0
+       and r_on.stderr.decode("utf-8", errors="replace").strip() == text,
+       "utf8_stdio makes a redirected stdout and stderr UTF-8, so a cp1252 pipe gets the emoji intact")
+
+    class _Stream:
+        def __init__(self, tty):
+            self.tty, self.calls = tty, []
+
+        def isatty(self):
+            return self.tty
+
+        def reconfigure(self, **kw):
+            self.calls.append(kw)
+    term, piped = _Stream(True), _Stream(False)
+    utf8_stdio([term, piped, None, object()])
+    ok(term.calls == [] and piped.calls == [{"encoding": "utf-8", "errors": "replace"}],
+       "utf8_stdio leaves a terminal and a stream without reconfigure alone")
+    real_out, real_err = sys.stdout, sys.stderr
+    std_out, std_err = _Stream(False), _Stream(False)
+    sys.stdout, sys.stderr = std_out, std_err
+    try:
+        utf8_stdio()
+    finally:
+        sys.stdout, sys.stderr = real_out, real_err
+    ok(std_out.calls == [{"encoding": "utf-8", "errors": "replace"}] and std_err.calls == std_out.calls,
+       "utf8_stdio with no streams given switches both sys.stdout and sys.stderr")
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:

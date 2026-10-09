@@ -2,9 +2,39 @@
 Live build status for Creator OS. Update at phase boundaries and after a skill ships.
 
 ## Current phase
-P6 through P98 are complete. Drift guard exits 0 (61 invariants); the battery runs 14 gates.
-Branch: `claude/repo-access-confirm-wxe50a`.
+P6 through P100 are complete. Drift guard exits 0 (60 invariants enforced); the battery runs 15 gates.
+Branch: `claude/blissful-cannon-ggivl7`.
 
+- P101 (started 2026-10-02, in progress): Windows support, from the first live run of the suite on
+  a Windows PC. Landed: `tools/file_hash.py` hashes a tracked text file over LF-normalised bytes
+  and the doc-freshness, knowledge-projection, Mac-surface, skill-package and GIS stores use it;
+  `package_skill.tree_sha` keys POSIX-form paths, as do the drift guard's migration-manifest
+  lookup, the freshness bundle, the selftest sweep's enrolment set and the local-data migration
+  notes; `.gitattributes` checks text files out LF (batch files CRLF). Then Windows file locking
+  in `atomic_io`, the `mkstemp` handle leaks, `project_docs` keys, the launcher gate's bash, and
+  selftests that assumed POSIX, and the surface selftest's temp-folder retry. Next: the wizard's
+  reserved-port handling, the cloud-folder warning on Windows, an inbox `sweep` verb, the Outbox
+  platform tag, fixture shapes, and the scoop cache's path keys.
+- P100: cross-surface workflow suite (2026-10-01, ADR 0072). `tools/surface_workflow_check.py`
+  runs 10 workflows from each vendor's web chat into each vendor's desktop app, plus a round
+  trip, with simulated surface steps and the real computer code in a sandbox, inside a write
+  guard that fails the run on a refused write outside the system temporary folder; it pins eleven open
+  gaps, carries reviewer-chosen mutation cases, and is a battery gate and a CI step. `gemini_web` and `gemini_desktop` join the
+  transitions matrix. `tasks.merge_tasks` no longer duplicates events when a register edited on
+  both sides is merged again. Guide: `docs/SURFACE-WORKFLOWS.md`.
+- P99: profile mirror (2026-09-30, ADR 0070). `tools/profile_mirror.py` copies the allowlisted
+  context files one way into the Drive hub's `Profile/` folder (credentials refused by name and
+  content), logs each run, keeps run history, can write one Google Doc, and installs a
+  user-scoped launchd agent; `tools/profile-mirror.sh` is the rsync form. Setup and the wizard
+  warn when the repo sits in a cloud-synced folder. Guide: `docs/PROFILE-MIRROR.md`.
+- P99-2: profile mirror fix round (2026-10-01, ADR 0071). The Doc is found by its remembered id,
+  then by name, and created in `Creator OS/Profile` or else My Drive, because the `drive.file`
+  credential cannot see folders the app did not make; it is rendered from what `Profile/` holds.
+  The content check decodes the JSON and reads credential-named keys, more vendor formats and
+  credentials written in prose; the rsync form runs it through `check-file`. Every run, including
+  one that fails partway, writes a summary line and a last-run stamp that `install-agent` reads.
+  The agent keeps the venv interpreter path and carries `--api` and `--include-contact-profile`.
+  The read-only guard refuses the mirror's write verbs.
 - P98: remediation pass (2026-09-27, ADR 0069). Guards fold input before matching (NFKC,
   format characters, dash and digit look-alikes, percent decoding) across secret_scan,
   commit_claims, the invariant 60 corpus and proof readers and the hub reader; pinned sets

@@ -31,6 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import atomic_io  # noqa: E402  (the one atomic writer, P81)
+import env_paths  # noqa: E402  (utf8_stdio: a redirected log on Windows, P102)
 
 from handoff import queue as q  # noqa: E402
 from handoff import runner  # noqa: E402
@@ -51,13 +52,41 @@ def load_hub_config() -> dict:
     return merged
 
 
-def detect_mirror_candidates(home=None, folder_name="Creator OS") -> list:
-    """Where Google Drive for desktop usually puts the hub on macOS: the File Provider mount under
-    ~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>. Returns existing candidates only;
-    detection is a convenience for the wizard, never an authority (the user confirms the path)."""
+def _windows_drives() -> list:
+    """The drive roots on this Windows computer: os.listdrives() (Python 3.12 and later), else each
+    letter whose root exists."""
+    lister = getattr(os, "listdrives", None)
+    try:
+        if lister is not None:
+            return list(lister())
+    except OSError:
+        return []
+    import string
+    return [f"{c}:\\" for c in string.ascii_uppercase if os.path.exists(f"{c}:\\")]
+
+
+def detect_mirror_candidates(home=None, folder_name="Creator OS", osname=None, drives=None,
+                             isdir=None, system_drive=None) -> list:
+    """Where Google Drive for desktop usually puts the hub: on macOS the File Provider mount under
+    ~/Library/CloudStorage/GoogleDrive-*/My Drive/<folder>; on Windows <letter>:\\My Drive\\<folder>
+    on the drive letter Drive for desktop mounts (P102; each drive in `drives`, default
+    _windows_drives(), except the system drive, %SystemDrive% by default, which Drive for desktop
+    does not use and where any local account can make a My Drive folder). Returns existing candidates only; detection is a convenience for the wizard,
+    never an authority (the user confirms the path)."""
+    import ntpath
+    isdir = os.path.isdir if isdir is None else isdir
     home = Path(home or os.path.expanduser("~"))
     pattern = str(home / "Library" / "CloudStorage" / "GoogleDrive-*" / "My Drive" / folder_name)
-    return sorted(p for p in glob.glob(pattern) if os.path.isdir(p))
+    found = [p for p in glob.glob(pattern) if isdir(p)]
+    if (os.name if osname is None else osname) == "nt":
+        sysdrive = (os.environ.get("SystemDrive") or "C:") if system_drive is None else system_drive
+        for drive in (_windows_drives() if drives is None else drives):
+            if ntpath.splitdrive(drive)[0].upper() == str(sysdrive)[:2].upper():
+                continue
+            cand = ntpath.join(drive, "My Drive", folder_name)
+            if isdir(cand):
+                found.append(cand)
+    return sorted(found)
 
 
 def resolve_hub(arg_hub=None) -> tuple:
@@ -96,7 +125,11 @@ def watch(hub_root, interval=DEFAULT_INTERVAL) -> None:
     print(f"handoff watcher: hub={hub_root} interval={interval}s (Ctrl+C to stop)")
     try:
         while True:
-            results = once(hub_root)
+            try:
+                results = once(hub_root)
+            except Exception as exc:  # noqa: BLE001 - one failed pass must not end the watcher (P102)
+                print(f"handoff watcher: pass failed, retrying next interval: {type(exc).__name__}: {exc}")
+                results = []
             acted = [r for r in results if r.get("status") not in ("gated",)]
             if acted:
                 print(json.dumps(acted, default=str))
@@ -126,9 +159,28 @@ def selftest() -> int:
     fakehome = Path(tempfile.mkdtemp())
     target = fakehome / "Library" / "CloudStorage" / "GoogleDrive-someone@example.com" / "My Drive" / "Creator OS"
     target.mkdir(parents=True)
-    found = detect_mirror_candidates(home=fakehome)
+    found = detect_mirror_candidates(home=fakehome, drives=[])  # no real drive letters: this computer may hold a real hub
     ok("detects the CloudStorage mirror path", found == [str(target)])
-    ok("no candidates on an empty home", detect_mirror_candidates(home=tempfile.mkdtemp()) == [])
+    ok("no candidates on an empty home", detect_mirror_candidates(home=tempfile.mkdtemp(), drives=[]) == [])
+    # P102: on Windows each drive's My Drive\Creator OS is offered when it exists.
+    _dirs = {"G:\\My Drive\\Creator OS", "H:\\My Drive", "C:\\My Drive\\Creator OS", "K:\\My Drive\\Creator OS"}
+    _win = detect_mirror_candidates(home=tempfile.mkdtemp(), osname="nt",
+                                    drives=["K:\\", "C:\\", "G:\\", "H:\\"], isdir=lambda p: p in _dirs)
+    ok("on Windows each drive whose My Drive holds the hub folder is offered in order, not the system drive",
+       _win == ["G:\\My Drive\\Creator OS", "K:\\My Drive\\Creator OS"])
+    _real_lister = getattr(os, "listdrives", None)
+    os.listdrives = lambda: ["Q:\\"]
+    try:
+        _listed = _windows_drives()
+    finally:
+        if _real_lister is None:
+            del os.listdrives
+        else:
+            os.listdrives = _real_lister
+    ok("the drive list comes from os.listdrives when Python has it", _listed == ["Q:\\"])
+    ok("off Windows the drive letters are not looked at",
+       detect_mirror_candidates(home=tempfile.mkdtemp(), osname="posix", drives=["G:\\"],
+                                isdir=lambda p: p in _dirs) == [])
 
     # Status snapshot over a temp hub.
     q.ensure_hub_dirs(hub)
@@ -148,6 +200,102 @@ def selftest() -> int:
         return types.SimpleNamespace(returncode=0, stdout="{}", stderr="")
     res = runner.run_pass(hub, spawn=fake_spawn, allow=True)
     ok("wired pass drains the queue", res[0]["status"] == "done" and status(hub)["pending"] == 0)
+
+    # P102: a pass that raises (a ticket locked on a Drive hub) is reported and the loop goes on;
+    # Ctrl+C still stops it.
+    import contextlib
+    import io
+    passes, naps = [], []
+
+    def flaky_once(hub_root):
+        passes.append(hub_root)
+        if len(passes) == 1:
+            raise PermissionError(32, "The process cannot access the file because it is being used by "
+                                      "another process")
+        return [{"status": "done"}]
+
+    def two_naps(seconds):
+        naps.append(seconds)
+        if len(naps) == 2:
+            raise KeyboardInterrupt
+    real_once, real_sleep = globals()["once"], time.sleep
+    globals()["once"], time.sleep = flaky_once, two_naps
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            watch(hub, interval=30)
+        stopped = True
+    except BaseException:  # noqa: BLE001 - a Ctrl+C that escapes watch is a failed check here
+        stopped = False
+    finally:
+        globals()["once"], time.sleep = real_once, real_sleep
+    ok("a failed pass is reported and the watcher runs the next one; Ctrl+C still stops it",
+       stopped and len(passes) == 2 and "pass failed, retrying next interval: PermissionError" in out.getvalue()
+       and '"status": "done"' in out.getvalue() and "handoff watcher: stopped" in out.getvalue())
+
+    # P102: Ctrl+C during a pass stops the watcher too, and a pass that raises something other than
+    # OSError (a ticket that trips a bug) is reported like a locked one.
+    passes_k, naps_k = [], []
+
+    def interrupted_once(hub_root):
+        passes_k.append(hub_root)
+        if len(passes_k) == 1:
+            raise ValueError("an unexpected ticket shape")
+        if len(passes_k) == 2:
+            raise TypeError("a ticket field of the wrong type")
+        raise KeyboardInterrupt
+
+    def bounded_nap(seconds):
+        naps_k.append(seconds)
+        if len(naps_k) >= 4:  # a watcher that swallowed the Ctrl+C is stopped here, after extra passes
+            raise KeyboardInterrupt
+    globals()["once"], time.sleep = interrupted_once, bounded_nap
+    out_k = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out_k):
+            watch(hub, interval=30)
+        stopped_k = True
+    except BaseException:  # noqa: BLE001
+        stopped_k = False
+    finally:
+        globals()["once"], time.sleep = real_once, real_sleep
+    ok("passes that raise ValueError and TypeError are reported, and Ctrl+C during the next pass stops "
+       "the watcher",
+       stopped_k and len(passes_k) == 3 and "pass failed, retrying next interval: ValueError" in out_k.getvalue()
+       and "pass failed, retrying next interval: TypeError" in out_k.getvalue()
+       and "handoff watcher: stopped" in out_k.getvalue())
+
+    # P102: with stdout redirected to a cp1252 file (a Windows log), main writes a failed pass that
+    # names a file with an emoji as UTF-8 instead of ending on UnicodeEncodeError.
+    import tempfile as _tf_w
+    locked_name = "G:/My Drive/Creator OS/Inbox/Vlog \U0001f3ac.mp4"
+
+    def emoji_once(hub_root):
+        raise PermissionError(32, "The process cannot access the file", locked_name)
+
+    def stop_nap(seconds):
+        raise KeyboardInterrupt
+    real_streams = sys.stdout, sys.stderr
+    raw_out, raw_err = io.BytesIO(), io.BytesIO()
+    with _tf_w.TemporaryDirectory() as hub_w:
+        globals()["once"], time.sleep = emoji_once, stop_nap
+        wrapped = (io.TextIOWrapper(raw_out, encoding="cp1252", write_through=True),
+                   io.TextIOWrapper(raw_err, encoding="cp1252", write_through=True))
+        sys.stdout, sys.stderr = wrapped
+        try:
+            rc_w = main(["--watch", "--hub", hub_w])
+        except BaseException as exc:  # noqa: BLE001
+            rc_w = repr(exc)
+        finally:
+            sys.stdout, sys.stderr = real_streams
+            globals()["once"], time.sleep = real_once, real_sleep
+            for stream in wrapped:
+                stream.flush()
+            log_w = raw_out.getvalue().decode("utf-8", errors="replace")
+            for stream in wrapped:
+                stream.detach()  # leave the buffers open; the wrapper is done
+    ok("main logs a failed pass naming an emoji file as UTF-8 when stdout is a cp1252 file",
+       rc_w == 0 and locked_name in log_w and "handoff watcher: stopped" in log_w)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:
@@ -212,8 +360,11 @@ def api_once() -> dict:
 
 
 def main(argv) -> int:
+    """The CLI. stdout and stderr write UTF-8 when redirected (env_paths.utf8_stdio, P102), so a
+    failed pass that names a file with an emoji is logged instead of ending the watcher."""
     if "--selftest" in argv:
         return selftest()
+    env_paths.utf8_stdio()
     if "--transport" in argv and argv[argv.index("--transport") + 1] == "api":
         print(json.dumps(api_once(), indent=2, default=str))
         return 0

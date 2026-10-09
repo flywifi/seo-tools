@@ -1,3 +1,9 @@
+# Text files are LF in the index and in every checkout (P101). The hash gates compare files on
+# disk with committed hashes, and a CRLF checkout (core.autocrlf=true, the Git for Windows and
+# Scoop default) made the four of them fail on an unchanged clone. Batch files stay CRLF for cmd.exe.
+* text=auto eol=lf
+*.bat text eol=crlf
+
 # Treat binary asset formats as binary so line endings are never rewritten.
 *.pdf binary
 *.doc binary

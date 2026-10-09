@@ -20,8 +20,8 @@
         },
         "origin": {
           "type": "string",
-          "enum": ["web", "desktop", "cowork", "mac", "other"],
-          "description": "Which surface created the ticket. Informational; grants no authority."
+          "enum": ["web", "desktop", "mac", "windows", "linux", "other"],
+          "description": "Which surface created the ticket; mac, windows and linux name the computer that queued it by its system. Informational; grants no authority."
         },
         "requested_by": {
           "type": ["string", "null"],

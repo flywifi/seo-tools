@@ -55,7 +55,7 @@ added beyond what those records state. New decisions get the next number via
 | [0044](0044-p61-work-orders-and-ingest-screening.md) | P61 Work Orders and Ingest Screening | 2026-07-17 | Accepted |
 | [0045](0045-p62-two-pass-injection-screening.md) | P62 Two-pass Injection Screening | 2026-07-18 | Accepted |
 | [0046](0046-p63-sweep-remediation.md) | P63 Sweep Remediation | 2026-07-18 | Accepted |
-| [0047](0047-p64-cowork-surface-and-audit-completeness.md) | P64 Cowork Surface and Audit Completeness | 2026-07-19 | Accepted |
+| [0047](0047-p64-cowork-surface-and-audit-completeness.md) | P64 Cowork Surface and Audit Completeness | 2026-07-19 | Superseded by [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) (surface decision) |
 | [0048](0048-p66-audit-remediation.md) | P66 Remediation of the P65 Full-System Audit Findings | 2026-07-19 | Accepted |
 | [0049](0049-p67-production-hardening.md) | P67 Production-readiness hardening (in-repo slices) | 2026-07-19 | Accepted |
 | [0050](0050-p68-verification-hardening.md) | P68 Verification hardening (why nine defects survived) | 2026-07-20 | Accepted |
@@ -68,7 +68,7 @@ added beyond what those records state. New decisions get the next number via
 | [0057](0057-p82-chatgpt-audit-remediation.md) | Pointing the machinery outward: closing the ChatGPT/OpenAI audit | 2026-09-12 | Accepted |
 | [0058](0058-p82-9-block-classification-and-episodes.md) | A widget is not a wall: block classification and block episodes | 2026-09-12 | Accepted |
 | [0059](0059-p83-september-vendor-currency.md) | September currency: Plugins by their new name, and evidence before conformance | 2026-09-19 | Accepted |
-| [0060](0060-p84-custom-gpt-retirement-stance.md) | Custom GPT retirement: keep export-gpt, steer new setups elsewhere | 2026-09-19 | Accepted |
+| [0060](0060-p84-custom-gpt-retirement-stance.md) | Custom GPT retirement: keep export-gpt, steer new setups elsewhere | 2026-09-19 | Superseded by [0077](0077-p102-custom-gpt-and-gems-retired.md) |
 | [0061](0061-p85-wizard-first-run-readiness.md) | Wizard first-run readiness: verified completion, resume, and the server it forgot | 2026-09-19 | Accepted |
 | [0062](0062-p89-web-onboarding-in-the-pack.md) | Web onboarding ships inside the knowledge pack, on the merged-Claude surface model | 2026-09-20 | Accepted |
 | [0063](0063-p90-wizard-doing-lanes.md) | The wizard DOES the web setup: guided lanes that copy, stage, and verify | 2026-09-20 | Accepted |
@@ -78,3 +78,12 @@ added beyond what those records state. New decisions get the next number via
 | [0067](0067-p96-guards-prove-their-own-coverage.md) | Review output stays outside the repository, and guards prove their own coverage | 2026-09-26 | Accepted |
 | [0068](0068-p97-pins-bind-at-entries-guards-parse.md) | Pins bind at the entry a person runs, and guards parse before they match | 2026-09-27 | Accepted |
 | [0069](0069-p98-fold-input-derive-sets.md) | Guards read normalised input, and pinned sets derive from the code that serves them | 2026-09-27 | Accepted |
+| [0070](0070-p99-profile-mirror.md) | The repo stays out of cloud-synced folders; context reaches Drive through a one-way mirror | 2026-09-30 | Accepted |
+| [0071](0071-p99-2-doc-reachability.md) | The profile Doc is found by id or name and placed in My Drive when the hub is out of the app's reach; both mirror engines check content and stamp every run | 2026-10-01 | Accepted |
+| [0072](0072-p100-surface-workflow-suite.md) | Cross-surface workflows run as a sandboxed suite; Gemini's web and desktop apps join the matrix | 2026-10-01 | Accepted |
+| [0073](0073-p101-loopback-port-blocks.md) | The setup wizard and the Scheduling Dashboard bind a fixed port block, without SO_REUSEADDR on Windows | 2026-10-03 | Accepted |
+| [0074](0074-p101-windows-cloud-synced-folders.md) | On Windows, the cloud-synced repo warning reads OneDrive's variables and Google Drive's drive markers | 2026-10-04 | Accepted |
+| [0075](0075-p102-job-origins-by-system-and-cowork-retired.md) | Job origins name the computer's system; the Cowork surfaces and origin are retired | 2026-10-05 | Accepted |
+| [0076](0076-p102-windows-ci-and-interpreter-fallback.md) | Windows runs the battery in CI; the hooks find a working Python, and the auditor's guard covers PowerShell | 2026-10-05 | Accepted |
+| [0077](0077-p102-custom-gpt-and-gems-retired.md) | The custom GPT and Gemini Gems surfaces and their export atoms are retired; the wizard writes the Claude Desktop settings file the app reads | 2026-10-05 | Accepted |
+| [0078](0078-p102-drive-hub-folder-on-windows.md) | On Windows the Drive hub may be a folder inside a Google Drive for desktop drive | 2026-10-07 | Accepted |

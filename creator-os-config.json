@@ -103,16 +103,6 @@
       "description": "scikit-learn MCP connected. Enables: ML classification, regression, clustering for audience segmentation and trend prediction.",
       "requires": "mcp-server-scikit-learn configured in Claude Desktop"
     },
-    "gemini_gem_export": {
-      "enabled": false,
-      "description": "Gemini Gem export packaging available. Enables: export-gem atom to package Creator OS for Google Gemini Gems.",
-      "requires": "No external dependency. Enable to activate the export-gem atom."
-    },
-    "custom_gpt_export": {
-      "enabled": false,
-      "description": "Custom GPT export packaging available. Enables: export-gpt atom to package Creator OS for OpenAI Custom GPTs.",
-      "requires": "No external dependency. Enable to activate the export-gpt atom."
-    },
     "youtube_publishing": {
       "enabled": false,
       "description": "YouTube video upload and scheduling via Data API v3. Enables: schedule-post atom to upload videos with publishAt scheduling. Separate from read-only youtube_api flag.",
@@ -329,8 +319,6 @@
     "stats_compass_disabled": "Pandas-based statistical tools unavailable. Hypothesis testing and correlation analysis limited to conceptual recommendations.",
     "jupyter_disabled": "Persistent notebook sessions unavailable. Multi-step computations cannot maintain state across turns.",
     "stats_general_disabled": "When no statistical MCP is available, all statistical atoms produce guidance-only output: they describe what test to run and provide runnable Python/R code, but do not compute results. All outputs labeled [guidance-only].",
-    "gem_export_disabled": "Gemini Gem packaging unavailable. Use the manual export files in implementation/gemini/ instead.",
-    "gpt_export_disabled": "Custom GPT packaging unavailable. Use the manual export files in implementation/gpt/ instead.",
     "publishing_disabled": "All per-platform publishing flags are off. schedule-post falls back to publish-draft (manual mode). Output includes a paste-ready caption, platform-specific posting checklist, and FTC reminder. No posts are queued or published automatically. Use the scheduling dashboard (tools/dashboard/) to manage posts visually.",
     "per_platform_publishing_disabled": "All per-platform publishing flags (youtube_publishing, instagram_publishing, tiktok_publishing, pinterest_publishing) are off. Every schedule-post call returns publishing_tier: manual and status: manual_required. Use publish-draft to get formatted paste-ready copy and a platform-specific posting checklist.",
     "live_publishing_disabled": "live_publishing_enabled is off (default). The Scheduling Dashboard and background scheduler run FTC/AIGC/tier compliance checks and update queue status (drafts advance to ready_to_post at the scheduled time) but make NO network call to any platform. Posting is manual: open the ready_to_post item and post it yourself. The tools/publishing/ clients are complete OAuth + upload REST clients; they are gated off (no network call) while this flag is off, not stubs.",

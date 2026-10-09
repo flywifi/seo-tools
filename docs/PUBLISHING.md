@@ -22,7 +22,8 @@ secret — the loopback flow's PKCE and `state` are what protect the exchange.
 
 Each platform's setup screen has a **Connect** button. It opens that platform's sign-in page in your
 browser, you approve the permission, and the platform redirects back to a local address the wizard is
-listening on (`http://127.0.0.1:8765/oauth/<platform>/callback`). The wizard verifies a one-time
+listening on (`http://127.0.0.1:8765/oauth/<platform>/callback`, or port 8775 or 8785 when the computer
+reserves 8765; see the port section below). The wizard verifies a one-time
 `state` value (CSRF protection), exchanges the code for a token, stores it, and turns the platform's
 publishing flag on. Publishing tokens live under `creds[<platform>].publish` so they never overwrite
 the read-only tokens the import feature uses.
@@ -72,7 +73,8 @@ you record a short video demo of your real integration for review.
 
 **Setup:** Pinterest Business account → developers.pinterest.com → create an app, request `pins:write`
 and `boards:read` → register the redirect URL the wizard shows
-(`http://127.0.0.1:8765/oauth/pinterest/callback`, exact match) → paste App ID + Secret → **Connect**.
+(`http://127.0.0.1:8765/oauth/pinterest/callback`, exact match; register the same address with port 8775
+and with port 8785 as well, see the port section below) → paste App ID + Secret → **Connect**.
 A `board_id` is required to create a Pin. Video Pins are not supported yet (image Pins only).
 
 ---
@@ -91,7 +93,8 @@ private. Public posting unlocks after TikTok approves your app.
 
 **Setup:** developers.tiktok.com → create an app → add *Content Posting API* + *Login Kit*, request
 `video.publish` → add the redirect URL the wizard shows
-(`http://127.0.0.1:8765/oauth/tiktok/callback`; TikTok allows localhost) → paste Client Key + Secret →
+(`http://127.0.0.1:8765/oauth/tiktok/callback`; TikTok allows localhost; register the same address with
+port 8775 and with port 8785 as well, see the port section below) → paste Client Key + Secret →
 **Connect**. Testing your own account works before the audit.
 
 ---
@@ -151,21 +154,40 @@ it on your own machine when you set up real publishing:
 - Pinterest tier/rate numbers and the exact test-token dashboard steps come from Pinterest docs that
   render as a single-page app; reconfirm against your live dashboard.
 
-## If port 8765 is already in use
+## If port 8765 is reserved or already in use
 
-The wizard binds `8765`, and the OAuth redirect URIs you registered above embed that exact port.
-If another app holds it, set the override and restart the wizard:
+The wizard tries a fixed block of ports in order: `8765`, then `8775`, then `8785`. It moves on to
+the next port when the computer refuses a port (Windows can reserve ports for Hyper-V and WinNAT;
+`netsh interface ipv4 show excludedportrange protocol=tcp` lists the reserved ranges; a program can
+also hold one on all addresses, under another account or exclusively), and it then prints the port it uses and the TikTok,
+Pinterest and Instagram redirect URIs for it. The redirect URIs embed the port, so register the
+three addresses once with each platform you connect. Pinterest accepts several redirect URIs per
+app and matches them exactly. TikTok's Login Kit for Desktop accepts up to 10, with `localhost` or
+`127.0.0.1` as the host, and supports a wildcard port, so one entry,
+`http://127.0.0.1:*/oauth/tiktok/callback`, covers the whole block and any override. For Instagram,
+add each address the wizard shows under Valid OAuth Redirect URIs in your Meta app. A Google Desktop
+client needs no registration. If a program already holds a port (often a second copy of the
+wizard), the wizard stops there and says it is already running or the port is in use, instead of
+moving on: open the address it prints, or close the other window.
+
+To use one port of your own instead, set the override and restart the wizard:
 
 ```bash
 CREATOR_OS_WIZARD_PORT=8790 python3 tools/wizard.py
 ```
 
-Read this before you do it: the redirect URI is matched **exactly** by every provider. Changing
-the port means the URIs registered with Google, Meta, TikTok, and Pinterest no longer match, and
-each OAuth flow will fail with a redirect-mismatch error until you edit the registered URI in
-that provider's console to the new port. If you have not connected any platform yet, changing the
-port costs nothing. If you already have, prefer freeing 8765 (quit the other app) over changing
-the port.
+Read this before you do it: a provider that matches the redirect URI exactly refuses an address you
+have not registered, so each OAuth flow fails with a redirect-mismatch error until you add the URI
+with the new port in that provider's console. If you have not connected any platform yet, changing
+the port costs nothing. If you already have, prefer freeing the port (quit the other app) over
+changing it.
 
-The override accepts 1024 to 65535; anything unparseable or out of range falls back to 8765 with
-a printed note rather than failing to start.
+The override accepts 1024 to 65535; anything unparseable or out of range falls back to the block
+with a printed note rather than failing to start.
+
+```sources
+[
+  {"id": "tiktok-login-kit-desktop", "name": "TikTok for Developers - Login Kit for Desktop", "url": "https://developers.tiktok.com/doc/login-kit-desktop/", "category": "platform-spec", "tier": "T1", "extraction_hint": "Redirect URIs: a maximum of 10; absolute and beginning with https or http; only localhost or the loopback IP 127.0.0.1 as host; a port number is required and a wildcard port (*) is supported."},
+  {"id": "pinterest-connect-app", "name": "Pinterest Developers - Connect app", "url": "https://developers.pinterest.com/docs/getting-started/connect-app/", "category": "platform-spec", "tier": "T1", "extraction_hint": "Multiple redirect URIs are accepted when configuring an app; the redirect_uri given during OAuth authorization must exactly match one listed in the app profile."}
+]
+```

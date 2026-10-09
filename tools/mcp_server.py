@@ -57,7 +57,10 @@ ROOT = Path(os.environ.get("CREATOR_OS_ROOT", str(HERE.parent)))
 
 sys.path.insert(0, str(HERE))
 import publishing_compliance as compliance  # noqa: E402
+import loopback_server  # noqa: E402  (P101: the wizard's and the dashboard's port records)
 from atomic_io import atomic_write_text as _atomic_write_text, locked as _locked  # noqa: E402
+import cache_records as _cache_records  # noqa: E402  (search and fetch over the cache index)
+import env_paths  # noqa: E402  (P102: UTF-8 for the repo tools this server runs)
 
 CONFIG_PATH = ROOT / "creator-os-config.json"
 CONFIG_LOCAL_PATH = ROOT / "creator-os-config.local.json"
@@ -72,64 +75,21 @@ def _cache_conn():
 
 
 def _record_url(source: str) -> str:
-    """Provenance URL for a knowledge record (connector citations require a non-empty url;
-    developers.openai.com/api/docs/mcp). The cache stores `source` REPO-RELATIVE (it already
-    starts with canonical-sources/; shared/cache/cache.py::str(jf.relative_to(ROOT))), so no
-    prefix is added here -- a doubled segment returned 404, which this
-    comment now guards against."""
-    return f"https://github.com/flywifi/seo-tools/blob/main/{source}"
+    """Provenance URL for a knowledge record (cache_records.record_url)."""
+    return _cache_records.record_url(source)
 
 
 def _search_impl(query: str, db_path=None) -> dict:
-    """Pure connector-contract search over the cache index (stdlib only, testable without the
-    mcp package -- the P61 package-independent pattern). Returns {"results": [{"id","title","url"}]}."""
-    import sqlite3
-    db = pathlib_Path(db_path) if db_path else _CACHE_DB
-    if not db.exists():
-        return {"results": [], "note": "cache not built; run: python3 shared/cache/cache.py --build"}
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-    try:
-        fts = conn.execute("SELECT v FROM meta WHERE k='fts5'").fetchone()[0] == "1"
-        rows = []
-        if fts:
-            try:
-                rows = conn.execute(
-                    "SELECT source, id, title FROM records WHERE records MATCH ? "
-                    "AND source NOT LIKE '%.local.%' ORDER BY bm25(records) LIMIT 8",
-                    (query,)).fetchall()
-            except Exception:  # noqa: BLE001 -- FTS5 syntax errors on hostile input -> LIKE
-                rows = []
-        if not rows:
-            like = f"%{query}%"
-            rows = conn.execute(
-                "SELECT source, id, title FROM records WHERE (text LIKE ? OR title LIKE ?) "
-                "AND source NOT LIKE '%.local.%' LIMIT 8", (like, like)).fetchall()
-    finally:
-        conn.close()
-    return {"results": [{"id": f"{s}::{i}", "title": ti or i, "url": _record_url(s)}
-                        for s, i, ti in rows if ".local." not in s]}
+    """Connector-contract search over the cache index (cache_records.search, stdlib only, so it runs
+    without the mcp package -- the P61 package-independent pattern). Returns
+    {"results": [{"id","title","url"}]}."""
+    return _cache_records.search(query, pathlib_Path(db_path) if db_path else _CACHE_DB)
 
 
 def _fetch_impl(record_id: str, db_path=None) -> dict:
-    """Pure connector-contract fetch by "source::record" id. Refuses .local. sources so a hosted
-    endpoint can never serve records that are not committed content."""
-    import sqlite3
-    source, _, rec = record_id.partition("::")
-    db = pathlib_Path(db_path) if db_path else _CACHE_DB
-    if ".local." in source or not db.exists():
-        return {"error": "unknown id"}
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-    try:
-        row = conn.execute(
-            "SELECT source, id, title, text FROM records WHERE source=? AND id=?",
-            (source, rec)).fetchone()
-    finally:
-        conn.close()
-    if not row:
-        return {"error": "unknown id"}
-    s, i, ttl, text = row
-    return {"id": f"{s}::{i}", "title": ttl or i, "text": text,
-            "url": _record_url(s), "metadata": {"source_file": s}}
+    """Connector-contract fetch by "source::record" id (cache_records.fetch). Refuses .local.
+    sources so a hosted endpoint can never serve records that are not committed content."""
+    return _cache_records.fetch(record_id, pathlib_Path(db_path) if db_path else _CACHE_DB)
 
 
 # Tool safety classification (P72). Pure data above the import guard so the completeness gate
@@ -981,9 +941,12 @@ def _selftest_static() -> tuple:
         _p2.write_text("{}", encoding="utf-8")
         os.chmod(_p2, 0o600)
         _atomic_write_text(_p2, "{\"a\": 1}\n")
-        ok("atomic write lands the bytes, leaves no temp file, and keeps the file's 0600 mode",
-           _p2.read_text() == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2]
-           and (os.stat(_p2).st_mode & 0o777) == 0o600)
+        # P101: NTFS keeps no POSIX mode bits (chmod sets only the read-only flag), so the 0600
+        # half applies off Windows only.
+        ok("atomic write lands the bytes, leaves no temp file, and keeps the file's 0600 mode"
+           + (" (mode not checked on Windows)" if os.name == "nt" else ""),
+           _p2.read_text(encoding="utf-8") == "{\"a\": 1}\n" and list(Path(_td2).iterdir()) == [_p2]
+           and (os.name == "nt" or (os.stat(_p2).st_mode & 0o777) == 0o600))
 
     # P81 C-3/C-5/C-6: operator-input validation (18 cases)
     def _rejects(fn, val, token):
@@ -1058,6 +1021,19 @@ def _selftest_static() -> tuple:
             if v is not None:
                 sys.modules[k] = v
 
+    # P101: the address helpers live in loopback_server (tested there, and loadable without the mcp
+    # package); this pins that the tools call them. Its mutation cases are not in file_hash's
+    # committed table, for two reasons: that runner execs this module, which exits at import where
+    # the mcp package is missing (as in CI); and this pin reads the file from disk, which a mutant
+    # held in memory does not change. They are run with the mutant written as the file's text.
+    # The searched text is assembled so that this check's own line does not match it.
+    _lb = "loopback_server."
+    ok("launch_setup and the publishing plan report the addresses the wizard and dashboard recorded",
+       src.count(_lb + "launched_wizard_url(proc, launch_id)") == 1
+       and src.count(_lb + "launch_note(url, confirmed)") == 1
+       and src.count('"dashboard_url": ' + _lb + "dashboard_url(),") == 1
+       and ('"dashboard_url": ' + '"http://localhost:') not in src)
+
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
 
@@ -1094,13 +1070,16 @@ mcp = _ServerClass("creator-os")   # the first positional is `name` in both majo
 
 
 def _run(cmd: list, input_text: str | None = None) -> tuple:
-    """Run a subprocess, return (exit_code, stdout, stderr)."""
+    """Run a subprocess, return (exit_code, stdout, stderr). The child's I/O and the reading here
+    are UTF-8 (env_paths.tool_io, P102): Claude Desktop starts this server without a UTF-8 setting,
+    and on Windows a child's pipe otherwise uses the ANSI code page, which stops a tool printing a
+    title with an emoji."""
     result = subprocess.run(
         cmd,
         cwd=str(ROOT),
         capture_output=True,
-        text=True,
         input=input_text,
+        **env_paths.tool_io(),
     )
     return result.returncode, result.stdout, result.stderr
 
@@ -1764,8 +1743,7 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
     Args:
         capability: The capability flag name (e.g. "wolfram_alpha", "e2b_sandbox",
                     "duckdb_analytics", "stats_compass", "jupyter_notebook",
-                    "r_statistics", "monte_carlo", "scikit_learn",
-                    "gemini_gem_export", "custom_gpt_export").
+                    "r_statistics", "monte_carlo", "scikit_learn").
         enabled: True to enable the capability, False to disable it.
     """
     with _WRITE_LOCK, _locked(CONFIG_LOCAL_PATH):   # P80 in-process, P81 cross-process (the wizard writes this file too)
@@ -1976,7 +1954,7 @@ def get_publishing_plan() -> str:
             "tiktok_publishing": _flag_enabled("tiktok_publishing"),
             "pinterest_publishing": _flag_enabled("pinterest_publishing"),
         },
-        "dashboard_url": "http://localhost:8766",
+        "dashboard_url": loopback_server.dashboard_url(),
         "note": (
             "All platforms in manual mode. No per-platform publishing connector is active. "
             "Enable per-platform flags in creator-os-config.local.json or use the scheduling dashboard."
@@ -2590,26 +2568,31 @@ def launch_setup() -> str:
     """Open the Creator OS setup wizard in the user's web browser (no terminal needed).
 
     Spawns tools/wizard.py as a local background process; it serves a guided setup at
-    http://localhost:8765/ and opens the browser automatically. This works ONLY where Creator OS runs
+    http://127.0.0.1:8765/ (or 8775, then 8785, when the computer reserves 8765) and opens the
+    browser automatically, and this reports the address it bound. This works ONLY where Creator OS runs
     as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code) — a hosted/remote
     connector runs in the vendor's cloud and cannot open a browser or reach the user's computer.
     Nothing is installed or changed by this call itself; the wizard asks for consent at each step."""
     wizard = HERE / "wizard.py"
     if not wizard.exists():
         return json.dumps({"error": "wizard not found", "path": str(wizard)})
+    launch_id = os.urandom(8).hex()   # P101: the wizard records it with the port it bound
     try:
-        kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
+                        "env": dict(env_paths.tool_env(), CREATOR_OS_WIZARD_LAUNCH_ID=launch_id)}
         if os.name == "posix":
             kwargs["start_new_session"] = True
-        subprocess.Popen([sys.executable, str(wizard)], **kwargs)
+        proc = subprocess.Popen([sys.executable, str(wizard)], **kwargs)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": f"could not start the wizard: {exc}",
                            "manual": "Run: python3 tools/wizard.py"})
+    url, confirmed = loopback_server.launched_wizard_url(proc, launch_id)
     return json.dumps({
         "result": "launching",
-        "url": "http://localhost:8765/",
-        "note": "The setup wizard is opening in your web browser. If it does not open, visit the URL "
-                "above. This works only when Creator OS runs locally (Claude Desktop or Claude Code), "
+        "url": url,
+        "address_confirmed": confirmed,
+        "note": loopback_server.launch_note(url, confirmed)
+                + " This works only when Creator OS runs locally (Claude Desktop or Claude Code), "
                 "not from a browser-only or hosted connector.",
     }, indent=2)
 
@@ -2867,6 +2850,23 @@ if __name__ == "__main__":
             finally:
                 globals()["CONFIG_LOCAL_PATH"] = _orig_cfg
         print(("ok   " if _conc_ok else "FAIL ") + "concurrent configure_tool writes serialise and stay parseable (P80)")
+        # P102: a repo tool run through _run prints an emoji title intact under a cp1252 parent codec
+        # (what a Windows pipe uses when Claude Desktop starts this server).
+        _title_u = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
+        _env_u = {k: os.environ.get(k) for k in ("PYTHONIOENCODING", "PYTHONUTF8")}
+        try:
+            os.environ["PYTHONIOENCODING"] = "cp1252"
+            os.environ.pop("PYTHONUTF8", None)
+            _ran_u = _run([sys.executable, "-c", "import sys; print(sys.argv[1])", _title_u])
+        finally:
+            for _k, _v in _env_u.items():
+                if _v is None:
+                    os.environ.pop(_k, None)
+                else:
+                    os.environ[_k] = _v
+        _utf8_ok = _ran_u[0] == 0 and _ran_u[1].strip() == _title_u
+        print(("ok   " if _utf8_ok else "FAIL ")
+              + f"a repo tool run through _run prints an emoji title intact under a cp1252 parent codec (rc {_ran_u[0]})")
 
         def _selftest_transport_policy(ok_fn, is_v2, server_cls, loopback_hosts, allowed_hosts_settings):
             """P81: the transport-policy test. For each (bind host, allow-list) the EFFECTIVE settings are
@@ -2920,7 +2920,8 @@ if __name__ == "__main__":
                                                     _allowed_hosts_settings)
         except Exception as _exc:  # noqa: BLE001
             print(f"FAIL transport-policy selftest raised: {_exc}")
-        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _policy_ok and _RC_STATIC == 0) else 1
+        _rc = 0 if (_match and _ann_ok and _shape_ok and _conc_ok and _utf8_ok and _policy_ok
+                    and _RC_STATIC == 0) else 1
         print(f"mcp_server selftest: full tier {'PASS' if _rc == 0 else 'FAIL'} "
               f"(package-independent tier {'PASS' if _RC_STATIC == 0 else 'FAIL'}, "
               f"{_live} tools live)")

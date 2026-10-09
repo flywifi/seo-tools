@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -155,10 +156,25 @@ OUTBOX_TYPES = {"library_analyze", "finance_report", "inbox_scan", "import_parse
                 "keyword_offline", "transcript_normalize"}
 
 
+def _platform_tag(system=None) -> str:
+    """The machine tag in an Outbox file name: mac, windows or linux, from platform.system() (or
+    the name given). A native or mingw-w64 Python on Windows reports Windows; a Python built on the
+    Cygwin or MSYS2 runtime reports a CYGWIN_NT-, MSYS_NT- or MINGW64_NT- name and tags windows too,
+    because the tag names the computer that ran the job. A Python under WSL reports Linux and tags
+    linux. wizard._os() maps the _NT names to linux because it picks shell commands."""
+    s = platform.system() if system is None else system
+    if s == "Darwin":
+        return "mac"
+    if s == "Windows" or "_NT" in s:
+        return "windows"
+    return "linux"
+
+
 def _deliver_outbox(hub_root, job_type, stdout):
-    """Atomically write a done job's stdout JSON to <hub>/Outbox/<job_type>.<UTC>Z.mac.json (the
-    P60 dated naming rule). Returns the created name, or None when stdout is not valid JSON (the
-    Jobs/results .out.txt capture still holds it either way)."""
+    """Atomically write a done job's stdout JSON to <hub>/Outbox/<job_type>.<UTC>Z.<tag>.json, where
+    <tag> is _platform_tag() for the computer that ran the job (the P60 dated naming rule). Returns
+    the created name, or None when stdout is not valid JSON (the Jobs/results .out.txt capture
+    still holds it either way)."""
     try:
         json.loads(stdout)
     except (ValueError, TypeError):
@@ -166,11 +182,12 @@ def _deliver_outbox(hub_root, job_type, stdout):
     stamp = q._utcnow().replace(":", "")
     outbox = Path(hub_root) / "Outbox"
     outbox.mkdir(parents=True, exist_ok=True)
-    name = f"{job_type}.{stamp}.mac.json"
+    tag = _platform_tag()
+    name = f"{job_type}.{stamp}.{tag}.json"
     n = 1
     while (outbox / name).exists():
         n += 1
-        name = f"{job_type}.{stamp}.{n}.mac.json"
+        name = f"{job_type}.{stamp}.{n}.{tag}.json"
     tmp = outbox / (name + ".tmp")
     tmp.write_text(stdout, encoding="utf-8")
     os.replace(tmp, outbox / name)
@@ -215,6 +232,18 @@ def handoff_enabled(config=None) -> bool:
     return capability_enabled("compute_handoff_enabled", config)
 
 
+def _archive(hub_root, ticket_path) -> bool:
+    """Move a handled ticket to Jobs/archive. A ticket that cannot be moved (on Windows, a file
+    another program holds open, as Drive for desktop does mid-sync) is left where it is, so the
+    rest of the pass goes on; its result is already written, so the next pass reads it as
+    duplicate_skipped and archives it then (P102)."""
+    try:
+        q.archive_ticket(hub_root, ticket_path)
+        return True
+    except OSError:
+        return False
+
+
 def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
     """Execute one parsed ticket. Returns the result dict written to Jobs/results/. Never raises
     on a bad ticket or failed tool; every path lands as an honest result file + archived ticket."""
@@ -224,39 +253,41 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
     if errs:
         key = key or Path(ticket_path).stem
         q.write_result(hub_root, key, "refused", error="; ".join(errs), tool_version=_version())
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     if q.has_result(hub_root, key):
         # Idempotency: duplicate delivery / conflict copy. Archive the extra ticket, run nothing.
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "duplicate_skipped"}
 
     inputs, ref_errs = q.resolve_input_refs(hub_root, data.get("input_refs"))
     if ref_errs:
         q.write_result(hub_root, key, "refused", error="; ".join(ref_errs), tool_version=_version())
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     builder = JOB_BUILDERS.get(data["job_type"])
     if builder is None:
         q.write_result(hub_root, key, "refused", tool_version=_version(),
                        error=f"job type '{data['job_type']}' is not wired in this version")
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     build, timeout = builder
     argv, build_err = build(data.get("params", {}), inputs, hub_root)
     if build_err:
         q.write_result(hub_root, key, "refused", error=build_err, tool_version=_version())
-        q.archive_ticket(hub_root, ticket_path)
+        _archive(hub_root, ticket_path)
         return {"job_id": key, "status": "refused"}
 
     started = q._utcnow()
     out_file = q.hub_paths(hub_root)["results"] / f"{key}.out.txt"
     try:
+        # UTF-8 both ways (P102): on Windows a child's pipe otherwise uses the ANSI code page, and a
+        # title with an emoji stops the tool with UnicodeEncodeError.
         proc = spawn([env_paths.app_python(str(ROOT))] + argv, capture_output=True,
-                     text=True, timeout=timeout, cwd=str(ROOT))
+                     timeout=timeout, cwd=str(ROOT), **env_paths.tool_io())
         stdout = proc.stdout or ""
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(stdout, encoding="utf-8")
@@ -278,7 +309,7 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
         q.write_result(hub_root, key, "failed", started_at=started, tool_version=_version(),
                        error=str(exc))
         status = "failed"
-    q.archive_ticket(hub_root, ticket_path)
+    _archive(hub_root, ticket_path)
     return {"job_id": key, "status": status}
 
 
@@ -299,12 +330,12 @@ def run_pass(hub_root, *, spawn=subprocess.run, allow=None) -> list:
             key = e["path"].stem
             if not q.has_result(hub_root, key):
                 q.write_result(hub_root, key, "refused", error=e["error"], tool_version=_version())
-            q.archive_ticket(hub_root, e["path"])
+            _archive(hub_root, e["path"])
             results.append({"job_id": key, "status": "refused"})
             continue
         jid = e["data"].get("job_id")
         if jid in seen_ids:
-            q.archive_ticket(hub_root, e["path"])
+            _archive(hub_root, e["path"])
             results.append({"job_id": jid, "status": "duplicate_skipped"})
             continue
         seen_ids.add(jid)
@@ -339,7 +370,7 @@ def selftest() -> int:
     ok("argv is the real tool, not a shell", calls[0][1].endswith("video_library.py"))
 
     # P61: a done report-type job ALSO delivers its stdout JSON to <hub>/Outbox/.
-    ob_files = sorted((hub / "Outbox").glob("library_analyze.*.mac.json"))
+    ob_files = sorted((hub / "Outbox").glob(f"library_analyze.*.{_platform_tag()}.json"))
     result_doc = json.loads(q.result_path(hub, t["job_id"]).read_text())
     ok("done outbox-type job delivers to Outbox",
        len(ob_files) == 1 and json.loads(ob_files[0].read_text()) == {"ok": True})
@@ -422,7 +453,8 @@ def selftest() -> int:
     # P61: the transcribe builder points the SRT at the hub results, not next to the input.
     argv_t, _ = _build_transcribe({}, ["Inbox/Processed/2026-07-17/clip.mp4"], hub)
     ok("transcribe writes under Jobs/results",
-       "--out-dir" in argv_t and argv_t[argv_t.index("--out-dir") + 1].endswith("Jobs/results"))
+       "--out-dir" in argv_t
+       and Path(argv_t[argv_t.index("--out-dir") + 1]).parts[-2:] == ("Jobs", "results"))
 
     # P61 + P63: transcript_normalize builds the transcripts.py --normalize argv,
     # and the argv is RUN against a committed fixture with the output shape asserted (the shipped
@@ -433,7 +465,7 @@ def selftest() -> int:
     fixture_srt = ROOT / "skills" / "creator-core" / "evals" / "fixtures" / "workshop-footage.srt"
     argv_nf, _ = _build_transcript_normalize({}, [str(fixture_srt)], hub)
     proc_n = subprocess.run([env_paths.app_python(str(ROOT))] + argv_nf,
-                            capture_output=True, text=True, timeout=60, cwd=str(ROOT))
+                            capture_output=True, timeout=60, cwd=str(ROOT), **env_paths.tool_io())
     try:
         norm_out = json.loads(proc_n.stdout)
     except (json.JSONDecodeError, ValueError):
@@ -448,7 +480,7 @@ def selftest() -> int:
     argv_lc, err_lc = _build_library_complete({"command": "match"}, [export_dir], hub)
     ok("library_complete builds --export-dir argv", err_lc is None and "--export-dir" in argv_lc)
     proc_lc = subprocess.run([env_paths.app_python(str(ROOT))] + argv_lc,
-                             capture_output=True, text=True, timeout=60, cwd=str(ROOT))
+                             capture_output=True, timeout=60, cwd=str(ROOT), **env_paths.tool_io())
     ok("library_complete argv is argparse-accepted", proc_lc.returncode == 0)
 
     # P61 (decision WRITE-OPTIN): --write appears only when the ticket asks AND the local capability is on.
@@ -475,11 +507,147 @@ def selftest() -> int:
        _build_keyword_offline({"query": "x" * 501}, [], hub)[1] is not None)
     # and the built argv actually runs clean against the committed library (zero network).
     proc_k = subprocess.run([env_paths.app_python(str(ROOT))] + argv_k,
-                            capture_output=True, text=True, timeout=120, cwd=str(ROOT))
+                            capture_output=True, timeout=120, cwd=str(ROOT), **env_paths.tool_io())
     rep_k = json.loads(proc_k.stdout) if proc_k.returncode == 0 else {}
     ok("keyword_offline argv runs clean with the honesty envelope",
        proc_k.returncode == 0 and rep_k.get("search_volumes") is None and
        rep_k.get("data_basis", "").startswith("local keyword library"))
+
+    # P101: an Outbox name carries the system of the computer that ran the job.
+    ok("platform tag maps system names to mac, windows and linux",
+       [_platform_tag(s) for s in ("Darwin", "Windows", "CYGWIN_NT-10.0-26100", "MSYS_NT-10.0-26100",
+                                   "MINGW64_NT-10.0-26100", "Linux", "FreeBSD", "")]
+       == ["mac", "windows", "windows", "windows", "windows", "linux", "linux", "linux"])
+    real_system, seen_tags = platform.system, []
+    try:
+        for sysname in ("Darwin", "Windows", "Linux"):
+            platform.system = lambda sysname=sysname: sysname
+            seen_tags.append(_platform_tag())
+    finally:
+        platform.system = real_system
+    ok("platform tag reads platform.system() when no name is given",
+       seen_tags == ["mac", "windows", "linux"])
+    real_tag, real_now, names = globals()["_platform_tag"], q._utcnow, []
+    oh = Path(tempfile.mkdtemp())
+    try:
+        q._utcnow = lambda: "2026-10-04T12:00:00Z"
+        for tag in ("mac", "windows", "linux", "windows"):
+            globals()["_platform_tag"] = lambda system=None, tag=tag: tag
+            names.append(_deliver_outbox(oh, "library_analyze", '{"ok": true}'))
+    finally:
+        globals()["_platform_tag"], q._utcnow = real_tag, real_now
+    ok("an Outbox name ends in the tag and is numbered on a same-second collision",
+       names == ["library_analyze.2026-10-04T120000Z.mac.json",
+                 "library_analyze.2026-10-04T120000Z.windows.json",
+                 "library_analyze.2026-10-04T120000Z.linux.json",
+                 "library_analyze.2026-10-04T120000Z.2.windows.json"])
+
+    # P102: a ticket that cannot be archived (held open on a Drive hub) is left for the next pass,
+    # which reads its result as duplicate_skipped and archives it; the rest of the pass goes on.
+    ah = Path(tempfile.mkdtemp(prefix="runner-lock-"))
+    q.ensure_hub_dirs(ah)
+    q.submit(ah, "library_analyze")
+    q.submit(ah, "library_analyze")
+    real_archive, held = q.archive_ticket, []
+
+    def locked_archive(hub_root, ticket_path):
+        if not held:
+            held.append(Path(ticket_path).name)
+            raise PermissionError(32, "The process cannot access the file because it is being used by "
+                                      "another process")
+        return real_archive(hub_root, ticket_path)
+    q.archive_ticket = locked_archive
+    try:
+        lock_pass = run_pass(ah, spawn=fake_spawn, allow=True)
+    finally:
+        q.archive_ticket = real_archive
+    left = sorted(p.name for p in q.hub_paths(ah)["queue"].glob("job.*.json"))
+    next_pass = run_pass(ah, spawn=fake_spawn, allow=True)
+    ok("a ticket that cannot be archived stays queued while the pass goes on, and the next pass "
+       "skips it as a duplicate and archives it",
+       [r["status"] for r in lock_pass] == ["done", "done"] and left == held
+       and [r["status"] for r in next_pass] == ["duplicate_skipped"]
+       and not list(q.hub_paths(ah)["queue"].glob("job.*.json"))
+       and len(list(q.hub_paths(ah)["archive"].glob("job.*.json"))) == 2)
+
+    # P102: the other archive paths leave a locked ticket too: a ticket that does not parse, a second
+    # ticket with a job_id already seen this pass (a Drive conflict copy), a ticket validation
+    # refuses, and one whose result exists. The ticket after each still runs.
+    def locked_names(*names):
+        def archive(hub_root, ticket_path):
+            if Path(ticket_path).name in names:
+                raise OSError(5, "Input/output error")
+            return real_archive(hub_root, ticket_path)
+        return archive
+    import uuid
+    lh = Path(tempfile.mkdtemp(prefix="runner-lock-paths-"))
+    q.ensure_hub_dirs(lh)
+    lq = q.hub_paths(lh)["queue"]
+    first = q.submit(lh, "library_analyze")
+    first_file = next(lq.glob("job.*.json"))
+    (lq / f"{first_file.stem} (1).json").write_text(first_file.read_text(encoding="utf-8"), encoding="utf-8")
+    (lq / "job.0-broken.json").write_text("{not json", encoding="utf-8")
+    (lq / "job.1-refused.json").write_text(json.dumps(dict(first, job_id=str(uuid.uuid4()),
+                                                           job_type="not_a_job")), encoding="utf-8")
+    q.submit(lh, "library_analyze")
+    locked_all = ("job.0-broken.json", "job.1-refused.json", first_file.name, f"{first_file.stem} (1).json")
+    q.archive_ticket = locked_names(*locked_all)
+    try:
+        paths_pass = run_pass(lh, spawn=fake_spawn, allow=True)
+        paths_raised = None
+    except OSError as exc:
+        paths_pass, paths_raised = [], repr(exc)
+    finally:
+        q.archive_ticket = real_archive
+    left_paths = sorted(p.name for p in lq.glob("job.*.json"))
+    ok("a locked ticket that does not parse, repeats a job_id or is refused stays queued, and the "
+       "tickets after it still run",
+       paths_raised is None and sorted(r["status"] for r in paths_pass)
+       == ["done", "done", "duplicate_skipped", "refused", "refused"] and left_paths == sorted(locked_all))
+    q.archive_ticket = locked_names(f"{first_file.stem} (1).json")
+    try:
+        dup_job = run_job(lh, lq / f"{first_file.stem} (1).json", first)
+        dup_raised = None
+    except OSError as exc:
+        dup_job, dup_raised = {}, repr(exc)
+    finally:
+        q.archive_ticket = real_archive
+    ok("run_job leaves a locked ticket whose result exists and reports it as a duplicate",
+       dup_raised is None and dup_job.get("status") == "duplicate_skipped"
+       and (lq / f"{first_file.stem} (1).json").is_file())
+
+    # P102: a job whose tool prints an emoji, with this process's codec forced to cp1252 (what a
+    # Windows pipe uses), is done with the text intact; the spawn reads and writes UTF-8.
+    eh = Path(tempfile.mkdtemp(prefix="runner-utf8-"))
+    q.ensure_hub_dirs(eh)
+    title = "Restoring an armoire \U0001f3a5 (before \u2192 after, caf\u00e9)"
+    real_builder = JOB_BUILDERS["library_analyze"]
+    saved_env = {k: os.environ.get(k) for k in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    seen_kw = []
+
+    def recording_spawn(argv, **kw):
+        seen_kw.append(kw)
+        return subprocess.run(argv, **kw)
+    JOB_BUILDERS["library_analyze"] = (
+        lambda params, inputs, hub_root: (["-c", "import sys; print(sys.argv[1])", title], None), 60)
+    try:
+        os.environ["PYTHONIOENCODING"] = "cp1252"
+        os.environ.pop("PYTHONUTF8", None)
+        q.submit(eh, "library_analyze")
+        r_utf8 = run_pass(eh, spawn=recording_spawn, allow=True)
+    finally:
+        JOB_BUILDERS["library_analyze"] = real_builder
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    out_utf8 = [f.read_text(encoding="utf-8") for f in q.hub_paths(eh)["results"].glob("*.out.txt")]
+    ok("a job whose tool prints an emoji under a cp1252 parent codec is done with the text intact",
+       [r["status"] for r in r_utf8] == ["done"] and out_utf8 == [title + "\n"])
+    ok("the job spawn reads UTF-8 and gives the child a UTF-8 environment, not text=True",
+       len(seen_kw) == 1 and seen_kw[0].get("encoding") == "utf-8" and "text" not in seen_kw[0]
+       and seen_kw[0]["env"].get("PYTHONIOENCODING") == "utf-8" and seen_kw[0]["env"].get("PYTHONUTF8") == "1")
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

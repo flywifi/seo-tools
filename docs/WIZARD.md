@@ -148,11 +148,16 @@ travel (multi-skill orchestration needs the plugin door).
 
 From `/publishing-setup`, the wizard connects each platform with a **Connect** button that runs an
 in-browser sign-in (a loopback OAuth flow: the platform redirects back to
-`http://127.0.0.1:8765/oauth/<platform>/callback`, the wizard verifies a one-time `state` and stores
+`http://127.0.0.1:8765/oauth/<platform>/callback`, or port 8775 or 8785 when the computer reserves
+8765; the wizard verifies a one-time `state` and stores
 the token locally). Each screen states the platform's real limits up front -- YouTube's ~7-day
 Testing-mode re-auth, TikTok's private-until-audit, Pinterest's sandbox-only Trial Pins, and
 Instagram's public-URL + professional-account requirements. Tokens are saved to
-`pipeline/user-context/api-credentials.local.json` (owner-only, gitignored). **Live posting stays off
+`pipeline/user-context/api-credentials.local.json` (owner-only, gitignored), under the same file
+lock the dashboard and the watcher take; when that file does not parse, the wizard keeps a
+`.corrupt.<stamp>.bak` copy (owner-only, one per distinct content
+<!-- verify: tools/wizard.py::_keep_credentials_copy -->) and refuses the save, so the other
+platforms' tokens are not overwritten <!-- verify: tools/wizard.py::_merge_api_credentials -->. **Live posting stays off
 by default** (`live_publishing_enabled`), and every post needs your explicit confirmation. Full
 per-platform playbook: `docs/PUBLISHING.md`.
 
@@ -198,16 +203,32 @@ The wizard is a small Python script (`tools/wizard.py`) that runs a local web se
 leaves your computer except the OAuth flows to the providers' own servers (Google, Microsoft, and --
 during publishing setup -- YouTube/Google, Instagram/Meta, TikTok, and Pinterest).
 
-If port 8765 is already taken, set `CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable
-or out of range falls back to 8765 with a printed note):
+The server binds the first port of a fixed block, `8765`, `8775`, `8785`, moving on when the
+computer refuses a port (Windows can reserve ports for Hyper-V and WinNAT, and a program can hold
+one on all addresses under another account or exclusively); it prints the port it uses and records
+it in the ignored `creator-os-wizard-port.local.json`, which the Scheduling Dashboard's setup link
+and the `launch_setup` MCP tool read. A port another program holds (often a second copy) stops it
+with "already running, or port N is in use" instead, and so does the port last recorded when a
+wizard answers there, or the connection is accepted without an answer within about a second (that
+message names `creator-os-wizard-port.local.json`, to delete when no wizard is open). On
+Windows it binds without `SO_REUSEADDR`, so a second copy fails with "already running" rather than
+sharing the port (Microsoft's bind table; ADR 0073). The server answers one request at a time, so it
+closes a connection that sends nothing for 3 seconds (`loopback_server.REQUEST_TIMEOUT`
+<!-- verify: tools/loopback_server.py::REQUEST_TIMEOUT -->): a browser opens spare connections
+ahead of use, and one left idle would otherwise hold pages, and Quit, until the browser
+closed it. The Scheduling Dashboard does the same. On Windows, `Start Creator OS Setup.bat` keeps
+its window open when the wizard stops with an error, so the message can be read. To use one port
+of your own, set
+`CREATOR_OS_WIZARD_PORT` (1024 to 65535; anything unparseable or out of range falls back to the block
+with a printed note):
 
 ```bash
 CREATOR_OS_WIZARD_PORT=8790 python3 tools/wizard.py
 ```
 
-Only do this deliberately. The OAuth redirect URIs you register with each provider embed the
-port and are matched exactly, so changing it breaks every already-connected platform until you
-update the registered URI in that provider's console. Details in `docs/PUBLISHING.md`.
+Only do this deliberately. The OAuth redirect URIs you register with TikTok and Pinterest embed the
+port and are matched exactly, so a port you have not registered breaks those connections until you
+add its URI in that provider's console. Details in `docs/PUBLISHING.md`.
 
 **Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
 is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you
@@ -222,7 +243,7 @@ cannot approve each other's scan.
 | File | What changes |
 |---|---|
 | `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) | Adds creator-os, google-workspace, and/or microsoft-365 MCP server entries |
-| `%APPDATA%\Claude\claude_desktop_config.json` (Windows) | Same |
+| Windows: the file Claude Desktop's `main.log` names; else the packaged app's `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json`, plus `%APPDATA%\Claude\claude_desktop_config.json` when that file exists; else `%APPDATA%\Claude\claude_desktop_config.json` <!-- verify: tools/wizard.py::_claude_config_targets --> | Same, merged into each file from its own content; the screen names each file |
 | `~/.config/Claude/claude_desktop_config.json` (Linux) | Same |
 | `creator-os-config.local.json` (repo root) | Sets `google_workspace: true` and/or `microsoft_365: true` in capabilities |
 

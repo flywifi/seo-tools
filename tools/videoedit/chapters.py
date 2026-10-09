@@ -139,7 +139,12 @@ def _main(argv) -> int:
 def main(argv) -> int:
     """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
     example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
-    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback. Its output is UTF-8
+    when stdout is redirected or piped (env_paths.utf8_stdio, P102), so a title with an emoji
+    reaches the file instead of stopping the tool on Windows."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # tools/, for env_paths
+    import env_paths
+    env_paths.utf8_stdio()
     try:
         return _main(argv)
     except OSError as exc:
@@ -188,6 +193,25 @@ def selftest() -> int:
                        {"start_seconds": 6, "title": "c"}]))))
     ok("every gap names an impact and a next step, never a bare complaint",
        all({"impact", "recommended_next_step"} <= set(g) for g in validate([])))
+
+    # P102: the chapter list redirected to a file keeps emoji and accents under a cp1252 codec (what a
+    # Windows pipe or `> file` uses), and main switches stdout to UTF-8 to do it.
+    import os
+    import subprocess
+    import tempfile
+    titles = ["Intro", "Sanding \u2014 prep \u2728", "Paint & caf\u00e9 finish"]
+    with tempfile.TemporaryDirectory() as td:
+        pkg = Path(td) / "pkg.json"
+        pkg.write_text(json.dumps([{"start_seconds": s, "title": t} for s, t in zip((0, 42, 120), titles)]),
+                       encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        env.pop("PYTHONUTF8", None)
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve()), str(pkg)], capture_output=True,
+                           env=env, timeout=60)
+    ok("the chapter list piped under a cp1252 codec keeps emoji and accents",
+       r.returncode == 0 and r.stdout.decode("utf-8").splitlines()[:3]
+       == ["0:00 Intro", "0:42 Sanding \u2014 prep \u2728", "2:00 Paint & caf\u00e9 finish"])
+    ok("main switches a redirected stdout to UTF-8", "utf8_stdio" in main.__code__.co_names)
 
     print(f"chapters selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

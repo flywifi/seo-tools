@@ -29,7 +29,9 @@
       ],
       "origins": [
         "desktop",
-        "mac"
+        "mac",
+        "windows",
+        "linux"
       ],
       "setup_steps": [
         "Install Claude Desktop into ~/Applications (per-user) and keep your Creator OS folder on this computer; everything Creator OS installs stays inside your user account (docs/INSTALL-SCOPE.md).",
@@ -61,7 +63,9 @@
       ],
       "origins": [
         "desktop",
-        "mac"
+        "mac",
+        "windows",
+        "linux"
       ],
       "setup_steps": [
         "Open a terminal in your Creator OS folder.",
@@ -98,78 +102,11 @@
         "Best door on a paid plan: install the Creator OS plugin (Customize, then Plugins; a GitHub-repo marketplace can be added by URL per support article 13837440). Skills and connectors then work in any conversation; deeper automation runs in agentic sessions.",
         "Knowledge door, any plan: add the Creator OS knowledge files to a claude.ai Project, either by uploading them or by connecting the GitHub repository to the Project's knowledge and selecting implementation/claude/project/ (sync is manual via Sync now; support article 10167454). Free plans are capped at five projects (support article 9517075).",
         "Individual skills, any plan: enable code execution (Settings, then Capabilities), then upload a self-contained skill ZIP under Customize, then Skills (support article 12512180). Skills that reference repo-root shared/ paths need the plugin door instead.",
-        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it under Customize, then Connectors (Free plans can hold one custom connector; support article 11176164)."
+        "For live tools, you or your developer must deploy the remote MCP endpoint behind HTTPS with authentication (implementation/gpt/mcp-connector/README.md), then add it under Customize, then Connectors (Free plans can hold one custom connector; support article 11176164).",
+        "Agentic tasks started from a conversation run in a cloud sandbox that is cleared when the task ends: keep stateful data in Google Drive or a hosted connector, and reach files on this computer only through Claude Desktop with its trusted folders (support article 16761823)."
       ],
       "needs_verification": [
         "plan gating of the GitHub-to-project-knowledge connector (support article 10167454 does not state plans)"
-      ]
-    },
-    "cowork_local": {
-      "label": "Claude Cowork (local session on this computer)",
-      "vendor": "anthropic",
-      "class_support": {
-        "A": "native",
-        "B": "native",
-        "C": "native"
-      },
-      "carries": [
-        "connected_files",
-        "python_runtime",
-        "remote_mcp_connectors",
-        "plugin_skills",
-        "flag_enforcement"
-      ],
-      "flags_enforced": true,
-      "local_machine_required": true,
-      "store_options": [
-        "local_fs",
-        "google_drive"
-      ],
-      "origins": [
-        "cowork"
-      ],
-      "setup_steps": [
-        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20); this row describes the local-execution path, which remains for existing desktop deployments while the staged rollout (Pro and Max first) proceeds. The Desktop app must be open for local folders, the built-in browser, computer use, and local MCP.",
-        "Install Creator OS through the plugin marketplace.",
-        "Open the Desktop app's Cowork tab and choose a local session (a hypervisor-isolated VM on this computer).",
-        "Connect the Creator OS folder so the session can reach your files."
-      ],
-      "needs_verification": [
-        "STT backend presence inside the local VM (transcription is native only if a backend is installed)",
-        "connected-folder reliability for large media files"
-      ]
-    },
-    "cowork_remote": {
-      "label": "Claude Cowork (remote ephemeral sandbox)",
-      "vendor": "anthropic",
-      "class_support": {
-        "A": "native",
-        "B": "remote_mcp",
-        "C": "remote_mcp"
-      },
-      "carries": [
-        "plugin_skills",
-        "remote_mcp_connectors",
-        "connected_files"
-      ],
-      "flags_enforced": false,
-      "local_machine_required": false,
-      "store_options": [
-        "google_drive",
-        "export_and_you_save"
-      ],
-      "origins": [
-        "cowork"
-      ],
-      "setup_steps": [
-        "Claude chat and Cowork are one Claude as of 2026-09-16 (support article 16761823, fetched 2026-09-20): agentic cloud sessions now start from any conversation, no separate Cowork mode. This row describes those cloud sessions; rollout is staged from Pro and Max, so a pre-merge account still sees the separate Cowork surface this row originally described (support article 14479288).",
-        "Install Creator OS through the plugin marketplace; an organization's plugin auto-sync fires only when a version-bump PR merges.",
-        "Reach stateful data through Google Drive or a hosted connector; the sandbox is destroyed at session end, so nothing written to its local disk (including .local store files) persists.",
-        "Local stdio MCP servers do not run here; connect capabilities as remote MCP connectors, and reach local files only through folders explicitly connected in the Desktop app."
-      ],
-      "needs_verification": [
-        "the exact remote-MCP attach transport",
-        "whether a repo clone behaves identically to Claude Code on the web"
       ]
     },
     "chatgpt_web_plain": {
@@ -187,7 +124,8 @@
       "flags_enforced": false,
       "local_machine_required": false,
       "store_options": [
-        "export_and_you_save"
+        "export_and_you_save",
+        "google_drive_conditional"
       ],
       "origins": [],
       "setup_steps": [
@@ -196,39 +134,11 @@
         "Paste the two boxes from implementation/gpt/web/custom-instructions.md (the file tells you which text goes in which box).",
         "This is knowledge-only mode: no live data, no local tools, no capability flags. Numbers you did not supply in the chat are never real Creator OS data.",
         "At the start of a session, upload your latest dated export file if you keep one (see the read-back steps in docs/TRANSITIONS.md).",
-        "To get live tools without leaving ChatGPT, there are two upgrade routes: deploy the MCP connector and add it in ChatGPT developer mode (works on ChatGPT web and desktop; see implementation/gpt/mcp-connector/README.md), or install the local setup and use Claude Desktop. Knowledge-only is what PLAIN chat gives you, not the ceiling of ChatGPT."
-      ],
-      "needs_verification": []
-    },
-    "chatgpt_custom_gpt": {
-      "label": "Custom GPT (built in the ChatGPT GPT builder)",
-      "vendor": "openai",
-      "class_support": {
-        "A": "paste",
-        "B": "action",
-        "C": "none"
-      },
-      "carries": [
-        "pasted_instructions",
-        "knowledge_files",
-        "actions"
-      ],
-      "flags_enforced": false,
-      "local_machine_required": false,
-      "store_options": [
-        "export_and_you_save"
-      ],
-      "origins": [],
-      "setup_steps": [
-        "IMPORTANT (confirmed 2026-09-19, help article 8554397 read in full): creating or publishing a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace. Personal plans (Free, Go, Plus, Pro) can still USE and edit existing GPTs but cannot build new ones. On a personal plan, use ChatGPT Projects instead (the recommended door).",
-        "RETIREMENT NOTICE: OpenAI plans to retire Custom GPTs in favor of Plugins. Enterprise workspaces lose them on 2026-12-11; other plans are expected to follow; a migration flow is targeted for 2026-09-17. Prefer the Project or connector door for new setups; existing GPTs keep working until retirement.",
-        "If you have a workspace: ask Creator OS (on your computer) for a Custom GPT export; the export-gpt package gives you the instruction file and knowledge files.",
-        "In the GPT builder, paste the instruction file and upload the knowledge files (20-file cap per GPT).",
-        "Optionally add the jurisdiction Action: paste implementation/gpt/actions/jurisdiction_overlay_action.yaml and set the deployed endpoint URL.",
-        "Note: ChatGPT memory does not function inside Custom GPTs."
+        "To get live tools without leaving ChatGPT, there are two upgrade routes: deploy the MCP connector and add it in ChatGPT developer mode (documented for Business, Enterprise and Edu workspaces on ChatGPT web, help.openai.com/en/articles/12584461; see implementation/gpt/mcp-connector/README.md), or install the local setup and use Claude Desktop. Knowledge-only is what PLAIN chat gives you, not the ceiling of ChatGPT.",
+        "With the Google Drive app connected, ChatGPT can create and update files in your Drive when your plan, workspace and the Google permissions allow it, and may ask you to confirm first (help.openai.com/en/articles/10929079). Creator OS treats that as create-only: save each change as a NEW dated file in the hub (docs/DRIVE-HUB.md) and never edit or move a file the computer manages."
       ],
       "needs_verification": [
-        "that your workspace still offers the GPT builder (Custom GPTs are being retired in favor of Plugins; Enterprise: 2026-12-11, other plans expected to follow; help.openai.com article 8554397, read 2026-09-19)"
+        "Google Drive app write actions depend on plan, workspace and Google permissions (help.openai.com/en/articles/10929079)"
       ]
     },
     "chatgpt_projects": {
@@ -251,10 +161,11 @@
       "origins": [],
       "setup_steps": [
         "Fastest path: the setup wizard on the maintainer's computer (python3 tools/wizard.py, the ChatGPT button) copies each paste, stages the exact upload folder for the plan, and verifies the setup from pasted answers (P90).",
-        "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats (best set at creation; an existing unshared project can be switched later [NEEDS VERIFICATION: switching reported 2026-08-14; help center not machine-fetchable]).",
+        "Create a Project in ChatGPT (sidebar, New project). Choose PROJECT-ONLY memory so Creator OS work stays separate from your personal chats; the memory setting can be changed later in the project's settings, and project-only memory turns off ChatGPT Work in that project (help article 10169521).",
         "Set the Project instructions to implementation/gpt/project/project-instructions.md (paste the whole file).",
-        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per simultaneous upload. On Free the full bundle does not fit; upload the first 5 (01 through 05) instead.",
-        "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when your files are stale."
+        "Upload the knowledge files from implementation/claude/project/knowledge/ to the Project files area. Published per-project caps (help article 10169521, read in full 2026-09-19): 5 on Free, 25 on Go and Plus, 40 on Edu, Pro, Business, and Enterprise, at most 10 files per simultaneous upload. On Free the separate files do not fit; upload the single combined file implementation/claude/project/creator-os-combined.md instead.",
+        "Knowledge-only mode applies: no live tools, no flags. Keep the packaging version line so you can tell when your files are stale.",
+        "Custom GPTs retire on 2026-12-11 (help article 20001519, which also names plugins as OpenAI's migration target); Creator OS uses a Project instead, because a Project holds the instructions and knowledge files Creator OS needs."
       ],
       "needs_verification": []
     },
@@ -279,16 +190,15 @@
       ],
       "origins": [],
       "setup_steps": [
-        "Install the ChatGPT desktop app and sign in.",
-        "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version.",
-        "For live Creator OS tools: open Settings, then Security and login, and turn on Developer mode; add the server at chatgpt.com/plugins. Available on Pro, Plus, Business, Enterprise, and Education accounts (developers.openai.com developer-mode guide, fetched 2026-09-19).",
-        "Add your deployed Creator OS remote MCP endpoint as a connector (implementation/gpt/mcp-connector/README.md). Without a deployed endpoint there are no live tools here.",
-        "Capability flags are not enforced on this surface; the connector endpoint enforces its own gates on the machine where it runs.",
-        "Know the desktop app's limits: ON MACOS, 'Work with Apps' reads only a fixed list of compatible apps (Apple Notes, Notion, TextEdit, VS Code family, JetBrains and similar) -- it has NO general access to your files or folders. That feature is macOS-only, so on Windows there is no such list at all. Either way your Creator OS knowledge still comes from pasted instructions, a Project, or a connector."
+        "Install the ChatGPT desktop app and sign in. Since July 2026 the app holds Chat, Work and Codex; the previous app stays available as ChatGPT Classic (help.openai.com/en/articles/20001276).",
+        "For knowledge-only use, paste implementation/gpt/web/custom-instructions.md into your custom instructions, exactly like the web version. Cloud Work chats you start on the web continue here.",
+        "Codex works with local files, repositories and terminals: opened on your Creator OS folder it can run the repo's own tools (python3 tools/...), which read your capability flags, so the flags hold inside Codex. Chat and Work do not run your local tools.",
+        "For live Creator OS tools in Chat or Work: a developer-mode MCP connector to your deployed endpoint (implementation/gpt/mcp-connector/README.md). [NEEDS VERIFICATION: developer mode with write actions is documented for Business, Enterprise and Edu workspaces on ChatGPT web (help.openai.com/en/articles/12584461); the desktop app is not named there.]",
+        "Capability flags are not enforced in Chat or Work; a connector endpoint enforces its own gates on the machine where it runs."
       ],
       "needs_verification": [
-        "developer-mode MCP connector availability and plan gating",
-        "connector file-access scope"
+        "developer-mode MCP connector on the desktop app (help.openai.com/en/articles/12584461 names ChatGPT web)",
+        "whether Codex in the desktop app can write to a Drive-for-desktop folder outside the opened project"
       ]
     },
     "gemini_api": {
@@ -318,16 +228,19 @@
       ],
       "needs_verification": []
     },
-    "gemini_gems": {
-      "label": "Gemini Gems (consumer)",
+    "gemini_web": {
+      "label": "Gemini web app (gemini.google.com)",
       "vendor": "google",
       "class_support": {
         "A": "paste",
-        "B": "none",
-        "C": "none"
+        "B": "remote_mcp",
+        "C": "remote_mcp"
       },
       "carries": [
-        "pasted_instructions"
+        "pasted_instructions",
+        "uploaded_files",
+        "connectors",
+        "remote_mcp_connectors"
       ],
       "flags_enforced": false,
       "local_machine_required": false,
@@ -337,10 +250,45 @@
       ],
       "origins": [],
       "setup_steps": [
-        "Paste implementation/gemini/system-instruction.md into a Gem.",
-        "Gems cannot call custom tools; this is knowledge-only. For live data, move to the Gemini API or a Claude surface."
+        "Paste implementation/gemini/system-instruction.md at the start of a chat. On a personal Google Account you can instead save it as a skill: Settings, then Skills, then Create manually, or upload it as a SKILL.md on the web app or the Mac app (support.google.com/gemini/answer/17094296). Gems are retired: Google turns them into skills from November 2026 for personal accounts and in 2027 for work and school accounts (support.google.com/gemini/answer/18560919).",
+        "Attach the hub's \"About me and my voice\" Doc to the chat from Google Drive when a reply should use your voice; the chat reads the Doc as it is when you attach it.",
+        "Export to Docs saves a NEW Google Doc in your Drive (support.google.com/gemini/answer/14184041); move it into the hub's Inbox folder so the computer picks it up.",
+        "Optional, for live tools: connect the deployed Creator OS MCP endpoint as a custom app in Settings, then Connected Apps (support.google.com/gemini/answer/17209137). Capability flags are not enforced here; the endpoint enforces its own gates."
       ],
-      "needs_verification": []
+      "needs_verification": [
+        "custom MCP apps require the US, 18 or over, a personal Google Account, English and Keep Activity on (support.google.com/gemini/answer/17209137)",
+        "Export to Docs lands in My Drive; choosing the hub folder is not documented (support.google.com/gemini/answer/14184041)"
+      ]
+    },
+    "gemini_desktop": {
+      "label": "Gemini desktop app (Mac and Windows)",
+      "vendor": "google",
+      "class_support": {
+        "A": "paste",
+        "B": "none",
+        "C": "none"
+      },
+      "carries": [
+        "pasted_instructions",
+        "uploaded_files",
+        "connected_files"
+      ],
+      "flags_enforced": false,
+      "local_machine_required": false,
+      "store_options": [
+        "export_and_you_save",
+        "google_drive_conditional"
+      ],
+      "origins": [],
+      "setup_steps": [
+        "Mac: macOS 15 or later on Apple Silicon (support.google.com/gemini/answer/17011627). Windows: Windows 10 or later; more native features are rolling out over time (blog.google, 2026-09-10).",
+        "Gemini Spark on the Mac can analyze, edit, rename and reorganize folders you connect, makes changes by default and can permanently delete files (support.google.com/gemini/answer/17208717). Connect only the hub's Inbox folder, never your Creator OS folder.",
+        "Creator OS tools do not run here and capability flags are not enforced. Hand work to the computer by saving a NEW dated file into the hub's Inbox."
+      ],
+      "needs_verification": [
+        "Drive writes from the desktop app are documented only through Spark-connected Mac folders; Export to Docs is documented for web and mobile (support.google.com/gemini/answer/14184041)",
+        "custom MCP apps are documented for the web and mobile apps, not the desktop app (support.google.com/gemini/answer/17209137)"
+      ]
     }
   },
   "pair_overrides": {
@@ -368,35 +316,10 @@
         "Read docs/PASTE-SAFETY.md before pasting anything: rate card numbers, contract text, and personal identity details do not belong in a third-party chat without a deliberate decision."
       ]
     },
-    "claude_desktop->chatgpt_custom_gpt": {
-      "travels_automatically": [],
-      "needs_export": [
-        "a Custom GPT package from export-gpt (instruction file + up to 20 knowledge files)",
-        "optionally the jurisdiction Action YAML"
-      ],
-      "stops_working": [
-        "all Class C tools",
-        "capability flag enforcement",
-        "local stores",
-        "the local ask-first consent step for live lookups (the Action calls public endpoints from OpenAI's side)"
-      ],
-      "reimport_steps": [
-        "If your plan can build GPTs (Business/Enterprise/Edu workspaces only as of 2026-08; personal plans cannot create new GPTs -- use a ChatGPT Project instead): paste the instruction file in the GPT builder",
-        "upload the knowledge files",
-        "re-export and re-upload when the packaging version changes"
-      ],
-      "stays_authoritative": "local_fs",
-      "flags_unenforced": [
-        "ALL capability flags"
-      ],
-      "notes": [
-        "The Action privacy note applies: what you type into the GPT goes to OpenAI and to the public endpoint."
-      ]
-    },
     "claude_desktop->chatgpt_projects": {
       "travels_automatically": [],
       "needs_export": [
-        "the same Custom GPT package (instruction + knowledge files) reused as Project instructions + Project files"
+        "the Project instructions (implementation/gpt/project/project-instructions.md) and the knowledge files (implementation/claude/project/knowledge/, or the single combined file on Free)"
       ],
       "stops_working": [
         "all Class C tools",
@@ -484,7 +407,7 @@
       ],
       "stops_working": [],
       "reimport_steps": [
-        "run the profile-import prompt once per ChatGPT context (default chat, each Project, each custom GPT) and paste the JSON back home",
+        "run the profile-import prompt once per ChatGPT context (default chat, each Project, and each custom GPT you still have before custom GPTs retire on 2026-12-11) and paste the JSON back home",
         "the profile-import atom proposes creator-profile.local.json with per-field provenance; you review and save it by hand",
         "drop dated export files into your store folder; the local tools union-merge them automatically"
       ],
@@ -493,42 +416,6 @@
       "notes": [
         "Everything gains enforcement again on this transition: flags, consent gates, deterministic tools."
       ]
-    },
-    "chatgpt_web_plain->chatgpt_custom_gpt": {
-      "travels_automatically": [
-        "your ChatGPT account context (memory) may carry over [NEEDS VERIFICATION: memory behavior inside GPTs varies]"
-      ],
-      "needs_export": [
-        "the Custom GPT package (instruction + knowledge files); custom instructions do not apply inside a GPT"
-      ],
-      "stops_working": [],
-      "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
-        "build the GPT from the export-gpt package",
-        "re-run the profile-import prompt inside the GPT context if you rely on profile answers there"
-      ],
-      "stays_authoritative": "export_and_you_save",
-      "flags_unenforced": [
-        "ALL capability flags on both surfaces"
-      ],
-      "notes": []
-    },
-    "chatgpt_custom_gpt->chatgpt_projects": {
-      "travels_automatically": [],
-      "needs_export": [
-        "reuse the same instruction + knowledge files as Project instructions + files"
-      ],
-      "stops_working": [
-        "Actions (Projects have no Actions; the jurisdiction lookup stops working)"
-      ],
-      "reimport_steps": [
-        "create the Project, paste instructions, upload files"
-      ],
-      "stays_authoritative": "export_and_you_save",
-      "flags_unenforced": [
-        "ALL capability flags on both surfaces"
-      ],
-      "notes": []
     },
     "chatgpt_web_plain->chatgpt_desktop": {
       "travels_automatically": [
@@ -560,44 +447,6 @@
       ],
       "stays_authoritative": "local_fs",
       "flags_unenforced": [],
-      "notes": []
-    },
-    "claude_desktop->gemini_gems": {
-      "travels_automatically": [],
-      "needs_export": [
-        "the Gem instruction pack (export-gem; 10-file knowledge limit)"
-      ],
-      "stops_working": [
-        "all Class B and C capabilities (Gems cannot call custom tools)",
-        "flags",
-        "local stores"
-      ],
-      "reimport_steps": [
-        "paste the Gem instruction",
-        "re-paste when the packaging version changes"
-      ],
-      "stays_authoritative": "local_fs",
-      "flags_unenforced": [
-        "ALL capability flags"
-      ],
-      "notes": [
-        "Gems are the most limited surface; only pure-reasoning skills work."
-      ]
-    },
-    "gemini_gems->chatgpt_custom_gpt": {
-      "travels_automatically": [],
-      "needs_export": [
-        "the Custom GPT package (the Gem pack is Gemini-shaped; export fresh for the GPT builder)"
-      ],
-      "stops_working": [],
-      "reimport_steps": [
-        "FIRST check your plan: creating a NEW Custom GPT requires a ChatGPT Business, Enterprise, or Edu workspace (confirmed 2026-09-19; and Custom GPTs are slated for retirement in favor of Plugins, Enterprise 2026-12-11). Personal Plus/Pro plans cannot create GPTs -- use a ChatGPT Project instead (implementation/gpt/project/README.md).",
-        "build the GPT from the export-gpt package; the jurisdiction Action becomes available again"
-      ],
-      "stays_authoritative": "export_and_you_save",
-      "flags_unenforced": [
-        "ALL capability flags on both surfaces"
-      ],
       "notes": []
     },
     "claude_code->claude_desktop": {

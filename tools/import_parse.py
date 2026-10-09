@@ -509,6 +509,29 @@ def selftest():
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
 
+    # P102: a Studio export with an emoji title, piped under a cp1252 codec (what a Windows pipe
+    # uses), is parsed with the title intact; main switches the redirected stdout to UTF-8.
+    import os
+    import subprocess
+    import tempfile
+    fx = json.loads((Path(__file__).resolve().parent.parent / "skills" / "creator-core" / "evals" / "fixtures"
+                     / "video-library-youtube-studio.json").read_text(encoding="utf-8"))["csv_text"]
+    title = "Restoring a farmhouse armoire \U0001f3a5 (before \u2192 after; caf\u00e9)"  # no comma: a CSV cell
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = Path(td) / "Table data.csv"
+        csv_path.write_text(fx.replace("Restoring a farmhouse armoire", title, 1), encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        env.pop("PYTHONUTF8", None)
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve()), "youtube-studio-csv", str(csv_path)],
+                           capture_output=True, env=env, timeout=120)
+    try:
+        piped = json.loads(r.stdout.decode("utf-8"))
+    except ValueError:
+        piped = []
+    ok("a Studio export with an emoji title piped under a cp1252 codec keeps the title",
+       r.returncode == 0 and any(rec.get("title") == title for rec in piped))
+    ok("main switches a redirected stdout to UTF-8", "utf8_stdio" in main.__code__.co_names)
+
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
         print(f"  [{'ok' if c else 'FAIL'}] {name}")
@@ -520,8 +543,11 @@ def selftest():
 class _TmpFile:
     """A throwaway file for the selftest (glob-based parsers expect a path)."""
     def __init__(self, text, suffix):
+        import os
         import tempfile
-        self._p = Path(tempfile.mkstemp(suffix=suffix)[1])
+        fd, name = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)   # P101: Windows cannot rewrite or remove a file a handle holds open
+        self._p = Path(name)
         self._p.write_text(text, encoding="utf-8")
 
     def __fspath__(self):
@@ -550,7 +576,12 @@ def _main(argv):
 def main(argv):
     """Thin CLI boundary (P66): an unhandled filesystem error from a user-supplied path (for
     example a >255-byte component raising ENAMETOOLONG, which Path.exists() does not suppress)
-    becomes the clean {"error","next_step"} envelope instead of a raw traceback."""
+    becomes the clean {"error","next_step"} envelope instead of a raw traceback. Its output is UTF-8
+    when stdout is redirected or piped (env_paths.utf8_stdio, P102), so a title with an emoji
+    reaches the file instead of stopping the tool on Windows."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools/, for env_paths
+    import env_paths
+    env_paths.utf8_stdio()
     try:
         return _main(argv)
     except OSError as exc:

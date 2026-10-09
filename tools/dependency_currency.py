@@ -287,9 +287,11 @@ _REFUSED_STDLIB = {"subprocess", "multiprocessing", "concurrent", "importlib", "
 # The set is an allowlist: a module not read that way fails the pin until it is read and added,
 # including one whose functions start a process under an ordinary name (platform.architecture()
 # and platform.processor() run `file` and `uname`; pydoc's pagers run a shell).
-_ALLOWED_STDLIB = frozenset({"__future__", "argparse", "ast", "contextlib", "datetime", "fcntl",
-                             "hashlib", "json", "os", "pathlib", "re", "ssl", "stat", "sys",
-                             "urllib"})
+# P101: atomic_io's Windows lock adds errno (constants), time (sleep, clocks) and msvcrt (console
+# and file-descriptor helpers: locking, setmode, get_osfhandle, getch); none starts a process.
+_ALLOWED_STDLIB = frozenset({"__future__", "argparse", "ast", "contextlib", "datetime", "errno",
+                             "fcntl", "hashlib", "json", "msvcrt", "os", "pathlib", "re", "ssl",
+                             "stat", "sys", "time", "urllib"})
 _CLOSURE_SIBLINGS = frozenset({"registry_io", "atomic_io"})
 
 

@@ -7,7 +7,8 @@ out honestly and into your local profile with provenance on every field.
 ## The three steps
 
 1. **Export.** Paste `PROMPT.md`'s prompt into ChatGPT, once per context (a default chat, each
-   Project you use for creator work, each custom GPT). Save each JSON reply.
+   Project you use for creator work, and each custom GPT you still have before custom GPTs retire
+   on 2026-12-11). Save each JSON reply.
 2. **Propose.** At home, give the saved replies to Creator OS and ask it to import your profile.
    The `profile-import` atom (proposal-only) merges the exports into one proposed
    `creator-profile.local.json` body with a per-field `provenance` record, flags every conflict

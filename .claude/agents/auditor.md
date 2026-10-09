@@ -1,7 +1,7 @@
 ---
 name: auditor
 description: Read-only review of a change against a pinned commit in this repo. Reads the commit the main loop names, in its own git worktree, reproduces each check by running it, and returns JSON findings with the verification envelope. Never edits, writes, commits, or pushes.
-disallowedTools: Write, Edit, NotebookEdit, Agent, mcp__*
+disallowedTools: Write, Edit, NotebookEdit, Agent, PowerShell, mcp__*
 isolation: worktree
 ---
 
@@ -23,18 +23,21 @@ Return your findings as structured data. The main loop will decide what to do wi
 
 ## Forbidden tools (machine-enforced)
 
-Write, Edit, NotebookEdit, Agent, every MCP tool (`mcp__*`), and Bash with write operations
-(mkdir, touch, rm, mv, cp, git add, git commit, git push, redirect operators >, >>).
+Write, Edit, NotebookEdit, Agent, PowerShell, every MCP tool (`mcp__*`), and Bash with write
+operations (mkdir, touch, rm, mv, cp, git add, git commit, git push, redirect operators >, >>).
 
 What enforces this:
 - The frontmatter `disallowedTools` removes Write, Edit, NotebookEdit, Agent (so no nested
-  subagent) and every MCP tool; Claude Code applies that list when it launches this agent.
+  subagent), PowerShell (the Bash guard reads Bash syntax only) and every MCP tool; Claude Code
+  applies that list when it launches this agent.
 - `isolation: worktree` runs this agent in its own git worktree; Claude Code blocks edits, and Bash
   working directories, that resolve to the main checkout. `.claude/settings.json` sets
   `worktree.baseRef` to "head", so the worktree starts at the local HEAD, not the remote default
   branch.
 - A PreToolUse hook in `.claude/settings.json` runs `tools/readonly_bash_guard.py` on every Bash
-  call this agent makes and refuses the write forms it recognizes.
+  and PowerShell call this agent makes. It refuses the Bash write forms it recognizes and the
+  PowerShell calls; with no working Python (python3, python and py -3 tried in turn) it refuses
+  this agent's call.
 - Bash stays write-capable: the guard matches patterns, and a script that writes as a side effect
   passes it.
 
