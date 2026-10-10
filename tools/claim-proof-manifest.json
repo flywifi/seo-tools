@@ -289,11 +289,6 @@
     },
     {
       "doc": "docs/INSTALL-SCOPE.md",
-      "claim": "works on every platform, fully user-scoped",
-      "why": "describes faster-whisper's own portability, a property of that third-party package rather than of this repo's code."
-    },
-    {
-      "doc": "docs/INSTALL-SCOPE.md",
       "claim": "auth only if a machine must PUSH",
       "why": "states when GitHub credentials are needed, a fact about GitHub's access model that no local guard can assert."
     },
@@ -599,7 +594,8 @@
       "pipx-global",
       "sudo-pkg",
       "sudo-python",
-      "system-prefix-write"
+      "system-prefix-write",
+      "windows-installer"
     ]
   },
   "premutation_proofs": []

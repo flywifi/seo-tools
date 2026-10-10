@@ -55,9 +55,11 @@ _NICHE_SEED = ("armoire", "patina", "wainscoting", "decoupage", "sconcing", "vig
 # ── backend detection + selection (pure where it matters; the selftest pins select_backend) ──
 
 # On Windows, faster-whisper's ctranslate2 loads these Microsoft Visual C++ runtime libraries, which a
-# fresh Windows lacks and pip cannot install (P102). Microsoft's x64 package also carries the ARM64
-# libraries ("The X64 Redistributable package contains both ARM64 and X64 binaries", Microsoft Learn,
-# "Microsoft Visual C++ Redistributable latest supported downloads"), so it serves both machines.
+# fresh Windows lacks and pip cannot install (P102). Their installer is machine-wide (it affects the
+# whole computer), so Creator OS runs it from the setup wizard on request. Microsoft's x64 package
+# also carries the ARM64 libraries ("The X64 Redistributable package contains both ARM64 and X64
+# binaries", Microsoft Learn, "Microsoft Visual C++ Redistributable latest supported downloads"), so
+# it serves both machines.
 VC_RUNTIME_DLLS = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 VC_RUNTIME_URL = "https://aka.ms/vc14/vc_redist.x64.exe"
 
@@ -97,8 +99,193 @@ def vc_runtime_missing(system_root=None, exists=None):
 def vc_runtime_remedy():
     """What to do on Windows when faster-whisper is installed but the Visual C++ runtime is missing."""
     return ("Install the Microsoft Visual C++ Redistributable (machine-wide: affects the whole computer). "
-            "Use the Install button on the setup wizard's transcription screen, or install it yourself "
+            "Use the Install button on the setup wizard's Check my setup screen, or install it yourself "
             f"from Microsoft ({VC_RUNTIME_URL}) or with: winget install --exact --id Microsoft.VCRedist.2015+.x64")
+
+
+# The install the setup wizard runs on request (P102, ADR 0079). It is machine-wide (affects the whole
+# computer), so the wizard asks first. Microsoft Learn's troubleshooting page: "Never install a Visual
+# C++ Redistributable installer that wasn't downloaded from a Microsoft site. Never install a Visual C++
+# Redistributable installer that Microsoft didn't sign." So the file comes from VC_RUNTIME_URL, and it
+# runs after Windows reports a Valid Authenticode signature whose signer's organization is Microsoft
+# Corporation and whose chain ends at Microsoft's code-signing root, pinned by thumbprint.
+VC_RUNTIME_LICENSE_URL = "https://aka.ms/VCRedistLicense"
+VC_RUNTIME_SIGNER_ORG = "Microsoft Corporation"
+VC_RUNTIME_ROOT_CN = "Microsoft Root Certificate Authority 2011"
+VC_RUNTIME_ROOT_THUMBPRINT = "8F43288AD272F3103B6FB1428485EA3014C0BCFE"
+# Microsoft Learn, "Redistribute Visual C++ files": /passive "shows a progress bar ... but doesn't
+# otherwise require user interaction"; /norestart "suppresses any attempts to restart".
+VC_RUNTIME_ARGS = ("/install", "/passive", "/norestart")
+VC_RUNTIME_ARCHES = ("amd64", "x86_64", "arm64", "aarch64")
+VC_RUNTIME_TIMEOUT = 1800
+# Windows system error codes the installer returns: 3010 ERROR_SUCCESS_REBOOT_REQUIRED, 1638
+# ERROR_PRODUCT_VERSION (another version is already installed), 1602 ERROR_INSTALL_USEREXIT and
+# 1223 ERROR_CANCELLED (the person declined). Without administrator rights: 1307 ERROR_INVALID_OWNER
+# (a standard account in Windows Sandbox, where no administrator prompt can appear), 1925 (Windows
+# Installer: "You do not have sufficient privileges to complete this installation for all users of
+# the machine") and 5 ERROR_ACCESS_DENIED (Microsoft Learn's troubleshooting page also names security
+# software and group policy for it).
+VC_RUNTIME_EXIT = {
+    0: (True, "installed", "The Microsoft Visual C++ Redistributable is installed."),
+    3010: (True, "restart", "The Microsoft Visual C++ Redistributable is installed. Restart Windows "
+                            "when convenient to finish it."),
+    1638: (True, "newer", "A newer Microsoft Visual C++ Redistributable is already installed, so the "
+                          "installer changed nothing."),
+    1602: (False, "cancelled", "The install was cancelled, so nothing was installed."),
+    1223: (False, "cancelled", "The install was cancelled at the Windows administrator prompt, so nothing "
+                               "was installed."),
+    1307: (False, "needs_admin", "Installing the Visual C++ runtime needs an administrator of this computer "
+                                 "(exit code 1307). Ask whoever manages it, or use the manual route on this "
+                                 "screen."),
+    1925: (False, "needs_admin", "Installing the Visual C++ runtime needs an administrator of this computer "
+                                 "(exit code 1925). Ask whoever manages it, or use the manual route on this "
+                                 "screen."),
+    5: (False, "needs_admin", "Windows denied the install (exit code 5, access denied). It needs an "
+                              "administrator of this computer, and security software or a work policy can "
+                              "also block it. Ask whoever manages it, or use the manual route on this screen."),
+}
+
+# Windows PowerShell: the file's Authenticode verdict, its signer, and the root its chain ends at. The
+# certificates inside the signature go into the chain's extra store, so the chain builds without a
+# download; revocation is not checked here because Get-AuthenticodeSignature's Valid already covers trust.
+_VC_SIGNATURE_PS = r"""
+$ErrorActionPreference = 'Stop'
+$f = $env:CREATOR_OS_VC_FILE
+$s = Get-AuthenticodeSignature -LiteralPath $f
+$c = $s.SignerCertificate
+$root = $null
+if ($c) {
+  $chain = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+  $chain.ChainPolicy.RevocationMode = 'NoCheck'
+  $extra = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+  try { $extra.Import($f) } catch { }
+  [void]$chain.ChainPolicy.ExtraStore.AddRange($extra)
+  [void]$chain.Build($c)
+  $n = $chain.ChainElements.Count
+  if ($n -gt 0) { $root = $chain.ChainElements[$n - 1].Certificate }
+}
+$signer = ''
+if ($c) { $signer = $c.Subject }
+$rootThumb = ''
+$rootSubject = ''
+if ($root) { $rootThumb = $root.Thumbprint; $rootSubject = $root.Subject }
+[pscustomobject]@{ status = [string]$s.Status; signer = $signer; root_thumbprint = $rootThumb; root_subject = $rootSubject } | ConvertTo-Json -Compress
+"""
+
+
+def _dn_values(subject, key):
+    """The values of attribute `key` (O, CN) in an X.500 subject such as
+    'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'."""
+    import re
+    return [m.group(1).strip().strip('"') for m in
+            re.finditer(r'(?:^|,)\s*' + re.escape(key) + r'=("[^"]*"|[^,]*)', str(subject or ""))]
+
+
+def vc_signature_verdict(info):
+    """(ok, reason) for the facts _VC_SIGNATURE_PS reports: ok when the status is Valid, the signer's
+    organization is exactly Microsoft Corporation, and the chain's root has the pinned thumbprint and
+    common name. Anything else, a missing field or an error included, is refused."""
+    if not isinstance(info, dict) or info.get("error"):
+        why = info.get("error") if isinstance(info, dict) else None
+        return False, f"Windows could not check the signature ({why or 'no result'})"
+    status = str(info.get("status") or "")
+    if status != "Valid":
+        return False, f"Windows reports the signature as {status or 'missing'}, not Valid"
+    if VC_RUNTIME_SIGNER_ORG not in _dn_values(info.get("signer"), "O"):
+        return False, f"it is signed by {info.get('signer') or 'nobody'}, not Microsoft Corporation"
+    if (str(info.get("root_thumbprint") or "").upper() != VC_RUNTIME_ROOT_THUMBPRINT
+            or VC_RUNTIME_ROOT_CN not in _dn_values(info.get("root_subject"), "CN")):
+        return False, (f"its signature chains to {info.get('root_subject') or 'an unknown root'}, not "
+                       f"{VC_RUNTIME_ROOT_CN}")
+    return True, f"signed by Microsoft Corporation, chained to {VC_RUNTIME_ROOT_CN}"
+
+
+def vc_signature_info(path, run=None, system_root=None):
+    """The signature facts for `path` from Windows PowerShell (by its full path under %SystemRoot%), as
+    a dict, or {"error": ...}. The file path travels in an environment variable and the script as
+    -EncodedCommand, so neither is parsed by a shell. `run` stands in for subprocess.run."""
+    import base64
+    import ntpath
+    run = subprocess.run if run is None else run
+    root = system_root or os.environ.get("SystemRoot") or "C:\\Windows"
+    ps = ntpath.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    script = base64.b64encode(_VC_SIGNATURE_PS.encode("utf-16-le")).decode("ascii")
+    try:
+        r = run([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", script],
+                capture_output=True, text=True, timeout=120,
+                env=dict(os.environ, CREATOR_OS_VC_FILE=str(path)))
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"error": f"{type(exc).__name__}: {str(exc)[:160]}"}
+    try:
+        info = json.loads((r.stdout or "").strip().splitlines()[-1])
+    except (IndexError, ValueError):
+        return {"error": (r.stderr or r.stdout or f"exit code {r.returncode}").strip()[:200]}
+    return info if isinstance(info, dict) else {"error": "the signature check printed no object"}
+
+
+def vc_exit_meaning(code):
+    """(ok, status, message) for the installer's exit code."""
+    if code in VC_RUNTIME_EXIT:
+        return VC_RUNTIME_EXIT[code]
+    return False, "failed", (f"The installer stopped with exit code {code}. You can install it yourself "
+                             f"from Microsoft: {VC_RUNTIME_URL}")
+
+
+def _run_vc_installer(argv):
+    """The installer's exit code; it raises Windows' administrator prompt itself (its manifest asks
+    for asInvoker)."""
+    return subprocess.run(list(argv), timeout=VC_RUNTIME_TIMEOUT).returncode
+
+
+def install_vc_runtime(os_name=None, arch=None, download=None, verify=None, run=None, mkdtemp=None,
+                       rmtree=None):
+    """Download Microsoft's x64 Visual C++ Redistributable into a new temporary folder, run it with
+    VC_RUNTIME_ARGS once vc_signature_verdict accepts its signature, and delete the folder in every
+    outcome. Windows on x64 or ARM64 only (the x64 package carries the ARM64 libraries). Returns
+    {"ok", "status", "message"} plus "exit_code" when the installer ran and "note" when the folder
+    could not be deleted. Each step is injectable: download(url, dest) -> error or None,
+    verify(path) -> info dict, run(argv) -> exit code. The setup wizard calls this after the person
+    ticks its confirmation box; it is not a command-line verb."""
+    import tempfile
+    os_name = (os_name if os_name is not None else sys.platform).lower()
+    arch = (arch if arch is not None else platform.machine()).lower()
+    if not os_name.startswith("win") or arch not in VC_RUNTIME_ARCHES:
+        return {"ok": False, "status": "unsupported",
+                "message": "The Microsoft Visual C++ Redistributable install runs on Windows on x64 or ARM64."}
+    download = _stream_download if download is None else download
+    verify = vc_signature_info if verify is None else verify
+    run = _run_vc_installer if run is None else run
+    mkdtemp = tempfile.mkdtemp if mkdtemp is None else mkdtemp
+    rmtree = shutil.rmtree if rmtree is None else rmtree
+    folder = mkdtemp(prefix="creator-os-vcredist-")
+    try:
+        dest = os.path.join(folder, VC_RUNTIME_URL.rsplit("/", 1)[-1])
+        err = download(VC_RUNTIME_URL, dest)
+        if err:
+            res = {"ok": False, "status": "download_failed",
+                   "message": f"The download from Microsoft did not finish: {err}"}
+        else:
+            ok, why = vc_signature_verdict(verify(dest))
+            if not ok:
+                res = {"ok": False, "status": "signature_refused",
+                       "message": f"The downloaded installer was not run: {why}. It has been deleted."}
+            else:
+                try:
+                    code = run([dest, *VC_RUNTIME_ARGS])
+                except subprocess.TimeoutExpired:
+                    res = {"ok": False, "status": "timed_out",
+                           "message": f"The installer did not finish within {VC_RUNTIME_TIMEOUT // 60} minutes."}
+                except OSError as exc:
+                    res = {"ok": False, "status": "failed",
+                           "message": f"The installer could not start: {type(exc).__name__}: {str(exc)[:160]}"}
+                else:
+                    ok_code, status, message = vc_exit_meaning(code)
+                    res = {"ok": ok_code, "status": status, "exit_code": code, "message": message}
+    finally:
+        rmtree(folder, ignore_errors=True)
+    if os.path.exists(folder):
+        res["note"] = f"The temporary folder {folder} could not be deleted; you can delete it yourself."
+    return res
 
 
 def detect_backends():
@@ -685,6 +872,146 @@ def selftest():
         ok("not installed keeps the install hint and asks nothing about the runtime",
            "--install-deps" in (_d_absent["next_action"] or "") and _d_absent["vc_runtime_missing"] == []
            and _d_absent["steps"][1]["what_it_is"].startswith("a local speech-to-text engine"))
+        # P102: the Visual C++ install the wizard runs on request. The signature verdict accepts only a
+        # Valid signature from Microsoft Corporation chained to the pinned root.
+        _ms = {"status": "Valid",
+               "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+               "root_thumbprint": VC_RUNTIME_ROOT_THUMBPRINT,
+               "root_subject": "CN=Microsoft Root Certificate Authority 2011, O=Microsoft Corporation, "
+                               "L=Redmond, S=Washington, C=US"}
+        _verdicts = {
+            "microsoft": vc_signature_verdict(_ms),
+            "lowercase thumbprint": vc_signature_verdict(dict(_ms, root_thumbprint=VC_RUNTIME_ROOT_THUMBPRINT.lower())),
+            "hash mismatch": vc_signature_verdict(dict(_ms, status="HashMismatch")),
+            "not signed": vc_signature_verdict({"status": "NotSigned", "signer": "", "root_thumbprint": "",
+                                                "root_subject": ""}),
+            "other root": vc_signature_verdict(dict(_ms, root_thumbprint="0" * 40)),
+            "root name": vc_signature_verdict(dict(_ms, root_subject="CN=Microsoft Root Certificate Authority 2010")),
+            "signer org": vc_signature_verdict(dict(_ms, signer="CN=Microsoft Corporation, O=Contoso Ltd")),
+            "lookalike org": vc_signature_verdict(dict(_ms, signer="CN=x, O=Microsoft Corporation Fake")),
+            "org in CN only": vc_signature_verdict(dict(_ms, signer="CN=O=Microsoft Corporation")),
+            "error": vc_signature_verdict({"error": "powershell missing"}),
+            "nothing": vc_signature_verdict(None),
+        }
+        ok("the signature verdict accepts Valid, signed by Microsoft Corporation, chained to the pinned root",
+           _verdicts["microsoft"][0] is True and _verdicts["lowercase thumbprint"][0] is True)
+        ok("the signature verdict refuses a bad hash, an unsigned file, another root or signer, and an error",
+           all(_verdicts[k][0] is False for k in _verdicts if k not in ("microsoft", "lowercase thumbprint"))
+           and "HashMismatch" in _verdicts["hash mismatch"][1]
+           and "Contoso" in _verdicts["signer org"][1] and "2010" in _verdicts["root name"][1])
+        # The PowerShell call: the full path under %SystemRoot%, the script as -EncodedCommand, the file
+        # in the environment, and the last line of its output read as JSON.
+        import base64 as _b64
+        _ps_seen = []
+
+        class _PsDone:
+            def __init__(self, out, err="", code=0):
+                self.stdout, self.stderr, self.returncode = out, err, code
+
+        def _ps_run(argv, **kw):
+            _ps_seen.append((argv, kw))
+            return _PsDone("warming up\n" + json.dumps(_ms) + "\n")
+        _info = vc_signature_info("C:\\Temp\\x y\\installer.exe", run=_ps_run, system_root="D:\\Win")
+        _argv, _kw = _ps_seen[0]
+        _script = _b64.b64decode(_argv[-1]).decode("utf-16-le")
+        ok("vc_signature_info runs Windows PowerShell by its full path, with the file in the environment",
+           _info == _ms
+           and _argv[:-1] == ["D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile",
+                              "-NonInteractive", "-EncodedCommand"]
+           and "Get-AuthenticodeSignature -LiteralPath $f" in _script and "X509Chain" in _script
+           and _kw["env"]["CREATOR_OS_VC_FILE"] == "C:\\Temp\\x y\\installer.exe"
+           and "C:\\Temp" not in _argv[-1])
+
+        def _ps_raise(argv, **kw):
+            raise FileNotFoundError("powershell.exe")
+        _bad = [vc_signature_info("f", run=lambda a, **k: _PsDone("", "Get-AuthenticodeSignature : no file", 1)),
+                vc_signature_info("f", run=_ps_raise),
+                vc_signature_info("f", run=lambda a, **k: _PsDone("[1, 2]\n"))]
+        ok("vc_signature_info reports an error for text, a failed start or a non-object, never a verdict",
+           all("error" in b and vc_signature_verdict(b)[0] is False for b in _bad)
+           and "no file" in _bad[0]["error"] and "FileNotFoundError" in _bad[1]["error"])
+        # install_vc_runtime with each step stood in: a real temporary folder under the selftest's.
+        _vc_tmp = tmp / "vc"
+        _vc_tmp.mkdir()
+
+        def _vc(code=0, verdict=None, dl_err=None, os_name="win32", arch="amd64", run_exc=None, rmtree=None):
+            seen = {"download": [], "verify": [], "run": [], "folders": []}
+
+            def _mk(prefix):
+                d = tempfile.mkdtemp(prefix=prefix, dir=str(_vc_tmp))
+                seen["folders"].append(d)
+                return d
+
+            def _dl(url, dest):
+                seen["download"].append((url, dest))
+                if dl_err:
+                    return dl_err
+                Path(dest).write_bytes(b"MZ installer stand-in")
+                return None
+
+            def _ver(path):
+                seen["verify"].append((path, Path(path).is_file()))
+                return _ms if verdict is None else verdict
+
+            def _run(argv):
+                seen["run"].append(list(argv))
+                if run_exc:
+                    raise run_exc
+                return code
+            res = install_vc_runtime(os_name=os_name, arch=arch, download=_dl, verify=_ver, run=_run,
+                                     mkdtemp=_mk, **({"rmtree": rmtree} if rmtree else {}))
+            return res, seen
+        _codes = {c: _vc(code=c) for c in (0, 3010, 1638, 1602, 1223, 1307, 1925, 5, 1603)}
+        _r0, _s0 = _codes[0]
+        ok("install_vc_runtime downloads Microsoft's machine-wide x64 package into its own folder, checks "
+           "it, then runs it",
+           _s0["download"][0][0] == VC_RUNTIME_URL
+           and Path(_s0["download"][0][1]).parent == Path(_s0["folders"][0])
+           and Path(_s0["download"][0][1]).name == "vc_redist.x64.exe"
+           and _s0["verify"] == [(_s0["download"][0][1], True)]
+           and _s0["run"] == [[_s0["download"][0][1], "/install", "/passive", "/norestart"]]
+           and _r0 == {"ok": True, "status": "installed", "exit_code": 0,
+                       "message": VC_RUNTIME_EXIT[0][2]})
+        ok("each installer exit code maps to its outcome",
+           [(c, r["ok"], r["status"], r["exit_code"]) for c, (r, _s) in _codes.items()]
+           == [(0, True, "installed", 0), (3010, True, "restart", 3010), (1638, True, "newer", 1638),
+               (1602, False, "cancelled", 1602), (1223, False, "cancelled", 1223),
+               (1307, False, "needs_admin", 1307), (1925, False, "needs_admin", 1925),
+               (5, False, "needs_admin", 5), (1603, False, "failed", 1603)]
+           and all("administrator" in _codes[c][0]["message"] and "manual route" in _codes[c][0]["message"]
+                   for c in (1307, 1925, 5))
+           and "exit code 1603" in _codes[1603][0]["message"] and VC_RUNTIME_URL in _codes[1603][0]["message"]
+           and "Restart Windows" in _codes[3010][0]["message"])
+        _refused = {k: _vc(verdict=v) for k, v in (
+            ("hash", dict(_ms, status="HashMismatch")), ("root", dict(_ms, root_thumbprint="0" * 40)),
+            ("signer", dict(_ms, signer="CN=x, O=Contoso Ltd")), ("error", {"error": "no powershell"}))}
+        ok("a signature the verdict refuses stops the install before it runs, and says the file is deleted",
+           all(r["status"] == "signature_refused" and r["ok"] is False and s["run"] == [] and "deleted" in r["message"]
+               and "exit_code" not in r for r, s in _refused.values()))
+        _dl_fail, _dl_seen = _vc(dl_err="URLError: offline")
+        ok("a download error is reported and nothing is checked or run",
+           _dl_fail["status"] == "download_failed" and "offline" in _dl_fail["message"]
+           and _dl_seen["verify"] == [] and _dl_seen["run"] == [])
+        _to, _ = _vc(run_exc=subprocess.TimeoutExpired("vc_redist", VC_RUNTIME_TIMEOUT))
+        _nostart, _ = _vc(run_exc=OSError(740, "The requested operation requires elevation"))
+        ok("an installer that times out or cannot start is reported, not mapped to an exit code",
+           _to["status"] == "timed_out" and _nostart["status"] == "failed" and "elevation" in _nostart["message"]
+           and "exit_code" not in _to and "exit_code" not in _nostart)
+        _all_runs = (list(_codes.values()) + list(_refused.values())
+                     + [(_dl_fail, _dl_seen), _vc(run_exc=OSError(5, "x"))])
+        ok("the temporary folder is deleted in every outcome above",
+           all(len(s["folders"]) == 1 and not Path(s["folders"][0]).exists() and "note" not in r
+               for r, s in _all_runs))
+        _kept, _kept_seen = _vc(rmtree=lambda path, ignore_errors=False: None)
+        ok("a folder that could not be deleted is named in a note",
+           _kept_seen["folders"][0] in _kept.get("note", "") and _kept["ok"] is True)
+        _arm, _arm_seen = _vc(arch="ARM64")
+        _off = {o: _vc(os_name=o) for o in ("darwin", "linux")}
+        _x86, _x86_seen = _vc(arch="x86")
+        ok("ARM64 Windows downloads the same x64 package; macOS, Linux and 32-bit Windows start nothing",
+           _arm["ok"] is True and _arm_seen["download"][0][0] == VC_RUNTIME_URL
+           and all(r["status"] == "unsupported" and s["folders"] == [] and s["download"] == []
+                   for r, s in list(_off.values()) + [(_x86, _x86_seen)]))
         # P102: on a computer that runs the repo's scripts as py -3, the printed commands say so.
         import env_paths as _ep_w
         _real_pc_w = _ep_w.python_command

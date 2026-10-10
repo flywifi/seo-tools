@@ -21,6 +21,6 @@
     {"host": "astral.sh", "category": "install", "reason": "uv standalone installer script (astral.sh/uv/install.sh), the user-only Python route in the P93 setup/wizard hints (docs/INSTALL-SCOPE.md); the docs source is registered separately as uv-installer-docs"},
     {"host": "nodejs.org", "category": "install", "reason": "Node.js download link shown when the Microsoft 365 MCP needs Node"},
     {"host": "claude.ai", "category": "product-surface", "reason": "claude.ai web surface referenced in the wizard; also appears in secret-scan selftest fixtures"},
-    {"host": "aka.ms", "category": "install", "reason": "Microsoft's permalink to the latest supported Visual C++ Redistributable installer (aka.ms/vc14/vc_redist.x64.exe, listed on Microsoft Learn's latest supported downloads page), named by the transcription doctor and setup on Windows when faster-whisper cannot load without that runtime (P102)"}
+    {"host": "aka.ms", "category": "install", "reason": "Microsoft's permalink to the latest supported Visual C++ Redistributable installer (aka.ms/vc14/vc_redist.x64.exe, listed on Microsoft Learn's latest supported downloads page), named by the transcription doctor and setup on Windows when faster-whisper cannot load without that runtime, and downloaded by the setup wizard when the person confirms the machine-wide install (transcribe.install_vc_runtime, which runs it only after a Microsoft signature check); also Microsoft's Visual C++ license terms link (aka.ms/VCRedistLicense) the wizard shows (P102, ADR 0079)"}
   ]
 }

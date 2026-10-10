@@ -31,14 +31,23 @@ have accepted the write.
 |---|---|---|
 | Python 3.12 to 3.14 | the interpreter already on the machine; missing or too old: `curl -LsSf https://astral.sh/uv/install.sh | sh` then `uv python install 3.12` | uv installs to `~/.local/bin`, its Pythons to `~/.local/share/uv`; "No sudo is required" per its docs |
 | Node.js (Microsoft 365 lane only) | nvm, per its README install script | nvm "clones the nvm repository to `~/.nvm`" and is "designed to be installed per-user"; its README adds "When using `nvm` you do not need `sudo` to globally install a module with `npm -g`" |
-| Speech-to-text | `faster-whisper` -- already inside the repo `.venv` after `--install-deps` | works on every platform, fully user-scoped |
+| Speech-to-text | `faster-whisper` -- already inside the repo `.venv` after `--install-deps` | the package itself is user-scoped on macOS, Linux and Windows; on Windows its engine also loads Microsoft's Visual C++ runtime, a machine-wide install (see the exceptions register) |
 | GitHub access | none needed -- the repository is public; `git clone` works anonymously | auth only if a machine must PUSH |
 
 ## The exceptions register (stated, not hidden)
 
 - **git via the Apple Command Line Tools** is machine-level and has no user-scoped
   equivalent worth recommending. It is usually preinstalled; when it is not, the CLT prompt
-  is the one machine-level install this repo's path may involve.
+  is a machine-level install this repo's path may involve on a Mac.
+- **The Microsoft Visual C++ Redistributable on Windows** is machine-wide (it affects the whole
+  computer). faster-whisper's engine loads it, and pip does not install system libraries. It is
+  often present already; when it is missing, the setup wizard's Check my setup screen offers to
+  install it, under a heading labeled machine-wide. The wizard downloads Microsoft's permalink
+  after the person ticks a confirmation box, and runs it
+  once Windows reports a Valid signature from Microsoft Corporation chained to Microsoft's
+  code-signing root (ADR 0079, `tools/transcribe.py::install_vc_runtime`). The same screen
+  keeps the manual route: Microsoft's download, or
+  `winget install --exact --id Microsoft.VCRedist.2015+.x64`.
 - **Using existing machine tools is allowed; adding to them is not.** Creator OS detects and
   uses an already-installed Homebrew binary (ffmpeg, whisper-cli) happily -- `env_paths`
   even searches the Homebrew prefixes. The policy governs what gets INSTALLED and what the

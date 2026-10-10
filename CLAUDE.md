@@ -191,12 +191,15 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 - Installs are user-scoped by default: everything lands under the user's home folder (repo
   `.venv`, `~/.local`, `~/Applications`, `~/Library`); nothing under `/Applications`,
   `/opt/homebrew`, or via `sudo` unless explicitly labeled "machine-wide alternative (affects
-  the whole computer)". Policy, approved locations, and the one exception (Apple CLT git):
-  `docs/INSTALL-SCOPE.md`. Drift invariant 59 enforces the labeling across every tracked
-  guidance file (derived denominator, written-reason exemptions); the code side never writes
-  into a machine-wide site-packages at all: the repo `.venv` is the only install target, and
+  the whole computer)". Policy, approved locations, and the exceptions (Apple CLT git on a Mac,
+  Microsoft's Visual C++ runtime on Windows): `docs/INSTALL-SCOPE.md`. Drift invariant 59
+  enforces the labeling across every tracked guidance file (derived denominator, written-reason
+  exemptions); the code side never writes into a machine-wide site-packages at all: the repo `.venv` is the only install target, and
   when it cannot be created the installer refuses with the remedy rather than falling back to
   the base interpreter (`tools/setup.py::install_dependencies`, `tools/wizard.py::_install_uv`).
+  On Windows the setup wizard can also run Microsoft's signed Visual C++ installer, a machine-wide
+  install, after the person ticks its confirmation box (`tools/transcribe.py::install_vc_runtime`,
+  ADR 0079).
 - Every spoke in the hub's downstream list exists; every atom a workflow names is installed.
 - `canonical-sources/source-registry.json` is written only through `tools/registry_io.py`
   (`load_registry`/`save_registry`), the single shared write implementation. Five tools funnel

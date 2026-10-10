@@ -54,9 +54,14 @@ Run one command and follow the browser steps:
 python3 tools/wizard.py
 ```
 
-Everything the wizard installs stays inside your user account (the repo's private `.venv`,
-`~/.local`, `~/Library`); since P93 it never writes into a machine-wide location -- with no
-`.venv` to install into it refuses with the exact remedy, whatever the base interpreter is.
+The packages and tools the wizard installs stay inside your user account (the repo's private
+`.venv`, `~/.local`, `~/Library`); since P93 it writes none of them into a machine-wide location --
+with no `.venv` to install into it refuses with the exact remedy, whatever the base interpreter is.
+The one machine-wide install it can start is Microsoft's Visual C++ runtime on Windows (P102, ADR
+0079): when faster-whisper is installed but cannot load without it, the **Check my setup** screen
+offers it under a "machine-wide: affects the whole computer" heading, and the wizard downloads
+Microsoft's installer and runs it only after the person ticks the confirmation box and Windows
+reports a valid Microsoft signature chained to Microsoft's code-signing root.
 It also SEARCHES the user-scoped locations it recommends (`~/.local/bin`, nvm's
 `~/.nvm/versions/node/<version>/bin`), so a tool installed the user-only way is detected
 rather than reported missing. The same default runs through every screen: the Node.js screen leads with the
@@ -71,8 +76,8 @@ saved locally (a gitignored `creator-os-wizard-state.local.json` holding only st
 closing the window or relaunching resumes where you left off; "Start over" on the welcome
 screen clears it. Run on an older Python and the wizard exits with the install instructions
 instead of a traceback (Python 3.12 through 3.14 are all supported, P91; the exit message
-says so). The two long steps (installing the free tools, downloading a speech
-model) run in the background behind a self-refreshing progress page, so the browser never looks
+says so). The long steps (installing the free tools, downloading a speech
+model, installing the Visual C++ runtime on Windows) run in the background behind a self-refreshing progress page, so the browser never looks
 frozen; pressing the button twice is refused rather than queued, and a crashed install still
 lands on an error page with the reason.
 

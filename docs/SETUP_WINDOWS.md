@@ -58,9 +58,10 @@ all three; `py -3` and `python` run the same Python when both are installed.
 
 In PowerShell:
 
-    git clone https://github.com/flywifi/seo-tools.git "$env:USERPROFILE\CreatorOS\seo-tools"
+    git clone --branch main https://github.com/flywifi/seo-tools.git "$env:USERPROFILE\CreatorOS\seo-tools"
 
-In Command Prompt, write the folder as `"%USERPROFILE%\CreatorOS\seo-tools"` instead.
+In Command Prompt, write the folder as `"%USERPROFILE%\CreatorOS\seo-tools"` instead. `--branch main`
+checks out `main`, the release branch, whichever branch GitHub shows by default.
 
 ### Step 3: First-time setup
 
@@ -82,10 +83,20 @@ OpenTimelineIO publishes no 3.14 wheels yet; the video tools report them as abse
 Local transcription runs on the computer's CPU: `py -3 tools/transcribe.py doctor` checks it, and
 the first `py -3 tools/transcribe.py run` downloads the speech model into the Hugging Face cache
 (or `HF_HOME` when set). *(tested on Windows)* faster-whisper also needs the Microsoft Visual C++
-Redistributable, a system library most Windows computers already have and pip cannot install; on a
+Redistributable, a system library many Windows computers already have and pip cannot install; on a
 computer without it, `--install-deps` and the doctor say so and name the fix instead of asking you to
 install the packages again <!-- verify: tools/transcribe.py::vc_runtime_missing -->. *(tested on
 Windows in a clean Windows Sandbox)*
+
+Installing that runtime is machine-wide (it affects the whole computer, and Windows asks for
+administrator permission). The wizard's **Check my setup** screen offers it when it is missing: tick
+the confirmation box and choose **Install it now**. The wizard downloads Microsoft's installer and runs
+it once Windows confirms that Microsoft signed it, then checks transcription again
+<!-- verify: tools/transcribe.py::install_vc_runtime -->. To do it yourself instead, download it from
+Microsoft (`https://aka.ms/vc14/vc_redist.x64.exe`) and run it, or run
+`winget install --exact --id Microsoft.VCRedist.2015+.x64`. On an account without administrator
+rights, whoever manages the computer approves or runs it. *(the wizard's install not yet tested on
+Windows)*
 
 ### Step 5: The setup wizard
 

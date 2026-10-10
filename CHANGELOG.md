@@ -380,6 +380,28 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the winget command, labeled machine-wide (`vc_runtime_remedy`), instead of sending the person back
   to `--install-deps`, which cannot install it. `setup.py --install-deps` imports faster-whisper in
   the `.venv` right after installing it (`_check_faster_whisper`) and reports the same.
+- P102 (Visual C++ runtime installed on request, machine-wide): on Windows on x64 or ARM64, when
+  faster-whisper is installed but cannot load because Visual C++ runtime DLLs are missing, the
+  wizard's Check my setup screen offers Microsoft's Visual C++ Redistributable under a
+  "machine-wide: affects the whole computer" heading, with Microsoft's license link, a confirmation
+  box and the manual route (`wizard._vc_runtime_offered`, `_vc_runtime_box`). `POST
+  /api/install-vc-runtime` refuses without the ticked box or when a fresh check does not offer the
+  install, then runs `transcribe.install_vc_runtime` as a background job: it downloads
+  `aka.ms/vc14/vc_redist.x64.exe` into a new temporary folder, runs it with `/install /passive
+  /norestart` once Windows PowerShell reports a Valid Authenticode signature from Microsoft
+  Corporation chained to Microsoft Root Certificate Authority 2011 (pinned by thumbprint), maps the
+  exit code (installed, restart pending, newer present, cancelled, needs an administrator, failed),
+  and deletes the folder in each outcome the selftest covers; the screen then shows the check again.
+  `docs/INSTALL-SCOPE.md` lists it in the exceptions register (ADR 0079).
+- P102 (install scope on Windows): drift invariant 59 gains a `windows-installer` branch
+  (`winget install`, an `msiexec` install, an installer `.exe` with an install switch, and
+  Microsoft's `vc_redist` package by name), with fixtures for each form and for text that installs
+  nothing; its self-proof moves to `sync_check._install_scope_selfproof`, which `_selfproof` runs, so
+  `tools/file_hash.py` rows can score it. The wizard's installer-route census also drives the new
+  route and allows the read-only readiness check a refusal screen starts.
+- P102 (clone the main branch): the clone commands in `docs/SETUP_WINDOWS.md`, `docs/SETUP_MAC.md`
+  and `docs/MAC-VALIDATION.md` pass `--branch main`, so a clone gets the release branch whichever
+  branch GitHub shows by default.
 - P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
   two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
   CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,

@@ -3629,11 +3629,76 @@ instead. <a href="/doctor">Check my setup</a> shows the exact one-line command f
 <p style="margin-top:16px"><a class="btn btn-outline" href="/">Back to start</a></p>""")
 
 
-def _screen_doctor(saved: str = "") -> str:
+# The architectures the Visual C++ install runs on (transcribe.VC_RUNTIME_ARCHES; the selftest checks
+# the two agree). The x64 package carries the ARM64 libraries; 32-bit Windows is not offered it.
+_VC_RUNTIME_ARCHES = ("amd64", "x86_64", "arm64", "aarch64")
+
+
+def _vc_runtime_offered(d) -> bool:
+    """True when the doctor result d is from Windows on x64 or ARM64 and reports faster-whisper
+    installed but not loading, with Visual C++ runtime libraries missing (P102)."""
+    fw = d.get("faster_whisper") if isinstance(d, dict) else None
+    return (isinstance(fw, dict) and str(d.get("os") or "").startswith("win")
+            and str(d.get("arch") or "").lower() in _VC_RUNTIME_ARCHES
+            and bool(d.get("vc_runtime_missing")) and bool(fw.get("installed")) and not fw.get("loads"))
+
+
+def _vc_runtime_box(missing) -> str:
+    """The offer to run Microsoft's Visual C++ Redistributable installer: labeled machine-wide, with
+    the license link, a confirmation box the route requires, and the manual route (ADR 0079)."""
+    import transcribe as _tr
+    url, lic = html.escape(_tr.VC_RUNTIME_URL), html.escape(_tr.VC_RUNTIME_LICENSE_URL)
+    names = html.escape(", ".join(missing or []))
+    return f'''<div class="note" style="background:#fff3e0">
+<h2>Install the Microsoft Visual C++ Redistributable (machine-wide: affects the whole computer)</h2>
+<p>Local transcription on Windows needs Microsoft's Visual C++ runtime, and this computer is missing
+part of it ({names}). Python's package installer cannot add it, so Creator OS can run Microsoft's own
+installer for you.</p>
+<ul>
+<li>It installs for every account on this computer, so Windows asks for administrator permission. If
+you are not an administrator here, whoever manages this computer needs to approve or run it.</li>
+<li>Creator OS downloads it from Microsoft (<code>{url}</code>) and runs it after Windows confirms that
+Microsoft signed it.</li>
+<li>Microsoft's license terms: <a href="{lic}" target="_blank" rel="noopener">{lic}</a></li>
+</ul>
+<form method="POST" action="/api/install-vc-runtime">
+<label style="font-weight:400"><input type="checkbox" name="confirm" value="yes" required> I understand
+this installs for every account on this computer</label>
+<button class="btn btn-primary" type="submit" style="margin-top:10px">Install it now</button>
+</form>
+<p class="hint">Or install it yourself: download and run it from Microsoft (<code>{url}</code>), or in
+a terminal run <code>winget install --exact --id Microsoft.VCRedist.2015+.x64</code></p>
+</div>'''
+
+
+def _vc_runtime_job() -> dict:
+    """The background job behind /api/install-vc-runtime: transcribe.install_vc_runtime, imported
+    here so the wizard loads transcribe only when the person asks for the install."""
+    import transcribe as _tr
+    return _tr.install_vc_runtime()
+
+
+def _render_vc_runtime_result(res: dict) -> str:
+    """The Check my setup screen after the install, which runs the readiness check again in a new
+    process, so it shows whether faster-whisper loads now."""
+    if res.get("error"):
+        return _screen_doctor(error=f"The install could not run: {html.escape(res['error'])}")
+    msg = html.escape(res.get("message") or "")
+    if res.get("note"):
+        msg += " " + html.escape(res["note"])
+    msg += " The check below has run again."
+    return _screen_doctor(saved=msg) if res.get("ok") else _screen_doctor(error=msg)
+
+
+def _screen_doctor(saved: str = "", error: str = "") -> str:
     """Guided STT readiness check: shows the green/amber/red verdict, the plain-language checklist, the
-    exact next command for this machine, and one-click model downloads (P46). All local."""
+    exact next command for this machine, and one-click model downloads (P46). All local. On Windows,
+    when the check finds faster-whisper installed but not loading for want of the Visual C++ runtime,
+    it offers the labeled machine-wide install (_vc_runtime_box, P102)."""
     d = _run_transcribe(["doctor"])
     saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
+    if error:
+        saved_html += f'<div class="error-box">{error}</div>'
     if d.get("error"):
         return _page("Check my setup", f"""
 <h1>Check my setup</h1>
@@ -3664,6 +3729,7 @@ def _screen_doctor(saved: str = "") -> str:
 {saved_html}
 <div class="note" style="background:{color}"><strong>{light}.</strong> {d.get('summary','')}</div>
 <ol>{rows}</ol>
+{_vc_runtime_box(d.get("vc_runtime_missing")) if _vc_runtime_offered(d) else ""}
 {dl_buttons}
 <p style="margin-top:16px"><a class="btn btn-outline" href="/import">Back to import</a>
 <a class="btn btn-outline" href="/">Back to start</a></p>""")
@@ -3738,13 +3804,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             # page; finished -> the same result rendering the old synchronous handlers produced.
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             name = q.get("name", [""])[0]
-            if name not in ("install_deps", "fetch_model"):
+            if name not in ("install_deps", "fetch_model", "vc_runtime"):
                 self._redirect("/")
                 return
             st = _job_status(name)
             if st["running"]:
-                label = ("Installing the free tools" if name == "install_deps"
-                         else "Downloading and verifying the speech model")
+                label = {"install_deps": "Installing the free tools",
+                         "fetch_model": "Downloading and verifying the speech model",
+                         "vc_runtime": "Installing the Microsoft Visual C++ Redistributable (answer the "
+                                       "Windows administrator prompt if it appears)"}[name]
                 self._send(_page("Working", f"""
 <meta http-equiv="refresh" content="3;url=/job-wait?name={name}">
 <h1>{label}&hellip;</h1>
@@ -3759,6 +3827,8 @@ anything, and closing this window does not stop the work.</p>
                 return
             if name == "install_deps":
                 self._send(_render_install_deps_result(res))
+            elif name == "vc_runtime":
+                self._send(_render_vc_runtime_result(res))
             else:
                 self._send(_render_fetch_model_result(res))
             return
@@ -4168,6 +4238,22 @@ anything, and closing this window does not stop the work.</p>
             _start_job("fetch_model",
                        lambda m=model: _run_transcribe(["doctor", "--fetch-model", m]))
             self._redirect("/job-wait?name=fetch_model")
+            return
+
+        if path == "/api/install-vc-runtime":
+            # P102 (ADR 0079): run Microsoft's Visual C++ Redistributable installer, machine-wide,
+            # only with the confirmation box ticked and only where the readiness check offers it.
+            # A second press while one runs starts nothing and shows the running job.
+            if self._read_form().get("confirm") != "yes":
+                self._send(_screen_doctor(error="Tick the box to confirm the machine-wide install first. "
+                                                "Nothing was installed."))
+                return
+            if not _vc_runtime_offered(_run_transcribe(["doctor"])):
+                self._send(_screen_doctor(error="This computer does not need the Visual C++ runtime for "
+                                                "transcription, so nothing was installed."))
+                return
+            _start_job("vc_runtime", _vc_runtime_job)
+            self._redirect("/job-wait?name=vc_runtime")
             return
 
         if path == "/api/set-drive-hub":
@@ -5439,6 +5525,115 @@ def _selftest_p101() -> int:
           and _h1["chatgpt_projects"] in _via["chatgpt_custom_gpt"]
           and _h1["gemini_web"] in _via["gemini_gems"],
           f"a retired surface is still offered ({_gone}), or an old link does not land on its replacement")
+    # P102: the Visual C++ install (ADR 0079). The box shows only where the readiness check offers it,
+    # and the route starts the job only with the confirmation ticked and the offer confirmed again.
+    import transcribe as _tr_v
+    _broken_v = {"installed": True, "loads": False, "error": "FileNotFoundError: ctranslate2.dll"}
+    _offer_v = {"os": "win32", "arch": "amd64", "verdict": "red", "summary": "s", "steps": [],
+                "faster_whisper": _broken_v, "vc_runtime_missing": ["msvcp140.dll", "vcruntime140_1.dll"]}
+    _offers_v = {
+        "x64": _offer_v, "arm64": dict(_offer_v, arch="ARM64"),
+        "x86": dict(_offer_v, arch="x86"), "mac": dict(_offer_v, os="darwin"),
+        "dlls present": dict(_offer_v, vc_runtime_missing=[]),
+        "loads": dict(_offer_v, faster_whisper=dict(_broken_v, loads=True)),
+        "not installed": dict(_offer_v, faster_whisper=dict(_broken_v, installed=False)),
+        "no probe": dict(_offer_v, faster_whisper=None), "error": {"error": "x"}}
+    check(_VC_RUNTIME_ARCHES == _tr_v.VC_RUNTIME_ARCHES
+          and {k: _vc_runtime_offered(v) for k, v in _offers_v.items()}
+          == {"x64": True, "arm64": True, "x86": False, "mac": False, "dlls present": False,
+              "loads": False, "not installed": False, "no probe": False, "error": False},
+          "the Visual C++ install is offered somewhere other than Windows on x64 or ARM64 with "
+          "faster-whisper installed, not loading and runtime libraries missing")
+    _doctor_v = {"result": _offer_v}
+    _jobs_v, _sent_v = [], []
+    _saved_v = {k: globals()[k] for k in ("_run_transcribe", "_start_job", "_job_status")}
+    globals()["_run_transcribe"] = lambda args: dict(_doctor_v["result"])
+    globals()["_start_job"] = lambda name, fn: _jobs_v.append((name, fn)) or True
+
+    def _post_v(form):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = "/api/install-vc-runtime", {}
+        _h._read_form = lambda: dict(form)
+        _h._read_body = lambda: urllib.parse.urlencode(form)
+        _h._send = lambda body, status=200, content_type="text/html": _sent_v.append(("send", body))
+        _h._redirect = lambda location: _sent_v.append(("redirect", location))
+        _h.do_POST()
+        return _sent_v[-1]
+
+    def _get_v(path):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = path, {}
+        _h._send = lambda body, status=200, content_type="text/html": _sent_v.append(("send", body))
+        _h._redirect = lambda location: _sent_v.append(("redirect", location))
+        _h.do_GET()
+        return _sent_v[-1]
+    try:
+        _box_v = _screen_doctor()
+        _doctor_v["result"] = _offers_v["dlls present"]
+        _plain_v = _screen_doctor()
+        _no_tick_v = _post_v({})
+        _wrong_tick_v = _post_v({"confirm": "on"})
+        _not_needed_v = _post_v({"confirm": "yes"})
+        _jobs_before_v = list(_jobs_v)
+        _doctor_v["result"] = _offer_v
+        _started_v = _post_v({"confirm": "yes"})
+        globals()["_job_status"] = lambda name: {"running": True, "result": None}
+        _waiting_v = _get_v("/job-wait?name=vc_runtime")
+        _results_v = {}
+        for _key_v, _res_v in (("ok", {"ok": True, "status": "restart", "exit_code": 3010,
+                                         "message": "Installed <now>.", "note": "Folder kept."}),
+                               ("cancelled", {"ok": False, "status": "cancelled", "message": "Cancelled."}),
+                               ("crashed", {"error": "RuntimeError: boom"})):
+            globals()["_job_status"] = lambda name, _r=_res_v: {"running": False, "result": _r}
+            _results_v[_key_v] = _get_v("/job-wait?name=vc_runtime")[1]
+        _real_install_v = _tr_v.install_vc_runtime
+        _tr_v.install_vc_runtime = lambda: {"ok": True, "status": "installed", "message": "m"}
+        try:
+            _job_res_v = _vc_runtime_job()
+        finally:
+            _tr_v.install_vc_runtime = _real_install_v
+    finally:
+        globals().update(_saved_v)
+    check("Install the Microsoft Visual C++ Redistributable (machine-wide: affects the whole computer)" in _box_v
+          and 'action="/api/install-vc-runtime"' in _box_v and 'name="confirm" value="yes" required' in _box_v
+          and _tr_v.VC_RUNTIME_LICENSE_URL in _box_v and _tr_v.VC_RUNTIME_URL in _box_v
+          and "winget install --exact --id Microsoft.VCRedist.2015+.x64" in _box_v
+          and "msvcp140.dll, vcruntime140_1.dll" in _box_v and "/api/install-vc-runtime" not in _plain_v,
+          "the Check my setup screen does not offer the labeled Visual C++ install with its license, "
+          "confirmation box and manual route, or offers it where the check does not")
+    check(_no_tick_v[0] == "send" and "Tick the box" in _no_tick_v[1]
+          and _wrong_tick_v[0] == "send" and "Tick the box" in _wrong_tick_v[1]
+          and _not_needed_v[0] == "send" and "does not need" in _not_needed_v[1] and _jobs_before_v == []
+          and _started_v == ("redirect", "/job-wait?name=vc_runtime")
+          and [(n, f) for n, f in _jobs_v] == [("vc_runtime", _vc_runtime_job)],
+          f"the Visual C++ install route starts a job without the ticked confirmation or where the "
+          f"check does not offer it, or does not start it once when both hold ({_jobs_v}, {_sent_v[:4]})")
+    check(_waiting_v[0] == "send" and "Visual C++ Redistributable" in _waiting_v[1]
+          and "administrator prompt" in _waiting_v[1]
+          and "Installed &lt;now&gt;. Folder kept. The check below has run again." in _results_v["ok"]
+          and 'class="error-box">Cancelled.' in _results_v["cancelled"]
+          and "The install could not run: RuntimeError: boom" in _results_v["crashed"]
+          and _job_res_v == {"ok": True, "status": "installed", "message": "m"},
+          "the Visual C++ install's progress page or result page is wrong")
+    # A second press while the install runs starts nothing (the real _start_job refuses it).
+    _gate_v = threading.Event()
+    _ran_v = []
+
+    def _slow_v():
+        _ran_v.append(1)
+        _gate_v.wait(5)
+        return {"ok": True, "status": "installed", "message": "m"}
+    _first_v = _start_job("vc_runtime_selftest", _slow_v)
+    _second_v = _start_job("vc_runtime_selftest", _slow_v)
+    _gate_v.set()
+    for _ in range(50):
+        if not _job_status("vc_runtime_selftest")["running"]:
+            break
+        time.sleep(0.05)
+    with _jlock:
+        _jobs.pop("vc_runtime_selftest", None)
+    check(_first_v is True and _second_v is False and _ran_v == [1],
+          f"a second start of a running job was not refused ({_first_v}, {_second_v}, {_ran_v})")
     # P102: the work-order screen warns that an older computer refuses windows and linux work.
     from handoff import runner as _runner_pin
     _real_tag, _wo = _runner_pin._platform_tag, {}
@@ -6368,9 +6563,11 @@ def _selftest() -> int:
     # `elif` chain of the same kind and a final `else`, so every route it serves is one of those
     # literals (the final `else` is driven as an unknown path). A route reaches an installer when
     # its block, or a module function or _Handler method it names, followed through the ones
-    # those name, names _install_uv or _run_setup: the pip census in setup.py's selftest holds
-    # every pip install command in the tree to setup.py's _pip_install and this module's
-    # _install_uv, and _run_setup starts setup.py, whose own pins cover the script. A function
+    # those name, names _install_uv, _run_setup or install_vc_runtime: the pip census in setup.py's
+    # selftest holds every pip install command in the tree to setup.py's _pip_install and this
+    # module's _install_uv, _run_setup starts setup.py, whose own pins cover the script, and
+    # transcribe.install_vc_runtime runs Microsoft's Visual C++ installer (its own pins in
+    # transcribe.py and _selftest_p101 cover the download, signature and run). A function
     # reached only through a string (globals(), getattr) is outside what this reads. A later
     # commit can rebind the checked symbols at runtime (do_POST, _install_uv, _run_setup); code
     # review, the drift guard on the diff and tools/tree_pin.py govern that class, not this pin.
@@ -6421,7 +6618,7 @@ def _selftest() -> int:
         while todo - seen:
             name = sorted(todo - seen)[0]
             seen.add(name)
-            if name in ("_install_uv", "_run_setup"):
+            if name in ("_install_uv", "_run_setup", "install_vc_runtime"):
                 return True
             if name in _wdefs:
                 todo |= _named(list(_ast_r.walk(_wdefs[name])))
@@ -6431,7 +6628,8 @@ def _selftest() -> int:
     # PATH, a form whose every field answers "selftest", and every process start this thread makes
     # recorded, not run; the Claude config, the capability flag, the wizard state and the job
     # thread (run inline) are stubbed. The only starts allowed are setup.py's --install-deps --json
-    # entry and, with a .venv, pip run by the .venv interpreter; a crash fails the pin. A branch on
+    # entry, the read-only readiness check (transcribe.py doctor) a refusal screen shows and, with a
+    # .venv, pip run by the .venv interpreter; a crash fails the pin. A branch on
     # a form value other than "selftest" and a start made from another thread are outside it.
     import contextlib as _ctx_r
     import io as _io_r
@@ -6486,13 +6684,16 @@ def _selftest() -> int:
         globals().update(_route_saved[0])
         env_paths.venv_python, env_paths.which = _route_saved[1:]
     _setup_entry = [str(ROOT / "tools" / "setup.py"), "--install-deps", "--json"]
-    check(_form_ok and {"/api/install-deps", "/api/write-google"} <= set(_install_routes)
+    _doctor_entry = [str(ROOT / "tools" / "transcribe.py"), "doctor"]
+    check(_form_ok and {"/api/install-deps", "/api/write-google", "/api/install-vc-runtime"} <= set(_install_routes)
           and len(_route_runs) == 2 * len(_install_routes)
-          and all(_argv[1:] == _setup_entry or (_venv and _argv[0] == str(_uv_fake)
+          and all(_argv[1:] in (_setup_entry, _doctor_entry) or (_venv and _argv[0] == str(_uv_fake)
                                                 and _argv[1:3] == ["-m", "pip"])
                   for (_venv, _r), _starts in _route_runs.items() for _argv in _starts)
           and _route_runs[(False, "/api/write-google")] == []
           and [_a[0] for _a in _route_runs[(True, "/api/write-google")]] == [str(_uv_fake)]
+          and all([_a[1:] for _a in _route_runs[(_v, "/api/install-vc-runtime")]] == [_doctor_entry]
+                  for _v in (False, True))
           and all(len(_route_runs[(_v, "/api/install-deps")]) == 1 for _v in (False, True)),
           "every POST route that reaches an installer, driven through do_POST with no .venv and "
           "with one, starts pip only with the .venv interpreter")
