@@ -37,6 +37,11 @@ import textdecode as _td  # noqa: E402  (a byte-order mark, then strict UTF-8, t
 # Text in these encodings is full of NUL bytes, so the binary sniff would skip it; a file that starts
 # with one of their byte-order marks is decoded first (the UTF-32 LE mark starts with UTF-16 LE's).
 _WIDE_BOMS = (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE, codecs.BOM_UTF32_BE)
+# A reader that ignores the mark reads the same bytes another way: as UTF-8, or through Python's
+# utf-16 codec, which takes a UTF-32 LE mark for a UTF-16 LE one. Behind a wide mark the screen
+# reads the bytes those ways too and keeps the most cautious verdict, so text in front of which a
+# mark was put is not hidden from such a reader (P102).
+_OTHER_READINGS = ("utf-8", "utf-16")
 
 # --------------------------------------------------------------------------- the spec, as data
 # Each category: (base points per match, severity, [compiled patterns]). The patterns are derived
@@ -210,15 +215,34 @@ def _looks_binary(data: bytes) -> bool:
     return (text_bytes / len(head)) < 0.85
 
 
+def _screen_readings(raw, max_bytes):
+    """([(label, text), ...], truncated) for the bytes scan_file read (at most max_bytes + 1): first
+    the text shared/docintel/textdecode.py decodes from the first max_bytes, labelled with its
+    encoding, then, when they start with a UTF-16 or UTF-32 byte-order mark, each _OTHER_READINGS
+    reading that differs from the ones before it."""
+    truncated = len(raw) > max_bytes
+    part = raw[:max_bytes]
+    text, encoding = _td.decode_text(part, complete=not truncated)
+    readings = [(encoding, text)]
+    if part.startswith(_WIDE_BOMS):
+        for codec in _OTHER_READINGS:
+            other = part.decode(codec, errors="replace")
+            if all(other != seen for _label, seen in readings):
+                readings.append((codec, other))
+    return readings, truncated
+
+
 def scan_file(path, max_bytes: int = 2_000_000, trust: str = "untrusted_external") -> dict:
     """Scan a file's text. Binary files and bytes beyond max_bytes are reported honestly as
     unscanned, never guessed at: a file longer than max_bytes gets a record for its first
     max_bytes with "truncated": True and a note. It reads at most max_bytes + 1 bytes, so a large
     video costs no more memory than a small one (P102). The text is decoded as
-    shared/docintel/textdecode.py reads it (ADR 0080), so the screen reads what the transcript
-    parser reads, and the record names the encoding: a file that starts with a UTF-16 or UTF-32
-    byte-order mark is decoded before it is judged binary, and is skipped as binary only when the
-    decoded text holds a NUL character. Never raises."""
+    shared/docintel/textdecode.py reads it (ADR 0080), so for a file of up to max_bytes the screen
+    reads the text the transcript parser reads, and the record names the encoding. A file that starts
+    with a UTF-16 or UTF-32 byte-order mark is decoded before it is judged binary, and is skipped as
+    binary only when the decoded text holds a NUL character; its bytes are also read as UTF-8 and
+    through Python's utf-16 codec (_OTHER_READINGS), and the record keeps the reading with the
+    highest score, naming it under "verdict_reading" when it is not the decoded one. Never raises."""
     p = Path(path)
     try:
         with open(p, "rb") as fh:  # at most max_bytes + 1: enough to tell a cut, never a whole video
@@ -228,13 +252,19 @@ def scan_file(path, max_bytes: int = 2_000_000, trust: str = "untrusted_external
     wide = raw.startswith(_WIDE_BOMS)
     if not wide and _looks_binary(raw):
         return {"file": str(path), "skipped": "binary (no text to scan)"}
-    truncated = len(raw) > max_bytes
-    text, encoding = _td.decode_text(raw[:max_bytes], complete=not truncated)
+    readings, truncated = _screen_readings(raw, max_bytes)
+    encoding, text = readings[0]
     if wide and "\x00" in text[:4096]:
         return {"file": str(path), "skipped": "binary (no text to scan)"}
-    rec = scan_text(text, trust=trust, artifact_id=p.name)
+    rec, decided = None, 0
+    for i, (_label, reading) in enumerate(readings):
+        got = scan_text(reading, trust=trust, artifact_id=p.name)
+        if rec is None or got["total_score"] > rec["total_score"]:  # the level rises with the score
+            rec, decided = got, i
     rec["file"] = str(path)
     rec["encoding"] = encoding
+    if decided:
+        rec["verdict_reading"] = readings[decided][0]
     if truncated:
         rec["truncated"] = True
         rec["note"] = f"only the first {max_bytes} bytes were scanned"
@@ -398,6 +428,49 @@ def selftest() -> int:
         rcp = scan_file(cp)
         ok("a cp1252 file is screened with its encoding named",
            rcp.get("risk_level") in (QUARANTINE, BLOCK) and rcp.get("encoding") == "cp1252-fallback")
+        # P102: a wide mark put in front of text in another encoding does not hide that text from
+        # a reader that ignores the mark: the screen reads it as UTF-8 and as Python's utf-16 does.
+        ascii_cue = ("1\n00:00:01,000 --> 00:00:02,000\n" + payload + "\n").encode("ascii")
+        masked = {
+            "FE FF in front of ASCII": (codecs.BOM_UTF16_BE + ascii_cue, "utf-16", "utf-8"),
+            "FF FE in front of ASCII": (codecs.BOM_UTF16_LE + ascii_cue, "utf-16", "utf-8"),
+            "00 00 FE FF in front of ASCII": (codecs.BOM_UTF32_BE + ascii_cue, "utf-32", "utf-8"),
+            "FF FE 00 00 in front of UTF-16 LE": (codecs.BOM_UTF32_LE + ascii_cue.decode().encode("utf-16-le"),
+                                                  "utf-32", "utf-16"),
+        }
+        for name, (raw, label, reading) in masked.items():
+            mf = d / "masked.srt"
+            mf.write_bytes(raw)
+            rm = scan_file(mf)
+            ok(f"{name}: flagged from the {reading} reading, encoding still {label}",
+               rm.get("risk_level") in (QUARANTINE, BLOCK) and rm.get("encoding") == label
+               and rm.get("verdict_reading") == reading)
+        mclean = d / "masked-clean.srt"
+        mclean.write_bytes(codecs.BOM_UTF16_BE + b"1\n00:00:01,000 --> 00:00:02,000\nwelcome back\n")
+        rmc = scan_file(mclean)
+        ok("a wide mark in front of clean ASCII stays CLEAN, with no other reading named",
+           rmc.get("risk_level") == CLEAN and "verdict_reading" not in rmc)
+        ok("a UTF-16 file whose decoded text flags keeps that reading's verdict, with no other named",
+           "verdict_reading" not in scan_file(d / "poison-utf-16-utf-16-le.srt"))
+        late_nul = d / "late-nul.srt"
+        late_nul.write_bytes(codecs.BOM_UTF16_LE + ("x" * 100 + "\x00" + cue).encode("utf-16-le"))
+        ok("a NUL character a hundred characters into the decoded text still makes it binary",
+           scan_file(late_nul).get("skipped", "").startswith("binary"))
+        # The screen reads the text the transcript parser reads, for a file of up to max_bytes.
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared" / "docintel"))
+        import transcripts as _tr
+        same = []
+        for name, raw in (("utf-8", cue.encode("utf-8")), ("utf-8 BOM", codecs.BOM_UTF8 + cue.encode("utf-8")),
+                          ("utf-16", codecs.BOM_UTF16_LE + cue.encode("utf-16-le")),
+                          ("odd utf-16", codecs.BOM_UTF16_BE + cue.encode("utf-16-be") + b"!"),
+                          ("utf-32", codecs.BOM_UTF32_BE + cue.encode("utf-32-be")),
+                          ("cp1252", cue.encode("cp1252"))):
+            sf = d / "same.srt"
+            sf.write_bytes(raw)
+            readings, cut = _screen_readings(raw, len(raw))
+            same.append((name, readings[0] == tuple(reversed(_tr.read_text_with_encoding(str(sf)))), cut))
+        ok("for a file of exactly max_bytes the screen's first reading is the transcript parser's text "
+           "and encoding", all(m and c is False for _n, m, c in same))
     finally:
         _scratch.cleanup()
     ok("the oversize checks' temp folder, with its 50 MB file, is removed", not d.exists())

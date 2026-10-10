@@ -106,12 +106,18 @@ def parse_json(text):
 def parse(path):
     ext = Path(path).suffix.lower().lstrip(".")
     text, encoding = read_text_with_encoding(path)
+    fmt = None
     if ext == "json" or text.lstrip().startswith(("{", "[")):
-        fmt, segments = "json", parse_json(text)
-    elif ext in ("srt", "vtt") or CUE.search(text):
+        try:
+            fmt, segments = "json", parse_json(text)
+        except ValueError:
+            if ext == "json":
+                raise
+            fmt = None  # a subtitle or text file that starts with "[Music]" or "{" is not JSON
+    if fmt is None and (ext in ("srt", "vtt") or CUE.search(text)):
         fmt = "vtt" if (ext == "vtt" or "WEBVTT" in text[:32]) else "srt"
         segments = parse_srt_vtt(text)
-    else:
+    elif fmt is None:
         fmt = "text"
         segments = [{"start": 0.0, "end": 0.0, "text": line.strip()}
                     for line in text.splitlines() if line.strip()]
@@ -300,6 +306,35 @@ def _selftest():
        and to_seconds("1:02:03,000") == 3723.0)
     ok("emit still writes hours, so the files Creator OS writes do not change",
        emit(cues, "vtt").splitlines()[2] == "00:00:01.000 --> 00:00:02.500")
+    ok("WebVTT: a cue past ten hours keeps both digits of its hours",
+       [(c["start"], c["end"]) for c in parse_srt_vtt("WEBVTT\n\n10:00:01.000 --> 10:00:02.500\nLate cue\n")]
+       == [(36001.0, 36002.5)])
+    # P102: a file that starts with "[" or "{" and is not JSON is read by the other parsers.
+    with tempfile.TemporaryDirectory() as td:
+        music = "[Music]\nwelcome back to the workshop\n"
+        fmts = {}
+        for name, raw in (("bom.txt", codecs.BOM_UTF8 + music.encode("utf-8")),
+                          ("wide.txt", codecs.BOM_UTF16_LE + music.encode("utf-16-le")),
+                          ("plain.txt", music.encode("utf-8")),
+                          ("intro.srt", b"[intro]\n\n1\n00:00:01,000 --> 00:00:02,000\nHi there\n"),
+                          ("real.json", b'{"segments": [{"start": 0, "end": 1.5, "text": "hi"}]}'),
+                          ("list.txt", b'[{"start": 2, "end": 3, "text": "from a list"}]')):
+            (Path(td) / name).write_bytes(raw)
+            got = parse(str(Path(td) / name))
+            fmts[name] = (got["format"], [s["text"] for s in got["segments"]])
+        ok("a text file that starts with [Music] is read as text, with or without a byte-order mark",
+           all(fmts[n] == ("text", ["[Music]", "welcome back to the workshop"])
+               for n in ("bom.txt", "wide.txt", "plain.txt")))
+        ok("a subtitle that starts with [ is read as a subtitle; JSON still reads as JSON",
+           fmts["intro.srt"] == ("srt", ["Hi there"]) and fmts["real.json"] == ("json", ["hi"])
+           and fmts["list.txt"] == ("json", ["from a list"]))
+        (Path(td) / "broken.json").write_bytes(b'{"segments": [')
+        try:
+            parse(str(Path(td) / "broken.json"))
+            broken_raised = False
+        except ValueError:
+            broken_raised = True
+        ok("a .json file that does not parse still raises", broken_raised)
 
     import contextlib
     import io

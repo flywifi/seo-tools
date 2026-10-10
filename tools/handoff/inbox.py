@@ -1220,6 +1220,16 @@ def _selftest_checks() -> int:
        and not s16["needs_review"])
     a16 = approve(w16, {"proposals": s16["proposals"]}, ledger_path=Path(tempfile.mkdtemp()) / "w16.json")
     ok("approve moves the clean UTF-16 subtitle", a16["moved"] == ["Inbox/talk16.srt"] and not a16["refused"])
+    # A UTF-16 mark put in front of plain ASCII text does not hide the payload from the screen.
+    (w16 / "Inbox" / "masked.srt").write_bytes(_codecs_w.BOM_UTF16_BE + (srt + "\n" + poison).encode("ascii"))
+    sm = scan(w16, ledger={})
+    am = approve(w16, {"proposals": [prop_for(w16, "masked.srt", offline_pattern_scan=clean_rec)]},
+                 ledger_path=Path(tempfile.mkdtemp()) / "wm.json")
+    ok("scan seals a subtitle whose UTF-16 mark sits in front of ASCII text carrying the payload, and "
+       "approve refuses a clean proposal for it",
+       "Inbox/masked.srt" in [e["file"] for e in sm["quarantined"]]
+       and "Inbox/masked.srt" not in [e["file"] for e in sm["proposals"]]
+       and not am["moved"] and "SEAL-TERMINAL" in am["refused"][0]["why"])
 
     # P102: an oversize text file is read only up to injection_scan's max_bytes, so a clean verdict
     # for that part neither routes it from scan nor lets approve move it; a flag in that part seals.

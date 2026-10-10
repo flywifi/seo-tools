@@ -44,9 +44,14 @@ the WebVTT format allows beside `hh:mm:ss.ttt`. The files Creator OS writes keep
   same Microsoft page says that in Windows PowerShell "Using any Unicode encoding, except `UTF7`,
   always creates a BOM".
 - The offline injection screen (`tools/injection_scan.py::scan_file`) decodes through the same
-  module, so it screens the text the transcript parser reads. A file that starts with a UTF-16 or
-  UTF-32 BOM is decoded before the binary sniff, which a NUL byte trips, and is skipped as binary
-  only when the decoded text holds a NUL character. Its record names the encoding.
+  module, so for a file of up to its 2 MB limit it screens the text the transcript parser reads. A
+  file that starts with a UTF-16 or UTF-32 BOM is decoded before the binary sniff, which a NUL byte
+  trips, and is skipped as binary only when the decoded text holds a NUL character. Its record
+  names the encoding.
+- A BOM can be put in front of text in another encoding, and a reader that ignores the mark then
+  reads that text while the decoded reading does not. Behind a UTF-16 or UTF-32 BOM the screen
+  therefore also reads the bytes as UTF-8 and through Python's `utf-16` codec, which takes a UTF-32
+  LE mark for a UTF-16 LE one, and keeps the reading with the highest score.
 
 ```sources
 [

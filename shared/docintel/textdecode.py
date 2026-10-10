@@ -30,6 +30,10 @@ _BOMS = (
     (codecs.BOM_UTF16_BE, "utf-16", "utf-16"),
 )
 LABELS = ("utf-32", "utf-8-sig", "utf-16", "utf-8", "cp1252-fallback")
+# The codec each label stands for, for a caller that decides from a file's first part and then
+# streams the rest (parse_text.parse_csv): open(path, encoding=CODECS[label], errors="replace").
+CODECS = {"utf-32": "utf-32", "utf-8-sig": "utf-8-sig", "utf-16": "utf-16", "utf-8": "utf-8",
+          "cp1252-fallback": "cp1252"}
 
 
 def decode_text(raw, complete=True):
@@ -79,9 +83,24 @@ def selftest() -> int:
         got, label = decode_text(raw)
         ok(f"{name} decodes to the text with label {want}", got == text and label == want)
     ok("an empty file is utf-8 and empty", decode_text(b"") == ("", "utf-8"))
+    broken = {"utf-8-sig": codecs.BOM_UTF8 + b"ok \xff\xfe",
+              "utf-16": codecs.BOM_UTF16_LE + "ok".encode("utf-16-le") + b"\x00",  # cut at an odd byte
+              "utf-32": codecs.BOM_UTF32_BE + b"\x00\x11\x00\x00"}  # past the last code point
+    try:
+        got_broken = {label: decode_text(raw) for label, raw in broken.items()}
+        raised = False
+    except UnicodeDecodeError:
+        got_broken, raised = {}, True
+    ok("a byte-order mark followed by bytes its encoding cannot decode gives replacement characters, "
+       "never an error",
+       not raised and all(got_broken[lbl][1] == lbl and got_broken[lbl][0].endswith("\ufffd")
+                          for lbl in broken))
     ok("cp1252 never raises: every byte value decodes",
        decode_text(bytes(range(256)))[1] == "cp1252-fallback")
     ok("the labels are the documented set", {lbl for _r, lbl in cases.values()} <= set(LABELS))
+    ok("each label's codec in CODECS decodes its sample to the same text",
+       set(CODECS) == set(LABELS)
+       and all(raw.decode(CODECS[lbl], errors="replace") == text for raw, lbl in cases.values()))
     cut = "été".encode("utf-8")[:-1]  # the final two-byte character is cut in half
     ok("a UTF-8 file cut mid-character stays utf-8 when complete=False",
        decode_text(cut, complete=False) == ("ét", "utf-8"))
@@ -97,6 +116,13 @@ def selftest() -> int:
            part == ("éé", "utf-8"))
         ok("read_text_file with max_bytes at least the size reads the whole file",
            read_text_file(long_utf8, max_bytes=20) == ("é" * 10, "utf-8"))
+        cut_file, longer = Path(td) / "cut.txt", Path(td) / "longer.txt"
+        cut_file.write_bytes(cut)  # the whole file ends inside a character
+        longer.write_bytes(cut + "\u00e9!".encode("utf-8")[1:])  # the same first bytes, then more
+        ok("a file exactly max_bytes long is read as a whole file, so a cut final character counts; "
+           "the same bytes at the start of a longer file are a cut first part",
+           read_text_file(cut_file, max_bytes=len(cut))[1] == "cp1252-fallback"
+           and read_text_file(longer, max_bytes=len(cut)) == ("ét", "utf-8"))
         try:
             read_text_file(Path(td) / "missing.txt")
             raised = False

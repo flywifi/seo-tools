@@ -13,7 +13,6 @@ Usage:
 import argparse
 import csv
 import html
-import io
 import json
 import re
 import sys
@@ -117,12 +116,22 @@ def parse_xlsx(path):
     )
 
 
+# parse_csv decides the encoding from the file's first part, then reads rows as a stream.
+CSV_ENCODING_BYTES = 1 << 20
+
+
 def parse_csv(path, delimiter):
+    """The first rows of a CSV or TSV file, up to the 500 cap. The encoding is the one textdecode
+    gives the first CSV_ENCODING_BYTES (1 MiB); the rows are then read as a stream with
+    replacement characters, so a large export costs no more memory than the rows kept, and a byte
+    past the first MiB that the encoding cannot decode becomes U+FFFD."""
+    label = _td.read_text_file(path, max_bytes=CSV_ENCODING_BYTES)[1]
     rows = []
-    for i, row in enumerate(csv.reader(io.StringIO(read_text(path), newline=""), delimiter=delimiter)):
-        rows.append(row)
-        if i >= 500:
-            break
+    with open(path, newline="", encoding=_td.CODECS[label], errors="replace") as fh:
+        for i, row in enumerate(csv.reader(fh, delimiter=delimiter)):
+            rows.append(row)
+            if i >= 500:
+                break
     text = "\n".join(delimiter.join(r) for r in rows)
     return result(path, "csv", "content_ingested", text, tables=rows[:50],
                   notes=f"{len(rows)} rows parsed (capped at 500)")
@@ -287,6 +296,43 @@ def selftest() -> int:
         cp.write_bytes("item,note\r\nlamp,caf\u00e9\r\n".encode("cp1252"))
         ok("a cp1252 csv keeps its accents in the table",
            parse(str(cp))["tables"] == [["item", "note"], ["lamp", "caf\u00e9"]])
+        for name, raw in (("utf-16", codecs.BOM_UTF16_LE + "item\tnote\nlamp\tcaf\u00e9\n".encode("utf-16-le")),
+                          ("utf-8-sig", codecs.BOM_UTF8 + "item\tnote\nlamp\tcaf\u00e9\n".encode("utf-8"))):
+            tp = d / f"rates-{name}.tsv"
+            tp.write_bytes(raw)
+            ok(f"a {name} tsv keeps its first column name and accents",
+               parse(str(tp))["tables"] == [["item", "note"], ["lamp", "caf\u00e9"]])
+        markup = "<html><body><p>Caf\u00e9 cr\u00e8me</p></body></html>"
+        for name, raw in (("cp1252", markup.encode("cp1252")),
+                          ("utf-16", codecs.BOM_UTF16_LE + markup.encode("utf-16-le"))):
+            hp = d / f"page-{name}.html"
+            hp.write_bytes(raw)
+            ok(f"a {name} html file reads as written", parse(str(hp))["text"] == "Caf\u00e9 cr\u00e8me")
+        doc = {"title": "Caf\u00e9 cr\u00e8me", "n": 2}
+        for name, raw in (("cp1252", json.dumps(doc, ensure_ascii=False).encode("cp1252")),
+                          ("utf-16", codecs.BOM_UTF16_LE + json.dumps(doc, ensure_ascii=False).encode("utf-16-le"))):
+            jp = d / f"doc-{name}.json"
+            jp.write_bytes(raw)
+            got = parse(str(jp))
+            ok(f"a {name} json file is parsed as written",
+               got["ingestion_status"] == "content_ingested" and json.loads(got["text"]) == doc)
+        # A large CSV is streamed: memory follows the rows kept, not the file's size.
+        import tracemalloc
+        bigc = d / "big.csv"
+        with open(bigc, "w", encoding="utf-8", newline="") as fh:
+            fh.write("video,title,views\n")
+            for i in range(160_000):
+                fh.write(f"v{i},A fictional title number {i} for the stream check,{i}\n")
+        tracemalloc.start()
+        try:
+            got_big = parse(str(bigc))
+            _cur, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        ok(f"a csv of {bigc.stat().st_size // 1048576} MB is read as a stream, its 501 rows in under "
+           f"6 MB of memory ({peak / 1048576:.1f} MB)",
+           bigc.stat().st_size > 8 * 1048576 and peak < 6 * 1048576
+           and len(got_big["tables"]) == 50 and got_big["notes"].startswith("501 rows"))
 
     print(f"parse_text selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

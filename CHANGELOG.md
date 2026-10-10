@@ -37,7 +37,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `classify.zip_directory` reads a zip's entry count and directory size from its end record, ZIP64
   included, and a zip over 50,000 entries or a 16 MB directory is not listed: the classifier treats
   it as a plain archive, and the scan proposes it by a name hint or holds it with a pointer to the
-  `/import` screen. `classify.py` and `wer.py` gain selftests and leave the selftest exemptions.
+  `/import` screen. `classify.py` gains a selftest and leaves the selftest exemptions.
 - P102 (import notes): `import_parse` reads a TikTok data zip through its JSON member instead of
   stopping with a JSONDecodeError, and prints a `note:` line on stderr for a `.tgz` Takeout and for
   a Studio CSV none of whose column names it recognises (another language); the wizard's import
@@ -45,17 +45,24 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - P102 (UTF-16 text in the injection screen): `injection_scan.scan_file` decodes through
   `textdecode`, and a file that starts with a UTF-16 or UTF-32 byte-order mark is decoded before
   the binary sniff, so a subtitle saved by Windows PowerShell's `Out-File` is screened and can be
-  proposed, and one carrying an injection payload is sealed; before, it was skipped as binary and
-  held. The record names the encoding. The selftest's oversize checks run in a temporary folder
-  that is removed afterwards; it left about 48 MB, a 50 MB sparse file, per run.
+  proposed; before, a UTF-16 file was skipped as binary, since its text holds NUL bytes, and held.
+  Behind such a mark the screen also reads the bytes as UTF-8 and through Python's `utf-16` codec
+  and keeps the reading with the highest score (`verdict_reading` names it when it is not the
+  decoded one), so a mark put in front of plain ASCII or UTF-16 text does not turn a flagged
+  file clean. The record names the encoding. The selftest's oversize checks run in a temporary
+  folder that is removed afterwards; it left about 48 MB, a 50 MB sparse file, per run.
 - P102 (text files read as saved): `shared/docintel/textdecode.py` decodes a text file by
   byte-order mark (UTF-32, UTF-8, UTF-16), then strict UTF-8, then cp1252, and labels which rule
   decided (ADR 0080). The transcript parser, the word-error-rate tool, the offline text extractor
   and the export importer read through it, so a subtitle saved by Windows PowerShell 5.1's
   `Out-File` (UTF-16) or `Set-Content` (cp1252) reads as written instead of giving 0 segments or
   replaced accents, and a YouTube Studio CSV saved with a BOM imports its rows.
-  `transcripts.parse` and its `--normalize` output gain an `encoding` field. The extractor no longer
-  guesses UTF-16 without a BOM, which misread even-length cp1252 files.
+  `transcripts.parse` and its `--normalize` output gain an `encoding` field, and a text or
+  subtitle file that starts with `[` or `{` and does not parse as JSON (`[Music]`, say) is read as
+  text or as a subtitle instead of stopping with a JSONDecodeError. The extractor no longer guesses
+  UTF-16 without a BOM, which misread even-length cp1252 files; its CSV reader takes the encoding
+  `textdecode` gives the first MiB and then reads rows as a stream (`textdecode.CODECS`).
+  `wer.py` gains a selftest and leaves the selftest exemptions.
 - P102 (WebVTT cues without hours): the transcript parser reads a cue timed `mm:ss.ttt`, which
   WebVTT allows beside `hh:mm:ss.ttt`; it used to drop it. Files Creator OS writes keep their hours.
 - P102 (Windows CI job): `.github/workflows/ci.yml` gains a `windows` job that runs
