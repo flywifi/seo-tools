@@ -428,7 +428,7 @@ def sync_doc(token, markdown: str, state: dict, transport=None, now=None, log=No
         action = "adopted" if adopted else "updated"
     if not doc_id:
         parent_id, err = None, None
-        root_id, err = da.find_folder(token, HUB_FOLDER, transport)
+        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name
         if not err:
             parent_id, err = da.find_folder(token, HUB_SUBDIR, transport, parent_id=root_id)
         if err and err.startswith(("HTTP", "bad JSON")):
@@ -440,8 +440,8 @@ def sync_doc(token, markdown: str, state: dict, transport=None, now=None, log=No
         action, placed = "created", ("profile" if parent_id else "my-drive")
         if placed == "my-drive":
             log.warning("created the Doc %r in My Drive: the API cannot see the hub's Profile "
-                        "folder (drive.file). Move it into Creator OS/Profile once; later runs "
-                        "update it by id wherever it is.", DOC_NAME)
+                        "folder (drive.file). Move it into %s/Profile once; later runs "
+                        "update it by id wherever it is.", DOC_NAME, pd.hub_folder_name())
     state["doc"] = {"id": meta.get("id") or doc_id, "sha256": sha, "updated_at": now,
                     "modified_time": meta.get("modifiedTime"), "parents": meta.get("parents"),
                     "placed": placed}
@@ -754,7 +754,7 @@ def _status_text(st: dict, platform=None) -> str:
         line = f"Doc: {d['id']} ({d.get('placed') or 'placed before P99-2'}), " \
                f"updated {d.get('updated_at')}"
         if d.get("placed") == "my-drive":
-            line += "; if you have not moved it yet, move it into Creator OS/Profile once"
+            line += f"; if you have not moved it yet, move it into {pd.hub_folder_name()}/Profile once"
         lines.append(line)
     if st["recent_changes"]:
         lines.append("recent changes:")
@@ -893,6 +893,7 @@ class _FakeDrive:
         self.token, self.files, self.n, self.t, self.calls = token, {}, 0, 0, []
         self.folders_visible, self.fail_get, self.patch_404_once = folders_visible, None, False
         self.raise_on = None
+        self.hub_name = "Creator OS"  # the hub folder's name in this fake My Drive
 
     def tick(self):
         self.t += 1
@@ -922,7 +923,7 @@ class _FakeDrive:
             parent = re.search(r"'([^']+)' in parents", q)
             parent = parent.group(1) if parent else None
             if "folder" in q:
-                folders = {"fld-Decoy": ("Profile", "root"), "fld-Creator": ("Creator OS", "root"),
+                folders = {"fld-Decoy": ("Profile", "root"), "fld-Creator": (self.hub_name, "root"),
                            "fld-Profile": ("Profile", "fld-Creator")} if self.folders_visible else {}
                 hits = [{"id": i} for i, (n, p) in folders.items()
                         if n == name and (parent is None or p == parent)]
@@ -1076,6 +1077,19 @@ def _pins_refuse(m, tmp) -> list:
 
 
 def _pins_doc(m, tmp) -> list:
+    """The Doc lane's pins, with the hub's config files read from a temporary folder: the hub folder
+    name comes from there (watcher.hub_folder_name), not from this computer's config."""
+    from handoff import watcher as _w
+    cfg_root = tmp / "doc-config-root"
+    cfg_root.mkdir()
+    real_root, _w.ROOT = _w.ROOT, cfg_root
+    try:
+        return _pins_doc_body(m, tmp, cfg_root)
+    finally:
+        _w.ROOT = real_root
+
+
+def _pins_doc_body(m, tmp, cfg_root) -> list:
     tok = _part("fixture-", "access", "_token")
     log, cap = _quiet_log("doc")
     out = []
@@ -1128,6 +1142,29 @@ def _pins_doc(m, tmp) -> list:
     r, c, _ = run(d3, st3, "# v1\n")
     out.append(("I: hub folders visible: the Doc is created in Creator OS/Profile",
                 r["placed"] == "profile" and st3["doc"]["parents"] == ["fld-Profile"]))
+    # P102: a hub folder configured under another name, in the config file, is the one looked up,
+    # and the message for a Doc made in My Drive names it.
+    _put(cfg_root / "creator-os-config.local.json",
+         json.dumps({"drive_hub": {"folder_name": " Creator OS Test "}}))
+    try:
+        d4, st4 = _FakeDrive(tok, folders_visible=True), {"doc": {}}
+        d4.hub_name = "Creator OS Test"
+        r4, c4, _ = run(d4, st4, "# v1\n")
+        d4b, st4b = _FakeDrive(tok), {"doc": {}}
+        r4b, _c4b, msgs4b = run(d4b, st4b, "# v1\n")
+        status4b = m._status_text({"last_run": None, "stamp": None, "agent": {"error": "x", "plist": "p"},
+                                   "doc": dict(st4b["doc"], placed="my-drive"), "recent_changes": []})
+    finally:
+        (cfg_root / "creator-os-config.local.json").unlink()
+    asked = [urllib.parse.parse_qs(urllib.parse.urlparse(u).query).get("q", [""])[0] for _m, u, _h, _d in c4]
+    out.append(("I2: a hub folder configured as 'Creator OS Test' is looked up by that name",
+                r4["placed"] == "profile" and st4["doc"]["parents"] == ["fld-Profile"]
+                and any("name = 'Creator OS Test'" in q for q in asked)
+                and not any("name = 'Creator OS'" in q for q in asked)))
+    out.append(("I3: a Doc made in My Drive is to be moved into the configured hub's Profile folder, "
+                "in the run log and in the status",
+                r4b["placed"] == "my-drive" and any("Move it into Creator OS Test/Profile" in x for x in msgs4b)
+                and "move it into Creator OS Test/Profile once" in status4b))
     d.fail_get = 401
     snap = json.dumps(st, sort_keys=True)
     r, c, _ = run(d, st, "# v8\n")
@@ -1682,6 +1719,10 @@ _MUTANTS = (
     ('doc: a new Doc always carries a parents key (empty when unknown)', 'doc', '        if parent_id:\n            meta["parents"] = [parent_id]', '        meta["parents"] = [parent_id] if parent_id else []'),
     ('doc: Profile is looked up only when the hub lookup failed', 'doc', '        if not err:\n            parent_id, err = da.find_folder', '        if err:\n            parent_id, err = da.find_folder'),
     ('doc: the Doc goes into the hub root, not Profile', 'doc', '            parent_id, err = da.find_folder(token, HUB_SUBDIR, transport, parent_id=root_id)', '            parent_id, err = root_id, None'),
+    ('doc: the hub folder is looked up by the fixed name', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, HUB_FOLDER, transport)'),
+    ('doc: the hub folder name is looked up without the config files', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, pd.hub_folder_name(load=lambda: {}), transport)  # the configured name'),
+    ('doc: the move-it log names the fixed hub folder', 'doc', 'DOC_NAME, pd.hub_folder_name())', 'DOC_NAME, HUB_FOLDER)'),
+    ('doc: the status names the fixed hub folder', 'doc', 'move it into {pd.hub_folder_name()}/Profile once"', 'move it into Creator OS/Profile once"'),
     ('doc: a created Doc is always recorded as my-drive', 'doc', '        action, placed = "created", ("profile" if parent_id else "my-drive")', '        action, placed = "created", "my-drive"'),
     ('doc: the move-it note is logged for the wrong placement', 'doc', '        if placed == "my-drive":', '        if placed == "moved":'),
     ('doc: edits in Drive are never detected', 'doc', '            edited = meta.get("modifiedTime") != doc["modified_time"]', '            edited = False'),
@@ -1762,6 +1803,10 @@ _MUTANTS = (
     ('cli: the status ignores the platform it is given', 'cli', '        if (platform or sys.platform) == "darwin":\n', '        if sys.platform == "darwin":\n'),
     ('cli: the status names install-agent off macOS', 'cli', '        if (platform or sys.platform) == "darwin":\n', '        if (platform or sys.platform) != "darwin":\n'),
     ('cli: the off-macOS status keeps python3', 'cli', '            lines.append(env_paths.local_commands(\n                "agent: the scheduled sync is macOS only;', '            lines.append((\n                "agent: the scheduled sync is macOS only;'),
+    ('doc: the hub folder name is lowercased', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, pd.hub_folder_name().lower(), transport)  # the configured name'),
+    ('doc: the Doc lookup asks for the name without the config', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, pd.hub_folder_name(load=lambda: {}), transport)  # the configured name'),
+    ('doc: the move-it log names the hub with spaces around it', 'doc', 'DOC_NAME, pd.hub_folder_name())', 'DOC_NAME, " " + pd.hub_folder_name() + " ")'),
+    ('doc: the status names Creator OS for an unmoved Doc', 'doc', 'move it into {pd.hub_folder_name()}/Profile once"', 'move it into {pd.hub_folder_name() if False else "Creator OS"}/Profile once"'),
 )
 
 

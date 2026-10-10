@@ -20,6 +20,12 @@ import zipfile
 import zlib
 from pathlib import Path
 
+try:  # imported as shared.docintel.parse_text
+    from . import textdecode as _td
+except ImportError:  # run as a script, imported with shared/docintel on sys.path, or loaded from its file
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import textdecode as _td
+
 PDF_MIN_YIELD = 24
 
 
@@ -41,13 +47,10 @@ def result(path, ftype, status, text="", tables=None, confidence="high", notes="
 
 
 def read_text(path):
-    raw = Path(path).read_bytes()
-    for enc in ("utf-8", "utf-16", "latin-1"):
-        try:
-            return raw.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    return raw.decode("utf-8", "replace")
+    """The file's text in textdecode's reading order: a byte-order mark, then strict UTF-8, then
+    cp1252. UTF-16 without a mark is not tried: any even-length file decodes as UTF-16, so a
+    cp1252 file would come back as unrelated characters."""
+    return _td.read_text_file(path)[0]
 
 
 def strip_tags(markup):
@@ -113,9 +116,18 @@ def parse_xlsx(path):
     )
 
 
+# parse_csv decides the encoding from the file's first part, then reads rows as a stream.
+CSV_ENCODING_BYTES = 1 << 20
+
+
 def parse_csv(path, delimiter):
+    """The first rows of a CSV or TSV file, up to the 500 cap. The encoding is the one textdecode
+    gives the first CSV_ENCODING_BYTES (1 MiB); the rows are then read as a stream with
+    replacement characters, so a large export costs no more memory than the rows kept, and a byte
+    past the first MiB that the encoding cannot decode becomes U+FFFD."""
+    label = _td.read_text_file(path, max_bytes=CSV_ENCODING_BYTES)[1]
     rows = []
-    with open(path, newline="", encoding="utf-8", errors="replace") as fh:
+    with open(path, newline="", encoding=_td.CODECS[label], errors="replace") as fh:
         for i, row in enumerate(csv.reader(fh, delimiter=delimiter)):
             rows.append(row)
             if i >= 500:
@@ -267,6 +279,71 @@ def selftest() -> int:
         r4 = parse(str(bad))
         ok("a corrupt docx degrades to metadata_only with empty text, no traceback",
            r4["ingestion_status"] == "metadata_only" and r4["text"] == "")
+
+        # P102: Windows encodings read as written. A cp1252 file of even length decoded as
+        # UTF-16 before the shared decoder.
+        import codecs
+        note = "Caf\u00e9 \u2014 na\u00efve"
+        for name, raw in (("cp1252", note.encode("cp1252")),
+                          ("utf-16", codecs.BOM_UTF16_LE + note.encode("utf-16-le")),
+                          ("utf-8-sig", codecs.BOM_UTF8 + note.encode("utf-8"))):
+            fp = d / f"note-{name}.txt"
+            fp.write_bytes(raw)
+            ok(f"a {name} text file ({len(raw)} bytes) reads as written", parse(str(fp))["text"] == note)
+        ok("the cp1252 sample has an even length, the case UTF-16 guessing misread",
+           len(note.encode("cp1252")) % 2 == 0)
+        cp = d / "rates.csv"
+        cp.write_bytes("item,note\r\nlamp,caf\u00e9\r\n".encode("cp1252"))
+        ok("a cp1252 csv keeps its accents in the table",
+           parse(str(cp))["tables"] == [["item", "note"], ["lamp", "caf\u00e9"]])
+        for name, raw in (("utf-16", codecs.BOM_UTF16_LE + "item\tnote\nlamp\tcaf\u00e9\n".encode("utf-16-le")),
+                          ("utf-8-sig", codecs.BOM_UTF8 + "item\tnote\nlamp\tcaf\u00e9\n".encode("utf-8"))):
+            tp = d / f"rates-{name}.tsv"
+            tp.write_bytes(raw)
+            ok(f"a {name} tsv keeps its first column name and accents",
+               parse(str(tp))["tables"] == [["item", "note"], ["lamp", "caf\u00e9"]])
+        markup = "<html><body><p>Caf\u00e9 cr\u00e8me</p></body></html>"
+        for name, raw in (("cp1252", markup.encode("cp1252")),
+                          ("utf-16", codecs.BOM_UTF16_LE + markup.encode("utf-16-le"))):
+            hp = d / f"page-{name}.html"
+            hp.write_bytes(raw)
+            ok(f"a {name} html file reads as written", parse(str(hp))["text"] == "Caf\u00e9 cr\u00e8me")
+        doc = {"title": "Caf\u00e9 cr\u00e8me", "n": 2}
+        for name, raw in (("cp1252", json.dumps(doc, ensure_ascii=False).encode("cp1252")),
+                          ("utf-16", codecs.BOM_UTF16_LE + json.dumps(doc, ensure_ascii=False).encode("utf-16-le"))):
+            jp = d / f"doc-{name}.json"
+            jp.write_bytes(raw)
+            got = parse(str(jp))
+            ok(f"a {name} json file is parsed as written",
+               got["ingestion_status"] == "content_ingested" and json.loads(got["text"]) == doc)
+        # A large CSV is streamed: memory follows the rows kept, not the file's size.
+        import tracemalloc
+        bigc = d / "big.csv"
+        with open(bigc, "w", encoding="utf-8", newline="") as fh:
+            fh.write("video,title,views\n")
+            for i in range(160_000):
+                fh.write(f"v{i},A fictional title number {i} for the stream check,{i}\n")
+        tracemalloc.start()
+        try:
+            got_big = parse(str(bigc))
+            _cur, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        ok(f"a csv of {bigc.stat().st_size // 1048576} MB is read as a stream, its 501 rows in under "
+           f"6 MB of memory ({peak / 1048576:.1f} MB)",
+           bigc.stat().st_size > 8 * 1048576 and peak < 6 * 1048576
+           and len(got_big["tables"]) == 50 and got_big["notes"].startswith("501 rows"))
+        # A byte the encoding cannot decode past the first MiB (here 0xFF in UTF-8, in row 450 of
+        # rows 3 KB long) becomes U+FFFD in its row; the file is still read.
+        latec = d / "late-byte.csv"
+        with open(latec, "wb") as fh:
+            fh.write(b"video,notes\n")
+            for i in range(480):
+                fh.write(f"v{i},".encode("ascii") + (b"\xff" if i == 450 else b"") + b"n" * 3000 + b"\n")
+        got_late = parse(str(latec))
+        ok("a byte past the first MiB that the encoding cannot decode becomes U+FFFD in its row",
+           got_late["ingestion_status"] == "content_ingested" and "v450,�n" in got_late["text"]
+           and got_late["notes"].startswith("481 rows"))
 
     print(f"parse_text selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

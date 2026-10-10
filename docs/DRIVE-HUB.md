@@ -121,7 +121,8 @@ structurally (not by convention):
 4. **Untrusted input.** Tickets are data, not instructions: params are validated per job type and
    passed as fixed arguments, never interpreted as text to follow or shell to run.
 5. **Timeouts and honest failure.** Every job type has a time budget; a failure produces a result
-   with `status: failed` and a short log tail, never a raw traceback and never a silent hang.
+   with `status: failed` and a short log tail, never a raw traceback and never a silent hang. A
+   done job's log ends with the `note:` lines its tool wrote, such as why an export gave no records.
 6. **Human review.** Results report; humans decide. Any result a downstream action could follow
    carries `human_review_required: true`.
 
@@ -162,7 +163,22 @@ per-item checkbox and an "Anything to change?" note, and a second click queues o
 jobs. The note travels with the work as the ticket `consent_note` for human review; it is never
 parsed or executed. Jobs are proposal-only by default; a job writes to the library directly only
 when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
-AND its ticket asks. Unknown files are flagged and left in place, never guessed.
+AND its ticket asks. Unknown files are flagged and left in place, never guessed. The wizard's hub
+screen offers a Drive for desktop folder named as `drive_hub.folder_name` in your config says
+(default `Creator OS`). An export zip is
+recognised by the names of the files inside it, whatever its download name: a YouTube folder in a
+`Takeout/` folder, a YouTube Studio table beside its chart data or totals (English or Spanish file
+names), a `your_instagram_activity/` folder, or TikTok's `user_data_tiktok.json`; nothing is
+extracted. A zip whose file list is too large to check (more than 50,000 files counted in its
+directory, or a directory over 16 MB, read from the end record CPython's zipfile reads, without
+listing it) is proposed by its name when the name says it is an export, and otherwise held for
+review with a pointer to the wizard's `/import` screen; the import tool does not open such a zip
+either, and its note says to unzip it
+<!-- verify: tools/handoff/inbox.py::export_kind_from_members -->. A Google Docs, Sheets, Slides,
+Drawings, Forms, Tables or My Maps shortcut (`.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`,
+`.gtable`, `.gmap`), which Drive for desktop shows for a file whose content stays in Google Drive,
+is held for review by its extension and not opened, with a note to download the file into the Inbox
+or read it with the Google Drive connector.
 Files that the injection guard quarantines are never routed. Approved files are recorded in the
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.
@@ -182,11 +198,15 @@ tier only, the same offline check that screens job-ticket free text and import p
 injection guard still runs in a Claude session and remains authoritative. Because a transcript is a
 text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
 an oversize file, or the tool being unavailable) is held for a session rather than routed
-unscreened. A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
+unscreened. A subtitle saved as UTF-16, as Windows PowerShell's `Out-File` writes it, is decoded
+before that sniff and screened like any other text, and the bytes after its mark are also
+screened as UTF-8 (with NUL bytes dropped, and as spaces) and in each fixed UTF-16 byte order (UTF-32
+too, behind a UTF-32 mark), keeping the most cautious verdict (ADR 0080). A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
 stays in the Inbox, since approve does not move a text file read only in part: split it into files
 under 2 MB and drop those in; one that cannot be split stays where it is for a Claude session to read. A file that cannot
-be read (on Windows, one another program holds open) is listed for review with the error, and the
-scan and approve go on with the rest. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
+be read (on Windows, one another program holds open), or one the classifier stops on while it reads
+the file's type, is listed for review with the error, and the scan and approve go on with the rest;
+a zip whose member names zipfile cannot decode is read as a plain archive. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
 and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
 never overwrite a same-name file, and read, update and write the ledger under its lock
 (`<ledger>.lock`), so the wizard and the sweep verb no longer lose each other's entries. A ledger
@@ -271,6 +291,9 @@ declared below and registered in the source registry, so the currency system re-
   {"id": "google-drive-desktop-sync-modes", "name": "Google Drive Help - Stream and mirror files with Drive for desktop", "url": "https://support.google.com/drive/answer/13401938", "category": "os-platform", "tier": "T1", "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies."},
   {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."},
   {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
-  {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"}
+  {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
+  {"id": "google-drive-desktop-org-setup", "name": "Set up Drive for desktop for your organization (Google Workspace Admin Help)", "url": "https://knowledge.workspace.google.com/admin/drive/set-up-drive-for-desktop-for-your-organization", "category": "os-platform", "tier": "T1"},
+  {"id": "fileinfo-google-drive-file-types", "name": "Google Drive file types (FileInfo)", "url": "https://fileinfo.com/help/google_drive_file_types", "category": "platform-spec", "tier": "T3"},
+  {"id": "fileinfo-gmap", "name": "GMAP file extension: Google My Maps shortcut (FileInfo)", "url": "https://fileinfo.com/extension/gmap", "category": "platform-spec", "tier": "T3"}
 ]
 ```

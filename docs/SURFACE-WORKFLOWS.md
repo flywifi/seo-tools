@@ -164,7 +164,7 @@ updated together, so closing a gap is always a deliberate change.
 | SW-G7 | Profile import reads ChatGPT exports only; there is no Gemini or claude.ai export prompt |
 | SW-G8 | Dated exports of the voice profile, channel context, setup context and content calendar have no merge or proposal path. The probe reads skill descriptions, so a fix worded differently may not trip it |
 | SW-G10 | Some Drive connectors can now move and trash files; a queued ticket trashed before the computer runs leaves no result and no record that it existed |
-| SW-G11 | Doc exports (a Word file, or a Google Doc stub on a Drive for desktop mirror) skip the offline injection screen and wait for a Claude session; only text files are screened offline |
+| SW-G11 | Doc exports skip the offline injection screen and wait for a Claude session: a Word file, and a Google Docs shortcut on a Drive for desktop mirror, which is held unread with a note to download it; only text files are screened offline |
 | SW-G12 | An in-session escalation that refuses a route (QUARANTINE or BLOCK) writes no ledger row |
 
 Closed in this change: **SW-G9**, the task register merge. When the same task had been edited on

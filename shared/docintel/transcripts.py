@@ -27,17 +27,24 @@ import re
 import sys
 from pathlib import Path
 
-TIME = re.compile(r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
-CUE = re.compile(
-    r"(\d{1,2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{3})"
-)
+try:  # imported as shared.docintel.transcripts
+    from . import textdecode as _td
+except ImportError:  # run as a script, imported with shared/docintel on sys.path, or loaded from its file
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import textdecode as _td
+
+# A timestamp is hh:mm:ss.ttt or, in WebVTT, mm:ss.ttt with the hours left out (the WebVTT
+# timestamp rule, w3.org/TR/webvtt1); SRT writes a comma before the milliseconds.
+TIME = re.compile(r"(?:(\d{1,2}):)?(\d{2}):(\d{2})[.,](\d{3})")
+_STAMP = r"(?:\d{1,2}:)?\d{2}:\d{2}[.,]\d{3}"
+CUE = re.compile(rf"({_STAMP})\s*-->\s*({_STAMP})")
 
 
 def to_seconds(stamp):
     m = TIME.search(stamp)
     if not m:
         return 0.0
-    h, mn, s, ms = (int(x) for x in m.groups())
+    h, mn, s, ms = (int(x or 0) for x in m.groups())
     return h * 3600 + mn * 60 + s + ms / 1000.0
 
 
@@ -51,8 +58,14 @@ def from_seconds(sec, sep=","):
     return f"{h:02d}:{mn:02d}:{s:02d}{sep}{ms:03d}"
 
 
+def read_text_with_encoding(path):
+    """(text, encoding) for a transcript file: textdecode's reading order (a byte-order mark, then
+    strict UTF-8, then cp1252), so a UTF-16 or cp1252 file saved on Windows reads as written."""
+    return _td.read_text_file(path)
+
+
 def read_text(path):
-    return Path(path).read_text(encoding="utf-8", errors="replace")
+    return read_text_with_encoding(path)[0]
 
 
 def parse_srt_vtt(text):
@@ -92,13 +105,22 @@ def parse_json(text):
 
 def parse(path):
     ext = Path(path).suffix.lower().lstrip(".")
-    text = read_text(path)
+    text, encoding = read_text_with_encoding(path)
+    fmt = None
     if ext == "json" or text.lstrip().startswith(("{", "[")):
-        fmt, segments = "json", parse_json(text)
-    elif ext in ("srt", "vtt") or CUE.search(text):
+        try:
+            fmt, segments = "json", parse_json(text)
+        except (ValueError, TypeError, OverflowError, RecursionError):
+            if ext == "json":
+                raise
+            # a subtitle or text file that starts with "[Music]" or "{" is not JSON, and neither is
+            # JSON of another shape: a field of the wrong type, a number float() cannot hold, or
+            # brackets nested past Python's recursion limit
+            fmt = None
+    if fmt is None and (ext in ("srt", "vtt") or CUE.search(text)):
         fmt = "vtt" if (ext == "vtt" or "WEBVTT" in text[:32]) else "srt"
         segments = parse_srt_vtt(text)
-    else:
+    elif fmt is None:
         fmt = "text"
         segments = [{"start": 0.0, "end": 0.0, "text": line.strip()}
                     for line in text.splitlines() if line.strip()]
@@ -110,6 +132,7 @@ def parse(path):
         "duration_seconds": round(duration, 3),
         "plain_text": plain,
         "segments": segments,
+        "encoding": encoding,
         "ran_locally": True,
         "tokens_spent_on_parse": 0,
     }
@@ -212,6 +235,7 @@ def normalize(parsed, min_gap_seconds=None):
         "silences": gm["silences"],
         "min_gap_seconds": gm["min_gap_seconds"],
         "chapters": suggest_chapters(parsed["segments"], chap_min),
+        "encoding": parsed.get("encoding"),
         "ran_locally": True,
     }
 
@@ -252,6 +276,107 @@ def _selftest():
        shared["min_gap_seconds"] == 12.0
        and shared["silences"] == gap_metrics(parsed["segments"], 12.0)["silences"]
        and shared["chapters"] == suggest_chapters(parsed["segments"], 12.0))
+
+    # P102: a file saved by Windows tools reads as written, and a WebVTT cue without hours parses.
+    import codecs
+    want = ["Caf\u00e9 cr\u00e8me \u2014 today", "Na\u00efve r\u00e9sum\u00e9"]
+    two = ("1\n00:00:01,000 --> 00:00:02,500\n" + want[0] + "\n\n"
+           "2\n00:00:03,000 --> 00:00:04,000\n" + want[1] + "\n")
+    saved = {
+        "utf-8": (two.encode("utf-8"), "utf-8"),
+        "UTF-8 with a BOM (Out-File -Encoding utf8)": (codecs.BOM_UTF8 + two.encode("utf-8"), "utf-8-sig"),
+        "UTF-16 LE with a BOM (Out-File, >)": (codecs.BOM_UTF16_LE + two.replace("\n", "\r\n").encode("utf-16-le"),
+                                              "utf-16"),
+        "UTF-16 BE with a BOM": (codecs.BOM_UTF16_BE + two.encode("utf-16-be"), "utf-16"),
+        "cp1252 (Set-Content)": (two.replace("\n", "\r\n").encode("cp1252"), "cp1252-fallback"),
+    }
+    with tempfile.TemporaryDirectory() as td:
+        for name, (raw, label) in saved.items():
+            fp = Path(td) / "talk.srt"
+            fp.write_bytes(raw)
+            got = parse(str(fp))
+            ok(f"encoding: {name} gives both cues as written, labelled {label}",
+               [s["text"] for s in got["segments"]] == want and got["encoding"] == label
+               and normalize(got)["encoding"] == label)
+    vtt = ("WEBVTT\n\n00:01.000 --> 00:02.500\nShort cue\n\n"
+           "01:02:03.000 --> 01:02:04.000\nLong cue\n")
+    cues = parse_srt_vtt(vtt)
+    ok("WebVTT: a cue without hours parses beside one with hours",
+       [(c["start"], c["end"], c["text"]) for c in cues]
+       == [(1.0, 2.5, "Short cue"), (3723.0, 3724.0, "Long cue")])
+    ok("WebVTT: mm:ss.ttt and hh:mm:ss.ttt read as the same time",
+       to_seconds("02:03.250") == to_seconds("00:02:03.250") == 123.25
+       and to_seconds("1:02:03,000") == 3723.0)
+    ok("emit still writes hours, so the files Creator OS writes do not change",
+       emit(cues, "vtt").splitlines()[2] == "00:00:01.000 --> 00:00:02.500")
+    ok("WebVTT: a cue past ten hours keeps both digits of its hours",
+       [(c["start"], c["end"]) for c in parse_srt_vtt("WEBVTT\n\n10:00:01.000 --> 10:00:02.500\nLate cue\n")]
+       == [(36001.0, 36002.5)])
+    # P102: a file that starts with "[" or "{" and is not JSON is read by the other parsers.
+    with tempfile.TemporaryDirectory() as td:
+        music = "[Music]\nwelcome back to the workshop\n"
+        fmts = {}
+        for name, raw in (("bom.txt", codecs.BOM_UTF8 + music.encode("utf-8")),
+                          ("wide.txt", codecs.BOM_UTF16_LE + music.encode("utf-16-le")),
+                          ("plain.txt", music.encode("utf-8")),
+                          ("intro.srt", b"[intro]\n\n1\n00:00:01,000 --> 00:00:02,000\nHi there\n"),
+                          ("real.json", b'{"segments": [{"start": 0, "end": 1.5, "text": "hi"}]}'),
+                          ("list.txt", b'[{"start": 2, "end": 3, "text": "from a list"}]')):
+            (Path(td) / name).write_bytes(raw)
+            got = parse(str(Path(td) / name))
+            fmts[name] = (got["format"], [s["text"] for s in got["segments"]])
+        ok("a text file that starts with [Music] is read as text, with or without a byte-order mark",
+           all(fmts[n] == ("text", ["[Music]", "welcome back to the workshop"])
+               for n in ("bom.txt", "wide.txt", "plain.txt")))
+        ok("a subtitle that starts with [ is read as a subtitle; JSON still reads as JSON",
+           fmts["intro.srt"] == ("srt", ["Hi there"]) and fmts["real.json"] == ("json", ["hi"])
+           and fmts["list.txt"] == ("json", ["from a list"]))
+        (Path(td) / "broken.json").write_bytes(b'{"segments": [')
+        try:
+            parse(str(Path(td) / "broken.json"))
+            broken_raised = False
+        except ValueError:
+            broken_raised = True
+        ok("a .json file that does not parse still raises", broken_raised)
+        # JSON of another shape in a text or subtitle file falls through too; in a .json it raises.
+        odd = {"typed.txt": b'[{"text": "hi", "start": [1]}]',
+               "typed.srt": b'{"segments": [{"text": "hi", "start": {"a": 1}}]}',
+               "word.txt": b'[{"text": "hi", "start": "soon"}]',
+               "huge.txt": b'[{"text": "hi", "start": 1' + b"0" * 400 + b'}]',
+               "deep.txt": b"[" * 50000,
+               "cues.txt": b"[Music]\n\n1\n00:00:01,000 --> 00:00:02,000\nHi there\n"}
+        got_odd = {}
+        for name, raw in odd.items():
+            (Path(td) / name).write_bytes(raw)
+            try:
+                got_odd[name] = parse(str(Path(td) / name))["format"]
+            except Exception as exc:  # noqa: BLE001 - the check below names what escaped
+                got_odd[name] = type(exc).__name__
+        ok("a text or subtitle file holding JSON of another shape is read by the text and subtitle "
+           "parsers (a wrongly typed field, a word or a 400-digit number for a time, 50,000 open "
+           "brackets), and a .txt with cues after [Music] is read as a subtitle",
+           got_odd == {"typed.txt": "text", "typed.srt": "srt", "word.txt": "text", "huge.txt": "text",
+                       "deep.txt": "text", "cues.txt": "srt"})
+        # The nesting depth that raises RecursionError depends on the Python build (3.14 sets it from
+        # the real stack), so a parser stub raises it here.
+        def _too_deep(_text):
+            raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+        real_parse_json = globals()["parse_json"]
+        globals()["parse_json"] = _too_deep
+        try:
+            deep_fmt = parse(str(Path(td) / "typed.txt"))["format"]
+        except RecursionError:
+            deep_fmt = "RecursionError"
+        finally:
+            globals()["parse_json"] = real_parse_json
+        ok("a RecursionError from the JSON parser sends a text file to the text parser", deep_fmt == "text")
+        (Path(td) / "typed.json").write_bytes(odd["typed.txt"])
+        try:
+            parse(str(Path(td) / "typed.json"))
+            typed_raised = False
+        except TypeError:
+            typed_raised = True
+        ok("a .json file holding a wrongly typed field still raises", typed_raised)
 
     import contextlib
     import io

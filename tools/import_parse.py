@@ -33,6 +33,10 @@ import sys
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared" / "docintel"))
+import textdecode as _td  # noqa: E402  (a byte-order mark, then strict UTF-8, then cp1252)
+import classify as _classify  # noqa: E402  (a zip's end record, read before zipfile lists it)
+
 SOURCE_MODE = "export_bundle"
 
 
@@ -55,39 +59,53 @@ def _num(v):
 def _read_text(path_or_text):
     """Accept a path (to a .csv/.json), a path-like object, or raw text; return text."""
     if isinstance(path_or_text, (bytes, bytearray)):
-        return path_or_text.decode("utf-8", "replace")
+        return _td.decode_text(path_or_text)[0]
     s = str(path_or_text)
     # Raw CSV/JSON text contains newlines or is long; never stat() it as a path.
     if "\n" not in s and len(s) < 4096:
         try:
             p = Path(s)
             if p.exists() and p.is_file():
-                return p.read_text(encoding="utf-8", errors="replace")
+                return _td.read_text_file(p)[0]
         except OSError:
             pass
     return s
+
+
+def _note(message):
+    """Tell the person something on stderr, as one line starting 'note: '; stdout stays the JSON
+    record list. The wizard's import screen and a runner job's log show these lines (P102)."""
+    print(f"note: {message}", file=sys.stderr)
+
+
+_ZIP_UNREAD_NOTE = ("this file's zip directory could not be read here (it may be an incomplete "
+                    "download); unzip it and import the folder")
 
 
 def _safe_zip(path):
     """Open a zip, or return None if it is missing/unreadable/corrupt. Note: zipfile.BadZipFile is
     NOT an OSError subclass (it derives directly from Exception), so both must be caught. This lets a
     creator point the importer at a corrupt/partial .zip download and get a clean empty result plus a
-    gap, never a traceback."""
+    gap, never a traceback. The end record is read first (classify.zip_directory), and a zip whose
+    end records are not read here, or whose directory is over classify's limits, is not opened: a
+    note says so and how to import it instead (P102; the inbox proposes a zip it could not list when
+    its name says it is an export). A zip file it does not open gets one note, so a caller that gets
+    None for a zip file prints none of its own."""
+    if Path(str(path)).is_file():
+        directory = _classify.zip_directory(path)
+        refused = _classify.zip_refusal(directory)
+        if refused:
+            _note(f"this zip is too large to read here ({refused}); unzip it and import the folder")
+            return None
+        if directory is None:
+            _note(_ZIP_UNREAD_NOTE)
+            return None
     try:
         return zipfile.ZipFile(path)
-    except (OSError, zipfile.BadZipFile):
+    except _classify.ZIP_OPEN_ERRORS:  # a damaged directory, or a member name zipfile cannot decode
+        if Path(path).is_file():  # its end record reads, its directory does not: a damaged download
+            _note(_ZIP_UNREAD_NOTE)
         return None
-
-
-def _zip_member_text(zip_path, name_contains):
-    z = _safe_zip(zip_path)
-    if z is None:
-        return None
-    with z:
-        for n in z.namelist():
-            if name_contains.lower() in n.lower() and n.lower().endswith(".csv"):
-                return z.read(n).decode("utf-8", "replace")
-    return None
 
 
 # ── YouTube Studio CSV (header-driven; the ONLY revenue source) ──────────────
@@ -126,6 +144,9 @@ def parse_youtube_studio_csv(path_or_text):
         return []
     header = rows[0]
     mapping = {i: _yt_map_header(col) for i, col in enumerate(header)}
+    if not any(mapping.values()) and any(r and any(c.strip() for c in r) for r in rows[1:]):
+        _note("none of this CSV's column names were recognised (is YouTube Studio set to another "
+              "language? set it to English, export again, and import that file)")
     out = []
     for row in rows[1:]:
         if not row or not any(c.strip() for c in row):
@@ -158,18 +179,23 @@ def parse_youtube_studio_csv(path_or_text):
 
 
 def parse_youtube_studio_zip(zip_path):
-    text = _zip_member_text(zip_path, "table data")
-    if text is None:
-        # fall back to any csv that has a "Content" header
-        z = _safe_zip(zip_path)
-        if z is not None:
-            with z:
-                for n in z.namelist():
-                    if n.lower().endswith(".csv"):
-                        t = z.read(n).decode("utf-8", "replace")
-                        if t.splitlines() and "content" in t.splitlines()[0].lower():
-                            text = t
-                            break
+    """The Studio table CSV in an export zip ("Table data", else any CSV whose first line names a
+    Content column), opened once, so a zip _safe_zip does not open gives one note."""
+    z = _safe_zip(zip_path)
+    if z is None:
+        return []
+    text = None
+    with z:
+        csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
+        table = next((n for n in csvs if "table data" in n.lower()), None)
+        if table is not None:
+            text = _td.decode_text(z.read(table))[0]
+        else:  # fall back to any csv that has a "Content" header
+            for n in csvs:
+                t = _td.decode_text(z.read(n))[0]
+                if t.splitlines() and "content" in t.splitlines()[0].lower():
+                    text = t
+                    break
     return parse_youtube_studio_csv(text) if text else []
 
 
@@ -192,6 +218,10 @@ def parse_youtube_takeout(path):
     description; stats stay null (Takeout carries no analytics). Defensive CSV column matching."""
     p = Path(str(path))
     _probe_exists(p)  # unprobeable (e.g. ENAMETOOLONG) raises to the CLI envelope; absent falls through
+    if p.is_file() and p.name.lower().endswith((".tgz", ".tar.gz")):
+        _note("this Takeout is a .tgz archive, which this tool does not read; in Google Takeout "
+              "choose .zip, or extract the archive and import the folder")
+        return []
 
     def _from_csv_text(text):
         recs = []
@@ -220,13 +250,16 @@ def parse_youtube_takeout(path):
             with z:
                 for n in z.namelist():
                     if "video metadata" in n.lower() and n.lower().endswith(".csv"):
-                        texts.append(z.read(n).decode("utf-8", "replace"))
+                        texts.append(_td.decode_text(z.read(n))[0])
     elif p.is_dir():
         for f in p.rglob("*.csv"):
             if "video metadata" in str(f).lower() or "video" in f.name.lower():
-                texts.append(f.read_text(encoding="utf-8", errors="replace"))
+                texts.append(_td.read_text_file(f)[0])
+        if not texts and (any(p.glob("*.tgz")) or any(p.glob("*.tar.gz"))):
+            _note("this folder holds a .tgz Takeout archive, which this tool does not read; extract it "
+                  "here and import again, or choose .zip in Google Takeout")
     elif p.is_file() and p.suffix.lower() == ".csv":
-        texts.append(p.read_text(encoding="utf-8", errors="replace"))
+        texts.append(_td.read_text_file(p)[0])
     out = []
     for t in texts:
         out.extend(_from_csv_text(t))
@@ -288,12 +321,12 @@ def parse_instagram_dyi(path):
                 for n in z.namelist():
                     b = Path(n).name.lower()
                     if n.lower().endswith(".json") and (b.startswith("posts_") or b in ("reels.json", "posts.json") or "reels" in b):
-                        texts.append(z.read(n).decode("utf-8", "replace"))
+                        texts.append(_td.decode_text(z.read(n))[0])
     elif p.is_dir():
         for f in list(p.rglob("posts_*.json")) + list(p.rglob("reels.json")) + list(p.rglob("posts.json")):
-            texts.append(f.read_text(encoding="utf-8", errors="replace"))
+            texts.append(_td.read_text_file(f)[0])
     elif p.is_file() and p.suffix.lower() == ".json":
-        texts.append(p.read_text(encoding="utf-8", errors="replace"))
+        texts.append(_td.read_text_file(p)[0])
     out = []
     for t in texts:
         try:
@@ -309,11 +342,45 @@ def parse_instagram_dyi(path):
 
 # ── TikTok "Download your data" (JSON/TXT; retention UI-only) ─────────────────
 
+# The JSON file a TikTok "Download your data" zip holds, by the names public tools report.
+_TIKTOK_MEMBERS = ("user_data_tiktok.json", "user_data.json")
+
+
+def _is_path_text(value) -> bool:
+    """True for a value that names a path rather than holding raw JSON or CSV text."""
+    if isinstance(value, Path):
+        return True
+    return isinstance(value, str) and "\n" not in value and len(value) < 4096
+
+
+def _tiktok_zip_text(zip_path):
+    """(text, opened): the text of the export JSON inside a TikTok data zip (user_data_tiktok.json
+    first), or None; opened is False when _safe_zip did not open the zip, which it has said."""
+    z = _safe_zip(zip_path)
+    if z is None:
+        return None, False
+    with z:
+        names = z.namelist()
+        for want in _TIKTOK_MEMBERS:
+            for n in names:
+                if n.replace("\\", "/").rsplit("/", 1)[-1].lower() == want:
+                    return _td.decode_text(z.read(n))[0], True
+    return None, True
+
+
 def parse_tiktok_dyi(path_or_obj):
     """Parse a TikTok data-export JSON. Key casing varies (Video>Videos>VideoList[] PascalCase, or a
     flat list, or snake_case), so navigation is defensive."""
     if isinstance(path_or_obj, (dict, list)):
         obj = path_or_obj
+    elif _is_path_text(path_or_obj) and str(path_or_obj).lower().endswith(".zip"):
+        text, opened = _tiktok_zip_text(path_or_obj)
+        if text is None:
+            if opened:  # a zip _safe_zip did not open has its own note
+                _note("no user_data_tiktok.json or user_data.json in this zip (choose JSON as the file "
+                      "format when you request your TikTok data)")
+            return []
+        obj = json.loads(text)
     else:
         obj = json.loads(_read_text(path_or_obj))
 
@@ -458,6 +525,24 @@ def selftest():
               "Total,,,\"20,000\",460.5,,140000,,\"$73.10\"\n")
     yt = parse_youtube_studio_csv(yt_csv)
     ok("yt studio: two rows, Totals skipped", len(yt) == 2)
+    # P102: a Studio CSV saved with a byte-order mark keeps its first column, "Content".
+    import codecs
+    ok("yt studio: a CSV with a UTF-8 BOM parses the same two rows",
+       parse_youtube_studio_csv(codecs.BOM_UTF8 + yt_csv.encode("utf-8")) == yt)
+    ok("yt studio: a UTF-16 CSV with a BOM parses the same two rows",
+       parse_youtube_studio_csv(codecs.BOM_UTF16_LE + yt_csv.encode("utf-16-le")) == yt)
+    import tempfile as _tf_bom
+    with _tf_bom.TemporaryDirectory() as _td_bom:
+        _zp = Path(_td_bom) / "Content 2026-09-07_2026-10-05 Fictional Channel.zip"
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_zp, "w") as _z:
+                _z.writestr("Table data.csv", codecs.BOM_UTF8 + yt_csv.encode("utf-8"))
+        except (OSError, zipfile.BadZipFile):
+            pass  # the check below then fails
+        _csvp = Path(_td_bom) / "Table data.csv"
+        _csvp.write_bytes(codecs.BOM_UTF8 + yt_csv.encode("utf-8"))
+        ok("yt studio: a zip whose Table data.csv carries a BOM, and the same file on disk, parse the "
+           "same two rows", parse_youtube_studio_zip(_zp) == yt and parse_youtube_studio_csv(str(_csvp)) == yt)
     ok("yt studio: id from Content", yt[0]["platform_video_id"] == "abc123")
     ok("yt studio: views parsed with comma", yt[0]["stats"]["views"] == 12000)
     ok("yt studio: revenue parsed (only source)", yt[0]["revenue"]["estimated_revenue"] == 52.10)
@@ -480,6 +565,151 @@ def selftest():
     ok("tiktok dyi: id from link", tt[0]["platform_video_id"] == "7300000000000000000")
     ok("tiktok dyi: likes parsed", tt[0]["stats"]["likes"] == 1234)
     ok("tiktok dyi: retention null (UI-only)", tt[0]["retention"] is None)
+    # P102: a TikTok data zip is read through its JSON member, and .tgz Takeouts and Studio CSVs
+    # in another language say why they give nothing (a note: line on stderr).
+    import contextlib as _cl_n
+    import io as _io_n
+    import tempfile as _tf_tt
+    tt_obj = {"Video": {"Videos": {"VideoList": [
+        {"Date": "2026-05-01 12:00:00", "Link": "https://www.tiktokv.com/share/video/7300000000000000000/",
+         "Likes": "1,234", "Title": "diy hack"}]}}}
+    with _tf_tt.TemporaryDirectory() as _td_tt:
+        bad_zip = Path(_td_tt) / "cut-download.zip"
+        bad_zip.write_bytes(b"PK\x03\x04 the start of a zip whose download stopped")
+        _ttz = Path(_td_tt) / "TikTok_Data_1759600000.zip"
+        _bare = Path(_td_tt) / "TikTok_Data_empty.zip"
+        _tgz = Path(_td_tt) / "takeout-20261005T120000Z-001.tgz"
+        _es = Path(_td_tt) / "Datos de la tabla.csv"
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_ttz, "w") as _z:
+                _z.writestr("TikTok_Data/user_data_tiktok.json", json.dumps(tt_obj))
+            with zipfile.ZipFile(_bare, "w") as _z:
+                _z.writestr("readme.txt", "no export here")
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+        _tgz.write_bytes(b"\x1f\x8b\x08\x00 not read")
+        _es.write_text("Contenido,T\u00edtulo del v\u00eddeo,Visualizaciones\nabc123,Pintar,12\n", encoding="utf-8")
+        _err = _io_n.StringIO()
+        with _cl_n.redirect_stderr(_err):
+            from_zip = parse_tiktok_dyi(str(_ttz))
+            bare = parse_tiktok_dyi(str(_bare))
+            tgz = parse_youtube_takeout(str(_tgz))
+            es = parse_youtube_studio_csv(str(_es))
+            quiet = parse_youtube_studio_csv(yt_csv)
+        _lines = [ln for ln in _err.getvalue().splitlines() if ln.startswith("note: ")]
+        ok("tiktok dyi: a data zip is read through user_data_tiktok.json, the same record as the JSON",
+           from_zip == parse_tiktok_dyi(tt_obj) and len(from_zip) == 1)
+        ok("tiktok dyi: a zip without the export JSON gives [] and a note, not a traceback",
+           bare == [] and any("user_data_tiktok.json" in ln for ln in _lines))
+        ok("takeout: a .tgz gives [] and a note naming the .zip choice",
+           tgz == [] and any(".tgz" in ln and ".zip" in ln for ln in _lines))
+        _err2 = _io_n.StringIO()
+        with _cl_n.redirect_stderr(_err2):
+            in_dir = parse_youtube_takeout(_td_tt)
+        ok("takeout: a folder holding only a .tgz gives [] and a note",
+           in_dir == [] and "folder holds a .tgz" in _err2.getvalue())
+        ok("yt studio: a CSV whose column names are all unrecognised gives [] and a note; a known one "
+           "gives none", es == [] and quiet == yt and sum("column names" in ln for ln in _lines) == 1)
+        # P102: the TikTok member is matched by its exact name, user_data_tiktok.json first; a
+        # header-only CSV in another language says nothing; a zip over classify's limits, or one whose
+        # end records are not read, is not opened, with a note.
+        _both = Path(_td_tt) / "both.zip"
+        _other = Path(_td_tt) / "other.zip"
+        _many = Path(_td_tt) / "takeout-many.zip"
+        _hdr = Path(_td_tt) / "Encabezados.csv"
+        later = {"Video": {"Videos": {"VideoList": [
+            {"Date": "2026-05-02 12:00:00", "Link": "https://www.tiktokv.com/share/video/7300000000000000001/",
+             "Likes": "5", "Title": "older file"}]}}}
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_both, "w") as _z:
+                _z.writestr("user_data.json", json.dumps(later))
+                _z.writestr("TikTok/user_data_tiktok.json", json.dumps(tt_obj))
+            with zipfile.ZipFile(_other, "w") as _z:
+                _z.writestr("old_user_data.json", json.dumps(later))
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+        _many.write_bytes(_classify._zip_bytes(
+            ["Takeout/YouTube and YouTube Music/video metadata/videos.csv"]
+            + [f"Takeout/x{i}.txt" for i in range(_classify.ZIP_MAX_ENTRIES + 1)]))
+        _hdr.write_text("Contenido,Visualizaciones\n", encoding="utf-8")
+        _err3 = _io_n.StringIO()
+        with _cl_n.redirect_stderr(_err3):
+            from_both = parse_tiktok_dyi(str(_both))
+            from_other = parse_tiktok_dyi(str(_other))
+            from_many = parse_youtube_takeout(str(_many))
+            from_bad = parse_youtube_studio_zip(bad_zip)
+            from_hdr = parse_youtube_studio_csv(str(_hdr))
+        _lines3 = [ln for ln in _err3.getvalue().splitlines() if ln.startswith("note: ")]
+        ok("tiktok dyi: user_data_tiktok.json is read before user_data.json, and a member that only "
+           "ends in user_data.json is not taken",
+           from_both == parse_tiktok_dyi(tt_obj) and from_other == []
+           and any("no user_data_tiktok.json" in ln for ln in _lines3))
+        ok("a zip over the entry limit is not opened, and its note says to unzip it",
+           from_many == [] and any("too large to read here" in ln and "50,000" in ln for ln in _lines3))
+        ok("a file whose zip directory is not read gives [] and a note naming an incomplete download",
+           from_bad == [] and any("incomplete download" in ln for ln in _lines3))
+        ok("a header-only CSV with unrecognised column names gives [] and no note",
+           from_hdr == [] and not any("column names" in ln for ln in _lines3))
+        # A zip _safe_zip does not open gives one note per parser, and no parser adds one of its own:
+        # a zip over the limits, and one whose end record reads but whose directory does not.
+        _bent = Path(_td_tt) / "bent.zip"
+        _bent.write_bytes(_classify._zip_bytes(["user_data_tiktok.json"]).replace(b"PK\x01\x02", b"PK\x01\x03"))
+
+        def _notes_of(fn, arg):
+            buf = _io_n.StringIO()
+            with _cl_n.redirect_stderr(buf):
+                got = fn(arg)
+            return got, [ln for ln in buf.getvalue().splitlines() if ln.startswith("note: ")]
+        _shut = {(name, fn.__name__): _notes_of(fn, str(name))
+                 for name in (_many, _bent) for fn in (parse_tiktok_dyi, parse_youtube_studio_zip)}
+        ok("a zip that is not opened gives [] and one note, the refusal or the damaged download, from "
+           "the TikTok and Studio parsers alike",
+           all(got == [] and len(lines) == 1 for got, lines in _shut.values())
+           and all("too large to read here" in lines[0] for (name, _f), (_g, lines) in _shut.items()
+                   if name == _many)
+           and all("incomplete download" in lines[0] for (name, _f), (_g, lines) in _shut.items()
+                   if name == _bent))
+        # A zip whose directory classify does not read is not opened, even where this Python's
+        # zipfile would open it (the fake ZIP64 locator on a Python without the CVE-2025-8291 fix):
+        # zip_directory is stubbed to report no directory for a readable TikTok zip.
+        _real_zd = _classify.zip_directory
+        _classify.zip_directory = lambda _path: None
+        try:
+            _unread = _notes_of(parse_tiktok_dyi, str(_both))
+        finally:
+            _classify.zip_directory = _real_zd
+        ok("a zip whose directory classify does not read is not opened, with one note, even when "
+           "zipfile could open it",
+           _unread[0] == [] and len(_unread[1]) == 1 and "incomplete download" in _unread[1][0])
+        # A member name zipfile cannot decode (the UTF-8 flag on bytes that are not UTF-8) gives []
+        # and the one note from each zip parser; a zip path that does not exist gives no note.
+        _badname = Path(_td_tt) / "badname.zip"
+        _badname.write_bytes(_classify._bad_name_zip_bytes())
+        _bad_runs = [_notes_of(fn, str(_badname))
+                     for fn in (parse_tiktok_dyi, parse_youtube_studio_zip, parse_youtube_takeout)]
+        ok("a zip whose member name zipfile cannot decode gives [] and one note from the TikTok, Studio "
+           "and Takeout parsers alike",
+           all(got == [] and len(lines) == 1 and "incomplete download" in lines[0] for got, lines in _bad_runs))
+        ok("a zip path that does not exist gives [] and no note",
+           _notes_of(parse_tiktok_dyi, str(Path(_td_tt) / "missing.zip")) == ([], []))
+        # The Studio zip's table is the CSV named Table data, in any letter case, even after another
+        # CSV with a Content column; without one, the first CSV with a Content column is read.
+        _pick = Path(_td_tt) / "studio-pick.zip"
+        _fall = Path(_td_tt) / "studio-fallback.zip"
+        _other_rows = "Content,Video title,Views\nzzz999,Not the table,1\n"
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_pick, "w") as _z:
+                _z.writestr("Chart data.csv", _other_rows)
+                _z.writestr("TABLE DATA.csv", yt_csv)
+            with zipfile.ZipFile(_fall, "w") as _z:
+                _z.writestr("Totals.csv", "Date,Views\n2026-10-01,5\n")
+                _z.writestr("Export.csv", yt_csv)
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+        ok("a Studio zip's table is the CSV named Table data, in any letter case, even after another "
+           "CSV with a Content column", parse_youtube_studio_zip(str(_pick)) == yt)
+        ok("without a Table data CSV, the first CSV whose first line names a Content column is read",
+           parse_youtube_studio_zip(str(_fall)) == yt)
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})
@@ -490,10 +720,11 @@ def selftest():
     import tempfile as _tf
     bad = Path(_tf.mkdtemp()) / "corrupt.zip"
     bad.write_bytes(b"this is not a zip file at all")
-    ok("corrupt studio zip -> [] (no raise)", parse_youtube_studio_zip(bad) == [])
-    ok("corrupt takeout zip -> [] (no raise)", parse_youtube_takeout(bad) == [])
-    ok("corrupt instagram zip -> [] (no raise)", parse_instagram_dyi(bad) == [])
-    ok("missing zip path -> [] (no raise)", parse_youtube_studio_zip(Path(_tf.mkdtemp()) / "nope.zip") == [])
+    with _cl_n.redirect_stderr(_io_n.StringIO()):  # each prints its note
+        ok("corrupt studio zip -> [] (no raise)", parse_youtube_studio_zip(bad) == [])
+        ok("corrupt takeout zip -> [] (no raise)", parse_youtube_takeout(bad) == [])
+        ok("corrupt instagram zip -> [] (no raise)", parse_instagram_dyi(bad) == [])
+        ok("missing zip path -> [] (no raise)", parse_youtube_studio_zip(Path(_tf.mkdtemp()) / "nope.zip") == [])
 
     # every parser output is normalize_record-ready
     sys.path.insert(0, str(Path(__file__).resolve().parent))

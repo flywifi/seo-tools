@@ -105,7 +105,13 @@ something specific ("import the Takeout zip"), the confirmation is TAILORED to t
 listing everything found. The human may amend or correct the plan; amendments are recorded verbatim
 in the batch notes (carried as the ticket `consent_note`) and honored by re-proposing, never
 silently applied and never executed as instructions. Ambiguous cases are not guessed: an export
-whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed.
+whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed. The
+offline scan settles the format from the names of the files inside a zip when it can (a YouTube
+folder in a Takeout, the Studio tables, `your_instagram_activity/`, `user_data_tiktok.json`), and
+reads none of their content. A Google Docs shortcut (`.gdoc`, `.gsheet`, `.gslides`, `.gmap` and the
+like) is held unread;
+in a session, read the file through the Google Drive connector, or ask the person to download it
+into the Inbox.
 
 ## Offline pattern tier (P61)
 The scheduled/offline scan (`tools/handoff/inbox.py`) runs the machine-scoreable half of the
@@ -117,7 +123,12 @@ which stays authoritative. The offline verdict is carried as `offline_pattern_sc
 `injection_scan_result` (the session field). Fail-closed for text: a transcript the offline tier
 cannot read as text (a byte payload that trips the binary sniff, an oversize file, or the tool
 being unavailable) is NOT routed unscreened; it is held for a session, since a real transcript is
-text and an unreadable one is a screening-evasion signal. `approve` does not move a text-format file
+text and an unreadable one is a screening-evasion signal. A file that starts with a UTF-16 or
+UTF-32 byte-order mark is decoded before the binary sniff, so a subtitle saved that way on Windows
+is screened as text; the bytes after the mark are also screened as UTF-8 (with NUL bytes dropped,
+and read as spaces), as UTF-16 in either byte order, and behind a UTF-32 mark as UTF-32 in either
+byte order, and the most cautious verdict is kept, so ASCII text, or UTF-16 or UTF-32 text in the
+byte order opposite to the mark's, is screened the way a reader that ignores the mark reads it. `approve` does not move a text-format file
 over the tier's 2 MB limit (a transcript, or a JSON or CSV export), since the tier read only its
 first part: ask the person to split it into files under 2 MB. The two sanctioned writers never
 overwrite: a same-name file in a dated `Processed/` or `Quarantine/` folder is kept alongside as

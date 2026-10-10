@@ -200,7 +200,9 @@ Nothing is written or moved until you approve. Full model: `docs/DRIVE-HUB.md`.
 Where the wizard needs a folder path -- the import screen and the "Choose my Creator OS folder" step
 -- a **Browse...** button opens your operating system's native folder picker
 (`tools/pick_folder.py`: a tkinter dialog, with macOS/Windows/Linux fallbacks). The typed path field
-stays as the always-works fallback when no picker is available (e.g. over SSH).
+stays as the always-works fallback when no picker is available (e.g. over SSH). When a scan finds no
+videos, the import screen gives the importer's reason when it has one, such as a `.tgz` Takeout or
+a YouTube Studio export in another language.
 
 ---
 
@@ -244,7 +246,11 @@ type (import folder, Creator OS folder) are confined to your home directory afte
 symlinks; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
 Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being
 silently replaced; and the import scan/approve flow is tied to a single-use token so two open tabs
-cannot approve each other's scan.
+cannot approve each other's scan. The parsed videos wait for approval in a temporary file, which is
+deleted when you approve (whether the save works or not) and when a new scan replaces it; the
+wizard deletes only a file with the scan's `creator-os-import-` name in the temp folder, and a file
+the scan could not finish writing is deleted at once. The import screen shows the importer's notes
+and error lines as text, escaped, since they can carry a file name from the export.
 
 **Config files the wizard writes:**
 

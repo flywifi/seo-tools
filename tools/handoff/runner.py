@@ -194,6 +194,13 @@ def _deliver_outbox(hub_root, job_type, stdout):
     return name
 
 
+def _with_notes(stdout, stderr) -> str:
+    """A done job's output followed by the 'note: ' lines its tool wrote on stderr (P102:
+    import_parse says there why an export gave no records), so the result's log shows them."""
+    notes = [ln for ln in str(stderr or "").splitlines() if ln.startswith("note: ")]
+    return "\n".join([str(stdout or "").rstrip()] + notes) if notes else (stdout or "")
+
+
 def _tail(text, lines=12, limit=2000):
     if not text:
         return None
@@ -300,7 +307,8 @@ def run_job(hub_root, ticket_path, data, *, spawn=subprocess.run) -> dict:
         q.write_result(hub_root, key, status, started_at=started, tool_version=_version(),
                        outputs=outputs,
                        error=None if status == "done" else f"exit code {proc.returncode}",
-                       log_tail=_tail(stdout if status == "done" else (proc.stderr or stdout)))
+                       log_tail=_tail(_with_notes(stdout, proc.stderr) if status == "done"
+                                      else (proc.stderr or stdout)))
     except subprocess.TimeoutExpired:
         q.write_result(hub_root, key, "failed", started_at=started, tool_version=_version(),
                        error=f"timed out after {timeout}s")
@@ -434,6 +442,26 @@ def selftest() -> int:
     ok("failed job never delivers to Outbox",
        res[0]["status"] == "failed" and
        len(list((hub / "Outbox").glob("*.json"))) == before_ob)
+
+    # P102: a done job's log keeps the note: lines its tool wrote on stderr, after its output.
+    def note_spawn(argv, **kw):
+        return types.SimpleNamespace(returncode=0, stdout="0 records\n",  # not JSON: no Outbox file
+                                     stderr="progress 50%\nwarning: see the note: below\n"
+                                            "note: this Takeout is a .tgz archive\n")
+    t_nt = q.submit(hub, "library_analyze")
+    run_pass(hub, spawn=note_spawn, allow=True)
+    r_nt = json.loads(q.result_path(hub, t_nt["job_id"]).read_text())
+    ok("a done job's log keeps the stderr lines that start with note:, and no other stderr",
+       r_nt["status"] == "done" and r_nt["log_tail"] == "0 records\nnote: this Takeout is a .tgz archive")
+
+    def failed_note_spawn(argv, **kw):
+        return types.SimpleNamespace(returncode=1, stdout="", stderr="note: a note before the error\n"
+                                     "Traceback (most recent call last):\nValueError: the export is cut\n")
+    t_fn = q.submit(hub, "library_analyze")
+    run_pass(hub, spawn=failed_note_spawn, allow=True)
+    r_fn = json.loads(q.result_path(hub, t_fn["job_id"]).read_text())
+    ok("a failed job's log is its stderr, error included",
+       r_fn["status"] == "failed" and "ValueError: the export is cut" in (r_fn["log_tail"] or ""))
 
     def nonjson_spawn(argv, **kw):
         return types.SimpleNamespace(returncode=0, stdout="plain text", stderr="")

@@ -35,6 +35,8 @@ and write rules are `docs/DRIVE-HUB.md`.
    are new files; only the local machine moves tickets to the archive.
 7. **Honest failure.** Every bad path (invalid ticket, unwired type, timeout, tool error) lands as
    a `refused`/`failed` result with a short log tail, never a raw traceback, never a silent skip.
+   A done job's log tail is its stdout followed by the tool's `note: ` stderr lines
+   (`runner._with_notes`, P102); other stderr stays out.
 8. **Read-only reports only where money or accounts are involved.** The finance builder accepts
    only the read-only reports (`ar-scan`, `cashflow`); the competitor builder runs the offline
    `--parse`, never the network fetch.
@@ -69,7 +71,20 @@ The offline half of the `inbox-routing` atom. `scan` is READ-ONLY: it sha256-dif
 against the local ledger, classifies each new file by FORMAT (`shared/docintel/classify.py`), and
 proposes a route only for categories the rules table
 (`shared/docintel/inbox_rules.json`) marks `category_source: "format"` (transcripts, media,
-export archives). Content-gated categories (contracts, pitches, invoices) are listed as
+export archives). An archive is a `platform_export` when its name carries a hint (`takeout`,
+`studio`, `dyi`, `export`) or `export_kind_from_members` finds an export's member names in it
+(P102); that kind rides on the proposal as `export_kind`, through approve's `moved_details`, to
+`plan_followups`, which accepts only the kinds in `_CONTENT_KINDS`. The zip's directory comes from
+`classify.zip_directory` before anything is listed: the end record CPython's zipfile reads, ZIP64
+included, with the central-directory headers counted (`classify._count_headers`), so a stated count
+is not taken on trust; over `classify.ZIP_MAX_ENTRIES` or `ZIP_MAX_DIRECTORY_BYTES` it is not
+listed. A ZIP64 record is read only just before its locator, with no extensible data and the
+directory ending at it, where CPython reads it with or without the CVE-2025-8291 fix; any other
+layout gives no directory, and the zip is not listed. `import_parse._safe_zip` opens a zip through
+the same limits. A file whose extension is in `_GOOGLE_POINTER_EXTS` (a Drive for desktop
+shortcut, `.gmap` included) is put in `needs_review` with `_POINTER_NOTE` before it is opened,
+hashed or classified, and no ledger entry is made; it shows on each scan until it is removed
+<!-- verify: shared/docintel/classify.py::_count_headers -->. Content-gated categories (contracts, pitches, invoices) are listed as
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
 (`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned
@@ -100,6 +115,12 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   than leaving it in the drop folder counted as handled.
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
+A file with a UTF-16 or UTF-32 byte-order mark is decoded before the sniff (P102, ADR 0080), so a
+subtitle saved that way is screened; the selftest's UTF-16 cases cover scan and approve. Behind such
+a mark `injection_scan.scan_file` also screens the other readings of the bytes after it (UTF-8,
+with NULs dropped and as spaces, and each fixed UTF-16 byte order, plus the UTF-32 ones behind a
+UTF-32 mark; `injection_scan._screen_readings`) and keeps the highest score, naming that reading under
+`verdict_reading` <!-- verify: tools/injection_scan.py::_screen_readings -->.
 `approve` refuses a text file the tier read only in part (`inbox._fully_screened`), and `scan` holds
 one with `inbox._OVERSIZE_NOTE`, so a transcript or a JSON or CSV export over 2 MB stays in the
 Inbox until it is split; on other formats a cut record's verdict is kept,

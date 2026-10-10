@@ -28,6 +28,8 @@ import hashlib
 import json
 import os
 import sys
+import unicodedata
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -48,6 +50,26 @@ _FORMAT_CATEGORY = {
     "audio": "audio_media",
 }
 _EXPORT_HINTS = ("takeout", "studio", "dyi", "export")
+# Google Drive for desktop shows a Google Docs, Sheets, Slides, Drawings, Forms, Tables or My Maps
+# file as a small shortcut that opens the file in a browser; its content is in Google Drive, not in
+# the shortcut. So scan holds one by its extension before it opens, hashes or classifies the file,
+# with a note saying how to bring the content in (P102). Garmin map files also use .gmap; one is held
+# for review too.
+_GOOGLE_POINTER_EXTS = frozenset({"gdoc", "gsheet", "gslides", "gdraw", "gform", "gtable", "gmap"})
+_POINTER_NOTE = ("a shortcut to a file in Google Drive (a Google Docs, Sheets, Slides, Drawings, Forms, "
+                 "Tables or My Maps file): its content is in Google Drive, not on this computer. Open it "
+                 "and download a copy into the Inbox (in Docs, Sheets and Slides: File, then Download, as "
+                 "Word, Excel, PowerPoint or PDF), or read it in a Claude session with the Google Drive "
+                 "connector; left in place")
+# The kinds a zip's member names identify (export_kind_from_members); each is a format the
+# import_parse_preview job accepts.
+_CONTENT_KINDS = ("youtube-takeout", "youtube-studio-zip", "instagram-dyi", "tiktok-dyi")
+# YouTube Studio names the CSVs of a content export in the account's language: the table, plus the
+# chart data or the totals beside it. English and Spanish, from public reports, not vendor docs.
+_STUDIO_TABLES = {
+    "table data.csv": ("chart data.csv", "totals.csv"),
+    "datos de la tabla.csv": ("datos del gr\u00e1fico.csv", "totales.csv"),
+}
 
 
 def load_rules(path=RULES_PATH) -> dict:
@@ -104,13 +126,48 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _format_category(info: dict, name: str) -> str | None:
+def _format_category(info: dict, name: str, export_kind: str | None = None) -> str | None:
     fam = info.get("family")
     if fam in _FORMAT_CATEGORY:
         return _FORMAT_CATEGORY[fam]
-    if fam == "archive" and any(h in name.lower() for h in _EXPORT_HINTS):
+    if fam == "archive" and (export_kind or any(h in name.lower() for h in _EXPORT_HINTS)):
         return "platform_export"
     return None
+
+
+def export_kind_from_members(path) -> dict:
+    """{"kind", "refused"} for a zip, from its member names alone; nothing is extracted. The end
+    record is read first (classify.zip_directory, ZIP64 included), and a zip whose directory is over
+    classify's limits is not listed: "refused" says why. A folder whose name starts with YouTube
+    inside a Takeout/ folder at the root is youtube-takeout; a Studio table beside its chart data or
+    totals (in English or Spanish) is youtube-studio-zip; a your_instagram_activity/ folder is
+    instagram-dyi; user_data_tiktok.json is tiktok-dyi. Names are compared in lower case, NFC
+    normalised, with backslashes read as slashes. Anything else, or a file whose end records are
+    not read, is {"kind": None, "refused": None}. Never raises."""
+    directory = _classify.zip_directory(path)
+    if directory is None:
+        return {"kind": None, "refused": None}
+    refused = _classify.zip_refusal(directory)
+    if refused:
+        return {"kind": None, "refused": refused}
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+    except (zipfile.BadZipFile, OSError, RuntimeError, ValueError, EOFError, NotImplementedError):
+        return {"kind": None, "refused": None}
+    names = [unicodedata.normalize("NFC", n.replace("\\", "/")).lower() for n in names]
+    base = {n.rsplit("/", 1)[-1] for n in names}
+    kind = None
+    if any(n.startswith("takeout/") and n.count("/") >= 2 and n.split("/")[1].startswith("youtube")
+           for n in names):  # Takeout/YouTube and YouTube Music/..., not Takeout/Google Photos/...
+        kind = "youtube-takeout"
+    elif any(t in base and set(beside) & base for t, beside in _STUDIO_TABLES.items()):
+        kind = "youtube-studio-zip"
+    elif any(("/" + n).find("/your_instagram_activity/") >= 0 for n in names):
+        kind = "instagram-dyi"
+    elif "user_data_tiktok.json" in base:
+        kind = "tiktok-dyi"
+    return {"kind": kind, "refused": None}
 
 
 def _screener():
@@ -230,6 +287,11 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
             continue
         if p.name in _SEALED_SUBDIRS:  # defensive; directories are already skipped above
             continue
+        if p.suffix.lower().lstrip(".") in _GOOGLE_POINTER_EXTS:  # never opened, never hashed
+            out["needs_review"].append({
+                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,
+                "category_source": "google_shortcut", "pass2_pending": False, "note": _POINTER_NOTE})
+            continue
         try:
             digest = _sha256(p)
             info = _classify.classify(str(p))
@@ -239,6 +301,12 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                 "category_source": "unreadable", "pass2_pending": True,
                 "note": "could not be read (close the file if it is open in another program, then "
                         f"scan again): {exc}; left in place"})
+            continue
+        except Exception as exc:  # noqa: BLE001 - one file the classifier cannot read never stops the scan
+            out["needs_review"].append({
+                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,
+                "category_source": "unreadable", "pass2_pending": True,
+                "note": f"could not be read as its file type ({type(exc).__name__}: {exc}); left in place"})
             continue
         if digest in ledger and ledger[digest].get("status") == "quarantined":
             # a copy of content already sealed: flagged again so the sweep seals it too, rather
@@ -277,8 +345,23 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                     out["quarantined"].append(entry)
                     continue
 
-        cat = _format_category(info, p.name)
+        contents = (export_kind_from_members(p) if info.get("family") == "archive"
+                    else {"kind": None, "refused": None})
+        cat = _format_category(info, p.name, contents["kind"])
         rule = rules.get(cat) if cat else None
+        if contents["kind"]:
+            entry["export_kind"] = contents["kind"]
+        if contents["refused"]:
+            if cat is None:  # no name hint either: the person picks the format on the import screen
+                entry.update({"classified_as": None, "category_source": "archive_too_large",
+                              "note": f"this zip's file list is too large to check here "
+                                      f"({contents['refused']}); if it is a platform export, unzip "
+                                      "it and open the folder on the setup wizard's /import screen; "
+                                      "left in place"})
+                out["needs_review"].append(entry)
+                continue
+            entry["note"] = (f"too many files to check its contents here ({contents['refused']}); "
+                             "its name says it is an export")
         if ((entry.get("offline_pattern_scan") or {}).get("truncated")
                 and p.suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS):
             # a text format read only up to max_bytes: approve refuses it, so it is not proposed
@@ -394,8 +477,10 @@ def _export_kind(name: str) -> str | None:
 def plan_followups(moved_entries) -> list:
     """P61 A-CONFIRM2: map each approved+moved file to the follow-up job the work-order screen
     proposes (or an honest 'none'). Pure: data in, data out, no I/O. The input is the list of
-    approved proposal entries (each carries file, classified_as, and the Processed path). A file
-    whose export format is ambiguous ("dyi" = instagram or tiktok) gets NO job, never a guess."""
+    approved proposal entries (each carries file, classified_as, the Processed path, and for an
+    export the kind its member names showed, export_kind). A file whose export format is still
+    ambiguous ("dyi" = instagram or tiktok, with no kind from its contents) gets NO job, never a
+    guess."""
     plan = []
     for e in moved_entries:
         cat = e.get("classified_as")
@@ -408,7 +493,8 @@ def plan_followups(moved_entries) -> list:
             plan.append({"file": ref, "job_type": "transcript_normalize", "input_ref": ref,
                          "note": "break into segments, silences, and suggested chapters"})
         elif cat == "platform_export":
-            kind = _export_kind(name)
+            kind = e.get("export_kind") if e.get("export_kind") in _CONTENT_KINDS else None
+            kind = kind or _export_kind(name)
             if kind:
                 plan.append({"file": ref, "job_type": "import_parse_preview", "input_ref": ref,
                              "params": {"kind": kind}, "note": f"preview the {kind} export"})
@@ -576,6 +662,7 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
             results["moved"].append(item["file"])
             results["moved_details"].append({
                 "file": item["file"], "classified_as": item.get("classified_as"),
+                "export_kind": item.get("export_kind"),
                 "processed_ref": f"Inbox/Processed/{stamp}/{target.name}"})
         data["entries"] = entries
         _write_ledger(ledger_path, data)
@@ -1128,6 +1215,35 @@ def _selftest_checks() -> int:
     ok("a binary file the tier cannot read keeps the proposal's verdict, so a sealed record refuses",
        not ma["moved"] and "SEAL-TERMINAL" in ma["refused"][0]["why"])
 
+    # P102: a subtitle saved as UTF-16 (Windows PowerShell's Out-File) is screened as text: a clean
+    # one is proposed and moved, one carrying the payload is sealed.
+    import codecs as _codecs_w
+    w16 = Path(tempfile.mkdtemp()); (w16 / "Inbox").mkdir()
+    (w16 / "Inbox" / "talk16.srt").write_bytes(_codecs_w.BOM_UTF16_LE + srt.encode("utf-16-le"))
+    (w16 / "Inbox" / "poison16.srt").write_bytes(
+        _codecs_w.BOM_UTF16_LE + (srt + "\n" + poison).encode("utf-16-le"))
+    s16 = scan(w16, ledger={})
+    ok("scan proposes a clean UTF-16 subtitle and seals one carrying the payload",
+       [e["file"] for e in s16["proposals"]] == ["Inbox/talk16.srt"]
+       and [e["file"] for e in s16["quarantined"]] == ["Inbox/poison16.srt"]
+       and not s16["needs_review"])
+    a16 = approve(w16, {"proposals": s16["proposals"]}, ledger_path=Path(tempfile.mkdtemp()) / "w16.json")
+    ok("approve moves the clean UTF-16 subtitle", a16["moved"] == ["Inbox/talk16.srt"] and not a16["refused"])
+    # A UTF-16 mark put in front of plain ASCII text, or of UTF-16 text in the other byte order,
+    # does not hide the payload from the screen.
+    (w16 / "Inbox" / "masked.srt").write_bytes(_codecs_w.BOM_UTF16_BE + (srt + "\n" + poison).encode("ascii"))
+    (w16 / "Inbox" / "flipped.srt").write_bytes(_codecs_w.BOM_UTF16_BE + (srt + "\n" + poison).encode("utf-16-le"))
+    sm = scan(w16, ledger={})
+    am = approve(w16, {"proposals": [prop_for(w16, n, offline_pattern_scan=clean_rec)
+                                     for n in ("masked.srt", "flipped.srt")]},
+                 ledger_path=Path(tempfile.mkdtemp()) / "wm.json")
+    ok("scan seals a subtitle whose UTF-16 mark sits in front of ASCII text, or of UTF-16 LE text "
+       "behind a BE mark, carrying the payload, and approve refuses a clean proposal for each",
+       {"Inbox/masked.srt", "Inbox/flipped.srt"} <= {e["file"] for e in sm["quarantined"]}
+       and not {"Inbox/masked.srt", "Inbox/flipped.srt"} & {e["file"] for e in sm["proposals"]}
+       and not am["moved"] and len(am["refused"]) == 2
+       and all("SEAL-TERMINAL" in r["why"] for r in am["refused"]))
+
     # P102: an oversize text file is read only up to injection_scan's max_bytes, so a clean verdict
     # for that part neither routes it from scan nor lets approve move it; a flag in that part seals.
     b2 = Path(tempfile.mkdtemp()); (b2 / "Inbox").mkdir()
@@ -1440,6 +1556,151 @@ def _selftest_checks() -> int:
        a9["moved"] == ["Inbox/talk.srt"] and "ledger_note" not in a9
        and [e.get("file_name") for e in json.loads(l9.read_text(encoding="utf-8"))["entries"]]
        == ["old.txt", "talk.srt"])
+
+    # P102: an export is recognised by its member names, whatever its download name, and the kind
+    # travels from scan through approve to the follow-up job. Zips are built in memory (the repo
+    # commits none); the member names follow public reports of each platform's export.
+    zb = _classify._zip_bytes
+    ex = Path(tempfile.mkdtemp()); (ex / "Inbox").mkdir()
+    exports = {
+        "Content 2026-09-07_2026-10-05 Fictional Channel.zip":
+            (zb(["Table data.csv", "Chart data.csv", "Totals.csv"]), "youtube-studio-zip"),
+        "Contenido 2026-09-07_2026-10-05 Canal Ficticio.zip":
+            (zb(["Datos de la tabla.csv", "Datos del gr\u00e1fico.csv", "Totales.csv"]), "youtube-studio-zip"),
+        "Contenido decomposed.zip":  # a zip made on a Mac can spell the accent as two code points
+            (zb(["Datos de la tabla.csv", "Datos del gra\u0301fico.csv"]), "youtube-studio-zip"),
+        "Content zip64.zip": (zb(["Table data.csv", "Totals.csv"], zip64=True), "youtube-studio-zip"),
+        "instagram-fictionaluser-2026-10-05-AbCdEfGh.zip":
+            (zb(["your_instagram_activity/content/reels.json"]), "instagram-dyi"),
+        "instagram-dyi-export.zip": (zb(["your_instagram_activity/content/posts_1.json"]), "instagram-dyi"),
+        "TikTok_Data_1759600000.zip": (zb(["user_data_tiktok.json"]), "tiktok-dyi"),
+        "takeout-20261005T120000Z-001.zip":
+            (zb(["Takeout/YouTube and YouTube Music/videos/porch.mp4", "Takeout/archive_browser.html"]),
+             "youtube-takeout"),
+        "holiday-photos.zip": (zb(["beach.jpg", "notes.txt"]), None),
+        "report-tables.zip": (zb(["Table data.csv"]), None),
+        "broken.zip": (b"PK\x03\x04 this is not a zip", None),
+        "photos-backup.zip": (zb(["Takeout/Google Photos/2026/IMG_0001.jpg", "Takeout/archive_browser.html"]), None),
+        "mail-backup.zip": (zb(["Takeout/Mail/All mail Including Spam and Trash.mbox"]), None),
+        "nested-backup.zip": (zb(["backup/Takeout/YouTube and YouTube Music/videos/porch.mp4"]), None),
+        "folder-copy.zip": (zb(["my-takeout/YouTube and YouTube Music/videos/porch.mp4"]), None),
+        "blog-backup.zip": (zb(["blog/posts_1.json", "reels.json"]), None),
+        "app-backup.zip": (zb(["backup/user_data.json"]), None),
+        "yt-backslash.zip": (zb(["Takeout\\YouTube and YouTube Music\\video metadata\\videos.csv"]),
+                             "youtube-takeout"),
+        "takeout-of-my-instagram.zip": (zb(["your_instagram_activity/media/posts_2.json"]), "instagram-dyi"),
+        "my-data-2026.zip": (zb(["instagram-me-20261001/your_instagram_activity/media/posts_1.json"]),
+                             "instagram-dyi"),
+        "drive-backup.zip": (zb(["Takeout/Drive/My YouTube scripts/notes.txt"]), None),
+        "notes-backup.zip": (zb(["Takeout/My YouTube notes/x.txt"]), None),
+        "lookalike.zip": (zb(["not_your_instagram_activity/x.json"]), None),
+        "ig-old.zip": (zb(["your_instagram_activity_old/x.json"]), None),
+        "renamed-copy.zip": (zb(["takeout2/YouTube and YouTube Music/videos/porch.mp4"]), None),
+        "photos.zip": (_classify._bad_name_zip_bytes(), None),
+    }
+    for name, (raw, _kind) in exports.items():
+        (ex / "Inbox" / name).write_bytes(raw)
+    many = [f"m{i}.txt" for i in range(_classify.ZIP_MAX_ENTRIES + 1)]
+    (ex / "Inbox" / "archive-of-everything.zip").write_bytes(zb(many))
+    (ex / "Inbox" / "takeout-huge.zip").write_bytes(zb(["Takeout/x.csv"] + many))
+    sx = scan(ex, ledger={})
+    got = {e["file"].split("/", 1)[1]: e.get("export_kind") for e in sx["proposals"]}
+    want = {n: k for n, (_r, k) in exports.items() if k}
+    ok("each export is proposed with the kind its member names show, whatever its download name",
+       {n: got.get(n) for n in want} == want)
+    unknown_x = {e["file"].split("/", 1)[1] for e in sx["unknown"]}
+    ok("a zip of photos, a lone table and a file that is not a zip stay unknown",
+       {"holiday-photos.zip", "report-tables.zip", "broken.zip"} <= unknown_x)
+    ok("a Takeout without a YouTube folder directly under Takeout/ (one with a YouTube name deeper "
+       "down included), a Takeout folder below the root, a posts_1.json or reels.json outside an "
+       "Instagram folder, and a user_data.json stay unknown",
+       {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
+        "app-backup.zip", "drive-backup.zip"} <= unknown_x)
+    ok("a Takeout folder whose name holds YouTube but does not start with it, a folder whose name ends "
+       "in your_instagram_activity or only starts with it, and a root folder named takeout2 stay unknown",
+       {"notes-backup.zip", "lookalike.zip", "ig-old.zip", "renamed-copy.zip"} <= unknown_x)
+    ok("a zip whose member name zipfile cannot decode stays unknown, and the scan goes on to the others",
+       "photos.zip" in unknown_x and {n: got.get(n) for n in want} == want)
+    held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
+    ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
+       "archive-of-everything.zip" in held_x
+       and held_x["archive-of-everything.zip"]["category_source"] == "archive_too_large"
+       and "/import" in held_x["archive-of-everything.zip"]["note"]
+       and f"more than {_classify.ZIP_MAX_ENTRIES:,} entries" in held_x["archive-of-everything.zip"]["note"])
+    huge = next((e for e in sx["proposals"] if e["file"] == "Inbox/takeout-huge.zip"), {})
+    ok("a zip too large to list whose name says Takeout is proposed by its name, with a note",
+       huge.get("classified_as") == "platform_export" and "export_kind" not in huge
+       and "too many files" in huge.get("note", ""))
+    ax = approve(ex, sx, ledger_path=Path(tempfile.mkdtemp()) / "ex-ledger.json")
+    jobs = {f["file"].rsplit("/", 1)[1]: (f["job_type"], (f.get("params") or {}).get("kind"))
+            for f in plan_followups(ax["moved_details"])}
+    ok("approve carries the kind, and each export gets its preview job",
+       all(jobs.get(n) == ("import_parse_preview", k) for n, k in want.items())
+       and jobs.get("takeout-huge.zip") == ("import_parse_preview", "youtube-takeout"))
+    ok("plan_followups ignores a kind outside the import formats",
+       plan_followups([{"classified_as": "platform_export", "export_kind": "bogus",
+                        "processed_ref": "Inbox/Processed/d/thing.zip"}])[0]["job_type"] is None)
+
+    # P102: a file the classifier raises on (any error, not only an unreadable file) is held for
+    # review with the error, and the scan goes on.
+    cr = Path(tempfile.mkdtemp()); (cr / "Inbox").mkdir()
+    (cr / "Inbox" / "odd.bin").write_bytes(b"\x00\x01 not a format the classifier knows")
+    (cr / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    real_classify = _classify.classify
+
+    def _raising_classify(path):
+        if path.endswith("odd.bin"):
+            raise ValueError("a stand-in for an error the classifier hits")
+        return real_classify(path)
+    _classify.classify = _raising_classify
+    try:
+        scr_odd = scan(cr, ledger={})
+        odd_raised = None
+    except Exception as exc:  # noqa: BLE001 - the check below names what escaped
+        scr_odd, odd_raised = None, type(exc).__name__
+    finally:
+        _classify.classify = real_classify
+    odd_held = [e for e in (scr_odd or {}).get("needs_review", []) if e["file"] == "Inbox/odd.bin"]
+    ok("a file the classifier raises on is held for review with the error, and the scan goes on",
+       odd_raised is None and len(odd_held) == 1 and odd_held[0]["category_source"] == "unreadable"
+       and "ValueError: a stand-in" in odd_held[0]["note"]
+       and [e["file"] for e in scr_odd["proposals"]] == ["Inbox/talk.srt"])
+
+    # P102: a Google Docs shortcut is held by its extension with a note, and never opened: on
+    # Windows, Drive for desktop serves it as a file whose read fails with EINVAL.
+    gp = Path(tempfile.mkdtemp()); (gp / "Inbox").mkdir()
+    shortcuts = ["Notes.gdoc", "Budget.GSHEET", "Pitch.gslides", "Sketch.gdraw", "Survey.gform", "Table.gtable",
+                 "Trip.GMap"]
+    for name in shortcuts:
+        (gp / "Inbox" / name).write_text('{"doc_id": "fictional", "email": "someone@example.com"}', encoding="utf-8")
+    (gp / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    (gp / "Inbox" / "notes.gdoc.txt").write_text("plain notes", encoding="utf-8")
+    opened, real_open = [], open
+
+    def _trap_open(path, *a, **kw):
+        if Path(str(path)).suffix.lower().lstrip(".") in _GOOGLE_POINTER_EXTS:
+            opened.append(str(path))
+            raise OSError(22, "Invalid argument")
+        return real_open(path, *a, **kw)
+    import builtins as _builtins_g
+    _builtins_g.open = _trap_open
+    try:
+        sg = scan(gp, ledger={})
+    finally:
+        _builtins_g.open = real_open
+    held_g = {e["file"].split("/", 1)[1]: e for e in sg["needs_review"]
+              if e.get("category_source") == "google_shortcut"}
+    ok("each Google shortcut is held for review with the download note, and never opened",
+       sorted(held_g) == sorted(shortcuts) and not opened
+       and all(e["category_source"] == "google_shortcut" and "File, then Download" in e["note"]
+               and e["sha256"] is None for e in held_g.values()))
+    ok("a held shortcut's contents reach no part of the scan result, and other files still route",
+       "someone@example.com" not in json.dumps(sg) and [e["file"] for e in sg["proposals"]] == ["Inbox/talk.srt"])
+    ok("a file whose name holds .gdoc before another extension is not held as a shortcut",
+       "notes.gdoc.txt" not in held_g)
+    ok("the shortcut note names the download route and the Google Drive connector",
+       all(e["note"] == _POINTER_NOTE for e in held_g.values())
+       and "Download" in _POINTER_NOTE and "Google Drive connector" in _POINTER_NOTE)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

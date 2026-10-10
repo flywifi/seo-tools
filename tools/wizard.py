@@ -2771,8 +2771,9 @@ def _drive_hub_status() -> dict:
     except Exception as exc:  # noqa: BLE001
         return {"error": f"handoff tools unavailable: {exc}"}
     hub, note = _watcher.resolve_hub(None)
-    out = {"hub": hub, "note": note, "candidates": _watcher.detect_mirror_candidates(),
-           "folder_name": _watcher.load_hub_config().get("folder_name", "Creator OS")}
+    folder_name = _watcher.hub_folder_name()  # stripped; a blank or missing name means Creator OS
+    out = {"hub": hub, "note": note, "folder_name": folder_name,
+           "candidates": _watcher.detect_mirror_candidates(folder_name=folder_name)}
     if hub:
         try:
             out["status"] = _watcher.status(hub)
@@ -3508,15 +3509,35 @@ def _import_targets(folder, kind):
     return out[:200]
 
 
-def _run_import_parse(fmt, path, crashes=None):
+def _drop_import_batch() -> None:
+    """Delete the parsed import batch this session last stashed (P102: it holds a channel's titles,
+    descriptions and numbers) and forget it. The path is read back from the state file, so only a
+    file named creator-os-import-*.json, the name the scan gives it, in the temp folder the scan
+    writes to (tempfile.gettempdir()) is deleted. A file already gone is fine."""
+    batch = _get("import_batch_file") or ""
+    name = os.path.basename(batch)
+    if (name.startswith("creator-os-import-") and name.endswith(".json")
+            and os.path.realpath(os.path.dirname(batch)) == os.path.realpath(tempfile.gettempdir())):
+        try:
+            os.unlink(batch)
+        except OSError:
+            pass
+    _set(import_batch_file="", import_batch_token="")
+
+
+def _run_import_parse(fmt, path, crashes=None, notes=None):
     """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
     attempt did not parse (wrong format for this folder, unreadable file). A run that stopped with
     a Python error (a Traceback on stderr) also returns None, and its last stderr line is appended
     to `crashes` when given, so the screen can say the tool failed rather than that the folder
-    holds no export. Never raises."""
+    holds no export. The tool's 'note: ' lines (why an export gave nothing, P102) are appended to
+    `notes` when given. Never raises."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "import_parse.py"), fmt, path],
                            capture_output=True, timeout=900, **env_paths.tool_io())
+        if notes is not None:
+            notes.extend(ln[len("note: "):].strip() for ln in (r.stderr or "").splitlines()
+                         if ln.startswith("note: "))
         if r.returncode != 0:
             err = (r.stderr or "").strip()
             if crashes is not None and "Traceback (most recent call last)" in err:
@@ -3555,11 +3576,11 @@ def _scan_import_folder(folder, platforms):
     by video_key so a folder matched by two formats does not double-count. Nothing is saved here."""
     records, seen, notes = [], set(), []
     for plat in platforms:
-        got, crashes = 0, []
+        got, crashes, said = 0, [], []
         for fmt, kind in _IMPORT_ATTEMPTS.get(plat, []):
             targets = _import_targets(folder, kind)
             for tgt in targets:
-                recs = _run_import_parse(fmt, tgt, crashes)
+                recs = _run_import_parse(fmt, tgt, crashes, said)
                 if not recs:
                     continue
                 for rec in recs:
@@ -3574,6 +3595,8 @@ def _scan_import_folder(folder, platforms):
             notes.append(f"{plat}: {got} record(s)")
         elif crashes:
             notes.append(f"{plat}: import_parse stopped with an error: {crashes[0]}")
+        elif said:
+            notes.append(f"{plat}: {said[0]}")
         else:
             notes.append(f"{plat}: no readable export found in this folder")
     return records, notes
@@ -4134,8 +4157,11 @@ anything, and closing this window does not stop the work.</p>
                     out = json.loads(r.stdout or "{}")
                     n = out.get("upserted", 0)
                 except Exception as exc:  # noqa: BLE001
-                    self._send(_screen_import(error=f"Could not save the library: {exc}"))
+                    self._send(_screen_import(error=f"Could not save the library: {exc} (scan the "
+                                                    "folder again to retry)"))
                     return
+                finally:
+                    _drop_import_batch()  # the batch holds the channel's data; it is not kept
                 _set(import_count=n)
                 self._send(_screen_import(saved=(
                     f"Saved <strong>{n}</strong> video record(s) to your local library (nothing left this "
@@ -4180,10 +4206,14 @@ anything, and closing this window does not stop the work.</p>
             if not records:
                 preview = ('<div class="note" style="background:#fff3e0"><strong>No videos found in that '
                            'folder.</strong> Make sure you pointed at the <em>unzipped</em> export and picked '
-                           'the right platforms.<ul><li>' + "</li><li>".join(notes) + "</li></ul></div>")
+                           'the right platforms.<ul><li>' + "</li><li>".join(html.escape(n) for n in notes)
+                           + "</li></ul></div>")
                 self._send(_screen_import(folder=folder, preview_html=preview))
                 return
             # Stash the parsed records to a temp batch file for the approve step (local; user's data).
+            # The batch of an earlier scan is deleted first: this one replaces it.
+            _drop_import_batch()
+            tmp = None
             try:
                 fd, tmp = tempfile.mkstemp(prefix="creator-os-import-", suffix=".json")
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -4193,6 +4223,11 @@ anything, and closing this window does not stop the work.</p>
                 batch_token = secrets.token_urlsafe(16)
                 _set(import_batch_file=tmp, import_batch_token=batch_token)
             except Exception as exc:  # noqa: BLE001
+                if tmp:  # a batch written in part holds the channel's data too (P102)
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
                 self._send(_screen_import(folder=folder, error=f"Could not prepare the import: {exc}"))
                 return
             pat = _import_pattern_summary(records)
@@ -4208,7 +4243,7 @@ anything, and closing this window does not stop the work.</p>
                             f'the import.<ul>{items}</ul></div>')
             preview = (f'<div class="success-box"><strong>Found {len(records)} video(s)</strong> '
                        f'({revenue} with revenue). Nothing is saved yet &mdash; review and approve below.'
-                       f'<ul><li>' + "</li><li>".join(notes) + "</li></ul></div>" + pat_html +
+                       '<ul><li>' + "</li><li>".join(html.escape(n) for n in notes) + "</li></ul></div>" + pat_html +
                        '<form method="POST" action="/api/run-import">'
                        '<input type="hidden" name="action" value="approve">'
                        f'<input type="hidden" name="batch_token" value="{batch_token}">'
@@ -5858,7 +5893,10 @@ def _selftest_p101() -> int:
     def _fake_run_u(argv, **kw):
         name = pathlib.Path(str(argv[1])).name if len(argv) > 1 else ""
         _seen_u.append((name, kw))
-        return _sp_u.CompletedProcess(argv, 1, "", _stderr_u.get(name, ""))
+        _err = _stderr_u.get(name, "")
+        if _err.startswith("note: "):  # the tool ran and found nothing, and said why
+            return _sp_u.CompletedProcess(argv, 0, "[]\n", _err)
+        return _sp_u.CompletedProcess(argv, 1, "", _err)
     _real_run_u, _real_targets_u = _sp_u.run, globals()["_import_targets"]
     _sp_u.run = _fake_run_u
     globals()["_import_targets"] = lambda folder, kind: ["Table data.csv"] if kind == "csv" else []
@@ -5868,6 +5906,10 @@ def _selftest_p101() -> int:
         _notes_crash = _scan_import_folder("folder", ["youtube"])[1]
         _stderr_u["import_parse.py"] = "not a YouTube Studio export"
         _notes_plain = _scan_import_folder("folder", ["youtube"])[1]
+        _stderr_u["import_parse.py"] = ("note: none of this CSV's column names were recognised\n"
+                                        "note: a second note\n")
+        _notes_said = _scan_import_folder("folder", ["youtube"])[1]
+        _stderr_u.pop("import_parse.py")
         _run_transcribe(["doctor"])
         _run_setup(["--check"])
         _pick_folder()
@@ -5879,6 +5921,9 @@ def _selftest_p101() -> int:
           and _notes_plain == ["youtube: no readable export found in this folder"],
           f"the import screen does not tell a tool error from a folder with no export "
           f"({_notes_crash}, {_notes_plain})")
+    check(_notes_said == ["youtube: none of this CSV's column names were recognised"],
+          f"the import screen does not show import_parse's note for an export that gave nothing "
+          f"({_notes_said})")
     _names_u = sorted({n for n, _kw in _seen_u})
     check(_names_u == ["count_truth.py", "import_parse.py", "pick_folder.py", "setup.py", "transcribe.py"]
           and all(kw.get("encoding") == "utf-8" and "text" not in kw
@@ -6065,6 +6110,134 @@ def _selftest_p101() -> int:
           and _bk is not None and _bk[0] == 0 and _bk[1] == "" and _bk[2] and _bk[4],
           f"the wizard selftest wrapper does not refuse a lock in the checkout without opening it, "
           f"take a lock beside it, or fail on a touched credentials lock ({_cases_k})")
+    # P102: the hub screen looks for the hub folder under its configured name.
+    from handoff import watcher as _w_hs
+    _saved_hs = (_w_hs.resolve_hub, _w_hs.load_hub_config, _w_hs.detect_mirror_candidates)
+    _seen_hs = []
+    try:
+        _w_hs.resolve_hub = lambda hub: (None, "no hub configured")
+        _w_hs.load_hub_config = lambda: {"folder_name": " Creator OS Test "}
+        _w_hs.detect_mirror_candidates = lambda **kw: (_seen_hs.append(kw.get("folder_name"))
+                                                       or ["G:\\My Drive\\Creator OS Test"])
+        _hs = _drive_hub_status()
+        for _blank_hs in ("", "  ", None):
+            _w_hs.load_hub_config = lambda _v=_blank_hs: {"folder_name": _v}
+            _drive_hub_status()
+    finally:
+        _w_hs.resolve_hub, _w_hs.load_hub_config, _w_hs.detect_mirror_candidates = _saved_hs
+    check(_seen_hs == ["Creator OS Test"] + ["Creator OS"] * 3 and _hs.get("folder_name") == "Creator OS Test"
+          and _hs.get("candidates") == ["G:\\My Drive\\Creator OS Test"],
+          f"the hub screen does not look for the configured hub folder name, stripped, with Creator OS "
+          f"for a blank or missing one ({_seen_hs}, {_hs})")
+    # P102: the parsed import batch (a channel's titles, descriptions and numbers) is deleted after
+    # approve, whether the save worked or not, and a new scan deletes the batch of the scan before.
+    _g_ib = globals()
+    _ib_dir = tempfile.TemporaryDirectory(prefix="wizard-batch-")
+    _saved_ib = {k: _g_ib[k] for k in ("_confined_folder", "_scan_import_folder", "_STATE_PATH", "subprocess")}
+    _wstate_ib = _g_ib["_state"]  # the module's state; this function has a local named _state
+    # A batch the creator scanned and has not approved yet stands in here as a file in the temp
+    # folder these checks use: the checks start from a state that names no batch, so their first scan
+    # cannot delete it.
+    _pending_ib = pathlib.Path(_ib_dir.name) / "creator-os-import-pending.json"
+    _pending_ib.write_text("[]", encoding="utf-8")
+    with _lock:
+        _saved_state_ib = dict(_wstate_ib)
+        _wstate_ib["import_batch_file"] = str(_pending_ib)  # as if the creator's state named it
+        _wstate_ib.update(import_batch_file="", import_batch_token="")
+    _saved_tempdir_ib = tempfile.tempdir
+    _sent_ib = []
+
+    def _post_ib(form):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = "/api/run-import", {}
+        _h._read_body = lambda: urllib.parse.urlencode(form, doseq=True)
+        _h._read_form = lambda: dict(form)
+        _h._send = lambda body, status=200, content_type="text/html": _sent_ib.append(body)
+        _h._redirect = lambda location: None
+        _h.do_POST()
+
+    class _SaveIb:
+        def __init__(self, fail):
+            self.fail, self.batches = fail, []
+
+        def run(self, argv, **kw):
+            self.batches.append(argv[-1])
+            self.existed = os.path.isfile(argv[-1])
+            if self.fail:
+                raise OSError("disk full")
+            return _saved_ib["subprocess"].CompletedProcess(argv, 0, '{"upserted": 1}', "")
+    try:
+        tempfile.tempdir = _ib_dir.name
+        _g_ib["_STATE_PATH"] = pathlib.Path(_ib_dir.name) / "wizard-state.json"
+        _g_ib["_confined_folder"] = lambda folder, **kw: (True, folder, None)
+        _g_ib["_scan_import_folder"] = lambda folder, platforms: (
+            [{"platform": "youtube", "platform_video_id": "abc123", "title": "Fictional video"}],
+            ["youtube: 1 record(s)"])
+        _scan_form = {"action": "scan", "folder": "/fictional/export", "platforms": ["youtube"]}
+        _post_ib(_scan_form)
+        _first = _get("import_batch_file")
+        _post_ib(_scan_form)
+        _second = _get("import_batch_file")
+        _replaced = bool(_first) and _first != _second and not os.path.exists(_first) and os.path.isfile(_second)
+        _ok_ib = _SaveIb(False)
+        _g_ib["subprocess"] = _ok_ib
+        _post_ib({"action": "approve", "batch_token": _get("import_batch_token")})
+        _after_ok = (_get("import_batch_file"), os.path.exists(_second), _ok_ib.batches == [_second],
+                     getattr(_ok_ib, "existed", False))
+        _g_ib["subprocess"] = _saved_ib["subprocess"]
+        _post_ib(_scan_form)
+        _third = _get("import_batch_file")
+        _g_ib["subprocess"] = _SaveIb(True)
+        _post_ib({"action": "approve", "batch_token": _get("import_batch_token")})
+        _after_fail = (_get("import_batch_file"), os.path.exists(_third))
+        _pending_kept_ib = _pending_ib.is_file()
+        _pending_ib.unlink(missing_ok=True)
+        _left = sorted(p.name for p in pathlib.Path(_ib_dir.name).glob("creator-os-import-*.json"))
+        _kept_other = []
+        (pathlib.Path(_ib_dir.name) / "elsewhere").mkdir()
+        for _other_name in ("notes.json", "creator-os-notes.json", "creator-os-import-keep.txt",
+                            "elsewhere/creator-os-import-x.json"):
+            _other_ib = pathlib.Path(_ib_dir.name) / _other_name
+            _other_ib.write_text("{}", encoding="utf-8")
+            _set(import_batch_file=str(_other_ib), import_batch_token="t")
+            _drop_import_batch()
+            _kept_other.append((_other_ib.is_file(), _get("import_batch_file"), _get("import_batch_token")))
+        # P102: a note import_parse printed, or the last line of its crash, can carry text from the
+        # export (a file or zip member name); the scan page shows it escaped, with and without records.
+        # A record json.dump cannot write stops the batch part way: the part written is deleted.
+        _g_ib["_scan_import_folder"] = lambda folder, platforms: (
+            [{"platform": "youtube", "platform_video_id": "abc123", "title": {"not", "json"}}],
+            ["youtube: 1 record(s)"])
+        del _sent_ib[:]
+        _post_ib(_scan_form)
+        _partial_ib = (sorted(pq.name for pq in pathlib.Path(_ib_dir.name).glob("creator-os-import-*.json")),
+                       "Could not prepare the import" in (_sent_ib[-1] if _sent_ib else ""))
+        _hostile_ib = 'youtube: <img src=x onerror=alert(1)> & "q"'
+        _pages_ib = []
+        for _recs_ib in ([], [{"platform": "youtube", "platform_video_id": "abc123", "title": "Fictional video"}]):
+            _g_ib["_scan_import_folder"] = lambda folder, platforms, _r=_recs_ib: (list(_r), [_hostile_ib])
+            del _sent_ib[:]
+            _post_ib(_scan_form)
+            _pages_ib.append(_sent_ib[-1] if _sent_ib else "")
+    finally:
+        _g_ib.update(_saved_ib)
+        tempfile.tempdir = _saved_tempdir_ib
+        with _lock:
+            _wstate_ib.clear()
+            _wstate_ib.update(_saved_state_ib)
+        _ib_dir.cleanup()
+    check(_replaced and _after_ok == ("", False, True, True) and _after_fail == ("", False) and _left == [],
+          f"the parsed import batch is left in the temp folder ({_replaced}, {_after_ok}, {_after_fail}, "
+          f"{_left})")
+    check(_kept_other == [(True, "", "")] * 4,
+          f"the batch cleanup deletes a recorded file not named creator-os-import-*.json in the temp "
+          f"folder ({_kept_other})")
+    check(_pending_kept_ib and _partial_ib == ([], True),
+          f"the import checks deleted a pending batch the state named before they ran, or a batch "
+          f"written in part was left in the temp folder ({_pending_kept_ib}, {_partial_ib})")
+    check(all(html.escape(_hostile_ib) in _pg and "<img src=x" not in _pg for _pg in _pages_ib)
+          and "Found 1 video(s)" in _pages_ib[1] and "No videos found" in _pages_ib[0],
+          "the import scan page shows a parser note without escaping it")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:

@@ -126,6 +126,10 @@ downloaded once and cached locally. No network access is required after the init
 Purpose: parse any SRT, VTT, JSON (Whisper output), or plain text transcript into a normalized
 segment list; emit SRT, VTT, or plain text.
 
+A file saved as UTF-16 or cp1252, as Windows PowerShell 5.1's `Out-File` and `Set-Content` write
+them, reads as written, and the output's `encoding` field names how it was read (ADR 0080). A
+WebVTT cue timed `mm:ss.ttt`, without hours, reads like one timed `hh:mm:ss.ttt`.
+
 Normalized segment schema:
 ```json
 {

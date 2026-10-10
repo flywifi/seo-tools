@@ -88,3 +88,4 @@ added beyond what those records state. New decisions get the next number via
 | [0077](0077-p102-custom-gpt-and-gems-retired.md) | The custom GPT and Gemini Gems surfaces and their export atoms are retired; the wizard writes the Claude Desktop settings file the app reads | 2026-10-05 | Accepted |
 | [0078](0078-p102-drive-hub-folder-on-windows.md) | On Windows the Drive hub may be a folder inside a Google Drive for desktop drive | 2026-10-07 | Accepted |
 | [0079](0079-p102-windows-visual-cpp-runtime-install.md) | On Windows the setup wizard installs Microsoft's Visual C++ runtime on request, after a signature check | 2026-10-10 | Accepted |
+| [0080](0080-p102-text-files-read-by-bom-then-utf8-then-cp1252.md) | Creator OS reads a creator's text files by byte-order mark, then strict UTF-8, then cp1252 | 2026-10-10 | Accepted |

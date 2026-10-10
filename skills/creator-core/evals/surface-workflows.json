@@ -119,7 +119,7 @@
     {
       "id": "SW-G11",
       "probe": "doc_exports_unscreened",
-      "summary": "Doc exports (a .docx, or a .gdoc stub on a Drive for desktop mirror) skip the offline injection tier and wait for a Claude session; only text files are screened offline.",
+      "summary": "Doc exports skip the offline injection tier and wait for a Claude session: a .docx, and a .gdoc shortcut on a Drive for desktop mirror, which is held unread with a note to download it; only text files are screened offline.",
       "evidence": "tools/handoff/inbox.py scan; tools/injection_scan.py"
     },
     {
@@ -1783,7 +1783,7 @@
               "value": "\\.docx"
             },
             {
-              "path": "unknown",
+              "path": "needs_review",
               "check": "matches",
               "value": "\\.gdoc"
             },

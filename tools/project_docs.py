@@ -214,6 +214,16 @@ def project_api(token, folder_name="Creator OS", transport=None, pack=None,
     return out
 
 
+def hub_folder_name(load=None) -> str:
+    """The hub's folder name in My Drive (watcher.hub_folder_name: drive_hub.folder_name, local
+    overrides winning, stripped, else "Creator OS"; P102)."""
+    try:
+        from handoff import watcher as _w
+    except Exception:  # noqa: BLE001 - the hand-off tools unavailable means the default
+        return "Creator OS"
+    return _w.hub_folder_name(load)
+
+
 def _api_token(transport=None, persist=None, creds_path=None):
     """The drive_api_polling credential (never the publishing ones). Returns (token|None, note).
 
@@ -416,6 +426,40 @@ def selftest() -> int:
     tok4, note4 = _api_token(creds_path=tmp / "missing.json")
     ok("missing store -> connect note unchanged", tok4 is None and "connect" in (note4 or ""))
 
+    # P102: the API lane looks up the hub folder by the configured name.
+    def _boom():
+        raise OSError("config unreadable")
+    from handoff import watcher as _w_pd
+    real_root_pd = _w_pd.ROOT
+    with tempfile.TemporaryDirectory() as td_pd:
+        (Path(td_pd) / "creator-os-config.json").write_text(
+            json.dumps({"drive_hub": {"folder_name": " Creator OS Test "}}), encoding="utf-8")
+        try:
+            _w_pd.ROOT = Path(td_pd)
+            bare_pd = hub_folder_name()
+        finally:
+            _w_pd.ROOT = real_root_pd
+    ok("hub_folder_name with no argument reads drive_hub.folder_name from the config files",
+       bare_pd == "Creator OS Test")
+    ok("hub_folder_name reads drive_hub.folder_name, and falls back to Creator OS",
+       hub_folder_name(load=lambda: {"folder_name": " Creator OS Test "}) == "Creator OS Test"
+       and hub_folder_name(load=lambda: {}) == "Creator OS"
+       and hub_folder_name(load=lambda: {"folder_name": "  "}) == "Creator OS"
+       and hub_folder_name(load=_boom) == "Creator OS")
+    import contextlib as _cl_h
+    import io as _io_h
+    _seen_h, _g_h = [], globals()
+    _saved_h = {k: _g_h[k] for k in ("_api_token", "project_api", "hub_folder_name")}
+    _g_h.update(_api_token=lambda *a, **k: ("tok-secret", None),
+                project_api=lambda token, folder_name="Creator OS", **k: _seen_h.append(folder_name) or {"errors": []},
+                hub_folder_name=lambda load=None: "Creator OS Test")
+    try:
+        with _cl_h.redirect_stdout(_io_h.StringIO()):
+            _rc_h = main(["project", "--api", "--json"])
+    finally:
+        _g_h.update(_saved_h)
+    ok("project --api passes the configured hub folder name", _rc_h == 0 and _seen_h == ["Creator OS Test"])
+
     passed = sum(1 for _, c in checks if c)
     print(f"project_docs selftest: {passed}/{len(checks)} passed")
     return 0 if passed == len(checks) else 1
@@ -444,7 +488,7 @@ def main(argv) -> int:
             if not token:
                 print(json.dumps({"error": note}))
                 return 1
-            result = project_api(token)
+            result = project_api(token, folder_name=hub_folder_name())
             print(json.dumps(result, indent=None if a.json else 2))
             return 0 if not result["errors"] else 1
         from handoff import watcher as w

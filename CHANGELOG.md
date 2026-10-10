@@ -13,6 +13,74 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (the configured hub folder name): the wizard's hub screen asks
+  `watcher.detect_mirror_candidates` for the folder named in `drive_hub.folder_name`, and the
+  profile mirror's Doc lookup and its move-it messages, `project_docs.py project --api` and the
+  watcher's Drive API pass use it too (`watcher.hub_folder_name`, which removes surrounding spaces
+  and gives `Creator OS` for a blank or missing name); they used to look for `Creator OS` only,
+  and the hub screen took a blank name as the My Drive folder itself.
+- P102 (import batch deleted): the wizard deletes the parsed import batch
+  (`creator-os-import-*.json` in the temp folder, a channel's titles, descriptions and numbers)
+  after approve, whether the save works or not, and before a new scan writes its own; it used to
+  stay in the temp folder. Since the path is read back from the state file, a file is deleted only
+  when it has that name and sits in the temp folder; a batch written in part, when writing it
+  fails, is deleted too. The wizard selftest's import checks start from a state that names no
+  batch, so they leave a creator's pending batch in place.
+- P102 (Google Docs shortcuts in the Inbox): a `.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`,
+  `.gtable` or `.gmap` file (Drive for desktop's shortcut to a file whose content stays in Google
+  Drive; Garmin map files also use `.gmap`) is held for review by its extension, before it is
+  opened, with a note to download it into the Inbox or read it through the Google Drive connector.
+  The scan used to read it like any other file, and a read error held it as unreadable with advice
+  to close it. The suite's W8 and gap SW-G11 follow.
+- P102 (exports recognised by their contents): the inbox scan reads a zip's member names
+  (`inbox.export_kind_from_members`; nothing is extracted) and proposes a YouTube Studio export
+  (its table beside the chart data or totals, in English or Spanish file names), a Takeout (a
+  folder whose name starts with YouTube inside `Takeout/`), an Instagram (`your_instagram_activity/`)
+  or a TikTok (`user_data_tiktok.json`) export whatever its download name; it used to read only the
+  name. The kind travels through approve to the follow-up job, so a hint-named Instagram zip gets
+  its preview job. The member names come from public reports, not vendor documentation.
+  `classify.zip_directory` reads a zip's directory size from the end record CPython's zipfile
+  reads, ZIP64 included, and counts the entries in the directory, so a stated count is not taken on
+  trust; a ZIP64 record is read only just before its locator, where CPython reads it with or
+  without the CVE-2025-8291 fix, and another layout gives no directory. A zip with more than 50,000
+  entries or a 16 MB directory is not listed: the classifier treats it as a plain archive, the scan
+  proposes it by a name hint or holds it with a pointer to the `/import` screen, and `import_parse`
+  does not open it, with a note to unzip it. `classify.py` gains a selftest and leaves the selftest
+  exemptions.
+- P102 (import notes): `import_parse` reads a TikTok data zip through its JSON member instead of
+  stopping with a JSONDecodeError, and prints a `note:` line on stderr for a `.tgz` Takeout and for
+  a Studio CSV none of whose column names it recognises (another language); the wizard's import
+  screen and a done job's log show those lines. A zip it does not open (over the limits, or one
+  whose directory cannot be read) gets one note from the Studio and TikTok parsers alike, and the
+  TikTok parser no longer adds a second note saying the export JSON is missing.
+- P102 (UTF-16 text in the injection screen): `injection_scan.scan_file` decodes through
+  `textdecode`, and a file that starts with a UTF-16 or UTF-32 byte-order mark is decoded before
+  the binary sniff, so a subtitle saved by Windows PowerShell's `Out-File` is screened and can be
+  proposed; before, a UTF-16 file was skipped as binary, since its text holds NUL bytes, and held.
+  Behind such a mark the screen also reads the bytes after it as UTF-8 (and, when that reading
+  holds NUL bytes, with each one dropped and with each one as a space), as UTF-16 LE and BE, and
+  behind a UTF-32 mark as UTF-32 LE and BE, and keeps the reading with the highest score
+  (`verdict_reading` names it when it is not the decoded one). Its selftest flags each of these
+  behind a mark: plain ASCII text, UTF-16 or UTF-32 text in the byte order opposite to the mark's,
+  and ASCII whose spaces, or one byte inside each word, are NUL bytes. The record names the
+  encoding. The selftest's oversize checks run in a temporary
+  folder that is removed afterwards; it left about 48 MB, a 50 MB sparse file, per run.
+- P102 (text files read as saved): `shared/docintel/textdecode.py` decodes a text file by
+  byte-order mark (UTF-32, UTF-8, UTF-16), then strict UTF-8, then cp1252, and labels which rule
+  decided (ADR 0080). The transcript parser, the word-error-rate tool, the offline text extractor
+  and the export importer read through it, so a subtitle saved by Windows PowerShell 5.1's
+  `Out-File` (UTF-16) or `Set-Content` (cp1252) reads as written instead of giving 0 segments or
+  replaced accents, and a YouTube Studio CSV saved with a BOM imports its rows.
+  `transcripts.parse` and its `--normalize` output gain an `encoding` field, and a text or
+  subtitle file that starts with `[` or `{` and does not parse as JSON (`[Music]`, say), or holds
+  JSON of another shape (a field of the wrong type, a number `float()` cannot hold, nesting past the
+  recursion limit), is read as text or as a subtitle instead of stopping with an error; a `.json`
+  file still raises. The extractor no longer guesses
+  UTF-16 without a BOM, which misread even-length cp1252 files; its CSV reader takes the encoding
+  `textdecode` gives the first MiB and then reads rows as a stream (`textdecode.CODECS`).
+  `wer.py` gains a selftest and leaves the selftest exemptions.
+- P102 (WebVTT cues without hours): the transcript parser reads a cue timed `mm:ss.ttt`, which
+  WebVTT allows beside `hh:mm:ss.ttt`; it used to drop it. Files Creator OS writes keep their hours.
 - P102 (Windows CI job): `.github/workflows/ci.yml` gains a `windows` job that runs
   `tools/battery.py` on GitHub's `windows-latest` image under Git for Windows' bash, on Python
   3.12 and 3.14, with full history (ADR 0076). The selftest sweep gives
@@ -287,6 +355,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 1800 s, up from 900 s
+  (`selftest_sweep.TOOL_TIMEOUTS`). Its selftest runs the committed mutation rows; at 1,022 rows
+  a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's
+  45-minute limit still bounds a hang.
+- P102 (zip member names zipfile cannot decode): a zip whose member name carries the UTF-8 flag
+  but is not valid UTF-8 made zipfile raise UnicodeDecodeError, which `classify.zip_kind` did not
+  catch, so one such zip in the Inbox stopped the whole scan, and `import_parse`'s zip parsers
+  stopped with a traceback. `classify.ZIP_OPEN_ERRORS` names what zipfile can raise while it lists a
+  zip; the classifier treats such a zip as a plain archive, `import_parse` gives its one note, and
+  the inbox scan holds a file the classifier raises on for review with the error and goes on.
+- P102 (import screen notes escaped): the wizard's import scan page escapes the notes it lists, an
+  importer's `note:` line or the last line of its error, which can carry a file or zip member name
+  from the export; they were joined into the page as HTML.
 - P102 (a locked ticket; unreadable files kept): the hand-off watcher reports a pass that raises
   ("pass failed, retrying next interval") and runs the next one, and `runner.run_job` and
   `runner.run_pass` leave a ticket they cannot archive (one that ran, was refused, did not parse,
