@@ -63,7 +63,8 @@ offers it under a "machine-wide: affects the whole computer" heading, and the wi
 Microsoft's installer and runs it only after the person ticks the confirmation box and Windows
 reports a valid signature from Microsoft Corporation chained to Microsoft's code-signing root. Its
 selftests check each step with stand-ins for Windows, and the PowerShell signature call for real on
-Windows; they do not run Microsoft's installer.
+Windows; they do not run Microsoft's installer. The install itself has been run through the wizard on
+Windows in a clean Windows Sandbox.
 It also SEARCHES the user-scoped locations it recommends (`~/.local/bin`, nvm's
 `~/.nvm/versions/node/<version>/bin`), so a tool installed the user-only way is detected
 rather than reported missing. The same default runs through every screen: the Node.js screen leads with the

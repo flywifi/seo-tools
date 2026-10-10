@@ -95,8 +95,8 @@ it once Windows confirms that Microsoft signed it, then checks transcription aga
 <!-- verify: tools/transcribe.py::install_vc_runtime -->. To do it yourself instead, download it from
 Microsoft (`https://aka.ms/vc14/vc_redist.x64.exe`) and run it, or run
 `winget install --exact --id Microsoft.VCRedist.2015+.x64`. On an account without administrator
-rights, whoever manages the computer approves or runs it. *(the wizard's install not yet tested on
-Windows)*
+rights, whoever manages the computer approves or runs it. *(the wizard's install tested on Windows
+in a clean Windows Sandbox)*
 
 ### Step 5: The setup wizard
 

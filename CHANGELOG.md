@@ -383,6 +383,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the winget command, labeled machine-wide (`vc_runtime_remedy`), instead of sending the person back
   to `--install-deps`, which cannot install it. `setup.py --install-deps` imports faster-whisper in
   the `.venv` right after installing it (`_check_faster_whisper`) and reports the same.
+- P102 (Visual C++ install tested on Windows): `docs/SETUP_WINDOWS.md` and `docs/WIZARD.md` mark the
+  wizard's Visual C++ install as run on Windows in a clean Windows Sandbox.
 - P102 (whisper.cpp lookup on Windows): `transcribe.whisper_cpp_bin` is the one whisper.cpp
   lookup, used by `detect_backends`, `wizard._stt_backend_present` and `videoedit/preflight.py`. On
   Windows it accepts a `.exe` and skips the other types `shutil.which` returns through PATHEXT, so

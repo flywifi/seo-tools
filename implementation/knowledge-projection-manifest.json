@@ -84,7 +84,7 @@
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
         "docs/DEPLOYMENT.md": "1b578bf8e80f396102ef5852c2c5c067be19ba94d06dd3b17971bf073622277c",
-        "docs/WIZARD.md": "b4068742f077e13049175a9d8a2367af0df36f91c1016eefd68cb6ca281db78c",
+        "docs/WIZARD.md": "85561ff0c74a8a950eb80a137089e437b21ecf9c991e7d3b9009dd1e719361f5",
         "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
         "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
@@ -149,7 +149,7 @@
         "docs/DEPLOYMENT.md": "1b578bf8e80f396102ef5852c2c5c067be19ba94d06dd3b17971bf073622277c",
         "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
         "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
-        "docs/WIZARD.md": "b4068742f077e13049175a9d8a2367af0df36f91c1016eefd68cb6ca281db78c",
+        "docs/WIZARD.md": "85561ff0c74a8a950eb80a137089e437b21ecf9c991e7d3b9009dd1e719361f5",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "b46c580a66ccb777de244844fdd12d531b92709372fb5442b7138a50423ed46d",
         "protocols/formatting-metadata.md": "1934b187462c54e9be6df673978903bafbffafb4ecedb1f3e0df733d923ad299",
