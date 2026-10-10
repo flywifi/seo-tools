@@ -157,7 +157,8 @@ Invariants enforced:
       guidance (sudo package commands, brew install, npm install -g, the pip system-override
       flag, command-anchored pip install, a copy, move, link, redirect or download into
       /Applications, /usr/local or /opt/homebrew, a drag into the Applications folder, a Windows
-      installer: winget, msiexec, an installer .exe with an install switch, vc_redist) carries the
+      installer: winget, Chocolatey, msiexec, an installer .exe with an install or silent switch,
+      vc_redist, wsl --install) carries the
       "machine-wide"/"whole computer" label
       on its line, above it in its paragraph, or on either of the two lines
       just above the blank line before that paragraph, so user-scoped stays the default.
@@ -4236,10 +4237,15 @@ _INSTALL_SCOPE_BRANCHES = {
                            r"|--prefix[= ][`'\"]?(?:/usr/local|/opt/homebrew)\b"
                            r"|\b(?:[Mm]ove|[Cc]opy|[Pp]ut|[Pp]lace|[Ss]ave)\b(?:[^\n.;]|\.(?=\S)){0,60}?"
                            r"\b(?:into|to|in)\s+(?:the\s+)?[`'\"]?(?:/usr/local|/opt/homebrew)\b",
-    # P102: a Windows install that lands machine-wide: winget, an msiexec install, an installer .exe
-    # run with an install switch, or Microsoft's Visual C++ Redistributable package by its file name.
-    "windows-installer": r"\bwinget\s+install\b|\bmsiexec(?:\.exe)?\s+/(?:i|package)\b"
-                         r"|\.exe[`'\"]?\s+/(?:install|passive|quiet)\b|\bvc_redist\.(?:x64|x86|arm64)\.exe\b",
+    # P102: a Windows install that lands machine-wide, in any letter case: winget install or upgrade
+    # (not with --scope user), Chocolatey, an msiexec install, an installer .exe run with an install or
+    # silent switch (switches in any order), Microsoft's Visual C++ Redistributable package by its file
+    # name, or wsl --install (it turns on Windows features).
+    "windows-installer": r"(?i:\bwinget\s+(?:install|upgrade)\b(?![^\n]*--scope\s+user)"
+                         r"|\bchoco(?:latey)?\s+install\b"
+                         r"|\bmsiexec(?:\.exe)?\b[^\n|;&]*?\s/(?:i|package)\b"
+                         r"|\.exe[`'\"]?\s+(?:[^\n|;&]*?\s)?/(?:install|passive|quiet|s|silent|verysilent)\b"
+                         r"|\bvc_redist\.(?:x64|x86|arm64)\.exe\b|\bwsl(?:\.exe)?\s+--install\b)",
 }
 _INSTALL_SCOPE_PATTERN = re.compile("|".join(f"(?:{p})" for p in _INSTALL_SCOPE_BRANCHES.values()))
 _INSTALL_SCOPE_LABEL = re.compile(r"(whole computer|machine-wide|machine wide)", re.I)
@@ -4416,15 +4422,21 @@ def _install_scope_selfproof():
                     f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
     # Each Windows installer form flags unlabeled and passes labeled; a Python package named after
     # winget, or a page that only names the runtime, does not flag.
-    for sample in ("msiexec /i creator.msi", "msiexec.exe /package creator.msi",
-                   "setup.exe /quiet", "`installer.exe` /install /passive /norestart",
-                   "download https://aka.ms/vc14/vc_redist.x64.exe and run it"):
+    for sample in ("msiexec /i creator.msi", "msiexec.exe /package creator.msi", "MSIEXEC /I creator.msi",
+                   "msiexec /qn /i creator.msi", "setup.exe /quiet", "setup.exe /S", "setup.exe /VERYSILENT",
+                   "`installer.exe` /install /passive /norestart", "VC_redist.x64.exe /norestart /install",
+                   "setup.exe /norestart /quiet",
+                   "download https://aka.ms/vc14/vc_redist.x64.exe and run it", "run vc_redist.x86.exe",
+                   "download https://aka.ms/vc14/vc_redist.arm64.exe", "winget install ffmpeg",
+                   "winget upgrade --id Microsoft.VCRedist.2015+.x64", "choco install ffmpeg",
+                   "wsl --install"):
         if (len(_install_scope_scan(["intro", "", sample])) != 1
                 or _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample])):
             return (f"install-scope: detector self-proof failed -- the Windows installer form {sample!r} "
                     f"is not flagged unlabeled and passed labeled")
     for sample in ("winget list shows the apps installed", "the Visual C++ runtime (msvcp140.dll) is missing",
-                   "run setup.exe to see its options"):
+                   "run setup.exe to see its options", "winget install ffmpeg --scope user",
+                   "py -3 tools/setup.py --install-deps"):
         if _install_scope_scan([sample]):
             return (f"install-scope: detector self-proof failed -- {sample!r} flagged; it installs nothing "
                     f"machine-wide")
@@ -4485,8 +4497,9 @@ def check_install_scope():
     a global npm/pipx install, the pip system-override flag, a command-anchored pip install, a
     copy/move/link/redirect/download into /Applications, /usr/local or /opt/homebrew, a drag into the
     Applications folder,
-    a macOS .pkg/python.org download, or a Windows installer (winget, msiexec, an installer .exe
-    with an install switch, Microsoft's vc_redist package) -- must carry the label "machine-wide"/"whole computer" on
+    a macOS .pkg/python.org download, or a Windows installer (winget install or upgrade, Chocolatey,
+    msiexec, an installer .exe with an install or silent switch, Microsoft's vc_redist package, wsl
+    --install) -- must carry the label "machine-wide"/"whole computer" on
     its own line, on a line above it in the same paragraph, or on either of the two lines just
     above the blank line that precedes that paragraph, so the user-scoped default (docs/INSTALL-SCOPE.md:
     home folder only, repo .venv, ~/.local, ~/.nvm) can never silently stop being the default.

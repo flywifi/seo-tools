@@ -61,7 +61,9 @@ The one machine-wide install it can start is Microsoft's Visual C++ runtime on W
 0079): when faster-whisper is installed but cannot load without it, the **Check my setup** screen
 offers it under a "machine-wide: affects the whole computer" heading, and the wizard downloads
 Microsoft's installer and runs it only after the person ticks the confirmation box and Windows
-reports a valid Microsoft signature chained to Microsoft's code-signing root.
+reports a valid signature from Microsoft Corporation chained to Microsoft's code-signing root. Its
+selftests check each step with stand-ins for Windows, and the PowerShell signature call for real on
+Windows; they do not run Microsoft's installer.
 It also SEARCHES the user-scoped locations it recommends (`~/.local/bin`, nvm's
 `~/.nvm/versions/node/<version>/bin`), so a tool installed the user-only way is detected
 rather than reported missing. The same default runs through every screen: the Node.js screen leads with the

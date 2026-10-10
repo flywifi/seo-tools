@@ -3,8 +3,10 @@
 Everything Creator OS asks a person to download or install lands inside their own user
 account -- under the home folder. Nothing goes to `/Applications`, `/opt/homebrew`,
 `/usr/local`, or anywhere `sudo` is needed. Machine-wide installation is always a labeled
-choice a person makes deliberately, never a default this repo hands out. Drift invariant 59
-enforces this over every tracked guidance file (an unlabeled machine-wide instruction fails
+choice a person makes deliberately, never a default this repo hands out. The exceptions register
+below names the machine-level installs this repo's path can involve; on Windows that includes
+Microsoft's Visual C++ runtime, which the setup wizard installs when the person confirms.
+Drift invariant 59 enforces this over every tracked guidance file (an unlabeled machine-wide instruction fails
 the build), and the code enforces its own half: no Creator OS tool ever writes into a
 machine-wide site-packages. The repo `.venv` is the only install target, so when it cannot be
 created the installer refuses with the remedy instead of falling back to the base interpreter

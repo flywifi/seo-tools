@@ -361,14 +361,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   default when it is null, as `mltxml.py` already did (the selftest builds the template).
 - P102 (mapped network drives on Windows): a folder on a drive letter mapped to a network share is
   refused as `network_path` from the drive's type (`GetDriveTypeW`, `wizard._drive_type`) before
-  anything resolves it, unless the home folder is on that drive, so a slow or offline server no
-  longer holds the wizard; a folder whose resolving raises `OSError` (a disconnected drive) is
-  refused as `unreachable` instead of resetting the connection. The import, storage and Drive hub
-  screens say what to do for both.
+  anything resolves it, unless the home folder is on that drive; the drive letter is read also
+  behind the `\\?\` and `\\.\` prefixes and with forward slashes. A folder inside the home folder
+  that links to a share still resolves through the network. A folder whose resolving raises
+  `OSError` (a disconnected drive) is refused as `unreachable` instead of resetting the connection.
+  The import, storage and Drive hub screens say what to do for both.
 - P102 (more printed commands on Windows): the transcription install hint and model-fetch command
   (`transcribe._install_hint`, `doctor`), the update command (`update_check`), the blocked-source
   retry and refetch instruction (`source_currency`), the reframe and video-preflight next steps and
-  `launch_setup`'s manual hint now go through `env_paths.local_commands`, so Windows shows `py -3`
+  `launch_setup`'s manual hint, the MCP server's other hints (the cache rebuild, the competitor
+  snapshot steps, the mcp-package messages) and `update_check`'s seed-sources note now go through
+  `env_paths.local_commands`, so Windows shows `py -3`
   (or `python`); the transcription doctor follows the system it reports on. `setup.py
   --install-deps` names the interpreter's PEP 668 lock instead of Homebrew. Maintainer tools
   (the battery, the drift guard, `dependency_currency` with its restricted import set) keep
@@ -381,22 +384,37 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   to `--install-deps`, which cannot install it. `setup.py --install-deps` imports faster-whisper in
   the `.venv` right after installing it (`_check_faster_whisper`) and reports the same.
 - P102 (Visual C++ runtime installed on request, machine-wide): on Windows on x64 or ARM64, when
-  faster-whisper is installed but cannot load because Visual C++ runtime DLLs are missing, the
+  faster-whisper is installed but cannot load and `msvcp140.dll` (the runtime library Python does not
+  ship) is missing from System32, the
   wizard's Check my setup screen offers Microsoft's Visual C++ Redistributable under a
   "machine-wide: affects the whole computer" heading, with Microsoft's license link, a confirmation
   box and the manual route (`wizard._vc_runtime_offered`, `_vc_runtime_box`). `POST
   /api/install-vc-runtime` refuses without the ticked box or when a fresh check does not offer the
-  install, then runs `transcribe.install_vc_runtime` as a background job: it downloads
-  `aka.ms/vc14/vc_redist.x64.exe` into a new temporary folder, runs it with `/install /passive
-  /norestart` once Windows PowerShell reports a Valid Authenticode signature from Microsoft
-  Corporation chained to Microsoft Root Certificate Authority 2011 (pinned by thumbprint), maps the
-  exit code (installed, restart pending, newer present, cancelled, needs an administrator, failed),
-  and deletes the folder in each outcome the selftest covers; the screen then shows the check again.
-  `docs/INSTALL-SCOPE.md` lists it in the exceptions register (ADR 0079).
-- P102 (install scope on Windows): drift invariant 59 gains a `windows-installer` branch
-  (`winget install`, an `msiexec` install, an installer `.exe` with an install switch, and
-  Microsoft's `vc_redist` package by name), with fixtures for each form and for text that installs
-  nothing; its self-proof moves to `sync_check._install_scope_selfproof`, which `_selfproof` runs, so
+  install, or when the check cannot run, then runs `transcribe.install_vc_runtime` as a background
+  job: it downloads `aka.ms/vc14/vc_redist.x64.exe` into a new temporary folder, runs it with
+  `/install /passive /norestart` and its log in that folder once Windows PowerShell reports a Valid
+  Authenticode signature whose signer has one organization, Microsoft Corporation, chained to
+  Microsoft Root Certificate Authority 2011 (pinned by thumbprint), maps the exit code (installed,
+  restart pending, newer present, repair needed, cancelled, needs an administrator, failed), and
+  deletes the folder when it returns or raises; the quit link waits while it runs, and the screen
+  then shows the check again. The selftests run every step with stand-ins for Windows, and on
+  Windows also the real PowerShell call (an unsigned file refused, `powershell.exe` read as Valid
+  from Microsoft Corporation); they do not run Microsoft's installer. `docs/INSTALL-SCOPE.md` lists
+  it in the exceptions register (ADR 0079).
+- P102 (installed but not loading, other paths): `transcribe.select_backend` and `transcribe run`
+  report faster-whisper installed but not loading, with the Visual C++ runtime named on Windows when
+  `msvcp140.dll` is missing; the wizard's import screen and the video preflight note point to the
+  readiness check for that case.
+- P102 (FCPXML values that are not strings): a number given for a title's text or template, a
+  marker's type or note, or the FCPXML version is written as its text instead of raising.
+- P102 (mapped-drive test on Windows): the wizard's mapped-drive check tests `_drive_type`'s call
+  through a stand-in `ctypes` module, so it reads the same on Windows, where the real call answers 3
+  for a fixed disk.
+- P102 (install scope on Windows): drift invariant 59 gains a `windows-installer` branch, read in
+  any letter case: `winget install` or `upgrade` (not with `--scope user`), Chocolatey, an `msiexec`
+  install, an installer `.exe` with an install or silent switch in any position, Microsoft's
+  `vc_redist` package by name and `wsl --install`, with a fixture for each form named here and for
+  text that installs nothing; its self-proof moves to `sync_check._install_scope_selfproof`, which `_selfproof` runs, so
   `tools/file_hash.py` rows can score it. The wizard's installer-route census also drives the new
   route and allows the read-only readiness check a refusal screen starts.
 - P102 (clone the main branch): the clone commands in `docs/SETUP_WINDOWS.md`, `docs/SETUP_MAC.md`

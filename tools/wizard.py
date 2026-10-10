@@ -3222,7 +3222,10 @@ def _screen_import(saved: str = "", preview_html: str = "", folder: str = "", er
         stt_status = ('<div class="note" style="background:#fff3e0"><strong>No transcription engine yet.'
                       '</strong> You can still build a metadata-only library now; transcripts will be '
                       'flagged as needing an engine (never faked). Install one below to transcribe on '
-                      'this computer.</div>' + _stt_install_block())
+                      'this computer. Already installed the free tools? <a href="/doctor">Check my setup</a> '
+                      'tells a missing engine from one that is installed but cannot load (on Windows, '
+                      'usually Microsoft\'s Visual C++ runtime, which that screen can install).</div>'
+                      + _stt_install_block())
     fesc = html.escape(folder)
     return _page("Import your past videos", f"""
 <h1>Import your past videos</h1>
@@ -3379,7 +3382,8 @@ def _network_path(folder) -> bool:
 
 
 _DRIVE_REMOTE = 4  # GetDriveTypeW's DRIVE_REMOTE: a drive letter mapped to a network share
-_DRIVE_LETTER_RE = re.compile(r"^(?:\\\\\?\\)?([A-Za-z]):")
+# A drive letter, also behind the \\?\ and \\.\ device prefixes; callers turn "/" into "\" first.
+_DRIVE_LETTER_RE = re.compile(r"^(?:\\\\[?.]\\)?([A-Za-z]):")
 
 
 def _drive_type(letter) -> int:
@@ -3421,8 +3425,9 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
             and not _network_path(os.path.expanduser("~") if home is None else home)):
         return False, folder, "network_path"
     if (os.name if osname is None else osname) == "nt":
-        letter = _DRIVE_LETTER_RE.match(folder)
-        home_letter = _DRIVE_LETTER_RE.match(str(os.path.expanduser("~") if home is None else home))
+        letter = _DRIVE_LETTER_RE.match(folder.replace("/", "\\"))
+        home_letter = _DRIVE_LETTER_RE.match(
+            str(os.path.expanduser("~") if home is None else home).replace("/", "\\"))
         if (letter and (_drive_type if drive_type is None else drive_type)(letter.group(1).upper()) == _DRIVE_REMOTE
                 and not (home_letter and home_letter.group(1).upper() == letter.group(1).upper())):
             return False, folder, "network_path"
@@ -3636,11 +3641,11 @@ _VC_RUNTIME_ARCHES = ("amd64", "x86_64", "arm64", "aarch64")
 
 def _vc_runtime_offered(d) -> bool:
     """True when the doctor result d is from Windows on x64 or ARM64 and reports faster-whisper
-    installed but not loading, with Visual C++ runtime libraries missing (P102)."""
+    installed but not loading, with the Visual C++ runtime needed (msvcp140.dll missing, P102)."""
     fw = d.get("faster_whisper") if isinstance(d, dict) else None
     return (isinstance(fw, dict) and str(d.get("os") or "").startswith("win")
             and str(d.get("arch") or "").lower() in _VC_RUNTIME_ARCHES
-            and bool(d.get("vc_runtime_missing")) and bool(fw.get("installed")) and not fw.get("loads"))
+            and bool(d.get("vc_runtime_needed")) and bool(fw.get("installed")) and not fw.get("loads"))
 
 
 def _vc_runtime_box(missing) -> str:
@@ -3947,6 +3952,13 @@ anything, and closing this window does not stop the work.</p>
         if path in routes:
             self._send(routes[path])
         elif path == "/quit":
+            if _job_status("vc_runtime")["running"]:
+                # P102: quitting mid-install would end the job thread before it deletes its folder.
+                self._send(_page("Still installing", "<p>The Microsoft Visual C++ Redistributable install "
+                                 "is still running, so the wizard stays open until it finishes and has "
+                                 "deleted its temporary folder.</p><p><a class=\"btn btn-outline\" "
+                                 "href=\"/job-wait?name=vc_runtime\">See its progress</a></p>"))
+                return
             self._send(_page("Closing", "<p>Wizard closed. You can close this tab.</p>"))
             _shutdown.set()
         else:
@@ -4248,7 +4260,12 @@ anything, and closing this window does not stop the work.</p>
                 self._send(_screen_doctor(error="Tick the box to confirm the machine-wide install first. "
                                                 "Nothing was installed."))
                 return
-            if not _vc_runtime_offered(_run_transcribe(["doctor"])):
+            _check_vc = _run_transcribe(["doctor"])
+            if _check_vc.get("error"):
+                self._send(_screen_doctor(error="The readiness check could not run, so nothing was "
+                                                f"installed: {html.escape(str(_check_vc['error']))}"))
+                return
+            if not _vc_runtime_offered(_check_vc):
                 self._send(_screen_doctor(error="This computer does not need the Visual C++ runtime for "
                                                 "transcription, so nothing was installed."))
                 return
@@ -5439,15 +5456,32 @@ def _selftest_p101() -> int:
         raise OSError(64, "The specified network name is no longer available", _p)
     _m = dict(osname="nt", isdir=lambda _p: True, home="C:\\Users\\me", drive_type=_dt_m)
     _mapped_m = [_confined_folder(f, allow_drive=True, realpath=_rp_m, **_m)[2]
-                 for f in ("Z:\\share\\hub", "z:/share", "\\\\?\\Z:\\share")]
+                 for f in ("Z:\\share\\hub", "z:/share", "\\\\?\\Z:\\share", "\\\\.\\Z:\\share\\hub",
+                           "//?/Z:/share/hub", "//./Z:/share/hub")]
     _mapped_calls_m = list(_calls_m)
     _local_m = [_confined_folder(f, allow_drive=True, realpath=_rp_m, **_m)[2]
                 for f in ("C:\\Users\\me\\hub", "Q:\\x")]
     _home_z_m = _confined_folder("Z:\\home\\me\\hub", realpath=_rp_m,
-                                 **dict(_m, home="Z:\\home\\me"))[2]
+                                 **dict(_m, home="z:\\home\\me"))[2]  # the home letter in lower case
     _posix_m = _confined_folder("Z:\\share", realpath=lambda _p: _p, isdir=lambda _p: False,
                                 home="/home/me", osname="posix", drive_type=lambda _l: 4)[2]
     _offline_res_m = _confined_folder("Y:\\gone", realpath=_offline_m, **_m)
+    # _drive_type asks kernel32.GetDriveTypeW for "<L>:\\" and reads a missing windll as 0; a stand-in
+    # ctypes module checks both on every system (the real call answers 3 for a fixed disk on Windows).
+    import types as _types_m
+    _dt_seen_m = []
+    _real_ctypes_m = sys.modules.get("ctypes")
+    try:
+        sys.modules["ctypes"] = _types_m.SimpleNamespace(windll=_types_m.SimpleNamespace(
+            kernel32=_types_m.SimpleNamespace(GetDriveTypeW=lambda root: _dt_seen_m.append(root) or 4)))
+        _dt_api_m = _drive_type("Z")
+        sys.modules["ctypes"] = _types_m.SimpleNamespace()
+        _dt_none_m = _drive_type("Z")
+    finally:
+        if _real_ctypes_m is None:
+            sys.modules.pop("ctypes", None)
+        else:
+            sys.modules["ctypes"] = _real_ctypes_m
     _sent_m = []
 
     def _route_m(route, form, why):
@@ -5467,9 +5501,10 @@ def _selftest_p101() -> int:
         _route_m("/api/run-import", {"action": "scan", "folder": "Z:\\x", "platforms": "youtube"}, _why_m)
         _route_m("/api/write-storage-folder", {"folder": "Z:\\x"}, _why_m)
     _screens_m = {(r, w): b for r, w, b in _sent_m}
-    check(_mapped_m == ["network_path"] * 3 and _mapped_calls_m == []
+    check(_mapped_m == ["network_path"] * 6 and _mapped_calls_m == []
           and "network_path" not in _local_m and _home_z_m != "network_path" and _posix_m != "network_path"
-          and _offline_res_m == (False, "Y:\\gone", "unreachable") and _drive_type("C") == 0
+          and _offline_res_m == (False, "Y:\\gone", "unreachable")
+          and _dt_api_m == 4 and _dt_seen_m == ["Z:\\"] and _dt_none_m == 0
           and "unreachable" in _DRIVE_HUB_WHY
           and all(_FOLDER_REACH_WHY[w] in _screens_m.get((r, w), "")
                   for r in ("/api/run-import", "/api/write-storage-folder")
@@ -5477,7 +5512,7 @@ def _selftest_p101() -> int:
           f"a mapped network drive is resolved or accepted, a local drive or a home folder on that drive is "
           f"refused, the rule applies off Windows, an unreachable path is not refused as such, or a screen "
           f"does not explain it ({_mapped_m}, {_mapped_calls_m}, {_local_m}, {_home_z_m}, {_posix_m}, "
-          f"{_offline_res_m}, {sorted(_screens_m)})")
+          f"{_offline_res_m}, {_dt_api_m}, {_dt_seen_m}, {_dt_none_m}, {sorted(_screens_m)})")
     # P102: the Drive hub folder rule on Windows, with the system stood in for: quotes are removed, a
     # folder inside a Drive for desktop drive's My Drive or Shared drives is accepted only where that
     # folder exists, the root folder itself is refused, and other routes keep the home-only rule.
@@ -5530,17 +5565,21 @@ def _selftest_p101() -> int:
     import transcribe as _tr_v
     _broken_v = {"installed": True, "loads": False, "error": "FileNotFoundError: ctranslate2.dll"}
     _offer_v = {"os": "win32", "arch": "amd64", "verdict": "red", "summary": "s", "steps": [],
-                "faster_whisper": _broken_v, "vc_runtime_missing": ["msvcp140.dll", "vcruntime140_1.dll"]}
+                "faster_whisper": _broken_v, "vc_runtime_missing": ["msvcp140.dll", "vcruntime140_1.dll"],
+                "vc_runtime_needed": True}
     _offers_v = {
         "x64": _offer_v, "arm64": dict(_offer_v, arch="ARM64"),
         "x86": dict(_offer_v, arch="x86"), "mac": dict(_offer_v, os="darwin"),
-        "dlls present": dict(_offer_v, vc_runtime_missing=[]),
+        "dlls present": dict(_offer_v, vc_runtime_missing=[], vc_runtime_needed=False),
+        "older runtime only": dict(_offer_v, vc_runtime_missing=["vcruntime140_1.dll"], vc_runtime_needed=False),
+        "linux": dict(_offer_v, os="linux"),
         "loads": dict(_offer_v, faster_whisper=dict(_broken_v, loads=True)),
         "not installed": dict(_offer_v, faster_whisper=dict(_broken_v, installed=False)),
         "no probe": dict(_offer_v, faster_whisper=None), "error": {"error": "x"}}
     check(_VC_RUNTIME_ARCHES == _tr_v.VC_RUNTIME_ARCHES
           and {k: _vc_runtime_offered(v) for k, v in _offers_v.items()}
           == {"x64": True, "arm64": True, "x86": False, "mac": False, "dlls present": False,
+              "older runtime only": False, "linux": False,
               "loads": False, "not installed": False, "no probe": False, "error": False},
           "the Visual C++ install is offered somewhere other than Windows on x64 or ARM64 with "
           "faster-whisper installed, not loading and runtime libraries missing")
@@ -5574,11 +5613,16 @@ def _selftest_p101() -> int:
         _no_tick_v = _post_v({})
         _wrong_tick_v = _post_v({"confirm": "on"})
         _not_needed_v = _post_v({"confirm": "yes"})
+        _doctor_v["result"] = {"error": "could not run the setup check: TimeoutExpired <x>"}
+        _check_failed_v = _post_v({"confirm": "yes"})
         _jobs_before_v = list(_jobs_v)
         _doctor_v["result"] = _offer_v
         _started_v = _post_v({"confirm": "yes"})
         globals()["_job_status"] = lambda name: {"running": True, "result": None}
         _waiting_v = _get_v("/job-wait?name=vc_runtime")
+        _quit_v = _get_v("/quit")
+        _quit_shut_v = _shutdown.is_set()
+        _shutdown.clear()
         _results_v = {}
         for _key_v, _res_v in (("ok", {"ok": True, "status": "restart", "exit_code": 3010,
                                          "message": "Installed <now>.", "note": "Folder kept."}),
@@ -5598,16 +5642,25 @@ def _selftest_p101() -> int:
           and 'action="/api/install-vc-runtime"' in _box_v and 'name="confirm" value="yes" required' in _box_v
           and _tr_v.VC_RUNTIME_LICENSE_URL in _box_v and _tr_v.VC_RUNTIME_URL in _box_v
           and "winget install --exact --id Microsoft.VCRedist.2015+.x64" in _box_v
-          and "msvcp140.dll, vcruntime140_1.dll" in _box_v and "/api/install-vc-runtime" not in _plain_v,
+          and "msvcp140.dll, vcruntime140_1.dll" in _box_v and "/api/install-vc-runtime" not in _plain_v
+          and "(&lt;b&gt;x.dll)" in _vc_runtime_box(["<b>x.dll"]) and "<b>x.dll" not in _vc_runtime_box(["<b>x.dll"]),
           "the Check my setup screen does not offer the labeled Visual C++ install with its license, "
           "confirmation box and manual route, or offers it where the check does not")
     check(_no_tick_v[0] == "send" and "Tick the box" in _no_tick_v[1]
           and _wrong_tick_v[0] == "send" and "Tick the box" in _wrong_tick_v[1]
           and _not_needed_v[0] == "send" and "does not need" in _not_needed_v[1] and _jobs_before_v == []
+          and _check_failed_v[0] == "send" and "could not run" in _check_failed_v[1]
+          and "TimeoutExpired &lt;x&gt;" in _check_failed_v[1] and "does not need" not in _check_failed_v[1]
           and _started_v == ("redirect", "/job-wait?name=vc_runtime")
           and [(n, f) for n, f in _jobs_v] == [("vc_runtime", _vc_runtime_job)],
           f"the Visual C++ install route starts a job without the ticked confirmation or where the "
           f"check does not offer it, or does not start it once when both hold ({_jobs_v}, {_sent_v[:4]})")
+    _import_v = _screen_import()
+    check(("Transcription engine found" in _import_v)
+          or 'href="/doctor">Check my setup</a> tells a missing engine from one that is installed but cannot load' in _import_v,
+          "the import screen without an engine does not point at Check my setup for an engine that cannot load")
+    check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,
+          "/quit closes the wizard while the Visual C++ install runs, leaving its temporary folder")
     check(_waiting_v[0] == "send" and "Visual C++ Redistributable" in _waiting_v[1]
           and "administrator prompt" in _waiting_v[1]
           and "Installed &lt;now&gt;. Folder kept. The check below has run again." in _results_v["ok"]

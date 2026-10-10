@@ -266,7 +266,7 @@ def _read_local_config_for_write(path) -> tuple:
         return {}, str(bak), None
 
 
-_CACHE_REBUILD_HINT = "Run: python3 shared/cache/cache.py --build"
+_CACHE_REBUILD_HINT = env_paths.local_commands("Run: python3 shared/cache/cache.py --build")
 _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
                        "databaseerror", "file is encrypted or is not a database")
 
@@ -1077,10 +1077,24 @@ def _selftest_static() -> tuple:
        and src.count(_lb + "launch_note(url, confirmed)") == 1
        and src.count('"dashboard_url": ' + _lb + "dashboard_url(),") == 1
        and ('"dashboard_url": ' + '"http://localhost:') not in src)
-    # P102: launch_setup's manual hint is written as this computer runs the repo's scripts (read from
-    # the file, for the reason above; the searched text is assembled for the same reason).
-    ok("launch_setup's manual hint goes through env_paths.local_commands",
-       src.count('"manual": env_paths.' + 'local_commands("Run: python3 tools/wizard.py")') == 1)
+    # P102: every `python3 tools/` or `python3 shared/` command this module prints or returns is
+    # written as this computer runs the repo's scripts: outside docstrings, a string literal that holds
+    # one sits inside an env_paths.local_commands(...) call (read from the file, for the reason above).
+    import ast as _ast_lc
+    _tree_lc = _ast_lc.parse(src)
+    _docs_lc = {id(n.body[0].value) for n in _ast_lc.walk(_tree_lc)
+                if isinstance(n, (_ast_lc.Module, _ast_lc.FunctionDef, _ast_lc.AsyncFunctionDef, _ast_lc.ClassDef))
+                and n.body and isinstance(n.body[0], _ast_lc.Expr) and isinstance(n.body[0].value, _ast_lc.Constant)}
+    _wrapped_lc = {id(s) for n in _ast_lc.walk(_tree_lc)
+                   if isinstance(n, _ast_lc.Call) and _ast_lc.unparse(n.func) == "env_paths.local_commands"
+                   for a in n.args for s in _ast_lc.walk(a)}
+    _needles_lc = ("python3 " + "tools/", "python3 " + "shared/")  # assembled, so this check is not a hit
+    _bare_lc = [n.lineno for n in _ast_lc.walk(_tree_lc)
+                if isinstance(n, _ast_lc.Constant) and isinstance(n.value, str)
+                and any(x in n.value for x in _needles_lc)
+                and id(n) not in _docs_lc and id(n) not in _wrapped_lc]
+    ok(f"each printed or returned python3 command goes through env_paths.local_commands (bare at lines {_bare_lc})",
+       _bare_lc == [] and src.count('"manual": env_paths.' + 'local_commands("Run: ' + _needles_lc[0] + 'wizard.py")') == 1)
 
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
@@ -1106,12 +1120,13 @@ try:
 except ImportError:
     try:
         import mcp as _probe  # noqa: F401
-        print("ERROR: the installed 'mcp' package exposes neither MCPServer (2.x) nor FastMCP (1.x). "
-              "Reinstall with python3 tools/setup.py --install-deps (user-only, repo .venv).", file=sys.stderr)
+        print(env_paths.local_commands(
+            "ERROR: the installed 'mcp' package exposes neither MCPServer (2.x) nor FastMCP (1.x). "
+            "Reinstall with python3 tools/setup.py --install-deps (user-only, repo .venv)."), file=sys.stderr)
     except ImportError:
-        print("ERROR: 'mcp' package not installed.\n"
-              "Run: python3 tools/setup.py --install-deps  "
-              "(user-only, into the repo's private .venv)", file=sys.stderr)
+        print(env_paths.local_commands("ERROR: 'mcp' package not installed.\n"
+                                       "Run: python3 tools/setup.py --install-deps  "
+                                       "(user-only, into the repo's private .venv)"), file=sys.stderr)
     sys.exit(1)
 
 mcp = _ServerClass("creator-os")   # the first positional is `name` in both majors
@@ -1151,7 +1166,7 @@ def cache_query(query: str, limit: int = 5) -> str:
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
         return json.dumps({
             "error": "Cache index not found.",
-            "hint": "Run: python3 shared/cache/cache.py --build",
+            "hint": _CACHE_REBUILD_HINT,
         })
     rc, out, err = _run([
         sys.executable, str(cache_script),
@@ -1168,7 +1183,7 @@ def _construction_query(query, limit):
     """Run the offline cache query and keep only construction-dictionary results."""
     cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
-        return None, {"error": "Cache index not found.", "hint": "Run: python3 shared/cache/cache.py --build"}
+        return None, {"error": "Cache index not found.", "hint": _CACHE_REBUILD_HINT}
     rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
                          "--limit", str(max(limit * 5, 20)), "--json"])
     if rc != 0:
@@ -1249,7 +1264,8 @@ def competitor_scan(competitor_id: str) -> str:
     if rc != 0:
         return json.dumps({
             "error": err.strip() or "parse failed",
-            "hint": "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch",
+            "hint": env_paths.local_commands(
+                "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch"),
         })
     # P75: this used to return the subprocess stdout, which is cmd_parse's COUNTER
     # ({"parsed": 1, "skipped": []}) -- the per-row detail goes to stderr. So the tool promised
@@ -1262,7 +1278,7 @@ def competitor_scan(competitor_id: str) -> str:
     db = ROOT / "pipeline" / "competitor-snapshots" / "index.local.db"
     if not db.exists():
         return json.dumps({"result": "no data found", "competitor_id": competitor_id,
-                           "hint": "Run: python3 tools/competitor_snapshot.py --fetch"})
+                           "hint": env_paths.local_commands("Run: python3 tools/competitor_snapshot.py --fetch")})
     import sqlite3 as _sq
     con = _sq.connect(f"file:{db}?mode=ro", uri=True)
     con.row_factory = _sq.Row
@@ -1656,7 +1672,7 @@ def add_competitor(url: str, platform: str) -> str:
         "result": "added",
         "url": url,
         "platform": platform,
-        "next_step": "Run: python3 tools/competitor_snapshot.py --fetch",
+        "next_step": env_paths.local_commands("Run: python3 tools/competitor_snapshot.py --fetch"),
     })
 
 
@@ -3001,8 +3017,9 @@ if __name__ == "__main__":
         try:
             from mcp.server.transport_security import TransportSecuritySettings as _TSS
         except ImportError:
-            print("[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
-                  "run python3 tools/setup.py --install-deps (user-only, repo .venv)", file=sys.stderr)
+            print(env_paths.local_commands(
+                "[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
+                "run python3 tools/setup.py --install-deps (user-only, repo .venv)"), file=sys.stderr)
             sys.exit(1)
         try:
             _hosts = _remote_allowed_hosts(_args.allowed_host)

@@ -33,7 +33,7 @@ credentials and the live posting checklist for those live in `docs/PUBLISHING.md
   alternatives (affect the whole computer): the notarized python.org universal2 `.pkg` or
   `brew install python@3.12` (3.12 is the repo floor and the top of the Resolve scripting
   bridge's supported range).
-- **The repo folder.** Prefer `git clone --branch main https://github.com/flywifi/seo-tools.git` — a
+- **The repo folder.** Prefer `git clone --branch main https://github.com/flywifi/seo-tools.git`. A
   clone is not Gatekeeper-quarantined, unlike a downloaded `.zip`, and `--branch main` checks out
   `main`, the release branch, whichever branch GitHub shows by default.
 - Optional, transcription only: the user-only default is `faster-whisper` in the repo `.venv`

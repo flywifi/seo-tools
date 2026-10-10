@@ -164,7 +164,9 @@ def preflight(config: dict | None = None) -> dict:
                      "No whisper.cpp and no faster-whisper: content-import transcript completion degrades to "
                      "the run_local_stt gap (never a fabricated transcript). Install the user-only default with "
                      "'python3 tools/setup.py --install-deps' (faster-whisper into the repo's private .venv, "
-                     "no system ffmpeg needed). Machine-wide alternative (affects the whole computer), for "
+                     "no system ffmpeg needed). If faster-whisper is installed but does not load, "
+                     "'python3 tools/transcribe.py doctor' names the reason (on Windows, usually Microsoft's "
+                     "Visual C++ runtime). Machine-wide alternative (affects the whole computer), for "
                      "Metal on Apple Silicon: 'brew install whisper-cpp ffmpeg'."))
 
     return {
@@ -223,7 +225,8 @@ def selftest() -> int:
     finally:
         globals()["_importable"], shutil.which, env_paths.python_command = _saved_w
     ok("the no-engine note is written as this computer runs the scripts",
-       "'py -3 tools/setup.py --install-deps'" in _notes_w and "'python3 tools/" not in _notes_w)
+       "'py -3 tools/setup.py --install-deps'" in _notes_w and "'python3 tools/" not in _notes_w
+       and "'py -3 tools/transcribe.py doctor' names the reason" in _notes_w)
 
     print(f"preflight selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

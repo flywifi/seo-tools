@@ -166,7 +166,7 @@ def _check_faster_whisper(python, run=None, osname=None, missing=None) -> tuple:
     import transcribe
     osname = env_paths._os_name() if osname is None else osname
     gone = (transcribe.vc_runtime_missing() if missing is None else missing) if osname == "nt" else []
-    if gone:
+    if transcribe.VC_RUNTIME_DECISIVE in gone:
         return False, transcribe.vc_runtime_remedy()
     lines = [ln for ln in (r.stderr or "").splitlines() if ln.strip()]
     return False, ("faster-whisper is installed but does not load: "
@@ -1115,6 +1115,9 @@ def _selftest_fw() -> int:
 
     def _boom(argv, **kw):
         raise OSError(2, "No such file", argv[0])
+
+    def _slow_fw(argv, **kw):
+        raise subprocess.TimeoutExpired(argv, 300)
     _fw = {"loads": _check_faster_whisper("/v/python", run=_run_fw(0)),
            "vc": _check_faster_whisper("/v/python", run=_run_fw(1, "Traceback\nFileNotFoundError: x.dll\n"),
                                        osname="nt", missing=["msvcp140.dll"]),
@@ -1122,7 +1125,10 @@ def _selftest_fw() -> int:
                                                osname="nt", missing=[]),
            "posix": _check_faster_whisper("/v/python", run=_run_fw(1, "Traceback\nImportError: libx.so\n"),
                                           osname="posix", missing=["msvcp140.dll"]),
-           "norun": _check_faster_whisper("/v/python", run=_boom)}
+           "older": _check_faster_whisper("/v/python", run=_run_fw(1, "ImportError: av\n"),
+                                          osname="nt", missing=["vcruntime140_1.dll"]),
+           "norun": _check_faster_whisper("/v/python", run=_boom),
+           "slow": _check_faster_whisper("/v/python", run=_slow_fw)}
     import transcribe as _tr_fw
     ok(_fw["loads"] == (True, "faster-whisper loads")
        and _seen_fw[0][0] == ["/v/python", "-c", "import faster_whisper"]
@@ -1130,17 +1136,19 @@ def _selftest_fw() -> int:
        and _fw["vc"] == (False, _tr_fw.vc_runtime_remedy())
        and _fw["nt_ok_dlls"] == (False, "faster-whisper is installed but does not load: ImportError: numpy")
        and _fw["posix"] == (False, "faster-whisper is installed but does not load: ImportError: libx.so")
-       and _fw["norun"][0] is False and "could not run" in _fw["norun"][1],
+       and _fw["older"] == (False, "faster-whisper is installed but does not load: ImportError: av")
+       and _fw["norun"][0] is False and "could not run" in _fw["norun"][1]
+       and _fw["slow"][0] is False and "could not run" in _fw["slow"][1],
        "the post-install faster-whisper check does not tell loading, a missing Visual C++ runtime on "
-       f"Windows, another import error and a check that cannot run apart: {_fw}")
+       f"Windows (msvcp140.dll), another import error and a check that cannot run apart: {_fw}")
     # The wiring: a successful transcription set is followed by the check, whose failure is reported.
     _g_fw = globals()
     _saved_fw = {k: _g_fw[k] for k in ("ensure_venv", "_pip_install", "_check_faster_whisper",
                                        "_install_playwright_browser")}
-    _runs_fw = {}
+    _runs_fw, _checked_fw = {}, []
     try:
         _g_fw.update(ensure_venv=lambda: ("/v/python", "ok"),
-                     _check_faster_whisper=lambda python: (False, "REMEDY"),
+                     _check_faster_whisper=lambda python: _checked_fw.append(python) or (False, "REMEDY"),
                      _install_playwright_browser=lambda python: (None, "skipped"))
         for _case, _fail in (("stt-ok", ""), ("stt-failed", "requirements-transcribe.txt")):
             _g_fw["_pip_install"] = lambda args, python, _f=_fail: (not (len(args) > 1 and args[1].endswith(_f) and _f), "x")
@@ -1149,9 +1157,9 @@ def _selftest_fw() -> int:
         _g_fw.update(_saved_fw)
     ok(_runs_fw["stt-ok"] == [{"item": "faster-whisper check", "desc": "Local transcription loads",
                                "ok": False, "detail": "REMEDY"}]
-       and _runs_fw["stt-failed"] == [],
-       f"install_dependencies does not check faster-whisper after the transcription set installs, or "
-       f"reports a failed check as passing: {_runs_fw}")
+       and _runs_fw["stt-failed"] == [] and _checked_fw == ["/v/python"],
+       f"install_dependencies does not check faster-whisper in the .venv interpreter after the "
+       f"transcription set installs, or reports a failed check as passing: {_runs_fw} {_checked_fw}")
     for c, m in checks:
         if not c:
             print(f"  [FAIL] {m}")

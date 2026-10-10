@@ -95,7 +95,7 @@ def _infer_duration(tl: dict) -> float:
 def build(pkg: dict, version: str | None = None) -> str:
     """Serialize an edit-package to a well-formed FCPXML scaffold string."""
     fps = float(pkg.get("frame_rate", 30) or 30)
-    version = version or pkg.get("_fcpxml_version") or DEFAULT_VERSION
+    version = str(version or pkg.get("_fcpxml_version") or DEFAULT_VERSION)
     tl = pkg.get("timeline", {}) or {}
     duration = tl.get("duration_seconds") or _infer_duration(tl) or 60.0
     fdur = _frame_duration(fps)
@@ -129,7 +129,7 @@ def build(pkg: dict, version: str | None = None) -> str:
     # Markers (standard + to-do/completed) and chapter-markers live on the gap.
     for m in tl.get("markers", []) or []:
         start = sec_to_time(float(m.get("start_seconds", 0) or 0), fps)
-        mtype = (m.get("type") or "standard").lower()
+        mtype = str(m.get("type") or "standard").lower()
         if mtype == "chapter":
             attrs = {"start": start, "duration": fdur, "value": str(m.get("name") or "")}
             po = m.get("poster_offset_seconds")
@@ -139,7 +139,7 @@ def build(pkg: dict, version: str | None = None) -> str:
         else:
             attrs = {"start": start, "duration": fdur, "value": str(m.get("name") or "")}
             if m.get("note"):
-                attrs["note"] = m["note"]
+                attrs["note"] = str(m["note"])
             if mtype == "to-do":
                 attrs["completed"] = "0"
             elif mtype == "completed":
@@ -176,9 +176,9 @@ def build(pkg: dict, version: str | None = None) -> str:
             "role": str(t.get("role") or "titles"),
         })
         if t.get("template"):
-            title.set("data-template", t["template"])
+            title.set("data-template", str(t["template"]))
         text = ET.SubElement(title, "text")
-        text.text = t.get("text", "")
+        text.text = str(t.get("text") or "")
 
     body = ET.tostring(fcpxml, encoding="unicode")
     return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE fcpxml>\n' + body + "\n"
@@ -448,6 +448,21 @@ def selftest() -> int:
        and _root.find(".//gap").get("name") == "Timeline"
        and {e.get("value") for e in _root.iter("marker")} == {""}
        and _root.find(".//title").get("name") == "Title" and _root.find(".//title").get("role") == "titles")
+    # Values that are set but are not strings (a number typed for a title, a marker type, a note, a
+    # template, the version) are written as their text.
+    _odd = {"_fcpxml_version": 1.11, "timeline": {"duration_seconds": 10,
+            "markers": [{"name": "m", "type": 3, "note": 5}],
+            "titles": [{"text": 2024, "template": 7}]}}
+    try:
+        _odd_root = _ET.fromstring(build(_odd))
+    except (TypeError, AttributeError, ValueError) as _exc:
+        _odd_root = None
+        print(f"  odd values raised {_exc!r}")
+    ok("values that are not strings build as their text",
+       _odd_root is not None and _odd_root.get("version") == "1.11"
+       and _odd_root.find(".//title").get("data-template") == "7"
+       and "2024" in _ET.tostring(_odd_root.find(".//title"), encoding="unicode")
+       and any(e.get("note") == "5" for e in _odd_root.iter()))
 
     pkg = {"timeline": {"clips": [{"name": "a", "start_seconds": 0, "duration_seconds": 5}]}}
     x = build(pkg)
