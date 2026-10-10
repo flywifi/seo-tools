@@ -52,6 +52,18 @@ def load_hub_config() -> dict:
     return merged
 
 
+def hub_folder_name(load=None) -> str:
+    """The hub's folder name in My Drive: drive_hub.folder_name (load_hub_config, local overrides
+    winning) with surrounding spaces removed, else "Creator OS" for a name that is missing, blank or
+    not text, or a config that cannot be read (P102). The hub screen, the Drive API pass, the
+    profile mirror's Doc lookup and project_docs read the name through here."""
+    try:
+        name = (load or load_hub_config)().get("folder_name")
+    except Exception:  # noqa: BLE001 - a config that cannot be read means the default
+        name = None
+    return name.strip() if isinstance(name, str) and name.strip() else "Creator OS"
+
+
 def _windows_drives() -> list:
     """The drive roots on this Windows computer: os.listdrives() (Python 3.12 and later), else each
     letter whose root exists."""
@@ -297,6 +309,58 @@ def selftest() -> int:
     ok("main logs a failed pass naming an emoji file as UTF-8 when stdout is a cp1252 file",
        rc_w == 0 and locked_name in log_w and "handoff watcher: stopped" in log_w)
 
+    # P102: the hub folder name is read from the config files, local first, stripped, and Creator OS
+    # stands in for a missing, blank or null name; the Drive API pass asks for that name.
+    real_root, names = globals()["ROOT"], {}
+    with tempfile.TemporaryDirectory() as cfg_td:
+        cfg = Path(cfg_td)
+
+        def _cfg(name, value):
+            atomic_io.atomic_write_text(cfg / name, json.dumps({"drive_hub": {"folder_name": value}}))
+        try:
+            globals()["ROOT"] = cfg
+            names["absent"] = hub_folder_name()
+            _cfg("creator-os-config.json", " Creator OS Test ")
+            names["padded"] = hub_folder_name()
+            _cfg("creator-os-config.local.json", "Local Hub")
+            names["local"] = hub_folder_name()
+            _cfg("creator-os-config.local.json", "  ")
+            names["blank"] = hub_folder_name()
+            _cfg("creator-os-config.local.json", None)
+            names["null"] = hub_folder_name()
+        finally:
+            globals()["ROOT"] = real_root
+
+    def _unreadable():
+        raise OSError("the config cannot be read")
+    names["raises"] = hub_folder_name(load=_unreadable)
+    ok("hub_folder_name reads drive_hub.folder_name from the config files, local first, stripped, "
+       "with Creator OS for a missing, blank or null name or a config that cannot be read",
+       names == {"absent": "Creator OS", "padded": "Creator OS Test", "local": "Local Hub",
+                 "blank": "Creator OS", "null": "Creator OS", "raises": "Creator OS"})
+    import oauth_flow as _oauth_t
+    from handoff import drive_api as _dapi_t
+    asked = []
+    saved_t = (runner.capability_enabled, _oauth_t.get_valid_access_token, _dapi_t.poll_once)
+    with tempfile.TemporaryDirectory() as api_td:
+        api_root = Path(api_td)
+        (api_root / "pipeline" / "user-context").mkdir(parents=True)
+        atomic_io.atomic_write_text(api_root / "pipeline" / "user-context" / "api-credentials.local.json",
+                                    json.dumps({"google_drive": {"publish": {"note": "a stand-in credential"}}}))
+        atomic_io.atomic_write_text(api_root / "creator-os-config.local.json",
+                                    json.dumps({"drive_hub": {"folder_name": " Creator OS Test "}}))
+        try:
+            runner.capability_enabled = lambda name: True
+            _oauth_t.get_valid_access_token = lambda platform, creds: ("stand-in", None)
+            _dapi_t.poll_once = lambda staging, token, folder: asked.append(folder) or {"ok": True}
+            globals()["ROOT"] = api_root
+            api_res = api_once()
+        finally:
+            runner.capability_enabled, _oauth_t.get_valid_access_token, _dapi_t.poll_once = saved_t
+            globals()["ROOT"] = real_root
+    ok("the Drive API pass asks for the configured hub folder, stripped",
+       asked == ["Creator OS Test"] and api_res == {"ok": True})
+
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)
@@ -355,8 +419,7 @@ def api_once() -> dict:
     except oauth_flow.OAuthError as exc:
         return {"ok": False, "error": f"Drive credential problem: {exc}"}
     staging = ROOT / "pipeline" / "inbox" / "api-staging-hub"
-    folder = load_hub_config().get("folder_name", "Creator OS")
-    return drive_api.poll_once(str(staging), token, folder)
+    return drive_api.poll_once(str(staging), token, hub_folder_name())
 
 
 def main(argv) -> int:

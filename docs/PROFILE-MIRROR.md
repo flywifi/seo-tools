@@ -149,8 +149,10 @@ by this app, so the API cannot see them. The tool therefore finds the Doc this w
 3. Otherwise it creates the Doc: in `Creator OS/Profile` when the API can see that folder, else in
    **My Drive**, and the log and `status` ask you to move it into `Creator OS/Profile` once. Moving
    it keeps its id, so later runs update it there. A hub folder you named differently
-   (`drive_hub.folder_name` in your local config) is looked up by that name
-   <!-- verify: tools/project_docs.py::hub_folder_name -->.
+   (`drive_hub.folder_name` in your local config, with surrounding spaces removed) is looked up by
+   that name, and the log and `status` name its `Profile` folder; a blank name means `Creator OS`
+   <!-- verify: tools/project_docs.py::hub_folder_name -->
+   <!-- verify: tools/handoff/watcher.py::hub_folder_name -->.
 
 The Doc is rendered from what `Profile/` holds, so a file missing or refused on your computer keeps
 its section from its Drive copy. If a Drive copy cannot be read, that run holds the Doc instead of

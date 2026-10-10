@@ -15,12 +15,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ### Added
 - P102 (the configured hub folder name): the wizard's hub screen asks
   `watcher.detect_mirror_candidates` for the folder named in `drive_hub.folder_name`, and the
-  profile mirror's Doc lookup and `project_docs.py project --api` use it too
-  (`project_docs.hub_folder_name`); all three used to look for `Creator OS` only.
+  profile mirror's Doc lookup and its move-it messages, `project_docs.py project --api` and the
+  watcher's Drive API pass use it too (`watcher.hub_folder_name`, which removes surrounding spaces
+  and gives `Creator OS` for a blank or missing name); they used to look for `Creator OS` only,
+  and the hub screen took a blank name as the My Drive folder itself.
 - P102 (import batch deleted): the wizard deletes the parsed import batch
   (`creator-os-import-*.json` in the temp folder, a channel's titles, descriptions and numbers)
   after approve, whether the save works or not, and before a new scan writes its own; it used to
-  stay in the temp folder.
+  stay in the temp folder. Since the path is read back from the state file, a file is deleted only
+  when it has that name and sits in the temp folder; a batch written in part, when writing it
+  fails, is deleted too. The wizard selftest's import checks start from a state that names no
+  batch, so they leave a creator's pending batch in place.
 - P102 (Google Docs shortcuts in the Inbox): a `.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`,
   `.gtable` or `.gmap` file (Drive for desktop's shortcut to a file whose content stays in Google
   Drive; Garmin map files also use `.gmap`) is held for review by its extension, before it is
@@ -343,6 +348,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (import screen notes escaped): the wizard's import scan page escapes the notes it lists, an
+  importer's `note:` line or the last line of its error, which can carry a file or zip member name
+  from the export; they were joined into the page as HTML.
 - P102 (a locked ticket; unreadable files kept): the hand-off watcher reports a pass that raises
   ("pass failed, retrying next interval") and runs the next one, and `runner.run_job` and
   `runner.run_pass` leave a ticket they cannot archive (one that ran, was refused, did not parse,

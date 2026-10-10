@@ -247,7 +247,10 @@ symlinks; request bodies are size-capped and malformed lengths get a clean error
 Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being
 silently replaced; and the import scan/approve flow is tied to a single-use token so two open tabs
 cannot approve each other's scan. The parsed videos wait for approval in a temporary file, which is
-deleted when you approve (whether the save works or not) and when a new scan replaces it.
+deleted when you approve (whether the save works or not) and when a new scan replaces it; the
+wizard deletes only a file with the scan's `creator-os-import-` name in the temp folder, and a file
+the scan could not finish writing is deleted at once. The import screen shows the importer's notes
+and error lines as text, escaped, since they can carry a file name from the export.
 
 **Config files the wizard writes:**
 
