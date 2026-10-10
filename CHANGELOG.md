@@ -21,23 +21,27 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (`creator-os-import-*.json` in the temp folder, a channel's titles, descriptions and numbers)
   after approve, whether the save works or not, and before a new scan writes its own; it used to
   stay in the temp folder.
-- P102 (Google Docs shortcuts in the Inbox): a `.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`
-  or `.gtable` file (Drive for desktop's shortcut to a file whose content stays in Google Drive) is
-  held for review by its extension, before any read, with a note to download it into the Inbox or
-  read it through the Google Drive connector. On Windows such a shortcut cannot be read (EINVAL),
-  and the scan used to hold it as unreadable, telling the person to close it. The suite's W8 and
-  gap SW-G11 follow.
+- P102 (Google Docs shortcuts in the Inbox): a `.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`,
+  `.gtable` or `.gmap` file (Drive for desktop's shortcut to a file whose content stays in Google
+  Drive; Garmin map files also use `.gmap`) is held for review by its extension, before it is
+  opened, with a note to download it into the Inbox or read it through the Google Drive connector.
+  The scan used to read it like any other file, and a read error held it as unreadable with advice
+  to close it. The suite's W8 and gap SW-G11 follow.
 - P102 (exports recognised by their contents): the inbox scan reads a zip's member names
   (`inbox.export_kind_from_members`; nothing is extracted) and proposes a YouTube Studio export
-  (its table beside the chart data or totals, in English or Spanish file names), a Takeout, an
-  Instagram (`your_instagram_activity/`, `posts_*.json`, `reels.json`) or a TikTok
-  (`user_data_tiktok.json`, `user_data.json`) export whatever its download name; it used to read
-  only the name. The kind travels through approve to the follow-up job, so a hint-named Instagram
-  zip gets its preview job. The member names come from public reports, not vendor documentation.
-  `classify.zip_directory` reads a zip's entry count and directory size from its end record, ZIP64
-  included, and a zip over 50,000 entries or a 16 MB directory is not listed: the classifier treats
-  it as a plain archive, and the scan proposes it by a name hint or holds it with a pointer to the
-  `/import` screen. `classify.py` gains a selftest and leaves the selftest exemptions.
+  (its table beside the chart data or totals, in English or Spanish file names), a Takeout (a
+  folder whose name starts with YouTube inside `Takeout/`), an Instagram (`your_instagram_activity/`)
+  or a TikTok (`user_data_tiktok.json`) export whatever its download name; it used to read only the
+  name. The kind travels through approve to the follow-up job, so a hint-named Instagram zip gets
+  its preview job. The member names come from public reports, not vendor documentation.
+  `classify.zip_directory` reads a zip's directory size from the end record CPython's zipfile
+  reads, ZIP64 included, and counts the entries in the directory, so a stated count is not taken on
+  trust; a ZIP64 record is read only just before its locator, where CPython reads it with or
+  without the CVE-2025-8291 fix, and another layout gives no directory. A zip with more than 50,000
+  entries or a 16 MB directory is not listed: the classifier treats it as a plain archive, the scan
+  proposes it by a name hint or holds it with a pointer to the `/import` screen, and `import_parse`
+  does not open it, with a note to unzip it. `classify.py` gains a selftest and leaves the selftest
+  exemptions.
 - P102 (import notes): `import_parse` reads a TikTok data zip through its JSON member instead of
   stopping with a JSONDecodeError, and prints a `note:` line on stderr for a `.tgz` Takeout and for
   a Studio CSV none of whose column names it recognises (another language); the wizard's import

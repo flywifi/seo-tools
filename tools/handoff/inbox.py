@@ -50,15 +50,17 @@ _FORMAT_CATEGORY = {
     "audio": "audio_media",
 }
 _EXPORT_HINTS = ("takeout", "studio", "dyi", "export")
-# Google Drive for desktop shows a Google Docs, Sheets, Slides, Drawings, Forms or Tables file as a
-# small shortcut that opens the file in a browser; its content is in Google Drive. On Windows such a
-# shortcut cannot be read at all (the read fails with EINVAL), so scan holds it by its extension
-# before any read, with a note saying how to bring the content in (P102).
-_GOOGLE_POINTER_EXTS = frozenset({"gdoc", "gsheet", "gslides", "gdraw", "gform", "gtable"})
-_POINTER_NOTE = ("a shortcut to a Google Docs, Sheets or Slides file: its content is in Google Drive, "
-                 "not on this computer. Open it and use File, then Download (Word, Excel, PowerPoint or "
-                 "PDF) into the Inbox, or read it in a Claude session with the Google Drive connector; "
-                 "left in place")
+# Google Drive for desktop shows a Google Docs, Sheets, Slides, Drawings, Forms, Tables or My Maps
+# file as a small shortcut that opens the file in a browser; its content is in Google Drive, not in
+# the shortcut. So scan holds one by its extension before it opens, hashes or classifies the file,
+# with a note saying how to bring the content in (P102). Garmin map files also use .gmap; one is held
+# for review too.
+_GOOGLE_POINTER_EXTS = frozenset({"gdoc", "gsheet", "gslides", "gdraw", "gform", "gtable", "gmap"})
+_POINTER_NOTE = ("a shortcut to a file in Google Drive (a Google Docs, Sheets, Slides, Drawings, Forms, "
+                 "Tables or My Maps file): its content is in Google Drive, not on this computer. Open it "
+                 "and download a copy into the Inbox (in Docs, Sheets and Slides: File, then Download, as "
+                 "Word, Excel, PowerPoint or PDF), or read it in a Claude session with the Google Drive "
+                 "connector; left in place")
 # The kinds a zip's member names identify (export_kind_from_members); each is a format the
 # import_parse_preview job accepts.
 _CONTENT_KINDS = ("youtube-takeout", "youtube-studio-zip", "instagram-dyi", "tiktok-dyi")
@@ -136,11 +138,12 @@ def _format_category(info: dict, name: str, export_kind: str | None = None) -> s
 def export_kind_from_members(path) -> dict:
     """{"kind", "refused"} for a zip, from its member names alone; nothing is extracted. The end
     record is read first (classify.zip_directory, ZIP64 included), and a zip whose directory is over
-    classify's limits is not listed: "refused" says why. A Takeout/ folder is youtube-takeout; a
-    Studio table beside its chart data or totals (in English or Spanish) is youtube-studio-zip;
-    your_instagram_activity/, posts_*.json or reels.json is instagram-dyi; user_data_tiktok.json or
-    user_data.json is tiktok-dyi. Anything else, or a file that is not a readable zip, is
-    {"kind": None, "refused": None}. Never raises."""
+    classify's limits is not listed: "refused" says why. A folder whose name starts with YouTube
+    inside a Takeout/ folder at the root is youtube-takeout; a Studio table beside its chart data or
+    totals (in English or Spanish) is youtube-studio-zip; a your_instagram_activity/ folder is
+    instagram-dyi; user_data_tiktok.json is tiktok-dyi. Names are compared in lower case, NFC
+    normalised, with backslashes read as slashes. Anything else, or a file whose end records are
+    not read, is {"kind": None, "refused": None}. Never raises."""
     directory = _classify.zip_directory(path)
     if directory is None:
         return {"kind": None, "refused": None}
@@ -155,14 +158,14 @@ def export_kind_from_members(path) -> dict:
     names = [unicodedata.normalize("NFC", n.replace("\\", "/")).lower() for n in names]
     base = {n.rsplit("/", 1)[-1] for n in names}
     kind = None
-    if any(n.startswith("takeout/") for n in names):
+    if any(n.startswith("takeout/") and n.count("/") >= 2 and n.split("/")[1].startswith("youtube")
+           for n in names):  # Takeout/YouTube and YouTube Music/..., not Takeout/Google Photos/...
         kind = "youtube-takeout"
     elif any(t in base and set(beside) & base for t, beside in _STUDIO_TABLES.items()):
         kind = "youtube-studio-zip"
-    elif (any(n.startswith("your_instagram_activity/") or "/your_instagram_activity/" in n for n in names)
-          or any(b.startswith("posts_") and b.endswith(".json") for b in base) or "reels.json" in base):
+    elif any(("/" + n).find("/your_instagram_activity/") >= 0 for n in names):
         kind = "instagram-dyi"
-    elif base & {"user_data_tiktok.json", "user_data.json"}:
+    elif "user_data_tiktok.json" in base:
         kind = "tiktok-dyi"
     return {"kind": kind, "refused": None}
 
@@ -1567,6 +1570,15 @@ def _selftest_checks() -> int:
         "holiday-photos.zip": (zb(["beach.jpg", "notes.txt"]), None),
         "report-tables.zip": (zb(["Table data.csv"]), None),
         "broken.zip": (b"PK\x03\x04 this is not a zip", None),
+        "photos-backup.zip": (zb(["Takeout/Google Photos/2026/IMG_0001.jpg", "Takeout/archive_browser.html"]), None),
+        "mail-backup.zip": (zb(["Takeout/Mail/All mail Including Spam and Trash.mbox"]), None),
+        "nested-backup.zip": (zb(["backup/Takeout/YouTube and YouTube Music/videos/porch.mp4"]), None),
+        "folder-copy.zip": (zb(["my-takeout/YouTube and YouTube Music/videos/porch.mp4"]), None),
+        "blog-backup.zip": (zb(["blog/posts_1.json", "reels.json"]), None),
+        "app-backup.zip": (zb(["backup/user_data.json"]), None),
+        "yt-backslash.zip": (zb(["Takeout\\YouTube and YouTube Music\\video metadata\\videos.csv"]),
+                             "youtube-takeout"),
+        "takeout-of-my-instagram.zip": (zb(["your_instagram_activity/media/posts_2.json"]), "instagram-dyi"),
     }
     for name, (raw, _kind) in exports.items():
         (ex / "Inbox" / name).write_bytes(raw)
@@ -1581,12 +1593,16 @@ def _selftest_checks() -> int:
     unknown_x = {e["file"].split("/", 1)[1] for e in sx["unknown"]}
     ok("a zip of photos, a lone table and a file that is not a zip stay unknown",
        {"holiday-photos.zip", "report-tables.zip", "broken.zip"} <= unknown_x)
+    ok("a Takeout without a YouTube folder, a Takeout folder below the root, a posts_1.json or "
+       "reels.json outside an Instagram folder, and a user_data.json stay unknown",
+       {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
+        "app-backup.zip"} <= unknown_x)
     held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
     ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
        "archive-of-everything.zip" in held_x
        and held_x["archive-of-everything.zip"]["category_source"] == "archive_too_large"
        and "/import" in held_x["archive-of-everything.zip"]["note"]
-       and str(_classify.ZIP_MAX_ENTRIES + 1) in held_x["archive-of-everything.zip"]["note"])
+       and f"more than {_classify.ZIP_MAX_ENTRIES:,} entries" in held_x["archive-of-everything.zip"]["note"])
     huge = next((e for e in sx["proposals"] if e["file"] == "Inbox/takeout-huge.zip"), {})
     ok("a zip too large to list whose name says Takeout is proposed by its name, with a note",
        huge.get("classified_as") == "platform_export" and "export_kind" not in huge
@@ -1604,10 +1620,12 @@ def _selftest_checks() -> int:
     # P102: a Google Docs shortcut is held by its extension with a note, and never opened: on
     # Windows, Drive for desktop serves it as a file whose read fails with EINVAL.
     gp = Path(tempfile.mkdtemp()); (gp / "Inbox").mkdir()
-    shortcuts = ["Notes.gdoc", "Budget.GSHEET", "Pitch.gslides", "Sketch.gdraw", "Survey.gform", "Table.gtable"]
+    shortcuts = ["Notes.gdoc", "Budget.GSHEET", "Pitch.gslides", "Sketch.gdraw", "Survey.gform", "Table.gtable",
+                 "Trip.GMap"]
     for name in shortcuts:
         (gp / "Inbox" / name).write_text('{"doc_id": "fictional", "email": "someone@example.com"}', encoding="utf-8")
     (gp / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    (gp / "Inbox" / "notes.gdoc.txt").write_text("plain notes", encoding="utf-8")
     opened, real_open = [], open
 
     def _trap_open(path, *a, **kw):
@@ -1621,13 +1639,19 @@ def _selftest_checks() -> int:
         sg = scan(gp, ledger={})
     finally:
         _builtins_g.open = real_open
-    held_g = {e["file"].split("/", 1)[1]: e for e in sg["needs_review"]}
+    held_g = {e["file"].split("/", 1)[1]: e for e in sg["needs_review"]
+              if e.get("category_source") == "google_shortcut"}
     ok("each Google shortcut is held for review with the download note, and never opened",
        sorted(held_g) == sorted(shortcuts) and not opened
        and all(e["category_source"] == "google_shortcut" and "File, then Download" in e["note"]
                and e["sha256"] is None for e in held_g.values()))
     ok("a held shortcut's contents reach no part of the scan result, and other files still route",
        "someone@example.com" not in json.dumps(sg) and [e["file"] for e in sg["proposals"]] == ["Inbox/talk.srt"])
+    ok("a file whose name holds .gdoc before another extension is not held as a shortcut",
+       "notes.gdoc.txt" not in held_g)
+    ok("the shortcut note names the download route and the Google Drive connector",
+       all(e["note"] == _POINTER_NOTE for e in held_g.values())
+       and "Download" in _POINTER_NOTE and "Google Drive connector" in _POINTER_NOTE)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

@@ -7437,7 +7437,24 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "fileinfo-gmap",
+      "name": "GMAP file extension: Google My Maps shortcut (FileInfo)",
+      "url": "https://fileinfo.com/extension/gmap",
+      "category": "platform-spec",
+      "tier": "T3",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "0ada7e8fc555f4ec3223db9c5bcb42839f0dda250a59097116ecee5a52765ac7"
+  "_content_digest": "580c35e842aec74ce418aa6eb91d5049cc99b611a1b0ee0de74ecd2b4994f9b1"
 }

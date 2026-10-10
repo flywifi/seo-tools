@@ -74,12 +74,17 @@ proposes a route only for categories the rules table
 export archives). An archive is a `platform_export` when its name carries a hint (`takeout`,
 `studio`, `dyi`, `export`) or `export_kind_from_members` finds an export's member names in it
 (P102); that kind rides on the proposal as `export_kind`, through approve's `moved_details`, to
-`plan_followups`, which accepts only the kinds in `_CONTENT_KINDS`. The zip's directory size comes
-from `classify.zip_directory` (the end record, ZIP64 included) before anything is listed; over
-`classify.ZIP_MAX_ENTRIES` or `ZIP_MAX_DIRECTORY_BYTES` it is not listed. A file whose extension
-is in `_GOOGLE_POINTER_EXTS` (a Drive for desktop shortcut) is put in `needs_review` with
-`_POINTER_NOTE` before it is hashed or classified, so its read error on Windows (EINVAL) never
-happens and no ledger entry is made; it shows on each scan until it is removed. Content-gated categories (contracts, pitches, invoices) are listed as
+`plan_followups`, which accepts only the kinds in `_CONTENT_KINDS`. The zip's directory comes from
+`classify.zip_directory` before anything is listed: the end record CPython's zipfile reads, ZIP64
+included, with the central-directory headers counted (`classify._count_headers`), so a stated count
+is not taken on trust; over `classify.ZIP_MAX_ENTRIES` or `ZIP_MAX_DIRECTORY_BYTES` it is not
+listed. A ZIP64 record is read only just before its locator, with no extensible data and the
+directory ending at it, where CPython reads it with or without the CVE-2025-8291 fix; any other
+layout gives no directory, and the zip is not listed. `import_parse._safe_zip` opens a zip through
+the same limits. A file whose extension is in `_GOOGLE_POINTER_EXTS` (a Drive for desktop
+shortcut, `.gmap` included) is put in `needs_review` with `_POINTER_NOTE` before it is opened,
+hashed or classified, and no ledger entry is made; it shows on each scan until it is removed
+<!-- verify: shared/docintel/classify.py::_count_headers -->. Content-gated categories (contracts, pitches, invoices) are listed as
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
 (`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned

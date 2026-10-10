@@ -35,6 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared" / "docintel"))
 import textdecode as _td  # noqa: E402  (a byte-order mark, then strict UTF-8, then cp1252)
+import classify as _classify  # noqa: E402  (a zip's end record, read before zipfile lists it)
 
 SOURCE_MODE = "export_bundle"
 
@@ -81,7 +82,20 @@ def _safe_zip(path):
     """Open a zip, or return None if it is missing/unreadable/corrupt. Note: zipfile.BadZipFile is
     NOT an OSError subclass (it derives directly from Exception), so both must be caught. This lets a
     creator point the importer at a corrupt/partial .zip download and get a clean empty result plus a
-    gap, never a traceback."""
+    gap, never a traceback. The end record is read first (classify.zip_directory), and a zip whose
+    end records are not read here, or whose directory is over classify's limits, is not opened: a
+    note says so and how to import it instead (P102; the inbox proposes a zip it could not list when
+    its name says it is an export)."""
+    if Path(str(path)).is_file():
+        directory = _classify.zip_directory(path)
+        refused = _classify.zip_refusal(directory)
+        if refused:
+            _note(f"this zip is too large to read here ({refused}); unzip it and import the folder")
+            return None
+        if directory is None:
+            _note("this file's zip directory could not be read here (it may be an incomplete "
+                  "download); unzip it and import the folder")
+            return None
     try:
         return zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile):
@@ -558,6 +572,8 @@ def selftest():
         {"Date": "2026-05-01 12:00:00", "Link": "https://www.tiktokv.com/share/video/7300000000000000000/",
          "Likes": "1,234", "Title": "diy hack"}]}}}
     with _tf_tt.TemporaryDirectory() as _td_tt:
+        bad_zip = Path(_td_tt) / "cut-download.zip"
+        bad_zip.write_bytes(b"PK\x03\x04 the start of a zip whose download stopped")
         _ttz = Path(_td_tt) / "TikTok_Data_1759600000.zip"
         _bare = Path(_td_tt) / "TikTok_Data_empty.zip"
         _tgz = Path(_td_tt) / "takeout-20261005T120000Z-001.tgz"
@@ -592,6 +608,46 @@ def selftest():
            in_dir == [] and "folder holds a .tgz" in _err2.getvalue())
         ok("yt studio: a CSV whose column names are all unrecognised gives [] and a note; a known one "
            "gives none", es == [] and quiet == yt and sum("column names" in ln for ln in _lines) == 1)
+        # P102: the TikTok member is matched by its exact name, user_data_tiktok.json first; a
+        # header-only CSV in another language says nothing; a zip over classify's limits, or one whose
+        # end records are not read, is not opened, with a note.
+        _both = Path(_td_tt) / "both.zip"
+        _other = Path(_td_tt) / "other.zip"
+        _many = Path(_td_tt) / "takeout-many.zip"
+        _hdr = Path(_td_tt) / "Encabezados.csv"
+        later = {"Video": {"Videos": {"VideoList": [
+            {"Date": "2026-05-02 12:00:00", "Link": "https://www.tiktokv.com/share/video/7300000000000000001/",
+             "Likes": "5", "Title": "older file"}]}}}
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_both, "w") as _z:
+                _z.writestr("user_data.json", json.dumps(later))
+                _z.writestr("TikTok/user_data_tiktok.json", json.dumps(tt_obj))
+            with zipfile.ZipFile(_other, "w") as _z:
+                _z.writestr("old_user_data.json", json.dumps(later))
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+        _many.write_bytes(_classify._zip_bytes(
+            ["Takeout/YouTube and YouTube Music/video metadata/videos.csv"]
+            + [f"Takeout/x{i}.txt" for i in range(_classify.ZIP_MAX_ENTRIES + 1)]))
+        _hdr.write_text("Contenido,Visualizaciones\n", encoding="utf-8")
+        _err3 = _io_n.StringIO()
+        with _cl_n.redirect_stderr(_err3):
+            from_both = parse_tiktok_dyi(str(_both))
+            from_other = parse_tiktok_dyi(str(_other))
+            from_many = parse_youtube_takeout(str(_many))
+            from_bad = parse_youtube_studio_zip(bad_zip)
+            from_hdr = parse_youtube_studio_csv(str(_hdr))
+        _lines3 = [ln for ln in _err3.getvalue().splitlines() if ln.startswith("note: ")]
+        ok("tiktok dyi: user_data_tiktok.json is read before user_data.json, and a member that only "
+           "ends in user_data.json is not taken",
+           from_both == parse_tiktok_dyi(tt_obj) and from_other == []
+           and any("no user_data_tiktok.json" in ln for ln in _lines3))
+        ok("a zip over the entry limit is not opened, and its note says to unzip it",
+           from_many == [] and any("too large to read here" in ln and "50,000" in ln for ln in _lines3))
+        ok("a file whose zip directory is not read gives [] and a note naming an incomplete download",
+           from_bad == [] and any("incomplete download" in ln for ln in _lines3))
+        ok("a header-only CSV with unrecognised column names gives [] and no note",
+           from_hdr == [] and not any("column names" in ln for ln in _lines3))
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})
@@ -602,10 +658,11 @@ def selftest():
     import tempfile as _tf
     bad = Path(_tf.mkdtemp()) / "corrupt.zip"
     bad.write_bytes(b"this is not a zip file at all")
-    ok("corrupt studio zip -> [] (no raise)", parse_youtube_studio_zip(bad) == [])
-    ok("corrupt takeout zip -> [] (no raise)", parse_youtube_takeout(bad) == [])
-    ok("corrupt instagram zip -> [] (no raise)", parse_instagram_dyi(bad) == [])
-    ok("missing zip path -> [] (no raise)", parse_youtube_studio_zip(Path(_tf.mkdtemp()) / "nope.zip") == [])
+    with _cl_n.redirect_stderr(_io_n.StringIO()):  # each prints its note
+        ok("corrupt studio zip -> [] (no raise)", parse_youtube_studio_zip(bad) == [])
+        ok("corrupt takeout zip -> [] (no raise)", parse_youtube_takeout(bad) == [])
+        ok("corrupt instagram zip -> [] (no raise)", parse_instagram_dyi(bad) == [])
+        ok("missing zip path -> [] (no raise)", parse_youtube_studio_zip(Path(_tf.mkdtemp()) / "nope.zip") == [])
 
     # every parser output is normalize_record-ready
     sys.path.insert(0, str(Path(__file__).resolve().parent))

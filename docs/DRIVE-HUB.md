@@ -166,17 +166,19 @@ when the local `job_store_writes_enabled` capability is on (an acknowledged togg
 AND its ticket asks. Unknown files are flagged and left in place, never guessed. The wizard's hub
 screen offers a Drive for desktop folder named as `drive_hub.folder_name` in your config says
 (default `Creator OS`). An export zip is
-recognised by the names of the files inside it, whatever its download name: a `Takeout/` folder, a
-YouTube Studio table beside its chart data or totals (English or Spanish file names), an
-`your_instagram_activity/` folder, or TikTok's `user_data_tiktok.json`; nothing is extracted. A zip
-whose file list is too large to check (more than 50,000 files, or a directory over 16 MB, read from
-its end record without listing it) is proposed by its name when the name says it is an export, and
-otherwise held for review with a pointer to the wizard's `/import` screen
+recognised by the names of the files inside it, whatever its download name: a YouTube folder in a
+`Takeout/` folder, a YouTube Studio table beside its chart data or totals (English or Spanish file
+names), a `your_instagram_activity/` folder, or TikTok's `user_data_tiktok.json`; nothing is
+extracted. A zip whose file list is too large to check (more than 50,000 files counted in its
+directory, or a directory over 16 MB, read from the end record CPython's zipfile reads, without
+listing it) is proposed by its name when the name says it is an export, and otherwise held for
+review with a pointer to the wizard's `/import` screen; the import tool does not open such a zip
+either, and its note says to unzip it
 <!-- verify: tools/handoff/inbox.py::export_kind_from_members -->. A Google Docs, Sheets, Slides,
-Drawings, Forms or Tables shortcut (`.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`, `.gtable`),
-which Drive for desktop shows for a file whose content stays in Google Drive, is held for review by
-its extension and never opened, with a note to download the file into the Inbox or read it with
-the Google Drive connector; on Windows such a shortcut cannot be read at all.
+Drawings, Forms, Tables or My Maps shortcut (`.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`,
+`.gtable`, `.gmap`), which Drive for desktop shows for a file whose content stays in Google Drive,
+is held for review by its extension and not opened, with a note to download the file into the Inbox
+or read it with the Google Drive connector.
 Files that the injection guard quarantines are never routed. Approved files are recorded in the
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.
@@ -289,6 +291,7 @@ declared below and registered in the source registry, so the currency system re-
   {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
   {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
   {"id": "google-drive-desktop-org-setup", "name": "Set up Drive for desktop for your organization (Google Workspace Admin Help)", "url": "https://knowledge.workspace.google.com/admin/drive/set-up-drive-for-desktop-for-your-organization", "category": "os-platform", "tier": "T1"},
-  {"id": "fileinfo-google-drive-file-types", "name": "Google Drive file types (FileInfo)", "url": "https://fileinfo.com/help/google_drive_file_types", "category": "platform-spec", "tier": "T3"}
+  {"id": "fileinfo-google-drive-file-types", "name": "Google Drive file types (FileInfo)", "url": "https://fileinfo.com/help/google_drive_file_types", "category": "platform-spec", "tier": "T3"},
+  {"id": "fileinfo-gmap", "name": "GMAP file extension: Google My Maps shortcut (FileInfo)", "url": "https://fileinfo.com/extension/gmap", "category": "platform-spec", "tier": "T3"}
 ]
 ```

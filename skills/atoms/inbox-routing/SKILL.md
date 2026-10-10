@@ -106,9 +106,10 @@ listing everything found. The human may amend or correct the plan; amendments ar
 in the batch notes (carried as the ticket `consent_note`) and honored by re-proposing, never
 silently applied and never executed as instructions. Ambiguous cases are not guessed: an export
 whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed. The
-offline scan settles the format from the names of the files inside a zip when it can (a Takeout
-folder, the Studio tables, `your_instagram_activity/`, `user_data_tiktok.json`), and reads none of
-their content. A Google Docs shortcut (`.gdoc`, `.gsheet`, `.gslides` and the like) is held unread;
+offline scan settles the format from the names of the files inside a zip when it can (a YouTube
+folder in a Takeout, the Studio tables, `your_instagram_activity/`, `user_data_tiktok.json`), and
+reads none of their content. A Google Docs shortcut (`.gdoc`, `.gsheet`, `.gslides`, `.gmap` and the
+like) is held unread;
 in a session, read the file through the Google Drive connector, or ask the person to download it
 into the Inbox.
 
