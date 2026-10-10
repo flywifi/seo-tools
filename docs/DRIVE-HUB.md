@@ -163,7 +163,9 @@ per-item checkbox and an "Anything to change?" note, and a second click queues o
 jobs. The note travels with the work as the ticket `consent_note` for human review; it is never
 parsed or executed. Jobs are proposal-only by default; a job writes to the library directly only
 when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
-AND its ticket asks. Unknown files are flagged and left in place, never guessed. An export zip is
+AND its ticket asks. Unknown files are flagged and left in place, never guessed. The wizard's hub
+screen offers a Drive for desktop folder named as `drive_hub.folder_name` in your config says
+(default `Creator OS`). An export zip is
 recognised by the names of the files inside it, whatever its download name: a `Takeout/` folder, a
 YouTube Studio table beside its chart data or totals (English or Spanish file names), an
 `your_instagram_activity/` folder, or TikTok's `user_data_tiktok.json`; nothing is extracted. A zip

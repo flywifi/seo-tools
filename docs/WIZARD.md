@@ -246,7 +246,8 @@ type (import folder, Creator OS folder) are confined to your home directory afte
 symlinks; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
 Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being
 silently replaced; and the import scan/approve flow is tied to a single-use token so two open tabs
-cannot approve each other's scan.
+cannot approve each other's scan. The parsed videos wait for approval in a temporary file, which is
+deleted when you approve (whether the save works or not) and when a new scan replaces it.
 
 **Config files the wizard writes:**
 

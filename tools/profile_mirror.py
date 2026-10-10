@@ -428,7 +428,7 @@ def sync_doc(token, markdown: str, state: dict, transport=None, now=None, log=No
         action = "adopted" if adopted else "updated"
     if not doc_id:
         parent_id, err = None, None
-        root_id, err = da.find_folder(token, HUB_FOLDER, transport)
+        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name
         if not err:
             parent_id, err = da.find_folder(token, HUB_SUBDIR, transport, parent_id=root_id)
         if err and err.startswith(("HTTP", "bad JSON")):
@@ -893,6 +893,7 @@ class _FakeDrive:
         self.token, self.files, self.n, self.t, self.calls = token, {}, 0, 0, []
         self.folders_visible, self.fail_get, self.patch_404_once = folders_visible, None, False
         self.raise_on = None
+        self.hub_name = "Creator OS"  # the hub folder's name in this fake My Drive
 
     def tick(self):
         self.t += 1
@@ -922,7 +923,7 @@ class _FakeDrive:
             parent = re.search(r"'([^']+)' in parents", q)
             parent = parent.group(1) if parent else None
             if "folder" in q:
-                folders = {"fld-Decoy": ("Profile", "root"), "fld-Creator": ("Creator OS", "root"),
+                folders = {"fld-Decoy": ("Profile", "root"), "fld-Creator": (self.hub_name, "root"),
                            "fld-Profile": ("Profile", "fld-Creator")} if self.folders_visible else {}
                 hits = [{"id": i} for i, (n, p) in folders.items()
                         if n == name and (parent is None or p == parent)]
@@ -1128,6 +1129,20 @@ def _pins_doc(m, tmp) -> list:
     r, c, _ = run(d3, st3, "# v1\n")
     out.append(("I: hub folders visible: the Doc is created in Creator OS/Profile",
                 r["placed"] == "profile" and st3["doc"]["parents"] == ["fld-Profile"]))
+    # P102: a hub folder configured under another name is the one looked up.
+    real_name = m.pd.hub_folder_name
+    m.pd.hub_folder_name = lambda load=None: "Creator OS Test"
+    try:
+        d4, st4 = _FakeDrive(tok, folders_visible=True), {"doc": {}}
+        d4.hub_name = "Creator OS Test"
+        r4, c4, _ = run(d4, st4, "# v1\n")
+    finally:
+        m.pd.hub_folder_name = real_name
+    asked = [urllib.parse.parse_qs(urllib.parse.urlparse(u).query).get("q", [""])[0] for _m, u, _h, _d in c4]
+    out.append(("I2: a hub folder configured as 'Creator OS Test' is looked up by that name",
+                r4["placed"] == "profile" and st4["doc"]["parents"] == ["fld-Profile"]
+                and any("name = 'Creator OS Test'" in q for q in asked)
+                and not any("name = 'Creator OS'" in q for q in asked)))
     d.fail_get = 401
     snap = json.dumps(st, sort_keys=True)
     r, c, _ = run(d, st, "# v8\n")
@@ -1682,6 +1697,7 @@ _MUTANTS = (
     ('doc: a new Doc always carries a parents key (empty when unknown)', 'doc', '        if parent_id:\n            meta["parents"] = [parent_id]', '        meta["parents"] = [parent_id] if parent_id else []'),
     ('doc: Profile is looked up only when the hub lookup failed', 'doc', '        if not err:\n            parent_id, err = da.find_folder', '        if err:\n            parent_id, err = da.find_folder'),
     ('doc: the Doc goes into the hub root, not Profile', 'doc', '            parent_id, err = da.find_folder(token, HUB_SUBDIR, transport, parent_id=root_id)', '            parent_id, err = root_id, None'),
+    ('doc: the hub folder is looked up by the fixed name', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, HUB_FOLDER, transport)'),
     ('doc: a created Doc is always recorded as my-drive', 'doc', '        action, placed = "created", ("profile" if parent_id else "my-drive")', '        action, placed = "created", "my-drive"'),
     ('doc: the move-it note is logged for the wrong placement', 'doc', '        if placed == "my-drive":', '        if placed == "moved":'),
     ('doc: edits in Drive are never detected', 'doc', '            edited = meta.get("modifiedTime") != doc["modified_time"]', '            edited = False'),

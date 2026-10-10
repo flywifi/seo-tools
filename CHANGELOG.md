@@ -13,6 +13,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (the configured hub folder name): the wizard's hub screen asks
+  `watcher.detect_mirror_candidates` for the folder named in `drive_hub.folder_name`, and the
+  profile mirror's Doc lookup and `project_docs.py project --api` use it too
+  (`project_docs.hub_folder_name`); all three used to look for `Creator OS` only.
+- P102 (import batch deleted): the wizard deletes the parsed import batch
+  (`creator-os-import-*.json` in the temp folder, a channel's titles, descriptions and numbers)
+  after approve, whether the save works or not, and before a new scan writes its own; it used to
+  stay in the temp folder.
 - P102 (Google Docs shortcuts in the Inbox): a `.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`
   or `.gtable` file (Drive for desktop's shortcut to a file whose content stays in Google Drive) is
   held for review by its extension, before any read, with a note to download it into the Inbox or

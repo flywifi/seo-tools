@@ -2771,8 +2771,9 @@ def _drive_hub_status() -> dict:
     except Exception as exc:  # noqa: BLE001
         return {"error": f"handoff tools unavailable: {exc}"}
     hub, note = _watcher.resolve_hub(None)
-    out = {"hub": hub, "note": note, "candidates": _watcher.detect_mirror_candidates(),
-           "folder_name": _watcher.load_hub_config().get("folder_name", "Creator OS")}
+    folder_name = _watcher.load_hub_config().get("folder_name", "Creator OS")
+    out = {"hub": hub, "note": note, "folder_name": folder_name,
+           "candidates": _watcher.detect_mirror_candidates(folder_name=folder_name)}
     if hub:
         try:
             out["status"] = _watcher.status(hub)
@@ -3508,6 +3509,18 @@ def _import_targets(folder, kind):
     return out[:200]
 
 
+def _drop_import_batch() -> None:
+    """Delete the parsed import batch this session last stashed (P102: it holds a channel's titles,
+    descriptions and numbers) and forget it. A file already gone is fine."""
+    batch = _get("import_batch_file")
+    if batch:
+        try:
+            os.unlink(batch)
+        except OSError:
+            pass
+    _set(import_batch_file="", import_batch_token="")
+
+
 def _run_import_parse(fmt, path, crashes=None, notes=None):
     """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
     attempt did not parse (wrong format for this folder, unreadable file). A run that stopped with
@@ -4140,8 +4153,11 @@ anything, and closing this window does not stop the work.</p>
                     out = json.loads(r.stdout or "{}")
                     n = out.get("upserted", 0)
                 except Exception as exc:  # noqa: BLE001
-                    self._send(_screen_import(error=f"Could not save the library: {exc}"))
+                    self._send(_screen_import(error=f"Could not save the library: {exc} (scan the "
+                                                    "folder again to retry)"))
                     return
+                finally:
+                    _drop_import_batch()  # the batch holds the channel's data; it is not kept
                 _set(import_count=n)
                 self._send(_screen_import(saved=(
                     f"Saved <strong>{n}</strong> video record(s) to your local library (nothing left this "
@@ -4190,6 +4206,8 @@ anything, and closing this window does not stop the work.</p>
                 self._send(_screen_import(folder=folder, preview_html=preview))
                 return
             # Stash the parsed records to a temp batch file for the approve step (local; user's data).
+            # The batch of an earlier scan is deleted first: this one replaces it.
+            _drop_import_batch()
             try:
                 fd, tmp = tempfile.mkstemp(prefix="creator-os-import-", suffix=".json")
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -6080,6 +6098,83 @@ def _selftest_p101() -> int:
           and _bk is not None and _bk[0] == 0 and _bk[1] == "" and _bk[2] and _bk[4],
           f"the wizard selftest wrapper does not refuse a lock in the checkout without opening it, "
           f"take a lock beside it, or fail on a touched credentials lock ({_cases_k})")
+    # P102: the hub screen looks for the hub folder under its configured name.
+    from handoff import watcher as _w_hs
+    _saved_hs = (_w_hs.resolve_hub, _w_hs.load_hub_config, _w_hs.detect_mirror_candidates)
+    _seen_hs = []
+    try:
+        _w_hs.resolve_hub = lambda hub: (None, "no hub configured")
+        _w_hs.load_hub_config = lambda: {"folder_name": "Creator OS Test"}
+        _w_hs.detect_mirror_candidates = lambda **kw: (_seen_hs.append(kw.get("folder_name"))
+                                                       or ["G:\\My Drive\\Creator OS Test"])
+        _hs = _drive_hub_status()
+    finally:
+        _w_hs.resolve_hub, _w_hs.load_hub_config, _w_hs.detect_mirror_candidates = _saved_hs
+    check(_seen_hs == ["Creator OS Test"] and _hs.get("folder_name") == "Creator OS Test"
+          and _hs.get("candidates") == ["G:\\My Drive\\Creator OS Test"],
+          f"the hub screen does not look for the configured hub folder name ({_seen_hs}, {_hs})")
+    # P102: the parsed import batch (a channel's titles, descriptions and numbers) is deleted after
+    # approve, whether the save worked or not, and a new scan deletes the batch of the scan before.
+    _g_ib = globals()
+    _ib_dir = tempfile.TemporaryDirectory(prefix="wizard-batch-")
+    _saved_ib = {k: _g_ib[k] for k in ("_confined_folder", "_scan_import_folder", "_STATE_PATH", "subprocess")}
+    _wstate_ib = _g_ib["_state"]  # the module's state; this function has a local named _state
+    with _lock:
+        _saved_state_ib = dict(_wstate_ib)
+    _saved_tempdir_ib = tempfile.tempdir
+
+    def _post_ib(form):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = "/api/run-import", {}
+        _h._read_body = lambda: urllib.parse.urlencode(form, doseq=True)
+        _h._read_form = lambda: dict(form)
+        _h._send = lambda body, status=200, content_type="text/html": None
+        _h._redirect = lambda location: None
+        _h.do_POST()
+
+    class _SaveIb:
+        def __init__(self, fail):
+            self.fail, self.batches = fail, []
+
+        def run(self, argv, **kw):
+            self.batches.append(argv[-1])
+            if self.fail:
+                raise OSError("disk full")
+            return _saved_ib["subprocess"].CompletedProcess(argv, 0, '{"upserted": 1}', "")
+    try:
+        tempfile.tempdir = _ib_dir.name
+        _g_ib["_STATE_PATH"] = pathlib.Path(_ib_dir.name) / "wizard-state.json"
+        _g_ib["_confined_folder"] = lambda folder, **kw: (True, folder, None)
+        _g_ib["_scan_import_folder"] = lambda folder, platforms: (
+            [{"platform": "youtube", "platform_video_id": "abc123", "title": "Fictional video"}],
+            ["youtube: 1 record(s)"])
+        _scan_form = {"action": "scan", "folder": "/fictional/export", "platforms": ["youtube"]}
+        _post_ib(_scan_form)
+        _first = _get("import_batch_file")
+        _post_ib(_scan_form)
+        _second = _get("import_batch_file")
+        _replaced = bool(_first) and _first != _second and not os.path.exists(_first) and os.path.isfile(_second)
+        _ok_ib = _SaveIb(False)
+        _g_ib["subprocess"] = _ok_ib
+        _post_ib({"action": "approve", "batch_token": _get("import_batch_token")})
+        _after_ok = (_get("import_batch_file"), os.path.exists(_second), _ok_ib.batches == [_second])
+        _g_ib["subprocess"] = _saved_ib["subprocess"]
+        _post_ib(_scan_form)
+        _third = _get("import_batch_file")
+        _g_ib["subprocess"] = _SaveIb(True)
+        _post_ib({"action": "approve", "batch_token": _get("import_batch_token")})
+        _after_fail = (_get("import_batch_file"), os.path.exists(_third))
+        _left = sorted(p.name for p in pathlib.Path(_ib_dir.name).glob("creator-os-import-*.json"))
+    finally:
+        _g_ib.update(_saved_ib)
+        tempfile.tempdir = _saved_tempdir_ib
+        with _lock:
+            _wstate_ib.clear()
+            _wstate_ib.update(_saved_state_ib)
+        _ib_dir.cleanup()
+    check(_replaced and _after_ok == ("", False, True) and _after_fail == ("", False) and _left == [],
+          f"the parsed import batch is left in the temp folder ({_replaced}, {_after_ok}, {_after_fail}, "
+          f"{_left})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:

@@ -4,7 +4,7 @@
   "docs": {
     "docs/PROFILE-MIRROR.md": {
       "sources": {
-        "tools/profile_mirror.py": "a4432fa617e6a1fcc42ae47dfe6d2380c39a24ce0070536ccc572284b3323c64",
+        "tools/profile_mirror.py": "4948c815daac2f677ccd46049f1309d03e3c1e0d9449c133afea605006b6ba43",
         "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
       }
     },
@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "b0c0777cb9c7cfb887d135617bdc21f6eb425e19e81b0a14782dd0fa4501eafa",
+        "tools/wizard.py": "dbdcb81f967cbedf1fdde33c449ed4129e43cbecc109c227eb69858d98339aa0",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -138,7 +138,7 @@
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "3ae93f564a3a46947371af7bb9a4815934661a0f2ba5665039edd6e0ca34b98b",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
-        "tools/project_docs.py": "15835534381e7ec3abaa57a03aebacb658a05887e75237e6f971f34184763069"
+        "tools/project_docs.py": "a362f89069f435327ff9a627dbae380f81d5f06765205ee2815ee7b8581305c6"
       }
     },
     "tools/handoff/MAINTAINER_README.md": {
